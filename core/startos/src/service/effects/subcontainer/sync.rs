@@ -46,7 +46,7 @@ pub fn kill_init(procfs: &Path, chroot: &Path) -> Result<(), Error> {
                 .get(OsStr::new("pid"))
                 .map_or(false, |ns| ns.identifier == ns_id)
             {
-                let pids = proc.read::<NSPid>("status").with_ctx(|_| {
+                let pids = proc.read::<_, NSPid>("status").with_ctx(|_| {
                     (
                         ErrorKind::Filesystem,
                         lazy_format!("read pid {} NSpid", pid),

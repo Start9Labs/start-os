@@ -2,7 +2,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::Arc;
 use std::time::Duration;
 
-use helpers::NonDetachingJoinHandle;
+use crate::util::future::NonDetachingJoinHandle;
 use socks5_impl::protocol::{Address, Reply};
 use socks5_impl::server::auth::NoAuth;
 use socks5_impl::server::{AuthAdaptor, ClientConnection, Server};

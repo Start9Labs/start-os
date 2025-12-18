@@ -1,7 +1,7 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use imbl_value::InternedString;
-use models::{GatewayId, HostId, ServiceInterfaceId};
+use crate::{GatewayId, HostId, ServiceInterfaceId};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

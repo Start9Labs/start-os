@@ -13,10 +13,10 @@ use clap::Parser;
 use futures::future::BoxFuture;
 use futures::stream::FusedStream;
 use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
-use helpers::{AtomicFile, NonDetachingJoinHandle};
+use crate::util::future::NonDetachingJoinHandle;
 use imbl_value::{InternedString, json};
 use itertools::Itertools;
-use models::{ActionId, HostId, ImageId, PackageId};
+use crate::{ActionId, HostId, ImageId, PackageId};
 use nix::sys::signal::Signal;
 use persistent_container::{PersistentContainer, Subcontainer};
 use rpc_toolkit::HandlerArgs;
@@ -47,7 +47,7 @@ use crate::service::service_map::InstallProgressHandles;
 use crate::service::uninstall::cleanup;
 use crate::util::Never;
 use crate::util::actor::concurrent::ConcurrentActor;
-use crate::util::io::{AsyncReadStream, TermSize, delete_file};
+use crate::util::io::{AsyncReadStream, AtomicFile, TermSize, delete_file};
 use crate::util::net::WebSocketExt;
 use crate::util::serde::Pem;
 use crate::util::sync::SyncMutex;
@@ -58,6 +58,7 @@ pub mod action;
 pub mod cli;
 pub mod effects;
 pub mod persistent_container;
+pub mod procedure_name;
 mod rpc;
 mod service_actor;
 pub mod service_map;
@@ -65,6 +66,7 @@ pub mod start_stop;
 mod transition;
 pub mod uninstall;
 
+pub use procedure_name::ProcedureName;
 pub use service_map::ServiceMap;
 
 pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 15;
@@ -580,16 +582,15 @@ impl Service {
     #[instrument(skip_all)]
     pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<(), Error> {
         let id = &self.seed.id;
-        let mut file = AtomicFile::new(guard.path().join(id).with_extension("s9pk"), None::<&str>)
-            .await
-            .with_kind(ErrorKind::Filesystem)?;
+        let mut file =
+            AtomicFile::new(guard.path().join(id).with_extension("s9pk"), None::<&str>).await?;
         self.seed
             .persistent_container
             .s9pk
             .clone()
             .serialize(&mut *file, true)
             .await?;
-        file.save().await.with_kind(ErrorKind::Filesystem)?;
+        file.save().await?;
         // TODO: reverify?
         let backup = self
             .actor

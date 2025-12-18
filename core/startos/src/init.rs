@@ -7,7 +7,6 @@ use axum::extract::ws;
 use const_format::formatcp;
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
-use models::ResultExt;
 use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
@@ -39,7 +38,7 @@ use crate::util::io::{IOHook, open_file};
 use crate::util::lshw::lshw;
 use crate::util::net::WebSocketExt;
 use crate::util::{Invoke, cpupower};
-use crate::{Error, MAIN_DATA, PACKAGE_DATA};
+use crate::{Error, MAIN_DATA, PACKAGE_DATA, ResultExt};
 
 pub const SYSTEM_REBUILD_PATH: &str = "/media/startos/config/system-rebuild";
 pub const STANDBY_MODE_PATH: &str = "/media/startos/config/standby";
@@ -303,8 +302,8 @@ pub async fn init(
     if tokio::fs::metadata(&downloading).await.is_ok() {
         tokio::fs::remove_dir_all(&downloading).await?;
     }
-    let tmp_docker = Path::new(PACKAGE_DATA).join(formatcp!("tmp/{CONTAINER_TOOL}"));
-    crate::disk::mount::util::bind(&tmp_docker, CONTAINER_DATADIR, false).await?;
+    let tmp_docker = Path::new(PACKAGE_DATA).join("tmp").join(*CONTAINER_TOOL);
+    crate::disk::mount::util::bind(&tmp_docker, *CONTAINER_DATADIR, false).await?;
     init_tmp.complete();
 
     let server_info = db.peek().await.into_public().into_server_info();

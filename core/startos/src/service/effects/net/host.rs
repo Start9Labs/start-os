@@ -1,4 +1,4 @@
-use models::{HostId, PackageId};
+use crate::{HostId, PackageId};
 
 use crate::net::host::Host;
 use crate::service::effects::callbacks::CallbackHandler;

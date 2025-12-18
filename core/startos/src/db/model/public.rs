@@ -9,7 +9,7 @@ use imbl_value::InternedString;
 use ipnet::IpNet;
 use isocountry::CountryCode;
 use itertools::Itertools;
-use models::{GatewayId, PackageId};
+use crate::{GatewayId, PackageId};
 use openssl::hash::MessageDigest;
 use patch_db::{HasModel, Value};
 use serde::{Deserialize, Serialize};

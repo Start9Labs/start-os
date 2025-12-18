@@ -9,7 +9,7 @@ use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
-use helpers::NonDetachingJoinHandle;
+use crate::util::future::NonDetachingJoinHandle;
 use hickory_client::client::Client;
 use hickory_client::proto::DnsHandle;
 use hickory_client::proto::runtime::TokioRuntimeProvider;
@@ -23,7 +23,7 @@ use hickory_server::proto::rr::{Name, Record, RecordType};
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use imbl::OrdMap;
 use imbl_value::InternedString;
-use models::{GatewayId, OptionExt, PackageId};
+use crate::{GatewayId, OptionExt, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{
     Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async, from_fn_blocking,

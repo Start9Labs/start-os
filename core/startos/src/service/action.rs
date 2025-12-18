@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use imbl_value::json;
-use models::{ActionId, PackageId, ProcedureName, ReplayId};
+use crate::service::ProcedureName;
+use crate::{ActionId, PackageId, ReplayId};
 
 use crate::action::{ActionInput, ActionResult};
 use crate::db::model::package::{

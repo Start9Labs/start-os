@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
-use yasi::InternedString;
+use imbl_value::InternedString;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
 #[ts(type = "string")]

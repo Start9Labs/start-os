@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use futures::future::{BoxFuture, ready};
 use futures::{Future, FutureExt, TryFutureExt};
-use helpers::NonDetachingJoinHandle;
+use crate::util::future::NonDetachingJoinHandle;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::prelude::*;

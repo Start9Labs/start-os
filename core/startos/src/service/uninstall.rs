@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use models::PackageId;
+use crate::PackageId;
 
 use crate::context::RpcContext;
 use crate::db::model::package::{InstalledState, InstallingInfo, InstallingState, PackageState};

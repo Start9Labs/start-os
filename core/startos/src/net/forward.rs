@@ -4,11 +4,11 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use futures::channel::oneshot;
-use helpers::NonDetachingJoinHandle;
+use crate::util::future::NonDetachingJoinHandle;
 use id_pool::IdPool;
 use iddqd::{IdOrdItem, IdOrdMap};
 use imbl::OrdMap;
-use models::GatewayId;
+use crate::GatewayId;
 use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;

@@ -1,14 +1,59 @@
+use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Weak;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use futures::future::{BoxFuture, FusedFuture, abortable, pending};
 use futures::stream::{AbortHandle, Abortable, BoxStream};
 use futures::{Future, FutureExt, Stream, StreamExt};
-use tokio::sync::watch;
-use tokio::task::LocalSet;
+use tokio::sync::{oneshot, watch};
+use tokio::task::{JoinError, JoinHandle, LocalSet};
 
 use crate::prelude::*;
+
+#[pin_project::pin_project(PinnedDrop)]
+pub struct NonDetachingJoinHandle<T>(#[pin] JoinHandle<T>);
+impl<T> NonDetachingJoinHandle<T> {
+    pub async fn wait_for_abort(self) -> Result<T, JoinError> {
+        self.abort();
+        self.await
+    }
+}
+impl<T> From<JoinHandle<T>> for NonDetachingJoinHandle<T> {
+    fn from(t: JoinHandle<T>) -> Self {
+        NonDetachingJoinHandle(t)
+    }
+}
+
+impl<T> Deref for NonDetachingJoinHandle<T> {
+    type Target = JoinHandle<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T> DerefMut for NonDetachingJoinHandle<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[pin_project::pinned_drop]
+impl<T> PinnedDrop for NonDetachingJoinHandle<T> {
+    fn drop(self: std::pin::Pin<&mut Self>) {
+        let this = self.project();
+        this.0.into_ref().get_ref().abort()
+    }
+}
+impl<T> Future for NonDetachingJoinHandle<T> {
+    type Output = Result<T, JoinError>;
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let this = self.project();
+        this.0.poll(cx)
+    }
+}
 
 #[pin_project::pin_project(PinnedDrop)]
 pub struct DropSignaling<F> {
@@ -221,5 +266,61 @@ impl<Fut: Future> Future for WeakFuture<Fut> {
         } else {
             Poll::Ready(None)
         }
+    }
+}
+
+pub struct TimedResource<T: 'static + Send> {
+    handle: NonDetachingJoinHandle<Option<T>>,
+    ready: oneshot::Sender<()>,
+}
+impl<T: 'static + Send> TimedResource<T> {
+    pub fn new(resource: T, timer: Duration) -> Self {
+        let (send, recv) = oneshot::channel();
+        let handle = tokio::spawn(async move {
+            tokio::select! {
+                _ = tokio::time::sleep(timer) => {
+                    drop(resource);
+                    None
+                },
+                _ = recv => Some(resource),
+            }
+        });
+        Self {
+            handle: handle.into(),
+            ready: send,
+        }
+    }
+
+    pub fn new_with_destructor<
+        Fn: FnOnce(T) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
+    >(
+        resource: T,
+        timer: Duration,
+        destructor: Fn,
+    ) -> Self {
+        let (send, recv) = oneshot::channel();
+        let handle = tokio::spawn(async move {
+            tokio::select! {
+                _ = tokio::time::sleep(timer) => {
+                    destructor(resource).await;
+                    None
+                },
+                _ = recv => Some(resource),
+            }
+        });
+        Self {
+            handle: handle.into(),
+            ready: send,
+        }
+    }
+
+    pub async fn get(self) -> Option<T> {
+        let _ = self.ready.send(());
+        self.handle.await.unwrap()
+    }
+
+    pub fn is_timed_out(&self) -> bool {
+        self.ready.is_closed()
     }
 }

@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
-use models::{ErrorData, HealthCheckId};
+use crate::error::ErrorData;
+use crate::HealthCheckId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

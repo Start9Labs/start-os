@@ -1,12 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock, OnceLock};
 
 use clap::Parser;
 use futures::future::{BoxFuture, ready};
 use futures::{FutureExt, TryStreamExt};
 use imbl_value::InternedString;
-use models::{DataUrl, ImageId, PackageId, VersionString};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::OnceCell;
@@ -31,17 +30,33 @@ use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::util::io::{TmpDir, create_file, open_file};
 use crate::util::serde::IoFormat;
-use crate::util::{Invoke, PathOrUrl, new_guid};
+use crate::util::{DataUrl, Invoke, PathOrUrl, VersionString, new_guid};
+use crate::{ImageId, PackageId};
 
-#[cfg(not(feature = "docker"))]
-pub const CONTAINER_TOOL: &str = "podman";
-#[cfg(feature = "docker")]
-pub const CONTAINER_TOOL: &str = "docker";
+pub static PREFER_DOCKER: OnceLock<bool> = OnceLock::new();
 
-#[cfg(feature = "docker")]
-pub const CONTAINER_DATADIR: &str = "/var/lib/docker";
-#[cfg(not(feature = "docker"))]
-pub const CONTAINER_DATADIR: &str = "/var/lib/containers";
+pub static CONTAINER_TOOL: LazyLock<&'static str> = LazyLock::new(|| {
+    if *PREFER_DOCKER.get_or_init(|| false) {
+        if std::process::Command::new("which")
+            .arg("docker")
+            .status()
+            .map_or(false, |o| o.success())
+        {
+            "docker"
+        } else {
+            "podman"
+        }
+    } else {
+        "podman"
+    }
+});
+pub static CONTAINER_DATADIR: LazyLock<&'static str> = LazyLock::new(|| {
+    if *CONTAINER_TOOL == "docker" {
+        "/var/lib/docker"
+    } else {
+        "/var/lib/containers"
+    }
+});
 
 pub struct SqfsDir {
     path: PathBuf,
@@ -423,8 +438,8 @@ impl ImageSource {
                     };
                     // docker buildx build ${path} -o type=image,name=start9/${id}
                     let tag = format!("start9/{id}/{image_id}:{}", new_guid());
-                    let mut command = Command::new(CONTAINER_TOOL);
-                    if CONTAINER_TOOL == "docker" {
+                    let mut command = Command::new(*CONTAINER_TOOL);
+                    if *CONTAINER_TOOL == "docker" {
                         command.arg("buildx");
                     }
                     command
@@ -461,13 +476,13 @@ impl ImageSource {
                         .arg("-o")
                         .arg("type=docker,dest=-")
                         .capture(false)
-                        .pipe(Command::new(CONTAINER_TOOL).arg("load"))
+                        .pipe(Command::new(*CONTAINER_TOOL).arg("load"))
                         .invoke(ErrorKind::Docker)
                         .await?;
                     ImageSource::DockerTag(tag.clone())
                         .load(tmp_dir, id, version, image_id, arch, into)
                         .await?;
-                    Command::new(CONTAINER_TOOL)
+                    Command::new(*CONTAINER_TOOL)
                         .arg("rmi")
                         .arg("-f")
                         .arg(&tag)
@@ -484,7 +499,7 @@ impl ImageSource {
                         format!("--platform=linux/{arch}")
                     };
                     let container = String::from_utf8(
-                        Command::new(CONTAINER_TOOL)
+                        Command::new(*CONTAINER_TOOL)
                             .arg("create")
                             .arg(&docker_platform)
                             .arg(&tag)
@@ -493,7 +508,7 @@ impl ImageSource {
                     )?;
                     let container = container.trim();
                     let config = serde_json::from_slice::<DockerImageConfig>(
-                        &Command::new(CONTAINER_TOOL)
+                        &Command::new(*CONTAINER_TOOL)
                             .arg("container")
                             .arg("inspect")
                             .arg("--format")
@@ -545,14 +560,14 @@ impl ImageSource {
                         .join(Guid::new().as_ref())
                         .with_extension("squashfs");
 
-                    Command::new(CONTAINER_TOOL)
+                    Command::new(*CONTAINER_TOOL)
                         .arg("export")
                         .arg(container)
                         .pipe(&mut tar2sqfs(&dest)?)
                         .capture(false)
                         .invoke(ErrorKind::Docker)
                         .await?;
-                    Command::new(CONTAINER_TOOL)
+                    Command::new(*CONTAINER_TOOL)
                         .arg("rm")
                         .arg(container)
                         .invoke(ErrorKind::Docker)
@@ -586,7 +601,7 @@ fn tar2sqfs(dest: impl AsRef<Path>) -> Result<Command, Error> {
                 .parent()
                 .unwrap_or_else(|| Path::new("/"))
                 .to_path_buf();
-            let mut command = Command::new(CONTAINER_TOOL);
+            let mut command = Command::new(*CONTAINER_TOOL);
             command
                 .arg("run")
                 .arg("-i")

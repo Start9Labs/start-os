@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::InternedString;
-use models::GatewayId;
+use crate::GatewayId;
 use serde::{Deserialize, Serialize};
 
 use super::v0_3_5::V0_3_0_COMPAT;

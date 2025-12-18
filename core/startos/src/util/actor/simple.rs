@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use futures::future::ready;
 use futures::{Future, FutureExt, TryFutureExt};
-use helpers::NonDetachingJoinHandle;
+use crate::util::future::NonDetachingJoinHandle;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
 

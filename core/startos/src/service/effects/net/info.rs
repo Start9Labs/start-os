@@ -1,6 +1,6 @@
 use std::net::Ipv4Addr;
 
-use models::PackageId;
+use crate::PackageId;
 
 use crate::service::effects::callbacks::CallbackHandler;
 use crate::service::effects::prelude::*;

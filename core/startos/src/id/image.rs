@@ -5,7 +5,8 @@ use std::str::FromStr;
 use serde::{Deserialize, Deserializer, Serialize};
 use ts_rs::TS;
 
-use crate::{Id, InvalidId, PackageId, VersionString};
+use crate::util::VersionString;
+use crate::{Id, InvalidId, PackageId};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
 #[ts(type = "string")]

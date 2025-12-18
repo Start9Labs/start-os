@@ -10,7 +10,7 @@ use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt, TryStreamExt};
-use helpers::NonDetachingJoinHandle;
+use crate::util::future::NonDetachingJoinHandle;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use lazy_static::lazy_static;

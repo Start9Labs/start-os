@@ -5,10 +5,10 @@ use std::time::{Duration, SystemTime};
 
 use clap::Parser;
 use futures::future::join_all;
-use helpers::NonDetachingJoinHandle;
+use crate::util::future::NonDetachingJoinHandle;
 use imbl::{Vector, vector};
 use imbl_value::InternedString;
-use models::{HostId, PackageId, ServiceInterfaceId};
+use crate::{HostId, PackageId, ServiceInterfaceId};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use ts_rs::TS;

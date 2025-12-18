@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize, Serializer};
 use ts_rs::TS;
-use yasi::InternedString;
+use imbl_value::InternedString;
 
 use crate::{Id, InvalidId, SYSTEM_ID};
 

@@ -3,10 +3,9 @@ use std::path::{Path, PathBuf};
 
 use clap::{Parser, ValueEnum};
 use exver::{ExtendedVersion, VersionRange};
-use helpers::to_tmp_path;
 use imbl_value::{InternedString, json};
 use itertools::Itertools;
-use models::PackageId;
+use crate::PackageId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -19,7 +18,7 @@ use crate::registry::package::index::{PackageIndex, PackageVersionInfo};
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::util::VersionString;
-use crate::util::io::TrackingIO;
+use crate::util::io::{TrackingIO, to_tmp_path};
 use crate::util::serde::{WithIoFormat, display_serializable};
 use crate::util::tui::choose;
 
@@ -457,7 +456,7 @@ pub async fn cli_download(
     fetching_progress.complete();
 
     let dest = dest.unwrap_or_else(|| Path::new(".").join(id).with_extension("s9pk"));
-    let dest_tmp = to_tmp_path(&dest).with_kind(ErrorKind::Filesystem)?;
+    let dest_tmp = to_tmp_path(&dest)?;
     let (mut parsed, source) = s9pk
         .download_to(&dest_tmp, ctx.client.clone(), download_progress)
         .await?;

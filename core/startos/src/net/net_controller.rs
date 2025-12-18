@@ -6,7 +6,7 @@ use color_eyre::eyre::eyre;
 use imbl::{OrdMap, vector};
 use imbl_value::InternedString;
 use ipnet::IpNet;
-use models::{GatewayId, HostId, OptionExt, PackageId};
+use crate::{GatewayId, HostId, OptionExt, PackageId};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_rustls::rustls::ClientConfig as TlsClientConfig;

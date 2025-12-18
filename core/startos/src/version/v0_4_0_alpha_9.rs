@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::{InOMap, InternedString};
-use models::PackageId;
+use crate::PackageId;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{VersionT, v0_4_0_alpha_8};

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use imbl::vector;
-use models::{PackageId, ServiceInterfaceId};
+use crate::{PackageId, ServiceInterfaceId};
 
 use crate::net::service_interface::{AddressInfo, ServiceInterface, ServiceInterfaceType};
 use crate::service::effects::callbacks::CallbackHandler;

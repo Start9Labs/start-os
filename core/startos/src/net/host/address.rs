@@ -3,7 +3,7 @@ use std::net::Ipv4Addr;
 
 use clap::Parser;
 use imbl_value::InternedString;
-use models::GatewayId;
+use crate::GatewayId;
 use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

@@ -4,7 +4,7 @@ use std::path::Path;
 use clap::Parser;
 use clap::builder::ValueParserFactory;
 use imbl_value::InternedString;
-use models::FromStrParser;
+use crate::util::FromStrParser;
 use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::fs::OpenOptions;

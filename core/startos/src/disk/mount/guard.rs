@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 
 use futures::Future;
 use lazy_static::lazy_static;
-use models::ResultExt;
+use crate::ResultExt;
 use tokio::sync::Mutex;
 use tracing::instrument;
 

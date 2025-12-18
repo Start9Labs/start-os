@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use imbl_value::InternedString;
-use models::PackageId;
+use crate::PackageId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

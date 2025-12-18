@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use yasi::InternedString;
+use imbl_value::InternedString;
 
 mod action;
 mod gateway;

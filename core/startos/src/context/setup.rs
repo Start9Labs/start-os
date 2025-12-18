@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures::{Future, StreamExt};
-use helpers::NonDetachingJoinHandle;
+use crate::util::future::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use josekit::jwk::Jwk;
 use patch_db::PatchDb;

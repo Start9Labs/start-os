@@ -8,7 +8,7 @@ use clap::Parser;
 use imbl::{HashMap, OrdMap};
 use imbl_value::InternedString;
 use itertools::Itertools;
-use models::GatewayId;
+use crate::GatewayId;
 use patch_db::Dump;
 use patch_db::json_ptr::{JsonPointer, ROOT};
 use rpc_toolkit::yajrc::RpcError;

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 
-use models::PackageId;
+use crate::PackageId;
 use patch_db::{HasModel, Value};
 use serde::{Deserialize, Serialize};
 

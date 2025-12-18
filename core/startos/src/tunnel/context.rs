@@ -11,7 +11,7 @@ use imbl::OrdMap;
 use imbl_value::InternedString;
 use include_dir::Dir;
 use ipnet::Ipv4Net;
-use models::GatewayId;
+use crate::GatewayId;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty, ParentHandler};

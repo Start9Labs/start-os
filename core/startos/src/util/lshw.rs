@@ -1,4 +1,4 @@
-use models::{Error, ResultExt};
+use crate::{Error, ResultExt};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;

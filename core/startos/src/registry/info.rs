@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use imbl_value::InternedString;
 use itertools::Itertools;
-use models::DataUrl;
+use crate::util::DataUrl;
 use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

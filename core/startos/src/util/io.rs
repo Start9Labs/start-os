@@ -15,9 +15,8 @@ use bytes::{Buf, BytesMut};
 use clap::builder::ValueParserFactory;
 use futures::future::{BoxFuture, Fuse};
 use futures::{FutureExt, Stream, TryStreamExt};
-use helpers::{AtomicFile, NonDetachingJoinHandle};
 use inotify::{EventMask, EventStream, Inotify, WatchMask};
-use models::FromStrParser;
+use crate::util::FromStrParser;
 use nix::unistd::{Gid, Uid};
 use serde::{Deserialize, Serialize};
 use tokio::fs::{File, OpenOptions};
@@ -31,6 +30,7 @@ use tokio::time::{Instant, Sleep};
 use ts_rs::TS;
 
 use crate::prelude::*;
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::sync::SyncMutex;
 
 pub trait AsyncReadSeek: AsyncRead + AsyncSeek {}
@@ -1594,6 +1594,162 @@ pub fn file_string_stream(
                 }
                 yield maybe_read_file_to_string(&path).await?;
             }
+        }
+    }
+}
+
+#[pin_project::pin_project]
+pub struct ByteReplacementReader<R> {
+    pub replace: u8,
+    pub with: u8,
+    #[pin]
+    pub inner: R,
+}
+impl<R: AsyncRead> AsyncRead for ByteReplacementReader<R> {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let this = self.project();
+        match this.inner.poll_read(cx, buf) {
+            Poll::Ready(Ok(())) => {
+                for idx in 0..buf.filled().len() {
+                    if buf.filled()[idx] == *this.replace {
+                        buf.filled_mut()[idx] = *this.with;
+                    }
+                }
+                Poll::Ready(Ok(()))
+            }
+            a => a,
+        }
+    }
+}
+
+pub fn to_tmp_path(path: impl AsRef<Path>) -> Result<PathBuf, Error> {
+    let path = path.as_ref();
+    if let (Some(parent), Some(file_name)) =
+        (path.parent(), path.file_name().and_then(|f| f.to_str()))
+    {
+        Ok(parent.join(format!(".{}.tmp", file_name)))
+    } else {
+        Err(Error::new(
+            eyre!("invalid path: {}", path.display()),
+            ErrorKind::Filesystem,
+        ))
+    }
+}
+
+pub async fn canonicalize(
+    path: impl AsRef<Path> + Send + Sync,
+    create_parent: bool,
+) -> Result<PathBuf, Error> {
+    fn create_canonical_folder<'a>(
+        path: impl AsRef<Path> + Send + Sync + 'a,
+    ) -> BoxFuture<'a, Result<PathBuf, Error>> {
+        async move {
+            let path = canonicalize(path, true).await?;
+            tokio::fs::create_dir(&path)
+                .await
+                .with_ctx(|_| (ErrorKind::Filesystem, format!("mkdir {path:?}")))?;
+            Ok(path)
+        }
+        .boxed()
+    }
+    let path = path.as_ref();
+    if tokio::fs::metadata(path).await.is_err() {
+        let parent = path.parent().unwrap_or(Path::new("."));
+        if let Some(file_name) = path.file_name() {
+            if create_parent && tokio::fs::metadata(parent).await.is_err() {
+                return Ok(create_canonical_folder(parent).await?.join(file_name));
+            } else {
+                return Ok(tokio::fs::canonicalize(parent)
+                    .await
+                    .with_ctx(|_| {
+                        (
+                            ErrorKind::Filesystem,
+                            lazy_format!("canonicalize {parent:?}"),
+                        )
+                    })?
+                    .join(file_name));
+            }
+        }
+    }
+    tokio::fs::canonicalize(&path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("canonicalize {path:?}")))
+}
+
+pub struct AtomicFile {
+    tmp_path: PathBuf,
+    path: PathBuf,
+    file: Option<File>,
+}
+impl AtomicFile {
+    pub async fn new(
+        path: impl AsRef<Path> + Send + Sync,
+        tmp_path: Option<impl AsRef<Path> + Send + Sync>,
+    ) -> Result<Self, Error> {
+        let path = canonicalize(&path, true).await?;
+        let tmp_path = if let Some(tmp_path) = tmp_path {
+            canonicalize(&tmp_path, true).await?
+        } else {
+            to_tmp_path(&path)?
+        };
+        let file = File::create(&tmp_path)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, format!("create {tmp_path:?}")))?;
+        Ok(Self {
+            tmp_path,
+            path,
+            file: Some(file),
+        })
+    }
+
+    pub async fn rollback(mut self) -> Result<(), Error> {
+        drop(self.file.take());
+        tokio::fs::remove_file(&self.tmp_path)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, format!("rm {:?}", self.tmp_path)))?;
+        Ok(())
+    }
+
+    pub async fn save(mut self) -> Result<(), Error> {
+        use tokio::io::AsyncWriteExt;
+        if let Some(file) = self.file.as_mut() {
+            file.flush().await?;
+            file.shutdown().await?;
+            file.sync_all().await?;
+        }
+        drop(self.file.take());
+        tokio::fs::rename(&self.tmp_path, &self.path)
+            .await
+            .with_ctx(|_| {
+                (
+                    ErrorKind::Filesystem,
+                    format!("mv {} -> {}", self.tmp_path.display(), self.path.display()),
+                )
+            })?;
+        Ok(())
+    }
+}
+impl std::ops::Deref for AtomicFile {
+    type Target = File;
+    fn deref(&self) -> &Self::Target {
+        self.file.as_ref().unwrap()
+    }
+}
+impl std::ops::DerefMut for AtomicFile {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.file.as_mut().unwrap()
+    }
+}
+impl Drop for AtomicFile {
+    fn drop(&mut self) {
+        if let Some(file) = self.file.take() {
+            drop(file);
+            let path = std::mem::take(&mut self.tmp_path);
+            tokio::spawn(async move { tokio::fs::remove_file(path).await.log_err() });
         }
     }
 }

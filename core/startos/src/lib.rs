@@ -43,6 +43,7 @@ pub mod diagnostic;
 pub mod disk;
 pub mod error;
 pub mod firmware;
+pub mod id;
 pub mod hostname;
 pub mod init;
 pub mod install;
@@ -75,7 +76,8 @@ pub mod volume;
 use std::time::SystemTime;
 
 use clap::Parser;
-pub use error::{Error, ErrorKind, ResultExt};
+pub use error::{Error, ErrorKind, OptionExt, ResultExt};
+pub use id::*;
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{

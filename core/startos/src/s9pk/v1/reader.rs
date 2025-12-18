@@ -9,7 +9,7 @@ use std::task::{Context, Poll};
 use color_eyre::eyre::eyre;
 use digest::Output;
 use ed25519_dalek::VerifyingKey;
-use models::{ImageId, PackageId};
+use crate::{ImageId, PackageId};
 use sha2::{Digest, Sha512};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, BufReader, ReadBuf};

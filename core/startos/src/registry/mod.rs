@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use axum::Router;
 use futures::future::ready;
 use imbl_value::InternedString;
-use models::DataUrl;
+use crate::util::DataUrl;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, Server, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

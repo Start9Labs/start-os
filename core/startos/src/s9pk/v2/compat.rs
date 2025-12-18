@@ -4,7 +4,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use exver::{ExtendedVersion, VersionRange};
-use models::{ImageId, VolumeId};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
 use tokio::process::Command;
 
@@ -20,6 +19,7 @@ use crate::s9pk::v2::pack::{CONTAINER_TOOL, ImageSource, PackSource};
 use crate::s9pk::v2::{S9pk, SIG_CONTEXT};
 use crate::util::Invoke;
 use crate::util::io::{TmpDir, create_file};
+use crate::{ImageId, VolumeId};
 
 pub const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x01];
 
@@ -30,7 +30,7 @@ impl S9pk<TmpSource<PackSource>> {
         tmp_dir: Arc<TmpDir>,
         signer: ed25519_dalek::SigningKey,
     ) -> Result<Self, Error> {
-        Command::new(CONTAINER_TOOL)
+        Command::new(*CONTAINER_TOOL)
             .arg("run")
             .arg("--rm")
             .arg("--privileged")
@@ -80,7 +80,7 @@ impl S9pk<TmpSource<PackSource>> {
 
         // images
         for arch in reader.docker_arches().await? {
-            Command::new(CONTAINER_TOOL)
+            Command::new(*CONTAINER_TOOL)
                 .arg("load")
                 .input(Some(&mut reader.docker_images(&arch).await?))
                 .invoke(ErrorKind::Docker)
@@ -104,7 +104,7 @@ impl S9pk<TmpSource<PackSource>> {
                         &mut archive,
                     )
                     .await?;
-                Command::new(CONTAINER_TOOL)
+                Command::new(*CONTAINER_TOOL)
                     .arg("rmi")
                     .arg("-f")
                     .arg(&image_name)

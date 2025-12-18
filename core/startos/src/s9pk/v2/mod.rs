@@ -3,7 +3,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use imbl_value::InternedString;
-use models::{DataUrl, PackageId, mime};
+use crate::util::{DataUrl, mime};
+use crate::PackageId;
 use tokio::fs::File;
 
 use crate::dependencies::DependencyMetadata;

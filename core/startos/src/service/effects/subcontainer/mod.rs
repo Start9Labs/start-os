@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use imbl_value::InternedString;
-use models::ImageId;
 use tokio::process::Command;
 
+use crate::ImageId;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::rpc_continuations::Guid;
@@ -11,14 +11,14 @@ use crate::service::effects::prelude::*;
 use crate::service::persistent_container::Subcontainer;
 use crate::util::Invoke;
 
-#[cfg(all(feature = "pty-process", feature = "procfs"))]
+#[cfg(target_os = "linux")]
 mod sync;
 
-#[cfg(not(all(feature = "pty-process", feature = "procfs")))]
+#[cfg(not(target_os = "linux"))]
 mod sync_dummy;
 
 pub use sync::*;
-#[cfg(not(all(feature = "pty-process", feature = "procfs")))]
+#[cfg(not(target_os = "linux"))]
 use sync_dummy as sync;
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
@@ -41,7 +41,7 @@ pub async fn destroy_subcontainer_fs(
         .await
         .remove(&guid)
     {
-        #[cfg(all(feature = "pty-process", feature = "procfs"))]
+        #[cfg(target_os = "linux")]
         if tokio::fs::metadata(overlay.overlay.path().join("proc/1"))
             .await
             .is_ok()

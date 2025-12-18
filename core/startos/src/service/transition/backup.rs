@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt};
-use models::ProcedureName;
+use crate::service::ProcedureName;
 use rpc_toolkit::yajrc::RpcError;
 
 use crate::disk::mount::filesystem::ReadWrite;

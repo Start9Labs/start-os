@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use exver::Version;
-use helpers::AtomicFile;
 use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
@@ -21,7 +20,7 @@ use crate::registry::os::index::OsVersionInfo;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::sign::commitment::Commitment;
 use crate::sign::commitment::blake3::Blake3Commitment;
-use crate::util::io::open_file;
+use crate::util::io::{AtomicFile, open_file};
 
 pub fn get_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -159,9 +158,7 @@ async fn cli_get_os_asset(
 
     if let Some(download) = download {
         let download = download.join(format!("startos-{version}_{platform}.{ext}"));
-        let mut file = AtomicFile::new(&download, None::<&Path>)
-            .await
-            .with_kind(ErrorKind::Filesystem)?;
+        let mut file = AtomicFile::new(&download, None::<&Path>).await?;
 
         let progress = FullProgressTracker::new();
         let mut download_phase =
@@ -181,7 +178,7 @@ async fn cli_get_os_asset(
         res.download(ctx.client.clone(), &mut download_writer)
             .await?;
         let (_, mut download_phase) = download_writer.into_inner();
-        file.save().await.with_kind(ErrorKind::Filesystem)?;
+        file.save().await?;
         download_phase.complete();
 
         if let Some(mut reverify_phase) = reverify_phase {

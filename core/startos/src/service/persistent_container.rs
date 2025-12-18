@@ -5,10 +5,11 @@ use std::time::Duration;
 
 use futures::Future;
 use futures::future::ready;
-use helpers::NonDetachingJoinHandle;
+use crate::util::future::NonDetachingJoinHandle;
 use imbl::{Vector, vector};
 use imbl_value::InternedString;
-use models::{ImageId, ProcedureName, VolumeId};
+use crate::service::ProcedureName;
+use crate::{ImageId, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
 use tokio::process::Command;

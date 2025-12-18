@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
-use models::FromStrParser;
-pub use models::HealthCheckId;
+use crate::util::FromStrParser;
+pub use crate::HealthCheckId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

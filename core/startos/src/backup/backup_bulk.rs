@@ -5,9 +5,8 @@ use std::sync::Arc;
 use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
-use helpers::AtomicFile;
 use imbl::OrdSet;
-use models::PackageId;
+use crate::PackageId;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
@@ -26,7 +25,7 @@ use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::middleware::auth::AuthContext;
 use crate::notifications::{NotificationLevel, notify};
 use crate::prelude::*;
-use crate::util::io::dir_copy;
+use crate::util::io::{AtomicFile, dir_copy};
 use crate::util::serde::IoFormat;
 use crate::version::VersionT;
 
@@ -312,19 +311,14 @@ async fn perform_backup(
     let ui = ctx.db.peek().await.into_public().into_ui().de()?;
 
     let mut os_backup_file =
-        AtomicFile::new(backup_guard.path().join("os-backup.json"), None::<PathBuf>)
-            .await
-            .with_kind(ErrorKind::Filesystem)?;
+        AtomicFile::new(backup_guard.path().join("os-backup.json"), None::<PathBuf>).await?;
     os_backup_file
         .write_all(&IoFormat::Json.to_vec(&OsBackup {
             account: ctx.account.peek(|a| a.clone()),
             ui,
         })?)
         .await?;
-    os_backup_file
-        .save()
-        .await
-        .with_kind(ErrorKind::Filesystem)?;
+    os_backup_file.save().await?;
 
     let luks_folder_old = backup_guard.path().join("luks.old");
     if tokio::fs::metadata(&luks_folder_old).await.is_ok() {

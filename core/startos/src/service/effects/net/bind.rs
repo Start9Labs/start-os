@@ -1,4 +1,4 @@
-use models::{HostId, PackageId};
+use crate::{HostId, PackageId};
 
 use crate::net::host::binding::{BindId, BindOptions, NetInfo};
 use crate::service::effects::prelude::*;

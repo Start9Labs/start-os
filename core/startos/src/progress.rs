@@ -4,7 +4,6 @@ use std::time::Duration;
 use futures::future::pending;
 use futures::stream::BoxStream;
 use futures::{Future, FutureExt, StreamExt, TryFutureExt};
-use helpers::NonDetachingJoinHandle;
 use imbl::Vector;
 use imbl_value::{InOMap, InternedString};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
@@ -16,6 +15,7 @@ use ts_rs::TS;
 
 use crate::db::model::{Database, DatabaseModel};
 use crate::prelude::*;
+use crate::util::future::NonDetachingJoinHandle;
 
 lazy_static::lazy_static! {
     static ref SPINNER: ProgressStyle = ProgressStyle::with_template("{spinner} {msg}...").unwrap();

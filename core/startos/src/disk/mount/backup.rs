@@ -2,8 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
-use helpers::AtomicFile;
-use models::PackageId;
+use crate::PackageId;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
@@ -14,9 +13,10 @@ use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::filesystem::backupfs::BackupFS;
 use crate::disk::mount::guard::SubPath;
 use crate::disk::util::StartOsRecoveryInfo;
+use crate::prelude::*;
 use crate::util::crypto::{decrypt_slice, encrypt_slice};
+use crate::util::io::AtomicFile;
 use crate::util::serde::IoFormat;
-use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Clone, Debug)]
 pub struct BackupMountGuard<G: GenericMountGuard> {
@@ -184,18 +184,14 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
     #[instrument(skip_all)]
     pub async fn save(&self) -> Result<(), Error> {
         let metadata_path = self.path().join("metadata.json");
-        let mut file = AtomicFile::new(&metadata_path, None::<PathBuf>)
-            .await
-            .with_kind(ErrorKind::Filesystem)?;
+        let mut file = AtomicFile::new(&metadata_path, None::<PathBuf>).await?;
         file.write_all(&IoFormat::Json.to_vec(&self.metadata)?)
             .await?;
-        file.save().await.with_kind(ErrorKind::Filesystem)?;
-        let mut file = AtomicFile::new(&self.unencrypted_metadata_path, None::<PathBuf>)
-            .await
-            .with_kind(ErrorKind::Filesystem)?;
+        file.save().await?;
+        let mut file = AtomicFile::new(&self.unencrypted_metadata_path, None::<PathBuf>).await?;
         file.write_all(&IoFormat::Json.to_vec(&self.unencrypted_metadata)?)
             .await?;
-        file.save().await.with_kind(ErrorKind::Filesystem)?;
+        file.save().await?;
         Ok(())
     }
 

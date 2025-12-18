@@ -5,9 +5,8 @@ use std::sync::{Arc, Weak};
 
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt};
-use helpers::NonDetachingJoinHandle;
 use lazy_async_pool::Pool;
-use models::{Error, ErrorKind, ResultExt};
+use crate::{Error, ErrorKind, ResultExt};
 use rpc_toolkit::yajrc::{self, Id, RpcError, RpcMethod, RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -16,6 +15,7 @@ use tokio::net::UnixStream;
 use tokio::runtime::Handle;
 use tokio::sync::{Mutex, OnceCell, oneshot};
 
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::TmpDir;
 
 type DynWrite = Box<dyn AsyncWrite + Unpin + Send + Sync + 'static>;

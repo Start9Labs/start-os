@@ -16,11 +16,8 @@ use color_eyre::eyre::{self, eyre};
 use fd_lock_rs::FdLock;
 use futures::FutureExt;
 use futures::future::BoxFuture;
-pub use helpers::NonDetachingJoinHandle;
-use helpers::canonicalize;
 use imbl_value::InternedString;
 use lazy_static::lazy_static;
-pub use models::VersionString;
 use pin_project::pin_project;
 use sha2::Digest;
 use tokio::fs::File;
@@ -31,12 +28,15 @@ use ts_rs::TS;
 use url::Url;
 
 use crate::shutdown::Shutdown;
-use crate::util::io::create_file;
+use crate::util::io::{canonicalize, create_file};
 use crate::util::serde::{deserialize_from_str, serialize_display};
 use crate::{Error, ErrorKind, ResultExt as _};
 
 pub mod actor;
+pub mod clap;
 pub mod collections;
+pub mod data_url;
+pub mod mime;
 pub mod cpupower;
 pub mod crypto;
 pub mod future;
@@ -48,10 +48,17 @@ pub mod lshw;
 pub mod net;
 pub mod rpc;
 pub mod rpc_client;
+pub mod rsync;
 pub mod serde;
 // pub mod squashfs;
 pub mod sync;
 pub mod tui;
+pub mod version;
+
+pub use clap::FromStrParser;
+pub use data_url::DataUrl;
+pub use mime::{mime, unmime};
+pub use version::VersionString;
 
 #[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub enum Never {}

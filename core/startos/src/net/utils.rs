@@ -8,7 +8,7 @@ use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
 use imbl_value::InternedString;
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
-use models::GatewayId;
+use crate::GatewayId;
 use nix::net::if_::if_nametoindex;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::process::Command;

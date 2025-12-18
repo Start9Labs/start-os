@@ -1,5 +1,5 @@
 use clap::Parser;
-use models::PackageId;
+use crate::PackageId;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;

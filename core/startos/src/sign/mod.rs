@@ -4,7 +4,7 @@ use std::str::FromStr;
 use ::ed25519::pkcs8::BitStringRef;
 use clap::builder::ValueParserFactory;
 use der::referenced::OwnedToRef;
-use models::FromStrParser;
+use crate::util::FromStrParser;
 use pkcs8::der::AnyRef;
 use pkcs8::{PrivateKeyInfo, SubjectPublicKeyInfo};
 use serde::{Deserialize, Serialize};

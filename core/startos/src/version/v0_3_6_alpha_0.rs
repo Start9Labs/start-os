@@ -7,7 +7,7 @@ use const_format::formatcp;
 use ed25519_dalek::SigningKey;
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::{InternedString, json};
-use models::{HostId, Id, PackageId, ReplayId};
+use crate::{HostId, Id, PackageId, ReplayId};
 use openssl::pkey::PKey;
 use openssl::x509::X509;
 use sqlx::postgres::PgConnectOptions;

@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use models::{ActionId, PackageId, ReplayId};
+use crate::{ActionId, PackageId, ReplayId};
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 
 use crate::action::{ActionInput, ActionResult, display_action_result};

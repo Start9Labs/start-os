@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use helpers::NonDetachingJoinHandle;
+use crate::util::future::NonDetachingJoinHandle;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWrite;

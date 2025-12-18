@@ -8,7 +8,7 @@ use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use imbl_value::imbl::OrdMap;
-use models::FromStrParser;
+use crate::util::FromStrParser;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use rpc_toolkit::{
@@ -22,6 +22,10 @@ use ts_rs::TS;
 use super::IntoDoubleEndedIterator;
 use crate::prelude::*;
 use crate::util::Apply;
+
+pub fn const_true() -> bool {
+    true
+}
 
 pub fn deserialize_from_str<
     'de,

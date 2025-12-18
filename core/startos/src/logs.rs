@@ -13,7 +13,8 @@ use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{Future, FutureExt, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
-use models::{FromStrParser, PackageId};
+use crate::util::FromStrParser;
+use crate::PackageId;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
     CallRemote, Context, Empty, HandlerArgs, HandlerExt, HandlerFor, ParentHandler, from_fn_async,

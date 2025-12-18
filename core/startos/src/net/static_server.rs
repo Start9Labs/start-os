@@ -22,7 +22,7 @@ use http::request::Parts as RequestParts;
 use http::{HeaderValue, Method, StatusCode};
 use imbl_value::InternedString;
 use include_dir::Dir;
-use models::PackageId;
+use crate::PackageId;
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;

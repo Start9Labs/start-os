@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
 use itertools::Itertools;
-use models::FromStrParser;
+use crate::util::FromStrParser;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use url::Url;

@@ -12,7 +12,6 @@ use basic_cookies::Cookie;
 use chrono::Utc;
 use color_eyre::eyre::eyre;
 use digest::Digest;
-use helpers::const_true;
 use http::HeaderValue;
 use http::header::{COOKIE, USER_AGENT};
 use imbl_value::{InternedString, json};
@@ -32,7 +31,7 @@ use crate::prelude::*;
 use crate::rpc_continuations::OpenAuthedContinuations;
 use crate::util::Invoke;
 use crate::util::io::{create_file_mod, read_file_to_string};
-use crate::util::serde::BASE64;
+use crate::util::serde::{BASE64, const_true};
 use crate::util::sync::SyncMutex;
 
 pub trait AuthContext: SignatureAuthContext {

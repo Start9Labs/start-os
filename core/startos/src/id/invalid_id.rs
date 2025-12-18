@@ -1,4 +1,4 @@
-use yasi::InternedString;
+use imbl_value::InternedString;
 
 #[derive(Debug, thiserror::Error)]
 #[error("Invalid ID: {0}")]

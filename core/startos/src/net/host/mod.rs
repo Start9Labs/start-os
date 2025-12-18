@@ -5,7 +5,7 @@ use std::panic::RefUnwindSafe;
 use clap::Parser;
 use imbl_value::InternedString;
 use itertools::Itertools;
-use models::{HostId, PackageId};
+use crate::{HostId, PackageId};
 use rpc_toolkit::{Context, Empty, HandlerExt, OrEmpty, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

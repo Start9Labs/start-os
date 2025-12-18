@@ -2,13 +2,15 @@ use std::path::Path;
 
 use color_eyre::eyre::eyre;
 use futures::StreamExt;
-use models::{Error, ErrorKind};
+use crate::{Error, ErrorKind};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::watch;
 use tokio_stream::wrappers::WatchStream;
 
-use crate::{const_true, ByteReplacementReader, NonDetachingJoinHandle};
+use crate::util::future::NonDetachingJoinHandle;
+use crate::util::io::ByteReplacementReader;
+use crate::util::serde::const_true;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -85,7 +87,7 @@ impl Rsync {
                 return Err(Error::new(
                     eyre!("rsync command stdout is none"),
                     ErrorKind::Filesystem,
-                ))
+                ));
             }
             Some(a) => a,
         };
@@ -94,7 +96,7 @@ impl Rsync {
                 return Err(Error::new(
                     eyre!("rsync command stderr is none"),
                     ErrorKind::Filesystem,
-                ))
+                ));
             }
             Some(a) => a,
         };
@@ -143,7 +145,7 @@ impl Rsync {
                 return Err(Error::new(
                     eyre!("rsync stderr error: {}", err),
                     ErrorKind::Filesystem,
-                ))
+                ));
             }
             Ok(a) => a?,
         };

@@ -8,9 +8,10 @@ use reqwest::header::CONTENT_TYPE;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt};
 use ts_rs::TS;
-use yasi::InternedString;
+use imbl_value::InternedString;
 
-use crate::{mime, Error, ErrorKind, ResultExt};
+use crate::util::mime::{mime, unmime};
+use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Clone, TS)]
 #[ts(type = "string")]
@@ -45,7 +46,7 @@ impl<'a> DataUrl<'a> {
     }
 
     pub fn canonical_ext(&self) -> Option<&'static str> {
-        mime::unmime(&self.mime)
+        unmime(&self.mime)
     }
 }
 impl DataUrl<'static> {

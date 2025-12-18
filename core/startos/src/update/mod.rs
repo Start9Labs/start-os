@@ -6,7 +6,7 @@ use clap::{ArgAction, Parser};
 use color_eyre::eyre::{Result, eyre};
 use exver::{Version, VersionRange};
 use futures::TryStreamExt;
-use helpers::{AtomicFile, NonDetachingJoinHandle};
+use crate::util::future::NonDetachingJoinHandle;
 use imbl_value::json;
 use itertools::Itertools;
 use patch_db::json_ptr::JsonPointer;
@@ -36,6 +36,7 @@ use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
 use crate::util::Invoke;
+use crate::util::io::AtomicFile;
 use crate::util::net::WebSocketExt;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -407,9 +408,7 @@ async fn do_update(
 
     download_phase.start();
     let path = Path::new("/media/startos/images/next.squashfs");
-    let mut dst = AtomicFile::new(&path, None::<&Path>)
-        .await
-        .with_kind(ErrorKind::Filesystem)?;
+    let mut dst = AtomicFile::new(&path, None::<&Path>).await?;
     let mut download_writer = download_phase.writer(&mut *dst);
     asset
         .download(ctx.client.clone(), &mut download_writer)
@@ -423,7 +422,7 @@ async fn do_update(
         .commitment
         .check(&MultiCursorFile::open(&*dst).await?)
         .await?;
-    dst.save().await.with_kind(ErrorKind::Filesystem)?;
+    dst.save().await?;
     reverify_phase.complete();
 
     finalize_phase.start();

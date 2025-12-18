@@ -8,7 +8,7 @@ use clap::Parser;
 use clap::builder::ValueParserFactory;
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
-use models::FromStrParser;
+use crate::util::FromStrParser;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tokio::process::Command;

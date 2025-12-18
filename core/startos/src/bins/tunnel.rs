@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use clap::Parser;
 use futures::FutureExt;
-use helpers::NonDetachingJoinHandle;
+use crate::util::future::NonDetachingJoinHandle;
 use rpc_toolkit::CliApp;
 use tokio::signal::unix::signal;
 use tracing::instrument;
