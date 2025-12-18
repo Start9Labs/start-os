@@ -4,11 +4,11 @@ use std::str::FromStr;
 
 use base64::Engine;
 use color_eyre::eyre::eyre;
+use imbl_value::InternedString;
 use reqwest::header::CONTENT_TYPE;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt};
 use ts_rs::TS;
-use imbl_value::InternedString;
 
 use crate::util::mime::{mime, unmime};
 use crate::{Error, ErrorKind, ResultExt};

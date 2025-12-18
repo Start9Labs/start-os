@@ -3,10 +3,9 @@ use std::path::Path;
 use std::sync::Arc;
 
 use imbl_value::InternedString;
-use crate::util::{DataUrl, mime};
-use crate::PackageId;
 use tokio::fs::File;
 
+use crate::PackageId;
 use crate::dependencies::DependencyMetadata;
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
@@ -20,6 +19,7 @@ use crate::s9pk::v2::pack::{ImageSource, PackSource};
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::util::io::{TmpDir, open_file};
 use crate::util::serde::IoFormat;
+use crate::util::{DataUrl, mime};
 
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 

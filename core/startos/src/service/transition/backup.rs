@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt};
-use crate::service::ProcedureName;
 use rpc_toolkit::yajrc::RpcError;
 
 use crate::disk::mount::filesystem::ReadWrite;
@@ -11,7 +10,7 @@ use crate::rpc_continuations::Guid;
 use crate::service::action::GetActionInput;
 use crate::service::start_stop::StartStop;
 use crate::service::transition::{Transition, TransitionKind};
-use crate::service::{ServiceActor, ServiceActorSeed};
+use crate::service::{ProcedureName, ServiceActor, ServiceActorSeed};
 use crate::status::DesiredStatus;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::actor::{ConflictBuilder, Handler};

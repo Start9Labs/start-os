@@ -1,9 +1,9 @@
-use crate::{Error, ResultExt};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 
 use crate::util::Invoke;
+use crate::{Error, ResultExt};
 
 const KNOWN_CLASSES: &[&str] = &["processor", "display"];
 

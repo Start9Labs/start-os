@@ -1,9 +1,9 @@
 use std::path::Path;
 use std::str::FromStr;
 
+use imbl_value::InternedString;
 use serde::{Deserialize, Deserializer, Serialize};
 use ts_rs::TS;
-use imbl_value::InternedString;
 
 use crate::{Id, InvalidId};
 

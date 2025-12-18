@@ -7,7 +7,6 @@ use const_format::formatcp;
 use ed25519_dalek::SigningKey;
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::{InternedString, json};
-use crate::{HostId, Id, PackageId, ReplayId};
 use openssl::pkey::PKey;
 use openssl::x509::X509;
 use sqlx::postgres::PgConnectOptions;
@@ -34,7 +33,7 @@ use crate::ssh::{SshKeys, SshPubKey};
 use crate::util::Invoke;
 use crate::util::crypto::ed25519_expand_key;
 use crate::util::serde::Pem;
-use crate::{DATA_DIR, PACKAGE_DATA};
+use crate::{DATA_DIR, HostId, Id, PACKAGE_DATA, PackageId, ReplayId};
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_0: exver::Version = exver::Version::new(

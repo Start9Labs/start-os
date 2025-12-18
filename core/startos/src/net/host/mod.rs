@@ -5,7 +5,6 @@ use std::panic::RefUnwindSafe;
 use clap::Parser;
 use imbl_value::InternedString;
 use itertools::Itertools;
-use crate::{HostId, PackageId};
 use rpc_toolkit::{Context, Empty, HandlerExt, OrEmpty, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -18,6 +17,7 @@ use crate::net::host::binding::{BindInfo, BindOptions, binding};
 use crate::net::service_interface::HostnameInfo;
 use crate::net::tor::OnionAddress;
 use crate::prelude::*;
+use crate::{HostId, PackageId};
 
 pub mod address;
 pub mod binding;

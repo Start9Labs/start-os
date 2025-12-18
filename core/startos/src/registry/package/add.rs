@@ -4,13 +4,12 @@ use std::sync::Arc;
 use clap::Parser;
 use imbl_value::InternedString;
 use itertools::Itertools;
-use crate::util::VersionString;
-use crate::PackageId;
 use rpc_toolkit::HandlerArgs;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use url::Url;
 
+use crate::PackageId;
 use crate::context::CliContext;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, ProgressTrackerWriter, ProgressUnits};
@@ -23,6 +22,7 @@ use crate::s9pk::v2::SIG_CONTEXT;
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::sign::ed25519::Ed25519;
 use crate::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
+use crate::util::VersionString;
 use crate::util::io::TrackingIO;
 
 #[derive(Debug, Deserialize, Serialize, TS)]

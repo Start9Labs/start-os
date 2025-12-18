@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use clap::Parser;
 use imbl_value::InternedString;
 use itertools::Itertools;
-use crate::util::DataUrl;
 use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -13,6 +12,7 @@ use crate::context::CliContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::Category;
+use crate::util::DataUrl;
 use crate::util::serde::{HandlerExtSerde, WithIoFormat};
 
 pub fn info_api<C: Context>() -> ParentHandler<C, WithIoFormat<Empty>> {

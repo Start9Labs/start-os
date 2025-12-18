@@ -4,7 +4,7 @@ use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::InternedString;
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{v0_4_0_alpha_11, VersionT};
+use super::{VersionT, v0_4_0_alpha_11};
 use crate::net::tor::TorSecretKey;
 use crate::prelude::*;
 

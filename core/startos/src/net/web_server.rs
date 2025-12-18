@@ -12,7 +12,6 @@ use std::time::Duration;
 use axum::Router;
 use futures::future::Either;
 use futures::{FutureExt, TryFutureExt};
-use crate::util::future::NonDetachingJoinHandle;
 use http::Extensions;
 use hyper_util::rt::{TokioIo, TokioTimer};
 use tokio::net::TcpListener;
@@ -22,6 +21,7 @@ use visit_rs::{Visit, VisitFields, Visitor};
 use crate::net::static_server::{UiContext, ui_router};
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::ReadWriter;
 use crate::util::sync::{SyncRwLock, Watch};
 
@@ -483,7 +483,7 @@ where
                 .http2()
                 .timer(TokioTimer::new())
                 .enable_connect_protocol()
-                .keep_alive_interval(Duration::from_secs(60))
+                .keep_alive_interval(Duration::from_secs(25))
                 .keep_alive_timeout(Duration::from_secs(300));
             let (queue, mut runner) = BackgroundJobQueue::new();
             queue_cell.replace(Some(queue.clone()));

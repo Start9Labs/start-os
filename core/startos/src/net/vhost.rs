@@ -9,9 +9,7 @@ use async_acme::acme::ACME_TLS_ALPN_NAME;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use futures::future::BoxFuture;
-use crate::util::future::NonDetachingJoinHandle;
 use imbl_value::{InOMap, InternedString};
-use crate::ResultExt;
 use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
@@ -24,6 +22,7 @@ use tracing::instrument;
 use ts_rs::TS;
 use visit_rs::Visit;
 
+use crate::ResultExt;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::model::public::AcmeSettings;
@@ -42,7 +41,7 @@ use crate::net::tls::{
 use crate::net::web_server::{Accept, AcceptStream, ExtractVisitor, TcpMetadata, extract};
 use crate::prelude::*;
 use crate::util::collections::EqSet;
-use crate::util::future::WeakFuture;
+use crate::util::future::{NonDetachingJoinHandle, WeakFuture};
 use crate::util::serde::{HandlerExtSerde, MaybeUtf8String, display_serializable};
 use crate::util::sync::{SyncMutex, Watch};
 

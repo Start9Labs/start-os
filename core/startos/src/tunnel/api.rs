@@ -7,9 +7,11 @@ use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_f
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
+use crate::db::model::public::NetworkInterfaceType;
+use crate::net::forward::add_iptables_rule;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
-use crate::tunnel::wg::{WgConfig, WgSubnetClients, WgSubnetConfig};
+use crate::tunnel::wg::{WIREGUARD_INTERFACE_NAME, WgConfig, WgSubnetClients, WgSubnetConfig};
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 
 pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
@@ -167,7 +169,37 @@ pub async fn add_subnet(
         })
         .await
         .result?;
-    server.sync().await
+    server.sync().await?;
+
+    for iface in ctx.net_iface.peek(|i| {
+        i.iter()
+            .filter(|(_, info)| {
+                info.ip_info.as_ref().map_or(false, |i| {
+                    i.device_type != Some(NetworkInterfaceType::Loopback)
+                })
+            })
+            .map(|(name, _)| name)
+            .filter(|id| id.as_str() != WIREGUARD_INTERFACE_NAME)
+            .cloned()
+            .collect::<Vec<_>>()
+    }) {
+        add_iptables_rule(
+            true,
+            false,
+            &[
+                "POSTROUTING",
+                "-s",
+                &subnet.trunc().to_string(),
+                "-o",
+                iface.as_str(),
+                "-j",
+                "MASQUERADE",
+            ],
+        )
+        .await?;
+    }
+
+    Ok(())
 }
 
 pub async fn remove_subnet(
@@ -184,7 +216,37 @@ pub async fn remove_subnet(
         .await
         .result?;
     server.sync().await?;
-    ctx.gc_forwards(&keep).await
+    ctx.gc_forwards(&keep).await?;
+
+    for iface in ctx.net_iface.peek(|i| {
+        i.iter()
+            .filter(|(_, info)| {
+                info.ip_info.as_ref().map_or(false, |i| {
+                    i.device_type != Some(NetworkInterfaceType::Loopback)
+                })
+            })
+            .map(|(name, _)| name)
+            .filter(|id| id.as_str() != WIREGUARD_INTERFACE_NAME)
+            .cloned()
+            .collect::<Vec<_>>()
+    }) {
+        add_iptables_rule(
+            true,
+            true,
+            &[
+                "POSTROUTING",
+                "-s",
+                &subnet.trunc().to_string(),
+                "-o",
+                iface.as_str(),
+                "-j",
+                "MASQUERADE",
+            ],
+        )
+        .await?;
+    }
+
+    Ok(())
 }
 
 #[derive(Deserialize, Serialize, Parser)]

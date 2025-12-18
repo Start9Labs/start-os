@@ -8,12 +8,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use chrono::{TimeDelta, Utc};
-use crate::util::future::NonDetachingJoinHandle;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use josekit::jwk::Jwk;
-use crate::{ActionId, PackageId};
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
@@ -22,7 +20,6 @@ use tokio::time::Instant;
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
-use crate::DATA_DIR;
 use crate::account::AccountInfo;
 use crate::auth::Sessions;
 use crate::context::config::ServerConfig;
@@ -45,9 +42,11 @@ use crate::service::ServiceMap;
 use crate::service::action::update_tasks;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::shutdown::Shutdown;
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::delete_file;
 use crate::util::lshw::LshwDevice;
 use crate::util::sync::{SyncMutex, SyncRwLock, Watch};
+use crate::{ActionId, DATA_DIR, PackageId};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,

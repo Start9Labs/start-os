@@ -1,12 +1,10 @@
 use std::path::Path;
 
-use crate::PackageId;
-
 use crate::context::RpcContext;
 use crate::db::model::package::{InstalledState, InstallingInfo, InstallingState, PackageState};
 use crate::prelude::*;
 use crate::volume::PKG_VOLUME_DIR;
-use crate::{DATA_DIR, PACKAGE_DATA};
+use crate::{DATA_DIR, PACKAGE_DATA, PackageId};
 
 pub async fn cleanup(ctx: &RpcContext, id: &PackageId, soft: bool) -> Result<(), Error> {
     Ok(

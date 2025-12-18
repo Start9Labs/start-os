@@ -3,7 +3,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use axum::Router;
 use futures::future::ready;
 use imbl_value::InternedString;
-use crate::util::DataUrl;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, Server, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -19,6 +18,7 @@ use crate::registry::os::index::OsIndex;
 use crate::registry::package::index::PackageIndex;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::Guid;
+use crate::util::DataUrl;
 use crate::util::serde::HandlerExtSerde;
 
 pub mod admin;

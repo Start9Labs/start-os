@@ -6,7 +6,6 @@ use std::sync::{Arc, Weak};
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt};
 use lazy_async_pool::Pool;
-use crate::{Error, ErrorKind, ResultExt};
 use rpc_toolkit::yajrc::{self, Id, RpcError, RpcMethod, RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -17,6 +16,7 @@ use tokio::sync::{Mutex, OnceCell, oneshot};
 
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::TmpDir;
+use crate::{Error, ErrorKind, ResultExt};
 
 type DynWrite = Box<dyn AsyncWrite + Unpin + Send + Sync + 'static>;
 type ResponseMap = BTreeMap<Id, oneshot::Sender<Result<Value, RpcError>>>;

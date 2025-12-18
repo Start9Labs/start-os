@@ -4,13 +4,13 @@ use std::time::Duration;
 
 use futures::future::{BoxFuture, ready};
 use futures::{Future, FutureExt, TryFutureExt};
-use crate::util::future::NonDetachingJoinHandle;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::util::actor::background::{BackgroundJobQueue, BackgroundJobRunner};
 use crate::util::actor::{Actor, ConflictFn, Handler, PendingMessageStrategy, Request};
+use crate::util::future::NonDetachingJoinHandle;
 
 #[pin_project::pin_project]
 struct ConcurrentRunner<A> {

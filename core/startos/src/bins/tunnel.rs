@@ -5,7 +5,6 @@ use std::time::Duration;
 
 use clap::Parser;
 use futures::FutureExt;
-use crate::util::future::NonDetachingJoinHandle;
 use rpc_toolkit::CliApp;
 use tokio::signal::unix::signal;
 use tracing::instrument;
@@ -20,6 +19,7 @@ use crate::prelude::*;
 use crate::tunnel::context::{TunnelConfig, TunnelContext};
 use crate::tunnel::tunnel_router;
 use crate::tunnel::web::TunnelCertHandler;
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::logger::LOGGER;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

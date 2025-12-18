@@ -1,9 +1,8 @@
-use crate::{HostId, PackageId};
-
 use crate::net::host::Host;
 use crate::service::effects::callbacks::CallbackHandler;
 use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
+use crate::{HostId, PackageId};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]

@@ -5,29 +5,47 @@ if [ -z "$sip" ] || [ -z "$dip" ] || [ -z "$sport" ] || [ -z "$dport" ]; then
     exit 1
 fi
 
-rule_exists() {
-    iptables -t nat -C "$@" 2>/dev/null
-}
+NAME="F$(echo "$sip:$sport -> $dip:$dport" | sha256sum | head -c 15)"
 
-apply_rule() {
-    if [ "$UNDO" = "1" ]; then
-        if rule_exists "$@"; then
-            iptables -t nat -D "$@"
-        fi
-    else
-        if ! rule_exists "$@"; then
-            iptables -t nat -A "$@"
-        fi
+for kind in INPUT FORWARD ACCEPT; do
+    if ! iptables -C $kind -j "${NAME}_${kind}" 2> /dev/null; then
+        iptables -N "${NAME}_${kind}" 2> /dev/null
+        iptables -A $kind -j "${NAME}_${kind}"
     fi
-}
+done
+for kind in PREROUTING INPUT OUTPUT POSTROUTING; do
+    if ! iptables -t nat -C $kind -j "${NAME}_${kind}" 2> /dev/null; then
+        iptables -t nat -N "${NAME}_${kind}" 2> /dev/null
+        iptables -t nat -A $kind -j "${NAME}_${kind}"
+    fi
+done
 
-apply_rule PREROUTING -p tcp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
-apply_rule PREROUTING -p udp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
-apply_rule OUTPUT -p tcp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
-apply_rule OUTPUT -p udp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
-apply_rule POSTROUTING -p tcp -d $dip --dport $dport -j MASQUERADE
-apply_rule POSTROUTING -p udp -d $dip --dport $dport -j MASQUERADE
+err=0
+trap 'err=1' ERR
 
+for kind in INPUT FORWARD ACCEPT; do
+    iptables -F "${NAME}_${kind}" 2> /dev/null
+done
+for kind in PREROUTING INPUT OUTPUT POSTROUTING; do
+    iptables -t nat -F "${NAME}_${kind}" 2> /dev/null
+done
 if [ "$UNDO" = 1 ]; then
     conntrack -D -p tcp -d $sip --dport $sport || true # conntrack returns exit 1 if no connections are active
+    conntrack -D -p udp -d $sip --dport $sport || true # conntrack returns exit 1 if no connections are active
+    exit $err
 fi
+
+iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+iptables -t nat -A ${NAME}_OUTPUT -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+iptables -t nat -A ${NAME}_OUTPUT -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+
+iptables -t nat -A ${NAME}_PREROUTING -s "$dip/24" -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+iptables -t nat -A ${NAME}_PREROUTING -s "$dip/24" -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+iptables -t nat -A ${NAME}_POSTROUTING -s "$dip/24" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
+iptables -t nat -A ${NAME}_POSTROUTING -s "$dip/24" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
+
+iptables -A ${NAME}_FORWARD -d $dip -p tcp --dport $dport -m state --state NEW -j ACCEPT
+iptables -A ${NAME}_FORWARD -d $dip -p udp --dport $dport -m state --state NEW -j ACCEPT
+
+exit $err

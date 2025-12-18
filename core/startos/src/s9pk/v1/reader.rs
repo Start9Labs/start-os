@@ -9,7 +9,6 @@ use std::task::{Context, Poll};
 use color_eyre::eyre::eyre;
 use digest::Output;
 use ed25519_dalek::VerifyingKey;
-use crate::{ImageId, PackageId};
 use sha2::{Digest, Sha512};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, BufReader, ReadBuf};
@@ -21,6 +20,7 @@ use crate::prelude::*;
 use crate::s9pk::v1::docker::DockerReader;
 use crate::util::VersionString;
 use crate::util::io::open_file;
+use crate::{ImageId, PackageId};
 
 #[pin_project::pin_project]
 #[derive(Debug)]

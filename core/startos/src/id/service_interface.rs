@@ -5,8 +5,8 @@ use rpc_toolkit::clap::builder::ValueParserFactory;
 use serde::{Deserialize, Deserializer, Serialize};
 use ts_rs::TS;
 
-use crate::util::FromStrParser;
 use crate::Id;
+use crate::util::FromStrParser;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
 #[ts(export, type = "string")]

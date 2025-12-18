@@ -4,14 +4,13 @@ use std::sync::{Arc, Weak};
 
 use futures::Future;
 use lazy_static::lazy_static;
-use crate::ResultExt;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
 use super::filesystem::{FileSystem, MountType, ReadOnly, ReadWrite};
 use super::util::unmount;
-use crate::Error;
 use crate::util::{Invoke, Never};
+use crate::{Error, ResultExt};
 
 pub const TMP_MOUNTPOINT: &'static str = "/media/startos/tmp";
 

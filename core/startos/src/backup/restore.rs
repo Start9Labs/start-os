@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use clap::Parser;
 use futures::{StreamExt, stream};
-use crate::PackageId;
 use patch_db::json_ptr::ROOT;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -11,7 +10,6 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use super::target::BackupTargetId;
-use crate::PLATFORM;
 use crate::backup::os::OsBackup;
 use crate::context::setup::SetupResult;
 use crate::context::{RpcContext, SetupContext};
@@ -27,6 +25,7 @@ use crate::service::service_map::DownloadInstallFuture;
 use crate::setup::SetupExecuteProgress;
 use crate::system::sync_kiosk;
 use crate::util::serde::IoFormat;
+use crate::{PLATFORM, PackageId};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]

@@ -3,12 +3,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::Utc;
 use exver::{Version, VersionRange};
 use imbl_value::InternedString;
-use crate::util::{DataUrl, VersionString};
-use crate::PackageId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use url::Url;
 
+use crate::PackageId;
 use crate::prelude::*;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
@@ -20,6 +19,7 @@ use crate::s9pk::manifest::{Alerts, Description, HardwareRequirements};
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::sign::{AnySignature, AnyVerifyingKey};
+use crate::util::{DataUrl, VersionString};
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]

@@ -10,12 +10,10 @@ use std::time::Duration;
 use clap::Parser;
 use futures::future::Either;
 use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
-use crate::util::future::NonDetachingJoinHandle;
 use imbl::{OrdMap, OrdSet};
 use imbl_value::InternedString;
 use ipnet::IpNet;
 use itertools::Itertools;
-use crate::GatewayId;
 use nix::net::if_::if_nametoindex;
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
@@ -32,6 +30,7 @@ use zbus::zvariant::{
 };
 use zbus::{Connection, proxy};
 
+use crate::GatewayId;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceType};
@@ -42,7 +41,7 @@ use crate::net::web_server::{Accept, AcceptStream, Acceptor, MetadataVisitor};
 use crate::prelude::*;
 use crate::util::Invoke;
 use crate::util::collections::OrdMapIterMut;
-use crate::util::future::Until;
+use crate::util::future::{NonDetachingJoinHandle, Until};
 use crate::util::io::open_file;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 use crate::util::sync::{SyncMutex, Watch};
@@ -65,13 +64,15 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
                     for (iface, info) in res {
                         table.add_row(row![
                             iface,
-                            info.ip_info.as_ref()
+                            info.ip_info
+                                .as_ref()
                                 .and_then(|ip_info| ip_info.device_type)
                                 .map_or_else(|| "UNKNOWN".to_owned(), |ty| format!("{ty:?}")),
                             info.public(),
                             info.ip_info.as_ref().map_or_else(
                                 || "<DISCONNECTED>".to_owned(),
-                                |ip_info| ip_info.subnets
+                                |ip_info| ip_info
+                                    .subnets
                                     .iter()
                                     .map(|ipnet| match ipnet.addr() {
                                         IpAddr::V4(ip) => format!("{ip}/{}", ipnet.prefix_len()),
@@ -81,8 +82,10 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
                                             ipnet.prefix_len()
                                         ),
                                     })
-                                    .join(", ")),
-                            info.ip_info.as_ref()
+                                    .join(", ")
+                            ),
+                            info.ip_info
+                                .as_ref()
                                 .and_then(|ip_info| ip_info.wan_ip)
                                 .map_or_else(|| "N/A".to_owned(), |ip| ip.to_string())
                         ]);
@@ -102,26 +105,34 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_about("Indicate whether this gateway has inbound access from the WAN")
                 .with_call_remote::<CliContext>(),
-        ).subcommand(
+        )
+        .subcommand(
             "unset-public",
             from_fn_async(unset_public)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Allow this gateway to infer whether it has inbound access from the WAN based on its IPv4 address")
+                .with_about(concat!(
+                    "Allow this gateway to infer whether it has",
+                    " inbound access from the WAN based on its IPv4 address"
+                ))
                 .with_call_remote::<CliContext>(),
-        ).subcommand("forget",
+        )
+        .subcommand(
+            "forget",
             from_fn_async(forget_iface)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
                 .with_about("Forget a disconnected gateway")
-                .with_call_remote::<CliContext>()
-        ).subcommand("set-name",
-        from_fn_async(set_name)
-            .with_metadata("sync_db", Value::Bool(true))
-            .no_display()
-            .with_about("Rename a gateway")
-            .with_call_remote::<CliContext>()
-    )
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set-name",
+            from_fn_async(set_name)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Rename a gateway")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 async fn list_interfaces(
@@ -267,6 +278,9 @@ trait Ip4Config {
     fn address_data(&self) -> Result<Vec<AddressData>, Error>;
 
     #[zbus(property)]
+    fn route_data(&self) -> Result<Vec<RouteData>, Error>;
+
+    #[zbus(property)]
     fn gateway(&self) -> Result<String, Error>;
 
     #[zbus(property)]
@@ -299,6 +313,14 @@ impl TryFrom<AddressData> for IpNet {
     fn try_from(value: AddressData) -> Result<Self, Self::Error> {
         IpNet::new(value.address.parse()?, value.prefix as u8).with_kind(ErrorKind::ParseNetAddress)
     }
+}
+
+#[derive(Clone, Debug, DeserializeDict, ZValue, ZType)]
+#[zvariant(signature = "dict")]
+struct RouteData {
+    dest: String,
+    prefix: u32,
+    table: Option<u32>,
 }
 
 #[derive(Clone, Debug, DeserializeDict, ZValue, ZType)]
@@ -613,6 +635,7 @@ async fn watch_ip(
                                 Ip6ConfigProxy::new(&connection, ip6_config.clone()).await?;
                             let mut until = Until::new()
                                 .with_stream(ip4_proxy.receive_address_data_changed().await.stub())
+                                .with_stream(ip4_proxy.receive_route_data_changed().await.stub())
                                 .with_stream(ip4_proxy.receive_gateway_changed().await.stub())
                                 .with_stream(
                                     ip4_proxy.receive_nameserver_data_changed().await.stub(),
@@ -680,6 +703,22 @@ async fn watch_ip(
                                             .into_iter()
                                             .map(IpNet::try_from)
                                             .try_collect()?;
+                                        let tables = ip4_proxy.route_data().await?.into_iter().filter_map(|d|d.table).collect::<Vec<_>>();
+                                        if !tables.is_empty() {
+                                            let rules = String::from_utf8(Command::new("ip").arg("rule").arg("list").invoke(ErrorKind::Network).await?)?;
+                                            for table in tables {
+                                                for subnet in subnets.iter().filter(|s| s.addr().is_ipv4()) {
+                                                    let subnet_string = subnet.trunc().to_string();
+                                                    let rule = ["from", &subnet_string, "lookup", &table.to_string()];
+                                                    if !rules.contains(&rule.join(" ")) {
+                                                        if rules.contains(&rule[..2].join(" ")) {
+                                                            Command::new("ip").arg("rule").arg("del").args(&rule[..2]).invoke(ErrorKind::Network).await?;
+                                                        }
+                                                        Command::new("ip").arg("rule").arg("add").args(rule).invoke(ErrorKind::Network).await?;
+                                                    }
+                                                }
+                                            }
+                                        }
                                         let wan_ip = if !subnets.is_empty()
                                             && !matches!(
                                                 device_type,
@@ -1405,12 +1444,8 @@ impl<B: Bind> ListenerMap<B> {
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(SocketAddr, <B::Accept as Accept>::Metadata, AcceptStream), Error>> {
-        for (addr, listener) in self.listeners.iter_mut() {
-            if let Poll::Ready((metadata, stream)) = listener.poll_accept(cx)? {
-                return Poll::Ready(Ok((*addr, metadata, stream)));
-            }
-        }
-        Poll::Pending
+        let (metadata, stream) = ready!(self.listeners.poll_accept(cx)?);
+        Poll::Ready(Ok((metadata.key, metadata.inner, stream)))
     }
 }
 

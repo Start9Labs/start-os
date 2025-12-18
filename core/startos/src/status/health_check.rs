@@ -1,10 +1,11 @@
 use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
-use crate::util::FromStrParser;
-pub use crate::HealthCheckId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+
+pub use crate::HealthCheckId;
+use crate::util::FromStrParser;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]

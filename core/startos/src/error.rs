@@ -1,7 +1,6 @@
 use std::fmt::{Debug, Display};
 
 use axum::http::StatusCode;
-use tokio_rustls::rustls;
 use axum::http::uri::InvalidUri;
 use color_eyre::eyre::eyre;
 use num_enum::TryFromPrimitive;
@@ -12,6 +11,7 @@ use rpc_toolkit::yajrc::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
+use tokio_rustls::rustls;
 use ts_rs::TS;
 
 use crate::InvalidId;
@@ -217,8 +217,9 @@ impl Error {
         source: E,
         kind: ErrorKind,
     ) -> Self {
-        let debug = (std::any::TypeId::of::<E>() == std::any::TypeId::of::<color_eyre::eyre::Error>())
-            .then(|| eyre!("{source:?}"));
+        let debug = (std::any::TypeId::of::<E>()
+            == std::any::TypeId::of::<color_eyre::eyre::Error>())
+        .then(|| eyre!("{source:?}"));
         Error {
             source: source.into(),
             debug,
@@ -591,8 +592,9 @@ where
     fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display>(self, f: F) -> Result<T, Error> {
         self.map_err(|e| {
             let (kind, ctx) = f(&e);
-            let debug = (std::any::TypeId::of::<E>() == std::any::TypeId::of::<color_eyre::eyre::Error>())
-                .then(|| eyre!("{ctx}: {e:?}"));
+            let debug = (std::any::TypeId::of::<E>()
+                == std::any::TypeId::of::<color_eyre::eyre::Error>())
+            .then(|| eyre!("{ctx}: {e:?}"));
             let source = color_eyre::eyre::Error::from(e);
             let with_ctx = format!("{ctx}: {source}");
             let source = source.wrap_err(with_ctx);

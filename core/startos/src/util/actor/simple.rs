@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use futures::future::ready;
 use futures::{Future, FutureExt, TryFutureExt};
-use crate::util::future::NonDetachingJoinHandle;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
 
@@ -10,6 +9,7 @@ use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::actor::{Actor, Handler, PendingMessageStrategy, Request};
+use crate::util::future::NonDetachingJoinHandle;
 
 pub struct SimpleActor<A: Actor> {
     shutdown: oneshot::Sender<()>,

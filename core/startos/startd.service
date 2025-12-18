@@ -3,7 +3,7 @@ Description=StartOS Daemon
 
 [Service]
 Type=simple
-Environment=RUST_LOG=startos=debug,patch_db=warn,models=debug
+Environment=RUST_LOG=startos=debug,patch_db=warn
 ExecStart=/usr/bin/startd
 Restart=always
 RestartSec=3

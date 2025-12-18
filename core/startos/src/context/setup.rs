@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures::{Future, StreamExt};
-use crate::util::future::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use josekit::jwk::Jwk;
 use patch_db::PatchDb;
@@ -28,6 +27,7 @@ use crate::progress::FullProgressTracker;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::setup::SetupProgress;
 use crate::shutdown::Shutdown;
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::net::WebSocketExt;
 
 lazy_static::lazy_static! {

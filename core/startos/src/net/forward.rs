@@ -4,21 +4,21 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use futures::channel::oneshot;
-use crate::util::future::NonDetachingJoinHandle;
 use id_pool::IdPool;
 use iddqd::{IdOrdItem, IdOrdMap};
 use imbl::OrdMap;
-use crate::GatewayId;
 use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::mpsc;
 
+use crate::GatewayId;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::gateway::{DynInterfaceFilter, InterfaceFilter};
 use crate::prelude::*;
 use crate::util::Invoke;
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 use crate::util::sync::Watch;
 
@@ -180,11 +180,51 @@ pub struct PortForwardController {
     _thread: NonDetachingJoinHandle<()>,
 }
 
+pub async fn add_iptables_rule(nat: bool, undo: bool, args: &[&str]) -> Result<(), Error> {
+    let mut cmd = Command::new("iptables");
+    if nat {
+        cmd.arg("-t").arg("nat");
+    }
+    if undo != !cmd.arg("-C").args(args).status().await?.success() {
+        let mut cmd = Command::new("iptables");
+        if nat {
+            cmd.arg("-t").arg("nat");
+        }
+        if undo {
+            cmd.arg("-D");
+        } else {
+            cmd.arg("-A");
+        }
+        cmd.args(args).invoke(ErrorKind::Network).await?;
+    }
+    Ok(())
+}
+
 impl PortForwardController {
     pub fn new() -> Self {
         let (req_send, mut req_recv) = mpsc::unbounded_channel::<PortForwardCommand>();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             while let Err(e) = async {
+                Command::new("iptables")
+                    .arg("-P")
+                    .arg("FORWARD")
+                    .arg("DROP")
+                    .invoke(ErrorKind::Network)
+                    .await?;
+                add_iptables_rule(
+                    false,
+                    false,
+                    &[
+                        "FORWARD",
+                        "-m",
+                        "state",
+                        "--state",
+                        "ESTABLISHED,RELATED",
+                        "-j",
+                        "ACCEPT",
+                    ],
+                )
+                .await?;
                 Command::new("sysctl")
                     .arg("-w")
                     .arg("net.ipv4.ip_forward=1")

@@ -1,9 +1,9 @@
 use std::borrow::Borrow;
 use std::str::FromStr;
 
+use imbl_value::InternedString;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use imbl_value::InternedString;
 
 mod action;
 mod gateway;

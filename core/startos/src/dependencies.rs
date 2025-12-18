@@ -2,13 +2,12 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use imbl_value::InternedString;
-use crate::PackageId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::Error;
 use crate::prelude::*;
 use crate::util::PathOrUrl;
+use crate::{Error, PackageId};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[model = "Model<Self>"]

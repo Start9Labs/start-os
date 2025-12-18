@@ -2,9 +2,9 @@ use std::borrow::Borrow;
 use std::path::Path;
 use std::str::FromStr;
 
+use imbl_value::InternedString;
 use serde::{Deserialize, Serialize, Serializer};
 use ts_rs::TS;
-use imbl_value::InternedString;
 
 use crate::{Id, InvalidId, SYSTEM_ID};
 

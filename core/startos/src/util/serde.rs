@@ -8,7 +8,6 @@ use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use imbl_value::imbl::OrdMap;
-use crate::util::FromStrParser;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use rpc_toolkit::{
@@ -21,7 +20,7 @@ use ts_rs::TS;
 
 use super::IntoDoubleEndedIterator;
 use crate::prelude::*;
-use crate::util::Apply;
+use crate::util::{Apply, FromStrParser};
 
 pub fn const_true() -> bool {
     true
