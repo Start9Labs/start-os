@@ -24,7 +24,7 @@ import { StatusComponent } from './status.component'
     <td class="title">
       <a [routerLink]="routerLink">{{ manifest.title }}</a>
     </td>
-    <td [style.grid-area]="'3 / 2'">
+    <td class="status" [style.grid-area]="'3 / 2'">
       <app-status [pkg]="pkg" [hasDepErrors]="hasError(depErrors)" />
     </td>
     <td class="version">{{ manifest.version }}</td>
@@ -67,6 +67,22 @@ import { StatusComponent } from './status.component'
 
     span {
       display: none;
+    }
+
+    .title {
+      width: 21rem;
+    }
+
+    .status {
+      width: 21rem;
+    }
+
+    .uptime {
+      width: 13rem;
+    }
+
+    .version {
+      width: 21rem;
     }
 
     :host-context(tui-root._mobile) {

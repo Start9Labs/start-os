@@ -48,7 +48,7 @@ import { HintPipe } from '../pipes/hint.pipe'
       }
       @if (!mobile) {
         <tui-data-list *tuiTextfieldDropdown>
-          @for (item of items; track $index) {
+          @for (item of items; track item) {
             <button
               tuiOption
               new
