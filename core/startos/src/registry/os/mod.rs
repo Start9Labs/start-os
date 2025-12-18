@@ -1,6 +1,7 @@
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 
 use crate::context::CliContext;
+use crate::prelude::*;
 use crate::util::serde::HandlerExtSerde;
 
 pub const SIG_CONTEXT: &str = "startos";
@@ -14,6 +15,7 @@ pub fn os_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "index",
             from_fn_async(index::get_os_index)
+                .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
                 .with_about("List index of OS versions")
                 .with_call_remote::<CliContext>(),

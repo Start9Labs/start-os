@@ -15,6 +15,7 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "index",
             from_fn_async(index::get_package_index)
+                .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
                 .with_about("List packages and categories")
                 .with_call_remote::<CliContext>(),

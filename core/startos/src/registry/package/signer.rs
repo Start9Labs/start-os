@@ -36,6 +36,7 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "list",
             from_fn_async(list_package_signers)
+                .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
                     display_package_signers(handle.params, result)

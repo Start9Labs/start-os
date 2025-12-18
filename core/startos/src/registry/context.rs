@@ -174,26 +174,11 @@ impl CallRemote<RegistryContext> for CliContext {
         params: Value,
         _: Empty,
     ) -> Result<Value, RpcError> {
-        let mut has_cookie = false;
-        if let Ok(local) = read_file_to_string(RegistryContext::LOCAL_AUTH_COOKIE_PATH).await {
-            self.cookie_store
-                .lock()
-                .unwrap()
-                .insert_raw(
-                    &Cookie::build(("local", local))
-                        .domain("localhost")
-                        .expires(Expiration::Session)
-                        .same_site(SameSite::Strict)
-                        .build(),
-                    &"http://localhost".parse()?,
-                )
-                .with_kind(crate::ErrorKind::Network)?;
-            has_cookie = true;
-        }
+        let cookie = read_file_to_string(RegistryContext::LOCAL_AUTH_COOKIE_PATH).await;
 
         let url = if let Some(url) = self.registry_url.clone() {
             url
-        } else if has_cookie || !self.registry_hostname.is_empty() {
+        } else if cookie.is_ok() || !self.registry_hostname.is_empty() {
             let mut url: Url = format!(
                 "http://{}",
                 self.registry_listen.unwrap_or(DEFAULT_REGISTRY_LISTEN)
@@ -201,7 +186,8 @@ impl CallRemote<RegistryContext> for CliContext {
             .parse()
             .map_err(Error::from)?;
             url.path_segments_mut()
-                .map_err(|_| Error::new(eyre!("cannot extend URL path"), ErrorKind::ParseUrl))?
+                .map_err(|_| eyre!("Url cannot be base"))
+                .with_kind(crate::ErrorKind::ParseUrl)?
                 .push("rpc")
                 .push("v0");
             url
@@ -210,6 +196,26 @@ impl CallRemote<RegistryContext> for CliContext {
                 Error::new(eyre!("`--registry` required"), ErrorKind::InvalidRequest).into(),
             );
         };
+
+        if let Ok(local) = cookie {
+            let cookie_url = match url.host() {
+                Some(url::Host::Ipv4(ip)) if ip.is_loopback() => url.clone(),
+                Some(url::Host::Ipv6(ip)) if ip.is_loopback() => url.clone(),
+                _ => format!("http://{DEFAULT_REGISTRY_LISTEN}").parse()?,
+            };
+            self.cookie_store
+                .lock()
+                .unwrap()
+                .insert_raw(
+                    &Cookie::build(("local", local))
+                        .domain(cookie_url.host_str().unwrap_or("localhost"))
+                        .expires(Expiration::Session)
+                        .same_site(SameSite::Strict)
+                        .build(),
+                    &cookie_url,
+                )
+                .with_kind(crate::ErrorKind::Network)?;
+        }
 
         method = method.strip_prefix("registry.").unwrap_or(method);
         let sig_context = self
@@ -302,17 +308,14 @@ impl SignatureAuthContext for RegistryContext {
         pubkey: Option<&AnyVerifyingKey>,
         metadata: Self::AdditionalMetadata,
     ) -> Result<Self::CheckPubkeyRes, Error> {
-        if metadata.admin {
-            if let Some(pubkey) = pubkey {
-                let (guid, admin) = db.as_index().as_signers().get_signer_info(pubkey)?;
-                if db.as_admins().de()?.contains(&guid) {
-                    return Ok(Some((pubkey.clone(), admin)));
-                }
+        if let Some(pubkey) = pubkey {
+            let (guid, admin) = db.as_index().as_signers().get_signer_info(pubkey)?;
+            if !metadata.admin || db.as_admins().de()?.contains(&guid) {
+                return Ok(Some((pubkey.clone(), admin)));
             }
-            Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
-        } else {
-            Ok(None)
         }
+
+        Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
     }
     async fn post_auth_hook(
         &self,

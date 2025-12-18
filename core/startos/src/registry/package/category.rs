@@ -50,6 +50,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "list",
             from_fn_async(list_categories)
+                .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
                 .with_custom_display_fn(|params, categories| {
                     display_categories(params.params, categories)

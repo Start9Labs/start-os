@@ -81,22 +81,23 @@ impl<C: Context> Middleware<C> for Auth<C> {
     ) -> Result<(), RpcResponse> {
         let m: Metadata =
             from_value(metadata.clone()).map_err(|e| RpcResponse::from_result(Err(e)))?;
-        if m.authenticated {
-            let mut err = None;
-            for middleware in self.0.iter_mut() {
-                if let Err(e) = middleware
-                    .process_rpc_request(context, metadata.clone(), request)
-                    .await
-                {
+        let mut err = None;
+        for middleware in self.0.iter_mut() {
+            if let Err(e) = middleware
+                .process_rpc_request(context, metadata.clone(), request)
+                .await
+            {
+                if m.authenticated {
                     err = Some(e);
-                } else {
-                    return Ok(());
                 }
-            }
-            if let Some(e) = err {
-                return Err(e);
+            } else {
+                return Ok(());
             }
         }
+        if let Some(e) = err {
+            return Err(e);
+        }
+
         Ok(())
     }
     async fn process_rpc_response(&mut self, context: &C, response: &mut RpcResponse) {
