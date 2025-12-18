@@ -32,6 +32,8 @@ import { distinctUntilChanged } from 'rxjs/operators'
   styles: [
     `
       :host {
+        display: block;
+        width: 10rem;
         grid-column: span 3;
       }
 
