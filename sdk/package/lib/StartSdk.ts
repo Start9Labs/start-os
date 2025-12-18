@@ -60,6 +60,11 @@ import {
   setupOnUninit,
 } from "../../base/lib/inits"
 import { DropGenerator } from "../../base/lib/util/Drop"
+import {
+  getOwnServiceInterface,
+  ServiceInterfaceFilled,
+} from "../../base/lib/util/getServiceInterface"
+import { getOwnServiceInterfaces } from "../../base/lib/util/getServiceInterfaces"
 
 export const OSVersion = testTypeVersion("0.4.0-alpha.16")
 
@@ -170,20 +175,10 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         packageIds?: DependencyId[],
       ) => Promise<CheckDependencies<DependencyId>>,
       serviceInterface: {
-        getOwn: <E extends Effects>(effects: E, id: ServiceInterfaceId) =>
-          getServiceInterface(effects, {
-            id,
-          }),
-        get: <E extends Effects>(
-          effects: E,
-          opts: { id: ServiceInterfaceId; packageId: PackageId },
-        ) => getServiceInterface(effects, opts),
-        getAllOwn: <E extends Effects>(effects: E) =>
-          getServiceInterfaces(effects, {}),
-        getAll: <E extends Effects>(
-          effects: E,
-          opts: { packageId: PackageId },
-        ) => getServiceInterfaces(effects, opts),
+        getOwn: getOwnServiceInterface,
+        get: getServiceInterface,
+        getAllOwn: getOwnServiceInterfaces,
+        getAll: getServiceInterfaces,
       },
       getContainerIp: (
         effects: T.Effects,

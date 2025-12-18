@@ -1,9 +1,10 @@
-import { ServiceInterfaceType } from "../types"
+import { PackageId, ServiceInterfaceId, ServiceInterfaceType } from "../types"
 import { knownProtocols } from "../interfaces/Host"
 import { AddressInfo, Host, Hostname, HostnameInfo } from "../types"
 import { Effects } from "../Effects"
 import { DropGenerator, DropPromise } from "./Drop"
 import { IpAddress, IPV6_LINK_LOCAL } from "./ip"
+import { deepEqual } from "./deepEqual"
 
 export type UrlString = string
 export type HostId = string
@@ -227,7 +228,7 @@ function filterRec(
           (kind.has("ipv4") && h.kind === "ip" && h.hostname.kind === "ipv4") ||
           (kind.has("ipv6") && h.kind === "ip" && h.hostname.kind === "ipv6") ||
           (kind.has("localhost") &&
-            ["localhost", "127.0.0.1", "[::1]"].includes(h.hostname.value)) ||
+            ["localhost", "127.0.0.1", "::1"].includes(h.hostname.value)) ||
           (kind.has("link-local") &&
             h.kind === "ip" &&
             h.hostname.kind === "ipv6" &&
@@ -328,28 +329,28 @@ const makeInterfaceFilled = async ({
   return interfaceFilled
 }
 
-export class GetServiceInterface {
+export class GetServiceInterface<Mapped = ServiceInterfaceFilled | null> {
   constructor(
     readonly effects: Effects,
     readonly opts: { id: string; packageId?: string },
+    readonly map: (interfaces: ServiceInterfaceFilled | null) => Mapped,
+    readonly eq: (a: Mapped, b: Mapped) => boolean,
   ) {}
 
   /**
    * Returns the requested service interface. Reruns the context from which it has been called if the underlying value changes
    */
   async const() {
-    const { id, packageId } = this.opts
-    const callback =
-      this.effects.constRetry &&
-      (() => this.effects.constRetry && this.effects.constRetry())
-    const interfaceFilled = await makeInterfaceFilled({
-      effects: this.effects,
-      id,
-      packageId,
-      callback,
-    })
-
-    return interfaceFilled
+    let abort = new AbortController()
+    const watch = this.watch(abort.signal)
+    const res = await watch.next()
+    if (this.effects.constRetry) {
+      watch.next().then(() => {
+        abort.abort()
+        this.effects.constRetry && this.effects.constRetry()
+      })
+    }
+    return res.value
   }
   /**
    * Returns the requested service interface. Does nothing if the value changes
@@ -362,10 +363,11 @@ export class GetServiceInterface {
       packageId,
     })
 
-    return interfaceFilled
+    return this.map(interfaceFilled)
   }
 
   private async *watchGen(abort?: AbortSignal) {
+    let prev = null as { value: Mapped } | null
     const { id, packageId } = this.opts
     const resolveCell = { resolve: () => {} }
     this.effects.onLeaveContext(() => {
@@ -378,12 +380,17 @@ export class GetServiceInterface {
         callback = resolve
         resolveCell.resolve = resolve
       })
-      yield await makeInterfaceFilled({
-        effects: this.effects,
-        id,
-        packageId,
-        callback,
-      })
+      const next = this.map(
+        await makeInterfaceFilled({
+          effects: this.effects,
+          id,
+          packageId,
+          callback,
+        }),
+      )
+      if (!prev || !this.eq(prev.value, next)) {
+        yield next
+      }
       await waitForNext
     }
   }
@@ -391,9 +398,7 @@ export class GetServiceInterface {
   /**
    * Watches the requested service interface. Returns an async iterator that yields whenever the value changes
    */
-  watch(
-    abort?: AbortSignal,
-  ): AsyncGenerator<ServiceInterfaceFilled | null, void, unknown> {
+  watch(abort?: AbortSignal): AsyncGenerator<Mapped, void, unknown> {
     const ctrl = new AbortController()
     abort?.addEventListener("abort", () => ctrl.abort())
     return DropGenerator.of(this.watchGen(ctrl.signal), () => ctrl.abort())
@@ -404,7 +409,7 @@ export class GetServiceInterface {
    */
   onChange(
     callback: (
-      value: ServiceInterfaceFilled | null,
+      value: Mapped | null,
       error?: Error,
     ) => { cancel: boolean } | Promise<{ cancel: boolean }>,
   ) {
@@ -437,9 +442,7 @@ export class GetServiceInterface {
   /**
    * Watches the requested service interface. Returns when the predicate is true
    */
-  waitFor(
-    pred: (value: ServiceInterfaceFilled | null) => boolean,
-  ): Promise<ServiceInterfaceFilled | null> {
+  waitFor(pred: (value: Mapped) => boolean): Promise<Mapped> {
     const ctrl = new AbortController()
     return DropPromise.of(
       Promise.resolve().then(async () => {
@@ -448,15 +451,57 @@ export class GetServiceInterface {
             return next
           }
         }
-        return null
+        throw new Error("context left before predicate passed")
       }),
       () => ctrl.abort(),
     )
   }
 }
+
+export function getOwnServiceInterface(
+  effects: Effects,
+  id: ServiceInterfaceId,
+): GetServiceInterface
+export function getOwnServiceInterface<Mapped>(
+  effects: Effects,
+  id: ServiceInterfaceId,
+  map: (interfaces: ServiceInterfaceFilled | null) => Mapped,
+  eq?: (a: Mapped, b: Mapped) => boolean,
+): GetServiceInterface<Mapped>
+export function getOwnServiceInterface<Mapped>(
+  effects: Effects,
+  id: ServiceInterfaceId,
+  map?: (interfaces: ServiceInterfaceFilled | null) => Mapped,
+  eq?: (a: Mapped, b: Mapped) => boolean,
+): GetServiceInterface<Mapped> {
+  return new GetServiceInterface(
+    effects,
+    { id },
+    map ?? ((a) => a as Mapped),
+    eq ?? ((a, b) => deepEqual(a, b)),
+  )
+}
+
 export function getServiceInterface(
   effects: Effects,
-  opts: { id: string; packageId?: string },
-) {
-  return new GetServiceInterface(effects, opts)
+  opts: { id: ServiceInterfaceId; packageId: PackageId },
+): GetServiceInterface
+export function getServiceInterface<Mapped>(
+  effects: Effects,
+  opts: { id: ServiceInterfaceId; packageId: PackageId },
+  map: (interfaces: ServiceInterfaceFilled | null) => Mapped,
+  eq?: (a: Mapped, b: Mapped) => boolean,
+): GetServiceInterface<Mapped>
+export function getServiceInterface<Mapped>(
+  effects: Effects,
+  opts: { id: ServiceInterfaceId; packageId: PackageId },
+  map?: (interfaces: ServiceInterfaceFilled | null) => Mapped,
+  eq?: (a: Mapped, b: Mapped) => boolean,
+): GetServiceInterface<Mapped> {
+  return new GetServiceInterface(
+    effects,
+    opts,
+    map ?? ((a) => a as Mapped),
+    eq ?? ((a, b) => deepEqual(a, b)),
+  )
 }
