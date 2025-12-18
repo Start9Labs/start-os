@@ -13,7 +13,6 @@ use openssl::bn::{BigNum, MsbOption};
 use openssl::ec::{EcGroup, EcKey};
 use openssl::error::ErrorStack;
 use openssl::hash::MessageDigest;
-use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::extension::{
     AuthorityKeyIdentifier, BasicConstraints, KeyUsage, SubjectAlternativeName,
@@ -42,12 +41,6 @@ use crate::net::web_server::{Accept, ExtractVisitor, TcpMetadata, extract};
 use crate::prelude::*;
 use crate::util::serde::Pem;
 
-pub fn gen_nistp256() -> Result<PKey<Private>, ErrorStack> {
-    PKey::from_ec_key(EcKey::generate(&*EcGroup::from_curve_name(
-        Nid::X9_62_PRIME256V1,
-    )?)?)
-}
-
 pub fn should_use_cert(cert: &X509Ref) -> Result<bool, ErrorStack> {
     Ok(cert
         .not_before()
@@ -71,7 +64,7 @@ pub struct CertStore {
 }
 impl CertStore {
     pub fn new(account: &AccountInfo) -> Result<Self, Error> {
-        let int_key = generate_key()?;
+        let int_key = gen_nistp256()?;
         let int_cert = make_int_cert((&account.root_ca_key, &account.root_ca_cert), &int_key)?;
         Ok(Self {
             root_key: Pem::new(account.root_ca_key.clone()),
@@ -283,10 +276,8 @@ fn rand_serial() -> Result<Asn1Integer, Error> {
     Ok(asn1)
 }
 #[instrument(skip_all)]
-pub fn generate_key() -> Result<PKey<Private>, Error> {
-    let new_key = EcKey::generate(EC_GROUP.as_ref())?;
-    let key = PKey::from_ec_key(new_key)?;
-    Ok(key)
+pub fn gen_nistp256() -> Result<PKey<Private>, Error> {
+    Ok(PKey::from_ec_key(EcKey::generate(EC_GROUP.as_ref())?)?)
 }
 
 #[instrument(skip_all)]
@@ -324,6 +315,11 @@ pub fn make_root_cert(
     let ctx = builder.x509v3_context(None, Some(&cfg));
     // subjectKeyIdentifier = hash
     let subject_key_identifier = SubjectKeyIdentifier::new().build(&ctx)?;
+    // authorityKeyIdentifier = keyid,issuer:always
+    let authority_key_identifier = AuthorityKeyIdentifier::new()
+        .keyid(false)
+        .issuer(true)
+        .build(&ctx)?;
     // basicConstraints = critical, CA:true, pathlen:0
     let basic_constraints = BasicConstraints::new().critical().ca().build()?;
     // keyUsage = critical, digitalSignature, cRLSign, keyCertSign
@@ -334,6 +330,7 @@ pub fn make_root_cert(
         .key_cert_sign()
         .build()?;
     builder.append_extension(subject_key_identifier)?;
+    builder.append_extension(authority_key_identifier)?;
     builder.append_extension(basic_constraints)?;
     builder.append_extension(key_usage)?;
     builder.sign(&root_key, MessageDigest::sha256())?;
@@ -370,9 +367,9 @@ pub fn make_int_cert(
 
     // subjectKeyIdentifier = hash
     let subject_key_identifier = SubjectKeyIdentifier::new().build(&ctx)?;
-    // authorityKeyIdentifier = keyid:always,issuer
+    // authorityKeyIdentifier = keyid:always,issuer:always
     let authority_key_identifier = AuthorityKeyIdentifier::new()
-        .keyid(false)
+        .keyid(true)
         .issuer(true)
         .build(&ctx)?;
     // basicConstraints = critical, CA:true, pathlen:0
@@ -478,7 +475,7 @@ pub fn make_leaf_cert(
 
     // Google Apple and Mozilla reject certificate horizons longer than 398 days
     // https://techbeacon.com/security/google-apple-mozilla-enforce-1-year-max-security-certifications
-    let expiration = Asn1Time::days_from_now(365)?;
+    let expiration = Asn1Time::days_from_now(397)?;
     builder.set_not_after(&expiration)?;
 
     builder.set_serial_number(&*rand_serial()?)?;
@@ -508,8 +505,8 @@ pub fn make_leaf_cert(
 
     let subject_key_identifier = SubjectKeyIdentifier::new().build(&ctx)?;
     let authority_key_identifier = AuthorityKeyIdentifier::new()
-        .keyid(false)
-        .issuer(true)
+        .keyid(true)
+        .issuer(false)
         .build(&ctx)?;
     let subject_alt_name = applicant.1.x509_extension().build(&ctx)?;
     let basic_constraints = BasicConstraints::new().build()?;
