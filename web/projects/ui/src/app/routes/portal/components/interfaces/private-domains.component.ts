@@ -50,7 +50,7 @@ import { InterfaceComponent } from './interface.component'
         {{ 'Add' | i18n }}
       </button>
     </header>
-    @for (domain of privateDomains(); track $index) {
+    @for (domain of privateDomains(); track domain) {
       <div tuiCell="s">
         <span tuiTitle>{{ domain }}</span>
         <button

@@ -22,6 +22,10 @@ export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
 }
 
 export function getInstalledBaseStatus(statusInfo: T.StatusInfo): BaseStatus {
+  if (statusInfo.error) {
+    return 'error'
+  }
+
   if (
     statusInfo.desired.main === 'running' &&
     (!statusInfo.started ||
