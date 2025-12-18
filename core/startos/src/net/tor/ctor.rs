@@ -499,15 +499,22 @@ impl TorController {
             })
         }) {
             tracing::debug!("Resolving {addr} internally to {target}");
-            Ok(Box::new(
-                TcpStream::connect(target)
-                    .await
-                    .with_kind(ErrorKind::Network)?,
-            ))
+            let tcp_stream = TcpStream::connect(target)
+                .await
+                .with_kind(ErrorKind::Network)?;
+            if let Err(e) = socket2::SockRef::from(&tcp_stream).set_keepalive(true) {
+                tracing::error!("Failed to set tcp keepalive: {e}");
+                tracing::debug!("{e:?}");
+            }
+            Ok(Box::new(tcp_stream))
         } else {
             let mut stream = TcpStream::connect(TOR_SOCKS)
                 .await
                 .with_kind(ErrorKind::Tor)?;
+            if let Err(e) = socket2::SockRef::from(&stream).set_keepalive(true) {
+                tracing::error!("Failed to set tcp keepalive: {e}");
+                tracing::debug!("{e:?}");
+            }
             socks5_impl::client::connect(&mut stream, (addr.to_string(), port), None)
                 .await
                 .with_kind(ErrorKind::Tor)?;
@@ -664,6 +671,11 @@ async fn torctl(
             Error::new(eyre!("Timed out waiting for tor to start"), ErrorKind::Tor)
         })?;
         tracing::info!("Tor is started");
+
+        if let Err(e) = socket2::SockRef::from(&tcp_stream).set_keepalive(true) {
+            tracing::error!("Failed to set tcp keepalive: {e}");
+            tracing::debug!("{e:?}");
+        }
 
         let mut conn = torut::control::UnauthenticatedConn::new(tcp_stream);
         let auth = conn

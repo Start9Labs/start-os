@@ -22,7 +22,6 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
-use crate::util::net::WebSocketExt;
 use crate::util::serde::{HandlerExtSerde, apply_expr};
 
 lazy_static::lazy_static! {

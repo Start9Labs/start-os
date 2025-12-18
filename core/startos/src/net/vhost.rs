@@ -4,6 +4,7 @@ use std::fmt;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Weak};
 use std::task::{Poll, ready};
+use std::time::Duration;
 
 use async_acme::acme::ACME_TLS_ALPN_NAME;
 use color_eyre::eyre::eyre;
@@ -359,6 +360,10 @@ where
             .await
             .with_ctx(|_| (ErrorKind::Network, self.addr))
             .log_err()?;
+        if let Err(e) = socket2::SockRef::from(&tcp_stream).set_keepalive(true) {
+            tracing::error!("Failed to set tcp keepalive: {e}");
+            tracing::debug!("{e:?}");
+        }
         match &self.connect_ssl {
             Ok(client_cfg) => {
                 let mut client_cfg = (&**client_cfg).clone();

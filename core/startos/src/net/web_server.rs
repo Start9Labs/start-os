@@ -106,12 +106,7 @@ impl Accept for TcpListener {
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
         if let Poll::Ready((stream, peer_addr)) = TcpListener::poll_accept(self, cx)? {
-            if let Err(e) = socket2::SockRef::from(&stream).set_tcp_keepalive(
-                &socket2::TcpKeepalive::new()
-                    .with_time(Duration::from_secs(900))
-                    .with_interval(Duration::from_secs(60))
-                    .with_retries(5),
-            ) {
+            if let Err(e) = socket2::SockRef::from(&stream).set_keepalive(true) {
                 tracing::error!("Failed to set tcp keepalive: {e}");
                 tracing::debug!("{e:?}");
             }

@@ -5,7 +5,7 @@ use std::time::Duration;
 use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
-use futures::{FutureExt, TryStreamExt};
+use futures::FutureExt;
 use imbl::vector;
 use imbl_value::InternedString;
 use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
@@ -24,7 +24,6 @@ use crate::shutdown::Shutdown;
 use crate::util::Invoke;
 use crate::util::cpupower::{Governor, get_available_governors, set_governor};
 use crate::util::io::open_file;
-use crate::util::net::WebSocketExt;
 use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 use crate::util::sync::Watch;
 use crate::{MAIN_DATA, PACKAGE_DATA};
@@ -527,8 +526,8 @@ pub async fn metrics_follow(
                                             .into(),
                                     )).await.with_kind(ErrorKind::Network)?;
                                 }
-                                msg = ws.try_next() => {
-                                    if msg.with_kind(crate::ErrorKind::Network)?.is_none() {
+                                msg = ws.recv() => {
+                                    if msg.transpose().with_kind(crate::ErrorKind::Network)?.is_none() {
                                         break;
                                     }
                                 }

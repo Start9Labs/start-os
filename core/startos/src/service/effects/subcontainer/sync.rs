@@ -83,9 +83,10 @@ impl procfs::FromBufRead for NSPid {
     fn from_buf_read<R: std::io::BufRead>(r: R) -> procfs::ProcResult<Self> {
         for line in r.lines() {
             let line = line?;
-            if let Some(row) = line.trim().strip_prefix("NSpid") {
+            if let Some(row) = line.trim().strip_prefix("NSpid:") {
                 return Ok(Self(
-                    row.split_ascii_whitespace()
+                    row.trim()
+                        .split_ascii_whitespace()
                         .map(|pid| pid.parse::<i32>())
                         .collect::<Result<Vec<_>, _>>()?,
                 ));
@@ -205,9 +206,9 @@ impl ExecParams {
                     split.next()
                 })
             };
-            std::os::unix::fs::chown("/proc/self/fd/0", Some(uid), Some(gid)).log_err();
-            std::os::unix::fs::chown("/proc/self/fd/1", Some(uid), Some(gid)).log_err();
-            std::os::unix::fs::chown("/proc/self/fd/2", Some(uid), Some(gid)).log_err();
+            std::os::unix::fs::chown("/proc/self/fd/0", Some(uid), Some(gid)).ok();
+            std::os::unix::fs::chown("/proc/self/fd/1", Some(uid), Some(gid)).ok();
+            std::os::unix::fs::chown("/proc/self/fd/2", Some(uid), Some(gid)).ok();
             cmd.uid(uid);
             cmd.gid(gid);
         } else {
@@ -290,8 +291,6 @@ pub fn launch(
         None
     };
 
-    let pty_size = pty_size.or_else(|| TermSize::get_current());
-
     let (stdin_send, stdin_recv) = oneshot::channel::<Box<dyn Write + Send>>();
     std::thread::spawn(move || {
         if let Ok(mut cstdin) = stdin_recv.blocking_recv() {
@@ -370,7 +369,7 @@ pub fn launch(
             .map_err(color_eyre::eyre::Report::msg)
             .with_ctx(|_| (ErrorKind::Filesystem, "spawning child process"))?;
         send_pid.send(child.id() as i32).unwrap_or_default();
-        if let Some(pty_size) = pty_size {
+        if let Some(pty_size) = pty_size.or_else(|| TermSize::get_current()) {
             let size = if let Some((x, y)) = pty_size.pixels {
                 ::pty_process::Size::new_with_pixel(pty_size.rows, pty_size.cols, x, y)
             } else {
@@ -541,8 +540,6 @@ pub fn exec(
         None
     };
 
-    let pty_size = pty_size.or_else(|| TermSize::get_current());
-
     let (stdin_send, stdin_recv) = oneshot::channel::<Box<dyn Write + Send>>();
     std::thread::spawn(move || {
         if let Ok(mut cstdin) = stdin_recv.blocking_recv() {
@@ -630,7 +627,7 @@ pub fn exec(
             .map_err(color_eyre::eyre::Report::msg)
             .with_ctx(|_| (ErrorKind::Filesystem, "spawning child process"))?;
         send_pid.send(child.id() as i32).unwrap_or_default();
-        if let Some(pty_size) = pty_size {
+        if let Some(pty_size) = pty_size.or_else(|| TermSize::get_current()) {
             let size = if let Some((x, y)) = pty_size.pixels {
                 ::pty_process::Size::new_with_pixel(pty_size.rows, pty_size.cols, x, y)
             } else {

@@ -8,7 +8,8 @@ use std::process::Stdio;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use axum::extract::ws::{Utf8Bytes, WebSocket};
+use axum::extract::ws::Utf8Bytes;
+use crate::util::net::WebSocket;
 use clap::Parser;
 use futures::future::BoxFuture;
 use futures::stream::FusedStream;
@@ -47,7 +48,6 @@ use crate::util::Never;
 use crate::util::actor::concurrent::ConcurrentActor;
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::{AsyncReadStream, AtomicFile, TermSize, delete_file};
-use crate::util::net::WebSocketExt;
 use crate::util::serde::Pem;
 use crate::util::sync::SyncMutex;
 use crate::volume::data_dir;

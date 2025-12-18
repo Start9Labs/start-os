@@ -27,7 +27,6 @@ use crate::tunnel::auth::SignerInfo;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::web::WebserverInfo;
 use crate::tunnel::wg::WgServer;
-use crate::util::net::WebSocketExt;
 use crate::util::serde::{HandlerExtSerde, apply_expr};
 
 #[derive(Default, Deserialize, Serialize, HasModel, TS)]

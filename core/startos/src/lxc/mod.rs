@@ -427,7 +427,7 @@ pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid,
                 |mut ws| async move {
                     if let Err(e) = async {
                         loop {
-                            match ws.next().await {
+                            match ws.recv().await {
                                 None => break,
                                 Some(Ok(Message::Text(txt))) => {
                                     let mut id = None;

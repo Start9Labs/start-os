@@ -100,6 +100,15 @@ impl SocksController {
                                                             TcpStream::connect(addr).await
                                                         }
                                                     } {
+                                                        if let Err(e) =
+                                                            socket2::SockRef::from(&target)
+                                                                .set_keepalive(true)
+                                                        {
+                                                            tracing::error!(
+                                                                "Failed to set tcp keepalive: {e}"
+                                                            );
+                                                            tracing::debug!("{e:?}");
+                                                        }
                                                         let mut sock = reply
                                                             .reply(
                                                                 Reply::Succeeded,

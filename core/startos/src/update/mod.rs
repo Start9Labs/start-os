@@ -37,7 +37,6 @@ use crate::sound::{
 use crate::util::Invoke;
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::AtomicFile;
-use crate::util::net::WebSocketExt;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]

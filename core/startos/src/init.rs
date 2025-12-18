@@ -36,7 +36,6 @@ use crate::ssh::SSH_DIR;
 use crate::system::{get_mem_info, sync_kiosk};
 use crate::util::io::{IOHook, open_file};
 use crate::util::lshw::lshw;
-use crate::util::net::WebSocketExt;
 use crate::util::{Invoke, cpupower};
 use crate::{Error, MAIN_DATA, PACKAGE_DATA, ResultExt};
 

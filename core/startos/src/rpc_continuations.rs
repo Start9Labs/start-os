@@ -6,7 +6,7 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use axum::extract::Request;
-use axum::extract::ws::WebSocket;
+use axum::extract::ws::WebSocket as AxumWebSocket;
 use axum::response::Response;
 use clap::builder::ValueParserFactory;
 use futures::future::BoxFuture;
@@ -18,6 +18,7 @@ use ts_rs::TS;
 #[allow(unused_imports)]
 use crate::prelude::*;
 use crate::util::future::TimedResource;
+use crate::util::net::WebSocket;
 use crate::util::{FromStrParser, new_guid};
 
 #[derive(
@@ -109,7 +110,7 @@ impl Future for WebSocketFuture {
         }
     }
 }
-pub type WebSocketHandler = Box<dyn FnOnce(WebSocket) -> WebSocketFuture + Send>;
+pub type WebSocketHandler = Box<dyn FnOnce(AxumWebSocket) -> WebSocketFuture + Send>;
 
 pub enum RpcContinuation {
     Rest(TimedResource<RestHandler>),
@@ -137,7 +138,7 @@ impl RpcContinuation {
         RpcContinuation::WebSocket(TimedResource::new(
             Box::new(|ws| WebSocketFuture {
                 kill: None,
-                fut: handler(ws).boxed(),
+                fut: handler(ws.into()).boxed(),
             }),
             timeout,
         ))
@@ -169,7 +170,7 @@ impl RpcContinuation {
         RpcContinuation::WebSocket(TimedResource::new(
             Box::new(|ws| WebSocketFuture {
                 kill,
-                fut: handler(ws).boxed(),
+                fut: handler(ws.into()).boxed(),
             }),
             timeout,
         ))

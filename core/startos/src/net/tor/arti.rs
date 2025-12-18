@@ -680,11 +680,14 @@ impl TorController {
                 })
             })
         }) {
-            Ok(Box::new(
-                TcpStream::connect(target)
-                    .await
-                    .with_kind(ErrorKind::Network)?,
-            ))
+            let tcp_stream = TcpStream::connect(target)
+                .await
+                .with_kind(ErrorKind::Network)?;
+            if let Err(e) = socket2::SockRef::from(&tcp_stream).set_keepalive(true) {
+                tracing::error!("Failed to set tcp keepalive: {e}");
+                tracing::debug!("{e:?}");
+            }
+            Ok(Box::new(tcp_stream))
         } else {
             let mut client = self.0.client.clone();
             client
@@ -808,6 +811,10 @@ impl OnionService {
                                                             TcpStream::connect(target)
                                                                 .await
                                                                 .with_kind(ErrorKind::Network)?;
+                                                        if let Err(e) = socket2::SockRef::from(&outgoing).set_keepalive(true) {
+                                                            tracing::error!("Failed to set tcp keepalive: {e}");
+                                                            tracing::debug!("{e:?}");
+                                                        }
                                                         let mut incoming = req
                                                             .accept(Connected::new_empty())
                                                             .await

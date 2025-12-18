@@ -28,7 +28,6 @@ use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::setup::SetupProgress;
 use crate::shutdown::Shutdown;
 use crate::util::future::NonDetachingJoinHandle;
-use crate::util::net::WebSocketExt;
 
 lazy_static::lazy_static! {
     pub static ref CURRENT_SECRET: Jwk = Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).unwrap_or_else(|e| {

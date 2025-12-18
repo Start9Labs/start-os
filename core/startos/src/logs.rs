@@ -5,13 +5,14 @@ use std::process::Stdio;
 use std::str::FromStr;
 use std::time::{Duration, UNIX_EPOCH};
 
-use axum::extract::ws::{self, WebSocket};
+use axum::extract::ws;
+use crate::util::net::WebSocket;
 use chrono::{DateTime, Utc};
 use clap::builder::ValueParserFactory;
 use clap::{Args, FromArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
-use futures::{Future, FutureExt, Stream, StreamExt, TryStreamExt};
+use futures::{Future, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
@@ -30,7 +31,6 @@ use crate::context::{CliContext, RpcContext};
 use crate::error::ResultExt;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
-use crate::util::net::WebSocketExt;
 use crate::util::serde::Reversible;
 use crate::util::{FromStrParser, Invoke};
 
@@ -100,8 +100,8 @@ async fn ws_handler(
                     return stream.normal_close("complete").await;
                 }
             },
-            msg = stream.try_next() => {
-                if msg.with_kind(crate::ErrorKind::Network)?.is_none() {
+            msg = stream.recv() => {
+                if msg.transpose().with_kind(crate::ErrorKind::Network)?.is_none() {
                     return Ok(())
                 }
             }
@@ -698,16 +698,11 @@ pub async fn follow_logs<Context: AsRef<RpcContinuations>>(
         .add(
             guid.clone(),
             RpcContinuation::ws(
-                Box::new(move |socket| {
-                    ws_handler(first_entry, stream, socket)
-                        .map(|x| match x {
-                            Ok(_) => (),
-                            Err(e) => {
-                                tracing::error!("Error in log stream: {}", e);
-                            }
-                        })
-                        .boxed()
-                }),
+                move |socket| async move {
+                    if let Err(e) = ws_handler(first_entry, stream, socket).await {
+                        tracing::error!("Error in log stream: {}", e);
+                    }
+                },
                 Duration::from_secs(30),
             ),
         )

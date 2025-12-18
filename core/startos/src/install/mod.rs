@@ -31,7 +31,6 @@ use crate::s9pk::manifest::PackageId;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::upload::upload;
 use crate::util::io::open_file;
-use crate::util::net::WebSocketExt;
 use crate::util::tui::choose;
 use crate::util::{FromStrParser, Never, VersionString};
 
