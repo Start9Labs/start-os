@@ -54,7 +54,7 @@ type OnionForm = {
         {{ 'Add' | i18n }}
       </button>
     </header>
-    @for (domain of torDomains(); track $index) {
+    @for (domain of torDomains(); track domain) {
       <div tuiCell="s">
         <span tuiTitle>{{ domain }}</span>
         <button

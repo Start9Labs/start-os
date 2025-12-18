@@ -57,7 +57,7 @@ import { RouterLink } from '@angular/router'
         [appTable]="[null, 'Name', 'Status', 'Version', 'Uptime']"
         [appTableSorters]="[null, name, status]"
       >
-        @for (service of services() | tuiTableSort; track service) {
+        @for (service of services() | tuiTableSort; track $index) {
           <tr
             appService
             [pkg]="service"
