@@ -133,18 +133,21 @@ export default class Subnets {
   }
 
   private getNext(): string {
-    const current = this.subnets().map(s =>
-      utils.IpNet.parse(s.range).octets.slice(0, 2).join('.'),
-    )
+    const current = this.subnets().map(s => utils.IpNet.parse(s.range))
+    const suggestion = utils.IpNet.parse('10.59.0.1/24')
 
     for (let i = 0; i < 256; i++) {
-      const first3 = `10.59.${Math.floor(Math.random() * 256)}`
-      if (!current.includes(first3)) {
-        return `${first3}.0/24`
+      suggestion.octets[2] = Math.floor(Math.random() * 256)
+      if (
+        !current.some(
+          s => s.contains(suggestion), // inverse check unnecessary since we don't allow subnets smaller than /24
+        )
+      ) {
+        return suggestion.ipnet
       }
     }
 
-    // No recommendation if /24 subnets are used from 10.59
+    // No recommendation if can't find a /24 from 10.59 in 256 random tries
     return ''
   }
 }
