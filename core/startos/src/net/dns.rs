@@ -14,7 +14,7 @@ use hickory_client::proto::DnsHandle;
 use hickory_client::proto::runtime::TokioRuntimeProvider;
 use hickory_client::proto::tcp::TcpClientStream;
 use hickory_client::proto::udp::UdpClientStream;
-use hickory_client::proto::xfer::DnsRequestOptions;
+use hickory_client::proto::xfer::{DnsRequestOptions, Protocol};
 use hickory_server::ServerFuture;
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::proto::op::{Header, ResponseCode};
@@ -312,32 +312,16 @@ impl DnsClient {
                                             if let Some(existing) = existing.remove(addr) {
                                                 new.push((*addr, existing));
                                             } else {
-                                                let client = if let Ok((client, bg_thread)) =
-                                                    Client::connect(
-                                                        UdpClientStream::builder(
-                                                            *addr,
-                                                            TokioRuntimeProvider::new(),
-                                                        )
-                                                        .build(),
-                                                    )
-                                                    .await
-                                                {
-                                                    bg.insert(*addr, bg_thread.boxed());
-                                                    client
-                                                } else {
-                                                    let (stream, sender) = TcpClientStream::new(
+                                                let (client, bg_thread) = Client::connect(
+                                                    UdpClientStream::builder(
                                                         *addr,
-                                                        None,
-                                                        Some(Duration::from_secs(30)),
                                                         TokioRuntimeProvider::new(),
-                                                    );
-                                                    let (client, bg_thread) =
-                                                        Client::new(stream, sender, None)
-                                                            .await
-                                                            .with_kind(ErrorKind::Network)?;
-                                                    bg.insert(*addr, bg_thread.fuse().boxed());
-                                                    client
-                                                };
+                                                    )
+                                                    .build(),
+                                                )
+                                                .await
+                                                .with_kind(ErrorKind::Network)?;
+                                                bg.insert(*addr, bg_thread.boxed());
                                                 new.push((*addr, client));
                                             }
                                         }
@@ -368,6 +352,7 @@ impl DnsClient {
             .into(),
         }
     }
+
     fn lookup(
         &self,
         query: hickory_client::proto::op::Query,
@@ -378,6 +363,34 @@ impl DnsClient {
                 .map(|(_, c)| c.lookup(query.clone(), options.clone()))
                 .collect()
         })
+    }
+
+    fn nameservers(&self) -> Vec<SocketAddr> {
+        self.client.peek(|c| c.iter().map(|(addr, _)| *addr).collect())
+    }
+
+    async fn tcp_lookup(
+        &self,
+        query: hickory_client::proto::op::Query,
+        options: DnsRequestOptions,
+    ) -> Option<hickory_client::proto::xfer::DnsResponse> {
+        for addr in self.nameservers() {
+            let (stream, sender) = TcpClientStream::new(
+                addr,
+                None,
+                Some(Duration::from_secs(30)),
+                TokioRuntimeProvider::new(),
+            );
+            if let Ok((client, bg)) = Client::new(stream, sender, None).await {
+                tokio::spawn(bg);
+                let mut response = client.lookup(query.clone(), options.clone());
+                match tokio::time::timeout(Duration::from_secs(5), response.next()).await {
+                    Ok(Some(Ok(msg))) => return Some(msg),
+                    _ => continue,
+                }
+            }
+        }
+        None
     }
 }
 
@@ -542,35 +555,49 @@ impl RequestHandler for Resolver {
                 let query = query.original().clone();
                 let mut opt = DnsRequestOptions::default();
                 opt.recursion_desired = request.recursion_desired();
-                let mut streams = self.client.lookup(query, opt);
-                let mut err = None;
-                for stream in streams.iter_mut() {
-                    match tokio::time::timeout(Duration::from_secs(5), stream.next()).await {
-                        Ok(Some(Err(e))) => err = Some(e),
-                        Ok(Some(Ok(msg))) => {
-                            let mut header = msg.header().clone();
-                            header.set_id(request.id());
-                            header.set_checking_disabled(request.checking_disabled());
-                            header.set_recursion_available(true);
-                            return response_handle
-                                .send_response(
-                                    MessageResponseBuilder::from_message_request(&*request).build(
-                                        header,
-                                        msg.answers(),
-                                        msg.name_servers(),
-                                        &msg.soa().map(|s| s.to_owned().into_record_of_rdata()),
-                                        msg.additionals(),
-                                    ),
-                                )
-                                .await;
+                let msg = if matches!(request.protocol(), Protocol::Tcp) {
+                    self.client.tcp_lookup(query, opt).await
+                } else {
+                    let mut streams = self.client.lookup(query, opt);
+                    let mut result = None;
+                    let mut err = None;
+                    for stream in streams.iter_mut() {
+                        match tokio::time::timeout(Duration::from_secs(5), stream.next()).await {
+                            Ok(Some(Err(e))) => err = Some(e),
+                            Ok(Some(Ok(msg))) => {
+                                result = Some(msg);
+                                break;
+                            }
+                            _ => (),
                         }
-                        _ => (),
                     }
+                    if result.is_none() {
+                        if let Some(e) = err {
+                            tracing::error!("{e}");
+                            tracing::debug!("{e:?}");
+                        }
+                    }
+                    result
+                };
+
+                if let Some(msg) = msg {
+                    let mut header = msg.header().clone();
+                    header.set_id(request.id());
+                    header.set_checking_disabled(request.checking_disabled());
+                    header.set_recursion_available(true);
+                    return response_handle
+                        .send_response(
+                            MessageResponseBuilder::from_message_request(&*request).build(
+                                header,
+                                msg.answers(),
+                                msg.name_servers(),
+                                &msg.soa().map(|s| s.to_owned().into_record_of_rdata()),
+                                msg.additionals(),
+                            ),
+                        )
+                        .await;
                 }
-                if let Some(e) = err {
-                    tracing::error!("{e}");
-                    tracing::debug!("{e:?}");
-                }
+
                 let mut header = Header::response_from_request(request.header());
                 header.set_recursion_available(true);
                 header.set_response_code(ResponseCode::ServFail);
