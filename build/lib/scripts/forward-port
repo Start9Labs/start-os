@@ -1,11 +1,11 @@
 #!/bin/bash
 
-if [ -z "$sip" ] || [ -z "$dip" ] || [ -z "$sport" ] || [ -z "$dport" ]; then
+if [ -z "$sip" ] || [ -z "$dip" ] || [ -z "$dprefix" ] || [ -z "$sport" ] || [ -z "$dport" ]; then
     >&2 echo 'missing required env var'
     exit 1
 fi
 
-NAME="F$(echo "$sip:$sport -> $dip:$dport" | sha256sum | head -c 15)"
+NAME="F$(echo "$sip:$sport -> $dip/$dprefix:$dport" | sha256sum | head -c 15)"
 
 for kind in INPUT FORWARD ACCEPT; do
     if ! iptables -C $kind -j "${NAME}_${kind}" 2> /dev/null; then
@@ -40,10 +40,10 @@ iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p udp --dport "$sport" -j DNAT 
 iptables -t nat -A ${NAME}_OUTPUT -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
 iptables -t nat -A ${NAME}_OUTPUT -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
 
-iptables -t nat -A ${NAME}_PREROUTING -s "$dip/24" -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
-iptables -t nat -A ${NAME}_PREROUTING -s "$dip/24" -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
-iptables -t nat -A ${NAME}_POSTROUTING -s "$dip/24" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
-iptables -t nat -A ${NAME}_POSTROUTING -s "$dip/24" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
+iptables -t nat -A ${NAME}_PREROUTING -s "$dip/$dprefix" -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+iptables -t nat -A ${NAME}_PREROUTING -s "$dip/$dprefix" -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+iptables -t nat -A ${NAME}_POSTROUTING -s "$dip/$dprefix" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
+iptables -t nat -A ${NAME}_POSTROUTING -s "$dip/$dprefix" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
 
 iptables -A ${NAME}_FORWARD -d $dip -p tcp --dport $dport -m state --state NEW -j ACCEPT
 iptables -A ${NAME}_FORWARD -d $dip -p udp --dport $dport -m state --state NEW -j ACCEPT

@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 use std::sync::{Arc, LazyLock, OnceLock};
 
 use clap::Parser;
@@ -39,6 +40,7 @@ pub static CONTAINER_TOOL: LazyLock<&'static str> = LazyLock::new(|| {
     if *PREFER_DOCKER.get_or_init(|| false) {
         if std::process::Command::new("which")
             .arg("docker")
+            .stdout(Stdio::null())
             .status()
             .map_or(false, |o| o.success())
         {

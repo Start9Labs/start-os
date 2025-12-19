@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
@@ -693,7 +693,24 @@ impl NetServiceData {
                         (
                             internal,
                             filter.clone(),
-                            ctrl.forward.add(external, filter, internal).await?,
+                            ctrl.forward
+                                .add(
+                                    external,
+                                    filter,
+                                    internal,
+                                    net_ifaces
+                                        .iter()
+                                        .find_map(|(_, i)| {
+                                            i.ip_info.as_ref().and_then(|i| {
+                                                i.subnets.iter().find(|i| {
+                                                    i.contains(&IpAddr::from(*internal.ip()))
+                                                })
+                                            })
+                                        })
+                                        .map(|s| s.prefix_len())
+                                        .unwrap_or(32),
+                                )
+                                .await?,
                         )
                     },
                 );

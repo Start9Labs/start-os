@@ -185,7 +185,21 @@ impl TunnelContext {
 
         let mut active_forwards = BTreeMap::new();
         for (from, to) in peek.as_port_forwards().de()?.0 {
-            active_forwards.insert(from, forward.add_forward(from, to).await?);
+            let prefix = net_iface
+                .peek(|i| {
+                    i.iter()
+                        .find_map(|(_, i)| {
+                            i.ip_info.as_ref().and_then(|i| {
+                                i.subnets
+                                    .iter()
+                                    .find(|s| s.contains(&IpAddr::from(*to.ip())))
+                            })
+                        })
+                        .cloned()
+                })
+                .map(|s| s.prefix_len())
+                .unwrap_or(32);
+            active_forwards.insert(from, forward.add_forward(from, to, prefix).await?);
         }
 
         Ok(Self(Arc::new(TunnelContextSeed {
