@@ -133,16 +133,18 @@ export default class Subnets {
   }
 
   private getNext(): string {
-    const last =
-      this.subnets()
-        .map(s => utils.IpNet.parse(s.range))
-        .sort((a, b) => -1 * a.cmp(b))[0] ?? utils.IpNet.parse('10.58.255.0/24')
-    const next = utils.IpNet.fromIpPrefix(last.broadcast().add(2), 24)
-    if (!next.isPublic()) {
-      return next.ipnet
+    const current = this.subnets().map(s =>
+      utils.IpNet.parse(s.range).octets.slice(0, 2).join('.'),
+    )
+
+    for (let i = 0; i < 256; i++) {
+      const first3 = `10.59.${Math.floor(Math.random() * 256)}`
+      if (!current.includes(first3)) {
+        return `${first3}.0/24`
+      }
     }
 
-    // No recommendation if /24 subnets are used
+    // No recommendation if /24 subnets are used from 10.59
     return ''
   }
 }
