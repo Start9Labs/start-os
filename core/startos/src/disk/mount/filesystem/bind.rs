@@ -8,6 +8,7 @@ use sha2::Sha256;
 use ts_rs::TS;
 
 use super::FileSystem;
+use crate::disk::mount::filesystem::MountType;
 use crate::prelude::*;
 use crate::util::io::create_file;
 
@@ -48,7 +49,7 @@ impl<Src: AsRef<Path> + Send + Sync> FileSystem for Bind<Src> {
     fn extra_args(&self) -> impl IntoIterator<Item = impl AsRef<std::ffi::OsStr>> {
         ["--bind"]
     }
-    async fn pre_mount(&self, mountpoint: &Path) -> Result<(), Error> {
+    async fn pre_mount(&self, mountpoint: &Path, mount_type: MountType) -> Result<(), Error> {
         let from_meta = tokio::fs::metadata(&self.src).await.ok();
         let to_meta = tokio::fs::metadata(&mountpoint).await.ok();
         if matches!(self.filetype, FileType::File)
@@ -58,7 +59,7 @@ impl<Src: AsRef<Path> + Send + Sync> FileSystem for Bind<Src> {
             if to_meta.as_ref().map_or(false, |m| m.is_dir()) {
                 tokio::fs::remove_dir(mountpoint).await?;
             }
-            if from_meta.is_none() {
+            if from_meta.is_none() && mount_type == MountType::ReadWrite {
                 create_file(self.src.as_ref()).await?.sync_all().await?;
             }
             if to_meta.is_none() {
@@ -68,7 +69,7 @@ impl<Src: AsRef<Path> + Send + Sync> FileSystem for Bind<Src> {
             if to_meta.as_ref().map_or(false, |m| m.is_file()) {
                 tokio::fs::remove_file(mountpoint).await?;
             }
-            if from_meta.is_none() {
+            if from_meta.is_none() && mount_type == MountType::ReadWrite {
                 tokio::fs::create_dir_all(self.src.as_ref()).await?;
             }
             if to_meta.is_none() {
