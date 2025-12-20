@@ -14,7 +14,6 @@ RUN apt-get update && \
     brotli \
     squashfs-tools \
     git \
-    debspawn \
     rsync \
     b3sum \
     sudo \
