@@ -10,13 +10,15 @@ rel_pwd="${pwd#"$(pwd)"}"
 
 COMPAT_ARCH=$(uname -m)
 
-platform=linux/$ARCH
-
 case $COMPAT_ARCH in
     x86_64)
         platform=linux/amd64;;
-    aarch64)
+    aarch64|arm64)
         platform=linux/arm64;;
+    *)
+        echo "Unsupported architecture: $COMPAT_ARCH" >&2
+        exit 1
+        ;;
 esac
 
 if [ "$FORCE_COMPAT" = 1 ] || ( [ "$REQUIRES" = "linux" ] && [ "$(uname -s)" != "Linux" ] ) || ( [ "$REQUIRES" = "debian" ] && ! which dpkg > /dev/null ); then
