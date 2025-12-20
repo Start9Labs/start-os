@@ -6,7 +6,7 @@ use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;
 
-use crate::disk::mount::filesystem::{FileSystem, ReadWrite};
+use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
 use crate::prelude::*;
 use crate::util::io::TmpDir;
@@ -38,7 +38,7 @@ impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync, P2: AsRef<Pat
             Box::new(lazy_format!("workdir={}", self.work.as_ref().display())),
         ]
     }
-    async fn pre_mount(&self, mountpoint: &Path) -> Result<(), Error> {
+    async fn pre_mount(&self, mountpoint: &Path, _: MountType) -> Result<(), Error> {
         tokio::fs::create_dir_all(self.upper.as_ref()).await?;
         tokio::fs::create_dir_all(self.work.as_ref()).await?;
         tokio::fs::create_dir_all(mountpoint).await?;

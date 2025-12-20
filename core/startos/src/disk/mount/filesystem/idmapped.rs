@@ -14,6 +14,7 @@ use tokio::process::Command;
 use ts_rs::TS;
 
 use super::FileSystem;
+use crate::disk::mount::filesystem::MountType;
 use crate::prelude::*;
 use crate::util::{FromStrParser, Invoke};
 
@@ -110,8 +111,8 @@ impl<Fs: FileSystem> FileSystem for IdMapped<Fs> {
     async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
         self.filesystem.source().await
     }
-    async fn pre_mount(&self, mountpoint: &Path) -> Result<(), Error> {
-        self.filesystem.pre_mount(mountpoint).await?;
+    async fn pre_mount(&self, mountpoint: &Path, mount_type: MountType) -> Result<(), Error> {
+        self.filesystem.pre_mount(mountpoint, mount_type).await?;
         let info = tokio::fs::metadata(mountpoint).await?;
         for i in &self.idmap {
             let uid_in_range = i.from_id <= info.uid() && i.from_id + i.range > info.uid();
