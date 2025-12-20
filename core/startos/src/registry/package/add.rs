@@ -13,6 +13,7 @@ use crate::PackageId;
 use crate::context::CliContext;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, ProgressTrackerWriter, ProgressUnits};
+use crate::registry::asset::BufferedHttpSource;
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::PackageVersionInfo;
 use crate::s9pk::S9pk;
@@ -131,18 +132,10 @@ pub async fn cli_add_package(
     sign_phase.complete();
 
     verify_phase.start();
-    let source = HttpSource::new(ctx.client.clone(), url.clone()).await?;
-    let len = source.size().await;
+    let source = BufferedHttpSource::new(ctx.client.clone(), url.clone(), verify_phase).await?;
     let mut src = S9pk::deserialize(&Arc::new(source), Some(&commitment)).await?;
-    if let Some(len) = len {
-        verify_phase.set_total(len);
-    }
-    verify_phase.set_units(Some(ProgressUnits::Bytes));
-    let mut verify_writer = ProgressTrackerWriter::new(tokio::io::sink(), verify_phase);
-    src.serialize(&mut TrackingIO::new(0, &mut verify_writer), true)
+    src.serialize(&mut TrackingIO::new(0, &mut tokio::io::sink()), true)
         .await?;
-    let (_, mut verify_phase) = verify_writer.into_inner();
-    verify_phase.complete();
 
     index_phase.start();
     ctx.call_remote::<RegistryContext>(
