@@ -1,27 +1,30 @@
 #!/bin/bash
 
-if [ "$FORCE_COMPAT" = 1 ] || ( [ "$REQUIRES" = "linux" ] && [ "$(uname -s)" != "Linux" ] ) || ( [ "$REQUIRES" = "debian" ] && ! which dpkg > /dev/null ); then
-    project_pwd="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../.. && pwd)/"
-    pwd="$(pwd)/"
-    if ! [[ "$pwd" = "$project_pwd"* ]]; then
-        >&2 echo "Must be run from start-os project dir"
-        exit 1
-    fi
-    rel_pwd="${pwd#"$project_pwd"}"
+pwd=$(pwd)
 
-    SYSTEMD_TTY="-P"
-    USE_TTY=
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+
+set -e
+
+rel_pwd="${pwd#"$(pwd)"}"
+
+COMPAT_ARCH=$(uname -m)
+
+platform=linux/$ARCH
+
+case $COMPAT_ARCH in
+    x86_64)
+        platform=linux/amd64;;
+    aarch64)
+        platform=linux/arm64;;
+esac
+
+if [ "$FORCE_COMPAT" = 1 ] || ( [ "$REQUIRES" = "linux" ] && [ "$(uname -s)" != "Linux" ] ) || ( [ "$REQUIRES" = "debian" ] && ! which dpkg > /dev/null ); then
     if tty -s; then
         USE_TTY="-it"
-        SYSTEMD_TTY="-t"
     fi
 
-    docker run -d --rm --name os-compat --privileged --security-opt apparmor=unconfined -v "${project_pwd}:/root/start-os" -v /lib/modules:/lib/modules:ro start9/build-env
-    while ! docker exec os-compat systemctl is-active --quiet multi-user.target 2> /dev/null; do sleep .5; done
-    docker exec -eARCH -eENVIRONMENT -ePLATFORM -eGIT_BRANCH_AS_HASH -ePROJECT -eDEPENDS -eCONFLICTS $USE_TTY -w "/root/start-os${rel_pwd}" os-compat $@
-    code=$?
-    docker stop os-compat > /dev/null
-    exit $code
+    docker run $USE_TTY --platform=$platform -eARCH -eENVIRONMENT -ePLATFORM -eGIT_BRANCH_AS_HASH -ePROJECT -eDEPENDS -eCONFLICTS -w "/root/start-os${rel_pwd}" --rm -v "$(pwd):/root/start-os" start9/build-env $@
 else 
     exec $@
 fi
