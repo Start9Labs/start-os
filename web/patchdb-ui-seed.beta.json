@@ -1,0 +1,9 @@
+{
+  "name": null,
+  "registries": {
+    "https://beta-registry.start9.com/": "Start9 Beta Registry",
+    "https://community-beta-registry.start9.com/": "Community Beta Registry"
+  },
+  "startosRegistry": "https://beta-registry.start9.com/",
+  "snakeHighScore": 0
+}

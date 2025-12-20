@@ -11,5 +11,6 @@
       "skipStartupAlerts": true
     }
   },
+  "defaultRegistry": "https://registry.start9.com",
   "gitHash": ""
 }

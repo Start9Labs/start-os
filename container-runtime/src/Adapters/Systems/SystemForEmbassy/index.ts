@@ -287,7 +287,6 @@ function convertProperties(
   }
 }
 
-const DEFAULT_REGISTRY = "https://registry.start9.com"
 export class SystemForEmbassy implements System {
   private version: ExtendedVersion
   currentRunning: MainLoop | undefined

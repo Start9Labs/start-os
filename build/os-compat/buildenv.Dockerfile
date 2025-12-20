@@ -1,4 +1,4 @@
-FROM debian:forky
+FROM debian:trixie
 
 RUN apt-get update && \
     apt-get install -y \
@@ -12,35 +12,15 @@ RUN apt-get update && \
     jq \
     gzip \
     brotli \
-    qemu-user-static \
-    binfmt-support \
     squashfs-tools \
     git \
     debspawn \
     rsync \
     b3sum \
-    fuse-overlayfs \
     sudo \
-    systemd \
-    systemd-container \
-    systemd-sysv \
-    dbus \
-    dbus-user-session \
     nodejs
-
-RUN systemctl mask \
-    systemd-firstboot.service \
-    systemd-udevd.service \
-    getty@tty1.service \
-    console-getty.service
 
 RUN git config --global --add safe.directory /root/start-os
 
-RUN mkdir -p /etc/debspawn && \
-    echo "AllowUnsafePermissions=true" > /etc/debspawn/global.toml
-
 RUN mkdir -p /root/start-os
 WORKDIR /root/start-os
-
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-ENTRYPOINT [ "/docker-entrypoint.sh" ]
