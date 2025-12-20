@@ -9,6 +9,7 @@ import { ErrorService, LoadingService } from '@start9labs/shared'
 import {
   TUI_IS_MOBILE,
   tuiMarkControlAsTouchedAndValidate,
+  TuiValueChanges,
 } from '@taiga-ui/cdk'
 import {
   TuiButton,
@@ -18,11 +19,13 @@ import {
   TuiTextfield,
 } from '@taiga-ui/core'
 import {
+  TuiCheckbox,
   TuiChevron,
   TuiDataListWrapper,
   TuiFieldErrorPipe,
   TuiInputNumber,
   TuiSelect,
+  TuiElasticContainer,
 } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -65,6 +68,7 @@ import { MappedDevice, PortForwardsData } from './utils'
           [min]="0"
           [max]="65535"
           [tuiNumberFormat]="{ thousandSeparator: '' }"
+          (tuiValueChanges)="checkShow80()"
         />
       </tui-textfield>
       <tui-error
@@ -103,12 +107,22 @@ import { MappedDevice, PortForwardsData } from './utils'
           [min]="0"
           [max]="65535"
           [tuiNumberFormat]="{ thousandSeparator: '' }"
+          (tuiValueChanges)="checkShow80()"
         />
       </tui-textfield>
       <tui-error
         formControlName="internalport"
         [error]="[] | tuiFieldError | async"
       />
+      <tui-elastic-container>
+        @if (show80) {
+          <label tuiLabel>
+            <input tuiCheckbox type="checkbox" formControlName="also80" />
+            Also forward port 80 to port 5443? This is needed for HTTP to HTTPS
+            redirects (recommended)
+          </label>
+        }
+      </tui-elastic-container>
       <footer>
         <button tuiButton [disabled]="form.invalid" (click)="onSave()">
           Save
@@ -130,12 +144,17 @@ import { MappedDevice, PortForwardsData } from './utils'
     TuiTextfield,
     TuiSelect,
     TuiForm,
+    TuiCheckbox,
+    TuiValueChanges,
+    TuiElasticContainer,
   ],
 })
 export class PortForwardsAdd {
   private readonly api = inject(ApiService)
   private readonly loading = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
+
+  show80 = false
 
   protected readonly mobile = inject(TUI_IS_MOBILE)
   protected readonly context =
@@ -146,10 +165,16 @@ export class PortForwardsAdd {
     externalport: [null as number | null, Validators.required],
     device: [null as MappedDevice | null, Validators.required],
     internalport: [null as number | null, Validators.required],
+    also80: [true],
   })
 
   protected readonly stringify = ({ ip, name }: MappedDevice) =>
     ip ? `${name} (${ip})` : ''
+
+  protected checkShow80() {
+    const { externalport, internalport } = this.form.getRawValue()
+    this.show80 = externalport === 443 && internalport === 5443
+  }
 
   protected async onSave() {
     if (this.form.invalid) {
@@ -159,14 +184,22 @@ export class PortForwardsAdd {
     }
 
     const loader = this.loading.open().subscribe()
-    const { externalip, externalport, device, internalport } =
+
+    const { externalip, externalport, device, internalport, also80 } =
       this.form.getRawValue()
 
     try {
       await this.api.addForward({
         source: `${externalip}:${externalport}`,
-        target: `${device?.ip}:${internalport}`,
+        target: `${device!.ip}:${internalport}`,
       })
+
+      if (externalport === 443 && internalport === 5443 && also80) {
+        await this.api.addForward({
+          source: `${externalip}:80`,
+          target: `${device!.ip}:5443`,
+        })
+      }
     } catch (e: any) {
       console.error(e)
       this.errorService.handleError(e)

@@ -160,6 +160,16 @@ pub async fn add_subnet(
         .db
         .mutate(|db| {
             let map = db.as_wg_mut().as_subnets_mut();
+            if let Some(s) = map
+                .keys()?
+                .into_iter()
+                .find(|s| s != &subnet && (s.contains(&subnet) || subnet.contains(s)))
+            {
+                return Err(Error::new(
+                    eyre!("{subnet} overlaps with existing subnet {s}"),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
             map.upsert(&subnet, || {
                 Ok(WgSubnetConfig::new(InternedString::default()))
             })?

@@ -1,8 +1,11 @@
 export class IpAddress {
+  private renderedOctets: number[]
   protected constructor(
-    readonly octets: number[],
-    readonly address: string,
-  ) {}
+    public octets: number[],
+    private renderedAddress: string,
+  ) {
+    this.renderedOctets = [...octets]
+  }
   static parse(address: string): IpAddress {
     let octets
     if (address.includes(":")) {
@@ -120,14 +123,48 @@ export class IpAddress {
     }
     return 0
   }
+  get address(): string {
+    if (
+      this.renderedOctets.length === this.octets.length &&
+      this.renderedOctets.every((o, idx) => o === this.octets[idx])
+    ) {
+      // already rendered
+    } else if (this.octets.length === 4) {
+      this.renderedAddress = this.octets.join(".")
+      this.renderedOctets = [...this.octets]
+    } else if (this.octets.length === 16) {
+      const contigZeros = this.octets.reduce(
+        (acc, x, idx) => {
+          if (x === 0) {
+            acc.current++
+          } else {
+            acc.current = 0
+          }
+          if (acc.current > acc.end - acc.start) {
+            acc.end = idx + 1
+            acc.start = acc.end - acc.current
+          }
+          return acc
+        },
+        { start: 0, end: 0, current: 0 },
+      )
+      if (contigZeros.end - contigZeros.start >= 2) {
+        return `${this.octets.slice(0, contigZeros.start).join(":")}::${this.octets.slice(contigZeros.end).join(":")}`
+      }
+      this.renderedAddress = this.octets.join(":")
+      this.renderedOctets = [...this.octets]
+    } else {
+      console.warn("invalid octet length for IpAddress", this.octets)
+    }
+    return this.renderedAddress
+  }
 }
 
 export class IpNet extends IpAddress {
   private constructor(
     octets: number[],
-    readonly prefix: number,
+    public prefix: number,
     address: string,
-    readonly ipnet: string,
   ) {
     super(octets, address)
   }
@@ -135,7 +172,7 @@ export class IpNet extends IpAddress {
     if (prefix > ip.octets.length * 8) {
       throw new Error("invalid prefix")
     }
-    return new IpNet(ip.octets, prefix, ip.address, `${ip.address}/${prefix}`)
+    return new IpNet(ip.octets, prefix, ip.address)
   }
   static parse(ipnet: string): IpNet {
     const [address, prefixStr] = ipnet.split("/", 2)
@@ -143,8 +180,9 @@ export class IpNet extends IpAddress {
     const prefix = Number(prefixStr)
     return IpNet.fromIpPrefix(ip, prefix)
   }
-  contains(address: string | IpAddress): boolean {
+  contains(address: string | IpAddress | IpNet): boolean {
     if (typeof address === "string") address = IpAddress.parse(address)
+    if (address instanceof IpNet && address.prefix < this.prefix) return false
     if (this.octets.length !== address.octets.length) return false
     let prefix = this.prefix
     let idx = 0
@@ -190,6 +228,9 @@ export class IpNet extends IpAddress {
     }
 
     return IpAddress.fromOctets(octets)
+  }
+  get ipnet() {
+    return `${this.address}/${this.prefix}`
   }
 }
 
