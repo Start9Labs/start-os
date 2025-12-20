@@ -7,6 +7,9 @@ use base64::Engine;
 use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
+use digest::Update;
+use digest::generic_array::GenericArray;
+use hashing_serializer::HashingSerializer;
 use imbl_value::imbl::OrdMap;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
@@ -16,6 +19,7 @@ use rpc_toolkit::{
 use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use sha2::Digest;
 use ts_rs::TS;
 
 use super::IntoDoubleEndedIterator;
@@ -1443,4 +1447,16 @@ pub fn is_partial_of(partial: &Value, full: &Value) -> bool {
             .all(|v| full.iter().any(|v_full| is_partial_of(v, v_full))),
         (_, _) => partial == full,
     }
+}
+
+pub fn hash_serializable<D: Digest + Update, T: Serialize>(
+    value: &T,
+) -> Result<GenericArray<u8, D::OutputSize>, Error> {
+    let mut digest = D::new();
+    value
+        .serialize(HashingSerializer {
+            digest: &mut digest,
+        })
+        .with_kind(ErrorKind::Serialization)?;
+    Ok(digest.finalize())
 }

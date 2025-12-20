@@ -122,8 +122,7 @@ form_urlencoded = "1.2.1"
 futures = "0.3.28"
 gpt = "4.1.0"
 hex = "0.4.3"
-hickory-client = "0.25.2"
-hickory-server = "0.25.2"
+hickory-server = { version = "0.25.2", features = ["resolver"] }
 hmac = "0.12.1"
 http = "1.0.0"
 http-body-util = "0.1"
@@ -271,6 +270,7 @@ uuid = { version = "1.4.1", features = ["v4"] }
 visit-rs = "0.1.1"
 x25519-dalek = { version = "2.0.1", features = ["static_secrets"] }
 zbus = "5.1.1"
+hashing-serializer = "0.1.1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 procfs = "0.18.0"
