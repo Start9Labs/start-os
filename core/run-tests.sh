@@ -2,7 +2,7 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-source ./builder-alias.sh
+source ./build/builder-alias.sh
 
 set -ea
 shopt -s expand_aliases
