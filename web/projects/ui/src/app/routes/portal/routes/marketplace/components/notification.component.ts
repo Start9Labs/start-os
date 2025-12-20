@@ -56,7 +56,8 @@ export class MarketplaceNotificationComponent {
   @Input() url = ''
 
   get status() {
-    const { start9, community, start9Beta, start9Alpha } = knownRegistries
+    const { start9, community, start9Beta, communityBeta, start9Alpha } =
+      knownRegistries
 
     if (sameUrl(this.url, start9)) {
       return 'success'
@@ -66,7 +67,7 @@ export class MarketplaceNotificationComponent {
       return 'info'
     }
 
-    if (sameUrl(this.url, start9Beta)) {
+    if (sameUrl(this.url, start9Beta) || sameUrl(this.url, communityBeta)) {
       return 'warning'
     }
 

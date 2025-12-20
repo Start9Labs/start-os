@@ -13,6 +13,7 @@ export type WorkspaceConfig = {
       skipStartupAlerts: boolean
     }
   }
+  defaultRegistry: string
 }
 
 export const defaultRegistries = {
@@ -24,4 +25,5 @@ export const knownRegistries = {
   ...defaultRegistries,
   start9Alpha: 'https://alpha-registry-x.start9.com/',
   start9Beta: 'https://beta-registry.start9.com/',
+  communityBeta: 'https://community-beta-registry.start9.com/',
 } as const

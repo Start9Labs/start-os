@@ -32,7 +32,7 @@ import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
-const { start9, community } = defaultRegistries
+// const { start9, community } = defaultRegistries
 
 @Injectable({
   providedIn: 'root',
@@ -46,10 +46,10 @@ export class MarketplaceService {
     .watch$('ui', 'registries')
     .pipe(
       map(registries => [
-        toStoreIdentity(start9, registries[start9]),
-        toStoreIdentity(community, registries[community]),
+        // toStoreIdentity(start9, registries[start9]),
+        // toStoreIdentity(community, registries[community]),
         ...Object.entries(registries)
-          .filter(([u, _]) => !sameUrl(start9, u) && !sameUrl(community, u))
+          // .filter(([u, _]) => !sameUrl(start9, u) && !sameUrl(community, u))
           .map(([url, name]) => toStoreIdentity(url, name)),
       ]),
     )

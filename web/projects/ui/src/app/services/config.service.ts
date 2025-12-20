@@ -6,6 +6,7 @@ const {
   gitHash,
   useMocks,
   ui: { api, mocks },
+  defaultRegistry,
 } = require('../../../../../config.json') as WorkspaceConfig
 
 @Injectable({
@@ -26,6 +27,7 @@ export class ConfigService {
   api = api
   skipStartupAlerts = useMocks && mocks.skipStartupAlerts
   supportsWebSockets = !!window.WebSocket
+  defaultRegistry = defaultRegistry
 
   isTor(): boolean {
     return useMocks ? mocks.maskAs === 'tor' : this.hostname.endsWith('.onion')

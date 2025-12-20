@@ -16,6 +16,7 @@ import { MarketplaceMenuComponent } from './components/menu.component'
 import { MarketplaceNotificationComponent } from './components/notification.component'
 import { MarketplaceTileComponent } from './components/tile.component'
 import { StorageService } from 'src/app/services/storage.service'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   template: `
@@ -160,6 +161,7 @@ import { StorageService } from 'src/app/services/storage.service'
 export default class MarketplaceComponent {
   private readonly categoryService = inject(AbstractCategoryService)
   private readonly marketplaceService = inject(MarketplaceService)
+  private readonly configService = inject(ConfigService)
   private readonly router = inject(Router)
   private readonly storage = inject(StorageService)
   private readonly route = inject(ActivatedRoute)
@@ -175,7 +177,7 @@ export default class MarketplaceComponent {
             queryParams: {
               registry:
                 this.storage.get('selectedRegistry') ||
-                defaultRegistries.start9,
+                this.configService.defaultRegistry,
             },
             queryParamsHandling: 'merge',
           })
