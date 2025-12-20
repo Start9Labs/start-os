@@ -163,7 +163,7 @@ $(IMAGE_TYPE): results/$(BASENAME).$(IMAGE_TYPE)
 squashfs: results/$(BASENAME).squashfs
 
 results/$(BASENAME).$(IMAGE_TYPE) results/$(BASENAME).squashfs: $(IMAGE_RECIPE_SRC) results/$(BASENAME).deb
-	./build/image-recipe/run-local-build.sh "results/$(BASENAME).deb"
+	ARCH=$(ARCH) ./build/image-recipe/run-local-build.sh "results/$(BASENAME).deb"
 
 # For creating os images. DO NOT USE
 install: $(STARTOS_TARGETS)
