@@ -7,7 +7,7 @@ import {
   FilterPackagesPipe,
   FilterPackagesPipeModule,
 } from '@start9labs/marketplace'
-import { defaultRegistries, i18nPipe } from '@start9labs/shared'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiScrollbar } from '@taiga-ui/core'
 import { tap } from 'rxjs'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
