@@ -10,7 +10,7 @@ When bumping from version `X.Y.Z-alpha.N` to `X.Y.Z-alpha.N+1`, you need to upda
 
 ### 1. Core Rust Crate Version
 
-**File: `core/startos/Cargo.toml`**
+**File: `core/Cargo.toml`**
 
 Update the version string (line ~18):
 
@@ -31,7 +31,7 @@ This will update the version in `Cargo.lock` automatically.
 
 ### 2. Create New Version Migration Module
 
-**File: `core/startos/src/version/vX_Y_Z_alpha_N+1.rs`**
+**File: `core/src/version/vX_Y_Z_alpha_N+1.rs`**
 
 Create a new version file by copying the previous version and updating:
 
@@ -79,7 +79,7 @@ impl VersionT for Version {
 
 ### 3. Update Version Module Registry
 
-**File: `core/startos/src/version/mod.rs`**
+**File: `core/src/version/mod.rs`**
 
 Make changes in **5 locations**:
 
@@ -176,9 +176,9 @@ This pattern helps you quickly find all the places that need updating in the nex
 
 ## Summary Checklist
 
-- [ ] Update `core/startos/Cargo.toml` version
-- [ ] Create new `core/startos/src/version/vX_Y_Z_alpha_N+1.rs` file
-- [ ] Update `core/startos/src/version/mod.rs` in 5 locations
+- [ ] Update `core/Cargo.toml` version
+- [ ] Create new `core/src/version/vX_Y_Z_alpha_N+1.rs` file
+- [ ] Update `core/src/version/mod.rs` in 5 locations
 - [ ] Run `cargo check` to update `core/Cargo.lock`
 - [ ] Update `sdk/package/lib/StartSdk.ts` OSVersion
 - [ ] Update `web/package.json` and `web/package-lock.json` version

@@ -9,56 +9,34 @@ if [ "$ARCH" = "riscv64" ]; then
   RUST_ARCH="riscv64gc"
 fi
 
-if mountpoint -q tmp/combined; then sudo umount -l tmp/combined; fi
-if mountpoint -q tmp/lower; then sudo umount tmp/lower; fi
-sudo rm -rf tmp
-mkdir -p tmp/lower tmp/upper tmp/work tmp/combined
-if which squashfuse > /dev/null; then
-    sudo squashfuse debian.${ARCH}.squashfs tmp/lower
-else
-    sudo mount debian.${ARCH}.squashfs tmp/lower
-fi
-if which fuse-overlayfs > /dev/null; then
-    sudo fuse-overlayfs -olowerdir=tmp/lower,upperdir=tmp/upper,workdir=tmp/work overlay tmp/combined
-else
-    sudo mount -t overlay -olowerdir=tmp/lower,upperdir=tmp/upper,workdir=tmp/work overlay tmp/combined
-fi
+mount -t tmpfs tmpfs /tmp
+mkdir -p /tmp/lower /tmp/upper /tmp/work /tmp/combined
+mount -o loop debian.${ARCH}.squashfs /tmp/lower
+mount -t overlay -olowerdir=/tmp/lower,upperdir=/tmp/upper,workdir=/tmp/work overlay /tmp/combined
 
-QEMU=
-if [ "$ARCH" != "$(uname -m)" ]; then
-    QEMU=/usr/bin/qemu-${ARCH}
-    if ! which qemu-$ARCH > /dev/null; then
-        >&2 echo qemu-user is required for cross-platform builds
-        sudo umount tmp/combined
-        sudo umount tmp/lower
-        sudo rm -rf tmp
-        exit 1
-    fi
-    sudo cp $(which qemu-$ARCH) tmp/combined${QEMU}
-fi
-
-sudo mkdir -p tmp/combined/usr/lib/startos/
-sudo rsync -a --copy-unsafe-links dist/ tmp/combined/usr/lib/startos/init/
-sudo chown -R 0:0 tmp/combined/usr/lib/startos/
-sudo cp container-runtime.service tmp/combined/lib/systemd/system/container-runtime.service
-sudo chown 0:0 tmp/combined/lib/systemd/system/container-runtime.service
-sudo cp container-runtime-failure.service tmp/combined/lib/systemd/system/container-runtime-failure.service
-sudo chown 0:0 tmp/combined/lib/systemd/system/container-runtime-failure.service
-sudo cp ../core/target/${RUST_ARCH}-unknown-linux-musl/release/start-container tmp/combined/usr/bin/start-container
-echo -e '#!/bin/bash\nexec start-container "$@"' | sudo tee tmp/combined/usr/bin/start-cli # TODO: remove
-sudo chmod +x tmp/combined/usr/bin/start-cli
-sudo chown 0:0 tmp/combined/usr/bin/start-container
-echo container-runtime | sha256sum | head -c 32 | cat - <(echo) | sudo tee tmp/combined/etc/machine-id
-cat deb-install.sh | sudo systemd-nspawn --console=pipe -D tmp/combined $QEMU /bin/bash
-sudo truncate -s 0 tmp/combined/etc/machine-id
-
-if [ -n "$QEMU" ]; then
-    sudo rm tmp/combined${QEMU}
-fi
+mkdir -p /tmp/combined/usr/lib/startos/
+rsync -a --copy-unsafe-links --info=progress2 dist/ /tmp/combined/usr/lib/startos/init/
+chown -R 0:0 /tmp/combined/usr/lib/startos/
+cp container-runtime.service /tmp/combined/lib/systemd/system/container-runtime.service
+chown 0:0 /tmp/combined/lib/systemd/system/container-runtime.service
+cp container-runtime-failure.service /tmp/combined/lib/systemd/system/container-runtime-failure.service
+chown 0:0 /tmp/combined/lib/systemd/system/container-runtime-failure.service
+cp ../core/target/${RUST_ARCH}-unknown-linux-musl/release/start-container /tmp/combined/usr/bin/start-container
+echo -e '#!/bin/bash\nexec start-container "$@"' > /tmp/combined/usr/bin/start-cli # TODO: remove
+chmod +x /tmp/combined/usr/bin/start-cli
+chown 0:0 /tmp/combined/usr/bin/start-container
+echo container-runtime | sha256sum | head -c 32 | cat - <(echo) > /tmp/combined/etc/machine-id
+rm -f /tmp/combined/etc/resolv.conf
+cp /etc/resolv.conf /tmp/combined/etc/resolv.conf
+for fs in proc sys dev; do
+    mount --bind /$fs /tmp/combined/$fs
+done
+cat deb-install.sh | chroot /tmp/combined /bin/bash
+for fs in proc sys dev; do
+    umount /tmp/combined/$fs
+done
+truncate -s 0 /tmp/combined/etc/machine-id
 
 rm -f rootfs.${ARCH}.squashfs
 mkdir -p ../build/lib/container-runtime
-sudo mksquashfs tmp/combined rootfs.${ARCH}.squashfs
-sudo umount tmp/combined
-sudo umount tmp/lower
-sudo rm -rf tmp
+mksquashfs /tmp/combined rootfs.${ARCH}.squashfs

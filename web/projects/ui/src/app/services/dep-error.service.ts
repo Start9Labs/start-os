@@ -156,15 +156,14 @@ export class DepErrorService {
 
     const depStatus = getInstalledBaseStatus(dep.statusInfo)
 
-    // not running
-    if (depStatus !== 'running' && depStatus !== 'starting') {
-      return {
-        type: 'notRunning',
-      }
-    }
-
-    // health check failure
     if (currentDep?.kind === 'running') {
+      // not running
+      if (depStatus !== 'running' && depStatus !== 'starting') {
+        return {
+          type: 'notRunning',
+        }
+      }
+      // health check failure
       for (let id of currentDep.healthChecks) {
         const check = dep.statusInfo.health[id]
         if (check?.result !== 'success') {

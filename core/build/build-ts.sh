@@ -2,7 +2,7 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-source ./build/builder-alias.sh
+source ./builder-alias.sh
 
 set -ea
 shopt -s expand_aliases
@@ -22,24 +22,23 @@ if [ -z "$ARCH" ]; then
 fi
 
 if [ "$ARCH" = "arm64" ]; then
-  ARCH="aarch64"
+	ARCH="aarch64"
 fi
 
-USE_TTY=
-if tty -s; then
-	USE_TTY="-it"
+RUST_ARCH="$ARCH"
+if [ "$ARCH" = "riscv64" ]; then
+	RUST_ARCH="riscv64gc"
 fi
 
-cd ..
+cd ../..
 FEATURES="$(echo $ENVIRONMENT | sed 's/-/,/g')"
 RUSTFLAGS=""
-
 if [[ "${ENVIRONMENT}" =~ (^|-)console($|-) ]]; then
 	RUSTFLAGS="--cfg tokio_unstable"
 fi
-
-
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-zig-builder cargo test --manifest-path=./core/Cargo.toml $BUILD_FLAGS --features=test,$FEATURES --workspace --locked --lib -- --skip export_bindings_
-rust-zig-builder sh -c "chown -R $UID:$UID core/target && chown -R $UID:$UID /usr/local/cargo"
+rust-zig-builder cargo test --manifest-path=./core/Cargo.toml $BUILD_FLAGS --features test,$FEATURES --locked 'export_bindings_'
+if [ "$(ls -nd "core/bindings" | awk '{ print $3 }')" != "$UID" ]; then
+  rust-zig-builder sh -c "chown -R $UID:$UID core/target && chown -R $UID:$UID core/bindings && chown -R $UID:$UID  /usr/local/cargo"
+fi

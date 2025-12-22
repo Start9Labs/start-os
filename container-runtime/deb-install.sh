@@ -2,9 +2,6 @@
 
 set -e
 
-mkdir -p /run/systemd/resolve
-echo "nameserver 8.8.8.8" > /run/systemd/resolve/stub-resolv.conf
-
 apt-get update
 apt-get install -y curl rsync qemu-user-static nodejs
 
@@ -16,7 +13,4 @@ sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.co
 
 systemctl enable container-runtime.service
 
-rm -rf /run/systemd
-
-rm -f /etc/resolv.conf
 echo "nameserver 10.0.3.1" > /etc/resolv.conf
