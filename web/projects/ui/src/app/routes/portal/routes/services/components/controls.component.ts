@@ -53,7 +53,7 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
           >
             {{ 'Open UI' | i18n }}
           </button>
-          <ng-template #content>
+          <ng-template #content let-close>
             <tui-data-list>
               @for (i of interfaces(); track $index) {
                 <a
@@ -63,6 +63,7 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
                   rel="noreferrer"
                   iconEnd="@tui.external-link"
                   [attr.href]="getHref(i)"
+                  (click)="close()"
                 >
                   {{ i.name }}
                 </a>
