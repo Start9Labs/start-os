@@ -58,7 +58,7 @@ export class PublicDomainService {
     ),
   )
 
-  async add() {
+  async add(addSsl: boolean) {
     const addSpec = ISB.InputSpec.of({
       fqdn: ISB.Value.text({
         name: this.i18n.transform('Domain'),
@@ -69,7 +69,10 @@ export class PublicDomainService {
         default: null,
         patterns: [utils.Patterns.domain],
       }).map(f => f.toLocaleLowerCase()),
-      ...this.gatewayAndAuthoritySpec(),
+      ...this.gatewaySpec(),
+      ...(addSsl
+        ? this.authoritySpec()
+        : ({} as ReturnType<typeof this.authoritySpec>)),
     })
 
     this.formDialog.open(FormComponent, {
@@ -87,9 +90,12 @@ export class PublicDomainService {
     })
   }
 
-  async edit(domain: PublicDomain) {
+  async edit(domain: PublicDomain, addSsl: boolean) {
     const editSpec = ISB.InputSpec.of({
-      ...this.gatewayAndAuthoritySpec(),
+      ...this.gatewaySpec(),
+      ...(addSsl
+        ? this.authoritySpec()
+        : ({} as ReturnType<typeof this.authoritySpec>)),
     })
 
     this.formDialog.open(FormComponent, {
@@ -155,7 +161,7 @@ export class PublicDomainService {
   private async save(
     fqdn: string,
     gatewayId: string,
-    authority: 'local' | string,
+    authority?: 'local' | string,
   ) {
     const gateway = this.data()!.gateways.find(g => g.id === gatewayId)!
 
@@ -163,7 +169,7 @@ export class PublicDomainService {
     const params = {
       fqdn,
       gateway: gatewayId,
-      acme: authority === 'local' ? null : authority,
+      acme: !authority || authority === 'local' ? null : authority,
     }
     try {
       let ip: string | null
@@ -225,7 +231,7 @@ export class PublicDomainService {
     }
   }
 
-  private gatewayAndAuthoritySpec() {
+  private gatewaySpec() {
     const data = this.data()!
 
     const gateways = data.gateways.filter(
@@ -251,6 +257,13 @@ export class PublicDomainService {
           .filter(g => !g.ipInfo.wanIp || utils.CGNAT.contains(g.ipInfo.wanIp))
           .map(g => g.id),
       })),
+    }
+  }
+
+  private authoritySpec() {
+    const data = this.data()!
+
+    return {
       authority: ISB.Value.select({
         name: this.i18n.transform('Certificate Authority'),
         description: this.i18n.transform(

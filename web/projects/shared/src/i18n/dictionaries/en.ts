@@ -591,4 +591,4 @@ export const ENGLISH = {
   'Select another version': 625,
   'Upload': 626, // as in, upload a file
   'Open UI': 627, // as in, upload a file
-} as const
+} as Record<any, any>

@@ -1,7 +1,12 @@
-export function toAuthorityName(url: string | null): string | 'Local Root CA' {
-  return (
-    knownAuthorities.find(ca => ca.url === url)?.name || url || 'Local Root CA'
-  )
+export function toAuthorityName(
+  url: string | null,
+  addSsl = true,
+): string | 'Local Root CA' | '-' {
+  if (url) {
+    return knownAuthorities.find(ca => ca.url === url)?.name || url
+  } else {
+    return addSsl ? 'Local Root CA' : '-'
+  }
 }
 
 export function toAuthorityUrl(name: string): string {

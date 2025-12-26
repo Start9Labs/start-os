@@ -527,6 +527,7 @@ export type MappedServiceInterface = T.ServiceInterface & {
     common: DisplayAddress[]
     uncommon: DisplayAddress[]
   }
+  addSsl: boolean
 }
 
 export type InterfaceGateway = GatewayPlus & {
