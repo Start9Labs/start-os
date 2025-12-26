@@ -32,6 +32,7 @@ import { TuiBadge } from '@taiga-ui/kit'
         </div>
       </td>
       <td>
+        <!-- @TODO Alex if address.masked, we need to mask it, also with eyeball unmask to the left of other action buttons -->
         <div class="wrapper" [title]="address.url">{{ address.url }}</div>
       </td>
       <td

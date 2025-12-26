@@ -83,10 +83,7 @@ export class MockApiService extends ApiService {
     return markdown
   }
 
-  async getStaticInstalled(
-    id: T.PackageId,
-    path: 'LICENSE.md',
-  ): Promise<string> {
+  async getStatic(url: string): Promise<string> {
     await pauseFor(2000)
     return markdown
   }

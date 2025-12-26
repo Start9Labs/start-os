@@ -17,7 +17,9 @@ export class DownloadHTMLService {
     const elem = this.document.createElement('a')
     elem.setAttribute(
       'href',
-      'data:text/plain;charset=utf-8,' + encodeURIComponent(html),
+      URL.createObjectURL(
+        new Blob([html], { type: 'application/octet-stream' }),
+      ),
     )
     elem.setAttribute('download', filename)
     elem.style.display = 'none'
