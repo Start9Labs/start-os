@@ -15,12 +15,13 @@ import { InterfaceAddressItemComponent } from './item.component'
     <header>{{ 'Addresses' | i18n }}</header>
     <tui-elastic-container>
       <table [appTable]="['Type', 'Access', 'Gateway', 'URL', null]">
+        <th [style.width.rem]="2"></th>
         @for (address of addresses()?.common; track $index) {
           <tr [address]="address" [isRunning]="isRunning()"></tr>
         } @empty {
           @if (addresses()) {
             <tr>
-              <td colspan="5">
+              <td colspan="6">
                 <app-placeholder icon="@tui.list-x">
                   {{ 'No addresses' | i18n }}
                 </app-placeholder>
@@ -39,7 +40,7 @@ import { InterfaceAddressItemComponent } from './item.component'
         <tbody [class.uncommon-hidden]="!uncommon">
           @if (addresses()?.uncommon?.length && uncommon) {
             <tr [style.background]="'var(--tui-background-neutral-1)'">
-              <td colspan="5"></td>
+              <td colspan="6"></td>
             </tr>
           }
           @for (address of addresses()?.uncommon; track $index) {
@@ -75,6 +76,13 @@ import { InterfaceAddressItemComponent } from './item.component'
       width: 100%;
       border-top-left-radius: 0;
       border-top-right-radius: 0;
+    }
+
+    :host-context(tui-root._mobile) {
+      [tuiButton] {
+        border-radius: var(--tui-radius-xs);
+        margin-block-end: 0.75rem;
+      }
     }
   `,
   host: { class: 'g-card' },

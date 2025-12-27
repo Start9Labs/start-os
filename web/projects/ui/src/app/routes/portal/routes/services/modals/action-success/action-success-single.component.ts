@@ -1,14 +1,14 @@
+import { CdkCopyToClipboard } from '@angular/cdk/clipboard'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
+  inject,
   Input,
-  ViewChild,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { i18nPipe } from '@start9labs/shared'
-import { TuiButton, TuiTextfield, TuiTextfieldDirective } from '@taiga-ui/core'
+import { TuiAlertService, TuiButton, TuiTextfield } from '@taiga-ui/core'
 import { QrCodeComponent } from 'ng-qrcode'
 import { SingleResult } from './types'
 
@@ -48,7 +48,8 @@ import { SingleResult } from './types'
           tabindex="-1"
           iconStart="@tui.copy"
           [style.pointer-events]="'auto'"
-          (click)="copy()"
+          [cdkCopyToClipboard]="single.value"
+          (cdkCopyToClipboardCopied)="onCopied()"
         >
           {{ 'Copy' | i18n }}
         </button>
@@ -93,28 +94,23 @@ import { SingleResult } from './types'
     TuiButton,
     QrCodeComponent,
     i18nPipe,
+    CdkCopyToClipboard,
   ],
 })
 export class ActionSuccessSingleComponent {
-  @ViewChild(TuiTextfieldDirective, { read: ElementRef })
-  private readonly input!: ElementRef<HTMLInputElement>
+  private readonly i18n = inject(i18nPipe)
+  private readonly alerts = inject(TuiAlertService)
 
   @Input()
   single!: SingleResult
 
   masked = true
 
-  copy() {
-    const el = this.input.nativeElement
-
-    if (!el) {
-      return
-    }
-
-    el.type = 'text'
-    el.focus()
-    el.select()
-    el.ownerDocument.execCommand('copy')
-    el.type = this.masked && this.single.masked ? 'password' : 'text'
+  onCopied() {
+    this.alerts
+      .open(this.i18n.transform('Copied to clipboard'), {
+        appearance: 'positive',
+      })
+      .subscribe()
   }
 }

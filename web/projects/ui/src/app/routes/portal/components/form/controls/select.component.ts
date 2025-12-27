@@ -5,7 +5,6 @@ import { IST } from '@start9labs/start-sdk'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import { TuiDataList, TuiIcon, TuiTextfield } from '@taiga-ui/core'
 import {
-  TuiDataListWrapper,
   TuiFluidTypography,
   tuiFluidTypographyOptionsProvider,
   TuiSelect,

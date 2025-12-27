@@ -16,6 +16,7 @@ import {
   VERSION,
   WorkspaceConfig,
 } from '@start9labs/shared'
+import { tuiObfuscateOptionsProvider } from '@taiga-ui/cdk'
 import {
   TUI_DATE_FORMAT,
   TUI_DIALOGS_CLOSE,
@@ -30,7 +31,7 @@ import {
   TUI_DATE_VALUE_TRANSFORMER,
 } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { filter, of, pairwise } from 'rxjs'
+import { filter, identity, of, pairwise } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
 import {
   PATCH_CACHE,
@@ -133,4 +134,10 @@ export const APP_PROVIDERS = [
     provide: VERSION,
     useFactory: () => inject(ConfigService).version,
   },
+  tuiObfuscateOptionsProvider({
+    recipes: {
+      mask: ({ length }) => '•'.repeat(length),
+      none: identity,
+    },
+  }),
 ]

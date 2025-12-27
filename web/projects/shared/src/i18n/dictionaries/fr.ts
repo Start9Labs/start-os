@@ -592,4 +592,5 @@ export default {
   625: 'Sélectionner une autre version',
   626: 'Téléverser',
   627: 'Ouvrir UI',
+  628: 'Copié dans le presse-papiers',
 } satisfies i18n

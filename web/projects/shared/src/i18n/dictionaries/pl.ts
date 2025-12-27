@@ -592,4 +592,5 @@ export default {
   625: 'Wybierz inną wersję',
   626: 'Prześlij',
   627: 'Otwórz UI',
+  628: 'Skopiowano do schowka',
 } satisfies i18n

@@ -28,10 +28,6 @@ import { InterfaceComponent } from '../interface.component'
   selector: 'td[actions]',
   template: `
     <div class="desktop">
-      <button tuiIconButton appearance="flat-grayscale" (click)="viewDetails()">
-        {{ 'Address details' | i18n }}
-        <tui-icon class="info" icon="@tui.info" background="@tui.info-filled" />
-      </button>
       @if (interface.value()?.type === 'ui') {
         <a
           tuiIconButton
@@ -72,9 +68,6 @@ import { InterfaceComponent } from '../interface.component'
       >
         {{ 'Actions' | i18n }}
         <tui-data-list *tuiTextfieldDropdown="let close">
-          <button tuiOption new iconStart="@tui.info" (click)="viewDetails()">
-            {{ 'Address details' | i18n }}
-          </button>
           @if (interface.value()?.type === 'ui') {
             <a
               tuiOption
@@ -105,22 +98,10 @@ import { InterfaceComponent } from '../interface.component'
   styles: `
     :host {
       text-align: right;
-      grid-area: 1 / 2 / 4 / 3;
+      grid-area: 1/4/4/4;
+      width: fit-content;
       place-content: center;
       white-space: nowrap;
-    }
-
-    :host-context(.uncommon-hidden) .desktop {
-      height: 0;
-      visibility: hidden;
-    }
-
-    .info {
-      background: var(--tui-status-info);
-
-      &::after {
-        mask-size: 1.5rem;
-      }
     }
 
     .mobile {
@@ -136,15 +117,19 @@ import { InterfaceComponent } from '../interface.component'
         display: block;
       }
     }
+
+    :host-context(tbody.uncommon-hidden) {
+      .desktop {
+        height: 0;
+        visibility: hidden;
+      }
+
+      .mobile {
+        display: none;
+      }
+    }
   `,
-  imports: [
-    TuiButton,
-    TuiDropdown,
-    TuiDataList,
-    i18nPipe,
-    TuiTextfield,
-    TuiIcon,
-  ],
+  imports: [TuiButton, TuiDropdown, TuiDataList, i18nPipe, TuiTextfield],
   providers: [tuiButtonOptionsProvider({ appearance: 'icon' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -159,19 +144,6 @@ export class AddressActionsComponent {
   readonly disabled = input.required<boolean>()
 
   open = false
-
-  viewDetails() {
-    this.dialog
-      .openAlert(
-        `<ul>${this.bullets()
-          .map(b => `<li>${b}</li>`)
-          .join('')}</ul>` as i18nKey,
-        {
-          label: 'About this address' as i18nKey,
-        },
-      )
-      .subscribe()
-  }
 
   showQR() {
     this.dialog
