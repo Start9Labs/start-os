@@ -1,4 +1,3 @@
-import { CdkCopyToClipboard } from '@angular/cdk/clipboard'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -7,8 +6,8 @@ import {
   Input,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { i18nPipe } from '@start9labs/shared'
-import { TuiAlertService, TuiButton, TuiTextfield } from '@taiga-ui/core'
+import { CopyService, i18nPipe } from '@start9labs/shared'
+import { TuiButton, TuiTextfield } from '@taiga-ui/core'
 import { QrCodeComponent } from 'ng-qrcode'
 import { SingleResult } from './types'
 
@@ -48,8 +47,7 @@ import { SingleResult } from './types'
           tabindex="-1"
           iconStart="@tui.copy"
           [style.pointer-events]="'auto'"
-          [cdkCopyToClipboard]="single.value"
-          (cdkCopyToClipboardCopied)="onCopied()"
+          (click)="copy.copy(single.value)"
         >
           {{ 'Copy' | i18n }}
         </button>
@@ -94,23 +92,13 @@ import { SingleResult } from './types'
     TuiButton,
     QrCodeComponent,
     i18nPipe,
-    CdkCopyToClipboard,
   ],
 })
 export class ActionSuccessSingleComponent {
-  private readonly i18n = inject(i18nPipe)
-  private readonly alerts = inject(TuiAlertService)
+  readonly copy = inject(CopyService)
 
   @Input()
   single!: SingleResult
 
   masked = true
-
-  onCopied() {
-    this.alerts
-      .open(this.i18n.transform('Copied to clipboard'), {
-        appearance: 'positive',
-      })
-      .subscribe()
-  }
 }

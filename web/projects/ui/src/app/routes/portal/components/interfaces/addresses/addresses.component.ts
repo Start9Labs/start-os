@@ -67,6 +67,20 @@ import { InterfaceAddressItemComponent } from './item.component'
     </tui-elastic-container>
   `,
   styles: `
+    :host ::ng-deep {
+      th:nth-child(2) {
+        width: 5rem;
+      }
+
+      th:nth-child(3) {
+        width: 4rem;
+      }
+
+      th:nth-child(4) {
+        width: 17rem;
+      }
+    }
+
     .g-table:has(caption) {
       border-bottom-left-radius: 0;
       border-bottom-right-radius: 0;

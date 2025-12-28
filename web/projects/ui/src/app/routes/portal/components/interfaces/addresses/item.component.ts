@@ -1,8 +1,10 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   input,
+  signal,
 } from '@angular/core'
 import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiObfuscatePipe } from '@taiga-ui/cdk'
@@ -57,20 +59,9 @@ import { AddressActionsComponent } from './actions.component'
       <td [style.grid-area]="'3 / 1 / 3 / 3'">
         <div
           class="wrapper"
-          [title]="address.masked && masked ? null : address.url"
+          [title]="address.masked && masked() ? '' : address.url"
         >
-          @if (address.masked) {
-            <button
-              tuiIconButton
-              size="xs"
-              appearance="icon"
-              [iconStart]="masked ? '@tui.eye' : '@tui.eye-off'"
-              (click)="masked = !masked"
-            >
-              {{ 'Reveal/Hide' | i18n }}
-            </button>
-          }
-          {{ address.url | tuiObfuscate: recipe }}
+          {{ address.url | tuiObfuscate: recipe() }}
         </div>
       </td>
       <td
@@ -156,11 +147,10 @@ export class InterfaceAddressItemComponent {
   readonly address = input.required<DisplayAddress>()
   readonly isRunning = input.required<boolean>()
 
-  masked = true
-
-  get recipe(): string {
-    return !this.address()?.masked && this.masked ? 'mask' : 'none'
-  }
+  readonly masked = signal(true)
+  readonly recipe = computed(() =>
+    this.address()?.masked && this.masked() ? 'mask' : 'none',
+  )
 
   viewDetails() {
     this.dialogs

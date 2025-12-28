@@ -3,32 +3,37 @@ import {
   Component,
   inject,
   input,
-  output,
+  signal,
 } from '@angular/core'
-import {
-  CopyService,
-  DialogService,
-  i18nKey,
-  i18nPipe,
-} from '@start9labs/shared'
+import { CopyService, DialogService, i18nPipe } from '@start9labs/shared'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import {
   TuiButton,
   tuiButtonOptionsProvider,
   TuiDataList,
   TuiDropdown,
-  TuiIcon,
   TuiTextfield,
 } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { QRModal } from 'src/app/routes/portal/modals/qr.component'
-import { InterfaceComponent } from '../interface.component'
+
+import { InterfaceAddressItemComponent } from './item.component'
 
 @Component({
   selector: 'td[actions]',
   template: `
     <div class="desktop">
-      @if (interface.value()?.type === 'ui') {
+      @if (interface.address().masked) {
+        <button
+          tuiIconButton
+          appearance="flat-grayscale"
+          [iconStart]="interface.masked() ? '@tui.eye' : '@tui.eye-off'"
+          (click)="interface.masked.set(!interface.masked())"
+        >
+          {{ 'Reveal/Hide' | i18n }}
+        </button>
+      }
+      @if (interface.address().type === 'ui') {
         <a
           tuiIconButton
           appearance="flat-grayscale"
@@ -63,12 +68,12 @@ import { InterfaceComponent } from '../interface.component'
         tuiIconButton
         appearance="flat-grayscale"
         iconStart="@tui.ellipsis-vertical"
-        [tuiAppearanceState]="open ? 'hover' : null"
+        [tuiAppearanceState]="open() ? 'hover' : null"
         [(tuiDropdownOpen)]="open"
       >
         {{ 'Actions' | i18n }}
-        <tui-data-list *tuiTextfieldDropdown="let close">
-          @if (interface.value()?.type === 'ui') {
+        <tui-data-list *tuiTextfieldDropdown (click)="open.set(false)">
+          @if (interface.address().type === 'ui') {
             <a
               tuiOption
               new
@@ -80,6 +85,16 @@ import { InterfaceComponent } from '../interface.component'
               {{ 'Open' | i18n }}
             </a>
           }
+          @if (interface.address().masked) {
+            <button
+              tuiOption
+              new
+              iconStart="@tui.eye"
+              (click)="interface.masked.set(!interface.masked())"
+            >
+              {{ 'Reveal/Hide' | i18n }}
+            </button>
+          }
           <button tuiOption new iconStart="@tui.qr-code" (click)="showQR()">
             {{ 'Show QR' | i18n }}
           </button>
@@ -87,7 +102,7 @@ import { InterfaceComponent } from '../interface.component'
             tuiOption
             new
             iconStart="@tui.copy"
-            (click)="copyService.copy(href()); close()"
+            (click)="copyService.copy(href())"
           >
             {{ 'Copy URL' | i18n }}
           </button>
@@ -137,13 +152,12 @@ export class AddressActionsComponent {
   readonly isMobile = inject(TUI_IS_MOBILE)
   readonly dialog = inject(DialogService)
   readonly copyService = inject(CopyService)
-  readonly interface = inject(InterfaceComponent)
+  readonly interface = inject(InterfaceAddressItemComponent)
+  readonly open = signal(false)
 
   readonly href = input.required<string>()
   readonly bullets = input.required<string[]>()
   readonly disabled = input.required<boolean>()
-
-  open = false
 
   showQR() {
     this.dialog
