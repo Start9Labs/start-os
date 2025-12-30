@@ -97,7 +97,7 @@ impl PersistentContainer {
                         .join(&s9pk.as_manifest().id),
                 ),
                 LxcConfig {
-                    gpu_acceleration: s9pk.manifest.gpu_acceleration,
+                    hardware_acceleration: s9pk.manifest.hardware_acceleration,
                 },
             )
             .await?;

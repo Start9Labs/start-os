@@ -128,16 +128,17 @@ export type SDKManifest = {
   /**
    * @description (optional) A set of hardware requirements for this service. If the user's machine
    *   does not meet these requirements, they will not be able to install this service.
-   * @property {object[]} devices - TODO Aiden confirm type on the left. List of required devices (displays or processors).
+   * @property {object[]} devices - List of required devices (display or processor).
+   *    `pattern` refers to a regular expression that at least one device of the specified class must match
+   *    `patternDescription` is what will be displayed to the user about what kind of device is required
    * @property {number} ram - Minimum RAM requirement (in megabytes MB)
    * @property {string[]} arch - List of supported arches
    * @example
    * ```
-    TODO Aiden verify below and provide examples for devices
     hardwareRequirements: {
       devices: [
-        { class: 'display', value: '' },
-        { class: 'processor', value: '' },
+        { class: 'display', pattern: 'CometLake', patternDescription: 'A CometLake (10th generation) Intel Integrated GPU' },
+        { class: 'processor', pattern: 'i[3579]-10[0-9]{3}U CPU', patternDescription: 'A 10th Generation Intel i-Series processor' },
       ],
       ram: 8192,
       arch: ['x86-64'],
@@ -149,14 +150,30 @@ export type SDKManifest = {
     readonly ram?: number | null
     readonly arch?: string[] | null
   }
+
+  /**
+   * @description Enable access to hardware acceleration devices (such as /dev/dri, or /dev/nvidia*)
+   */
+  readonly hardwareAcceleration?: boolean
 }
 
 // this is hacky but idk a more elegant way
 type ArchOptions = {
-  0: ["x86_64", "aarch64"]
-  1: ["aarch64", "x86_64"]
-  2: ["x86_64"]
-  3: ["aarch64"]
+  0: ["x86_64", "aarch64", "riscv64"]
+  1: ["aarch64", "x86_64", "riscv64"]
+  2: ["x86_64", "riscv64", "aarch64"]
+  3: ["aarch64", "riscv64", "x86_64"]
+  4: ["riscv64", "x86_64", "aarch64"]
+  5: ["riscv64", "aarch64", "x86_64"]
+  6: ["x86_64", "aarch64"]
+  7: ["aarch64", "x86_64"]
+  8: ["x86_64", "riscv64"]
+  9: ["aarch64", "riscv64"]
+  10: ["riscv64", "aarch64"]
+  11: ["riscv64", "x86_64"]
+  12: ["x86_64"]
+  13: ["aarch64"]
+  14: ["riscv64"]
 }
 export type SDKImageInputSpec = {
   [A in keyof ArchOptions]: {

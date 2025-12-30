@@ -5,11 +5,13 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use clap::builder::ValueParserFactory;
-use futures::StreamExt;
+use futures::future::BoxFuture;
+use futures::{FutureExt, StreamExt};
 use imbl_value::InternedString;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
+use tokio::fs::ReadDir;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Mutex;
@@ -37,6 +39,8 @@ const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path
 pub const CONTAINER_RPC_SERVER_SOCKET: &str = "service.sock"; // must not be absolute path
 pub const HOST_RPC_SERVER_SOCKET: &str = "host.sock"; // must not be absolute path
 const CONTAINER_DHCP_TIMEOUT: Duration = Duration::from_secs(30);
+const HARDWARE_ACCELERATION_PATHS: &[&str] =
+    &["/dev/dri/", "/dev/nvidia", "/dev/media", "/dev/video"];
 
 #[derive(
     Clone, Debug, Serialize, Deserialize, Default, PartialEq, Eq, PartialOrd, Ord, Hash, TS,
@@ -155,12 +159,91 @@ impl LxcManager {
     }
 }
 
+fn handle_devices<'a>(
+    guid: &'a str,
+    rootfs: &'a Path,
+    mut dir: ReadDir,
+    guards: &'a mut Vec<MountGuard>,
+    matches: &'a [&'a str],
+) -> BoxFuture<'a, Result<(), Error>> {
+    use std::os::linux::fs::MetadataExt;
+    use std::os::unix::fs::FileTypeExt;
+    async move {
+        while let Some(ent) = dir.next_entry().await? {
+            let path = ent.path();
+            if let Some(matches) = if matches.is_empty() {
+                Some(Vec::new())
+            } else {
+                let mut new_matches = Vec::new();
+                for m in matches {
+                    if if m.ends_with("/") {
+                        path.starts_with(m)
+                    } else {
+                        path.to_string_lossy().starts_with(*m)
+                    } || Path::new(*m).starts_with(&path)
+                    {
+                        new_matches.push(*m);
+                    }
+                }
+                if new_matches.is_empty() {
+                    None
+                } else {
+                    Some(new_matches)
+                }
+            } {
+                let meta = ent.metadata().await?;
+                let ty = meta.file_type();
+                if ty.is_dir() {
+                    handle_devices(
+                        guid,
+                        rootfs,
+                        tokio::fs::read_dir(&path)
+                            .await
+                            .with_ctx(|_| (ErrorKind::Filesystem, format!("readdir {path:?}")))?,
+                        guards,
+                        &matches,
+                    )
+                    .await?;
+                } else {
+                    let ty = if ty.is_char_device() {
+                        "c"
+                    } else if ty.is_block_device() {
+                        "b"
+                    } else {
+                        continue;
+                    };
+                    let rdev = meta.st_rdev();
+                    let maj = ((rdev >> 8) & 0xfff) as u32;
+                    let min = ((rdev & 0xff) | ((rdev >> 12) & 0xfff00)) as u32;
+                    Command::new("lxc-cgroup")
+                        .arg(guid)
+                        .arg("devices.allow")
+                        .arg(format!("{ty} {maj}:{min} rwm"))
+                        .invoke(ErrorKind::Lxc)
+                        .await?;
+                    guards.push(
+                        MountGuard::mount(
+                            &Bind::new(&path),
+                            rootfs.join(path.strip_prefix("/").unwrap_or(&path)),
+                            ReadWrite,
+                        )
+                        .await?,
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+    .boxed()
+}
+
 pub struct LxcContainer {
     manager: Weak<LxcManager>,
     rootfs: OverlayGuard<TmpMountGuard>,
     pub guid: Arc<ContainerId>,
     rpc_bind: TmpMountGuard,
     log_mount: Option<MountGuard>,
+    devices: Vec<MountGuard>,
     config: LxcConfig,
     exited: bool,
 }
@@ -174,10 +257,7 @@ impl LxcContainer {
         let machine_id = hex::encode(rand::random::<[u8; 16]>());
         let container_dir = Path::new(LXC_CONTAINER_DIR).join(&*guid);
         tokio::fs::create_dir_all(&container_dir).await?;
-        let mut config_str = format!(include_str!("./config.template"), guid = &*guid);
-        if config.gpu_acceleration {
-            config_str += include_str!("./gpu_config");
-        }
+        let config_str = format!(include_str!("./config.template"), guid = &*guid);
         tokio::fs::write(container_dir.join("config"), config_str).await?;
         // TODO: append config
         let rootfs_dir = container_dir.join("rootfs");
@@ -249,11 +329,24 @@ impl LxcContainer {
             .arg("--name")
             .arg(&*guid)
             .arg("-o")
-            .arg("/tmp/lxc.log")
+            .arg(format!("/run/startos/LXC_{guid}.log"))
             .arg("-l")
-            .arg("debug")
+            .arg("DEBUG")
             .invoke(ErrorKind::Lxc)
             .await?;
+        let mut devices = Vec::new();
+        if config.hardware_acceleration {
+            handle_devices(
+                &*guid,
+                rootfs.path(),
+                tokio::fs::read_dir("/dev")
+                    .await
+                    .with_ctx(|_| (ErrorKind::Filesystem, "readdir /dev"))?,
+                &mut devices,
+                HARDWARE_ACCELERATION_PATHS,
+            )
+            .await?;
+        }
         Ok(Self {
             manager: Arc::downgrade(manager),
             rootfs,
@@ -262,6 +355,7 @@ impl LxcContainer {
             config,
             exited: false,
             log_mount,
+            devices,
         })
     }
 
@@ -333,7 +427,10 @@ impl LxcContainer {
             .await?;
         self.rpc_bind.take().unmount().await?;
         if let Some(log_mount) = self.log_mount.take() {
-            log_mount.unmount(true).await?;
+            log_mount.unmount(false).await?;
+        }
+        for device in std::mem::take(&mut self.devices) {
+            device.unmount(false).await?;
         }
         self.rootfs.take().unmount(true).await?;
         let rootfs_path = self.rootfs_dir();
@@ -419,7 +516,7 @@ impl Drop for LxcContainer {
 
 #[derive(Default, Serialize)]
 pub struct LxcConfig {
-    pub gpu_acceleration: bool,
+    pub hardware_acceleration: bool,
 }
 
 pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid, Error> {

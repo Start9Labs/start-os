@@ -90,5 +90,6 @@ export function buildManifest<
             )
           : manifest.hardwareRequirements?.arch,
     },
+    hardwareAcceleration: manifest.hardwareAcceleration ?? false,
   }
 }
