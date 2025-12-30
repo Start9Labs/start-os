@@ -27,8 +27,10 @@ import { InterfaceAddressItemComponent } from './item.component'
         <button
           tuiIconButton
           appearance="flat-grayscale"
-          [iconStart]="interface.masked() ? '@tui.eye' : '@tui.eye-off'"
-          (click)="interface.masked.set(!interface.masked())"
+          [iconStart]="
+            interface.currentlyMasked() ? '@tui.eye' : '@tui.eye-off'
+          "
+          (click)="interface.currentlyMasked.set(!interface.currentlyMasked())"
         >
           {{ 'Reveal/Hide' | i18n }}
         </button>
@@ -90,7 +92,9 @@ import { InterfaceAddressItemComponent } from './item.component'
               tuiOption
               new
               iconStart="@tui.eye"
-              (click)="interface.masked.set(!interface.masked())"
+              (click)="
+                interface.currentlyMasked.set(!interface.currentlyMasked())
+              "
             >
               {{ 'Reveal/Hide' | i18n }}
             </button>

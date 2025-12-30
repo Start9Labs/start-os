@@ -59,7 +59,7 @@ import { AddressActionsComponent } from './actions.component'
       <td [style.grid-area]="'3 / 1 / 3 / 3'">
         <div
           class="wrapper"
-          [title]="address.masked && masked() ? '' : address.url"
+          [title]="address.masked && currentlyMasked() ? '' : address.url"
         >
           {{ address.url | tuiObfuscate: recipe() }}
         </div>
@@ -147,9 +147,9 @@ export class InterfaceAddressItemComponent {
   readonly address = input.required<DisplayAddress>()
   readonly isRunning = input.required<boolean>()
 
-  readonly masked = signal(true)
+  readonly currentlyMasked = signal(true)
   readonly recipe = computed(() =>
-    this.address()?.masked && this.masked() ? 'mask' : 'none',
+    this.address()?.masked && this.currentlyMasked() ? 'mask' : 'none',
   )
 
   viewDetails() {
