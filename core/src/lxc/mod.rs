@@ -248,6 +248,10 @@ impl LxcContainer {
             .arg("-d")
             .arg("--name")
             .arg(&*guid)
+            .arg("-o")
+            .arg("/tmp/lxc.log")
+            .arg("-l")
+            .arg("debug")
             .invoke(ErrorKind::Lxc)
             .await?;
         Ok(Self {
