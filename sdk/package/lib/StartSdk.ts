@@ -66,7 +66,7 @@ import {
 } from "../../base/lib/util/getServiceInterface"
 import { getOwnServiceInterfaces } from "../../base/lib/util/getServiceInterfaces"
 
-export const OSVersion = testTypeVersion("0.4.0-alpha.16")
+export const OSVersion = testTypeVersion("0.4.0-alpha.17")
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -430,7 +430,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           query: Record<string, string>
           /** (optional) overrides the protocol prefix provided by the bind function.
            *
-           * @example `ftp://`
+           * @example `ftp`
            */
           schemeOverride: { ssl: Scheme; noSsl: Scheme } | null
           /** TODO Aiden how would someone include a password in the URL? Whether or not to mask the URLs on the screen, for example, when they contain a password */
