@@ -251,6 +251,10 @@ impl TryFrom<ManifestV1> for Manifest {
             git_hash: value.git_hash,
             os_version: value.eos_version,
             sdk_version: None,
+            gpu_acceleration: match value.main {
+                PackageProcedure::Docker(d) => d.gpu_acceleration,
+                PackageProcedure::Script(_) => false,
+            },
         })
     }
 }

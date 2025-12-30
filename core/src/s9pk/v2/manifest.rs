@@ -62,6 +62,8 @@ pub struct Manifest {
     pub dependencies: Dependencies,
     #[serde(default)]
     pub hardware_requirements: HardwareRequirements,
+    #[serde(default)]
+    pub gpu_acceleration: bool,
     pub git_hash: Option<GitHash>,
     #[serde(default = "current_version")]
     #[ts(type = "string")]

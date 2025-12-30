@@ -174,11 +174,11 @@ impl LxcContainer {
         let machine_id = hex::encode(rand::random::<[u8; 16]>());
         let container_dir = Path::new(LXC_CONTAINER_DIR).join(&*guid);
         tokio::fs::create_dir_all(&container_dir).await?;
-        tokio::fs::write(
-            container_dir.join("config"),
-            format!(include_str!("./config.template"), guid = &*guid),
-        )
-        .await?;
+        let mut config_str = format!(include_str!("./config.template"), guid = &*guid);
+        if config.gpu_acceleration {
+            config_str += include_str!("./gpu_config");
+        }
+        tokio::fs::write(container_dir.join("config"), config_str).await?;
         // TODO: append config
         let rootfs_dir = container_dir.join("rootfs");
         let rootfs = OverlayGuard::mount(
@@ -414,7 +414,10 @@ impl Drop for LxcContainer {
 }
 
 #[derive(Default, Serialize)]
-pub struct LxcConfig {}
+pub struct LxcConfig {
+    pub gpu_acceleration: bool,
+}
+
 pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid, Error> {
     use axum::extract::ws::Message;
 
