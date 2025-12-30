@@ -50,6 +50,7 @@ export class GetSslCertificate {
       })
       await waitForNext
     }
+    return new Promise<never>((_, rej) => rej(new Error("aborted")))
   }
 
   /**
@@ -57,7 +58,7 @@ export class GetSslCertificate {
    */
   watch(
     abort?: AbortSignal,
-  ): AsyncGenerator<[string, string, string], void, unknown> {
+  ): AsyncGenerator<[string, string, string], never, unknown> {
     const ctrl = new AbortController()
     abort?.addEventListener("abort", () => ctrl.abort())
     return DropGenerator.of(this.watchGen(ctrl.signal), () => ctrl.abort())

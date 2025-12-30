@@ -103,7 +103,7 @@ type ReadType<A> = {
   watch: (
     effects: T.Effects,
     abort?: AbortSignal,
-  ) => AsyncGenerator<A | null, null, unknown>
+  ) => AsyncGenerator<A | null, never, unknown>
   onChange: (
     effects: T.Effects,
     callback: (
@@ -270,7 +270,7 @@ export class FileHelper<A> {
         await onCreated(this.path).catch((e) => console.error(asError(e)))
       }
     }
-    return null
+    return new Promise<never>((_, rej) => rej(new Error("aborted")))
   }
 
   private readOnChange<B>(

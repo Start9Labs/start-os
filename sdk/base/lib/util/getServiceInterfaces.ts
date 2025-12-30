@@ -2,11 +2,7 @@ import { Effects } from "../Effects"
 import { PackageId } from "../osBindings"
 import { deepEqual } from "./deepEqual"
 import { DropGenerator, DropPromise } from "./Drop"
-import {
-  ServiceInterfaceFilled,
-  filledAddress,
-  getHostname,
-} from "./getServiceInterface"
+import { ServiceInterfaceFilled, filledAddress } from "./getServiceInterface"
 
 const makeManyInterfaceFilled = async ({
   effects,
@@ -106,12 +102,13 @@ export class GetServiceInterfaces<Mapped = ServiceInterfaceFilled[]> {
       }
       await waitForNext
     }
+    return new Promise<never>((_, rej) => rej(new Error("aborted")))
   }
 
   /**
    * Watches the service interfaces for the package. Returns an async iterator that yields whenever the value changes
    */
-  watch(abort?: AbortSignal): AsyncGenerator<Mapped, void, unknown> {
+  watch(abort?: AbortSignal): AsyncGenerator<Mapped, never, unknown> {
     const ctrl = new AbortController()
     abort?.addEventListener("abort", () => ctrl.abort())
     return DropGenerator.of(this.watchGen(ctrl.signal), () => ctrl.abort())
