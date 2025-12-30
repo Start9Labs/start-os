@@ -210,9 +210,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
       const waitingOnNames = waitingOn.flatMap((w) =>
         w.display ? [w.display] : [],
       )
-      const message = waitingOnNames.length
-        ? `on ${waitingOnNames.join(", ")}`
-        : null
+      const message = waitingOnNames.length ? waitingOnNames.join(", ") : null
       await this.setHealth({ result: "waiting", message })
     } else {
       await this.setHealth({ result: "starting", message: null })
