@@ -591,4 +591,5 @@ export const ENGLISH = {
   'Select another version': 625,
   'Upload': 626, // as in, upload a file
   'Open UI': 627, // as in, upload a file
+  'Copied to clipboard': 628,
 } as const

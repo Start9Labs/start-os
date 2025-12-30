@@ -6,6 +6,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
 import {
   ErrorService,
@@ -14,12 +15,15 @@ import {
   LoadingService,
 } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
+import { filter } from 'rxjs'
+import { distinctUntilChanged, skip } from 'rxjs/operators'
 import {
   RR,
   ServerNotification,
   ServerNotifications,
 } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { BadgeService } from 'src/app/services/badge.service'
 import { NotificationService } from 'src/app/services/notification.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { NotificationsTableComponent } from './table.component'
@@ -36,13 +40,13 @@ import { NotificationsTableComponent } from './table.component'
           iconStart="@tui.trash"
           appearance="primary-destructive"
           [style.margin]="'0 0.5rem 0 auto'"
-          [disabled]="!tableNotifications()?.selected()?.length"
+          [disabled]="!table()?.selected()?.length"
           (click)="remove(notifications() || [])"
         >
           {{ 'Delete selected' | i18n }}
         </button>
       </header>
-      <div #table [notifications]="notifications()"></div>
+      <div [notifications]="notifications()"></div>
     </section>
   `,
   styles: `
@@ -64,20 +68,26 @@ export default class NotificationsComponent implements OnInit {
   readonly errorService = inject(ErrorService)
   readonly notifications = signal<ServerNotifications | null>(null)
 
-  protected tableNotifications =
-    viewChild<NotificationsTableComponent<ServerNotification<number>>>('table')
+  protected readonly table = viewChild<
+    NotificationsTableComponent<ServerNotification<number>>
+  >(NotificationsTableComponent)
+
+  protected readonly badge = inject(BadgeService)
+    .getCount('notifications')
+    .pipe(
+      distinctUntilChanged(),
+      filter(Boolean),
+      skip(1),
+      takeUntilDestroyed(),
+    )
+    .subscribe(() => this.init())
 
   ngOnInit() {
     this.route.queryParams.subscribe(params => {
       this.router.navigate([], { relativeTo: this.route, queryParams: {} })
 
       if (isEmptyObject(params)) {
-        this.getMore({}).then(() => {
-          const latest = this.notifications()?.at(0)
-          if (latest) {
-            this.service.markSeenAll(latest.id)
-          }
-        })
+        this.init()
       }
     })
   }
@@ -93,7 +103,7 @@ export default class NotificationsComponent implements OnInit {
 
   async remove(all: ServerNotifications) {
     const ids =
-      this.tableNotifications()
+      this.table()
         ?.selected()
         .map(n => n.id) || []
     const loader = this.loader.open('Deleting').subscribe()
@@ -106,5 +116,14 @@ export default class NotificationsComponent implements OnInit {
     } finally {
       loader.unsubscribe()
     }
+  }
+
+  private init() {
+    this.getMore({}).then(() => {
+      const latest = this.notifications()?.at(0)
+      if (latest) {
+        this.service.markSeenAll(latest.id)
+      }
+    })
   }
 }

@@ -10,19 +10,17 @@ import { InterfaceAddressesComponent } from './addresses/addresses.component'
 @Component({
   selector: 'service-interface',
   template: `
-    @let val = value();
-
     <div>
-      <section [gateways]="val?.gateways"></section>
+      <section [gateways]="value()?.gateways"></section>
       <section
-        [publicDomains]="val?.publicDomains"
-        [addSsl]="val?.addSsl || false"
+        [publicDomains]="value()?.publicDomains"
+        [addSsl]="value()?.addSsl || false"
       ></section>
-      <section [torDomains]="val?.torDomains"></section>
-      <section [privateDomains]="val?.privateDomains"></section>
+      <section [torDomains]="value()?.torDomains"></section>
+      <section [privateDomains]="value()?.privateDomains"></section>
     </div>
     <hr [style.width.rem]="10" />
-    <section [addresses]="val?.addresses" [isRunning]="true"></section>
+    <section [addresses]="value()?.addresses" [isRunning]="true"></section>
   `,
   styles: `
     :host {

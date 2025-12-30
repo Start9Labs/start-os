@@ -50,7 +50,6 @@ export * from './tokens/relative-url'
 
 export * from './util/base-64'
 export * from './util/convert-ansi'
-export * from './util/copy-to-clipboard'
 export * from './util/format-progress'
 export * from './util/get-new-entries'
 export * from './util/get-pkg-id'

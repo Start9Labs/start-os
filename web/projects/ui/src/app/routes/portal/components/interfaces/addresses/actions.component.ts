@@ -3,36 +3,37 @@ import {
   Component,
   inject,
   input,
-  output,
+  signal,
 } from '@angular/core'
-import {
-  CopyService,
-  DialogService,
-  i18nKey,
-  i18nPipe,
-} from '@start9labs/shared'
+import { CopyService, DialogService, i18nPipe } from '@start9labs/shared'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import {
   TuiButton,
   tuiButtonOptionsProvider,
   TuiDataList,
   TuiDropdown,
-  TuiIcon,
   TuiTextfield,
 } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { QRModal } from 'src/app/routes/portal/modals/qr.component'
-import { InterfaceComponent } from '../interface.component'
+
+import { InterfaceAddressItemComponent } from './item.component'
 
 @Component({
   selector: 'td[actions]',
   template: `
     <div class="desktop">
-      <button tuiIconButton appearance="flat-grayscale" (click)="viewDetails()">
-        {{ 'Address details' | i18n }}
-        <tui-icon class="info" icon="@tui.info" background="@tui.info-filled" />
-      </button>
-      @if (interface.value()?.type === 'ui') {
+      @if (interface.address().masked) {
+        <button
+          tuiIconButton
+          appearance="flat-grayscale"
+          [iconStart]="interface.masked() ? '@tui.eye' : '@tui.eye-off'"
+          (click)="interface.masked.set(!interface.masked())"
+        >
+          {{ 'Reveal/Hide' | i18n }}
+        </button>
+      }
+      @if (interface.address().type === 'ui') {
         <a
           tuiIconButton
           appearance="flat-grayscale"
@@ -67,15 +68,12 @@ import { InterfaceComponent } from '../interface.component'
         tuiIconButton
         appearance="flat-grayscale"
         iconStart="@tui.ellipsis-vertical"
-        [tuiAppearanceState]="open ? 'hover' : null"
+        [tuiAppearanceState]="open() ? 'hover' : null"
         [(tuiDropdownOpen)]="open"
       >
         {{ 'Actions' | i18n }}
-        <tui-data-list *tuiTextfieldDropdown="let close">
-          <button tuiOption new iconStart="@tui.info" (click)="viewDetails()">
-            {{ 'Address details' | i18n }}
-          </button>
-          @if (interface.value()?.type === 'ui') {
+        <tui-data-list *tuiTextfieldDropdown (click)="open.set(false)">
+          @if (interface.address().type === 'ui') {
             <a
               tuiOption
               new
@@ -87,6 +85,16 @@ import { InterfaceComponent } from '../interface.component'
               {{ 'Open' | i18n }}
             </a>
           }
+          @if (interface.address().masked) {
+            <button
+              tuiOption
+              new
+              iconStart="@tui.eye"
+              (click)="interface.masked.set(!interface.masked())"
+            >
+              {{ 'Reveal/Hide' | i18n }}
+            </button>
+          }
           <button tuiOption new iconStart="@tui.qr-code" (click)="showQR()">
             {{ 'Show QR' | i18n }}
           </button>
@@ -94,7 +102,7 @@ import { InterfaceComponent } from '../interface.component'
             tuiOption
             new
             iconStart="@tui.copy"
-            (click)="copyService.copy(href()); close()"
+            (click)="copyService.copy(href())"
           >
             {{ 'Copy URL' | i18n }}
           </button>
@@ -105,22 +113,10 @@ import { InterfaceComponent } from '../interface.component'
   styles: `
     :host {
       text-align: right;
-      grid-area: 1 / 2 / 4 / 3;
+      grid-area: 1/4/4/4;
+      width: fit-content;
       place-content: center;
       white-space: nowrap;
-    }
-
-    :host-context(.uncommon-hidden) .desktop {
-      height: 0;
-      visibility: hidden;
-    }
-
-    .info {
-      background: var(--tui-status-info);
-
-      &::after {
-        mask-size: 1.5rem;
-      }
     }
 
     .mobile {
@@ -136,15 +132,19 @@ import { InterfaceComponent } from '../interface.component'
         display: block;
       }
     }
+
+    :host-context(tbody.uncommon-hidden) {
+      .desktop {
+        height: 0;
+        visibility: hidden;
+      }
+
+      .mobile {
+        display: none;
+      }
+    }
   `,
-  imports: [
-    TuiButton,
-    TuiDropdown,
-    TuiDataList,
-    i18nPipe,
-    TuiTextfield,
-    TuiIcon,
-  ],
+  imports: [TuiButton, TuiDropdown, TuiDataList, i18nPipe, TuiTextfield],
   providers: [tuiButtonOptionsProvider({ appearance: 'icon' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -152,26 +152,12 @@ export class AddressActionsComponent {
   readonly isMobile = inject(TUI_IS_MOBILE)
   readonly dialog = inject(DialogService)
   readonly copyService = inject(CopyService)
-  readonly interface = inject(InterfaceComponent)
+  readonly interface = inject(InterfaceAddressItemComponent)
+  readonly open = signal(false)
 
   readonly href = input.required<string>()
   readonly bullets = input.required<string[]>()
   readonly disabled = input.required<boolean>()
-
-  open = false
-
-  viewDetails() {
-    this.dialog
-      .openAlert(
-        `<ul>${this.bullets()
-          .map(b => `<li>${b}</li>`)
-          .join('')}</ul>` as i18nKey,
-        {
-          label: 'About this address' as i18nKey,
-        },
-      )
-      .subscribe()
-  }
 
   showQR() {
     this.dialog

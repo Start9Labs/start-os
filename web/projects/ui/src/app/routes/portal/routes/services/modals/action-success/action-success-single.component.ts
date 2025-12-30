@@ -2,13 +2,12 @@ import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
+  inject,
   Input,
-  ViewChild,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { i18nPipe } from '@start9labs/shared'
-import { TuiButton, TuiTextfield, TuiTextfieldDirective } from '@taiga-ui/core'
+import { CopyService, i18nPipe } from '@start9labs/shared'
+import { TuiButton, TuiTextfield } from '@taiga-ui/core'
 import { QrCodeComponent } from 'ng-qrcode'
 import { SingleResult } from './types'
 
@@ -48,7 +47,7 @@ import { SingleResult } from './types'
           tabindex="-1"
           iconStart="@tui.copy"
           [style.pointer-events]="'auto'"
-          (click)="copy()"
+          (click)="copy.copy(single.value)"
         >
           {{ 'Copy' | i18n }}
         </button>
@@ -96,25 +95,10 @@ import { SingleResult } from './types'
   ],
 })
 export class ActionSuccessSingleComponent {
-  @ViewChild(TuiTextfieldDirective, { read: ElementRef })
-  private readonly input!: ElementRef<HTMLInputElement>
+  readonly copy = inject(CopyService)
 
   @Input()
   single!: SingleResult
 
   masked = true
-
-  copy() {
-    const el = this.input.nativeElement
-
-    if (!el) {
-      return
-    }
-
-    el.type = 'text'
-    el.focus()
-    el.select()
-    el.ownerDocument.execCommand('copy')
-    el.type = this.masked && this.single.masked ? 'password' : 'text'
-  }
 }

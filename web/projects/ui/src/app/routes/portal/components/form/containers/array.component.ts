@@ -1,9 +1,9 @@
 import { AsyncPipe } from '@angular/common'
 import {
+  ChangeDetectorRef,
   Component,
   DestroyRef,
   forwardRef,
-  HostBinding,
   inject,
   Input,
 } from '@angular/core'
@@ -15,17 +15,13 @@ import {
 } from '@angular/forms'
 import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
 import { IST } from '@start9labs/start-sdk'
+import { TuiAnimated } from '@taiga-ui/cdk'
 import {
-  TUI_ANIMATIONS_SPEED,
   TuiButton,
   TuiError,
-  tuiFadeIn,
-  tuiHeightCollapse,
   TuiIcon,
   TuiLink,
-  tuiParentStop,
   TuiTextfield,
-  tuiToAnimationOptions,
 } from '@taiga-ui/core'
 import { TuiFieldErrorPipe, TuiTooltip } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
@@ -57,40 +53,40 @@ import { FormObjectComponent } from './object.component'
     </div>
     <tui-error [error]="order | tuiFieldError | async" />
     @for (item of array.control.controls; track item) {
-      @if (spec.spec.type === 'object') {
-        <form-object
-          class="object"
-          [class.object_open]="!!open.get(item)"
-          [formGroup]="$any(item)"
-          [spec]="$any(spec.spec)"
-          [@tuiHeightCollapse]="animation"
-          [@tuiFadeIn]="animation"
-          [open]="!!open.get(item)"
-          (openChange)="open.set(item, $event)"
-        >
-          {{ item.value | mustache: $any(spec.spec).displayAs }}
-          <button
-            tuiIconButton
-            type="button"
-            class="remove"
-            iconStart="@tui.trash"
-            appearance="icon"
-            size="m"
-            title="Remove"
-            (click.stop)="removeAt($index)"
-          ></button>
-        </form-object>
-      } @else {
-        <form-control
-          class="control"
-          tuiTextfieldSize="m"
-          [formControl]="$any(item)"
-          [spec]="$any(spec.spec)"
-          [@tuiHeightCollapse]="animation"
-          [@tuiFadeIn]="animation"
-          (remove)="removeAt($index)"
-        />
-      }
+      <div tuiAnimated class="control">
+        <div>
+          @if (spec.spec.type === 'object') {
+            <form-object
+              class="object"
+              [class.object_open]="!!open.get(item)"
+              [formGroup]="$any(item)"
+              [spec]="$any(spec.spec)"
+              [open]="!!open.get(item)"
+              (openChange)="open.set(item, $event)"
+            >
+              {{ item.value | mustache: $any(spec.spec).displayAs }}
+              <button
+                tuiIconButton
+                type="button"
+                class="remove"
+                iconStart="@tui.trash"
+                appearance="icon"
+                size="m"
+                title="Remove"
+                (click.stop)="removeAt($index)"
+              ></button>
+            </form-object>
+          } @else {
+            <form-control
+              class="array"
+              tuiTextfieldSize="m"
+              [formControl]="$any(item)"
+              [spec]="$any(spec.spec)"
+              (remove)="removeAt($index)"
+            />
+          }
+        </div>
+      </div>
     }
   `,
   styles: `
@@ -145,11 +141,23 @@ import { FormObjectComponent } from './object.component'
     }
 
     .control {
-      display: block;
-      margin: 0.5rem 0;
+      display: grid;
+
+      form-control {
+        display: block;
+        margin: 0.5rem 0;
+      }
+
+      > * {
+        overflow: hidden;
+      }
+
+      &.tui-enter,
+      &.tui-leave {
+        animation-name: tuiFade, tuiCollapse;
+      }
     }
   `,
-  animations: [tuiFadeIn, tuiHeightCollapse, tuiParentStop],
   hostDirectives: [ControlDirective],
   imports: [
     AsyncPipe,
@@ -166,14 +174,13 @@ import { FormObjectComponent } from './object.component'
     MustachePipe,
     FormControlComponent,
     forwardRef(() => FormObjectComponent),
+    TuiAnimated,
   ],
 })
 export class FormArrayComponent {
   @Input({ required: true })
   spec!: IST.ValueSpecList
 
-  @HostBinding('@tuiParentStop')
-  readonly animation = tuiToAnimationOptions(inject(TUI_ANIMATIONS_SPEED))
   readonly order = ERRORS
   readonly array = inject(FormArrayName)
   readonly open = new Map<AbstractControl, boolean>()
@@ -181,6 +188,7 @@ export class FormArrayComponent {
   private warned = false
   private readonly formService = inject(FormService)
   private readonly destroyRef = inject(DestroyRef)
+  private readonly cdr = inject(ChangeDetectorRef)
   private readonly dialog = inject(DialogService)
 
   get canAdd(): boolean {
@@ -226,5 +234,6 @@ export class FormArrayComponent {
   private addItem() {
     this.array.control.insert(0, this.formService.getListItem(this.spec))
     this.open.set(this.array.control.at(0), true)
+    this.cdr.markForCheck()
   }
 }

@@ -592,4 +592,5 @@ export default {
   625: 'Seleccionar otra versión',
   626: 'Subir',
   627: 'Abrir UI',
+  628: 'Copiado al portapapeles',
 } satisfies i18n

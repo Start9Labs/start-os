@@ -592,4 +592,5 @@ export default {
   625: 'Eine andere Version auswählen',
   626: 'Hochladen',
   627: 'UI öffnen',
+  628: 'In Zwischenablage kopiert',
 } satisfies i18n

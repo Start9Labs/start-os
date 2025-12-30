@@ -1,5 +1,6 @@
 import { Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
+import { i18nPipe } from '@start9labs/shared'
 import { IST, utils } from '@start9labs/start-sdk'
 import { tuiInjectElement } from '@taiga-ui/cdk'
 import { TuiButton, TuiIcon, TuiTextfield } from '@taiga-ui/core'
@@ -53,7 +54,9 @@ import { HintPipe } from '../pipes/hint.pipe'
           size="xs"
           [iconStart]="masked ? '@tui.eye' : '@tui.eye-off'"
           (click)="masked = !masked"
-        ></button>
+        >
+          {{ 'Reveal/Hide' | i18n }}
+        </button>
       }
       <button
         tuiIconButton
@@ -63,6 +66,7 @@ import { HintPipe } from '../pipes/hint.pipe'
         size="xs"
         title="Remove"
         class="remove"
+        (pointerdown.prevent)="(0)"
         (click)="remove()"
       ></button>
       @if (spec | hint; as hint) {
@@ -76,7 +80,7 @@ import { HintPipe } from '../pipes/hint.pipe'
       order: 1;
     }
 
-    :host-context(form-array > form-control > :host) .remove {
+    :host-context(form-control.array > :host) .remove {
       display: flex;
     }
   `,
@@ -87,6 +91,7 @@ import { HintPipe } from '../pipes/hint.pipe'
     TuiIcon,
     TuiTooltip,
     HintPipe,
+    i18nPipe,
   ],
 })
 export class FormTextComponent extends Control<IST.ValueSpecText, string> {

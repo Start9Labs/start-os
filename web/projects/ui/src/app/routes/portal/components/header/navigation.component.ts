@@ -1,15 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { RouterLink, RouterLinkActive } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
-import {
-  TUI_ANIMATIONS_SPEED,
-  tuiFadeIn,
-  TuiHint,
-  TuiIcon,
-  tuiScaleIn,
-  tuiToAnimationOptions,
-  tuiWidthCollapse,
-} from '@taiga-ui/core'
+import { TuiHint, TuiIcon } from '@taiga-ui/core'
 import { TuiBadgedContent, TuiBadgeNotification } from '@taiga-ui/kit'
 import { getMenu } from 'src/app/utils/system-utilities'
 
@@ -27,12 +19,7 @@ import { getMenu } from 'src/app/utils/system-utilities'
         [class.link_system]="item.routerLink === 'system'"
         [tuiHint]="rla.isActive ? '' : (item.name | i18n)"
       >
-        <tui-badged-content
-          [style.--tui-radius.%]="50"
-          [@tuiFadeIn]="animation"
-          [@tuiWidthCollapse]="animation"
-          [@tuiScaleIn]="animation"
-        >
+        <tui-badged-content [style.--tui-radius.%]="50">
           @if (item.badge(); as badge) {
             <tui-badge-notification tuiSlot="top" size="s">
               {{ badge }}
@@ -175,7 +162,6 @@ import { getMenu } from 'src/app/utils/system-utilities'
       display: none;
     }
   `,
-  animations: [tuiFadeIn, tuiWidthCollapse, tuiScaleIn],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiBadgeNotification,
@@ -188,6 +174,5 @@ import { getMenu } from 'src/app/utils/system-utilities'
   ],
 })
 export class HeaderNavigationComponent {
-  readonly animation = tuiToAnimationOptions(inject(TUI_ANIMATIONS_SPEED))
   readonly utils = getMenu()
 }
