@@ -71,12 +71,12 @@ export default [
         path: 'gateways',
         loadComponent: () => import('./routes/gateways/gateways.component'),
       },
-      {
-        path: 'authorities',
-        title: titleResolver,
-        loadComponent: () =>
-          import('./routes/authorities/authorities.component'),
-      },
+      // {
+      //   path: 'authorities',
+      //   title: titleResolver,
+      //   loadComponent: () =>
+      //     import('./routes/authorities/authorities.component'),
+      // },
       {
         path: 'dns',
         title: titleResolver,

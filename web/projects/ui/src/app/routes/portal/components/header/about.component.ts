@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { CopyService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { TuiButton, TuiTitle } from '@taiga-ui/core'
+import { TuiButton, TuiHint, TuiTitle } from '@taiga-ui/core'
 import { TuiFade } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -35,14 +35,27 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       </div>
       <div tuiCell>
         <div tuiTitle>
-          <strong>{{ 'CA fingerprint' | i18n }}</strong>
+          <strong>{{ 'Root CA' | i18n }}</strong>
           <div tuiSubtitle tuiFade>{{ server.caFingerprint }}</div>
         </div>
+        <a
+          tuiIconButton
+          download
+          appearance="icon"
+          iconStart="@tui.download"
+          href="/static/local-root-ca.crt"
+          [tuiHint]="'Download' | i18n"
+          tuiHintDirection="bottom"
+        >
+          {{ 'Download' | i18n }}
+        </a>
         <button
           tuiIconButton
           appearance="icon"
           iconStart="@tui.copy"
           (click)="copyService.copy(server.caFingerprint)"
+          [tuiHint]="'Copy fingerprint' | i18n"
+          tuiHintDirection="bottom"
         >
           {{ 'Copy' | i18n }}
         </button>
@@ -65,7 +78,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   `,
   styles: '[tuiCell] { padding-inline: 0; white-space: nowrap }',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiTitle, TuiButton, TuiCell, i18nPipe, TuiFade],
+  imports: [TuiTitle, TuiButton, TuiCell, i18nPipe, TuiFade, TuiHint],
 })
 export class AboutComponent {
   readonly copyService = inject(CopyService)

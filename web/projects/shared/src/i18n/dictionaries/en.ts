@@ -89,6 +89,7 @@ export const ENGLISH = {
   'Root CA Trusted!': 90,
   'Installed services': 91, // as in, software services installed on this computer
   'Diagnostics for the Tor daemon on this server': 92,
+  'Copy fingerprint': 93, // as in the fingerprint of a root certificate authority
   'Add public domain': 96,
   'Removing': 97,
   'Unsaved changes': 100,
@@ -577,7 +578,7 @@ export const ENGLISH = {
   'No service interfaces': 611, // as in, there are no available interfaces (API, UI, etc) for this software application
   'Reason': 612, // as in, an explanation for something
   'Cannot disable private gateways for StartOS UI': 613,
-  'CA fingerprint': 614, // as in, the unique, fixed-length digital identifier generated from a certificate's data using a cryptographic hash function
+  'Root CA': 614, // as in, the unique, fixed-length digital identifier generated from a certificate's data using a cryptographic hash function
   'DHCP Servers': 615,
   'Cannot edit DHCP servers': 616,
   'Static': 617, // as in, unchanging
