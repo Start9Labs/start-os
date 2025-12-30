@@ -73,7 +73,7 @@ if [ "$NON_FREE" = 1 ]; then
 	if [ "$IB_SUITE" = "bullseye" ]; then
 		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free"
 	else
-		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free-firmware"
+		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free non-free-firmware"
 	fi
 fi
 
@@ -187,10 +187,6 @@ EOF
 # Dependencies
 
 ## Firmware
-if [ "$NON_FREE" = 1 ]; then
-	echo 'firmware-iwlwifi firmware-misc-nonfree firmware-brcm80211 firmware-realtek firmware-atheros firmware-libertas firmware-amd-graphics' > config/package-lists/nonfree.list.chroot
-fi
-
 cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
 #!/bin/bash
 

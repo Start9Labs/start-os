@@ -3,6 +3,7 @@ avahi-utils
 b3sum
 bash-completion
 beep
+binfmt-support
 bmon
 btrfs-progs
 ca-certificates
