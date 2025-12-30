@@ -1,8 +1,9 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
-  Input,
+  input,
 } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -11,15 +12,15 @@ import { TuiIcon, TuiLoader } from '@taiga-ui/core'
 @Component({
   selector: 'tr[healthCheck]',
   template: `
-    <td>{{ healthCheck.name }}</td>
+    <td class="name">{{ healthCheck().name }}</td>
     <td>
       <span>
-        @if (loading) {
+        @if (loading()) {
           <tui-loader size="m" />
         } @else {
-          <tui-icon [icon]="icon" [style.color]="color" />
+          <tui-icon [icon]="icon()" [style.color]="color()" />
         }
-        {{ message }}
+        {{ message() }}
       </span>
     </td>
   `,
@@ -30,17 +31,25 @@ import { TuiIcon, TuiLoader } from '@taiga-ui/core'
       gap: 0.5rem;
     }
 
+    .name {
+      width: 9.5rem;
+    }
+
     :host-context(tui-root._mobile) {
       display: flex;
       flex-direction: column;
 
-      td:first-child {
-        font-weight: bold;
-        padding-bottom: 0;
-      }
+      td {
+        width: 100%;
 
-      td:last-child {
-        color: var(--tui-text-secondary);
+        &:first-child {
+          font-weight: bold;
+          padding-bottom: 0;
+        }
+
+        &:last-child {
+          color: var(--tui-text-secondary);
+        }
       }
     }
   `,
@@ -48,19 +57,17 @@ import { TuiIcon, TuiLoader } from '@taiga-ui/core'
   imports: [TuiLoader, TuiIcon],
 })
 export class ServiceHealthCheckComponent {
-  @Input({ required: true })
-  healthCheck!: T.NamedHealthCheckResult
-
   private readonly i18n = inject(i18nPipe)
 
-  get loading(): boolean {
-    const { result } = this.healthCheck
+  readonly healthCheck = input.required<T.NamedHealthCheckResult>()
 
-    return !result || result === 'starting' || result === 'loading'
-  }
+  readonly loading = computed(
+    ({ result } = this.healthCheck()) =>
+      !result || result === 'starting' || result === 'loading',
+  )
 
-  get icon(): string {
-    switch (this.healthCheck.result) {
+  readonly icon = computed(() => {
+    switch (this.healthCheck().result) {
       case 'success':
         return '@tui.check'
       case 'failure':
@@ -68,10 +75,10 @@ export class ServiceHealthCheckComponent {
       default:
         return '@tui.minus'
     }
-  }
+  })
 
-  get color(): string {
-    switch (this.healthCheck.result) {
+  readonly color = computed(() => {
+    switch (this.healthCheck().result) {
       case 'success':
         return 'var(--tui-status-positive)'
       case 'failure':
@@ -83,22 +90,22 @@ export class ServiceHealthCheckComponent {
       default:
         return 'var(--tui-text-secondary)'
     }
-  }
+  })
 
-  get message(): string {
-    if (!this.healthCheck.result) {
+  readonly message = computed(({ result, message } = this.healthCheck()) => {
+    if (!result) {
       return this.i18n.transform('Awaiting result')!
     }
 
-    switch (this.healthCheck.result) {
+    switch (result) {
       case 'starting':
         return this.i18n.transform('Starting')!
       case 'success':
-        return `${this.i18n.transform('Success')}: ${this.healthCheck.message || 'health check passing'}`
+        return `${this.i18n.transform('Success')}: ${message || 'health check passing'}`
       case 'loading':
       case 'failure':
       case 'disabled':
-        return this.healthCheck.message || this.healthCheck.result
+        return message || result
     }
-  }
+  })
 }
