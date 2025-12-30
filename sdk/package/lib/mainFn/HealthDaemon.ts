@@ -3,10 +3,6 @@ import { defaultTrigger } from "../trigger/defaultTrigger"
 import { Ready } from "./Daemons"
 import { Daemon } from "./Daemon"
 import { SetHealth, Effects, SDKManifest } from "../../../base/lib/types"
-import { DEFAULT_SIGTERM_TIMEOUT } from "."
-import { asError } from "../../../base/lib/util/asError"
-import { Oneshot } from "./Oneshot"
-import { SubContainer } from "../util/SubContainer"
 
 const oncePromise = <T>() => {
   let resolve: (value: T) => void
@@ -26,7 +22,7 @@ export const EXIT_SUCCESS = "EXIT_SUCCESS" as const
  *
  */
 export class HealthDaemon<Manifest extends SDKManifest> {
-  private _health: HealthCheckResult = { result: "starting", message: null }
+  private _health: HealthCheckResult = { result: "waiting", message: null }
   private healthWatchers: Array<() => unknown> = []
   private running = false
   private started?: number
@@ -82,20 +78,18 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     if (newStatus) {
       console.debug(`Launching ${this.id}...`)
       this.setupHealthCheck()
-      ;(await this.daemon)?.start()
+      this.daemon?.start()
       this.started = performance.now()
     } else {
       console.debug(`Stopping ${this.id}...`)
-      ;(await this.daemon)?.term()
-      this.turnOffHealthCheck()
-
-      this.setHealth({ result: "starting", message: null })
+      this.daemon?.term()
+      await this.turnOffHealthCheck()
     }
   }
 
-  private healthCheckCleanup: (() => null) | null = null
-  private turnOffHealthCheck() {
-    this.healthCheckCleanup?.()
+  private healthCheckCleanup: (() => Promise<null>) | null = null
+  private async turnOffHealthCheck() {
+    await this.healthCheckCleanup?.()
 
     this.resolvedReady = false
     this.readyPromise = new Promise(
@@ -107,8 +101,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     )
   }
   private async setupHealthCheck() {
-    const daemon = await this.daemon
-    daemon?.onExit((success) => {
+    this.daemon?.onExit((success) => {
       if (success && this.ready === "EXIT_SUCCESS") {
         this.setHealth({ result: "success", message: null })
       } else if (!success) {
@@ -116,7 +109,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
           result: "failure",
           message: `${this.id} daemon crashed`,
         })
-      } else if (!daemon.isOneshot()) {
+      } else if (!this.daemon?.isOneshot()) {
         this.setHealth({
           result: "failure",
           message: `${this.id} daemon exited`,
@@ -132,6 +125,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     const { promise: status, resolve: setStatus } = oncePromise<{
       done: true
     }>()
+    const { promise: exited, resolve: setExited } = oncePromise<null>()
     new Promise(async () => {
       if (this.ready === "EXIT_SUCCESS") return
       for (
@@ -150,10 +144,12 @@ export class HealthDaemon<Manifest extends SDKManifest> {
 
         await this.setHealth(response)
       }
+      setExited(null)
     }).catch((err) => console.error(`Daemon ${this.id} failed: ${err}`))
 
-    this.healthCheckCleanup = () => {
+    this.healthCheckCleanup = async () => {
       setStatus({ done: true })
+      await exited
       this.healthCheckCleanup = null
       return null
     }
@@ -201,6 +197,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     const healths = this.dependencies.map((d) => ({
       health: d.running && d._health,
       id: d.id,
+      display: typeof d.ready === "object" ? d.ready.display : null,
     }))
     const waitingOn = healths.filter(
       (h) => !h.health || h.health.result !== "success",
@@ -209,18 +206,17 @@ export class HealthDaemon<Manifest extends SDKManifest> {
       console.debug(
         `daemon ${this.id} waiting on ${waitingOn.map((w) => w.id)}`,
       )
-    this.changeRunning(!waitingOn.length)
-  }
-
-  async init() {
-    if (this.ready !== "EXIT_SUCCESS" && this.ready.display) {
-      this.effects.setHealth({
-        id: this.id,
-        message: null,
-        name: this.ready.display,
-        result: "starting",
-      })
+    if (waitingOn.length) {
+      const waitingOnNames = waitingOn.flatMap((w) =>
+        w.display ? [w.display] : [],
+      )
+      const message = waitingOnNames.length
+        ? `on ${waitingOnNames.join(", ")}`
+        : null
+      await this.setHealth({ result: "waiting", message })
+    } else {
+      await this.setHealth({ result: "starting", message: null })
     }
-    await this.updateStatus()
+    await this.changeRunning(!waitingOn.length)
   }
 }

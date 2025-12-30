@@ -430,10 +430,10 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           query: Record<string, string>
           /** (optional) overrides the protocol prefix provided by the bind function.
            *
-           * @example `ftp`
+           * @example `{ ssl: 'ftps', noSsl: 'ftp' }`
            */
           schemeOverride: { ssl: Scheme; noSsl: Scheme } | null
-          /** TODO Aiden how would someone include a password in the URL? Whether or not to mask the URLs on the screen, for example, when they contain a password */
+          /** mask the url (recommended if it contains credentials such as an API key or password) */
           masked: boolean
         },
       ) => new ServiceInterfaceBuilder({ ...options, effects }),

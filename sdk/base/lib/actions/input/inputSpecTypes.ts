@@ -224,8 +224,6 @@ export type ListValueSpecObject = {
   uniqueBy: UniqueBy
   displayAs: string | null
 }
-// TODO Aiden do we really want this expressivity? Why not the below. Also what's with the "readonly" portion?
-// export type UniqueBy = null | string | { any: string[] } | { all: string[] }
 
 export type UniqueBy =
   | null
