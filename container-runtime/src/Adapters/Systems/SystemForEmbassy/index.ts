@@ -330,6 +330,10 @@ export class SystemForEmbassy implements System {
     ) {
       this.version.upstream.prerelease = ["alpha"]
     }
+
+    if (this.manifest.id === "nostr") {
+      this.manifest.id = "nostr-rs-relay"
+    }
   }
 
   async init(
