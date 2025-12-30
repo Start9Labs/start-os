@@ -11,6 +11,7 @@ type AddressWithInfo = {
   gateway?: GatewayPlus
   showSsl: boolean
   masked: boolean
+  interfaceType: T.ServiceInterfaceType
 }
 
 function cmpWithRankedPredicates<T extends AddressWithInfo>(
@@ -132,6 +133,7 @@ export class InterfaceService {
     if (!hostnamesInfos.length) return addresses
 
     const masked = serviceInterface.masked
+    const interfaceType = serviceInterface.type
 
     const allAddressesWithInfo: AddressWithInfo[] = hostnamesInfos.flatMap(
       h => {
@@ -146,7 +148,14 @@ export class InterfaceService {
             : undefined
         const res = []
         if (url) {
-          res.push({ url, info, gateway, showSsl: false, masked })
+          res.push({
+            url,
+            info,
+            gateway,
+            showSsl: false,
+            masked,
+            interfaceType,
+          })
         }
         if (sslUrl) {
           res.push({
@@ -155,6 +164,7 @@ export class InterfaceService {
             gateway,
             showSsl: !!url,
             masked,
+            interfaceType,
           })
         }
         return res
@@ -332,7 +342,7 @@ export class InterfaceService {
   }
 
   private toDisplayAddress(
-    { info, url, gateway, showSsl, masked }: AddressWithInfo,
+    { info, url, gateway, showSsl, masked, interfaceType }: AddressWithInfo,
     publicDomains: Record<string, T.PublicDomainConfig>,
   ): DisplayAddress {
     let access: DisplayAddress['access']
@@ -514,6 +524,7 @@ export class InterfaceService {
       type,
       bullets,
       masked,
+      interfaceType,
     }
   }
 }
@@ -541,4 +552,5 @@ export type DisplayAddress = {
   url: string
   bullets: i18nKey[]
   masked: boolean
+  interfaceType: T.ServiceInterfaceType
 }

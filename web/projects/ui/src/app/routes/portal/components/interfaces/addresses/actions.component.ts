@@ -33,7 +33,7 @@ import { InterfaceAddressItemComponent } from './item.component'
           {{ 'Reveal/Hide' | i18n }}
         </button>
       }
-      @if (interface.address().type === 'ui') {
+      @if (interface.address().interfaceType === 'ui') {
         <a
           tuiIconButton
           appearance="flat-grayscale"
@@ -73,7 +73,7 @@ import { InterfaceAddressItemComponent } from './item.component'
       >
         {{ 'Actions' | i18n }}
         <tui-data-list *tuiTextfieldDropdown (click)="open.set(false)">
-          @if (interface.address().type === 'ui') {
+          @if (interface.address().interfaceType === 'ui') {
             <a
               tuiOption
               new
