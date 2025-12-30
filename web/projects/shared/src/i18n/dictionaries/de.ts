@@ -91,6 +91,8 @@ export default {
   91: 'Installierte Dienste',
   92: 'Diagnosen für den Tor-Daemon auf diesem Server',
   93: 'Fingerabdruck kopieren',
+  94: 'Warten',
+  95: 'Warten auf',
   96: 'Öffentliche Domain hinzufügen',
   97: 'Wird entfernt',
   100: 'Nicht gespeicherte Änderungen',

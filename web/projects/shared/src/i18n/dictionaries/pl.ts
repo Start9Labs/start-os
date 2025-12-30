@@ -91,6 +91,8 @@ export default {
   91: 'Zainstalowane usługi',
   92: 'Diagnostyka demona Tor na tym serwerze',
   93: 'Kopiuj odcisk palca',
+  94: 'Oczekiwanie',
+  95: 'Oczekiwanie na',
   96: 'Dodaj domenę publiczną',
   97: 'Usuwanie',
   100: 'Niezapisane zmiany',

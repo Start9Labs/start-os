@@ -63,7 +63,7 @@ export class ServiceHealthCheckComponent {
 
   readonly loading = computed(
     ({ result } = this.healthCheck()) =>
-      !result || result === 'starting' || result === 'loading',
+      !result || ['starting', 'loading', 'waiting'].includes(result),
   )
 
   readonly icon = computed(() => {
@@ -86,7 +86,7 @@ export class ServiceHealthCheckComponent {
       case 'starting':
       case 'loading':
         return 'var(--tui-background-accent-1)'
-      // disabled
+      // disabled and waiting
       default:
         return 'var(--tui-text-secondary)'
     }
@@ -102,6 +102,10 @@ export class ServiceHealthCheckComponent {
         return this.i18n.transform('Starting')!
       case 'success':
         return `${this.i18n.transform('Success')}: ${message || 'health check passing'}`
+      case 'waiting':
+        return message
+          ? `${this.i18n.transform('Waiting on')} ${message}...`
+          : `${this.i18n.transform('Waiting')}...`
       case 'loading':
       case 'failure':
       case 'disabled':

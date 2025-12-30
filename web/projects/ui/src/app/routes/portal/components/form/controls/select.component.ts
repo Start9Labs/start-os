@@ -5,6 +5,7 @@ import { IST } from '@start9labs/start-sdk'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import { TuiDataList, TuiIcon, TuiTextfield } from '@taiga-ui/core'
 import {
+  TuiChevron,
   TuiFluidTypography,
   tuiFluidTypographyOptionsProvider,
   TuiSelect,
@@ -18,6 +19,7 @@ import { HintPipe } from '../pipes/hint.pipe'
   selector: 'form-select',
   template: `
     <tui-textfield
+      tuiChevron
       [tuiTextfieldCleaner]="false"
       [disabledItemHandler]="disabledItemHandler"
       (tuiActiveZoneChange)="!$event && control.onTouched()"
@@ -75,6 +77,7 @@ import { HintPipe } from '../pipes/hint.pipe'
     TuiIcon,
     TuiTooltip,
     HintPipe,
+    TuiChevron,
   ],
 })
 export class FormSelectComponent extends Control<IST.ValueSpecSelect, string> {

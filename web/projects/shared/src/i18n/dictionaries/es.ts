@@ -91,6 +91,8 @@ export default {
   91: 'Servicios instalados',
   92: 'Diagnósticos para el demonio Tor en este servidor',
   93: 'Copiar huella digital',
+  94: 'Esperando',
+  95: 'En espera de',
   96: 'Agregar dominio público',
   97: 'Eliminando',
   100: 'Cambios no guardados',

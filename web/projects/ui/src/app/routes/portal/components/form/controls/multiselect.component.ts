@@ -4,15 +4,14 @@ import { invert } from '@start9labs/shared'
 import { IST } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
 import { TuiIcon, TuiTextfield } from '@taiga-ui/core'
-import { TuiMultiSelect, TuiTooltip } from '@taiga-ui/kit'
-
+import { TuiChevron, TuiMultiSelect, TuiTooltip } from '@taiga-ui/kit'
 import { Control } from './control'
 import { HintPipe } from '../pipes/hint.pipe'
 
 @Component({
   selector: 'form-multiselect',
   template: `
-    <tui-textfield multi [disabledItemHandler]="disabledItemHandler">
+    <tui-textfield multi tuiChevron [disabledItemHandler]="disabledItemHandler">
       @if (spec.name) {
         <label tuiLabel>{{ spec.name }}</label>
       }
@@ -43,6 +42,7 @@ import { HintPipe } from '../pipes/hint.pipe'
     TuiIcon,
     TuiTooltip,
     HintPipe,
+    TuiChevron,
   ],
 })
 export class FormMultiselectComponent extends Control<

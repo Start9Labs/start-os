@@ -91,6 +91,8 @@ export default {
   91: 'Services installés',
   92: 'Diagnostics pour le service Tor sur ce serveur',
   93: 'Copier l’empreinte',
+  94: 'En attente',
+  95: 'En attente de',
   96: 'Ajouter un domaine public',
   97: 'Suppression',
   100: 'Modifications non enregistrées',
