@@ -31,6 +31,6 @@ import { i18nPipe } from '@start9labs/shared'
   imports: [TuiLabel, FormsModule, TuiCheckbox, i18nPipe],
 })
 export class SystemWipeComponent {
-  readonly isTor = inject(ConfigService).isTor()
+  readonly isTor = inject(ConfigService).accessType === 'tor'
   readonly component = inject(SystemGeneralComponent)
 }

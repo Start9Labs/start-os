@@ -92,7 +92,7 @@ import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
   ],
 })
 export default class SideloadComponent {
-  readonly isTor = inject(ConfigService).isTor()
+  readonly isTor = inject(ConfigService).accessType === 'tor'
 
   file: File | null = null
   readonly package = signal<MarketplacePkgSideload | null>(null)

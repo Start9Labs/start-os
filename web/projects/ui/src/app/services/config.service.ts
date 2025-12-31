@@ -1,5 +1,5 @@
 import { Inject, Injectable, DOCUMENT } from '@angular/core'
-import { WorkspaceConfig } from '@start9labs/shared'
+import { AccessType, WorkspaceConfig } from '@start9labs/shared'
 import { T, utils } from '@start9labs/start-sdk'
 
 const {
@@ -29,53 +29,29 @@ export class ConfigService {
   supportsWebSockets = !!window.WebSocket
   defaultRegistry = defaultRegistry
 
-  isTor(): boolean {
-    return useMocks ? mocks.maskAs === 'tor' : this.hostname.endsWith('.onion')
-  }
-
-  isLocalhost(): boolean {
-    return useMocks
-      ? mocks.maskAs === 'localhost'
-      : this.hostname === 'localhost' || this.hostname === '127.0.0.1'
+  private getAccessType = utils.once(() => {
+    if (useMocks) return mocks.maskAs
+    if (this.hostname === 'localhost') return 'localhost'
+    if (this.hostname.endsWith('.onion')) return 'tor'
+    if (this.hostname.endsWith('.local')) return 'mdns'
+    let ip = null
+    try {
+      ip = utils.IpAddress.parse(this.hostname.replace(/[\[\]]/g, ''))
+    } catch {}
+    if (ip) {
+      if (utils.IPV4_LOOPBACK.contains(ip) || utils.IPV6_LOOPBACK.contains(ip))
+        return 'localhost'
+      if (ip.isIpv4()) return ip.isPublic() ? 'wan-ipv4' : 'ipv4'
+      return 'ipv6'
+    }
+    return 'domain'
+  })
+  get accessType(): AccessType {
+    return this.getAccessType()
   }
 
   isLanHttp(): boolean {
-    return !this.isTor() && !this.isLocalhost() && !this.isHttps()
-  }
-
-  private isLocal(): boolean {
-    return useMocks
-      ? mocks.maskAs === 'local'
-      : this.hostname.endsWith('.local')
-  }
-
-  private isLanIpv4(): boolean {
-    return useMocks
-      ? mocks.maskAs === 'ipv4'
-      : new RegExp(utils.Patterns.ipv4.regex).test(this.hostname) &&
-          (this.hostname.startsWith('192.168.') ||
-            this.hostname.startsWith('10.') ||
-            (this.hostname.startsWith('172.') &&
-              !![this.hostname.split('.').map(Number)[1] || NaN].filter(
-                n => n >= 16 && n < 32,
-              ).length))
-  }
-
-  isIpv6(): boolean {
-    return useMocks
-      ? mocks.maskAs === 'ipv6'
-      : new RegExp(utils.Patterns.ipv6.regex).test(this.hostname)
-  }
-
-  isClearnet(): boolean {
-    return useMocks
-      ? mocks.maskAs === 'clearnet'
-      : this.isHttps() &&
-          !this.isTor() &&
-          !this.isLocal() &&
-          !this.isLocalhost() &&
-          !this.isLanIpv4() &&
-          !this.isIpv6()
+    return !this.isHttps() && !['localhost', 'tor'].includes(this.accessType)
   }
 
   isHttps(): boolean {

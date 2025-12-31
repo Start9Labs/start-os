@@ -242,6 +242,7 @@ export namespace Mock {
       arch: null,
       ram: null,
     },
+    hardwareAcceleration: false,
   }
 
   export const MockManifestLnd: T.Manifest = {
@@ -300,6 +301,7 @@ export namespace Mock {
       arch: null,
       ram: null,
     },
+    hardwareAcceleration: false,
   }
 
   export const MockManifestBitcoinProxy: T.Manifest = {
@@ -351,6 +353,7 @@ export namespace Mock {
       arch: null,
       ram: null,
     },
+    hardwareAcceleration: false,
   }
 
   export const BitcoinDep: T.DependencyMetadata = {
