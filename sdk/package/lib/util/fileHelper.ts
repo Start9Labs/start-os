@@ -6,6 +6,7 @@ import * as T from "../../../base/lib/types"
 import * as fs from "node:fs/promises"
 import { asError, deepEqual } from "../../../base/lib/util"
 import { DropGenerator, DropPromise } from "../../../base/lib/util/Drop"
+import { PathBase } from "./Volume"
 
 const previousPath = /(.+?)\/([^/]*)$/
 
@@ -88,11 +89,12 @@ export type Transformers<Raw = unknown, Transformed = unknown> = {
   onWrite: (value: Transformed) => Raw
 }
 
-type ToPath = string | { volumeId: T.VolumeId; subpath: string }
+type ToPath = string | { base: PathBase; subpath: string }
 function toPath(path: ToPath): string {
-  return typeof path === "string"
-    ? path
-    : `/media/startos/volumes/${path.volumeId}/${path.subpath}`
+  if (typeof path === "string") {
+    return path
+  }
+  return path.base.subpath(path.subpath)
 }
 
 type Validator<T, U> = matches.Validator<T, U> | matches.Validator<unknown, U>

@@ -65,6 +65,7 @@ import {
   ServiceInterfaceFilled,
 } from "../../base/lib/util/getServiceInterface"
 import { getOwnServiceInterfaces } from "../../base/lib/util/getServiceInterfaces"
+import { Volumes, createVolumes } from "./util/Volume"
 
 export const OSVersion = testTypeVersion("0.4.0-alpha.17")
 
@@ -132,6 +133,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
 
     return {
       manifest: this.manifest,
+      volumes: createVolumes(this.manifest),
       ...startSdkEffectWrapper,
       setDataVersion,
       getDataVersion,
