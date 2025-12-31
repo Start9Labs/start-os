@@ -50,6 +50,7 @@ import {
   transformOldConfigToNew,
 } from "./transformConfigSpec"
 import { partialDiff } from "@start9labs/start-sdk/base/lib/util"
+import { Volume } from "@start9labs/start-sdk/package/lib/util/Volume"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -61,14 +62,14 @@ export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 
 const configFile = FileHelper.json(
   {
-    volumeId: "embassy",
+    base: new Volume("embassy"),
     subpath: "config.json",
   },
   matches.any,
 )
 const dependsOnFile = FileHelper.json(
   {
-    volumeId: "embassy",
+    base: new Volume("embassy"),
     subpath: "dependsOn.json",
   },
   dictionary([string, array(string)]),
