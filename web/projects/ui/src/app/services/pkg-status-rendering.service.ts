@@ -163,16 +163,3 @@ export const PrimaryRendering: Record<PrimaryStatus, StatusRendering> = {
     showDots: false,
   },
 }
-
-export const DependencyRendering: Record<DependencyStatus, StatusRendering> = {
-  warning: { display: 'Issue', color: 'warning' },
-  satisfied: { display: 'Satisfied', color: 'success' },
-}
-
-export const HealthRendering: Record<T.HealthStatus, StatusRendering> = {
-  failure: { display: 'Failure', color: 'danger' },
-  starting: { display: 'Starting', color: 'primary' },
-  loading: { display: 'Loading', color: 'primary' },
-  success: { display: 'Healthy', color: 'success' },
-  disabled: { display: 'Disabled', color: 'dark' },
-}

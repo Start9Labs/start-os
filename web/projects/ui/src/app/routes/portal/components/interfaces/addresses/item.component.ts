@@ -1,13 +1,38 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
-import { i18nPipe } from '@start9labs/shared'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core'
+import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
+import { TuiObfuscatePipe } from '@taiga-ui/cdk'
+import { TuiButton, TuiIcon } from '@taiga-ui/core'
+import { TuiBadge } from '@taiga-ui/kit'
 import { DisplayAddress } from '../interface.service'
 import { AddressActionsComponent } from './actions.component'
-import { TuiBadge } from '@taiga-ui/kit'
 
 @Component({
   selector: 'tr[address]',
   template: `
     @if (address(); as address) {
+      <td [style.padding-inline-end]="0">
+        <div class="wrapper">
+          <button
+            tuiIconButton
+            appearance="flat-grayscale"
+            (click)="viewDetails()"
+          >
+            {{ 'Address details' | i18n }}
+            <tui-icon
+              class="info"
+              icon="@tui.info"
+              background="@tui.info-filled"
+            />
+          </button>
+        </div>
+      </td>
       <td>
         <div class="wrapper">{{ address.type }}</div>
       </td>
@@ -26,13 +51,18 @@ import { TuiBadge } from '@taiga-ui/kit'
           }
         </div>
       </td>
-      <td [style.order]="-1">
+      <td [style.grid-area]="'1 / 1 / 1 / 3'">
         <div class="wrapper" [title]="address.gatewayName">
           {{ address.gatewayName || '-' }}
         </div>
       </td>
-      <td>
-        <div class="wrapper" [title]="address.url">{{ address.url }}</div>
+      <td [style.grid-area]="'3 / 1 / 3 / 3'">
+        <div
+          class="wrapper"
+          [title]="address.masked && currentlyMasked() ? '' : address.url"
+        >
+          {{ address.url | tuiObfuscate: recipe() }}
+        </div>
       </td>
       <td
         actions
@@ -46,9 +76,18 @@ import { TuiBadge } from '@taiga-ui/kit'
   styles: `
     :host {
       white-space: nowrap;
+      grid-template-columns: fit-content(10rem) 1fr 2rem 2rem;
 
       td:last-child {
         padding-inline-start: 0;
+      }
+    }
+
+    .info {
+      background: var(--tui-status-info);
+
+      &::after {
+        mask-size: 1.5rem;
       }
     }
 
@@ -58,8 +97,9 @@ import { TuiBadge } from '@taiga-ui/kit'
         visibility: hidden;
       }
 
-      td {
-        padding-block: 0;
+      td,
+      & {
+        padding-block: 0 !important;
         border: hidden;
       }
     }
@@ -76,23 +116,50 @@ import { TuiBadge } from '@taiga-ui/kit'
     :host-context(tui-root._mobile) {
       td {
         width: auto !important;
+        align-content: center;
       }
 
       td:first-child {
-        display: none;
+        grid-area: 1 / 3 / 4 / 3;
       }
 
       td:nth-child(2) {
         font: var(--tui-font-text-m);
         font-weight: bold;
         color: var(--tui-text-primary);
+        padding-inline-end: 0.5rem;
       }
     }
   `,
-  imports: [i18nPipe, AddressActionsComponent, TuiBadge],
+  imports: [
+    i18nPipe,
+    AddressActionsComponent,
+    TuiBadge,
+    TuiObfuscatePipe,
+    TuiButton,
+    TuiIcon,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceAddressItemComponent {
+  private readonly dialogs = inject(DialogService)
+
   readonly address = input.required<DisplayAddress>()
   readonly isRunning = input.required<boolean>()
+
+  readonly currentlyMasked = signal(true)
+  readonly recipe = computed(() =>
+    this.address()?.masked && this.currentlyMasked() ? 'mask' : 'none',
+  )
+
+  viewDetails() {
+    this.dialogs
+      .openAlert(
+        `<ul>${this.address()
+          .bullets.map(b => `<li>${b}</li>`)
+          .join('')}</ul>` as i18nKey,
+        { label: 'About this address' as i18nKey },
+      )
+      .subscribe()
+  }
 }

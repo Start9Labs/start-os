@@ -7,6 +7,7 @@ import { once } from "../../../base/lib/util/once"
 import { Drop } from "../../../base/lib/util/Drop"
 import { Mounts } from "../mainFn/Mounts"
 import { BackupEffects } from "../backup/Backups"
+import { PathBase } from "./Volume"
 
 export const execFile = promisify(cp.execFile)
 const False = () => false
@@ -71,10 +72,18 @@ async function bind(
 export interface SubContainer<
   Manifest extends T.SDKManifest,
   Effects extends T.Effects = T.Effects,
-> extends Drop {
+> extends Drop,
+    PathBase {
   readonly imageId: keyof Manifest["images"] & T.ImageId
   readonly rootfs: string
   readonly guid: T.Guid
+
+  /**
+   * Get the absolute path to a file or directory within this subcontainer's rootfs
+   * @param path Path relative to the rootfs
+   */
+  subpath(path: string): string
+
   mount(
     mounts: Effects extends BackupEffects
       ? Mounts<
@@ -136,6 +145,22 @@ export interface SubContainer<
     command: string[],
     options?: CommandOptions & StdioOptions,
   ): Promise<cp.ChildProcess>
+
+  /**
+   * @description Write a file to the subcontainer's filesystem
+   * @param path Path relative to the subcontainer rootfs (e.g. "/etc/config.json")
+   * @param data The data to write
+   * @param options Optional write options (same as node:fs/promises writeFile)
+   */
+  writeFile(
+    path: string,
+    data:
+      | string
+      | NodeJS.ArrayBufferView
+      | Iterable<string | NodeJS.ArrayBufferView>
+      | AsyncIterable<string | NodeJS.ArrayBufferView>,
+    options?: Parameters<typeof fs.writeFile>[2],
+  ): Promise<void>
 
   rc(): SubContainerRc<Manifest, Effects>
 
@@ -289,6 +314,12 @@ export class SubContainerOwned<
     } finally {
       await subContainer.destroy()
     }
+  }
+
+  subpath(path: string): string {
+    return path.startsWith("/")
+      ? `${this.rootfs}${path}`
+      : `${this.rootfs}/${path}`
   }
 
   async mount(
@@ -618,6 +649,27 @@ export class SubContainerOwned<
     )
   }
 
+  /**
+   * @description Write a file to the subcontainer's filesystem
+   * @param path Path relative to the subcontainer rootfs (e.g. "/etc/config.json")
+   * @param data The data to write
+   * @param options Optional write options (same as node:fs/promises writeFile)
+   */
+  async writeFile(
+    path: string,
+    data:
+      | string
+      | NodeJS.ArrayBufferView
+      | Iterable<string | NodeJS.ArrayBufferView>
+      | AsyncIterable<string | NodeJS.ArrayBufferView>,
+    options?: Parameters<typeof fs.writeFile>[2],
+  ): Promise<void> {
+    const fullPath = this.subpath(path)
+    const dir = fullPath.replace(/\/[^/]*\/?$/, "")
+    await fs.mkdir(dir, { recursive: true })
+    return fs.writeFile(fullPath, data, options)
+  }
+
   rc(): SubContainerRc<Manifest, Effects> {
     return new SubContainerRc(this)
   }
@@ -642,6 +694,9 @@ export class SubContainerRc<
   }
   get guid() {
     return this.subcontainer.guid
+  }
+  subpath(path: string): string {
+    return this.subcontainer.subpath(path)
   }
   private destroyed = false
   private destroying: Promise<null> | null = null
@@ -798,6 +853,24 @@ export class SubContainerRc<
     options: CommandOptions & StdioOptions = { stdio: "inherit" },
   ): Promise<cp.ChildProcess> {
     return this.subcontainer.spawn(command, options)
+  }
+
+  /**
+   * @description Write a file to the subcontainer's filesystem
+   * @param path Path relative to the subcontainer rootfs (e.g. "/etc/config.json")
+   * @param data The data to write
+   * @param options Optional write options (same as node:fs/promises writeFile)
+   */
+  async writeFile(
+    path: string,
+    data:
+      | string
+      | NodeJS.ArrayBufferView
+      | Iterable<string | NodeJS.ArrayBufferView>
+      | AsyncIterable<string | NodeJS.ArrayBufferView>,
+    options?: Parameters<typeof fs.writeFile>[2],
+  ): Promise<void> {
+    return this.subcontainer.writeFile(path, data, options)
   }
 
   rc(): SubContainerRc<Manifest, Effects> {

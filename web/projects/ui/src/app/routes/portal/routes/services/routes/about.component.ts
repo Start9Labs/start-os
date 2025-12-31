@@ -58,7 +58,11 @@ export default class ServiceAboutRoute {
   private readonly markdown = inject(DialogService).openComponent(MARKDOWN, {
     label: 'License',
     size: 'l',
-    data: from(inject(ApiService).getStaticInstalled(this.pkgId, 'LICENSE.md')),
+    data: from(
+      inject(ApiService).getStatic(
+        `/s9pk/installed/${this.pkgId}.s9pk/LICENSE.md`,
+      ),
+    ),
   })
 
   readonly groups = toSignal<{ header: i18nKey; items: AdditionalItem[] }[]>(

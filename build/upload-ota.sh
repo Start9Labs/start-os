@@ -5,25 +5,24 @@ if [ -z "$VERSION" ]; then
     exit 2
 fi
 
-if [ -z "$RUN_ID" ]; then
-    >&2 echo '$RUN_ID required'
-    exit 2
-fi
-
 set -e
 
 if [ "$SKIP_DL" != "1" ]; then
-    rm -rf ~/Downloads/v$VERSION
-    mkdir ~/Downloads/v$VERSION
-    cd ~/Downloads/v$VERSION
+    if [ "$SKIP_CLEAN" != "1" ]; then
+        rm -rf ~/Downloads/v$VERSION
+        mkdir ~/Downloads/v$VERSION
+        cd ~/Downloads/v$VERSION
+    fi
 
-    for arch in aarch64 aarch64-nonfree riscv64 x86_64 x86_64-nonfree raspberrypi; do
-        while ! gh run download -R Start9Labs/start-os $RUN_ID -n $arch.squashfs -D $(pwd); do sleep 1; done
-    done
-    for arch in aarch64 aarch64-nonfree riscv64 x86_64 x86_64-nonfree; do
-        while ! gh run download -R Start9Labs/start-os $RUN_ID -n $arch.iso -D $(pwd); do sleep 1; done
-    done
-    while ! gh run download -R Start9Labs/start-os $RUN_ID -n raspberrypi.img -D $(pwd); do sleep 1; done
+    if [ -n "$RUN_ID" ]; then
+        for arch in aarch64 aarch64-nonfree riscv64 x86_64 x86_64-nonfree raspberrypi; do
+            while ! gh run download -R Start9Labs/start-os $RUN_ID -n $arch.squashfs -D $(pwd); do sleep 1; done
+        done
+        for arch in aarch64 aarch64-nonfree riscv64 x86_64 x86_64-nonfree; do
+            while ! gh run download -R Start9Labs/start-os $RUN_ID -n $arch.iso -D $(pwd); do sleep 1; done
+        done
+        while ! gh run download -R Start9Labs/start-os $RUN_ID -n raspberrypi.img -D $(pwd); do sleep 1; done
+    fi
 
     if [ -n "$ST_RUN_ID" ]; then
         for arch in aarch64 riscv64 x86_64; do

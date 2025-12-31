@@ -58,6 +58,7 @@ import { InterfaceComponent } from './interface.component'
           iconStart="@tui.trash"
           appearance="action-destructive"
           (click)="remove(domain)"
+          [disabled]="!privateDomains()"
         >
           {{ 'Delete' | i18n }}
         </button>

@@ -52,7 +52,7 @@ import { toAuthorityName } from 'src/app/utils/acme'
               tuiOption
               new
               iconStart="@tui.pencil"
-              (click)="service.edit(publicDomain())"
+              (click)="service.edit(publicDomain(), addSsl())"
             >
               {{ 'Edit' | i18n }}
             </button>
@@ -107,8 +107,11 @@ export class PublicDomainsItemComponent {
   open = false
 
   readonly publicDomain = input.required<PublicDomain>()
+  readonly addSsl = input.required<boolean>()
 
-  readonly authority = computed(() => toAuthorityName(this.publicDomain().acme))
+  readonly authority = computed(() =>
+    toAuthorityName(this.publicDomain().acme, this.addSsl()),
+  )
   readonly dnsMessage = computed<i18nKey>(
     () =>
       `Create one of the DNS records below to cause ${this.publicDomain().fqdn} to resolve to ${this.publicDomain().gateway?.ipInfo.wanIp}` as i18nKey,

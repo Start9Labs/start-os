@@ -115,7 +115,7 @@ impl Manifest {
                     if let Some(emulate_as) = &config.emulate_missing_as {
                         expected.check_file(
                             Path::new("images")
-                                .join(arch)
+                                .join(emulate_as)
                                 .join(image_id)
                                 .with_extension("squashfs"),
                         )?;

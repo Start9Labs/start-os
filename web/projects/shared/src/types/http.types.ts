@@ -1,9 +1,6 @@
 import { HttpHeaders, HttpResponse } from '@angular/common/http'
 
-export enum Method {
-  GET = 'GET',
-  POST = 'POST',
-}
+export type Method = 'GET' | 'POST'
 
 type ParamPrimitive = string | number | boolean
 

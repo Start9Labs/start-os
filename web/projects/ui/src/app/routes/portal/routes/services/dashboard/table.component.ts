@@ -60,8 +60,9 @@ import { RouterLink } from '@angular/router'
         @for (service of services() | tuiTableSort; track $index) {
           <tr
             appService
+            [routerLink]="'/services/' + (service | toManifest)?.id"
             [pkg]="service"
-            [depErrors]="errors()?.[(service | toManifest).id]"
+            [depErrors]="errors()?.[(service | toManifest).id] || {}"
           ></tr>
         } @empty {
           @for (_ of ['', '']; track $index) {

@@ -176,7 +176,7 @@ impl S9pk<TmpSource<PackSource>> {
 
 impl TryFrom<ManifestV1> for Manifest {
     type Error = Error;
-    fn try_from(value: ManifestV1) -> Result<Self, Self::Error> {
+    fn try_from(mut value: ManifestV1) -> Result<Self, Self::Error> {
         let default_url = value.upstream_repo.clone();
         let mut version = ExtendedVersion::from(
             exver::emver::Version::from_str(&value.version)
@@ -189,6 +189,9 @@ impl TryFrom<ManifestV1> for Manifest {
             version = version.map_upstream(|v| v.with_prerelease(["beta".into()]));
         } else if &*value.id == "lightning-terminal" || &*value.id == "robosats" {
             version = version.map_upstream(|v| v.with_prerelease(["alpha".into()]));
+        }
+        if &*value.id == "nostr" {
+            value.id = "nostr-rs-relay".parse()?;
         }
         Ok(Self {
             id: value.id,

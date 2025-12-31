@@ -12,7 +12,10 @@ import { InterfaceAddressesComponent } from './addresses/addresses.component'
   template: `
     <div>
       <section [gateways]="value()?.gateways"></section>
-      <section [publicDomains]="value()?.publicDomains"></section>
+      <section
+        [publicDomains]="value()?.publicDomains"
+        [addSsl]="value()?.addSsl || false"
+      ></section>
       <section [torDomains]="value()?.torDomains"></section>
       <section [privateDomains]="value()?.privateDomains"></section>
     </div>

@@ -1,5 +1,5 @@
-import { AsyncPipe } from '@angular/common'
-import { Component, inject } from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import {
   DialogService,
   getErrorMessage,
@@ -17,7 +17,7 @@ import { injectContext } from '@taiga-ui/polymorpheus'
 import * as json from 'fast-json-patch'
 import { compare } from 'fast-json-patch'
 import { PatchDB } from 'patch-db-client'
-import { catchError, defer, EMPTY, endWith, firstValueFrom, map } from 'rxjs'
+import { catchError, EMPTY, endWith, firstValueFrom, from, map } from 'rxjs'
 import {
   ActionButton,
   FormComponent,
@@ -50,13 +50,12 @@ export type PackageActionData = {
       <img [src]="pkgInfo.icon" alt="" />
       <h4>{{ pkgInfo.title }}</h4>
     </div>
-    @if (res$ | async; as res) {
-      @if (error) {
-        <tui-notification appearance="negative">
-          <div [innerHTML]="error"></div>
-        </tui-notification>
-      }
-
+    @if (error()) {
+      <tui-notification appearance="negative">
+        <div [innerHTML]="error()"></div>
+      </tui-notification>
+    }
+    @if (res(); as res) {
       @if (warning) {
         <tui-notification appearance="warning">
           <div [innerHTML]="warning"></div>
@@ -85,7 +84,7 @@ export type PackageActionData = {
           {{ 'Reset defaults' | i18n }}
         </button>
       </app-form>
-    } @else {
+    } @else if (!error()) {
       <tui-loader size="l" textContent="loading" />
     }
   `,
@@ -111,7 +110,6 @@ export type PackageActionData = {
     }
   `,
   imports: [
-    AsyncPipe,
     TuiNotification,
     TuiLoader,
     TuiButton,
@@ -143,38 +141,39 @@ export class ActionInputModal {
     },
   ]
 
-  error = ''
+  readonly error = signal('')
+  readonly res = toSignal(
+    from(
+      this.api.getActionInput({
+        packageId: this.pkgInfo.id,
+        actionId: this.actionId,
+      }),
+    ).pipe(
+      map(res => {
+        console.warn('MAP', res)
+        const originalValue = res.value || {}
+        this.eventId = res.eventId
 
-  res$ = defer(() =>
-    this.api.getActionInput({
-      packageId: this.pkgInfo.id,
-      actionId: this.actionId,
-    }),
-  ).pipe(
-    map(res => {
-      console.warn('MAP', res)
-      const originalValue = res.value || {}
-      this.eventId = res.eventId
-
-      return {
-        spec: res.spec,
-        originalValue,
-        operations: this.requestInfo?.input
-          ? compare(
-              JSON.parse(JSON.stringify(originalValue)),
-              utils.deepMerge(
+        return {
+          spec: res.spec,
+          originalValue,
+          operations: this.requestInfo?.input
+            ? compare(
                 JSON.parse(JSON.stringify(originalValue)),
-                this.requestInfo.input.value,
-              ) as object,
-            )
-          : null,
-      }
-    }),
-    catchError(e => {
-      console.error('catchError', e)
-      this.error = String(getErrorMessage(e))
-      return EMPTY
-    }),
+                utils.deepMerge(
+                  JSON.parse(JSON.stringify(originalValue)),
+                  this.requestInfo.input.value,
+                ) as object,
+              )
+            : null,
+        }
+      }),
+      catchError(e => {
+        console.error('catchError', e)
+        this.error.set(String(getErrorMessage(e)))
+        return EMPTY
+      }),
+    ),
   )
 
   async execute(input: object) {

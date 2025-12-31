@@ -43,11 +43,11 @@ export const SYSTEM_MENU = [
       item: 'Gateways',
       link: 'gateways',
     },
-    {
-      icon: '@tui.award',
-      item: 'Certificate Authorities',
-      link: 'authorities',
-    },
+    // {
+    //   icon: '@tui.award',
+    //   item: 'Certificate Authorities',
+    //   link: 'authorities',
+    // },
     {
       icon: '@tui.globe',
       item: 'DNS' as i18nKey,

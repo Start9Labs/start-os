@@ -14,10 +14,7 @@ export { CommandController } from "./CommandController"
 import { EXIT_SUCCESS, HealthDaemon } from "./HealthDaemon"
 import { Daemon } from "./Daemon"
 import { CommandController } from "./CommandController"
-import { HealthCheck } from "../health/HealthCheck"
 import { Oneshot } from "./Oneshot"
-import { Manifest } from "../test/output.sdk"
-import { asError } from "../util"
 
 export const cpExec = promisify(CP.exec)
 export const cpExecFile = promisify(CP.execFile)
@@ -432,7 +429,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
 
   async build() {
     for (const daemon of this.healthDaemons) {
-      await daemon.init()
+      await daemon.updateStatus()
     }
     return this
   }

@@ -393,12 +393,13 @@ export class GetServiceInterface<Mapped = ServiceInterfaceFilled | null> {
       }
       await waitForNext
     }
+    return new Promise<never>((_, rej) => rej(new Error("aborted")))
   }
 
   /**
    * Watches the requested service interface. Returns an async iterator that yields whenever the value changes
    */
-  watch(abort?: AbortSignal): AsyncGenerator<Mapped, void, unknown> {
+  watch(abort?: AbortSignal): AsyncGenerator<Mapped, never, unknown> {
     const ctrl = new AbortController()
     abort?.addEventListener("abort", () => ctrl.abort())
     return DropGenerator.of(this.watchGen(ctrl.signal), () => ctrl.abort())

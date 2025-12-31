@@ -10,7 +10,6 @@ import { SDKManifest } from "@start9labs/start-sdk/base/lib/types"
 import { SubContainerRc } from "@start9labs/start-sdk/package/lib/util/SubContainer"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
-const EMBASSY_PROPERTIES_LOOP = 30 * 1000
 /**
  * We wanted something to represent what the main loop is doing, and
  * in this case it used to run the properties, health, and the docker/ js main.

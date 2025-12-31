@@ -241,7 +241,7 @@ pub async fn mark_seen_before(
     ctx.db
         .mutate(|db| {
             let n = db.as_private_mut().as_notifications_mut();
-            for id in n.keys()?.range(..before) {
+            for id in n.keys()?.range(..=before) {
                 n.as_idx_mut(&id)
                     .or_not_found(lazy_format!("Notification #{id}"))?
                     .as_seen_mut()
