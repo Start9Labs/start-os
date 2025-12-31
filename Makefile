@@ -278,7 +278,7 @@ ts-bindings: core/bindings/index.ts
 core/bindings/index.ts: $(call ls-files, core) $(ENVIRONMENT_FILE)
 	rm -rf core/bindings
 	./core/build/build-ts.sh
-	ls core/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' | grep -v '"./index"' | tee core/bindings/index.ts
+	ls core/bindings/*.ts | sed 's/core\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' | grep -v '"./index"' | tee core/bindings/index.ts
 	npm --prefix sdk exec -- prettier --config ./sdk/base/package.json -w ./core/bindings/*.ts
 	touch core/bindings/index.ts
 

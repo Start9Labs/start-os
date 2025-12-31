@@ -286,6 +286,18 @@ impl VersionT for Version {
                 ErrorKind::Filesystem,
             ));
         }
+
+        if tokio::fs::metadata("/media/startos/data/package-data/volumes/nostr")
+            .await
+            .is_ok()
+        {
+            tokio::fs::rename(
+                "/media/startos/data/package-data/volumes/nostr",
+                "/media/startos/data/package-data/volumes/nostr-rs-relay",
+            )
+            .await?;
+        }
+
         // Should be the name of the package
         let mut paths = tokio::fs::read_dir(path).await?;
         while let Some(path) = paths.next_entry().await? {

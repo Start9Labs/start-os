@@ -1,5 +1,5 @@
-import { forwardRef, signal } from '@angular/core'
-import { tuiCreateToken, tuiProvide } from '@taiga-ui/cdk'
+import { forwardRef, InjectionToken, signal } from '@angular/core'
+import { tuiProvide } from '@taiga-ui/cdk'
 import {
   TuiLanguageName,
   tuiLanguageSwitcher,
@@ -11,12 +11,19 @@ import { i18nService } from './i18n.service'
 export type i18nKey = keyof typeof ENGLISH
 export type i18n = Record<(typeof ENGLISH)[i18nKey], string>
 
-export const I18N = tuiCreateToken(signal<i18n | null>(null))
-export const I18N_LOADER =
-  tuiCreateToken<(lang: TuiLanguageName) => Promise<i18n>>()
-export const I18N_STORAGE = tuiCreateToken<
+export const I18N = new InjectionToken('', {
+  factory: () => signal<i18n | null>(null),
+})
+
+export const I18N_LOADER = new InjectionToken<
+  (lang: TuiLanguageName) => Promise<i18n>
+>('')
+
+export const I18N_STORAGE = new InjectionToken<
   (lang: TuiLanguageName) => Promise<void>
->(() => Promise.resolve())
+>('', {
+  factory: () => () => Promise.resolve(),
+})
 
 export const I18N_PROVIDERS = [
   tuiLanguageSwitcher(async (language: TuiLanguageName): Promise<unknown> => {

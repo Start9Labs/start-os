@@ -142,6 +142,7 @@ export default class ServiceInterfaceRoute {
       torDomains: host.onions,
       publicDomains: getPublicDomains(host.publicDomains, gateways),
       privateDomains: host.privateDomains,
+      addSsl: !!binding?.options.addSsl,
     }
   })
 

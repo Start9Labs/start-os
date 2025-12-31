@@ -20,7 +20,7 @@ import {
   LoadingService,
 } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiContext, TuiStringHandler } from '@taiga-ui/cdk'
+import { TuiAnimated, TuiContext, TuiStringHandler } from '@taiga-ui/cdk'
 import {
   TuiAppearance,
   TuiButton,
@@ -168,7 +168,7 @@ import { SystemWipeComponent } from './wipe.component'
         </button>
       </div>
       @if (count > 4) {
-        <div tuiCell tuiAppearance="outline-grayscale" @tuiScaleIn @tuiFadeIn>
+        <div tuiCell tuiAppearance="outline-grayscale" tuiAnimated>
           <tui-icon icon="@tui.briefcase-medical" />
           <span tuiTitle>
             <strong>{{ 'Disk Repair' | i18n }}</strong>
@@ -209,10 +209,14 @@ import { SystemWipeComponent } from './wipe.component'
     [tuiCell] {
       background: var(--tui-background-neutral-1);
     }
+
+    [tuiAnimated].tui-enter,
+    [tuiAnimated].tui-leave {
+      animation-name: tuiFade, tuiScale;
+    }
   `,
   providers: [tuiCellOptionsProvider({ height: 'spacious' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  animations: [tuiScaleIn, tuiFadeIn],
   imports: [
     AsyncPipe,
     RouterLink,
@@ -231,6 +235,7 @@ import { SystemWipeComponent } from './wipe.component'
     SnekDirective,
     TuiBadge,
     TuiBadgeNotification,
+    TuiAnimated,
   ],
 })
 export default class SystemGeneralComponent {

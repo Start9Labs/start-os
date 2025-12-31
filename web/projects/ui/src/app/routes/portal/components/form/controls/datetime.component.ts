@@ -6,7 +6,6 @@ import {
   TUI_LAST_DAY,
   TuiDay,
   TuiMapperPipe,
-  tuiPure,
   TuiTime,
 } from '@taiga-ui/cdk'
 import { TuiIcon, TuiTextfield } from '@taiga-ui/core'
@@ -44,7 +43,7 @@ import { HintPipe } from '../pipes/hint.pipe'
             [invalid]="control.invalid()"
             [readOnly]="readOnly"
             [disabled]="!!spec.disabled"
-            [ngModel]="getTime(value)"
+            [ngModel]="value | tuiMapper: getTime"
             (ngModelChange)="value = $event?.toString() || null"
             (blur)="control.onTouched()"
           />
@@ -128,7 +127,6 @@ export class FormDatetimeComponent extends Control<
   readonly min = TUI_FIRST_DAY
   readonly max = TUI_LAST_DAY
 
-  @tuiPure
   getTime(value: string | null) {
     return value ? TuiTime.fromString(value) : null
   }

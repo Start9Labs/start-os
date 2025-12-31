@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { Component, ElementRef, Input, ViewChild } from '@angular/core'
 import {
-  INTERSECTION_ROOT,
+  WA_INTERSECTION_ROOT,
   WaIntersectionObserver,
 } from '@ng-web-apis/intersection-observer'
 import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
@@ -31,12 +31,7 @@ import { LogsPipe } from './logs.pipe'
     LogsPipe,
     i18nPipe,
   ],
-  providers: [
-    {
-      provide: INTERSECTION_ROOT,
-      useExisting: ElementRef,
-    },
-  ],
+  providers: [{ provide: WA_INTERSECTION_ROOT, useExisting: ElementRef }],
 })
 export class LogsComponent {
   @ViewChild('bottom')

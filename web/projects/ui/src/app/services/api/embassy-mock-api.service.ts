@@ -83,10 +83,7 @@ export class MockApiService extends ApiService {
     return markdown
   }
 
-  async getStaticInstalled(
-    id: T.PackageId,
-    path: 'LICENSE.md',
-  ): Promise<string> {
+  async getStatic(url: string): Promise<string> {
     await pauseFor(2000)
     return markdown
   }
@@ -1125,8 +1122,8 @@ export class MockApiService extends ApiService {
               },
               'p2p-interface': {
                 name: 'P2P Interface',
-                result: 'success',
-                message: null,
+                result: 'waiting',
+                message: 'Chain State',
               },
               'rpc-interface': {
                 name: 'RPC Interface',

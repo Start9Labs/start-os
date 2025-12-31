@@ -1,15 +1,12 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  inject,
-  Input,
-  OnChanges,
+  computed,
+  input,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
-import { tuiPure } from '@taiga-ui/cdk'
 import { ServiceUptimeComponent } from 'src/app/routes/portal/routes/services/components/uptime.component'
-import { ConnectionService } from 'src/app/services/connection.service'
 import { PkgDependencyErrors } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
@@ -19,17 +16,17 @@ import { StatusComponent } from './status.component'
   selector: 'tr[appService]',
   template: `
     <td [style.width.rem]="3" [style.grid-area]="'1 / 1 / 4'">
-      <img alt="logo" [src]="pkg.icon" />
+      <img alt="logo" [src]="pkg().icon" />
     </td>
     <td class="title">
-      <a [routerLink]="routerLink">{{ manifest.title }}</a>
+      <a [routerLink]="'/services/' + manifest().id">{{ manifest().title }}</a>
     </td>
     <td class="status" [style.grid-area]="'3 / 2'">
-      <app-status [pkg]="pkg" [hasDepErrors]="hasError(depErrors)" />
+      <app-status [pkg]="pkg()" [hasDepErrors]="hasError()" />
     </td>
-    <td class="version">{{ manifest.version }}</td>
+    <td class="version">{{ manifest().version }}</td>
     <td class="uptime">
-      @if (pkg.statusInfo.started; as started) {
+      @if (pkg().statusInfo.started; as started) {
         <span>{{ 'Uptime' | i18n }}:</span>
         <service-uptime [started]="started" />
       } @else {
@@ -143,39 +140,15 @@ import { StatusComponent } from './status.component'
       }
     }
   `,
-  hostDirectives: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, StatusComponent, ServiceUptimeComponent, i18nPipe],
 })
-export class ServiceComponent implements OnChanges {
-  private readonly link = inject(RouterLink)
+export class ServiceComponent {
+  readonly pkg = input.required<PackageDataEntry>()
+  readonly depErrors = input<PkgDependencyErrors>({})
 
-  @Input()
-  pkg!: PackageDataEntry
-
-  @Input()
-  depErrors?: PkgDependencyErrors
-
-  readonly connected$ = inject(ConnectionService)
-
-  get installed(): boolean {
-    return this.pkg.stateInfo.state === 'installed'
-  }
-
-  get manifest() {
-    return getManifest(this.pkg)
-  }
-
-  get routerLink() {
-    return `/services/${this.manifest.id}`
-  }
-
-  ngOnChanges() {
-    this.link.routerLink = this.routerLink
-  }
-
-  @tuiPure
-  hasError(errors: PkgDependencyErrors = {}): boolean {
-    return Object.values(errors).some(Boolean)
-  }
+  readonly manifest = computed(() => getManifest(this.pkg()))
+  readonly hasError = computed(() =>
+    Object.values(this.depErrors()).some(Boolean),
+  )
 }

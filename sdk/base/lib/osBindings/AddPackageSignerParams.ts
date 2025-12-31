@@ -2,4 +2,8 @@
 import type { Guid } from "./Guid"
 import type { PackageId } from "./PackageId"
 
-export type PackageSignerParams = { id: PackageId; signer: Guid }
+export type AddPackageSignerParams = {
+  id: PackageId
+  signer: Guid
+  versions: string | null
+}

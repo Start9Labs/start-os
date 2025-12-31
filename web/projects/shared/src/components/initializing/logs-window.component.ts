@@ -1,7 +1,7 @@
 import { AsyncPipe } from '@angular/common'
-import { Component, ElementRef, inject, input } from '@angular/core'
+import { Component, ElementRef, inject } from '@angular/core'
 import {
-  INTERSECTION_ROOT,
+  WA_INTERSECTION_ROOT,
   WaIntersectionObserver,
 } from '@ng-web-apis/intersection-observer'
 import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
@@ -36,12 +36,7 @@ import { SetupLogsService } from '../../services/setup-logs.service'
     NgDompurifyPipe,
     TuiScrollbar,
   ],
-  providers: [
-    {
-      provide: INTERSECTION_ROOT,
-      useExisting: ElementRef,
-    },
-  ],
+  providers: [{ provide: WA_INTERSECTION_ROOT, useExisting: ElementRef }],
 })
 export class LogsWindowComponent {
   readonly logs$ = inject(SetupLogsService)

@@ -69,7 +69,6 @@ import { BACKUP_RESTORE } from './restore.component'
               path="/user-manual/backup-create.html"
               appearance="action-grayscale"
               iconEnd="@tui.external-link"
-              [pseudo]="true"
               [textContent]="'View instructions' | i18n"
             ></a>
           } @else {
@@ -83,7 +82,6 @@ import { BACKUP_RESTORE } from './restore.component'
               path="/user-manual/backup-restore.html"
               appearance="action-grayscale"
               iconEnd="@tui.external-link"
-              [pseudo]="true"
               [textContent]="'View instructions' | i18n"
             ></a>
           }
@@ -127,7 +125,6 @@ import { BACKUP_RESTORE } from './restore.component'
             fragment="#network-folder"
             appearance="action-grayscale"
             iconEnd="@tui.external-link"
-            [pseudo]="true"
             [textContent]="'View instructions' | i18n"
           ></a>
         </section>

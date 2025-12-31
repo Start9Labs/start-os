@@ -5,7 +5,6 @@ import {
   HttpOptions,
   HttpService,
   isRpcError,
-  Method,
   RpcError,
   RPCOptions,
 } from '@start9labs/shared'
@@ -37,7 +36,7 @@ export class LiveApiService extends ApiService {
 
   async uploadFile(guid: string, body: Blob): Promise<void> {
     await this.httpRequest({
-      method: Method.POST,
+      method: 'POST',
       body,
       url: `/rest/rpc/${guid}`,
       timeout: 0,
@@ -53,7 +52,7 @@ export class LiveApiService extends ApiService {
     const encodedUrl = encodeURIComponent(pkg.s9pk.url)
 
     return this.httpRequest({
-      method: Method.GET,
+      method: 'GET',
       url: `/s9pk/proxy/${encodedUrl}/${path}`,
       params: {
         rootSighash: pkg.s9pk.commitment.rootSighash,
@@ -63,13 +62,10 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async getStaticInstalled(
-    id: T.PackageId,
-    path: 'LICENSE.md',
-  ): Promise<string> {
+  async getStatic(url: string): Promise<string> {
     return this.httpRequest({
-      method: Method.GET,
-      url: `/s9pk/installed/${id}.s9pk/${path}`,
+      method: 'GET',
+      url,
       responseType: 'text',
     })
   }

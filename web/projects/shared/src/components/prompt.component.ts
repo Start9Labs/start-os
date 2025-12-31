@@ -40,7 +40,9 @@ import { i18nKey } from '../i18n/i18n.providers'
             class="button"
             [iconStart]="masked ? '@tui.eye' : '@tui.eye-off'"
             (click)="masked = !masked"
-          ></button>
+          >
+            {{ 'Reveal/Hide' | i18n }}
+          </button>
         }
       </tui-textfield>
       <footer class="g-buttons">

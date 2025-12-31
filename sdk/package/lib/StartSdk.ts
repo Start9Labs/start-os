@@ -65,8 +65,9 @@ import {
   ServiceInterfaceFilled,
 } from "../../base/lib/util/getServiceInterface"
 import { getOwnServiceInterfaces } from "../../base/lib/util/getServiceInterfaces"
+import { Volumes, createVolumes } from "./util/Volume"
 
-export const OSVersion = testTypeVersion("0.4.0-alpha.16")
+export const OSVersion = testTypeVersion("0.4.0-alpha.17")
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -132,6 +133,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
 
     return {
       manifest: this.manifest,
+      volumes: createVolumes(this.manifest),
       ...startSdkEffectWrapper,
       setDataVersion,
       getDataVersion,
@@ -430,10 +432,10 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           query: Record<string, string>
           /** (optional) overrides the protocol prefix provided by the bind function.
            *
-           * @example `ftp://`
+           * @example `{ ssl: 'ftps', noSsl: 'ftp' }`
            */
           schemeOverride: { ssl: Scheme; noSsl: Scheme } | null
-          /** TODO Aiden how would someone include a password in the URL? Whether or not to mask the URLs on the screen, for example, when they contain a password */
+          /** mask the url (recommended if it contains credentials such as an API key or password) */
           masked: boolean
         },
       ) => new ServiceInterfaceBuilder({ ...options, effects }),

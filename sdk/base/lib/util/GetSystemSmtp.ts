@@ -39,6 +39,7 @@ export class GetSystemSmtp {
       })
       await waitForNext
     }
+    return new Promise<never>((_, rej) => rej(new Error("aborted")))
   }
 
   /**
@@ -46,7 +47,7 @@ export class GetSystemSmtp {
    */
   watch(
     abort?: AbortSignal,
-  ): AsyncGenerator<T.SmtpValue | null, void, unknown> {
+  ): AsyncGenerator<T.SmtpValue | null, never, unknown> {
     const ctrl = new AbortController()
     abort?.addEventListener("abort", () => ctrl.abort())
     return DropGenerator.of(this.watchGen(ctrl.signal), () => ctrl.abort())

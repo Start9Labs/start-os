@@ -24,6 +24,7 @@ impl FromStr for NamedHealthCheckResult {
                 "success" => NamedHealthCheckResultKind::Success { message },
                 "disabled" => NamedHealthCheckResultKind::Disabled { message },
                 "starting" => NamedHealthCheckResultKind::Starting { message },
+                "waiting" => NamedHealthCheckResultKind::Waiting { message },
                 "loading" => NamedHealthCheckResultKind::Loading {
                     message: message.unwrap_or_default(),
                 },
@@ -61,6 +62,7 @@ pub enum NamedHealthCheckResultKind {
     Success { message: Option<String> },
     Disabled { message: Option<String> },
     Starting { message: Option<String> },
+    Waiting { message: Option<String> },
     Loading { message: String },
     Failure { message: String },
 }
@@ -87,6 +89,13 @@ impl std::fmt::Display for NamedHealthCheckResult {
                     write!(f, "{name}: Starting ({message})")
                 } else {
                     write!(f, "{name}: Starting")
+                }
+            }
+            NamedHealthCheckResultKind::Waiting { message } => {
+                if let Some(message) = message {
+                    write!(f, "{name}: Waiting ({message})")
+                } else {
+                    write!(f, "{name}: Waiting")
                 }
             }
             NamedHealthCheckResultKind::Loading { message } => {

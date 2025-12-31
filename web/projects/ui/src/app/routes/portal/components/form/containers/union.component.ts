@@ -12,10 +12,9 @@ import {
   ReactiveFormsModule,
 } from '@angular/forms'
 import { IST } from '@start9labs/start-sdk'
-import { tuiPure, TuiValueChanges } from '@taiga-ui/cdk'
+import { TuiValueChanges } from '@taiga-ui/cdk'
 import { TuiElasticContainer } from '@taiga-ui/kit'
 import { FormService } from 'src/app/services/form.service'
-
 import { FormControlComponent } from './control.component'
 import { FormGroupComponent } from './group.component'
 
@@ -73,7 +72,6 @@ export class FormUnionComponent implements OnChanges {
   }
 
   // OTHER?
-  @tuiPure
   onUnion(union: string) {
     this.spec.others = this.spec.others || {}
     this.spec.others[this.union] = this.form.control.controls['value']?.value
@@ -84,9 +82,7 @@ export class FormUnionComponent implements OnChanges {
         [],
         this.spec.others[union],
       ),
-      {
-        emitEvent: false,
-      },
+      { emitEvent: false },
     )
   }
 

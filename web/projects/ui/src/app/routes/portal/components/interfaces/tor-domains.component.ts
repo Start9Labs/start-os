@@ -50,6 +50,7 @@ type OnionForm = {
         iconStart="@tui.plus"
         [style.margin-inline-start]="'auto'"
         (click)="add()"
+        [disabled]="!torDomains()"
       >
         {{ 'Add' | i18n }}
       </button>

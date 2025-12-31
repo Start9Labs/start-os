@@ -5,7 +5,6 @@ import {
   i18nPipe,
   SharedPipesModule,
 } from '@start9labs/shared'
-import { TuiLet } from '@taiga-ui/cdk'
 import {
   TuiAppearance,
   TuiButton,
@@ -29,7 +28,6 @@ import { MenuComponent } from './menu.component'
     TuiButton,
     CategoriesModule,
     StoreIconComponentModule,
-    TuiLet,
     TuiAppearance,
     TuiIcon,
     TuiSkeleton,

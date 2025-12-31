@@ -15,10 +15,7 @@ export abstract class ApiService {
     path: 'LICENSE.md',
   ): Promise<string>
 
-  abstract getStaticInstalled(
-    id: T.PackageId,
-    path: 'LICENSE.md',
-  ): Promise<string>
+  abstract getStatic(url: string): Promise<string>
 
   // websocket
 

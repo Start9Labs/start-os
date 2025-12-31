@@ -94,7 +94,23 @@ impl Public {
                         ..Default::default()
                     },
                     gateways: OrdMap::new(),
-                    acme: BTreeMap::new(),
+                    acme: {
+                        let mut acme: BTreeMap<AcmeProvider, AcmeSettings> = Default::default();
+                        acme.insert(
+                            "letsencrypt".parse()?,
+                            AcmeSettings {
+                                contact: Vec::new(),
+                            },
+                        );
+                        #[cfg(feature = "dev")]
+                        acme.insert(
+                            "letsencrypt-staging".parse()?,
+                            AcmeSettings {
+                                contact: Vec::new(),
+                            },
+                        );
+                        acme
+                    },
                     dns: Default::default(),
                 },
                 status_info: ServerStatus {

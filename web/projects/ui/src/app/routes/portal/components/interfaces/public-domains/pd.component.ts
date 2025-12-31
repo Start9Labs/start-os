@@ -31,7 +31,8 @@ import { PublicDomain, PublicDomainService } from './pd.service'
           tuiButton
           iconStart="@tui.plus"
           [style.margin-inline-start]="'auto'"
-          (click)="service.add()"
+          (click)="service.add(addSsl())"
+          [disabled]="!publicDomains()"
         >
           {{ 'Add' | i18n }}
         </button>
@@ -44,7 +45,7 @@ import { PublicDomain, PublicDomainService } from './pd.service'
     } @else {
       <table [appTable]="['Domain', 'Gateway', 'Certificate Authority', null]">
         @for (domain of publicDomains(); track $index) {
-          <tr [publicDomain]="domain"></tr>
+          <tr [publicDomain]="domain" [addSsl]="addSsl()"></tr>
         } @empty {
           @for (_ of [0]; track $index) {
             <tr>
@@ -79,4 +80,6 @@ export class PublicDomainsComponent {
   readonly service = inject(PublicDomainService)
 
   readonly publicDomains = input.required<readonly PublicDomain[] | undefined>()
+
+  readonly addSsl = input.required<boolean>()
 }

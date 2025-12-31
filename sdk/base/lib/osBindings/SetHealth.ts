@@ -5,6 +5,7 @@ export type SetHealth = { id: HealthCheckId; name: string } & (
   | { result: "success"; message: string | null }
   | { result: "disabled"; message: string | null }
   | { result: "starting"; message: string | null }
+  | { result: "waiting"; message: string | null }
   | { result: "loading"; message: string }
   | { result: "failure"; message: string }
 )
