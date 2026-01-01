@@ -174,12 +174,12 @@ if [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	echo "deb https://apt.armbian.com/ ${IB_SUITE} main" > config/archives/armbian.list
 fi
 
-curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o config/archives/nvidia.key
-curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-    sed 's#deb https://#deb [signed-by=/etc/apt/trusted.gpg.d/nvidia.key.gpg] https://#g' > config/archives/nvidia.list
-
 cat > config/archives/backports.pref <<- EOF
 Package: linux-image-*
+Pin: release n=${IB_SUITE}-backports
+Pin-Priority: 500
+
+Package: nvidia-kernel-dkms
 Pin: release n=${IB_SUITE}-backports
 Pin-Priority: 500
 EOF

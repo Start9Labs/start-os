@@ -29,7 +29,7 @@ use crate::disk::mount::util::unmount;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::service::ServiceStats;
-use crate::util::io::open_file;
+use crate::util::io::{open_file, write_file_owned_atomic};
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{FromStrParser, Invoke, new_guid};
 use crate::{InvalidId, PackageId};
@@ -39,8 +39,7 @@ const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path
 pub const CONTAINER_RPC_SERVER_SOCKET: &str = "service.sock"; // must not be absolute path
 pub const HOST_RPC_SERVER_SOCKET: &str = "host.sock"; // must not be absolute path
 const CONTAINER_DHCP_TIMEOUT: Duration = Duration::from_secs(30);
-const HARDWARE_ACCELERATION_PATHS: &[&str] =
-    &["/dev/dri/", "/dev/nvidia", "/dev/media", "/dev/video"];
+const HARDWARE_ACCELERATION_PATHS: &[&str] = &["/dev/dri/", "/dev/nvidia"];
 
 #[derive(
     Clone, Debug, Serialize, Deserialize, Default, PartialEq, Eq, PartialOrd, Ord, Hash, TS,
@@ -159,91 +158,12 @@ impl LxcManager {
     }
 }
 
-fn handle_devices<'a>(
-    guid: &'a str,
-    rootfs: &'a Path,
-    mut dir: ReadDir,
-    guards: &'a mut Vec<MountGuard>,
-    matches: &'a [&'a str],
-) -> BoxFuture<'a, Result<(), Error>> {
-    use std::os::linux::fs::MetadataExt;
-    use std::os::unix::fs::FileTypeExt;
-    async move {
-        while let Some(ent) = dir.next_entry().await? {
-            let path = ent.path();
-            if let Some(matches) = if matches.is_empty() {
-                Some(Vec::new())
-            } else {
-                let mut new_matches = Vec::new();
-                for m in matches {
-                    if if m.ends_with("/") {
-                        path.starts_with(m)
-                    } else {
-                        path.to_string_lossy().starts_with(*m)
-                    } || Path::new(*m).starts_with(&path)
-                    {
-                        new_matches.push(*m);
-                    }
-                }
-                if new_matches.is_empty() {
-                    None
-                } else {
-                    Some(new_matches)
-                }
-            } {
-                let meta = ent.metadata().await?;
-                let ty = meta.file_type();
-                if ty.is_dir() {
-                    handle_devices(
-                        guid,
-                        rootfs,
-                        tokio::fs::read_dir(&path)
-                            .await
-                            .with_ctx(|_| (ErrorKind::Filesystem, format!("readdir {path:?}")))?,
-                        guards,
-                        &matches,
-                    )
-                    .await?;
-                } else {
-                    let ty = if ty.is_char_device() {
-                        "c"
-                    } else if ty.is_block_device() {
-                        "b"
-                    } else {
-                        continue;
-                    };
-                    let rdev = meta.st_rdev();
-                    let maj = ((rdev >> 8) & 0xfff) as u32;
-                    let min = ((rdev & 0xff) | ((rdev >> 12) & 0xfff00)) as u32;
-                    Command::new("lxc-cgroup")
-                        .arg(guid)
-                        .arg("devices.allow")
-                        .arg(format!("{ty} {maj}:{min} rwm"))
-                        .invoke(ErrorKind::Lxc)
-                        .await?;
-                    guards.push(
-                        MountGuard::mount(
-                            &Bind::new(&path),
-                            rootfs.join(path.strip_prefix("/").unwrap_or(&path)),
-                            ReadWrite,
-                        )
-                        .await?,
-                    );
-                }
-            }
-        }
-        Ok(())
-    }
-    .boxed()
-}
-
 pub struct LxcContainer {
     manager: Weak<LxcManager>,
     rootfs: OverlayGuard<TmpMountGuard>,
     pub guid: Arc<ContainerId>,
     rpc_bind: TmpMountGuard,
     log_mount: Option<MountGuard>,
-    devices: Vec<MountGuard>,
     config: LxcConfig,
     exited: bool,
 }
@@ -259,7 +179,6 @@ impl LxcContainer {
         tokio::fs::create_dir_all(&container_dir).await?;
         let config_str = format!(include_str!("./config.template"), guid = &*guid);
         tokio::fs::write(container_dir.join("config"), config_str).await?;
-        // TODO: append config
         let rootfs_dir = container_dir.join("rootfs");
         let rootfs = OverlayGuard::mount(
             TmpMountGuard::mount(
@@ -277,8 +196,25 @@ impl LxcContainer {
             &rootfs_dir,
         )
         .await?;
-        tokio::fs::write(rootfs_dir.join("etc/machine-id"), format!("{machine_id}\n")).await?;
-        tokio::fs::write(rootfs_dir.join("etc/hostname"), format!("{guid}\n")).await?;
+        Command::new("chown")
+            .arg("100000:100000")
+            .arg(&rootfs_dir)
+            .invoke(ErrorKind::Filesystem)
+            .await?;
+        write_file_owned_atomic(
+            rootfs_dir.join("etc/machine-id"),
+            format!("{machine_id}\n"),
+            100000,
+            100000,
+        )
+        .await?;
+        write_file_owned_atomic(
+            rootfs_dir.join("etc/hostname"),
+            format!("{guid}\n"),
+            100000,
+            100000,
+        )
+        .await?;
         Command::new("sed")
             .arg("-i")
             .arg(format!("s/LXC_NAME/{guid}/g"))
@@ -334,20 +270,7 @@ impl LxcContainer {
             .arg("DEBUG")
             .invoke(ErrorKind::Lxc)
             .await?;
-        let mut devices = Vec::new();
-        if config.hardware_acceleration {
-            handle_devices(
-                &*guid,
-                rootfs.path(),
-                tokio::fs::read_dir("/dev")
-                    .await
-                    .with_ctx(|_| (ErrorKind::Filesystem, "readdir /dev"))?,
-                &mut devices,
-                HARDWARE_ACCELERATION_PATHS,
-            )
-            .await?;
-        }
-        Ok(Self {
+        let res = Self {
             manager: Arc::downgrade(manager),
             rootfs,
             guid: Arc::new(ContainerId::try_from(&*guid)?),
@@ -355,8 +278,77 @@ impl LxcContainer {
             config,
             exited: false,
             log_mount,
-            devices,
-        })
+        };
+        if res.config.hardware_acceleration {
+            res.handle_devices(
+                tokio::fs::read_dir("/dev")
+                    .await
+                    .with_ctx(|_| (ErrorKind::Filesystem, "readdir /dev"))?,
+                HARDWARE_ACCELERATION_PATHS,
+            )
+            .await?;
+        }
+        Ok(res)
+    }
+
+    fn handle_devices<'a>(
+        &'a self,
+        mut dir: ReadDir,
+        matches: &'a [&'a str],
+    ) -> BoxFuture<'a, Result<(), Error>> {
+        use std::os::linux::fs::MetadataExt;
+        use std::os::unix::fs::FileTypeExt;
+        async move {
+            while let Some(ent) = dir.next_entry().await? {
+                let path = ent.path();
+                if let Some(matches) = if matches.is_empty() {
+                    Some(Vec::new())
+                } else {
+                    let mut new_matches = Vec::new();
+                    for m in matches {
+                        if if m.ends_with("/") {
+                            path.starts_with(m)
+                        } else {
+                            path.to_string_lossy().starts_with(*m)
+                        } || Path::new(*m).starts_with(&path)
+                        {
+                            new_matches.push(*m);
+                        }
+                    }
+                    if new_matches.is_empty() {
+                        None
+                    } else {
+                        Some(new_matches)
+                    }
+                } {
+                    let meta = ent.metadata().await?;
+                    let ty = meta.file_type();
+                    if ty.is_dir() {
+                        self.handle_devices(
+                            tokio::fs::read_dir(&path).await.with_ctx(|_| {
+                                (ErrorKind::Filesystem, format!("readdir {path:?}"))
+                            })?,
+                            &matches,
+                        )
+                        .await?;
+                    } else {
+                        let ty = if ty.is_char_device() {
+                            'c'
+                        } else if ty.is_block_device() {
+                            'b'
+                        } else {
+                            continue;
+                        };
+                        let rdev = meta.st_rdev();
+                        let major = ((rdev >> 8) & 0xfff) as u32;
+                        let minor = ((rdev & 0xff) | ((rdev >> 12) & 0xfff00)) as u32;
+                        self.mknod(&path, ty, major, minor).await?;
+                    }
+                }
+            }
+            Ok(())
+        }
+        .boxed()
     }
 
     pub fn rootfs_dir(&self) -> &Path {
@@ -429,9 +421,6 @@ impl LxcContainer {
         if let Some(log_mount) = self.log_mount.take() {
             log_mount.unmount(false).await?;
         }
-        for device in std::mem::take(&mut self.devices) {
-            device.unmount(false).await?;
-        }
         self.rootfs.take().unmount(true).await?;
         let rootfs_path = self.rootfs_dir();
         if tokio::fs::metadata(&rootfs_path).await.is_ok()
@@ -452,7 +441,10 @@ impl LxcContainer {
             .invoke(ErrorKind::Lxc)
             .await?;
 
-        self.exited = true;
+        #[allow(unused_assignments)]
+        {
+            self.exited = true;
+        }
 
         Ok(())
     }
@@ -462,6 +454,17 @@ impl LxcContainer {
         let sock_path = self.rpc_dir().join(CONTAINER_RPC_SERVER_SOCKET);
         while tokio::fs::metadata(&sock_path).await.is_err() {
             if timeout.map_or(false, |t| started.elapsed() > t) {
+                tracing::error!(
+                    "{:?}",
+                    Command::new("lxc-attach")
+                        .arg(&**self.guid)
+                        .arg("--")
+                        .arg("systemctl")
+                        .arg("status")
+                        .arg("container-runtime")
+                        .invoke(ErrorKind::Unknown)
+                        .await
+                );
                 return Err(Error::new(
                     eyre!("timed out waiting for socket"),
                     ErrorKind::Timeout,
@@ -471,6 +474,88 @@ impl LxcContainer {
         }
         tracing::info!("Connected to socket in {:?}", started.elapsed());
         Ok(UnixRpcClient::new(sock_path))
+    }
+
+    pub async fn mknod(&self, path: &Path, ty: char, major: u32, minor: u32) -> Result<(), Error> {
+        if let Ok(dev_rel) = path.strip_prefix("/dev") {
+            let parent = dev_rel.parent();
+            let media_dev = self.rootfs_dir().join("media/startos/dev");
+            let target_path = media_dev.join(dev_rel);
+            if tokio::fs::metadata(&target_path).await.is_ok() {
+                return Ok(());
+            }
+            if let Some(parent) = parent {
+                let p = media_dev.join(parent);
+                tokio::fs::create_dir_all(&p)
+                    .await
+                    .with_ctx(|_| (ErrorKind::Filesystem, format!("mkdir -p {p:?}")))?;
+                for p in parent.ancestors() {
+                    Command::new("chown")
+                        .arg("100000:100000")
+                        .arg(media_dev.join(p))
+                        .invoke(ErrorKind::Filesystem)
+                        .await?;
+                }
+            }
+            Command::new("mknod")
+                .arg(&target_path)
+                .arg(&*InternedString::from_display(&ty))
+                .arg(&*InternedString::from_display(&major))
+                .arg(&*InternedString::from_display(&minor))
+                .invoke(ErrorKind::Filesystem)
+                .await?;
+            Command::new("chown")
+                .arg("100000:100000")
+                .arg(&target_path)
+                .invoke(ErrorKind::Filesystem)
+                .await?;
+            if let Some(parent) = parent {
+                Command::new("lxc-attach")
+                    .arg(&**self.guid)
+                    .arg("--")
+                    .arg("mkdir")
+                    .arg("-p")
+                    .arg(Path::new("/dev").join(parent))
+                    .invoke(ErrorKind::Lxc)
+                    .await?;
+            }
+            Command::new("lxc-attach")
+                .arg(&**self.guid)
+                .arg("--")
+                .arg("touch")
+                .arg(&path)
+                .invoke(ErrorKind::Lxc)
+                .await?;
+            Command::new("lxc-attach")
+                .arg(&**self.guid)
+                .arg("--")
+                .arg("mount")
+                .arg("--bind")
+                .arg(Path::new("/media/startos/dev").join(dev_rel))
+                .arg(&path)
+                .invoke(ErrorKind::Lxc)
+                .await?;
+        } else {
+            let target_path = self
+                .rootfs_dir()
+                .join(path.strip_prefix("/").unwrap_or(&path));
+            if tokio::fs::metadata(&target_path).await.is_ok() {
+                return Ok(());
+            }
+            Command::new("mknod")
+                .arg(&target_path)
+                .arg(&*InternedString::from_display(&ty))
+                .arg(&*InternedString::from_display(&major))
+                .arg(&*InternedString::from_display(&minor))
+                .invoke(ErrorKind::Filesystem)
+                .await?;
+            Command::new("chown")
+                .arg("100000:100000")
+                .arg(&target_path)
+                .invoke(ErrorKind::Filesystem)
+                .await?;
+        }
+        Ok(())
     }
 }
 impl Drop for LxcContainer {

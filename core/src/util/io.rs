@@ -16,7 +16,7 @@ use clap::builder::ValueParserFactory;
 use futures::future::{BoxFuture, Fuse};
 use futures::{FutureExt, Stream, TryStreamExt};
 use inotify::{EventMask, EventStream, Inotify, WatchMask};
-use nix::unistd::{Gid, Uid};
+use nix::unistd::{Gid, Uid, fchown};
 use serde::{Deserialize, Serialize};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{
@@ -1048,6 +1048,32 @@ pub async fn write_file_atomic(
     let mut file = AtomicFile::new(path, None::<&Path>)
         .await
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))?;
+    file.write_all(contents.as_ref())
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("write {path:?}")))?;
+    file.save()
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("save {path:?}")))?;
+    Ok(())
+}
+
+#[instrument(skip_all)]
+pub async fn write_file_owned_atomic(
+    path: impl AsRef<Path>,
+    contents: impl AsRef<[u8]>,
+    uid: u32,
+    gid: u32,
+) -> Result<(), Error> {
+    let path = path.as_ref();
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}")))?;
+    }
+    let mut file = AtomicFile::new(path, None::<&Path>)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))?;
+    fchown(&*file, Some(uid.into()), Some(gid.into())).with_kind(ErrorKind::Filesystem)?;
     file.write_all(contents.as_ref())
         .await
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("write {path:?}")))?;
