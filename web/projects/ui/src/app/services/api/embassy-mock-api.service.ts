@@ -79,7 +79,6 @@ export class MockApiService extends ApiService {
     urls: string[],
     params: Record<string, string | number>,
   ): Promise<string> {
-    console.log('here')
     await pauseFor(2000)
     return markdown
   }
