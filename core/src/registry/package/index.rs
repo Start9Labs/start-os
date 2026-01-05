@@ -142,18 +142,18 @@ pub struct PackageVersionInfo {
     pub metadata: PackageMetadata,
     #[ts(type = "string | null")]
     pub source_version: Option<VersionRange>,
-    pub s9pk: Vec<(HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>)>,
+    pub s9pks: Vec<(HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>)>,
 }
 impl PackageVersionInfo {
     pub async fn from_s9pk<S: FileSource + Clone>(s9pk: &S9pk<S>, url: Url) -> Result<Self, Error> {
         Ok(Self {
             metadata: PackageMetadata::load(s9pk).await?,
             source_version: None, // TODO
-            s9pk: vec![(
+            s9pks: vec![(
                 s9pk.as_manifest().hardware_requirements.clone(),
                 RegistryAsset {
                     published_at: Utc::now(),
-                    url: vec![url],
+                    urls: vec![url],
                     commitment: s9pk.as_archive().commitment().await?,
                     signatures: [(
                         AnyVerifyingKey::Ed25519(s9pk.as_archive().signer()),
@@ -166,28 +166,28 @@ impl PackageVersionInfo {
         })
     }
     pub fn merge_with(&mut self, other: Self) -> Result<(), Error> {
-        for (hw_req, asset) in other.s9pk {
+        for (hw_req, asset) in other.s9pks {
             if let Some((_, matching)) = self
-                .s9pk
+                .s9pks
                 .iter_mut()
                 .find(|(h, s)| s.commitment == asset.commitment && *h == hw_req)
             {
-                for url in asset.url {
-                    if matching.url.contains(&url) {
+                for url in asset.urls {
+                    if matching.urls.contains(&url) {
                         continue;
                     }
-                    matching.url.push(url);
+                    matching.urls.push(url);
                 }
             } else {
-                if let Some((h, matching)) = self.s9pk.iter_mut().find(|(h, _)| *h == hw_req) {
+                if let Some((h, matching)) = self.s9pks.iter_mut().find(|(h, _)| *h == hw_req) {
                     *matching = asset;
                     *h = hw_req;
                 } else {
-                    self.s9pk.push((hw_req, asset));
+                    self.s9pks.push((hw_req, asset));
                 }
             }
         }
-        self.s9pk.sort_by_key(|(h, _)| h.specificity_desc());
+        self.s9pks.sort_by_key(|(h, _)| h.specificity_desc());
         Ok(())
     }
     pub fn table(&self, version: &VersionString) -> prettytable::Table {
@@ -229,7 +229,7 @@ impl Model<PackageVersionInfo> {
         {
             return Ok(None);
         }
-        let mut s9pk = self.as_s9pk().de()?;
+        let mut s9pk = self.as_s9pks().de()?;
         s9pk.retain(|(hw, _)| {
             if let Some(arch) = &hw.arch {
                 if !arch.contains(&device_info.hardware.arch) {

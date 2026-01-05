@@ -11,7 +11,7 @@ import type { RegistryAsset } from "./RegistryAsset"
 
 export type PackageVersionInfo = {
   sourceVersion: string | null
-  s9pk: Array<[HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>]>
+  s9pks: Array<[HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>]>
   title: string
   icon: DataUrl
   description: Description

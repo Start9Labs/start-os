@@ -183,7 +183,7 @@ fn get_matching_models<'a>(
                         if let Some(device_info) = &device_info {
                             info.for_device(device_info)?
                         } else {
-                            Some(info.as_s9pk().de()?)
+                            Some(info.as_s9pks().de()?)
                         }
                         .map(|assets| (k.clone(), ExtendedVersion::from(v), info, assets))
                     } else {
@@ -266,7 +266,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                     PackageVersionInfo {
                         metadata: i.as_metadata().de()?,
                         source_version: i.as_source_version().de()?,
-                        s9pk: a,
+                        s9pks: a,
                     },
                 ))
             })
@@ -299,7 +299,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                             PackageVersionInfo {
                                 metadata: i.as_metadata().de()?,
                                 source_version: i.as_source_version().de()?,
-                                s9pk: a,
+                                s9pks: a,
                             },
                         ))
                     })
@@ -362,7 +362,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                                             PackageVersionInfo {
                                                 metadata: i.as_metadata().de()?,
                                                 source_version: i.as_source_version().de()?,
-                                                s9pk: a,
+                                                s9pks: a,
                                             },
                                         ))
                                     })
@@ -406,7 +406,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                                             PackageVersionInfo {
                                                 metadata: i.as_metadata().de()?,
                                                 source_version: i.as_source_version().de()?,
-                                                s9pk: a,
+                                                s9pks: a,
                                             },
                                         ))
                                     })
@@ -420,7 +420,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                                             PackageVersionInfo {
                                                 metadata: i.as_metadata().de()?,
                                                 source_version: i.as_source_version().de()?,
-                                                s9pk: a,
+                                                s9pks: a,
                                             },
                                         ))
                                     })
@@ -511,7 +511,9 @@ pub async fn cli_download(
         )
         .await?,
     )?;
-    let PackageVersionInfo { mut s9pk, .. } = match res.best.len() {
+    let PackageVersionInfo {
+        s9pks: mut s9pk, ..
+    } = match res.best.len() {
         0 => {
             return Err(Error::new(
                 eyre!(

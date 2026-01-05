@@ -28,7 +28,7 @@ pub struct RegistryAsset<Commitment> {
     #[ts(type = "string")]
     pub published_at: DateTime<Utc>,
     #[ts(type = "string[]")]
-    pub url: Vec<Url>,
+    pub urls: Vec<Url>,
     pub commitment: Commitment,
     pub signatures: HashMap<AnyVerifyingKey, AnySignature>,
 }
@@ -43,7 +43,7 @@ impl<Commitment> RegistryAsset<Commitment> {
         )
     }
     pub async fn load_http_source(&self, client: Client) -> Result<HttpSource, Error> {
-        for url in &self.url {
+        for url in &self.urls {
             if let Ok(source) = HttpSource::new(client.clone(), url.clone()).await {
                 return Ok(source);
             }
@@ -58,7 +58,7 @@ impl<Commitment> RegistryAsset<Commitment> {
         client: Client,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<BufferedHttpSource, Error> {
-        for url in &self.url {
+        for url in &self.urls {
             if let Ok(response) = client.get(url.clone()).send().await {
                 return BufferedHttpSource::from_response(response, progress).await;
             }
@@ -74,7 +74,7 @@ impl<Commitment> RegistryAsset<Commitment> {
         client: Client,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<BufferedHttpSource, Error> {
-        for url in &self.url {
+        for url in &self.urls {
             if let Ok(response) = client.get(url.clone()).send().await {
                 return BufferedHttpSource::from_response_with_path(path, response, progress).await;
             }

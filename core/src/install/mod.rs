@@ -145,7 +145,7 @@ pub async fn install(
     let (_, asset) = package
         .best
         .get(&version)
-        .and_then(|i| i.s9pk.first())
+        .and_then(|i| i.s9pks.first())
         .ok_or_else(|| {
             Error::new(
                 eyre!("{id}@{version} not found on {registry}"),

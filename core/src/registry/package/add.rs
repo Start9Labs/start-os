@@ -61,7 +61,7 @@ pub async fn add_package(
     let manifest = s9pk.as_manifest();
 
     let mut info = PackageVersionInfo::from_s9pk(&s9pk, url).await?;
-    for (_, s9pk) in &mut info.s9pk {
+    for (_, s9pk) in &mut info.s9pks {
         if !s9pk.signatures.contains_key(&uploader) && s9pk.commitment == commitment {
             s9pk.signatures.insert(uploader.clone(), signature.clone());
         }

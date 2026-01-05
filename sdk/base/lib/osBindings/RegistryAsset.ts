@@ -4,7 +4,7 @@ import type { AnyVerifyingKey } from "./AnyVerifyingKey"
 
 export type RegistryAsset<Commitment> = {
   publishedAt: string
-  url: string[]
+  urls: string[]
   commitment: Commitment
   signatures: { [key: AnyVerifyingKey]: AnySignature }
 }
