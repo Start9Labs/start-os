@@ -33,11 +33,43 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                 .with_about("Add package to registry index"),
         )
         .subcommand(
+            "add-mirror",
+            from_fn_async(add::add_mirror)
+                .with_metadata("get_signer", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "add-mirror",
+            from_fn_async(add::cli_add_mirror)
+                .no_display()
+                .with_about("Add a mirror for an s9pk"),
+        )
+        .subcommand(
             "remove",
             from_fn_async(add::remove_package)
                 .with_metadata("get_signer", Value::Bool(true))
-                .no_display()
+                .with_custom_display_fn(|args, changed| {
+                    if !changed {
+                        tracing::warn!(
+                            "{}@{}{} does not exist, so not removed",
+                            args.params.id,
+                            args.params.version,
+                            args.params
+                                .sighash
+                                .map_or(String::new(), |h| format!("#{h}"))
+                        );
+                    }
+                    Ok(())
+                })
                 .with_about("Remove package from registry index")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "remove-mirror",
+            from_fn_async(add::remove_mirror)
+                .with_metadata("get_signer", Value::Bool(true))
+                .no_display()
+                .with_about("Remove a mirror from a package")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(

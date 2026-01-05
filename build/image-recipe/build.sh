@@ -181,7 +181,7 @@ if [ "$NON_FREE" = 1 ]; then
 		> config/archives/nvidia-container-toolkit.list
 fi
 
-cat > config/archives/backports.pref <<- EOF
+cat > config/archives/backports.pref <<-EOF
 Package: linux-image-*
 Pin: release n=${IB_SUITE}-backports
 Pin-Priority: 500
@@ -232,7 +232,7 @@ if [ "${NON_FREE}" = "1" ]; then
 
     # Ensure kernel headers are present
     if [ ! -e "/lib/modules/\${KVER}/build" ]; then
-		apt-get install linux-headers-\${KVER}-${IB_TARGET_ARCH}
+		apt-get install linux-headers-\${KVER}
         echo "[nvidia-hook] ERROR: /lib/modules/\${KVER}/build missing; install headers for \${KVER} before this hook." >&2
         exit 1
     fi

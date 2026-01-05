@@ -145,7 +145,10 @@ pub struct PackageVersionInfo {
     pub s9pks: Vec<(HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>)>,
 }
 impl PackageVersionInfo {
-    pub async fn from_s9pk<S: FileSource + Clone>(s9pk: &S9pk<S>, url: Url) -> Result<Self, Error> {
+    pub async fn from_s9pk<S: FileSource + Clone>(
+        s9pk: &S9pk<S>,
+        urls: Vec<Url>,
+    ) -> Result<Self, Error> {
         Ok(Self {
             metadata: PackageMetadata::load(s9pk).await?,
             source_version: None, // TODO
@@ -153,7 +156,7 @@ impl PackageVersionInfo {
                 s9pk.as_manifest().hardware_requirements.clone(),
                 RegistryAsset {
                     published_at: Utc::now(),
-                    urls: vec![url],
+                    urls,
                     commitment: s9pk.as_archive().commitment().await?,
                     signatures: [(
                         AnyVerifyingKey::Ed25519(s9pk.as_archive().signer()),
@@ -165,18 +168,22 @@ impl PackageVersionInfo {
             )],
         })
     }
-    pub fn merge_with(&mut self, other: Self) -> Result<(), Error> {
+    pub fn merge_with(&mut self, other: Self, replace_urls: bool) -> Result<(), Error> {
         for (hw_req, asset) in other.s9pks {
             if let Some((_, matching)) = self
                 .s9pks
                 .iter_mut()
                 .find(|(h, s)| s.commitment == asset.commitment && *h == hw_req)
             {
-                for url in asset.urls {
-                    if matching.urls.contains(&url) {
-                        continue;
+                if replace_urls {
+                    matching.urls = asset.urls;
+                } else {
+                    for url in asset.urls {
+                        if matching.urls.contains(&url) {
+                            continue;
+                        }
+                        matching.urls.push(url);
                     }
-                    matching.urls.push(url);
                 }
             } else {
                 if let Some((h, matching)) = self.s9pks.iter_mut().find(|(h, _)| *h == hw_req) {

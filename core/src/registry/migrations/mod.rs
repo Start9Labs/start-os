@@ -4,14 +4,17 @@ use crate::prelude::*;
 use crate::registry::RegistryDatabase;
 
 mod m_00_package_signer_scope;
+mod m_01_package_s9pk_array;
 
 pub trait RegistryMigration {
     fn name(&self) -> &'static str;
     fn action(&self, db: &mut Value) -> Result<(), Error>;
 }
 
-pub const MIGRATIONS: &[&dyn RegistryMigration] =
-    &[&m_00_package_signer_scope::PackageSignerScopeMigration];
+pub const MIGRATIONS: &[&dyn RegistryMigration] = &[
+    &m_00_package_signer_scope::PackageSignerScopeMigration,
+    &m_01_package_s9pk_array::PackageS9pkArray,
+];
 
 #[instrument(skip_all)]
 pub fn run_migrations(db: &mut Model<RegistryDatabase>) -> Result<(), Error> {
