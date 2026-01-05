@@ -50,7 +50,7 @@ pub struct Category {
     pub name: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
@@ -62,11 +62,10 @@ pub struct DependencyMetadata {
     pub optional: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
-pub struct PackageVersionInfo {
+pub struct PackageMetadata {
     #[ts(type = "string")]
     pub title: InternedString,
     pub icon: DataUrl<'static>,
@@ -93,13 +92,11 @@ pub struct PackageVersionInfo {
     pub os_version: Version,
     #[ts(type = "string | null")]
     pub sdk_version: Option<Version>,
-    pub hardware_requirements: HardwareRequirements,
-    #[ts(type = "string | null")]
-    pub source_version: Option<VersionRange>,
-    pub s9pk: RegistryAsset<MerkleArchiveCommitment>,
+    #[serde(default)]
+    pub hardware_acceleration: bool,
 }
-impl PackageVersionInfo {
-    pub async fn from_s9pk<S: FileSource + Clone>(s9pk: &S9pk<S>, url: Url) -> Result<Self, Error> {
+impl PackageMetadata {
+    pub async fn load<S: FileSource + Clone>(s9pk: &S9pk<S>) -> Result<Self, Error> {
         let manifest = s9pk.as_manifest();
         let mut dependency_metadata = BTreeMap::new();
         for (id, info) in &manifest.dependencies.0 {
@@ -131,73 +128,138 @@ impl PackageVersionInfo {
             dependency_metadata,
             os_version: manifest.os_version.clone(),
             sdk_version: manifest.sdk_version.clone(),
-            hardware_requirements: manifest.hardware_requirements.clone(),
-            source_version: None, // TODO
-            s9pk: RegistryAsset {
-                published_at: Utc::now(),
-                url,
-                commitment: s9pk.as_archive().commitment().await?,
-                signatures: [(
-                    AnyVerifyingKey::Ed25519(s9pk.as_archive().signer()),
-                    AnySignature::Ed25519(s9pk.as_archive().signature().await?),
-                )]
-                .into_iter()
-                .collect(),
-            },
+            hardware_acceleration: manifest.hardware_acceleration.clone(),
         })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct PackageVersionInfo {
+    #[serde(flatten)]
+    pub metadata: PackageMetadata,
+    #[ts(type = "string | null")]
+    pub source_version: Option<VersionRange>,
+    pub s9pk: Vec<(HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>)>,
+}
+impl PackageVersionInfo {
+    pub async fn from_s9pk<S: FileSource + Clone>(s9pk: &S9pk<S>, url: Url) -> Result<Self, Error> {
+        Ok(Self {
+            metadata: PackageMetadata::load(s9pk).await?,
+            source_version: None, // TODO
+            s9pk: vec![(
+                s9pk.as_manifest().hardware_requirements.clone(),
+                RegistryAsset {
+                    published_at: Utc::now(),
+                    url: vec![url],
+                    commitment: s9pk.as_archive().commitment().await?,
+                    signatures: [(
+                        AnyVerifyingKey::Ed25519(s9pk.as_archive().signer()),
+                        AnySignature::Ed25519(s9pk.as_archive().signature().await?),
+                    )]
+                    .into_iter()
+                    .collect(),
+                },
+            )],
+        })
+    }
+    pub fn merge_with(&mut self, other: Self) -> Result<(), Error> {
+        for (hw_req, asset) in other.s9pk {
+            if let Some((_, matching)) = self
+                .s9pk
+                .iter_mut()
+                .find(|(h, s)| s.commitment == asset.commitment && *h == hw_req)
+            {
+                for url in asset.url {
+                    if matching.url.contains(&url) {
+                        continue;
+                    }
+                    matching.url.push(url);
+                }
+            } else {
+                if let Some((h, matching)) = self.s9pk.iter_mut().find(|(h, _)| *h == hw_req) {
+                    *matching = asset;
+                    *h = hw_req;
+                } else {
+                    self.s9pk.push((hw_req, asset));
+                }
+            }
+        }
+        self.s9pk.sort_by_key(|(h, _)| h.specificity_desc());
+        Ok(())
     }
     pub fn table(&self, version: &VersionString) -> prettytable::Table {
         use prettytable::*;
 
         let mut table = Table::new();
 
-        table.add_row(row![bc => &self.title]);
+        table.add_row(row![bc => &self.metadata.title]);
         table.add_row(row![br -> "VERSION", AsRef::<str>::as_ref(version)]);
-        table.add_row(row![br -> "RELEASE NOTES", &self.release_notes]);
-        table.add_row(row![br -> "ABOUT", &textwrap::wrap(&self.description.short, 80).join("\n")]);
+        table.add_row(row![br -> "RELEASE NOTES", &self.metadata.release_notes]);
+        table.add_row(
+            row![br -> "ABOUT", &textwrap::wrap(&self.metadata.description.short, 80).join("\n")],
+        );
         table.add_row(row![
             br -> "DESCRIPTION",
-            &textwrap::wrap(&self.description.long, 80).join("\n")
+            &textwrap::wrap(&self.metadata.description.long, 80).join("\n")
         ]);
-        table.add_row(row![br -> "GIT HASH", self.git_hash.as_deref().unwrap_or("N/A")]);
-        table.add_row(row![br -> "LICENSE", &self.license]);
-        table.add_row(row![br -> "PACKAGE REPO", &self.wrapper_repo.to_string()]);
-        table.add_row(row![br -> "SERVICE REPO", &self.upstream_repo.to_string()]);
-        table.add_row(row![br -> "WEBSITE", &self.marketing_site.to_string()]);
-        table.add_row(row![br -> "SUPPORT", &self.support_site.to_string()]);
+        table.add_row(row![br -> "GIT HASH", self.metadata.git_hash.as_deref().unwrap_or("N/A")]);
+        table.add_row(row![br -> "LICENSE", &self.metadata.license]);
+        table.add_row(row![br -> "PACKAGE REPO", &self.metadata.wrapper_repo.to_string()]);
+        table.add_row(row![br -> "SERVICE REPO", &self.metadata.upstream_repo.to_string()]);
+        table.add_row(row![br -> "WEBSITE", &self.metadata.marketing_site.to_string()]);
+        table.add_row(row![br -> "SUPPORT", &self.metadata.support_site.to_string()]);
 
         table
     }
 }
 impl Model<PackageVersionInfo> {
-    pub fn works_for_device(&self, device_info: &DeviceInfo) -> Result<bool, Error> {
-        if !self.as_os_version().de()?.satisfies(&device_info.os.compat) {
-            return Ok(false);
+    pub fn for_device(
+        &self,
+        device_info: &DeviceInfo,
+    ) -> Result<Option<Vec<(HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>)>>, Error>
+    {
+        if !self
+            .as_metadata()
+            .as_os_version()
+            .de()?
+            .satisfies(&device_info.os.compat)
+        {
+            return Ok(None);
         }
-        let hw = self.as_hardware_requirements().de()?;
-        if let Some(arch) = hw.arch {
-            if !arch.contains(&device_info.hardware.arch) {
-                return Ok(false);
+        let mut s9pk = self.as_s9pk().de()?;
+        s9pk.retain(|(hw, _)| {
+            if let Some(arch) = &hw.arch {
+                if !arch.contains(&device_info.hardware.arch) {
+                    return false;
+                }
             }
-        }
-        if let Some(ram) = hw.ram {
-            if device_info.hardware.ram < ram {
-                return Ok(false);
+            if let Some(ram) = hw.ram {
+                if device_info.hardware.ram < ram {
+                    return false;
+                }
             }
-        }
-        for device_filter in hw.device {
-            if !device_info
-                .hardware
-                .devices
-                .iter()
-                .filter(|d| d.class() == &*device_filter.class)
-                .any(|d| device_filter.pattern.as_ref().is_match(d.product()))
-            {
-                return Ok(false);
+            for device_filter in &hw.device {
+                if !device_info
+                    .hardware
+                    .devices
+                    .iter()
+                    .filter(|d| d.class() == &*device_filter.class)
+                    .any(|d| device_filter.pattern.as_ref().is_match(d.product()))
+                {
+                    return false;
+                }
             }
-        }
+            true
+        });
 
-        Ok(true)
+        if s9pk.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(s9pk))
+        }
     }
 }
 

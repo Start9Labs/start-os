@@ -15,6 +15,7 @@ use josekit::jwk::Jwk;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
+use tokio::process::Command;
 use tokio::sync::{RwLock, broadcast, oneshot, watch};
 use tokio::time::Instant;
 use tracing::instrument;
@@ -26,6 +27,9 @@ use crate::context::config::ServerConfig;
 use crate::db::model::Database;
 use crate::db::model::package::TaskSeverity;
 use crate::disk::OsPartitionInfo;
+use crate::disk::mount::filesystem::ReadOnly;
+use crate::disk::mount::filesystem::bind::Bind;
+use crate::disk::mount::guard::MountGuard;
 use crate::init::{InitResult, check_time_is_synchronized};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::LxcManager;
@@ -41,12 +45,14 @@ use crate::rpc_continuations::{Guid, OpenAuthedContinuations, RpcContinuations};
 use crate::service::ServiceMap;
 use crate::service::action::update_tasks;
 use crate::service::effects::callbacks::ServiceCallbacks;
+use crate::service::effects::subcontainer::NVIDIA_OVERLAY_PATH;
 use crate::shutdown::Shutdown;
+use crate::util::Invoke;
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::delete_file;
 use crate::util::lshw::LshwDevice;
 use crate::util::sync::{SyncMutex, SyncRwLock, Watch};
-use crate::{ActionId, DATA_DIR, PackageId};
+use crate::{ActionId, DATA_DIR, PLATFORM, PackageId};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -166,6 +172,39 @@ impl RpcContext {
         };
         init_net_ctrl.complete();
         tracing::info!("Initialized Net Controller");
+
+        if PLATFORM.ends_with("-nonfree") {
+            if let Err(e) = Command::new("nvidia-modprobe")
+                .invoke(ErrorKind::ParseSysInfo)
+                .await
+            {
+                tracing::warn!("nvidia-modprobe: {e}");
+                tracing::info!("The above warning can be ignored if no NVIDIA card is present");
+            } else {
+                if let Some(procfs) = MountGuard::mount(
+                    &Bind::new("/proc"),
+                    Path::new(NVIDIA_OVERLAY_PATH).join("proc"),
+                    ReadOnly,
+                )
+                .await
+                .log_err()
+                {
+                    Command::new("nvidia-container-cli")
+                        .arg("configure")
+                        .arg("--no-devbind")
+                        .arg("--no-cgroups")
+                        .arg("--utility")
+                        .arg("--compute")
+                        .arg("--graphics")
+                        .arg("--video")
+                        .arg(NVIDIA_OVERLAY_PATH)
+                        .invoke(ErrorKind::Unknown)
+                        .await
+                        .log_err();
+                    procfs.unmount(true).await.log_err();
+                }
+            }
+        }
 
         let services = ServiceMap::default();
         let metrics_cache = Watch::<Option<crate::system::Metrics>>::new(None);

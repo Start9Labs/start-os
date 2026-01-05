@@ -265,7 +265,7 @@ impl PackParams {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ImageConfig {
@@ -274,15 +274,8 @@ pub struct ImageConfig {
     pub arch: BTreeSet<InternedString>,
     #[ts(type = "string | null")]
     pub emulate_missing_as: Option<InternedString>,
-}
-impl Default for ImageConfig {
-    fn default() -> Self {
-        Self {
-            source: ImageSource::Packed,
-            arch: BTreeSet::new(),
-            emulate_missing_as: None,
-        }
-    }
+    #[serde(default)]
+    pub nvidia_container: bool,
 }
 
 #[derive(Parser)]
@@ -299,6 +292,8 @@ struct CliImageConfig {
     arch: Vec<InternedString>,
     #[arg(long)]
     emulate_missing_as: Option<InternedString>,
+    #[arg(long)]
+    nvidia_container: bool,
 }
 impl TryFrom<CliImageConfig> for ImageConfig {
     type Error = clap::Error;
@@ -317,6 +312,7 @@ impl TryFrom<CliImageConfig> for ImageConfig {
             },
             arch: value.arch.into_iter().collect(),
             emulate_missing_as: value.emulate_missing_as,
+            nvidia_container: value.nvidia_container,
         };
         res.emulate_missing_as
             .as_ref()
@@ -378,6 +374,11 @@ pub enum ImageSource {
     },
     DockerTag(String),
     // Recipe(DirRecipe),
+}
+impl Default for ImageSource {
+    fn default() -> Self {
+        ImageSource::Packed
+    }
 }
 impl ImageSource {
     pub fn ingredients(&self) -> Vec<PathBuf> {

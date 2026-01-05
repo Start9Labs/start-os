@@ -180,6 +180,7 @@ export type SDKImageInputSpec = {
     source: Exclude<ImageSource, "packed">
     arch?: ArchOptions[A]
     emulateMissingAs?: ArchOptions[A][number] | null
+    nvidiaContainer?: boolean
   }
 }[keyof ArchOptions]
 

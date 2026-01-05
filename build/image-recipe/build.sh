@@ -174,40 +174,130 @@ if [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	echo "deb https://apt.armbian.com/ ${IB_SUITE} main" > config/archives/armbian.list
 fi
 
+if [ "$NON_FREE" = 1 ]; then
+	curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o config/archives/nvidia-container-toolkit.key
+	curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
+		| sed 's#deb https://#deb [signed-by=/etc/apt/trusted.gpg.d/nvidia-container-toolkit.key.gpg] https://#g' \
+		> config/archives/nvidia-container-toolkit.list
+fi
+
 cat > config/archives/backports.pref <<- EOF
 Package: linux-image-*
 Pin: release n=${IB_SUITE}-backports
 Pin-Priority: 500
 
-Package: nvidia-kernel-dkms
+Package: linux-headers-*
+Pin: release n=${IB_SUITE}-backports
+Pin-Priority: 500
+
+Package: *nvidia*
 Pin: release n=${IB_SUITE}-backports
 Pin-Priority: 500
 EOF
 
-# Dependencies
+# Hooks
 
-## Firmware
 cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
 #!/bin/bash
 
 set -e
 
+if [ "${NON_FREE}" = "1" ]; then
+    # install latest NVIDIA driver in a given major series
+
+    # ---------------- configuration ----------------
+
+    # Major driver series, e.g. 550, 560, 570
+    NVIDIA_MAJOR="\${NVIDIA_MAJOR:-580}"
+
+    BASE_URL="https://download.nvidia.com/XFree86/Linux-${QEMU_ARCH}"
+
+    echo "[nvidia-hook] Using NVIDIA major series: \${NVIDIA_MAJOR}" >&2
+
+    # ---------------- kernel version ----------------
+
+    # Determine target kernel version from newest /boot/vmlinuz-* in the chroot.
+    KVER="\$(
+        ls -1t /boot/vmlinuz-* 2>/dev/null \
+            | head -n1 \
+            | sed 's|.*/vmlinuz-||'
+    )"
+
+    if [ -z "\${KVER}" ]; then
+        echo "[nvidia-hook] ERROR: no /boot/vmlinuz-* found; cannot determine kernel version" >&2
+        exit 1
+    fi
+
+    echo "[nvidia-hook] Target kernel version: \${KVER}" >&2
+
+    # Ensure kernel headers are present
+    if [ ! -e "/lib/modules/\${KVER}/build" ]; then
+		apt-get install linux-headers-\${KVER}-${IB_TARGET_ARCH}
+        echo "[nvidia-hook] ERROR: /lib/modules/\${KVER}/build missing; install headers for \${KVER} before this hook." >&2
+        exit 1
+    fi
+
+    # ---------------- find latest driver in major series ----------------
+
+    echo "[nvidia-hook] Fetching version list from \${BASE_URL}/" >&2
+
+    NVIDIA_VER="\$(
+        curl -fsSL "\${BASE_URL}/" \
+            | sed -n 's/.*href="([0-9][0-9][0-9][0-9.]*)/".*/\u0001/p' \
+            | grep -E "^\${NVIDIA_MAJOR}." \
+            | sort -V \
+            | tail -n1
+    )"
+
+    if [ -z "\${NVIDIA_VER}" ]; then
+        echo "[nvidia-hook] ERROR: could not find NVIDIA series \${NVIDIA_MAJOR} under \${BASE_URL}/" >&2
+        exit 1
+    fi
+
+    echo "[nvidia-hook] Selected NVIDIA driver version: \${NVIDIA_VER}" >&2
+
+    # ---------------- download and run installer ----------------
+
+    RUN_NAME="NVIDIA-Linux-${QEMU_ARCH}-\${NVIDIA_VER}.run"
+    RUN_PATH="/root/\${RUN_NAME}"
+    RUN_URL="\${BASE_URL}/\${NVIDIA_VER}/\${RUN_NAME}"
+
+    echo "[nvidia-hook] Downloading \${RUN_URL}" >&2
+    wget -O "\${RUN_PATH}" "\${RUN_URL}"
+    chmod +x "\${RUN_PATH}"
+
+    echo "[nvidia-hook] Running NVIDIA installer for kernel \${KVER}" >&2
+
+    sh "\${RUN_PATH}" \
+        --silent \
+        --kernel-name="\${KVER}" \
+        --no-x-check \
+        --no-nouveau-check \
+        --no-runlevel-check
+
+    # Rebuild module metadata
+    echo "[nvidia-hook] Running depmod for \${KVER}" >&2
+    depmod -a "\${KVER}"
+
+    echo "[nvidia-hook] NVIDIA \${NVIDIA_VER} installation complete for kernel \${KVER}" >&2
+fi
+
 cp /etc/resolv.conf /etc/resolv.conf.bak
 
 if [ "${IB_SUITE}" = trixie ] && [ "${IB_TARGET_ARCH}" != riscv64 ]; then
-	echo 'deb https://deb.debian.org/debian/ bookworm main' > /etc/apt/sources.list.d/bookworm.list
-	apt-get update
-	apt-get install -y postgresql-15
-	rm /etc/apt/sources.list.d/bookworm.list
-	apt-get update
-	systemctl mask postgresql
+    echo 'deb https://deb.debian.org/debian/ bookworm main' > /etc/apt/sources.list.d/bookworm.list
+    apt-get update
+    apt-get install -y postgresql-15
+    rm /etc/apt/sources.list.d/bookworm.list
+    apt-get update
+    systemctl mask postgresql
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
-	KERNEL_VERSION=${RPI_KERNEL_VERSION} sh /boot/config.sh > /boot/config.txt
-	mkinitramfs -c gzip -o initrd.img-${RPI_KERNEL_VERSION}-rpi-v8 ${RPI_KERNEL_VERSION}-rpi-v8
-	mkinitramfs -c gzip -o initrd.img-${RPI_KERNEL_VERSION}-rpi-2712 ${RPI_KERNEL_VERSION}-rpi-2712
+    ln -sf /usr/bin/pi-beep /usr/local/bin/beep
+    KERNEL_VERSION=${RPI_KERNEL_VERSION} sh /boot/config.sh > /boot/config.txt
+    mkinitramfs -c gzip -o initrd.img-${RPI_KERNEL_VERSION}-rpi-v8 ${RPI_KERNEL_VERSION}-rpi-v8
+    mkinitramfs -c gzip -o initrd.img-${RPI_KERNEL_VERSION}-rpi-2712 ${RPI_KERNEL_VERSION}-rpi-2712
 fi
 
 useradd --shell /bin/bash -G startos -m start9
@@ -218,11 +308,11 @@ usermod -aG systemd-journal start9
 echo "start9 ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/010_start9-nopasswd"
 
 if [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ]; then
-	/usr/lib/startos/scripts/enable-kiosk
+    /usr/lib/startos/scripts/enable-kiosk
 fi
 
 if ! [[ "${IB_OS_ENV}" =~ (^|-)dev($|-) ]]; then
-	passwd -l start9
+    passwd -l start9
 fi
 
 EOF

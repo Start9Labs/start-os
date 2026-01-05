@@ -11,7 +11,7 @@ use crate::sign::commitment::{Commitment, Digestable};
 use crate::util::io::TrackingIO;
 use crate::util::serde::Base64;
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, HasModel, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]

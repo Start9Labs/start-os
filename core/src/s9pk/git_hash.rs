@@ -7,7 +7,7 @@ use ts_rs::TS;
 use crate::prelude::*;
 use crate::util::Invoke;
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, TS)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, TS, PartialEq, Eq)]
 #[ts(type = "string")]
 pub struct GitHash(String);
 

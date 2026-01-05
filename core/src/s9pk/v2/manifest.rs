@@ -167,7 +167,7 @@ impl Manifest {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct HardwareRequirements {
@@ -177,6 +177,16 @@ pub struct HardwareRequirements {
     pub ram: Option<u64>,
     #[ts(type = "string[] | null")]
     pub arch: Option<BTreeSet<InternedString>>,
+}
+impl HardwareRequirements {
+    /// returns a value that can be used as a sort key to get most specific requirements first
+    pub fn specificity_desc(&self) -> (u32, u32, u64) {
+        (
+            u32::MAX - self.device.len() as u32, // more device requirements = more specific
+            self.arch.as_ref().map_or(u32::MAX, |a| a.len() as u32), // more arches = less specific
+            self.ram.map_or(0, |r| r),           // more ram = more specific
+        )
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
@@ -189,8 +199,15 @@ pub struct DeviceFilter {
     pub pattern: Regex,
     pub pattern_description: String,
 }
+impl PartialEq for DeviceFilter {
+    fn eq(&self, other: &Self) -> bool {
+        self.class == other.class
+            && InternedString::from_display(self.pattern.as_ref())
+                == InternedString::from_display(other.pattern.as_ref())
+    }
+}
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS, PartialEq, Eq)]
 #[ts(export)]
 pub struct Description {
     pub short: String,
@@ -214,7 +231,7 @@ impl Description {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Alerts {

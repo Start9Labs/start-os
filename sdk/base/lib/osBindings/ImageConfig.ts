@@ -5,4 +5,5 @@ export type ImageConfig = {
   source: ImageSource
   arch: string[]
   emulateMissingAs: string | null
+  nvidiaContainer: boolean
 }

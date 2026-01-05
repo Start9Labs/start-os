@@ -39,7 +39,7 @@ const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path
 pub const CONTAINER_RPC_SERVER_SOCKET: &str = "service.sock"; // must not be absolute path
 pub const HOST_RPC_SERVER_SOCKET: &str = "host.sock"; // must not be absolute path
 const CONTAINER_DHCP_TIMEOUT: Duration = Duration::from_secs(30);
-const HARDWARE_ACCELERATION_PATHS: &[&str] = &["/dev/dri/", "/dev/nvidia"];
+const HARDWARE_ACCELERATION_PATHS: &[&str] = &["/dev/dri", "/dev/nvidia*", "/dev/kfd"];
 
 #[derive(
     Clone, Debug, Serialize, Deserialize, Default, PartialEq, Eq, PartialOrd, Ord, Hash, TS,
@@ -305,14 +305,15 @@ impl LxcContainer {
                     Some(Vec::new())
                 } else {
                     let mut new_matches = Vec::new();
-                    for m in matches {
-                        if if m.ends_with("/") {
-                            path.starts_with(m)
+                    for mut m in matches.iter().copied() {
+                        let could_match = if let Some(prefix) = m.strip_suffix("*") {
+                            m = prefix;
+                            path.to_string_lossy().starts_with(m)
                         } else {
-                            path.to_string_lossy().starts_with(*m)
-                        } || Path::new(*m).starts_with(&path)
-                        {
-                            new_matches.push(*m);
+                            path.starts_with(m)
+                        } || Path::new(m).starts_with(&path);
+                        if could_match {
+                            new_matches.push(m);
                         }
                     }
                     if new_matches.is_empty() {

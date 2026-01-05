@@ -47,6 +47,7 @@ export function buildManifest<
         v.emulateMissingAs = (v.arch as string[]).includes("aarch64")
           ? "aarch64"
           : v.arch[0] || null
+      v.nvidiaContainer = !!v.nvidiaContainer
       images[k] = v as ImageConfig
       return images
     },

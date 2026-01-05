@@ -12,12 +12,11 @@ use url::Url;
 use crate::PackageId;
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker, ProgressTrackerWriter, ProgressUnits};
+use crate::progress::FullProgressTracker;
 use crate::registry::asset::BufferedHttpSource;
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::PackageVersionInfo;
 use crate::s9pk::S9pk;
-use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
@@ -62,8 +61,10 @@ pub async fn add_package(
     let manifest = s9pk.as_manifest();
 
     let mut info = PackageVersionInfo::from_s9pk(&s9pk, url).await?;
-    if !info.s9pk.signatures.contains_key(&uploader) {
-        info.s9pk.signatures.insert(uploader.clone(), signature);
+    for (_, s9pk) in &mut info.s9pk {
+        if !s9pk.signatures.contains_key(&uploader) && s9pk.commitment == commitment {
+            s9pk.signatures.insert(uploader.clone(), signature.clone());
+        }
     }
 
     ctx.db
@@ -85,7 +86,12 @@ pub async fn add_package(
                     .as_package_mut()
                     .as_packages_mut()
                     .upsert(&manifest.id, || Ok(Default::default()))?;
-                package.as_versions_mut().insert(&manifest.version, &info)?;
+                let v = package.as_versions_mut();
+                if let Some(prev) = v.as_idx_mut(&manifest.version) {
+                    prev.mutate(|p| p.merge_with(info))?;
+                } else {
+                    v.insert(&manifest.version, &info)?;
+                }
 
                 Ok(())
             } else {

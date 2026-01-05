@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use reqwest::Client;
+use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWrite;
 use ts_rs::TS;
@@ -21,14 +21,14 @@ use crate::sign::{AnySignature, AnyVerifyingKey};
 use crate::upload::UploadingFile;
 use crate::util::future::NonDetachingJoinHandle;
 
-#[derive(Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RegistryAsset<Commitment> {
     #[ts(type = "string")]
     pub published_at: DateTime<Utc>,
-    #[ts(type = "string")]
-    pub url: Url,
+    #[ts(type = "string[]")]
+    pub url: Vec<Url>,
     pub commitment: Commitment,
     pub signatures: HashMap<AnyVerifyingKey, AnySignature>,
 }
@@ -41,6 +41,48 @@ impl<Commitment> RegistryAsset<Commitment> {
                 .map(AcceptSigners::Signer)
                 .collect(),
         )
+    }
+    pub async fn load_http_source(&self, client: Client) -> Result<HttpSource, Error> {
+        for url in &self.url {
+            if let Ok(source) = HttpSource::new(client.clone(), url.clone()).await {
+                return Ok(source);
+            }
+        }
+        Err(Error::new(
+            eyre!("Failed to load any http url"),
+            ErrorKind::Network,
+        ))
+    }
+    pub async fn load_buffered_http_source(
+        &self,
+        client: Client,
+        progress: PhaseProgressTrackerHandle,
+    ) -> Result<BufferedHttpSource, Error> {
+        for url in &self.url {
+            if let Ok(response) = client.get(url.clone()).send().await {
+                return BufferedHttpSource::from_response(response, progress).await;
+            }
+        }
+        Err(Error::new(
+            eyre!("Failed to load any http url"),
+            ErrorKind::Network,
+        ))
+    }
+    pub async fn load_buffered_http_source_with_path(
+        &self,
+        path: impl AsRef<Path>,
+        client: Client,
+        progress: PhaseProgressTrackerHandle,
+    ) -> Result<BufferedHttpSource, Error> {
+        for url in &self.url {
+            if let Ok(response) = client.get(url.clone()).send().await {
+                return BufferedHttpSource::from_response_with_path(path, response, progress).await;
+            }
+        }
+        Err(Error::new(
+            eyre!("Failed to load any http url"),
+            ErrorKind::Network,
+        ))
     }
 }
 impl<Commitment: Digestable> RegistryAsset<Commitment> {
@@ -59,7 +101,7 @@ impl<C: for<'a> Commitment<&'a HttpSource>> RegistryAsset<C> {
         dst: &mut (impl AsyncWrite + Unpin + Send + ?Sized),
     ) -> Result<(), Error> {
         self.commitment
-            .copy_to(&HttpSource::new(client, self.url.clone()).await?, dst)
+            .copy_to(&self.load_http_source(client).await?, dst)
             .await
     }
 }
@@ -69,7 +111,7 @@ impl RegistryAsset<MerkleArchiveCommitment> {
         client: Client,
     ) -> Result<S9pk<Section<Arc<HttpSource>>>, Error> {
         S9pk::deserialize(
-            &Arc::new(HttpSource::new(client, self.url.clone()).await?),
+            &Arc::new(self.load_http_source(client).await?),
             Some(&self.commitment),
         )
         .await
@@ -80,7 +122,7 @@ impl RegistryAsset<MerkleArchiveCommitment> {
         progress: PhaseProgressTrackerHandle,
     ) -> Result<S9pk<Section<Arc<BufferedHttpSource>>>, Error> {
         S9pk::deserialize(
-            &Arc::new(BufferedHttpSource::new(client, self.url.clone(), progress).await?),
+            &Arc::new(self.load_buffered_http_source(client, progress).await?),
             Some(&self.commitment),
         )
         .await
@@ -98,7 +140,8 @@ impl RegistryAsset<MerkleArchiveCommitment> {
         Error,
     > {
         let source = Arc::new(
-            BufferedHttpSource::with_path(path, client, self.url.clone(), progress).await?,
+            self.load_buffered_http_source_with_path(path, client, progress)
+                .await?,
         );
         Ok((
             S9pk::deserialize(&source, Some(&self.commitment)).await?,
@@ -112,26 +155,30 @@ pub struct BufferedHttpSource {
     file: UploadingFile,
 }
 impl BufferedHttpSource {
-    pub async fn with_path(
-        path: impl AsRef<Path>,
-        client: Client,
-        url: Url,
-        progress: PhaseProgressTrackerHandle,
-    ) -> Result<Self, Error> {
-        let (mut handle, file) = UploadingFile::with_path(path, progress).await?;
-        let response = client.get(url).send().await?;
-        Ok(Self {
-            _download: tokio::spawn(async move { handle.download(response).await }).into(),
-            file,
-        })
-    }
     pub async fn new(
         client: Client,
         url: Url,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<Self, Error> {
-        let (mut handle, file) = UploadingFile::new(progress).await?;
         let response = client.get(url).send().await?;
+        Self::from_response(response, progress).await
+    }
+    pub async fn from_response(
+        response: Response,
+        progress: PhaseProgressTrackerHandle,
+    ) -> Result<Self, Error> {
+        let (mut handle, file) = UploadingFile::new(progress).await?;
+        Ok(Self {
+            _download: tokio::spawn(async move { handle.download(response).await }).into(),
+            file,
+        })
+    }
+    pub async fn from_response_with_path(
+        path: impl AsRef<Path>,
+        response: Response,
+        progress: PhaseProgressTrackerHandle,
+    ) -> Result<Self, Error> {
+        let (mut handle, file) = UploadingFile::with_path(path, progress).await?;
         Ok(Self {
             _download: tokio::spawn(async move { handle.download(response).await }).into(),
             file,

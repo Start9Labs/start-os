@@ -12,15 +12,18 @@ use crate::PackageId;
 use crate::context::CliContext;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, ProgressUnits};
+use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
 use crate::registry::package::index::{PackageIndex, PackageVersionInfo};
+use crate::s9pk::manifest::HardwareRequirements;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::s9pk::v2::SIG_CONTEXT;
+use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::util::VersionString;
 use crate::util::io::{TrackingIO, to_tmp_path};
 use crate::util::serde::{WithIoFormat, display_serializable};
-use crate::util::tui::choose;
+use crate::util::tui::{choose, choose_custom_display};
 
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS, ValueEnum,
@@ -142,7 +145,15 @@ fn get_matching_models<'a>(
         device_info,
         ..
     }: &GetPackageParams,
-) -> Result<Vec<(PackageId, ExtendedVersion, &'a Model<PackageVersionInfo>)>, Error> {
+) -> Result<
+    Vec<(
+        PackageId,
+        ExtendedVersion,
+        &'a Model<PackageVersionInfo>,
+        Vec<(HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>)>,
+    )>,
+    Error,
+> {
     if let Some(id) = id {
         if let Some(pkg) = db.as_packages().as_idx(id) {
             vec![(id.clone(), pkg)]
@@ -168,11 +179,13 @@ fn get_matching_models<'a>(
                                     .unwrap_or(VersionRange::any()),
                             ),
                         )
-                    })? && device_info
-                        .as_ref()
-                        .map_or(Ok(true), |device_info| info.works_for_device(device_info))?
-                    {
-                        Some((k.clone(), ExtendedVersion::from(v), info))
+                    })? {
+                        if let Some(device_info) = &device_info {
+                            info.for_device(device_info)?
+                        } else {
+                            Some(info.as_s9pk().de()?)
+                        }
+                        .map(|assets| (k.clone(), ExtendedVersion::from(v), info, assets))
                     } else {
                         None
                     },
@@ -189,11 +202,28 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
     use patch_db::ModelExt;
 
     let peek = ctx.db.peek().await;
-    let mut best: BTreeMap<PackageId, BTreeMap<VersionString, &Model<PackageVersionInfo>>> =
-        Default::default();
-    let mut other: BTreeMap<PackageId, BTreeMap<VersionString, &Model<PackageVersionInfo>>> =
-        Default::default();
-    for (id, version, info) in get_matching_models(&peek.as_index().as_package(), &params)? {
+    let mut best: BTreeMap<
+        PackageId,
+        BTreeMap<
+            VersionString,
+            (
+                &Model<PackageVersionInfo>,
+                Vec<(HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>)>,
+            ),
+        >,
+    > = Default::default();
+    let mut other: BTreeMap<
+        PackageId,
+        BTreeMap<
+            VersionString,
+            (
+                &Model<PackageVersionInfo>,
+                Vec<(HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>)>,
+            ),
+        >,
+    > = Default::default();
+    for (id, version, info, assets) in get_matching_models(&peek.as_index().as_package(), &params)?
+    {
         let package_best = best.entry(id.clone()).or_default();
         let package_other = other.entry(id.clone()).or_default();
         if params
@@ -212,9 +242,9 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                     package_other.insert(worse_version, info);
                 }
             }
-            package_best.insert(version.into(), info);
+            package_best.insert(version.into(), (info, assets));
         } else {
-            package_other.insert(version.into(), info);
+            package_other.insert(version.into(), (info, assets));
         }
     }
     if let Some(id) = params.id {
@@ -230,7 +260,16 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
             .remove(&id)
             .unwrap_or_default()
             .into_iter()
-            .map(|(k, v)| v.de().map(|v| (k, v)))
+            .map(|(k, (i, a))| {
+                Ok::<_, Error>((
+                    k,
+                    PackageVersionInfo {
+                        metadata: i.as_metadata().de()?,
+                        source_version: i.as_source_version().de()?,
+                        s9pk: a,
+                    },
+                ))
+            })
             .try_collect()?;
         let other = other.remove(&id).unwrap_or_default();
         match params.other_versions {
@@ -245,7 +284,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                 other_versions: Some(
                     other
                         .into_iter()
-                        .map(|(k, v)| from_value(v.as_value().clone()).map(|v| (k, v)))
+                        .map(|(k, (i, _))| from_value(i.as_value().clone()).map(|v| (k, v)))
                         .try_collect()?,
                 ),
             }),
@@ -254,7 +293,16 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                 best,
                 other_versions: other
                     .into_iter()
-                    .map(|(k, v)| v.de().map(|v| (k, v)))
+                    .map(|(k, (i, a))| {
+                        Ok::<_, Error>((
+                            k,
+                            PackageVersionInfo {
+                                metadata: i.as_metadata().de()?,
+                                source_version: i.as_source_version().de()?,
+                                s9pk: a,
+                            },
+                        ))
+                    })
                     .try_collect()?,
             }),
         }
@@ -278,7 +326,9 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                                 categories,
                                 best: best
                                     .into_iter()
-                                    .map(|(k, v)| v.de().map(|v| (k, v)))
+                                    .map(|(k, (i, _))| {
+                                        from_value(i.as_value().clone()).map(|v| (k, v))
+                                    })
                                     .try_collect()?,
                                 other_versions: None,
                             },
@@ -305,13 +355,23 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                                 categories,
                                 best: best
                                     .into_iter()
-                                    .map(|(k, v)| v.de().map(|v| (k, v)))
+                                    .into_iter()
+                                    .map(|(k, (i, a))| {
+                                        Ok::<_, Error>((
+                                            k,
+                                            PackageVersionInfo {
+                                                metadata: i.as_metadata().de()?,
+                                                source_version: i.as_source_version().de()?,
+                                                s9pk: a,
+                                            },
+                                        ))
+                                    })
                                     .try_collect()?,
                                 other_versions: Some(
                                     other
                                         .into_iter()
-                                        .map(|(k, v)| {
-                                            from_value(v.as_value().clone()).map(|v| (k, v))
+                                        .map(|(k, (i, _))| {
+                                            from_value(i.as_value().clone()).map(|v| (k, v))
                                         })
                                         .try_collect()?,
                                 ),
@@ -339,11 +399,31 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                                 categories,
                                 best: best
                                     .into_iter()
-                                    .map(|(k, v)| v.de().map(|v| (k, v)))
+                                    .into_iter()
+                                    .map(|(k, (i, a))| {
+                                        Ok::<_, Error>((
+                                            k,
+                                            PackageVersionInfo {
+                                                metadata: i.as_metadata().de()?,
+                                                source_version: i.as_source_version().de()?,
+                                                s9pk: a,
+                                            },
+                                        ))
+                                    })
                                     .try_collect()?,
                                 other_versions: other
                                     .into_iter()
-                                    .map(|(k, v)| v.de().map(|v| (k, v)))
+                                    .into_iter()
+                                    .map(|(k, (i, a))| {
+                                        Ok::<_, Error>((
+                                            k,
+                                            PackageVersionInfo {
+                                                metadata: i.as_metadata().de()?,
+                                                source_version: i.as_source_version().de()?,
+                                                s9pk: a,
+                                            },
+                                        ))
+                                    })
                                     .try_collect()?,
                             },
                         ))
@@ -431,7 +511,7 @@ pub async fn cli_download(
         )
         .await?,
     )?;
-    let PackageVersionInfo { s9pk, .. } = match res.best.len() {
+    let PackageVersionInfo { mut s9pk, .. } = match res.best.len() {
         0 => {
             return Err(Error::new(
                 eyre!(
@@ -450,6 +530,75 @@ pub async fn cli_download(
             )
             .await?;
             res.best.remove(version).unwrap()
+        }
+    };
+    let s9pk = match s9pk.len() {
+        0 => {
+            return Err(Error::new(
+                eyre!(
+                    "Could not find a version of {id} that satisfies {}",
+                    target_version.unwrap_or(VersionRange::Any)
+                ),
+                ErrorKind::NotFound,
+            ));
+        }
+        1 => s9pk.pop().unwrap().1,
+        _ => {
+            let (_, asset) = choose_custom_display(
+                &format!(concat!(
+                    "Multiple packages with different hardware requirements found. ",
+                    "Choose a file to download:"
+                )),
+                &s9pk,
+                |(hw, _)| {
+                    use std::fmt::Write;
+                    let mut res = String::new();
+                    if let Some(arch) = &hw.arch {
+                        write!(
+                            &mut res,
+                            "{}: {}",
+                            if arch.len() == 1 {
+                                "Architecture"
+                            } else {
+                                "Architectures"
+                            },
+                            arch.iter().join(", ")
+                        )
+                        .unwrap();
+                    }
+                    if !hw.device.is_empty() {
+                        if !res.is_empty() {
+                            write!(&mut res, "; ").unwrap();
+                        }
+                        write!(
+                            &mut res,
+                            "{}: {}",
+                            if hw.device.len() == 1 {
+                                "Device"
+                            } else {
+                                "Devices"
+                            },
+                            hw.device.iter().map(|d| &d.pattern_description).join(", ")
+                        )
+                        .unwrap();
+                    }
+                    if let Some(ram) = hw.ram {
+                        if !res.is_empty() {
+                            write!(&mut res, "; ").unwrap();
+                        }
+                        write!(
+                            &mut res,
+                            "RAM >={:.2}GiB",
+                            ram as f64 / (1024.0 * 1024.0 * 1024.0)
+                        )
+                        .unwrap();
+                    }
+
+                    res
+                },
+            )
+            .await?;
+            asset.clone()
         }
     };
     s9pk.validate(SIG_CONTEXT, s9pk.all_signers())?;

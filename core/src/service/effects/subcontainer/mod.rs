@@ -11,6 +11,8 @@ use crate::service::effects::prelude::*;
 use crate::service::persistent_container::Subcontainer;
 use crate::util::Invoke;
 
+pub const NVIDIA_OVERLAY_PATH: &str = "/var/tmp/startos/nvidia-overlay";
+
 #[cfg(target_os = "linux")]
 mod sync;
 
@@ -113,7 +115,26 @@ pub async fn create_subcontainer_fs(
         );
         tracing::info!("Mounting overlay {guid} for {image_id}");
         let subcontainer_wrapper = Subcontainer {
-            overlay: OverlayGuard::mount(image, &mountpoint).await?,
+            overlay: OverlayGuard::mount_layers(
+                if context
+                    .seed
+                    .persistent_container
+                    .s9pk
+                    .as_manifest()
+                    .images
+                    .get(&image_id)
+                    .map_or(false, |i| i.nvidia_container)
+                    && tokio::fs::metadata(NVIDIA_OVERLAY_PATH).await.is_ok()
+                {
+                    &[NVIDIA_OVERLAY_PATH]
+                } else {
+                    &[]
+                },
+                image,
+                &[],
+                &mountpoint,
+            )
+            .await?,
             name: name
                 .unwrap_or_else(|| InternedString::intern(format!("subcontainer-{}", image_id))),
             image_id: image_id.clone(),

@@ -142,16 +142,16 @@ pub async fn install(
         .await?,
     )?;
 
-    let asset = &package
+    let (_, asset) = package
         .best
         .get(&version)
+        .and_then(|i| i.s9pk.first())
         .ok_or_else(|| {
             Error::new(
                 eyre!("{id}@{version} not found on {registry}"),
                 ErrorKind::NotFound,
             )
-        })?
-        .s9pk;
+        })?;
 
     asset.validate(SIG_CONTEXT, asset.all_signers())?;
 

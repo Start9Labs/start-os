@@ -13,7 +13,7 @@ use ts_rs::TS;
 use crate::util::mime::{mime, unmime};
 use crate::{Error, ErrorKind, ResultExt};
 
-#[derive(Clone, TS)]
+#[derive(Clone, TS, PartialEq, Eq)]
 #[ts(type = "string")]
 pub struct DataUrl<'a> {
     pub mime: InternedString,

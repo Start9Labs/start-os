@@ -280,8 +280,11 @@ pub async fn execute<C: Context>(
     let lower = TmpMountGuard::mount(&BlockDev::new(&image_path), MountType::ReadOnly).await?;
     let work = config_path.join("work");
     let upper = config_path.join("overlay");
-    let overlay =
-        TmpMountGuard::mount(&OverlayFs::new(&lower.path(), &upper, &work), ReadWrite).await?;
+    let overlay = TmpMountGuard::mount(
+        &OverlayFs::new(vec![lower.path()], &upper, &work),
+        ReadWrite,
+    )
+    .await?;
 
     let boot = MountGuard::mount(
         &BlockDev::new(&part_info.boot),
