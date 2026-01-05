@@ -60,7 +60,8 @@ export default class ServiceAboutRoute {
     size: 'l',
     data: from(
       inject(ApiService).getStatic(
-        `/s9pk/installed/${this.pkgId}.s9pk/LICENSE.md`,
+        [`/s9pk/installed/${this.pkgId}.s9pk/LICENSE.md`],
+        {},
       ),
     ),
   })

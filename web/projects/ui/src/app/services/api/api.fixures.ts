@@ -40,7 +40,9 @@ export namespace Mock {
       squashfs: {
         aarch64: {
           publishedAt: '2025-03-21T23:55:29.583006392Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_aarch64.squashfs',
+          urls: [
+            'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_aarch64.squashfs',
+          ],
           commitment: {
             hash: 'OUnANnZePtf7rSbj38JESl+iJAV0z0aiZ4opCiwpGbo=',
             size: 1331900416,
@@ -52,7 +54,9 @@ export namespace Mock {
         },
         'aarch64-nonfree': {
           publishedAt: '2025-03-21T23:56:38.299572946Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_aarch64-nonfree.squashfs',
+          urls: [
+            'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_aarch64-nonfree.squashfs',
+          ],
           commitment: {
             hash: '6k+0RcyRQV+5A+h06OqpHxd4IT6IlFkfdy9dfHIP90c=',
             size: 1641500672,
@@ -64,7 +68,9 @@ export namespace Mock {
         },
         raspberrypi: {
           publishedAt: '2025-03-22T00:08:17.083064390Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_raspberrypi.squashfs',
+          urls: [
+            'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_raspberrypi.squashfs',
+          ],
           commitment: {
             hash: 'K+XuTZxo1KVsKjNSV8PPOMruCvAEZwerF9mbpFl53Gk=',
             size: 1544417280,
@@ -76,7 +82,9 @@ export namespace Mock {
         },
         x86_64: {
           publishedAt: '2025-03-22T00:05:57.684319247Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_x86_64.squashfs',
+          urls: [
+            'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_x86_64.squashfs',
+          ],
           commitment: {
             hash: '3UVkx3TQMBPlSU1OnV48Om9vjjA3s+Nk6dX3auYGpBo=',
             size: 1424007168,
@@ -88,7 +96,9 @@ export namespace Mock {
         },
         'x86_64-nonfree': {
           publishedAt: '2025-03-22T00:07:11.893777122Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_x86_64-nonfree.squashfs',
+          urls: [
+            'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_x86_64-nonfree.squashfs',
+          ],
           commitment: {
             hash: 'IS1gJ56n/HlQqFbl1upMOAtLxyxB0cY0H89Ha+9h1lE=',
             size: 1743425536,
@@ -110,7 +120,9 @@ export namespace Mock {
       squashfs: {
         aarch64: {
           publishedAt: '2025-04-21T20:58:48.140749883Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.14/startos-0.4.0-alpha.14-33ae46f~dev_aarch64.squashfs',
+          urls: [
+            'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.14/startos-0.4.0-alpha.14-33ae46f~dev_aarch64.squashfs',
+          ],
           commitment: {
             hash: '4elBFVkd/r8hNadKmKtLIs42CoPltMvKe2z3LRqkphk=',
             size: 1343500288,
@@ -122,7 +134,9 @@ export namespace Mock {
         },
         'aarch64-nonfree': {
           publishedAt: '2025-04-21T21:07:00.249285116Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.14/startos-0.4.0-alpha.14-33ae46f~dev_aarch64-nonfree.squashfs',
+          urls: [
+            'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.14/startos-0.4.0-alpha.14-33ae46f~dev_aarch64-nonfree.squashfs',
+          ],
           commitment: {
             hash: 'MrCEi4jxbmPS7zAiGk/JSKlMsiuKqQy6RbYOxlGHOIQ=',
             size: 1653075968,
@@ -134,7 +148,9 @@ export namespace Mock {
         },
         raspberrypi: {
           publishedAt: '2025-04-21T21:16:12.933319237Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.14/startos-0.4.0-alpha.14-33ae46f~dev_raspberrypi.squashfs',
+          urls: [
+            'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.14/startos-0.4.0-alpha.14-33ae46f~dev_raspberrypi.squashfs',
+          ],
           commitment: {
             hash: '/XTVQRCqY3RK544PgitlKu7UplXjkmzWoXUh2E4HCw0=',
             size: 1490731008,
@@ -146,7 +162,9 @@ export namespace Mock {
         },
         x86_64: {
           publishedAt: '2025-04-21T21:14:20.246908903Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.14/startos-0.4.0-alpha.14-33ae46f~dev_x86_64.squashfs',
+          urls: [
+            'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.14/startos-0.4.0-alpha.14-33ae46f~dev_x86_64.squashfs',
+          ],
           commitment: {
             hash: '/6romKTVQGSaOU7FqSZdw0kFyd7P+NBSYNwM3q7Fe44=',
             size: 1411657728,
@@ -158,7 +176,9 @@ export namespace Mock {
         },
         'x86_64-nonfree': {
           publishedAt: '2025-04-21T21:15:17.955265284Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.14/startos-0.4.0-alpha.14-33ae46f~dev_x86_64-nonfree.squashfs',
+          urls: [
+            'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.14/startos-0.4.0-alpha.14-33ae46f~dev_x86_64-nonfree.squashfs',
+          ],
           commitment: {
             hash: 'HCRq9sr/0t85pMdrEgNBeM4x11zVKHszGnD1GDyZbSE=',
             size: 1731035136,
@@ -234,6 +254,7 @@ export namespace Mock {
         source: 'packed',
         arch: ['x86_64', 'aarch64'],
         emulateMissingAs: 'aarch64',
+        nvidiaContainer: false,
       },
     },
     volumes: ['main'],
@@ -293,6 +314,7 @@ export namespace Mock {
         source: 'packed',
         arch: ['x86_64', 'aarch64'],
         emulateMissingAs: 'aarch64',
+        nvidiaContainer: false,
       },
     },
     volumes: ['main'],
@@ -345,6 +367,7 @@ export namespace Mock {
         source: 'packed',
         arch: ['x86_64', 'aarch64'],
         emulateMissingAs: 'aarch64',
+        nvidiaContainer: false,
       },
     },
     volumes: ['main'],
@@ -379,7 +402,6 @@ export namespace Mock {
           '26.1.0:0.1.0': {
             title: 'Bitcoin Core',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
             upstreamRepo: 'https://github.com/bitcoin/bitcoin',
@@ -401,12 +423,20 @@ export namespace Mock {
               stop: 'test',
               restore: 'test',
             },
-            s9pk: {
-              url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v26.1.0/bitcoind.s9pk',
-              commitment: mockMerkleArchiveCommitment,
-              signatures: {},
-              publishedAt: Date.now().toString(),
-            },
+            s9pks: [
+              [
+                { arch: null, device: [], ram: null },
+                {
+                  urls: [
+                    'https://github.com/Start9Labs/bitcoind-startos/releases/download/v26.1.0/bitcoind.s9pk',
+                  ],
+                  commitment: mockMerkleArchiveCommitment,
+                  signatures: {},
+                  publishedAt: Date.now().toString(),
+                },
+              ],
+            ],
+            hardwareAcceleration: false,
           },
           '#knots:26.1.20240325:0': {
             title: 'Bitcoin Knots',
@@ -414,7 +444,6 @@ export namespace Mock {
               short: 'An alternate fully verifying implementation of Bitcoin',
               long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
             },
-            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
             upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
@@ -436,12 +465,20 @@ export namespace Mock {
               stop: 'test',
               restore: 'test',
             },
-            s9pk: {
-              url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
-              commitment: mockMerkleArchiveCommitment,
-              signatures: {},
-              publishedAt: Date.now().toString(),
-            },
+            s9pks: [
+              [
+                { arch: null, device: [], ram: null },
+                {
+                  urls: [
+                    'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
+                  ],
+                  commitment: mockMerkleArchiveCommitment,
+                  signatures: {},
+                  publishedAt: Date.now().toString(),
+                },
+              ],
+            ],
+            hardwareAcceleration: false,
           },
         },
         categories: ['bitcoin', 'featured'],
@@ -459,7 +496,6 @@ export namespace Mock {
           '26.1.0:0.1.0': {
             title: 'Bitcoin Core',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
             upstreamRepo: 'https://github.com/bitcoin/bitcoin',
@@ -481,12 +517,20 @@ export namespace Mock {
               stop: 'test',
               restore: 'test',
             },
-            s9pk: {
-              url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v26.1.0/bitcoind.s9pk',
-              commitment: mockMerkleArchiveCommitment,
-              signatures: {},
-              publishedAt: Date.now().toString(),
-            },
+            s9pks: [
+              [
+                { arch: null, device: [], ram: null },
+                {
+                  urls: [
+                    'https://github.com/Start9Labs/bitcoind-startos/releases/download/v26.1.0/bitcoind.s9pk',
+                  ],
+                  commitment: mockMerkleArchiveCommitment,
+                  signatures: {},
+                  publishedAt: Date.now().toString(),
+                },
+              ],
+            ],
+            hardwareAcceleration: false,
           },
           '#knots:26.1.20240325:0': {
             title: 'Bitcoin Knots',
@@ -494,7 +538,6 @@ export namespace Mock {
               short: 'An alternate fully verifying implementation of Bitcoin',
               long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
             },
-            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
             upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
@@ -516,12 +559,20 @@ export namespace Mock {
               stop: 'test',
               restore: 'test',
             },
-            s9pk: {
-              url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
-              commitment: mockMerkleArchiveCommitment,
-              signatures: {},
-              publishedAt: Date.now().toString(),
-            },
+            s9pks: [
+              [
+                { arch: null, device: [], ram: null },
+                {
+                  urls: [
+                    'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
+                  ],
+                  commitment: mockMerkleArchiveCommitment,
+                  signatures: {},
+                  publishedAt: Date.now().toString(),
+                },
+              ],
+            ],
+            hardwareAcceleration: false,
           },
         },
         categories: ['bitcoin', 'featured'],
@@ -541,7 +592,6 @@ export namespace Mock {
           '0.17.5:0': {
             title: 'LND',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/lnd-startos',
             upstreamRepo: 'https://github.com/lightningnetwork/lnd',
@@ -566,12 +616,20 @@ export namespace Mock {
               stop: 'test',
               restore: 'test',
             },
-            s9pk: {
-              url: 'https://github.com/Start9Labs/lnd-startos/releases/download/v0.17.5/lnd.s9pk',
-              commitment: mockMerkleArchiveCommitment,
-              signatures: {},
-              publishedAt: Date.now().toString(),
-            },
+            s9pks: [
+              [
+                { arch: null, device: [], ram: null },
+                {
+                  urls: [
+                    'https://github.com/Start9Labs/lnd-startos/releases/download/v0.17.5/lnd.s9pk',
+                  ],
+                  commitment: mockMerkleArchiveCommitment,
+                  signatures: {},
+                  publishedAt: Date.now().toString(),
+                },
+              ],
+            ],
+            hardwareAcceleration: false,
           },
         },
         categories: ['lightning'],
@@ -589,7 +647,6 @@ export namespace Mock {
           '0.17.4-beta:1.0-alpha': {
             title: 'LND',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/lnd-startos',
             upstreamRepo: 'https://github.com/lightningnetwork/lnd',
@@ -614,12 +671,20 @@ export namespace Mock {
               stop: 'test',
               restore: 'test',
             },
-            s9pk: {
-              url: 'https://github.com/Start9Labs/lnd-startos/releases/download/v0.17.4/lnd.s9pk',
-              commitment: mockMerkleArchiveCommitment,
-              signatures: {},
-              publishedAt: Date.now().toString(),
-            },
+            s9pks: [
+              [
+                { arch: null, device: [], ram: null },
+                {
+                  urls: [
+                    'https://github.com/Start9Labs/lnd-startos/releases/download/v0.17.4/lnd.s9pk',
+                  ],
+                  commitment: mockMerkleArchiveCommitment,
+                  signatures: {},
+                  publishedAt: Date.now().toString(),
+                },
+              ],
+            ],
+            hardwareAcceleration: false,
           },
         },
         categories: ['lightning'],
@@ -641,7 +706,6 @@ export namespace Mock {
         '27.0.0:1.0.0': {
           title: 'Bitcoin Core',
           description: mockDescription,
-          hardwareRequirements: { arch: null, device: [], ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
           upstreamRepo: 'https://github.com/bitcoin/bitcoin',
@@ -663,12 +727,20 @@ export namespace Mock {
             stop: 'test',
             restore: 'test',
           },
-          s9pk: {
-            url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v27.0.0/bitcoind.s9pk',
-            commitment: mockMerkleArchiveCommitment,
-            signatures: {},
-            publishedAt: Date.now().toString(),
-          },
+          s9pks: [
+            [
+              { arch: null, device: [], ram: null },
+              {
+                urls: [
+                  'https://github.com/Start9Labs/bitcoind-startos/releases/download/v27.0.0/bitcoind.s9pk',
+                ],
+                commitment: mockMerkleArchiveCommitment,
+                signatures: {},
+                publishedAt: Date.now().toString(),
+              },
+            ],
+          ],
+          hardwareAcceleration: false,
         },
         '#knots:27.1.0:0': {
           title: 'Bitcoin Knots',
@@ -676,7 +748,6 @@ export namespace Mock {
             short: 'An alternate fully verifying implementation of Bitcoin',
             long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
           },
-          hardwareRequirements: { arch: null, device: [], ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
           upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
@@ -698,12 +769,20 @@ export namespace Mock {
             stop: 'test',
             restore: 'test',
           },
-          s9pk: {
-            url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
-            commitment: mockMerkleArchiveCommitment,
-            signatures: {},
-            publishedAt: Date.now().toString(),
-          },
+          s9pks: [
+            [
+              { arch: null, device: [], ram: null },
+              {
+                urls: [
+                  'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
+                ],
+                commitment: mockMerkleArchiveCommitment,
+                signatures: {},
+                publishedAt: Date.now().toString(),
+              },
+            ],
+          ],
+          hardwareAcceleration: false,
         },
       },
       categories: ['bitcoin', 'featured'],
@@ -721,7 +800,6 @@ export namespace Mock {
         '0.18.0:0.0.1': {
           title: 'LND',
           description: mockDescription,
-          hardwareRequirements: { arch: null, device: [], ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/start9labs/lnd-startos',
           upstreamRepo: 'https://github.com/lightningnetwork/lnd',
@@ -746,12 +824,20 @@ export namespace Mock {
             stop: 'test',
             restore: 'test',
           },
-          s9pk: {
-            url: 'https://github.com/Start9Labs/lnd-startos/releases/download/v0.18.0.1/lnd.s9pk',
-            commitment: mockMerkleArchiveCommitment,
-            signatures: {},
-            publishedAt: Date.now().toString(),
-          },
+          s9pks: [
+            [
+              { arch: null, device: [], ram: null },
+              {
+                urls: [
+                  'https://github.com/Start9Labs/lnd-startos/releases/download/v0.18.0.1/lnd.s9pk',
+                ],
+                commitment: mockMerkleArchiveCommitment,
+                signatures: {},
+                publishedAt: Date.now().toString(),
+              },
+            ],
+          ],
+          hardwareAcceleration: false,
         },
       },
       categories: ['lightning'],
@@ -769,7 +855,6 @@ export namespace Mock {
         '0.3.2.7:0': {
           title: 'Bitcoin Proxy',
           description: mockDescription,
-          hardwareRequirements: { arch: null, device: [], ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/Start9Labs/btc-rpc-proxy-wrappers',
           upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
@@ -793,12 +878,20 @@ export namespace Mock {
             stop: 'test',
             restore: 'test',
           },
-          s9pk: {
-            url: 'https://github.com/Start9Labs/btc-rpc-proxy-startos/releases/download/v0.3.2.7/btc-rpc-proxy.s9pk',
-            commitment: mockMerkleArchiveCommitment,
-            signatures: {},
-            publishedAt: Date.now().toString(),
-          },
+          s9pks: [
+            [
+              { arch: null, device: [], ram: null },
+              {
+                urls: [
+                  'https://github.com/Start9Labs/btc-rpc-proxy-startos/releases/download/v0.3.2.7/btc-rpc-proxy.s9pk',
+                ],
+                commitment: mockMerkleArchiveCommitment,
+                signatures: {},
+                publishedAt: Date.now().toString(),
+              },
+            ],
+          ],
+          hardwareAcceleration: false,
         },
       },
       categories: ['bitcoin'],

@@ -142,7 +142,23 @@ export class MarketplaceService {
   }
 
   fetchStatic$(pkg: MarketplacePkg): Observable<string> {
-    return from(this.api.getStaticProxy(pkg, 'LICENSE.md'))
+    const registryAsset = pkg.s9pks[0]?.[1]
+
+    if (!registryAsset) {
+      throw new Error('No s9pk')
+    }
+
+    const urls =
+      registryAsset.urls.map(
+        u => `/s9pk/proxy/${encodeURIComponent(u)}/LICENSE.md`,
+      ) || []
+
+    return from(
+      this.api.getStatic(urls, {
+        rootSighash: registryAsset.commitment.rootSighash,
+        rootMaxsize: registryAsset.commitment.rootMaxsize,
+      }),
+    )
   }
 
   private fetchRegistry$(url: string): Observable<StoreDataWithUrl | null> {

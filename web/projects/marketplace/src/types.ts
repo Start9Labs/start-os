@@ -32,10 +32,7 @@ export type StoreData = {
   packages: MarketplacePkg[]
 }
 
-export type MarketplacePkgBase = OptionalProperty<
-  T.PackageVersionInfo,
-  's9pk'
-> & {
+export type MarketplacePkgBase = T.PackageVersionInfo & {
   id: T.PackageId
   version: string
   flavor: string | null

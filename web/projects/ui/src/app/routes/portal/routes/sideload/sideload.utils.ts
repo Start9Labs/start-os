@@ -41,6 +41,7 @@ async function parseS9pk(file: File): Promise<MarketplacePkgSideload> {
     sourceVersion: s9pk.manifest.canMigrateFrom,
     flavor: ExtendedVersion.parse(s9pk.manifest.version).flavor,
     fullLicense: await s9pk.license(),
+    s9pks: [],
   }
 }
 

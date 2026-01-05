@@ -10,12 +10,10 @@ export abstract class ApiService {
   abstract uploadFile(guid: string, body: Blob): Promise<void>
 
   // for getting static files: ex license
-  abstract getStaticProxy(
-    pkg: MarketplacePkg,
-    path: 'LICENSE.md',
+  abstract getStatic(
+    urls: string[],
+    params: Record<string, string | number>,
   ): Promise<string>
-
-  abstract getStatic(url: string): Promise<string>
 
   // websocket
 

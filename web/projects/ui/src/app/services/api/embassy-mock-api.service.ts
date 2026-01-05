@@ -75,15 +75,11 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
   }
 
-  async getStaticProxy(
-    pkg: MarketplacePkg,
-    path: 'LICENSE.md',
+  async getStatic(
+    urls: string[],
+    params: Record<string, string | number>,
   ): Promise<string> {
-    await pauseFor(2000)
-    return markdown
-  }
-
-  async getStatic(url: string): Promise<string> {
+    console.log('here')
     await pauseFor(2000)
     return markdown
   }
