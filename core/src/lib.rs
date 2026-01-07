@@ -242,12 +242,7 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
                 .with_about("Commands to display logs, restart the server, etc"),
         )
         .subcommand("init", init::init_api::<C>())
-        .subcommand("setup", setup::setup::<C>())
-        .subcommand(
-            "install",
-            os_install::install::<C>()
-                .with_about("Commands to list disk info, install StartOS, and reboot"),
-        );
+        .subcommand("setup", setup::setup::<C>());
     if &*PLATFORM != "raspberrypi" {
         api = api.subcommand("kiosk", kiosk::<C>());
     }

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::PLATFORM;
 use crate::context::RpcContext;
 use crate::disk::main::export;
@@ -10,7 +8,7 @@ use crate::util::Invoke;
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
-    pub disk_guid: Option<Arc<String>>,
+    pub disk_guid: Option<InternedString>,
     pub restart: bool,
 }
 impl Shutdown {

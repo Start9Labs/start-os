@@ -9,7 +9,7 @@ use crate::os_install::partition_for;
 use crate::prelude::*;
 
 pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionInfo, Error> {
-    let efi = {
+    let (efi, data_part) = {
         let disk = disk.clone();
         tokio::task::spawn_blocking(move || {
             let use_efi = Path::new("/sys/firmware/efi").exists();
@@ -93,6 +93,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                 None,
             )?;
 
+            let mut data_part = None;
             if overwrite {
                 gpt.add_partition(
                     "data",
@@ -110,6 +111,10 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                     0,
                     None,
                 )?;
+                data_part = gpt
+                    .partitions()
+                    .last_key_value()
+                    .map(|(num, _)| partition_for(&disk.logicalname, *num));
             } else if let Some(guid_part) = guid_part {
                 let mut parts = gpt.partitions().clone();
                 parts.insert(
@@ -119,11 +124,15 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                     guid_part,
                 );
                 gpt.update_partitions(parts)?;
+                data_part = gpt
+                    .partitions()
+                    .last_key_value()
+                    .map(|(num, _)| partition_for(&disk.logicalname, *num));
             }
 
             gpt.write()?;
 
-            Ok(efi)
+            Ok((efi, data_part))
         })
         .await
         .unwrap()?
@@ -134,5 +143,6 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
         bios: (!efi).then(|| partition_for(&disk.logicalname, 1)),
         boot: partition_for(&disk.logicalname, 2),
         root: partition_for(&disk.logicalname, 3),
+        data: data_part,
     })
 }

@@ -2,13 +2,12 @@ use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use color_eyre::eyre::eyre;
-use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 
+use crate::context::SetupContext;
 use crate::context::config::ServerConfig;
-use crate::context::{CliContext, InstallContext};
 use crate::disk::OsPartitionInfo;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
@@ -17,80 +16,18 @@ use crate::disk::mount::filesystem::overlayfs::OverlayFs;
 use crate::disk::mount::filesystem::{MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::util::{DiskInfo, PartitionTable};
-use crate::net::utils::find_eth_iface;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::setup::SetupInfo;
 use crate::util::Invoke;
-use crate::util::io::{TmpDir, delete_file, open_file};
+use crate::util::io::{TmpDir, delete_file, open_file, write_file_atomic};
 use crate::util::serde::IoFormat;
 use crate::{ARCH, Error};
 
 mod gpt;
 mod mbr;
 
-pub fn install<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new()
-        .subcommand("disk", disk::<C>().with_about("Command to list disk info"))
-        .subcommand(
-            "execute",
-            from_fn_async(execute::<InstallContext>)
-                .no_display()
-                .with_about("Install StartOS over existing version")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "reboot",
-            from_fn_async(reboot)
-                .no_display()
-                .with_about("Restart the server")
-                .with_call_remote::<CliContext>(),
-        )
-}
-
-pub fn disk<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new().subcommand(
-        "list",
-        from_fn_async(list)
-            .no_display()
-            .with_about("List disk info")
-            .with_call_remote::<CliContext>(),
-    )
-}
-
-pub async fn list(_: InstallContext) -> Result<Vec<DiskInfo>, Error> {
-    let skip = match async {
-        Ok::<_, Error>(
-            Path::new(
-                &String::from_utf8(
-                    Command::new("grub-probe-default")
-                        .arg("-t")
-                        .arg("disk")
-                        .arg("/run/live/medium")
-                        .invoke(crate::ErrorKind::Grub)
-                        .await?,
-                )?
-                .trim(),
-            )
-            .to_owned(),
-        )
-    }
-    .await
-    {
-        Ok(a) => Some(a),
-        Err(e) => {
-            tracing::error!("Could not determine live usb device: {}", e);
-            tracing::debug!("{:?}", e);
-            None
-        }
-    };
-    Ok(crate::disk::util::list(&Default::default())
-        .await?
-        .into_iter()
-        .filter(|i| Some(&*i.logicalname) != skip.as_deref())
-        .collect())
-}
-
-pub fn partition_for(disk: impl AsRef<Path>, idx: usize) -> PathBuf {
+pub fn partition_for(disk: impl AsRef<Path>, idx: u32) -> PathBuf {
     let disk_path = disk.as_ref();
     let (root, leaf) = if let (Some(root), Some(leaf)) = (
         disk_path.parent(),
@@ -122,34 +59,52 @@ async fn partition(disk: &mut DiskInfo, overwrite: bool) -> Result<OsPartitionIn
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct ExecuteParams {
-    logicalname: PathBuf,
-    #[arg(short = 'o')]
-    overwrite: bool,
+pub struct InstallOsParams {
+    os_drive: PathBuf,
+    #[command(flatten)]
+    data_drive: Option<DataDrive>,
 }
 
-pub async fn execute<C: Context>(
-    _: C,
-    ExecuteParams {
-        logicalname,
-        mut overwrite,
-    }: ExecuteParams,
-) -> Result<(), Error> {
-    let mut disk = crate::disk::util::list(&Default::default())
-        .await?
-        .into_iter()
-        .find(|d| &d.logicalname == &logicalname)
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+struct DataDrive {
+    #[arg(long = "data-drive")]
+    logicalname: PathBuf,
+    #[arg(long)]
+    wipe: bool,
+}
+
+pub async fn install_os(
+    ctx: SetupContext,
+    InstallOsParams {
+        os_drive,
+        data_drive,
+    }: InstallOsParams,
+) -> Result<SetupInfo, Error> {
+    let mut disks = crate::disk::util::list(&Default::default()).await?;
+    let disk = disks
+        .iter_mut()
+        .find(|d| &d.logicalname == &os_drive)
         .ok_or_else(|| {
             Error::new(
-                eyre!("Unknown disk {}", logicalname.display()),
+                eyre!("Unknown disk {}", os_drive.display()),
                 crate::ErrorKind::DiskManagement,
             )
         })?;
-    let eth_iface = find_eth_iface().await?;
 
-    overwrite |= disk.guid.is_none() && disk.partitions.iter().all(|p| p.guid.is_none());
+    let overwrite = if let Some(data_drive) = &data_drive {
+        data_drive.wipe
+            || ((disk.guid.is_none() || disk.logicalname != data_drive.logicalname)
+                && disk
+                    .partitions
+                    .iter()
+                    .all(|p| p.guid.is_none() || p.logicalname != data_drive.logicalname))
+    } else {
+        true
+    };
 
-    let part_info = partition(&mut disk, overwrite).await?;
+    let part_info = partition(disk, overwrite).await?;
 
     if let Some(efi) = &part_info.efi {
         Command::new("mkfs.vfat")
@@ -271,11 +226,12 @@ pub async fn execute<C: Context>(
         rootfs.path().join("config/config.yaml"),
         IoFormat::Yaml.to_vec(&ServerConfig {
             os_partitions: Some(part_info.clone()),
-            ethernet_interface: Some(eth_iface),
             ..Default::default()
         })?,
     )
     .await?;
+    ctx.config
+        .mutate(|c| c.os_partitions = Some(part_info.clone()));
 
     let lower = TmpMountGuard::mount(&BlockDev::new(&image_path), MountType::ReadOnly).await?;
     let work = config_path.join("work");
@@ -396,15 +352,47 @@ pub async fn execute<C: Context>(
     tokio::fs::remove_dir_all(&work).await?;
     lower.unmount().await?;
 
-    rootfs.unmount().await?;
+    let mut setup_info = SetupInfo::default();
 
-    Ok(())
-}
+    if let Some(data_drive) = data_drive {
+        let mut logicalname = &*data_drive.logicalname;
+        if logicalname == &os_drive {
+            logicalname = part_info.data.as_deref().ok_or_else(|| {
+                Error::new(
+                    eyre!("not enough room on OS drive for data"),
+                    ErrorKind::InvalidRequest,
+                )
+            })?;
+        }
+        if let Some(guid) = disks.iter().find_map(|d| {
+            d.guid
+                .as_ref()
+                .filter(|_| &d.logicalname == logicalname)
+                .cloned()
+                .or_else(|| {
+                    d.partitions.iter().find_map(|p| {
+                        p.guid
+                            .as_ref()
+                            .filter(|_| &p.logicalname == logicalname)
+                            .cloned()
+                    })
+                })
+        }) {
+            setup_info.guid = Some(guid);
+            setup_info.attach = true;
+        } else {
+            let guid = crate::setup::setup_data_drive(&ctx, logicalname).await?;
+            setup_info.guid = Some(guid);
+        }
+    }
 
-pub async fn reboot(ctx: InstallContext) -> Result<(), Error> {
-    Command::new("sync")
-        .invoke(crate::ErrorKind::Filesystem)
-        .await?;
-    ctx.shutdown.send(()).unwrap();
-    Ok(())
+    write_file_atomic(
+        rootfs.path().join("config/setup.json"),
+        IoFormat::JsonPretty.to_vec(&setup_info)?,
+    )
+    .await?;
+
+    ctx.install_rootfs.replace(Some(rootfs));
+
+    Ok(setup_info)
 }

@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
@@ -18,7 +17,7 @@ use ts_rs::TS;
 
 use crate::account::AccountInfo;
 use crate::auth::write_shadow;
-use crate::backup::restore::recover_full_embassy;
+use crate::backup::restore::recover_full_server;
 use crate::backup::target::BackupTargetFS;
 use crate::context::rpc::InitRpcContextPhases;
 use crate::context::setup::SetupResult;
@@ -40,7 +39,8 @@ use crate::shutdown::Shutdown;
 use crate::system::sync_kiosk;
 use crate::util::Invoke;
 use crate::util::crypto::EncryptedWire;
-use crate::util::io::{Counter, create_file, dir_copy, dir_size};
+use crate::util::io::{Counter, create_file, dir_copy, dir_size, read_file_to_string};
+use crate::util::serde::IoFormat;
 use crate::{DATA_DIR, Error, ErrorKind, MAIN_DATA, PACKAGE_DATA, PLATFORM, ResultExt};
 
 pub fn setup<C: Context>() -> ParentHandler<C> {
@@ -53,6 +53,10 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
         )
         .subcommand("disk", disk::<C>())
         .subcommand("attach", from_fn_async(attach).no_cli())
+        .subcommand(
+            "install-os",
+            from_fn_async(crate::os_install::install_os).no_cli(),
+        )
         .subcommand("execute", from_fn_async(execute).no_cli())
         .subcommand("cifs", cifs::<C>())
         .subcommand("complete", from_fn_async(complete).no_cli())
@@ -81,7 +85,12 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
 }
 
 pub async fn list_disks(ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
-    crate::disk::util::list(&ctx.os_partitions).await
+    crate::disk::util::list(
+        &ctx.config
+            .peek(|c| c.os_partitions.clone())
+            .unwrap_or_default(),
+    )
+    .await
 }
 
 #[instrument(skip_all)]
@@ -91,7 +100,7 @@ async fn setup_init(
     kiosk: Option<bool>,
     init_phases: InitPhases,
 ) -> Result<(AccountInfo, InitResult), Error> {
-    let init_result = init(&ctx.webserver, &ctx.config, init_phases).await?;
+    let init_result = init(&ctx.webserver, &ctx.config.peek(|c| c.clone()), init_phases).await?;
 
     let account = init_result
         .net_ctrl
@@ -127,10 +136,10 @@ async fn setup_init(
 #[ts(export)]
 pub struct AttachParams {
     #[serde(rename = "startOsPassword")]
-    password: Option<EncryptedWire>,
-    guid: Arc<String>,
+    pub password: Option<EncryptedWire>,
+    pub guid: InternedString,
     #[ts(optional)]
-    kiosk: Option<bool>,
+    pub kiosk: Option<bool>,
 }
 
 #[instrument(skip_all)]
@@ -193,7 +202,7 @@ pub async fn attach(
 
             let (account, net_ctrl) = setup_init(&setup_ctx, password, kiosk, init_phases).await?;
 
-            let rpc_ctx = RpcContext::init(&setup_ctx.webserver, &setup_ctx.config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
+            let rpc_ctx = RpcContext::init(&setup_ctx.webserver, &setup_ctx.config.peek(|c| c.clone()), disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
 
             Ok(((&account).try_into()?, rpc_ctx))
         })?;
@@ -206,8 +215,17 @@ pub async fn attach(
 #[ts(export)]
 #[serde(tag = "status")]
 pub enum SetupStatusRes {
-    Complete(SetupResult),
+    NeedsInstall,
+    Incomplete(SetupInfo),
     Running(SetupProgress),
+    Complete(SetupResult),
+}
+
+#[derive(Default, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SetupInfo {
+    pub guid: Option<InternedString>,
+    pub attach: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
@@ -218,17 +236,30 @@ pub struct SetupProgress {
     pub guid: Guid,
 }
 
-pub async fn status(ctx: SetupContext) -> Result<Option<SetupStatusRes>, Error> {
+pub async fn status(ctx: SetupContext) -> Result<SetupStatusRes, Error> {
     if let Some(res) = ctx.result.get() {
         match res {
-            Ok((res, _)) => Ok(Some(SetupStatusRes::Complete(res.clone()))),
+            Ok((res, _)) => Ok(SetupStatusRes::Complete(res.clone())),
             Err(e) => Err(e.clone_output()),
         }
     } else {
         if ctx.task.initialized() {
-            Ok(Some(SetupStatusRes::Running(ctx.progress().await)))
+            Ok(SetupStatusRes::Running(ctx.progress().await))
         } else {
-            Ok(None)
+            let path = if tokio::fs::metadata("/run/live/medium").await.is_ok() {
+                let Some(path) = ctx
+                    .install_rootfs
+                    .peek(|fs| fs.as_ref().map(|fs| fs.path().join("config/setup.json")))
+                else {
+                    return Ok(SetupStatusRes::NeedsInstall);
+                };
+                path
+            } else {
+                Path::new("/media/startos/config/setup.json").to_path_buf()
+            };
+            IoFormat::Json
+                .from_slice(read_file_to_string(path).await?.as_bytes())
+                .map(SetupStatusRes::Incomplete)
         }
     }
 }
@@ -302,6 +333,28 @@ pub enum RecoverySource<Password> {
         password: Password,
         server_id: String,
     },
+}
+
+pub async fn setup_data_drive(
+    ctx: &SetupContext,
+    logicalname: &Path,
+) -> Result<InternedString, Error> {
+    let encryption_password = if ctx.disable_encryption {
+        None
+    } else {
+        Some(DEFAULT_PASSWORD)
+    };
+    let guid = crate::disk::main::create(
+        &[logicalname],
+        &pvscan().await?,
+        DATA_DIR,
+        encryption_password,
+    )
+    .await?;
+    let _ = crate::disk::main::import(&*guid, DATA_DIR, RepairStrategy::Preen, encryption_password)
+        .await?;
+    let _ = ctx.disk_guid.set(guid.clone());
+    Ok(guid)
 }
 
 #[derive(Deserialize, Serialize, TS)]
@@ -432,23 +485,7 @@ pub async fn execute_inner(
     let rpc_ctx_phases = InitRpcContextPhases::new(&progress);
 
     disk_phase.start();
-    let encryption_password = if ctx.disable_encryption {
-        None
-    } else {
-        Some(DEFAULT_PASSWORD)
-    };
-    let guid = Arc::new(
-        crate::disk::main::create(
-            &[start_os_logicalname],
-            &pvscan().await?,
-            DATA_DIR,
-            encryption_password,
-        )
-        .await?,
-    );
-    let _ = crate::disk::main::import(&*guid, DATA_DIR, RepairStrategy::Preen, encryption_password)
-        .await?;
-    let _ = ctx.disk_guid.set(guid.clone());
+    let guid = setup_data_drive(&ctx, &start_os_logicalname).await?;
     disk_phase.complete();
 
     let progress = SetupExecuteProgress {
@@ -490,7 +527,7 @@ pub struct SetupExecuteProgress {
 
 async fn fresh_setup(
     ctx: &SetupContext,
-    guid: Arc<String>,
+    guid: InternedString,
     start_os_password: &str,
     kiosk: Option<bool>,
     SetupExecuteProgress {
@@ -506,11 +543,13 @@ async fn fresh_setup(
     db.put(&ROOT, &Database::init(&account, kiosk)?).await?;
     drop(db);
 
-    let init_result = init(&ctx.webserver, &ctx.config, init_phases).await?;
+    let config = ctx.config.peek(|c| c.clone());
+
+    let init_result = init(&ctx.webserver, &config, init_phases).await?;
 
     let rpc_ctx = RpcContext::init(
         &ctx.webserver,
-        &ctx.config,
+        &config,
         guid,
         Some(init_result),
         rpc_ctx_phases,
@@ -525,7 +564,7 @@ async fn fresh_setup(
 #[instrument(skip_all)]
 async fn recover(
     ctx: &SetupContext,
-    guid: Arc<String>,
+    guid: InternedString,
     start_os_password: String,
     recovery_source: BackupTargetFS,
     server_id: String,
@@ -534,7 +573,7 @@ async fn recover(
     progress: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let recovery_source = TmpMountGuard::mount(&recovery_source, ReadWrite).await?;
-    recover_full_embassy(
+    recover_full_server(
         ctx,
         guid.clone(),
         start_os_password,
@@ -550,7 +589,7 @@ async fn recover(
 #[instrument(skip_all)]
 async fn migrate(
     ctx: &SetupContext,
-    guid: Arc<String>,
+    guid: InternedString,
     old_guid: &str,
     start_os_password: String,
     kiosk: Option<bool>,
@@ -636,7 +675,7 @@ async fn migrate(
 
     let rpc_ctx = RpcContext::init(
         &ctx.webserver,
-        &ctx.config,
+        &ctx.config.peek(|c| c.clone()),
         guid,
         Some(net_ctrl),
         rpc_ctx_phases,

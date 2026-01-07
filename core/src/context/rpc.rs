@@ -60,7 +60,7 @@ pub struct RpcContextSeed {
     pub os_partitions: OsPartitionInfo,
     pub wifi_interface: Option<String>,
     pub ethernet_interface: String,
-    pub disk_guid: Arc<String>,
+    pub disk_guid: InternedString,
     pub ephemeral_sessions: SyncMutex<Sessions>,
     pub db: TypedPatchDb<Database>,
     pub sync_db: watch::Sender<u64>,
@@ -134,7 +134,7 @@ impl RpcContext {
     pub async fn init(
         webserver: &WebServerAcceptorSetter<UpgradableListener>,
         config: &ServerConfig,
-        disk_guid: Arc<String>,
+        disk_guid: InternedString,
         init_result: Option<InitResult>,
         InitRpcContextPhases {
             mut load_db,
@@ -340,11 +340,7 @@ impl RpcContext {
                 )
             })?,
             wifi_interface: wifi_interface.clone(),
-            ethernet_interface: if let Some(eth) = config.ethernet_interface.clone() {
-                eth
-            } else {
-                find_eth_iface().await?
-            },
+            ethernet_interface: find_eth_iface().await?,
             disk_guid,
             ephemeral_sessions: SyncMutex::new(Sessions::new()),
             sync_db: watch::Sender::new(db.sequence().await),

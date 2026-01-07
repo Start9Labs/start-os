@@ -1,11 +1,9 @@
-use std::sync::Arc;
-
 use tokio::process::Command;
 use tracing::instrument;
 
 use crate::context::config::ServerConfig;
 use crate::context::rpc::InitRpcContextPhases;
-use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
+use crate::context::{DiagnosticContext, InitContext, RpcContext, SetupContext};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
@@ -79,40 +77,11 @@ async fn setup_or_init(
         .invoke(crate::ErrorKind::OpenSsl)
         .await?;
 
-    if tokio::fs::metadata("/run/live/medium").await.is_ok() {
-        Command::new("sed")
-            .arg("-i")
-            .arg("s/PasswordAuthentication no/PasswordAuthentication yes/g")
-            .arg("/etc/ssh/sshd_config")
-            .invoke(crate::ErrorKind::Filesystem)
-            .await?;
-        Command::new("systemctl")
-            .arg("reload")
-            .arg("ssh")
-            .invoke(crate::ErrorKind::OpenSsh)
-            .await?;
-
-        let ctx = InstallContext::init().await?;
-
-        server.serve_ui_for(ctx.clone());
-
-        ctx.shutdown
-            .subscribe()
-            .recv()
-            .await
-            .expect("context dropped");
-
-        return Ok(Err(Shutdown {
-            disk_guid: None,
-            restart: true,
-        }));
-    }
-
     if tokio::fs::metadata("/media/startos/config/disk.guid")
         .await
         .is_err()
     {
-        let ctx = SetupContext::init(server, config)?;
+        let ctx = SetupContext::init(server, config.clone())?;
 
         server.serve_ui_for(ctx.clone());
 
@@ -156,9 +125,9 @@ async fn setup_or_init(
             disk_phase.start();
             let guid_string = tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                 .await?;
-            let disk_guid = Arc::new(String::from(guid_string.trim()));
+            let disk_guid = InternedString::intern(guid_string.trim());
             let requires_reboot = crate::disk::main::import(
-                &**disk_guid,
+                &*disk_guid,
                 DATA_DIR,
                 if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
                     RepairStrategy::Aggressive
@@ -236,11 +205,10 @@ pub async fn main(
                         .await
                         .is_ok()
                     {
-                        Some(Arc::new(
+                        Some(InternedString::intern(
                             tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                                 .await?
-                                .trim()
-                                .to_owned(),
+                                .trim(),
                         ))
                     } else {
                         None

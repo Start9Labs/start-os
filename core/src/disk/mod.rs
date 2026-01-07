@@ -25,6 +25,8 @@ pub struct OsPartitionInfo {
     pub bios: Option<PathBuf>,
     pub boot: PathBuf,
     pub root: PathBuf,
+    #[serde(skip)] // internal use only
+    pub data: Option<PathBuf>,
 }
 impl OsPartitionInfo {
     pub fn contains(&self, logicalname: impl AsRef<Path>) -> bool {

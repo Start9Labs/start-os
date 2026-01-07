@@ -23,7 +23,7 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::context::config::{ClientConfig, local_config_path};
-use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
+use crate::context::{DiagnosticContext, InitContext, RpcContext, SetupContext};
 use crate::developer::{OS_DEVELOPER_KEY_PATH, default_developer_key_path};
 use crate::middleware::auth::local::LocalAuthContext;
 use crate::prelude::*;
@@ -376,25 +376,6 @@ impl CallRemote<InitContext> for CliContext {
     }
 }
 impl CallRemote<SetupContext> for CliContext {
-    async fn call_remote(
-        &self,
-        method: &str,
-        _: OrdMap<&'static str, Value>,
-        params: Value,
-        _: Empty,
-    ) -> Result<Value, RpcError> {
-        crate::middleware::auth::signature::call_remote(
-            self,
-            self.rpc_url.clone(),
-            HeaderMap::new(),
-            self.rpc_url.host_str(),
-            method,
-            params,
-        )
-        .await
-    }
-}
-impl CallRemote<InstallContext> for CliContext {
     async fn call_remote(
         &self,
         method: &str,

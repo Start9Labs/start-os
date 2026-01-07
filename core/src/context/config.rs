@@ -111,8 +111,6 @@ impl ClientConfig {
 pub struct ServerConfig {
     #[arg(short, long)]
     pub config: Option<PathBuf>,
-    #[arg(long)]
-    pub ethernet_interface: Option<String>,
     #[arg(skip)]
     pub os_partitions: Option<OsPartitionInfo>,
     #[arg(long)]
@@ -131,7 +129,6 @@ impl ContextConfig for ServerConfig {
         self.config.take()
     }
     fn merge_with(&mut self, other: Self) {
-        self.ethernet_interface = self.ethernet_interface.take().or(other.ethernet_interface);
         self.os_partitions = self.os_partitions.take().or(other.os_partitions);
         self.socks_listen = self.socks_listen.take().or(other.socks_listen);
         self.revision_cache_size = self

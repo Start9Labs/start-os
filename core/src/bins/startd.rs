@@ -1,6 +1,5 @@
 use std::cmp::max;
 use std::ffi::OsString;
-use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Parser;
@@ -15,11 +14,11 @@ use crate::context::{DiagnosticContext, InitContext, RpcContext};
 use crate::net::gateway::{BindTcp, SelfContainedNetworkInterfaceListener, UpgradableListener};
 use crate::net::static_server::refresher;
 use crate::net::web_server::{Acceptor, WebServer};
+use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::system::launch_metrics_task;
 use crate::util::io::append_file;
 use crate::util::logger::LOGGER;
-use crate::{Error, ErrorKind, ResultExt};
 
 #[instrument(skip_all)]
 async fn inner_main(
@@ -53,11 +52,10 @@ async fn inner_main(
         let ctx = RpcContext::init(
             &server.acceptor_setter(),
             config,
-            Arc::new(
+            InternedString::intern(
                 tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                     .await?
-                    .trim()
-                    .to_owned(),
+                    .trim(),
             ),
             None,
             rpc_ctx_phases,
@@ -167,11 +165,10 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
                                 .await
                                 .is_ok()
                             {
-                                Some(Arc::new(
+                                Some(InternedString::intern(
                                     tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                                         .await?
-                                        .trim()
-                                        .to_owned(),
+                                        .trim(),
                                 ))
                             } else {
                                 None

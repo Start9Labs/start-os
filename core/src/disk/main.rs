@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
+use imbl_value::InternedString;
 use tokio::process::Command;
 use tracing::instrument;
 
@@ -20,10 +21,10 @@ pub const MAIN_FS_SIZE: FsSize = FsSize::Gigabytes(8);
 #[instrument(skip_all)]
 pub async fn create<I, P>(
     disks: &I,
-    pvscan: &BTreeMap<PathBuf, Option<String>>,
+    pvscan: &BTreeMap<PathBuf, Option<InternedString>>,
     datadir: impl AsRef<Path>,
     password: Option<&str>,
-) -> Result<String, Error>
+) -> Result<InternedString, Error>
 where
     for<'a> &'a I: IntoIterator<Item = &'a P>,
     P: AsRef<Path>,
@@ -37,9 +38,9 @@ where
 #[instrument(skip_all)]
 pub async fn create_pool<I, P>(
     disks: &I,
-    pvscan: &BTreeMap<PathBuf, Option<String>>,
+    pvscan: &BTreeMap<PathBuf, Option<InternedString>>,
     encrypted: bool,
-) -> Result<String, Error>
+) -> Result<InternedString, Error>
 where
     for<'a> &'a I: IntoIterator<Item = &'a P>,
     P: AsRef<Path>,
@@ -79,7 +80,7 @@ where
         cmd.arg(disk.as_ref());
     }
     cmd.invoke(crate::ErrorKind::DiskManagement).await?;
-    Ok(guid)
+    Ok(guid.into())
 }
 
 #[derive(Debug, Clone, Copy)]

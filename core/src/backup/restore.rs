@@ -75,9 +75,9 @@ pub async fn restore_packages_rpc(
 }
 
 #[instrument(skip_all)]
-pub async fn recover_full_embassy(
+pub async fn recover_full_server(
     ctx: &SetupContext,
-    disk_guid: Arc<String>,
+    disk_guid: InternedString,
     start_os_password: String,
     recovery_source: TmpMountGuard,
     server_id: &str,
@@ -116,11 +116,13 @@ pub async fn recover_full_embassy(
         .await?;
     drop(db);
 
-    let init_result = init(&ctx.webserver, &ctx.config, init_phases).await?;
+    let config = ctx.config.peek(|c| c.clone());
+
+    let init_result = init(&ctx.webserver, &config, init_phases).await?;
 
     let rpc_ctx = RpcContext::init(
         &ctx.webserver,
-        &ctx.config,
+        &config,
         disk_guid.clone(),
         Some(init_result),
         rpc_ctx_phases,

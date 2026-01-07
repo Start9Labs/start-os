@@ -7,7 +7,7 @@ use crate::disk::util::DiskInfo;
 use crate::os_install::partition_for;
 
 pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionInfo, Error> {
-    {
+    let data_part = {
         let sectors = (disk.capacity / 512) as u32;
         let disk = disk.clone();
         tokio::task::spawn_blocking(move || {
@@ -59,6 +59,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                 sectors: 33556480 - 2099200,
             };
 
+            let mut data_part = true;
             if overwrite {
                 mbr[3] = MBRPartitionEntry {
                     boot: 0,
@@ -70,19 +71,22 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                 }
             } else if let Some(guid_part) = guid_part {
                 mbr[3] = guid_part;
+            } else {
+                data_part = false;
             }
             mbr.write_into(&mut file)?;
 
-            Ok(())
+            Ok(data_part)
         })
         .await
-        .unwrap()?;
-    }
+        .unwrap()?
+    };
 
     Ok(OsPartitionInfo {
         efi: None,
         bios: None,
         boot: partition_for(&disk.logicalname, 1),
         root: partition_for(&disk.logicalname, 2),
+        data: data_part.then(|| partition_for(&disk.logicalname, 3)),
     })
 }

@@ -18,7 +18,7 @@ use crate::MAIN_DATA;
 use crate::account::AccountInfo;
 use crate::context::RpcContext;
 use crate::context::config::ServerConfig;
-use crate::disk::OsPartitionInfo;
+use crate::disk::mount::guard::TmpMountGuard;
 use crate::hostname::Hostname;
 use crate::net::gateway::UpgradableListener;
 use crate::net::web_server::{WebServer, WebServerAcceptorSetter};
@@ -28,6 +28,7 @@ use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::setup::SetupProgress;
 use crate::shutdown::Shutdown;
 use crate::util::future::NonDetachingJoinHandle;
+use crate::util::sync::SyncMutex;
 
 lazy_static::lazy_static! {
     pub static ref CURRENT_SECRET: Jwk = Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).unwrap_or_else(|e| {
@@ -66,15 +67,15 @@ impl TryFrom<&AccountInfo> for SetupResult {
 
 pub struct SetupContextSeed {
     pub webserver: WebServerAcceptorSetter<UpgradableListener>,
-    pub config: ServerConfig,
-    pub os_partitions: OsPartitionInfo,
+    pub config: SyncMutex<ServerConfig>,
     pub disable_encryption: bool,
     pub progress: FullProgressTracker,
     pub task: OnceCell<NonDetachingJoinHandle<()>>,
     pub result: OnceCell<Result<(SetupResult, RpcContext), Error>>,
-    pub disk_guid: OnceCell<Arc<String>>,
+    pub disk_guid: OnceCell<InternedString>,
     pub shutdown: Sender<Option<Shutdown>>,
     pub rpc_continuations: RpcContinuations,
+    pub install_rootfs: SyncMutex<Option<TmpMountGuard>>,
 }
 
 #[derive(Clone)]
@@ -83,27 +84,22 @@ impl SetupContext {
     #[instrument(skip_all)]
     pub fn init(
         webserver: &WebServer<UpgradableListener>,
-        config: &ServerConfig,
+        config: ServerConfig,
     ) -> Result<Self, Error> {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let mut progress = FullProgressTracker::new();
         progress.enable_logging(true);
         Ok(Self(Arc::new(SetupContextSeed {
             webserver: webserver.acceptor_setter(),
-            config: config.clone(),
-            os_partitions: config.os_partitions.clone().ok_or_else(|| {
-                Error::new(
-                    eyre!("missing required configuration: `os-partitions`"),
-                    ErrorKind::NotFound,
-                )
-            })?,
             disable_encryption: config.disable_encryption.unwrap_or(false),
+            config: SyncMutex::new(config),
             progress,
             task: OnceCell::new(),
             result: OnceCell::new(),
             disk_guid: OnceCell::new(),
             shutdown,
             rpc_continuations: RpcContinuations::new(),
+            install_rootfs: SyncMutex::new(None),
         })))
     }
     #[instrument(skip_all)]

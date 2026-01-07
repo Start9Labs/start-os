@@ -12,8 +12,8 @@ RUST_ARCH := $(shell if [ "$(ARCH)" = "riscv64" ]; then echo riscv64gc; else ech
 REGISTRY_BASENAME := $(shell PROJECT=start-registry PLATFORM=$(ARCH) ./build/env/basename.sh)
 TUNNEL_BASENAME := $(shell PROJECT=start-tunnel PLATFORM=$(ARCH) ./build/env/basename.sh)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
-WEB_UIS := web/dist/raw/ui/index.html web/dist/raw/setup-wizard/index.html web/dist/raw/install-wizard/index.html
-COMPRESSED_WEB_UIS := web/dist/static/ui/index.html web/dist/static/setup-wizard/index.html web/dist/static/install-wizard/index.html
+WEB_UIS := web/dist/raw/ui/index.html web/dist/raw/setup-wizard/index.html
+COMPRESSED_WEB_UIS := web/dist/static/ui/index.html web/dist/static/setup-wizard/index.html
 FIRMWARE_ROMS := build/lib/firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./build/lib/firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
 BUILD_SRC := $(call ls-files, build/lib) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS)
 IMAGE_RECIPE_SRC := $(call ls-files, build/image-recipe/)
@@ -22,7 +22,6 @@ CORE_SRC := $(call ls-files, core) $(shell git ls-files --recurse-submodules pat
 WEB_SHARED_SRC := $(call ls-files, web/projects/shared) $(call ls-files, web/projects/marketplace) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist/index.js sdk/baseDist/package.json web/patchdb-ui-seed.json sdk/dist/package.json
 WEB_UI_SRC := $(call ls-files, web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(call ls-files, web/projects/setup-wizard)
-WEB_INSTALL_WIZARD_SRC := $(call ls-files, web/projects/install-wizard)
 WEB_START_TUNNEL_SRC := $(call ls-files, web/projects/start-tunnel)
 PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client)
 GZIP_BIN := $(shell which pigz || which gzip)
@@ -332,10 +331,6 @@ web/dist/raw/ui/index.html: $(WEB_UI_SRC) $(WEB_SHARED_SRC) web/.angular/.update
 web/dist/raw/setup-wizard/index.html: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular/.updated
 	npm --prefix web run build:setup
 	touch web/dist/raw/setup-wizard/index.html
-
-web/dist/raw/install-wizard/index.html: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular/.updated
-	npm --prefix web run build:install
-	touch web/dist/raw/install-wizard/index.html
 
 web/dist/raw/start-tunnel/index.html: $(WEB_START_TUNNEL_SRC) $(WEB_SHARED_SRC) web/.angular/.updated
 	npm --prefix web run build:tunnel

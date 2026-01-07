@@ -20,9 +20,9 @@ use super::mount::guard::TmpMountGuard;
 use crate::disk::OsPartitionInfo;
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::hostname::Hostname;
+use crate::prelude::*;
 use crate::util::Invoke;
 use crate::util::serde::IoFormat;
-use crate::{Error, ResultExt as _};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,7 +40,7 @@ pub struct DiskInfo {
     pub model: Option<String>,
     pub partitions: Vec<PartitionInfo>,
     pub capacity: u64,
-    pub guid: Option<String>,
+    pub guid: Option<InternedString>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -51,7 +51,7 @@ pub struct PartitionInfo {
     pub capacity: u64,
     pub used: Option<u64>,
     pub start_os: BTreeMap<String, StartOsRecoveryInfo>,
-    pub guid: Option<String>,
+    pub guid: Option<InternedString>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -215,7 +215,7 @@ pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
 }
 
 #[instrument(skip_all)]
-pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<String>>, Error> {
+pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<InternedString>>, Error> {
     let pvscan_out = Command::new("pvscan")
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
@@ -448,7 +448,7 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
     }
 }
 
-fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<String>> {
+fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<InternedString>> {
     fn parse_line(line: &str) -> IResult<&str, (&str, Option<&str>)> {
         let pv_parse = preceded(
             tag("  PV "),
@@ -471,7 +471,7 @@ fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<String>>
     for entry in entries {
         match parse_line(entry) {
             Ok((_, (pv, vg))) => {
-                ret.insert(PathBuf::from(pv), vg.map(|s| s.to_owned()));
+                ret.insert(PathBuf::from(pv), vg.map(InternedString::intern));
             }
             Err(_) => {
                 tracing::warn!("Failed to parse pvscan output line: {}", entry);
