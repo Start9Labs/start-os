@@ -8,7 +8,7 @@ pub use std::env::consts::ARCH;
 lazy_static::lazy_static! {
     pub static ref PLATFORM: String = {
         if let Ok(platform) = std::fs::read_to_string("/usr/lib/startos/PLATFORM.txt") {
-            platform
+            platform.trim().to_string()
         } else {
             ARCH.to_string()
         }
@@ -16,6 +16,17 @@ lazy_static::lazy_static! {
     pub static ref SOURCE_DATE: SystemTime = {
         std::fs::metadata(std::env::current_exe().unwrap()).unwrap().modified().unwrap()
     };
+}
+
+/// Map a platform string to its architecture
+pub fn platform_to_arch(platform: &str) -> &str {
+    if let Some(arch) = platform.strip_suffix("-nonfree") {
+        return arch;
+    }
+    match platform {
+        "raspberrypi" | "rockchip64" => "aarch64",
+        _ => platform,
+    }
 }
 
 mod cap {
@@ -245,6 +256,15 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
         .subcommand("setup", setup::setup::<C>());
     if &*PLATFORM != "raspberrypi" {
         api = api.subcommand("kiosk", kiosk::<C>());
+    }
+    #[cfg(target_os = "linux")]
+    {
+        api = api.subcommand(
+            "flash-os",
+            from_fn_async(os_install::cli_install_os)
+                .no_display()
+                .with_about("Flash StartOS to a disk from a squashfs"),
+        );
     }
     api
 }

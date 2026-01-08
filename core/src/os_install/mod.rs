@@ -6,8 +6,9 @@ use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 
-use crate::context::SetupContext;
+use crate::Error;
 use crate::context::config::ServerConfig;
+use crate::context::{CliContext, SetupContext};
 use crate::disk::OsPartitionInfo;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
@@ -15,17 +16,29 @@ use crate::disk::mount::filesystem::efivarfs::EfiVarFs;
 use crate::disk::mount::filesystem::overlayfs::OverlayFs;
 use crate::disk::mount::filesystem::{MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
-use crate::disk::util::{DiskInfo, PartitionTable};
+use crate::disk::util::PartitionTable;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::setup::SetupInfo;
 use crate::util::Invoke;
 use crate::util::io::{TmpDir, delete_file, open_file, write_file_atomic};
 use crate::util::serde::IoFormat;
-use crate::{ARCH, Error};
 
 mod gpt;
 mod mbr;
+
+/// Probe a squashfs image to determine its target architecture
+async fn probe_squashfs_arch(squashfs_path: &Path) -> Result<InternedString, Error> {
+    let output = String::from_utf8(
+        Command::new("unsquashfs")
+            .arg("-cat")
+            .arg(squashfs_path)
+            .arg("usr/lib/startos/PLATFORM.txt")
+            .invoke(ErrorKind::ParseSysInfo)
+            .await?,
+    )?;
+    Ok(crate::platform_to_arch(&output.trim()).into())
+}
 
 pub fn partition_for(disk: impl AsRef<Path>, idx: u32) -> PathBuf {
     let disk_path = disk.as_ref();
@@ -44,16 +57,49 @@ pub fn partition_for(disk: impl AsRef<Path>, idx: u32) -> PathBuf {
     }
 }
 
-async fn partition(disk: &mut DiskInfo, overwrite: bool) -> Result<OsPartitionInfo, Error> {
-    let partition_type = match (overwrite, disk.partition_table) {
+async fn partition(
+    disk_path: &Path,
+    capacity: u64,
+    partition_table: Option<PartitionTable>,
+    protect: Option<&Path>,
+    use_efi: bool,
+) -> Result<OsPartitionInfo, Error> {
+    let partition_type = match (protect.is_none(), partition_table) {
         (true, _) | (_, None) => PartitionTable::Gpt,
         (_, Some(t)) => t,
     };
-    disk.partition_table = Some(partition_type);
     match partition_type {
-        PartitionTable::Gpt => gpt::partition(disk, overwrite).await,
-        PartitionTable::Mbr => mbr::partition(disk, overwrite).await,
+        PartitionTable::Gpt => gpt::partition(disk_path, capacity, protect, use_efi).await,
+        PartitionTable::Mbr => mbr::partition(disk_path, capacity, protect).await,
     }
+}
+
+async fn get_block_device_size(path: impl AsRef<Path>) -> Result<u64, Error> {
+    let path = path.as_ref();
+    let device_name = path.file_name().and_then(|s| s.to_str()).ok_or_else(|| {
+        Error::new(
+            eyre!("Invalid block device path: {}", path.display()),
+            ErrorKind::BlockDevice,
+        )
+    })?;
+    let size_path = Path::new("/sys/block").join(device_name).join("size");
+    let sectors: u64 = tokio::fs::read_to_string(&size_path)
+        .await
+        .with_ctx(|_| {
+            (
+                ErrorKind::BlockDevice,
+                format!("reading {}", size_path.display()),
+            )
+        })?
+        .trim()
+        .parse()
+        .map_err(|e| {
+            Error::new(
+                eyre!("Failed to parse block device size: {}", e),
+                ErrorKind::BlockDevice,
+            )
+        })?;
+    Ok(sectors * 512)
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -75,36 +121,25 @@ struct DataDrive {
     wipe: bool,
 }
 
-pub async fn install_os(
-    ctx: SetupContext,
-    InstallOsParams {
-        os_drive,
-        data_drive,
-    }: InstallOsParams,
-) -> Result<SetupInfo, Error> {
-    let mut disks = crate::disk::util::list(&Default::default()).await?;
-    let disk = disks
-        .iter_mut()
-        .find(|d| &d.logicalname == &os_drive)
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("Unknown disk {}", os_drive.display()),
-                crate::ErrorKind::DiskManagement,
-            )
-        })?;
+pub struct InstallOsResult {
+    pub part_info: OsPartitionInfo,
+    pub rootfs: TmpMountGuard,
+}
 
-    let overwrite = if let Some(data_drive) = &data_drive {
-        data_drive.wipe
-            || ((disk.guid.is_none() || disk.logicalname != data_drive.logicalname)
-                && disk
-                    .partitions
-                    .iter()
-                    .all(|p| p.guid.is_none() || p.logicalname != data_drive.logicalname))
-    } else {
-        true
-    };
+pub async fn install_os_to(
+    squashfs_path: impl AsRef<Path>,
+    disk_path: impl AsRef<Path>,
+    capacity: u64,
+    partition_table: Option<PartitionTable>,
+    protect: Option<impl AsRef<Path>>,
+    arch: &str,
+    use_efi: bool,
+) -> Result<InstallOsResult, Error> {
+    let squashfs_path = squashfs_path.as_ref();
+    let disk_path = disk_path.as_ref();
+    let protect = protect.as_ref().map(|p| p.as_ref());
 
-    let part_info = partition(disk, overwrite).await?;
+    let part_info = partition(disk_path, capacity, partition_table, protect, use_efi).await?;
 
     if let Some(efi) = &part_info.efi {
         Command::new("mkfs.vfat")
@@ -128,7 +163,7 @@ pub async fn install_os(
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
 
-    if !overwrite {
+    if protect.is_some() {
         if let Ok(guard) =
             TmpMountGuard::mount(&BlockDev::new(part_info.root.clone()), MountType::ReadWrite).await
         {
@@ -189,13 +224,13 @@ pub async fn install_os(
     tokio::fs::create_dir_all(&images_path).await?;
     let image_path = images_path
         .join(hex::encode(
-            &MultiCursorFile::from(open_file("/run/live/medium/live/filesystem.squashfs").await?)
+            &MultiCursorFile::from(open_file(squashfs_path).await?)
                 .blake3_mmap()
                 .await?
                 .as_bytes()[..16],
         ))
         .with_extension("rootfs");
-    tokio::fs::copy("/run/live/medium/live/filesystem.squashfs", &image_path).await?;
+    tokio::fs::copy(squashfs_path, &image_path).await?;
     // TODO: check hash of fs
     let unsquash_target = TmpDir::new().await?;
     let bootfs = MountGuard::mount(
@@ -209,7 +244,7 @@ pub async fn install_os(
         .arg("-f")
         .arg("-d")
         .arg(&*unsquash_target)
-        .arg("/run/live/medium/live/filesystem.squashfs")
+        .arg(squashfs_path)
         .arg("boot")
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
@@ -230,8 +265,6 @@ pub async fn install_os(
         })?,
     )
     .await?;
-    ctx.config
-        .mutate(|c| c.os_partitions = Some(part_info.clone()));
 
     let lower = TmpMountGuard::mount(&BlockDev::new(&image_path), MountType::ReadOnly).await?;
     let work = config_path.join("work");
@@ -313,13 +346,13 @@ pub async fn install_os(
 
     let mut install = Command::new("chroot");
     install.arg(overlay.path()).arg("grub-install");
-    if tokio::fs::metadata("/sys/firmware/efi").await.is_err() {
-        match ARCH {
+    if !use_efi {
+        match arch {
             "x86_64" => install.arg("--target=i386-pc"),
             _ => &mut install,
         };
     } else {
-        match ARCH {
+        match arch {
             "x86_64" => install.arg("--target=x86_64-efi"),
             "aarch64" => install.arg("--target=arm64-efi"),
             "riscv64" => install.arg("--target=riscv64-efi"),
@@ -327,7 +360,7 @@ pub async fn install_os(
         };
     }
     install
-        .arg(&disk.logicalname)
+        .arg(disk_path)
         .invoke(crate::ErrorKind::Grub)
         .await?;
 
@@ -351,6 +384,62 @@ pub async fn install_os(
     overlay.unmount().await?;
     tokio::fs::remove_dir_all(&work).await?;
     lower.unmount().await?;
+
+    Ok(InstallOsResult { part_info, rootfs })
+}
+
+pub async fn install_os(
+    ctx: SetupContext,
+    InstallOsParams {
+        os_drive,
+        data_drive,
+    }: InstallOsParams,
+) -> Result<SetupInfo, Error> {
+    let mut disks = crate::disk::util::list(&Default::default()).await?;
+    let disk = disks
+        .iter_mut()
+        .find(|d| &d.logicalname == &os_drive)
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("Unknown disk {}", os_drive.display()),
+                crate::ErrorKind::DiskManagement,
+            )
+        })?;
+
+    let protect: Option<PathBuf> = data_drive.as_ref().and_then(|dd| {
+        if dd.wipe {
+            return None;
+        }
+        if disk.guid.as_ref().map_or(false, |g| {
+            g.starts_with("EMBASSY_") || g.starts_with("STARTOS_")
+        }) && disk.logicalname == dd.logicalname
+        {
+            return Some(disk.logicalname.clone());
+        }
+        disk.partitions
+            .iter()
+            .find(|p| {
+                p.guid.as_ref().map_or(false, |g| {
+                    g.starts_with("EMBASSY_") || g.starts_with("STARTOS_")
+                })
+            })
+            .map(|p| p.logicalname.clone())
+    });
+
+    let use_efi = tokio::fs::metadata("/sys/firmware/efi").await.is_ok();
+    let InstallOsResult { part_info, rootfs } = install_os_to(
+        "/run/live/medium/live/filesystem.squashfs",
+        &disk.logicalname,
+        disk.capacity,
+        disk.partition_table,
+        protect.as_ref(),
+        crate::ARCH,
+        use_efi,
+    )
+    .await?;
+
+    ctx.config
+        .mutate(|c| c.os_partitions = Some(part_info.clone()));
 
     let mut setup_info = SetupInfo::default();
 
@@ -395,4 +484,47 @@ pub async fn install_os(
     ctx.install_rootfs.replace(Some(rootfs));
 
     Ok(setup_info)
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct CliInstallOsParams {
+    #[arg(help = "Path to the squashfs image to install")]
+    squashfs: PathBuf,
+    #[arg(help = "Target disk to install to (e.g., /dev/sda or /dev/loop0)")]
+    disk: PathBuf,
+    #[arg(long, help = "Use EFI boot (default: true for GPT disks)")]
+    efi: Option<bool>,
+}
+
+pub async fn cli_install_os(
+    _ctx: CliContext,
+    CliInstallOsParams {
+        squashfs,
+        disk,
+        efi,
+    }: CliInstallOsParams,
+) -> Result<OsPartitionInfo, Error> {
+    let capacity = get_block_device_size(&disk).await?;
+    let partition_table = crate::disk::util::get_partition_table(&disk).await?;
+
+    let arch = probe_squashfs_arch(&squashfs).await?;
+
+    let use_efi = efi.unwrap_or_else(|| !matches!(partition_table, Some(PartitionTable::Mbr)));
+
+    let InstallOsResult { part_info, rootfs } = install_os_to(
+        &squashfs,
+        &disk,
+        capacity,
+        partition_table,
+        None::<&str>,
+        &*arch,
+        use_efi,
+    )
+    .await?;
+
+    rootfs.unmount().await?;
+
+    Ok(part_info)
 }

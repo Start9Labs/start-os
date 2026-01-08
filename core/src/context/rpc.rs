@@ -279,7 +279,7 @@ impl RpcContext {
                             .arg("100000")
                             .invoke(ErrorKind::Filesystem)
                             .await?;
-                        tmp.unmount_and_delete().await?;
+                        // tmp.unmount_and_delete().await?;
                     }
                     BlockDev::new(&sqfs)
                         .mount(NVIDIA_OVERLAY_PATH, ReadOnly)
