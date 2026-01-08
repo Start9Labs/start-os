@@ -27,8 +27,10 @@ use crate::context::config::ServerConfig;
 use crate::db::model::Database;
 use crate::db::model::package::TaskSeverity;
 use crate::disk::OsPartitionInfo;
-use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::filesystem::bind::Bind;
+use crate::disk::mount::filesystem::block_dev::BlockDev;
+use crate::disk::mount::filesystem::loop_dev::LoopDev;
+use crate::disk::mount::filesystem::{FileSystem, ReadOnly};
 use crate::disk::mount::guard::MountGuard;
 use crate::init::{InitResult, check_time_is_synchronized};
 use crate::install::PKG_ARCHIVE_DIR;
@@ -49,7 +51,7 @@ use crate::service::effects::subcontainer::NVIDIA_OVERLAY_PATH;
 use crate::shutdown::Shutdown;
 use crate::util::Invoke;
 use crate::util::future::NonDetachingJoinHandle;
-use crate::util::io::delete_file;
+use crate::util::io::{TmpDir, delete_file};
 use crate::util::lshw::LshwDevice;
 use crate::util::sync::{SyncMutex, SyncRwLock, Watch};
 use crate::{ActionId, DATA_DIR, PLATFORM, PackageId};
@@ -174,35 +176,82 @@ impl RpcContext {
         tracing::info!("Initialized Net Controller");
 
         if PLATFORM.ends_with("-nonfree") {
-            if let Err(e) = Command::new("nvidia-modprobe")
+            if let Err(e) = Command::new("nvidia-smi")
                 .invoke(ErrorKind::ParseSysInfo)
                 .await
             {
                 tracing::warn!("nvidia-modprobe: {e}");
                 tracing::info!("The above warning can be ignored if no NVIDIA card is present");
             } else {
-                if let Some(procfs) = MountGuard::mount(
-                    &Bind::new("/proc"),
-                    Path::new(NVIDIA_OVERLAY_PATH).join("proc"),
-                    ReadOnly,
-                )
-                .await
-                .log_err()
-                {
-                    Command::new("nvidia-container-cli")
-                        .arg("configure")
-                        .arg("--no-devbind")
-                        .arg("--no-cgroups")
-                        .arg("--utility")
-                        .arg("--compute")
-                        .arg("--graphics")
-                        .arg("--video")
-                        .arg(NVIDIA_OVERLAY_PATH)
-                        .invoke(ErrorKind::Unknown)
-                        .await
-                        .log_err();
-                    procfs.unmount(true).await.log_err();
+                async {
+                    let version: InternedString = String::from_utf8(
+                        Command::new("modinfo")
+                            .arg("-F")
+                            .arg("version")
+                            .arg("nvidia")
+                            .invoke(ErrorKind::ParseSysInfo)
+                            .await?,
+                    )?
+                    .trim()
+                    .into();
+                    let sqfs = Path::new("/media/startos/data/package-data/nvidia")
+                        .join(&*version)
+                        .join("container-overlay.squashfs");
+                    if tokio::fs::metadata(&sqfs).await.is_err() {
+                        let tmp = TmpDir::new().await?;
+                        let procfs = MountGuard::mount(
+                            &Bind::new("/proc"),
+                            Path::new(&*tmp).join("proc"),
+                            ReadOnly,
+                        )
+                        .await?;
+                        Command::new("nvidia-container-cli")
+                            .arg("configure")
+                            .arg("--no-devbind")
+                            .arg("--no-cgroups")
+                            .arg("--utility")
+                            .arg("--compute")
+                            .arg("--graphics")
+                            .arg("--video")
+                            .arg(&*tmp)
+                            .invoke(ErrorKind::Unknown)
+                            .await?;
+                        procfs.unmount(true).await?;
+                        Command::new("ln")
+                            .arg("-rsf")
+                            .arg(
+                                tmp.join("usr/lib64/libnvidia-ml.so")
+                                    .with_added_extension(&*version),
+                            )
+                            .arg(tmp.join("usr/lib64/libnvidia-ml.so.1"))
+                            .invoke(ErrorKind::Filesystem)
+                            .await?;
+                        Command::new("chown")
+                            .arg("-R")
+                            .arg("100000:100000")
+                            .arg(&*tmp)
+                            .invoke(ErrorKind::Filesystem)
+                            .await?;
+                        if let Some(p) = sqfs.parent() {
+                            tokio::fs::create_dir_all(p)
+                                .await
+                                .with_ctx(|_| (ErrorKind::Filesystem, format!("mkdir -p {p:?}")))?;
+                        }
+                        Command::new("mksquashfs")
+                            .arg(&*tmp)
+                            .arg(&sqfs)
+                            .invoke(ErrorKind::Filesystem)
+                            .await?;
+                        tmp.unmount_and_delete().await?;
+                    }
+                    BlockDev::new(&sqfs)
+                        .mount(NVIDIA_OVERLAY_PATH, ReadOnly)
+                        .await?;
+
+                    Ok::<_, Error>(())
                 }
+                .await
+                .log_err();
             }
         }
 

@@ -892,6 +892,16 @@ impl TmpDir {
         Ok(())
     }
 
+    pub fn leak(mut self) {
+        std::mem::take(&mut self.path);
+    }
+
+    pub async fn unmount_and_delete(self) -> Result<(), Error> {
+        crate::disk::mount::util::unmount_all_under(&self.path, false).await?;
+        tokio::fs::remove_dir_all(&self.path).await?;
+        Ok(())
+    }
+
     pub async fn gc(self: Arc<Self>) -> Result<(), Error> {
         if let Ok(dir) = Arc::try_unwrap(self) {
             dir.delete().await

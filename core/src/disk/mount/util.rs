@@ -3,6 +3,7 @@ use std::path::Path;
 use tracing::instrument;
 
 use crate::Error;
+use crate::prelude::*;
 use crate::util::Invoke;
 
 pub async fn is_mountpoint(path: impl AsRef<Path>) -> Result<bool, Error> {
@@ -54,5 +55,44 @@ pub async fn unmount<P: AsRef<Path>>(mountpoint: P, lazy: bool) -> Result<(), Er
     cmd.arg(mountpoint.as_ref())
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
+    Ok(())
+}
+
+/// Unmounts all mountpoints under (and including) the given path, in reverse
+/// depth order so that nested mounts are unmounted before their parents.
+#[instrument(skip_all)]
+pub async fn unmount_all_under<P: AsRef<Path>>(path: P, lazy: bool) -> Result<(), Error> {
+    let path = path.as_ref();
+    let canonical_path = tokio::fs::canonicalize(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("canonicalize {path:?}")))?;
+
+    let mounts_content = tokio::fs::read_to_string("/proc/mounts")
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, "read /proc/mounts"))?;
+
+    // Collect all mountpoints under our path
+    let mut mountpoints: Vec<&str> = mounts_content
+        .lines()
+        .filter_map(|line| {
+            let mountpoint = line.split_whitespace().nth(1)?;
+            // Check if this mountpoint is under our target path
+            let mp_path = Path::new(mountpoint);
+            if mp_path.starts_with(&canonical_path) {
+                Some(mountpoint)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Sort by path length descending so we unmount deepest first
+    mountpoints.sort_by(|a, b| b.len().cmp(&a.len()));
+
+    for mountpoint in mountpoints {
+        tracing::debug!("Unmounting nested mountpoint: {}", mountpoint);
+        unmount(mountpoint, lazy).await?;
+    }
+
     Ok(())
 }

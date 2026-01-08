@@ -1,0 +1,20 @@
+#!/bin/bash
+
+export DEBIAN_FRONTEND=noninteractive
+export DEBCONF_NONINTERACTIVE_SEEN=true
+
+TMP_DIR=$(mktemp -d)
+
+(
+    set -e
+    cd $TMP_DIR
+
+    cat > control.equivs
+    equivs-build control.equivs
+    apt-get install -y ./*.deb < /dev/null
+)
+
+rm -rf $TMP_DIR
+
+echo Install complete. >&2
+exit 0

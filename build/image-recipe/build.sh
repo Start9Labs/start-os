@@ -203,16 +203,14 @@ cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
 set -e
 
 if [ "${NON_FREE}" = "1" ]; then
-    # install latest NVIDIA driver in a given major series
+    # install a specific NVIDIA driver version
 
     # ---------------- configuration ----------------
-
-    # Major driver series, e.g. 550, 560, 570
-    NVIDIA_MAJOR="\${NVIDIA_MAJOR:-580}"
+    NVIDIA_DRIVER_VERSION="\${NVIDIA_DRIVER_VERSION:-580.119.02}"
 
     BASE_URL="https://download.nvidia.com/XFree86/Linux-${QEMU_ARCH}"
 
-    echo "[nvidia-hook] Using NVIDIA major series: \${NVIDIA_MAJOR}" >&2
+    echo "[nvidia-hook] Using NVIDIA driver: \${NVIDIA_DRIVER_VERSION}" >&2
 
     # ---------------- kernel version ----------------
 
@@ -231,36 +229,26 @@ if [ "${NON_FREE}" = "1" ]; then
     echo "[nvidia-hook] Target kernel version: \${KVER}" >&2
 
     # Ensure kernel headers are present
+	TEMP_APT_DEPS=(build-essential)
     if [ ! -e "/lib/modules/\${KVER}/build" ]; then
-		apt-get install linux-headers-\${KVER}
-        echo "[nvidia-hook] ERROR: /lib/modules/\${KVER}/build missing; install headers for \${KVER} before this hook." >&2
-        exit 1
+		TEMP_APT_DEPS+=(linux-headers-\${KVER})
     fi
 
-    # ---------------- find latest driver in major series ----------------
+    echo "[nvidia-hook] Installing build dependencies" >&2
 
-    echo "[nvidia-hook] Fetching version list from \${BASE_URL}/" >&2
-
-    NVIDIA_VER="\$(
-        curl -fsSL "\${BASE_URL}/" \
-            | sed -n 's/.*href="([0-9][0-9][0-9][0-9.]*)/".*/\u0001/p' \
-            | grep -E "^\${NVIDIA_MAJOR}." \
-            | sort -V \
-            | tail -n1
-    )"
-
-    if [ -z "\${NVIDIA_VER}" ]; then
-        echo "[nvidia-hook] ERROR: could not find NVIDIA series \${NVIDIA_MAJOR} under \${BASE_URL}/" >&2
-        exit 1
-    fi
-
-    echo "[nvidia-hook] Selected NVIDIA driver version: \${NVIDIA_VER}" >&2
+	/usr/lib/startos/scripts/install-equivs <<-EOF
+	Package: nvidia-depends
+	Version: \${NVIDIA_DRIVER_VERSION}
+	Section: unknown
+	Priority: optional
+	Depends: \${dep_list="\$(IFS=', '; echo "\${TEMP_APT_DEPS[*]}")"}
+	EOF
 
     # ---------------- download and run installer ----------------
 
-    RUN_NAME="NVIDIA-Linux-${QEMU_ARCH}-\${NVIDIA_VER}.run"
+    RUN_NAME="NVIDIA-Linux-${QEMU_ARCH}-\${NVIDIA_DRIVER_VERSION}.run"
     RUN_PATH="/root/\${RUN_NAME}"
-    RUN_URL="\${BASE_URL}/\${NVIDIA_VER}/\${RUN_NAME}"
+    RUN_URL="\${BASE_URL}/\${NVIDIA_DRIVER_VERSION}/\${RUN_NAME}"
 
     echo "[nvidia-hook] Downloading \${RUN_URL}" >&2
     wget -O "\${RUN_PATH}" "\${RUN_URL}"
@@ -279,7 +267,12 @@ if [ "${NON_FREE}" = "1" ]; then
     echo "[nvidia-hook] Running depmod for \${KVER}" >&2
     depmod -a "\${KVER}"
 
-    echo "[nvidia-hook] NVIDIA \${NVIDIA_VER} installation complete for kernel \${KVER}" >&2
+    echo "[nvidia-hook] NVIDIA \${NVIDIA_DRIVER_VERSION} installation complete for kernel \${KVER}" >&2
+
+    echo "[nvidia-hook] Removing build dependencies..." >&2
+	apt-get purge -y nvidia-depends
+	apt-get autoremove -y
+    echo "[nvidia-hook] Removed build dependencies." >&2
 fi
 
 cp /etc/resolv.conf /etc/resolv.conf.bak

@@ -116,6 +116,8 @@ pub async fn create_subcontainer_fs(
         tracing::info!("Mounting overlay {guid} for {image_id}");
         let subcontainer_wrapper = Subcontainer {
             overlay: OverlayGuard::mount_layers(
+                &[],
+                image,
                 if context
                     .seed
                     .persistent_container
@@ -130,8 +132,6 @@ pub async fn create_subcontainer_fs(
                 } else {
                     &[]
                 },
-                image,
-                &[],
                 &mountpoint,
             )
             .await?,

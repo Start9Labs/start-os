@@ -16,6 +16,7 @@ dnsutils
 dosfstools
 e2fsprogs
 ecryptfs-utils
+equivs
 exfatprogs
 flashrom
 fuse3
