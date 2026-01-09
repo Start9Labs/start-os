@@ -153,10 +153,21 @@ export type SDKManifest = {
 
 // this is hacky but idk a more elegant way
 type ArchOptions = {
-  0: ["x86_64", "aarch64"]
-  1: ["aarch64", "x86_64"]
-  2: ["x86_64"]
-  3: ["aarch64"]
+  0: ["x86_64", "aarch64", "riscv64"]
+  1: ["aarch64", "x86_64", "riscv64"]
+  2: ["x86_64", "riscv64", "aarch64"]
+  3: ["aarch64", "riscv64", "x86_64"]
+  4: ["riscv64", "x86_64", "aarch64"]
+  5: ["riscv64", "aarch64", "x86_64"]
+  6: ["x86_64", "aarch64"]
+  7: ["aarch64", "x86_64"]
+  8: ["x86_64", "riscv64"]
+  9: ["aarch64", "riscv64"]
+  10: ["riscv64", "aarch64"]
+  11: ["riscv64", "x86_64"]
+  12: ["x86_64"]
+  13: ["aarch64"]
+  14: ["riscv64"]
 }
 export type SDKImageInputSpec = {
   [A in keyof ArchOptions]: {

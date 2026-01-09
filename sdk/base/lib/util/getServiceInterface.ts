@@ -5,6 +5,7 @@ import { Effects } from "../Effects"
 import { DropGenerator, DropPromise } from "./Drop"
 import { IpAddress, IPV6_LINK_LOCAL } from "./ip"
 import { deepEqual } from "./deepEqual"
+import { once } from "./once"
 
 export type UrlString = string
 export type HostId = string
@@ -255,6 +256,21 @@ export const filledAddress = (
   function filledAddressFromHostnames<F extends Filter>(
     hostnames: HostnameInfo[],
   ): Filled<F> & AddressInfo {
+    const getNonLocal = once(() =>
+      filledAddressFromHostnames<typeof nonLocalFilter & F>(
+        filterRec(hostnames, nonLocalFilter, false),
+      ),
+    )
+    const getPublic = once(() =>
+      filledAddressFromHostnames<typeof publicFilter & F>(
+        filterRec(hostnames, publicFilter, false),
+      ),
+    )
+    const getOnion = once(() =>
+      filledAddressFromHostnames<typeof onionFilter & F>(
+        filterRec(hostnames, onionFilter, false),
+      ),
+    )
     return {
       ...addressInfo,
       hostnames,
@@ -273,19 +289,13 @@ export const filledAddress = (
         )
       },
       get nonLocal(): Filled<typeof nonLocalFilter & F> {
-        return filledAddressFromHostnames<typeof nonLocalFilter & F>(
-          filterRec(hostnames, nonLocalFilter, false),
-        )
+        return getNonLocal()
       },
       get public(): Filled<typeof publicFilter & F> {
-        return filledAddressFromHostnames<typeof publicFilter & F>(
-          filterRec(hostnames, publicFilter, false),
-        )
+        return getPublic()
       },
       get onion(): Filled<typeof onionFilter & F> {
-        return filledAddressFromHostnames<typeof onionFilter & F>(
-          filterRec(hostnames, onionFilter, false),
-        )
+        return getOnion()
       },
     }
   }

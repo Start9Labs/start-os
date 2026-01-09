@@ -703,22 +703,22 @@ async fn watch_ip(
                                             .into_iter()
                                             .map(IpNet::try_from)
                                             .try_collect()?;
-                                        let tables = ip4_proxy.route_data().await?.into_iter().filter_map(|d|d.table).collect::<Vec<_>>();
-                                        if !tables.is_empty() {
-                                            let rules = String::from_utf8(Command::new("ip").arg("rule").arg("list").invoke(ErrorKind::Network).await?)?;
-                                            for table in tables {
-                                                for subnet in subnets.iter().filter(|s| s.addr().is_ipv4()) {
-                                                    let subnet_string = subnet.trunc().to_string();
-                                                    let rule = ["from", &subnet_string, "lookup", &table.to_string()];
-                                                    if !rules.contains(&rule.join(" ")) {
-                                                        if rules.contains(&rule[..2].join(" ")) {
-                                                            Command::new("ip").arg("rule").arg("del").args(&rule[..2]).invoke(ErrorKind::Network).await?;
-                                                        }
-                                                        Command::new("ip").arg("rule").arg("add").args(rule).invoke(ErrorKind::Network).await?;
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        // let tables = ip4_proxy.route_data().await?.into_iter().filter_map(|d|d.table).collect::<Vec<_>>();
+                                        // if !tables.is_empty() {
+                                        //     let rules = String::from_utf8(Command::new("ip").arg("rule").arg("list").invoke(ErrorKind::Network).await?)?;
+                                        //     for table in tables {
+                                        //         for subnet in subnets.iter().filter(|s| s.addr().is_ipv4()) {
+                                        //             let subnet_string = subnet.trunc().to_string();
+                                        //             let rule = ["from", &subnet_string, "lookup", &table.to_string()];
+                                        //             if !rules.contains(&rule.join(" ")) {
+                                        //                 if rules.contains(&rule[..2].join(" ")) {
+                                        //                     Command::new("ip").arg("rule").arg("del").args(&rule[..2]).invoke(ErrorKind::Network).await?;
+                                        //                 }
+                                        //                 Command::new("ip").arg("rule").arg("add").args(rule).invoke(ErrorKind::Network).await?;
+                                        //             }
+                                        //         }
+                                        //     }
+                                        // }
                                         let wan_ip = if !subnets.is_empty()
                                             && !matches!(
                                                 device_type,
