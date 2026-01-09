@@ -111,20 +111,20 @@ import { ConfigService } from 'src/app/services/config.service'
       &-list {
         display: grid;
         grid-template-columns: repeat(1, minmax(0, 1fr));
-        gap: 4rem 3rem;
+        gap: 3rem 2rem;
         padding: 1.5rem;
 
         @media (min-width: 768px) {
-          padding: 2rem;
-        }
-        @media (min-width: 1024px) {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
-        @media (min-width: 1280px) {
+        @media (min-width: 1024px) {
           grid-template-columns: repeat(3, minmax(0, 1fr));
         }
-        @media (min-width: 1536px) {
+        @media (min-width: 1280px) {
           grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        @media (min-width: 1536px) {
+          grid-template-columns: repeat(5, minmax(0, 1fr));
         }
 
         .tile-wrapper {

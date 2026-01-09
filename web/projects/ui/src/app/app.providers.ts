@@ -20,6 +20,7 @@ import { tuiObfuscateOptionsProvider } from '@taiga-ui/cdk'
 import {
   TUI_DATE_FORMAT,
   TUI_DIALOGS_CLOSE,
+  TUI_MEDIA,
   tuiAlertOptionsProvider,
   tuiButtonOptionsProvider,
   tuiDropdownOptionsProvider,
@@ -140,4 +141,12 @@ export const APP_PROVIDERS = [
       none: identity,
     },
   }),
+  {
+    provide: TUI_MEDIA,
+    useValue: {
+      mobile: 1000,
+      desktopSmall: 1280,
+      desktopLarge: Infinity,
+    },
+  },
 ]
