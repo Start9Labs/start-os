@@ -44,4 +44,30 @@ export class CustomValidators {
       return ipv4Result === null || ipv6Result === null ? null : { ip: true }
     }
   }
+
+  static prefix(min: number, max: number): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null
+
+      const value = control.value.replace(/^\//, '')
+      const num = parseInt(value, 10)
+
+      if (isNaN(num) || num < min || num > max) {
+        return { prefix: { min, max } }
+      }
+
+      return null
+    }
+  }
+
+  static mac(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null
+
+      // MAC address format: XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX
+      const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/
+
+      return macRegex.test(control.value) ? null : { mac: true }
+    }
+  }
 }

@@ -6,10 +6,14 @@ import {
 } from 'src/app/routes/home/routes/wan/routes/ipv4/utils'
 import { ApiService } from 'src/app/services/api/api.service'
 import { applyDnsToInterface, parseDnsFromInterface } from '../../../dns/utils'
-import { NetworkInterfaceSection, UciFile } from 'src/app/services/api/types'
+import {
+  NetworkInterfaceSection,
+  UciFile,
+  UciSection,
+} from 'src/app/services/api/types'
 
 type UciFiles = {
-  network: UciFile<NetworkInterfaceSection>
+  network: UciFile<UciSection>
 }
 
 @Injectable({
@@ -26,7 +30,8 @@ export class Ipv4UciService {
 
     // only support one wan for now
     const wanInterface = this._uciFiles.network.sections.find(
-      s => s.type === 'interface' && s.name === 'wan',
+      (s): s is NetworkInterfaceSection =>
+        s.type === 'interface' && s.name === 'wan',
     )
     if (!wanInterface) {
       throw new Error('No WAN')
@@ -36,12 +41,13 @@ export class Ipv4UciService {
 
     const ip = { mode } as WanIpv4Form['ip']
 
-    if (mode === 'dhcp' || mode === 'static') {
-      ip.wan = wanInterface.options.ipaddr || ''
-      ip.prefix = prefixFromNetmask(wanInterface.options.netmask)
-      ip.gateway = wanInterface.options.gateway || ''
-    } else if (mode === 'pppoe') {
-      ip.wan = wanInterface.options.username || ''
+    // Always read these for summary display (may be ISP-assigned)
+    ip.wan = wanInterface.options.ipaddr || ''
+    ip.prefix = prefixFromNetmask(wanInterface.options.netmask)
+    ip.gateway = wanInterface.options.gateway || ''
+
+    if (mode === 'pppoe') {
+      ip.username = wanInterface.options.username || ''
       ip.password = wanInterface.options.password || ''
       ip.device = wanInterface.options.device || ''
     }
@@ -55,8 +61,9 @@ export class Ipv4UciService {
   async set({ ip, dns }: WanIpv4Form) {
     const uciFiles = JSON.parse(JSON.stringify(this._uciFiles)) as UciFiles
 
-    let wan = uciFiles.network.sections.find(
-      ({ type, name }) => type === 'interface' && name === 'wan',
+    const wan = uciFiles.network.sections.find(
+      (s): s is NetworkInterfaceSection =>
+        s.type === 'interface' && s.name === 'wan',
     )
     if (!wan) {
       throw new Error('no WAN')
@@ -78,12 +85,12 @@ export class Ipv4UciService {
       wan.options.netmask = netmaskFromPrefix(ip.prefix)
       wan.options.gateway = ip.gateway
 
-      // Remove dhcp/pppoe specific options
+      // Remove pppoe specific options
       delete wan.options.username
       delete wan.options.password
     } else if (ip.mode === 'pppoe') {
       // Set pppoe options
-      wan.options.username = ip.wan
+      wan.options.username = ip.username
       wan.options.password = ip.password
       if (ip.device) {
         wan.options.device = ip.device

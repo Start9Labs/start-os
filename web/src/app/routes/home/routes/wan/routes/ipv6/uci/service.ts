@@ -2,10 +2,14 @@ import { inject, Injectable } from '@angular/core'
 import { ApiService } from 'src/app/services/api/api.service'
 import { WanIpv6Form } from '../utils'
 import { applyDnsToInterface, parseDnsFromInterface } from '../../../dns/utils'
-import { NetworkInterfaceSection, UciFile } from 'src/app/services/api/types'
+import {
+  NetworkInterfaceSection,
+  UciFile,
+  UciSection,
+} from 'src/app/services/api/types'
 
 type UciFiles = {
-  network: UciFile<NetworkInterfaceSection>
+  network: UciFile<UciSection>
 }
 
 @Injectable({
@@ -22,7 +26,8 @@ export class Ipv6UciService {
 
     // Find WAN6 interface
     const wan6Interface = this._uciFiles.network.sections.find(
-      s => s.type === 'interface' && (s.name === 'wan6' || s.name === 'wan_6'),
+      (s): s is NetworkInterfaceSection =>
+        s.type === 'interface' && (s.name === 'wan6' || s.name === 'wan_6'),
     )
 
     if (!wan6Interface) {
@@ -52,21 +57,21 @@ export class Ipv6UciService {
       }
     }
 
-    // Parse IP fields based on mode
     const ip = { mode } as WanIpv6Form['ip']
 
-    if (mode === 'slaac' || mode === 'dhcpv6' || mode === 'static') {
-      // Parse ip6addr which is in format "2001:db8::1/64"
-      const ip6addr = wan6Interface.options.ip6addr || ''
-      const [addr, prefix] = ip6addr.split('/')
-      ip.wan = addr
-      ip.prefix = prefix ? `/${prefix}` : '/64'
-      ip.gateway = wan6Interface.options.ip6gw || ''
-    } else if (mode === '6rd') {
-      ip.ip4 = wan6Interface.options.peeraddr || ''
-      ip.mask = wan6Interface.options.ip6prefixlen || ''
-      ip.border = wan6Interface.options.ip6prefix || ''
-    }
+    // Always read these for summary display (may be ISP-assigned)
+    const ip6addr = wan6Interface.options.ip6addr || ''
+    const [addr, prefix] = ip6addr.split('/')
+    ip.wan = addr || ''
+    ip.prefix = prefix ? `/${prefix}` : ''
+    ip.gateway = wan6Interface.options.ip6gw || ''
+
+    // 6RD specific fields
+    ip.ip4 = wan6Interface.options.peeraddr || ''
+    ip.mask = wan6Interface.options.ip6prefixlen
+      ? `/${wan6Interface.options.ip6prefixlen}`
+      : ''
+    ip.border = wan6Interface.options.ip6prefix || ''
 
     return {
       ip,
@@ -83,8 +88,8 @@ export class Ipv6UciService {
 
     // Find or create WAN6 interface
     let wan6 = uciFiles.network.sections.find(
-      ({ type, name }) =>
-        type === 'interface' && (name === 'wan6' || name === 'wan_6'),
+      (s): s is NetworkInterfaceSection =>
+        s.type === 'interface' && (s.name === 'wan6' || s.name === 'wan_6'),
     )
 
     if (ip.mode === 'disabled') {
@@ -153,7 +158,8 @@ export class Ipv6UciService {
         wan6.options.proto = '6rd'
         wan6.options.peeraddr = ip.ip4
         wan6.options.ip6prefix = ip.border
-        wan6.options.ip6prefixlen = ip.mask
+        // Strip leading slash from mask for UCI
+        wan6.options.ip6prefixlen = ip.mask.replace(/^\//, '')
 
         delete wan6.options.ip6addr
         delete wan6.options.ip6gw

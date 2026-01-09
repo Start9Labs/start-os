@@ -4,13 +4,20 @@ import { injectFormService } from 'src/app/services/form.service'
 import { WanIpv6Form, IPV6_LABELS } from './utils'
 import { DnsSummary } from '../../dns/summary'
 
-const SUMMARY = ['wan', 'prefix', 'gateway', 'ip4', 'mask', 'border'] as const
+const SUMMARY_FIELDS = [
+  'wan',
+  'prefix',
+  'gateway',
+  'ip4',
+  'mask',
+  'border',
+] as const
 
 @Component({
   selector: '[ipv6Summary]',
   template: `
     <section>
-      @for (item of items(); track $index) {
+      @for (item of items(); track item.label) {
         @if (item.val; as val) {
           <div [appSummary]="val">{{ item.label }}</div>
         }
@@ -25,12 +32,13 @@ const SUMMARY = ['wan', 'prefix', 'gateway', 'ip4', 'mask', 'border'] as const
 export class Ipv6Summary {
   protected readonly service = injectFormService<WanIpv6Form>()
 
-  readonly items = computed((ip = this.service.data()?.ip) =>
-    ip
-      ? SUMMARY.map(key => ({
-          label: IPV6_LABELS[key].replace(/\*/g, ''),
-          val: ip[key],
-        }))
-      : [],
-  )
+  readonly items = computed(() => {
+    const ip = this.service.data()?.ip
+    if (!ip) return []
+
+    return SUMMARY_FIELDS.map(key => ({
+      label: IPV6_LABELS[key],
+      val: ip[key],
+    }))
+  })
 }

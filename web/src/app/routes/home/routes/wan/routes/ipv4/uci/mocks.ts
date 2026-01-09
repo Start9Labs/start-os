@@ -44,7 +44,6 @@ export const wanIpv4PPPoE: UciSection = {
     username: 'user@isp.com',
     password: 'mySecretPassword123',
     peerdns: '0', // Using custom DNS
-    ipaddr: '100.65.227.234',
   },
   lists: {
     dns: ['84.200.69.80@853', '84.200.70.40@853'], // DNS over TLS

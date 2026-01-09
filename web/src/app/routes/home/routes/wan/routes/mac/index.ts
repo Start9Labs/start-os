@@ -1,52 +1,71 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  inject,
+} from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
+import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import { TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiRadio } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
+import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
-
+import {
+  injectFormService,
+  provideFormService,
+} from 'src/app/services/form.service'
 import { MacAside } from './aside'
+import { MacService } from './service'
 import { MacSummary } from './summary'
+import {
+  getMacForm,
+  MacForm,
+  MAC_LABELS,
+  MAC_STRATEGIES,
+  updateMacValidators,
+} from './utils'
 
 @Component({
   template: `
     <mac-aside *help />
     <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
-    <article macSummary [formLoading]="false"></article>
+    <article macSummary [formLoading]="!service.data()"></article>
     <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
-    <form [formGroup]="form" [formLoading]="false" [style.gap.rem]="1">
+    <form
+      [formGroup]="form"
+      [formLoading]="!service.data()"
+      (reset.prevent)="form.reset(service.data())"
+      (ngSubmit)="onSave()"
+    >
       <section>
-        @for (value of ['router', 'custom']; track $index) {
+        @for (strategy of strategies; track strategy) {
           <label tuiLabel>
             <input
               type="radio"
               tuiRadio
               formControlName="strategy"
-              [value]="value"
+              [value]="strategy"
             />
-            {{ value }}{{ $index ? '' : ' (Default)' }}
+            {{ labels[strategy] }}{{ $first ? ' (Default)' : '' }}
           </label>
         }
       </section>
-      <section>
-        <tui-textfield>
-          <label tuiLabel>MAC Address*</label>
-          <input
-            tuiTextfield
-            formControlName="mac"
-            [readOnly]="form.value.strategy === 'router'"
-          />
-        </tui-textfield>
-      </section>
-      <footer appFooter [disabled]="form.pristine"></footer>
+      @if (strategy() === 'custom') {
+        <section>
+          <tui-textfield>
+            <label tuiLabel>{{ labels.mac }}</label>
+            <input tuiTextfield formControlName="mac" />
+          </tui-textfield>
+        </section>
+      }
+      @if (service.data()) {
+        <footer appFooter [disabled]="form.pristine"></footer>
+      }
     </form>
-  `,
-  styles: `
-    [tuiLabel] {
-      text-transform: capitalize;
-    }
   `,
   host: { class: 'g-page' },
   imports: [
@@ -61,11 +80,49 @@ import { MacSummary } from './summary'
     MacSummary,
     MacAside,
   ],
+  providers: [provideFormService(MacService)],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Mac {
-  public readonly form = inject(NonNullableFormBuilder).group({
-    strategy: 'router',
-    mac: '94:83:C4:3B:D2:2B',
-  })
+  protected readonly builder = inject(NonNullableFormBuilder)
+  protected readonly service = injectFormService<MacForm>()
+
+  readonly form = getMacForm(this.builder)
+
+  protected readonly strategies = MAC_STRATEGIES
+  protected readonly labels = MAC_LABELS
+
+  readonly strategy = toSignal(
+    this.form.controls.strategy.valueChanges.pipe(
+      startWith(this.form.controls.strategy.value),
+    ),
+    { requireSync: true },
+  )
+
+  constructor() {
+    // Reset form when data loads
+    effect(() => {
+      const data = this.service.data()
+      if (data && this.form.pristine) {
+        this.form.reset(data)
+        updateMacValidators(this.form, data.strategy)
+      }
+    })
+
+    // Update validators when strategy changes
+    effect(() => {
+      const strategy = this.strategy()
+      if (strategy) {
+        updateMacValidators(this.form, strategy)
+      }
+    })
+  }
+
+  async onSave() {
+    if (this.form.invalid) {
+      tuiMarkControlAsTouchedAndValidate(this.form)
+    } else if (await this.service.save(this.form.getRawValue())) {
+      this.form.markAsPristine()
+    }
+  }
 }

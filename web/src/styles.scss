@@ -60,6 +60,10 @@ header[tuiHeader] {
   flex-direction: column;
   gap: 1rem;
   padding: 2rem 0;
+
+  > article.g-form {
+    min-height: 6rem;
+  }
 }
 
 .g-primary {

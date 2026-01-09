@@ -1,4 +1,7 @@
-export type UciSection = NetworkInterfaceSection
+export type UciSection =
+  | NetworkInterfaceSection
+  | NetworkDeviceSection
+  | DdnsSection
 
 export type NetworkInterfaceSection = {
   type: 'interface'
@@ -19,6 +22,8 @@ export type NetworkInterfaceSection = {
     // Interface/device
     device?: string
     ifname?: string
+    // MAC address
+    macaddr?: string
     // IPv6 static options
     ip6addr?: string
     ip6gw?: string
@@ -31,6 +36,38 @@ export type NetworkInterfaceSection = {
   lists: {
     dns?: string[] // Custom DNS servers for this interface
   }
+}
+
+export type NetworkDeviceSection = {
+  type: 'device'
+  name: string | null
+  options: {
+    name?: string
+    type?: 'bridge' | string
+    macaddr?: string
+    mtu?: string
+    ports?: string
+  }
+  lists: {
+    ports?: string[]
+  }
+}
+
+export type DdnsSection = {
+  type: 'service'
+  name: string | null
+  options: {
+    enabled?: '0' | '1'
+    service_name?: string
+    lookup_host?: string
+    domain?: string
+    username?: string
+    password?: string
+    ip_source?: 'network' | 'interface' | 'web'
+    ip_network?: string
+    interface?: string
+  }
+  lists: {}
 }
 
 export type UciFile<T extends UciSection> = {

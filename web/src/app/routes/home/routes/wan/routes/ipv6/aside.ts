@@ -7,69 +7,46 @@ import { TuiAccordion } from '@taiga-ui/experimental'
     <tui-accordion size="m">
       <button tuiAccordion appearance="">IP Address</button>
       <tui-expand>
-        Options related to your router's IPv6 address on the Internet.
-        <h3>Options</h3>
+        <h3>Mode</h3>
         <ul>
           <li>
             <b>SLAAC:</b>
-            Stateless Address Auto- configuration (SLAAC) automatically
-            configures IPv6 addresses. Enable SLAAC if your ISP supports it.
+            Automatic IPv6 configuration. The most common option if your ISP
+            supports IPv6.
           </li>
           <li>
             <b>DHCPv6:</b>
-            A network protocol for configuring IPv6 addresses. Automatically
-            assigns IPv6 addresses and other network configurations, and
-            simplifies IPv6 network management.
-          </li>
-          <li>
-            <b>6RD:</b>
-            IPv6 Rapid Deployment (6RD) is a transition mechanism for IPv6.
-            Allows IPv6 connectivity over IPv4 networks to provide IPv6
-            connectivity in environments that only support IPv4. Configure 6RD
-            settings as provided by your ISP.
+            ISP assigns IPv6 address via DHCP. Use if SLAAC doesn't work with
+            your ISP.
           </li>
           <li>
             <b>Static:</b>
-            A static IPv6 address is manually assigned and does not change over
-            time. Useful for servers or other devices that need a consistent
-            IPv6 address. Enter the details provided by your ISP.
+            Manually configure a fixed IPv6 address assigned by your ISP.
+          </li>
+          <li>
+            <b>6RD:</b>
+            Tunnels IPv6 over an IPv4 connection. Requires configuration details
+            from your ISP.
           </li>
           <li>
             <b>Disabled:</b>
-            Turns off IPv6 functionality, preventing the router from obtaining
-            or assigning IPv6 addresses within the network.
+            Disables IPv6 on the WAN interface.
           </li>
         </ul>
-        <h3>Router's IP Address</h3>
-        The IPv6 address assigned to the router for its Wide Area Network (WAN)
-        interface. This unique identifier is used by to route traffic to and
-        from the IPv6 internet.
-        <h3>IPv6 Prefix Length</h3>
-        Indicates the network portion of the IPv6 address. It determines how the
-        IPv6 address space is divided into subnets, similar to the subnet mask
-        in IPv4.
-        <h3>Gateway IP Address</h3>
-        The IP address that serves as an access point or gate between one
-        network and another. It is the address used by devices to route traffic
-        to the internet. In most cases, the gateway IP address is usually the
-        same as the router's IP address.
       </tui-expand>
 
-      <button tuiAccordion appearance="">DNS Server</button>
+      <button tuiAccordion appearance="">DNS</button>
       <tui-expand>
-        Domain Name System (DNS) translates domain names to IP addresses. Allows
-        you to specify which DNS servers to use for resolving domain names.
-        Using a reliable DNS server can improve security and browsing speed.
-        <h3>Strategy</h3>
+        <p>DNS (Domain Name System) translates domain names to IP addresses.</p>
         <ul>
           <li>
             <b>Get from ISP:</b>
-            Automatically uses the default DNS servers provided by your ISP.
+            Use DNS servers provided automatically by your ISP.
           </li>
           <li>
             <b>Custom:</b>
-            Manually specify DNS server addresses. Enter the preferred and
-            alternate DNS server addresses of your choice.
+            Specify your own DNS servers. Both IPv4 and IPv6 addresses are
+            supported.
           </li>
         </ul>
       </tui-expand>

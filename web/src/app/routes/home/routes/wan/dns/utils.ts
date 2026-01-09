@@ -1,4 +1,4 @@
-import { NonNullableFormBuilder, ValidatorFn } from '@angular/forms'
+import { NonNullableFormBuilder, ValidatorFn, Validators } from '@angular/forms'
 import { NetworkInterfaceSection } from 'src/app/services/api/types'
 import { FormRawValue } from 'src/app/services/form.service'
 
@@ -22,6 +22,23 @@ export function getDnsForm(
     custom1Tls: builder.control(false),
     custom2Tls: builder.control(false),
   })
+}
+
+export function updateDnsValidators(
+  form: ReturnType<typeof getDnsForm>,
+  mode: DnsMode,
+  formatValidators: ValidatorFn[],
+): void {
+  const { custom1 } = form.controls
+
+  custom1.clearValidators()
+  custom1.addValidators(formatValidators)
+
+  if (mode === 'custom') {
+    custom1.addValidators([Validators.required])
+  }
+
+  custom1.updateValueAndValidity()
 }
 
 export type DnsForm = FormRawValue<ReturnType<typeof getDnsForm>>

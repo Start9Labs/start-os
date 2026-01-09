@@ -4,10 +4,12 @@ import {
   effect,
   inject,
 } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import { TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
+import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
@@ -15,12 +17,14 @@ import {
   injectFormService,
   provideFormService,
 } from 'src/app/services/form.service'
+import { CustomValidators } from 'src/app/utils/validators'
 import { IPv4Aside } from './aside'
 import { Dns } from '../../dns/dns'
+import { updateDnsValidators } from '../../dns/utils'
 import { Ipv4Ip } from './ip'
 import { Ipv4Service } from './service'
 import { Ipv4Summary } from './summary'
-import { getWanIpv4Form, WanIpv4Form } from './utils'
+import { getWanIpv4Form, updateIpv4Validators, WanIpv4Form } from './utils'
 
 @Component({
   template: `
@@ -35,7 +39,7 @@ import { getWanIpv4Form, WanIpv4Form } from './utils'
       (ngSubmit)="onSave()"
     >
       <ipv4-ip formGroupName="ip" />
-      <wan-dns [mode]="dnsMode" formGroupName="dns" />
+      <wan-dns [mode]="dnsMode()" formGroupName="dns" />
       @if (service.data()) {
         <footer appFooter [disabled]="form.pristine"></footer>
       }
@@ -63,20 +67,50 @@ export default class Ipv4 {
 
   readonly form = getWanIpv4Form(this.builder)
 
+  readonly ipMode = toSignal(
+    this.form.controls.ip.controls.mode.valueChanges.pipe(
+      startWith(this.form.controls.ip.controls.mode.value),
+    ),
+    { requireSync: true },
+  )
+
+  readonly dnsMode = toSignal(
+    this.form.controls.dns.controls.mode.valueChanges.pipe(
+      startWith(this.form.controls.dns.controls.mode.value),
+    ),
+    { requireSync: true },
+  )
+
   constructor() {
+    // Reset form when data loads
     effect(() => {
-      if (this.service.data() && this.form.pristine) {
-        this.form.reset(this.service.data())
+      const data = this.service.data()
+      if (data && this.form.pristine) {
+        this.form.reset(data)
+        updateIpv4Validators(this.form, data.ip.mode)
+        updateDnsValidators(this.form.controls.dns, data.dns.mode, [
+          CustomValidators.ipv4(),
+        ])
       }
     })
-  }
 
-  public get ipMode() {
-    return this.form.controls.ip.controls.mode.value
-  }
+    // Update validators when IP mode changes
+    effect(() => {
+      const mode = this.ipMode()
+      if (mode) {
+        updateIpv4Validators(this.form, mode)
+      }
+    })
 
-  protected get dnsMode() {
-    return this.form.controls.dns.controls.mode.value
+    // Update validators when DNS mode changes
+    effect(() => {
+      const mode = this.dnsMode()
+      if (mode) {
+        updateDnsValidators(this.form.controls.dns, mode, [
+          CustomValidators.ipv4(),
+        ])
+      }
+    })
   }
 
   async onSave() {

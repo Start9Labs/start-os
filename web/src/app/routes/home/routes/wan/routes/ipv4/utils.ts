@@ -5,26 +5,25 @@ import { CustomValidators } from 'src/app/utils/validators'
 
 export const IPV4_MODES = ['dhcp', 'pppoe', 'static'] as const
 
-export const IPV4_PPPOE_CONTROLS = ['wan', 'password', 'device'] as const
+export const IPV4_PPPOE_CONTROLS = ['username', 'password', 'device'] as const
 export const IPV4_STATIC_CONTROLS = ['wan', 'prefix', 'gateway'] as const
-
-export const EXTRA = ['mask']
 
 export const IPV4_LABELS: Record<
   | Ipv4Mode
   | (typeof IPV4_PPPOE_CONTROLS)[number]
   | (typeof IPV4_STATIC_CONTROLS)[number]
-  | (typeof EXTRA)[number],
+  | 'mask',
   string
 > = {
   dhcp: 'DHCP',
   pppoe: 'PPPoE',
   static: 'Static',
-  wan: 'WAN IP*',
-  password: 'Password*',
-  device: 'Device*',
-  prefix: 'Subnet Prefix*',
-  gateway: 'Gateway IP*',
+  wan: 'WAN IP',
+  username: 'Username',
+  password: 'Password',
+  device: 'Device',
+  prefix: 'Subnet Prefix',
+  gateway: 'Gateway IP',
   mask: 'Subnet Mask',
 }
 
@@ -34,9 +33,12 @@ export function getWanIpv4Form(builder: NonNullableFormBuilder) {
   return builder.group({
     ip: builder.group({
       mode: builder.control<Ipv4Mode>('dhcp'),
-      wan: builder.control('', Validators.required),
-      prefix: builder.control(''),
-      gateway: builder.control(''),
+      // Static fields
+      wan: builder.control('', [CustomValidators.ipv4()]),
+      prefix: builder.control('', [CustomValidators.prefix(0, 32)]),
+      gateway: builder.control('', [CustomValidators.ipv4()]),
+      // PPPoE fields
+      username: builder.control(''),
       password: builder.control(''),
       device: builder.control(''),
     }),
@@ -46,10 +48,46 @@ export function getWanIpv4Form(builder: NonNullableFormBuilder) {
 
 export type WanIpv4Form = FormRawValue<ReturnType<typeof getWanIpv4Form>>
 
+export function updateIpv4Validators(
+  form: ReturnType<typeof getWanIpv4Form>,
+  mode: Ipv4Mode,
+): void {
+  const ip = form.controls.ip.controls
+
+  // Clear all mode-specific required validators first
+  ip.wan.clearValidators()
+  ip.prefix.clearValidators()
+  ip.gateway.clearValidators()
+  ip.username.clearValidators()
+  ip.password.clearValidators()
+
+  // Re-add format validators
+  ip.wan.addValidators([CustomValidators.ipv4()])
+  ip.prefix.addValidators([CustomValidators.prefix(0, 32)])
+  ip.gateway.addValidators([CustomValidators.ipv4()])
+
+  // Add required validators based on mode
+  if (mode === 'static') {
+    ip.wan.addValidators([Validators.required])
+    ip.prefix.addValidators([Validators.required])
+    ip.gateway.addValidators([Validators.required])
+  } else if (mode === 'pppoe') {
+    ip.username.addValidators([Validators.required])
+    ip.password.addValidators([Validators.required])
+  }
+
+  // Update validity
+  ip.wan.updateValueAndValidity()
+  ip.prefix.updateValueAndValidity()
+  ip.gateway.updateValueAndValidity()
+  ip.username.updateValueAndValidity()
+  ip.password.updateValueAndValidity()
+}
+
 export function prefixFromNetmask(netmask: string | undefined): string {
   if (!netmask) return ''
 
-  // Convert netmask to CIDR prefix
+  // Convert netmask to CIDR prefix (with slash for Maskito)
   const parts = netmask.split('.').map(Number)
   const binary = parts.map(p => p.toString(2).padStart(8, '0')).join('')
   const prefix = binary.split('1').length - 1
@@ -58,7 +96,7 @@ export function prefixFromNetmask(netmask: string | undefined): string {
 }
 
 export function netmaskFromPrefix(prefix: string): string {
-  // Remove leading slash if present
+  // Remove leading slash if present, handle number input
   const prefixNum = parseInt(prefix.replace('/', ''), 10)
 
   if (isNaN(prefixNum) || prefixNum < 0 || prefixNum > 32) {
