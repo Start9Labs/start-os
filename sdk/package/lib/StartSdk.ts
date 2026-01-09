@@ -441,7 +441,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       ) => new ServiceInterfaceBuilder({ ...options, effects }),
       getSystemSmtp: <E extends Effects>(effects: E) =>
         new GetSystemSmtp(effects),
-      getSslCerificate: <E extends Effects>(
+      getSslCertificate: <E extends Effects>(
         effects: E,
         hostnames: string[],
         algorithm?: T.Algorithm,
