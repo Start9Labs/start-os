@@ -151,103 +151,112 @@ where
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
         self.in_progress.mutate(|in_progress| {
-            loop {
-                if !in_progress.is_empty() {
-                    if let Poll::Ready(Some((handler, res))) = in_progress.poll_next_unpin(cx) {
-                        if let Some(res) = res.transpose() {
-                            self.tls_handler = handler;
-                            return Poll::Ready(res);
-                        }
-                        continue;
+            // First, check if any in-progress handshakes have completed
+            if !in_progress.is_empty() {
+                if let Poll::Ready(Some((handler, res))) = in_progress.poll_next_unpin(cx) {
+                    if let Some(res) = res.transpose() {
+                        self.tls_handler = handler;
+                        return Poll::Ready(res);
                     }
+                    // Connection was rejected (preprocess returned None).
+                    // Yield to the runtime to avoid busy-looping, but wake
+                    // immediately to continue processing.
+                    cx.waker().wake_by_ref();
+                    return Poll::Pending;
                 }
+            }
 
-                let (metadata, stream) = ready!(self.accept.poll_accept(cx)?);
-                let mut tls_handler = self.tls_handler.clone();
-                let mut fut = async move {
-                    let res = async {
-                        let mut acceptor = LazyConfigAcceptor::new(
-                            Acceptor::default(),
-                            BackTrackingIO::new(stream),
-                        );
-                        let mut mid: tokio_rustls::StartHandshake<BackTrackingIO<AcceptStream>> =
-                            match (&mut acceptor).await {
-                                Ok(a) => a,
-                                Err(e) => {
-                                    let mut stream =
-                                        acceptor.take_io().or_not_found("acceptor io")?;
-                                    let (_, buf) = stream.rewind();
-                                    if std::str::from_utf8(buf)
-                                        .ok()
-                                        .and_then(|buf| {
-                                            buf.lines()
-                                                .map(|l| l.trim())
-                                                .filter(|l| !l.is_empty())
-                                                .next()
-                                        })
-                                        .map_or(false, |buf| {
-                                            regex::Regex::new("[A-Z]+ (.+) HTTP/1")
-                                                .unwrap()
-                                                .is_match(buf)
-                                        })
-                                    {
-                                        handle_http_on_https(stream).await.log_err();
+            // Try to accept a new connection
+            let (metadata, stream) = ready!(self.accept.poll_accept(cx)?);
+            let mut tls_handler = self.tls_handler.clone();
+            let mut fut = async move {
+                let res = async {
+                    let mut acceptor = LazyConfigAcceptor::new(
+                        Acceptor::default(),
+                        BackTrackingIO::new(stream),
+                    );
+                    let mut mid: tokio_rustls::StartHandshake<BackTrackingIO<AcceptStream>> =
+                        match (&mut acceptor).await {
+                            Ok(a) => a,
+                            Err(e) => {
+                                let mut stream =
+                                    acceptor.take_io().or_not_found("acceptor io")?;
+                                let (_, buf) = stream.rewind();
+                                if std::str::from_utf8(buf)
+                                    .ok()
+                                    .and_then(|buf| {
+                                        buf.lines()
+                                            .map(|l| l.trim())
+                                            .filter(|l| !l.is_empty())
+                                            .next()
+                                    })
+                                    .map_or(false, |buf| {
+                                        regex::Regex::new("[A-Z]+ (.+) HTTP/1")
+                                            .unwrap()
+                                            .is_match(buf)
+                                    })
+                                {
+                                    handle_http_on_https(stream).await.log_err();
 
-                                        return Ok(None);
-                                    } else {
-                                        return Err(e).with_kind(ErrorKind::Network);
-                                    }
+                                    return Ok(None);
+                                } else {
+                                    return Err(e).with_kind(ErrorKind::Network);
                                 }
-                            };
-                        let hello = mid.client_hello();
-                        if let Some(cfg) = tls_handler.get_config(&hello, &metadata).await {
-                            let buffered = mid.io.stop_buffering();
-                            mid.io
-                                .write_all(&buffered)
-                                .await
-                                .with_kind(ErrorKind::Network)?;
-                            return Ok(match mid.into_stream(Arc::new(cfg)).await {
-                                Ok(stream) => {
-                                    let s = stream.get_ref().1;
-                                    Some((
-                                        TlsMetadata {
-                                            inner: metadata,
-                                            tls_info: TlsHandshakeInfo {
-                                                sni: s.server_name().map(InternedString::intern),
-                                                alpn: s
-                                                    .alpn_protocol()
-                                                    .map(|a| MaybeUtf8String(a.to_vec())),
-                                            },
+                            }
+                        };
+                    let hello = mid.client_hello();
+                    if let Some(cfg) = tls_handler.get_config(&hello, &metadata).await {
+                        let buffered = mid.io.stop_buffering();
+                        mid.io
+                            .write_all(&buffered)
+                            .await
+                            .with_kind(ErrorKind::Network)?;
+                        return Ok(match mid.into_stream(Arc::new(cfg)).await {
+                            Ok(stream) => {
+                                let s = stream.get_ref().1;
+                                Some((
+                                    TlsMetadata {
+                                        inner: metadata,
+                                        tls_info: TlsHandshakeInfo {
+                                            sni: s.server_name().map(InternedString::intern),
+                                            alpn: s
+                                                .alpn_protocol()
+                                                .map(|a| MaybeUtf8String(a.to_vec())),
                                         },
-                                        Box::pin(stream) as AcceptStream,
-                                    ))
-                                }
-                                Err(e) => {
-                                    tracing::trace!("Error completing TLS handshake: {e}");
-                                    tracing::trace!("{e:?}");
-                                    None
-                                }
-                            });
-                        }
+                                    },
+                                    Box::pin(stream) as AcceptStream,
+                                ))
+                            }
+                            Err(e) => {
+                                tracing::trace!("Error completing TLS handshake: {e}");
+                                tracing::trace!("{e:?}");
+                                None
+                            }
+                        });
+                    }
 
-                        Ok(None)
-                    }
-                    .await;
-                    (tls_handler, res)
+                    Ok(None)
                 }
-                .boxed();
-                match fut.poll_unpin(cx) {
-                    Poll::Pending => {
-                        in_progress.push(fut);
-                        return Poll::Pending;
+                .await;
+                (tls_handler, res)
+            }
+            .boxed();
+            match fut.poll_unpin(cx) {
+                Poll::Pending => {
+                    in_progress.push(fut);
+                    Poll::Pending
+                }
+                Poll::Ready((handler, res)) => {
+                    if let Some(res) = res.transpose() {
+                        self.tls_handler = handler;
+                        return Poll::Ready(res);
                     }
-                    Poll::Ready((handler, res)) => {
-                        if let Some(res) = res.transpose() {
-                            self.tls_handler = handler;
-                            return Poll::Ready(res);
-                        }
-                    }
-                };
+                    // Connection was rejected (preprocess returned None).
+                    // Yield to the runtime to avoid busy-looping, but wake
+                    // immediately to continue processing.
+                    cx.waker().wake_by_ref();
+                    Poll::Pending
+                }
             }
         })
     }
