@@ -4,14 +4,14 @@ use imbl_value::InternedString;
 use tokio::process::Command;
 
 use crate::ImageId;
+use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
-use crate::disk::mount::guard::GenericMountGuard;
+use crate::disk::mount::filesystem::ReadOnly;
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TMP_MOUNTPOINT};
 use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
 use crate::service::persistent_container::Subcontainer;
 use crate::util::Invoke;
-
-pub const NVIDIA_OVERLAY_PATH: &str = "/var/tmp/startos/nvidia-overlay";
 
 #[cfg(target_os = "linux")]
 mod sync;
@@ -104,37 +104,93 @@ pub async fn create_subcontainer_fs(
                 )
             })?
             .rootfs_dir();
-        let mountpoint = rootfs_dir
+        let final_mountpoint = rootfs_dir
             .join("media/startos/subcontainers")
             .join(guid.as_ref());
-        tokio::fs::create_dir_all(&mountpoint).await?;
+        tokio::fs::create_dir_all(&final_mountpoint).await?;
         let container_mountpoint = Path::new("/").join(
-            mountpoint
-                .strip_prefix(rootfs_dir)
+            final_mountpoint
+                .strip_prefix(&rootfs_dir)
                 .with_kind(ErrorKind::Incoherent)?,
         );
-        tracing::info!("Mounting overlay {guid} for {image_id}");
+
+        let nvidia_container = context
+            .seed
+            .persistent_container
+            .s9pk
+            .as_manifest()
+            .images
+            .get(&image_id)
+            .map_or(false, |i| i.nvidia_container);
+
+        // If nvidia_container is enabled, we need to stage the overlay outside the LXC rootfs
+        // to safely mount /proc for nvidia-container-cli without exposing it to the container
+        let overlay = if nvidia_container {
+            // Create staging directory outside LXC rootfs
+            let staging_dir = Path::new(TMP_MOUNTPOINT)
+                .join("nvidia-staging")
+                .join(guid.as_ref());
+            tokio::fs::create_dir_all(&staging_dir).await?;
+
+            tracing::info!("Mounting overlay {guid} for {image_id} at staging location");
+            let mut overlay = OverlayGuard::mount(image, &staging_dir).await?;
+
+            // Mount /proc temporarily for nvidia-container-cli (outside LXC rootfs)
+            let staging_proc = staging_dir.join("proc");
+            tokio::fs::create_dir_all(&staging_proc).await?;
+            let proc_mount = MountGuard::mount(&Bind::new("/proc"), &staging_proc, ReadOnly).await?;
+
+            // Read environment variables from the image's env file
+            let env_file = rootfs_dir
+                .join("media/startos/images")
+                .join(image_id.as_ref())
+                .with_extension("env");
+            let env_content = tokio::fs::read_to_string(&env_file)
+                .await
+                .unwrap_or_default();
+
+            // Build nvidia-container-cli command with environment variables
+            let mut cmd = Command::new("nvidia-container-cli");
+            cmd.arg("configure")
+                .arg("--no-cgroups")
+                .arg("--utility")
+                .arg("--compute")
+                .arg("--graphics")
+                .arg("--video");
+
+            // Pass NVIDIA_* environment variables to nvidia-container-cli
+            for line in env_content.lines() {
+                if let Some((key, value)) = line.split_once('=') {
+                    if key.starts_with("NVIDIA_") {
+                        cmd.env(key, value);
+                    }
+                }
+            }
+
+            cmd.arg(&staging_dir);
+
+            tracing::info!("Running nvidia-container-cli for {image_id}");
+            cmd.invoke(ErrorKind::Unknown).await?;
+
+            // Unmount /proc
+            proc_mount.unmount(false).await?;
+            tracing::info!("nvidia-container-cli completed for {image_id}");
+
+            // Remount overlay at final location inside LXC rootfs
+            tracing::info!("Remounting overlay {guid} to final location");
+            overlay.remount(&final_mountpoint).await?;
+
+            // Clean up staging directory
+            tokio::fs::remove_dir_all(&staging_dir).await.ok();
+
+            overlay
+        } else {
+            tracing::info!("Mounting overlay {guid} for {image_id}");
+            OverlayGuard::mount(image, &final_mountpoint).await?
+        };
+
         let subcontainer_wrapper = Subcontainer {
-            overlay: OverlayGuard::mount_layers(
-                &[],
-                image,
-                if context
-                    .seed
-                    .persistent_container
-                    .s9pk
-                    .as_manifest()
-                    .images
-                    .get(&image_id)
-                    .map_or(false, |i| i.nvidia_container)
-                    && tokio::fs::metadata(NVIDIA_OVERLAY_PATH).await.is_ok()
-                {
-                    &[NVIDIA_OVERLAY_PATH]
-                } else {
-                    &[]
-                },
-                &mountpoint,
-            )
-            .await?,
+            overlay,
             name: name
                 .unwrap_or_else(|| InternedString::intern(format!("subcontainer-{}", image_id))),
             image_id: image_id.clone(),
@@ -142,7 +198,7 @@ pub async fn create_subcontainer_fs(
 
         Command::new("chown")
             .arg("100000:100000")
-            .arg(&mountpoint)
+            .arg(&final_mountpoint)
             .invoke(ErrorKind::Filesystem)
             .await?;
         tracing::info!("Mounted overlay {guid} for {image_id}");
