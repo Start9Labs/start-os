@@ -40,7 +40,7 @@ import { DdnsSummary } from './summary'
           </tui-textfield>
         </section>
       }
-      <footer appFooter></footer>
+      <footer appFooter [disabled]="form.pristine"></footer>
     </form>
   `,
   imports: [

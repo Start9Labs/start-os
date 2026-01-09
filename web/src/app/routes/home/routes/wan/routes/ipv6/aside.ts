@@ -7,19 +7,13 @@ import { TuiAccordion } from '@taiga-ui/experimental'
     <tui-accordion size="m">
       <button tuiAccordion appearance="">IP Address</button>
       <tui-expand>
-        The method to assign and manage IPv6 addresses on your network. It
-        ensures that devices can communicate effectively using the IPv6
-        protocol, which is essential for future-proofing your network and
-        improving address space.
+        Options related to your router's IPv6 address on the Internet.
         <h3>Options</h3>
         <ul>
           <li>
             <b>SLAAC:</b>
             Stateless Address Auto- configuration (SLAAC) automatically
-            configures IPv6 addresses, which simplifies IPv6 network
-            configuration. Ensures devices on your network have IPv6
-            connectivity without manual configuration. Enable SLAAC if your ISP
-            supports it.
+            configures IPv6 addresses. Enable SLAAC if your ISP supports it.
           </li>
           <li>
             <b>DHCPv6:</b>
@@ -69,11 +63,6 @@ import { TuiAccordion } from '@taiga-ui/experimental'
         <h3>Strategy</h3>
         <ul>
           <li>
-            <b>DNS Over TLS:</b>
-            Encrypts DNS queries for enhanced security and privacy. Select from
-            a list of DNS servers that support this feature.
-          </li>
-          <li>
             <b>Get from ISP:</b>
             Automatically uses the default DNS servers provided by your ISP.
           </li>
@@ -82,15 +71,7 @@ import { TuiAccordion } from '@taiga-ui/experimental'
             Manually specify DNS server addresses. Enter the preferred and
             alternate DNS server addresses of your choice.
           </li>
-          <li>
-            <b>Use IPv4 Settings:</b>
-            Make IPv6 DNS Strategy follow IPv4 configuration.
-          </li>
         </ul>
-        <h3>DNSCrypt Proxy</h3>
-        Encrypts DNS queries to improve security and privacy. Prevents
-        eavesdropping and tampering with DNS traffic. Enable and select the
-        proxy service.
       </tui-expand>
     </tui-accordion>
   `,

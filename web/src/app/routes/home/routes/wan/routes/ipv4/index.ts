@@ -15,13 +15,12 @@ import {
   injectFormService,
   provideFormService,
 } from 'src/app/services/form.service'
-
 import { IPv4Aside } from './aside'
-import { Ipv4Dns } from './dns'
+import { Dns } from '../../dns/dns'
 import { Ipv4Ip } from './ip'
 import { Ipv4Service } from './service'
 import { Ipv4Summary } from './summary'
-import { WanIpv4Form } from './types'
+import { getWanIpv4Form, WanIpv4Form } from './utils'
 
 @Component({
   template: `
@@ -36,9 +35,9 @@ import { WanIpv4Form } from './types'
       (ngSubmit)="onSave()"
     >
       <ipv4-ip formGroupName="ip" />
-      <ipv4-dns formGroupName="dns" />
+      <wan-dns [mode]="dnsMode" formGroupName="dns" />
       @if (service.data()) {
-        <footer appFooter></footer>
+        <footer appFooter [disabled]="form.pristine"></footer>
       }
     </form>
   `,
@@ -51,7 +50,7 @@ import { WanIpv4Form } from './types'
     Help,
     Ipv4Summary,
     Ipv4Ip,
-    Ipv4Dns,
+    Dns,
     IPv4Aside,
   ],
   host: { class: 'g-page' },
@@ -62,26 +61,7 @@ export default class Ipv4 {
   protected readonly builder = inject(NonNullableFormBuilder)
   protected readonly service = injectFormService<WanIpv4Form>()
 
-  readonly form = this.builder.group({
-    ip: this.builder.group({
-      mode: 'dhcp' as WanIpv4Form['ip']['mode'],
-      wan: '',
-      prefix: '',
-      mask: '',
-      gateway: '',
-      password: '',
-      vlan: '',
-    }),
-    dns: this.builder.group({
-      mode: 'isp' as WanIpv4Form['dns']['mode'],
-      server: '',
-      1: '',
-      2: '',
-      tls1: false,
-      tls2: false,
-      proxy: false,
-    }),
-  })
+  readonly form = getWanIpv4Form(this.builder)
 
   constructor() {
     effect(() => {
@@ -91,11 +71,11 @@ export default class Ipv4 {
     })
   }
 
-  public get ip() {
+  public get ipMode() {
     return this.form.controls.ip.controls.mode.value
   }
 
-  public get dns() {
+  protected get dnsMode() {
     return this.form.controls.dns.controls.mode.value
   }
 

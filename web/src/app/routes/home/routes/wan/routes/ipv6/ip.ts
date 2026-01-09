@@ -1,12 +1,17 @@
-import { KeyValuePipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
 import { TuiError, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiRadio } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { FORM, FormSection } from 'src/app/directives/form'
-
-import Ipv6 from '.'
+import {
+  IPV6_MODES,
+  Ipv6Mode,
+  IPV6_LABELS,
+  IPV6_SIXRD_CONTROLS,
+  IPV6_SLAAC_CONTROLS,
+  IPV6_STATIC_CONTROLS,
+} from './utils'
 
 @Component({
   selector: 'ipv6-ip',
@@ -20,28 +25,47 @@ import Ipv6 from '.'
         </label>
       }
     </section>
-    @if (parent.ip !== 'disabled') {
-      <section [formGroupName]="parent.ip">
-        @for (
-          control of parent.form.controls.ip.controls[parent.ip].controls
-            | keyvalue: asIs;
-          track control
-        ) {
+
+    @if (mode() === 'slaac') {
+      <section>
+        @for (control of slaacControls; track control) {
           <div>
             <tui-textfield>
-              <label tuiLabel>{{ labels[control.key] }}</label>
-              <input
-                tuiTextfield
-                [formControlName]="control.key"
-                [readOnly]="isReadOnly(control.key)"
-              />
+              <label tuiLabel>{{ labels[control] }}</label>
+              <input tuiTextfield [formControlName]="control" />
             </tui-textfield>
-            @if (control.key === 'gateway' && parent.ip === 'static') {
+          </div>
+        }
+      </section>
+    }
+
+    @if (mode() === 'static') {
+      <section>
+        @for (control of staticControls; track control) {
+          <div>
+            <tui-textfield>
+              <label tuiLabel>{{ labels[control] }}</label>
+              <input tuiTextfield [formControlName]="control" />
+            </tui-textfield>
+            @if (control === 'gateway') {
               <tui-error
                 class="g-secondary"
                 error="Only needed if behind NAT"
               />
             }
+          </div>
+        }
+      </section>
+    }
+
+    @if (mode() === '6rd') {
+      <section>
+        @for (control of sixrdControls; track control) {
+          <div>
+            <tui-textfield>
+              <label tuiLabel>{{ labels[control] }}</label>
+              <input tuiTextfield [formControlName]="control" />
+            </tui-textfield>
           </div>
         }
       </section>
@@ -52,7 +76,6 @@ import Ipv6 from '.'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
-    KeyValuePipe,
     TuiHeader,
     TuiTitle,
     TuiTextfield,
@@ -61,23 +84,11 @@ import Ipv6 from '.'
   ],
 })
 export class Ipv6Ip {
-  protected readonly parent = inject(Ipv6)
-  protected readonly modes = ['SLAAC', 'DHCPv6', 'Static', '6RD', 'Disabled']
-  protected readonly asIs = () => 0
-  protected readonly labels: Record<string, string> = {
-    wan: 'WAN IPv6 Address',
-    length: 'IPv6 Prefix Length*',
-    prefix: 'IPv6 Prefix*',
-    gateway: 'Gateway IPv6 Address',
-    ip4: 'IPv4 Gateway Address*',
-    mask: 'IPv4 Mask Length*',
-    border: 'IPv4 Border Router Address*',
-  }
+  protected readonly modes = IPV6_MODES
+  protected readonly labels = IPV6_LABELS
+  protected readonly slaacControls = IPV6_SLAAC_CONTROLS
+  protected readonly staticControls = IPV6_STATIC_CONTROLS
+  protected readonly sixrdControls = IPV6_SIXRD_CONTROLS
 
-  protected isReadOnly(key: string): boolean {
-    return (
-      this.parent.ip !== 'static' &&
-      (key === 'wan' || key === 'gateway' || this.parent.ip === 'dhcpv6')
-    )
-  }
+  readonly mode = input.required<Ipv6Mode>()
 }

@@ -4,7 +4,6 @@ import {
   toObservable,
   toSignal,
 } from '@angular/core/rxjs-interop'
-import { FormGroup } from '@angular/forms'
 import { TuiAlertService } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import {
@@ -17,6 +16,8 @@ import {
   takeUntil,
   timer,
 } from 'rxjs'
+
+export type FormRawValue<T> = T extends { getRawValue(): infer R } ? R : never
 
 export abstract class FormService<T> {
   private readonly load$ = new Subject<void>()
