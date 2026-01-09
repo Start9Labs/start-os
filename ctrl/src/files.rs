@@ -6,6 +6,7 @@ use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn};
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::Read as _;
+use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 
 // === File namespace (file.get, file.set) ===
@@ -102,10 +103,34 @@ pub fn dir<C: Context>() -> ParentHandler<C> {
     )
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FileType {
+    RegularFile,
+    Directory,
+    Symlink,
+    BlockDevice,
+    CharDevice,
+    Fifo,
+    Socket,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DirEntry {
     pub name: String,
-    pub is_dir: bool,
+    pub size: u64,
+    pub blocks: u64,
+    pub io_block: u64,
+    pub file_type: FileType,
+    pub device: u64,
+    pub inode: u64,
+    pub links: u64,
+    pub mode: u32,
+    pub uid: u32,
+    pub gid: u32,
+    pub access: DateTime<Utc>,
+    pub modify: DateTime<Utc>,
+    pub change: DateTime<Utc>,
 }
 
 #[derive(Parser, Serialize, Deserialize)]
@@ -113,13 +138,56 @@ pub struct DirGetArgs {
     pub path: PathBuf,
 }
 
+fn file_type_from_mode(mode: u32) -> FileType {
+    const S_IFMT: u32 = 0o170000;
+    const S_IFREG: u32 = 0o100000;
+    const S_IFDIR: u32 = 0o040000;
+    const S_IFLNK: u32 = 0o120000;
+    const S_IFBLK: u32 = 0o060000;
+    const S_IFCHR: u32 = 0o020000;
+    const S_IFIFO: u32 = 0o010000;
+    const S_IFSOCK: u32 = 0o140000;
+
+    match mode & S_IFMT {
+        S_IFREG => FileType::RegularFile,
+        S_IFDIR => FileType::Directory,
+        S_IFLNK => FileType::Symlink,
+        S_IFBLK => FileType::BlockDevice,
+        S_IFCHR => FileType::CharDevice,
+        S_IFIFO => FileType::Fifo,
+        S_IFSOCK => FileType::Socket,
+        _ => FileType::RegularFile,
+    }
+}
+
+fn timestamp_to_datetime(secs: i64) -> DateTime<Utc> {
+    DateTime::from_timestamp(secs, 0).unwrap_or_default()
+}
+
 pub fn dir_get(_ctx: ServerContext, DirGetArgs { path }: DirGetArgs) -> Result<Vec<DirEntry>, Error> {
     let entries = fs::read_dir(&path)?
         .filter_map(|entry| {
             let entry = entry.ok()?;
             let name = entry.file_name().to_string_lossy().into_owned();
-            let is_dir = entry.file_type().ok()?.is_dir();
-            Some(DirEntry { name, is_dir })
+            let metadata = entry.metadata().ok()?;
+            let mode = metadata.mode();
+
+            Some(DirEntry {
+                name,
+                size: metadata.size(),
+                blocks: metadata.blocks(),
+                io_block: metadata.blksize(),
+                file_type: file_type_from_mode(mode),
+                device: metadata.dev(),
+                inode: metadata.ino(),
+                links: metadata.nlink(),
+                mode: mode & 0o7777, // permission bits only
+                uid: metadata.uid(),
+                gid: metadata.gid(),
+                access: timestamp_to_datetime(metadata.atime()),
+                modify: timestamp_to_datetime(metadata.mtime()),
+                change: timestamp_to_datetime(metadata.ctime()),
+            })
         })
         .collect();
 
@@ -294,10 +362,11 @@ mod tests {
         assert_eq!(entries.len(), 2);
 
         let file_entry = entries.iter().find(|e| e.name == "file.txt").unwrap();
-        assert!(!file_entry.is_dir);
+        assert_eq!(file_entry.file_type, FileType::RegularFile);
+        assert_eq!(file_entry.size, 7); // "content" is 7 bytes
 
         let dir_entry = entries.iter().find(|e| e.name == "subdir").unwrap();
-        assert!(dir_entry.is_dir);
+        assert_eq!(dir_entry.file_type, FileType::Directory);
     }
 
     #[test]
