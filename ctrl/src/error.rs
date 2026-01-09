@@ -1,5 +1,6 @@
 use crate::profiles::ProfileIdOpt;
 use color_eyre::eyre;
+use rpc_toolkit::yajrc::RpcError;
 use serde::{Serialize, Serializer};
 use std::backtrace::Backtrace;
 use std::fmt;
@@ -95,3 +96,12 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+impl From<RpcError> for Error {
+    fn from(e: RpcError) -> Self {
+        Error {
+            kind: ErrorKind::Other(eyre::eyre!("{}", e)),
+            backtrace: Backtrace::capture(),
+        }
+    }
+}

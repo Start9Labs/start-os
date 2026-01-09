@@ -1,8 +1,8 @@
 use crate::utils::HandlerExtSerde;
-use crate::Error;
+use crate::{CliContext, Error, ServerContext};
 use chrono::{DateTime, Utc};
 use clap::Parser;
-use rpc_toolkit::{from_fn, Context, ParentHandler};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn};
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::Read as _;
@@ -12,8 +12,18 @@ use std::path::PathBuf;
 
 pub fn file<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("get", from_fn(get::<C>).with_display_serializable())
-        .subcommand("set", from_fn(set::<C>).with_display_serializable())
+        .subcommand(
+            "get",
+            from_fn(get)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set",
+            from_fn(set)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,7 +51,7 @@ fn get_modified_time(path: &PathBuf) -> Result<DateTime<Utc>, Error> {
         .map_err(Into::into)
 }
 
-pub fn get<C: Context>(_ctx: C, GetFileArgs { path }: GetFileArgs) -> Result<FileContents, Error> {
+pub fn get(_ctx: ServerContext, GetFileArgs { path }: GetFileArgs) -> Result<FileContents, Error> {
     let mut file = File::open(&path)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
@@ -50,8 +60,8 @@ pub fn get<C: Context>(_ctx: C, GetFileArgs { path }: GetFileArgs) -> Result<Fil
     Ok(FileContents { contents, modified })
 }
 
-pub fn set<C: Context>(
-    _ctx: C,
+pub fn set(
+    _ctx: ServerContext,
     SetFileArgs {
         path,
         contents,
@@ -84,7 +94,12 @@ pub fn set<C: Context>(
 // === Dir namespace (dir.get) ===
 
 pub fn dir<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new().subcommand("get", from_fn(dir_get::<C>).with_display_serializable())
+    ParentHandler::new().subcommand(
+        "get",
+        from_fn(dir_get)
+            .with_display_serializable()
+            .with_call_remote::<CliContext>(),
+    )
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -98,7 +113,7 @@ pub struct DirGetArgs {
     pub path: PathBuf,
 }
 
-pub fn dir_get<C: Context>(_ctx: C, DirGetArgs { path }: DirGetArgs) -> Result<Vec<DirEntry>, Error> {
+pub fn dir_get(_ctx: ServerContext, DirGetArgs { path }: DirGetArgs) -> Result<Vec<DirEntry>, Error> {
     let entries = fs::read_dir(&path)?
         .filter_map(|entry| {
             let entry = entry.ok()?;
@@ -118,11 +133,6 @@ mod tests {
     use std::time::Duration;
     use tempfile::{tempdir, NamedTempFile};
 
-    // Mock context for testing
-    #[derive(Clone)]
-    struct TestContext;
-    impl rpc_toolkit::Context for TestContext {}
-
     // === file::get tests ===
 
     #[test]
@@ -131,7 +141,7 @@ mod tests {
         fs::write(temp_file.path(), "hello world").unwrap();
 
         let result = get(
-            TestContext,
+            ServerContext,
             GetFileArgs {
                 path: temp_file.path().to_path_buf(),
             },
@@ -145,7 +155,7 @@ mod tests {
     #[test]
     fn test_get_returns_error_for_missing_file() {
         let result = get(
-            TestContext,
+            ServerContext,
             GetFileArgs {
                 path: PathBuf::from("/nonexistent/file.txt"),
             },
@@ -162,7 +172,7 @@ mod tests {
         let file_path = temp_dir.path().join("new_file.txt");
 
         let result = set(
-            TestContext,
+            ServerContext,
             SetFileArgs {
                 path: file_path.clone(),
                 contents: "new content".to_string(),
@@ -181,7 +191,7 @@ mod tests {
         fs::write(&path, "original").unwrap();
 
         let result = set(
-            TestContext,
+            ServerContext,
             SetFileArgs {
                 path: path.clone(),
                 contents: "updated".to_string(),
@@ -203,7 +213,7 @@ mod tests {
         let modified = get_modified_time(&path).unwrap();
 
         let result = set(
-            TestContext,
+            ServerContext,
             SetFileArgs {
                 path: path.clone(),
                 contents: "updated".to_string(),
@@ -230,7 +240,7 @@ mod tests {
 
         // Try to set with the old modified time
         let result = set(
-            TestContext,
+            ServerContext,
             SetFileArgs {
                 path: path.clone(),
                 contents: "my update".to_string(),
@@ -249,7 +259,7 @@ mod tests {
         let nested_path = temp_dir.path().join("a/b/c/file.txt");
 
         let result = set(
-            TestContext,
+            ServerContext,
             SetFileArgs {
                 path: nested_path.clone(),
                 contents: "nested content".to_string(),
@@ -273,7 +283,7 @@ mod tests {
         fs::create_dir(temp_dir.path().join("subdir")).unwrap();
 
         let result = dir_get(
-            TestContext,
+            ServerContext,
             DirGetArgs {
                 path: temp_dir.path().to_path_buf(),
             },
@@ -295,7 +305,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
 
         let result = dir_get(
-            TestContext,
+            ServerContext,
             DirGetArgs {
                 path: temp_dir.path().to_path_buf(),
             },
@@ -308,7 +318,7 @@ mod tests {
     #[test]
     fn test_dir_get_returns_error_for_missing_directory() {
         let result = dir_get(
-            TestContext,
+            ServerContext,
             DirGetArgs {
                 path: PathBuf::from("/nonexistent/directory"),
             },

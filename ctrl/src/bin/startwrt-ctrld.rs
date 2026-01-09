@@ -1,4 +1,4 @@
-use axum::routing::get;
+use axum::routing::post;
 use axum::Router;
 use color_eyre::eyre::Error;
 use rpc_toolkit::Server;
@@ -13,7 +13,7 @@ async fn inner_main() -> Result<(), Error> {
     let ctx = ServerContext;
     let handler = Server::new(move || ready(Ok(ctx.clone())), main_api()).for_http();
     let addr = SocketAddr::from(([127, 0, 0, 1], 3301));
-    let app = Router::new().route("/", get(handler));
+    let app = Router::new().route("/", post(handler));
     println!("listening on {}", addr);
     axum_server::bind(addr)
         .serve(app.into_make_service())
