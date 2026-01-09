@@ -2,10 +2,11 @@ use crate::utils::HandlerExtSerde;
 use crate::{CliContext, Error, ServerContext};
 use chrono::{DateTime, Utc};
 use clap::Parser;
+use fd_lock_rs::{FdLock, LockType};
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn};
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
-use std::io::Read as _;
+use std::io::{Read as _, Seek, Write};
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 
@@ -69,25 +70,42 @@ pub fn set(
         modified,
     }: SetFileArgs,
 ) -> Result<(), Error> {
-    // Check if file was modified since client last read it
-    if let Some(expected) = modified {
-        if path.exists() {
-            let current = get_modified_time(&path)?;
-            if current != expected {
-                return Err(Error::other(format!(
-                    "file was modified: expected {}, found {}",
-                    expected, current
-                )));
-            }
-        }
-    }
-
     // Create parent directories if they don't exist
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
 
-    fs::write(&path, &contents)?;
+    // Open the file with exclusive lock to prevent races
+    let file = File::options()
+        .create(true)
+        .write(true)
+        .truncate(false)
+        .open(&path)?;
+
+    let mut locked = FdLock::lock(file, LockType::Exclusive, true)
+        .map_err(|e| Error::other(format!("failed to lock file: {e}")))?;
+
+    // Check if file was modified since client last read it (while holding lock)
+    if let Some(expected) = modified {
+        let found = locked
+            .metadata()
+            .and_then(|m| m.modified())
+            .map(DateTime::<Utc>::from)
+            .ok();
+        if found.is_some_and(|found| found > expected) {
+            return Err(Error::other(format!(
+                "file was modified: expected {}, found {}",
+                expected,
+                found.unwrap()
+            )));
+        }
+    }
+
+    // Write contents while holding the lock
+    locked.set_len(0)?;
+    locked.seek(std::io::SeekFrom::Start(0))?;
+    locked.write_all(contents.as_bytes())?;
+    locked.flush()?;
 
     Ok(())
 }
@@ -338,6 +356,122 @@ mod tests {
         assert!(result.is_ok());
         assert!(nested_path.exists());
         assert_eq!(fs::read_to_string(&nested_path).unwrap(), "nested content");
+    }
+
+    // === file::set locking tests ===
+
+    #[test]
+    fn test_set_concurrent_writes_are_serialized() {
+        let temp_dir = tempdir().unwrap();
+        let path = temp_dir.path().join("concurrent.txt");
+
+        // Create initial file
+        fs::write(&path, "").unwrap();
+
+        let path1 = path.clone();
+        let path2 = path.clone();
+
+        // Spawn two threads that write to the same file concurrently
+        let handle1 = thread::spawn(move || {
+            for i in 0..10 {
+                set(
+                    ServerContext,
+                    SetFileArgs {
+                        path: path1.clone(),
+                        contents: format!("thread1-{}", i),
+                        modified: None,
+                    },
+                )
+                .unwrap();
+            }
+        });
+
+        let handle2 = thread::spawn(move || {
+            for i in 0..10 {
+                set(
+                    ServerContext,
+                    SetFileArgs {
+                        path: path2.clone(),
+                        contents: format!("thread2-{}", i),
+                        modified: None,
+                    },
+                )
+                .unwrap();
+            }
+        });
+
+        handle1.join().unwrap();
+        handle2.join().unwrap();
+
+        // File should contain a complete write from one thread, not corrupted/interleaved
+        let contents = fs::read_to_string(&path).unwrap();
+        assert!(
+            contents.starts_with("thread1-") || contents.starts_with("thread2-"),
+            "File contents should be from one thread, got: {}",
+            contents
+        );
+    }
+
+    #[test]
+    fn test_set_lock_prevents_race_between_check_and_write() {
+        use std::sync::{Arc, Barrier};
+
+        let temp_dir = tempdir().unwrap();
+        let path = temp_dir.path().join("race.txt");
+
+        // Create initial file
+        fs::write(&path, "initial").unwrap();
+        let original_mtime = get_modified_time(&path).unwrap();
+
+        // Wait to ensure mtime will differ
+        thread::sleep(Duration::from_millis(10));
+
+        let barrier = Arc::new(Barrier::new(2));
+        let path1 = path.clone();
+        let path2 = path.clone();
+        let barrier1 = Arc::clone(&barrier);
+        let barrier2 = Arc::clone(&barrier);
+
+        // Thread 1: tries to write with the original mtime
+        let handle1 = thread::spawn(move || {
+            barrier1.wait(); // Synchronize start
+            set(
+                ServerContext,
+                SetFileArgs {
+                    path: path1,
+                    contents: "thread1".to_string(),
+                    modified: Some(original_mtime),
+                },
+            )
+        });
+
+        // Thread 2: writes without mtime check (simulating another writer)
+        let handle2 = thread::spawn(move || {
+            barrier2.wait(); // Synchronize start
+            set(
+                ServerContext,
+                SetFileArgs {
+                    path: path2,
+                    contents: "thread2".to_string(),
+                    modified: None,
+                },
+            )
+        });
+
+        let _result1 = handle1.join().unwrap();
+        let result2 = handle2.join().unwrap();
+
+        // Both operations should complete (one succeeds, possibly one fails due to mtime)
+        // The key is no panic or data corruption
+        assert!(result2.is_ok(), "Thread 2 (no mtime check) should succeed");
+
+        // Final file should have complete content from one thread
+        let contents = fs::read_to_string(&path).unwrap();
+        assert!(
+            contents == "thread1" || contents == "thread2",
+            "File should have complete content, got: {}",
+            contents
+        );
     }
 
     // === dir::get tests ===
