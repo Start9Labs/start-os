@@ -46,7 +46,7 @@ import {
   CheckDependencies,
   checkDependencies,
 } from "../../base/lib/dependencies/dependencies"
-import { GetSslCertificate } from "./util"
+import { GetSslCertificate, getServiceManifest } from "./util"
 import { getDataVersion, setDataVersion } from "./version"
 import { MaybeFn } from "../../base/lib/actions/setupActions"
 import { GetInput } from "../../base/lib/actions/setupActions"
@@ -107,6 +107,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       | "getContainerIp"
       | "getDataVersion"
       | "setDataVersion"
+      | "getServiceManifest"
 
     // prettier-ignore
     type StartSdkEffectWrapper = {
@@ -446,6 +447,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         hostnames: string[],
         algorithm?: T.Algorithm,
       ) => new GetSslCertificate(effects, hostnames, algorithm),
+      getServiceManifest,
       healthCheck: {
         checkPortListening,
         checkWebUrl,

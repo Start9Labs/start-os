@@ -36,6 +36,7 @@ struct ServiceCallbackMap {
     >,
     get_status: BTreeMap<PackageId, Vec<CallbackHandler>>,
     get_container_ip: BTreeMap<PackageId, Vec<CallbackHandler>>,
+    get_service_manifest: BTreeMap<PackageId, Vec<CallbackHandler>>,
 }
 
 impl ServiceCallbacks {
@@ -65,6 +66,10 @@ impl ServiceCallbacks {
                 !v.is_empty()
             });
             this.get_status.retain(|_, v| {
+                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+                !v.is_empty()
+            });
+            this.get_service_manifest.retain(|_, v| {
                 v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
                 !v.is_empty()
             });
@@ -245,6 +250,25 @@ impl ServiceCallbacks {
     pub fn get_container_ip(&self, package_id: &PackageId) -> Option<CallbackHandlers> {
         self.mutate(|this| {
             this.get_container_ip
+                .remove(package_id)
+                .map(CallbackHandlers)
+                .filter(|cb| !cb.0.is_empty())
+        })
+    }
+
+    pub(super) fn add_get_service_manifest(&self, package_id: PackageId, handler: CallbackHandler) {
+        self.mutate(|this| {
+            this.get_service_manifest
+                .entry(package_id)
+                .or_default()
+                .push(handler)
+        })
+    }
+
+    #[must_use]
+    pub fn get_service_manifest(&self, package_id: &PackageId) -> Option<CallbackHandlers> {
+        self.mutate(|this| {
+            this.get_service_manifest
                 .remove(package_id)
                 .map(CallbackHandlers)
                 .filter(|cb| !cb.0.is_empty())

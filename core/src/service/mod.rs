@@ -575,6 +575,17 @@ impl Service {
             .await
             .result?;
 
+        // Trigger manifest callbacks after successful installation
+        let manifest = service.seed.persistent_container.s9pk.as_manifest();
+        if let Some(callbacks) = ctx.callbacks.get_service_manifest(&manifest.id) {
+            let manifest_value =
+                serde_json::to_value(manifest).with_kind(ErrorKind::Serialization)?;
+            callbacks
+                .call(imbl::vector![manifest_value.into()])
+                .await
+                .log_err();
+        }
+
         Ok(service)
     }
 

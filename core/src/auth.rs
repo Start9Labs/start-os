@@ -184,7 +184,11 @@ async fn cli_login<C: SessionAuthContext>(
 where
     CliContext: CallRemote<C>,
 {
-    let password = rpassword::prompt_password("Password: ")?;
+    let password = if let Ok(password) = std::env::var("PASSWORD") {
+        password
+    } else {
+        rpassword::prompt_password("Password: ")?
+    };
 
     ctx.call_remote::<C>(
         &parent_method.into_iter().chain(method).join("."),
