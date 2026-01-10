@@ -1,7 +1,7 @@
 .item-container {
   position: relative;
   border-radius: 1.5rem;
-  padding: 2rem 1.5rem 1rem;
+  padding: 5rem 2rem 2rem 2.5rem;
   transition-property: transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 500ms;
@@ -46,11 +46,11 @@
 }
 
 .icon {
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 5.5rem;
+  height: 5.5rem;
   pointer-events: none;
   position: absolute;
-  top: -1.5rem;
+  top: -2.5rem;
   border-radius: 9999px;
   object-fit: cover;
   transform: none;
