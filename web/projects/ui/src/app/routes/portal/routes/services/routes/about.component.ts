@@ -10,7 +10,7 @@ import {
 } from '@start9labs/shared'
 import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
-import { from, map } from 'rxjs'
+import { defer, map } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
@@ -54,15 +54,13 @@ import {
 })
 export default class ServiceAboutRoute {
   private readonly pkgId = getPkgId()
+  private readonly api = inject(ApiService)
   private readonly copyService = inject(CopyService)
   private readonly markdown = inject(DialogService).openComponent(MARKDOWN, {
     label: 'License',
     size: 'l',
-    data: from(
-      inject(ApiService).getStatic(
-        [`/s9pk/installed/${this.pkgId}.s9pk/LICENSE.md`],
-        {},
-      ),
+    data: defer(() =>
+      this.api.getStatic([`/s9pk/installed/${this.pkgId}.s9pk/LICENSE.md`], {}),
     ),
   })
 
