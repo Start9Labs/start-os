@@ -3,6 +3,6 @@ import type { CallbackId } from "./CallbackId"
 import type { PackageId } from "./PackageId"
 
 export type GetServiceManifestParams = {
-  packageId?: PackageId
+  packageId: PackageId
   callback?: CallbackId
 }

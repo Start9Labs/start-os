@@ -178,8 +178,10 @@ export function makeEffects(context: EffectContext): Effects {
         T.Effects["getInstalledPackages"]
       >
     },
-    getServiceManifest(...[]: Parameters<T.Effects["getServiceManifest"]>) {
-      return rpcRound("get-service-manifest", {}) as ReturnType<
+    getServiceManifest(
+      ...[options]: Parameters<T.Effects["getServiceManifest"]>
+    ) {
+      return rpcRound("get-service-manifest", options) as ReturnType<
         T.Effects["getServiceManifest"]
       >
     },

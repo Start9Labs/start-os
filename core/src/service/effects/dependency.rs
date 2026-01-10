@@ -10,11 +10,11 @@ use crate::db::model::package::{
     CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind, ManifestPreference,
     TaskEntry,
 };
-use crate::s9pk::manifest::Manifest;
 use crate::disk::mount::filesystem::bind::{Bind, FileType};
 use crate::disk::mount::filesystem::idmapped::{IdMap, IdMapped};
 use crate::disk::mount::filesystem::{FileSystem, MountType};
 use crate::disk::mount::util::{is_mountpoint, unmount};
+use crate::s9pk::manifest::Manifest;
 use crate::service::effects::callbacks::CallbackHandler;
 use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
@@ -375,8 +375,7 @@ pub async fn check_dependencies(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct GetServiceManifestParams {
-    #[ts(optional)]
-    pub package_id: Option<PackageId>,
+    pub package_id: PackageId,
     #[ts(optional)]
     #[arg(skip)]
     pub callback: Option<CallbackId>,
@@ -390,14 +389,14 @@ pub async fn get_service_manifest(
     }: GetServiceManifestParams,
 ) -> Result<Manifest, Error> {
     let context = context.deref()?;
-    let id = package_id.unwrap_or_else(|| context.seed.id.clone());
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
-        context.seed.ctx.callbacks.add_get_service_manifest(
-            id.clone(),
-            CallbackHandler::new(&context, callback),
-        );
+        context
+            .seed
+            .ctx
+            .callbacks
+            .add_get_service_manifest(package_id.clone(), CallbackHandler::new(&context, callback));
     }
 
     let db = context.seed.ctx.db.peek().await;
@@ -405,8 +404,8 @@ pub async fn get_service_manifest(
     let manifest = db
         .as_public()
         .as_package_data()
-        .as_idx(&id)
-        .or_not_found(&id)?
+        .as_idx(&package_id)
+        .or_not_found(&package_id)?
         .as_state_info()
         .as_manifest(ManifestPreference::New)
         .de()?;

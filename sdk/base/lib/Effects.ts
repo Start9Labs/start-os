@@ -86,7 +86,7 @@ export type Effects = {
   getInstalledPackages(): Promise<string[]>
   /** Returns the manifest of a service */
   getServiceManifest(options: {
-    packageId?: PackageId
+    packageId: PackageId
     callback?: () => void
   }): Promise<Manifest>
 
