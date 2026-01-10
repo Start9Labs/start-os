@@ -99,7 +99,8 @@ header[tuiHeader] {
     > *:has([tuiTextfield]) {
       display: flex;
       flex: 1;
-      min-width: 8rem;
+      width: 20rem;
+      min-width: 16rem;
       max-width: 20rem;
 
       &:not(tui-textfield) {

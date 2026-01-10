@@ -41,16 +41,21 @@ export const DDNS_FIELD_LABELS: Record<string, string> = {
   zone: 'Zone ID',
 }
 
+export const DDNS_VALIDATION_ERRORS = {
+  required: 'Required',
+}
+
 export function getDdnsForm(builder: NonNullableFormBuilder) {
   return builder.group({
     enabled: builder.control(false),
     provider: builder.control<DdnsProvider>('start9'),
-    // Common fields across providers
-    username: builder.control(''),
-    password: builder.control(''),
-    hostname: builder.control(''),
-    token: builder.control(''),
-    zone: builder.control(''),
+    fields: builder.group({
+      username: builder.control(''),
+      password: builder.control(''),
+      hostname: builder.control(''),
+      token: builder.control(''),
+      zone: builder.control(''),
+    }),
   })
 }
 
@@ -65,7 +70,7 @@ export function updateDdnsValidators(
   enabled: boolean,
   provider: DdnsProvider,
 ): void {
-  const controls = form.controls
+  const controls = form.controls.fields.controls
 
   // Clear all validators first
   controls.username.clearValidators()

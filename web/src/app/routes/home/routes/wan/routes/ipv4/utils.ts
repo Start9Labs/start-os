@@ -27,6 +27,13 @@ export const IPV4_LABELS: Record<
   mask: 'Subnet Mask',
 }
 
+export const IPV4_VALIDATION_ERRORS = {
+  required: 'Required',
+  ipv4: 'Enter a valid IPv4 address',
+  prefix: ({ min, max }: { min: number; max: number }) =>
+    `Enter a value between ${min} and ${max}`,
+}
+
 export type Ipv4Mode = (typeof IPV4_MODES)[number]
 
 export function getWanIpv4Form(builder: NonNullableFormBuilder) {

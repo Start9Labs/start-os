@@ -7,7 +7,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
-import { TuiTextfield, TuiTitle } from '@taiga-ui/core'
+import { TuiTitle } from '@taiga-ui/core'
 import { TuiRadio } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
@@ -18,6 +18,7 @@ import {
   injectFormService,
   provideFormService,
 } from 'src/app/services/form.service'
+import { MacAddress } from './address'
 import { MacAside } from './aside'
 import { MacService } from './service'
 import { MacSummary } from './summary'
@@ -55,12 +56,7 @@ import {
         }
       </section>
       @if (strategy() === 'custom') {
-        <section>
-          <tui-textfield>
-            <label tuiLabel>{{ labels.mac }}</label>
-            <input tuiTextfield formControlName="mac" />
-          </tui-textfield>
-        </section>
+        <mac-address formGroupName="address" />
       }
       @if (service.data()) {
         <footer appFooter [disabled]="form.pristine"></footer>
@@ -72,12 +68,12 @@ import {
     ReactiveFormsModule,
     TuiHeader,
     TuiTitle,
-    TuiTextfield,
     TuiRadio,
     Form,
     Footer,
     Help,
     MacSummary,
+    MacAddress,
     MacAside,
   ],
   providers: [provideFormService(MacService)],

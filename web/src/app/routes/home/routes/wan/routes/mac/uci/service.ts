@@ -53,11 +53,13 @@ export class MacUciService {
 
     return {
       strategy: hasCustomMac ? 'custom' : 'router',
-      mac: customMac || this._defaultMac,
+      address: {
+        mac: customMac || this._defaultMac,
+      },
     }
   }
 
-  async set({ strategy, mac }: MacForm): Promise<void> {
+  async set({ strategy, address }: MacForm): Promise<void> {
     if (!this._uciFiles) {
       throw new Error('Configuration not loaded yet')
     }
@@ -74,7 +76,7 @@ export class MacUciService {
     }
 
     if (strategy === 'custom') {
-      wanInterface.options.macaddr = mac
+      wanInterface.options.macaddr = address.mac
     } else {
       // Remove custom MAC to use router default
       delete wanInterface.options.macaddr

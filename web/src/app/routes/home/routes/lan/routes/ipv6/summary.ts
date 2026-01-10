@@ -1,40 +1,53 @@
-import { AsyncPipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiTitle } from '@taiga-ui/core'
+import { ChangeDetectionStrategy, Component, computed } from '@angular/core'
 import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
 import { Summary } from 'src/app/components/summary'
-
-import Ipv6 from '.'
+import { injectFormService } from 'src/app/services/form.service'
+import { LanIpv6Data } from './uci/service'
 
 @Component({
-  selector: '[ipv6Summary]',
+  selector: '[lanIpv6Summary]',
   template: `
-    @if (parent.form.valueChanges | async) {}
-    <header tuiHeader><h2 tuiTitle>Summary</h2></header>
     <section>
       <div appSummary>
-        IPv6 Address Strategy
+        Strategy
         <span tuiSubtitle [style.gap.rem]="0.375">
-          @if (parent.form.value.slaac) {
+          @if (slaac()) {
             <span tuiBadge tuiStatus appearance="positive">SLAAC</span>
           }
-          @if (parent.form.value.dhcpv6) {
+          @if (dhcpv6()) {
             <span tuiBadge tuiStatus appearance="positive">DHCPv6</span>
+          }
+          @if (!slaac()) {
+            <span tuiBadge tuiStatus appearance="neutral">Disabled</span>
           }
         </span>
       </div>
-      <div [appSummary]="parent.form.value.ip">IPv6 Address</div>
-      <div appSummary>
-        IPv6 Prefix Length
-        <span tuiSubtitle>/{{ parent.form.value.prefix }}</span>
-      </div>
+      @if (ip6addr(); as addr) {
+        <div [appSummary]="addr">Router IP</div>
+      }
+      @if (prefix(); as p) {
+        <div appSummary>
+          Prefix Length
+          <span tuiSubtitle>{{ p }}</span>
+        </div>
+      }
     </section>
   `,
   host: { '[style.background]': '"var(--tui-status-info-pale)"' },
-  imports: [AsyncPipe, TuiHeader, TuiTitle, TuiBadge, TuiStatus, Summary],
+  imports: [TuiBadge, TuiStatus, Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Ipv6Summary {
-  protected readonly parent = inject(Ipv6)
+export class LanIpv6Summary {
+  protected readonly service = injectFormService<LanIpv6Data>()
+
+  readonly slaac = computed(() => this.service.data()?.strategy.slaac ?? false)
+  readonly dhcpv6 = computed(
+    () => this.service.data()?.strategy.dhcpv6 ?? false,
+  )
+  readonly prefix = computed(() =>
+    this.service.data()?.strategy.slaac
+      ? this.service.data()?.subnet.prefix
+      : null,
+  )
+  readonly ip6addr = computed(() => this.service.data()?.ip6addr || '')
 }

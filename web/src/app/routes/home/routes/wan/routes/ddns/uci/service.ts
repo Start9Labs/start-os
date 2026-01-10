@@ -42,11 +42,13 @@ export class DdnsUciService {
       return {
         enabled: false,
         provider: 'start9',
-        username: '',
-        password: '',
-        hostname: '',
-        token: '',
-        zone: '',
+        fields: {
+          username: '',
+          password: '',
+          hostname: '',
+          token: '',
+          zone: '',
+        },
       }
     }
 
@@ -56,16 +58,18 @@ export class DdnsUciService {
     return {
       enabled: ddnsService.options.enabled === '1',
       provider,
-      username: ddnsService.options.username || '',
-      password: ddnsService.options.password || '',
-      hostname:
-        ddnsService.options.domain || ddnsService.options.lookup_host || '',
-      token: ddnsService.options.password || '', // Some providers use password field for token
-      zone: '', // Cloudflare-specific, stored differently
+      fields: {
+        username: ddnsService.options.username || '',
+        password: ddnsService.options.password || '',
+        hostname:
+          ddnsService.options.domain || ddnsService.options.lookup_host || '',
+        token: ddnsService.options.password || '', // Some providers use password field for token
+        zone: '', // Cloudflare-specific, stored differently
+      },
     }
   }
 
-  async set(form: DdnsForm): Promise<void> {
+  async set({ enabled, provider, fields }: DdnsForm): Promise<void> {
     if (!this._uciFiles) {
       throw new Error('Configuration not loaded yet')
     }
@@ -87,8 +91,8 @@ export class DdnsUciService {
       uciFiles.ddns.sections.push(ddnsService)
     }
 
-    ddnsService.options.enabled = form.enabled ? '1' : '0'
-    ddnsService.options.service_name = PROVIDER_SERVICE_MAP[form.provider]
+    ddnsService.options.enabled = enabled ? '1' : '0'
+    ddnsService.options.service_name = PROVIDER_SERVICE_MAP[provider]
     ddnsService.options.ip_source = 'network'
     ddnsService.options.ip_network = 'wan'
 
@@ -98,30 +102,30 @@ export class DdnsUciService {
     delete ddnsService.options.domain
     delete ddnsService.options.lookup_host
 
-    if (form.enabled && form.provider !== 'start9') {
+    if (enabled && provider !== 'start9') {
       // Set fields based on provider
-      if (form.username) {
-        ddnsService.options.username = form.username
+      if (fields.username) {
+        ddnsService.options.username = fields.username
       }
-      if (form.password) {
-        ddnsService.options.password = form.password
+      if (fields.password) {
+        ddnsService.options.password = fields.password
       }
-      if (form.token) {
+      if (fields.token) {
         // Most providers use password field for tokens
-        ddnsService.options.password = form.token
+        ddnsService.options.password = fields.token
       }
-      if (form.hostname) {
-        ddnsService.options.domain = form.hostname
-        ddnsService.options.lookup_host = form.hostname
+      if (fields.hostname) {
+        ddnsService.options.domain = fields.hostname
+        ddnsService.options.lookup_host = fields.hostname
       }
     }
 
     await this.api.setUci<(keyof typeof uciFiles)[]>(uciFiles)
 
-    // Restart or stop DDNS service
+    // Restart DDNS service
     await this.api.exec({
       command: '/etc/init.d/ddns',
-      args: [form.enabled ? 'restart' : 'stop'],
+      args: [enabled ? 'restart' : 'stop'],
       timeout: 10000,
     })
   }

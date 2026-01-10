@@ -11,6 +11,13 @@ export const LABELS: Record<DnsMode, string> = {
   custom: 'Custom',
 }
 
+export const DNS_VALIDATION_ERRORS = {
+  required: 'Required',
+  ipv4: 'Enter a valid IPv4 address',
+  ipv6: 'Enter a valid IPv6 address',
+  ip: 'Enter a valid IP address',
+}
+
 export function getDnsForm(
   builder: NonNullableFormBuilder,
   validators: ValidatorFn[],

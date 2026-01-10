@@ -20,5 +20,5 @@ export class MacSummary {
   protected readonly service = injectFormService<MacForm>()
   protected readonly labels = MAC_LABELS
 
-  readonly mac = computed(() => this.service.data()?.mac)
+  readonly mac = computed(() => this.service.data()?.address.mac)
 }

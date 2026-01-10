@@ -1,103 +1,115 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import {
-  TuiAppearance,
-  TuiButton,
-  TuiError,
-  TuiNumberFormat,
-  TuiTextfield,
-  TuiTitle,
-} from '@taiga-ui/core'
-import { TuiInputNumber, TuiSwitch } from '@taiga-ui/kit'
-import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+} from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
+import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
+import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
+import { tuiNumberFormatProvider, TuiTitle } from '@taiga-ui/core'
+import { TuiAccordion } from '@taiga-ui/experimental'
+import { TuiHeader } from '@taiga-ui/layout'
+import { startWith } from 'rxjs'
+import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
-
+import {
+  injectFormService,
+  provideFormService,
+} from 'src/app/services/form.service'
 import { IPv6Aside } from './aside'
-import { Ipv6Summary } from './summary'
+import { LanIpv6Service } from './service'
+import { LanIpv6Strategy } from './strategy'
+import { LanIpv6Subnet } from './subnet'
+import { LanIpv6Summary } from './summary'
+import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
+import { LanIpv6Data } from './uci/service'
 
 @Component({
   template: `
     <ipv6-aside *help />
-    <article ipv6Summary [formLoading]="false"></article>
+    <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
+    <article lanIpv6Summary [formLoading]="!service.data()"></article>
+    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
     <form
-      tuiForm
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      class="g-form"
       [formGroup]="form"
+      [formLoading]="!service.data()"
+      (reset.prevent)="form.reset(service.data())"
+      (ngSubmit)="onSave()"
     >
-      <header tuiHeader><h2 tuiTitle>Strategy</h2></header>
-      <label tuiLabel>
-        <input type="checkbox" tuiSwitch size="m" formControlName="slaac" />
-        Enable SLAAC
-      </label>
-      <label tuiLabel>
-        <input type="checkbox" tuiSwitch size="m" formControlName="dhcpv6" />
-        Enable DHCPv6
-      </label>
+      <lan-ipv6-strategy formGroupName="strategy" />
+      <tui-expand [expanded]="slaacEnabled()">
+        <lan-ipv6-subnet formGroupName="subnet" />
+      </tui-expand>
+      @if (service.data()) {
+        <footer appFooter [disabled]="form.pristine"></footer>
+      }
     </form>
-    <form
-      tuiForm
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      class="g-form"
-      [formGroup]="form"
-    >
-      <header tuiHeader><h2 tuiTitle>Subnet</h2></header>
-      <fieldset>
-        <div>
-          <tui-textfield>
-            <label tuiLabel>Router's IPv6 Address</label>
-            <input tuiTextfield formControlName="ip" [readOnly]="true" />
-          </tui-textfield>
-        </div>
-        <label tuiLabel>
-          <tui-textfield>
-            <label tuiLabel>IPv6 Prefix Length</label>
-            <input
-              tuiInputNumber
-              formControlName="prefix"
-              prefix="/"
-              [min]="0"
-              [max]="64"
-              [tuiNumberFormat]="{ precision: 0 }"
-            />
-          </tui-textfield>
-          <span class="g-secondary">Can only be smaller than WAN setting</span>
-        </label>
-      </fieldset>
-    </form>
-    <footer class="g-footer">
-      <button tuiButton appearance="flat">Cancel</button>
-      <button tuiButton>Save</button>
-    </footer>
   `,
   host: { class: 'g-page' },
   imports: [
-    TuiCard,
-    TuiButton,
-    TuiForm,
-    TuiAppearance,
+    ReactiveFormsModule,
     TuiHeader,
     TuiTitle,
-    TuiTextfield,
-    TuiInputNumber,
-    TuiNumberFormat,
-    TuiSwitch,
-    ReactiveFormsModule,
+    TuiAccordion,
+    Footer,
     Form,
     Help,
-    Ipv6Summary,
+    LanIpv6Summary,
+    LanIpv6Strategy,
+    LanIpv6Subnet,
     IPv6Aside,
+  ],
+  providers: [
+    provideFormService(LanIpv6Service),
+    tuiNumberFormatProvider({ precision: 0 }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export default class Ipv6 {
-  public readonly form = inject(NonNullableFormBuilder).group({
-    slaac: true,
-    dhcpv6: true,
-    ip: '3211:0:0:1234:5678:ABCD:EF12:1234',
-    prefix: 64,
-  })
+export default class LanIpv6 {
+  protected readonly builder = inject(NonNullableFormBuilder)
+  protected readonly service = injectFormService<LanIpv6Data>()
+
+  readonly form = getLanIpv6Form(this.builder)
+
+  readonly slaacEnabled = toSignal(
+    this.form.controls.strategy.controls.slaac.valueChanges.pipe(
+      startWith(this.form.controls.strategy.controls.slaac.value),
+    ),
+    { requireSync: true },
+  )
+
+  readonly wanPrefix = computed(() => this.service.data()?.wanPrefix ?? 48)
+
+  constructor() {
+    // Reset form when data loads
+    effect(() => {
+      const data = this.service.data()
+      if (data && this.form.pristine) {
+        this.form.reset(data)
+        updateLanIpv6Validators(
+          this.form,
+          data.strategy.slaac,
+          data.wanPrefix ?? 48,
+        )
+      }
+    })
+
+    // Update validators when SLAAC mode changes
+    effect(() => {
+      const slaac = this.slaacEnabled()
+      const wanPrefix = this.wanPrefix()
+      updateLanIpv6Validators(this.form, slaac, wanPrefix)
+    })
+  }
+
+  async onSave() {
+    if (this.form.invalid) {
+      tuiMarkControlAsTouchedAndValidate(this.form)
+    } else if (await this.service.save(this.form.getRawValue())) {
+      this.form.markAsPristine()
+    }
+  }
 }

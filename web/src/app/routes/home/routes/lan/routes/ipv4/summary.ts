@@ -1,50 +1,37 @@
-import { AsyncPipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiTitle } from '@taiga-ui/core'
-import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
+import { ChangeDetectionStrategy, Component, computed } from '@angular/core'
 import { Summary } from 'src/app/components/summary'
-
-import Ipv4 from '.'
+import { injectFormService } from 'src/app/services/form.service'
+import { buildFullIp, LanIpv4Form } from './utils'
 
 @Component({
-  selector: '[ipv4Summary]',
+  selector: '[lanIpv4Summary]',
   template: `
-    @if (parent.form.valueChanges | async) {}
-    <header tuiHeader><h2 tuiTitle>Summary</h2></header>
     <section>
-      <div appSummary>
-        DHCP Strategy
-        <span tuiSubtitle>{{ parent.form.value.dhcp?.mode }}</span>
-      </div>
-      <div
-        [appSummary]="
-          parent.form.value.ip?.range + '.168.0.' + parent.form.value.ip?.router
-        "
-      >
-        Router's IP Address
-      </div>
-      <div appSummary>
-        DMZ
-        <span tuiSubtitle>
-          @if (parent.form.value.dmz) {
-            <span tuiBadge tuiStatus appearance="positive">Enabled</span>
-          } @else {
-            <span tuiBadge tuiStatus appearance="neutral">Disabled</span>
-          }
-        </span>
-      </div>
+      @if (subnet(); as subnet) {
+        <div [appSummary]="subnet">Range</div>
+      }
+      @if (routerIp(); as ip) {
+        <div [appSummary]="ip">Router IP</div>
+      }
     </section>
   `,
-  styles: `
-    span {
-      text-transform: capitalize;
-    }
-  `,
   host: { '[style.background]': '"var(--tui-status-info-pale)"' },
-  imports: [AsyncPipe, TuiHeader, TuiTitle, TuiBadge, TuiStatus, Summary],
+  imports: [Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Ipv4Summary {
-  protected readonly parent = inject(Ipv4)
+export class LanIpv4Summary {
+  protected readonly service = injectFormService<LanIpv4Form>()
+
+  readonly routerIp = computed(() => {
+    const data = this.service.data()
+    return data ? buildFullIp(data.ip) : ''
+  })
+
+  readonly subnet = computed(() => {
+    const data = this.service.data()
+    if (!data) return ''
+    const ip = buildFullIp(data.ip)
+    const parts = ip.split('.')
+    return `${parts[0]}.${parts[1]}.${parts[2]}.0/24`
+  })
 }

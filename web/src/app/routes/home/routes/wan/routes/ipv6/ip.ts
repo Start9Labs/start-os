@@ -1,9 +1,14 @@
+import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
 import { MaskitoDirective } from '@maskito/angular'
 import { MaskitoOptions } from '@maskito/core'
 import { TuiError, TuiTextfield, TuiTitle } from '@taiga-ui/core'
-import { TuiRadio } from '@taiga-ui/kit'
+import {
+  TUI_VALIDATION_ERRORS,
+  TuiFieldErrorPipe,
+  TuiRadio,
+} from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { FORM, FormSection } from 'src/app/directives/form'
 import {
@@ -13,6 +18,7 @@ import {
   IPV6_SIXRD_CONTROLS,
   IPV6_SLAAC_CONTROLS,
   IPV6_STATIC_CONTROLS,
+  IPV6_VALIDATION_ERRORS,
 } from './utils'
 import Ipv6 from '.'
 
@@ -32,36 +38,6 @@ import Ipv6 from '.'
     @if (parent.ipMode() === 'slaac') {
       <section>
         @for (control of slaacControls; track control) {
-          <tui-textfield>
-            <label tuiLabel>{{ labels[control] }}</label>
-            <input
-              tuiTextfield
-              [formControlName]="control"
-              [maskito]="control === 'prefix' ? prefixMask : null"
-            />
-          </tui-textfield>
-        }
-      </section>
-    }
-
-    @if (parent.ipMode() === 'dhcpv6') {
-      <section>
-        @for (control of dhcpv6Controls; track control) {
-          <tui-textfield>
-            <label tuiLabel>{{ labels[control] }}</label>
-            <input
-              tuiTextfield
-              [formControlName]="control"
-              [maskito]="control === 'prefix' ? prefixMask : null"
-            />
-          </tui-textfield>
-        }
-      </section>
-    }
-
-    @if (parent.ipMode() === 'static') {
-      <section>
-        @for (control of staticControls; track control) {
           <div>
             <tui-textfield>
               <label tuiLabel>{{ labels[control] }}</label>
@@ -71,12 +47,52 @@ import Ipv6 from '.'
                 [maskito]="control === 'prefix' ? prefixMask : null"
               />
             </tui-textfield>
-            @if (control === 'gateway') {
-              <tui-error
-                class="g-secondary"
-                error="Only needed if behind NAT"
+            <tui-error
+              [formControlName]="control"
+              [error]="[] | tuiFieldError | async"
+            />
+          </div>
+        }
+      </section>
+    }
+
+    @if (parent.ipMode() === 'dhcpv6') {
+      <section>
+        @for (control of dhcpv6Controls; track control) {
+          <div>
+            <tui-textfield>
+              <label tuiLabel>{{ labels[control] }}</label>
+              <input
+                tuiTextfield
+                [formControlName]="control"
+                [maskito]="control === 'prefix' ? prefixMask : null"
               />
-            }
+            </tui-textfield>
+            <tui-error
+              [formControlName]="control"
+              [error]="[] | tuiFieldError | async"
+            />
+          </div>
+        }
+      </section>
+    }
+
+    @if (parent.ipMode() === 'static') {
+      <section>
+        @for (control of staticControls; track control) {
+          <div>
+            <tui-textfield>
+              <label tuiLabel>{{ labels[control] }}*</label>
+              <input
+                tuiTextfield
+                [formControlName]="control"
+                [maskito]="control === 'prefix' ? prefixMask : null"
+              />
+            </tui-textfield>
+            <tui-error
+              [formControlName]="control"
+              [error]="[] | tuiFieldError | async"
+            />
           </div>
         }
       </section>
@@ -85,30 +101,44 @@ import Ipv6 from '.'
     @if (parent.ipMode() === '6rd') {
       <section>
         @for (control of sixrdControls; track control) {
-          <tui-textfield>
-            <label tuiLabel>{{ labels[control] }}</label>
-            <input
-              tuiTextfield
+          <div>
+            <tui-textfield>
+              <label tuiLabel>{{ labels[control] }}*</label>
+              <input
+                tuiTextfield
+                [formControlName]="control"
+                [maskito]="
+                  control === 'prefix' || control === 'mask' ? prefixMask : null
+                "
+              />
+            </tui-textfield>
+            <tui-error
               [formControlName]="control"
-              [maskito]="
-                control === 'prefix' || control === 'mask' ? prefixMask : null
-              "
+              [error]="[] | tuiFieldError | async"
             />
-          </tui-textfield>
+          </div>
         }
       </section>
     }
   `,
   viewProviders: [FORM],
   hostDirectives: [FormSection],
+  providers: [
+    {
+      provide: TUI_VALIDATION_ERRORS,
+      useValue: IPV6_VALIDATION_ERRORS,
+    },
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AsyncPipe,
     ReactiveFormsModule,
     TuiHeader,
     TuiTitle,
     TuiTextfield,
     TuiRadio,
     TuiError,
+    TuiFieldErrorPipe,
     MaskitoDirective,
   ],
 })

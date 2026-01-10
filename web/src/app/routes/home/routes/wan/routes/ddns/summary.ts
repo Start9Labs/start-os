@@ -40,5 +40,5 @@ export class DdnsSummary {
     return provider ? DDNS_PROVIDERS[provider].label : ''
   })
 
-  readonly hostname = computed(() => this.service.data()?.hostname || '')
+  readonly hostname = computed(() => this.service.data()?.fields.hostname || '')
 }

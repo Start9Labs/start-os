@@ -10,12 +10,19 @@ export const MAC_LABELS: Record<MacStrategy | 'mac', string> = {
   mac: 'MAC Address',
 }
 
+export const MAC_VALIDATION_ERRORS = {
+  required: 'Required',
+  mac: 'Enter a valid MAC address (e.g. AA:BB:CC:DD:EE:FF)',
+}
+
 export type MacStrategy = (typeof MAC_STRATEGIES)[number]
 
 export function getMacForm(builder: NonNullableFormBuilder) {
   return builder.group({
     strategy: builder.control<MacStrategy>('router'),
-    mac: builder.control('', [CustomValidators.mac()]),
+    address: builder.group({
+      mac: builder.control('', [CustomValidators.mac()]),
+    }),
   })
 }
 
@@ -25,7 +32,7 @@ export function updateMacValidators(
   form: ReturnType<typeof getMacForm>,
   strategy: MacStrategy,
 ): void {
-  const { mac } = form.controls
+  const { mac } = form.controls.address.controls
 
   mac.clearValidators()
   mac.addValidators([CustomValidators.mac()])

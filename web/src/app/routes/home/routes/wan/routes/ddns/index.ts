@@ -25,12 +25,12 @@ import {
   provideFormService,
 } from 'src/app/services/form.service'
 import { DdnsAside } from './aside'
+import { DdnsFields } from './fields'
 import { DdnsService } from './service'
 import { DdnsSummary } from './summary'
 import {
   DdnsForm,
   DdnsProvider,
-  DDNS_FIELD_LABELS,
   DDNS_PROVIDER_LIST,
   DDNS_PROVIDERS,
   getDdnsForm,
@@ -73,22 +73,7 @@ import {
           </ng-template>
         </section>
         @if (providerFields().length) {
-          <section>
-            @for (field of providerFields(); track field) {
-              <tui-textfield>
-                <label tuiLabel>{{ fieldLabels[field] }}</label>
-                <input
-                  tuiTextfield
-                  [formControlName]="field"
-                  [type]="
-                    field === 'password' || field === 'token'
-                      ? 'password'
-                      : 'text'
-                  "
-                />
-              </tui-textfield>
-            }
-          </section>
+          <ddns-fields formGroupName="fields" [fields]="providerFields()" />
         }
       }
       @if (service.data()) {
@@ -110,6 +95,7 @@ import {
     Footer,
     Help,
     DdnsSummary,
+    DdnsFields,
     DdnsAside,
   ],
   providers: [provideFormService(DdnsService)],
@@ -122,7 +108,6 @@ export default class Ddns {
   readonly form = getDdnsForm(this.builder)
 
   protected readonly providerList = DDNS_PROVIDER_LIST
-  protected readonly fieldLabels = DDNS_FIELD_LABELS
 
   getProviderLabel(provider: string): string {
     return DDNS_PROVIDERS[provider as DdnsProvider]?.label ?? provider

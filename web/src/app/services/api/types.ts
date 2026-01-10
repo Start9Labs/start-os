@@ -2,6 +2,7 @@ export type UciSection =
   | NetworkInterfaceSection
   | NetworkDeviceSection
   | DdnsSection
+  | DhcpSection
 
 export type NetworkInterfaceSection = {
   type: 'interface'
@@ -29,6 +30,7 @@ export type NetworkInterfaceSection = {
     ip6gw?: string
     ip6prefix?: string
     ip6ifaceid?: string
+    ip6assign?: string // Prefix delegation length
     // 6RD options
     peeraddr?: string
     ip6prefixlen?: string
@@ -66,6 +68,23 @@ export type DdnsSection = {
     ip_source?: 'network' | 'interface' | 'web'
     ip_network?: string
     interface?: string
+  }
+  lists: {}
+}
+
+export type DhcpSection = {
+  type: 'dhcp'
+  name: string | null
+  options: {
+    interface?: string
+    start?: string
+    limit?: string
+    leasetime?: string
+    // IPv6 options
+    ra?: 'disabled' | 'server' | 'relay' | 'hybrid'
+    dhcpv6?: 'disabled' | 'server' | 'relay' | 'hybrid'
+    ra_management?: '0' | '1' | '2'
+    ra_default?: '0' | '1' | '2'
   }
   lists: {}
 }

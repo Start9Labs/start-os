@@ -1,73 +1,153 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { AsyncPipe } from '@angular/common'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+} from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { ReactiveFormsModule } from '@angular/forms'
-import { TuiAppearance, TuiGroup, TuiTextfield, TuiTitle } from '@taiga-ui/core'
-import { TuiInputNumber } from '@taiga-ui/kit'
-import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
-
-import Ipv4 from '.'
+import { TuiError, TuiLabel, TuiTextfield, TuiTitle } from '@taiga-ui/core'
+import {
+  TUI_VALIDATION_ERRORS,
+  TuiChevron,
+  TuiDataListWrapper,
+  TuiFieldErrorPipe,
+  TuiInputNumber,
+  TuiSelect,
+} from '@taiga-ui/kit'
+import { TuiHeader } from '@taiga-ui/layout'
+import { startWith } from 'rxjs'
+import { FORM, FormSection } from 'src/app/directives/form'
+import {
+  FIRST_OCTETS,
+  FirstOctet,
+  getSecondOctet,
+  LAN_IPV4_VALIDATION_ERRORS,
+} from './utils'
+import LanIpv4 from '.'
 
 @Component({
-  selector: 'ipv4-ip',
+  selector: 'lan-ipv4-ip',
   template: `
-    <form
-      tuiForm
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      class="g-form"
-      [formGroup]="parent.form.controls.ip"
-    >
-      <header tuiHeader><h2 tuiTitle>IP Addresses</h2></header>
-      <fieldset [style.grid-template-columns]="'repeat(auto-fit, 15rem)'">
-        <label tuiLabel>
-          Range
-          <div tuiGroup>
-            <tui-textfield>
-              <input tuiInputNumber formControlName="range" />
-            </tui-textfield>
-            <tui-textfield>
-              <input tuiTextfield value="168" disabled />
-            </tui-textfield>
-            <tui-textfield>
-              <input tuiTextfield value="x" disabled />
-            </tui-textfield>
-            <tui-textfield>
-              <input tuiTextfield value="x" disabled />
-            </tui-textfield>
-          </div>
-        </label>
-        <label tuiLabel>
-          Router's IP
-          <div tuiGroup>
-            <tui-textfield>
-              <input tuiTextfield value="192" disabled />
-            </tui-textfield>
-            <tui-textfield>
-              <input tuiTextfield value="168" disabled />
-            </tui-textfield>
-            <tui-textfield>
-              <input tuiTextfield value="0" disabled />
-            </tui-textfield>
-            <tui-textfield>
-              <input tuiInputNumber formControlName="router" />
-            </tui-textfield>
-          </div>
-        </label>
-      </fieldset>
-    </form>
+    <header tuiHeader="body-l"><h2 tuiTitle>IP Addresses</h2></header>
+    <section>
+      <div>
+        <label tuiLabel>Address Range*</label>
+        <div class="ip-group">
+          <tui-textfield tuiChevron [tuiTextfieldCleaner]="false">
+            <input tuiSelect formControlName="firstOctet" />
+            <tui-data-list-wrapper
+              *tuiTextfieldDropdown
+              new
+              [items]="firstOctets"
+            />
+          </tui-textfield>
+          <tui-textfield [tuiTextfieldCleaner]="false">
+            <input tuiTextfield [value]="secondOctet()" disabled />
+          </tui-textfield>
+          <tui-textfield [tuiTextfieldCleaner]="false">
+            <input
+              tuiInputNumber
+              formControlName="thirdOctet"
+              [min]="0"
+              [max]="255"
+            />
+          </tui-textfield>
+          <tui-textfield [tuiTextfieldCleaner]="false">
+            <input tuiTextfield value="x" disabled />
+          </tui-textfield>
+        </div>
+        <tui-error
+          formControlName="thirdOctet"
+          [error]="[] | tuiFieldError | async"
+        />
+      </div>
+      <div>
+        <label tuiLabel>Router IP*</label>
+        <div class="ip-group">
+          <tui-textfield [tuiTextfieldCleaner]="false">
+            <input tuiTextfield [value]="firstOctet$()" disabled />
+          </tui-textfield>
+          <tui-textfield [tuiTextfieldCleaner]="false">
+            <input tuiTextfield [value]="secondOctet()" disabled />
+          </tui-textfield>
+          <tui-textfield [tuiTextfieldCleaner]="false">
+            <input tuiTextfield [value]="thirdOctet$()" disabled />
+          </tui-textfield>
+          <tui-textfield [tuiTextfieldCleaner]="false">
+            <input
+              tuiInputNumber
+              formControlName="routerOctet"
+              [min]="1"
+              [max]="254"
+            />
+          </tui-textfield>
+        </div>
+        <tui-error
+          formControlName="routerOctet"
+          [error]="[] | tuiFieldError | async"
+        />
+      </div>
+    </section>
   `,
+  styles: `
+    .ip-group {
+      display: flex;
+      gap: 0.25rem;
+
+      tui-textfield {
+        width: 4.5rem;
+      }
+    }
+
+    section > div {
+      min-width: 20rem;
+    }
+  `,
+  viewProviders: [FORM],
+  hostDirectives: [FormSection],
+  providers: [
+    {
+      provide: TUI_VALIDATION_ERRORS,
+      useValue: LAN_IPV4_VALIDATION_ERRORS,
+    },
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AsyncPipe,
     ReactiveFormsModule,
-    TuiForm,
-    TuiAppearance,
     TuiHeader,
     TuiTitle,
+    TuiLabel,
     TuiTextfield,
-    TuiCard,
-    TuiGroup,
+    TuiError,
+    TuiFieldErrorPipe,
     TuiInputNumber,
+    TuiSelect,
+    TuiChevron,
+    TuiDataListWrapper,
   ],
 })
-export class Ipv4Ip {
-  protected readonly parent = inject(Ipv4)
+export class LanIpv4Ip {
+  protected readonly parent = inject(LanIpv4)
+  protected readonly firstOctets = FIRST_OCTETS
+
+  readonly firstOctet$ = toSignal(
+    this.parent.form.controls.ip.controls.firstOctet.valueChanges.pipe(
+      startWith(this.parent.form.controls.ip.controls.firstOctet.value),
+    ),
+    { requireSync: true },
+  )
+
+  readonly thirdOctet$ = toSignal(
+    this.parent.form.controls.ip.controls.thirdOctet.valueChanges.pipe(
+      startWith(this.parent.form.controls.ip.controls.thirdOctet.value),
+    ),
+    { requireSync: true },
+  )
+
+  readonly secondOctet = computed(() =>
+    getSecondOctet(this.firstOctet$() as FirstOctet),
+  )
 }

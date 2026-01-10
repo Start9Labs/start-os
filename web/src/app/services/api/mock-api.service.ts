@@ -16,6 +16,8 @@ import { wanIpv4Dhcp } from 'src/app/routes/home/routes/wan/routes/ipv4/uci/mock
 import { wanIpv6Slaac } from 'src/app/routes/home/routes/wan/routes/ipv6/uci/mock'
 import { ddnsStart9 } from 'src/app/routes/home/routes/wan/routes/ddns/uci/mocks'
 import { macRouterDevice } from 'src/app/routes/home/routes/wan/routes/mac/uci/mocks'
+import { lanDefault } from 'src/app/routes/home/routes/lan/routes/ipv4/uci/mocks'
+import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/home/routes/lan/routes/ipv6/uci/mocks'
 
 @Injectable({
   providedIn: 'root',
@@ -89,11 +91,15 @@ export class MockApiService extends ApiService {
 
 export const mockUci: Record<string, UciFile<UciSection>> = {
   network: {
-    sections: [wanIpv4Dhcp, wanIpv6Slaac, macRouterDevice],
+    sections: [wanIpv4Dhcp, wanIpv6Slaac, macRouterDevice, lanDefault],
     modified: new Date().toISOString(),
   },
   ddns: {
     sections: [ddnsStart9],
+    modified: new Date().toISOString(),
+  },
+  dhcp: {
+    sections: [dhcpLanSlaacDhcpv6],
     modified: new Date().toISOString(),
   },
 }

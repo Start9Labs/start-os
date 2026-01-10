@@ -1,14 +1,20 @@
+import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
   inject,
 } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { ReactiveFormsModule } from '@angular/forms'
 import { MaskitoDirective } from '@maskito/angular'
 import { MaskitoOptions } from '@maskito/core'
 import { TuiError, TuiTextfield, TuiTitle } from '@taiga-ui/core'
-import { TuiRadio } from '@taiga-ui/kit'
+import {
+  TUI_VALIDATION_ERRORS,
+  TuiFieldErrorPipe,
+  TuiRadio,
+} from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { FORM, FormSection } from 'src/app/directives/form'
 import {
@@ -16,10 +22,10 @@ import {
   IPV4_MODES,
   IPV4_PPPOE_CONTROLS,
   IPV4_STATIC_CONTROLS,
+  IPV4_VALIDATION_ERRORS,
   netmaskFromPrefix,
 } from './utils'
 import Ipv4 from '.'
-import { toSignal } from '@angular/core/rxjs-interop'
 
 @Component({
   selector: 'ipv4-ip',
@@ -39,21 +45,19 @@ import { toSignal } from '@angular/core/rxjs-interop'
         @for (control of staticControls; track control) {
           <div>
             <tui-textfield>
-              <label tuiLabel>{{ labels[control] }}</label>
+              <label tuiLabel>{{ labels[control] }}*</label>
               <input
                 tuiTextfield
                 [formControlName]="control"
                 [maskito]="control === 'prefix' ? prefixMask : null"
               />
             </tui-textfield>
-            @if (control === 'prefix') {
-              <tui-error class="g-secondary" [error]="netmask()" />
-            }
-            @if (control === 'gateway') {
-              <tui-error
-                class="g-secondary"
-                error="Only needed if behind NAT"
-              />
+            <tui-error
+              [formControlName]="control"
+              [error]="[] | tuiFieldError | async"
+            />
+            @if (control === 'prefix' && netmask()) {
+              <tui-error class="g-secondary" [error]="'Subnet: ' + netmask()" />
             }
           </div>
         }
@@ -62,28 +66,44 @@ import { toSignal } from '@angular/core/rxjs-interop'
     @if (parent.ipMode() === 'pppoe') {
       <section>
         @for (control of pppoeControls; track control) {
-          <tui-textfield>
-            <label tuiLabel>{{ labels[control] }}</label>
-            <input
-              tuiTextfield
+          <div>
+            <tui-textfield>
+              <label tuiLabel>
+                {{ labels[control] }}{{ control !== 'device' ? '*' : '' }}
+              </label>
+              <input
+                tuiTextfield
+                [formControlName]="control"
+                [type]="control === 'password' ? 'password' : 'text'"
+              />
+            </tui-textfield>
+            <tui-error
               [formControlName]="control"
-              [type]="control === 'password' ? 'password' : 'text'"
+              [error]="[] | tuiFieldError | async"
             />
-          </tui-textfield>
+          </div>
         }
       </section>
     }
   `,
   viewProviders: [FORM],
   hostDirectives: [FormSection],
+  providers: [
+    {
+      provide: TUI_VALIDATION_ERRORS,
+      useValue: IPV4_VALIDATION_ERRORS,
+    },
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AsyncPipe,
     ReactiveFormsModule,
     TuiHeader,
     TuiTitle,
     TuiTextfield,
     TuiRadio,
     TuiError,
+    TuiFieldErrorPipe,
     MaskitoDirective,
   ],
 })
@@ -103,7 +123,5 @@ export class Ipv4Ip {
     this.parent.form.controls.ip.controls.prefix.valueChanges,
   )
 
-  readonly netmask = computed(
-    () => `Subnet: ${netmaskFromPrefix(this.prefix() || '')}`,
-  )
+  readonly netmask = computed(() => netmaskFromPrefix(this.prefix() || ''))
 }

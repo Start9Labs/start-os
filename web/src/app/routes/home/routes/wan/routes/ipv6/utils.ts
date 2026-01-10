@@ -35,6 +35,14 @@ export const IPV6_LABELS: Record<
   border: 'Border Router IP',
 }
 
+export const IPV6_VALIDATION_ERRORS = {
+  required: 'Required',
+  ipv4: 'Enter a valid IPv4 address',
+  ipv6: 'Enter a valid IPv6 address',
+  prefix: ({ min, max }: { min: number; max: number }) =>
+    `Enter a value between ${min} and ${max}`,
+}
+
 export type Ipv6Mode = (typeof IPV6_MODES)[number]
 
 export function getWanIpv6Form(builder: NonNullableFormBuilder) {
