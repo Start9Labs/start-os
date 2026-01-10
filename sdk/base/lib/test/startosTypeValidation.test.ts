@@ -13,6 +13,7 @@ import {
   RunActionParams,
   SetDataVersionParams,
   SetMainStatus,
+  GetServiceManifestParams,
 } from ".././osBindings"
 import { CreateSubcontainerFsParams } from ".././osBindings"
 import { DestroySubcontainerFsParams } from ".././osBindings"
@@ -64,7 +65,6 @@ describe("startosTypeValidation ", () => {
         destroyFs: {} as DestroySubcontainerFsParams,
       },
       clearBindings: {} as ClearBindingsParams,
-      getInstalledPackages: undefined,
       bind: {} as BindParams,
       getHostInfo: {} as WithCallback<GetHostInfoParams>,
       restart: undefined,
@@ -76,6 +76,8 @@ describe("startosTypeValidation ", () => {
       getSslKey: {} as GetSslKeyParams,
       getServiceInterface: {} as WithCallback<GetServiceInterfaceParams>,
       setDependencies: {} as SetDependenciesParams,
+      getInstalledPackages: undefined,
+      getServiceManifest: {} as WithCallback<GetServiceManifestParams>,
       getSystemSmtp: {} as WithCallback<GetSystemSmtpParams>,
       getContainerIp: {} as WithCallback<GetContainerIpParams>,
       getOsIp: undefined,

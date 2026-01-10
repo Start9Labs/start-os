@@ -50,12 +50,12 @@ mount --bind /proc /media/startos/next/proc
 mount --bind /boot /media/startos/next/boot
 mount --bind /media/startos/root /media/startos/next/media/startos/root
 
-if mountpoint /boot/efi 2> /dev/null; then
+if mountpoint /boot/efi 2>&1 > /dev/null; then
     mkdir -p /media/startos/next/boot/efi
     mount --bind /boot/efi /media/startos/next/boot/efi
 fi
 
-if mountpoint /sys/firmware/efi/efivars 2> /dev/null; then
+if mountpoint /sys/firmware/efi/efivars 2>&1 > /dev/null; then
     mount --bind /sys/firmware/efi/efivars /media/startos/next/sys/firmware/efi/efivars
 fi
 

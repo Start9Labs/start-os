@@ -36,8 +36,7 @@ pub async fn restart(context: EffectContext) -> Result<(), Error> {
                 .as_idx_mut(id)
                 .or_not_found(id)?
                 .as_status_info_mut()
-                .as_desired_mut()
-                .map_mutate(|s| Ok(s.restart()))
+                .restart()
         })
         .await
         .result?;

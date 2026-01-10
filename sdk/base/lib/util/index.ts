@@ -4,7 +4,11 @@ export { getDefaultString } from "./getDefaultString"
 export * from "./ip"
 
 /// Not being used, but known to be browser compatible
-export { GetServiceInterface, getServiceInterface } from "./getServiceInterface"
+export {
+  GetServiceInterface,
+  getServiceInterface,
+  filledAddress,
+} from "./getServiceInterface"
 export { getServiceInterfaces } from "./getServiceInterfaces"
 export { once } from "./once"
 export { asError } from "./asError"

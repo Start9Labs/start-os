@@ -1,3 +1,12 @@
+export type AccessType =
+  | 'tor'
+  | 'mdns'
+  | 'localhost'
+  | 'ipv4'
+  | 'ipv6'
+  | 'domain'
+  | 'wan-ipv4'
+
 export type WorkspaceConfig = {
   gitHash: string
   useMocks: boolean
@@ -8,7 +17,7 @@ export type WorkspaceConfig = {
       version: string
     }
     mocks: {
-      maskAs: 'tor' | 'local' | 'localhost' | 'ipv4' | 'ipv6' | 'clearnet'
+      maskAs: AccessType
       maskAsHttps: boolean
       skipStartupAlerts: boolean
     }

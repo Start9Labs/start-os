@@ -206,119 +206,67 @@ export class InterfaceService {
 
   /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
   launchableAddress(ui: T.ServiceInterface, host: T.Host): string {
-    const hostnameInfos = this.hostnameInfo(ui, host)
+    const addresses = utils.filledAddress(host, ui.addressInfo)
 
-    if (!hostnameInfos.length) return ''
+    if (!addresses.hostnames.length) return ''
 
-    const addressInfo = ui.addressInfo
-    const username = addressInfo.username ? addressInfo.username + '@' : ''
-    const suffix = addressInfo.suffix || ''
-    const url = new URL(`https://${username}placeholder${suffix}`)
-    const use = (hostname: {
-      value: string
-      port: number | null
-      sslPort: number | null
-    }) => {
-      url.hostname = hostname.value
-      const useSsl =
-        hostname.port && hostname.sslPort
-          ? this.config.isHttps()
-          : !!hostname.sslPort
-      url.protocol = useSsl
-        ? `${addressInfo.sslScheme || 'https'}:`
-        : `${addressInfo.scheme || 'http'}:`
-      const port = useSsl ? hostname.sslPort : hostname.port
-      const omitPort = useSsl
-        ? ui.addressInfo.sslScheme === 'https' && port === 443
-        : ui.addressInfo.scheme === 'http' && port === 80
-      if (!omitPort && port) url.port = String(port)
-    }
-    const useFirst = (
-      hostnames: (
-        | {
-            value: string
-            port: number | null
-            sslPort: number | null
-          }
-        | undefined
-      )[],
-    ) => {
-      const first = hostnames.find(h => h)
-      if (first) {
-        use(first)
-      }
-      return !!first
-    }
+    const publicDomains = addresses.filter({
+      kind: 'domain',
+      visibility: 'public',
+    })
+    const tor = addresses.filter({ kind: 'onion' })
+    const wanIp = addresses.filter({ kind: 'ipv4', visibility: 'public' })
+    const bestPublic = [publicDomains, tor, wanIp].flatMap(h =>
+      h.format('urlstring'),
+    )[0]
+    const privateDomains = addresses.filter({
+      kind: 'domain',
+      visibility: 'private',
+    })
+    const mdns = addresses.filter({ kind: 'mdns' })
+    const bestPrivate = [privateDomains, mdns].flatMap(h =>
+      h.format('urlstring'),
+    )[0]
 
-    const ipHostnames = hostnameInfos
-      .filter(h => h.kind === 'ip')
-      .map(h => h.hostname) as T.IpHostname[]
-    const domainHostname = ipHostnames
-      .filter(h => h.kind === 'domain')
-      .map(h => h as T.IpHostname & { kind: 'domain' })
-      .map(h => ({
-        value: h.value,
-        sslPort: h.sslPort,
-        port: h.port,
-      }))[0]
-    const wanIpHostname = hostnameInfos
-      .filter(h => h.kind === 'ip' && h.public && h.hostname.kind !== 'domain')
-      .map(h => h.hostname as Exclude<T.IpHostname, { kind: 'domain' }>)
-      .map(h => ({
-        value: h.value,
-        sslPort: h.sslPort,
-        port: h.port,
-      }))[0]
-    const onionHostname = hostnameInfos
-      .filter(h => h.kind === 'onion')
-      .map(h => h as T.HostnameInfo & { kind: 'onion' })
-      .map(h => ({
-        value: h.hostname.value,
-        sslPort: h.hostname.sslPort,
-        port: h.hostname.port,
-      }))[0]
-    const localHostname = ipHostnames
-      .filter(h => h.kind === 'local')
-      .map(h => h as T.IpHostname & { kind: 'local' })
-      .map(h => ({ value: h.value, sslPort: h.sslPort, port: h.port }))[0]
-
-    if (this.config.isClearnet()) {
-      if (
-        !useFirst([domainHostname, wanIpHostname, onionHostname, localHostname])
-      ) {
-        return ''
-      }
-    } else if (this.config.isTor()) {
-      if (
-        !useFirst([onionHostname, domainHostname, wanIpHostname, localHostname])
-      ) {
-        return ''
-      }
-    } else if (this.config.isIpv6()) {
-      const ipv6Hostname = ipHostnames.find(h => h.kind === 'ipv6') as {
-        kind: 'ipv6'
-        value: string
-        scopeId: number
-        port: number | null
-        sslPort: number | null
-      }
-
-      if (!useFirst([ipv6Hostname, localHostname])) {
-        return ''
-      }
-    } else {
-      // ipv4 or .local or localhost
-
-      if (!localHostname) return ''
-
-      use({
-        value: this.config.hostname,
-        port: localHostname.port,
-        sslPort: localHostname.sslPort,
-      })
+    let matching
+    let onLan = false
+    switch (this.config.accessType) {
+      case 'ipv4':
+        matching = addresses.nonLocal
+          .filter({
+            kind: 'ipv4',
+            predicate: h => h.hostname.value === this.config.hostname,
+          })
+          .format('urlstring')[0]
+        onLan = true
+        break
+      case 'ipv6':
+        matching = addresses.nonLocal
+          .filter({
+            kind: 'ipv6',
+            predicate: h => h.hostname.value === this.config.hostname,
+          })
+          .format('urlstring')[0]
+        break
+      case 'localhost':
+        matching = addresses
+          .filter({ kind: 'localhost' })
+          .format('urlstring')[0]
+        onLan = true
+        break
+      case 'tor':
+        matching = tor.format('urlstring')[0]
+        break
+      case 'mdns':
+        matching = mdns.format('urlstring')[0]
+        onLan = true
+        break
     }
 
-    return url.href
+    if (matching) return matching
+    if (onLan && bestPrivate) return bestPrivate
+    if (bestPublic) return bestPublic
+    return ''
   }
 
   private hostnameInfo(
@@ -330,7 +278,7 @@ export class InterfaceService {
     return (
       hostnameInfo?.filter(
         h =>
-          this.config.isLocalhost() ||
+          this.config.accessType === 'localhost' ||
           !(
             h.kind === 'ip' &&
             ((h.hostname.kind === 'ipv6' &&

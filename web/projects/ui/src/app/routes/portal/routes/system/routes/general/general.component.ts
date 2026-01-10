@@ -245,7 +245,7 @@ export default class SystemGeneralComponent {
   private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
-  private readonly isTor = inject(ConfigService).isTor()
+  private readonly isTor = inject(ConfigService).accessType === 'tor'
   private readonly dialog = inject(DialogService)
   private readonly i18n = inject(i18nPipe)
   private readonly injector = inject(INJECTOR)

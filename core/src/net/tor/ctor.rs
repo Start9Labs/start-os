@@ -43,7 +43,6 @@ const STARTING_HEALTH_TIMEOUT: u64 = 120; // 2min
 
 const TOR_CONTROL: SocketAddr =
     SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 1, 1), 9051));
-const TOR_SOCKS: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 1, 1), 9050));
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OnionAddress(OnionAddressV3);
@@ -402,10 +401,15 @@ fn event_handler(_event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), C
 #[derive(Clone)]
 pub struct TorController(Arc<TorControl>);
 impl TorController {
+    const TOR_SOCKS: &[SocketAddr] = &[
+        SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 9050)),
+        SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(10, 0, 3, 1), 9050)),
+    ];
+
     pub fn new() -> Result<Self, Error> {
         Ok(TorController(Arc::new(TorControl::new(
             TOR_CONTROL,
-            TOR_SOCKS,
+            Self::TOR_SOCKS,
         ))))
     }
 
@@ -508,7 +512,7 @@ impl TorController {
             }
             Ok(Box::new(tcp_stream))
         } else {
-            let mut stream = TcpStream::connect(TOR_SOCKS)
+            let mut stream = TcpStream::connect(Self::TOR_SOCKS[0])
                 .await
                 .with_kind(ErrorKind::Tor)?;
             if let Err(e) = socket2::SockRef::from(&stream).set_keepalive(true) {
@@ -595,7 +599,7 @@ enum TorCommand {
 #[instrument(skip_all)]
 async fn torctl(
     tor_control: SocketAddr,
-    tor_socks: SocketAddr,
+    tor_socks: &[SocketAddr],
     recv: &mut mpsc::UnboundedReceiver<TorCommand>,
     services: &mut Watch<
         BTreeMap<
@@ -641,10 +645,21 @@ async fn torctl(
             tokio::fs::remove_dir_all("/var/lib/tor").await?;
             wipe_state.store(false, std::sync::atomic::Ordering::SeqCst);
         }
-        write_file_atomic(
-            "/etc/tor/torrc",
-            format!("SocksPort {TOR_SOCKS}\nControlPort {TOR_CONTROL}\nCookieAuthentication 1\n"),
-        )
+
+        write_file_atomic("/etc/tor/torrc", {
+            use std::fmt::Write;
+            let mut conf = String::new();
+
+            for tor_socks in tor_socks {
+                writeln!(&mut conf, "SocksPort {tor_socks}").unwrap();
+            }
+            writeln!(
+                &mut conf,
+                "ControlPort {tor_control}\nCookieAuthentication 1"
+            )
+            .unwrap();
+            conf
+        })
         .await?;
         tokio::fs::create_dir_all("/var/lib/tor").await?;
         Command::new("chown")
@@ -976,7 +991,10 @@ struct TorControl {
     >,
 }
 impl TorControl {
-    pub fn new(tor_control: SocketAddr, tor_socks: SocketAddr) -> Self {
+    pub fn new(
+        tor_control: SocketAddr,
+        tor_socks: impl AsRef<[SocketAddr]> + Send + 'static,
+    ) -> Self {
         let (send, mut recv) = mpsc::unbounded_channel();
         let services = Watch::new(BTreeMap::new());
         let mut thread_services = services.clone();
@@ -987,7 +1005,7 @@ impl TorControl {
                 loop {
                     if let Err(e) = torctl(
                         tor_control,
-                        tor_socks,
+                        tor_socks.as_ref(),
                         &mut recv,
                         &mut thread_services,
                         &wipe_state,

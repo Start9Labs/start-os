@@ -15,6 +15,7 @@ import {
   CreateTaskParams,
   MountParams,
   StatusInfo,
+  Manifest,
 } from "./osBindings"
 import {
   PackageId,
@@ -83,6 +84,11 @@ export type Effects = {
   mount(options: MountParams): Promise<string>
   /** Returns a list of the ids of all installed packages */
   getInstalledPackages(): Promise<string[]>
+  /** Returns the manifest of a service */
+  getServiceManifest(options: {
+    packageId: PackageId
+    callback?: () => void
+  }): Promise<Manifest>
 
   // health
   /** sets the result of a health check */

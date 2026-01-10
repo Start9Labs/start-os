@@ -15,7 +15,7 @@ use crate::util::future::NonDetachingJoinHandle;
 
 pub const DEFAULT_SOCKS_LISTEN: SocketAddr = SocketAddr::V4(SocketAddrV4::new(
     Ipv4Addr::new(HOST_IP[0], HOST_IP[1], HOST_IP[2], HOST_IP[3]),
-    9050,
+    1080,
 ));
 
 pub struct SocksController {

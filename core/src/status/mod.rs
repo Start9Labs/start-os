@@ -53,6 +53,11 @@ impl Model<StatusInfo> {
         self.as_started_mut().ser(&None)?;
         Ok(())
     }
+    pub fn restart(&mut self) -> Result<(), Error> {
+        self.as_desired_mut().map_mutate(|s| Ok(s.restart()))?;
+        self.as_health_mut().ser(&Default::default())?;
+        Ok(())
+    }
     pub fn init(&mut self) -> Result<(), Error> {
         self.as_started_mut().ser(&None)?;
         self.as_desired_mut().map_mutate(|s| {
