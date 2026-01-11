@@ -1,84 +1,68 @@
+import { AsyncPipe } from '@angular/common'
 import { Component, inject, signal } from '@angular/core'
-import {
-  NonNullableFormBuilder,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms'
+import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
   TuiButton,
-  TuiGroup,
-  TuiIcon,
+  TuiError,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
-  TuiTitle,
 } from '@taiga-ui/core'
 import { TuiDialogContext } from '@taiga-ui/experimental'
 import {
-  TuiBlock,
+  TUI_VALIDATION_ERRORS,
   TuiChevron,
   TuiDataListWrapper,
+  TuiFieldErrorPipe,
+  TuiFile,
   TuiFiles,
-  TuiRadio,
   TuiSelect,
-  TuiSwitch,
-  TuiTooltip,
 } from '@taiga-ui/kit'
 import { TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent, injectContext } from '@taiga-ui/polymorpheus'
+import { getAddOutboundVpnForm, OUTBOUND_VALIDATION_ERRORS } from './utils'
+
+interface AddVPNData {
+  targetOptions: string[]
+}
 
 @Component({
   template: `
     <form tuiForm="m" [style.margin-top.rem]="1" [formGroup]="form">
-      <h3 tuiHeader="body-m">Label</h3>
+      <h3 tuiHeader="body-m">Label *</h3>
       <tui-textfield>
         <input
           tuiTextfield
-          placeholder="What to call this VPN connection"
+          placeholder="e.g. Mullvad Sweden"
           formControlName="label"
         />
       </tui-textfield>
-      <h3 tuiHeader="body-m">Connection type</h3>
-      <div tuiGroup>
-        <label tuiBlock="m">
-          <input
-            type="radio"
-            tuiRadio
-            formControlName="type"
-            value="WireGuard"
-          />
-          WireGuard
+      <tui-error formControlName="label" [error]="[] | tuiFieldError | async" />
+      <h3 tuiHeader="body-m">WireGuard Configuration *</h3>
+      @if (!form.value.config || form.controls.config.invalid) {
+        <label tuiInputFiles class="g-action">
+          <input tuiInputFiles accept=".conf" formControlName="config" />
+          <ng-template>Drop .conf file here or click to browse</ng-template>
         </label>
-        <label tuiBlock="m">
-          <input type="radio" tuiRadio formControlName="type" value="OpenVPN" />
-          OpenVPN
-        </label>
-      </div>
-      <h3 tuiHeader="body-m">Configuration setup</h3>
-      <label tuiInputFiles class="g-action">
-        <input tuiInputFiles formControlName="config" />
-        <ng-template>Drag and drop config file here</ng-template>
-      </label>
-      <label tuiHeader="body-m">
-        <span tuiTitle>VPN Chaining</span>
-        <aside tuiAccessories [style.margin-inline-start]="'auto'">
-          <tui-icon
-            tuiTooltip="Send traffic from this VPN through another VPN"
-          />
-          <input type="checkbox" tuiSwitch formControlName="chaining" />
-        </aside>
-      </label>
-      @if (form.value.chaining) {
-        <tui-textfield tuiChevron>
-          <label tuiLabel>VPN Label</label>
-          <input tuiSelect formControlName="vpn" />
-          <tui-data-list-wrapper
-            *tuiTextfieldDropdown
-            new
-            [items]="['Proton', 'Mullvad', 'NordVPN']"
-          />
-        </tui-textfield>
+      } @else {
+        <tui-file
+          [file]="form.value.config"
+          (remove)="form.controls.config.reset()"
+        />
       }
+      <tui-error
+        formControlName="config"
+        [error]="[] | tuiFieldError | async"
+      />
+      <h3 tuiHeader="body-m">Target</h3>
+      <tui-textfield tuiChevron>
+        <input tuiSelect formControlName="target" />
+        <tui-data-list-wrapper
+          *tuiTextfieldDropdown
+          new
+          [items]="context.data.targetOptions"
+        />
+      </tui-textfield>
       <footer>
         <button
           tuiButton
@@ -88,39 +72,51 @@ import { PolymorpheusComponent, injectContext } from '@taiga-ui/polymorpheus'
         >
           Cancel
         </button>
-        <button tuiButton (click)="save()">Save</button>
+        <button tuiButton [disabled]="form.invalid" (click)="save()">
+          Add VPN
+        </button>
       </footer>
     </form>
   `,
-  providers: [tuiTextfieldOptionsProvider({ cleaner: signal(false) })],
+  styles: `
+    [tuiInputFiles] {
+      min-height: 8rem;
+    }
+  `,
+  providers: [
+    tuiTextfieldOptionsProvider({ cleaner: signal(false) }),
+    { provide: TUI_VALIDATION_ERRORS, useValue: OUTBOUND_VALIDATION_ERRORS },
+  ],
   imports: [
+    AsyncPipe,
     TuiForm,
     TuiTextfield,
+    TuiError,
+    TuiFieldErrorPipe,
     ReactiveFormsModule,
-    TuiGroup,
-    TuiBlock,
-    TuiRadio,
     TuiFiles,
+    TuiFile,
     TuiHeader,
-    TuiSwitch,
-    TuiIcon,
-    TuiTooltip,
     TuiSelect,
     TuiDataListWrapper,
     TuiChevron,
     TuiButton,
-    TuiTitle,
   ],
 })
 export class AddVPN {
-  protected readonly context = injectContext<TuiDialogContext<any>>()
-  protected readonly form = inject(NonNullableFormBuilder).group({
-    label: ['', Validators.required],
-    type: 'WireGuard',
-    config: null,
-    chaining: false,
-    vpn: 'Proton',
-  })
+  protected readonly context =
+    injectContext<TuiDialogContext<any, AddVPNData>>()
+  protected readonly form = getAddOutboundVpnForm(
+    inject(NonNullableFormBuilder),
+  )
+
+  constructor() {
+    this.form.controls.config.valueChanges.subscribe(() => {
+      if (this.form.controls.config.invalid) {
+        this.form.controls.config.markAsTouched()
+      }
+    })
+  }
 
   protected save(): void {
     tuiMarkControlAsTouchedAndValidate(this.form)

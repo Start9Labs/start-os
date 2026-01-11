@@ -55,7 +55,8 @@ export interface Device {
     }
 
     table {
-      margin-bottom: 1rem;
+      overflow: unset;
+      margin: 1rem 0;
 
       ::ng-deep {
         td[colspan] {

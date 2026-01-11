@@ -1,18 +1,18 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
-  signal,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
 import { TuiDialogService } from '@taiga-ui/experimental'
-import { TUI_CONFIRM } from '@taiga-ui/kit'
+import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { filter } from 'rxjs'
 import { Help } from 'src/app/directives/help'
 import { ADD } from 'src/app/routes/home/routes/outbound/dialog'
+import { OutboundService } from 'src/app/routes/home/routes/outbound/service'
 
 import { OutboundAside } from './aside'
 
@@ -27,52 +27,49 @@ import { OutboundAside } from './aside'
         </button>
       </aside>
     </header>
-    <table tuiTable size="m" class="g-table">
+    <table tuiTable size="m" class="g-table" [tuiSkeleton]="loading()">
       <thead tuiThead>
         <tr>
           <th tuiTh>Status</th>
           <th tuiTh>Label</th>
-          <th tuiTh>Type</th>
           <th tuiTh>Connects to</th>
           <th tuiTh>Used by</th>
-          <th tuiTh></th>
         </tr>
       </thead>
       <tbody>
-        @for (item of data(); track $index) {
+        @for (item of service.data(); track item.id) {
           <tr>
-            <td tuiTd><i [class.g-positive]="item.status"></i></td>
+            <td tuiTd class="status">
+              <i [class.g-positive]="item.enabled"></i>
+            </td>
             <td tuiTd>
-              <a tuiLink [routerLink]="item.label">
+              <a tuiLink [routerLink]="item.id">
                 <b>{{ item.label }}</b>
               </a>
             </td>
-            <td tuiTd>{{ item.type }}</td>
-            <td tuiTd>{{ item.connects }}</td>
+            <td tuiTd>{{ item.target }}</td>
             <td tuiTd>
-              @if (item.used) {
+              @if (item.usedBy) {
                 <button tuiLink iconStart="@tui.scroll-text">
-                  {{ item.used }}
+                  {{ item.usedBy }}
                 </button>
+              } @else {
+                -
               }
             </td>
-            <td tuiTd>
-              <button
-                tuiIconButton
-                iconStart="@tui.trash"
-                size="xs"
-                appearance="icon"
-                (click)="remove($index)"
-              >
-                Remove
-              </button>
-            </td>
           </tr>
+        } @empty {
+          <tr><td tuiTd></td></tr>
         }
       </tbody>
     </table>
   `,
   styles: `
+    :host {
+      max-width: 50rem;
+      padding-top: 0;
+    }
+
     i {
       display: block;
       width: 0.5rem;
@@ -82,8 +79,13 @@ import { OutboundAside } from './aside'
       background: currentColor;
       color: var(--tui-text-negative);
     }
+
+    .status {
+      width: 5rem;
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'g-page' },
   imports: [
     RouterLink,
     TuiHeader,
@@ -91,68 +93,29 @@ import { OutboundAside } from './aside'
     TuiTable,
     TuiButton,
     TuiLink,
+    TuiSkeleton,
     Help,
     OutboundAside,
   ],
 })
 export default class OutboundTable {
   private readonly dialogs = inject(TuiDialogService)
+  protected readonly service = inject(OutboundService)
 
-  protected readonly data = signal([
-    {
-      status: true,
-      label: 'Proton',
-      type: 'WireGuard',
-      connects: 'Internet',
-      used: 'Admin',
-    },
-    {
-      status: true,
-      label: 'Mullvad',
-      type: 'OpenVPN',
-      connects: 'Proton',
-      used: 'Child',
-    },
-    {
-      status: false,
-      label: 'NordVPN',
-      type: 'OpenVPN',
-      connects: 'Internet',
-      used: '',
-    },
-  ])
+  protected readonly loading = computed(() => !this.service.data())
 
   protected add() {
+    const existingVpns = this.service.data() ?? []
+    const targetOptions = ['Internet', ...existingVpns.map(v => v.label)]
+
     this.dialogs
       .open<any>(ADD, {
         label: 'Add Outbound VPN (Client)',
-        closable: false,
-        dismissible: false,
-        size: 's',
+        size: 'm',
+        data: { targetOptions },
       })
-      .subscribe(({ label, type, chaining, vpn }) => {
-        this.data.update(data => [
-          ...data,
-          {
-            label,
-            type,
-            status: false,
-            connects: chaining ? vpn : 'Internet',
-            used: '',
-          },
-        ])
-      })
-  }
-
-  protected remove(index: number) {
-    this.dialogs
-      .open(TUI_CONFIRM, {
-        label: 'Are you sure?',
-        size: 's',
-      })
-      .pipe(filter(Boolean))
-      .subscribe(() => {
-        this.data.update(data => data.filter((_, i) => i !== index))
+      .subscribe(async ({ label, target, config }) => {
+        await this.service.create({ label, target, config })
       })
   }
 }

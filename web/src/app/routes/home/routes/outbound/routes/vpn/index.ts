@@ -1,35 +1,40 @@
+import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
+  effect,
   inject,
   signal,
 } from '@angular/core'
+import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
+import { ActivatedRoute, Router, RouterLink } from '@angular/router'
 import {
-  NonNullableFormBuilder,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms'
-import { RouterLink } from '@angular/router'
-import {
-  TuiAppearance,
   TuiButton,
-  TuiIcon,
+  TuiError,
   TuiLink,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
   TuiTitle,
 } from '@taiga-ui/core'
+import { TuiDialogService } from '@taiga-ui/experimental'
 import {
+  TUI_CONFIRM,
+  TUI_VALIDATION_ERRORS,
   TuiChevron,
   TuiDataListWrapper,
+  TuiFieldErrorPipe,
   TuiSelect,
-  TuiSwitch,
-  TuiTooltip,
 } from '@taiga-ui/kit'
-import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { TuiHeader } from '@taiga-ui/layout'
+import { filter } from 'rxjs'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
-
+import { OutboundService } from 'src/app/routes/home/routes/outbound/service'
+import {
+  getOutboundVpnForm,
+  OUTBOUND_VALIDATION_ERRORS,
+} from 'src/app/routes/home/routes/outbound/utils'
 import { VPNAside } from './aside'
 import { VPNSummary } from './summary'
 
@@ -46,84 +51,89 @@ import { VPNSummary } from './summary'
             iconStart="@tui.chevron-left"
             [style.font]="'inherit'"
           >
-            Manage Outbound VPN
+            {{ data()?.label || 'Outbound VPN' }}
           </a>
         </h2>
       </hgroup>
     </header>
-    <article vpnSummary [formLoading]="false"></article>
-    <form
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      tuiForm="m"
-      [formGroup]="form"
-    >
-      <h3 tuiHeader><span tuiTitle>Label</span></h3>
-      <tui-textfield>
-        <input tuiTextfield formControlName="label" />
-      </tui-textfield>
-    </form>
-    <form
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      tuiForm="m"
-      [formGroup]="form"
-      [style.margin-block.rem]="1"
-    >
-      <label tuiHeader [style.margin-inline]="0">
-        <span tuiTitle>VPN Chaining</span>
-        <aside tuiAccessories>
-          <tui-icon
-            tuiTooltip="Send traffic from this VPN through another VPN"
+    <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
+    <article vpnSummary [formLoading]="!data()"></article>
+    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
+    <form [formGroup]="form" [formLoading]="!data()">
+      <section>
+        <div>
+          <tui-textfield>
+            <label tuiLabel>Label *</label>
+            <input tuiTextfield formControlName="label" />
+          </tui-textfield>
+          <tui-error
+            formControlName="label"
+            [error]="[] | tuiFieldError | async"
           />
-          <input type="checkbox" tuiSwitch formControlName="chaining" />
-        </aside>
-      </label>
-      @if (form.value.chaining) {
-        <tui-textfield tuiChevron>
-          <label tuiLabel>Chain to</label>
-          <input tuiSelect formControlName="vpn" />
-          <tui-data-list-wrapper
-            *tuiTextfieldDropdown
-            new
-            [items]="['Proton', 'NordVPN']"
-          />
-        </tui-textfield>
-      }
+        </div>
+      </section>
+      <section>
+        <div>
+          <tui-textfield tuiChevron>
+            <label tuiLabel>Connects to</label>
+            <input tuiSelect formControlName="target" />
+            <tui-data-list-wrapper
+              *tuiTextfieldDropdown
+              new
+              [items]="targetOptions()"
+            />
+          </tui-textfield>
+        </div>
+      </section>
     </form>
     <footer class="g-footer">
       <button
         tuiButton
         type="button"
-        appearance="action-destructive"
-        [style.margin-inline-end]="'auto'"
+        appearance="flat"
+        [disabled]="form.pristine"
+        (click)="onCancel()"
+      >
+        Cancel
+      </button>
+      <button tuiButton [disabled]="form.pristine" (click)="onSave()">
+        Save
+      </button>
+      <button
+        tuiButton
+        type="button"
+        appearance="destructive"
+        class="g-delete"
+        (click)="onDelete()"
       >
         Delete
       </button>
-      <button tuiButton type="button" appearance="flat" routerLink="..">
-        Cancel
-      </button>
-      <button tuiButton>Save</button>
     </footer>
   `,
+  styles: `
+    :host {
+      padding-top: 0;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [tuiTextfieldOptionsProvider({ cleaner: signal(false) })],
+  host: { class: 'g-page' },
+  providers: [
+    tuiTextfieldOptionsProvider({ cleaner: signal(false) }),
+    { provide: TUI_VALIDATION_ERRORS, useValue: OUTBOUND_VALIDATION_ERRORS },
+  ],
   imports: [
+    AsyncPipe,
     RouterLink,
     ReactiveFormsModule,
     TuiHeader,
     TuiTitle,
     TuiLink,
-    TuiForm,
-    TuiCard,
     TuiTextfield,
-    TuiSwitch,
+    TuiError,
+    TuiFieldErrorPipe,
     TuiChevron,
     TuiSelect,
     TuiDataListWrapper,
-    TuiAppearance,
-    TuiIcon,
-    TuiTooltip,
     TuiButton,
     Form,
     Help,
@@ -132,9 +142,76 @@ import { VPNSummary } from './summary'
   ],
 })
 export default class OutboundVPN {
-  public readonly form = inject(NonNullableFormBuilder).group({
-    label: ['Mullvad', Validators.required],
-    chaining: true,
-    vpn: 'Proton',
+  private readonly route = inject(ActivatedRoute)
+  private readonly router = inject(Router)
+  private readonly dialogs = inject(TuiDialogService)
+
+  readonly service = inject(OutboundService)
+  readonly vpnId = this.route.snapshot.params['label']
+
+  readonly form = getOutboundVpnForm(inject(NonNullableFormBuilder))
+
+  readonly data = computed(() => {
+    const allVpns = this.service.data()
+    return allVpns?.find(v => v.id === this.vpnId) ?? null
   })
+
+  readonly targetOptions = computed(() => {
+    const currentLabel = this.data()?.label
+    const allVpns = this.service.data() ?? []
+    const otherVpns = allVpns
+      .filter(v => v.label !== currentLabel)
+      .map(v => v.label)
+    return ['Internet', ...otherVpns]
+  })
+
+  constructor() {
+    effect(() => {
+      const data = this.data()
+      if (data && this.form.pristine) {
+        this.form.reset({
+          label: data.label,
+          target: data.target,
+        })
+      }
+    })
+  }
+
+  async onSave() {
+    if (this.form.invalid) return
+
+    const success = await this.service.update(
+      this.vpnId,
+      this.form.getRawValue(),
+    )
+    if (success) {
+      this.form.markAsPristine()
+      this.router.navigate(['..'], { relativeTo: this.route })
+    }
+  }
+
+  onCancel() {
+    const data = this.data()
+    if (data) {
+      this.form.reset({
+        label: data.label,
+        target: data.target,
+      })
+    }
+  }
+
+  onDelete() {
+    this.dialogs
+      .open(TUI_CONFIRM, {
+        label: 'Are you sure?',
+        size: 's',
+      })
+      .pipe(filter(Boolean))
+      .subscribe(async () => {
+        const success = await this.service.remove(this.vpnId)
+        if (success) {
+          this.router.navigate(['..'], { relativeTo: this.route })
+        }
+      })
+  }
 }

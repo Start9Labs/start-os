@@ -3,6 +3,8 @@ export type UciSection =
   | NetworkDeviceSection
   | DdnsSection
   | DhcpSection
+  | WireGuardInterfaceSection
+  | WireGuardPeerSection
 
 export type NetworkInterfaceSection = {
   type: 'interface'
@@ -87,6 +89,40 @@ export type DhcpSection = {
     ra_default?: '0' | '1' | '2'
   }
   lists: {}
+}
+
+export type WireGuardInterfaceSection = {
+  type: 'interface'
+  name: string | null
+  options: {
+    proto: 'wireguard'
+    private_key: string
+    listen_port?: string
+    disabled?: '0' | '1'
+    // Custom options for our app
+    label?: string // User-friendly name
+    target?: string // 'Internet' or another VPN label for chaining
+  }
+  lists: {
+    addresses?: string[]
+    dns?: string[]
+  }
+}
+
+export type WireGuardPeerSection = {
+  type: 'wireguard_peer'
+  name: string | null
+  options: {
+    public_key: string
+    preshared_key?: string
+    endpoint_host?: string
+    endpoint_port?: string
+    persistent_keepalive?: string
+    route_allowed_ips?: '0' | '1'
+  }
+  lists: {
+    allowed_ips?: string[]
+  }
 }
 
 export type UciFile<T extends UciSection> = {

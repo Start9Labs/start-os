@@ -35,7 +35,7 @@ import { Device } from './index'
         <tr>
           <td colspan="3">
             <tui-icon icon="@tui.monitor-smartphone" />
-            No blocked devices found
+            No blocked devices
           </td>
         </tr>
       }

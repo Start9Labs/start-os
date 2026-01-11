@@ -59,7 +59,7 @@ import { Device } from './index'
         <tr>
           <td colspan="6">
             <tui-icon icon="@tui.monitor-smartphone" />
-            No offline devices found
+            No offline devices
           </td>
         </tr>
       }
