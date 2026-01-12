@@ -7,6 +7,7 @@ import {
   GetFileRes,
   GetUciReq,
   LoginReq,
+  SetFileReq,
   SetUciReq,
   SetUciRes,
 } from './api.service'
@@ -35,7 +36,7 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'file.get', params })
   }
 
-  async setFile(params: GetFileRes): Promise<null> {
+  async setFile(params: SetFileReq): Promise<null> {
     return this.rpc.request({ method: 'file.set', params })
   }
 

@@ -1688,7 +1688,7 @@ dependencies = [
 [[package]]
 name = "rpc-toolkit"
 version = "0.3.2"
-source = "git+https://github.com/Start9Labs/rpc-toolkit#2dd2832e043eb5380c91cf80f3e78a700d204be3"
+source = "git+https://github.com/Start9Labs/rpc-toolkit#81d18147fd0ca9725b820c010c006e8a2cada322"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -1963,6 +1963,7 @@ dependencies = [
  "chrono",
  "clap",
  "color-eyre",
+ "fd-lock-rs",
  "futures",
  "imbl-value",
  "macaddr",
