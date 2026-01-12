@@ -28,6 +28,7 @@ import {
 } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
+import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
 import { OutboundService } from 'src/app/routes/home/routes/outbound/service'
@@ -59,7 +60,12 @@ import { VPNSummary } from './summary'
     <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
     <article vpnSummary [formLoading]="!data()"></article>
     <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
-    <form [formGroup]="form" [formLoading]="!data()">
+    <form
+      [formGroup]="form"
+      [formLoading]="!data()"
+      (reset.prevent)="onCancel()"
+      (ngSubmit)="onSave()"
+    >
       <section>
         <div>
           <tui-textfield>
@@ -85,30 +91,20 @@ import { VPNSummary } from './summary'
           </tui-textfield>
         </div>
       </section>
+      @if (data()) {
+        <footer appFooter [disabled]="form.pristine">
+          <button
+            tuiButton
+            type="button"
+            appearance="destructive"
+            class="g-delete"
+            (click)="onDelete()"
+          >
+            Delete
+          </button>
+        </footer>
+      }
     </form>
-    <footer class="g-footer">
-      <button
-        tuiButton
-        type="button"
-        appearance="flat"
-        [disabled]="form.pristine"
-        (click)="onCancel()"
-      >
-        Cancel
-      </button>
-      <button tuiButton [disabled]="form.pristine" (click)="onSave()">
-        Save
-      </button>
-      <button
-        tuiButton
-        type="button"
-        appearance="destructive"
-        class="g-delete"
-        (click)="onDelete()"
-      >
-        Delete
-      </button>
-    </footer>
   `,
   styles: `
     :host {
@@ -135,6 +131,7 @@ import { VPNSummary } from './summary'
     TuiSelect,
     TuiDataListWrapper,
     TuiButton,
+    Footer,
     Form,
     Help,
     VPNAside,

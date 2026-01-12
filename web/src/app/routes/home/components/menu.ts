@@ -27,6 +27,11 @@ export const MENU = {
       icon: '@tui.chevrons-right',
       link: 'forwarding',
     },
+    {
+      name: 'IPv6 Firewall',
+      icon: '@tui.chevrons-right',
+      link: 'forwarding',
+    },
   ],
   'Security Profiles': [
     {

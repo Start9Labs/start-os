@@ -1,147 +1,139 @@
 import { AsyncPipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TUI_ALWAYS_DASHED, TuiAxes, TuiBarChart } from '@taiga-ui/addon-charts'
-import { TuiButton, TuiHint, TuiIcon, TuiTitle } from '@taiga-ui/core'
-import { TuiChevron } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+} from '@angular/core'
+import { TuiFormatNumberPipe, TuiIcon, TuiLink } from '@taiga-ui/core'
 import { Summary } from 'src/app/components/summary'
 
-import DevicesDevice from '.'
+import DeviceDetail from '.'
+import { DataUsageChart } from './data-usage-chart'
 
 @Component({
   selector: '[deviceSummary]',
   template: `
-    @if (parent.form.valueChanges | async) {}
-    <header tuiHeader>
-      <h2 tuiTitle>Summary</h2>
-      <aside tuiAccessories>
-        <button tuiButton appearance="primary-destructive">Block</button>
-      </aside>
-    </header>
     <section>
       <div appSummary>
-        Name
-        <span tuiSubtitle>{{ parent.form.value.name }}</span>
+        MAC Address
+        <span tuiSubtitle>{{ parent.data()?.mac || '-' }}</span>
       </div>
       <div appSummary>
-        Permissions
+        Status
         <span tuiSubtitle>
-          <tui-icon icon="@tui.scroll" />
-          Admin
+          @switch (parent.data()?.status) {
+            @case ('online') {
+              <tui-icon icon="@tui.circle-check" class="g-positive" />
+              Online
+            }
+            @case ('offline') {
+              <tui-icon icon="@tui.circle-minus" />
+              Offline
+            }
+            @case ('blocked') {
+              <tui-icon icon="@tui.ban" class="g-negative" />
+              Blocked
+            }
+          }
         </span>
       </div>
-      <div appSummary>
-        Connection
-        <span tuiSubtitle>
-          <tui-icon icon="@tui.wifi" />
-          Child
-        </span>
-      </div>
-      <div appSummary>
-        Speed
-        <span tuiSubtitle>
-          <tui-icon icon="@tui.arrow-up" />
-          1.21
-          <small>MB/S</small>
-        </span>
-        <span tuiSubtitle>
-          <tui-icon icon="@tui.arrow-down" />
-          237
-          <small>MB/S</small>
-        </span>
-      </div>
-      <div appSummary>
-        <header>
-          Data Usage
-          <button tuiButton tuiChevron appearance="secondary-grayscale">
-            Weekly
-          </button>
-        </header>
-        <tui-axes
-          axisY="none"
-          [axisXLabels]="x"
-          [axisYSecondaryLabels]="y"
-          [horizontalLines]="3"
-          [horizontalLinesHandler]="lines"
-        >
-          <tui-bar-chart
-            size="l"
-            [max]="3"
-            [tuiHintContent]="hint"
-            [value]="value"
-          />
-          <ng-template #hint let-index>
-            {{ value[0][index] }}
-            <small>GB</small>
-          </ng-template>
-        </tui-axes>
-      </div>
+      @if (parent.data()?.connection) {
+        <div appSummary>
+          Connection
+          <span tuiSubtitle>
+            <tui-icon [icon]="connectionIcon()" />
+            {{ parent.data()?.connection }}
+          </span>
+        </div>
+      }
+      @if (parent.data()?.securityProfile) {
+        <div appSummary>
+          Security Profile
+          <span tuiSubtitle>
+            <a tuiLink>
+              <strong>{{ parent.data()?.securityProfile }}</strong>
+            </a>
+          </span>
+        </div>
+      }
+      @if (parent.data()?.ipv4) {
+        <div appSummary>
+          IPv4 Address
+          <span tuiSubtitle>
+            @if (parent.data()?.ipv4Static) {
+              <tui-icon icon="@tui.lock" />
+            }
+            {{ parent.data()?.ipv4 }}
+          </span>
+        </div>
+      }
+      @if (parent.data()?.ipv6) {
+        <div appSummary>
+          IPv6 Address
+          <span tuiSubtitle>
+            @if (parent.data()?.ipv6Static) {
+              <tui-icon icon="@tui.lock" />
+            }
+            {{ parent.data()?.ipv6 }}
+          </span>
+        </div>
+      }
+      @if (parent.data()?.speed) {
+        <div appSummary>
+          Speed
+          <span tuiSubtitle>
+            <tui-icon icon="@tui.arrow-up" />
+            {{ parent.data()?.speed?.up ?? 0 | tuiFormatNumber | async }}
+            <small>MB/s</small>
+          </span>
+          <span tuiSubtitle>
+            <tui-icon icon="@tui.arrow-down" />
+            {{ parent.data()?.speed?.down ?? 0 | tuiFormatNumber | async }}
+            <small>MB/s</small>
+          </span>
+        </div>
+      }
     </section>
+    @if (parent.data()?.status !== 'blocked') {
+      <app-data-usage-chart
+        [mac]="parent.data()?.mac ?? ''"
+        [service]="parent.service"
+        [loading]="!parent.data()"
+      />
+    }
   `,
   styles: `
-    section {
-      display: grid;
-      grid-template-columns: 8rem 1fr;
-    }
-
     tui-icon {
       font-size: 1rem;
-    }
-
-    tui-axes {
-      height: 100%;
-
-      ::ng-deep ~ * {
-        display: none !important;
-      }
-    }
-
-    [appSummary] {
-      grid-column: 1;
-      flex: 1 1 auto;
-
-      &:last-child {
-        grid-area: 1 / 2 / 5 / 2;
-        min-height: 12rem;
-      }
-
-      header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        padding-block-end: 1rem;
-      }
     }
 
     [tuiSubtitle] {
       gap: 0.25rem;
     }
-
-    :host-context(tui-root._mobile) {
-      section {
-        display: flex;
-      }
-    }
   `,
   host: { '[style.background]': '"var(--tui-status-info-pale)"' },
   imports: [
     AsyncPipe,
-    TuiHeader,
-    TuiTitle,
-    TuiButton,
     TuiIcon,
-    TuiAxes,
-    TuiChevron,
-    TuiBarChart,
-    TuiHint,
+    TuiLink,
+    TuiFormatNumberPipe,
     Summary,
+    DataUsageChart,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DeviceSummary {
-  protected readonly parent = inject(DevicesDevice)
-  protected readonly x = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
-  protected readonly y = ['0', '1GB', '2GB', '3GB']
-  protected readonly lines = TUI_ALWAYS_DASHED
-  protected readonly value = [[1, 2.5, 1.2, 2, 0.5, 2.8, 1.5]]
+  protected readonly parent = inject(DeviceDetail)
+
+  readonly connectionIcon = computed(() => {
+    const connection = this.parent.data()?.connection?.toLowerCase() ?? ''
+    if (connection.includes('ethernet') || connection.includes('eth')) {
+      return '@tui.cable'
+    }
+    if (connection.includes('wi-fi') || connection.includes('wifi')) {
+      return '@tui.wifi'
+    }
+    return '@tui.monitor'
+  })
 }

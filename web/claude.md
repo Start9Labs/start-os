@@ -215,23 +215,6 @@ export class RouteIp {
 }
 ```
 
-## Validators Available
-
-- `CustomValidators.ipv4()` - IPv4 address format
-- `CustomValidators.ipv6()` - IPv6 address format
-- `CustomValidators.ipv4OrIpv6()` - Either format
-- `CustomValidators.prefix(min, max)` - CIDR prefix (strips leading `/`)
-- `CustomValidators.mac()` - MAC address format (XX:XX:XX:XX:XX:XX)
-
-## DNS Component
-
-Shared between IPv4 and IPv6 routes:
-
-- Located at `wan/dns/`
-- Has `getDnsForm()`, `updateDnsValidators()`, `parseDnsFromInterface()`, `applyDnsToInterface()`
-- Supports ISP or Custom mode
-- Custom allows two DNS servers with optional TLS (@853 suffix)
-
 ## Mock API
 
 Located at `services/api/mock-api.service.ts`:
@@ -253,15 +236,6 @@ Located at `services/api/mock-api.service.ts`:
 - Avoid technical jargon unless necessary
 - Use accordion (`TuiAccordion`) for multiple sections (IPv4/IPv6)
 - Use plain content with `class: 'g-aside'` for simpler pages (MAC/DDNS)
-
-## Current State
-
-**Completed WAN routes:**
-
-- IPv4 (DHCP/Static/PPPoE modes, DNS)
-- IPv6 (SLAAC/DHCPv6/Static/6RD/Disabled modes, DNS)
-- MAC (Router/Custom strategy)
-- DDNS (Multiple providers, Start9 is free with no config needed)
 
 ## Important Considerations
 

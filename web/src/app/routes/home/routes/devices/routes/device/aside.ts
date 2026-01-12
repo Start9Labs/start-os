@@ -1,41 +1,57 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { TuiAccordion } from '@taiga-ui/experimental'
 
 @Component({
   selector: 'device-aside',
   template: `
-    <tui-accordion size="m">
-      <button tuiAccordion appearance="">Name</button>
-      <tui-expand>
-        The hostname set by the connected device to identify it on your network.
-        You can optionally rename it.
-      </tui-expand>
-      <button tuiAccordion appearance="">IP Addresses</button>
-      <tui-expand>
-        Enable Static IP Addresses to manually assign IP address that do not
-        change. Useful for devices that need a permanent IP address.
-      </tui-expand>
-      <button tuiAccordion appearance="">Permissions</button>
-      <tui-expand>
-        By default, how a device connects to the LAN will determine it's
-        assigned permissions.
-      </tui-expand>
-      <button tuiAccordion appearance="">IPv6 Firewall</button>
-      <tui-expand>
-        Rules that control IPv6 traffic to and from devices. Enhances security
-        by controlling network traffic. Protects your network from unauthorized
-        access. Configure rules to allow or block specific traffic.
-        <p>
-          Allowing all ports enables unrestricted communication for the device
-          by opening all ports. This setting allows a device to send and receive
-          data over any port, facilitating full network access without any
-          restrictions. Use with caution. Can be helpful during troubleshooting
-          to ensure that firewall rules are not blocking necessary traffic.
-        </p>
-      </tui-expand>
-    </tui-accordion>
+    <p>View device information and configure settings.</p>
+
+    <h3>Summary</h3>
+    <p>
+      Displays the device's current status, connection type, security profile,
+      and IP addresses. A lock icon indicates a static IP assignment.
+    </p>
+
+    <h3>Data Usage</h3>
+    <p>
+      Shows historical network usage for this device. Use the dropdown to view
+      different time periods. Download is shown in blue, upload in green.
+    </p>
+
+    <h3>Name</h3>
+    <p>
+      Assign a custom name to easily identify this device. If left empty, the
+      device's hostname will be used. The placeholder shows what the name will
+      default to.
+    </p>
+
+    <h3>Static IP</h3>
+    <p>
+      Enable static IP to assign a fixed IPv4 or IPv6 address that won't change
+      between reboots. Useful for servers, printers, NAS devices, or anything
+      you need to access by a consistent IP address.
+    </p>
+
+    <h3>Block</h3>
+    <p>
+      Blocking a device immediately prevents it from accessing your network. The
+      device will remain in your device list but cannot communicate until
+      unblocked.
+    </p>
+
+    <h3>Unblock</h3>
+    <p>
+      Restores network access to a previously blocked device. The device will
+      need to reconnect after being unblocked.
+    </p>
+
+    <h3>Forget</h3>
+    <p>
+      Removes an offline or blocked device from your device list. Any custom
+      name or static IP settings will be lost. If the device reconnects, it will
+      appear as a new device.
+    </p>
   `,
+  host: { class: 'g-aside' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiAccordion],
 })
 export class DeviceAside {}

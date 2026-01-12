@@ -3,6 +3,8 @@ export type UciSection =
   | NetworkDeviceSection
   | DdnsSection
   | DhcpSection
+  | DhcpHostSection
+  | FirewallRuleSection
   | WireGuardInterfaceSection
   | WireGuardPeerSection
 
@@ -89,6 +91,37 @@ export type DhcpSection = {
     ra_default?: '0' | '1' | '2'
   }
   lists: {}
+}
+
+// Static DHCP host reservation
+export type DhcpHostSection = {
+  type: 'host'
+  name: string | null
+  options: {
+    mac: string // MAC address
+    ip?: string // Static IPv4 address
+    hostid?: string // Static IPv6 suffix
+    name?: string // Custom hostname/label
+    dns?: '1' | '0' // Add to local DNS
+  }
+  lists: {}
+}
+
+// Firewall rule for MAC blocking
+export type FirewallRuleSection = {
+  type: 'rule'
+  name: string | null
+  options: {
+    src?: string // e.g., 'lan'
+    dest?: string // e.g., 'wan'
+    src_mac?: string // MAC address to block
+    target?: 'ACCEPT' | 'REJECT' | 'DROP'
+    enabled?: '0' | '1'
+    name?: string // Rule description
+  }
+  lists: {
+    src_mac?: string[] // Can also be a list
+  }
 }
 
 export type WireGuardInterfaceSection = {

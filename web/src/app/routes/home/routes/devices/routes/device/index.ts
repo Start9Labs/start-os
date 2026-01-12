@@ -1,19 +1,30 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
-import { RouterLink } from '@angular/router'
 import {
-  TuiAppearance,
-  TuiButton,
-  TuiLink,
-  TuiTextfield,
-  TuiTitle,
-} from '@taiga-ui/core'
-import { TuiSwitch } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+} from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
+import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
+import { ActivatedRoute, Router, RouterLink } from '@angular/router'
+import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
+import { TUI_VALIDATION_ERRORS } from '@taiga-ui/kit'
+import { TuiHeader } from '@taiga-ui/layout'
+import { startWith } from 'rxjs'
+import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
+import { DevicesService } from 'src/app/routes/home/routes/devices/service'
+import {
+  DEVICE_VALIDATION_ERRORS,
+  getDeviceForm,
+  updateDeviceValidators,
+} from 'src/app/routes/home/routes/devices/utils'
 
 import { DeviceAside } from './aside'
+import { DeviceIp } from './ip'
+import { DeviceName } from './name'
 import { DeviceSummary } from './summary'
 
 @Component({
@@ -29,100 +40,192 @@ import { DeviceSummary } from './summary'
             iconStart="@tui.chevron-left"
             [style.font]="'inherit'"
           >
-            Manage Device
+            {{ data()?.name || 'Device' }}
           </a>
         </h2>
       </hgroup>
     </header>
-    <article deviceSummary [formLoading]="false"></article>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>Summary</h2>
+      <aside tuiAccessories>
+        @if (data()?.status !== 'online') {
+          <button
+            tuiButton
+            size="m"
+            appearance="secondary"
+            (click)="onForget()"
+          >
+            Forget
+          </button>
+        }
+        @if (data()?.status === 'blocked') {
+          <button
+            tuiButton
+            size="m"
+            appearance="secondary-destructive"
+            (click)="onUnblock()"
+          >
+            Unblock
+          </button>
+        }
+        @if (data()?.status !== 'blocked') {
+          <button
+            tuiButton
+            size="m"
+            appearance="secondary-destructive"
+            (click)="onBlock()"
+          >
+            Block
+          </button>
+        }
+      </aside>
+    </header>
+    <article deviceSummary [formLoading]="!data()"></article>
+    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
     <form
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      tuiForm="m"
-      class="g-form"
       [formGroup]="form"
+      [formLoading]="!data()"
+      (reset.prevent)="onCancel()"
+      (ngSubmit)="onSave()"
     >
-      <h3 tuiHeader><span tuiTitle>Name</span></h3>
-      <tui-textfield>
-        <input tuiTextfield formControlName="name" />
-      </tui-textfield>
+      <device-name [hostname]="data()?.hostname ?? ''" />
+      <device-ip formGroupName="ip" />
+      @if (data()) {
+        <footer appFooter [disabled]="form.pristine"></footer>
+      }
     </form>
-    <form
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      tuiForm="m"
-      class="g-form"
-      [formGroup]="form"
-    >
-      <h3 tuiHeader>
-        <span tuiTitle>IP Addresses</span>
-        <label tuiAccessories [style.font]="'var(--tui-font-text-m)'">
-          Use static
-          <input type="checkbox" tuiSwitch formControlName="static" />
-        </label>
-      </h3>
-      <fieldset>
-        <tui-textfield>
-          <input
-            tuiTextfield
-            formControlName="ipv4"
-            [readOnly]="!form.value.static"
-          />
-        </tui-textfield>
-        <tui-textfield>
-          <input
-            tuiTextfield
-            formControlName="ipv6"
-            [readOnly]="!form.value.static"
-          />
-        </tui-textfield>
-      </fieldset>
-    </form>
-    <form
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      tuiForm="m"
-      class="g-form"
-      [formGroup]="form"
-    >
-      <h3 tuiHeader>
-        <span tuiTitle>IPv6 Firewall</span>
-        <label tuiAccessories [style.font]="'var(--tui-font-text-m)'">
-          Allow all ports
-          <input type="checkbox" tuiSwitch formControlName="firewall" />
-        </label>
-      </h3>
-    </form>
-    <footer class="g-footer">
-      <button tuiButton appearance="flat">Cancel</button>
-      <button tuiButton>Save</button>
-    </footer>
+  `,
+  styles: `
+    :host {
+      padding-top: 0;
+    }
+
+    header[tuiHeader='h6'] {
+      align-items: center;
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'g-page' },
+  providers: [
+    { provide: TUI_VALIDATION_ERRORS, useValue: DEVICE_VALIDATION_ERRORS },
+  ],
   imports: [
     RouterLink,
     ReactiveFormsModule,
     TuiHeader,
     TuiTitle,
     TuiLink,
-    TuiCardLarge,
-    TuiAppearance,
-    TuiForm,
-    TuiTextfield,
-    TuiSwitch,
     TuiButton,
+    Footer,
     Form,
     Help,
     DeviceAside,
+    DeviceIp,
+    DeviceName,
     DeviceSummary,
   ],
 })
-export default class DevicesDevice {
-  readonly form = inject(NonNullableFormBuilder).group({
-    name: 'Pixel',
-    static: false,
-    ipv4: '127.0.0.1',
-    ipv6: 'fe80::1ff:fe23:4567:890a',
-    firewall: true,
+export default class DeviceDetail {
+  private readonly route = inject(ActivatedRoute)
+  private readonly router = inject(Router)
+
+  readonly service = inject(DevicesService)
+  readonly mac = this.route.snapshot.params['mac']
+
+  readonly form = getDeviceForm(inject(NonNullableFormBuilder))
+
+  readonly data = computed(() => {
+    const allDevices = this.service.data()
+    return allDevices?.find(d => d.mac === this.mac) ?? null
   })
+
+  readonly ipv4Static = toSignal(
+    this.form.controls.ip.controls.ipv4Static.valueChanges.pipe(
+      startWith(this.form.controls.ip.controls.ipv4Static.value),
+    ),
+    { requireSync: true },
+  )
+
+  readonly ipv6Static = toSignal(
+    this.form.controls.ip.controls.ipv6Static.valueChanges.pipe(
+      startWith(this.form.controls.ip.controls.ipv6Static.value),
+    ),
+    { requireSync: true },
+  )
+
+  constructor() {
+    // Reset form when data loads
+    effect(() => {
+      const data = this.data()
+      if (data && this.form.pristine) {
+        this.form.reset({
+          name: data.name,
+          ip: {
+            ipv4Static: data.ipv4Static,
+            ipv4: data.ipv4 ?? '',
+            ipv6Static: data.ipv6Static,
+            ipv6: data.ipv6 ?? '',
+          },
+        })
+        updateDeviceValidators(this.form, data.ipv4Static, data.ipv6Static)
+      }
+    })
+
+    // Update validators when static toggles change
+    effect(() => {
+      updateDeviceValidators(this.form, this.ipv4Static(), this.ipv6Static())
+    })
+  }
+
+  async onSave() {
+    if (this.form.invalid) return
+
+    const formValue = this.form.getRawValue()
+    const success = await this.service.update(this.mac, {
+      name: formValue.name,
+      ipv4Static: formValue.ip.ipv4Static,
+      ipv4: formValue.ip.ipv4,
+      ipv6Static: formValue.ip.ipv6Static,
+      ipv6: formValue.ip.ipv6,
+    })
+    if (success) {
+      this.form.markAsPristine()
+    }
+  }
+
+  onCancel() {
+    const data = this.data()
+    if (data) {
+      this.form.reset({
+        name: data.name,
+        ip: {
+          ipv4Static: data.ipv4Static,
+          ipv4: data.ipv4 ?? '',
+          ipv6Static: data.ipv6Static,
+          ipv6: data.ipv6 ?? '',
+        },
+      })
+    }
+  }
+
+  async onBlock() {
+    const success = await this.service.block(this.mac)
+    if (success) {
+      this.router.navigate(['..'], { relativeTo: this.route })
+    }
+  }
+
+  async onUnblock() {
+    const success = await this.service.unblock(this.mac)
+    if (success) {
+      this.router.navigate(['..'], { relativeTo: this.route })
+    }
+  }
+
+  async onForget() {
+    const success = await this.service.forget(this.mac)
+    if (success) {
+      this.router.navigate(['..'], { relativeTo: this.route })
+    }
+  }
 }

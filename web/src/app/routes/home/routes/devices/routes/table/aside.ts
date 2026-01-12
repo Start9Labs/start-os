@@ -1,32 +1,28 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { TuiAccordion } from '@taiga-ui/experimental'
 
 @Component({
   selector: 'devices-aside',
   template: `
+    <p>
+      View and manage all devices on your network. Online devices are currently
+      connected, offline devices have connected before but aren't active now.
+    </p>
     <h3>Name</h3>
-    The hostname set by the connected device to identify it on your network.
+    <p>
+      The device's hostname or a custom name you've assigned. Click to view
+      details and configure the device.
+    </p>
     <h3>Connection</h3>
-    Indicates how the device is connected to the network (e.g., Ethernet, Wi-Fi,
-    VPN).
-    <h3>Permissions</h3>
-    Displays the access permissions set for the device. Manages and controls
-    what the device can access on the network via a security profile or
-    schedule.
-    <h3>MAC</h3>
-    The Media Access Control (MAC) address is a unique identifier assigned to
-    the network interface of the device. It is how devices are identified on the
-    network and throughout the admin portal.
-    <h3>IP</h3>
-    Shows the assigned IP addresses for both IPv4 and IPv6.
-    <h3>Data</h3>
-    Displays the amount of data used by the device over selectable periods (day,
-    week, month) to track bandwidth consumption. Helps in managing network load
-    and identifying heavy data users.
-    <h3>Speed</h3>
-    Shows the upload and download speeds of the device to provide real-time
-    information on the device's network performance. Useful for diagnosing
-    network speed issues and understanding device activity.
+    <p>How the device connects to your network (Ethernet, Wi-Fi).</p>
+    <h3>MAC Address</h3>
+    <p>The unique hardware identifier for the device's network interface.</p>
+    <h3>IP Address</h3>
+    <p>The device's assigned IPv4 and IPv6 addresses.</p>
+    <h3>Data &amp; Speed</h3>
+    <p>
+      Bandwidth usage and current transfer speeds. Useful for identifying heavy
+      network users.
+    </p>
   `,
   host: { class: 'g-aside' },
   changeDetection: ChangeDetectionStrategy.OnPush,

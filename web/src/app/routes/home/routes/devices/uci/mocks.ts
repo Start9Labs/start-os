@@ -1,0 +1,175 @@
+import {
+  DhcpHostSection,
+  FirewallRuleSection,
+} from 'src/app/services/api/types'
+
+// Mock DHCP hosts - known devices with static reservations or custom names
+export const mockDhcpHosts: DhcpHostSection[] = [
+  {
+    type: 'host',
+    name: 'host_humble_weeds',
+    options: {
+      mac: '00:1A:2B:3C:4D:5E',
+      ip: '192.168.1.100',
+      name: 'humble-weeds',
+      dns: '1',
+    },
+    lists: {},
+  },
+  {
+    type: 'host',
+    name: 'host_pixel',
+    options: {
+      mac: '00:1A:2B:3C:4D:5F',
+      name: 'Pixel',
+      dns: '1',
+    },
+    lists: {},
+  },
+  {
+    type: 'host',
+    name: 'host_iphone',
+    options: {
+      mac: 'DE:AD:BE:EF:CA:FE',
+      name: 'iPhone 13',
+      dns: '1',
+    },
+    lists: {},
+  },
+  {
+    type: 'host',
+    name: 'host_mariusz',
+    options: {
+      mac: 'DE:AD:BE:EF:CA:FF',
+      ip: '192.168.1.103',
+      hostid: 'dead:beef:cafe:0002',
+      name: "Mariusz's Phone",
+      dns: '1',
+    },
+    lists: {},
+  },
+]
+
+// Mock firewall rules for blocked devices
+export const mockBlockedDevices: FirewallRuleSection[] = [
+  {
+    type: 'rule',
+    name: 'block_bob',
+    options: {
+      src: 'lan',
+      dest: 'wan',
+      src_mac: '01:23:45:67:89:AB',
+      target: 'REJECT',
+      enabled: '1',
+      name: "Block Bob's Computer",
+    },
+    lists: {},
+  },
+]
+
+// Mock ARP table output (from `ip neigh show`)
+// Format: IP dev INTERFACE lladdr MAC STATE
+export const mockArpOutput = `192.168.1.100 dev br-lan lladdr 00:1a:2b:3c:4d:5e REACHABLE
+192.168.1.101 dev br-lan lladdr 00:1a:2b:3c:4d:5f STALE
+fe80::1a:2bff:fe3c:4d5e dev br-lan lladdr 00:1a:2b:3c:4d:5e router REACHABLE
+fe80::1a:2bff:fe3c:4d5f dev br-lan lladdr 00:1a:2b:3c:4d:5f STALE`
+
+// Mock DHCP leases file output (from /tmp/dhcp.leases)
+// Format: expiry_timestamp mac_address ip_address hostname client_id
+export const mockDhcpLeasesOutput = `1736899200 00:1a:2b:3c:4d:5e 192.168.1.100 humble-weeds 01:00:1a:2b:3c:4d:5e
+1736899200 00:1a:2b:3c:4d:5f 192.168.1.101 Pixel 01:00:1a:2b:3c:4d:5f
+1736812800 de:ad:be:ef:ca:fe 192.168.1.102 iPhone13 01:de:ad:be:ef:ca:fe
+1736812800 de:ad:be:ef:ca:ff 192.168.1.103 android-abc123 01:de:ad:be:ef:ca:ff`
+
+// Mock IPv6 leases (from /tmp/hosts/odhcpd)
+// Format: # hostname ip duid iaid name
+export const mockDhcp6LeasesOutput = `# humble-weeds fe80::1a:2bff:fe3c:4d5e 00010001 0 humble-weeds
+# Pixel fe80::1a:2bff:fe3c:4d5f 00010002 0 Pixel
+# iPhone13 fe80::dead:beef:cafe:0001 00010003 0 iPhone13
+# android-abc123 fe80::dead:beef:cafe:0002 00010004 0 android-abc123`
+
+// Helper to get connection type based on interface
+// In a real scenario, we'd check which interface the device is on
+export const mockConnectionTypes: Record<string, string> = {
+  '00:1A:2B:3C:4D:5E': 'Ethernet',
+  '00:1A:2B:3C:4D:5F': 'Wi-Fi 5GHz',
+  'DE:AD:BE:EF:CA:FE': 'Wi-Fi 2.4GHz',
+  'DE:AD:BE:EF:CA:FF': 'Wi-Fi 5GHz',
+}
+
+// Mock current speed data (MB/s) - only for online devices
+export const mockDeviceSpeeds: Record<string, { up: number; down: number }> = {
+  '00:1A:2B:3C:4D:5E': { up: 2.3, down: 45.7 },
+  '00:1A:2B:3C:4D:5F': { up: 0.8, down: 12.4 },
+  'DE:AD:BE:EF:CA:FF': { up: 0.1, down: 3.2 },
+}
+
+// Mock data usage totals (GB) - cumulative usage
+export const mockDataUsageTotals: Record<string, number> = {
+  '00:1A:2B:3C:4D:5E': 156.3,
+  '00:1A:2B:3C:4D:5F': 42.8,
+  'DE:AD:BE:EF:CA:FE': 18.2,
+  'DE:AD:BE:EF:CA:FF': 87.5,
+}
+
+// Mock nlbwmon data generator
+// Generates realistic-looking bandwidth data for a given period
+export function generateMockDataUsage(
+  mac: string,
+  period: 'day' | 'week' | 'month' | '3months',
+): { timestamp: number; upload: number; download: number }[] {
+  const now = Math.floor(Date.now() / 1000)
+  const points: { timestamp: number; upload: number; download: number }[] = []
+
+  // Determine time range and interval based on period
+  let startTime: number
+  let interval: number
+  let numPoints: number
+
+  switch (period) {
+    case 'day':
+      startTime = now - 24 * 60 * 60 // 24 hours ago
+      interval = 60 * 60 // 1 hour
+      numPoints = 24
+      break
+    case 'week':
+      startTime = now - 7 * 24 * 60 * 60 // 7 days ago
+      interval = 6 * 60 * 60 // 6 hours
+      numPoints = 28
+      break
+    case 'month':
+      startTime = now - 30 * 24 * 60 * 60 // 30 days ago
+      interval = 24 * 60 * 60 // 1 day
+      numPoints = 30
+      break
+    case '3months':
+      startTime = now - 90 * 24 * 60 * 60 // 90 days ago
+      interval = 24 * 60 * 60 // 1 day
+      numPoints = 90
+      break
+  }
+
+  // Generate some variation based on MAC address
+  const seed = mac.split(':').reduce((acc, hex) => acc + parseInt(hex, 16), 0)
+
+  for (let i = 0; i < numPoints; i++) {
+    const timestamp = startTime + i * interval
+
+    // Generate pseudo-random but consistent data based on MAC and timestamp
+    const variation = Math.sin(seed + i * 0.5) * 0.5 + 0.5
+    const timeOfDay = (timestamp % (24 * 60 * 60)) / (24 * 60 * 60)
+    const activityFactor = timeOfDay > 0.3 && timeOfDay < 0.9 ? 1.5 : 0.5
+
+    // Download is typically higher than upload (in GB scale)
+    const baseDownload = 2 * 1024 * 1024 * 1024 * activityFactor * variation // ~2GB base
+    const baseUpload = 0.5 * 1024 * 1024 * 1024 * activityFactor * variation // ~500MB base
+
+    points.push({
+      timestamp,
+      upload: Math.floor(baseUpload * (0.5 + Math.random())),
+      download: Math.floor(baseDownload * (0.5 + Math.random())),
+    })
+  }
+
+  return points
+}

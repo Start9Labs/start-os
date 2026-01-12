@@ -1,12 +1,32 @@
-import { Routes } from '@angular/router'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { RouterOutlet, Routes } from '@angular/router'
+import { FormService } from 'src/app/services/form.service'
+import { DevicesService } from './service'
+
+@Component({
+  template: '<router-outlet />',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterOutlet],
+  providers: [
+    DevicesService,
+    { provide: FormService, useExisting: DevicesService },
+  ],
+})
+export class Devices {}
 
 export default [
   {
     path: '',
-    loadComponent: () => import('./routes/table'),
-  },
-  {
-    path: ':id',
-    loadComponent: () => import('./routes/device'),
+    component: Devices,
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./routes/table'),
+      },
+      {
+        path: ':mac',
+        loadComponent: () => import('./routes/device'),
+      },
+    ],
   },
 ] satisfies Routes

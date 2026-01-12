@@ -9,6 +9,7 @@ import { TuiButton } from '@taiga-ui/core'
       Cancel
     </button>
     <button tuiButton [disabled]="disabled()">Save</button>
+    <ng-content />
   `,
   host: { class: 'g-footer' },
   hostDirectives: [TuiAnimated],

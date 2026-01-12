@@ -2,28 +2,22 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiTextfield, TuiTitle } from '@taiga-ui/core'
+import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { Help } from 'src/app/directives/help'
+import { DevicesService } from 'src/app/routes/home/routes/devices/service'
+import { DeviceTableItem } from 'src/app/routes/home/routes/devices/utils'
 
 import { DevicesAside } from './aside'
 import { DevicesBlocked } from './blocked'
 import { DevicesOffline } from './offline'
 import { DevicesOnline } from './online'
-
-export interface Device {
-  name: string
-  mac: string
-  connection?: string
-  permission?: string
-  data?: number
-  ip?: [string, string]
-  speed?: [number, number]
-}
 
 @Component({
   template: `
@@ -35,16 +29,32 @@ export interface Device {
           <input
             tuiTextfield
             placeholder="Search devices"
-            [(ngModel)]="value"
+            [(ngModel)]="search"
           />
         </tui-textfield>
       </aside>
     </header>
-    <table tuiTable [devicesOnline]="online()"></table>
-    <table tuiTable [devicesOffline]="offline()"></table>
-    <table tuiTable [devicesBlocked]="blocked()"></table>
+    <table
+      tuiTable
+      [devicesOnline]="online()"
+      [tuiSkeleton]="loading()"
+    ></table>
+    <table
+      tuiTable
+      [devicesOffline]="offline()"
+      [tuiSkeleton]="loading()"
+    ></table>
+    <table
+      tuiTable
+      [devicesBlocked]="blocked()"
+      [tuiSkeleton]="loading()"
+    ></table>
   `,
   styles: `
+    :host {
+      padding-top: 0;
+    }
+
     aside {
       max-width: 21rem;
       flex: 8;
@@ -73,12 +83,14 @@ export interface Device {
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'g-page' },
   imports: [
     FormsModule,
     TuiHeader,
     TuiTitle,
     TuiTextfield,
     TuiTable,
+    TuiSkeleton,
     Help,
     DevicesAside,
     DevicesOnline,
@@ -87,69 +99,42 @@ export interface Device {
   ],
 })
 export default class DevicesTable {
-  private readonly data = signal({
-    online: [
-      {
-        name: 'humble-weeds',
-        connection: 'Eth1',
-        permission: 'Admin',
-        mac: '00:1A:2B:3C:4D:5E',
-        ip: ['192.168.12.21', 'fe80::1ff:fe23:4567:890a'],
-        data: 12.5,
-        speed: [35, 84.73],
-      },
-      {
-        name: 'Pixel',
-        connection: 'Child',
-        permission: 'Guest',
-        mac: '00:1A:2B:3C:4D:5E',
-        ip: ['192.168.12.21', 'fe80::1ff:fe23:4567:890a'],
-        data: 0.7,
-        speed: [50, 4],
-      },
-    ] satisfies readonly Device[],
-    offline: [
-      {
-        name: 'iPhone13',
-        mac: 'DE:AD:BE:EF:CA:FE',
-        permission: 'Guest',
-        data: 5.1,
-        ip: ['192.168.1.1', 'fe80::1ff:fe23:4567:890a'],
-      },
-      {
-        name: "Mariusz's phone",
-        mac: 'DE:AD:BE:EF:CA:FE',
-        data: 1.2,
-        ip: ['192.168.1.1', 'fe80::1ff:fe23:4567:890a'],
-      },
-    ] satisfies readonly Device[],
-    blocked: [
-      {
-        name: "Bob's Computer",
-        mac: '01:23:45:67:89:AB',
-      },
-    ],
-  })
+  protected readonly service = inject(DevicesService)
+  protected readonly search = signal('')
 
-  protected readonly value = signal('')
+  protected readonly loading = computed(() => !this.service.data())
 
   protected readonly online = computed(() =>
-    this.filter(this.data().online, this.value()),
+    this.filter(
+      this.service.data()?.filter(d => d.status === 'online') ?? [],
+      this.search(),
+    ),
   )
 
   protected readonly offline = computed(() =>
-    this.filter(this.data().offline, this.value()),
+    this.filter(
+      this.service.data()?.filter(d => d.status === 'offline') ?? [],
+      this.search(),
+    ),
   )
 
   protected readonly blocked = computed(() =>
-    this.filter(this.data().blocked, this.value()),
+    this.filter(
+      this.service.data()?.filter(d => d.status === 'blocked') ?? [],
+      this.search(),
+    ),
   )
 
-  private filter(devices: readonly Device[], value: string): readonly Device[] {
+  private filter(
+    devices: readonly DeviceTableItem[],
+    value: string,
+  ): readonly DeviceTableItem[] {
+    if (!value) return devices
+    const lower = value.toLowerCase()
     return devices.filter(device =>
-      Object.values(device).some(field =>
-        String(field).toLowerCase().includes(value.toLowerCase()),
-      ),
+      [device.name, device.mac, device.ipv4, device.ipv6, device.connection]
+        .filter(Boolean)
+        .some(field => field!.toLowerCase().includes(lower)),
     )
   }
 }
