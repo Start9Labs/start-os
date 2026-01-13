@@ -596,5 +596,6 @@ export default {
   626: 'Hochladen',
   627: 'UI öffnen',
   628: 'In Zwischenablage kopiert',
-  629: 'Die Liste ist leer',
+  629: 'StartOS wird installiert',
+  711: 'Die Liste ist leer',
 } satisfies i18n

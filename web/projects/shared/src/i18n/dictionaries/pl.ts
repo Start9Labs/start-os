@@ -596,5 +596,6 @@ export default {
   626: 'Prześlij',
   627: 'Otwórz UI',
   628: 'Skopiowano do schowka',
-  629: 'Lista jest pusta',
+  629: 'Instalowanie StartOS',
+  711: 'Lista jest pusta',
 } satisfies i18n

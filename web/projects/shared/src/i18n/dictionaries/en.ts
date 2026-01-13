@@ -595,5 +595,6 @@ export const ENGLISH = {
   'Upload': 626, // as in, upload a file
   'Open UI': 627, // as in, upload a file
   'Copied to clipboard': 628,
-  'The list is empty': 629,
+  'Installing StartOS': 629,
+  'The list is empty': 711,
 } as const

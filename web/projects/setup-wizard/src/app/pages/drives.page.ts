@@ -316,7 +316,7 @@ export default class DrivesPage {
   }
 
   private async installOs(wipe: boolean) {
-    const loader = this.loader.open('Installing StartOS...').subscribe()
+    const loader = this.loader.open('Installing StartOS').subscribe()
 
     try {
       const result = await this.api.installOs({
