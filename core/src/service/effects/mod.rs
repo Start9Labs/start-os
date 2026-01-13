@@ -88,6 +88,10 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
             "get-installed-packages",
             from_fn_async(dependency::get_installed_packages).no_cli(),
         )
+        .subcommand(
+            "get-service-manifest",
+            from_fn_async(dependency::get_service_manifest).no_cli(),
+        )
         // health
         .subcommand("set-health", from_fn_async(health::set_health).no_cli())
         // subcontainer

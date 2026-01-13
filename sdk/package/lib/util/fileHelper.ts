@@ -623,7 +623,10 @@ export class FileHelper<A> {
             .split("\n")
             .map((line) => line.trim())
             .filter((line) => !line.startsWith("#") && line.includes("="))
-            .map((line) => line.split("=", 2)),
+            .map((line) => {
+              const pos = line.indexOf("=")
+              return [line.slice(0, pos), line.slice(pos + 1)]
+            }),
         ),
       (data) => shape.unsafeCast(data),
       transformers,

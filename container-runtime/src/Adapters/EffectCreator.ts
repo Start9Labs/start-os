@@ -178,6 +178,13 @@ export function makeEffects(context: EffectContext): Effects {
         T.Effects["getInstalledPackages"]
       >
     },
+    getServiceManifest(
+      ...[options]: Parameters<T.Effects["getServiceManifest"]>
+    ) {
+      return rpcRound("get-service-manifest", options) as ReturnType<
+        T.Effects["getServiceManifest"]
+      >
+    },
     subcontainer: {
       createFs(options: { imageId: string; name: string }) {
         return rpcRound("subcontainer.create-fs", options) as ReturnType<
