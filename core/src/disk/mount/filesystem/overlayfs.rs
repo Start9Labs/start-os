@@ -147,35 +147,6 @@ impl<G: GenericMountGuard> OverlayGuard<G> {
         }
         Ok(())
     }
-    /// Remounts the overlay at a new location. The old mountpoint is unmounted first.
-    pub async fn remount(&mut self, new_mountpoint: impl AsRef<Path>) -> Result<(), Error> {
-        let lower = self.lower.as_ref().ok_or_else(|| {
-            Error::new(
-                eyre!("OverlayGuard has no lower layer"),
-                crate::ErrorKind::Incoherent,
-            )
-        })?;
-        let upper = self.upper.as_ref().ok_or_else(|| {
-            Error::new(
-                eyre!("OverlayGuard has no upper layer"),
-                crate::ErrorKind::Incoherent,
-            )
-        })?;
-        // Unmount from current location
-        self.inner_guard.take().unmount(true).await?;
-        // Remount at new location
-        self.inner_guard = MountGuard::mount(
-            &OverlayFs::new(
-                vec![lower.path()],
-                upper.as_ref().join("upper"),
-                upper.as_ref().join("work"),
-            ),
-            new_mountpoint,
-            ReadWrite,
-        )
-        .await?;
-        Ok(())
-    }
     pub fn take(&mut self) -> Self {
         Self {
             lower: self.lower.take(),
