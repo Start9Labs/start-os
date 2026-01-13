@@ -19,14 +19,27 @@ router-outlet + * {
   flex-direction: column;
   align-items: center;
   box-sizing: border-box;
+  justify-content: center;
   padding: 2rem;
   margin: 0 auto;
 
   [tuiCardLarge] {
     width: 100%;
     background: var(--tui-background-elevation-2);
-    margin: auto;
+    margin-top: 2rem;
   }
+}
+
+.inline-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  :first-child {
+    width: 2rem;
+    height: 2rem;
+  }
+
 }
 
 button:disabled {

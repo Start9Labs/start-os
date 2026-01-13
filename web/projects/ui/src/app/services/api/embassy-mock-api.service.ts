@@ -22,7 +22,6 @@ import { from, interval, map, shareReplay, startWith, Subject, tap } from 'rxjs'
 import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
 import { T } from '@start9labs/start-sdk'
-import { MarketplacePkg } from '@start9labs/marketplace'
 import { WebSocketSubject } from 'rxjs/webSocket'
 import { toAuthorityUrl } from 'src/app/utils/acme'
 

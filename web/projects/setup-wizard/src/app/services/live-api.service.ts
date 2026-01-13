@@ -1,6 +1,6 @@
 import { Inject, Injectable, DOCUMENT } from '@angular/core'
 import {
-  DiskListResponse,
+  DiskInfo,
   encodeBase64,
   FollowLogsRes,
   HttpService,
@@ -14,6 +14,15 @@ import * as jose from 'node-jose'
 import { Observable } from 'rxjs'
 import { webSocket } from 'rxjs/webSocket'
 import { ApiService } from './api.service'
+import {
+  SetupStatusRes,
+  InstallOsParams,
+  InstallOsRes,
+  AttachParams,
+  SetupExecuteParams,
+  SetupCompleteRes,
+  EchoReq,
+} from '../types'
 
 @Injectable({
   providedIn: 'root',
@@ -36,39 +45,40 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async getStatus(): Promise<T.SetupStatusRes | null> {
-    return this.rpcRequest<T.SetupStatusRes | null>({
+  async echo(params: EchoReq, url: string): Promise<string> {
+    return this.rpcRequest({ method: 'echo', params }, url)
+  }
+
+  async getStatus() {
+    return this.rpcRequest<SetupStatusRes>({
       method: 'setup.status',
       params: {},
     })
   }
 
-  /**
-   * We want to update the pubkey, which means that we will call in clearnet the
-   * getPubKey, and all the information is never in the clear, and only public
-   * information is sent across the network. We don't want to expose that we do
-   * this wil all public/private key, which means that there is no information loss
-   * through the network.
-   */
-  async getPubKey(): Promise<void> {
+  async getPubKey() {
     const response: jose.JWK.Key = await this.rpcRequest({
       method: 'setup.get-pubkey',
       params: {},
     })
-
     this.pubkey = response
   }
 
-  async getDrives(): Promise<DiskListResponse> {
-    return this.rpcRequest<DiskListResponse>({
+  async getDisks() {
+    return this.rpcRequest<DiskInfo[]>({
       method: 'setup.disk.list',
       params: {},
     })
   }
 
-  async verifyCifs(
-    source: T.VerifyCifsParams,
-  ): Promise<Record<string, StartOSDiskInfo>> {
+  async installOs(params: InstallOsParams) {
+    return this.rpcRequest<InstallOsRes>({
+      method: 'setup.install-os',
+      params,
+    })
+  }
+
+  async verifyCifs(source: T.VerifyCifsParams) {
     source.path = source.path.replace('/\\/g', '/')
     return this.rpcRequest<Record<string, StartOSDiskInfo>>({
       method: 'setup.cifs.verify',
@@ -76,33 +86,36 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async attach(params: T.AttachParams): Promise<T.SetupProgress> {
+  async attach(params: AttachParams) {
     return this.rpcRequest<T.SetupProgress>({
       method: 'setup.attach',
       params,
     })
   }
 
-  async execute(setupInfo: T.SetupExecuteParams): Promise<T.SetupProgress> {
-    if (setupInfo.recoverySource?.type === 'backup') {
-      if (isCifsSource(setupInfo.recoverySource.target)) {
-        setupInfo.recoverySource.target.path =
-          setupInfo.recoverySource.target.path.replace('/\\/g', '/')
+  async execute(params: SetupExecuteParams) {
+    if (params.recoverySource?.type === 'backup') {
+      const target = params.recoverySource.target
+      if (target.type === 'cifs') {
+        target.path = target.path.replace('/\\/g', '/')
       }
     }
 
     return this.rpcRequest<T.SetupProgress>({
       method: 'setup.execute',
-      params: setupInfo,
+      params,
     })
   }
 
-  async initFollowLogs(): Promise<FollowLogsRes> {
-    return this.rpcRequest({ method: 'setup.logs.follow', params: {} })
+  async initFollowLogs() {
+    return this.rpcRequest<FollowLogsRes>({
+      method: 'setup.logs.follow',
+      params: {},
+    })
   }
 
-  async complete(): Promise<T.SetupResult> {
-    const res = await this.rpcRequest<T.SetupResult>({
+  async complete() {
+    const res = await this.rpcRequest<SetupCompleteRes>({
       method: 'setup.complete',
       params: {},
     })
@@ -113,23 +126,22 @@ export class LiveApiService extends ApiService {
     }
   }
 
-  async exit(): Promise<void> {
+  async exit() {
     await this.rpcRequest<void>({
       method: 'setup.exit',
       params: {},
     })
   }
 
-  async restart(): Promise<void> {
+  async restart() {
     await this.rpcRequest<void>({
       method: 'setup.restart',
       params: {},
     })
   }
 
-  private async rpcRequest<T>(opts: RPCOptions): Promise<T> {
-    const res = await this.http.rpcRequest<T>(opts)
-
+  private async rpcRequest<T>(opts: RPCOptions, url?: string): Promise<T> {
+    const res = await this.http.rpcRequest<T>(opts, url)
     const rpcRes = res.body
 
     if (isRpcError(rpcRes)) {
@@ -138,10 +150,4 @@ export class LiveApiService extends ApiService {
 
     return rpcRes.result
   }
-}
-
-function isCifsSource(
-  source: T.BackupTargetFS | null,
-): source is T.Cifs & { type: 'cifs' } {
-  return !!(source as T.Cifs)?.hostname
 }

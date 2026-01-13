@@ -4,7 +4,6 @@ module.exports = {
   'projects/ui/**/*.ts': () => 'npm run check:ui',
   'projects/shared/**/*.ts': () => 'npm run check:shared',
   'projects/marketplace/**/*.ts': () => 'npm run check:marketplace',
-  'projects/install-wizard/**/*.ts': () => 'npm run check:install',
   'projects/setup-wizard/**/*.ts': () => 'npm run check:setup',
   'projects/start-tunnel/**/*.ts': () => 'npm run check:tunnel',
 }

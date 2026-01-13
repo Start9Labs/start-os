@@ -7,121 +7,170 @@ import {
   DOCUMENT,
 } from '@angular/core'
 import { DownloadHTMLService, ErrorService } from '@start9labs/shared'
-import { TuiButton, TuiIcon, TuiLoader, TuiSurface } from '@taiga-ui/core'
-import { TuiCardLarge } from '@taiga-ui/layout'
-import { DocumentationComponent } from 'src/app/components/documentation.component'
-import { MatrixComponent } from 'src/app/components/matrix.component'
-import { ApiService } from 'src/app/services/api.service'
-import { StateService } from 'src/app/services/state.service'
+import { TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
+import { TuiAvatar } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiCell, TuiHeader } from '@taiga-ui/layout'
+import { ApiService } from '../services/api.service'
+import { StateService } from '../services/state.service'
+import { DocumentationComponent } from '../components/documentation.component'
+import { MatrixComponent } from '../components/matrix.component'
+import { SetupCompleteRes } from '../types'
 
 @Component({
   template: `
     <canvas matrix></canvas>
     <section tuiCardLarge>
-      <h1 class="heading">
-        <tui-icon icon="@tui.circle-check-big" class="g-positive" />
-        Setup Complete!
-      </h1>
-      @if (stateService.kiosk) {
-        <button tuiButton (click)="exitKiosk()">Continue to Login</button>
-      } @else if (lanAddress) {
-        @if (stateService.setupType === 'restore') {
-          <h3>You can now safely unplug your backup drive</h3>
-        } @else if (stateService.setupType === 'transfer') {
-          <h3>You can now safely unplug your old StartOS data drive</h3>
+      <header tuiHeader>
+        <h2 tuiTitle>
+          <span class="inline-title">
+            <tui-icon icon="@tui.circle-check-big" class="g-positive" />
+            Setup Complete!
+          </span>
+          @if (!stateService.kiosk) {
+            <span tuiSubtitle>
+              {{
+                stateService.setupType === 'restore'
+                  ? 'You can unplug your backup drive'
+                  : stateService.setupType === 'transfer'
+                    ? 'You can unplug your transfer drive'
+                    : 'http://start.local was for setup only. It will no longer work.'
+              }}
+            </span>
+          }
+        </h2>
+      </header>
+
+      @if (!result) {
+        <tui-loader />
+      } @else {
+        <!-- Step: Download Address Info (non-kiosk only) -->
+        @if (!stateService.kiosk) {
+          <button tuiCell="l" [disabled]="downloaded" (click)="download()">
+            <tui-avatar appearance="secondary" src="@tui.download" />
+            <div tuiTitle>
+              Download Address Info
+              <div tuiSubtitle>
+                Contains your server's permanent local address and Root CA
+              </div>
+            </div>
+            @if (downloaded) {
+              <tui-icon icon="@tui.circle-check" class="g-positive" />
+            }
+          </button>
         }
 
-        <h3>
-          http://start.local was for setup purposes only. It will no longer
-          work.
-        </h3>
+        <!-- Step: Remove USB Media (when restart needed) -->
+        @if (result.needsRestart) {
+          <button
+            tuiCell="l"
+            [class.disabled]="!stateService.kiosk && !downloaded"
+            [disabled]="(!stateService.kiosk && !downloaded) || usbRemoved"
+            (click)="usbRemoved = true"
+          >
+            <tui-avatar appearance="secondary" src="@tui.usb" />
+            <div tuiTitle>
+              Remove USB Media
+              <div tuiSubtitle>
+                Remove the USB installation media from your server
+              </div>
+            </div>
+            @if (usbRemoved) {
+              <tui-icon icon="@tui.circle-check" class="g-positive" />
+            }
+          </button>
 
-        <button tuiCardLarge tuiSurface="floating" (click)="download()">
-          <strong class="caps">Download address info</strong>
-          <span>
-            For future reference, this file contains your server's permanent
-            local address, as well as its Root Certificate Authority (Root CA).
-          </span>
-          <strong class="caps">
-            Download
-            <tui-icon icon="@tui.download" />
-          </strong>
-        </button>
+          <!-- Step: Restart Server -->
+          <button
+            tuiCell="l"
+            [class.disabled]="!usbRemoved"
+            [disabled]="!usbRemoved || rebooted || rebooting"
+            (click)="reboot()"
+          >
+            <tui-avatar appearance="secondary" src="@tui.rotate-cw" />
+            <div tuiTitle>
+              Restart Server
+              <div tuiSubtitle>
+                @if (rebooting) {
+                  Waiting for server to come back online...
+                } @else if (rebooted) {
+                  Server is back online
+                } @else {
+                  Restart your server to complete setup
+                }
+              </div>
+            </div>
+            @if (rebooting) {
+              <tui-loader />
+            } @else if (rebooted) {
+              <tui-icon icon="@tui.circle-check" class="g-positive" />
+            }
+          </button>
+        }
 
-        <a
-          tuiCardLarge
-          tuiSurface="floating"
-          target="_blank"
-          [attr.href]="disableLogin ? null : lanAddress"
-        >
-          <span>
-            In the new tab, follow instructions to trust your server's Root CA
-            and log in.
-          </span>
-          <strong class="caps">
-            Open Local Address
-            <tui-icon icon="@tui.external-link" />
-          </strong>
-        </a>
-        <app-documentation hidden [lanAddress]="lanAddress" />
-      } @else {
-        <tui-loader />
+        <!-- Step: Open Local Address (non-kiosk only) -->
+        @if (!stateService.kiosk) {
+          <button
+            tuiCell="l"
+            [class.disabled]="!canOpenAddress"
+            [disabled]="!canOpenAddress"
+            (click)="openLocalAddress()"
+          >
+            <tui-avatar appearance="secondary" src="@tui.external-link" />
+            <div tuiTitle>
+              Open Local Address
+              <div tuiSubtitle>{{ lanAddress }}</div>
+            </div>
+          </button>
+
+          <app-documentation hidden [lanAddress]="lanAddress" />
+        }
+
+        <!-- Step: Continue to Login (kiosk only) -->
+        @if (stateService.kiosk) {
+          <button
+            tuiCell="l"
+            [class.disabled]="result.needsRestart && !rebooted"
+            [disabled]="result.needsRestart && !rebooted"
+            (click)="exitKiosk()"
+          >
+            <tui-avatar appearance="secondary" src="@tui.log-in" />
+            <div tuiTitle>
+              Continue to Login
+              <div tuiSubtitle>Proceed to the StartOS login screen</div>
+            </div>
+          </button>
+        }
       }
     </section>
   `,
   styles: `
-    .heading {
-      display: flex;
-      gap: 1rem;
+    .inline-title {
+      display: inline-flex;
       align-items: center;
-      margin: 0;
-      font: var(--tui-font-heading-4);
-    }
-
-    .caps {
-      display: flex;
-      align-items: center;
-      justify-content: center;
       gap: 0.5rem;
-      text-transform: uppercase;
     }
 
-    [tuiCardLarge] {
-      color: var(--tui-text-primary);
-      text-decoration: none;
-      text-align: center;
-
-      &[data-appearance='floating'] {
-        background: var(--tui-background-neutral-1);
-
-        &:hover {
-          background: var(--tui-background-neutral-1-hover) !important;
-        }
-      }
-    }
-
-    a[tuiCardLarge]:not([href]) {
+    [tuiCell].disabled {
       opacity: var(--tui-disabled-opacity);
       pointer-events: none;
-    }
-
-    h3 {
-      text-align: left;
     }
   `,
   imports: [
     TuiCardLarge,
+    TuiCell,
     TuiIcon,
-    TuiButton,
-    TuiSurface,
+    TuiLoader,
+    TuiAvatar,
     MatrixComponent,
     DocumentationComponent,
-    TuiLoader,
+    TuiHeader,
+    TuiTitle,
   ],
 })
 export default class SuccessPage implements AfterViewInit {
   @ViewChild(DocumentationComponent, { read: ElementRef })
   private readonly documentation?: ElementRef<HTMLElement>
+
   private readonly document = inject(DOCUMENT)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
@@ -129,32 +178,42 @@ export default class SuccessPage implements AfterViewInit {
 
   readonly stateService = inject(StateService)
 
-  lanAddress?: string
-  cert?: string
-  disableLogin = this.stateService.setupType === 'fresh'
+  result?: SetupCompleteRes
+  lanAddress = ''
+  downloaded = false
+  usbRemoved = false
+  rebooting = false
+  rebooted = false
+
+  get canOpenAddress(): boolean {
+    if (!this.downloaded) return false
+    if (this.result?.needsRestart && !this.rebooted) return false
+    return true
+  }
 
   ngAfterViewInit() {
-    setTimeout(() => this.complete(), 1000)
+    setTimeout(() => this.complete(), 500)
   }
 
   download() {
-    const lanElem = this.document.getElementById('lan-addr')
+    if (this.downloaded) return
 
-    if (lanElem) lanElem.innerHTML = this.lanAddress || ''
+    const lanElem = this.document.getElementById('lan-addr')
+    if (lanElem) lanElem.innerHTML = this.lanAddress
 
     this.document
       .getElementById('cert')
       ?.setAttribute(
         'href',
         URL.createObjectURL(
-          new Blob([this.cert!], { type: 'application/octet-stream' }),
+          new Blob([this.result!.rootCa], { type: 'application/octet-stream' }),
         ),
       )
 
     const html = this.documentation?.nativeElement.innerHTML || ''
 
-    this.downloadHtml.download('StartOS-info.html', html).then(_ => {
-      this.disableLogin = false
+    this.downloadHtml.download('StartOS-info.html', html).then(() => {
+      this.downloaded = true
     })
   }
 
@@ -162,17 +221,56 @@ export default class SuccessPage implements AfterViewInit {
     this.api.exit()
   }
 
+  openLocalAddress() {
+    window.open(this.lanAddress, '_blank')
+  }
+
+  async reboot() {
+    this.rebooting = true
+
+    try {
+      await this.api.exit()
+      await this.pollForServer()
+      this.rebooted = true
+      this.rebooting = false
+    } catch (e: any) {
+      this.errorService.handleError(e)
+      this.rebooting = false
+    }
+  }
+
   private async complete() {
     try {
-      const ret = await this.api.complete()
-      if (!this.stateService.kiosk) {
-        this.lanAddress = ret.lanAddress.replace(/^https:/, 'http:')
-        this.cert = ret.rootCa
+      this.result = await this.api.complete()
 
-        await this.api.exit()
+      if (!this.stateService.kiosk) {
+        this.lanAddress = `https://${this.result.hostname}.local`
+
+        if (!this.result.needsRestart) {
+          await this.api.exit()
+        }
       }
     } catch (e: any) {
       this.errorService.handleError(e)
     }
+  }
+
+  private async pollForServer(): Promise<void> {
+    const maxAttempts = 60
+    let attempts = 0
+
+    while (attempts < maxAttempts) {
+      try {
+        await this.api.echo({ message: 'ping' }, this.lanAddress)
+        return
+      } catch {
+        await new Promise(resolve => setTimeout(resolve, 5000))
+        attempts++
+      }
+    }
+
+    throw new Error(
+      'Server did not come back online. Please check your server and try accessing it manually.',
+    )
   }
 }

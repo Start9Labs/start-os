@@ -3,39 +3,38 @@ import { Component, inject } from '@angular/core'
 import {
   FormControl,
   FormGroup,
-  FormsModule,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { i18nKey, LoadingService, StartOSDiskInfo } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
   TuiButton,
   TuiDialogContext,
   TuiDialogService,
   TuiError,
+  TuiIcon,
   TuiTextfield,
 } from '@taiga-ui/core'
 import {
   TUI_VALIDATION_ERRORS,
+  TuiButtonLoading,
   TuiFieldErrorPipe,
   TuiPassword,
 } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { SERVERS, ServersResponse } from 'src/app/components/servers.component'
-import { ApiService } from 'src/app/services/api.service'
+import { ApiService } from '../services/api.service'
+import { StartOSDiskInfoWithId } from '../types'
 
-export interface CifsResponse {
+export interface CifsResult {
   cifs: T.Cifs
-  serverId: string
-  password: string
+  servers: StartOSDiskInfoWithId[]
 }
 
 @Component({
   template: `
     <form [formGroup]="form" (ngSubmit)="submit()">
       <tui-textfield>
-        <label tuiLabel>Hostname *</label>
+        <label tuiLabel>Hostname*</label>
         <input
           tuiTextfield
           formControlName="hostname"
@@ -48,17 +47,17 @@ export interface CifsResponse {
       />
 
       <tui-textfield class="input">
-        <label tuiLabel>Path *</label>
+        <label tuiLabel>Path*</label>
         <input
           tuiTextfield
           formControlName="path"
-          placeholder="/Desktop/my-folder'"
+          placeholder="/Desktop/my-folder"
         />
       </tui-textfield>
       <tui-error formControlName="path" [error]="[] | tuiFieldError | async" />
 
       <tui-textfield class="input">
-        <label tuiLabel>Username *</label>
+        <label tuiLabel>Username*</label>
         <input
           tuiTextfield
           formControlName="username"
@@ -81,11 +80,14 @@ export interface CifsResponse {
           tuiButton
           appearance="secondary"
           type="button"
+          [disabled]="connecting"
           (click)="cancel()"
         >
           Cancel
         </button>
-        <button tuiButton [disabled]="form.invalid">Verify</button>
+        <button tuiButton [disabled]="form.invalid" [loading]="connecting">
+          Connect
+        </button>
       </footer>
     </form>
   `,
@@ -97,18 +99,19 @@ export interface CifsResponse {
     footer {
       display: flex;
       gap: 1rem;
-      margin-top: 1rem;
+      margin-top: 1.5rem;
     }
   `,
   imports: [
     CommonModule,
-    FormsModule,
     ReactiveFormsModule,
     TuiButton,
+    TuiButtonLoading,
     TuiTextfield,
     TuiPassword,
     TuiError,
     TuiFieldErrorPipe,
+    TuiIcon,
   ],
   providers: [
     {
@@ -122,8 +125,9 @@ export interface CifsResponse {
 export class CifsComponent {
   private readonly dialogs = inject(TuiDialogService)
   private readonly api = inject(ApiService)
-  private readonly loader = inject(LoadingService)
-  private readonly context = injectContext<TuiDialogContext<CifsResponse>>()
+  private readonly context = injectContext<TuiDialogContext<CifsResult>>()
+
+  connecting = false
 
   readonly form = new FormGroup({
     hostname: new FormControl('', {
@@ -149,9 +153,7 @@ export class CifsComponent {
   }
 
   async submit(): Promise<void> {
-    const loader = this.loader
-      .open('Connecting to shared folder' as i18nKey)
-      .subscribe()
+    this.connecting = true
 
     try {
       const diskInfo = await this.api.verifyCifs({
@@ -161,36 +163,25 @@ export class CifsComponent {
           : null,
       })
 
-      loader.unsubscribe()
+      const servers = Object.keys(diskInfo).map(id => ({
+        id,
+        ...diskInfo[id]!,
+      }))
 
-      this.selectServer(diskInfo)
+      this.context.completeWith({
+        cifs: { ...this.form.getRawValue() },
+        servers,
+      })
     } catch (e) {
-      loader.unsubscribe()
+      this.connecting = false
       this.onFail()
     }
-  }
-
-  private selectServer(servers: Record<string, StartOSDiskInfo>) {
-    this.dialogs
-      .open<ServersResponse>(SERVERS, {
-        label: 'Select Server to Restore',
-        data: {
-          servers: Object.keys(servers).map(id => ({ id, ...servers[id] })),
-        },
-      })
-      .subscribe(({ password, serverId }) => {
-        this.context.completeWith({
-          cifs: { ...this.form.getRawValue() },
-          serverId,
-          password,
-        })
-      })
   }
 
   private onFail() {
     this.dialogs
       .open(
-        'Unable to connect to shared folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.',
+        'Unable to connect to network folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.',
         {
           label: 'Connection Failed',
           size: 's',
