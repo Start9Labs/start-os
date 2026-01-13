@@ -244,7 +244,7 @@ export default class SuccessPage implements AfterViewInit {
       this.result = await this.api.complete()
 
       if (!this.stateService.kiosk) {
-        this.lanAddress = `https://${this.result.hostname}.local`
+        this.lanAddress = `http://${this.result.hostname}.local`
 
         if (!this.result.needsRestart) {
           await this.api.exit()
