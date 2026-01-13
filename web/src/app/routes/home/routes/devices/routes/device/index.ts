@@ -8,8 +8,12 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { ActivatedRoute, Router, RouterLink } from '@angular/router'
-import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
-import { TUI_VALIDATION_ERRORS } from '@taiga-ui/kit'
+import {
+  TuiButton,
+  TuiLink,
+  TuiTitle,
+  tuiValidationErrorsProvider,
+} from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
@@ -39,6 +43,7 @@ import { DeviceSummary } from './summary'
             appearance=""
             iconStart="@tui.chevron-left"
             [style.font]="'inherit'"
+            [style.text-decoration]="'none'"
           >
             {{ data()?.name || 'Device' }}
           </a>
@@ -88,7 +93,7 @@ import { DeviceSummary } from './summary'
       (reset.prevent)="onCancel()"
       (ngSubmit)="onSave()"
     >
-      <device-name [hostname]="data()?.hostname ?? ''" />
+      <device-name [formGroup]="form" [hostname]="data()?.hostname ?? ''" />
       <device-ip formGroupName="ip" />
       @if (data()) {
         <footer appFooter [disabled]="form.pristine"></footer>
@@ -106,9 +111,7 @@ import { DeviceSummary } from './summary'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
-  providers: [
-    { provide: TUI_VALIDATION_ERRORS, useValue: DEVICE_VALIDATION_ERRORS },
-  ],
+  providers: [tuiValidationErrorsProvider(DEVICE_VALIDATION_ERRORS)],
   imports: [
     RouterLink,
     ReactiveFormsModule,

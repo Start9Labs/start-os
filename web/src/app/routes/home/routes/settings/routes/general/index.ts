@@ -17,8 +17,12 @@ import {
   tuiTextfieldOptionsProvider,
   TuiTitle,
 } from '@taiga-ui/core'
-import { TuiAccordion } from '@taiga-ui/experimental'
-import { TuiChevron, TuiDataListWrapper, TuiSelect } from '@taiga-ui/kit'
+import {
+  TuiAccordion,
+  TuiChevron,
+  TuiDataListWrapper,
+  TuiSelect,
+} from '@taiga-ui/kit'
 import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
@@ -29,9 +33,9 @@ import { GeneralSummary } from './summary'
 @Component({
   template: `
     <general-aside *help />
-    <section tuiCardLarge="compact" tuiAppearance="positive">
+    <section tuiCardLarge appearance="positive">
       <header tuiHeader="body-l" [style.margin]="0">
-        <h3 tuiTitle>v1.0.1 released!</h3>
+        <h2 tuiTitle>v1.0.1 released!</h2>
         <aside tuiAccessories>
           <button tuiButton appearance="outline-grayscale">
             Release notes
@@ -41,13 +45,7 @@ import { GeneralSummary } from './summary'
       </header>
     </section>
     <article generalSummary [formLoading]="false"></article>
-    <form
-      tuiForm
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      class="g-form"
-      [formGroup]="form"
-    >
+    <form tuiForm="m" tuiCardLarge class="g-form" [formGroup]="form">
       <header tuiHeader>
         <h2 tuiTitle>Preferences</h2>
       </header>
@@ -60,39 +58,33 @@ import { GeneralSummary } from './summary'
             (tuiValueChanges)="onTheme($event)"
           />
           <tui-data-list-wrapper
-            *tuiTextfieldDropdown
-            new
+            *tuiDropdown
             [items]="['System', 'Dark', 'Light']"
           />
         </tui-textfield>
         <tui-textfield tuiChevron>
           <label tuiLabel>Language</label>
           <input tuiSelect formControlName="language" />
-          <tui-data-list-wrapper
-            *tuiTextfieldDropdown
-            new
-            [items]="['English']"
-          />
+          <tui-data-list-wrapper *tuiDropdown [items]="['English']" />
         </tui-textfield>
       </fieldset>
       <fieldset>
         <tui-textfield tuiChevron>
           <label tuiLabel>Timezone</label>
           <input tuiSelect formControlName="timezone" />
-          <tui-data-list-wrapper *tuiTextfieldDropdown new [items]="['UTC']" />
+          <tui-data-list-wrapper *tuiDropdown [items]="['UTC']" />
         </tui-textfield>
         <tui-textfield tuiChevron>
           <label tuiLabel>Week start day</label>
           <input tuiSelect formControlName="week" />
           <tui-data-list-wrapper
-            *tuiTextfieldDropdown
-            new
+            *tuiDropdown
             [items]="['Monday', 'Sunday', 'Saturday']"
           />
         </tui-textfield>
       </fieldset>
     </form>
-    <form tuiForm tuiCardLarge="compact" tuiAppearance="neutral" class="g-form">
+    <form tuiForm="m" tuiCardLarge class="g-form">
       <header tuiHeader>
         <h2 tuiTitle>Power</h2>
       </header>
@@ -102,7 +94,11 @@ import { GeneralSummary } from './summary'
       </footer>
     </form>
     <tui-accordion tuiAppearance="neutral" [style.border-radius.rem]="1">
-      <button tuiAccordion appearance="">Advanced</button>
+      <button tuiAccordion appearance="">
+        <header tuiHeader="h6" [style.left]="0">
+          <h2 tuiTitle>Advanced</h2>
+        </header>
+      </button>
       <tui-expand>
         <footer>
           <button tuiButton>Launch LuCI Interface</button>
@@ -117,8 +113,8 @@ import { GeneralSummary } from './summary'
     </footer>
   `,
   styles: `
-    section {
-      margin: 1rem 0;
+    :host {
+      padding-top: 1rem;
     }
 
     footer {
@@ -168,7 +164,7 @@ import { GeneralSummary } from './summary'
 })
 export default class General {
   private readonly mode = inject(TUI_DARK_MODE)
-  private readonly system = !inject(WA_LOCAL_STORAGE).getItem(
+  private readonly system = !inject(WA_LOCAL_STORAGE)?.getItem(
     inject(TUI_DARK_MODE_KEY),
   )
 

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { TuiAccordion } from '@taiga-ui/experimental'
+import { TuiAccordion } from '@taiga-ui/kit'
 
 @Component({
   selector: 'vpn-aside',

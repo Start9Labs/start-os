@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -86,20 +85,20 @@ type SortDirection = 'asc' | 'desc' | null
             }
           </td>
           <td tuiTd>
-            {{ item.dataUsage ?? 0 | tuiFormatNumber | async }}
+            {{ item.dataUsage ?? 0 | tuiFormatNumber }}
             <small class="g-secondary">GB</small>
           </td>
           <td tuiTd>
             @if (item.speed) {
               <div tuiChip size="xs" iconStart="@tui.arrow-up">
                 <span>
-                  {{ item.speed.up | tuiFormatNumber | async }}
+                  {{ item.speed.up | tuiFormatNumber }}
                   <small class="g-secondary">MB/s</small>
                 </span>
               </div>
               <div tuiChip size="xs" iconStart="@tui.arrow-down">
                 <span>
-                  {{ item.speed.down | tuiFormatNumber | async }}
+                  {{ item.speed.down | tuiFormatNumber }}
                   <small class="g-secondary">MB/s</small>
                 </span>
               </div>
@@ -147,7 +146,6 @@ type SortDirection = 'asc' | 'desc' | null
     }
   `,
   imports: [
-    AsyncPipe,
     RouterLink,
     TuiTable,
     TuiIcon,

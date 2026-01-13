@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -84,12 +83,12 @@ import { DataUsageChart } from './data-usage-chart'
           Speed
           <span tuiSubtitle>
             <tui-icon icon="@tui.arrow-up" />
-            {{ parent.data()?.speed?.up ?? 0 | tuiFormatNumber | async }}
+            {{ parent.data()?.speed?.up ?? 0 | tuiFormatNumber }}
             <small>MB/s</small>
           </span>
           <span tuiSubtitle>
             <tui-icon icon="@tui.arrow-down" />
-            {{ parent.data()?.speed?.down ?? 0 | tuiFormatNumber | async }}
+            {{ parent.data()?.speed?.down ?? 0 | tuiFormatNumber }}
             <small>MB/s</small>
           </span>
         </div>
@@ -113,14 +112,7 @@ import { DataUsageChart } from './data-usage-chart'
     }
   `,
   host: { '[style.background]': '"var(--tui-status-info-pale)"' },
-  imports: [
-    AsyncPipe,
-    TuiIcon,
-    TuiLink,
-    TuiFormatNumberPipe,
-    Summary,
-    DataUsageChart,
-  ],
+  imports: [TuiIcon, TuiLink, TuiFormatNumberPipe, Summary, DataUsageChart],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DeviceSummary {

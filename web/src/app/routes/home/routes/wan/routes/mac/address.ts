@@ -1,10 +1,14 @@
-import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
-import { TuiError, TuiTextfield, TuiTitle } from '@taiga-ui/core'
-import { TUI_VALIDATION_ERRORS, TuiFieldErrorPipe } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
-import { FORM, FormSection } from 'src/app/directives/form'
+import {
+  TuiError,
+  TuiInput,
+  TuiTextfield,
+  TuiTitle,
+  tuiValidationErrorsProvider,
+} from '@taiga-ui/core'
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { FORM } from 'src/app/directives/form'
 import { MAC_LABELS, MAC_VALIDATION_ERRORS } from './utils'
 
 @Component({
@@ -15,29 +19,23 @@ import { MAC_LABELS, MAC_VALIDATION_ERRORS } from './utils'
       <div>
         <tui-textfield>
           <label tuiLabel>{{ labels.mac }}*</label>
-          <input tuiTextfield formControlName="mac" />
+          <input tuiInput formControlName="mac" />
         </tui-textfield>
-        <tui-error formControlName="mac" [error]="[] | tuiFieldError | async" />
+        <tui-error formControlName="mac" />
       </div>
     </section>
   `,
   viewProviders: [FORM],
-  hostDirectives: [FormSection],
-  providers: [
-    {
-      provide: TUI_VALIDATION_ERRORS,
-      useValue: MAC_VALIDATION_ERRORS,
-    },
-  ],
+  hostDirectives: [TuiForm, TuiCardLarge],
+  providers: [tuiValidationErrorsProvider(MAC_VALIDATION_ERRORS)],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    AsyncPipe,
     ReactiveFormsModule,
     TuiHeader,
     TuiTitle,
     TuiTextfield,
     TuiError,
-    TuiFieldErrorPipe,
+    TuiInput,
   ],
 })
 export class MacAddress {

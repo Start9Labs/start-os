@@ -8,8 +8,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
-import { tuiNumberFormatProvider, TuiTitle } from '@taiga-ui/core'
-import { TuiAccordion } from '@taiga-ui/experimental'
+import { TuiExpand, tuiNumberFormatProvider, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
@@ -53,7 +52,7 @@ import { LanIpv6Data } from './uci/service'
     ReactiveFormsModule,
     TuiHeader,
     TuiTitle,
-    TuiAccordion,
+    TuiExpand,
     Footer,
     Form,
     Help,

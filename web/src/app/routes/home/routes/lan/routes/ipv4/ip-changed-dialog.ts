@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { TuiButton, TuiIcon } from '@taiga-ui/core'
-import { TuiDialogContext } from '@taiga-ui/experimental'
+import { TuiButton, TuiDialogContext, TuiIcon } from '@taiga-ui/core'
 import { injectContext } from '@taiga-ui/polymorpheus'
 
 @Component({

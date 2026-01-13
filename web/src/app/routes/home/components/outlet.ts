@@ -51,7 +51,8 @@ import { SidebarService } from 'src/app/services/sidebar.service'
     }
 
     router-outlet + ::ng-deep ng-component {
-      display: block;
+      display: flex;
+      flex-direction: column;
       margin: 1rem 1.5rem;
     }
 

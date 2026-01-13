@@ -7,7 +7,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
-import { TuiTitle } from '@taiga-ui/core'
+import { TuiLabel, TuiTitle } from '@taiga-ui/core'
 import { TuiRadio } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
@@ -69,6 +69,7 @@ import {
     TuiHeader,
     TuiTitle,
     TuiRadio,
+    TuiLabel,
     Form,
     Footer,
     Help,

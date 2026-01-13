@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiCard } from '@taiga-ui/layout'
+import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
 
 import { SecurityAccess } from './access'
@@ -14,7 +15,7 @@ import { SecuritySummary } from './summary'
 @Component({
   template: `
     <security-aside *help />
-    <article securitySummary tuiCardLarge="compact"></article>
+    <article securitySummary [formLoading]="false"></article>
     <security-password />
     <security-ssh />
     <security-access />
@@ -27,7 +28,7 @@ import { SecuritySummary } from './summary'
   host: { class: 'g-page' },
   imports: [
     ReactiveFormsModule,
-    TuiCard,
+    Form,
     TuiButton,
     Help,
     SecuritySummary,

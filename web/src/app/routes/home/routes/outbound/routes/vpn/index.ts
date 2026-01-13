@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -12,18 +11,18 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router'
 import {
   TuiButton,
   TuiError,
+  TuiInput,
+  TuiDialogService,
   TuiLink,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
   TuiTitle,
+  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TuiDialogService } from '@taiga-ui/experimental'
 import {
   TUI_CONFIRM,
-  TUI_VALIDATION_ERRORS,
   TuiChevron,
   TuiDataListWrapper,
-  TuiFieldErrorPipe,
   TuiSelect,
 } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
@@ -51,6 +50,7 @@ import { VPNSummary } from './summary'
             appearance=""
             iconStart="@tui.chevron-left"
             [style.font]="'inherit'"
+            [style.text-decoration]="'none'"
           >
             {{ data()?.label || 'Outbound VPN' }}
           </a>
@@ -70,12 +70,9 @@ import { VPNSummary } from './summary'
         <div>
           <tui-textfield>
             <label tuiLabel>Label *</label>
-            <input tuiTextfield formControlName="label" />
+            <input tuiInput formControlName="label" />
           </tui-textfield>
-          <tui-error
-            formControlName="label"
-            [error]="[] | tuiFieldError | async"
-          />
+          <tui-error formControlName="label" />
         </div>
       </section>
       <section>
@@ -83,11 +80,7 @@ import { VPNSummary } from './summary'
           <tui-textfield tuiChevron>
             <label tuiLabel>Connects to</label>
             <input tuiSelect formControlName="target" />
-            <tui-data-list-wrapper
-              *tuiTextfieldDropdown
-              new
-              [items]="targetOptions()"
-            />
+            <tui-data-list-wrapper *tuiDropdown [items]="targetOptions()" />
           </tui-textfield>
         </div>
       </section>
@@ -96,7 +89,7 @@ import { VPNSummary } from './summary'
           <button
             tuiButton
             type="button"
-            appearance="destructive"
+            appearance="secondary-destructive"
             class="g-delete"
             (click)="onDelete()"
           >
@@ -115,10 +108,9 @@ import { VPNSummary } from './summary'
   host: { class: 'g-page' },
   providers: [
     tuiTextfieldOptionsProvider({ cleaner: signal(false) }),
-    { provide: TUI_VALIDATION_ERRORS, useValue: OUTBOUND_VALIDATION_ERRORS },
+    tuiValidationErrorsProvider(OUTBOUND_VALIDATION_ERRORS),
   ],
   imports: [
-    AsyncPipe,
     RouterLink,
     ReactiveFormsModule,
     TuiHeader,
@@ -126,11 +118,11 @@ import { VPNSummary } from './summary'
     TuiLink,
     TuiTextfield,
     TuiError,
-    TuiFieldErrorPipe,
     TuiChevron,
     TuiSelect,
     TuiDataListWrapper,
     TuiButton,
+    TuiInput,
     Footer,
     Form,
     Help,

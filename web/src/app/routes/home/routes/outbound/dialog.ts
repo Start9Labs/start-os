@@ -1,19 +1,18 @@
-import { AsyncPipe } from '@angular/common'
 import { Component, inject, signal } from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
   TuiButton,
   TuiError,
+  TuiInput,
+  TuiDialogContext,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
+  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TuiDialogContext } from '@taiga-ui/experimental'
 import {
-  TUI_VALIDATION_ERRORS,
   TuiChevron,
   TuiDataListWrapper,
-  TuiFieldErrorPipe,
   TuiFile,
   TuiFiles,
   TuiSelect,
@@ -32,12 +31,12 @@ interface AddVPNData {
       <h3 tuiHeader="body-m">Label *</h3>
       <tui-textfield>
         <input
-          tuiTextfield
+          tuiInput
           placeholder="e.g. Mullvad Sweden"
           formControlName="label"
         />
       </tui-textfield>
-      <tui-error formControlName="label" [error]="[] | tuiFieldError | async" />
+      <tui-error formControlName="label" />
       <h3 tuiHeader="body-m">WireGuard Configuration *</h3>
       @if (!form.value.config || form.controls.config.invalid) {
         <label tuiInputFiles class="g-action">
@@ -50,16 +49,12 @@ interface AddVPNData {
           (remove)="form.controls.config.reset()"
         />
       }
-      <tui-error
-        formControlName="config"
-        [error]="[] | tuiFieldError | async"
-      />
+      <tui-error formControlName="config" />
       <h3 tuiHeader="body-m">Target</h3>
       <tui-textfield tuiChevron>
         <input tuiSelect formControlName="target" />
         <tui-data-list-wrapper
-          *tuiTextfieldDropdown
-          new
+          *tuiDropdown
           [items]="context.data.targetOptions"
         />
       </tui-textfield>
@@ -85,14 +80,12 @@ interface AddVPNData {
   `,
   providers: [
     tuiTextfieldOptionsProvider({ cleaner: signal(false) }),
-    { provide: TUI_VALIDATION_ERRORS, useValue: OUTBOUND_VALIDATION_ERRORS },
+    tuiValidationErrorsProvider(OUTBOUND_VALIDATION_ERRORS),
   ],
   imports: [
-    AsyncPipe,
     TuiForm,
     TuiTextfield,
     TuiError,
-    TuiFieldErrorPipe,
     ReactiveFormsModule,
     TuiFiles,
     TuiFile,
@@ -101,6 +94,7 @@ interface AddVPNData {
     TuiDataListWrapper,
     TuiChevron,
     TuiButton,
+    TuiInput,
   ],
 })
 export class AddVPN {

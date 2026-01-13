@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -9,14 +8,16 @@ import { toSignal } from '@angular/core/rxjs-interop'
 import { ReactiveFormsModule } from '@angular/forms'
 import { MaskitoDirective } from '@maskito/angular'
 import { MaskitoOptions } from '@maskito/core'
-import { TuiError, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import {
-  TUI_VALIDATION_ERRORS,
-  TuiFieldErrorPipe,
-  TuiRadio,
-} from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
-import { FORM, FormSection } from 'src/app/directives/form'
+  TuiError,
+  TuiInput,
+  TuiTextfield,
+  TuiTitle,
+  tuiValidationErrorsProvider,
+} from '@taiga-ui/core'
+import { TuiRadio } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { FORM } from 'src/app/directives/form'
 import {
   IPV4_LABELS,
   IPV4_MODES,
@@ -47,15 +48,12 @@ import Ipv4 from '.'
             <tui-textfield>
               <label tuiLabel>{{ labels[control] }}*</label>
               <input
-                tuiTextfield
+                tuiInput
                 [formControlName]="control"
                 [maskito]="control === 'prefix' ? prefixMask : null"
               />
             </tui-textfield>
-            <tui-error
-              [formControlName]="control"
-              [error]="[] | tuiFieldError | async"
-            />
+            <tui-error [formControlName]="control" />
             @if (control === 'prefix' && netmask()) {
               <tui-error class="g-secondary" [error]="'Subnet: ' + netmask()" />
             }
@@ -72,38 +70,29 @@ import Ipv4 from '.'
                 {{ labels[control] }}{{ control !== 'device' ? '*' : '' }}
               </label>
               <input
-                tuiTextfield
+                tuiInput
                 [formControlName]="control"
                 [type]="control === 'password' ? 'password' : 'text'"
               />
             </tui-textfield>
-            <tui-error
-              [formControlName]="control"
-              [error]="[] | tuiFieldError | async"
-            />
+            <tui-error [formControlName]="control" />
           </div>
         }
       </section>
     }
   `,
   viewProviders: [FORM],
-  hostDirectives: [FormSection],
-  providers: [
-    {
-      provide: TUI_VALIDATION_ERRORS,
-      useValue: IPV4_VALIDATION_ERRORS,
-    },
-  ],
+  hostDirectives: [TuiForm, TuiCardLarge],
+  providers: [tuiValidationErrorsProvider(IPV4_VALIDATION_ERRORS)],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    AsyncPipe,
     ReactiveFormsModule,
     TuiHeader,
     TuiTitle,
     TuiTextfield,
     TuiRadio,
     TuiError,
-    TuiFieldErrorPipe,
+    TuiInput,
     MaskitoDirective,
   ],
 })

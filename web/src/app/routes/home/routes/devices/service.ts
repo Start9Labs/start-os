@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core'
-import { TuiAlertService } from '@taiga-ui/core'
+import { TuiNotificationService } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { FormService } from 'src/app/services/form.service'
 import { DevicesUciService } from './uci/service'
@@ -14,7 +14,7 @@ import {
 
 @Injectable()
 export class DevicesService extends FormService<Device[]> {
-  private readonly alertService = inject(TuiAlertService)
+  private readonly alertService = inject(TuiNotificationService)
   private readonly notifications = inject(TuiNotificationMiddleService)
   private readonly uciService = inject(DevicesUciService)
 
