@@ -6,12 +6,11 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { i18nPipe } from '@start9labs/shared'
+import { DialogService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
   TuiButton,
   TuiDialogContext,
-  TuiDialogService,
   TuiError,
   TuiIcon,
   TuiTextfield,
@@ -125,10 +124,9 @@ export interface CifsResult {
   ],
 })
 export class CifsComponent {
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(DialogService)
   private readonly api = inject(ApiService)
   private readonly context = injectContext<TuiDialogContext<CifsResult>>()
-  private readonly i18n = inject(i18nPipe)
 
   connecting = false
 
@@ -183,12 +181,10 @@ export class CifsComponent {
 
   private onFail() {
     this.dialogs
-      .open(
-        this.i18n.transform(
-          'Unable to connect to network folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.',
-        ),
+      .openAlert(
+        'Unable to connect to network folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.',
         {
-          label: this.i18n.transform('Connection Failed'),
+          label: 'Connection Failed',
           size: 's',
         },
       )

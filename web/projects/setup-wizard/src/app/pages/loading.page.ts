@@ -67,7 +67,6 @@ export default class LoadingPage {
   private readonly loader = inject(LoadingService)
   private readonly dialog = inject(DialogService)
   private readonly router = inject(Router)
-  private readonly i18n = inject(i18nPipe)
 
   readonly type = inject(StateService).setupType
   readonly progress = toSignal(

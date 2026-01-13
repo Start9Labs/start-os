@@ -1,17 +1,20 @@
 import { Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
-import { DiskInfo, ErrorService, i18nPipe, toGuid } from '@start9labs/shared'
+import {
+  DialogService,
+  DiskInfo,
+  ErrorService,
+  i18nPipe,
+  toGuid,
+} from '@start9labs/shared'
 import {
   TuiButton,
   TuiDataList,
-  TuiDialogOptions,
-  TuiDialogService,
   TuiDropdown,
   TuiIcon,
   TuiLoader,
   TuiTitle,
 } from '@taiga-ui/core'
-import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { ApiService } from '../services/api.service'
@@ -111,10 +114,9 @@ import { StateService } from '../services/state.service'
 export default class TransferPage {
   private readonly api = inject(ApiService)
   private readonly router = inject(Router)
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(DialogService)
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
-  private readonly i18n = inject(i18nPipe)
 
   loading = true
   open = false
@@ -132,20 +134,17 @@ export default class TransferPage {
   select(drive: DiskInfo) {
     this.open = false
 
-    const WARNING_OPTIONS: Partial<TuiDialogOptions<TuiConfirmData>> = {
-      label: this.i18n.transform('Warning'),
-      size: 's',
-      data: {
-        content: this.i18n.transform(
-          'After transferring data from this drive, do not attempt to boot into it again as a Start9 Server. This may result in services malfunctioning, data corruption, or loss of funds.',
-        ),
-        yes: this.i18n.transform('Continue'),
-        no: this.i18n.transform('Cancel'),
-      },
-    }
-
     this.dialogs
-      .open(TUI_CONFIRM, WARNING_OPTIONS)
+      .openConfirm({
+        label: 'Warning',
+        size: 's',
+        data: {
+          content:
+            'After transferring data from this drive, do not attempt to boot into it again as a Start9 Server. This may result in services malfunctioning, data corruption, or loss of funds.',
+          yes: 'Continue',
+          no: 'Cancel',
+        },
+      })
       .pipe(filter(Boolean))
       .subscribe(() => {
         const guid = toGuid(drive)

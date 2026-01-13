@@ -2,8 +2,10 @@ import { ChangeDetectorRef, Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
 import { FormsModule } from '@angular/forms'
 import {
+  DialogService,
   DiskInfo,
   ErrorService,
+  i18nKey,
   i18nPipe,
   LoadingService,
   toGuid,
@@ -11,18 +13,12 @@ import {
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import {
   TuiButton,
-  TuiDialogService,
   TuiIcon,
   TuiLoader,
   TuiTextfield,
   TuiTitle,
 } from '@taiga-ui/core'
-import {
-  TUI_CONFIRM,
-  TuiDataListWrapper,
-  TuiSelect,
-  TuiTooltip,
-} from '@taiga-ui/kit'
+import { TuiDataListWrapper, TuiSelect, TuiTooltip } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
@@ -171,7 +167,7 @@ import { PreserveOverwriteDialog } from '../components/preserve-overwrite.dialog
 export default class DrivesPage {
   private readonly api = inject(ApiService)
   private readonly router = inject(Router)
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(DialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
@@ -258,12 +254,15 @@ export default class DrivesPage {
     let selectionMade = false
 
     this.dialogs
-      .open<boolean>(new PolymorpheusComponent(PreserveOverwriteDialog), {
-        label: this.i18n.transform('StartOS Data Detected'),
-        size: 's',
-        dismissible: true,
-        closeable: true,
-      })
+      .openComponent<boolean>(
+        new PolymorpheusComponent(PreserveOverwriteDialog),
+        {
+          label: 'StartOS Data Detected',
+          size: 's',
+          dismissible: true,
+          closeable: true,
+        },
+      )
       .subscribe({
         next: preserve => {
           selectionMade = true
@@ -283,16 +282,16 @@ export default class DrivesPage {
 
   private showOsDriveWarning() {
     this.dialogs
-      .open<boolean>(TUI_CONFIRM, {
-        label: this.i18n.transform('Warning'),
+      .openConfirm({
+        label: 'Warning',
         size: 's',
         data: {
           content: `<ul>
 <li class="g-negative">${this.i18n.transform('Data on the OS drive may be overwritten.')}</li>
 <li class="g-positive">${this.i18n.transform('your StartOS data on the data drive will be preserved.')}</li>
-</ul>`,
-          yes: this.i18n.transform('Continue'),
-          no: this.i18n.transform('Cancel'),
+</ul>` as i18nKey,
+          yes: 'Continue',
+          no: 'Cancel',
         },
       })
       .pipe(filter(Boolean))
@@ -307,13 +306,13 @@ export default class DrivesPage {
       : `<p class="g-negative">${this.i18n.transform('Data on both drives will be overwritten.')}</p>`
 
     this.dialogs
-      .open<boolean>(TUI_CONFIRM, {
-        label: this.i18n.transform('Warning'),
+      .openConfirm({
+        label: 'Warning',
         size: 's',
         data: {
-          content: message,
-          yes: this.i18n.transform('Continue'),
-          no: this.i18n.transform('Cancel'),
+          content: message as i18nKey,
+          yes: 'Continue',
+          no: 'Cancel',
         },
       })
       .pipe(filter(Boolean))

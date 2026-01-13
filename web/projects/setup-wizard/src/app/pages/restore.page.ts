@@ -1,11 +1,10 @@
 import { Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
-import { ErrorService, i18nPipe } from '@start9labs/shared'
+import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
   TuiButton,
   TuiDataList,
-  TuiDialogService,
   TuiDropdown,
   TuiIcon,
   TuiLoader,
@@ -123,10 +122,9 @@ import { UnlockPasswordDialog } from '../components/unlock-password.dialog'
 export default class RestorePage {
   private readonly api = inject(ApiService)
   private readonly router = inject(Router)
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(DialogService)
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
-  private readonly i18n = inject(i18nPipe)
 
   loading = true
   open = false
@@ -144,8 +142,8 @@ export default class RestorePage {
   openCifs() {
     this.open = false
     this.dialogs
-      .open<CifsResult>(CIFS, {
-        label: this.i18n.transform('Connect Network Folder'),
+      .openComponent<CifsResult>(CIFS, {
+        label: 'Connect Network Folder',
         size: 's',
       })
       .subscribe(result => {
@@ -179,8 +177,8 @@ export default class RestorePage {
     servers: StartOSDiskInfoWithId[],
   ) {
     this.dialogs
-      .open<StartOSDiskInfoWithId | null>(SELECT_NETWORK_BACKUP, {
-        label: this.i18n.transform('Select Network Backup'),
+      .openComponent<StartOSDiskInfoWithId | null>(SELECT_NETWORK_BACKUP, {
+        label: 'Select Network Backup',
         size: 's',
         data: { servers },
       })
@@ -196,10 +194,13 @@ export default class RestorePage {
     target: { type: 'disk'; logicalname: string } | ({ type: 'cifs' } & T.Cifs),
   ) {
     this.dialogs
-      .open<string | null>(new PolymorpheusComponent(UnlockPasswordDialog), {
-        label: this.i18n.transform('Unlock Backup'),
-        size: 's',
-      })
+      .openComponent<string | null>(
+        new PolymorpheusComponent(UnlockPasswordDialog),
+        {
+          label: 'Unlock Backup',
+          size: 's',
+        },
+      )
       .subscribe(password => {
         if (password) {
           this.stateService.recoverySource = {
