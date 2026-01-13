@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
 import { FormsModule } from '@angular/forms'
+import { i18nPipe, i18nService } from '@start9labs/shared'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import { TuiButton, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiChevron, TuiDataListWrapper, TuiSelect } from '@taiga-ui/kit'
@@ -20,22 +21,30 @@ import {
         <h2 tuiTitle>
           <span class="inline-title">
             <img src="assets/img/icon.png" alt="Start9" />
-            Welcome to StartOS
+            {{ 'Welcome to' | i18n }} StartOS
           </span>
-          <span tuiSubtitle>Select your language</span>
+          <span tuiSubtitle>{{ 'Select your language' | i18n }}</span>
         </h2>
       </header>
-
       <tui-textfield
         tuiChevron
         [stringify]="stringify"
         [tuiTextfieldCleaner]="false"
       >
-        <label tuiLabel>Language</label>
+        <label tuiLabel>{{ 'Language' | i18n }}</label>
         @if (mobile) {
-          <select tuiSelect [(ngModel)]="selected" [items]="languages"></select>
+          <select
+            tuiSelect
+            [(ngModel)]="selected"
+            [items]="languages"
+            (ngModelChange)="onLanguageChange($event)"
+          ></select>
         } @else {
-          <input tuiSelect [(ngModel)]="selected" />
+          <input
+            tuiSelect
+            [(ngModel)]="selected"
+            (ngModelChange)="onLanguageChange($event)"
+          />
         }
         @if (!mobile) {
           <tui-data-list-wrapper
@@ -48,17 +57,16 @@ import {
       </tui-textfield>
 
       <ng-template #itemContent let-item>
+        @let lang = asLanguage(item);
         <div class="language-item">
-          <span>{{ item.nativeName }}</span>
-          @if (item.name !== item.nativeName) {
-            <small>{{ item.name }}</small>
-          }
+          <span>{{ lang.nativeName }}</span>
+          <small>{{ lang.tuiName | i18n }}</small>
         </div>
       </ng-template>
 
       <footer>
         <button tuiButton [disabled]="!selected" (click)="continue()">
-          Continue
+          {{ 'Continue' | i18n }}
         </button>
       </footer>
     </section>
@@ -90,29 +98,43 @@ import {
     TuiDataListWrapper,
     TuiHeader,
     TuiTitle,
+    i18nPipe,
   ],
 })
 export default class LanguagePage {
   private readonly router = inject(Router)
   private readonly stateService = inject(StateService)
+  private readonly i18nService = inject(i18nService)
 
   protected readonly mobile = inject(TUI_IS_MOBILE)
   readonly languages = LANGUAGES
+
   selected =
     LANGUAGES.find(l => l.code === this.stateService.language) || LANGUAGES[0]
 
   readonly stringify = (lang: Language) => lang.nativeName
+  readonly asLanguage = (item: unknown): Language => item as Language
+
+  constructor() {
+    if (this.selected) {
+      this.i18nService.setLanguage(this.selected.tuiName)
+    }
+  }
+
+  onLanguageChange(language: Language) {
+    if (language) {
+      this.i18nService.setLanguage(language.tuiName)
+    }
+  }
 
   async continue() {
     if (this.selected) {
       this.stateService.language = this.selected.code
 
       if (this.stateService.kiosk) {
-        // Check if we need keyboard selection
         if (needsKeyboardSelection(this.selected.code)) {
           await this.router.navigate(['/keyboard'])
         } else {
-          // Auto-select the only keyboard option
           this.stateService.keyboard = getDefaultKeyboard(
             this.selected.code,
           ).code

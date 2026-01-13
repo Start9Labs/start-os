@@ -6,7 +6,7 @@ import {
   ViewChild,
   DOCUMENT,
 } from '@angular/core'
-import { DownloadHTMLService, ErrorService } from '@start9labs/shared'
+import { DownloadHTMLService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiCell, TuiHeader } from '@taiga-ui/layout'
@@ -24,16 +24,17 @@ import { SetupCompleteRes } from '../types'
         <h2 tuiTitle>
           <span class="inline-title">
             <tui-icon icon="@tui.circle-check-big" class="g-positive" />
-            Setup Complete!
+            {{ 'Setup Complete!' | i18n }}
           </span>
           @if (!stateService.kiosk) {
             <span tuiSubtitle>
               {{
                 stateService.setupType === 'restore'
-                  ? 'You can unplug your backup drive'
+                  ? ('You can unplug your backup drive' | i18n)
                   : stateService.setupType === 'transfer'
-                    ? 'You can unplug your transfer drive'
-                    : 'http://start.local was for setup only. It will no longer work.'
+                    ? ('You can unplug your transfer drive' | i18n)
+                    : ('http://start.local was for setup only. It will no longer work.'
+                      | i18n)
               }}
             </span>
           }
@@ -48,9 +49,12 @@ import { SetupCompleteRes } from '../types'
           <button tuiCell="l" [disabled]="downloaded" (click)="download()">
             <tui-avatar appearance="secondary" src="@tui.download" />
             <div tuiTitle>
-              Download Address Info
+              {{ 'Download Address Info' | i18n }}
               <div tuiSubtitle>
-                Contains your server's permanent local address and Root CA
+                {{
+                  "Contains your server's permanent local address and Root CA"
+                    | i18n
+                }}
               </div>
             </div>
             @if (downloaded) {
@@ -69,9 +73,11 @@ import { SetupCompleteRes } from '../types'
           >
             <tui-avatar appearance="secondary" src="@tui.usb" />
             <div tuiTitle>
-              Remove USB Media
+              {{ 'Remove USB Media' | i18n }}
               <div tuiSubtitle>
-                Remove the USB installation media from your server
+                {{
+                  'Remove the USB installation media from your server' | i18n
+                }}
               </div>
             </div>
             @if (usbRemoved) {
@@ -88,14 +94,14 @@ import { SetupCompleteRes } from '../types'
           >
             <tui-avatar appearance="secondary" src="@tui.rotate-cw" />
             <div tuiTitle>
-              Restart Server
+              {{ 'Restart Server' | i18n }}
               <div tuiSubtitle>
                 @if (rebooting) {
-                  Waiting for server to come back online...
+                  {{ 'Waiting for server to come back online' | i18n }}
                 } @else if (rebooted) {
-                  Server is back online
+                  {{ 'Server is back online' | i18n }}
                 } @else {
-                  Restart your server to complete setup
+                  {{ 'Restart your server to complete setup' | i18n }}
                 }
               </div>
             </div>
@@ -117,7 +123,7 @@ import { SetupCompleteRes } from '../types'
           >
             <tui-avatar appearance="secondary" src="@tui.external-link" />
             <div tuiTitle>
-              Open Local Address
+              {{ 'Open Local Address' | i18n }}
               <div tuiSubtitle>{{ lanAddress }}</div>
             </div>
           </button>
@@ -135,8 +141,10 @@ import { SetupCompleteRes } from '../types'
           >
             <tui-avatar appearance="secondary" src="@tui.log-in" />
             <div tuiTitle>
-              Continue to Login
-              <div tuiSubtitle>Proceed to the StartOS login screen</div>
+              {{ 'Continue to Login' | i18n }}
+              <div tuiSubtitle>
+                {{ 'Proceed to the StartOS login screen' | i18n }}
+              </div>
             </div>
           </button>
         }
@@ -165,6 +173,7 @@ import { SetupCompleteRes } from '../types'
     DocumentationComponent,
     TuiHeader,
     TuiTitle,
+    i18nPipe,
   ],
 })
 export default class SuccessPage implements AfterViewInit {
@@ -175,6 +184,7 @@ export default class SuccessPage implements AfterViewInit {
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly downloadHtml = inject(DownloadHTMLService)
+  private readonly i18n = inject(i18nPipe)
 
   readonly stateService = inject(StateService)
 
@@ -270,7 +280,9 @@ export default class SuccessPage implements AfterViewInit {
     }
 
     throw new Error(
-      'Server did not come back online. Please check your server and try accessing it manually.',
+      this.i18n.transform(
+        'Server did not come back online. Please check your server and try accessing it manually.',
+      ),
     )
   }
 }

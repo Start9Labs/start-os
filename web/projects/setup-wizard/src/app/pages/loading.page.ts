@@ -10,7 +10,7 @@ import {
   DialogService,
   formatProgress,
   getErrorMessage,
-  i18nKey,
+  i18nPipe,
   InitializingComponent,
   LoadingService,
 } from '@start9labs/shared'
@@ -33,9 +33,11 @@ import { StateService } from '../services/state.service'
   template: `
     @if (error(); as err) {
       <section>
-        <h1>Error initializing server</h1>
+        <h1>{{ 'Error initializing server' | i18n }}</h1>
         <p>{{ err }}</p>
-        <button tuiButton (click)="restart()">Restart server</button>
+        <button tuiButton (click)="restart()">
+          {{ 'Restart server' | i18n }}
+        </button>
       </section>
     } @else {
       <app-initializing [initialSetup]="true" [progress]="progress()" />
@@ -57,7 +59,7 @@ import { StateService } from '../services/state.service'
       --tui-background-neutral-1: rgba(0, 0, 0, 0.1);
     }
   `,
-  imports: [InitializingComponent, TuiButton],
+  imports: [InitializingComponent, TuiButton, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class LoadingPage {
@@ -65,6 +67,7 @@ export default class LoadingPage {
   private readonly loader = inject(LoadingService)
   private readonly dialog = inject(DialogService)
   private readonly router = inject(Router)
+  private readonly i18n = inject(i18nPipe)
 
   readonly type = inject(StateService).setupType
   readonly progress = toSignal(
@@ -117,7 +120,7 @@ export default class LoadingPage {
     try {
       await this.api.restart()
       this.dialog
-        .openAlert('Wait 1-2 minutes and refresh the page' as i18nKey, {
+        .openAlert('Wait 1-2 minutes and refresh the page', {
           label: 'Server is restarting',
         })
         .subscribe()

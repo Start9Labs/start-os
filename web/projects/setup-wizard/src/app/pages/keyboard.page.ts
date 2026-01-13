@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
 import { FormsModule } from '@angular/forms'
+import { i18nPipe } from '@start9labs/shared'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import { TuiButton, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiChevron, TuiDataListWrapper, TuiSelect } from '@taiga-ui/kit'
@@ -12,14 +13,14 @@ import { Keyboard, getKeyboardsForLanguage } from '../utils/languages'
   template: `
     <section tuiCardLarge="compact">
       <header tuiHeader>
-        <h2 tuiTitle>Select Keyboard Layout</h2>
+        <h2 tuiTitle>{{ 'Select Keyboard Layout' | i18n }}</h2>
       </header>
       <tui-textfield
         tuiChevron
         [stringify]="stringify"
         [tuiTextfieldCleaner]="false"
       >
-        <label tuiLabel>Keyboard</label>
+        <label tuiLabel>{{ 'Keyboard' | i18n }}</label>
         @if (mobile) {
           <select tuiSelect [(ngModel)]="selected" [items]="keyboards"></select>
         } @else {
@@ -36,7 +37,7 @@ import { Keyboard, getKeyboardsForLanguage } from '../utils/languages'
 
       <footer>
         <button tuiButton [disabled]="!selected" (click)="continue()">
-          Continue
+          {{ 'Continue' | i18n }}
         </button>
       </footer>
     </section>
@@ -65,6 +66,7 @@ import { Keyboard, getKeyboardsForLanguage } from '../utils/languages'
     TuiDataListWrapper,
     TuiHeader,
     TuiTitle,
+    i18nPipe,
   ],
 })
 export default class KeyboardPage {

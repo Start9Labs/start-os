@@ -1,5 +1,6 @@
 import { Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
+import { i18nPipe } from '@start9labs/shared'
 import {
   TuiButton,
   TuiDialogContext,
@@ -11,11 +12,20 @@ import { injectContext } from '@taiga-ui/polymorpheus'
 
 @Component({
   standalone: true,
-  imports: [FormsModule, TuiButton, TuiTextfield, TuiPassword, TuiIcon],
+  imports: [
+    FormsModule,
+    TuiButton,
+    TuiTextfield,
+    TuiPassword,
+    TuiIcon,
+    i18nPipe,
+  ],
   template: `
-    <p>Enter the password that was used to encrypt this backup.</p>
+    <p>
+      {{ 'Enter the password that was used to encrypt this backup.' | i18n }}
+    </p>
     <tui-textfield>
-      <label tuiLabel>Password</label>
+      <label tuiLabel>{{ 'Password' | i18n }}</label>
       <input
         tuiTextfield
         type="password"
@@ -26,10 +36,10 @@ import { injectContext } from '@taiga-ui/polymorpheus'
     </tui-textfield>
     <footer>
       <button tuiButton appearance="flat" (click)="context.completeWith(null)">
-        Cancel
+        {{ 'Cancel' | i18n }}
       </button>
       <button tuiButton [disabled]="!password" (click)="unlock()">
-        Unlock
+        {{ 'Unlock' | i18n }}
       </button>
     </footer>
   `,

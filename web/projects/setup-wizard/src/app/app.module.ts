@@ -9,6 +9,7 @@ import { PreloadAllModules, RouterModule } from '@angular/router'
 import { WA_LOCATION } from '@ng-web-apis/common'
 import initArgon from '@start9labs/argon2'
 import {
+  I18N_PROVIDERS,
   provideSetupLogsService,
   RELATIVE_URL,
   VERSION,
@@ -41,6 +42,7 @@ const version = require('../../../../package.json').version
   ],
   providers: [
     NG_EVENT_PLUGINS,
+    I18N_PROVIDERS,
     provideSetupLogsService(ApiService),
     tuiButtonOptionsProvider({ size: 'm' }),
     {

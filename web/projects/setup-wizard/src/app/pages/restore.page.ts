@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
-import { ErrorService } from '@start9labs/shared'
+import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
   TuiButton,
@@ -26,12 +26,12 @@ import { UnlockPasswordDialog } from '../components/unlock-password.dialog'
     <section tuiCardLarge="compact">
       <header tuiHeader>
         <h2 tuiTitle>
-          Select Backup
+          {{ 'Select Backup' | i18n }}
           <span tuiSubtitle>
-            Select the StartOS backup you want to restore
+            {{ 'Select the StartOS backup you want to restore' | i18n }}
             <a class="refresh" (click)="refresh()">
               <tui-icon icon="@tui.rotate-cw" />
-              Refresh
+              {{ 'Refresh' | i18n }}
             </a>
           </span>
         </h2>
@@ -48,7 +48,7 @@ import { UnlockPasswordDialog } from '../components/unlock-password.dialog'
           [(tuiDropdownOpen)]="open"
           style="width: 100%"
         >
-          Select Backup
+          {{ 'Select Backup' | i18n }}
         </button>
 
         <ng-template #dropdown>
@@ -56,10 +56,10 @@ import { UnlockPasswordDialog } from '../components/unlock-password.dialog'
             <tui-opt-group>
               <button tuiOption new (click)="openCifs()">
                 <tui-icon icon="@tui.folder-plus" />
-                Open Network Backup
+                {{ 'Open Network Backup' | i18n }}
               </button>
             </tui-opt-group>
-            <tui-opt-group label="Physical Backups">
+            <tui-opt-group [label]="'Physical Backups' | i18n">
               @for (server of physicalServers; track server.id) {
                 <button tuiOption new (click)="selectPhysicalBackup(server)">
                   <div class="server-item">
@@ -71,7 +71,7 @@ import { UnlockPasswordDialog } from '../components/unlock-password.dialog'
                   </div>
                 </button>
               } @empty {
-                <div class="no-items">No physical backups</div>
+                <div class="no-items">{{ 'No physical backups' | i18n }}</div>
               }
             </tui-opt-group>
           </tui-data-list>
@@ -117,6 +117,7 @@ import { UnlockPasswordDialog } from '../components/unlock-password.dialog'
     TuiOptGroup,
     TuiTitle,
     TuiHeader,
+    i18nPipe,
   ],
 })
 export default class RestorePage {
@@ -125,6 +126,7 @@ export default class RestorePage {
   private readonly dialogs = inject(TuiDialogService)
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
+  private readonly i18n = inject(i18nPipe)
 
   loading = true
   open = false
@@ -143,7 +145,7 @@ export default class RestorePage {
     this.open = false
     this.dialogs
       .open<CifsResult>(CIFS, {
-        label: 'Connect Network Folder',
+        label: this.i18n.transform('Connect Network Folder'),
         size: 's',
       })
       .subscribe(result => {
@@ -178,7 +180,7 @@ export default class RestorePage {
   ) {
     this.dialogs
       .open<StartOSDiskInfoWithId | null>(SELECT_NETWORK_BACKUP, {
-        label: 'Select Network Backup',
+        label: this.i18n.transform('Select Network Backup'),
         size: 's',
         data: { servers },
       })
@@ -195,7 +197,7 @@ export default class RestorePage {
   ) {
     this.dialogs
       .open<string | null>(new PolymorpheusComponent(UnlockPasswordDialog), {
-        label: 'Unlock Backup',
+        label: this.i18n.transform('Unlock Backup'),
         size: 's',
       })
       .subscribe(password => {

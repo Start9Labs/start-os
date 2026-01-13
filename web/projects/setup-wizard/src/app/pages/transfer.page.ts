@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
-import { DiskInfo, ErrorService, toGuid } from '@start9labs/shared'
+import { DiskInfo, ErrorService, i18nPipe, toGuid } from '@start9labs/shared'
 import {
   TuiButton,
   TuiDataList,
@@ -22,12 +22,14 @@ import { StateService } from '../services/state.service'
     <section tuiCardLarge="compact">
       <header tuiHeader>
         <h2 tuiTitle>
-          Transfer Data
+          {{ 'Transfer Data' | i18n }}
           <span tuiSubtitle>
-            Select the drive containing your existing StartOS data
+            {{
+              'Select the drive containing your existing StartOS data' | i18n
+            }}
             <a class="refresh" (click)="refresh()">
               <tui-icon icon="@tui.rotate-cw" />
-              Refresh
+              {{ 'Refresh' | i18n }}
             </a>
           </span>
         </h2>
@@ -44,7 +46,7 @@ import { StateService } from '../services/state.service'
           [(tuiDropdownOpen)]="open"
           style="width: 100%"
         >
-          Select Drive
+          {{ 'Select Drive' | i18n }}
         </button>
 
         <ng-template #dropdown>
@@ -57,7 +59,9 @@ import { StateService } from '../services/state.service'
                 </div>
               </button>
             } @empty {
-              <div class="no-items">No StartOS data drives found</div>
+              <div class="no-items">
+                {{ 'No StartOS data drives found' | i18n }}
+              </div>
             }
           </tui-data-list>
         </ng-template>
@@ -101,6 +105,7 @@ import { StateService } from '../services/state.service'
     TuiLoader,
     TuiTitle,
     TuiHeader,
+    i18nPipe,
   ],
 })
 export default class TransferPage {
@@ -109,6 +114,7 @@ export default class TransferPage {
   private readonly dialogs = inject(TuiDialogService)
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
+  private readonly i18n = inject(i18nPipe)
 
   loading = true
   open = false
@@ -127,14 +133,14 @@ export default class TransferPage {
     this.open = false
 
     const WARNING_OPTIONS: Partial<TuiDialogOptions<TuiConfirmData>> = {
-      label: 'Warning',
+      label: this.i18n.transform('Warning'),
       size: 's',
       data: {
-        content: `After transferring data from this drive, <strong>do not</strong>
-          attempt to boot into it again as a Start9 Server. This may result in
-          services malfunctioning, data corruption, or loss of funds.`,
-        yes: 'Continue',
-        no: 'Cancel',
+        content: this.i18n.transform(
+          'After transferring data from this drive, do not attempt to boot into it again as a Start9 Server. This may result in services malfunctioning, data corruption, or loss of funds.',
+        ),
+        yes: this.i18n.transform('Continue'),
+        no: this.i18n.transform('Cancel'),
       },
     }
 

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms'
 import {
   DiskInfo,
   ErrorService,
+  i18nPipe,
   LoadingService,
   toGuid,
 } from '@start9labs/shared'
@@ -29,27 +30,24 @@ import { ApiService } from '../services/api.service'
 import { StateService } from '../services/state.service'
 import { PreserveOverwriteDialog } from '../components/preserve-overwrite.dialog'
 
-const OS_DRIVE_TOOLTIP =
-  'The drive where the StartOS operating system will be installed.'
-const DATA_DRIVE_TOOLTIP =
-  'The drive where your StartOS data (services, settings, etc.) will be stored. This can be the same as the OS drive or a separate drive.'
-
 @Component({
   template: `
     <section tuiCardLarge="compact">
       <header tuiHeader>
-        <h2 tuiTitle>Select Drives</h2>
+        <h2 tuiTitle>{{ 'Select Drives' | i18n }}</h2>
       </header>
 
       @if (loading) {
         <tui-loader />
       } @else if (drives.length === 0) {
         <p class="no-drives">
-          No drives found. Please connect a drive and click Refresh.
+          {{
+            'No drives found. Please connect a drive and click Refresh.' | i18n
+          }}
         </p>
       } @else {
         <tui-textfield [stringify]="stringify">
-          <label tuiLabel>OS Drive</label>
+          <label tuiLabel>{{ 'OS Drive' | i18n }}</label>
           @if (mobile) {
             <select
               tuiSelect
@@ -71,7 +69,7 @@ const DATA_DRIVE_TOOLTIP =
         </tui-textfield>
 
         <tui-textfield [stringify]="stringify">
-          <label tuiLabel>Data Drive</label>
+          <label tuiLabel>{{ 'Data Drive' | i18n }}</label>
           @if (mobile) {
             <select
               tuiSelect
@@ -112,7 +110,8 @@ const DATA_DRIVE_TOOLTIP =
         <ng-template #driveContent let-drive>
           <div class="drive-item">
             <span class="drive-name">
-              {{ drive.vendor || 'Unknown' }} {{ drive.model || 'Drive' }}
+              {{ drive.vendor || ('Unknown' | i18n) }}
+              {{ drive.model || ('Drive' | i18n) }}
             </span>
             <small>
               {{ formatCapacity(drive.capacity) }} · {{ drive.logicalname }}
@@ -124,7 +123,7 @@ const DATA_DRIVE_TOOLTIP =
       <footer>
         @if (drives.length === 0) {
           <button tuiButton appearance="secondary" (click)="refresh()">
-            Refresh
+            {{ 'Refresh' | i18n }}
           </button>
         } @else {
           <button
@@ -132,7 +131,7 @@ const DATA_DRIVE_TOOLTIP =
             [disabled]="!selectedOsDrive || !selectedDataDrive"
             (click)="continue()"
           >
-            Continue
+            {{ 'Continue' | i18n }}
           </button>
         }
       </footer>
@@ -166,6 +165,7 @@ const DATA_DRIVE_TOOLTIP =
     TuiTooltip,
     TuiHeader,
     TuiTitle,
+    i18nPipe,
   ],
 })
 export default class DrivesPage {
@@ -176,11 +176,16 @@ export default class DrivesPage {
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
   private readonly cdr = inject(ChangeDetectorRef)
+  private readonly i18n = inject(i18nPipe)
 
   protected readonly mobile = inject(TUI_IS_MOBILE)
 
-  readonly osDriveTooltip = OS_DRIVE_TOOLTIP
-  readonly dataDriveTooltip = DATA_DRIVE_TOOLTIP
+  readonly osDriveTooltip = this.i18n.transform(
+    'The drive where the StartOS operating system will be installed.',
+  )
+  readonly dataDriveTooltip = this.i18n.transform(
+    'The drive where your StartOS data (services, settings, etc.) will be stored. This can be the same as the OS drive or a separate drive.',
+  )
 
   drives: DiskInfo[] = []
   loading = true
@@ -189,7 +194,9 @@ export default class DrivesPage {
   preserveData: boolean | null = null
 
   readonly stringify = (drive: DiskInfo | null) =>
-    drive ? `${drive.vendor || 'Unknown'} ${drive.model || 'Drive'}` : ''
+    drive
+      ? `${drive.vendor || this.i18n.transform('Unknown')} ${drive.model || this.i18n.transform('Drive')}`
+      : ''
 
   formatCapacity(bytes: number): string {
     const gb = bytes / 1e9
@@ -252,7 +259,7 @@ export default class DrivesPage {
 
     this.dialogs
       .open<boolean>(new PolymorpheusComponent(PreserveOverwriteDialog), {
-        label: 'StartOS Data Detected',
+        label: this.i18n.transform('StartOS Data Detected'),
         size: 's',
         dismissible: true,
         closeable: true,
@@ -277,15 +284,15 @@ export default class DrivesPage {
   private showOsDriveWarning() {
     this.dialogs
       .open<boolean>(TUI_CONFIRM, {
-        label: 'Warning',
+        label: this.i18n.transform('Warning'),
         size: 's',
         data: {
           content: `<ul>
-<li class="g-negative">Data on the OS drive may be overwritten.</li>
-<li class="g-positive">your StartOS data on the data drive will be preserved.</li>
+<li class="g-negative">${this.i18n.transform('Data on the OS drive may be overwritten.')}</li>
+<li class="g-positive">${this.i18n.transform('your StartOS data on the data drive will be preserved.')}</li>
 </ul>`,
-          yes: 'Continue',
-          no: 'Cancel',
+          yes: this.i18n.transform('Continue'),
+          no: this.i18n.transform('Cancel'),
         },
       })
       .pipe(filter(Boolean))
@@ -296,17 +303,17 @@ export default class DrivesPage {
 
   private showFullWarning(sameDevice: boolean) {
     const message = sameDevice
-      ? `<p class="g-negative">Data on this drive will be overwritten.</p>`
-      : `<p class="g-negative">Data on both drives will be overwritten.</p>`
+      ? `<p class="g-negative">${this.i18n.transform('Data on this drive will be overwritten.')}</p>`
+      : `<p class="g-negative">${this.i18n.transform('Data on both drives will be overwritten.')}</p>`
 
     this.dialogs
       .open<boolean>(TUI_CONFIRM, {
-        label: 'Warning',
+        label: this.i18n.transform('Warning'),
         size: 's',
         data: {
           content: message,
-          yes: 'Continue',
-          no: 'Cancel',
+          yes: this.i18n.transform('Continue'),
+          no: this.i18n.transform('Cancel'),
         },
       })
       .pipe(filter(Boolean))

@@ -1,20 +1,22 @@
-export interface Language {
-  code: string
-  name: string
-  nativeName: string
-}
+import { i18nKey } from '@start9labs/shared'
 
 export interface Keyboard {
   code: string
   name: string
 }
 
+export interface Language {
+  code: string
+  tuiName: i18nKey
+  nativeName: string
+}
+
 export const LANGUAGES: Language[] = [
-  { code: 'en', name: 'English', nativeName: 'English' },
-  { code: 'es', name: 'Spanish', nativeName: 'Español' },
-  { code: 'de', name: 'German', nativeName: 'Deutsch' },
-  { code: 'fr', name: 'French', nativeName: 'Français' },
-  { code: 'pl', name: 'Polish', nativeName: 'Polski' },
+  { code: 'en', tuiName: 'english', nativeName: 'English' },
+  { code: 'es', tuiName: 'spanish', nativeName: 'Español' },
+  { code: 'de', tuiName: 'german', nativeName: 'Deutsch' },
+  { code: 'fr', tuiName: 'french', nativeName: 'Français' },
+  { code: 'pl', tuiName: 'polish', nativeName: 'Polski' },
 ]
 
 export const KEYBOARDS_BY_LANGUAGE: Record<string, Keyboard[]> = {

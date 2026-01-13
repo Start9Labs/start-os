@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiDialogContext, TuiTextfield } from '@taiga-ui/core'
 import { TuiDataListWrapper, TuiSelect } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -11,11 +12,11 @@ interface Data {
 
 @Component({
   standalone: true,
-  imports: [FormsModule, TuiTextfield, TuiSelect, TuiDataListWrapper],
+  imports: [FormsModule, TuiTextfield, TuiSelect, TuiDataListWrapper, i18nPipe],
   template: `
-    <p>Multiple backups found. Select which one to restore.</p>
+    <p>{{ 'Multiple backups found. Select which one to restore.' | i18n }}</p>
     <tui-textfield [stringify]="stringify">
-      <label tuiLabel>Backups</label>
+      <label tuiLabel>{{ 'Backups' | i18n }}</label>
       <input tuiSelect [(ngModel)]="selectedServer" />
       <tui-data-list-wrapper
         new

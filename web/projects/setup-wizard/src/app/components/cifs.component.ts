@@ -6,6 +6,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
+import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
   TuiButton,
@@ -34,7 +35,7 @@ export interface CifsResult {
   template: `
     <form [formGroup]="form" (ngSubmit)="submit()">
       <tui-textfield>
-        <label tuiLabel>Hostname*</label>
+        <label tuiLabel>{{ 'Hostname' | i18n }}*</label>
         <input
           tuiTextfield
           formControlName="hostname"
@@ -47,7 +48,7 @@ export interface CifsResult {
       />
 
       <tui-textfield class="input">
-        <label tuiLabel>Path*</label>
+        <label tuiLabel>{{ 'Path' | i18n }}*</label>
         <input
           tuiTextfield
           formControlName="path"
@@ -57,7 +58,7 @@ export interface CifsResult {
       <tui-error formControlName="path" [error]="[] | tuiFieldError | async" />
 
       <tui-textfield class="input">
-        <label tuiLabel>Username*</label>
+        <label tuiLabel>{{ 'Username' | i18n }}*</label>
         <input
           tuiTextfield
           formControlName="username"
@@ -70,7 +71,7 @@ export interface CifsResult {
       />
 
       <tui-textfield class="input">
-        <label tuiLabel>Password</label>
+        <label tuiLabel>{{ 'Password' | i18n }}</label>
         <input tuiTextfield type="password" formControlName="password" />
         <tui-icon tuiPassword />
       </tui-textfield>
@@ -83,10 +84,10 @@ export interface CifsResult {
           [disabled]="connecting"
           (click)="cancel()"
         >
-          Cancel
+          {{ 'Cancel' | i18n }}
         </button>
         <button tuiButton [disabled]="form.invalid" [loading]="connecting">
-          Connect
+          {{ 'Connect' | i18n }}
         </button>
       </footer>
     </form>
@@ -112,6 +113,7 @@ export interface CifsResult {
     TuiError,
     TuiFieldErrorPipe,
     TuiIcon,
+    i18nPipe,
   ],
   providers: [
     {
@@ -126,6 +128,7 @@ export class CifsComponent {
   private readonly dialogs = inject(TuiDialogService)
   private readonly api = inject(ApiService)
   private readonly context = injectContext<TuiDialogContext<CifsResult>>()
+  private readonly i18n = inject(i18nPipe)
 
   connecting = false
 
@@ -181,9 +184,11 @@ export class CifsComponent {
   private onFail() {
     this.dialogs
       .open(
-        'Unable to connect to network folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.',
+        this.i18n.transform(
+          'Unable to connect to network folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.',
+        ),
         {
-          label: 'Connection Failed',
+          label: this.i18n.transform('Connection Failed'),
           size: 's',
         },
       )

@@ -8,7 +8,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { ErrorService, i18nKey, LoadingService } from '@start9labs/shared'
+import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
 import { TuiAutoFocus, TuiMapperPipe, TuiValidator } from '@taiga-ui/cdk'
 import {
   TuiButton,
@@ -31,13 +31,15 @@ import { StateService } from '../services/state.service'
       <header tuiHeader>
         <h2 tuiTitle>
           {{
-            isRequired ? 'Set Master Password' : 'Set New Password (Optional)'
+            isRequired
+              ? ('Set Master Password' | i18n)
+              : ('Set New Password (Optional)' | i18n)
           }}
           <span tuiSubtitle>
             {{
               isRequired
-                ? 'Make it good. Write it down.'
-                : 'Skip to keep your existing password.'
+                ? ('Make it good. Write it down.' | i18n)
+                : ('Skip to keep your existing password.' | i18n)
             }}
           </span>
         </h2>
@@ -46,7 +48,9 @@ import { StateService } from '../services/state.service'
       <form [formGroup]="form" (ngSubmit)="submit()">
         <tui-textfield>
           <label tuiLabel>
-            {{ isRequired ? 'Enter Password' : 'New Password' }}
+            {{
+              isRequired ? ('Enter Password' | i18n) : ('New Password' | i18n)
+            }}
           </label>
           <input
             tuiTextfield
@@ -63,7 +67,7 @@ import { StateService } from '../services/state.service'
         />
 
         <tui-textfield [style.margin-top.rem]="1">
-          <label tuiLabel>Confirm Password</label>
+          <label tuiLabel>{{ 'Confirm Password' | i18n }}</label>
           <input
             tuiTextfield
             type="password"
@@ -88,7 +92,7 @@ import { StateService } from '../services/state.service'
                 : form.controls.password.value && form.invalid
             "
           >
-            Finish
+            {{ 'Finish' | i18n }}
           </button>
           @if (!isRequired) {
             <button
@@ -97,7 +101,7 @@ import { StateService } from '../services/state.service'
               type="button"
               (click)="skip()"
             >
-              Skip
+              {{ 'Skip' | i18n }}
             </button>
           }
         </footer>
@@ -127,6 +131,7 @@ import { StateService } from '../services/state.service'
     TuiMapperPipe,
     TuiHeader,
     TuiTitle,
+    i18nPipe,
   ],
   providers: [
     tuiValidationErrorsProvider({
@@ -142,6 +147,7 @@ export default class PasswordPage {
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
+  private readonly i18n = inject(i18nPipe)
 
   // Password is required only for fresh install
   readonly isRequired = this.stateService.setupType === 'fresh'
@@ -156,7 +162,9 @@ export default class PasswordPage {
   })
 
   readonly validator = (value: string) => (control: AbstractControl) =>
-    value === control.value ? null : { match: 'Passwords do not match' }
+    value === control.value
+      ? null
+      : { match: this.i18n.transform('Passwords do not match') }
 
   async skip() {
     // Skip means no new password - pass null
@@ -168,7 +176,7 @@ export default class PasswordPage {
   }
 
   private async executeSetup(password: string | null) {
-    const loader = this.loader.open('Starting setup...' as i18nKey).subscribe()
+    const loader = this.loader.open('Starting setup').subscribe()
 
     try {
       if (this.stateService.setupType === 'attach') {
