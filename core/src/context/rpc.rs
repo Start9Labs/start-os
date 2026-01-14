@@ -180,7 +180,7 @@ impl RpcContext {
                 .invoke(ErrorKind::ParseSysInfo)
                 .await
             {
-                tracing::warn!("nvidia-modprobe: {e}");
+                tracing::warn!("nvidia-smi: {e}");
                 tracing::info!("The above warning can be ignored if no NVIDIA card is present");
             } else {
                 async {
@@ -194,14 +194,24 @@ impl RpcContext {
                     )?
                     .trim()
                     .into();
-                    let sqfs = Path::new("/media/startos/data/package-data/nvidia")
-                        .join(&*version)
-                        .join("container-overlay.squashfs");
+
+                    let nvidia_dir =
+                        Path::new("/media/startos/data/package-data/nvidia").join(&*version);
+
+                    // Generate single squashfs with both debian and generic overlays
+                    let sqfs = nvidia_dir.join("container-overlay.squashfs");
                     if tokio::fs::metadata(&sqfs).await.is_err() {
                         let tmp = TmpDir::new().await?;
+
+                        // Generate debian overlay (libs in /usr/lib/aarch64-linux-gnu/)
+                        let debian_dir = tmp.join("debian");
+                        tokio::fs::create_dir_all(&debian_dir).await?;
+                        // Create /etc/debian_version to trigger debian path detection
+                        tokio::fs::create_dir_all(debian_dir.join("etc")).await?;
+                        tokio::fs::write(debian_dir.join("etc/debian_version"), "").await?;
                         let procfs = MountGuard::mount(
                             &Bind::new("/proc"),
-                            Path::new(&*tmp).join("proc"),
+                            debian_dir.join("proc"),
                             ReadOnly,
                         )
                         .await?;
@@ -213,25 +223,49 @@ impl RpcContext {
                             .arg("--compute")
                             .arg("--graphics")
                             .arg("--video")
-                            .arg(&*tmp)
+                            .arg(&debian_dir)
                             .invoke(ErrorKind::Unknown)
                             .await?;
                         procfs.unmount(true).await?;
-                        Command::new("ln")
-                            .arg("-rsf")
-                            .arg(
-                                tmp.join("usr/lib64/libnvidia-ml.so")
-                                    .with_added_extension(&*version),
-                            )
-                            .arg(tmp.join("usr/lib64/libnvidia-ml.so.1"))
-                            .invoke(ErrorKind::Filesystem)
+                        // Run ldconfig to create proper symlinks for all NVIDIA libraries
+                        Command::new("ldconfig")
+                            .arg("-r")
+                            .arg(&debian_dir)
+                            .invoke(ErrorKind::Unknown)
                             .await?;
-                        Command::new("chown")
-                            .arg("-R")
-                            .arg("100000:100000")
-                            .arg(&*tmp)
-                            .invoke(ErrorKind::Filesystem)
+                        // Remove /etc/debian_version - it was only needed for nvidia-container-cli detection
+                        tokio::fs::remove_file(debian_dir.join("etc/debian_version")).await?;
+
+                        // Generate generic overlay (libs in /usr/lib64/)
+                        let generic_dir = tmp.join("generic");
+                        tokio::fs::create_dir_all(&generic_dir).await?;
+                        // No /etc/debian_version - will use generic /usr/lib64 paths
+                        let procfs = MountGuard::mount(
+                            &Bind::new("/proc"),
+                            generic_dir.join("proc"),
+                            ReadOnly,
+                        )
+                        .await?;
+                        Command::new("nvidia-container-cli")
+                            .arg("configure")
+                            .arg("--no-devbind")
+                            .arg("--no-cgroups")
+                            .arg("--utility")
+                            .arg("--compute")
+                            .arg("--graphics")
+                            .arg("--video")
+                            .arg(&generic_dir)
+                            .invoke(ErrorKind::Unknown)
                             .await?;
+                        procfs.unmount(true).await?;
+                        // Run ldconfig to create proper symlinks for all NVIDIA libraries
+                        Command::new("ldconfig")
+                            .arg("-r")
+                            .arg(&generic_dir)
+                            .invoke(ErrorKind::Unknown)
+                            .await?;
+
+                        // Create squashfs with UID/GID mapping (avoids chown on readonly mounts)
                         if let Some(p) = sqfs.parent() {
                             tokio::fs::create_dir_all(p)
                                 .await
@@ -240,6 +274,10 @@ impl RpcContext {
                         Command::new("mksquashfs")
                             .arg(&*tmp)
                             .arg(&sqfs)
+                            .arg("-force-uid")
+                            .arg("100000")
+                            .arg("-force-gid")
+                            .arg("100000")
                             .invoke(ErrorKind::Filesystem)
                             .await?;
                         tmp.unmount_and_delete().await?;
