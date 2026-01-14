@@ -596,4 +596,5 @@ export default {
   626: 'Téléverser',
   627: 'Ouvrir UI',
   628: 'Copié dans le presse-papiers',
+  629: 'La liste est vide',
 } satisfies i18n
