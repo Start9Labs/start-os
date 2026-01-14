@@ -202,7 +202,7 @@ cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
 
 set -e
 
-if [ "${NON_FREE}" = "1" ]; then
+if [ "${NON_FREE}" = "1" ] && [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ]; then
     # install a specific NVIDIA driver version
 
     # ---------------- configuration ----------------

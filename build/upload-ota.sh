@@ -15,10 +15,10 @@ if [ "$SKIP_DL" != "1" ]; then
     fi
 
     if [ -n "$RUN_ID" ]; then
-        for arch in aarch64 aarch64-nonfree riscv64 x86_64 x86_64-nonfree raspberrypi; do
+        for arch in aarch64 aarch64-nonfree riscv64 riscv64-nonfree x86_64 x86_64-nonfree raspberrypi; do
             while ! gh run download -R Start9Labs/start-os $RUN_ID -n $arch.squashfs -D $(pwd); do sleep 1; done
         done
-        for arch in aarch64 aarch64-nonfree riscv64 x86_64 x86_64-nonfree; do
+        for arch in aarch64 aarch64-nonfree riscv64 riscv64-nonfree x86_64 x86_64-nonfree; do
             while ! gh run download -R Start9Labs/start-os $RUN_ID -n $arch.iso -D $(pwd); do sleep 1; done
         done
         while ! gh run download -R Start9Labs/start-os $RUN_ID -n raspberrypi.img -D $(pwd); do sleep 1; done
@@ -69,7 +69,7 @@ elif [ "$SKIP_UL" != "1" ]; then
 fi
 
 if [ "$SKIP_INDEX" != "1" ]; then
-    for arch in aarch64 aarch64-nonfree x86_64 x86_64-nonfree; do
+    for arch in aarch64 aarch64-nonfree riscv64 riscv64-nonfree x86_64 x86_64-nonfree; do
         for file in *_$arch.squashfs *_$arch.iso; do
             start-cli --registry=https://alpha-registry-x.start9.com registry os asset add --platform=$arch --version=$VERSION $file https://github.com/Start9Labs/start-os/releases/download/v$VERSION/$(echo -n "$file" | sed 's/~/./g')
         done

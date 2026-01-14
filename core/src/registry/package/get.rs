@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use clap::{Parser, ValueEnum};
-use exver::{ExtendedVersion, VersionRange};
+use exver::{ExtendedVersion, Version, VersionRange};
 use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -247,17 +247,17 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
             package_other.insert(version.into(), (info, assets));
         }
     }
-    if let Some(id) = params.id {
+    let mut res = if let Some(id) = &params.id {
         let categories = peek
             .as_index()
             .as_package()
             .as_packages()
-            .as_idx(&id)
+            .as_idx(id)
             .map(|p| p.as_categories().de())
             .transpose()?
             .unwrap_or_default();
         let best = best
-            .remove(&id)
+            .remove(id)
             .unwrap_or_default()
             .into_iter()
             .map(|(k, (i, a))| {
@@ -271,7 +271,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                 ))
             })
             .try_collect()?;
-        let other = other.remove(&id).unwrap_or_default();
+        let other = other.remove(id).unwrap_or_default();
         match params.other_versions {
             PackageDetailLevel::None => to_value(&GetPackageResponse {
                 categories,
@@ -431,7 +431,47 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                     .try_collect::<_, GetPackagesResponseFull, _>()?,
             ),
         }
+    }?;
+
+    // TODO: remove
+    if true
+        || params.device_info.map_or(false, |d| {
+            "0.4.0-alpha.17"
+                .parse::<Version>()
+                .map_or(false, |v| d.os.version <= v)
+        })
+    {
+        let patch = |v: &mut Value| {
+            for kind in ["best", "otherVersions"] {
+                for (_, v) in v[kind]
+                    .as_object_mut()
+                    .into_iter()
+                    .map(|v| v.iter_mut())
+                    .flatten()
+                {
+                    let Some(mut tup) = v["s9pks"].get(0).cloned() else {
+                        continue;
+                    };
+                    v["s9pk"] = tup[1].take();
+                    v["hardwareRequirements"] = tup[0].take();
+                    v["s9pk"]["url"] = v["s9pk"]["urls"][0].clone();
+                }
+            }
+        };
+        if params.id.is_some() {
+            patch(&mut res);
+        } else {
+            for (_, v) in res
+                .as_object_mut()
+                .into_iter()
+                .map(|v| v.iter_mut())
+                .flatten()
+            {
+                patch(v);
+            }
+        }
     }
+    Ok(res)
 }
 
 pub fn display_package_info(

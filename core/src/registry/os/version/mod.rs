@@ -187,7 +187,8 @@ pub async fn get_version(
         platform,
         device_info,
     }: GetOsVersionParams,
-) -> Result<BTreeMap<Version, OsVersionInfo>, Error> {
+) -> Result<Value, Error> // BTreeMap<Version, OsVersionInfo>
+{
     let source = source.or_else(|| device_info.as_ref().map(|d| d.os.version.clone()));
     let platform = platform.or_else(|| device_info.as_ref().map(|d| d.os.platform.clone()));
     if let (Some(pool), Some(server_id), Some(arch)) = (&ctx.pool, server_id, &platform) {
@@ -202,32 +203,62 @@ pub async fn get_version(
             .with_kind(ErrorKind::Database)?;
     }
     let target = target.unwrap_or(VersionRange::Any);
-    ctx.db
-        .peek()
-        .await
-        .into_index()
-        .into_os()
-        .into_versions()
-        .into_entries()?
-        .into_iter()
-        .map(|(v, i)| i.de().map(|i| (v, i)))
-        .filter_ok(|(version, info)| {
-            platform
-                .as_ref()
-                .map_or(true, |p| info.squashfs.contains_key(p))
-                && version.satisfies(&target)
-                && source
+    let mut res = to_value::<BTreeMap<Version, OsVersionInfo>>(
+        &ctx.db
+            .peek()
+            .await
+            .into_index()
+            .into_os()
+            .into_versions()
+            .into_entries()?
+            .into_iter()
+            .map(|(v, i)| i.de().map(|i| (v, i)))
+            .filter_ok(|(version, info)| {
+                platform
                     .as_ref()
-                    .map_or(true, |s| s.satisfies(&info.source_version))
-        })
-        .collect()
+                    .map_or(true, |p| info.squashfs.contains_key(p))
+                    && version.satisfies(&target)
+                    && source
+                        .as_ref()
+                        .map_or(true, |s| s.satisfies(&info.source_version))
+            })
+            .collect::<Result<_, _>>()?,
+    )?;
+
+    // TODO: remove
+    if device_info.map_or(false, |d| {
+        "0.4.0-alpha.17"
+            .parse::<Version>()
+            .map_or(false, |v| d.os.version <= v)
+    }) {
+        for (_, v) in res
+            .as_object_mut()
+            .into_iter()
+            .map(|v| v.iter_mut())
+            .flatten()
+        {
+            for asset_ty in ["iso", "squashfs", "img"] {
+                for (_, v) in v[asset_ty]
+                    .as_object_mut()
+                    .into_iter()
+                    .map(|v| v.iter_mut())
+                    .flatten()
+                {
+                    v["url"] = v["urls"][0].clone();
+                }
+            }
+        }
+    }
+    Ok(res)
 }
 
 pub fn display_version_info<T>(
     params: WithIoFormat<T>,
-    info: BTreeMap<Version, OsVersionInfo>,
+    info: Value, // BTreeMap<Version, OsVersionInfo>,
 ) -> Result<(), Error> {
     use prettytable::*;
+
+    let info = from_value::<BTreeMap<Version, OsVersionInfo>>(info)?;
 
     if let Some(format) = params.format {
         return display_serializable(format, info);

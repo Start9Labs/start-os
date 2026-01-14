@@ -15,5 +15,8 @@ fn main() {
     }) {
         PREFER_DOCKER.set(true).ok();
     }
-    MultiExecutable::default().enable_start_cli().execute()
+    MultiExecutable::default()
+        .enable_start_cli()
+        .set_default("start-cli")
+        .execute()
 }
