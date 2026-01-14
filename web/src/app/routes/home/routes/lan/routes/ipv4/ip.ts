@@ -33,10 +33,10 @@ import LanIpv4 from '.'
 @Component({
   selector: 'lan-ipv4-ip',
   template: `
-    <header tuiHeader="body-l"><h2 tuiTitle>IP Addresses</h2></header>
+    <header tuiHeader="body-l"><h2 tuiTitle>Network</h2></header>
     <section>
       <div>
-        <label tuiLabel>Address Range*</label>
+        <label tuiLabel>Network Block*</label>
         <div class="ip-group">
           <tui-textfield tuiChevron [tuiTextfieldCleaner]="false">
             <input tuiSelect formControlName="firstOctet" />
@@ -46,18 +46,13 @@ import LanIpv4 from '.'
             <input tuiInput [value]="secondOctet()" disabled />
           </tui-textfield>
           <tui-textfield [tuiTextfieldCleaner]="false">
-            <input
-              tuiInputNumber
-              formControlName="thirdOctet"
-              [min]="0"
-              [max]="255"
-            />
+            <input tuiInput value="x" disabled />
           </tui-textfield>
           <tui-textfield [tuiTextfieldCleaner]="false">
             <input tuiInput value="x" disabled />
           </tui-textfield>
+          <span class="cidr">/16</span>
         </div>
-        <tui-error formControlName="thirdOctet" />
       </div>
       <div>
         <label tuiLabel>Router IP*</label>
@@ -69,7 +64,7 @@ import LanIpv4 from '.'
             <input tuiInput [value]="secondOctet()" disabled />
           </tui-textfield>
           <tui-textfield [tuiTextfieldCleaner]="false">
-            <input tuiInput [value]="thirdOctet$()" disabled />
+            <input tuiInput value="0" disabled />
           </tui-textfield>
           <tui-textfield [tuiTextfieldCleaner]="false">
             <input
@@ -88,14 +83,21 @@ import LanIpv4 from '.'
     .ip-group {
       display: flex;
       gap: 0.25rem;
+      align-items: center;
 
       tui-textfield {
-        width: 4.5rem;
+        width: 5.5rem;
+      }
+
+      .cidr {
+        font-weight: 500;
+        color: var(--tui-text-secondary);
+        margin-left: 0.25rem;
       }
     }
 
     section > div {
-      min-width: 20rem;
+      min-width: 25rem;
     }
   `,
   viewProviders: [FORM],
@@ -122,13 +124,6 @@ export class LanIpv4Ip {
   readonly firstOctet$ = toSignal(
     this.parent.form.controls.ip.controls.firstOctet.valueChanges.pipe(
       startWith(this.parent.form.controls.ip.controls.firstOctet.value),
-    ),
-    { requireSync: true },
-  )
-
-  readonly thirdOctet$ = toSignal(
-    this.parent.form.controls.ip.controls.thirdOctet.valueChanges.pipe(
-      startWith(this.parent.form.controls.ip.controls.thirdOctet.value),
     ),
     { requireSync: true },
   )

@@ -26,7 +26,7 @@ import { LanIpv4Ip } from './ip'
 import { IpChangedDialog } from './ip-changed-dialog'
 import { LanIpv4Service } from './service'
 import { LanIpv4Summary } from './summary'
-import { buildFullIp, getLanIpv4Form, LanIpv4Form } from './utils'
+import { buildRouterIp, getLanIpv4Form, LanIpv4Form } from './utils'
 
 @Component({
   template: `
@@ -88,9 +88,9 @@ export default class LanIpv4 {
     }
 
     const oldIp = this.service.data()
-      ? buildFullIp(this.service.data()!.ip)
+      ? buildRouterIp(this.service.data()!.ip)
       : ''
-    const newIp = buildFullIp(this.form.getRawValue().ip)
+    const newIp = buildRouterIp(this.form.getRawValue().ip)
     const currentHost = this.window.location.hostname
 
     const saved = await this.service.save(this.form.getRawValue())

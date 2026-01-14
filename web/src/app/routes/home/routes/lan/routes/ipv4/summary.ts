@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core'
 import { Summary } from 'src/app/components/summary'
 import { injectFormService } from 'src/app/services/form.service'
-import { buildFullIp, LanIpv4Form } from './utils'
+import { buildNetworkBlock, buildRouterIp, LanIpv4Form } from './utils'
 
 @Component({
   selector: '[lanIpv4Summary]',
   template: `
     <section>
-      @if (subnet(); as subnet) {
-        <div [appSummary]="subnet">Range</div>
+      @if (networkBlock(); as block) {
+        <div [appSummary]="block">Network Block</div>
       }
       @if (routerIp(); as ip) {
         <div [appSummary]="ip">Router IP</div>
@@ -24,14 +24,11 @@ export class LanIpv4Summary {
 
   readonly routerIp = computed(() => {
     const data = this.service.data()
-    return data ? buildFullIp(data.ip) : ''
+    return data ? buildRouterIp(data.ip) : ''
   })
 
-  readonly subnet = computed(() => {
+  readonly networkBlock = computed(() => {
     const data = this.service.data()
-    if (!data) return ''
-    const ip = buildFullIp(data.ip)
-    const parts = ip.split('.')
-    return `${parts[0]}.${parts[1]}.${parts[2]}.0/24`
+    return data ? buildNetworkBlock(data.ip) : ''
   })
 }

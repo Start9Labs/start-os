@@ -26,11 +26,7 @@ export function getLanIpv4Form(builder: NonNullableFormBuilder) {
   return builder.group({
     ip: builder.group({
       firstOctet: builder.control<FirstOctet>(192),
-      thirdOctet: builder.control(0, [
-        Validators.required,
-        Validators.min(0),
-        Validators.max(255),
-      ]),
+      // Third octet is fixed at 0 for router (default /24 within the /16)
       routerOctet: builder.control(1, [
         Validators.required,
         Validators.min(1),
@@ -42,20 +38,24 @@ export function getLanIpv4Form(builder: NonNullableFormBuilder) {
 
 export type LanIpv4Form = FormRawValue<ReturnType<typeof getLanIpv4Form>>
 
-export function buildFullIp(ip: LanIpv4Form['ip']): string {
+export function buildNetworkBlock(ip: LanIpv4Form['ip']): string {
   const second = getSecondOctet(ip.firstOctet)
-  return `${ip.firstOctet}.${second}.${ip.thirdOctet}.${ip.routerOctet}`
+  return `${ip.firstOctet}.${second}.0.0/16`
+}
+
+export function buildRouterIp(ip: LanIpv4Form['ip']): string {
+  const second = getSecondOctet(ip.firstOctet)
+  return `${ip.firstOctet}.${second}.0.${ip.routerOctet}`
 }
 
 export function parseIpToForm(ipAddr: string): LanIpv4Form {
-  const [first, , third, fourth] = ipAddr.split('.').map(Number)
+  const [first, , , fourth] = ipAddr.split('.').map(Number)
 
   return {
     ip: {
       firstOctet: (FIRST_OCTETS.includes(first as FirstOctet)
         ? first
         : 192) as FirstOctet,
-      thirdOctet: third ?? 0,
       routerOctet: fourth ?? 1,
     },
   }

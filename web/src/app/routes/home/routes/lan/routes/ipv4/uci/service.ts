@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { ApiService } from 'src/app/services/api/api.service'
-import { buildFullIp, LanIpv4Form, parseIpToForm } from '../utils'
+import { buildRouterIp, LanIpv4Form, parseIpToForm } from '../utils'
 import {
   NetworkInterfaceSection,
   UciFile,
@@ -33,7 +33,6 @@ export class LanIpv4UciService {
       return {
         ip: {
           firstOctet: 192,
-          thirdOctet: 0,
           routerOctet: 1,
         },
       }
@@ -68,8 +67,8 @@ export class LanIpv4UciService {
     }
 
     lanInterface.options.proto = 'static'
-    lanInterface.options.ipaddr = buildFullIp(form.ip)
-    lanInterface.options.netmask = '255.255.255.0'
+    lanInterface.options.ipaddr = buildRouterIp(form.ip)
+    lanInterface.options.netmask = '255.255.0.0' // /16 network
 
     await this.api.setUci<(keyof typeof uciFiles)[]>(uciFiles)
 
