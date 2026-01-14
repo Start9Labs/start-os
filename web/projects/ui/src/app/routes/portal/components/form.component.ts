@@ -80,7 +80,7 @@ export interface FormContext<T> {
       margin: 1rem -1px -1rem;
       gap: 1rem;
       background: var(--tui-background-elevation-1);
-      border-top: 1px solid var(--tui-background-base-alt);
+      box-shadow: inset 0 1px var(--tui-background-neutral-1);
     }
   `,
   imports: [

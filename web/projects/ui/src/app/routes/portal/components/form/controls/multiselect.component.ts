@@ -1,12 +1,11 @@
-import { Component } from '@angular/core'
+import { Component, computed } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { invert } from '@start9labs/shared'
 import { IST } from '@start9labs/start-sdk'
-import { tuiPure } from '@taiga-ui/cdk'
 import { TuiIcon, TuiTextfield } from '@taiga-ui/core'
 import { TuiChevron, TuiMultiSelect, TuiTooltip } from '@taiga-ui/kit'
-import { Control } from './control'
 import { HintPipe } from '../pipes/hint.pipe'
+import { Control } from './control'
 
 @Component({
   selector: 'form-multiselect',
@@ -21,7 +20,8 @@ import { HintPipe } from '../pipes/hint.pipe'
         [disabled]="disabled"
         [readOnly]="readOnly"
         [items]="items"
-        [(ngModel)]="selected"
+        [ngModel]="selected()"
+        (ngModelChange)="onSelected($event)"
         (blur)="control.onTouched()"
       ></select>
       @if (spec | hint; as hint) {
@@ -58,30 +58,26 @@ export class FormMultiselectComponent extends Control<
 
   private readonly isExceedingLimit = (item: string) =>
     !!this.spec.maxLength &&
-    this.selected.length >= this.spec.maxLength &&
-    !this.selected.includes(item)
+    this.selected().length >= this.spec.maxLength &&
+    !this.selected().includes(item)
 
   readonly disabledItemHandler = (item: string): boolean =>
     this.isDisabled(item) || this.isExceedingLimit(item)
 
   readonly items = Object.values(this.spec.values)
+  readonly selected = computed(
+    () =>
+      this.control.value().map((key: string) => this.spec.values[key] || '') ||
+      [],
+  )
 
   get disabled(): boolean {
     return typeof this.spec.disabled === 'string'
   }
 
-  get selected(): string[] {
-    return this.memoize(this.value)
-  }
-
-  set selected(value: string[]) {
+  onSelected(value: string[]) {
     this.value = Object.entries(this.spec.values)
       .filter(([_, v]) => value.includes(v))
       .map(([k]) => k)
-  }
-
-  @tuiPure
-  private memoize(value: null | readonly string[]): string[] {
-    return value?.map(key => this.spec.values[key] || '') || []
   }
 }

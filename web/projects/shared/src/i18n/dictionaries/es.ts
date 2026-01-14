@@ -596,4 +596,5 @@ export default {
   626: 'Subir',
   627: 'Abrir UI',
   628: 'Copiado al portapapeles',
+  629: 'La lista está vacía',
 } satisfies i18n

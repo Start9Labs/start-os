@@ -595,4 +595,5 @@ export const ENGLISH = {
   'Upload': 626, // as in, upload a file
   'Open UI': 627, // as in, upload a file
   'Copied to clipboard': 628,
+  'The list is empty': 629,
 } as Record<any, any>

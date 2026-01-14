@@ -87,6 +87,8 @@ import { FormObjectComponent } from './object.component'
           }
         </div>
       </div>
+    } @empty {
+      <div class="placeholder">{{ 'The list is empty' | i18n }}</div>
     }
   `,
   styles: `
@@ -99,8 +101,8 @@ import { FormObjectComponent } from './object.component'
 
     .label {
       display: flex;
-      font-size: 1.25rem;
-      font-weight: bold;
+      align-items: center;
+      font: var(--tui-font-heading-6);
     }
 
     .add {
@@ -156,6 +158,17 @@ import { FormObjectComponent } from './object.component'
       &.tui-leave {
         animation-name: tuiFade, tuiCollapse;
       }
+    }
+
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: var(--tui-height-m);
+      color: var(--tui-text-tertiary);
+      border-radius: var(--tui-radius-m);
+      border: 1px dashed var(--tui-background-neutral-1);
+      margin: 0.5rem 0 0;
     }
   `,
   hostDirectives: [ControlDirective],
