@@ -1,9 +1,0 @@
-{
-  "/rpc/v1": {
-    "target": "http://127.0.0.1:3301",
-    "secure": false,
-    "pathRewrite": {
-      "^/rpc/v1": ""
-    }
-  }
-}
