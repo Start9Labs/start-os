@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod error;
 pub mod ethernet;
+pub mod exec;
 pub mod files;
 pub mod middleware;
 pub mod profiles;
@@ -23,9 +24,9 @@ pub use error::{Error, ErrorKind};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    call_remote_http,
+    call_remote_http, from_fn,
     reqwest::{Client, Url},
-    CallRemote, Context, Empty, ParentHandler,
+    CallRemote, Context, Empty, HandlerExt, ParentHandler,
 };
 
 pub trait CtrlContext: Context + Clone {
@@ -193,6 +194,8 @@ impl CtrlContext for ServerContext {
 }
 
 pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
+    use utils::HandlerExtSerde;
+
     ParentHandler::new()
         .subcommand("auth", auth::auth::<C>())
         .subcommand("profiles", profiles::profiles::<C>())
@@ -201,6 +204,12 @@ pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
         .subcommand("uci", uci::uci::<C>())
         .subcommand("file", files::file::<C>())
         .subcommand("dir", files::dir::<C>())
+        .subcommand(
+            "exec",
+            from_fn(exec::exec_command)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 pub fn init_logging(name: &str) -> DefaultGuard {
