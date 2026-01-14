@@ -3,24 +3,13 @@ import { ChangeDetectionStrategy, Component, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
-import {
-  TuiAppearance,
-  TuiButton,
-  TuiTextfield,
-  TuiTitle,
-} from '@taiga-ui/core'
+import { TuiButton, TuiInput, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 
 @Component({
   selector: 'security-ssh',
   template: `
-    <form
-      tuiForm
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      class="g-form"
-      (ngSubmit)="toggle(false)"
-    >
+    <form tuiForm="m" tuiCardLarge class="g-form" (ngSubmit)="toggle(false)">
       <header tuiHeader>
         <h2 tuiTitle>SSH</h2>
         <aside tuiAccessories>
@@ -68,7 +57,7 @@ import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
                 <tui-textfield>
                   <input
                     tuiAutoFocus
-                    tuiTextfield
+                    tuiInput
                     name="key"
                     placeholder="ssh-rsa..."
                     [(ngModel)]="value"
@@ -109,7 +98,6 @@ import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
   imports: [
     DatePipe,
     FormsModule,
-    TuiAppearance,
     TuiButton,
     TuiCardLarge,
     TuiForm,
@@ -118,6 +106,7 @@ import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
     TuiTable,
     TuiTextfield,
     TuiAutoFocus,
+    TuiInput,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

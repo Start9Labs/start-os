@@ -62,8 +62,7 @@ import {
             <label tuiLabel>Provider</label>
             <input tuiSelect formControlName="provider" />
             <tui-data-list-wrapper
-              *tuiTextfieldDropdown
-              new
+              *tuiDropdown
               [itemContent]="providerContent"
               [items]="providerList"
             />

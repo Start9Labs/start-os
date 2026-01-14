@@ -7,7 +7,7 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiTable } from '@taiga-ui/addon-table'
-import { TuiTextfield, TuiTitle } from '@taiga-ui/core'
+import { TuiInput, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { Help } from 'src/app/directives/help'
@@ -26,11 +26,7 @@ import { DevicesOnline } from './online'
       <hgroup tuiTitle><h2>Devices</h2></hgroup>
       <aside tuiAccessories>
         <tui-textfield tuiTextfieldSize="s" iconStart="@tui.search">
-          <input
-            tuiTextfield
-            placeholder="Search devices"
-            [(ngModel)]="search"
-          />
+          <input tuiInput placeholder="Search devices" [(ngModel)]="search" />
         </tui-textfield>
       </aside>
     </header>
@@ -91,6 +87,7 @@ import { DevicesOnline } from './online'
     TuiTextfield,
     TuiTable,
     TuiSkeleton,
+    TuiInput,
     Help,
     DevicesAside,
     DevicesOnline,

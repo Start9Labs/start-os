@@ -2,6 +2,7 @@
   height: 100%;
   overflow: hidden;
 
+  --tui-stroke-width: 1.25px;
   --tui-text-action: #428bf9;
   --tui-text-action-hover: #165eca;
   --tui-background-accent-1: #428bf9;
@@ -51,6 +52,7 @@ header[tuiHeader] {
   max-width: calc(100vw - 3rem);
 
   + tui-tabs {
+    flex-shrink: 0;
     margin-block-start: 1rem;
   }
 }
@@ -96,7 +98,7 @@ header[tuiHeader] {
     gap: inherit;
     flex-wrap: wrap;
 
-    > *:has([tuiTextfield]) {
+    > *:has([tuiInput]) {
       display: flex;
       flex: 1;
       min-width: 12rem;
@@ -227,9 +229,12 @@ tui-dropdown[data-appearance='start-9'] {
   backdrop-filter: blur(1rem);
 }
 
-tui-dialog[new][data-appearance~='start-9'] {
-  background: var(--tui-background-neutral-1);
-  backdrop-filter: blur(5rem);
+[tuiTheme='dark'] tui-dialog[data-appearance~='start-9'] {
+  background:
+    linear-gradient(45deg, #5240a89c, transparent),
+    linear-gradient(to bottom, #5240a854, transparent),
+    color-mix(in hsl, var(--tui-background-elevation-1) 85%, transparent 15%);
+  background-blend-mode: multiply;
 }
 
 [tuiTheme='dark'] tui-notification-middle[style] {
@@ -252,15 +257,4 @@ tui-dialog[new][data-appearance~='start-9'] {
 
 tui-data-list {
   --tui-text-action: var(--tui-text-primary);
-}
-
-// TODO: Remove in Taiga v5, use native scrollbars
-tui-root > tui-scroll-controls {
-  display: none !important;
-}
-
-// TODO: Remove in Taiga v5
-[tuiForm][tuiForm] > fieldset {
-  grid-auto-flow: row;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
 }

@@ -5,7 +5,11 @@ import {
   signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiTextfield, tuiTextfieldOptionsProvider } from '@taiga-ui/core'
+import {
+  TuiInput,
+  TuiTextfield,
+  tuiTextfieldOptionsProvider,
+} from '@taiga-ui/core'
 import { TuiBlock, TuiSwitch } from '@taiga-ui/kit'
 import { SidebarService } from 'src/app/services/sidebar.service'
 
@@ -16,7 +20,7 @@ import { SidebarService } from 'src/app/services/sidebar.service'
       <img alt="Start9" src="assets/favicon.svg" />
     </button>
     <tui-textfield iconStart="@tui.search">
-      <input tuiTextfield [(ngModel)]="search" />
+      <input tuiInput [(ngModel)]="search" />
     </tui-textfield>
     <label tuiBlock="s" appearance="secondary-grayscale">
       <input type="checkbox" tuiSwitch size="s" [(ngModel)]="sidebars.end" />
@@ -49,7 +53,7 @@ import { SidebarService } from 'src/app/services/sidebar.service'
       width: min(15rem, calc(100vw - 13rem));
     }
 
-    [tuiTextfield],
+    [tuiInput],
     [tuiBlock] {
       border-radius: 2rem;
     }
@@ -71,7 +75,7 @@ import { SidebarService } from 'src/app/services/sidebar.service'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiTextfield, TuiBlock, TuiSwitch, FormsModule],
+  imports: [TuiTextfield, TuiBlock, TuiSwitch, FormsModule, TuiInput],
   providers: [
     tuiTextfieldOptionsProvider({
       size: signal('s'),

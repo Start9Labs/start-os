@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -69,7 +68,7 @@ type SortDirection = 'asc' | 'desc' | null
             }
           </td>
           <td tuiTd>
-            {{ item.dataUsage ?? 0 | tuiFormatNumber | async }}
+            {{ item.dataUsage ?? 0 | tuiFormatNumber }}
             <small class="g-secondary">GB</small>
           </td>
           <td tuiTd class="actions">
@@ -122,7 +121,6 @@ type SortDirection = 'asc' | 'desc' | null
     }
   `,
   imports: [
-    AsyncPipe,
     RouterLink,
     TuiTable,
     TuiIcon,

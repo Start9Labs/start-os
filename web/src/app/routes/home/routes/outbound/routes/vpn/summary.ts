@@ -36,20 +36,20 @@ import OutboundVPN from 'src/app/routes/home/routes/outbound/routes/vpn/index'
           @for (step of connectionPath(); track $index; let last = $last) {
             @if (step === 'Internet') {
               <tui-avatar-labeled label="Internet">
-                <tui-avatar
-                  src="@tui.globe"
+                <span
+                  tuiAvatar="@tui.globe"
                   size="m"
                   appearance="action"
                   class="g-positive"
-                />
+                ></span>
               </tui-avatar-labeled>
             } @else {
               <tui-avatar-labeled [label]="step">
-                <tui-avatar
+                <span
                   appearance="action"
                   size="m"
-                  src="@tui.globe-lock"
-                />
+                  tuiAvatar="@tui.globe-lock"
+                ></span>
               </tui-avatar-labeled>
               <tui-icon icon="@tui.arrow-right" />
             }

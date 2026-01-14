@@ -1,12 +1,16 @@
-import { AsyncPipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
 import { MaskitoDirective } from '@maskito/angular'
 import { MaskitoOptions } from '@maskito/core'
-import { TuiError, TuiLabel, TuiTextfield, TuiTitle } from '@taiga-ui/core'
-import { TUI_VALIDATION_ERRORS, TuiFieldErrorPipe } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
-import { FORM, FormSection } from 'src/app/directives/form'
+import {
+  TuiError,
+  TuiInput,
+  TuiTextfield,
+  TuiTitle,
+  tuiValidationErrorsProvider,
+} from '@taiga-ui/core'
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { FORM } from 'src/app/directives/form'
 import { PREFIX_VALIDATION_ERRORS } from './utils'
 
 @Component({
@@ -17,12 +21,9 @@ import { PREFIX_VALIDATION_ERRORS } from './utils'
       <div>
         <tui-textfield>
           <label tuiLabel>Prefix Length*</label>
-          <input tuiTextfield formControlName="prefix" [maskito]="prefixMask" />
+          <input tuiInput formControlName="prefix" [maskito]="prefixMask" />
         </tui-textfield>
-        <tui-error
-          formControlName="prefix"
-          [error]="[] | tuiFieldError | async"
-        />
+        <tui-error formControlName="prefix" />
       </div>
     </section>
   `,
@@ -36,24 +37,17 @@ import { PREFIX_VALIDATION_ERRORS } from './utils'
     }
   `,
   viewProviders: [FORM],
-  hostDirectives: [FormSection],
-  providers: [
-    {
-      provide: TUI_VALIDATION_ERRORS,
-      useValue: PREFIX_VALIDATION_ERRORS,
-    },
-  ],
+  hostDirectives: [TuiForm, TuiCardLarge],
+  providers: [tuiValidationErrorsProvider(PREFIX_VALIDATION_ERRORS)],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    AsyncPipe,
     ReactiveFormsModule,
     MaskitoDirective,
     TuiHeader,
     TuiTitle,
-    TuiLabel,
+    TuiInput,
     TuiTextfield,
     TuiError,
-    TuiFieldErrorPipe,
   ],
 })
 export class LanIpv6Subnet {

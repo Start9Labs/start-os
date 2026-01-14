@@ -11,14 +11,13 @@ import {
   TuiTablePagination,
   tuiTablePaginationOptionsProvider,
 } from '@taiga-ui/addon-table'
-import { TuiAppearance, TuiButton, TuiTitle } from '@taiga-ui/core'
+import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
-import { of } from 'rxjs'
 
 @Component({
   selector: 'security-activity',
   template: `
-    <form tuiForm tuiCardLarge="compact" tuiAppearance="neutral" class="g-form">
+    <form tuiForm="m" tuiCardLarge class="g-form">
       <header tuiHeader>
         <h2 tuiTitle>Activity</h2>
         <aside tuiAccessories>
@@ -66,12 +65,11 @@ import { of } from 'rxjs'
     tuiTablePaginationOptionsProvider({ showPages: false }),
     {
       provide: TUI_TABLE_PAGINATION_TEXTS,
-      useValue: of({ linesPerPage: '', of: 'of', pages: '' }),
+      useValue: signal({ linesPerPage: '', of: 'of', pages: '' }),
     },
   ],
   imports: [
     DatePipe,
-    TuiAppearance,
     TuiCardLarge,
     TuiForm,
     TuiHeader,

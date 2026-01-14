@@ -29,7 +29,7 @@ export const MENU = {
     },
     {
       name: 'IPv6 Firewall',
-      icon: '@tui.chevrons-right',
+      icon: '@tui.brick-wall-fire',
       link: 'forwarding',
     },
   ],

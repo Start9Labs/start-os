@@ -1,14 +1,15 @@
-import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
-import { TuiError, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import {
-  TUI_VALIDATION_ERRORS,
-  TuiFieldErrorPipe,
-  TuiSwitch,
-} from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
-import { FORM, FormSection } from 'src/app/directives/form'
+  TuiError,
+  TuiInput,
+  TuiTextfield,
+  TuiTitle,
+  tuiValidationErrorsProvider,
+} from '@taiga-ui/core'
+import { TuiSwitch } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { FORM } from 'src/app/directives/form'
 import { DEVICE_VALIDATION_ERRORS } from 'src/app/routes/home/routes/devices/utils'
 
 import DeviceDetail from '.'
@@ -22,15 +23,12 @@ import DeviceDetail from '.'
         <tui-textfield>
           <label tuiLabel>IPv4{{ parent.ipv4Static() ? '*' : '' }}</label>
           <input
-            tuiTextfield
+            tuiInput
             formControlName="ipv4"
             [readOnly]="!parent.ipv4Static()"
           />
         </tui-textfield>
-        <tui-error
-          formControlName="ipv4"
-          [error]="[] | tuiFieldError | async"
-        />
+        <tui-error formControlName="ipv4" />
       </div>
       <label tuiLabel>
         <input tuiSwitch type="checkbox" formControlName="ipv4Static" />
@@ -42,15 +40,12 @@ import DeviceDetail from '.'
         <tui-textfield>
           <label tuiLabel>IPv6{{ parent.ipv6Static() ? '*' : '' }}</label>
           <input
-            tuiTextfield
+            tuiInput
             formControlName="ipv6"
             [readOnly]="!parent.ipv6Static()"
           />
         </tui-textfield>
-        <tui-error
-          formControlName="ipv6"
-          [error]="[] | tuiFieldError | async"
-        />
+        <tui-error formControlName="ipv6" />
       </div>
       <label tuiLabel>
         <input tuiSwitch type="checkbox" formControlName="ipv6Static" />
@@ -59,22 +54,16 @@ import DeviceDetail from '.'
     </section>
   `,
   viewProviders: [FORM],
-  hostDirectives: [FormSection],
-  providers: [
-    {
-      provide: TUI_VALIDATION_ERRORS,
-      useValue: DEVICE_VALIDATION_ERRORS,
-    },
-  ],
+  hostDirectives: [TuiForm, TuiCardLarge],
+  providers: [tuiValidationErrorsProvider(DEVICE_VALIDATION_ERRORS)],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    AsyncPipe,
     ReactiveFormsModule,
     TuiHeader,
     TuiTitle,
     TuiTextfield,
+    TuiInput,
     TuiError,
-    TuiFieldErrorPipe,
     TuiSwitch,
   ],
 })

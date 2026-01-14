@@ -4,7 +4,7 @@ import {
   toObservable,
   toSignal,
 } from '@angular/core/rxjs-interop'
-import { TuiAlertService } from '@taiga-ui/core'
+import { TuiNotificationService } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import {
   catchError,
@@ -14,7 +14,6 @@ import {
   switchMap,
   switchMapTo,
   takeUntil,
-  tap,
   timer,
 } from 'rxjs'
 
@@ -22,7 +21,7 @@ export type FormRawValue<T> = T extends { getRawValue(): infer R } ? R : never
 
 export abstract class FormService<T> {
   private readonly load$ = new Subject<void>()
-  private readonly alerts = inject(TuiAlertService)
+  private readonly alerts = inject(TuiNotificationService)
 
   readonly data = toSignal(
     merge(this.load$, timer(0, 5000)).pipe(

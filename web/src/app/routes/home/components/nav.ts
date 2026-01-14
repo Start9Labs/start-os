@@ -1,7 +1,7 @@
 import { KeyValuePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { Router, RouterLink, RouterLinkActive } from '@angular/router'
-import { TuiAlertService, TuiButton, TuiScrollbar } from '@taiga-ui/core'
+import { TuiNotificationService, TuiButton, TuiScrollbar } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { MENU } from 'src/app/routes/home/components/menu'
 import { ApiService } from 'src/app/services/api/api.service'
@@ -122,7 +122,7 @@ export class Nav {
   private readonly service = inject(AuthService)
   private readonly router = inject(Router)
   private readonly api = inject(ApiService)
-  private readonly alerts = inject(TuiAlertService)
+  private readonly alerts = inject(TuiNotificationService)
   private readonly loading = inject(TuiNotificationMiddleService)
 
   protected readonly sidebars = inject(SidebarService)

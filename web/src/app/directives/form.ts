@@ -4,7 +4,6 @@ import {
   FormGroupDirective,
   FormGroupName,
 } from '@angular/forms'
-import { TuiAppearance } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiForm } from '@taiga-ui/layout'
 
@@ -14,27 +13,13 @@ import { TuiCardLarge, TuiForm } from '@taiga-ui/layout'
   hostDirectives: [
     TuiForm,
     TuiCardLarge,
-    TuiAppearance,
     {
       directive: TuiSkeleton,
       inputs: ['tuiSkeleton: formLoading'],
     },
   ],
 })
-export class Form {
-  constructor() {
-    inject(TuiCardLarge).space = 'compact'
-  }
-}
-
-@Directive({
-  hostDirectives: [TuiForm, TuiCardLarge],
-})
-export class FormSection {
-  constructor() {
-    inject(TuiCardLarge).space = 'compact'
-  }
-}
+export class Form {}
 
 export const FORM = {
   provide: ControlContainer,

@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core'
-import { TuiAlertService } from '@taiga-ui/core'
+import { TuiNotificationService } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { FormService } from 'src/app/services/form.service'
 import { OutboundUciService } from './uci/service'
@@ -8,7 +8,7 @@ import { OutboundVpnTableItem } from './utils'
 @Injectable()
 export class OutboundService extends FormService<OutboundVpnTableItem[]> {
   private readonly uci = inject(OutboundUciService)
-  private readonly alertService = inject(TuiAlertService)
+  private readonly alertService = inject(TuiNotificationService)
   private readonly notifications = inject(TuiNotificationMiddleService)
 
   async load(): Promise<OutboundVpnTableItem[]> {

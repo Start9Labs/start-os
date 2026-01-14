@@ -6,8 +6,11 @@ import {
 } from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
-import { tuiNumberFormatProvider, TuiTitle } from '@taiga-ui/core'
-import { TuiDialogService } from '@taiga-ui/experimental'
+import {
+  TuiDialogService,
+  tuiNumberFormatProvider,
+  TuiTitle,
+} from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { WA_WINDOW } from '@ng-web-apis/common'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'

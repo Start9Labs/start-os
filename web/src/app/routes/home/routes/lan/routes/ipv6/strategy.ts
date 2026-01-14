@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
 import { TuiLabel, TuiTitle } from '@taiga-ui/core'
 import { TuiSwitch } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
-import { FORM, FormSection } from 'src/app/directives/form'
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { FORM } from 'src/app/directives/form'
 import LanIpv6 from '.'
 
 @Component({
@@ -30,7 +30,7 @@ import LanIpv6 from '.'
     }
   `,
   viewProviders: [FORM],
-  hostDirectives: [FormSection],
+  hostDirectives: [TuiForm, TuiCardLarge],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, TuiHeader, TuiTitle, TuiLabel, TuiSwitch],
 })
