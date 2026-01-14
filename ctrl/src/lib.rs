@@ -1,12 +1,24 @@
+pub mod auth;
 pub mod error;
 pub mod ethernet;
 pub mod files;
+pub mod middleware;
 pub mod profiles;
 pub mod uci;
 pub mod utils;
 pub mod wifi;
 
+use std::fs::File;
+use std::io::BufReader;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, OnceLock};
+
 use clap::Parser;
+use cookie_store::CookieStore;
+use reqwest_cookie_store::CookieStoreMutex;
+use tokio::runtime::Runtime;
+use tracing::subscriber::DefaultGuard;
+
 pub use error::{Error, ErrorKind};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
@@ -15,40 +27,124 @@ use rpc_toolkit::{
     reqwest::{Client, Url},
     CallRemote, Context, Empty, ParentHandler,
 };
-use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
-use tokio::runtime::Runtime;
-use tracing::subscriber::DefaultGuard;
 
 pub trait CtrlContext: Context + Clone {
     fn uci_root(&self) -> PathBuf;
     fn effectful(&self) -> bool;
 }
 
+fn cookies_path() -> PathBuf {
+    std::env::var("HOME")
+        .map(|h| PathBuf::from(h).join(".startwrt").join(".cookies.json"))
+        .unwrap_or_else(|_| PathBuf::from("/tmp/.startwrt-cookies.json"))
+}
+
+/// CLI arguments parsed by clap
 #[derive(Clone, Parser)]
-pub struct CliContext {
+pub struct CliArgs {
     #[clap(long, default_value = "/etc/config")]
     pub config_root: PathBuf,
     #[clap(long)]
     pub configs_only: bool,
     #[clap(long, default_value = "http://127.0.0.1:3301")]
     pub host: Url,
-    #[clap(skip)]
-    client: OnceLock<Client>,
-    #[clap(skip)]
+}
+
+/// Inner context with cookie persistence on Drop
+pub struct CliContextSeed {
+    pub config_root: PathBuf,
+    pub configs_only: bool,
+    pub host: Url,
+    pub client: Client,
+    pub cookie_store: Arc<CookieStoreMutex>,
+    pub cookie_path: PathBuf,
     runtime: OnceLock<Arc<Runtime>>,
 }
 
+impl Drop for CliContextSeed {
+    fn drop(&mut self) {
+        let tmp = format!("{}.tmp", self.cookie_path.display());
+        let parent_dir = self.cookie_path.parent().unwrap_or(Path::new("/"));
+        if !parent_dir.exists() {
+            if let Err(e) = std::fs::create_dir_all(parent_dir) {
+                tracing::warn!("Failed to create cookie directory: {}", e);
+                return;
+            }
+        }
+        let file = match File::create(&tmp) {
+            Ok(f) => f,
+            Err(e) => {
+                tracing::warn!("Failed to create cookie temp file: {}", e);
+                return;
+            }
+        };
+        let mut writer = match fd_lock_rs::FdLock::lock(file, fd_lock_rs::LockType::Exclusive, true)
+        {
+            Ok(w) => w,
+            Err(e) => {
+                tracing::warn!("Failed to lock cookie file: {}", e);
+                return;
+            }
+        };
+        let store = self.cookie_store.lock().unwrap();
+        if let Err(e) = cookie_store::serde::json::save(&store, &mut *writer) {
+            tracing::warn!("Failed to save cookies: {}", e);
+            return;
+        }
+        if let Err(e) = writer.sync_all() {
+            tracing::warn!("Failed to sync cookie file: {}", e);
+            return;
+        }
+        if let Err(e) = std::fs::rename(&tmp, &self.cookie_path) {
+            tracing::warn!("Failed to rename cookie file: {}", e);
+        }
+    }
+}
+
+/// CLI context with session persistence
+#[derive(Clone)]
+pub struct CliContext(Arc<CliContextSeed>);
+
 impl CliContext {
+    pub fn init(args: CliArgs) -> Result<Self, Error> {
+        let cookie_path = cookies_path();
+        let cookie_store = Arc::new(CookieStoreMutex::new(if cookie_path.exists() {
+            cookie_store::serde::json::load(BufReader::new(
+                File::open(&cookie_path).map_err(|e| {
+                    Error::other(format!("Failed to open cookie file: {}", e))
+                })?,
+            ))
+            .unwrap_or_default()
+        } else {
+            CookieStore::default()
+        }));
+
+        let client = Client::builder()
+            .cookie_provider(cookie_store.clone())
+            .build()
+            .map_err(|e| Error::other(format!("Failed to build HTTP client: {}", e)))?;
+
+        Ok(Self(Arc::new(CliContextSeed {
+            config_root: args.config_root,
+            configs_only: args.configs_only,
+            host: args.host,
+            client,
+            cookie_store,
+            cookie_path,
+            runtime: OnceLock::new(),
+        })))
+    }
+
     pub fn client(&self) -> &Client {
-        self.client.get_or_init(Client::new)
+        &self.0.client
     }
 }
 
 impl Context for CliContext {
     fn runtime(&self) -> Option<Arc<Runtime>> {
         Some(
-            self.runtime
+            self.0
+                .runtime
                 .get_or_init(|| {
                     Arc::new(
                         tokio::runtime::Builder::new_current_thread()
@@ -64,11 +160,11 @@ impl Context for CliContext {
 
 impl CtrlContext for CliContext {
     fn uci_root(&self) -> PathBuf {
-        self.config_root.clone()
+        self.0.config_root.clone()
     }
 
     fn effectful(&self) -> bool {
-        self.configs_only
+        self.0.configs_only
     }
 }
 
@@ -79,7 +175,7 @@ impl CallRemote<ServerContext> for CliContext {
         params: Value,
         _extra: Empty,
     ) -> Result<Value, RpcError> {
-        call_remote_http(self.client(), self.host.clone(), method, params).await
+        call_remote_http(self.client(), self.0.host.clone(), method, params).await
     }
 }
 
@@ -98,6 +194,7 @@ impl CtrlContext for ServerContext {
 
 pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
+        .subcommand("auth", auth::auth::<C>())
         .subcommand("profiles", profiles::profiles::<C>())
         .subcommand("ethernet", ethernet::ethernet::<C>())
         .subcommand("wifi", wifi::wifi::<C>())

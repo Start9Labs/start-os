@@ -2,7 +2,7 @@ use axum::routing::post;
 use axum::Router;
 use color_eyre::eyre::Error;
 use rpc_toolkit::Server;
-use startwrt_ctrl::{init_logging, main_api, ServerContext};
+use startwrt_ctrl::{init_logging, main_api, middleware::SessionAuth, ServerContext};
 use std::future::ready;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -11,7 +11,8 @@ use tracing::instrument;
 #[instrument(skip_all)]
 async fn inner_main() -> Result<(), Error> {
     let ctx = ServerContext;
-    let handler = Server::new(move || ready(Ok(ctx.clone())), main_api()).for_http();
+    let handler = Server::new(move || ready(Ok(ctx.clone())), main_api())
+        .middleware(SessionAuth::new());
     let addr = SocketAddr::from(([0, 0, 0, 0], 3301));
     let app = Router::new().route("/", post(handler));
     println!("listening on {}", addr);
