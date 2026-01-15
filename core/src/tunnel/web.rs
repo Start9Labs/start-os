@@ -466,7 +466,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
 
                 println!("✅ Success! ✅");
                 println!(
-                    "The webserver is running. Below is your URL{} and Root Certificate Authority (Root CA).",
+                    "StartTunnel installed successfully. Below is your Web URL{} and Root Certificate Authority (Root CA).",
                     if password.is_some() {
                         ", password,"
                     } else {
@@ -474,7 +474,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                     }
                 );
                 println!();
-                println!("🌐 URL");
+                println!("🌐 Web URL");
                 println!("https://{listen}");
                 if listen.ip().is_unspecified() {
                     println!(concat!(
@@ -517,21 +517,32 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 .map(Pem)
                 .or_not_found("certificate in chain")?;
                 println!("📝 Root CA:");
-                print!("{cert}");
+                print!("{cert}\n");
 
                 println!(concat!(
-                    "To trust your StartTunnel Root CA (above):\n",
-                    "  1. Copy the Root CA ",
-                    "(starting with -----BEGIN CERTIFICATE----- and ending with -----END CERTIFICATE-----).\n",
-                    "  2. Open a text editor: \n",
-                    "    - Linux: gedit, nano, or any editor\n",
-                    "    - Mac: TextEdit\n",
-                    "    - Windows: Notepad\n",
-                    "  3. Paste the contents of your Root CA.\n",
-                    "  4. Save the file with a `.crt` extension ",
-                    "(e.g. `start-tunnel.crt`) (make sure it saves as plain text, not rich text).\n",
-                    "  5. Follow instructions to trust you StartTunnel Root CA: ",
-                    "https://staging.docs.start9.com/user-manual/trust-ca.html#2-trust-your-servers-root-ca."
+                    "To access your Web URL securely, trust your Root CA (displayed above) on your client device(s):\n",
+                    "  - MacOS\n",
+                    "    1. Open the Terminal app\n",
+                    "    2. Paste the following command (**DO NOTt** click Return): pbcopy < ~/Desktop/ca.crt\n",
+                    "    3. Copy your Root CA (including -----BEGIN CERTIFICATE----- and -----END CERTIFICATE-----)\n",
+                    "    4. Back in Terminal, click Return. ca.crt is saved to your Desktop\n",
+                    "    5. Complete by trusting your Root CA: https://https://staging.docs.start9.com/device-guides/mac/ca.html\n",
+                    "  - Linux\n",
+                    "    1. Open gedit, nano, or any editor\n",
+                    "    2. Copy/paste your Root CA (including -----BEGIN CERTIFICATE----- and -----END CERTIFICATE-----)\n",
+                    "    3. Name the file ca.crt and save as plaintext\n",
+                    "    5. Complete by trusting your Root CA: https://https://staging.docs.start9.com/device-guides/linux/ca.html\n",
+                    "  - Windows\n",
+                    "    1. Open the Notepad app\n",
+                    "    2. Copy/paste your Root CA (including -----BEGIN CERTIFICATE----- and -----END CERTIFICATE-----)\n",
+                    "    3. Name the file ca.crt and save as plaintext\n",
+                    "    5. Complete by trusting your Root CA: https://https://staging.docs.start9.com/device-guides/windows/ca.html\n",
+                    "  - Android/Graphene\n",
+                    "    1. Send the ca.crt file (created above) to yourself\n",
+                    "    2. Complete by trusting your Root CA: https://https://staging.docs.start9.com/device-guides/android/ca.html\n",
+                    "  - iOS\n",
+                    "    1. Send the ca.crt file (created above) to yourself\n",
+                    "    2. Complete by trusting your Root CA: https://https://staging.docs.start9.com/device-guides/ios/ca.html\n",
                 ));
 
                 return Ok(());
