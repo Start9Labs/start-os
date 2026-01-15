@@ -10,6 +10,8 @@ import type { PackageId } from "./PackageId"
 import type { RegistryAsset } from "./RegistryAsset"
 
 export type PackageVersionInfo = {
+  sourceVersion: string | null
+  s9pks: Array<[HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>]>
   title: string
   icon: DataUrl
   description: Description
@@ -26,7 +28,5 @@ export type PackageVersionInfo = {
   dependencyMetadata: { [key: PackageId]: DependencyMetadata }
   osVersion: string
   sdkVersion: string | null
-  hardwareRequirements: HardwareRequirements
-  sourceVersion: string | null
-  s9pk: RegistryAsset<MerkleArchiveCommitment>
+  hardwareAcceleration: boolean
 }

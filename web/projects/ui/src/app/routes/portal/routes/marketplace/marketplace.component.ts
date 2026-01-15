@@ -111,11 +111,11 @@ import { ConfigService } from 'src/app/services/config.service'
       &-list {
         display: grid;
         grid-template-columns: repeat(1, minmax(0, 1fr));
-        gap: 4rem 3rem;
+        gap: 3.5rem 2.5rem;
         padding: 1.5rem;
 
         @media (min-width: 768px) {
-          padding: 2rem;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         @media (min-width: 1024px) {
           grid-template-columns: repeat(2, minmax(0, 1fr));

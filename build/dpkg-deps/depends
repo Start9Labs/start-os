@@ -3,6 +3,7 @@ avahi-utils
 b3sum
 bash-completion
 beep
+binfmt-support
 bmon
 btrfs-progs
 ca-certificates
@@ -15,6 +16,7 @@ dnsutils
 dosfstools
 e2fsprogs
 ecryptfs-utils
+equivs
 exfatprogs
 flashrom
 fuse3

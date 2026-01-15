@@ -11,6 +11,10 @@ use crate::service::effects::prelude::*;
 use crate::service::persistent_container::Subcontainer;
 use crate::util::Invoke;
 
+pub const NVIDIA_OVERLAY_PATH: &str = "/var/tmp/startos/nvidia-overlay";
+pub const NVIDIA_OVERLAY_DEBIAN: &str = "/var/tmp/startos/nvidia-overlay/debian";
+pub const NVIDIA_OVERLAY_GENERIC: &str = "/var/tmp/startos/nvidia-overlay/generic";
+
 #[cfg(target_os = "linux")]
 mod sync;
 
@@ -112,8 +116,34 @@ pub async fn create_subcontainer_fs(
                 .with_kind(ErrorKind::Incoherent)?,
         );
         tracing::info!("Mounting overlay {guid} for {image_id}");
+
+        // Determine which nvidia overlay to use based on distro detection
+        let nvidia_overlay: &[&str] = if context
+            .seed
+            .persistent_container
+            .s9pk
+            .as_manifest()
+            .images
+            .get(&image_id)
+            .map_or(false, |i| i.nvidia_container)
+        {
+            // Check if image is debian-based by looking for /etc/debian_version
+            let is_debian = tokio::fs::metadata(image.path().join("etc/debian_version"))
+                .await
+                .is_ok();
+            if is_debian && tokio::fs::metadata(NVIDIA_OVERLAY_DEBIAN).await.is_ok() {
+                &[NVIDIA_OVERLAY_DEBIAN]
+            } else if tokio::fs::metadata(NVIDIA_OVERLAY_GENERIC).await.is_ok() {
+                &[NVIDIA_OVERLAY_GENERIC]
+            } else {
+                &[]
+            }
+        } else {
+            &[]
+        };
+
         let subcontainer_wrapper = Subcontainer {
-            overlay: OverlayGuard::mount(image, &mountpoint).await?,
+            overlay: OverlayGuard::mount_layers(&[], image, nvidia_overlay, &mountpoint).await?,
             name: name
                 .unwrap_or_else(|| InternedString::intern(format!("subcontainer-{}", image_id))),
             image_id: image_id.clone(),

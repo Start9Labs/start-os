@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use axum::extract::ws;
-use const_format::formatcp;
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};

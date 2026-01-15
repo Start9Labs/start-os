@@ -15,6 +15,7 @@ use crate::s9pk::git_hash::GitHash;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::expected::{Expected, Filter};
 use crate::s9pk::v2::pack::ImageConfig;
+use crate::util::lshw::{LshwDevice, LshwDisplay, LshwProcessor};
 use crate::util::serde::Regex;
 use crate::util::{VersionString, mime};
 use crate::version::{Current, VersionT};
@@ -62,6 +63,8 @@ pub struct Manifest {
     pub dependencies: Dependencies,
     #[serde(default)]
     pub hardware_requirements: HardwareRequirements,
+    #[serde(default)]
+    pub hardware_acceleration: bool,
     pub git_hash: Option<GitHash>,
     #[serde(default = "current_version")]
     #[ts(type = "string")]
@@ -165,7 +168,7 @@ impl Manifest {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct HardwareRequirements {
@@ -176,19 +179,122 @@ pub struct HardwareRequirements {
     #[ts(type = "string[] | null")]
     pub arch: Option<BTreeSet<InternedString>>,
 }
+impl HardwareRequirements {
+    /// returns a value that can be used as a sort key to get most specific requirements first
+    pub fn specificity_desc(&self) -> (u32, u32, u64) {
+        (
+            u32::MAX - self.device.len() as u32, // more device requirements = more specific
+            self.arch.as_ref().map_or(u32::MAX, |a| a.len() as u32), // more arches = less specific
+            self.ram.map_or(0, |r| r),           // more ram = more specific
+        )
+    }
+}
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct DeviceFilter {
+    pub description: String,
     #[ts(type = "\"processor\" | \"display\"")]
     pub class: InternedString,
-    #[ts(type = "string")]
-    pub pattern: Regex,
-    pub pattern_description: String,
+    #[ts(type = "string | null")]
+    pub product: Option<Regex>,
+    #[ts(type = "string | null")]
+    pub vendor: Option<Regex>,
+    #[ts(optional)]
+    pub capabilities: Option<BTreeSet<InternedString>>,
+    #[ts(optional)]
+    pub driver: Option<InternedString>,
+}
+// Omit description
+impl PartialEq for DeviceFilter {
+    fn eq(&self, other: &Self) -> bool {
+        self.class == other.class
+            && self.product == other.product
+            && self.vendor == other.vendor
+            && self.capabilities == other.capabilities
+            && self.driver == other.driver
+    }
+}
+impl DeviceFilter {
+    pub fn matches(&self, device: &LshwDevice) -> bool {
+        if &*self.class != device.class() {
+            return false;
+        }
+        match device {
+            LshwDevice::Processor(LshwProcessor {
+                product,
+                vendor,
+                capabilities,
+            }) => {
+                if let Some(match_product) = &self.product {
+                    if !product
+                        .as_deref()
+                        .map_or(false, |p| match_product.as_ref().is_match(p))
+                    {
+                        return false;
+                    }
+                }
+                if let Some(match_vendor) = &self.vendor {
+                    if !vendor
+                        .as_deref()
+                        .map_or(false, |v| match_vendor.as_ref().is_match(v))
+                    {
+                        return false;
+                    }
+                }
+                if !self
+                    .capabilities
+                    .as_ref()
+                    .map_or(true, |c| c.is_subset(capabilities))
+                {
+                    return false;
+                }
+                true
+            }
+            LshwDevice::Display(LshwDisplay {
+                product,
+                vendor,
+                capabilities,
+                driver,
+            }) => {
+                if let Some(match_product) = &self.product {
+                    if !product
+                        .as_deref()
+                        .map_or(false, |p| match_product.as_ref().is_match(p))
+                    {
+                        return false;
+                    }
+                }
+                if let Some(match_vendor) = &self.vendor {
+                    if !vendor
+                        .as_deref()
+                        .map_or(false, |v| match_vendor.as_ref().is_match(v))
+                    {
+                        return false;
+                    }
+                }
+                if !self
+                    .capabilities
+                    .as_ref()
+                    .map_or(true, |c| c.is_subset(capabilities))
+                {
+                    return false;
+                }
+                if !self
+                    .driver
+                    .as_ref()
+                    .map_or(true, |d| Some(d) == driver.as_ref())
+                {
+                    return false;
+                }
+                true
+            }
+        }
+    }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS, PartialEq, Eq)]
 #[ts(export)]
 pub struct Description {
     pub short: String,
@@ -212,7 +318,7 @@ impl Description {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Alerts {

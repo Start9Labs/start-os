@@ -15,7 +15,7 @@ mod dependency;
 mod health;
 mod net;
 mod prelude;
-mod subcontainer;
+pub mod subcontainer;
 mod system;
 mod version;
 

@@ -20,12 +20,12 @@ use crate::s9pk::v2::SIG_CONTEXT;
 use crate::util::VersionString;
 use crate::util::io::{TrackingIO, to_tmp_path};
 use crate::util::serde::{WithIoFormat, display_serializable};
-use crate::util::tui::choose;
+use crate::util::tui::{choose, choose_custom_display};
 
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS, ValueEnum,
 )]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 #[ts(export)]
 pub enum PackageDetailLevel {
     None,
@@ -45,10 +45,11 @@ pub struct PackageInfoShort {
     pub release_notes: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, TS, Parser)]
+#[derive(Debug, Deserialize, Serialize, TS, Parser, HasModel)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 #[ts(export)]
+#[model = "Model<Self>"]
 pub struct GetPackageParams {
     pub id: Option<PackageId>,
     #[ts(type = "string | null")]
@@ -60,14 +61,14 @@ pub struct GetPackageParams {
     #[arg(skip)]
     #[serde(rename = "__DeviceInfo_device_info")]
     pub device_info: Option<DeviceInfo>,
-    #[serde(default)]
     #[arg(default_value = "none")]
-    pub other_versions: PackageDetailLevel,
+    pub other_versions: Option<PackageDetailLevel>,
 }
 
-#[derive(Debug, Deserialize, Serialize, TS)]
+#[derive(Debug, Deserialize, Serialize, TS, HasModel)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
+#[model = "Model<Self>"]
 pub struct GetPackageResponse {
     #[ts(type = "string[]")]
     pub categories: BTreeSet<InternedString>,
@@ -108,9 +109,10 @@ impl GetPackageResponse {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, TS)]
+#[derive(Debug, Deserialize, Serialize, TS, HasModel)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
+#[model = "Model<Self>"]
 pub struct GetPackageResponseFull {
     #[ts(type = "string[]")]
     pub categories: BTreeSet<InternedString>,
@@ -134,15 +136,15 @@ impl GetPackageResponseFull {
 pub type GetPackagesResponse = BTreeMap<PackageId, GetPackageResponse>;
 pub type GetPackagesResponseFull = BTreeMap<PackageId, GetPackageResponseFull>;
 
-fn get_matching_models<'a>(
-    db: &'a Model<PackageIndex>,
+fn get_matching_models(
+    db: &Model<PackageIndex>,
     GetPackageParams {
         id,
         source_version,
         device_info,
         ..
     }: &GetPackageParams,
-) -> Result<Vec<(PackageId, ExtendedVersion, &'a Model<PackageVersionInfo>)>, Error> {
+) -> Result<Vec<(PackageId, ExtendedVersion, Model<PackageVersionInfo>)>, Error> {
     if let Some(id) = id {
         if let Some(pkg) = db.as_packages().as_idx(id) {
             vec![(id.clone(), pkg)]
@@ -168,11 +170,17 @@ fn get_matching_models<'a>(
                                     .unwrap_or(VersionRange::any()),
                             ),
                         )
-                    })? && device_info
-                        .as_ref()
-                        .map_or(Ok(true), |device_info| info.works_for_device(device_info))?
-                    {
-                        Some((k.clone(), ExtendedVersion::from(v), info))
+                    })? {
+                        let mut info = info.clone();
+                        if let Some(device_info) = &device_info {
+                            if info.for_device(device_info)? {
+                                Some((k.clone(), ExtendedVersion::from(v), info))
+                            } else {
+                                None
+                            }
+                        } else {
+                            Some((k.clone(), ExtendedVersion::from(v), info))
+                        }
                     } else {
                         None
                     },
@@ -186,12 +194,10 @@ fn get_matching_models<'a>(
 }
 
 pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Result<Value, Error> {
-    use patch_db::ModelExt;
-
     let peek = ctx.db.peek().await;
-    let mut best: BTreeMap<PackageId, BTreeMap<VersionString, &Model<PackageVersionInfo>>> =
+    let mut best: BTreeMap<PackageId, BTreeMap<VersionString, Model<PackageVersionInfo>>> =
         Default::default();
-    let mut other: BTreeMap<PackageId, BTreeMap<VersionString, &Model<PackageVersionInfo>>> =
+    let mut other: BTreeMap<PackageId, BTreeMap<VersionString, Model<PackageVersionInfo>>> =
         Default::default();
     for (id, version, info) in get_matching_models(&peek.as_index().as_package(), &params)? {
         let package_best = best.entry(id.clone()).or_default();
@@ -217,23 +223,23 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
             package_other.insert(version.into(), info);
         }
     }
-    if let Some(id) = params.id {
+    if let Some(id) = &params.id {
         let categories = peek
             .as_index()
             .as_package()
             .as_packages()
-            .as_idx(&id)
+            .as_idx(id)
             .map(|p| p.as_categories().de())
             .transpose()?
             .unwrap_or_default();
-        let best = best
-            .remove(&id)
+        let best: BTreeMap<VersionString, PackageVersionInfo> = best
+            .remove(id)
             .unwrap_or_default()
             .into_iter()
-            .map(|(k, v)| v.de().map(|v| (k, v)))
+            .map(|(k, i)| Ok::<_, Error>((k, i.de()?)))
             .try_collect()?;
-        let other = other.remove(&id).unwrap_or_default();
-        match params.other_versions {
+        let other = other.remove(id).unwrap_or_default();
+        match params.other_versions.unwrap_or_default() {
             PackageDetailLevel::None => to_value(&GetPackageResponse {
                 categories,
                 best,
@@ -245,7 +251,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                 other_versions: Some(
                     other
                         .into_iter()
-                        .map(|(k, v)| from_value(v.as_value().clone()).map(|v| (k, v)))
+                        .map(|(k, i)| from_value(i.into()).map(|v| (k, v)))
                         .try_collect()?,
                 ),
             }),
@@ -254,12 +260,12 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                 best,
                 other_versions: other
                     .into_iter()
-                    .map(|(k, v)| v.de().map(|v| (k, v)))
+                    .map(|(k, i)| Ok::<_, Error>((k, i.de()?)))
                     .try_collect()?,
             }),
         }
     } else {
-        match params.other_versions {
+        match params.other_versions.unwrap_or_default() {
             PackageDetailLevel::None => to_value(
                 &best
                     .into_iter()
@@ -278,7 +284,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                                 categories,
                                 best: best
                                     .into_iter()
-                                    .map(|(k, v)| v.de().map(|v| (k, v)))
+                                    .map(|(k, i)| Ok::<_, Error>((k, i.de()?)))
                                     .try_collect()?,
                                 other_versions: None,
                             },
@@ -305,14 +311,12 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                                 categories,
                                 best: best
                                     .into_iter()
-                                    .map(|(k, v)| v.de().map(|v| (k, v)))
+                                    .map(|(k, i)| Ok::<_, Error>((k, i.de()?)))
                                     .try_collect()?,
                                 other_versions: Some(
                                     other
                                         .into_iter()
-                                        .map(|(k, v)| {
-                                            from_value(v.as_value().clone()).map(|v| (k, v))
-                                        })
+                                        .map(|(k, i)| from_value(i.into()).map(|v| (k, v)))
                                         .try_collect()?,
                                 ),
                             },
@@ -339,11 +343,11 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                                 categories,
                                 best: best
                                     .into_iter()
-                                    .map(|(k, v)| v.de().map(|v| (k, v)))
+                                    .map(|(k, i)| Ok::<_, Error>((k, i.de()?)))
                                     .try_collect()?,
                                 other_versions: other
                                     .into_iter()
-                                    .map(|(k, v)| v.de().map(|v| (k, v)))
+                                    .map(|(k, i)| Ok::<_, Error>((k, i.de()?)))
                                     .try_collect()?,
                             },
                         ))
@@ -363,7 +367,7 @@ pub fn display_package_info(
     }
 
     if let Some(_) = params.rest.id {
-        if params.rest.other_versions == PackageDetailLevel::Full {
+        if params.rest.other_versions.unwrap_or_default() == PackageDetailLevel::Full {
             for table in from_value::<GetPackageResponseFull>(info)?.tables() {
                 table.print_tty(false)?;
                 println!();
@@ -375,7 +379,7 @@ pub fn display_package_info(
             }
         }
     } else {
-        if params.rest.other_versions == PackageDetailLevel::Full {
+        if params.rest.other_versions.unwrap_or_default() == PackageDetailLevel::Full {
             for (_, package) in from_value::<GetPackagesResponseFull>(info)? {
                 for table in package.tables() {
                     table.print_tty(false)?;
@@ -431,7 +435,9 @@ pub async fn cli_download(
         )
         .await?,
     )?;
-    let PackageVersionInfo { s9pk, .. } = match res.best.len() {
+    let PackageVersionInfo {
+        s9pks: mut s9pk, ..
+    } = match res.best.len() {
         0 => {
             return Err(Error::new(
                 eyre!(
@@ -450,6 +456,75 @@ pub async fn cli_download(
             )
             .await?;
             res.best.remove(version).unwrap()
+        }
+    };
+    let s9pk = match s9pk.len() {
+        0 => {
+            return Err(Error::new(
+                eyre!(
+                    "Could not find a version of {id} that satisfies {}",
+                    target_version.unwrap_or(VersionRange::Any)
+                ),
+                ErrorKind::NotFound,
+            ));
+        }
+        1 => s9pk.pop().unwrap().1,
+        _ => {
+            let (_, asset) = choose_custom_display(
+                &format!(concat!(
+                    "Multiple packages with different hardware requirements found. ",
+                    "Choose a file to download:"
+                )),
+                &s9pk,
+                |(hw, _)| {
+                    use std::fmt::Write;
+                    let mut res = String::new();
+                    if let Some(arch) = &hw.arch {
+                        write!(
+                            &mut res,
+                            "{}: {}",
+                            if arch.len() == 1 {
+                                "Architecture"
+                            } else {
+                                "Architectures"
+                            },
+                            arch.iter().join(", ")
+                        )
+                        .unwrap();
+                    }
+                    if !hw.device.is_empty() {
+                        if !res.is_empty() {
+                            write!(&mut res, "; ").unwrap();
+                        }
+                        write!(
+                            &mut res,
+                            "{}: {}",
+                            if hw.device.len() == 1 {
+                                "Device"
+                            } else {
+                                "Devices"
+                            },
+                            hw.device.iter().map(|d| &d.description).join(", ")
+                        )
+                        .unwrap();
+                    }
+                    if let Some(ram) = hw.ram {
+                        if !res.is_empty() {
+                            write!(&mut res, "; ").unwrap();
+                        }
+                        write!(
+                            &mut res,
+                            "RAM >={:.2}GiB",
+                            ram as f64 / (1024.0 * 1024.0 * 1024.0)
+                        )
+                        .unwrap();
+                    }
+
+                    res
+                },
+            )
+            .await?;
+            asset.clone()
         }
     };
     s9pk.validate(SIG_CONTEXT, s9pk.all_signers())?;

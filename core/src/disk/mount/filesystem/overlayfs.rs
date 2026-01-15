@@ -4,6 +4,7 @@ use std::path::Path;
 
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
+use itertools::Itertools;
 use sha2::Sha256;
 
 use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
@@ -12,12 +13,13 @@ use crate::prelude::*;
 use crate::util::io::TmpDir;
 
 pub struct OverlayFs<P0: AsRef<Path>, P1: AsRef<Path>, P2: AsRef<Path>> {
-    lower: P0,
+    lower: Vec<P0>,
     upper: P1,
     work: P2,
 }
 impl<P0: AsRef<Path>, P1: AsRef<Path>, P2: AsRef<Path>> OverlayFs<P0, P1, P2> {
-    pub fn new(lower: P0, upper: P1, work: P2) -> Self {
+    /// layers are top to bottom
+    pub fn new(lower: Vec<P0>, upper: P1, work: P2) -> Self {
         Self { lower, upper, work }
     }
 }
@@ -32,8 +34,10 @@ impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync, P2: AsRef<Pat
     }
     fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
         [
-            Box::new(lazy_format!("lowerdir={}", self.lower.as_ref().display()))
-                as Box<dyn Display>,
+            Box::new(lazy_format!(
+                "lowerdir={}",
+                self.lower.iter().map(|p| p.as_ref().display()).join(":")
+            )) as Box<dyn Display>,
             Box::new(lazy_format!("upperdir={}", self.upper.as_ref().display())),
             Box::new(lazy_format!("workdir={}", self.work.as_ref().display())),
         ]
@@ -51,18 +55,21 @@ impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync, P2: AsRef<Pat
         tokio::fs::create_dir_all(self.work.as_ref()).await?;
         let mut sha = Sha256::new();
         sha.update("OverlayFs");
-        sha.update(
-            tokio::fs::canonicalize(self.lower.as_ref())
-                .await
-                .with_ctx(|_| {
-                    (
-                        crate::ErrorKind::Filesystem,
-                        self.lower.as_ref().display().to_string(),
-                    )
-                })?
-                .as_os_str()
-                .as_bytes(),
-        );
+        for lower in &self.lower {
+            sha.update(
+                tokio::fs::canonicalize(lower.as_ref())
+                    .await
+                    .with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            lower.as_ref().display().to_string(),
+                        )
+                    })?
+                    .as_os_str()
+                    .as_bytes(),
+            );
+            sha.update(b"\0");
+        }
         sha.update(
             tokio::fs::canonicalize(self.upper.as_ref())
                 .await
@@ -75,6 +82,7 @@ impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync, P2: AsRef<Pat
                 .as_os_str()
                 .as_bytes(),
         );
+        sha.update(b"\0");
         sha.update(
             tokio::fs::canonicalize(self.work.as_ref())
                 .await
@@ -87,6 +95,7 @@ impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync, P2: AsRef<Pat
                 .as_os_str()
                 .as_bytes(),
         );
+        sha.update(b"\0");
         Ok(sha.finalize())
     }
 }
@@ -98,11 +107,20 @@ pub struct OverlayGuard<G: GenericMountGuard> {
     inner_guard: MountGuard,
 }
 impl<G: GenericMountGuard> OverlayGuard<G> {
-    pub async fn mount(lower: G, mountpoint: impl AsRef<Path>) -> Result<Self, Error> {
+    pub async fn mount_layers<P: AsRef<Path>>(
+        pre: &[P],
+        guard: G,
+        post: &[P],
+        mountpoint: impl AsRef<Path>,
+    ) -> Result<Self, Error> {
         let upper = TmpDir::new().await?;
         let inner_guard = MountGuard::mount(
             &OverlayFs::new(
-                lower.path(),
+                std::iter::empty()
+                    .chain(pre.into_iter().map(|p| p.as_ref()))
+                    .chain([guard.path()])
+                    .chain(post.into_iter().map(|p| p.as_ref()))
+                    .collect(),
                 upper.as_ref().join("upper"),
                 upper.as_ref().join("work"),
             ),
@@ -111,10 +129,13 @@ impl<G: GenericMountGuard> OverlayGuard<G> {
         )
         .await?;
         Ok(Self {
-            lower: Some(lower),
+            lower: Some(guard),
             upper: Some(upper),
             inner_guard,
         })
+    }
+    pub async fn mount(lower: G, mountpoint: impl AsRef<Path>) -> Result<Self, Error> {
+        Self::mount_layers::<&Path>(&[], lower, &[], mountpoint).await
     }
     pub async fn unmount(mut self, delete_mountpoint: bool) -> Result<(), Error> {
         self.inner_guard.take().unmount(delete_mountpoint).await?;

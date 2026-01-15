@@ -242,18 +242,23 @@ impl TryFrom<ManifestV1> for Manifest {
                     .device
                     .into_iter()
                     .map(|(class, product)| DeviceFilter {
-                        pattern_description: format!(
+                        description: format!(
                             "a {class} device matching the expression {}",
                             product.as_ref()
                         ),
                         class,
-                        pattern: product,
+                        product: Some(product),
+                        ..Default::default()
                     })
                     .collect(),
             },
             git_hash: value.git_hash,
             os_version: value.eos_version,
             sdk_version: None,
+            hardware_acceleration: match value.main {
+                PackageProcedure::Docker(d) => d.gpu_acceleration,
+                PackageProcedure::Script(_) => false,
+            },
         })
     }
 }

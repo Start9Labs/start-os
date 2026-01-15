@@ -70,7 +70,7 @@ import UpdatesComponent from './updates.component'
         </div>
       </td>
       <td class="desktop">{{ item().gitHash }}</td>
-      <td class="desktop">{{ item().s9pk.publishedAt | date }}</td>
+      <td class="desktop">{{ item().s9pks[0]?.[1]?.publishedAt | date }}</td>
       <td>
         <button
           tuiIconButton
@@ -114,7 +114,9 @@ import UpdatesComponent from './updates.component'
           </p>
           <p tuiTitle class="mobile">
             <b>{{ 'Published' | i18n }}</b>
-            <span tuiSubtitle>{{ item().s9pk.publishedAt | date }}</span>
+            <span tuiSubtitle>
+              {{ item().s9pks[0]?.[1]?.publishedAt | date }}
+            </span>
           </p>
           <p tuiTitle>
             <span>

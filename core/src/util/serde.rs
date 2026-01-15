@@ -1127,6 +1127,11 @@ impl Serialize for Regex {
         serialize_display(&self.0, serializer)
     }
 }
+impl PartialEq for Regex {
+    fn eq(&self, other: &Self) -> bool {
+        InternedString::from_display(self.as_ref()) == InternedString::from_display(other.as_ref())
+    }
+}
 
 // TODO: make this not allocate
 #[derive(Debug)]

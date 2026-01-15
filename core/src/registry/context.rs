@@ -7,6 +7,7 @@ use chrono::Utc;
 use clap::Parser;
 use cookie::{Cookie, Expiration, SameSite};
 use http::HeaderMap;
+use imbl::OrdMap;
 use imbl_value::InternedString;
 use patch_db::PatchDb;
 use patch_db::json_ptr::ROOT;
@@ -171,6 +172,7 @@ impl CallRemote<RegistryContext> for CliContext {
     async fn call_remote(
         &self,
         mut method: &str,
+        _: OrdMap<&'static str, Value>,
         params: Value,
         _: Empty,
     ) -> Result<Value, RpcError> {
@@ -240,14 +242,21 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
     async fn call_remote(
         &self,
         mut method: &str,
+        metadata: OrdMap<&'static str, Value>,
         params: Value,
         RegistryUrlParams { mut registry }: RegistryUrlParams,
     ) -> Result<Value, RpcError> {
         let mut headers = HeaderMap::new();
-        headers.insert(
-            DEVICE_INFO_HEADER,
-            DeviceInfo::load(self).await?.to_header_value(),
-        );
+        let mut device_info = None;
+        if metadata
+            .get("get_device_info")
+            .and_then(|m| m.as_bool())
+            .unwrap_or(false)
+        {
+            let di = DeviceInfo::load(self).await?;
+            headers.insert(DEVICE_INFO_HEADER, di.to_header_value());
+            device_info = Some(di);
+        }
 
         registry
             .path_segments_mut()
@@ -258,15 +267,21 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
         method = method.strip_prefix("registry.").unwrap_or(method);
         let sig_context = registry.host_str().map(InternedString::from);
 
-        crate::middleware::auth::signature::call_remote(
+        let mut res = crate::middleware::auth::signature::call_remote(
             self,
             registry,
             headers,
             sig_context.as_deref(),
             method,
-            params,
+            params.clone(),
         )
-        .await
+        .await?;
+
+        if let Some(device_info) = device_info {
+            device_info.filter_for_hardware(method, params, &mut res)?;
+        }
+
+        Ok(res)
     }
 }
 

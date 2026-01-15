@@ -45,29 +45,22 @@ export class LiveApiService extends ApiService {
 
   // for getting static files: ex: license
 
-  async getStaticProxy(
-    pkg: MarketplacePkg,
-    path: 'LICENSE.md',
+  async getStatic(
+    urls: string[],
+    params: Record<string, string | number>,
   ): Promise<string> {
-    const encodedUrl = encodeURIComponent(pkg.s9pk.url)
-
-    return this.httpRequest({
-      method: 'GET',
-      url: `/s9pk/proxy/${encodedUrl}/${path}`,
-      params: {
-        rootSighash: pkg.s9pk.commitment.rootSighash,
-        rootMaxsize: pkg.s9pk.commitment.rootMaxsize,
-      },
-      responseType: 'text',
-    })
-  }
-
-  async getStatic(url: string): Promise<string> {
-    return this.httpRequest({
-      method: 'GET',
-      url,
-      responseType: 'text',
-    })
+    for (let url in urls) {
+      try {
+        const res = await this.httpRequest<string>({
+          method: 'GET',
+          url,
+          params,
+          responseType: 'text',
+        })
+        return res
+      } catch (e) {}
+    }
+    throw new Error('Could not fetch static file')
   }
 
   // websocket

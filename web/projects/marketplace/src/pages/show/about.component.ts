@@ -24,7 +24,7 @@ import { MarketplaceItemComponent } from './item.component'
             icon=""
           />
           <!-- release date -->
-          @if (pkg().s9pk?.publishedAt; as published) {
+          @if (pkg().s9pks[0]?.[1]?.publishedAt; as published) {
             <marketplace-item
               [style.pointer-events]="'none'"
               [data]="(published | date: 'medium')!"

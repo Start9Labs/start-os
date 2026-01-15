@@ -7,6 +7,7 @@ use std::sync::Arc;
 use cookie::{Cookie, Expiration, SameSite};
 use cookie_store::CookieStore;
 use http::HeaderMap;
+use imbl::OrdMap;
 use imbl_value::InternedString;
 use josekit::jwk::Jwk;
 use once_cell::sync::OnceCell;
@@ -238,10 +239,16 @@ impl CliContext {
     where
         Self: CallRemote<RemoteContext>,
     {
-        <Self as CallRemote<RemoteContext, Empty>>::call_remote(&self, method, params, Empty {})
-            .await
-            .map_err(Error::from)
-            .with_ctx(|e| (e.kind, method))
+        <Self as CallRemote<RemoteContext, Empty>>::call_remote(
+            &self,
+            method,
+            OrdMap::new(),
+            params,
+            Empty {},
+        )
+        .await
+        .map_err(Error::from)
+        .with_ctx(|e| (e.kind, method))
     }
     pub async fn call_remote_with<RemoteContext, T>(
         &self,
@@ -252,10 +259,16 @@ impl CliContext {
     where
         Self: CallRemote<RemoteContext, T>,
     {
-        <Self as CallRemote<RemoteContext, T>>::call_remote(&self, method, params, extra)
-            .await
-            .map_err(Error::from)
-            .with_ctx(|e| (e.kind, method))
+        <Self as CallRemote<RemoteContext, T>>::call_remote(
+            &self,
+            method,
+            OrdMap::new(),
+            params,
+            extra,
+        )
+        .await
+        .map_err(Error::from)
+        .with_ctx(|e| (e.kind, method))
     }
 }
 impl AsRef<Jwk> for CliContext {
@@ -292,7 +305,13 @@ impl AsRef<Client> for CliContext {
 }
 
 impl CallRemote<RpcContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
+    async fn call_remote(
+        &self,
+        method: &str,
+        _: OrdMap<&'static str, Value>,
+        params: Value,
+        _: Empty,
+    ) -> Result<Value, RpcError> {
         if let Ok(local) = read_file_to_string(RpcContext::LOCAL_AUTH_COOKIE_PATH).await {
             self.cookie_store
                 .lock()
@@ -319,7 +338,13 @@ impl CallRemote<RpcContext> for CliContext {
     }
 }
 impl CallRemote<DiagnosticContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
+    async fn call_remote(
+        &self,
+        method: &str,
+        _: OrdMap<&'static str, Value>,
+        params: Value,
+        _: Empty,
+    ) -> Result<Value, RpcError> {
         crate::middleware::auth::signature::call_remote(
             self,
             self.rpc_url.clone(),
@@ -332,7 +357,13 @@ impl CallRemote<DiagnosticContext> for CliContext {
     }
 }
 impl CallRemote<InitContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
+    async fn call_remote(
+        &self,
+        method: &str,
+        _: OrdMap<&'static str, Value>,
+        params: Value,
+        _: Empty,
+    ) -> Result<Value, RpcError> {
         crate::middleware::auth::signature::call_remote(
             self,
             self.rpc_url.clone(),
@@ -345,7 +376,13 @@ impl CallRemote<InitContext> for CliContext {
     }
 }
 impl CallRemote<SetupContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
+    async fn call_remote(
+        &self,
+        method: &str,
+        _: OrdMap<&'static str, Value>,
+        params: Value,
+        _: Empty,
+    ) -> Result<Value, RpcError> {
         crate::middleware::auth::signature::call_remote(
             self,
             self.rpc_url.clone(),
@@ -358,7 +395,13 @@ impl CallRemote<SetupContext> for CliContext {
     }
 }
 impl CallRemote<InstallContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
+    async fn call_remote(
+        &self,
+        method: &str,
+        _: OrdMap<&'static str, Value>,
+        params: Value,
+        _: Empty,
+    ) -> Result<Value, RpcError> {
         crate::middleware::auth::signature::call_remote(
             self,
             self.rpc_url.clone(),

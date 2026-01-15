@@ -6,7 +6,7 @@ use crate::prelude::*;
 use crate::service::Service;
 
 #[derive(Clone)]
-pub(in crate::service) struct EffectContext(Weak<Service>);
+pub struct EffectContext(Weak<Service>);
 impl EffectContext {
     pub fn new(service: Weak<Service>) -> Self {
         Self(service)

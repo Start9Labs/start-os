@@ -3,33 +3,39 @@ set -e
 
 SYSTEMCTL=systemctl
 if [ -n "$DPKG_MAINTSCRIPT_PACKAGE" ]; then
-	  SYSTEMCTL=deb-systemd-helper
+	SYSTEMCTL=deb-systemd-helper
 fi
 
 if [ -f /usr/sbin/grub-probe ] && ! [ -L /usr/sbin/grub-probe ]; then
-  mv /usr/sbin/grub-probe /usr/sbin/grub-probe-default
-  ln -s /usr/lib/startos/scripts/grub-probe-eos /usr/sbin/grub-probe
+	mv /usr/sbin/grub-probe /usr/sbin/grub-probe-default
+	ln -s /usr/lib/startos/scripts/grub-probe-eos /usr/sbin/grub-probe
 fi
 
 cp /usr/lib/startos/scripts/startos-initramfs-module /etc/initramfs-tools/scripts/startos
 
 if ! grep overlay /etc/initramfs-tools/modules > /dev/null; then
-    echo overlay >> /etc/initramfs-tools/modules
+	echo overlay >> /etc/initramfs-tools/modules
 fi
 
 update-initramfs -u -k all
 
 if [ -f /etc/default/grub ]; then
-    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos console=ttyS0,115200n8"' /etc/default/grub
-    sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
-    sed -i '/\(^\|#\)GRUB_TERMINAL=/c\GRUB_TERMINAL="serial"\nGRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' /etc/default/grub
+	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos console=ttyS0,115200n8 console=tty0"' /etc/default/grub
+	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX_DEFAULT=/c\GRUB_CMDLINE_LINUX_DEFAULT=""' /etc/default/grub
+	sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
+	sed -i '/\(^\|#\)GRUB_TERMINAL=/c\GRUB_TERMINAL="serial"\nGRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' /etc/default/grub
+	if grep '^GRUB_SERIAL_COMMAND=' /etc/default/grub > /dev/null; then
+		sed -i '/\(^\|#\)GRUB_SERIAL_COMMAND=/c\GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' /etc/default/grub
+	else
+		echo 'GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' >> /etc/default/grub
+	fi
 fi
 
 VERSION="$(cat /usr/lib/startos/VERSION.txt)"
 ENVIRONMENT=$(cat /usr/lib/startos/ENVIRONMENT.txt)
 VERSION_ENV="${VERSION}"
 if [ -n "${ENVIRONMENT}" ]; then
-    VERSION_ENV="${VERSION} (${ENVIRONMENT})"
+	VERSION_ENV="${VERSION} (${ENVIRONMENT})"
 fi
 
 # set /etc/os-release
@@ -89,8 +95,8 @@ $SYSTEMCTL mask hibernate.target
 $SYSTEMCTL mask hybrid-sleep.target
 
 if which gsettings > /dev/null; then
-    gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout '0'
-    gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-timeout '0'
+	gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout '0'
+	gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-timeout '0'
 fi
 
 sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
@@ -122,7 +128,7 @@ ln -sf /usr/lib/startos/scripts/wireguard-vps-proxy-setup /usr/bin/wireguard-vps
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-startos.conf
 
 if ! getent group | grep '^startos:'; then
-    groupadd startos
+	groupadd startos
 fi
 
 rm -f /etc/motd

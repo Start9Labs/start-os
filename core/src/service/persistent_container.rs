@@ -96,7 +96,9 @@ impl PersistentContainer {
                         .join("logs")
                         .join(&s9pk.as_manifest().id),
                 ),
-                LxcConfig::default(),
+                LxcConfig {
+                    hardware_acceleration: s9pk.manifest.hardware_acceleration,
+                },
             )
             .await?;
         let rpc_client = lxc_container.connect_rpc(Some(RPC_CONNECT_TIMEOUT)).await?;

@@ -1,0 +1,10 @@
++ firmware-amd-graphics
++ firmware-atheros
++ firmware-brcm80211
++ firmware-iwlwifi
++ firmware-libertas
++ firmware-misc-nonfree
++ firmware-realtek
++ nvidia-container-toolkit
+# + nvidia-driver
+# + nvidia-kernel-dkms

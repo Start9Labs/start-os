@@ -5,9 +5,6 @@ use crate::prelude::*;
 
 pub struct PackageSignerScopeMigration;
 impl RegistryMigration for PackageSignerScopeMigration {
-    fn name(&self) -> &'static str {
-        "PackageSignerScopeMigration"
-    }
     fn action(&self, db: &mut Value) -> Result<(), Error> {
         for (_, info) in db["index"]["package"]["packages"]
             .as_object_mut()

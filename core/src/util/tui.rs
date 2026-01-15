@@ -95,7 +95,7 @@ pub async fn prompt_multiline<
     Ok(res)
 }
 
-pub async fn choose_custom_display<'t, T: std::fmt::Display>(
+pub async fn choose_custom_display<'t, T>(
     prompt: &str,
     choices: &'t [T],
     mut display: impl FnMut(&T) -> String,
@@ -121,7 +121,7 @@ pub async fn choose_custom_display<'t, T: std::fmt::Display>(
     if choice.len() < 1 {
         return Err(Error::new(eyre!("Aborted"), ErrorKind::Cancelled));
     }
-    let (idx, _) = string_choices
+    let (idx, choice_str) = string_choices
         .iter()
         .enumerate()
         .find(|(_, s)| s.as_str() == choice[0].as_str())
@@ -132,7 +132,7 @@ pub async fn choose_custom_display<'t, T: std::fmt::Display>(
             )
         })?;
     let choice = &choices[idx];
-    println!("{prompt} {choice}");
+    println!("{prompt} {choice_str}");
     Ok(&choice)
 }
 

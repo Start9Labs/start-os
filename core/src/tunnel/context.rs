@@ -251,6 +251,8 @@ impl CallRemote<TunnelContext> for CliContext {
     async fn call_remote(
         &self,
         mut method: &str,
+
+        _: OrdMap<&'static str, Value>,
         params: Value,
         _: Empty,
     ) -> Result<Value, RpcError> {
@@ -315,6 +317,7 @@ impl CallRemote<TunnelContext, TunnelUrlParams> for RpcContext {
     async fn call_remote(
         &self,
         mut method: &str,
+        _: OrdMap<&'static str, Value>,
         params: Value,
         TunnelUrlParams { tunnel }: TunnelUrlParams,
     ) -> Result<Value, RpcError> {

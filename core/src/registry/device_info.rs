@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::convert::identity;
 use std::ops::Deref;
 
 use axum::extract::Request;
@@ -7,6 +6,8 @@ use axum::response::Response;
 use exver::{Version, VersionRange};
 use http::HeaderValue;
 use imbl_value::InternedString;
+use patch_db::ModelExt;
+use rpc_toolkit::yajrc::RpcMethod;
 use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -15,8 +16,13 @@ use url::Url;
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
+use crate::registry::os::index::OsVersionInfoMap;
+use crate::registry::package::get::{
+    GetPackageParams, GetPackageResponse, GetPackageResponseFull, PackageDetailLevel,
+};
+use crate::registry::package::index::PackageVersionInfo;
 use crate::util::VersionString;
-use crate::util::lshw::{LshwDevice, LshwDisplay, LshwProcessor};
+use crate::util::lshw::LshwDevice;
 use crate::version::VersionT;
 
 pub const DEVICE_INFO_HEADER: &str = "X-StartOS-Device-Info";
@@ -25,13 +31,13 @@ pub const DEVICE_INFO_HEADER: &str = "X-StartOS-Device-Info";
 #[serde(rename_all = "camelCase")]
 pub struct DeviceInfo {
     pub os: OsInfo,
-    pub hardware: HardwareInfo,
+    pub hardware: Option<HardwareInfo>,
 }
 impl DeviceInfo {
     pub async fn load(ctx: &RpcContext) -> Result<Self, Error> {
         Ok(Self {
             os: OsInfo::from(ctx),
-            hardware: HardwareInfo::load(ctx).await?,
+            hardware: Some(HardwareInfo::load(ctx).await?),
         })
     }
 }
@@ -41,21 +47,13 @@ impl DeviceInfo {
         url.query_pairs_mut()
             .append_pair("os.version", &self.os.version.to_string())
             .append_pair("os.compat", &self.os.compat.to_string())
-            .append_pair("os.platform", &*self.os.platform)
-            .append_pair("hardware.arch", &*self.hardware.arch)
-            .append_pair("hardware.ram", &self.hardware.ram.to_string());
-
-        for device in &self.hardware.devices {
-            url.query_pairs_mut().append_pair(
-                &format!("hardware.device.{}", device.class()),
-                device.product(),
-            );
-        }
+            .append_pair("os.platform", &*self.os.platform);
 
         HeaderValue::from_str(url.query().unwrap_or_default()).unwrap()
     }
     pub fn from_header_value(header: &HeaderValue) -> Result<Self, Error> {
         let query: BTreeMap<_, _> = form_urlencoded::parse(header.as_bytes()).collect();
+        let has_hw_info = query.keys().any(|k| k.starts_with("hardware."));
         Ok(Self {
             os: OsInfo {
                 version: query
@@ -69,34 +67,119 @@ impl DeviceInfo {
                     .deref()
                     .into(),
             },
-            hardware: HardwareInfo {
-                arch: query
-                    .get("hardware.arch")
-                    .or_not_found("hardware.arch")?
-                    .parse()?,
-                ram: query
-                    .get("hardware.ram")
-                    .or_not_found("hardware.ram")?
-                    .parse()?,
-                devices: identity(query)
-                    .split_off("hardware.device.")
-                    .into_iter()
-                    .filter_map(|(k, v)| match k.strip_prefix("hardware.device.") {
-                        Some("processor") => Some(LshwDevice::Processor(LshwProcessor {
-                            product: v.into_owned(),
-                        })),
-                        Some("display") => Some(LshwDevice::Display(LshwDisplay {
-                            product: v.into_owned(),
-                        })),
-                        Some(class) => {
-                            tracing::warn!("unknown device class: {class}");
-                            None
-                        }
-                        _ => None,
+            hardware: has_hw_info
+                .then(|| {
+                    Ok::<_, Error>(HardwareInfo {
+                        arch: query
+                            .get("hardware.arch")
+                            .or_not_found("hardware.arch")?
+                            .parse()?,
+                        ram: query
+                            .get("hardware.ram")
+                            .or_not_found("hardware.ram")?
+                            .parse()?,
+                        devices: None,
                     })
-                    .collect(),
-            },
+                })
+                .transpose()?,
         })
+    }
+    pub fn filter_for_hardware(
+        &self,
+        method: &str,
+        params: Value,
+        res: &mut Value,
+    ) -> Result<(), Error> {
+        match method {
+            "package.get" => {
+                let params: Model<GetPackageParams> = ModelExt::from_value(params);
+
+                let other = params.as_other_versions().de()?;
+                if params.as_id().transpose_ref().is_some() {
+                    if other.unwrap_or_default() == PackageDetailLevel::Full {
+                        self.filter_package_get_full(ModelExt::value_as_mut(res))?;
+                    } else {
+                        self.filter_package_get(ModelExt::value_as_mut(res))?;
+                    }
+                } else {
+                    for (_, v) in res.as_object_mut().into_iter().flat_map(|o| o.iter_mut()) {
+                        if other.unwrap_or_default() == PackageDetailLevel::Full {
+                            self.filter_package_get_full(ModelExt::value_as_mut(v))?;
+                        } else {
+                            self.filter_package_get(ModelExt::value_as_mut(v))?;
+                        }
+                    }
+                }
+
+                Ok(())
+            }
+            "os.version.get" => self.filter_os_version(ModelExt::value_as_mut(res)),
+            _ => Ok(()),
+        }
+    }
+
+    fn filter_package_versions(
+        &self,
+        versions: &mut Model<BTreeMap<VersionString, PackageVersionInfo>>,
+    ) -> Result<(), Error> {
+        let alpha_17: Version = "0.4.0-alpha.17".parse()?;
+
+        // Filter package versions using for_device
+        versions.retain(|_, info| info.for_device(self))?;
+
+        // Alpha.17 compatibility: add legacy fields
+        if self.os.version <= alpha_17 {
+            for (_, info) in versions.as_entries_mut()? {
+                let v = info.as_value_mut();
+                if let Some(mut tup) = v["s9pks"].get(0).cloned() {
+                    v["s9pk"] = tup[1].take();
+                    v["hardwareRequirements"] = tup[0].take();
+                    v["s9pk"]["url"] = v["s9pk"]["urls"][0].clone();
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn filter_package_get(&self, res: &mut Model<GetPackageResponse>) -> Result<(), Error> {
+        self.filter_package_versions(res.as_best_mut())
+    }
+
+    fn filter_package_get_full(
+        &self,
+        res: &mut Model<GetPackageResponseFull>,
+    ) -> Result<(), Error> {
+        self.filter_package_versions(res.as_best_mut())?;
+        self.filter_package_versions(res.as_other_versions_mut())
+    }
+
+    fn filter_os_version(&self, res: &mut Model<OsVersionInfoMap>) -> Result<(), Error> {
+        let alpha_17: Version = "0.4.0-alpha.17".parse()?;
+
+        // Filter OS versions based on source_version compatibility
+        res.retain(|_, info| {
+            let source_version = info.as_source_version().de()?;
+            Ok(self.os.version.satisfies(&source_version))
+        })?;
+
+        // Alpha.17 compatibility: add url field from urls array
+        if self.os.version <= alpha_17 {
+            for (_, info) in res.as_entries_mut()? {
+                let v = info.as_value_mut();
+                for asset_ty in ["iso", "squashfs", "img"] {
+                    for (_, asset) in v[asset_ty]
+                        .as_object_mut()
+                        .into_iter()
+                        .flat_map(|o| o.iter_mut())
+                    {
+                        asset["url"] = asset["urls"][0].clone();
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -127,7 +210,7 @@ pub struct HardwareInfo {
     pub arch: InternedString,
     #[ts(type = "number")]
     pub ram: u64,
-    pub devices: Vec<LshwDevice>,
+    pub devices: Option<Vec<LshwDevice>>,
 }
 impl HardwareInfo {
     pub async fn load(ctx: &RpcContext) -> Result<Self, Error> {
@@ -135,7 +218,7 @@ impl HardwareInfo {
         Ok(Self {
             arch: s.as_arch().de()?,
             ram: s.as_ram().de()?,
-            devices: s.as_devices().de()?,
+            devices: Some(s.as_devices().de()?),
         })
     }
 }
@@ -148,11 +231,17 @@ pub struct Metadata {
 
 #[derive(Clone)]
 pub struct DeviceInfoMiddleware {
-    device_info: Option<HeaderValue>,
+    device_info_header: Option<HeaderValue>,
+    device_info: Option<DeviceInfo>,
+    req: Option<RpcRequest>,
 }
 impl DeviceInfoMiddleware {
     pub fn new() -> Self {
-        Self { device_info: None }
+        Self {
+            device_info_header: None,
+            device_info: None,
+            req: None,
+        }
     }
 }
 
@@ -163,7 +252,7 @@ impl Middleware<RegistryContext> for DeviceInfoMiddleware {
         _: &RegistryContext,
         request: &mut Request,
     ) -> Result<(), Response> {
-        self.device_info = request.headers_mut().remove(DEVICE_INFO_HEADER);
+        self.device_info_header = request.headers_mut().remove(DEVICE_INFO_HEADER);
         Ok(())
     }
     async fn process_rpc_request(
@@ -174,9 +263,11 @@ impl Middleware<RegistryContext> for DeviceInfoMiddleware {
     ) -> Result<(), RpcResponse> {
         async move {
             if metadata.get_device_info {
-                if let Some(device_info) = &self.device_info {
-                    request.params["__DeviceInfo_device_info"] =
-                        to_value(&DeviceInfo::from_header_value(device_info)?)?;
+                if let Some(device_info) = &self.device_info_header {
+                    let device_info = DeviceInfo::from_header_value(device_info)?;
+                    request.params["__DeviceInfo_device_info"] = to_value(&device_info)?;
+                    self.device_info = Some(device_info);
+                    self.req = Some(request.clone());
                 }
             }
 
@@ -184,5 +275,20 @@ impl Middleware<RegistryContext> for DeviceInfoMiddleware {
         }
         .await
         .map_err(|e| RpcResponse::from_result(Err(e)))
+    }
+    async fn process_rpc_response(
+        &mut self,
+        _: &RegistryContext,
+        response: &mut RpcResponse,
+    ) -> () {
+        if let (Some(req), Some(device_info), Ok(res)) =
+            (&self.req, &self.device_info, &mut response.result)
+        {
+            if let Err(e) =
+                device_info.filter_for_hardware(req.method.as_str(), req.params.clone(), res)
+            {
+                response.result = Err(e).map_err(From::from);
+            }
+        }
     }
 }

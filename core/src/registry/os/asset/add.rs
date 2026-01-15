@@ -133,7 +133,7 @@ async fn add_asset(
                 .upsert(&platform, || {
                     Ok(RegistryAsset {
                         published_at: Utc::now(),
-                        url,
+                        urls: vec![url.clone()],
                         commitment: commitment.clone(),
                         signatures: HashMap::new(),
                     })
@@ -146,6 +146,9 @@ async fn add_asset(
                         ))
                     } else {
                         s.signatures.insert(signer, signature);
+                        if !s.urls.contains(&url) {
+                            s.urls.push(url);
+                        }
                         Ok(())
                     }
                 })?;

@@ -9,6 +9,9 @@ FEATURES+=("${ARCH}")
 if [ "$ARCH" != "$PLATFORM" ]; then
     FEATURES+=("${PLATFORM}")
 fi
+if [[ "$PLATFORM" =~ -nonfree$ ]]; then
+    FEATURES+=("nonfree")
+fi
 
 feature_file_checker='
 /^#/ { next }

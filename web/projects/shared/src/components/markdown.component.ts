@@ -1,10 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { ActivatedRoute } from '@angular/router'
-import { TuiDialogContext, TuiLoader, TuiNotification } from '@taiga-ui/core'
+import { TuiLoader, TuiNotification } from '@taiga-ui/core'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { catchError, ignoreElements, Observable, of } from 'rxjs'
+import { catchError, ignoreElements, Observable, of, share } from 'rxjs'
 import { SafeLinksDirective } from '../directives/safe-links.directive'
 import { MarkdownPipe } from '../pipes/markdown.pipe'
 import { getErrorMessage } from '../services/error.service'
@@ -34,7 +33,10 @@ import { getErrorMessage } from '../services/error.service'
   ],
 })
 export class MarkdownComponent {
-  protected readonly data = injectContext<{ data: Observable<string> }>().data
+  private readonly data = injectContext<{
+    data: Observable<string>
+  }>().data.pipe(share())
+
   protected readonly content = toSignal<string>(this.data)
   protected readonly error = toSignal(
     this.data.pipe(

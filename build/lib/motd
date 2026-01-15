@@ -4,7 +4,7 @@ parse_essential_db_info() {
     DB_DUMP="/tmp/startos_db.json"
 
     if command -v start-cli >/dev/null 2>&1; then
-        start-cli db dump > "$DB_DUMP" 2>/dev/null || return 1
+        timeout 30 start-cli db dump > "$DB_DUMP" 2>/dev/null || return 1
     else
         return 1
     fi
