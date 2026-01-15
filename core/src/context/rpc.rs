@@ -29,7 +29,6 @@ use crate::db::model::package::TaskSeverity;
 use crate::disk::OsPartitionInfo;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
-use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::{FileSystem, ReadOnly};
 use crate::disk::mount::guard::MountGuard;
 use crate::init::{InitResult, check_time_is_synchronized};
@@ -586,8 +585,14 @@ impl RpcContext {
     where
         Self: CallRemote<RemoteContext>,
     {
-        <Self as CallRemote<RemoteContext, Empty>>::call_remote(&self, method, params, Empty {})
-            .await
+        <Self as CallRemote<RemoteContext, Empty>>::call_remote(
+            &self,
+            method,
+            OrdMap::new(),
+            params,
+            Empty {},
+        )
+        .await
     }
     pub async fn call_remote_with<RemoteContext, T>(
         &self,
@@ -598,7 +603,14 @@ impl RpcContext {
     where
         Self: CallRemote<RemoteContext, T>,
     {
-        <Self as CallRemote<RemoteContext, T>>::call_remote(&self, method, params, extra).await
+        <Self as CallRemote<RemoteContext, T>>::call_remote(
+            &self,
+            method,
+            OrdMap::new(),
+            params,
+            extra,
+        )
+        .await
     }
 }
 impl AsRef<Client> for RpcContext {

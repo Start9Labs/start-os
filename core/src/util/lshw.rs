@@ -1,9 +1,12 @@
+use std::collections::BTreeSet;
+
+use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::{Error, ResultExt};
 
 const KNOWN_CLASSES: &[&str] = &["processor", "display"];
 
@@ -22,22 +25,57 @@ impl LshwDevice {
             Self::Display(_) => "display",
         }
     }
-    pub fn product(&self) -> &str {
-        match self {
-            Self::Processor(hw) => hw.product.as_str(),
-            Self::Display(hw) => hw.product.as_str(),
+    pub fn from_value(value: &Value) -> Option<Self> {
+        match value["class"].as_str() {
+            Some("processor") => Some(LshwDevice::Processor(LshwProcessor::from_value(value))),
+            Some("display") => Some(LshwDevice::Display(LshwDisplay::from_value(value))),
+            _ => None,
         }
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 pub struct LshwProcessor {
-    pub product: String,
+    pub product: Option<InternedString>,
+    pub vendor: Option<InternedString>,
+    pub capabilities: BTreeSet<InternedString>,
+}
+impl LshwProcessor {
+    fn from_value(value: &Value) -> Self {
+        Self {
+            product: value["product"].as_str().map(From::from),
+            vendor: value["vendor"].as_str().map(From::from),
+            capabilities: value["capabilities"]
+                .as_object()
+                .into_iter()
+                .flat_map(|o| o.keys())
+                .map(|k| k.clone())
+                .collect(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 pub struct LshwDisplay {
-    pub product: String,
+    pub product: Option<InternedString>,
+    pub vendor: Option<InternedString>,
+    pub capabilities: BTreeSet<InternedString>,
+    pub driver: Option<InternedString>,
+}
+impl LshwDisplay {
+    fn from_value(value: &Value) -> Self {
+        Self {
+            product: value["product"].as_str().map(From::from),
+            vendor: value["vendor"].as_str().map(From::from),
+            capabilities: value["capabilities"]
+                .as_object()
+                .into_iter()
+                .flat_map(|o| o.keys())
+                .map(|k| k.clone())
+                .collect(),
+            driver: value["configuration"]["driver"].as_str().map(From::from),
+        }
+    }
 }
 
 pub async fn lshw() -> Result<Vec<LshwDevice>, Error> {
@@ -47,19 +85,10 @@ pub async fn lshw() -> Result<Vec<LshwDevice>, Error> {
         cmd.arg("-class").arg(*class);
     }
     Ok(
-        serde_json::from_slice::<Vec<serde_json::Value>>(
-            &cmd.invoke(crate::ErrorKind::Lshw).await?,
-        )
-        .with_kind(crate::ErrorKind::Deserialization)?
-        .into_iter()
-        .filter_map(|v| match serde_json::from_value(v) {
-            Ok(a) => Some(a),
-            Err(e) => {
-                tracing::error!("Failed to parse lshw output: {e}");
-                tracing::debug!("{e:?}");
-                None
-            }
-        })
-        .collect(),
+        serde_json::from_slice::<Vec<Value>>(&cmd.invoke(crate::ErrorKind::Lshw).await?)
+            .with_kind(crate::ErrorKind::Deserialization)?
+            .iter()
+            .filter_map(LshwDevice::from_value)
+            .collect(),
     )
 }

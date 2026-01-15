@@ -29,34 +29,6 @@ if [ -f /etc/default/grub ]; then
 	else
 		echo 'GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' >> /etc/default/grub
 	fi
-
-	cat > /etc/grub.d/01_reboot_efi <<-EOF
-	#!/bin/sh
-
-	set -e
-
-	# Only affect EFI systems
-	if [ ! -d /sys/firmware/efi ]; then
-		exit 0
-	fi
-
-	# Import helpers (path is Debian/Ubuntu style)
-	. /usr/lib/grub/grub-mkconfig_lib
-
-	# Append reboot=efi to GRUB_CMDLINE_LINUX* seen by later scripts
-	if [ -n "\${GRUB_CMDLINE_LINUX}" ]; then
-		GRUB_CMDLINE_LINUX="\${GRUB_CMDLINE_LINUX} reboot=efi"
-	else
-		GRUB_CMDLINE_LINUX="reboot=efi"
-	fi
-
-	if [ -n "\${GRUB_CMDLINE_LINUX_DEFAULT}" ]; then
-		GRUB_CMDLINE_LINUX_DEFAULT="\${GRUB_CMDLINE_LINUX_DEFAULT} reboot=efi"
-	fi
-
-	export GRUB_CMDLINE_LINUX GRUB_CMDLINE_LINUX_DEFAULT
-	EOF
-	chmod +x /etc/grub.d/01_reboot_efi
 fi
 
 VERSION="$(cat /usr/lib/startos/VERSION.txt)"

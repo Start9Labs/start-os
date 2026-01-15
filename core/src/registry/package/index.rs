@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::u32;
 
 use chrono::Utc;
 use exver::{Version, VersionRange};
 use imbl_value::InternedString;
+use patch_db::ModelExt;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use url::Url;
@@ -223,50 +225,64 @@ impl PackageVersionInfo {
     }
 }
 impl Model<PackageVersionInfo> {
-    pub fn for_device(
-        &self,
-        device_info: &DeviceInfo,
-    ) -> Result<Option<Vec<(HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>)>>, Error>
-    {
+    /// Filters this package version for compatibility with the given device.
+    /// Returns false if the package is incompatible (should be removed).
+    /// Modifies s9pks in place to only include compatible variants.
+    pub fn for_device(&mut self, device_info: &DeviceInfo) -> Result<bool, Error> {
         if !self
             .as_metadata()
             .as_os_version()
             .de()?
             .satisfies(&device_info.os.compat)
         {
-            return Ok(None);
+            return Ok(false);
         }
-        let mut s9pk = self.as_s9pks().de()?;
-        s9pk.retain(|(hw, _)| {
-            if let Some(arch) = &hw.arch {
-                if !arch.contains(&device_info.hardware.arch) {
-                    return false;
+        if let Some(hw) = &device_info.hardware {
+            self.as_s9pks_mut().mutate(|s9pks| {
+                s9pks.retain(|(hw_req, _)| {
+                    if let Some(arch) = &hw_req.arch {
+                        if !arch.contains(&hw.arch) {
+                            return false;
+                        }
+                    }
+                    if let Some(ram) = hw_req.ram {
+                        if hw.ram < ram {
+                            return false;
+                        }
+                    }
+                    if let Some(dev) = &hw.devices {
+                        for device_filter in &hw_req.device {
+                            if !dev
+                                .iter()
+                                .filter(|d| d.class() == &*device_filter.class)
+                                .any(|d| device_filter.matches(d))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                    true
+                });
+                if hw.devices.is_some() {
+                    s9pks.sort_by_key(|(req, _)| req.specificity_desc());
+                } else {
+                    s9pks.sort_by_key(|(req, _)| {
+                        let (dev, arch, ram) = req.specificity_desc();
+                        (u32::MAX - dev, arch, ram)
+                    });
                 }
-            }
-            if let Some(ram) = hw.ram {
-                if device_info.hardware.ram < ram {
-                    return false;
-                }
-            }
-            for device_filter in &hw.device {
-                if !device_info
-                    .hardware
-                    .devices
-                    .iter()
-                    .filter(|d| d.class() == &*device_filter.class)
-                    .any(|d| device_filter.pattern.as_ref().is_match(d.product()))
-                {
-                    return false;
-                }
-            }
-            true
-        });
+                Ok(())
+            })?;
 
-        if s9pk.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(s9pk))
+            if ModelExt::as_value(self.as_s9pks())
+                .as_array()
+                .map_or(true, |s| s.is_empty())
+            {
+                return Ok(false);
+            }
         }
+
+        Ok(true)
     }
 }
 

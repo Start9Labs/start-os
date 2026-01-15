@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::Parser;
+use imbl::OrdMap;
 use imbl_value::Value;
 use once_cell::sync::OnceCell;
 use rpc_toolkit::yajrc::RpcError;
@@ -53,7 +54,13 @@ impl Context for ContainerCliContext {
 }
 
 impl CallRemote<EffectContext> for ContainerCliContext {
-    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
+    async fn call_remote(
+        &self,
+        method: &str,
+        _: OrdMap<&'static str, Value>,
+        params: Value,
+        _: Empty,
+    ) -> Result<Value, RpcError> {
         call_remote_socket(
             tokio::net::UnixStream::connect(&self.0.socket)
                 .await

@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use exver::{PreReleaseSegment, VersionRange};
+use imbl_value::json;
 use tokio::fs::File;
 
 use super::v0_3_5::V0_3_0_COMPAT;
@@ -10,7 +11,7 @@ use crate::context::RpcContext;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;
 use crate::s9pk::S9pk;
-use crate::s9pk::manifest::{DeviceFilter, Manifest};
+use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::MerkleArchive;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::v2::SIG_CONTEXT;
@@ -84,28 +85,8 @@ impl VersionT for Version {
 
                 let mut manifest = previous_manifest.clone();
 
-                if let Some(device) =
-                    previous_manifest["hardwareRequirements"]["device"].as_object()
-                {
-                    manifest["hardwareRequirements"]["device"] = to_value(
-                        &device
-                            .into_iter()
-                            .map(|(class, product)| {
-                                Ok::<_, Error>(DeviceFilter {
-                                    pattern_description: format!(
-                                        "a {class} device matching the expression {}",
-                                        &product
-                                    ),
-                                    class: class.clone(),
-                                    pattern: from_value(product.clone())?,
-                                })
-                            })
-                            .fold(Ok::<_, Error>(Vec::new()), |acc, value| {
-                                let mut acc = acc?;
-                                acc.push(value?);
-                                Ok(acc)
-                            })?,
-                    )?;
+                if let Some(_) = previous_manifest["hardwareRequirements"]["device"].as_object() {
+                    manifest["hardwareRequirements"]["device"] = json!([]);
                 }
 
                 if previous_manifest != manifest {

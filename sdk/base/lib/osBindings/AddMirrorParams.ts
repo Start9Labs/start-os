@@ -2,8 +2,8 @@
 import type { AnySignature } from "./AnySignature"
 import type { MerkleArchiveCommitment } from "./MerkleArchiveCommitment"
 
-export type AddPackageParams = {
-  urls: string[]
+export type AddMirrorParams = {
+  url: string
   commitment: MerkleArchiveCommitment
   signature: AnySignature
 }

@@ -54,7 +54,7 @@ pub async fn add_package(
     let peek = ctx.db.peek().await;
     let uploader_guid = peek.as_index().as_signers().get_signer(&uploader)?;
 
-    let ([url], rest) = urls.split_at(1) else {
+    let Some(([url], rest)) = urls.split_at_checked(1) else {
         return Err(Error::new(
             eyre!("must specify at least 1 url"),
             ErrorKind::InvalidRequest,

@@ -15,6 +15,7 @@ use crate::s9pk::git_hash::GitHash;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::expected::{Expected, Filter};
 use crate::s9pk::v2::pack::ImageConfig;
+use crate::util::lshw::{LshwDevice, LshwDisplay, LshwProcessor};
 use crate::util::serde::Regex;
 use crate::util::{VersionString, mime};
 use crate::version::{Current, VersionT};
@@ -189,21 +190,107 @@ impl HardwareRequirements {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct DeviceFilter {
+    pub description: String,
     #[ts(type = "\"processor\" | \"display\"")]
     pub class: InternedString,
-    #[ts(type = "string")]
-    pub pattern: Regex,
-    pub pattern_description: String,
+    #[ts(type = "string | null")]
+    pub product: Option<Regex>,
+    #[ts(type = "string | null")]
+    pub vendor: Option<Regex>,
+    #[ts(optional)]
+    pub capabilities: Option<BTreeSet<InternedString>>,
+    #[ts(optional)]
+    pub driver: Option<InternedString>,
 }
+// Omit description
 impl PartialEq for DeviceFilter {
     fn eq(&self, other: &Self) -> bool {
         self.class == other.class
-            && InternedString::from_display(self.pattern.as_ref())
-                == InternedString::from_display(other.pattern.as_ref())
+            && self.product == other.product
+            && self.vendor == other.vendor
+            && self.capabilities == other.capabilities
+            && self.driver == other.driver
+    }
+}
+impl DeviceFilter {
+    pub fn matches(&self, device: &LshwDevice) -> bool {
+        if &*self.class != device.class() {
+            return false;
+        }
+        match device {
+            LshwDevice::Processor(LshwProcessor {
+                product,
+                vendor,
+                capabilities,
+            }) => {
+                if let Some(match_product) = &self.product {
+                    if !product
+                        .as_deref()
+                        .map_or(false, |p| match_product.as_ref().is_match(p))
+                    {
+                        return false;
+                    }
+                }
+                if let Some(match_vendor) = &self.vendor {
+                    if !vendor
+                        .as_deref()
+                        .map_or(false, |v| match_vendor.as_ref().is_match(v))
+                    {
+                        return false;
+                    }
+                }
+                if !self
+                    .capabilities
+                    .as_ref()
+                    .map_or(true, |c| c.is_subset(capabilities))
+                {
+                    return false;
+                }
+                true
+            }
+            LshwDevice::Display(LshwDisplay {
+                product,
+                vendor,
+                capabilities,
+                driver,
+            }) => {
+                if let Some(match_product) = &self.product {
+                    if !product
+                        .as_deref()
+                        .map_or(false, |p| match_product.as_ref().is_match(p))
+                    {
+                        return false;
+                    }
+                }
+                if let Some(match_vendor) = &self.vendor {
+                    if !vendor
+                        .as_deref()
+                        .map_or(false, |v| match_vendor.as_ref().is_match(v))
+                    {
+                        return false;
+                    }
+                }
+                if !self
+                    .capabilities
+                    .as_ref()
+                    .map_or(true, |c| c.is_subset(capabilities))
+                {
+                    return false;
+                }
+                if !self
+                    .driver
+                    .as_ref()
+                    .map_or(true, |d| Some(d) == driver.as_ref())
+                {
+                    return false;
+                }
+                true
+            }
+        }
     }
 }
 

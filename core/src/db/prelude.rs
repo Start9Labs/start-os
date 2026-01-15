@@ -416,6 +416,51 @@ impl<T: Map> Model<T> {
     }
 }
 
+impl<T: Map> Model<T>
+where
+    T::Key: FromStr,
+    Error: From<<T::Key as FromStr>::Err>,
+{
+    /// Retains only the elements specified by the predicate.
+    /// The predicate can mutate the values and returns whether to keep each entry.
+    pub fn retain<F>(&mut self, mut f: F) -> Result<(), Error>
+    where
+        F: FnMut(&T::Key, &mut Model<T::Value>) -> Result<bool, Error>,
+    {
+        let mut to_remove = Vec::new();
+
+        match &mut self.value {
+            Value::Object(o) => {
+                for (k, v) in o.iter_mut() {
+                    let key = T::Key::from_str(&**k)?;
+                    if !f(&key, patch_db::ModelExt::value_as_mut(v))? {
+                        to_remove.push(k.clone());
+                    }
+                }
+            }
+            v => {
+                use serde::de::Error;
+                return Err(patch_db::value::Error {
+                    source: patch_db::value::ErrorSource::custom(format!(
+                        "expected object found {v}"
+                    )),
+                    kind: patch_db::value::ErrorKind::Deserialization,
+                }
+                .into());
+            }
+        }
+
+        // Remove entries that didn't pass the filter
+        if let Value::Object(o) = &mut self.value {
+            for k in to_remove {
+                o.remove(&k);
+            }
+        }
+
+        Ok(())
+    }
+}
+
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct JsonKey<T>(pub T);

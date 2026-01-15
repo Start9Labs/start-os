@@ -51,6 +51,7 @@ impl Model<StatusInfo> {
     }
     pub fn stopped(&mut self) -> Result<(), Error> {
         self.as_started_mut().ser(&None)?;
+        self.as_health_mut().ser(&Default::default())?;
         Ok(())
     }
     pub fn restart(&mut self) -> Result<(), Error> {
@@ -59,7 +60,7 @@ impl Model<StatusInfo> {
         Ok(())
     }
     pub fn init(&mut self) -> Result<(), Error> {
-        self.as_started_mut().ser(&None)?;
+        self.stopped()?;
         self.as_desired_mut().map_mutate(|s| {
             Ok(match s {
                 DesiredStatus::BackingUp {

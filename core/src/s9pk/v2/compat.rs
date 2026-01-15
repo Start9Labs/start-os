@@ -242,12 +242,13 @@ impl TryFrom<ManifestV1> for Manifest {
                     .device
                     .into_iter()
                     .map(|(class, product)| DeviceFilter {
-                        pattern_description: format!(
+                        description: format!(
                             "a {class} device matching the expression {}",
                             product.as_ref()
                         ),
                         class,
-                        pattern: product,
+                        product: Some(product),
+                        ..Default::default()
                     })
                     .collect(),
             },

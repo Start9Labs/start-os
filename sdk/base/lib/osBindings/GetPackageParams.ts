@@ -7,5 +7,5 @@ export type GetPackageParams = {
   id: PackageId | null
   targetVersion: string | null
   sourceVersion: Version | null
-  otherVersions: PackageDetailLevel
+  otherVersions: PackageDetailLevel | null
 }
