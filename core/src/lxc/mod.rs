@@ -291,6 +291,12 @@ impl LxcContainer {
         Ok(res)
     }
 
+    #[cfg(not(target_os = "linux"))]
+    async fn handle_devices(&self, _: ReadDir, _: &[&str]) -> Result<(), Error> {
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
     fn handle_devices<'a>(
         &'a self,
         mut dir: ReadDir,
