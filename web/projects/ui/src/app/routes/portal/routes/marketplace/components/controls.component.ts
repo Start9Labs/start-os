@@ -14,7 +14,6 @@ import {
   Exver,
   ExverPipesModule,
   i18nPipe,
-  isEmptyObject,
   LoadingService,
   sameUrl,
 } from '@start9labs/shared'
@@ -184,10 +183,7 @@ export class MarketplaceControlsComponent {
     const packages = await getAllPackages(this.patch)
     const breakages = dryUpdate({ id, version }, packages, this.exver)
 
-    if (
-      isEmptyObject(breakages) ||
-      (await this.alerts.alertBreakages(breakages))
-    ) {
+    if (!breakages.length || (await this.alerts.alertBreakages(breakages))) {
       this.installOrUpload(url)
     }
   }
