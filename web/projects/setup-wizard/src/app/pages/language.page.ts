@@ -122,13 +122,13 @@ export default class LanguagePage {
 
   constructor() {
     if (this.selected) {
-      this.i18nService.setLanguage(this.selected.name)
+      this.i18nService.setLang(this.selected.name)
     }
   }
 
   onLanguageChange(language: Language) {
     if (language) {
-      this.i18nService.setLanguage(language.name)
+      this.i18nService.setLang(language.name)
     }
   }
 

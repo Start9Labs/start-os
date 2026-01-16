@@ -56,7 +56,7 @@ export const ENGLISH = {
   'Beginning shutdown': 57,
   'Add': 58,
   'Ok': 59,
-  'french': 60,
+  'fr_FR': 60,
   'This value cannot be changed once set': 61,
   'Continue': 62,
   'Click or drop file here': 63,
@@ -462,10 +462,10 @@ export const ENGLISH = {
   'StartOS UI': 485,
   'WiFi': 486,
   'Documentation': 487, // as in, a website to view documentation
-  'spanish': 488,
-  'polish': 489,
-  'german': 490,
-  'english': 491,
+  'es_ES': 488,
+  'pl_PL': 489,
+  'de_DE': 490,
+  'en_US': 491,
   'Start Menu': 492,
   'Install Progress': 493,
   'Downloading': 494,
@@ -670,9 +670,9 @@ export const ENGLISH = {
   'Preserve': 706,
   'Overwrite': 707,
   'Unlock': 708,
-  'Drive': 709, // as in, a storage device
+  'Drive': 709, // the noun, a storage device
   'Transfer': 710, // the verb
   'The list is empty': 711,
   'Restart now': 712,
   'Later': 713, // as in, (do it) later
-} as const
+} as Record<any, any>

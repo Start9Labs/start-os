@@ -219,7 +219,7 @@ export const mockPatchData: DataModel = {
     ram: 8 * 1024 * 1024 * 1024,
     devices: [],
     kiosk: true,
-    language: 'english',
+    language: 'en_US',
     keyboard: {
       layout: 'us',
       model: null,
