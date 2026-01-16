@@ -453,6 +453,41 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async setKeyboard(params: RR.SetKeyboardReq): Promise<RR.SetKeyboardRes> {
+    await pauseFor(1000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/keyboard',
+        value: {
+          layout: params.layout,
+          model: params.model,
+          variant: params.variant,
+          options: params.options,
+        },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setLanguage(params: RR.SetLanguageReq): Promise<RR.SetLanguageRes> {
+    await pauseFor(1000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/language',
+        value: params.language,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
   async setDns(params: RR.SetDnsReq): Promise<RR.SetDnsRes> {
     await pauseFor(2000)
 

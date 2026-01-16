@@ -12,6 +12,7 @@ import {
   I18N_PROVIDERS,
   I18N_STORAGE,
   i18nService,
+  Languages,
   RELATIVE_URL,
   VERSION,
   WorkspaceConfig,
@@ -128,7 +129,7 @@ export const APP_PROVIDERS = [
     useFactory: () => {
       const api = inject(ApiService)
 
-      return (language: string) => api.setDbValue(['language'], language)
+      return (language: Languages) => api.setLanguage({ language })
     },
   },
   {

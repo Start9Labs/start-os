@@ -1,13 +1,23 @@
-import { Component, inject } from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { Router } from '@angular/router'
 import { FormsModule } from '@angular/forms'
-import { i18nPipe } from '@start9labs/shared'
+import {
+  getAllKeyboardsSorted,
+  i18nPipe,
+  Keyboard,
+  LanguageCode,
+} from '@start9labs/shared'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import { TuiButton, TuiTextfield, TuiTitle } from '@taiga-ui/core'
-import { TuiChevron, TuiDataListWrapper, TuiSelect } from '@taiga-ui/kit'
+import {
+  TuiButtonLoading,
+  TuiChevron,
+  TuiDataListWrapper,
+  TuiSelect,
+} from '@taiga-ui/kit'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
+import { ApiService } from '../services/api.service'
 import { StateService } from '../services/state.service'
-import { Keyboard, getKeyboardsForLanguage } from '../utils/languages'
 
 @Component({
   template: `
@@ -36,30 +46,22 @@ import { Keyboard, getKeyboardsForLanguage } from '../utils/languages'
       </tui-textfield>
 
       <footer>
-        <button tuiButton [disabled]="!selected" (click)="continue()">
+        <button
+          tuiButton
+          [disabled]="!selected"
+          [loading]="saving()"
+          (click)="continue()"
+        >
           {{ 'Continue' | i18n }}
         </button>
       </footer>
     </section>
   `,
-  styles: `
-    :host {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100%;
-    }
-
-    footer {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 1.5rem;
-    }
-  `,
   imports: [
     FormsModule,
     TuiCardLarge,
     TuiButton,
+    TuiButtonLoading,
     TuiTextfield,
     TuiChevron,
     TuiSelect,
@@ -71,24 +73,38 @@ import { Keyboard, getKeyboardsForLanguage } from '../utils/languages'
 })
 export default class KeyboardPage {
   private readonly router = inject(Router)
+  private readonly api = inject(ApiService)
   private readonly stateService = inject(StateService)
 
   protected readonly mobile = inject(TUI_IS_MOBILE)
-  readonly keyboards = getKeyboardsForLanguage(this.stateService.language)
+  // All keyboards, with language-specific keyboards at the top
+  readonly keyboards = getAllKeyboardsSorted(
+    this.stateService.language as LanguageCode,
+  )
   selected =
     this.keyboards.find(k => k.code === this.stateService.keyboard) ||
-    this.keyboards[0]
+    this.keyboards[0]!
+
+  readonly saving = signal(false)
 
   readonly stringify = (kb: Keyboard) => kb.name
 
-  async back() {
-    await this.router.navigate(['/language'])
-  }
-
   async continue() {
-    if (this.selected) {
+    this.saving.set(true)
+
+    try {
+      // Send keyboard to backend
+      await this.api.setKeyboard({
+        layout: this.selected.code,
+        model: null,
+        variant: null,
+        options: [],
+      })
+
       this.stateService.keyboard = this.selected.code
       await this.navigateToNextStep()
+    } finally {
+      this.saving.set(false)
     }
   }
 

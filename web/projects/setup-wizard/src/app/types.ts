@@ -1,4 +1,9 @@
-import { DiskInfo, PartitionInfo, StartOSDiskInfo } from '@start9labs/shared'
+import {
+  DiskInfo,
+  FullKeyboard,
+  PartitionInfo,
+  StartOSDiskInfo,
+} from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
 // === Echo ===
@@ -10,8 +15,13 @@ export type EchoReq = {
 // === Setup Status ===
 
 export type SetupStatusRes =
-  | { status: 'needs-install' }
-  | { status: 'incomplete'; guid: string; attach: boolean }
+  | { status: 'needs-install'; keyboard: FullKeyboard | null }
+  | {
+      status: 'incomplete'
+      guid: string
+      attach: boolean
+      keyboard: FullKeyboard | null
+    }
   | { status: 'running'; progress: T.FullProgress; guid: string }
   | { status: 'complete' }
 
@@ -35,8 +45,6 @@ export interface InstallOsRes {
 export interface AttachParams {
   startOsPassword: T.EncryptedWire | null
   guid: string // data drive
-  language: string
-  kiosk: { keyboard: string } | null
 }
 
 // === Execute ===
@@ -44,8 +52,6 @@ export interface AttachParams {
 export interface SetupExecuteParams {
   startOsLogicalname: string
   startOsPassword: T.EncryptedWire | null // null = keep existing password (for restore/transfer)
-  language: string
-  kiosk: { keyboard: string } | null
   recoverySource:
     | {
         type: 'migrate'

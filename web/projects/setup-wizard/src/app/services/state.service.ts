@@ -35,7 +35,7 @@ export class StateService {
 
   // Set during install flow, or loaded from status response
   language = ''
-  keyboard = '' // only used if kiosk
+  keyboard = ''
 
   // From install response or status response (incomplete)
   dataDriveGuid = ''
@@ -52,8 +52,6 @@ export class StateService {
     await this.api.attach({
       guid: this.dataDriveGuid,
       startOsPassword: password ? await this.api.encrypt(password) : null,
-      language: this.language,
-      kiosk: this.kiosk ? { keyboard: this.keyboard } : null,
     })
   }
 
@@ -81,8 +79,6 @@ export class StateService {
     await this.api.execute({
       startOsLogicalname: this.dataDriveGuid,
       startOsPassword: password ? await this.api.encrypt(password) : null,
-      language: this.language,
-      kiosk: this.kiosk ? { keyboard: this.keyboard } : null,
       recoverySource,
     })
   }

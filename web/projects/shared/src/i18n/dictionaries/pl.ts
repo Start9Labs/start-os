@@ -673,4 +673,6 @@ export default {
   709: 'Dysk',
   710: 'Przenieś',
   711: 'Lista jest pusta',
+  712: 'Uruchom ponownie teraz',
+  713: 'Później',
 } satisfies i18n

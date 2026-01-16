@@ -1,18 +1,18 @@
-import { Component, inject } from '@angular/core'
+import { Component, computed, inject, signal } from '@angular/core'
 import { Router } from '@angular/router'
 import { FormsModule } from '@angular/forms'
-import { i18nPipe, i18nService } from '@start9labs/shared'
+import { i18nPipe, i18nService, Language, LANGUAGES } from '@start9labs/shared'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import { TuiButton, TuiTextfield, TuiTitle } from '@taiga-ui/core'
-import { TuiChevron, TuiDataListWrapper, TuiSelect } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
-import { StateService } from '../services/state.service'
 import {
-  LANGUAGES,
-  Language,
-  getDefaultKeyboard,
-  needsKeyboardSelection,
-} from '../utils/languages'
+  TuiButtonLoading,
+  TuiChevron,
+  TuiDataListWrapper,
+  TuiSelect,
+} from '@taiga-ui/kit'
+import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
+import { ApiService } from '../services/api.service'
+import { StateService } from '../services/state.service'
 
 @Component({
   template: `
@@ -60,25 +60,23 @@ import {
         @let lang = asLanguage(item);
         <div class="language-item">
           <span>{{ lang.nativeName }}</span>
-          <small>{{ lang.tuiName | i18n }}</small>
+          <small>{{ lang.name | i18n }}</small>
         </div>
       </ng-template>
 
       <footer>
-        <button tuiButton [disabled]="!selected" (click)="continue()">
+        <button
+          tuiButton
+          [disabled]="!selected"
+          [loading]="loading()"
+          (click)="continue()"
+        >
           {{ 'Continue' | i18n }}
         </button>
       </footer>
     </section>
   `,
   styles: `
-    :host {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100%;
-    }
-
     .language-item {
       display: flex;
       flex-direction: column;
@@ -92,6 +90,7 @@ import {
     FormsModule,
     TuiCardLarge,
     TuiButton,
+    TuiButtonLoading,
     TuiTextfield,
     TuiChevron,
     TuiSelect,
@@ -103,6 +102,7 @@ import {
 })
 export default class LanguagePage {
   private readonly router = inject(Router)
+  private readonly api = inject(ApiService)
   private readonly stateService = inject(StateService)
   private readonly i18nService = inject(i18nService)
 
@@ -112,18 +112,23 @@ export default class LanguagePage {
   selected =
     LANGUAGES.find(l => l.code === this.stateService.language) || LANGUAGES[0]
 
+  private readonly saving = signal(false)
+
+  // Show loading when either language is loading or saving is in progress
+  readonly loading = computed(() => this.i18nService.loading() || this.saving())
+
   readonly stringify = (lang: Language) => lang.nativeName
   readonly asLanguage = (item: unknown): Language => item as Language
 
   constructor() {
     if (this.selected) {
-      this.i18nService.setLanguage(this.selected.tuiName)
+      this.i18nService.setLanguage(this.selected.name)
     }
   }
 
   onLanguageChange(language: Language) {
     if (language) {
-      this.i18nService.setLanguage(language.tuiName)
+      this.i18nService.setLanguage(language.name)
     }
   }
 
@@ -131,31 +136,16 @@ export default class LanguagePage {
     if (this.selected) {
       this.stateService.language = this.selected.code
 
-      if (this.stateService.kiosk) {
-        if (needsKeyboardSelection(this.selected.code)) {
-          await this.router.navigate(['/keyboard'])
-        } else {
-          this.stateService.keyboard = getDefaultKeyboard(
-            this.selected.code,
-          ).code
-          await this.navigateToNextStep()
-        }
-      } else {
-        await this.navigateToNextStep()
-      }
-    }
-  }
+      // Save language to backend
+      this.saving.set(true)
 
-  private async navigateToNextStep() {
-    if (this.stateService.dataDriveGuid) {
-      if (this.stateService.attach) {
-        this.stateService.setupType = 'attach'
-        await this.router.navigate(['/password'])
-      } else {
-        await this.router.navigate(['/home'])
+      try {
+        await this.api.setLanguage({ language: this.selected.name })
+        // Always go to keyboard selection
+        await this.router.navigate(['/keyboard'])
+      } finally {
+        this.saving.set(false)
       }
-    } else {
-      await this.router.navigate(['/drives'])
     }
   }
 }

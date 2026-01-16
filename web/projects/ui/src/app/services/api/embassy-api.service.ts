@@ -117,6 +117,10 @@ export abstract class ApiService {
 
   abstract toggleKiosk(enable: boolean): Promise<null>
 
+  abstract setKeyboard(params: RR.SetKeyboardReq): Promise<RR.SetKeyboardRes>
+
+  abstract setLanguage(params: RR.SetLanguageReq): Promise<RR.SetLanguageRes>
+
   abstract setDns(params: RR.SetDnsReq): Promise<RR.SetDnsRes>
 
   abstract queryDns(params: RR.QueryDnsReq): Promise<RR.QueryDnsRes>

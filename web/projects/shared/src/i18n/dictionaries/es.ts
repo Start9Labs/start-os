@@ -673,4 +673,6 @@ export default {
   709: 'Unidad',
   710: 'Transferir',
   711: 'La lista está vacía',
+  712: 'Reiniciar ahora',
+  713: 'Más tarde',
 } satisfies i18n

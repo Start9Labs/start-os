@@ -1,5 +1,11 @@
 import * as jose from 'node-jose'
-import { DiskInfo, FollowLogsRes, StartOSDiskInfo } from '@start9labs/shared'
+import {
+  DiskInfo,
+  FollowLogsRes,
+  FullKeyboard,
+  SetLanguageParams,
+  StartOSDiskInfo,
+} from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { Observable } from 'rxjs'
 import {
@@ -21,6 +27,8 @@ export abstract class ApiService {
   // Status & Setup
   abstract getStatus(): Promise<SetupStatusRes> // setup.status
   abstract getPubKey(): Promise<void> // setup.get-pubkey
+  abstract setKeyboard(params: FullKeyboard): Promise<null> // setup.set-keyboard
+  abstract setLanguage(params: SetLanguageParams): Promise<null> // setup.set-language
 
   // Install
   abstract getDisks(): Promise<DiskInfo[]> // setup.disk.list

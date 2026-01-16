@@ -3,10 +3,12 @@ import {
   DiskInfo,
   encodeBase64,
   FollowLogsRes,
+  FullKeyboard,
   HttpService,
   isRpcError,
   RpcError,
   RPCOptions,
+  SetLanguageParams,
   StartOSDiskInfo,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -62,6 +64,20 @@ export class LiveApiService extends ApiService {
       params: {},
     })
     this.pubkey = response
+  }
+
+  async setKeyboard(params: FullKeyboard): Promise<null> {
+    return this.rpcRequest({
+      method: 'setup.set-keyboard',
+      params,
+    })
+  }
+
+  async setLanguage(params: SetLanguageParams): Promise<null> {
+    return this.rpcRequest({
+      method: 'setup.set-language',
+      params,
+    })
   }
 
   async getDisks() {

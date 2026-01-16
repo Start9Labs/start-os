@@ -12,7 +12,6 @@ export const mockPatchData: DataModel = {
     },
     startosRegistry: 'https://registry.start9.com/',
     snakeHighScore: 0,
-    language: 'english',
   },
   serverInfo: {
     arch: 'x86_64',
@@ -220,6 +219,14 @@ export const mockPatchData: DataModel = {
     ram: 8 * 1024 * 1024 * 1024,
     devices: [],
     kiosk: true,
+    language: 'english',
+    keyboard: {
+      layout: 'us',
+      model: null,
+      variant: null,
+      options: [],
+    },
+    // keyboard: null,
   },
   packageData: {
     lnd: {

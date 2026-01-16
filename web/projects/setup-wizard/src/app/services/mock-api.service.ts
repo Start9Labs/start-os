@@ -3,7 +3,9 @@ import {
   DiskInfo,
   encodeBase64,
   FollowLogsRes,
+  FullKeyboard,
   pauseFor,
+  SetLanguageParams,
   StartOSDiskInfo,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -68,8 +70,13 @@ export class MockApiService extends ApiService {
     this.statusIndex++
 
     if (this.statusIndex === 1) {
-      // return { status: 'needs-install' }
-      return { status: 'incomplete', attach: false, guid: 'mock-data-guid' }
+      // return { status: 'needs-install', keyboard: null }
+      return {
+        status: 'incomplete',
+        attach: false,
+        guid: 'mock-data-guid',
+        keyboard: null,
+      }
     }
 
     if (this.statusIndex > 3) {
@@ -91,6 +98,16 @@ export class MockApiService extends ApiService {
       x: 'yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4',
       y: '8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI',
     })
+  }
+
+  async setKeyboard(_params: FullKeyboard): Promise<null> {
+    await pauseFor(300)
+    return null
+  }
+
+  async setLanguage(params: SetLanguageParams): Promise<null> {
+    await pauseFor(300)
+    return null
   }
 
   async getDisks(): Promise<DiskInfo[]> {

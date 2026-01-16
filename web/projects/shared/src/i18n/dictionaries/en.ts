@@ -673,4 +673,6 @@ export const ENGLISH = {
   'Drive': 709, // as in, a storage device
   'Transfer': 710, // the verb
   'The list is empty': 711,
+  'Restart now': 712,
+  'Later': 713, // as in, (do it) later
 } as const

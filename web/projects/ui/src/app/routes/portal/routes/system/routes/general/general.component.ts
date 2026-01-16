@@ -12,11 +12,16 @@ import { RouterLink } from '@angular/router'
 import {
   DialogService,
   ErrorService,
+  getAllKeyboardsSorted,
+  getKeyboardName,
   i18nKey,
   i18nPipe,
   i18nService,
+  Keyboard,
+  KeyboardCode,
   languages,
   Languages,
+  LANGUAGE_TO_CODE,
   LoadingService,
 } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
@@ -49,6 +54,7 @@ import { TitleDirective } from 'src/app/services/title.service'
 import { SnekDirective } from './snek.directive'
 import { UPDATE } from './update.component'
 import { SystemWipeComponent } from './wipe.component'
+import { KeyboardSelectComponent } from './keyboard-select.component'
 
 @Component({
   template: `
@@ -134,20 +140,38 @@ import { SystemWipeComponent } from './wipe.component'
         <span tuiTitle>
           <strong>
             {{ 'Kiosk Mode' | i18n }}
-            <tui-badge size="m" appearance="primary-grayscale">
+            <tui-badge
+              size="m"
+              [appearance]="server.kiosk ? 'warning' : 'primary-grayscale'"
+            >
               {{ server.kiosk ? ('Enabled' | i18n) : ('Disabled' | i18n) }}
             </tui-badge>
           </strong>
-          <span tuiSubtitle>
-            {{
-              server.kiosk === true
-                ? ('Disable Kiosk Mode unless you need to attach a monitor'
-                  | i18n)
-                : server.kiosk === false
-                  ? ('Enable Kiosk Mode if you need to attach a monitor' | i18n)
-                  : ('Kiosk Mode is unavailable on this device' | i18n)
-            }}
+          <span tuiSubtitle [class.warning-text]="server.kiosk">
+            @if (server.kiosk === null) {
+              {{ 'Kiosk Mode is unavailable on this device' | i18n }}
+            } @else {
+              {{
+                server.kiosk
+                  ? ('Disable Kiosk Mode unless you need to attach a monitor'
+                    | i18n)
+                  : ('Enable Kiosk Mode if you need to attach a monitor' | i18n)
+              }}
+            }
           </span>
+          @if (server.kiosk !== null && server.keyboard?.layout; as layout) {
+            <span tuiSubtitle class="keyboard-info">
+              <tui-icon icon="@tui.keyboard" />
+              {{ getKeyboardName(layout) }}
+              <button
+                tuiIconButton
+                appearance="icon"
+                iconStart="@tui.pencil"
+                size="xs"
+                (click)="onChangeKeyboard()"
+              ></button>
+            </span>
+          }
         </span>
         @if (server.kiosk !== null) {
           <button tuiButton appearance="primary" (click)="toggleKiosk()">
@@ -214,6 +238,21 @@ import { SystemWipeComponent } from './wipe.component'
     [tuiAnimated].tui-leave {
       animation-name: tuiFade, tuiScale;
     }
+
+    .keyboard-info {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+
+      tui-icon {
+        font-size: 0.875rem;
+      }
+    }
+
+    .warning-text,
+    [tuiSubtitle].warning-text {
+      color: var(--tui-status-warning) !important;
+    }
   `,
   providers: [tuiCellOptionsProvider({ height: 'spacious' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -269,6 +308,51 @@ export default class SystemGeneralComponent {
 
   get language(): Languages | undefined {
     return this.languages.find(lang => lang === this.i18nService.language)
+  }
+
+  // Expose shared utilities for template use
+  readonly getKeyboardName = getKeyboardName
+
+  /**
+   * Open keyboard selection dialog to change keyboard layout
+   */
+  onChangeKeyboard() {
+    const server = this.server()
+    if (!server) return
+
+    const keyboards = getAllKeyboardsSorted(LANGUAGE_TO_CODE[server.language])
+    const currentKeyboard = (server.keyboard?.layout as KeyboardCode) || null
+
+    this.dialog
+      .openComponent<KeyboardCode | null>(
+        new PolymorpheusComponent(KeyboardSelectComponent, this.injector),
+        {
+          label: 'Select Keyboard Layout',
+          size: 's',
+          data: { keyboards, currentKeyboard },
+        },
+      )
+      .pipe(filter((code): code is KeyboardCode => code !== null))
+      .subscribe(keyboardCode => {
+        this.saveKeyboard(keyboardCode)
+      })
+  }
+
+  private async saveKeyboard(keyboardCode: KeyboardCode) {
+    const loader = this.loader.open('Saving').subscribe()
+
+    try {
+      await this.api.setKeyboard({
+        layout: keyboardCode,
+        model: null,
+        variant: null,
+        options: [],
+      })
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
   }
 
   onUpdate() {
@@ -352,24 +436,102 @@ export default class SystemGeneralComponent {
   }
 
   async toggleKiosk() {
-    const kiosk = this.server()?.kiosk
+    const server = this.server()
+    if (!server) return
 
-    const loader = this.loader
-      .open(kiosk ? 'Disabling' : 'Enabling')
-      .subscribe()
+    const kiosk = server.kiosk
+
+    // If disabling kiosk, just disable it
+    if (kiosk) {
+      await this.disableKiosk()
+      return
+    }
+
+    // Enabling kiosk - check if keyboard is already set
+    if (server.keyboard) {
+      // Keyboard already set, just enable kiosk
+      await this.enableKiosk()
+      return
+    }
+
+    // No keyboard set - prompt user to select from all keyboards
+    const keyboards = getAllKeyboardsSorted(LANGUAGE_TO_CODE[server.language])
+    this.promptKeyboardSelection(keyboards)
+  }
+
+  private promptKeyboardSelection(keyboards: Keyboard[]) {
+    this.dialog
+      .openComponent<KeyboardCode | null>(
+        new PolymorpheusComponent(KeyboardSelectComponent, this.injector),
+        {
+          label: 'Select Keyboard Layout',
+          size: 's',
+          data: { keyboards, currentKeyboard: null },
+        },
+      )
+      .pipe(filter((code): code is KeyboardCode => code !== null))
+      .subscribe(keyboardCode => {
+        this.enableKioskWithKeyboard(keyboardCode)
+      })
+  }
+
+  private async enableKiosk() {
+    const loader = this.loader.open('Enabling').subscribe()
 
     try {
-      await this.api.toggleKiosk(!kiosk)
-      this.dialog
-        .openAlert('This change will take effect after the next boot', {
-          label: 'Restart to apply',
-        })
-        .subscribe()
+      await this.api.toggleKiosk(true)
+      this.promptRestart()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
+  }
+
+  private async enableKioskWithKeyboard(keyboardCode: KeyboardCode) {
+    const loader = this.loader.open('Enabling').subscribe()
+
+    try {
+      await this.api.setKeyboard({
+        layout: keyboardCode,
+        model: null,
+        variant: null,
+        options: [],
+      })
+      await this.api.toggleKiosk(true)
+      this.promptRestart()
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  private async disableKiosk() {
+    const loader = this.loader.open('Disabling').subscribe()
+
+    try {
+      await this.api.toggleKiosk(false)
+      this.promptRestart()
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  private promptRestart() {
+    this.dialog
+      .openConfirm({
+        label: 'Restart to apply',
+        data: {
+          content: 'This change will take effect after the next boot',
+          yes: 'Restart now',
+          no: 'Later',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.restart())
   }
 
   private async resetTor(wipeState: boolean) {

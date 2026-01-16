@@ -673,4 +673,6 @@ export default {
   709: 'Laufwerk',
   710: 'Übertragen',
   711: 'Die Liste ist leer',
+  712: 'Jetzt neu starten',
+  713: 'Später',
 } satisfies i18n

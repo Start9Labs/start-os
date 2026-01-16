@@ -673,4 +673,6 @@ export default {
   709: 'Disque',
   710: 'Transférer',
   711: 'La liste est vide',
+  712: 'Redémarrer maintenant',
+  713: 'Plus tard',
 } satisfies i18n
