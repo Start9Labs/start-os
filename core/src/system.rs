@@ -23,7 +23,7 @@ use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::shutdown::Shutdown;
 use crate::util::Invoke;
 use crate::util::cpupower::{Governor, get_available_governors, set_governor};
-use crate::util::io::open_file;
+use crate::util::io::{copy_file, open_file, write_file_atomic};
 use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 use crate::util::sync::Watch;
 use crate::{MAIN_DATA, PACKAGE_DATA};
@@ -1050,6 +1050,105 @@ pub async fn test_smtp(
                 .body("This is a test email sent from your StartOS Server".to_owned())?,
         )
         .await?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyboardOptions {
+    pub layout: InternedString,
+    pub model: Option<InternedString>,
+    pub variant: Option<InternedString>,
+    #[arg(short, long = "option")]
+    #[serde(default)]
+    pub options: Vec<InternedString>,
+}
+impl KeyboardOptions {
+    /// NOTE: will error if kiosk inactive
+    pub async fn apply_to_session(&self) -> Result<(), Error> {
+        let mut cmd = Command::new("setxkbmap");
+        cmd.env("DISPLAY", ":0")
+            .env("XAUTHORITY", "/home/kiosk/.Xauthority");
+        cmd.arg("-layout").arg(&*self.layout);
+        if let Some(variant) = self.variant.as_deref() {
+            cmd.arg("-variant").arg(variant);
+        }
+        for option in &self.options {
+            cmd.arg("-option").arg(&**option);
+        }
+        cmd.invoke(ErrorKind::SetSysInfo).await?;
+        Ok(())
+    }
+
+    pub async fn save(&self) -> Result<(), Error> {
+        // TODO: set console keyboard
+        write_file_atomic(
+            "/media/startos/config/overlay/etc/X11/xorg.conf.d/00-keyboard.conf",
+            format!(
+                include_str!("./keyboard.conf.template"),
+                model = self.model.as_deref().unwrap_or_default(),
+                layout = &*self.layout,
+                variant = self.variant.as_deref().unwrap_or_default(),
+                options = self.options.join(","),
+            ),
+        )
+        .await
+    }
+}
+
+pub async fn set_keyboard(ctx: RpcContext, options: KeyboardOptions) -> Result<(), Error> {
+    options.apply_to_session().await.log_err();
+    options.save().await?;
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_keyboard_mut()
+                .ser(&Some(options))
+        })
+        .await
+        .result?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct SetLanguageParams {
+    pub language: InternedString,
+}
+
+pub async fn set_language(
+    ctx: RpcContext,
+    SetLanguageParams { language }: SetLanguageParams,
+) -> Result<(), Error> {
+    write_file_atomic(
+        "/etc/locale.gen",
+        format!("{language}.UTF-8 UTF-8\n").as_bytes(),
+    )
+    .await?;
+    Command::new("locale-gen")
+        .invoke(ErrorKind::SetSysInfo)
+        .await?;
+    copy_file(
+        "/usr/lib/locale/locale-archive",
+        "/media/startos/config/overlay/usr/lib/locale/locale-archive",
+    )
+    .await?;
+    write_file_atomic(
+        "/media/startos/config/overlay/etc/default/locale",
+        format!("{language}.UTF-8\n").as_bytes(),
+    )
+    .await?;
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_language_mut()
+                .ser(&Some(language.clone()))
+        })
+        .await
+        .result?;
+    rust_i18n::set_locale(&*language);
     Ok(())
 }
 

@@ -775,6 +775,23 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
     .boxed()
 }
 
+pub async fn copy_file(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), Error> {
+    let src = src.as_ref();
+    tokio::fs::metadata(src)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, src.display()))?;
+    let dst = dst.as_ref();
+    if let Some(parent) = dst.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}")))?;
+    }
+    tokio::fs::copy(src, dst)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("cp {src:?} -> {dst:?}")))?;
+    Ok(())
+}
+
 #[pin_project::pin_project]
 pub struct TimeoutStream<S: AsyncRead + AsyncWrite = TcpStream> {
     timeout: Duration,

@@ -1,5 +1,7 @@
 use const_format::formatcp;
 
+rust_i18n::i18n!("locales", fallback = ["en_US"]);
+
 pub const DATA_DIR: &str = "/media/startos/data";
 pub const MAIN_DATA: &str = formatcp!("{DATA_DIR}/main");
 pub const PACKAGE_DATA: &str = formatcp!("{DATA_DIR}/package-data");

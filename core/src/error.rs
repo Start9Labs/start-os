@@ -97,6 +97,7 @@ pub enum ErrorKind {
     InstallFailed = 76,
     UpdateFailed = 77,
     Smtp = 78,
+    SetSysInfo = 79,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -180,6 +181,7 @@ impl ErrorKind {
             InstallFailed => "Install Failed",
             UpdateFailed => "Update Failed",
             Smtp => "SMTP Error",
+            SetSysInfo => "Error Setting System Info",
         }
     }
 }
