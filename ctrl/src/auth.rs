@@ -2,13 +2,16 @@ use std::collections::BTreeMap;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
+use std::sync::LazyLock;
 
 use chrono::{DateTime, TimeDelta, Utc};
 use clap::Parser;
 use imbl_value::{json, Value};
 use itertools::Itertools;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{from_fn_async, CallRemote, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{
+    from_fn_async, CallRemote, Context, Empty, HandlerArgs, HandlerExt, ParentHandler,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::instrument;
@@ -19,9 +22,9 @@ use crate::{CliContext, ServerContext};
 const DEFAULT_SESSION_FILE_PATH: &str = "/var/run/startwrt/sessions.json";
 const SESSION_EXPIRY_DAYS: i64 = 1;
 
-fn session_file_path() -> String {
+static SESSION_FILE_PATH: LazyLock<String> = LazyLock::new(|| {
     std::env::var("STARTWRT_SESSION_PATH").unwrap_or_else(|_| DEFAULT_SESSION_FILE_PATH.to_string())
-}
+});
 
 pub mod error_code {
     pub const INCORRECT_PASSWORD: i32 = 7;
@@ -96,9 +99,8 @@ pub struct LoginParams {
 
 /// Read and parse the shadow file to get the password hash for a user
 fn get_shadow_hash(username: &str) -> Result<Option<String>, Error> {
-    let shadow_content = fs::read_to_string("/etc/shadow").map_err(|e| {
-        Error::other(format!("Failed to read /etc/shadow: {}", e))
-    })?;
+    let shadow_content = fs::read_to_string("/etc/shadow")
+        .map_err(|e| Error::other(format!("Failed to read /etc/shadow: {}", e)))?;
 
     for line in shadow_content.lines() {
         let parts: Vec<&str> = line.split(':').collect();
@@ -174,52 +176,43 @@ pub fn check_password(password: &str) -> Result<(), Error> {
 type Sessions = BTreeMap<String, Session>;
 
 fn load_sessions() -> Result<Sessions, Error> {
-    let path_str = session_file_path();
-    let path = Path::new(&path_str);
+    let path = Path::new(&*SESSION_FILE_PATH);
 
     if !path.exists() {
         return Ok(Sessions::new());
     }
 
-    let content = fs::read_to_string(path).map_err(|e| {
-        Error::other(format!("Failed to read sessions file: {}", e))
-    })?;
+    let content = fs::read_to_string(path)
+        .map_err(|e| Error::other(format!("Failed to read sessions file: {}", e)))?;
 
-    let sessions: Sessions = serde_json::from_str(&content).map_err(|e| {
-        Error::other(format!("Failed to parse sessions file: {}", e))
-    })?;
+    let sessions: Sessions = serde_json::from_str(&content)
+        .map_err(|e| Error::other(format!("Failed to parse sessions file: {}", e)))?;
 
     Ok(sessions)
 }
 
 fn save_sessions(sessions: &Sessions) -> Result<(), Error> {
-    let path_str = session_file_path();
-    let path = Path::new(&path_str);
+    let path = Path::new(&*SESSION_FILE_PATH);
 
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| {
-            Error::other(format!("Failed to create session directory: {}", e))
-        })?;
+        fs::create_dir_all(parent)
+            .map_err(|e| Error::other(format!("Failed to create session directory: {}", e)))?;
     }
 
-    let content = serde_json::to_string_pretty(sessions).map_err(|e| {
-        Error::other(format!("Failed to serialize sessions: {}", e))
-    })?;
+    let content = serde_json::to_string_pretty(sessions)
+        .map_err(|e| Error::other(format!("Failed to serialize sessions: {}", e)))?;
 
-    let mut file = File::create(path).map_err(|e| {
-        Error::other(format!("Failed to create sessions file: {}", e))
-    })?;
+    let mut file = File::create(path)
+        .map_err(|e| Error::other(format!("Failed to create sessions file: {}", e)))?;
 
-    file.write_all(content.as_bytes()).map_err(|e| {
-        Error::other(format!("Failed to write sessions file: {}", e))
-    })?;
+    file.write_all(content.as_bytes())
+        .map_err(|e| Error::other(format!("Failed to write sessions file: {}", e)))?;
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(|e| {
-            Error::other(format!("Failed to set sessions file permissions: {}", e))
-        })?;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600))
+            .map_err(|e| Error::other(format!("Failed to set sessions file permissions: {}", e)))?;
     }
 
     Ok(())
@@ -269,7 +262,10 @@ pub fn validate_session(token_hash: &str) -> Result<(), Error> {
 #[instrument(skip_all)]
 pub async fn login_impl(
     _ctx: ServerContext,
-    LoginParams { password, user_agent }: LoginParams,
+    LoginParams {
+        password,
+        user_agent,
+    }: LoginParams,
 ) -> Result<LoginRes, Error> {
     check_password(&password)?;
 
