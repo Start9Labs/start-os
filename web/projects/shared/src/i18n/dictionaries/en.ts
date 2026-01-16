@@ -675,4 +675,4 @@ export const ENGLISH = {
   'The list is empty': 711,
   'Restart now': 712,
   'Later': 713, // as in, (do it) later
-} as Record<any, any>
+} as const
