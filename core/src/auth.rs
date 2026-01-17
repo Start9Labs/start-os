@@ -421,6 +421,7 @@ impl AsLogoutSessionId for KillSessionId {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct KillParams {
+    #[arg(help = "help.arg.session-ids")]
     ids: Vec<String>,
 }
 
@@ -437,7 +438,9 @@ pub async fn kill<C: SessionAuthContext>(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ResetPasswordParams {
+    #[arg(help = "help.arg.old-password")]
     old_password: Option<PasswordType>,
+    #[arg(help = "help.arg.new-password")]
     new_password: Option<PasswordType>,
 }
 

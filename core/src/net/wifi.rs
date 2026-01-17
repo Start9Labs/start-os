@@ -88,6 +88,7 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct SetWifiEnabledParams {
+    #[arg(help = "help.arg.wifi-enabled")]
     pub enabled: bool,
 }
 
@@ -152,7 +153,9 @@ pub fn country<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct AddParams {
+    #[arg(help = "help.arg.wifi-ssid")]
     ssid: String,
+    #[arg(help = "help.arg.wifi-password")]
     password: String,
 }
 #[instrument(skip_all)]
@@ -229,6 +232,7 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct SsidParams {
+    #[arg(help = "help.arg.wifi-ssid")]
     ssid: String,
 }
 
@@ -559,7 +563,7 @@ pub async fn get_available(ctx: RpcContext, _: Empty) -> Result<Vec<WifiListOut>
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct SetCountryParams {
-    #[arg(value_parser = CountryCodeParser)]
+    #[arg(value_parser = CountryCodeParser, help = "help.arg.wifi-country-code")]
     #[ts(type = "string")]
     country: CountryCode,
 }

@@ -81,7 +81,7 @@ pub async fn export_action(
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ClearActionsParams {
-    #[arg(long)]
+    #[arg(long, help = "help.arg.except-actions")]
     pub except: Vec<ActionId>,
 }
 
@@ -118,7 +118,9 @@ pub struct GetActionInputParams {
     #[arg(skip)]
     procedure_id: Guid,
     #[ts(optional)]
+    #[arg(help = "help.arg.package-id")]
     package_id: Option<PackageId>,
+    #[arg(help = "help.arg.action-id")]
     action_id: ActionId,
 }
 async fn get_action_input(
@@ -156,9 +158,12 @@ pub struct RunActionParams {
     #[arg(skip)]
     procedure_id: Guid,
     #[ts(optional)]
+    #[arg(help = "help.arg.package-id")]
     package_id: Option<PackageId>,
+    #[arg(help = "help.arg.action-id")]
     action_id: ActionId,
     #[ts(type = "any")]
+    #[arg(help = "help.arg.action-input")]
     input: Value,
 }
 async fn run_action(
@@ -285,9 +290,9 @@ async fn create_task(
 #[ts(type = "{ only: string[] } | { except: string[] }")]
 #[ts(export)]
 pub struct ClearTasksParams {
-    #[arg(long, conflicts_with = "except")]
+    #[arg(long, conflicts_with = "except", help = "help.arg.only-tasks")]
     pub only: Option<Vec<ReplayId>>,
-    #[arg(long, conflicts_with = "only")]
+    #[arg(long, conflicts_with = "only", help = "help.arg.except-tasks")]
     pub except: Option<Vec<ReplayId>>,
 }
 

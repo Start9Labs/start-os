@@ -95,6 +95,7 @@ pub fn dns_api<C: Context>() -> ParentHandler<C> {
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct QueryDnsParams {
+    #[arg(help = "help.arg.fqdn")]
     pub fqdn: InternedString,
 }
 
@@ -134,6 +135,7 @@ pub fn query_dns<C: Context>(
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct SetStaticDnsParams {
+    #[arg(help = "help.arg.dns-servers")]
     pub servers: Option<Vec<String>>,
 }
 

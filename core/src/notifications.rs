@@ -78,8 +78,10 @@ pub fn notification<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ListNotificationParams {
+    #[arg(help = "help.arg.notification-before-id")]
     #[ts(type = "number | null")]
     before: Option<u32>,
+    #[arg(help = "help.arg.notification-limit")]
     #[ts(type = "number | null")]
     limit: Option<usize>,
 }
@@ -141,6 +143,7 @@ pub async fn list(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ModifyNotificationParams {
+    #[arg(help = "help.arg.notification-ids")]
     #[ts(type = "number[]")]
     ids: Vec<u32>,
 }
@@ -175,6 +178,7 @@ pub async fn remove(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ModifyNotificationBeforeParams {
+    #[arg(help = "help.arg.notification-before-id")]
     #[ts(type = "number")]
     before: u32,
 }
@@ -296,9 +300,13 @@ pub async fn mark_unseen(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CreateParams {
+    #[arg(help = "help.arg.package-id")]
     package: Option<PackageId>,
+    #[arg(help = "help.arg.notification-level")]
     level: NotificationLevel,
+    #[arg(help = "help.arg.notification-title")]
     title: String,
+    #[arg(help = "help.arg.notification-message")]
     message: String,
 }
 

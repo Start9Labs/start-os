@@ -1122,18 +1122,18 @@ init.error-running-script:
   pl_PL: "Błąd uruchamiania %{script}: %{error}"
 
 init.cpu-governor-not-available:
-  en_US: "CPU Governor \"%{governor}\" Not Available"
-  de_DE: "CPU-Governor \"%{governor}\" nicht verfügbar"
-  es_ES: "CPU Governor \"%{governor}\" no disponible"
-  fr_FR: "Gouverneur CPU \"%{governor}\" non disponible"
-  pl_PL: "Governor CPU \"%{governor}\" niedostępny"
+  en_US: 'CPU Governor "%{governor}" Not Available'
+  de_DE: 'CPU-Governor "%{governor}" nicht verfügbar'
+  es_ES: 'CPU Governor "%{governor}" no disponible'
+  fr_FR: 'Gouverneur CPU "%{governor}" non disponible'
+  pl_PL: 'Governor CPU "%{governor}" niedostępny'
 
 init.setting-cpu-governor:
-  en_US: "Setting CPU Governor to \"%{governor}\""
-  de_DE: "Setze CPU-Governor auf \"%{governor}\""
-  es_ES: "Configurando CPU Governor a \"%{governor}\""
-  fr_FR: "Configuration du gouverneur CPU à \"%{governor}\""
-  pl_PL: "Ustawianie governora CPU na \"%{governor}\""
+  en_US: 'Setting CPU Governor to "%{governor}"'
+  de_DE: 'Setze CPU-Governor auf "%{governor}"'
+  es_ES: 'Configurando CPU Governor a "%{governor}"'
+  fr_FR: 'Configuration du gouverneur CPU à "%{governor}"'
+  pl_PL: 'Ustawianie governora CPU na "%{governor}"'
 
 init.clock-sync-timeout:
   en_US: "Timed out waiting for system time to synchronize"
@@ -2518,6 +2518,1190 @@ util.net.websocket-ping-timeout:
   es_ES: "Tiempo de espera: WebSocket no respondió al ping dentro de %{timeout}"
   fr_FR: "Délai d'attente : le WebSocket n'a pas répondu au ping dans les %{timeout}"
   pl_PL: "Przekroczono limit czasu: WebSocket nie odpowiedział na ping w ciągu %{timeout}"
+
+# CLI argument help text (help.arg.*)
+help.arg.acme-contact:
+  en_US: "Contact email for ACME certificate authority"
+  de_DE: "Kontakt-E-Mail für ACME-Zertifizierungsstelle"
+  es_ES: "Correo electrónico de contacto para la autoridad de certificación ACME"
+  fr_FR: "Email de contact pour l'autorité de certification ACME"
+  pl_PL: "Adres e-mail kontaktowy dla urzędu certyfikacji ACME"
+
+help.arg.acme-provider:
+  en_US: "ACME provider identifier or url"
+  de_DE: "ACME-Anbieter-Kennung oder URL"
+  es_ES: "Identificador o URL del proveedor ACME"
+  fr_FR: "Identifiant ou URL du fournisseur ACME"
+  pl_PL: "Identyfikator lub URL dostawcy ACME"
+
+help.arg.add-signer-contact:
+  en_US: "Add contact information to signer"
+  de_DE: "Kontaktinformationen zum Unterzeichner hinzufügen"
+  es_ES: "Agregar información de contacto al firmante"
+  fr_FR: "Ajouter des informations de contact au signataire"
+  pl_PL: "Dodaj informacje kontaktowe do sygnatariusza"
+
+help.arg.add-signer-key:
+  en_US: "Add a public key to signer"
+  de_DE: "Öffentlichen Schlüssel zum Unterzeichner hinzufügen"
+  es_ES: "Agregar una clave pública al firmante"
+  fr_FR: "Ajouter une clé publique au signataire"
+  pl_PL: "Dodaj klucz publiczny do sygnatariusza"
+
+help.arg.allow-model-mismatch:
+  en_US: "Allow database model mismatch"
+  de_DE: "Datenbankmodell-Abweichung erlauben"
+  es_ES: "Permitir discrepancia en el modelo de base de datos"
+  fr_FR: "Autoriser la non-concordance du modèle de base de données"
+  pl_PL: "Zezwól na niezgodność modelu bazy danych"
+
+help.arg.allow-partial-backup:
+  en_US: "Leave media mounted even if backupfs fails to mount"
+  de_DE: "Medium eingehängt lassen, auch wenn backupfs nicht eingehängt werden kann"
+  es_ES: "Dejar el medio montado incluso si backupfs falla al montar"
+  fr_FR: "Laisser le média monté même si backupfs échoue à monter"
+  pl_PL: "Pozostaw nośnik zamontowany nawet jeśli backupfs nie może się zamontować"
+
+help.arg.architecture-mask:
+  en_US: "Filter by CPU architecture"
+  de_DE: "Nach CPU-Architektur filtern"
+  es_ES: "Filtrar por arquitectura de CPU"
+  fr_FR: "Filtrer par architecture CPU"
+  pl_PL: "Filtruj według architektury CPU"
+
+help.arg.assets-path:
+  en_US: "Path to assets directory"
+  de_DE: "Pfad zum Assets-Verzeichnis"
+  es_ES: "Ruta al directorio de recursos"
+  fr_FR: "Chemin vers le répertoire des ressources"
+  pl_PL: "Ścieżka do katalogu zasobów"
+
+help.arg.binding-enabled:
+  en_US: "Enable or disable this binding"
+  de_DE: "Diese Bindung aktivieren oder deaktivieren"
+  es_ES: "Habilitar o deshabilitar este enlace"
+  fr_FR: "Activer ou désactiver cette liaison"
+  pl_PL: "Włącz lub wyłącz to powiązanie"
+
+help.arg.cert-subject-alt-names:
+  en_US: "Subject Alternative Name(s) for certificate"
+  de_DE: "Alternative Subjektnamen für das Zertifikat"
+  es_ES: "Nombre(s) alternativo(s) del sujeto para el certificado"
+  fr_FR: "Nom(s) alternatif(s) du sujet pour le certificat"
+  pl_PL: "Alternatywna nazwa podmiotu dla certyfikatu"
+
+help.arg.command-to-execute:
+  en_US: "Command to execute in the container"
+  de_DE: "Befehl, der im Container ausgeführt werden soll"
+  es_ES: "Comando a ejecutar en el contenedor"
+  fr_FR: "Commande à exécuter dans le conteneur"
+  pl_PL: "Polecenie do wykonania w kontenerze"
+
+help.arg.config-file-path:
+  en_US: "Path to configuration file"
+  de_DE: "Pfad zur Konfigurationsdatei"
+  es_ES: "Ruta al archivo de configuración"
+  fr_FR: "Chemin vers le fichier de configuration"
+  pl_PL: "Ścieżka do pliku konfiguracyjnego"
+
+help.arg.container-name:
+  en_US: "Name of the container"
+  de_DE: "Name des Containers"
+  es_ES: "Nombre del contenedor"
+  fr_FR: "Nom du conteneur"
+  pl_PL: "Nazwa kontenera"
+
+help.arg.cookie-path:
+  en_US: "Path to cookie file"
+  de_DE: "Pfad zur Cookie-Datei"
+  es_ES: "Ruta al archivo de cookies"
+  fr_FR: "Chemin vers le fichier de cookies"
+  pl_PL: "Ścieżka do pliku cookie"
+
+help.arg.data-directory:
+  en_US: "Path to data directory"
+  de_DE: "Pfad zum Datenverzeichnis"
+  es_ES: "Ruta al directorio de datos"
+  fr_FR: "Chemin vers le répertoire de données"
+  pl_PL: "Ścieżka do katalogu danych"
+
+help.arg.data-drive-path:
+  en_US: "Path to the data drive"
+  de_DE: "Pfad zum Datenlaufwerk"
+  es_ES: "Ruta a la unidad de datos"
+  fr_FR: "Chemin vers le disque de données"
+  pl_PL: "Ścieżka do dysku danych"
+
+help.arg.db-pointer:
+  en_US: "JSON pointer to object in database to dump"
+  de_DE: "JSON-Zeiger auf Objekt in der Datenbank zum Ausgeben"
+  es_ES: "Puntero JSON al objeto en la base de datos a exportar"
+  fr_FR: "Pointeur JSON vers l'objet dans la base de données à exporter"
+  pl_PL: "Wskaźnik JSON do obiektu w bazie danych do wyeksportowania"
+
+help.arg.destination-path:
+  en_US: "Destination path for download"
+  de_DE: "Zielpfad für den Download"
+  es_ES: "Ruta de destino para la descarga"
+  fr_FR: "Chemin de destination pour le téléchargement"
+  pl_PL: "Ścieżka docelowa do pobrania"
+
+help.arg.developer-key-path:
+  en_US: "Path to developer signing key"
+  de_DE: "Pfad zum Entwickler-Signaturschlüssel"
+  es_ES: "Ruta a la clave de firma del desarrollador"
+  fr_FR: "Chemin vers la clé de signature du développeur"
+  pl_PL: "Ścieżka do klucza podpisu dewelopera"
+
+help.arg.disable-encryption:
+  en_US: "Disable trivial LUKS encryption"
+  de_DE: "Triviale LUKS-Verschlüsselung deaktivieren"
+  es_ES: "Deshabilitar cifrado LUKS trivial"
+  fr_FR: "Désactiver le chiffrement LUKS trivial"
+  pl_PL: "Wyłącz trywialne szyfrowanie LUKS"
+
+help.arg.docker-build:
+  en_US: "Build Docker image from Dockerfile"
+  de_DE: "Docker-Image aus Dockerfile erstellen"
+  es_ES: "Construir imagen Docker desde Dockerfile"
+  fr_FR: "Construire l'image Docker à partir du Dockerfile"
+  pl_PL: "Zbuduj obraz Docker z pliku Dockerfile"
+
+help.arg.docker-tag:
+  en_US: "Docker image tag to use"
+  de_DE: "Zu verwendender Docker-Image-Tag"
+  es_ES: "Etiqueta de imagen Docker a usar"
+  fr_FR: "Tag d'image Docker à utiliser"
+  pl_PL: "Tag obrazu Docker do użycia"
+
+help.arg.dockerfile-path:
+  en_US: "Path to Dockerfile"
+  de_DE: "Pfad zum Dockerfile"
+  es_ES: "Ruta al Dockerfile"
+  fr_FR: "Chemin vers le Dockerfile"
+  pl_PL: "Ścieżka do pliku Dockerfile"
+
+help.arg.download-directory:
+  en_US: "Directory path to download to"
+  de_DE: "Verzeichnispfad für den Download"
+  es_ES: "Ruta del directorio de descarga"
+  fr_FR: "Chemin du répertoire de téléchargement"
+  pl_PL: "Ścieżka katalogu do pobrania"
+
+help.arg.emulate-missing-arch:
+  en_US: "Emulate missing architecture using this one"
+  de_DE: "Fehlende Architektur mit dieser emulieren"
+  es_ES: "Emular arquitectura faltante usando esta"
+  fr_FR: "Émuler l'architecture manquante avec celle-ci"
+  pl_PL: "Emuluj brakującą architekturę używając tej"
+
+help.arg.env-file-path:
+  en_US: "Path to environment file"
+  de_DE: "Pfad zur Umgebungsdatei"
+  es_ES: "Ruta al archivo de entorno"
+  fr_FR: "Chemin vers le fichier d'environnement"
+  pl_PL: "Ścieżka do pliku środowiskowego"
+
+help.arg.env-variable:
+  en_US: "Environment variable (KEY=VALUE)"
+  de_DE: "Umgebungsvariable (SCHLÜSSEL=WERT)"
+  es_ES: "Variable de entorno (CLAVE=VALOR)"
+  fr_FR: "Variable d'environnement (CLÉ=VALEUR)"
+  pl_PL: "Zmienna środowiskowa (KLUCZ=WARTOŚĆ)"
+
+help.arg.event-id:
+  en_US: "Unique event identifier"
+  de_DE: "Eindeutige Ereignis-Kennung"
+  es_ES: "Identificador único de evento"
+  fr_FR: "Identifiant unique de l'événement"
+  pl_PL: "Unikalny identyfikator zdarzenia"
+
+help.arg.except-actions:
+  en_US: "Action IDs to exclude"
+  de_DE: "Auszuschließende Aktions-IDs"
+  es_ES: "IDs de acciones a excluir"
+  fr_FR: "IDs d'actions à exclure"
+  pl_PL: "Identyfikatory akcji do wykluczenia"
+
+help.arg.except-callbacks:
+  en_US: "Callback IDs to exclude"
+  de_DE: "Auszuschließende Callback-IDs"
+  es_ES: "IDs de callbacks a excluir"
+  fr_FR: "IDs de callbacks à exclure"
+  pl_PL: "Identyfikatory callbacków do wykluczenia"
+
+help.arg.except-tasks:
+  en_US: "Task IDs to exclude"
+  de_DE: "Auszuschließende Aufgaben-IDs"
+  es_ES: "IDs de tareas a excluir"
+  fr_FR: "IDs de tâches à exclure"
+  pl_PL: "Identyfikatory zadań do wykluczenia"
+
+help.arg.force-clear-task:
+  en_US: "Force clear the task even if running"
+  de_DE: "Aufgabe erzwungen löschen, auch wenn sie läuft"
+  es_ES: "Forzar la limpieza de la tarea aunque esté ejecutándose"
+  fr_FR: "Forcer la suppression de la tâche même si elle est en cours"
+  pl_PL: "Wymuś wyczyszczenie zadania nawet jeśli jest uruchomione"
+
+help.arg.force-stderr-tty:
+  en_US: "Force stderr to be treated as a TTY"
+  de_DE: "stderr als TTY behandeln erzwingen"
+  es_ES: "Forzar que stderr sea tratado como TTY"
+  fr_FR: "Forcer stderr à être traité comme un TTY"
+  pl_PL: "Wymuś traktowanie stderr jako TTY"
+
+help.arg.force-tty:
+  en_US: "Force TTY mode for I/O"
+  de_DE: "TTY-Modus für E/A erzwingen"
+  es_ES: "Forzar modo TTY para E/S"
+  fr_FR: "Forcer le mode TTY pour les E/S"
+  pl_PL: "Wymuś tryb TTY dla I/O"
+
+help.arg.force-uninstall:
+  en_US: "Ignore errors in service uninit script"
+  de_DE: "Fehler im Service-Uninit-Skript ignorieren"
+  es_ES: "Ignorar errores en el script de desinicialización del servicio"
+  fr_FR: "Ignorer les erreurs dans le script de désinitialisation du service"
+  pl_PL: "Ignoruj błędy w skrypcie deinicjalizacji usługi"
+
+help.arg.host-url:
+  en_US: "URL of the StartOS server"
+  de_DE: "URL des StartOS-Servers"
+  es_ES: "URL del servidor StartOS"
+  fr_FR: "URL du serveur StartOS"
+  pl_PL: "URL serwera StartOS"
+
+help.arg.icon-path:
+  en_US: "Path to service icon file"
+  de_DE: "Pfad zur Service-Icon-Datei"
+  es_ES: "Ruta al archivo de icono del servicio"
+  fr_FR: "Chemin vers le fichier d'icône du service"
+  pl_PL: "Ścieżka do pliku ikony usługi"
+
+help.arg.image-id:
+  en_US: "Docker image identifier"
+  de_DE: "Docker-Image-Kennung"
+  es_ES: "Identificador de imagen Docker"
+  fr_FR: "Identifiant de l'image Docker"
+  pl_PL: "Identyfikator obrazu Docker"
+
+help.arg.include-private-data:
+  en_US: "Include private data in output"
+  de_DE: "Private Daten in der Ausgabe einschließen"
+  es_ES: "Incluir datos privados en la salida"
+  fr_FR: "Inclure les données privées dans la sortie"
+  pl_PL: "Uwzględnij dane prywatne w wynikach"
+
+help.arg.javascript-path:
+  en_US: "Path to JavaScript file"
+  de_DE: "Pfad zur JavaScript-Datei"
+  es_ES: "Ruta al archivo JavaScript"
+  fr_FR: "Chemin vers le fichier JavaScript"
+  pl_PL: "Ścieżka do pliku JavaScript"
+
+help.arg.json-pointer:
+  en_US: "JSON pointer to specific value"
+  de_DE: "JSON-Zeiger auf spezifischen Wert"
+  es_ES: "Puntero JSON a un valor específico"
+  fr_FR: "Pointeur JSON vers une valeur spécifique"
+  pl_PL: "Wskaźnik JSON do konkretnej wartości"
+
+help.arg.keyboard-option:
+  en_US: "Additional keyboard option"
+  de_DE: "Zusätzliche Tastaturoption"
+  es_ES: "Opción adicional de teclado"
+  fr_FR: "Option de clavier supplémentaire"
+  pl_PL: "Dodatkowa opcja klawiatury"
+
+help.arg.license-path:
+  en_US: "Path to license file"
+  de_DE: "Pfad zur Lizenzdatei"
+  es_ES: "Ruta al archivo de licencia"
+  fr_FR: "Chemin vers le fichier de licence"
+  pl_PL: "Ścieżka do pliku licencji"
+
+help.arg.log-before:
+  en_US: "Show logs before the cursor position"
+  de_DE: "Logs vor der Cursorposition anzeigen"
+  es_ES: "Mostrar registros antes de la posición del cursor"
+  fr_FR: "Afficher les journaux avant la position du curseur"
+  pl_PL: "Pokaż logi przed pozycją kursora"
+
+help.arg.log-boot:
+  en_US: "Filter logs by boot ID"
+  de_DE: "Logs nach Boot-ID filtern"
+  es_ES: "Filtrar registros por ID de arranque"
+  fr_FR: "Filtrer les journaux par ID de démarrage"
+  pl_PL: "Filtruj logi według ID rozruchu"
+
+help.arg.log-cursor:
+  en_US: "Start from this cursor position"
+  de_DE: "Von dieser Cursorposition starten"
+  es_ES: "Comenzar desde esta posición del cursor"
+  fr_FR: "Commencer à partir de cette position du curseur"
+  pl_PL: "Rozpocznij od tej pozycji kursora"
+
+help.arg.log-follow:
+  en_US: "Follow log output in real-time"
+  de_DE: "Log-Ausgabe in Echtzeit verfolgen"
+  es_ES: "Seguir la salida del registro en tiempo real"
+  fr_FR: "Suivre la sortie des journaux en temps réel"
+  pl_PL: "Śledź wyjście logów w czasie rzeczywistym"
+
+help.arg.log-limit:
+  en_US: "Maximum number of log entries"
+  de_DE: "Maximale Anzahl von Log-Einträgen"
+  es_ES: "Número máximo de entradas de registro"
+  fr_FR: "Nombre maximum d'entrées de journal"
+  pl_PL: "Maksymalna liczba wpisów logu"
+
+help.arg.mirror-url:
+  en_US: "URL of the mirror"
+  de_DE: "URL des Spiegels"
+  es_ES: "URL del espejo"
+  fr_FR: "URL du miroir"
+  pl_PL: "URL serwera lustrzanego"
+
+help.arg.multi-arch-s9pks:
+  en_US: "Enable multi-architecture s9pk support"
+  de_DE: "Multi-Architektur-s9pk-Unterstützung aktivieren"
+  es_ES: "Habilitar soporte s9pk multi-arquitectura"
+  fr_FR: "Activer le support s9pk multi-architecture"
+  pl_PL: "Włącz obsługę s9pk wieloarchitekturowego"
+
+help.arg.no-assets:
+  en_US: "Build without assets directory"
+  de_DE: "Ohne Assets-Verzeichnis erstellen"
+  es_ES: "Construir sin directorio de recursos"
+  fr_FR: "Construire sans répertoire de ressources"
+  pl_PL: "Zbuduj bez katalogu zasobów"
+
+help.arg.no-mmap:
+  en_US: "Disable memory-mapped file I/O"
+  de_DE: "Memory-Mapped-Datei-E/A deaktivieren"
+  es_ES: "Deshabilitar E/S de archivos mapeados en memoria"
+  fr_FR: "Désactiver les E/S de fichiers mappés en mémoire"
+  pl_PL: "Wyłącz operacje I/O plików mapowanych w pamięci"
+
+help.arg.no-progress:
+  en_US: "Disable progress display"
+  de_DE: "Fortschrittsanzeige deaktivieren"
+  es_ES: "Deshabilitar visualización de progreso"
+  fr_FR: "Désactiver l'affichage de la progression"
+  pl_PL: "Wyłącz wyświetlanie postępu"
+
+help.arg.no-verify:
+  en_US: "Skip signature verification"
+  de_DE: "Signaturprüfung überspringen"
+  es_ES: "Omitir verificación de firma"
+  fr_FR: "Ignorer la vérification de signature"
+  pl_PL: "Pomiń weryfikację podpisu"
+
+help.arg.nvidia-container:
+  en_US: "Enable NVIDIA container support"
+  de_DE: "NVIDIA-Container-Unterstützung aktivieren"
+  es_ES: "Habilitar soporte de contenedor NVIDIA"
+  fr_FR: "Activer le support des conteneurs NVIDIA"
+  pl_PL: "Włącz obsługę kontenerów NVIDIA"
+
+help.arg.old-backup-password:
+  en_US: "Previous backup password"
+  de_DE: "Vorheriges Backup-Passwort"
+  es_ES: "Contraseña de respaldo anterior"
+  fr_FR: "Ancien mot de passe de sauvegarde"
+  pl_PL: "Poprzednie hasło kopii zapasowej"
+
+help.arg.only-callbacks:
+  en_US: "Only clear these callback IDs"
+  de_DE: "Nur diese Callback-IDs löschen"
+  es_ES: "Solo borrar estos IDs de callback"
+  fr_FR: "Ne supprimer que ces IDs de callback"
+  pl_PL: "Wyczyść tylko te identyfikatory callback"
+
+help.arg.only-tasks:
+  en_US: "Only clear these task IDs"
+  de_DE: "Nur diese Aufgaben-IDs löschen"
+  es_ES: "Solo borrar estos IDs de tarea"
+  fr_FR: "Ne supprimer que ces IDs de tâche"
+  pl_PL: "Wyczyść tylko te identyfikatory zadań"
+
+help.arg.os-version:
+  en_US: "StartOS version number"
+  de_DE: "StartOS-Versionsnummer"
+  es_ES: "Número de versión de StartOS"
+  fr_FR: "Numéro de version de StartOS"
+  pl_PL: "Numer wersji StartOS"
+
+help.arg.other-versions-detail:
+  en_US: "Detail level for other versions"
+  de_DE: "Detailgrad für andere Versionen"
+  es_ES: "Nivel de detalle para otras versiones"
+  fr_FR: "Niveau de détail pour les autres versions"
+  pl_PL: "Poziom szczegółowości dla innych wersji"
+
+help.arg.output-path:
+  en_US: "Output file path"
+  de_DE: "Ausgabedateipfad"
+  es_ES: "Ruta del archivo de salida"
+  fr_FR: "Chemin du fichier de sortie"
+  pl_PL: "Ścieżka pliku wyjściowego"
+
+help.arg.package-ids-to-backup:
+  en_US: "Package IDs to include in backup"
+  de_DE: "Paket-IDs für das Backup einschließen"
+  es_ES: "IDs de paquetes a incluir en el respaldo"
+  fr_FR: "IDs de paquets à inclure dans la sauvegarde"
+  pl_PL: "Identyfikatory pakietów do uwzględnienia w kopii zapasowej"
+
+help.arg.package-url:
+  en_US: "URL of the package"
+  de_DE: "URL des Pakets"
+  es_ES: "URL del paquete"
+  fr_FR: "URL du paquet"
+  pl_PL: "URL pakietu"
+
+help.arg.platform:
+  en_US: "Target platform identifier"
+  de_DE: "Zielplattform-Kennung"
+  es_ES: "Identificador de plataforma objetivo"
+  fr_FR: "Identifiant de la plateforme cible"
+  pl_PL: "Identyfikator platformy docelowej"
+
+help.arg.postgres-connection-url:
+  en_US: "PostgreSQL connection URL"
+  de_DE: "PostgreSQL-Verbindungs-URL"
+  es_ES: "URL de conexión PostgreSQL"
+  fr_FR: "URL de connexion PostgreSQL"
+  pl_PL: "URL połączenia PostgreSQL"
+
+help.arg.proxy-url:
+  en_US: "HTTP/SOCKS proxy URL"
+  de_DE: "HTTP/SOCKS-Proxy-URL"
+  es_ES: "URL del proxy HTTP/SOCKS"
+  fr_FR: "URL du proxy HTTP/SOCKS"
+  pl_PL: "URL proxy HTTP/SOCKS"
+
+help.arg.pty-size:
+  en_US: "PTY terminal size (<rows>:<cols>[:<x>:<y>])"
+  de_DE: "PTY-Terminalgröße (<Zeilen>:<Spalten>[:<x>:<y>])"
+  es_ES: "Tamaño del terminal PTY (<filas>:<cols>[:<x>:<y>])"
+  fr_FR: "Taille du terminal PTY (<lignes>:<cols>[:<x>:<y>])"
+  pl_PL: "Rozmiar terminala PTY (<wiersze>:<kolumny>[:<x>:<y>])"
+
+help.arg.registry-hostname:
+  en_US: "Registry server hostname"
+  de_DE: "Registry-Server-Hostname"
+  es_ES: "Nombre de host del servidor de registro"
+  fr_FR: "Nom d'hôte du serveur de registre"
+  pl_PL: "Nazwa hosta serwera rejestru"
+
+help.arg.registry-listen-address:
+  en_US: "Address for registry to listen on"
+  de_DE: "Adresse, auf der das Registry lauscht"
+  es_ES: "Dirección en la que escucha el registro"
+  fr_FR: "Adresse d'écoute du registre"
+  pl_PL: "Adres nasłuchiwania rejestru"
+
+help.arg.registry-name:
+  en_US: "Name of the registry"
+  de_DE: "Name des Registrys"
+  es_ES: "Nombre del registro"
+  fr_FR: "Nom du registre"
+  pl_PL: "Nazwa rejestru"
+
+help.arg.registry-url:
+  en_US: "URL of the registry"
+  de_DE: "URL des Registrys"
+  es_ES: "URL del registro"
+  fr_FR: "URL du registre"
+  pl_PL: "URL rejestru"
+
+help.arg.remove-signer-contact:
+  en_US: "Remove contact from signer"
+  de_DE: "Kontakt vom Unterzeichner entfernen"
+  es_ES: "Eliminar contacto del firmante"
+  fr_FR: "Supprimer le contact du signataire"
+  pl_PL: "Usuń kontakt z sygnatariusza"
+
+help.arg.remove-signer-key:
+  en_US: "Remove public key from signer"
+  de_DE: "Öffentlichen Schlüssel vom Unterzeichner entfernen"
+  es_ES: "Eliminar clave pública del firmante"
+  fr_FR: "Supprimer la clé publique du signataire"
+  pl_PL: "Usuń klucz publiczny z sygnatariusza"
+
+help.arg.reverify-hash:
+  en_US: "Verify hash after download completes"
+  de_DE: "Hash nach Abschluss des Downloads überprüfen"
+  es_ES: "Verificar hash después de completar la descarga"
+  fr_FR: "Vérifier le hash après le téléchargement"
+  pl_PL: "Zweryfikuj hash po zakończeniu pobierania"
+
+help.arg.revision-cache-size:
+  en_US: "Maximum number of cached revisions"
+  de_DE: "Maximale Anzahl zwischengespeicherter Revisionen"
+  es_ES: "Número máximo de revisiones en caché"
+  fr_FR: "Nombre maximum de révisions en cache"
+  pl_PL: "Maksymalna liczba rewizji w pamięci podręcznej"
+
+help.arg.server-id:
+  en_US: "Unique server identifier"
+  de_DE: "Eindeutige Server-Kennung"
+  es_ES: "Identificador único del servidor"
+  fr_FR: "Identifiant unique du serveur"
+  pl_PL: "Unikalny identyfikator serwera"
+
+help.arg.set-signer-name:
+  en_US: "Set the signer name"
+  de_DE: "Unterzeichnernamen festlegen"
+  es_ES: "Establecer el nombre del firmante"
+  fr_FR: "Définir le nom du signataire"
+  pl_PL: "Ustaw nazwę sygnatariusza"
+
+help.arg.signature-hash:
+  en_US: "Hash for signature verification"
+  de_DE: "Hash für Signaturüberprüfung"
+  es_ES: "Hash para verificación de firma"
+  fr_FR: "Hash pour la vérification de signature"
+  pl_PL: "Hash do weryfikacji podpisu"
+
+help.arg.signer-contact:
+  en_US: "Contact information for signer"
+  de_DE: "Kontaktinformationen für Unterzeichner"
+  es_ES: "Información de contacto del firmante"
+  fr_FR: "Informations de contact du signataire"
+  pl_PL: "Informacje kontaktowe sygnatariusza"
+
+help.arg.signer-key:
+  en_US: "Public key for signer"
+  de_DE: "Öffentlicher Schlüssel für Unterzeichner"
+  es_ES: "Clave pública del firmante"
+  fr_FR: "Clé publique du signataire"
+  pl_PL: "Klucz publiczny sygnatariusza"
+
+help.arg.signer-name:
+  en_US: "Name of the signer"
+  de_DE: "Name des Unterzeichners"
+  es_ES: "Nombre del firmante"
+  fr_FR: "Nom du signataire"
+  pl_PL: "Nazwa sygnatariusza"
+
+help.arg.smtp-from:
+  en_US: "Email sender address"
+  de_DE: "E-Mail-Absenderadresse"
+  es_ES: "Dirección del remitente de correo"
+  fr_FR: "Adresse de l'expéditeur"
+  pl_PL: "Adres nadawcy e-mail"
+
+help.arg.smtp-login:
+  en_US: "SMTP authentication username"
+  de_DE: "SMTP-Authentifizierungsbenutzername"
+  es_ES: "Nombre de usuario de autenticación SMTP"
+  fr_FR: "Nom d'utilisateur d'authentification SMTP"
+  pl_PL: "Nazwa użytkownika uwierzytelniania SMTP"
+
+help.arg.smtp-password:
+  en_US: "SMTP authentication password"
+  de_DE: "SMTP-Authentifizierungspasswort"
+  es_ES: "Contraseña de autenticación SMTP"
+  fr_FR: "Mot de passe d'authentification SMTP"
+  pl_PL: "Hasło uwierzytelniania SMTP"
+
+help.arg.smtp-port:
+  en_US: "SMTP server port"
+  de_DE: "SMTP-Server-Port"
+  es_ES: "Puerto del servidor SMTP"
+  fr_FR: "Port du serveur SMTP"
+  pl_PL: "Port serwera SMTP"
+
+help.arg.smtp-server:
+  en_US: "SMTP server hostname"
+  de_DE: "SMTP-Server-Hostname"
+  es_ES: "Nombre de host del servidor SMTP"
+  fr_FR: "Nom d'hôte du serveur SMTP"
+  pl_PL: "Nazwa hosta serwera SMTP"
+
+help.arg.smtp-to:
+  en_US: "Email recipient address"
+  de_DE: "E-Mail-Empfängeradresse"
+  es_ES: "Dirección del destinatario de correo"
+  fr_FR: "Adresse du destinataire"
+  pl_PL: "Adres odbiorcy e-mail"
+
+help.arg.socket-path:
+  en_US: "Path to Unix socket"
+  de_DE: "Pfad zum Unix-Socket"
+  es_ES: "Ruta al socket Unix"
+  fr_FR: "Chemin vers le socket Unix"
+  pl_PL: "Ścieżka do gniazda Unix"
+
+help.arg.socks-listen-address:
+  en_US: "SOCKS proxy listen address"
+  de_DE: "SOCKS-Proxy-Lausch-Adresse"
+  es_ES: "Dirección de escucha del proxy SOCKS"
+  fr_FR: "Adresse d'écoute du proxy SOCKS"
+  pl_PL: "Adres nasłuchiwania proxy SOCKS"
+
+help.arg.soft-uninstall:
+  en_US: "Uninstall without deleting service data"
+  de_DE: "Deinstallieren ohne Service-Daten zu löschen"
+  es_ES: "Desinstalar sin eliminar datos del servicio"
+  fr_FR: "Désinstaller sans supprimer les données du service"
+  pl_PL: "Odinstaluj bez usuwania danych usługi"
+
+help.arg.source-version:
+  en_US: "Source version to upgrade from"
+  de_DE: "Quellversion für das Upgrade"
+  es_ES: "Versión de origen para actualizar"
+  fr_FR: "Version source pour la mise à niveau"
+  pl_PL: "Wersja źródłowa do aktualizacji"
+
+help.arg.squashfs-image-path:
+  en_US: "Path to squashfs image file"
+  de_DE: "Pfad zur SquashFS-Image-Datei"
+  es_ES: "Ruta al archivo de imagen squashfs"
+  fr_FR: "Chemin vers le fichier image squashfs"
+  pl_PL: "Ścieżka do pliku obrazu squashfs"
+
+help.arg.subcontainer-name:
+  en_US: "Name of the subcontainer"
+  de_DE: "Name des Subcontainers"
+  es_ES: "Nombre del subcontenedor"
+  fr_FR: "Nom du sous-conteneur"
+  pl_PL: "Nazwa podkontenera"
+
+help.arg.target-disk:
+  en_US: "Target disk for installation"
+  de_DE: "Zieldatenträger für die Installation"
+  es_ES: "Disco de destino para la instalación"
+  fr_FR: "Disque cible pour l'installation"
+  pl_PL: "Dysk docelowy do instalacji"
+
+help.arg.target-version-range:
+  en_US: "Target version range constraint"
+  de_DE: "Ziel-Versionsbereichs-Einschränkung"
+  es_ES: "Restricción de rango de versión objetivo"
+  fr_FR: "Contrainte de plage de version cible"
+  pl_PL: "Ograniczenie zakresu wersji docelowej"
+
+help.arg.tor-proxy-url:
+  en_US: "Tor SOCKS proxy URL"
+  de_DE: "Tor-SOCKS-Proxy-URL"
+  es_ES: "URL del proxy SOCKS de Tor"
+  fr_FR: "URL du proxy SOCKS Tor"
+  pl_PL: "URL proxy SOCKS Tor"
+
+help.arg.tunnel-address:
+  en_US: "Tunnel server address"
+  de_DE: "Tunnel-Server-Adresse"
+  es_ES: "Dirección del servidor de túnel"
+  fr_FR: "Adresse du serveur tunnel"
+  pl_PL: "Adres serwera tunelu"
+
+help.arg.tunnel-listen-address:
+  en_US: "Address for tunnel to listen on"
+  de_DE: "Adresse, auf der der Tunnel lauscht"
+  es_ES: "Dirección en la que escucha el túnel"
+  fr_FR: "Adresse d'écoute du tunnel"
+  pl_PL: "Adres nasłuchiwania tunelu"
+
+help.arg.update-target-version:
+  en_US: "Target version for update"
+  de_DE: "Zielversion für das Update"
+  es_ES: "Versión objetivo para la actualización"
+  fr_FR: "Version cible pour la mise à jour"
+  pl_PL: "Wersja docelowa aktualizacji"
+
+help.arg.use-efi-boot:
+  en_US: "Use EFI boot mode"
+  de_DE: "EFI-Boot-Modus verwenden"
+  es_ES: "Usar modo de arranque EFI"
+  fr_FR: "Utiliser le mode de démarrage EFI"
+  pl_PL: "Użyj trybu rozruchu EFI"
+
+help.arg.user-name:
+  en_US: "User name to run as"
+  de_DE: "Benutzername für die Ausführung"
+  es_ES: "Nombre de usuario para ejecutar"
+  fr_FR: "Nom d'utilisateur pour l'exécution"
+  pl_PL: "Nazwa użytkownika do uruchomienia"
+
+help.arg.version-range:
+  en_US: "Version range constraint"
+  de_DE: "Versionsbereichs-Einschränkung"
+  es_ES: "Restricción de rango de versión"
+  fr_FR: "Contrainte de plage de version"
+  pl_PL: "Ograniczenie zakresu wersji"
+
+help.arg.wifi-country-code:
+  en_US: "ISO 3166-1 alpha-2 WiFi country code"
+  de_DE: "ISO 3166-1 Alpha-2 WLAN-Ländercode"
+  es_ES: "Código de país WiFi ISO 3166-1 alpha-2"
+  fr_FR: "Code pays WiFi ISO 3166-1 alpha-2"
+  pl_PL: "Kod kraju WiFi ISO 3166-1 alpha-2"
+
+help.arg.wipe-drive:
+  en_US: "Wipe the drive before use"
+  de_DE: "Laufwerk vor Verwendung löschen"
+  es_ES: "Borrar la unidad antes de usar"
+  fr_FR: "Effacer le disque avant utilisation"
+  pl_PL: "Wyczyść dysk przed użyciem"
+
+help.arg.wipe-tor-state:
+  en_US: "Wipe Tor state"
+  de_DE: "Tor-Zustand löschen"
+  es_ES: "Borrar estado de Tor"
+  fr_FR: "Effacer l'état de Tor"
+  pl_PL: "Wyczyść stan Tora"
+
+help.arg.workdir-path:
+  en_US: "Working directory path"
+  de_DE: "Arbeitsverzeichnispfad"
+  es_ES: "Ruta del directorio de trabajo"
+  fr_FR: "Chemin du répertoire de travail"
+  pl_PL: "Ścieżka katalogu roboczego"
+
+help.arg.action-id:
+  en_US: "Action identifier"
+  de_DE: "Aktions-Kennung"
+  es_ES: "Identificador de acción"
+  fr_FR: "Identifiant de l'action"
+  pl_PL: "Identyfikator akcji"
+
+help.arg.action-input:
+  en_US: "Input data for the action"
+  de_DE: "Eingabedaten für die Aktion"
+  es_ES: "Datos de entrada para la acción"
+  fr_FR: "Données d'entrée pour l'action"
+  pl_PL: "Dane wejściowe dla akcji"
+
+help.arg.asset-file-path:
+  en_US: "Path to the asset file"
+  de_DE: "Pfad zur Asset-Datei"
+  es_ES: "Ruta al archivo de recursos"
+  fr_FR: "Chemin vers le fichier de ressources"
+  pl_PL: "Ścieżka do pliku zasobów"
+
+help.arg.asset-url:
+  en_US: "URL of the asset"
+  de_DE: "URL des Assets"
+  es_ES: "URL del recurso"
+  fr_FR: "URL de la ressource"
+  pl_PL: "URL zasobu"
+
+help.arg.backup-password:
+  en_US: "Password for backup encryption"
+  de_DE: "Passwort für Backup-Verschlüsselung"
+  es_ES: "Contraseña para cifrado de copia de seguridad"
+  fr_FR: "Mot de passe pour le chiffrement de la sauvegarde"
+  pl_PL: "Hasło do szyfrowania kopii zapasowej"
+
+help.arg.backup-target-id:
+  en_US: "Backup target identifier"
+  de_DE: "Backup-Ziel-Kennung"
+  es_ES: "Identificador de destino de copia de seguridad"
+  fr_FR: "Identifiant de la cible de sauvegarde"
+  pl_PL: "Identyfikator celu kopii zapasowej"
+
+help.arg.chroot-path:
+  en_US: "Path for chroot environment"
+  de_DE: "Pfad für Chroot-Umgebung"
+  es_ES: "Ruta para el entorno chroot"
+  fr_FR: "Chemin pour l'environnement chroot"
+  pl_PL: "Ścieżka środowiska chroot"
+
+help.arg.cifs-hostname:
+  en_US: "CIFS server hostname"
+  de_DE: "CIFS-Server-Hostname"
+  es_ES: "Nombre de host del servidor CIFS"
+  fr_FR: "Nom d'hôte du serveur CIFS"
+  pl_PL: "Nazwa hosta serwera CIFS"
+
+help.arg.cifs-password:
+  en_US: "CIFS authentication password"
+  de_DE: "CIFS-Authentifizierungspasswort"
+  es_ES: "Contraseña de autenticación CIFS"
+  fr_FR: "Mot de passe d'authentification CIFS"
+  pl_PL: "Hasło uwierzytelniania CIFS"
+
+help.arg.cifs-path:
+  en_US: "Path on the CIFS share"
+  de_DE: "Pfad auf der CIFS-Freigabe"
+  es_ES: "Ruta en el recurso compartido CIFS"
+  fr_FR: "Chemin sur le partage CIFS"
+  pl_PL: "Ścieżka na udziale CIFS"
+
+help.arg.cifs-username:
+  en_US: "CIFS authentication username"
+  de_DE: "CIFS-Authentifizierungsbenutzername"
+  es_ES: "Nombre de usuario de autenticación CIFS"
+  fr_FR: "Nom d'utilisateur d'authentification CIFS"
+  pl_PL: "Nazwa użytkownika uwierzytelniania CIFS"
+
+help.arg.database-path:
+  en_US: "Path to the database file"
+  de_DE: "Pfad zur Datenbankdatei"
+  es_ES: "Ruta al archivo de base de datos"
+  fr_FR: "Chemin vers le fichier de base de données"
+  pl_PL: "Ścieżka do pliku bazy danych"
+
+help.arg.db-apply-expr:
+  en_US: "Database patch expression to apply"
+  de_DE: "Datenbank-Patch-Ausdruck zum Anwenden"
+  es_ES: "Expresión de parche de base de datos a aplicar"
+  fr_FR: "Expression de patch de base de données à appliquer"
+  pl_PL: "Wyrażenie łatki bazy danych do zastosowania"
+
+help.arg.db-path:
+  en_US: "Path to the database"
+  de_DE: "Pfad zur Datenbank"
+  es_ES: "Ruta a la base de datos"
+  fr_FR: "Chemin vers la base de données"
+  pl_PL: "Ścieżka do bazy danych"
+
+help.arg.dns-servers:
+  en_US: "DNS servers to use"
+  de_DE: "Zu verwendende DNS-Server"
+  es_ES: "Servidores DNS a utilizar"
+  fr_FR: "Serveurs DNS à utiliser"
+  pl_PL: "Serwery DNS do użycia"
+
+help.arg.echo-message:
+  en_US: "Message to echo back"
+  de_DE: "Nachricht zum Zurücksenden"
+  es_ES: "Mensaje para devolver"
+  fr_FR: "Message à renvoyer"
+  pl_PL: "Wiadomość do odesłania"
+
+help.arg.enable-zram:
+  en_US: "Enable zram"
+  de_DE: "Zram aktivieren"
+  es_ES: "Habilitar zram"
+  fr_FR: "Activer zram"
+  pl_PL: "Włącz zram"
+
+help.arg.file-path:
+  en_US: "Path to the file"
+  de_DE: "Pfad zur Datei"
+  es_ES: "Ruta al archivo"
+  fr_FR: "Chemin vers le fichier"
+  pl_PL: "Ścieżka do pliku"
+
+help.arg.fqdn:
+  en_US: "Fully qualified domain name"
+  de_DE: "Vollständig qualifizierter Domainname"
+  es_ES: "Nombre de dominio completo"
+  fr_FR: "Nom de domaine entièrement qualifié"
+  pl_PL: "W pełni kwalifikowana nazwa domeny"
+
+help.arg.gateway-id:
+  en_US: "Gateway identifier"
+  de_DE: "Gateway-Kennung"
+  es_ES: "Identificador de puerta de enlace"
+  fr_FR: "Identifiant de la passerelle"
+  pl_PL: "Identyfikator bramy"
+
+help.arg.gateway-name:
+  en_US: "Name of the gateway"
+  de_DE: "Name des Gateways"
+  es_ES: "Nombre de la puerta de enlace"
+  fr_FR: "Nom de la passerelle"
+  pl_PL: "Nazwa bramy"
+
+help.arg.governor-name:
+  en_US: "CPU governor name"
+  de_DE: "CPU-Governor-Name"
+  es_ES: "Nombre del gobernador de CPU"
+  fr_FR: "Nom du gouverneur CPU"
+  pl_PL: "Nazwa regulatora CPU"
+
+help.arg.host-id:
+  en_US: "Host identifier"
+  de_DE: "Host-Kennung"
+  es_ES: "Identificador de host"
+  fr_FR: "Identifiant de l'hôte"
+  pl_PL: "Identyfikator hosta"
+
+help.arg.input-path:
+  en_US: "Path to input file or directory"
+  de_DE: "Pfad zur Eingabedatei oder zum Verzeichnis"
+  es_ES: "Ruta al archivo o directorio de entrada"
+  fr_FR: "Chemin vers le fichier ou répertoire d'entrée"
+  pl_PL: "Ścieżka do pliku lub katalogu wejściowego"
+
+help.arg.internal-port:
+  en_US: "Internal port number"
+  de_DE: "Interne Portnummer"
+  es_ES: "Número de puerto interno"
+  fr_FR: "Numéro de port interne"
+  pl_PL: "Numer portu wewnętrznego"
+
+help.arg.is-public:
+  en_US: "Whether the interface is publicly addressable"
+  de_DE: "Ob die Schnittstelle öffentlich erreichbar ist"
+  es_ES: "Si la interfaz es accesible públicamente"
+  fr_FR: "Si l'interface est accessible publiquement"
+  pl_PL: "Czy interfejs jest publicznie adresowalny"
+
+help.arg.json-value:
+  en_US: "JSON value to set"
+  de_DE: "JSON-Wert zum Setzen"
+  es_ES: "Valor JSON a establecer"
+  fr_FR: "Valeur JSON à définir"
+  pl_PL: "Wartość JSON do ustawienia"
+
+help.arg.keyboard-layout:
+  en_US: "Keyboard layout code"
+  de_DE: "Tastaturbelegungscode"
+  es_ES: "Código de distribución de teclado"
+  fr_FR: "Code de disposition du clavier"
+  pl_PL: "Kod układu klawiatury"
+
+help.arg.keyboard-model:
+  en_US: "Keyboard model"
+  de_DE: "Tastaturmodell"
+  es_ES: "Modelo de teclado"
+  fr_FR: "Modèle de clavier"
+  pl_PL: "Model klawiatury"
+
+help.arg.keyboard-variant:
+  en_US: "Keyboard layout variant"
+  de_DE: "Tastaturbelegungsvariante"
+  es_ES: "Variante de distribución de teclado"
+  fr_FR: "Variante de disposition du clavier"
+  pl_PL: "Wariant układu klawiatury"
+
+help.arg.language-code:
+  en_US: "Language code"
+  de_DE: "Sprachcode"
+  es_ES: "Código de idioma"
+  fr_FR: "Code de langue"
+  pl_PL: "Kod języka"
+
+help.arg.listen-address:
+  en_US: "Address to listen on"
+  de_DE: "Adresse zum Lauschen"
+  es_ES: "Dirección para escuchar"
+  fr_FR: "Adresse d'écoute"
+  pl_PL: "Adres nasłuchiwania"
+
+help.arg.new-password:
+  en_US: "New password"
+  de_DE: "Neues Passwort"
+  es_ES: "Nueva contraseña"
+  fr_FR: "Nouveau mot de passe"
+  pl_PL: "Nowe hasło"
+
+help.arg.notification-before-id:
+  en_US: "Get notifications before this ID"
+  de_DE: "Benachrichtigungen vor dieser ID abrufen"
+  es_ES: "Obtener notificaciones antes de este ID"
+  fr_FR: "Obtenir les notifications avant cet ID"
+  pl_PL: "Pobierz powiadomienia przed tym ID"
+
+help.arg.notification-ids:
+  en_US: "Notification IDs"
+  de_DE: "Benachrichtigungs-IDs"
+  es_ES: "IDs de notificación"
+  fr_FR: "IDs de notification"
+  pl_PL: "ID powiadomień"
+
+help.arg.notification-level:
+  en_US: "Notification severity level"
+  de_DE: "Benachrichtigungsschweregrad"
+  es_ES: "Nivel de gravedad de notificación"
+  fr_FR: "Niveau de gravité de la notification"
+  pl_PL: "Poziom ważności powiadomienia"
+
+help.arg.notification-limit:
+  en_US: "Maximum number of notifications to return"
+  de_DE: "Maximale Anzahl zurückzugebender Benachrichtigungen"
+  es_ES: "Número máximo de notificaciones a devolver"
+  fr_FR: "Nombre maximum de notifications à retourner"
+  pl_PL: "Maksymalna liczba powiadomień do zwrócenia"
+
+help.arg.notification-message:
+  en_US: "Notification message content"
+  de_DE: "Inhalt der Benachrichtigung"
+  es_ES: "Contenido del mensaje de notificación"
+  fr_FR: "Contenu du message de notification"
+  pl_PL: "Treść powiadomienia"
+
+help.arg.notification-title:
+  en_US: "Notification title"
+  de_DE: "Benachrichtigungstitel"
+  es_ES: "Título de notificación"
+  fr_FR: "Titre de la notification"
+  pl_PL: "Tytuł powiadomienia"
+
+help.arg.old-password:
+  en_US: "Current password"
+  de_DE: "Aktuelles Passwort"
+  es_ES: "Contraseña actual"
+  fr_FR: "Mot de passe actuel"
+  pl_PL: "Aktualne hasło"
+
+help.arg.onion-address:
+  en_US: "Tor onion address"
+  de_DE: "Tor-Onion-Adresse"
+  es_ES: "Dirección onion de Tor"
+  fr_FR: "Adresse onion Tor"
+  pl_PL: "Adres onion Tor"
+
+help.arg.onion-secret-key:
+  en_US: "Tor onion secret key"
+  de_DE: "Geheimer Tor-Onion-Schlüssel"
+  es_ES: "Clave secreta onion de Tor"
+  fr_FR: "Clé secrète onion Tor"
+  pl_PL: "Tajny klucz onion Tor"
+
+help.arg.os-drive-path:
+  en_US: "Path to OS drive"
+  de_DE: "Pfad zum Betriebssystemlaufwerk"
+  es_ES: "Ruta a la unidad del sistema operativo"
+  fr_FR: "Chemin vers le disque du système d'exploitation"
+  pl_PL: "Ścieżka do dysku systemu operacyjnego"
+
+help.arg.package-id:
+  en_US: "Package identifier"
+  de_DE: "Paket-Kennung"
+  es_ES: "Identificador de paquete"
+  fr_FR: "Identifiant du paquet"
+  pl_PL: "Identyfikator pakietu"
+
+help.arg.package-ids:
+  en_US: "Package identifiers"
+  de_DE: "Paket-Kennungen"
+  es_ES: "Identificadores de paquete"
+  fr_FR: "Identifiants de paquets"
+  pl_PL: "Identyfikatory pakietów"
+
+help.arg.package-version:
+  en_US: "Package version"
+  de_DE: "Paketversion"
+  es_ES: "Versión del paquete"
+  fr_FR: "Version du paquet"
+  pl_PL: "Wersja pakietu"
+
+help.arg.release-notes:
+  en_US: "Release notes for this version"
+  de_DE: "Versionshinweise für diese Version"
+  es_ES: "Notas de lanzamiento para esta versión"
+  fr_FR: "Notes de version pour cette version"
+  pl_PL: "Informacje o wydaniu dla tej wersji"
+
+help.arg.replay-id:
+  en_US: "Replay identifier for task"
+  de_DE: "Wiederholungskennung für Aufgabe"
+  es_ES: "Identificador de repetición para tarea"
+  fr_FR: "Identifiant de relecture pour la tâche"
+  pl_PL: "Identyfikator powtórzenia dla zadania"
+
+help.arg.reset-reason:
+  en_US: "Reason for the reset"
+  de_DE: "Grund für das Zurücksetzen"
+  es_ES: "Razón del restablecimiento"
+  fr_FR: "Raison de la réinitialisation"
+  pl_PL: "Powód resetowania"
+
+help.arg.s9pk-file-path:
+  en_US: "Path to s9pk package file"
+  de_DE: "Pfad zur s9pk-Paketdatei"
+  es_ES: "Ruta al archivo de paquete s9pk"
+  fr_FR: "Chemin vers le fichier de paquet s9pk"
+  pl_PL: "Ścieżka do pliku pakietu s9pk"
+
+help.arg.session-ids:
+  en_US: "Session identifiers"
+  de_DE: "Sitzungskennungen"
+  es_ES: "Identificadores de sesión"
+  fr_FR: "Identifiants de session"
+  pl_PL: "Identyfikatory sesji"
+
+help.arg.signer-id:
+  en_US: "Signer identifier"
+  de_DE: "Unterzeichner-Kennung"
+  es_ES: "Identificador de firmante"
+  fr_FR: "Identifiant du signataire"
+  pl_PL: "Identyfikator sygnatariusza"
+
+help.arg.source-version-range:
+  en_US: "Source version range for migration"
+  de_DE: "Quellversionsbereich für Migration"
+  es_ES: "Rango de versión de origen para migración"
+  fr_FR: "Plage de version source pour la migration"
+  pl_PL: "Zakres wersji źródłowej dla migracji"
+
+help.arg.ssh-fingerprint:
+  en_US: "SSH key fingerprint"
+  de_DE: "SSH-Schlüsselfingerabdruck"
+  es_ES: "Huella digital de clave SSH"
+  fr_FR: "Empreinte de clé SSH"
+  pl_PL: "Odcisk palca klucza SSH"
+
+help.arg.ssh-public-key:
+  en_US: "SSH public key"
+  de_DE: "Öffentlicher SSH-Schlüssel"
+  es_ES: "Clave pública SSH"
+  fr_FR: "Clé publique SSH"
+  pl_PL: "Klucz publiczny SSH"
+
+help.arg.tunnel-ip-address:
+  en_US: "Tunnel server IP address"
+  de_DE: "Tunnel-Server-IP-Adresse"
+  es_ES: "Dirección IP del servidor de túnel"
+  fr_FR: "Adresse IP du serveur tunnel"
+  pl_PL: "Adres IP serwera tunelu"
+
+help.arg.tunnel-name:
+  en_US: "Tunnel name"
+  de_DE: "Tunnelname"
+  es_ES: "Nombre del túnel"
+  fr_FR: "Nom du tunnel"
+  pl_PL: "Nazwa tunelu"
+
+help.arg.tunnel-url:
+  en_US: "Tunnel server URL"
+  de_DE: "Tunnel-Server-URL"
+  es_ES: "URL del servidor de túnel"
+  fr_FR: "URL du serveur tunnel"
+  pl_PL: "URL serwera tunelu"
+
+help.arg.version-headline:
+  en_US: "Short headline for the version"
+  de_DE: "Kurze Überschrift für die Version"
+  es_ES: "Título corto para la versión"
+  fr_FR: "Titre court pour la version"
+  pl_PL: "Krótki nagłówek dla wersji"
+
+help.arg.wifi-enabled:
+  en_US: "Enable or disable WiFi"
+  de_DE: "WLAN aktivieren oder deaktivieren"
+  es_ES: "Habilitar o deshabilitar WiFi"
+  fr_FR: "Activer ou désactiver le WiFi"
+  pl_PL: "Włącz lub wyłącz WiFi"
+
+help.arg.wifi-password:
+  en_US: "WiFi network password"
+  de_DE: "WLAN-Netzwerk-Passwort"
+  es_ES: "Contraseña de red WiFi"
+  fr_FR: "Mot de passe du réseau WiFi"
+  pl_PL: "Hasło sieci WiFi"
+
+help.arg.wifi-ssid:
+  en_US: "WiFi network SSID"
+  de_DE: "WLAN-Netzwerk-SSID"
+  es_ES: "SSID de red WiFi"
+  fr_FR: "SSID du réseau WiFi"
+  pl_PL: "SSID sieci WiFi"
+
+help.arg.wireguard-config:
+  en_US: "WireGuard configuration"
+  de_DE: "WireGuard-Konfiguration"
+  es_ES: "Configuración de WireGuard"
+  fr_FR: "Configuration WireGuard"
+  pl_PL: "Konfiguracja WireGuard"
 
 # CLI command descriptions (about.*)
 about.add-address-to-host:

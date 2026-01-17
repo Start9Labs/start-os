@@ -268,8 +268,11 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) -> Re
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct InfoParams {
+    #[arg(help = "help.arg.backup-target-id")]
     target_id: BackupTargetId,
+    #[arg(help = "help.arg.server-id")]
     server_id: String,
+    #[arg(help = "help.arg.backup-password")]
     password: String,
 }
 
@@ -305,11 +308,13 @@ lazy_static::lazy_static! {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct MountParams {
+    #[arg(help = "help.arg.backup-target-id")]
     target_id: BackupTargetId,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.server-id")]
     server_id: Option<String>,
+    #[arg(help = "help.arg.backup-password")]
     password: String, // TODO: rpassword
-    #[arg(long)]
+    #[arg(long, help = "help.arg.allow-partial-backup")]
     allow_partial: bool,
 }
 
@@ -385,6 +390,7 @@ pub async fn mount(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UmountParams {
+    #[arg(help = "help.arg.backup-target-id")]
     target_id: Option<BackupTargetId>,
 }
 

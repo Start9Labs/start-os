@@ -42,12 +42,13 @@ use crate::util::io::AtomicFile;
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UpdateSystemParams {
+    #[arg(help = "help.arg.registry-url")]
     #[ts(type = "string")]
     registry: Url,
     #[ts(type = "string | null")]
-    #[arg(long = "to")]
+    #[arg(long = "to", help = "help.arg.update-target-version")]
     target: Option<VersionRange>,
-    #[arg(long = "no-progress", action = ArgAction::SetFalse)]
+    #[arg(long = "no-progress", action = ArgAction::SetFalse, help = "help.arg.no-progress")]
     #[serde(default)]
     progress: bool,
 }

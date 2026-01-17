@@ -685,6 +685,7 @@ struct ServiceActorSeed {
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 pub struct RebuildParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
 }
 pub async fn rebuild(ctx: RpcContext, RebuildParams { id }: RebuildParams) -> Result<(), Error> {
@@ -1134,18 +1135,19 @@ async fn get_passwd_command(etc_passwd_path: PathBuf, user: &str) -> RootCommand
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct CliAttachParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.force-tty")]
     pub force_tty: bool,
-    #[arg(trailing_var_arg = true)]
+    #[arg(trailing_var_arg = true, help = "help.arg.command-to-execute")]
     pub command: Vec<OsString>,
-    #[arg(long, short)]
+    #[arg(long, short, help = "help.arg.subcontainer-name")]
     subcontainer: Option<InternedString>,
-    #[arg(long, short)]
+    #[arg(long, short, help = "help.arg.container-name")]
     name: Option<InternedString>,
-    #[arg(long, short)]
+    #[arg(long, short, help = "help.arg.user-name")]
     user: Option<InternedString>,
-    #[arg(long, short)]
+    #[arg(long, short, help = "help.arg.image-id")]
     image_id: Option<ImageId>,
 }
 #[instrument[skip_all]]

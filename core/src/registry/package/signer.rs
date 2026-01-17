@@ -51,9 +51,11 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AddPackageSignerParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
+    #[arg(help = "help.arg.signer-id")]
     pub signer: Guid,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.version-range")]
     #[ts(type = "string | null")]
     pub versions: Option<VersionRange>,
 }
@@ -93,7 +95,9 @@ pub async fn add_package_signer(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RemovePackageSignerParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
+    #[arg(help = "help.arg.signer-id")]
     pub signer: Guid,
 }
 
@@ -130,6 +134,7 @@ pub async fn remove_package_signer(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ListPackageSignersParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
 }
 

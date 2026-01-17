@@ -31,8 +31,11 @@ use crate::{PLATFORM, PackageId};
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct RestorePackageParams {
+    #[arg(help = "help.arg.package-ids")]
     pub ids: Vec<PackageId>,
+    #[arg(help = "help.arg.backup-target-id")]
     pub target_id: BackupTargetId,
+    #[arg(help = "help.arg.backup-password")]
     pub password: String,
 }
 

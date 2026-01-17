@@ -279,7 +279,7 @@ pub async fn import_certificate_cli(
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
 pub struct GenerateCertParams {
-    #[arg(help = "Subject Alternative Name(s)")]
+    #[arg(help = "help.arg.cert-subject-alt-names")]
     pub subject: Vec<InternedString>,
 }
 
@@ -331,6 +331,7 @@ pub async fn get_certificate(ctx: TunnelContext) -> Result<Option<Pem<Vec<X509>>
 #[derive(Debug, Deserialize, Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct SetListenParams {
+    #[arg(help = "help.arg.listen-address")]
     pub listen: SocketAddr,
 }
 

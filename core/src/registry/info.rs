@@ -69,6 +69,7 @@ pub async fn get_info(ctx: RegistryContext) -> Result<RegistryInfo, Error> {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetNameParams {
+    #[arg(help = "help.arg.registry-name")]
     pub name: String,
 }
 
@@ -104,6 +105,7 @@ pub async fn set_icon(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CliSetIconParams {
+    #[arg(help = "help.arg.icon-path")]
     pub icon: PathBuf,
 }
 

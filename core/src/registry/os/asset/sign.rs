@@ -136,10 +136,11 @@ pub async fn sign_squashfs(ctx: RegistryContext, params: SignAssetParams) -> Res
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliSignAssetParams {
-    #[arg(short = 'p', long = "platform")]
+    #[arg(short = 'p', long = "platform", help = "help.arg.platform")]
     pub platform: InternedString,
-    #[arg(short = 'v', long = "version")]
+    #[arg(short = 'v', long = "version", help = "help.arg.os-version")]
     pub version: Version,
+    #[arg(help = "help.arg.asset-file-path")]
     pub file: PathBuf,
 }
 

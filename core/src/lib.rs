@@ -110,6 +110,7 @@ use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 #[command(rename_all = "kebab-case")]
 #[ts(export)]
 pub struct EchoParams {
+    #[arg(help = "help.arg.echo-message")]
     message: String,
 }
 

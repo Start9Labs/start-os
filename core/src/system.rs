@@ -81,6 +81,7 @@ pub async fn enable_zram() -> Result<(), Error> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ZramParams {
+    #[arg(help = "help.arg.enable-zram")]
     enable: bool,
 }
 
@@ -148,6 +149,7 @@ fn display_governor_info(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct GovernorParams {
+    #[arg(help = "help.arg.governor-name")]
     set: Option<Governor>,
 }
 
@@ -1043,15 +1045,15 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SmtpValue {
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-server")]
     pub server: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-port")]
     pub port: u16,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-from")]
     pub from: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-login")]
     pub login: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-password")]
     pub password: Option<String>,
 }
 pub async fn set_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Error> {
@@ -1089,17 +1091,17 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct TestSmtpParams {
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-server")]
     pub server: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-port")]
     pub port: u16,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-from")]
     pub from: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-to")]
     pub to: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-login")]
     pub login: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-password")]
     pub password: String,
 }
 pub async fn test_smtp(
@@ -1136,10 +1138,13 @@ pub async fn test_smtp(
 #[derive(Debug, Clone, Deserialize, Serialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyboardOptions {
+    #[arg(help = "help.arg.keyboard-layout")]
     pub layout: InternedString,
+    #[arg(long, help = "help.arg.keyboard-model")]
     pub model: Option<InternedString>,
+    #[arg(long, help = "help.arg.keyboard-variant")]
     pub variant: Option<InternedString>,
-    #[arg(short, long = "option")]
+    #[arg(short, long = "option", help = "help.arg.keyboard-option")]
     #[serde(default)]
     pub options: Vec<InternedString>,
 }
@@ -1194,6 +1199,7 @@ pub async fn set_keyboard(ctx: RpcContext, options: KeyboardOptions) -> Result<(
 #[derive(Debug, Clone, Deserialize, Serialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct SetLanguageParams {
+    #[arg(help = "help.arg.language-code")]
     pub language: InternedString,
 }
 

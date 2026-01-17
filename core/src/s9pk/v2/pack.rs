@@ -155,20 +155,21 @@ impl From<PackSource> for DynFileSource {
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct PackParams {
+    #[arg(help = "help.arg.input-path")]
     pub path: Option<PathBuf>,
-    #[arg(short, long)]
+    #[arg(short, long, help = "help.arg.output-path")]
     pub output: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.javascript-path")]
     pub javascript: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.icon-path")]
     pub icon: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.license-path")]
     pub license: Option<PathBuf>,
-    #[arg(long, conflicts_with = "no-assets")]
+    #[arg(long, conflicts_with = "no-assets", help = "help.arg.assets-path")]
     pub assets: Option<PathBuf>,
-    #[arg(long, conflicts_with = "assets")]
+    #[arg(long, conflicts_with = "assets", help = "help.arg.no-assets")]
     pub no_assets: bool,
-    #[arg(long, help = "Architecture Mask")]
+    #[arg(long, help = "help.arg.architecture-mask")]
     pub arch: Vec<InternedString>,
 }
 impl PackParams {
@@ -280,19 +281,19 @@ pub struct ImageConfig {
 
 #[derive(Parser)]
 struct CliImageConfig {
-    #[arg(long, conflicts_with("docker-tag"))]
+    #[arg(long, conflicts_with("docker-tag"), help = "help.arg.docker-build")]
     docker_build: bool,
-    #[arg(long, requires("docker-build"))]
+    #[arg(long, requires("docker-build"), help = "help.arg.dockerfile-path")]
     dockerfile: Option<PathBuf>,
-    #[arg(long, requires("docker-build"))]
+    #[arg(long, requires("docker-build"), help = "help.arg.workdir-path")]
     workdir: Option<PathBuf>,
-    #[arg(long, conflicts_with_all(["dockerfile", "workdir"]))]
+    #[arg(long, conflicts_with_all(["dockerfile", "workdir"]), help = "help.arg.docker-tag")]
     docker_tag: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.architecture-mask")]
     arch: Vec<InternedString>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.emulate-missing-arch")]
     emulate_missing_as: Option<InternedString>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.nvidia-container")]
     nvidia_container: bool,
 }
 impl TryFrom<CliImageConfig> for ImageConfig {

@@ -121,8 +121,9 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliDumpParams {
-    #[arg(long = "pointer", short = 'p')]
+    #[arg(long = "pointer", short = 'p', help = "help.arg.json-pointer")]
     pointer: Option<JsonPointer>,
+    #[arg(help = "help.arg.database-path")]
     path: Option<PathBuf>,
 }
 
@@ -154,7 +155,7 @@ async fn cli_dump(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DumpParams {
-    #[arg(long = "pointer", short = 'p')]
+    #[arg(long = "pointer", short = 'p', help = "help.arg.json-pointer")]
     #[ts(type = "string | null")]
     pointer: Option<JsonPointer>,
 }
@@ -170,7 +171,9 @@ pub async fn dump(ctx: TunnelContext, DumpParams { pointer }: DumpParams) -> Res
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliApplyParams {
+    #[arg(help = "help.arg.db-apply-expr")]
     expr: String,
+    #[arg(help = "help.arg.database-path")]
     path: Option<PathBuf>,
 }
 
@@ -225,7 +228,9 @@ async fn cli_apply(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ApplyParams {
+    #[arg(help = "help.arg.db-apply-expr")]
     expr: String,
+    #[arg(help = "help.arg.database-path")]
     path: Option<PathBuf>,
 }
 

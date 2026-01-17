@@ -87,9 +87,10 @@ pub enum RevisionsRes {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliDumpParams {
-    #[arg(long = "include-private", short = 'p')]
+    #[arg(long = "include-private", short = 'p', help = "help.arg.include-private-data")]
     #[serde(default)]
     include_private: bool,
+    #[arg(help = "help.arg.db-path")]
     path: Option<PathBuf>,
 }
 
@@ -258,9 +259,11 @@ pub async fn subscribe(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliApplyParams {
-    #[arg(long)]
+    #[arg(long, help = "help.arg.allow-model-mismatch")]
     allow_model_mismatch: bool,
+    #[arg(help = "help.arg.db-apply-expr")]
     expr: String,
+    #[arg(help = "help.arg.db-path")]
     path: Option<PathBuf>,
 }
 
@@ -327,6 +330,7 @@ async fn cli_apply(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ApplyParams {
+    #[arg(help = "help.arg.db-apply-expr")]
     expr: String,
 }
 
@@ -366,8 +370,10 @@ pub fn put<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UiParams {
+    #[arg(help = "help.arg.json-pointer")]
     #[ts(type = "string")]
     pointer: JsonPointer,
+    #[arg(help = "help.arg.json-value")]
     #[ts(type = "any")]
     value: Value,
 }

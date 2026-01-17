@@ -118,6 +118,7 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct AddParams {
+    #[arg(help = "help.arg.ssh-public-key")]
     key: SshPubKey,
 }
 
@@ -152,6 +153,7 @@ pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKey
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DeleteParams {
+    #[arg(help = "help.arg.ssh-fingerprint")]
     #[ts(type = "string")]
     fingerprint: InternedString,
 }

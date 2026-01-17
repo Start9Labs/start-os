@@ -59,17 +59,25 @@ pub fn translate_cli(mut cmd: clap::Command) -> clap::Command {
         cmd = cmd.after_long_help(s);
     }
 
-    let args = cmd.get_arguments().cloned().collect::<Vec<_>>();
-    for mut arg in args {
-        if let Some(s) = arg.get_help() {
-            let s = translate(s);
-            arg = arg.help(s);
-        }
-        if let Some(s) = arg.get_long_help() {
-            let s = translate(s);
-            arg = arg.long_help(s);
-        }
-        cmd = cmd.arg(arg);
+    let arg_ids = cmd
+        .get_arguments()
+        .map(|a| a.get_id().clone())
+        .collect::<Vec<_>>();
+    for id in arg_ids {
+        cmd = cmd.mut_arg(id, |arg| {
+            let arg = if let Some(s) = arg.get_help() {
+                let s = translate(s);
+                arg.help(s)
+            } else {
+                arg
+            };
+            if let Some(s) = arg.get_long_help() {
+                let s = translate(s);
+                arg.long_help(s)
+            } else {
+                arg
+            }
+        });
     }
     for cmd in cmd.get_subcommands_mut() {
         *cmd = translate_cli(cmd.clone());

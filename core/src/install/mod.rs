@@ -283,6 +283,7 @@ pub async fn sideload(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CancelInstallParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
 }
 
@@ -299,7 +300,9 @@ pub fn cancel_install(
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct QueryPackageParams {
+    #[arg(help = "help.arg.package-id")]
     id: PackageId,
+    #[arg(help = "help.arg.version-range")]
     version: Option<VersionRange>,
 }
 
@@ -357,6 +360,7 @@ impl FromArgMatches for CliInstallParams {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[ts(export)]
 pub struct InstalledVersionParams {
+    #[arg(help = "help.arg.package-id")]
     id: PackageId,
 }
 
@@ -516,11 +520,12 @@ pub async fn cli_install(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UninstallParams {
+    #[arg(help = "help.arg.package-id")]
     id: PackageId,
-    #[arg(long, help = "Do not delete the service data")]
+    #[arg(long, help = "help.arg.soft-uninstall")]
     #[serde(default)]
     soft: bool,
-    #[arg(long, help = "Ignore errors in service uninit script")]
+    #[arg(long, help = "help.arg.force-uninstall")]
     #[serde(default)]
     force: bool,
 }

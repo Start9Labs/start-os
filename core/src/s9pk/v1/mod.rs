@@ -16,5 +16,6 @@ pub const SIG_CONTEXT: &[u8] = b"s9pk";
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct VerifyParams {
+    #[arg(help = "help.arg.s9pk-file-path")]
     pub path: PathBuf,
 }

@@ -123,10 +123,11 @@ pub async fn add_package(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddPackageParams {
+    #[arg(help = "help.arg.s9pk-file-path")]
     pub file: PathBuf,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.package-url")]
     pub url: Vec<Url>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.no-verify")]
     pub no_verify: bool,
 }
 
@@ -205,9 +206,11 @@ pub async fn cli_add_package(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RemovePackageParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
+    #[arg(help = "help.arg.package-version")]
     pub version: VersionString,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.signature-hash")]
     pub sighash: Option<Base64<[u8; 32]>>,
     #[ts(skip)]
     #[arg(skip)]
@@ -353,8 +356,11 @@ pub async fn add_mirror(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddMirrorParams {
+    #[arg(help = "help.arg.s9pk-file-path")]
     pub file: PathBuf,
+    #[arg(help = "help.arg.mirror-url")]
     pub url: Url,
+    #[arg(long, help = "help.arg.no-verify")]
     pub no_verify: bool,
 }
 
@@ -432,9 +438,11 @@ pub async fn cli_add_mirror(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RemoveMirrorParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
+    #[arg(help = "help.arg.package-version")]
     pub version: VersionString,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.mirror-url")]
     #[ts(type = "string")]
     pub url: Url,
     #[ts(skip)]

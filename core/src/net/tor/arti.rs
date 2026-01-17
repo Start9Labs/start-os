@@ -289,6 +289,7 @@ pub async fn generate_key(ctx: RpcContext) -> Result<OnionAddress, Error> {
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct AddKeyParams {
+    #[arg(help = "help.arg.onion-secret-key")]
     pub key: Base64<[u8; 64]>,
 }
 
@@ -323,7 +324,7 @@ pub async fn list_keys(ctx: RpcContext) -> Result<BTreeSet<OnionAddress>, Error>
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ResetParams {
-    #[arg(name = "wipe-state", short = 'w', long = "wipe-state")]
+    #[arg(name = "wipe-state", short = 'w', long = "wipe-state", help = "help.arg.wipe-tor-state")]
     wipe_state: bool,
 }
 

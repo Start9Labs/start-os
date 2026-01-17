@@ -319,9 +319,9 @@ impl CallbackHandlers {
 #[ts(type = "{ only: number[] } | { except: number[] }")]
 #[ts(export)]
 pub struct ClearCallbacksParams {
-    #[arg(long, conflicts_with = "except")]
+    #[arg(long, conflicts_with = "except", help = "help.arg.only-callbacks")]
     pub only: Option<Vec<CallbackId>>,
-    #[arg(long, conflicts_with = "only")]
+    #[arg(long, conflicts_with = "only", help = "help.arg.except-callbacks")]
     pub except: Option<Vec<CallbackId>>,
 }
 

@@ -63,7 +63,9 @@ pub struct ActionInput {
 #[derive(Deserialize, Serialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct GetActionInputParams {
+    #[arg(help = "help.arg.package-id")]
     pub package_id: PackageId,
+    #[arg(help = "help.arg.action-id")]
     pub action_id: ActionId,
 }
 
@@ -280,8 +282,11 @@ pub struct RunActionParams {
 
 #[derive(Parser)]
 struct CliRunActionParams {
+    #[arg(help = "help.arg.package-id")]
     pub package_id: PackageId,
+    #[arg(help = "help.arg.event-id")]
     pub event_id: Option<Guid>,
+    #[arg(help = "help.arg.action-id")]
     pub action_id: ActionId,
     #[command(flatten)]
     pub input: StdinDeserializable<Option<Value>>,
@@ -360,9 +365,11 @@ pub async fn run_action(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ClearTaskParams {
+    #[arg(help = "help.arg.package-id")]
     pub package_id: PackageId,
+    #[arg(help = "help.arg.replay-id")]
     pub replay_id: ReplayId,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.force-clear-task")]
     #[serde(default)]
     pub force: bool,
 }

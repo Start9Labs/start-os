@@ -33,11 +33,13 @@ use crate::version::VersionT;
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct BackupParams {
+    #[arg(help = "help.arg.backup-target-id")]
     target_id: BackupTargetId,
-    #[arg(long = "old-password")]
+    #[arg(long = "old-password", help = "help.arg.old-backup-password")]
     old_password: Option<crate::auth::PasswordType>,
-    #[arg(long = "package-ids")]
+    #[arg(long = "package-ids", help = "help.arg.package-ids-to-backup")]
     package_ids: Option<Vec<PackageId>>,
+    #[arg(help = "help.arg.backup-password")]
     password: crate::auth::PasswordType,
 }
 

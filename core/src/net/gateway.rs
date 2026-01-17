@@ -140,7 +140,9 @@ async fn list_interfaces(
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 struct NetworkInterfaceSetPublicParams {
+    #[arg(help = "help.arg.gateway-id")]
     gateway: GatewayId,
+    #[arg(help = "help.arg.is-public")]
     public: Option<bool>,
 }
 
@@ -156,6 +158,7 @@ async fn set_public(
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 struct UnsetPublicParams {
+    #[arg(help = "help.arg.gateway-id")]
     gateway: GatewayId,
 }
 
@@ -171,6 +174,7 @@ async fn unset_public(
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 struct ForgetGatewayParams {
+    #[arg(help = "help.arg.gateway-id")]
     gateway: GatewayId,
 }
 
@@ -183,7 +187,9 @@ async fn forget_iface(
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 struct RenameGatewayParams {
+    #[arg(help = "help.arg.gateway-id")]
     id: GatewayId,
+    #[arg(help = "help.arg.gateway-name")]
     name: InternedString,
 }
 

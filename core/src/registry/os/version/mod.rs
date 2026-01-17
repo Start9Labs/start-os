@@ -62,10 +62,14 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
 #[ts(export)]
 pub struct AddVersionParams {
     #[ts(type = "string")]
+    #[arg(help = "help.arg.os-version")]
     pub version: Version,
+    #[arg(help = "help.arg.version-headline")]
     pub headline: String,
+    #[arg(help = "help.arg.release-notes")]
     pub release_notes: String,
     #[ts(type = "string")]
+    #[arg(help = "help.arg.source-version-range")]
     pub source_version: VersionRange,
     #[arg(skip)]
     #[ts(skip)]
@@ -110,6 +114,7 @@ pub async fn add_version(
 #[ts(export)]
 pub struct RemoveVersionParams {
     #[ts(type = "string")]
+    #[arg(help = "help.arg.os-version")]
     pub version: Version,
 }
 
@@ -135,15 +140,15 @@ pub async fn remove_version(
 #[ts(export)]
 pub struct GetOsVersionParams {
     #[ts(type = "string | null")]
-    #[arg(long = "src")]
+    #[arg(long = "src", help = "help.arg.source-version")]
     pub source_version: Option<Version>,
     #[ts(type = "string | null")]
-    #[arg(long)]
+    #[arg(long, help = "help.arg.target-version-range")]
     pub target_version: Option<VersionRange>,
-    #[arg(long = "id")]
+    #[arg(long = "id", help = "help.arg.server-id")]
     server_id: Option<String>,
     #[ts(type = "string | null")]
-    #[arg(long)]
+    #[arg(long, help = "help.arg.platform")]
     platform: Option<InternedString>,
     #[ts(skip)]
     #[arg(skip)]

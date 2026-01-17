@@ -179,11 +179,13 @@ pub async fn add_squashfs(ctx: RegistryContext, params: AddAssetParams) -> Resul
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddAssetParams {
-    #[arg(short = 'p', long = "platform")]
+    #[arg(short = 'p', long = "platform", help = "help.arg.platform")]
     pub platform: InternedString,
-    #[arg(short = 'v', long = "version")]
+    #[arg(short = 'v', long = "version", help = "help.arg.os-version")]
     pub version: Version,
+    #[arg(help = "help.arg.asset-file-path")]
     pub file: PathBuf,
+    #[arg(help = "help.arg.asset-url")]
     pub url: Url,
 }
 

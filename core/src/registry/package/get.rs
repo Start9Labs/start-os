@@ -51,17 +51,18 @@ pub struct PackageInfoShort {
 #[ts(export)]
 #[model = "Model<Self>"]
 pub struct GetPackageParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: Option<PackageId>,
     #[ts(type = "string | null")]
-    #[arg(long, short = 'v')]
+    #[arg(long, short = 'v', help = "help.arg.target-version-range")]
     pub target_version: Option<VersionRange>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.source-version")]
     pub source_version: Option<VersionString>,
     #[ts(skip)]
     #[arg(skip)]
     #[serde(rename = "__DeviceInfo_device_info")]
     pub device_info: Option<DeviceInfo>,
-    #[arg(default_value = "none")]
+    #[arg(default_value = "none", help = "help.arg.other-versions-detail")]
     pub other_versions: Option<PackageDetailLevel>,
 }
 
@@ -401,11 +402,12 @@ pub fn display_package_info(
 #[derive(Debug, Deserialize, Serialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct CliDownloadParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
-    #[arg(long, short = 'v')]
+    #[arg(long, short = 'v', help = "help.arg.target-version-range")]
     #[ts(type = "string | null")]
     pub target_version: Option<VersionRange>,
-    #[arg(short, long)]
+    #[arg(short, long, help = "help.arg.destination-path")]
     pub dest: Option<PathBuf>,
 }
 

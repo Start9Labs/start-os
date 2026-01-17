@@ -237,9 +237,11 @@ pub async fn list_bindings<Kind: HostApiKind>(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct BindingGatewaySetEnabledParams {
+    #[arg(help = "help.arg.internal-port")]
     internal_port: u16,
+    #[arg(help = "help.arg.gateway-id")]
     gateway: GatewayId,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.binding-enabled")]
     enabled: Option<bool>,
 }
 

@@ -11,6 +11,6 @@ pub(super) use crate::service::effects::context::EffectContext;
 #[ts(export)]
 pub struct EventId {
     #[serde(default)]
-    #[arg(default_value_t, long)]
+    #[arg(default_value_t, long, help = "help.arg.event-id")]
     pub event_id: Guid,
 }

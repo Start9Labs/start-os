@@ -237,9 +237,11 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct AddPublicDomainParams {
+    #[arg(help = "help.arg.fqdn")]
     pub fqdn: InternedString,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.acme-provider")]
     pub acme: Option<AcmeProvider>,
+    #[arg(help = "help.arg.gateway-id")]
     pub gateway: GatewayId,
 }
 
@@ -284,6 +286,7 @@ pub async fn add_public_domain<Kind: HostApiKind>(
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct RemoveDomainParams {
+    #[arg(help = "help.arg.fqdn")]
     pub fqdn: InternedString,
 }
 
@@ -307,6 +310,7 @@ pub async fn remove_public_domain<Kind: HostApiKind>(
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct AddPrivateDomainParams {
+    #[arg(help = "help.arg.fqdn")]
     pub fqdn: InternedString,
 }
 
@@ -349,6 +353,7 @@ pub async fn remove_private_domain<Kind: HostApiKind>(
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct OnionParams {
+    #[arg(help = "help.arg.onion-address")]
     pub onion: String,
 }
 

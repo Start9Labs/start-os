@@ -106,6 +106,7 @@ async fn get_block_device_size(path: impl AsRef<Path>) -> Result<u64, Error> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct InstallOsParams {
+    #[arg(help = "help.arg.os-drive-path")]
     os_drive: PathBuf,
     #[command(flatten)]
     data_drive: Option<DataDrive>,
@@ -115,9 +116,9 @@ pub struct InstallOsParams {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 struct DataDrive {
-    #[arg(long = "data-drive")]
+    #[arg(long = "data-drive", help = "help.arg.data-drive-path")]
     logicalname: PathBuf,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.wipe-drive")]
     wipe: bool,
 }
 
@@ -490,11 +491,11 @@ pub async fn install_os(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliInstallOsParams {
-    #[arg(help = "Path to the squashfs image to install")]
+    #[arg(help = "help.arg.squashfs-image-path")]
     squashfs: PathBuf,
-    #[arg(help = "Target disk to install to (e.g., /dev/sda or /dev/loop0)")]
+    #[arg(help = "help.arg.target-disk")]
     disk: PathBuf,
-    #[arg(long, help = "Use EFI boot (default: true for GPT disks)")]
+    #[arg(long, help = "help.arg.use-efi-boot")]
     efi: Option<bool>,
 }
 

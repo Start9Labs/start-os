@@ -206,16 +206,17 @@ pub async fn add_signer(ctx: RegistryContext, signer: SignerInfo) -> Result<Guid
 #[command(rename_all = "kebab-case")]
 #[ts(export)]
 pub struct EditSignerParams {
+    #[arg(help = "help.arg.signer-id")]
     pub id: Guid,
-    #[arg(short = 'n', long)]
+    #[arg(short = 'n', long, help = "help.arg.set-signer-name")]
     pub set_name: Option<String>,
-    #[arg(short = 'c', long)]
+    #[arg(short = 'c', long, help = "help.arg.add-signer-contact")]
     pub add_contact: Vec<ContactInfo>,
-    #[arg(short = 'k', long)]
+    #[arg(short = 'k', long, help = "help.arg.add-signer-key")]
     pub add_key: Vec<AnyVerifyingKey>,
-    #[arg(short = 'C', long)]
+    #[arg(short = 'C', long, help = "help.arg.remove-signer-contact")]
     pub remove_contact: Vec<ContactInfo>,
-    #[arg(short = 'K', long)]
+    #[arg(short = 'K', long, help = "help.arg.remove-signer-key")]
     pub remove_key: Vec<AnyVerifyingKey>,
 }
 
@@ -264,12 +265,13 @@ pub async fn edit_signer(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddSignerParams {
-    #[arg(long = "name", short = 'n')]
+    #[arg(long = "name", short = 'n', help = "help.arg.signer-name")]
     pub name: String,
-    #[arg(long = "contact", short = 'c')]
+    #[arg(long = "contact", short = 'c', help = "help.arg.signer-contact")]
     pub contact: Vec<ContactInfo>,
-    #[arg(long = "key")]
+    #[arg(long = "key", help = "help.arg.signer-key")]
     pub keys: Vec<AnyVerifyingKey>,
+    #[arg(help = "help.arg.database-path")]
     pub database: Option<PathBuf>,
 }
 
@@ -339,6 +341,7 @@ pub async fn add_admin(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RemoveAdminParams {
+    #[arg(help = "help.arg.signer-id")]
     pub signer: Guid,
 }
 
@@ -360,7 +363,9 @@ pub async fn remove_admin(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddAdminParams {
+    #[arg(help = "help.arg.signer-id")]
     pub signer: Guid,
+    #[arg(help = "help.arg.database-path")]
     pub database: Option<PathBuf>,
 }
 

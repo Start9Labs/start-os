@@ -75,9 +75,13 @@ pub fn cifs<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct AddParams {
+    #[arg(help = "help.arg.cifs-hostname")]
     pub hostname: String,
+    #[arg(help = "help.arg.cifs-path")]
     pub path: PathBuf,
+    #[arg(help = "help.arg.cifs-username")]
     pub username: String,
+    #[arg(help = "help.arg.cifs-password")]
     pub password: Option<String>,
 }
 
@@ -130,10 +134,15 @@ pub async fn add(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UpdateParams {
+    #[arg(help = "help.arg.backup-target-id")]
     pub id: BackupTargetId,
+    #[arg(help = "help.arg.cifs-hostname")]
     pub hostname: String,
+    #[arg(help = "help.arg.cifs-path")]
     pub path: PathBuf,
+    #[arg(help = "help.arg.cifs-username")]
     pub username: String,
+    #[arg(help = "help.arg.cifs-password")]
     pub password: Option<String>,
 }
 
@@ -195,6 +204,7 @@ pub async fn update(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct RemoveParams {
+    #[arg(help = "help.arg.backup-target-id")]
     pub id: BackupTargetId,
 }
 
