@@ -80,6 +80,7 @@ fn signers_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(edit_signer)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
+                .with_about("about.edit-signer")
                 .with_call_remote::<CliContext>(),
         )
 }

@@ -2919,6 +2919,13 @@ about.commands-host-system-ui:
   fr_FR: "Commandes pour modifier l'hôte pour l'interface système"
   pl_PL: "Polecenia modyfikacji hosta dla interfejsu systemowego"
 
+about.commands-init:
+  en_US: "Commands for initialization"
+  de_DE: "Befehle zur Initialisierung"
+  es_ES: "Comandos de inicialización"
+  fr_FR: "Commandes d'initialisation"
+  pl_PL: "Polecenia inicjalizacji"
+
 about.commands-index-add-get-packages:
   en_US: "Commands to index, add, or get packages"
   de_DE: "Befehle zum Indizieren, Hinzufügen oder Abrufen von Paketen"
@@ -2932,6 +2939,13 @@ about.commands-interact-with-db-dump-apply:
   es_ES: "Comandos para interactuar con la base de datos, como dump y apply"
   fr_FR: "Commandes pour interagir avec la base de données, comme dump et apply"
   pl_PL: "Polecenia interakcji z bazą danych, np. dump i apply"
+
+about.commands-kiosk:
+  en_US: "Commands for kiosk mode"
+  de_DE: "Befehle für den Kioskmodus"
+  es_ES: "Comandos para el modo kiosco"
+  fr_FR: "Commandes pour le mode kiosque"
+  pl_PL: "Polecenia trybu kiosku"
 
 about.commands-notifications:
   en_US: "Create, delete, or list notifications"
@@ -2988,6 +3002,13 @@ about.commands-server:
   es_ES: "Comandos relacionados con el servidor, como reiniciar, actualizar y apagar"
   fr_FR: "Commandes liées au serveur, comme redémarrer, mettre à jour et arrêter"
   pl_PL: "Polecenia związane z serwerem, np. restart, aktualizacja i zamknięcie"
+
+about.commands-setup:
+  en_US: "Commands related to the initial setup"
+  de_DE: "Befehle zur Ersteinrichtung"
+  es_ES: "Comandos relacionados con la configuración inicial"
+  fr_FR: "Commandes liées à la configuration initiale"
+  pl_PL: "Polecenia związane z początkową konfiguracją"
 
 about.commands-ssh-keys:
   en_US: "Commands for interacting with ssh keys i.e. add, delete, list"
@@ -3219,6 +3240,13 @@ about.edit-s9pk-manifest:
   es_ES: "Editar manifiesto s9pk"
   fr_FR: "Modifier le manifeste s9pk"
   pl_PL: "Edytuj manifest s9pk"
+
+about.edit-signer:
+  en_US: "Edit signer information"
+  de_DE: "Unterzeichner-Informationen bearbeiten"
+  es_ES: "Editar información del firmante"
+  fr_FR: "Modifier les informations du signataire"
+  pl_PL: "Edytuj informacje o podpisującym"
 
 about.enable-disable-wifi:
   en_US: "Enable or disable wifi"

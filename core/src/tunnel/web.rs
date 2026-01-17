@@ -156,8 +156,8 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "enable",
             from_fn_async(enable_web)
-                .with_about("about.enable-webserver")
                 .no_display()
+                .with_about("about.enable-webserver")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(

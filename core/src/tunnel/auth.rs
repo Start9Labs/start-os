@@ -129,14 +129,14 @@ pub fn auth_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "set-password",
             from_fn_async(set_password_cli)
-                .with_about("about.set-user-interface-password")
-                .no_display(),
+                .no_display()
+                .with_about("about.set-user-interface-password"),
         )
         .subcommand(
             "reset-password",
             from_fn_async(reset_password)
-                .with_about("about.reset-user-interface-password")
-                .no_display(),
+                .no_display()
+                .with_about("about.reset-user-interface-password"),
         )
         .subcommand(
             "key",

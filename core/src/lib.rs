@@ -232,10 +232,16 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
             "diagnostic",
             diagnostic::diagnostic::<C>().with_about("about.commands-diagnostic"),
         )
-        .subcommand("init", init::init_api::<C>())
-        .subcommand("setup", setup::setup::<C>());
+        .subcommand(
+            "init",
+            init::init_api::<C>().with_about("about.commands-init"),
+        )
+        .subcommand(
+            "setup",
+            setup::setup::<C>().with_about("about.commands-setup"),
+        );
     if &*PLATFORM != "raspberrypi" {
-        api = api.subcommand("kiosk", kiosk::<C>());
+        api = api.subcommand("kiosk", kiosk::<C>().with_about("about.commands-kiosk"));
     }
     #[cfg(target_os = "linux")]
     {

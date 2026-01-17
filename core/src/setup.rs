@@ -70,7 +70,9 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
         .subcommand("logs", crate::system::logs::<SetupContext>())
         .subcommand(
             "logs",
-            from_fn_async(crate::logs::cli_logs::<SetupContext, Empty>).no_display(),
+            from_fn_async(crate::logs::cli_logs::<SetupContext, Empty>)
+                .no_display()
+                .with_about("about.display-os-logs"),
         )
         .subcommand("restart", from_fn_async(restart).no_cli())
 }
