@@ -7,9 +7,9 @@ import {
   TuiTitle,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TuiHeader } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { FORM } from 'src/app/directives/form'
-import { DDNS_FIELD_LABELS, DDNS_VALIDATION_ERRORS } from './utils'
+import { DDNS_FIELD_LABELS, DDNS_VALIDATION_ERRORS } from '../utils'
 
 @Component({
   selector: 'ddns-fields',
@@ -34,6 +34,7 @@ import { DDNS_FIELD_LABELS, DDNS_VALIDATION_ERRORS } from './utils'
     </section>
   `,
   viewProviders: [FORM],
+  hostDirectives: [TuiForm, TuiCardLarge],
   providers: [tuiValidationErrorsProvider(DDNS_VALIDATION_ERRORS)],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [

@@ -5,6 +5,7 @@ import {
   signal,
 } from '@angular/core'
 import { provideRouter, withRouterConfig } from '@angular/router'
+import { tuiSheetDialogOptionsProvider } from '@taiga-ui/addon-mobile'
 import {
   provideTaiga,
   TUI_APPEARANCE_OPTIONS,
@@ -54,6 +55,7 @@ export const appConfig: ApplicationConfig = {
     tuiCardOptionsProvider({ space: 'compact' }),
     tuiDropdownOptionsProvider({ appearance: 'start-9' }),
     tuiDialogOptionsProvider({ appearance: 'start-9 taiga' }),
+    tuiSheetDialogOptionsProvider({ appearance: 'start-9 taiga', bar: false }),
     {
       provide: TUI_APPEARANCE_OPTIONS,
       useValue: { appearance: 'neutral' },

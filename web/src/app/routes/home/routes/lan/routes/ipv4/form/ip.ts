@@ -27,46 +27,46 @@ import {
   FirstOctet,
   getSecondOctet,
   LAN_IPV4_VALIDATION_ERRORS,
-} from './utils'
-import LanIpv4 from '.'
+} from '../utils'
+import LanIpv4 from '../'
 
 @Component({
   selector: 'lan-ipv4-ip',
   template: `
     <header tuiHeader="body-l"><h2 tuiTitle>Network</h2></header>
-    <section>
+    <section [tuiTextfieldCleaner]="false">
       <div>
-        <label tuiLabel>Network Block*</label>
+        <label tuiLabel>Network Block</label>
         <div class="ip-group">
-          <tui-textfield tuiChevron [tuiTextfieldCleaner]="false">
+          <tui-textfield tuiChevron>
             <input tuiSelect formControlName="firstOctet" />
             <tui-data-list-wrapper *tuiDropdown [items]="firstOctets" />
           </tui-textfield>
-          <tui-textfield [tuiTextfieldCleaner]="false">
+          <tui-textfield>
             <input tuiInput [value]="secondOctet()" disabled />
           </tui-textfield>
-          <tui-textfield [tuiTextfieldCleaner]="false">
+          <tui-textfield>
             <input tuiInput value="x" disabled />
           </tui-textfield>
-          <tui-textfield [tuiTextfieldCleaner]="false">
+          <tui-textfield>
             <input tuiInput value="x" disabled />
           </tui-textfield>
           <span class="cidr">/16</span>
         </div>
       </div>
       <div>
-        <label tuiLabel>Router IP*</label>
+        <label tuiLabel>Router IP</label>
         <div class="ip-group">
-          <tui-textfield [tuiTextfieldCleaner]="false">
+          <tui-textfield>
             <input tuiInput [value]="firstOctet$()" disabled />
           </tui-textfield>
-          <tui-textfield [tuiTextfieldCleaner]="false">
+          <tui-textfield>
             <input tuiInput [value]="secondOctet()" disabled />
           </tui-textfield>
-          <tui-textfield [tuiTextfieldCleaner]="false">
+          <tui-textfield>
             <input tuiInput value="0" disabled />
           </tui-textfield>
-          <tui-textfield [tuiTextfieldCleaner]="false">
+          <tui-textfield>
             <input
               tuiInputNumber
               formControlName="routerOctet"
@@ -86,7 +86,7 @@ import LanIpv4 from '.'
       align-items: center;
 
       tui-textfield {
-        width: 5.5rem;
+        width: 4.5rem;
       }
 
       .cidr {
@@ -98,6 +98,10 @@ import LanIpv4 from '.'
 
     section > div {
       min-width: 25rem;
+    }
+
+    tui-data-list-wrapper {
+      white-space: nowrap;
     }
   `,
   viewProviders: [FORM],

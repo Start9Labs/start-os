@@ -18,7 +18,7 @@ import {
   injectFormService,
   provideFormService,
 } from 'src/app/services/form.service'
-import { MacAddress } from './address'
+import { MacAddress } from './form/address'
 import { MacAside } from './aside'
 import { MacService } from './service'
 import { MacSummary } from './summary'
@@ -56,10 +56,11 @@ import {
         }
       </section>
       @if (strategy() === 'custom') {
+        <hr />
         <mac-address formGroupName="address" />
       }
       @if (service.data()) {
-        <footer appFooter [disabled]="form.pristine"></footer>
+        <footer appFooter></footer>
       }
     </form>
   `,

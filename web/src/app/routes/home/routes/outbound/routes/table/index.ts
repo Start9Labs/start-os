@@ -5,8 +5,9 @@ import {
   inject,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
-import { TuiButton, TuiDialogService, TuiLink, TuiTitle } from '@taiga-ui/core'
+import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { Help } from 'src/app/directives/help'
@@ -98,7 +99,7 @@ import { OutboundAside } from './aside'
   ],
 })
 export default class OutboundTable {
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(OutboundService)
 
   protected readonly loading = computed(() => !this.service.data())

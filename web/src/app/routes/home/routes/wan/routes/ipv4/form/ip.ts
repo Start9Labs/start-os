@@ -25,8 +25,8 @@ import {
   IPV4_STATIC_CONTROLS,
   IPV4_VALIDATION_ERRORS,
   netmaskFromPrefix,
-} from './utils'
-import Ipv4 from '.'
+} from '../utils'
+import Ipv4 from '../'
 
 @Component({
   selector: 'ipv4-ip',

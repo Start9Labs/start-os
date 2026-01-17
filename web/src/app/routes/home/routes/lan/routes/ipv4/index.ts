@@ -5,15 +5,11 @@ import {
   inject,
 } from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
-import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
-import {
-  TuiDialogService,
-  tuiNumberFormatProvider,
-  TuiTitle,
-} from '@taiga-ui/core'
-import { TuiHeader } from '@taiga-ui/layout'
 import { WA_WINDOW } from '@ng-web-apis/common'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
+import { tuiNumberFormatProvider, TuiTitle } from '@taiga-ui/core'
+import { TuiHeader } from '@taiga-ui/layout'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
@@ -22,8 +18,7 @@ import {
   provideFormService,
 } from 'src/app/services/form.service'
 import { IPv4Aside } from './aside'
-import { LanIpv4Ip } from './ip'
-import { IpChangedDialog } from './ip-changed-dialog'
+import { LanIpv4Ip } from './form/ip'
 import { LanIpv4Service } from './service'
 import { LanIpv4Summary } from './summary'
 import { buildRouterIp, getLanIpv4Form, LanIpv4Form } from './utils'
@@ -42,7 +37,7 @@ import { buildRouterIp, getLanIpv4Form, LanIpv4Form } from './utils'
     >
       <lan-ipv4-ip formGroupName="ip" />
       @if (service.data()) {
-        <footer appFooter [disabled]="form.pristine"></footer>
+        <footer appFooter></footer>
       }
     </form>
   `,
@@ -67,7 +62,7 @@ import { buildRouterIp, getLanIpv4Form, LanIpv4Form } from './utils'
 export default class LanIpv4 {
   protected readonly builder = inject(NonNullableFormBuilder)
   protected readonly service = injectFormService<LanIpv4Form>()
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly window = inject(WA_WINDOW)
 
   readonly form = getLanIpv4Form(this.builder)
@@ -92,7 +87,6 @@ export default class LanIpv4 {
       : ''
     const newIp = buildRouterIp(this.form.getRawValue().ip)
     const currentHost = this.window.location.hostname
-
     const saved = await this.service.save(this.form.getRawValue())
 
     if (saved) {
@@ -101,14 +95,20 @@ export default class LanIpv4 {
       // If IP changed and user is accessing via old IP, show redirect dialog
       if (oldIp !== newIp && currentHost === oldIp) {
         this.dialogs
-          .open(new PolymorpheusComponent(IpChangedDialog), {
-            label: 'IP Address Changed',
-            closable: false,
-            dismissible: false,
-            size: 's',
-            data: newIp,
+          .open(
+            "Your router's IP address has changed. The UI is now available at the new address.",
+            {
+              label: 'IP Address Changed',
+              dismissible: false,
+              size: 's',
+              data: 'Open',
+            },
+          )
+          .subscribe({
+            complete: () => {
+              this.window.location.href = `http://${newIp}`
+            },
           })
-          .subscribe()
       }
     }
   }

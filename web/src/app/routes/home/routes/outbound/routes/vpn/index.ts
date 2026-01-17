@@ -8,11 +8,11 @@ import {
 } from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { ActivatedRoute, Router, RouterLink } from '@angular/router'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
   TuiButton,
   TuiError,
   TuiInput,
-  TuiDialogService,
   TuiLink,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
@@ -85,7 +85,7 @@ import { VPNSummary } from './summary'
         </div>
       </section>
       @if (data()) {
-        <footer appFooter [disabled]="form.pristine">
+        <footer appFooter>
           <button
             tuiButton
             type="button"
@@ -133,7 +133,7 @@ import { VPNSummary } from './summary'
 export default class OutboundVPN {
   private readonly route = inject(ActivatedRoute)
   private readonly router = inject(Router)
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
 
   readonly service = inject(OutboundService)
   readonly vpnId = this.route.snapshot.params['label']

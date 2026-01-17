@@ -21,7 +21,7 @@ import { CustomValidators } from 'src/app/utils/validators'
 import { IPv6Aside } from './aside'
 import { Dns } from '../../dns/dns'
 import { updateDnsValidators } from '../../dns/utils'
-import { Ipv6Ip } from './ip'
+import { Ipv6Ip } from './form/ip'
 import { Ipv6Summary } from './summary'
 import { Ipv6Service } from './service'
 import { getWanIpv6Form, updateIpv6Validators, WanIpv6Form } from './utils'
@@ -43,7 +43,7 @@ import { getWanIpv6Form, updateIpv6Validators, WanIpv6Form } from './utils'
         <wan-dns [mode]="dnsMode()" formGroupName="dns" />
       }
       @if (service.data()) {
-        <footer appFooter [disabled]="form.pristine"></footer>
+        <footer appFooter></footer>
       }
     </form>
   `,

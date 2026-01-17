@@ -21,7 +21,7 @@ import { CustomValidators } from 'src/app/utils/validators'
 import { IPv4Aside } from './aside'
 import { Dns } from '../../dns/dns'
 import { updateDnsValidators } from '../../dns/utils'
-import { Ipv4Ip } from './ip'
+import { Ipv4Ip } from './form/ip'
 import { Ipv4Service } from './service'
 import { Ipv4Summary } from './summary'
 import { getWanIpv4Form, updateIpv4Validators, WanIpv4Form } from './utils'
@@ -39,9 +39,10 @@ import { getWanIpv4Form, updateIpv4Validators, WanIpv4Form } from './utils'
       (ngSubmit)="onSave()"
     >
       <ipv4-ip formGroupName="ip" />
+      <hr />
       <wan-dns [mode]="dnsMode()" formGroupName="dns" />
       @if (service.data()) {
-        <footer appFooter [disabled]="form.pristine"></footer>
+        <footer appFooter></footer>
       }
     </form>
   `,

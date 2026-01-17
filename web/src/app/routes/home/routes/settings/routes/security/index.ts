@@ -1,15 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { TuiButton } from '@taiga-ui/core'
-import { TuiCard } from '@taiga-ui/layout'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
 
-import { SecurityAccess } from './access'
-import { SecurityActivity } from './activity'
+import { SecurityAccess } from './form/access'
+import { SecurityActivity } from './form/activity'
+import { SecurityPassword } from './form/password'
+import { SecuritySSH } from './form/ssh'
 import { SecurityAside } from './aside'
-import { SecurityPassword } from './password'
-import { SecuritySSH } from './ssh'
 import { SecuritySummary } from './summary'
 
 @Component({

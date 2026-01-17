@@ -9,7 +9,7 @@ import {
 } from '@taiga-ui/core'
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { FORM } from 'src/app/directives/form'
-import { MAC_LABELS, MAC_VALIDATION_ERRORS } from './utils'
+import { MAC_LABELS, MAC_VALIDATION_ERRORS } from '../utils'
 
 @Component({
   selector: 'mac-address',

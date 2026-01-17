@@ -94,9 +94,10 @@ import { DeviceSummary } from './summary'
       (ngSubmit)="onSave()"
     >
       <device-name [formGroup]="form" [hostname]="data()?.hostname ?? ''" />
+      <hr />
       <device-ip formGroupName="ip" />
       @if (data()) {
-        <footer appFooter [disabled]="form.pristine"></footer>
+        <footer appFooter></footer>
       }
     </form>
   `,
