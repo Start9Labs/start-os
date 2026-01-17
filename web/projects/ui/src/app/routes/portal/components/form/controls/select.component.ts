@@ -118,6 +118,10 @@ export class FormSelectComponent extends Control<IST.ValueSpecSelect, string> {
   }
 
   protected onChange(value: string) {
-    this.router.navigate([this.inverted[value]?.slice(1)])
+    const mapped = this.inverted[value]
+
+    if (typeof mapped === 'string' && mapped.startsWith('~')) {
+      this.router.navigate([mapped.slice(1)])
+    }
   }
 }
