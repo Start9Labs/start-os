@@ -132,7 +132,7 @@ template: `
   >
     <!-- form content -->
     @if (service.data()) {
-      <footer appFooter [disabled]="form.pristine"></footer>
+      <footer appFooter></footer>
     }
   </form>
 `,

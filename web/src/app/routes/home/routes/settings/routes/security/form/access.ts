@@ -4,7 +4,7 @@ import { TuiLabel, TuiNotification, TuiTitle } from '@taiga-ui/core'
 import { TuiRadio } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 
-import Security from '.'
+import Security from '../'
 
 @Component({
   selector: 'security-access',

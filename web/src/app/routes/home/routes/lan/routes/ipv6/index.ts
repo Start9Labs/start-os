@@ -8,7 +8,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
-import { TuiExpand, tuiNumberFormatProvider, TuiTitle } from '@taiga-ui/core'
+import { tuiNumberFormatProvider, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
@@ -19,12 +19,12 @@ import {
   provideFormService,
 } from 'src/app/services/form.service'
 import { IPv6Aside } from './aside'
+import { LanIpv6Strategy } from './form/strategy'
+import { LanIpv6Subnet } from './form/subnet'
 import { LanIpv6Service } from './service'
-import { LanIpv6Strategy } from './strategy'
-import { LanIpv6Subnet } from './subnet'
 import { LanIpv6Summary } from './summary'
-import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
 import { LanIpv6Data } from './uci/service'
+import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
 
 @Component({
   template: `
@@ -39,11 +39,11 @@ import { LanIpv6Data } from './uci/service'
       (ngSubmit)="onSave()"
     >
       <lan-ipv6-strategy formGroupName="strategy" />
-      <tui-expand [expanded]="slaacEnabled()">
+      @if (slaacEnabled()) {
         <lan-ipv6-subnet formGroupName="subnet" />
-      </tui-expand>
+      }
       @if (service.data()) {
-        <footer appFooter [disabled]="form.pristine"></footer>
+        <footer appFooter></footer>
       }
     </form>
   `,
@@ -52,7 +52,6 @@ import { LanIpv6Data } from './uci/service'
     ReactiveFormsModule,
     TuiHeader,
     TuiTitle,
-    TuiExpand,
     Footer,
     Form,
     Help,

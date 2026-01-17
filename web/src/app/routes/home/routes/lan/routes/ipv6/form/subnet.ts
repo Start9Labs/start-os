@@ -6,30 +6,29 @@ import {
   TuiError,
   TuiInput,
   TuiTextfield,
-  TuiTitle,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiForm } from '@taiga-ui/layout'
 import { FORM } from 'src/app/directives/form'
-import { PREFIX_VALIDATION_ERRORS } from './utils'
+
+import { PREFIX_VALIDATION_ERRORS } from '../utils'
 
 @Component({
   selector: 'lan-ipv6-subnet',
   template: `
-    <header tuiHeader="body-l"><h2 tuiTitle>Subnet</h2></header>
-    <section>
-      <div>
-        <tui-textfield>
-          <label tuiLabel>Prefix Length*</label>
-          <input tuiInput formControlName="prefix" [maskito]="prefixMask" />
-        </tui-textfield>
-        <tui-error formControlName="prefix" />
-      </div>
-    </section>
+    <tui-textfield>
+      <label tuiLabel>Subnet Prefix Length*</label>
+      <input tuiInput formControlName="prefix" [maskito]="prefixMask" />
+    </tui-textfield>
+    <tui-error formControlName="prefix" />
   `,
   styles: `
     section {
       flex-direction: column !important;
+    }
+
+    header {
+      padding-top: 1rem;
     }
 
     tui-textfield {
@@ -43,8 +42,6 @@ import { PREFIX_VALIDATION_ERRORS } from './utils'
   imports: [
     ReactiveFormsModule,
     MaskitoDirective,
-    TuiHeader,
-    TuiTitle,
     TuiInput,
     TuiTextfield,
     TuiError,

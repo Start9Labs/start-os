@@ -25,7 +25,7 @@ import {
   provideFormService,
 } from 'src/app/services/form.service'
 import { DdnsAside } from './aside'
-import { DdnsFields } from './fields'
+import { DdnsFields } from './form/fields'
 import { DdnsService } from './service'
 import { DdnsSummary } from './summary'
 import {
@@ -50,12 +50,10 @@ import {
       (reset.prevent)="form.reset(service.data())"
       (ngSubmit)="onSave()"
     >
-      <section>
-        <label tuiLabel>
-          <input type="checkbox" tuiSwitch formControlName="enabled" />
-          Enable Dynamic DNS
-        </label>
-      </section>
+      <label tuiLabel>
+        <input type="checkbox" tuiSwitch formControlName="enabled" />
+        Enable Dynamic DNS
+      </label>
       @if (enabled()) {
         <section>
           <tui-textfield tuiChevron [tuiTextfieldCleaner]="false">
@@ -66,17 +64,18 @@ import {
               [itemContent]="providerContent"
               [items]="providerList"
             />
+            <ng-template #providerContent let-item>
+              {{ getProviderLabel(item) }}
+            </ng-template>
           </tui-textfield>
-          <ng-template #providerContent let-item>
-            {{ getProviderLabel(item) }}
-          </ng-template>
         </section>
         @if (providerFields().length) {
+          <hr />
           <ddns-fields formGroupName="fields" [fields]="providerFields()" />
         }
       }
       @if (service.data()) {
-        <footer appFooter [disabled]="form.pristine"></footer>
+        <footer appFooter></footer>
       }
     </form>
   `,

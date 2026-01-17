@@ -20,8 +20,8 @@ import {
   IPV6_SLAAC_CONTROLS,
   IPV6_STATIC_CONTROLS,
   IPV6_VALIDATION_ERRORS,
-} from './utils'
-import Ipv6 from '.'
+} from '../utils'
+import Ipv6 from '../'
 
 @Component({
   selector: 'ipv6-ip',

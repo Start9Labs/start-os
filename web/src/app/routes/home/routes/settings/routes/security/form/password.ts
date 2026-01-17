@@ -4,7 +4,7 @@ import { TuiIcon, TuiInput, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiPassword } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 
-import Security from '.'
+import Security from '../'
 
 @Component({
   selector: 'security-password',

@@ -23,7 +23,7 @@ type SortDirection = 'asc' | 'desc' | null
 @Component({
   selector: 'table[devicesOffline]',
   template: `
-    <caption [style.background]="'var(--tui-background-base-alt)'">
+    <caption [style.background]="'var(--tui-background-neutral-2)'">
       Offline
     </caption>
     <thead>
