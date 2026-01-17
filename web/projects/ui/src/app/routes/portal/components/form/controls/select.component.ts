@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
+import { Router, RouterLink } from '@angular/router'
 import { invert } from '@start9labs/shared'
 import { IST } from '@start9labs/start-sdk'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
@@ -36,6 +37,7 @@ import { HintPipe } from '../pipes/hint.pipe'
           [placeholder]="spec.name"
           [items]="items"
           [(ngModel)]="selected"
+          (ngModelChange)="onChange($event)"
         ></select>
       } @else {
         <input
@@ -50,15 +52,27 @@ import { HintPipe } from '../pipes/hint.pipe'
       @if (!mobile) {
         <tui-data-list *tuiTextfieldDropdown>
           @for (item of items; track item) {
-            <button
-              tuiOption
-              new
-              tuiFluidTypography
-              [style.white-space]="'nowrap'"
-              [value]="item"
-            >
-              {{ item }}
-            </button>
+            @if (inverted[item]?.startsWith('~')) {
+              <a
+                tuiOption
+                new
+                iconEnd="@tui.arrow-right"
+                tuiFluidTypography
+                [routerLink]="inverted[item]?.slice(1)"
+              >
+                {{ item }}
+              </a>
+            } @else {
+              <button
+                tuiOption
+                new
+                tuiFluidTypography
+                [style.white-space]="'nowrap'"
+                [value]="item"
+              >
+                {{ item }}
+              </button>
+            }
           }
         </tui-data-list>
       }
@@ -70,6 +84,7 @@ import { HintPipe } from '../pipes/hint.pipe'
   providers: [tuiFluidTypographyOptionsProvider({ max: 1 })],
   imports: [
     FormsModule,
+    RouterLink,
     TuiTextfield,
     TuiSelect,
     TuiDataList,
@@ -81,8 +96,8 @@ import { HintPipe } from '../pipes/hint.pipe'
   ],
 })
 export class FormSelectComponent extends Control<IST.ValueSpecSelect, string> {
-  private readonly inverted = invert(this.spec.values)
-
+  protected readonly router = inject(Router)
+  protected readonly inverted = invert(this.spec.values)
   protected readonly mobile = inject(TUI_IS_MOBILE)
   protected readonly items = Object.values(this.spec.values)
   protected readonly disabledItemHandler = (item: string) =>
@@ -100,5 +115,9 @@ export class FormSelectComponent extends Control<IST.ValueSpecSelect, string> {
 
   set selected(value: string | null) {
     this.value = (value && this.inverted[value]) || null
+  }
+
+  protected onChange(value: string) {
+    this.router.navigate([this.inverted[value]?.slice(1)])
   }
 }
