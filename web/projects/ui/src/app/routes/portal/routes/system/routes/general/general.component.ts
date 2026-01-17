@@ -19,13 +19,13 @@ import {
   i18nService,
   Keyboard,
   KeyboardCode,
-  languages,
-  Languages,
+  Language,
+  LANGUAGES,
   LANGUAGE_TO_CODE,
   LoadingService,
 } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiAnimated, TuiContext, TuiStringHandler } from '@taiga-ui/cdk'
+import { TuiAnimated } from '@taiga-ui/cdk'
 import {
   TuiAppearance,
   TuiButton,
@@ -110,20 +110,16 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
         <tui-icon icon="@tui.languages" />
         <span tuiTitle>
           <strong>{{ 'Language' | i18n }}</strong>
-          <span tuiSubtitle [style.text-transform]="'capitalize'">
-            @if (language; as lang) {
-              {{ lang | i18n }}
-            } @else {
-              {{ i18nService.language }}
-            }
+          <span tuiSubtitle>
+            {{ currentLanguage?.nativeName }}
           </span>
         </span>
         <button
           tuiButtonSelect
           tuiButton
           [loading]="i18nService.loading()"
-          [ngModel]="i18nService.language"
-          (ngModelChange)="i18nService.setLanguage($event)"
+          [ngModel]="currentLanguage"
+          (ngModelChange)="onLanguageChange($event)"
         >
           {{ 'Change' | i18n }}
           <tui-data-list-wrapper
@@ -131,9 +127,12 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
             new
             size="l"
             [items]="languages"
-            [itemContent]="translation"
+            [itemContent]="languageContent"
           />
         </button>
+        <ng-template #languageContent let-item>
+          {{ item.nativeName }}
+        </ng-template>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.monitor" />
@@ -297,17 +296,14 @@ export default class SystemGeneralComponent {
   readonly score = toSignal(this.patch.watch$('ui', 'snakeHighScore'))
   readonly os = inject(OSService)
   readonly i18nService = inject(i18nService)
-  readonly languages = languages
-  readonly translation: TuiStringHandler<TuiContext<Languages>> = ({
-    $implicit,
-  }) => {
-    const [head = '', ...result] = this.i18n.transform($implicit) || ''
+  readonly languages = LANGUAGES
 
-    return [head.toUpperCase(), ...result].join('')
+  get currentLanguage(): Language | undefined {
+    return LANGUAGES.find(lang => lang.name === this.i18nService.lang)
   }
 
-  get language(): Languages | undefined {
-    return this.languages.find(lang => lang === this.i18nService.language)
+  onLanguageChange(language: Language) {
+    this.i18nService.setLang(language.name)
   }
 
   // Expose shared utilities for template use

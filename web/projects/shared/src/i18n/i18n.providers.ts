@@ -6,7 +6,7 @@ import {
   TuiLanguageSwitcherService,
 } from '@taiga-ui/i18n'
 import { ENGLISH } from './dictionaries/en'
-import { i18nService } from './i18n.service'
+import { i18nService, Languages } from './i18n.service'
 
 export type i18nKey = keyof typeof ENGLISH
 export type i18n = Record<(typeof ENGLISH)[i18nKey], string>
@@ -20,7 +20,7 @@ export const I18N_LOADER = new InjectionToken<
 >('')
 
 export const I18N_STORAGE = new InjectionToken<
-  (lang: TuiLanguageName) => Promise<void>
+  (lang: Languages) => Promise<void>
 >('', {
   factory: () => () => Promise.resolve(),
 })

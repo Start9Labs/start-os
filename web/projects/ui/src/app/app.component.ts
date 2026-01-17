@@ -42,6 +42,6 @@ export class AppComponent {
     .watch$('serverInfo', 'language')
     .pipe(takeUntilDestroyed())
     .subscribe(language => {
-      this.i18n.setLanguage(language || 'english')
+      this.i18n.setLang(language || 'en_US')
     })
 }

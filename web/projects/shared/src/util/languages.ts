@@ -18,22 +18,22 @@ export interface Language {
  * Available languages with their metadata
  */
 export const LANGUAGES: Language[] = [
-  { code: 'en', name: 'english', nativeName: 'English' },
-  { code: 'es', name: 'spanish', nativeName: 'Español' },
-  { code: 'de', name: 'german', nativeName: 'Deutsch' },
-  { code: 'fr', name: 'french', nativeName: 'Français' },
-  { code: 'pl', name: 'polish', nativeName: 'Polski' },
+  { code: 'en', name: 'en_US', nativeName: 'English' },
+  { code: 'es', name: 'es_ES', nativeName: 'Español' },
+  { code: 'de', name: 'de_DE', nativeName: 'Deutsch' },
+  { code: 'fr', name: 'fr_FR', nativeName: 'Français' },
+  { code: 'pl', name: 'pl_PL', nativeName: 'Polski' },
 ]
 
 /**
- * Maps i18n language names to ISO language codes
+ * Maps POSIX locale strings to ISO language codes
  */
 export const LANGUAGE_TO_CODE: Record<Languages, LanguageCode> = {
-  english: 'en',
-  spanish: 'es',
-  german: 'de',
-  french: 'fr',
-  polish: 'pl',
+  en_US: 'en',
+  es_ES: 'es',
+  de_DE: 'de',
+  fr_FR: 'fr',
+  pl_PL: 'pl',
 }
 
 /**
