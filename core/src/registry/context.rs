@@ -124,7 +124,7 @@ impl RegistryContext {
         };
         if config.registry_hostname.is_empty() {
             return Err(Error::new(
-                eyre!("missing required configuration: registry-hostname"),
+                eyre!("{}", t!("registry.context.missing-hostname")),
                 ErrorKind::NotFound,
             ));
         }
@@ -195,7 +195,7 @@ impl CallRemote<RegistryContext> for CliContext {
             url
         } else {
             return Err(
-                Error::new(eyre!("`--registry` required"), ErrorKind::InvalidRequest).into(),
+                Error::new(eyre!("{}", t!("registry.context.registry-required")), ErrorKind::InvalidRequest).into(),
             );
         };
 
@@ -330,7 +330,7 @@ impl SignatureAuthContext for RegistryContext {
             }
         }
 
-        Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+        Err(Error::new(eyre!("{}", t!("registry.context.unauthorized")), ErrorKind::Authorization))
     }
     async fn post_auth_hook(
         &self,

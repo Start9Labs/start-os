@@ -141,7 +141,7 @@ async fn add_asset(
                 .mutate(|s| {
                     if s.commitment != commitment {
                         Err(Error::new(
-                            eyre!("commitment does not match"),
+                            eyre!("{}", t!("registry.os.asset.commitment-mismatch")),
                             ErrorKind::InvalidSignature,
                         ))
                     } else {
@@ -154,7 +154,7 @@ async fn add_asset(
                 })?;
                 Ok(())
             } else {
-                Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+                Err(Error::new(eyre!("{}", t!("registry.os.asset.unauthorized")), ErrorKind::Authorization))
             }
         })
         .await
@@ -208,7 +208,7 @@ pub async fn cli_add_asset(
         Some("squashfs") => "squashfs",
         _ => {
             return Err(Error::new(
-                eyre!("Unknown extension"),
+                eyre!("{}", t!("registry.os.asset.unknown-extension")),
                 ErrorKind::InvalidRequest,
             ));
         }
@@ -232,7 +232,7 @@ pub async fn cli_add_asset(
     let size = file
         .size()
         .await
-        .ok_or_else(|| Error::new(eyre!("failed to read file metadata"), ErrorKind::Filesystem))?;
+        .ok_or_else(|| Error::new(eyre!("{}", t!("registry.os.asset.failed-read-metadata")), ErrorKind::Filesystem))?;
     let commitment = Blake3Commitment {
         hash: Base64(*blake3.as_bytes()),
         size,
@@ -334,7 +334,7 @@ async fn remove_asset(
                 .remove(&platform)?;
                 Ok(())
             } else {
-                Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+                Err(Error::new(eyre!("{}", t!("registry.os.asset.unauthorized")), ErrorKind::Authorization))
             }
         })
         .await

@@ -21,7 +21,7 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(add_version_signer)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Add version signer")
+                .with_about("about.add-version-signer")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -29,7 +29,7 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(remove_version_signer)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Remove version signer")
+                .with_about("about.remove-version-signer")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -38,7 +38,7 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| display_signers(handle.params, result))
-                .with_about("List version signers and related signer info")
+                .with_about("about.list-version-signers")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -95,7 +95,7 @@ pub async fn remove_version_signer(
                 .mutate(|s| Ok(s.remove(&signer)))?
             {
                 return Err(Error::new(
-                    eyre!("signer {signer} is not authorized to sign for v{version}"),
+                    eyre!("{}", t!("registry.os.version.signer-not-authorized", signer = signer, version = version)),
                     ErrorKind::NotFound,
                 ));
             }

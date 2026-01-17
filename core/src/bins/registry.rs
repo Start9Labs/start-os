@@ -3,6 +3,7 @@ use std::ffi::OsString;
 use clap::Parser;
 use futures::FutureExt;
 use rpc_toolkit::CliApp;
+use rust_i18n::t;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 
@@ -77,7 +78,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
-            .expect("failed to initialize runtime");
+            .expect(&t!("bins.registry.failed-to-initialize-runtime"));
         rt.block_on(inner_main(&config))
     };
 
@@ -99,6 +100,7 @@ pub fn cli(args: impl IntoIterator<Item = OsString>) {
         |cfg: ClientConfig| Ok(CliContext::init(cfg.load()?)?),
         crate::registry::registry_api(),
     )
+    .mutate_command(super::translate_cli)
     .run(args)
     {
         match e.data {

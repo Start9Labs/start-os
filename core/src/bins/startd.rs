@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use clap::Parser;
 use color_eyre::eyre::eyre;
+use rust_i18n::t;
 use futures::{FutureExt, TryFutureExt};
 use tokio::signal::unix::signal;
 use tracing::instrument;
@@ -112,11 +113,11 @@ async fn inner_main(
         metrics_task
             .map_err(|e| {
                 Error::new(
-                    eyre!("{}", e).wrap_err("Metrics daemon panicked!"),
+                    eyre!("{}", e).wrap_err(t!("bins.startd.metrics-daemon-panicked").to_string()),
                     ErrorKind::Unknown,
                 )
             })
-            .map_ok(|_| tracing::debug!("Metrics daemon Shutdown"))
+            .map_ok(|_| tracing::debug!("{}", t!("bins.startd.metrics-daemon-shutdown")))
             .await?;
 
         let shutdown = shutdown_recv
@@ -144,7 +145,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
             .worker_threads(max(1, num_cpus::get()))
             .enable_all()
             .build()
-            .expect("failed to initialize runtime");
+            .expect(&t!("bins.startd.failed-to-initialize-runtime"));
         let res = rt.block_on(async {
             let mut server = WebServer::new(
                 Acceptor::bind_upgradable(SelfContainedNetworkInterfaceListener::bind(BindTcp, 80)),

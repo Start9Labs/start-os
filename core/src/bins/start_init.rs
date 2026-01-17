@@ -25,7 +25,13 @@ async fn setup_or_init(
     if let Some(firmware) = check_for_firmware_update()
         .await
         .map_err(|e| {
-            tracing::warn!("Error checking for firmware update: {e}");
+            tracing::warn!(
+                "{}",
+                t!(
+                    "bins.start-init.error-checking-firmware",
+                    error = e.to_string()
+                )
+            );
             tracing::debug!("{e:?}");
         })
         .ok()
@@ -33,14 +39,21 @@ async fn setup_or_init(
     {
         let init_ctx = InitContext::init(config).await?;
         let handle = &init_ctx.progress;
-        let mut update_phase = handle.add_phase("Updating Firmware".into(), Some(10));
-        let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
+        let mut update_phase =
+            handle.add_phase(t!("bins.start-init.updating-firmware").into(), Some(10));
+        let mut reboot_phase = handle.add_phase(t!("bins.start-init.rebooting").into(), Some(1));
 
         server.serve_ui_for(init_ctx);
 
         update_phase.start();
         if let Err(e) = update_firmware(firmware).await {
-            tracing::warn!("Error performing firmware update: {e}");
+            tracing::warn!(
+                "{}",
+                t!(
+                    "bins.start-init.error-firmware-update",
+                    error = e.to_string()
+                )
+            );
             tracing::debug!("{e:?}");
         } else {
             update_phase.complete();
@@ -96,7 +109,13 @@ async fn setup_or_init(
             .invoke(ErrorKind::NotFound)
             .await
         {
-            tracing::error!("Failed to kill kiosk: {}", e);
+            tracing::error!(
+                "{}",
+                t!(
+                    "bins.start-init.failed-to-kill-kiosk",
+                    error = e.to_string()
+                )
+            );
             tracing::debug!("{:?}", e);
         }
 
@@ -105,7 +124,7 @@ async fn setup_or_init(
             Some(Err(e)) => return Err(e.clone_output()),
             None => {
                 return Err(Error::new(
-                    eyre!("Setup mode exited before setup completed"),
+                    eyre!("{}", t!("bins.start-init.setup-mode-exited")),
                     ErrorKind::Unknown,
                 ));
             }
@@ -115,7 +134,8 @@ async fn setup_or_init(
         let handle = init_ctx.progress.clone();
         let err_channel = init_ctx.error.clone();
 
-        let mut disk_phase = handle.add_phase("Opening data drive".into(), Some(10));
+        let mut disk_phase =
+            handle.add_phase(t!("bins.start-init.opening-data-drive").into(), Some(10));
         let init_phases = InitPhases::new(&handle);
         let rpc_ctx_phases = InitRpcContextPhases::new(&handle);
 
@@ -147,11 +167,12 @@ async fn setup_or_init(
                     .with_ctx(|_| (crate::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
             }
             disk_phase.complete();
-            tracing::info!("Loaded Disk");
+            tracing::info!("{}", t!("bins.start-init.loaded-disk"));
 
             if requires_reboot.0 {
-                tracing::info!("Rebooting...");
-                let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
+                tracing::info!("{}", t!("bins.start-init.rebooting"));
+                let mut reboot_phase =
+                    handle.add_phase(t!("bins.start-init.rebooting").into(), Some(1));
                 reboot_phase.start();
                 return Ok(Err(Shutdown {
                     disk_guid: Some(disk_guid),

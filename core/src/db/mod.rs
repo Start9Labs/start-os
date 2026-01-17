@@ -54,7 +54,7 @@ pub fn db<C: Context>() -> ParentHandler<C> {
             "dump",
             from_fn_async(cli_dump)
                 .with_display_serializable()
-                .with_about("Filter/query db to display tables and records"),
+                .with_about("about.filter-query-db"),
         )
         .subcommand("dump", from_fn_async(dump).no_cli())
         .subcommand(
@@ -65,13 +65,13 @@ pub fn db<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "put",
-            put::<C>().with_about("Command for adding UI record to db"),
+            put::<C>().with_about("about.command-add-ui-record-db"),
         )
         .subcommand(
             "apply",
             from_fn_async(cli_apply)
                 .no_display()
-                .with_about("Update a db record"),
+                .with_about("about.update-db-record"),
         )
         .subcommand("apply", from_fn_async(apply).no_cli())
 }
@@ -358,7 +358,7 @@ pub fn put<C: Context>() -> ParentHandler<C> {
         "ui",
         from_fn_async(ui)
             .with_display_serializable()
-            .with_about("Add path and value to db")
+            .with_about("about.add-path-value-db")
             .with_call_remote::<CliContext>(),
     )
 }

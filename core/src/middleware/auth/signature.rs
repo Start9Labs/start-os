@@ -90,7 +90,7 @@ impl SignatureAuthContext for RpcContext {
         }
 
         Err(Error::new(
-            eyre!("Key is not authorized"),
+            eyre!("{}", t!("middleware.auth.key-not-authorized")),
             ErrorKind::IncorrectPassword,
         ))
     }
@@ -141,7 +141,7 @@ impl SignatureAuth {
         let mut cache = self.nonce_cache.lock().await;
         if cache.values().any(|n| *n == nonce) {
             return Err(Error::new(
-                eyre!("replay attack detected"),
+                eyre!("{}", t!("middleware.auth.replay-attack-detected")),
                 ErrorKind::Authorization,
             ));
         }
@@ -226,7 +226,7 @@ impl<C: SignatureAuthContext> Middleware<C> for SignatureAuth {
 
                     context.sig_context().await.into_iter().fold(
                         Err(Error::new(
-                            eyre!("no valid signature context available to verify"),
+                            eyre!("{}", t!("middleware.auth.no-valid-sig-context")),
                             ErrorKind::Authorization,
                         )),
                         |acc, x| {
@@ -249,7 +249,7 @@ impl<C: SignatureAuthContext> Middleware<C> for SignatureAuth {
                         .unwrap_or_else(|e| e.duration().as_secs() as i64 * -1);
                     if (now - commitment.timestamp).abs() > 30 {
                         return Err(Error::new(
-                            eyre!("timestamp not within 30s of now"),
+                            eyre!("{}", t!("middleware.auth.timestamp-not-within-30s")),
                             ErrorKind::InvalidSignature,
                         ));
                     }
@@ -347,6 +347,6 @@ pub async fn call_remote<Ctx: SigningContext + AsRef<Client>>(
                 .with_kind(ErrorKind::Deserialization)?
                 .result
         }
-        _ => Err(Error::new(eyre!("unknown content type"), ErrorKind::Network).into()),
+        _ => Err(Error::new(eyre!("{}", t!("middleware.auth.unknown-content-type")), ErrorKind::Network).into()),
     }
 }

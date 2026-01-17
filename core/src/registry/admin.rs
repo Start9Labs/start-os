@@ -21,7 +21,7 @@ pub fn admin_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "signer",
-            signers_api::<C>().with_about("Commands to add or list signers"),
+            signers_api::<C>().with_about("about.commands-add-list-signers"),
         )
         .subcommand(
             "add",
@@ -33,14 +33,14 @@ pub fn admin_api<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(cli_add_admin)
                 .no_display()
-                .with_about("Add admin signer"),
+                .with_about("about.add-admin-signer"),
         )
         .subcommand(
             "remove",
             from_fn_async(remove_admin)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Remove an admin signer")
+                .with_about("about.remove-admin-signer")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -49,7 +49,7 @@ pub fn admin_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("admin", Value::Bool(true))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| display_signers(handle.params, result))
-                .with_about("List admin signers")
+                .with_about("about.list-admin-signers")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -62,7 +62,7 @@ fn signers_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("admin", Value::Bool(true))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| display_signers(handle.params, result))
-                .with_about("List signers")
+                .with_about("about.list-signers")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -73,7 +73,7 @@ fn signers_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "add",
-            from_fn_async(cli_add_signer).with_about("Add signer"),
+            from_fn_async(cli_add_signer).with_about("about.add-signer"),
         )
         .subcommand(
             "edit",
@@ -93,7 +93,7 @@ impl Model<BTreeMap<Guid, SignerInfo>> {
             .next()
             .transpose()?
             .map(|(a, _)| a)
-            .ok_or_else(|| Error::new(eyre!("unknown signer"), ErrorKind::Authorization))
+            .ok_or_else(|| Error::new(eyre!("{}", t!("registry.admin.unknown-signer")), ErrorKind::Authorization))
     }
 
     pub fn get_signer_info(&self, key: &AnyVerifyingKey) -> Result<(Guid, SignerInfo), Error> {
@@ -103,7 +103,7 @@ impl Model<BTreeMap<Guid, SignerInfo>> {
             .filter_ok(|(_, s)| s.keys.contains(key))
             .next()
             .transpose()?
-            .ok_or_else(|| Error::new(eyre!("unknown signer"), ErrorKind::Authorization))
+            .ok_or_else(|| Error::new(eyre!("{}", t!("registry.admin.unknown-signer")), ErrorKind::Authorization))
     }
 
     pub fn add_signer(&mut self, signer: &SignerInfo) -> Result<Guid, Error> {
@@ -117,9 +117,8 @@ impl Model<BTreeMap<Guid, SignerInfo>> {
         {
             return Err(Error::new(
                 eyre!(
-                    "A signer {} ({}) already exists with a matching key",
-                    guid,
-                    s.name
+                    "{}",
+                    t!("registry.admin.signer-already-exists", guid = guid, name = s.name)
                 ),
                 ErrorKind::InvalidRequest,
             ));

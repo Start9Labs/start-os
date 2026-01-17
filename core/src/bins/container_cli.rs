@@ -17,6 +17,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
         |cfg: ContainerClientConfig| Ok(ContainerCliContext::init(cfg)),
         crate::service::effects::handler(),
     )
+    .mutate_command(super::translate_cli)
     .run(args)
     {
         match e.data {

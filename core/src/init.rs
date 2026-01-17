@@ -81,26 +81,28 @@ impl InitPhases {
     pub fn new(handle: &FullProgressTracker) -> Self {
         Self {
             preinit: if Path::new("/media/startos/config/preinit.sh").exists() {
-                Some(handle.add_phase("Running preinit.sh".into(), Some(5)))
+                Some(handle.add_phase(t!("init.running-preinit").into(), Some(5)))
             } else {
                 None
             },
-            local_auth: handle.add_phase("Enabling local authentication".into(), Some(1)),
-            load_database: handle.add_phase("Loading database".into(), Some(5)),
-            load_ssh_keys: handle.add_phase("Loading SSH Keys".into(), Some(1)),
-            start_net: handle.add_phase("Starting network controller".into(), Some(1)),
-            mount_logs: handle.add_phase("Switching logs to write to data drive".into(), Some(1)),
-            load_ca_cert: handle.add_phase("Loading CA certificate".into(), Some(1)),
-            load_wifi: handle.add_phase("Loading WiFi configuration".into(), Some(1)),
-            init_tmp: handle.add_phase("Initializing temporary files".into(), Some(1)),
-            set_governor: handle.add_phase("Setting CPU performance profile".into(), Some(1)),
-            sync_clock: handle.add_phase("Synchronizing system clock".into(), Some(10)),
-            enable_zram: handle.add_phase("Enabling ZRAM".into(), Some(1)),
-            update_server_info: handle.add_phase("Updating server info".into(), Some(1)),
-            launch_service_network: handle.add_phase("Launching service intranet".into(), Some(1)),
-            validate_db: handle.add_phase("Validating database".into(), Some(1)),
+            local_auth: handle.add_phase(t!("init.enabling-local-auth").into(), Some(1)),
+            load_database: handle.add_phase(t!("init.loading-database").into(), Some(5)),
+            load_ssh_keys: handle.add_phase(t!("init.loading-ssh-keys").into(), Some(1)),
+            start_net: handle.add_phase(t!("init.starting-network-controller").into(), Some(1)),
+            mount_logs: handle.add_phase(t!("init.switching-logs-to-data-drive").into(), Some(1)),
+            load_ca_cert: handle.add_phase(t!("init.loading-ca-certificate").into(), Some(1)),
+            load_wifi: handle.add_phase(t!("init.loading-wifi-configuration").into(), Some(1)),
+            init_tmp: handle.add_phase(t!("init.initializing-temporary-files").into(), Some(1)),
+            set_governor: handle
+                .add_phase(t!("init.setting-cpu-performance-profile").into(), Some(1)),
+            sync_clock: handle.add_phase(t!("init.synchronizing-system-clock").into(), Some(10)),
+            enable_zram: handle.add_phase(t!("init.enabling-zram").into(), Some(1)),
+            update_server_info: handle.add_phase(t!("init.updating-server-info").into(), Some(1)),
+            launch_service_network: handle
+                .add_phase(t!("init.launching-service-intranet").into(), Some(1)),
+            validate_db: handle.add_phase(t!("init.validating-database").into(), Some(1)),
             postinit: if Path::new("/media/startos/config/postinit.sh").exists() {
-                Some(handle.add_phase("Running postinit.sh".into(), Some(5)))
+                Some(handle.add_phase(t!("init.running-postinit").into(), Some(5)))
             } else {
                 None
             },
@@ -127,7 +129,14 @@ pub async fn run_script<P: AsRef<Path>>(path: P, mut progress: PhaseProgressTrac
     }
     .await
     {
-        tracing::error!("Error Running {}: {}", script.display(), e);
+        tracing::error!(
+            "{}",
+            t!(
+                "init.error-running-script",
+                script = script.display(),
+                error = e
+            )
+        );
         tracing::debug!("{:?}", e);
     }
     progress.complete();
@@ -230,6 +239,7 @@ pub async fn init(
         .arg("-R")
         .arg("+C")
         .arg("/var/log/journal")
+        .env("LANG", "C.UTF-8")
         .invoke(ErrorKind::Filesystem)
         .await
     {
@@ -314,14 +324,17 @@ pub async fn init(
         {
             Some(governor)
         } else {
-            tracing::warn!("CPU Governor \"{governor}\" Not Available");
+            tracing::warn!(
+                "{}",
+                t!("init.cpu-governor-not-available", governor = governor)
+            );
             None
         }
     } else {
         cpupower::get_preferred_governor().await?
     };
     if let Some(governor) = governor {
-        tracing::info!("Setting CPU Governor to \"{governor}\"");
+        tracing::info!("{}", t!("init.setting-cpu-governor", governor = governor));
         cpupower::set_governor(governor).await?;
     }
     set_governor.complete();
@@ -349,14 +362,14 @@ pub async fn init(
         }
     }
     if !ntp_synced {
-        tracing::warn!("Timed out waiting for system time to synchronize");
+        tracing::warn!("{}", t!("init.clock-sync-timeout"));
     }
     sync_clock.complete();
 
     enable_zram.start();
     if server_info.as_zram().de()? {
         crate::system::enable_zram().await?;
-        tracing::info!("Enabled ZRAM");
+        tracing::info!("{}", t!("init.enabled-zram"));
     }
     enable_zram.complete();
 
@@ -404,7 +417,7 @@ pub async fn init(
         run_script("/media/startos/config/postinit.sh", progress).await;
     }
 
-    tracing::info!("System initialized.");
+    tracing::info!("{}", t!("init.system-initialized"));
 
     Ok(InitResult {
         net_ctrl,
@@ -416,30 +429,30 @@ pub fn init_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "logs",
-            crate::system::logs::<InitContext>().with_about("Disply OS logs"),
+            crate::system::logs::<InitContext>().with_about("about.display-os-logs"),
         )
         .subcommand(
             "logs",
             from_fn_async(crate::logs::cli_logs::<InitContext, Empty>)
                 .no_display()
-                .with_about("Display OS logs"),
+                .with_about("about.display-os-logs"),
         )
         .subcommand(
             "kernel-logs",
-            crate::system::kernel_logs::<InitContext>().with_about("Display kernel logs"),
+            crate::system::kernel_logs::<InitContext>().with_about("about.display-kernel-logs"),
         )
         .subcommand(
             "kernel-logs",
             from_fn_async(crate::logs::cli_logs::<InitContext, Empty>)
                 .no_display()
-                .with_about("Display kernel logs"),
+                .with_about("about.display-kernel-logs"),
         )
         .subcommand("subscribe", from_fn_async(init_progress).no_cli())
         .subcommand(
             "subscribe",
             from_fn_async(cli_init_progress)
                 .no_display()
-                .with_about("Get initialization progress"),
+                .with_about("about.get-initialization-progress"),
         )
 }
 
@@ -495,7 +508,7 @@ pub async fn init_progress(ctx: InitContext) -> Result<InitProgressRes, Error> {
                     );
 
                     if let Err(e) = ws.close_result(res.map(|_| "complete")).await {
-                        tracing::error!("error closing init progress websocket: {e}");
+                        tracing::error!("{}", t!("init.error-closing-websocket", error = e));
                         tracing::debug!("{e:?}");
                     }
                 },
@@ -526,7 +539,7 @@ pub async fn cli_init_progress(
         .await?,
     )?;
     let mut ws = ctx.ws_continuation(res.guid).await?;
-    let mut bar = PhasedProgressBar::new("Initializing...");
+    let mut bar = PhasedProgressBar::new(&t!("init.initializing"));
     while let Some(msg) = ws.try_next().await.with_kind(ErrorKind::Network)? {
         if let tokio_tungstenite::tungstenite::Message::Text(msg) = msg {
             bar.update(&serde_json::from_str(&msg).with_kind(ErrorKind::Deserialization)?);

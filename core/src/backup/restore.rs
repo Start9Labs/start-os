@@ -63,7 +63,7 @@ pub async fn restore_packages_rpc(
                 match async { res.await?.await }.await {
                     Ok(_) => (),
                     Err(err) => {
-                        tracing::error!("Error restoring package {}: {}", id, err);
+                        tracing::error!("{}", t!("backup.restore.package-error", id = id, error = err));
                         tracing::debug!("{:?}", err);
                     }
                 }
@@ -147,7 +147,7 @@ pub async fn recover_full_server(
                 match async { res.await?.await }.await {
                     Ok(_) => (),
                     Err(err) => {
-                        tracing::error!("Error restoring package {}: {}", id, err);
+                        tracing::error!("{}", t!("backup.restore.package-error", id = id, error = err));
                         tracing::debug!("{:?}", err);
                     }
                 }

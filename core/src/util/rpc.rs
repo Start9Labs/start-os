@@ -17,7 +17,7 @@ use crate::util::{Apply, PathOrUrl};
 pub fn util<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand(
         "b3sum",
-        from_fn_async(b3sum).with_about("Calculate blake3 hash for a file"),
+        from_fn_async(b3sum).with_about("about.calculate-blake3-hash-for-file"),
     )
 }
 
@@ -57,7 +57,7 @@ pub async fn b3sum(
                     .await
             } else {
                 Err(Error::new(
-                    eyre!("unknown scheme: {}", url.scheme()),
+                    eyre!("{}", t!("util.rpc.unknown-scheme", scheme = url.scheme())),
                     ErrorKind::InvalidRequest,
                 ))
             }

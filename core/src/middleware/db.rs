@@ -2,6 +2,7 @@ use axum::response::Response;
 use http::HeaderValue;
 use http::header::InvalidHeaderValue;
 use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
+use rust_i18n::t;
 use serde::Deserialize;
 
 use crate::context::RpcContext;
@@ -46,7 +47,7 @@ impl Middleware<RpcContext> for SyncDb {
         }
         .await
         {
-            tracing::error!("error writing X-Patch-Sequence header: {e}");
+            tracing::error!("{}", t!("middleware.db.error-writing-patch-sequence-header", error = e));
             tracing::debug!("{e:?}");
         }
     }

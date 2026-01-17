@@ -170,7 +170,7 @@ impl FullchainCertData {
         ]
         .into_iter()
         .min()
-        .ok_or_else(|| Error::new(eyre!("unreachable"), ErrorKind::Unknown))
+        .ok_or_else(|| Error::new(eyre!("{}", t!("net.ssl.unreachable")), ErrorKind::Unknown))
     }
 }
 

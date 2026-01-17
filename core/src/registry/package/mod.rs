@@ -17,7 +17,7 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(index::get_package_index)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
-                .with_about("List packages and categories")
+                .with_about("about.list-packages-categories")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -30,7 +30,7 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add::cli_add_package)
                 .no_display()
-                .with_about("Add package to registry index"),
+                .with_about("about.add-package-registry"),
         )
         .subcommand(
             "add-mirror",
@@ -42,7 +42,7 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
             "add-mirror",
             from_fn_async(add::cli_add_mirror)
                 .no_display()
-                .with_about("Add a mirror for an s9pk"),
+                .with_about("about.add-mirror-s9pk"),
         )
         .subcommand(
             "remove",
@@ -51,17 +51,17 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|args, changed| {
                     if !changed {
                         tracing::warn!(
-                            "{}@{}{} does not exist, so not removed",
-                            args.params.id,
-                            args.params.version,
-                            args.params
-                                .sighash
-                                .map_or(String::new(), |h| format!("#{h}"))
+                            "{}",
+                            t!("registry.package.remove-not-exist",
+                                id = args.params.id,
+                                version = args.params.version,
+                                sighash = args.params.sighash.map_or(String::new(), |h| format!("#{h}"))
+                            )
                         );
                     }
                     Ok(())
                 })
-                .with_about("Remove package from registry index")
+                .with_about("about.remove-package-registry")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -69,12 +69,12 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(add::remove_mirror)
                 .with_metadata("get_signer", Value::Bool(true))
                 .no_display()
-                .with_about("Remove a mirror from a package")
+                .with_about("about.remove-mirror-package")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "signer",
-            signer::signer_api::<C>().with_about("Add, remove, and list package signers"),
+            signer::signer_api::<C>().with_about("about.add-remove-list-package-signers"),
         )
         .subcommand(
             "get",
@@ -85,18 +85,18 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     get::display_package_info(handle.params, result)
                 })
-                .with_about("List installation candidate package(s)")
+                .with_about("about.list-installation-candidates")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "download",
             from_fn_async_local(get::cli_download)
                 .no_display()
-                .with_about("Download an s9pk"),
+                .with_about("about.download-s9pk"),
         )
         .subcommand(
             "category",
             category::category_api::<C>()
-                .with_about("Update the categories for packages on the registry"),
+                .with_about("about.update-categories-registry"),
         )
 }

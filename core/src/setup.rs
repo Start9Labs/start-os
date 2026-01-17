@@ -154,7 +154,7 @@ pub async fn attach(
     let setup_ctx = ctx.clone();
     ctx.run_setup(move || async move {
             let progress = &setup_ctx.progress;
-            let mut disk_phase = progress.add_phase("Opening data drive".into(), Some(10));
+            let mut disk_phase = progress.add_phase(t!("setup.opening-data-drive").into(), Some(10));
             let init_phases = InitPhases::new(&progress);
             let rpc_ctx_phases = InitRpcContextPhases::new(&progress);
 
@@ -163,7 +163,7 @@ pub async fn attach(
                     a @ Some(_) => a,
                     None => {
                         return Err(Error::new(
-                            color_eyre::eyre::eyre!("Couldn't decode password"),
+                            color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-password")),
                             crate::ErrorKind::Unknown,
                         ));
                     }
@@ -192,9 +192,7 @@ pub async fn attach(
             if requires_reboot.0 {
                 crate::disk::main::export(&*disk_guid, DATA_DIR).await?;
                 return Err(Error::new(
-                    eyre!(
-                        "Errors were corrected with your disk, but the server must be restarted in order to proceed"
-                    ),
+                    eyre!("{}", t!("setup.disk-errors-corrected-restart-required")),
                     ErrorKind::DiskManagement,
                 ));
             }
@@ -313,7 +311,7 @@ pub async fn verify_cifs(
     guard.unmount().await?;
     if start_os.is_empty() {
         return Err(Error::new(
-            eyre!("No Backup Found"),
+            eyre!("{}", t!("setup.no-backup-found")),
             crate::ErrorKind::NotFound,
         ));
     }
@@ -382,7 +380,7 @@ pub async fn execute(
         Some(a) => a,
         None => {
             return Err(Error::new(
-                color_eyre::eyre::eyre!("Couldn't decode startOsPassword"),
+                color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-startos-password")),
                 crate::ErrorKind::Unknown,
             ));
         }
@@ -396,7 +394,7 @@ pub async fn execute(
             target,
             password: password.decrypt(&ctx).ok_or_else(|| {
                 Error::new(
-                    color_eyre::eyre::eyre!("Couldn't decode recoveryPassword"),
+                    color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-recovery-password")),
                     crate::ErrorKind::Unknown,
                 )
             })?,
@@ -439,7 +437,7 @@ pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
         }
         Some(Err(e)) => Err(e.clone_output()),
         None => Err(Error::new(
-            eyre!("setup.execute has not completed successfully"),
+            eyre!("{}", t!("setup.execute-not-completed")),
             crate::ErrorKind::InvalidRequest,
         )),
     }
@@ -471,13 +469,13 @@ pub async fn execute_inner(
     kiosk: Option<bool>,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let progress = &ctx.progress;
-    let mut disk_phase = progress.add_phase("Formatting data drive".into(), Some(10));
+    let mut disk_phase = progress.add_phase(t!("setup.formatting-data-drive").into(), Some(10));
     let restore_phase = match recovery_source.as_ref() {
         Some(RecoverySource::Backup { .. }) => {
-            Some(progress.add_phase("Restoring backup".into(), Some(100)))
+            Some(progress.add_phase(t!("setup.restoring-backup").into(), Some(100)))
         }
         Some(RecoverySource::Migrate { .. }) => {
-            Some(progress.add_phase("Transferring data".into(), Some(100)))
+            Some(progress.add_phase(t!("setup.transferring-data").into(), Some(100)))
         }
         None => None,
     };

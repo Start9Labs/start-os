@@ -20,19 +20,19 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "db",
             super::db::db_api::<C>()
-                .with_about("Commands to interact with the db i.e. dump and apply"),
+                .with_about("about.commands-interact-with-db-dump-apply"),
         )
         .subcommand(
             "auth",
-            super::auth::auth_api::<C>().with_about("Add or remove authorized clients"),
+            super::auth::auth_api::<C>().with_about("about.add-or-remove-authorized-clients"),
         )
         .subcommand(
             "subnet",
-            subnet_api::<C>().with_about("Add, remove, or modify subnets"),
+            subnet_api::<C>().with_about("about.add-remove-or-modify-subnets"),
         )
         .subcommand(
             "device",
-            device_api::<C>().with_about("Add, remove, or list devices in subnets"),
+            device_api::<C>().with_about("about.add-remove-or-list-devices-in-subnets"),
         )
         .subcommand(
             "port-forward",
@@ -42,7 +42,7 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
                     from_fn_async(add_forward)
                         .with_metadata("sync_db", Value::Bool(true))
                         .no_display()
-                        .with_about("Add a new port forward")
+                        .with_about("about.add-new-port-forward")
                         .with_call_remote::<CliContext>(),
                 )
                 .subcommand(
@@ -50,7 +50,7 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
                     from_fn_async(remove_forward)
                         .with_metadata("sync_db", Value::Bool(true))
                         .no_display()
-                        .with_about("Remove a port forward")
+                        .with_about("about.remove-port-forward")
                         .with_call_remote::<CliContext>(),
                 ),
         )
@@ -70,7 +70,7 @@ pub fn subnet_api<C: Context>() -> ParentHandler<C, SubnetParams> {
                 .with_metadata("sync_db", Value::Bool(true))
                 .with_inherited(|a, _| a)
                 .no_display()
-                .with_about("Add a new subnet")
+                .with_about("about.add-new-subnet")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -79,7 +79,7 @@ pub fn subnet_api<C: Context>() -> ParentHandler<C, SubnetParams> {
                 .with_metadata("sync_db", Value::Bool(true))
                 .with_inherited(|a, _| a)
                 .no_display()
-                .with_about("Remove a subnet")
+                .with_about("about.remove-subnet")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -91,7 +91,7 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(add_device)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Add a device to a subnet")
+                .with_about("about.add-device-to-subnet")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -99,7 +99,7 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(remove_device)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Remove a device from a subnet")
+                .with_about("about.remove-device-from-subnet")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -123,13 +123,13 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
 
                     Ok(())
                 })
-                .with_about("List devices in a subnet")
+                .with_about("about.list-devices-in-subnet")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "show-config",
             from_fn_async(show_config)
-                .with_about("Show the WireGuard configuration for a device")
+                .with_about("about.show-wireguard-configuration-for-device")
                 .with_call_remote::<CliContext>(),
         )
 }

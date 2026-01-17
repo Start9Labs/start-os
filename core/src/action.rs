@@ -23,7 +23,7 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
             "get-input",
             from_fn_async(get_action_input)
                 .with_display_serializable()
-                .with_about("Get action input spec")
+                .with_about("about.get-action-input-spec")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -36,14 +36,14 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
                     }
                     Ok(())
                 })
-                .with_about("Run service action")
+                .with_about("about.run-service-action")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "clear-task",
             from_fn_async(clear_task)
                 .no_display()
-                .with_about("Clear a service task")
+                .with_about("about.clear-service-task")
                 .with_call_remote::<CliContext>(),
         )
 }

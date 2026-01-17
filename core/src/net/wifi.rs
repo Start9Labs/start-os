@@ -30,7 +30,7 @@ type WifiManager = Arc<RwLock<Option<WpaCli>>>;
 //         Ok(wifi_manager)
 //     } else {
 //         Err(Error::new(
-//             color_eyre::eyre::eyre!("No WiFi interface available"),
+//             color_eyre::eyre::eyre!("{}", t!("net.wifi.no-interface-available")),
 //             ErrorKind::Wifi,
 //         ))
 //     }
@@ -42,28 +42,28 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
             "set-enabled",
             from_fn_async(set_enabled)
                 .no_display()
-                .with_about("Enable or disable wifi")
+                .with_about("about.enable-disable-wifi")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "add",
             from_fn_async(add)
                 .no_display()
-                .with_about("Add wifi ssid and password")
+                .with_about("about.add-wifi-ssid-password")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "connect",
             from_fn_async(connect)
                 .no_display()
-                .with_about("Connect to wifi network")
+                .with_about("about.connect-wifi-network")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove)
                 .no_display()
-                .with_about("Remove a wifi network")
+                .with_about("about.remove-wifi-network")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -71,16 +71,16 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
             from_fn_async(get)
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| display_wifi_info(handle.params, result))
-                .with_about("List wifi info")
+                .with_about("about.list-wifi-info")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "country",
-            country::<C>().with_about("Command to set country"),
+            country::<C>().with_about("about.command-set-country"),
         )
         .subcommand(
             "available",
-            available::<C>().with_about("Command to list available wifi networks"),
+            available::<C>().with_about("about.command-list-available-wifi"),
         )
 }
 
@@ -133,7 +133,7 @@ pub fn available<C: Context>() -> ParentHandler<C> {
         from_fn_async(get_available)
             .with_display_serializable()
             .with_custom_display_fn(|handle, result| display_wifi_list(handle.params, result))
-            .with_about("List available wifi networks")
+            .with_about("about.list-available-wifi-networks")
             .with_call_remote::<CliContext>(),
     )
 }
@@ -143,7 +143,7 @@ pub fn country<C: Context>() -> ParentHandler<C> {
         "set",
         from_fn_async(set_country)
             .no_display()
-            .with_about("Set Country")
+            .with_about("about.set-country")
             .with_call_remote::<CliContext>(),
     )
 }
@@ -160,13 +160,13 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
     let wifi_manager = ctx.wifi_manager.clone();
     if !ssid.is_ascii() {
         return Err(Error::new(
-            color_eyre::eyre::eyre!("SSID may not have special characters"),
+            color_eyre::eyre::eyre!("{}", t!("net.wifi.ssid-no-special-characters")),
             ErrorKind::Wifi,
         ));
     }
     if !password.is_ascii() {
         return Err(Error::new(
-            color_eyre::eyre::eyre!("WiFi Password may not have special characters"),
+            color_eyre::eyre::eyre!("{}", t!("net.wifi.password-no-special-characters")),
             ErrorKind::Wifi,
         ));
     }
@@ -176,11 +176,11 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
         ssid: &Ssid,
         password: &Psk,
     ) -> Result<(), Error> {
-        tracing::info!("Adding new WiFi network: '{}'", ssid.0);
+        tracing::info!("{}", t!("net.wifi.adding-network", ssid = &ssid.0));
         let mut wpa_supplicant = wifi_manager.write_owned().await;
         let wpa_supplicant = wpa_supplicant.as_mut().ok_or_else(|| {
             Error::new(
-                color_eyre::eyre::eyre!("No WiFi interface available"),
+                color_eyre::eyre::eyre!("{}", t!("net.wifi.no-interface-available")),
                 ErrorKind::Wifi,
             )
         })?;
@@ -195,10 +195,17 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
     )
     .await
     {
-        tracing::error!("Failed to add new WiFi network '{}': {}", ssid, err);
+        tracing::error!(
+            "{}",
+            t!(
+                "net.wifi.failed-to-add-network",
+                ssid = &ssid,
+                error = err.to_string()
+            )
+        );
         tracing::debug!("{:?}", err);
         return Err(Error::new(
-            color_eyre::eyre::eyre!("Failed adding {}", ssid),
+            color_eyre::eyre::eyre!("{}", t!("net.wifi.failed-adding", ssid = &ssid)),
             ErrorKind::Wifi,
         ));
     }
@@ -230,7 +237,7 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
     let wifi_manager = ctx.wifi_manager.clone();
     if !ssid.is_ascii() {
         return Err(Error::new(
-            color_eyre::eyre::eyre!("SSID may not have special characters"),
+            color_eyre::eyre::eyre!("{}", t!("net.wifi.ssid-no-special-characters")),
             ErrorKind::Wifi,
         ));
     }
@@ -242,19 +249,19 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
         let mut wpa_supplicant = wifi_manager.write_owned().await;
         let wpa_supplicant = wpa_supplicant.as_mut().ok_or_else(|| {
             Error::new(
-                color_eyre::eyre::eyre!("No WiFi interface available"),
+                color_eyre::eyre::eyre!("{}", t!("net.wifi.no-interface-available")),
                 ErrorKind::Wifi,
             )
         })?;
         let current = wpa_supplicant.get_current_network().await?;
         let connected = wpa_supplicant.select_network(db.clone(), ssid).await?;
         if connected {
-            tracing::info!("Successfully connected to WiFi: '{}'", ssid.0);
+            tracing::info!("{}", t!("net.wifi.connected-successfully", ssid = &ssid.0));
         } else {
-            tracing::info!("Failed to connect to WiFi: '{}'", ssid.0);
+            tracing::info!("{}", t!("net.wifi.connection-failed", ssid = &ssid.0));
             match current {
                 None => {
-                    tracing::info!("No WiFi to revert to!");
+                    tracing::info!("{}", t!("net.wifi.no-wifi-to-revert"));
                 }
                 Some(current) => {
                     wpa_supplicant.select_network(db, &current).await?;
@@ -267,9 +274,16 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
     if let Err(err) =
         connect_procedure(ctx.db.clone(), wifi_manager.clone(), &Ssid(ssid.clone())).await
     {
-        tracing::error!("Failed to connect to WiFi network '{}': {}", &ssid, err);
+        tracing::error!(
+            "{}",
+            t!(
+                "net.wifi.failed-to-connect",
+                ssid = &ssid,
+                error = err.to_string()
+            )
+        );
         return Err(Error::new(
-            color_eyre::eyre::eyre!("Can't connect to {}", ssid),
+            color_eyre::eyre::eyre!("{}", t!("net.wifi.cant-connect", ssid = &ssid)),
             ErrorKind::Wifi,
         ));
     }
@@ -297,7 +311,7 @@ pub async fn remove(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<
     let wifi_manager = ctx.wifi_manager.clone();
     if !ssid.is_ascii() {
         return Err(Error::new(
-            color_eyre::eyre::eyre!("SSID may not have special characters"),
+            color_eyre::eyre::eyre!("{}", t!("net.wifi.ssid-no-special-characters")),
             ErrorKind::Wifi,
         ));
     }
@@ -305,7 +319,7 @@ pub async fn remove(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<
     let mut wpa_supplicant = wifi_manager.write_owned().await;
     let wpa_supplicant = wpa_supplicant.as_mut().ok_or_else(|| {
         Error::new(
-            color_eyre::eyre::eyre!("No WiFi interface available"),
+            color_eyre::eyre::eyre!("{}", t!("net.wifi.no-interface-available")),
             ErrorKind::Wifi,
         )
     })?;
@@ -316,9 +330,7 @@ pub async fn remove(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<
         is_current_being_removed && !interface_connected(&ctx.ethernet_interface).await?;
     if is_current_removed_and_no_hardwire {
         return Err(Error::new(
-            color_eyre::eyre::eyre!(
-                "Forbidden: Deleting this network would make your server unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."
-            ),
+            color_eyre::eyre::eyre!("{}", t!("net.wifi.forbidden-delete-would-disconnect")),
             ErrorKind::Wifi,
         ));
     }
@@ -463,7 +475,7 @@ pub async fn get(ctx: RpcContext, _: Empty) -> Result<WifiListInfo, Error> {
     let wpa_supplicant = wifi_manager.read_owned().await;
     let wpa_supplicant = wpa_supplicant.as_ref().ok_or_else(|| {
         Error::new(
-            color_eyre::eyre::eyre!("No WiFi interface available"),
+            color_eyre::eyre::eyre!("{}", t!("net.wifi.no-interface-available")),
             ErrorKind::Wifi,
         )
     })?;
@@ -517,7 +529,7 @@ pub async fn get_available(ctx: RpcContext, _: Empty) -> Result<Vec<WifiListOut>
     let wpa_supplicant = wifi_manager.read_owned().await;
     let wpa_supplicant = wpa_supplicant.as_ref().ok_or_else(|| {
         Error::new(
-            color_eyre::eyre::eyre!("No WiFi interface available"),
+            color_eyre::eyre::eyre!("{}", t!("net.wifi.no-interface-available")),
             ErrorKind::Wifi,
         )
     })?;
@@ -558,14 +570,14 @@ pub async fn set_country(
     let wifi_manager = ctx.wifi_manager.clone();
     if !interface_connected(&ctx.ethernet_interface).await? {
         return Err(Error::new(
-            color_eyre::eyre::eyre!("Won't change country without hardwire connection"),
+            color_eyre::eyre::eyre!("{}", t!("net.wifi.wont-change-country-without-ethernet")),
             crate::ErrorKind::Wifi,
         ));
     }
     let mut wpa_supplicant = wifi_manager.write_owned().await;
     let wpa_supplicant = wpa_supplicant.as_mut().ok_or_else(|| {
         Error::new(
-            color_eyre::eyre::eyre!("No WiFi interface available"),
+            color_eyre::eyre::eyre!("{}", t!("net.wifi.no-interface-available")),
             ErrorKind::Wifi,
         )
     })?;
@@ -684,7 +696,14 @@ impl WpaCli {
             .await
             .map(|_| ())
             .unwrap_or_else(|e| {
-                tracing::warn!("Failed to set interface {} for {}", self.interface, ssid.0);
+                tracing::warn!(
+                    "{}",
+                    t!(
+                        "net.wifi.failed-to-set-interface",
+                        interface = &self.interface,
+                        ssid = &ssid.0
+                    )
+                );
                 tracing::debug!("{:?}", e);
             });
         Command::new("nmcli")
@@ -719,13 +738,13 @@ impl WpaCli {
         }
         let first_country = r.lines().find(|s| s.contains("country")).ok_or_else(|| {
             Error::new(
-                color_eyre::eyre::eyre!("Could not find a country config lines"),
+                color_eyre::eyre::eyre!("{}", t!("net.wifi.could-not-find-country-config")),
                 ErrorKind::Wifi,
             )
         })?;
         let country = &RE.captures(first_country).ok_or_else(|| {
             Error::new(
-                color_eyre::eyre::eyre!("Could not find a country config with regex"),
+                color_eyre::eyre::eyre!("{}", t!("net.wifi.could-not-parse-country-config")),
                 ErrorKind::Wifi,
             )
         })?[1];
@@ -734,7 +753,10 @@ impl WpaCli {
         } else {
             Ok(Some(CountryCode::for_alpha2(country).map_err(|_| {
                 Error::new(
-                    color_eyre::eyre::eyre!("Invalid Country Code: {}", country),
+                    color_eyre::eyre::eyre!(
+                        "{}",
+                        t!("net.wifi.invalid-country-code", country = country)
+                    ),
                     ErrorKind::Wifi,
                 )
             })?))
@@ -877,7 +899,7 @@ impl WpaCli {
         let m_id = self.check_active_network(ssid).await?;
         match m_id {
             None => Err(Error::new(
-                color_eyre::eyre::eyre!("SSID Not Found"),
+                color_eyre::eyre::eyre!("{}", t!("net.wifi.ssid-not-found")),
                 ErrorKind::Wifi,
             )),
             Some(x) => {
@@ -1058,7 +1080,7 @@ pub async fn synchronize_network_manager<P: AsRef<Path>>(
         .invoke(ErrorKind::Wifi)
         .await?;
     if let Some(last_country_code) = wifi.last_region {
-        tracing::info!("Setting the region");
+        tracing::info!("{}", t!("net.wifi.setting-region"));
         let _ = Command::new("iw")
             .arg("reg")
             .arg("set")
@@ -1066,7 +1088,7 @@ pub async fn synchronize_network_manager<P: AsRef<Path>>(
             .invoke(ErrorKind::Wifi)
             .await?;
     } else {
-        tracing::info!("Setting the region fallback");
+        tracing::info!("{}", t!("net.wifi.setting-region-fallback"));
         let _ = Command::new("iw")
             .arg("reg")
             .arg("set")

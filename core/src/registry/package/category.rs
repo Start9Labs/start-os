@@ -20,7 +20,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(add_category)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Add a category to the registry")
+                .with_about("about.add-category-registry")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -28,7 +28,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(remove_category)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Remove a category from the registry")
+                .with_about("about.remove-category-registry")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -36,7 +36,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(add_package)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Add a package to a category")
+                .with_about("about.add-package-category")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -44,7 +44,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(remove_package)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Remove a package from a category")
+                .with_about("about.remove-package-category")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(

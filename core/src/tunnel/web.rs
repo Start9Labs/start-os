@@ -98,27 +98,27 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
             "init",
             from_fn_async_local(init_web)
                 .no_display()
-                .with_about("Initialize the webserver"),
+                .with_about("about.initialize-webserver"),
         )
         .subcommand(
             "set-listen",
             from_fn_async(set_listen)
                 .no_display()
-                .with_about("Set the listen address for the webserver")
+                .with_about("about.set-listen-address-for-webserver")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "get-listen",
             from_fn_async(get_listen)
                 .with_display_serializable()
-                .with_about("Get the listen address for the webserver")
+                .with_about("about.get-listen-address-for-webserver")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "get-available-ips",
             from_fn_async(get_available_ips)
                 .with_display_serializable()
-                .with_about("Get available IP addresses to bind to")
+                .with_about("about.get-available-ip-addresses-to-bind")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -129,12 +129,12 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
             "import-certificate",
             from_fn_async_local(import_certificate_cli)
                 .no_display()
-                .with_about("Import a certificate to use for the webserver"),
+                .with_about("about.import-certificate-for-webserver"),
         )
         .subcommand(
             "generate-certificate",
             from_fn_async(generate_certificate)
-                .with_about("Generate a certificate to use for the webserver")
+                .with_about("about.generate-certificate-for-webserver")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -150,13 +150,13 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
                     }
                     Ok(())
                 })
-                .with_about("Get the certificate for the webserver")
+                .with_about("about.get-certificate-for-webserver")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "enable",
             from_fn_async(enable_web)
-                .with_about("Enable the webserver")
+                .with_about("about.enable-webserver")
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
@@ -164,14 +164,14 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
             "disable",
             from_fn_async(disable_web)
                 .no_display()
-                .with_about("Disable the webserver")
+                .with_about("about.disable-webserver")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "reset",
             from_fn_async(reset_web)
                 .no_display()
-                .with_about("Reset the webserver")
+                .with_about("about.reset-webserver")
                 .with_call_remote::<CliContext>(),
         )
 }

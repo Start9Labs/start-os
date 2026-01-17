@@ -95,7 +95,7 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
 
                     Ok(())
                 })
-                .with_about("Show gateways StartOS can listen on")
+                .with_about("about.show-gateways-startos-can-listen-on")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -103,7 +103,7 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(set_public)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Indicate whether this gateway has inbound access from the WAN")
+                .with_about("about.indicate-gateway-inbound-access-from-wan")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -111,10 +111,7 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(unset_public)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about(concat!(
-                    "Allow this gateway to infer whether it has",
-                    " inbound access from the WAN based on its IPv4 address"
-                ))
+                .with_about("about.allow-gateway-infer-inbound-access-from-wan")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -122,7 +119,7 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(forget_iface)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Forget a disconnected gateway")
+                .with_about("about.forget-disconnected-gateway")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -130,7 +127,7 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(set_name)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Rename a gateway")
+                .with_about("about.rename-gateway")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -464,7 +461,8 @@ async fn watcher(
                         ensure_code!(
                             !devices.is_empty(),
                             ErrorKind::Network,
-                            "NetworkManager returned no devices. Trying again..."
+                            "{}",
+                            t!("net.gateway.no-devices-returned")
                         );
                         let mut ifaces = BTreeSet::new();
                         let mut jobs = Vec::new();
@@ -731,7 +729,8 @@ async fn watch_ip(
                                                 Ok(a) => a,
                                                 Err(e) => {
                                                     tracing::error!(
-                                                    "Failed to determine WAN IP for {iface}: {e}"
+                                                    "{}",
+                                                    t!("net.gateway.failed-to-determine-wan-ip", iface = iface.to_string(), error = e.to_string())
                                                 );
                                                     tracing::debug!("{e:?}");
                                                     None
@@ -1021,7 +1020,13 @@ impl NetworkInterfaceController {
                             info
                         }
                         Err(e) => {
-                            tracing::error!("Error loading network interface info: {e}");
+                            tracing::error!(
+                                "{}",
+                                t!(
+                                    "net.gateway.error-loading-interface-info",
+                                    error = e.to_string()
+                                )
+                            );
                             tracing::debug!("{e:?}");
                             OrdMap::new()
                         }
@@ -1050,7 +1055,10 @@ impl NetworkInterfaceController {
                         }
                         .await
                         {
-                            tracing::error!("Error syncing ip info to db: {e}");
+                            tracing::error!(
+                                "{}",
+                                t!("net.gateway.error-syncing-ip-info", error = e.to_string())
+                            );
                             tracing::debug!("{e:?}");
                         }
 
@@ -1060,7 +1068,10 @@ impl NetworkInterfaceController {
                 }
                 .await;
                 if let Err(e) = res {
-                    tracing::error!("Error syncing ip info to db: {e}");
+                    tracing::error!(
+                        "{}",
+                        t!("net.gateway.error-syncing-ip-info", error = e.to_string())
+                    );
                     tracing::debug!("{e:?}");
                 }
             })
@@ -1121,7 +1132,7 @@ impl NetworkInterfaceController {
                 .map_or(false, |i| i.ip_info.is_some())
             {
                 err = Some(Error::new(
-                    eyre!("Cannot forget currently connected interface"),
+                    eyre!("{}", t!("net.gateway.cannot-forget-connected-interface")),
                     ErrorKind::InvalidRequest,
                 ));
                 return false;
@@ -1167,7 +1178,7 @@ impl NetworkInterfaceController {
 
             if &*ac == "/" {
                 return Err(Error::new(
-                    eyre!("Cannot delete device without active connection"),
+                    eyre!("{}", t!("net.gateway.cannot-delete-without-connection")),
                     ErrorKind::InvalidRequest,
                 ));
             }

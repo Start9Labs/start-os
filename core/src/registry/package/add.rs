@@ -56,7 +56,7 @@ pub async fn add_package(
 
     let Some(([url], rest)) = urls.split_at_checked(1) else {
         return Err(Error::new(
-            eyre!("must specify at least 1 url"),
+            eyre!("{}", t!("registry.package.add.must-specify-url")),
             ErrorKind::InvalidRequest,
         ));
     };
@@ -112,7 +112,7 @@ pub async fn add_package(
 
                 Ok(())
             } else {
-                Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+                Err(Error::new(eyre!("{}", t!("registry.package.add.unauthorized")), ErrorKind::Authorization))
             }
         })
         .await
@@ -226,7 +226,7 @@ pub async fn remove_package(
 ) -> Result<bool, Error> {
     let peek = ctx.db.peek().await;
     let signer =
-        signer.ok_or_else(|| Error::new(eyre!("missing signer"), ErrorKind::InvalidRequest))?;
+        signer.ok_or_else(|| Error::new(eyre!("{}", t!("registry.package.missing-signer")), ErrorKind::InvalidRequest))?;
     let signer_guid = peek.as_index().as_signers().get_signer(&signer)?;
 
     let rev = ctx
@@ -267,7 +267,7 @@ pub async fn remove_package(
                 }
                 Ok(())
             } else {
-                Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+                Err(Error::new(eyre!("{}", t!("registry.package.unauthorized")), ErrorKind::Authorization))
             }
         })
         .await;
@@ -342,7 +342,7 @@ pub async fn add_mirror(
 
                 Ok(())
             } else {
-                Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+                Err(Error::new(eyre!("{}", t!("registry.package.add-mirror.unauthorized")), ErrorKind::Authorization))
             }
         })
         .await
@@ -454,7 +454,7 @@ pub async fn remove_mirror(
 ) -> Result<(), Error> {
     let peek = ctx.db.peek().await;
     let signer =
-        signer.ok_or_else(|| Error::new(eyre!("missing signer"), ErrorKind::InvalidRequest))?;
+        signer.ok_or_else(|| Error::new(eyre!("{}", t!("registry.package.missing-signer")), ErrorKind::InvalidRequest))?;
     let signer_guid = peek.as_index().as_signers().get_signer(&signer)?;
 
     ctx.db
@@ -483,7 +483,7 @@ pub async fn remove_mirror(
                             .for_each(|(_, asset)| asset.urls.retain(|u| u != &url));
                         if s.iter().any(|(_, asset)| asset.urls.is_empty()) {
                             Err(Error::new(
-                                eyre!("cannot remove last mirror from an s9pk"),
+                                eyre!("{}", t!("registry.package.cannot-remove-last-mirror")),
                                 ErrorKind::InvalidRequest,
                             ))
                         } else {
@@ -493,7 +493,7 @@ pub async fn remove_mirror(
                 }
                 Ok(())
             } else {
-                Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+                Err(Error::new(eyre!("{}", t!("registry.package.remove-mirror.unauthorized")), ErrorKind::Authorization))
             }
         })
         .await

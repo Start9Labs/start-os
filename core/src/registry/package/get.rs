@@ -441,8 +441,8 @@ pub async fn cli_download(
         0 => {
             return Err(Error::new(
                 eyre!(
-                    "Could not find a version of {id} that satisfies {}",
-                    target_version.unwrap_or(VersionRange::Any)
+                    "{}",
+                    t!("registry.package.get.version-not-found", id = id, version = target_version.unwrap_or(VersionRange::Any))
                 ),
                 ErrorKind::NotFound,
             ));
@@ -462,8 +462,8 @@ pub async fn cli_download(
         0 => {
             return Err(Error::new(
                 eyre!(
-                    "Could not find a version of {id} that satisfies {}",
-                    target_version.unwrap_or(VersionRange::Any)
+                    "{}",
+                    t!("registry.package.get.version-not-found", id = id, version = target_version.unwrap_or(VersionRange::Any))
                 ),
                 ErrorKind::NotFound,
             ));
@@ -551,7 +551,7 @@ pub async fn cli_download(
     progress_tracker.complete();
     progress.await.unwrap();
 
-    println!("Download Complete");
+    println!("{}", t!("registry.package.get.download-complete"));
 
     Ok(())
 }

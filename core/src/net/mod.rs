@@ -23,32 +23,29 @@ pub mod wifi;
 
 pub fn net_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand(
-            "tor",
-            tor::tor_api::<C>().with_about("Tor commands such as list-services, logs, and reset"),
-        )
+        .subcommand("tor", tor::tor_api::<C>().with_about("about.tor-commands"))
         .subcommand(
             "acme",
-            acme::acme_api::<C>().with_about("Setup automatic clearnet certificate acquisition"),
+            acme::acme_api::<C>().with_about("about.setup-acme-certificate"),
         )
         .subcommand(
             "dns",
-            dns::dns_api::<C>().with_about("Manage and query DNS"),
+            dns::dns_api::<C>().with_about("about.manage-query-dns"),
         )
         .subcommand(
             "forward",
-            forward::forward_api::<C>().with_about("Manage port forwards"),
+            forward::forward_api::<C>().with_about("about.manage-port-forwards"),
         )
         .subcommand(
             "gateway",
-            gateway::gateway_api::<C>().with_about("View and edit gateway configurations"),
+            gateway::gateway_api::<C>().with_about("about.view-edit-gateway-configs"),
         )
         .subcommand(
             "tunnel",
-            tunnel::tunnel_api::<C>().with_about("Manage tunnels"),
+            tunnel::tunnel_api::<C>().with_about("about.manage-tunnels"),
         )
         .subcommand(
             "vhost",
-            vhost::vhost_api::<C>().with_about("Manage ssl virtual host proxy"),
+            vhost::vhost_api::<C>().with_about("about.manage-ssl-vhost-proxy"),
         )
 }

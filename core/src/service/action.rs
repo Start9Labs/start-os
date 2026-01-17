@@ -102,7 +102,7 @@ pub fn update_tasks(
                         }
                     }
                     None => {
-                        tracing::error!("action request exists in an invalid state {:?}", v.task);
+                        tracing::error!("{}", t!("service.action.action-request-invalid-state", task = format!("{:?}", v.task)));
                     }
                 },
             }
@@ -151,7 +151,7 @@ impl Handler<RunAction> for ServiceActor {
             .de()?;
         if matches!(&action.visibility, ActionVisibility::Disabled(_)) {
             return Err(Error::new(
-                eyre!("action {action_id} is disabled"),
+                eyre!("{}", t!("service.action.action-is-disabled", action_id = action_id)),
                 ErrorKind::Action,
             ));
         }
@@ -162,7 +162,7 @@ impl Handler<RunAction> for ServiceActor {
             _ => false,
         } {
             return Err(Error::new(
-                eyre!("service is not in allowed status for {action_id}"),
+                eyre!("{}", t!("service.action.service-not-in-allowed-status", action_id = action_id)),
                 ErrorKind::Action,
             ));
         }

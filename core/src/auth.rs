@@ -51,7 +51,10 @@ pub async fn write_shadow(password: &str) -> Result<(), Error> {
         match line.split_once(":") {
             Some((user, rest)) if user == "start9" || user == "kiosk" => {
                 let (_, rest) = rest.split_once(":").ok_or_else(|| {
-                    Error::new(eyre!("malformed /etc/shadow"), ErrorKind::ParseSysInfo)
+                    Error::new(
+                        eyre!("{}", t!("auth.malformed-etc-shadow")),
+                        ErrorKind::ParseSysInfo,
+                    )
                 })?;
                 shadow_file
                     .write_all(format!("{user}:{hash}:{rest}\n").as_bytes())
@@ -81,7 +84,7 @@ impl PasswordType {
             PasswordType::String(x) => Ok(x),
             PasswordType::EncryptedWire(x) => x.decrypt(current_secret).ok_or_else(|| {
                 Error::new(
-                    color_eyre::eyre::eyre!("Couldn't decode password"),
+                    color_eyre::eyre::eyre!("{}", t!("auth.couldnt-decode-password")),
                     crate::ErrorKind::Unknown,
                 )
             }),
@@ -125,19 +128,19 @@ where
             "login",
             from_fn_async(cli_login::<AC>)
                 .no_display()
-                .with_about("Log in a new auth session"),
+                .with_about("about.login-new-auth-session"),
         )
         .subcommand(
             "logout",
             from_fn_async(logout::<AC>)
                 .with_metadata("get_session", Value::Bool(true))
                 .no_display()
-                .with_about("Log out of current auth session")
+                .with_about("about.logout-current-auth-session")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "session",
-            session::<C, AC>().with_about("List or kill auth sessions"),
+            session::<C, AC>().with_about("about.list-or-kill-auth-sessions"),
         )
         .subcommand(
             "reset-password",
@@ -147,14 +150,14 @@ where
             "reset-password",
             from_fn_async(cli_reset_password)
                 .no_display()
-                .with_about("Reset password"),
+                .with_about("about.reset-password"),
         )
         .subcommand(
             "get-pubkey",
             from_fn_async(get_pubkey)
                 .with_metadata("authenticated", Value::Bool(false))
                 .no_display()
-                .with_about("Get public key derived from server private key")
+                .with_about("about.get-pubkey-from-server")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -208,12 +211,12 @@ pub fn check_password(hash: &str, password: &str) -> Result<(), Error> {
     ensure_code!(
         argon2::verify_encoded(&hash, password.as_bytes()).map_err(|_| {
             Error::new(
-                eyre!("Password Incorrect"),
+                eyre!("{}", t!("auth.password-incorrect")),
                 crate::ErrorKind::IncorrectPassword,
             )
         })?,
         crate::ErrorKind::IncorrectPassword,
-        "Password Incorrect"
+        t!("auth.password-incorrect")
     );
     Ok(())
 }
@@ -327,14 +330,14 @@ where
                 .with_metadata("get_session", Value::Bool(true))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| display_sessions(handle.params, result))
-                .with_about("Display all auth sessions")
+                .with_about("about.display-all-auth-sessions")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "kill",
             from_fn_async(kill::<AC>)
                 .no_display()
-                .with_about("Terminate existing auth session(s)")
+                .with_about("about.terminate-auth-sessions")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -447,13 +450,13 @@ async fn cli_reset_password(
         ..
     }: HandlerArgs<CliContext>,
 ) -> Result<(), RpcError> {
-    let old_password = rpassword::prompt_password("Current Password: ")?;
+    let old_password = rpassword::prompt_password(&t!("auth.prompt-current-password"))?;
 
     let new_password = {
-        let new_password = rpassword::prompt_password("New Password: ")?;
-        if new_password != rpassword::prompt_password("Confirm: ")? {
+        let new_password = rpassword::prompt_password(&t!("auth.prompt-new-password"))?;
+        if new_password != rpassword::prompt_password(&t!("auth.prompt-confirm"))? {
             return Err(Error::new(
-                eyre!("Passwords do not match"),
+                eyre!("{}", t!("auth.passwords-do-not-match")),
                 crate::ErrorKind::IncorrectPassword,
             )
             .into());
@@ -486,7 +489,7 @@ pub async fn reset_password_impl(
             .with_kind(crate::ErrorKind::IncorrectPassword)?
         {
             return Err(Error::new(
-                eyre!("Incorrect Password"),
+                eyre!("{}", t!("auth.password-incorrect")),
                 crate::ErrorKind::IncorrectPassword,
             ));
         }

@@ -1,0 +1,4096 @@
+_version: 2
+
+bins.deprecated.renamed:
+  en_US: "%{old} has been renamed to %{new}"
+  de_DE: "%{old} wurde in %{new} umbenannt"
+  es_ES: "%{old} ha sido renombrado a %{new}"
+  fr_FR: "%{old} a été renommé en %{new}"
+  pl_PL: "%{old} zostało zmienione na %{new}"
+
+bins.deprecated.removed:
+  en_US: "%{name} has been removed"
+  de_DE: "%{name} wurde entfernt"
+  es_ES: "%{name} ha sido eliminado"
+  fr_FR: "%{name} a été supprimé"
+  pl_PL: "%{name} zostało usunięte"
+
+bins.mod.unknown-executable:
+  en_US: "unknown executable: %{name}"
+  de_DE: "Unbekannte ausführbare Datei: %{name}"
+  es_ES: "ejecutable desconocido: %{name}"
+  fr_FR: "exécutable inconnu : %{name}"
+  pl_PL: "nieznany plik wykonywalny: %{name}"
+
+bins.mod.does-not-exist:
+  en_US: "%{name} does not exist in MultiExecutable"
+  de_DE: "%{name} existiert nicht in MultiExecutable"
+  es_ES: "%{name} no existe en MultiExecutable"
+  fr_FR: "%{name} n'existe pas dans MultiExecutable"
+  pl_PL: "%{name} nie istnieje w MultiExecutable"
+
+bins.start-init.updating-firmware:
+  en_US: "Updating Firmware"
+  de_DE: "Firmware wird aktualisiert"
+  es_ES: "Actualizando firmware"
+  fr_FR: "Mise à jour du firmware"
+  pl_PL: "Aktualizacja oprogramowania"
+
+bins.start-init.rebooting:
+  en_US: "Rebooting"
+  de_DE: "Neustart"
+  es_ES: "Reiniciando"
+  fr_FR: "Redémarrage"
+  pl_PL: "Ponowne uruchamianie"
+
+bins.start-init.opening-data-drive:
+  en_US: "Opening data drive"
+  de_DE: "Datenlaufwerk wird geöffnet"
+  es_ES: "Abriendo unidad de datos"
+  fr_FR: "Ouverture du disque de données"
+  pl_PL: "Otwieranie dysku danych"
+
+bins.start-init.setup-mode-exited:
+  en_US: "Setup mode exited before setup completed"
+  de_DE: "Der Einrichtungsmodus wurde beendet, bevor die Einrichtung abgeschlossen war"
+  es_ES: "El modo de configuración se cerró antes de completar la configuración"
+  fr_FR: "Le mode configuration s'est terminé avant la fin de la configuration"
+  pl_PL: "Tryb konfiguracji zakończył się przed ukończeniem konfiguracji"
+
+bins.start-init.loaded-disk:
+  en_US: "Loaded Disk"
+  de_DE: "Festplatte geladen"
+  es_ES: "Disco cargado"
+  fr_FR: "Disque chargé"
+  pl_PL: "Dysk załadowany"
+
+bins.start-init.error-checking-firmware:
+  en_US: "Error checking for firmware update: %{error}"
+  de_DE: "Fehler bei der Suche nach Firmware-Update: %{error}"
+  es_ES: "Error al buscar actualización de firmware: %{error}"
+  fr_FR: "Erreur lors de la vérification de la mise à jour du firmware : %{error}"
+  pl_PL: "Błąd podczas sprawdzania aktualizacji oprogramowania: %{error}"
+
+bins.start-init.error-firmware-update:
+  en_US: "Error performing firmware update: %{error}"
+  de_DE: "Fehler beim Durchführen des Firmware-Updates: %{error}"
+  es_ES: "Error al realizar la actualización de firmware: %{error}"
+  fr_FR: "Erreur lors de la mise à jour du firmware : %{error}"
+  pl_PL: "Błąd podczas wykonywania aktualizacji oprogramowania: %{error}"
+
+bins.start-init.failed-to-kill-kiosk:
+  en_US: "Failed to kill kiosk: %{error}"
+  de_DE: "Kiosk konnte nicht beendet werden: %{error}"
+  es_ES: "Error al cerrar el kiosco: %{error}"
+  fr_FR: "Échec de la fermeture du kiosque : %{error}"
+  pl_PL: "Nie udało się zamknąć kiosku: %{error}"
+
+bins.startd.metrics-daemon-panicked:
+  en_US: "Metrics daemon panicked!"
+  de_DE: "Metriken-Daemon ist abgestürzt!"
+  es_ES: "El demonio de métricas entró en pánico!"
+  fr_FR: "Le démon de métriques a paniqué !"
+  pl_PL: "Demon metryk uległ panice!"
+
+bins.startd.metrics-daemon-shutdown:
+  en_US: "Metrics daemon Shutdown"
+  de_DE: "Metriken-Daemon heruntergefahren"
+  es_ES: "Demonio de métricas apagado"
+  fr_FR: "Démon de métriques arrêté"
+  pl_PL: "Demon metryk zamknięty"
+
+bins.startd.failed-to-initialize-runtime:
+  en_US: "failed to initialize runtime"
+  de_DE: "Laufzeit konnte nicht initialisiert werden"
+  es_ES: "error al inicializar el entorno de ejecución"
+  fr_FR: "échec de l'initialisation du runtime"
+  pl_PL: "nie udało się zainicjować środowiska wykonawczego"
+
+bins.registry.failed-to-initialize-runtime:
+  en_US: "failed to initialize runtime"
+  de_DE: "Laufzeit konnte nicht initialisiert werden"
+  es_ES: "error al inicializar el entorno de ejecución"
+  fr_FR: "échec de l'initialisation du runtime"
+  pl_PL: "nie udało się zainicjować środowiska wykonawczego"
+
+bins.tunnel.failed-to-initialize-runtime:
+  en_US: "failed to initialize runtime"
+  de_DE: "Laufzeit konnte nicht initialisiert werden"
+  es_ES: "error al inicializar el entorno de ejecución"
+  fr_FR: "échec de l'initialisation du runtime"
+  pl_PL: "nie udało się zainicjować środowiska wykonawczego"
+
+bins.tunnel.error-adding-ssl-listener:
+  en_US: "error adding ssl listener: %{error}"
+  de_DE: "Fehler beim Hinzufügen des SSL-Listeners: %{error}"
+  es_ES: "error al agregar el listener SSL: %{error}"
+  fr_FR: "erreur lors de l'ajout de l'écouteur SSL : %{error}"
+  pl_PL: "błąd podczas dodawania nasłuchiwacza SSL: %{error}"
+
+bins.tunnel.error-updating-webserver-bind:
+  en_US: "error updating webserver bind: %{error}"
+  de_DE: "Fehler beim Aktualisieren der Webserver-Bindung: %{error}"
+  es_ES: "error al actualizar el enlace del servidor web: %{error}"
+  fr_FR: "erreur lors de la mise à jour de la liaison du serveur web : %{error}"
+  pl_PL: "błąd podczas aktualizacji powiązania serwera WWW: %{error}"
+
+# setup.rs
+setup.opening-data-drive:
+  en_US: "Opening data drive"
+  de_DE: "Datenlaufwerk wird geöffnet"
+  es_ES: "Abriendo unidad de datos"
+  fr_FR: "Ouverture du disque de données"
+  pl_PL: "Otwieranie dysku danych"
+
+setup.couldnt-decode-password:
+  en_US: "Couldn't decode password"
+  de_DE: "Passwort konnte nicht dekodiert werden"
+  es_ES: "No se pudo decodificar la contraseña"
+  fr_FR: "Impossible de décoder le mot de passe"
+  pl_PL: "Nie można zdekodować hasła"
+
+setup.disk-errors-corrected-restart-required:
+  en_US: "Errors were corrected with your disk, but the server must be restarted in order to proceed"
+  de_DE: "Fehler auf Ihrer Festplatte wurden korrigiert, aber der Server muss neu gestartet werden, um fortzufahren"
+  es_ES: "Se corrigieron errores en su disco, pero el servidor debe reiniciarse para continuar"
+  fr_FR: "Des erreurs ont été corrigées sur votre disque, mais le serveur doit être redémarré pour continuer"
+  pl_PL: "Błędy na dysku zostały naprawione, ale serwer musi zostać uruchomiony ponownie, aby kontynuować"
+
+setup.no-backup-found:
+  en_US: "No Backup Found"
+  de_DE: "Keine Sicherung gefunden"
+  es_ES: "No se encontró copia de seguridad"
+  fr_FR: "Aucune sauvegarde trouvée"
+  pl_PL: "Nie znaleziono kopii zapasowej"
+
+setup.couldnt-decode-startos-password:
+  en_US: "Couldn't decode startOsPassword"
+  de_DE: "startOsPassword konnte nicht dekodiert werden"
+  es_ES: "No se pudo decodificar startOsPassword"
+  fr_FR: "Impossible de décoder startOsPassword"
+  pl_PL: "Nie można zdekodować startOsPassword"
+
+setup.couldnt-decode-recovery-password:
+  en_US: "Couldn't decode recoveryPassword"
+  de_DE: "recoveryPassword konnte nicht dekodiert werden"
+  es_ES: "No se pudo decodificar recoveryPassword"
+  fr_FR: "Impossible de décoder recoveryPassword"
+  pl_PL: "Nie można zdekodować recoveryPassword"
+
+setup.execute-not-completed:
+  en_US: "setup.execute has not completed successfully"
+  de_DE: "setup.execute wurde nicht erfolgreich abgeschlossen"
+  es_ES: "setup.execute no se completó correctamente"
+  fr_FR: "setup.execute ne s'est pas terminé avec succès"
+  pl_PL: "setup.execute nie zakończyło się pomyślnie"
+
+setup.formatting-data-drive:
+  en_US: "Formatting data drive"
+  de_DE: "Datenlaufwerk wird formatiert"
+  es_ES: "Formateando unidad de datos"
+  fr_FR: "Formatage du disque de données"
+  pl_PL: "Formatowanie dysku danych"
+
+setup.restoring-backup:
+  en_US: "Restoring backup"
+  de_DE: "Sicherung wird wiederhergestellt"
+  es_ES: "Restaurando copia de seguridad"
+  fr_FR: "Restauration de la sauvegarde"
+  pl_PL: "Przywracanie kopii zapasowej"
+
+setup.transferring-data:
+  en_US: "Transferring data"
+  de_DE: "Daten werden übertragen"
+  es_ES: "Transfiriendo datos"
+  fr_FR: "Transfert de données"
+  pl_PL: "Przesyłanie danych"
+
+# system.rs
+system.governor-not-available:
+  en_US: "Governor %{governor} not available"
+  de_DE: "Governor %{governor} nicht verfügbar"
+  es_ES: "El governor %{governor} no está disponible"
+  fr_FR: "Le gouverneur %{governor} n'est pas disponible"
+  pl_PL: "Governor %{governor} nie jest dostępny"
+
+system.could-not-get-initial-temperature:
+  en_US: "Could not get initial temperature: %{error}"
+  de_DE: "Anfangstemperatur konnte nicht abgerufen werden: %{error}"
+  es_ES: "No se pudo obtener la temperatura inicial: %{error}"
+  fr_FR: "Impossible d'obtenir la température initiale : %{error}"
+  pl_PL: "Nie można uzyskać początkowej temperatury: %{error}"
+
+system.could-not-get-initial-cpu-info:
+  en_US: "Could not get initial cpu info: %{error}"
+  de_DE: "Anfangs-CPU-Informationen konnten nicht abgerufen werden: %{error}"
+  es_ES: "No se pudo obtener la información inicial de la CPU: %{error}"
+  fr_FR: "Impossible d'obtenir les informations CPU initiales : %{error}"
+  pl_PL: "Nie można uzyskać początkowych informacji o CPU: %{error}"
+
+system.could-not-get-initial-proc-stat:
+  en_US: "Could not get initial proc stat: %{error}"
+  de_DE: "Anfangs-Prozessstatistiken konnten nicht abgerufen werden: %{error}"
+  es_ES: "No se pudo obtener el estado inicial del proceso: %{error}"
+  fr_FR: "Impossible d'obtenir les statistiques de processus initiales : %{error}"
+  pl_PL: "Nie można uzyskać początkowych statystyk procesów: %{error}"
+
+system.could-not-get-initial-mem-info:
+  en_US: "Could not get initial mem info: %{error}"
+  de_DE: "Anfangs-Speicherinformationen konnten nicht abgerufen werden: %{error}"
+  es_ES: "No se pudo obtener la información inicial de memoria: %{error}"
+  fr_FR: "Impossible d'obtenir les informations mémoire initiales : %{error}"
+  pl_PL: "Nie można uzyskać początkowych informacji o pamięci: %{error}"
+
+system.could-not-get-initial-disk-info:
+  en_US: "Could not get initial disk info: %{error}"
+  de_DE: "Anfangs-Festplatteninformationen konnten nicht abgerufen werden: %{error}"
+  es_ES: "No se pudo obtener la información inicial del disco: %{error}"
+  fr_FR: "Impossible d'obtenir les informations disque initiales : %{error}"
+  pl_PL: "Nie można uzyskać początkowych informacji o dysku: %{error}"
+
+system.could-not-get-new-temperature:
+  en_US: "Could not get new temperature: %{error}"
+  de_DE: "Neue Temperatur konnte nicht abgerufen werden: %{error}"
+  es_ES: "No se pudo obtener la nueva temperatura: %{error}"
+  fr_FR: "Impossible d'obtenir la nouvelle température : %{error}"
+  pl_PL: "Nie można uzyskać nowej temperatury: %{error}"
+
+system.could-not-get-new-cpu-metrics:
+  en_US: "Could not get new CPU Metrics: %{error}"
+  de_DE: "Neue CPU-Metriken konnten nicht abgerufen werden: %{error}"
+  es_ES: "No se pudieron obtener las nuevas métricas de CPU: %{error}"
+  fr_FR: "Impossible d'obtenir les nouvelles métriques CPU : %{error}"
+  pl_PL: "Nie można uzyskać nowych metryk CPU: %{error}"
+
+system.could-not-get-new-memory-metrics:
+  en_US: "Could not get new Memory Metrics: %{error}"
+  de_DE: "Neue Speichermetriken konnten nicht abgerufen werden: %{error}"
+  es_ES: "No se pudieron obtener las nuevas métricas de memoria: %{error}"
+  fr_FR: "Impossible d'obtenir les nouvelles métriques mémoire : %{error}"
+  pl_PL: "Nie można uzyskać nowych metryk pamięci: %{error}"
+
+system.could-not-get-new-disk-metrics:
+  en_US: "Could not get new Disk Metrics: %{error}"
+  de_DE: "Neue Festplattenmetriken konnten nicht abgerufen werden: %{error}"
+  es_ES: "No se pudieron obtener las nuevas métricas de disco: %{error}"
+  fr_FR: "Impossible d'obtenir les nouvelles métriques disque : %{error}"
+  pl_PL: "Nie można uzyskać nowych metryk dysku: %{error}"
+
+system.no-temperatures-available:
+  en_US: "No temperatures available"
+  de_DE: "Keine Temperaturen verfügbar"
+  es_ES: "No hay temperaturas disponibles"
+  fr_FR: "Aucune température disponible"
+  pl_PL: "Brak dostępnych temperatur"
+
+system.invalid-proc-stat-column:
+  en_US: "Invalid /proc/stat column value: %{error}"
+  de_DE: "Ungültiger /proc/stat-Spaltenwert: %{error}"
+  es_ES: "Valor de columna /proc/stat inválido: %{error}"
+  fr_FR: "Valeur de colonne /proc/stat invalide : %{error}"
+  pl_PL: "Nieprawidłowa wartość kolumny /proc/stat: %{error}"
+
+system.columns-missing-from-proc-stat:
+  en_US: "Columns missing from /proc/stat. Need 10, found %{count}"
+  de_DE: "Spalten fehlen in /proc/stat. Benötigt 10, gefunden %{count}"
+  es_ES: "Faltan columnas en /proc/stat. Se necesitan 10, se encontraron %{count}"
+  fr_FR: "Colonnes manquantes dans /proc/stat. 10 requises, %{count} trouvées"
+  pl_PL: "Brakujące kolumny w /proc/stat. Wymagane 10, znaleziono %{count}"
+
+system.invalid-meminfo-line:
+  en_US: "Invalid meminfo line: %{line}"
+  de_DE: "Ungültige meminfo-Zeile: %{line}"
+  es_ES: "Línea de meminfo inválida: %{line}"
+  fr_FR: "Ligne meminfo invalide : %{line}"
+  pl_PL: "Nieprawidłowa linia meminfo: %{line}"
+
+system.field-missing-from-meminfo:
+  en_US: "%{field} missing from /proc/meminfo"
+  de_DE: "%{field} fehlt in /proc/meminfo"
+  es_ES: "%{field} falta en /proc/meminfo"
+  fr_FR: "%{field} manquant dans /proc/meminfo"
+  pl_PL: "%{field} brakuje w /proc/meminfo"
+
+# error.rs - ErrorKind strings
+error.unknown:
+  en_US: "Unknown Error"
+  de_DE: "Unbekannter Fehler"
+  es_ES: "Error Desconocido"
+  fr_FR: "Erreur Inconnue"
+  pl_PL: "Nieznany Błąd"
+
+error.filesystem:
+  en_US: "Filesystem I/O Error"
+  de_DE: "Dateisystem-E/A-Fehler"
+  es_ES: "Error de E/S del Sistema de Archivos"
+  fr_FR: "Erreur E/S du Système de Fichiers"
+  pl_PL: "Błąd Wejścia/Wyjścia Systemu Plików"
+
+error.docker:
+  en_US: "Docker Error"
+  de_DE: "Docker-Fehler"
+  es_ES: "Error de Docker"
+  fr_FR: "Erreur Docker"
+  pl_PL: "Błąd Docker"
+
+error.config-spec-violation:
+  en_US: "Config Spec Violation"
+  de_DE: "Verletzung der Konfigurationsspezifikation"
+  es_ES: "Violación de Especificación de Configuración"
+  fr_FR: "Violation de Spécification de Configuration"
+  pl_PL: "Naruszenie Specyfikacji Konfiguracji"
+
+error.config-rules-violation:
+  en_US: "Config Rules Violation"
+  de_DE: "Verletzung der Konfigurationsregeln"
+  es_ES: "Violación de Reglas de Configuración"
+  fr_FR: "Violation des Règles de Configuration"
+  pl_PL: "Naruszenie Reguł Konfiguracji"
+
+error.not-found:
+  en_US: "Not Found"
+  de_DE: "Nicht Gefunden"
+  es_ES: "No Encontrado"
+  fr_FR: "Non Trouvé"
+  pl_PL: "Nie Znaleziono"
+
+error.incorrect-password:
+  en_US: "Incorrect Password"
+  de_DE: "Falsches Passwort"
+  es_ES: "Contraseña Incorrecta"
+  fr_FR: "Mot de Passe Incorrect"
+  pl_PL: "Nieprawidłowe Hasło"
+
+error.version-incompatible:
+  en_US: "Version Incompatible"
+  de_DE: "Version Inkompatibel"
+  es_ES: "Versión Incompatible"
+  fr_FR: "Version Incompatible"
+  pl_PL: "Wersja Niekompatybilna"
+
+error.network:
+  en_US: "Network Error"
+  de_DE: "Netzwerkfehler"
+  es_ES: "Error de Red"
+  fr_FR: "Erreur Réseau"
+  pl_PL: "Błąd Sieci"
+
+error.registry:
+  en_US: "Registry Error"
+  de_DE: "Registrierungsfehler"
+  es_ES: "Error de Registro"
+  fr_FR: "Erreur de Registre"
+  pl_PL: "Błąd Rejestru"
+
+error.serialization:
+  en_US: "Serialization Error"
+  de_DE: "Serialisierungsfehler"
+  es_ES: "Error de Serialización"
+  fr_FR: "Erreur de Sérialisation"
+  pl_PL: "Błąd Serializacji"
+
+error.deserialization:
+  en_US: "Deserialization Error"
+  de_DE: "Deserialisierungsfehler"
+  es_ES: "Error de Deserialización"
+  fr_FR: "Erreur de Désérialisation"
+  pl_PL: "Błąd Deserializacji"
+
+error.utf8:
+  en_US: "UTF-8 Parse Error"
+  de_DE: "UTF-8-Analysefehler"
+  es_ES: "Error de Análisis UTF-8"
+  fr_FR: "Erreur d'Analyse UTF-8"
+  pl_PL: "Błąd Parsowania UTF-8"
+
+error.parse-version:
+  en_US: "Version Parsing Error"
+  de_DE: "Fehler beim Analysieren der Version"
+  es_ES: "Error al Analizar la Versión"
+  fr_FR: "Erreur d'Analyse de Version"
+  pl_PL: "Błąd Parsowania Wersji"
+
+error.incorrect-disk:
+  en_US: "Incorrect Disk"
+  de_DE: "Falsche Festplatte"
+  es_ES: "Disco Incorrecto"
+  fr_FR: "Disque Incorrect"
+  pl_PL: "Nieprawidłowy Dysk"
+
+error.dependency:
+  en_US: "Dependency Error"
+  de_DE: "Abhängigkeitsfehler"
+  es_ES: "Error de Dependencia"
+  fr_FR: "Erreur de Dépendance"
+  pl_PL: "Błąd Zależności"
+
+error.parse-s9pk:
+  en_US: "S9PK Parsing Error"
+  de_DE: "S9PK-Analysefehler"
+  es_ES: "Error al Analizar S9PK"
+  fr_FR: "Erreur d'Analyse S9PK"
+  pl_PL: "Błąd Parsowania S9PK"
+
+error.parse-url:
+  en_US: "URL Parsing Error"
+  de_DE: "URL-Analysefehler"
+  es_ES: "Error al Analizar URL"
+  fr_FR: "Erreur d'Analyse d'URL"
+  pl_PL: "Błąd Parsowania URL"
+
+error.disk-not-available:
+  en_US: "Disk Not Available"
+  de_DE: "Festplatte Nicht Verfügbar"
+  es_ES: "Disco No Disponible"
+  fr_FR: "Disque Non Disponible"
+  pl_PL: "Dysk Niedostępny"
+
+error.block-device:
+  en_US: "Block Device Error"
+  de_DE: "Blockgerätefehler"
+  es_ES: "Error de Dispositivo de Bloque"
+  fr_FR: "Erreur de Périphérique Bloc"
+  pl_PL: "Błąd Urządzenia Blokowego"
+
+error.invalid-onion-address:
+  en_US: "Invalid Onion Address"
+  de_DE: "Ungültige Onion-Adresse"
+  es_ES: "Dirección Onion Inválida"
+  fr_FR: "Adresse Onion Invalide"
+  pl_PL: "Nieprawidłowy Adres Onion"
+
+error.pack:
+  en_US: "Pack Error"
+  de_DE: "Paketfehler"
+  es_ES: "Error de Empaquetado"
+  fr_FR: "Erreur de Paquet"
+  pl_PL: "Błąd Pakietu"
+
+error.validate-s9pk:
+  en_US: "S9PK Validation Error"
+  de_DE: "S9PK-Validierungsfehler"
+  es_ES: "Error de Validación S9PK"
+  fr_FR: "Erreur de Validation S9PK"
+  pl_PL: "Błąd Walidacji S9PK"
+
+error.disk-corrupted:
+  en_US: "Disk Corrupted"
+  de_DE: "Festplatte Beschädigt"
+  es_ES: "Disco Dañado"
+  fr_FR: "Disque Corrompu"
+  pl_PL: "Dysk Uszkodzony"
+
+error.tor:
+  en_US: "Tor Daemon Error"
+  de_DE: "Tor-Daemon-Fehler"
+  es_ES: "Error del Daemon Tor"
+  fr_FR: "Erreur du Démon Tor"
+  pl_PL: "Błąd Demona Tor"
+
+error.config-gen:
+  en_US: "Config Generation Error"
+  de_DE: "Fehler bei der Konfigurationsgenerierung"
+  es_ES: "Error de Generación de Configuración"
+  fr_FR: "Erreur de Génération de Configuration"
+  pl_PL: "Błąd Generowania Konfiguracji"
+
+error.parse-number:
+  en_US: "Number Parsing Error"
+  de_DE: "Fehler beim Analysieren der Zahl"
+  es_ES: "Error al Analizar Número"
+  fr_FR: "Erreur d'Analyse de Nombre"
+  pl_PL: "Błąd Parsowania Liczby"
+
+error.database:
+  en_US: "Database Error"
+  de_DE: "Datenbankfehler"
+  es_ES: "Error de Base de Datos"
+  fr_FR: "Erreur de Base de Données"
+  pl_PL: "Błąd Bazy Danych"
+
+error.invalid-id:
+  en_US: "Invalid ID"
+  de_DE: "Ungültige ID"
+  es_ES: "ID Inválido"
+  fr_FR: "ID Invalide"
+  pl_PL: "Nieprawidłowe ID"
+
+error.invalid-signature:
+  en_US: "Invalid Signature"
+  de_DE: "Ungültige Signatur"
+  es_ES: "Firma Inválida"
+  fr_FR: "Signature Invalide"
+  pl_PL: "Nieprawidłowy Podpis"
+
+error.backup:
+  en_US: "Backup Error"
+  de_DE: "Sicherungsfehler"
+  es_ES: "Error de Copia de Seguridad"
+  fr_FR: "Erreur de Sauvegarde"
+  pl_PL: "Błąd Kopii Zapasowej"
+
+error.restore:
+  en_US: "Restore Error"
+  de_DE: "Wiederherstellungsfehler"
+  es_ES: "Error de Restauración"
+  fr_FR: "Erreur de Restauration"
+  pl_PL: "Błąd Przywracania"
+
+error.authorization:
+  en_US: "Unauthorized"
+  de_DE: "Nicht Autorisiert"
+  es_ES: "No Autorizado"
+  fr_FR: "Non Autorisé"
+  pl_PL: "Brak Autoryzacji"
+
+error.auto-configure:
+  en_US: "Auto-Configure Error"
+  de_DE: "Fehler bei der Automatischen Konfiguration"
+  es_ES: "Error de Configuración Automática"
+  fr_FR: "Erreur de Configuration Automatique"
+  pl_PL: "Błąd Automatycznej Konfiguracji"
+
+error.action:
+  en_US: "Action Failed"
+  de_DE: "Aktion Fehlgeschlagen"
+  es_ES: "Acción Fallida"
+  fr_FR: "Action Échouée"
+  pl_PL: "Akcja Nie Powiodła Się"
+
+error.rate-limited:
+  en_US: "Rate Limited"
+  de_DE: "Ratenlimit Erreicht"
+  es_ES: "Límite de Velocidad Alcanzado"
+  fr_FR: "Limite de Débit Atteinte"
+  pl_PL: "Przekroczono Limit Częstotliwości"
+
+error.invalid-request:
+  en_US: "Invalid Request"
+  de_DE: "Ungültige Anfrage"
+  es_ES: "Solicitud Inválida"
+  fr_FR: "Requête Invalide"
+  pl_PL: "Nieprawidłowe Żądanie"
+
+error.migration-failed:
+  en_US: "Migration Failed"
+  de_DE: "Migration Fehlgeschlagen"
+  es_ES: "Migración Fallida"
+  fr_FR: "Migration Échouée"
+  pl_PL: "Migracja Nie Powiodła Się"
+
+error.uninitialized:
+  en_US: "Uninitialized"
+  de_DE: "Nicht Initialisiert"
+  es_ES: "No Inicializado"
+  fr_FR: "Non Initialisé"
+  pl_PL: "Niezainicjalizowany"
+
+error.parse-net-address:
+  en_US: "Net Address Parsing Error"
+  de_DE: "Fehler beim Analysieren der Netzwerkadresse"
+  es_ES: "Error al Analizar Dirección de Red"
+  fr_FR: "Erreur d'Analyse d'Adresse Réseau"
+  pl_PL: "Błąd Parsowania Adresu Sieciowego"
+
+error.parse-ssh-key:
+  en_US: "SSH Key Parsing Error"
+  de_DE: "Fehler beim Analysieren des SSH-Schlüssels"
+  es_ES: "Error al Analizar Clave SSH"
+  fr_FR: "Erreur d'Analyse de Clé SSH"
+  pl_PL: "Błąd Parsowania Klucza SSH"
+
+error.sound-error:
+  en_US: "Sound Interface Error"
+  de_DE: "Schnittstellen-Soundfehler"
+  es_ES: "Error de Interfaz de Sonido"
+  fr_FR: "Erreur d'Interface Audio"
+  pl_PL: "Błąd Interfejsu Dźwiękowego"
+
+error.parse-timestamp:
+  en_US: "Timestamp Parsing Error"
+  de_DE: "Fehler beim Analysieren des Zeitstempels"
+  es_ES: "Error al Analizar Marca de Tiempo"
+  fr_FR: "Erreur d'Analyse d'Horodatage"
+  pl_PL: "Błąd Parsowania Znacznika Czasu"
+
+error.parse-sys-info:
+  en_US: "System Info Parsing Error"
+  de_DE: "Fehler beim Analysieren der Systeminfo"
+  es_ES: "Error al Analizar Información del Sistema"
+  fr_FR: "Erreur d'Analyse des Infos Système"
+  pl_PL: "Błąd Parsowania Informacji o Systemie"
+
+error.wifi:
+  en_US: "WiFi Internal Error"
+  de_DE: "Interner WiFi-Fehler"
+  es_ES: "Error Interno de WiFi"
+  fr_FR: "Erreur Interne WiFi"
+  pl_PL: "Wewnętrzny Błąd WiFi"
+
+error.journald:
+  en_US: "Journald Error"
+  de_DE: "Journald-Fehler"
+  es_ES: "Error de Journald"
+  fr_FR: "Erreur Journald"
+  pl_PL: "Błąd Journald"
+
+error.disk-management:
+  en_US: "Disk Management Error"
+  de_DE: "Festplattenverwaltungsfehler"
+  es_ES: "Error de Gestión de Disco"
+  fr_FR: "Erreur de Gestion de Disque"
+  pl_PL: "Błąd Zarządzania Dyskiem"
+
+error.openssl:
+  en_US: "OpenSSL Internal Error"
+  de_DE: "Interner OpenSSL-Fehler"
+  es_ES: "Error Interno de OpenSSL"
+  fr_FR: "Erreur Interne OpenSSL"
+  pl_PL: "Wewnętrzny Błąd OpenSSL"
+
+error.password-hash-generation:
+  en_US: "Password Hash Generation Error"
+  de_DE: "Fehler bei der Passwort-Hash-Generierung"
+  es_ES: "Error de Generación de Hash de Contraseña"
+  fr_FR: "Erreur de Génération de Hash de Mot de Passe"
+  pl_PL: "Błąd Generowania Skrótu Hasła"
+
+error.diagnostic-mode:
+  en_US: "Server is in Diagnostic Mode"
+  de_DE: "Server Befindet Sich im Diagnosemodus"
+  es_ES: "El Servidor Está en Modo de Diagnóstico"
+  fr_FR: "Le Serveur Est en Mode Diagnostic"
+  pl_PL: "Serwer Jest w Trybie Diagnostycznym"
+
+error.parse-db-field:
+  en_US: "Database Field Parse Error"
+  de_DE: "Fehler beim Analysieren des Datenbankfelds"
+  es_ES: "Error al Analizar Campo de Base de Datos"
+  fr_FR: "Erreur d'Analyse de Champ de Base de Données"
+  pl_PL: "Błąd Parsowania Pola Bazy Danych"
+
+error.duplicate:
+  en_US: "Duplication Error"
+  de_DE: "Duplikatfehler"
+  es_ES: "Error de Duplicación"
+  fr_FR: "Erreur de Duplication"
+  pl_PL: "Błąd Duplikacji"
+
+error.multiple-errors:
+  en_US: "Multiple Errors"
+  de_DE: "Mehrere Fehler"
+  es_ES: "Múltiples Errores"
+  fr_FR: "Erreurs Multiples"
+  pl_PL: "Wiele Błędów"
+
+error.incoherent:
+  en_US: "Incoherent"
+  de_DE: "Inkohärent"
+  es_ES: "Incoherente"
+  fr_FR: "Incohérent"
+  pl_PL: "Niespójny"
+
+error.invalid-backup-target-id:
+  en_US: "Invalid Backup Target ID"
+  de_DE: "Ungültige Sicherungsziel-ID"
+  es_ES: "ID de Destino de Copia de Seguridad Inválido"
+  fr_FR: "ID de Cible de Sauvegarde Invalide"
+  pl_PL: "Nieprawidłowe ID Celu Kopii Zapasowej"
+
+error.product-key-mismatch:
+  en_US: "Incompatible Product Keys"
+  de_DE: "Inkompatible Produktschlüssel"
+  es_ES: "Claves de Producto Incompatibles"
+  fr_FR: "Clés de Produit Incompatibles"
+  pl_PL: "Niekompatybilne Klucze Produktu"
+
+error.lan-port-conflict:
+  en_US: "Incompatible LAN Port Configuration"
+  de_DE: "Inkompatible LAN-Port-Konfiguration"
+  es_ES: "Configuración de Puerto LAN Incompatible"
+  fr_FR: "Configuration de Port LAN Incompatible"
+  pl_PL: "Niekompatybilna Konfiguracja Portu LAN"
+
+error.javascript:
+  en_US: "Javascript Engine Error"
+  de_DE: "JavaScript-Engine-Fehler"
+  es_ES: "Error del Motor JavaScript"
+  fr_FR: "Erreur du Moteur JavaScript"
+  pl_PL: "Błąd Silnika JavaScript"
+
+error.pem:
+  en_US: "PEM Encoding Error"
+  de_DE: "PEM-Kodierungsfehler"
+  es_ES: "Error de Codificación PEM"
+  fr_FR: "Erreur d'Encodage PEM"
+  pl_PL: "Błąd Kodowania PEM"
+
+error.tls-init:
+  en_US: "TLS Backend Initialization Error"
+  de_DE: "TLS-Backend-Initialisierungsfehler"
+  es_ES: "Error de Inicialización del Backend TLS"
+  fr_FR: "Erreur d'Initialisation du Backend TLS"
+  pl_PL: "Błąd Inicjalizacji Backendu TLS"
+
+error.ascii:
+  en_US: "ASCII Parse Error"
+  de_DE: "ASCII-Analysefehler"
+  es_ES: "Error de Análisis ASCII"
+  fr_FR: "Erreur d'Analyse ASCII"
+  pl_PL: "Błąd Parsowania ASCII"
+
+error.missing-header:
+  en_US: "Missing Header"
+  de_DE: "Fehlender Header"
+  es_ES: "Encabezado Faltante"
+  fr_FR: "En-Tête Manquant"
+  pl_PL: "Brakujący Nagłówek"
+
+error.grub:
+  en_US: "Grub Error"
+  de_DE: "Grub-Fehler"
+  es_ES: "Error de Grub"
+  fr_FR: "Erreur Grub"
+  pl_PL: "Błąd Grub"
+
+error.systemd:
+  en_US: "Systemd Error"
+  de_DE: "Systemd-Fehler"
+  es_ES: "Error de Systemd"
+  fr_FR: "Erreur Systemd"
+  pl_PL: "Błąd Systemd"
+
+error.openssh:
+  en_US: "OpenSSH Error"
+  de_DE: "OpenSSH-Fehler"
+  es_ES: "Error de OpenSSH"
+  fr_FR: "Erreur OpenSSH"
+  pl_PL: "Błąd OpenSSH"
+
+error.zram:
+  en_US: "Zram Error"
+  de_DE: "Zram-Fehler"
+  es_ES: "Error de Zram"
+  fr_FR: "Erreur Zram"
+  pl_PL: "Błąd Zram"
+
+error.lshw:
+  en_US: "LSHW Error"
+  de_DE: "LSHW-Fehler"
+  es_ES: "Error de LSHW"
+  fr_FR: "Erreur LSHW"
+  pl_PL: "Błąd LSHW"
+
+error.cpu-settings:
+  en_US: "CPU Settings Error"
+  de_DE: "CPU-Einstellungsfehler"
+  es_ES: "Error de Configuración de CPU"
+  fr_FR: "Erreur de Paramètres CPU"
+  pl_PL: "Błąd Ustawień CPU"
+
+error.firmware:
+  en_US: "Firmware Error"
+  de_DE: "Firmware-Fehler"
+  es_ES: "Error de Firmware"
+  fr_FR: "Erreur de Firmware"
+  pl_PL: "Błąd Firmware"
+
+error.timeout:
+  en_US: "Timeout Error"
+  de_DE: "Zeitüberschreitungsfehler"
+  es_ES: "Error de Tiempo de Espera"
+  fr_FR: "Erreur de Délai d'Attente"
+  pl_PL: "Błąd Przekroczenia Czasu"
+
+error.lxc:
+  en_US: "LXC Error"
+  de_DE: "LXC-Fehler"
+  es_ES: "Error de LXC"
+  fr_FR: "Erreur LXC"
+  pl_PL: "Błąd LXC"
+
+error.cancelled:
+  en_US: "Cancelled"
+  de_DE: "Abgebrochen"
+  es_ES: "Cancelado"
+  fr_FR: "Annulé"
+  pl_PL: "Anulowano"
+
+error.git:
+  en_US: "Git Error"
+  de_DE: "Git-Fehler"
+  es_ES: "Error de Git"
+  fr_FR: "Erreur Git"
+  pl_PL: "Błąd Git"
+
+error.dbus:
+  en_US: "DBus Error"
+  de_DE: "DBus-Fehler"
+  es_ES: "Error de DBus"
+  fr_FR: "Erreur DBus"
+  pl_PL: "Błąd DBus"
+
+error.install-failed:
+  en_US: "Install Failed"
+  de_DE: "Installation Fehlgeschlagen"
+  es_ES: "Instalación Fallida"
+  fr_FR: "Installation Échouée"
+  pl_PL: "Instalacja Nie Powiodła Się"
+
+error.update-failed:
+  en_US: "Update Failed"
+  de_DE: "Aktualisierung Fehlgeschlagen"
+  es_ES: "Actualización Fallida"
+  fr_FR: "Mise à Jour Échouée"
+  pl_PL: "Aktualizacja Nie Powiodła Się"
+
+error.smtp:
+  en_US: "SMTP Error"
+  de_DE: "SMTP-Fehler"
+  es_ES: "Error de SMTP"
+  fr_FR: "Erreur SMTP"
+  pl_PL: "Błąd SMTP"
+
+error.set-sys-info:
+  en_US: "Error Setting System Info"
+  de_DE: "Fehler beim Setzen der Systeminfo"
+  es_ES: "Error al Establecer Información del Sistema"
+  fr_FR: "Erreur de Définition des Infos Système"
+  pl_PL: "Błąd Ustawiania Informacji o Systemie"
+
+# disk/main.rs
+disk.main.disk-not-found:
+  en_US: "StartOS disk not found."
+  de_DE: "StartOS-Festplatte nicht gefunden."
+  es_ES: "Disco StartOS no encontrado."
+  fr_FR: "Disque StartOS non trouvé."
+  pl_PL: "Nie znaleziono dysku StartOS."
+
+disk.main.incorrect-disk:
+  en_US: "A StartOS disk was found, but it is not the correct disk for this device."
+  de_DE: "Eine StartOS-Festplatte wurde gefunden, aber es ist nicht die richtige Festplatte für dieses Gerät."
+  es_ES: "Se encontró un disco StartOS, pero no es el disco correcto para este dispositivo."
+  fr_FR: "Un disque StartOS a été trouvé, mais ce n'est pas le bon disque pour cet appareil."
+  pl_PL: "Znaleziono dysk StartOS, ale nie jest to właściwy dysk dla tego urządzenia."
+
+# disk/util.rs
+disk.util.not-canonical-block-device:
+  en_US: "not a canonical block device"
+  de_DE: "kein kanonisches Blockgerät"
+  es_ES: "no es un dispositivo de bloque canónico"
+  fr_FR: "pas un périphérique bloc canonique"
+  pl_PL: "nie jest kanonicznym urządzeniem blokowym"
+
+disk.util.could-not-get-partition-table:
+  en_US: "Could not get partition table of %{disk}: %{error}"
+  de_DE: "Konnte Partitionstabelle von %{disk} nicht abrufen: %{error}"
+  es_ES: "No se pudo obtener la tabla de particiones de %{disk}: %{error}"
+  fr_FR: "Impossible d'obtenir la table de partitions de %{disk} : %{error}"
+  pl_PL: "Nie można pobrać tablicy partycji %{disk}: %{error}"
+
+disk.util.could-not-get-vendor:
+  en_US: "Could not get vendor of %{disk}: %{error}"
+  de_DE: "Konnte Hersteller von %{disk} nicht abrufen: %{error}"
+  es_ES: "No se pudo obtener el fabricante de %{disk}: %{error}"
+  fr_FR: "Impossible d'obtenir le fabricant de %{disk} : %{error}"
+  pl_PL: "Nie można pobrać producenta %{disk}: %{error}"
+
+disk.util.could-not-get-model:
+  en_US: "Could not get model of %{disk}: %{error}"
+  de_DE: "Konnte Modell von %{disk} nicht abrufen: %{error}"
+  es_ES: "No se pudo obtener el modelo de %{disk}: %{error}"
+  fr_FR: "Impossible d'obtenir le modèle de %{disk} : %{error}"
+  pl_PL: "Nie można pobrać modelu %{disk}: %{error}"
+
+disk.util.could-not-get-capacity:
+  en_US: "Could not get capacity of %{disk}: %{error}"
+  de_DE: "Konnte Kapazität von %{disk} nicht abrufen: %{error}"
+  es_ES: "No se pudo obtener la capacidad de %{disk}: %{error}"
+  fr_FR: "Impossible d'obtenir la capacité de %{disk} : %{error}"
+  pl_PL: "Nie można pobrać pojemności %{disk}: %{error}"
+
+disk.util.could-not-get-label:
+  en_US: "Could not get label of %{part}: %{error}"
+  de_DE: "Konnte Bezeichnung von %{part} nicht abrufen: %{error}"
+  es_ES: "No se pudo obtener la etiqueta de %{part}: %{error}"
+  fr_FR: "Impossible d'obtenir l'étiquette de %{part} : %{error}"
+  pl_PL: "Nie można pobrać etykiety %{part}: %{error}"
+
+disk.util.could-not-get-capacity-part:
+  en_US: "Could not get capacity of %{part}: %{error}"
+  de_DE: "Konnte Kapazität von %{part} nicht abrufen: %{error}"
+  es_ES: "No se pudo obtener la capacidad de %{part}: %{error}"
+  fr_FR: "Impossible d'obtenir la capacité de %{part} : %{error}"
+  pl_PL: "Nie można pobrać pojemności %{part}: %{error}"
+
+disk.util.could-not-collect-usage-info:
+  en_US: "Could not collect usage information: %{error}"
+  de_DE: "Konnte Nutzungsinformationen nicht sammeln: %{error}"
+  es_ES: "No se pudo recopilar información de uso: %{error}"
+  fr_FR: "Impossible de collecter les informations d'utilisation : %{error}"
+  pl_PL: "Nie można zebrać informacji o użyciu: %{error}"
+
+disk.util.could-not-get-usage:
+  en_US: "Could not get usage of %{part}: %{error}"
+  de_DE: "Konnte Nutzung von %{part} nicht abrufen: %{error}"
+  es_ES: "No se pudo obtener el uso de %{part}: %{error}"
+  fr_FR: "Impossible d'obtenir l'utilisation de %{part} : %{error}"
+  pl_PL: "Nie można pobrać użycia %{part}: %{error}"
+
+disk.util.error-fetching-backup-metadata:
+  en_US: "Error fetching unencrypted backup metadata: %{error}"
+  de_DE: "Fehler beim Abrufen der unverschlüsselten Sicherungsmetadaten: %{error}"
+  es_ES: "Error al obtener metadatos de copia de seguridad sin cifrar: %{error}"
+  fr_FR: "Erreur lors de la récupération des métadonnées de sauvegarde non chiffrées : %{error}"
+  pl_PL: "Błąd pobierania niezaszyfrowanych metadanych kopii zapasowej: %{error}"
+
+disk.util.error-unmounting-partition:
+  en_US: "Error unmounting partition %{part}: %{error}"
+  de_DE: "Fehler beim Aushängen der Partition %{part}: %{error}"
+  es_ES: "Error al desmontar la partición %{part}: %{error}"
+  fr_FR: "Erreur lors du démontage de la partition %{part} : %{error}"
+  pl_PL: "Błąd odmontowywania partycji %{part}: %{error}"
+
+disk.util.failed-to-parse-pvscan:
+  en_US: "Failed to parse pvscan output line: %{line}"
+  de_DE: "Fehler beim Analysieren der pvscan-Ausgabezeile: %{line}"
+  es_ES: "Error al analizar la línea de salida de pvscan: %{line}"
+  fr_FR: "Échec de l'analyse de la ligne de sortie pvscan : %{line}"
+  pl_PL: "Nie udało się przeanalizować linii wyjścia pvscan: %{line}"
+
+# disk/fsck/ext4.rs
+disk.fsck.process-terminated-by-signal:
+  en_US: "e2fsck: process terminated by signal"
+  de_DE: "e2fsck: Prozess durch Signal beendet"
+  es_ES: "e2fsck: proceso terminado por señal"
+  fr_FR: "e2fsck : processus terminé par un signal"
+  pl_PL: "e2fsck: proces zakończony sygnałem"
+
+disk.fsck.errors-not-corrected:
+  en_US: "some filesystem errors NOT corrected on %{device}:\n%{stderr}"
+  de_DE: "einige Dateisystemfehler wurden NICHT auf %{device} korrigiert:\n%{stderr}"
+  es_ES: "algunos errores del sistema de archivos NO se corrigieron en %{device}:\n%{stderr}"
+  fr_FR: "certaines erreurs du système de fichiers NON corrigées sur %{device} :\n%{stderr}"
+  pl_PL: "niektóre błędy systemu plików NIE zostały naprawione na %{device}:\n%{stderr}"
+
+disk.fsck.errors-corrected:
+  en_US: "filesystem errors corrected on %{device}:\n%{stderr}"
+  de_DE: "Dateisystemfehler auf %{device} korrigiert:\n%{stderr}"
+  es_ES: "errores del sistema de archivos corregidos en %{device}:\n%{stderr}"
+  fr_FR: "erreurs du système de fichiers corrigées sur %{device} :\n%{stderr}"
+  pl_PL: "błędy systemu plików naprawione na %{device}:\n%{stderr}"
+
+disk.fsck.reboot-required:
+  en_US: "reboot required"
+  de_DE: "Neustart erforderlich"
+  es_ES: "reinicio requerido"
+  fr_FR: "redémarrage requis"
+  pl_PL: "wymagany restart"
+
+disk.fsck.e2fsck-error:
+  en_US: "e2fsck: %{stderr}"
+  de_DE: "e2fsck: %{stderr}"
+  es_ES: "e2fsck: %{stderr}"
+  fr_FR: "e2fsck : %{stderr}"
+  pl_PL: "e2fsck: %{stderr}"
+
+# disk/mount/util.rs
+disk.mount.binding:
+  en_US: "Binding %{src} to %{dst}"
+  de_DE: "Binde %{src} an %{dst}"
+  es_ES: "Vinculando %{src} a %{dst}"
+  fr_FR: "Liaison de %{src} à %{dst}"
+  pl_PL: "Wiązanie %{src} do %{dst}"
+
+# init.rs
+init.running-preinit:
+  en_US: "Running preinit.sh"
+  de_DE: "Führe preinit.sh aus"
+  es_ES: "Ejecutando preinit.sh"
+  fr_FR: "Exécution de preinit.sh"
+  pl_PL: "Uruchamianie preinit.sh"
+
+init.enabling-local-auth:
+  en_US: "Enabling local authentication"
+  de_DE: "Aktiviere lokale Authentifizierung"
+  es_ES: "Habilitando autenticación local"
+  fr_FR: "Activation de l'authentification locale"
+  pl_PL: "Włączanie lokalnego uwierzytelniania"
+
+init.loading-database:
+  en_US: "Loading database"
+  de_DE: "Lade Datenbank"
+  es_ES: "Cargando base de datos"
+  fr_FR: "Chargement de la base de données"
+  pl_PL: "Ładowanie bazy danych"
+
+init.loading-ssh-keys:
+  en_US: "Loading SSH Keys"
+  de_DE: "Lade SSH-Schlüssel"
+  es_ES: "Cargando claves SSH"
+  fr_FR: "Chargement des clés SSH"
+  pl_PL: "Ładowanie kluczy SSH"
+
+init.starting-network-controller:
+  en_US: "Starting network controller"
+  de_DE: "Starte Netzwerkcontroller"
+  es_ES: "Iniciando controlador de red"
+  fr_FR: "Démarrage du contrôleur réseau"
+  pl_PL: "Uruchamianie kontrolera sieci"
+
+init.switching-logs-to-data-drive:
+  en_US: "Switching logs to write to data drive"
+  de_DE: "Wechsle Protokolle auf Datenlaufwerk"
+  es_ES: "Cambiando registros para escribir en unidad de datos"
+  fr_FR: "Basculement des journaux vers le disque de données"
+  pl_PL: "Przełączanie logów na dysk danych"
+
+init.loading-ca-certificate:
+  en_US: "Loading CA certificate"
+  de_DE: "Lade CA-Zertifikat"
+  es_ES: "Cargando certificado CA"
+  fr_FR: "Chargement du certificat CA"
+  pl_PL: "Ładowanie certyfikatu CA"
+
+init.loading-wifi-configuration:
+  en_US: "Loading WiFi configuration"
+  de_DE: "Lade WiFi-Konfiguration"
+  es_ES: "Cargando configuración WiFi"
+  fr_FR: "Chargement de la configuration WiFi"
+  pl_PL: "Ładowanie konfiguracji WiFi"
+
+init.initializing-temporary-files:
+  en_US: "Initializing temporary files"
+  de_DE: "Initialisiere temporäre Dateien"
+  es_ES: "Inicializando archivos temporales"
+  fr_FR: "Initialisation des fichiers temporaires"
+  pl_PL: "Inicjalizowanie plików tymczasowych"
+
+init.setting-cpu-performance-profile:
+  en_US: "Setting CPU performance profile"
+  de_DE: "Setze CPU-Leistungsprofil"
+  es_ES: "Configurando perfil de rendimiento de CPU"
+  fr_FR: "Configuration du profil de performance CPU"
+  pl_PL: "Ustawianie profilu wydajności CPU"
+
+init.synchronizing-system-clock:
+  en_US: "Synchronizing system clock"
+  de_DE: "Synchronisiere Systemuhr"
+  es_ES: "Sincronizando reloj del sistema"
+  fr_FR: "Synchronisation de l'horloge système"
+  pl_PL: "Synchronizowanie zegara systemowego"
+
+init.enabling-zram:
+  en_US: "Enabling ZRAM"
+  de_DE: "Aktiviere ZRAM"
+  es_ES: "Habilitando ZRAM"
+  fr_FR: "Activation de ZRAM"
+  pl_PL: "Włączanie ZRAM"
+
+init.updating-server-info:
+  en_US: "Updating server info"
+  de_DE: "Aktualisiere Serverinformationen"
+  es_ES: "Actualizando información del servidor"
+  fr_FR: "Mise à jour des informations du serveur"
+  pl_PL: "Aktualizowanie informacji o serwerze"
+
+init.launching-service-intranet:
+  en_US: "Launching service intranet"
+  de_DE: "Starte Service-Intranet"
+  es_ES: "Iniciando intranet de servicios"
+  fr_FR: "Lancement de l'intranet de services"
+  pl_PL: "Uruchamianie intranetu usług"
+
+init.validating-database:
+  en_US: "Validating database"
+  de_DE: "Validiere Datenbank"
+  es_ES: "Validando base de datos"
+  fr_FR: "Validation de la base de données"
+  pl_PL: "Walidowanie bazy danych"
+
+init.running-postinit:
+  en_US: "Running postinit.sh"
+  de_DE: "Führe postinit.sh aus"
+  es_ES: "Ejecutando postinit.sh"
+  fr_FR: "Exécution de postinit.sh"
+  pl_PL: "Uruchamianie postinit.sh"
+
+init.error-running-script:
+  en_US: "Error Running %{script}: %{error}"
+  de_DE: "Fehler beim Ausführen von %{script}: %{error}"
+  es_ES: "Error al ejecutar %{script}: %{error}"
+  fr_FR: "Erreur lors de l'exécution de %{script} : %{error}"
+  pl_PL: "Błąd uruchamiania %{script}: %{error}"
+
+init.cpu-governor-not-available:
+  en_US: "CPU Governor \"%{governor}\" Not Available"
+  de_DE: "CPU-Governor \"%{governor}\" nicht verfügbar"
+  es_ES: "CPU Governor \"%{governor}\" no disponible"
+  fr_FR: "Gouverneur CPU \"%{governor}\" non disponible"
+  pl_PL: "Governor CPU \"%{governor}\" niedostępny"
+
+init.setting-cpu-governor:
+  en_US: "Setting CPU Governor to \"%{governor}\""
+  de_DE: "Setze CPU-Governor auf \"%{governor}\""
+  es_ES: "Configurando CPU Governor a \"%{governor}\""
+  fr_FR: "Configuration du gouverneur CPU à \"%{governor}\""
+  pl_PL: "Ustawianie governora CPU na \"%{governor}\""
+
+init.clock-sync-timeout:
+  en_US: "Timed out waiting for system time to synchronize"
+  de_DE: "Zeitüberschreitung beim Warten auf Systemzeitsynchronisierung"
+  es_ES: "Tiempo de espera agotado esperando sincronización de hora del sistema"
+  fr_FR: "Délai d'attente dépassé pour la synchronisation de l'heure système"
+  pl_PL: "Przekroczono limit czasu oczekiwania na synchronizację czasu systemowego"
+
+init.enabled-zram:
+  en_US: "Enabled ZRAM"
+  de_DE: "ZRAM aktiviert"
+  es_ES: "ZRAM habilitado"
+  fr_FR: "ZRAM activé"
+  pl_PL: "Włączono ZRAM"
+
+init.system-initialized:
+  en_US: "System initialized."
+  de_DE: "System initialisiert."
+  es_ES: "Sistema inicializado."
+  fr_FR: "Système initialisé."
+  pl_PL: "System zainicjalizowany."
+
+init.error-closing-websocket:
+  en_US: "error closing init progress websocket: %{error}"
+  de_DE: "Fehler beim Schließen des Init-Fortschritts-WebSockets: %{error}"
+  es_ES: "error al cerrar websocket de progreso de inicio: %{error}"
+  fr_FR: "erreur lors de la fermeture du websocket de progression d'init : %{error}"
+  pl_PL: "błąd zamykania websocketu postępu inicjalizacji: %{error}"
+
+init.initializing:
+  en_US: "Initializing..."
+  de_DE: "Initialisiere..."
+  es_ES: "Inicializando..."
+  fr_FR: "Initialisation..."
+  pl_PL: "Inicjalizowanie..."
+
+# backup/backup_bulk.rs
+backup.bulk.complete-title:
+  en_US: "Backup Complete"
+  de_DE: "Sicherung abgeschlossen"
+  es_ES: "Copia de seguridad completada"
+  fr_FR: "Sauvegarde terminée"
+  pl_PL: "Kopia zapasowa zakończona"
+
+backup.bulk.complete-message:
+  en_US: "Your backup has completed"
+  de_DE: "Ihre Sicherung wurde abgeschlossen"
+  es_ES: "Su copia de seguridad se ha completado"
+  fr_FR: "Votre sauvegarde est terminée"
+  pl_PL: "Twoja kopia zapasowa została zakończona"
+
+backup.bulk.complete-with-failures:
+  en_US: "Your backup has completed, but some package(s) failed to backup"
+  de_DE: "Ihre Sicherung wurde abgeschlossen, aber einige Pakete konnten nicht gesichert werden"
+  es_ES: "Su copia de seguridad se completó, pero algunos paquetes fallaron"
+  fr_FR: "Votre sauvegarde est terminée, mais certains paquets n'ont pas pu être sauvegardés"
+  pl_PL: "Twoja kopia zapasowa została zakończona, ale niektóre pakiety nie zostały zapisane"
+
+backup.bulk.failed-error:
+  en_US: "Backup Failed: %{error}"
+  de_DE: "Sicherung fehlgeschlagen: %{error}"
+  es_ES: "Copia de seguridad fallida: %{error}"
+  fr_FR: "Échec de la sauvegarde : %{error}"
+  pl_PL: "Kopia zapasowa nie powiodła się: %{error}"
+
+backup.bulk.failed-title:
+  en_US: "Backup Failed"
+  de_DE: "Sicherung fehlgeschlagen"
+  es_ES: "Copia de seguridad fallida"
+  fr_FR: "Échec de la sauvegarde"
+  pl_PL: "Kopia zapasowa nie powiodła się"
+
+backup.bulk.failed-message:
+  en_US: "Your backup failed to complete."
+  de_DE: "Ihre Sicherung konnte nicht abgeschlossen werden."
+  es_ES: "Su copia de seguridad no se pudo completar."
+  fr_FR: "Votre sauvegarde n'a pas pu être terminée."
+  pl_PL: "Twoja kopia zapasowa nie została ukończona."
+
+backup.bulk.already-backing-up:
+  en_US: "Server is already backing up!"
+  de_DE: "Server führt bereits eine Sicherung durch!"
+  es_ES: "¡El servidor ya está realizando una copia de seguridad!"
+  fr_FR: "Le serveur est déjà en cours de sauvegarde !"
+  pl_PL: "Serwer już wykonuje kopię zapasową!"
+
+backup.bulk.leaked-reference:
+  en_US: "leaked reference to BackupMountGuard"
+  de_DE: "Leckreferenz auf BackupMountGuard"
+  es_ES: "referencia filtrada a BackupMountGuard"
+  fr_FR: "référence fuitée vers BackupMountGuard"
+  pl_PL: "wyciekła referencja do BackupMountGuard"
+
+# backup/restore.rs
+backup.restore.package-error:
+  en_US: "Error restoring package %{id}: %{error}"
+  de_DE: "Fehler beim Wiederherstellen des Pakets %{id}: %{error}"
+  es_ES: "Error al restaurar el paquete %{id}: %{error}"
+  fr_FR: "Erreur lors de la restauration du paquet %{id} : %{error}"
+  pl_PL: "Błąd przywracania pakietu %{id}: %{error}"
+
+# backup/target/cifs.rs
+backup.target.cifs.target-not-found:
+  en_US: "Backup Target ID %{id} Not Found"
+  de_DE: "Sicherungsziel-ID %{id} nicht gefunden"
+  es_ES: "ID de destino de copia de seguridad %{id} no encontrado"
+  fr_FR: "ID de cible de sauvegarde %{id} non trouvé"
+  pl_PL: "Nie znaleziono ID celu kopii zapasowej %{id}"
+
+backup.target.cifs.target-not-found-id:
+  en_US: "Backup Target ID %{id} Not Found"
+  de_DE: "Sicherungsziel-ID %{id} nicht gefunden"
+  es_ES: "ID de destino de copia de seguridad %{id} no encontrado"
+  fr_FR: "ID de cible de sauvegarde %{id} non trouvé"
+  pl_PL: "Nie znaleziono ID celu kopii zapasowej %{id}"
+
+# net/ssl.rs
+net.ssl.unreachable:
+  en_US: "unreachable"
+  de_DE: "unerreichbar"
+  es_ES: "inalcanzable"
+  fr_FR: "inaccessible"
+  pl_PL: "nieosiągalny"
+
+# net/tor/arti.rs
+net.tor.invalid-ed25519-key:
+  en_US: "invalid ed25519 expanded secret key"
+  de_DE: "ungültiger erweiterter ed25519-Geheimschlüssel"
+  es_ES: "clave secreta ed25519 expandida inválida"
+  fr_FR: "clé secrète ed25519 étendue invalide"
+  pl_PL: "nieprawidłowy rozszerzony klucz tajny ed25519"
+
+net.tor.bootstrap-no-progress:
+  en_US: "Bootstrap has not made progress for %{duration}"
+  de_DE: "Bootstrap hat seit %{duration} keinen Fortschritt gemacht"
+  es_ES: "Bootstrap no ha progresado durante %{duration}"
+  fr_FR: "Bootstrap n'a pas progressé depuis %{duration}"
+  pl_PL: "Bootstrap nie poczynił postępów przez %{duration}"
+
+net.tor.bootstrap-error:
+  en_US: "Tor Bootstrap Error: %{error}"
+  de_DE: "Tor-Bootstrap-Fehler: %{error}"
+  es_ES: "Error de Bootstrap de Tor: %{error}"
+  fr_FR: "Erreur de Bootstrap Tor : %{error}"
+  pl_PL: "Błąd Bootstrap Tor: %{error}"
+
+net.tor.health-error:
+  en_US: "Tor Health Error: %{error}"
+  de_DE: "Tor-Gesundheitsfehler: %{error}"
+  es_ES: "Error de salud de Tor: %{error}"
+  fr_FR: "Erreur de santé Tor : %{error}"
+  pl_PL: "Błąd kondycji Tor: %{error}"
+
+net.tor.status-stream-ended:
+  en_US: "status event stream ended"
+  de_DE: "Status-Ereignisstrom beendet"
+  es_ES: "flujo de eventos de estado terminado"
+  fr_FR: "flux d'événements de statut terminé"
+  pl_PL: "strumień zdarzeń statusu zakończony"
+
+net.tor.client-health-error:
+  en_US: "Tor Client Health Error: %{error}"
+  de_DE: "Tor-Client-Gesundheitsfehler: %{error}"
+  es_ES: "Error de salud del cliente Tor: %{error}"
+  fr_FR: "Erreur de santé du client Tor : %{error}"
+  pl_PL: "Błąd kondycji klienta Tor: %{error}"
+
+net.tor.health-check-failed-recycling:
+  en_US: "Client failed health check %{count} times, recycling"
+  de_DE: "Client hat Gesundheitsprüfung %{count} Mal nicht bestanden, wird recycelt"
+  es_ES: "El cliente falló la verificación de salud %{count} veces, reciclando"
+  fr_FR: "Le client a échoué au bilan de santé %{count} fois, recyclage"
+  pl_PL: "Klient nie przeszedł sprawdzenia kondycji %{count} razy, ponowne uruchamianie"
+
+net.tor.bootstrapper-error:
+  en_US: "Tor Bootstrapper Error: %{error}"
+  de_DE: "Tor-Bootstrapper-Fehler: %{error}"
+  es_ES: "Error del Bootstrapper de Tor: %{error}"
+  fr_FR: "Erreur du Bootstrapper Tor : %{error}"
+  pl_PL: "Błąd Bootstrappera Tor: %{error}"
+
+net.tor.client-creation-error:
+  en_US: "Tor Client Creation Error: %{error}"
+  de_DE: "Fehler bei der Erstellung des Tor-Clients: %{error}"
+  es_ES: "Error de creación del cliente Tor: %{error}"
+  fr_FR: "Erreur de création du client Tor : %{error}"
+  pl_PL: "Błąd tworzenia klienta Tor: %{error}"
+
+net.tor.failed-to-set-tcp-keepalive:
+  en_US: "Failed to set tcp keepalive: %{error}"
+  de_DE: "Fehler beim Setzen von TCP-Keepalive: %{error}"
+  es_ES: "Error al configurar tcp keepalive: %{error}"
+  fr_FR: "Échec de la configuration de tcp keepalive : %{error}"
+  pl_PL: "Nie udało się ustawić tcp keepalive: %{error}"
+
+net.tor.client-error:
+  en_US: "Tor Client Error: %{error}"
+  de_DE: "Tor-Client-Fehler: %{error}"
+  es_ES: "Error del cliente Tor: %{error}"
+  fr_FR: "Erreur du client Tor : %{error}"
+  pl_PL: "Błąd klienta Tor: %{error}"
+
+# net/wifi.rs
+net.wifi.ssid-no-special-characters:
+  en_US: "SSID may not have special characters"
+  de_DE: "SSID darf keine Sonderzeichen enthalten"
+  es_ES: "El SSID no puede tener caracteres especiales"
+  fr_FR: "Le SSID ne peut pas contenir de caractères spéciaux"
+  pl_PL: "SSID nie może zawierać znaków specjalnych"
+
+net.wifi.password-no-special-characters:
+  en_US: "WiFi Password may not have special characters"
+  de_DE: "WiFi-Passwort darf keine Sonderzeichen enthalten"
+  es_ES: "La contraseña WiFi no puede tener caracteres especiales"
+  fr_FR: "Le mot de passe WiFi ne peut pas contenir de caractères spéciaux"
+  pl_PL: "Hasło WiFi nie może zawierać znaków specjalnych"
+
+net.wifi.adding-network:
+  en_US: "Adding new WiFi network: '%{ssid}'"
+  de_DE: "Füge neues WiFi-Netzwerk hinzu: '%{ssid}'"
+  es_ES: "Añadiendo nueva red WiFi: '%{ssid}'"
+  fr_FR: "Ajout d'un nouveau réseau WiFi : '%{ssid}'"
+  pl_PL: "Dodawanie nowej sieci WiFi: '%{ssid}'"
+
+net.wifi.no-interface-available:
+  en_US: "No WiFi interface available"
+  de_DE: "Keine WiFi-Schnittstelle verfügbar"
+  es_ES: "No hay interfaz WiFi disponible"
+  fr_FR: "Aucune interface WiFi disponible"
+  pl_PL: "Brak dostępnego interfejsu WiFi"
+
+net.wifi.failed-to-add-network:
+  en_US: "Failed to add new WiFi network '%{ssid}': %{error}"
+  de_DE: "Fehler beim Hinzufügen des neuen WiFi-Netzwerks '%{ssid}': %{error}"
+  es_ES: "Error al añadir nueva red WiFi '%{ssid}': %{error}"
+  fr_FR: "Échec de l'ajout du nouveau réseau WiFi '%{ssid}' : %{error}"
+  pl_PL: "Nie udało się dodać nowej sieci WiFi '%{ssid}': %{error}"
+
+net.wifi.failed-adding:
+  en_US: "Failed adding %{ssid}"
+  de_DE: "Fehler beim Hinzufügen von %{ssid}"
+  es_ES: "Error al añadir %{ssid}"
+  fr_FR: "Échec de l'ajout de %{ssid}"
+  pl_PL: "Nie udało się dodać %{ssid}"
+
+net.wifi.connected-successfully:
+  en_US: "Successfully connected to WiFi: '%{ssid}'"
+  de_DE: "Erfolgreich mit WiFi verbunden: '%{ssid}'"
+  es_ES: "Conectado exitosamente a WiFi: '%{ssid}'"
+  fr_FR: "Connecté avec succès au WiFi : '%{ssid}'"
+  pl_PL: "Pomyślnie połączono z WiFi: '%{ssid}'"
+
+net.wifi.connection-failed:
+  en_US: "Failed to connect to WiFi: '%{ssid}'"
+  de_DE: "Verbindung zu WiFi fehlgeschlagen: '%{ssid}'"
+  es_ES: "Error al conectar a WiFi: '%{ssid}'"
+  fr_FR: "Échec de la connexion au WiFi : '%{ssid}'"
+  pl_PL: "Nie udało się połączyć z WiFi: '%{ssid}'"
+
+net.wifi.no-wifi-to-revert:
+  en_US: "No WiFi to revert to!"
+  de_DE: "Kein WiFi zum Zurücksetzen!"
+  es_ES: "¡No hay WiFi al que volver!"
+  fr_FR: "Aucun WiFi vers lequel revenir !"
+  pl_PL: "Brak WiFi do przywrócenia!"
+
+net.wifi.failed-to-connect:
+  en_US: "Failed to connect to WiFi network '%{ssid}': %{error}"
+  de_DE: "Verbindung zum WiFi-Netzwerk '%{ssid}' fehlgeschlagen: %{error}"
+  es_ES: "Error al conectar a la red WiFi '%{ssid}': %{error}"
+  fr_FR: "Échec de la connexion au réseau WiFi '%{ssid}' : %{error}"
+  pl_PL: "Nie udało się połączyć z siecią WiFi '%{ssid}': %{error}"
+
+net.wifi.cant-connect:
+  en_US: "Can't connect to %{ssid}"
+  de_DE: "Kann nicht mit %{ssid} verbinden"
+  es_ES: "No se puede conectar a %{ssid}"
+  fr_FR: "Impossible de se connecter à %{ssid}"
+  pl_PL: "Nie można połączyć się z %{ssid}"
+
+net.wifi.forbidden-delete-would-disconnect:
+  en_US: "Forbidden: Deleting this network would make your server unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."
+  de_DE: "Verboten: Das Löschen dieses Netzwerks würde Ihren Server unerreichbar machen. Verbinden Sie sich mit Ethernet oder einem anderen WiFi-Netzwerk, um dies zu beheben."
+  es_ES: "Prohibido: Eliminar esta red haría que su servidor sea inalcanzable. Conéctese a ethernet o a una red WiFi diferente para solucionar esto."
+  fr_FR: "Interdit : Supprimer ce réseau rendrait votre serveur inaccessible. Connectez-vous à ethernet ou à un autre réseau WiFi pour remédier à cela."
+  pl_PL: "Zabronione: Usunięcie tej sieci uczyniłoby serwer nieosiągalnym. Podłącz się przez ethernet lub do innej sieci WiFi, aby to naprawić."
+
+net.wifi.wont-change-country-without-ethernet:
+  en_US: "Won't change country without hardwire connection"
+  de_DE: "Länderwechsel ohne Kabelverbindung nicht möglich"
+  es_ES: "No cambiará el país sin conexión por cable"
+  fr_FR: "Ne changera pas de pays sans connexion filaire"
+  pl_PL: "Nie zmieni kraju bez połączenia kablowego"
+
+net.wifi.failed-to-set-interface:
+  en_US: "Failed to set interface %{interface} for %{ssid}"
+  de_DE: "Fehler beim Setzen der Schnittstelle %{interface} für %{ssid}"
+  es_ES: "Error al configurar la interfaz %{interface} para %{ssid}"
+  fr_FR: "Échec de la configuration de l'interface %{interface} pour %{ssid}"
+  pl_PL: "Nie udało się ustawić interfejsu %{interface} dla %{ssid}"
+
+net.wifi.could-not-find-country-config:
+  en_US: "Could not find a country config lines"
+  de_DE: "Länder-Konfigurationszeilen nicht gefunden"
+  es_ES: "No se pudieron encontrar líneas de configuración de país"
+  fr_FR: "Impossible de trouver les lignes de configuration de pays"
+  pl_PL: "Nie można znaleźć linii konfiguracji kraju"
+
+net.wifi.could-not-parse-country-config:
+  en_US: "Could not find a country config with regex"
+  de_DE: "Länder-Konfiguration mit Regex nicht gefunden"
+  es_ES: "No se pudo encontrar una configuración de país con regex"
+  fr_FR: "Impossible de trouver une configuration de pays avec regex"
+  pl_PL: "Nie można znaleźć konfiguracji kraju za pomocą regex"
+
+net.wifi.invalid-country-code:
+  en_US: "Invalid Country Code: %{country}"
+  de_DE: "Ungültiger Ländercode: %{country}"
+  es_ES: "Código de país inválido: %{country}"
+  fr_FR: "Code de pays invalide : %{country}"
+  pl_PL: "Nieprawidłowy kod kraju: %{country}"
+
+net.wifi.ssid-not-found:
+  en_US: "SSID Not Found"
+  de_DE: "SSID nicht gefunden"
+  es_ES: "SSID no encontrado"
+  fr_FR: "SSID non trouvé"
+  pl_PL: "Nie znaleziono SSID"
+
+net.wifi.setting-region:
+  en_US: "Setting the region"
+  de_DE: "Region wird gesetzt"
+  es_ES: "Configurando la región"
+  fr_FR: "Configuration de la région"
+  pl_PL: "Ustawianie regionu"
+
+net.wifi.setting-region-fallback:
+  en_US: "Setting the region fallback"
+  de_DE: "Regions-Fallback wird gesetzt"
+  es_ES: "Configurando la región de respaldo"
+  fr_FR: "Configuration de la région de secours"
+  pl_PL: "Ustawianie regionu awaryjnego"
+
+# net/forward.rs
+net.forward.no-dynamic-ports-available:
+  en_US: "No more dynamic ports available!"
+  de_DE: "Keine dynamischen Ports mehr verfügbar!"
+  es_ES: "¡No hay más puertos dinámicos disponibles!"
+  fr_FR: "Plus de ports dynamiques disponibles !"
+  pl_PL: "Brak dostępnych portów dynamicznych!"
+
+net.forward.error-initializing-controller:
+  en_US: "error initializing PortForwardController: %{error}"
+  de_DE: "Fehler bei der Initialisierung des PortForwardControllers: %{error}"
+  es_ES: "error al inicializar PortForwardController: %{error}"
+  fr_FR: "erreur lors de l'initialisation de PortForwardController : %{error}"
+  pl_PL: "błąd inicjalizacji PortForwardController: %{error}"
+
+net.forward.mismatched-external-port:
+  en_US: "Mismatched external port in InterfaceForwardEntry"
+  de_DE: "Nicht übereinstimmender externer Port in InterfaceForwardEntry"
+  es_ES: "Puerto externo no coincide en InterfaceForwardEntry"
+  fr_FR: "Port externe incompatible dans InterfaceForwardEntry"
+  pl_PL: "Niezgodny port zewnętrzny w InterfaceForwardEntry"
+
+net.forward.controller-thread-exited:
+  en_US: "PortForwardController thread has exited"
+  de_DE: "PortForwardController-Thread wurde beendet"
+  es_ES: "El hilo PortForwardController ha terminado"
+  fr_FR: "Le thread PortForwardController s'est terminé"
+  pl_PL: "Wątek PortForwardController zakończył się"
+
+# net/gateway.rs
+net.gateway.no-devices-returned:
+  en_US: "NetworkManager returned no devices. Trying again..."
+  de_DE: "NetworkManager hat keine Geräte zurückgegeben. Versuche erneut..."
+  es_ES: "NetworkManager no devolvió dispositivos. Intentando de nuevo..."
+  fr_FR: "NetworkManager n'a renvoyé aucun appareil. Nouvelle tentative..."
+  pl_PL: "NetworkManager nie zwrócił żadnych urządzeń. Ponowna próba..."
+
+net.gateway.failed-to-determine-wan-ip:
+  en_US: "Failed to determine WAN IP for %{iface}: %{error}"
+  de_DE: "WAN-IP für %{iface} konnte nicht ermittelt werden: %{error}"
+  es_ES: "Error al determinar IP WAN para %{iface}: %{error}"
+  fr_FR: "Échec de la détermination de l'IP WAN pour %{iface} : %{error}"
+  pl_PL: "Nie udało się określić IP WAN dla %{iface}: %{error}"
+
+net.gateway.error-loading-interface-info:
+  en_US: "Error loading network interface info: %{error}"
+  de_DE: "Fehler beim Laden der Netzwerkschnittstelleninformationen: %{error}"
+  es_ES: "Error al cargar información de interfaz de red: %{error}"
+  fr_FR: "Erreur lors du chargement des infos d'interface réseau : %{error}"
+  pl_PL: "Błąd ładowania informacji o interfejsie sieciowym: %{error}"
+
+net.gateway.error-syncing-ip-info:
+  en_US: "Error syncing ip info to db: %{error}"
+  de_DE: "Fehler bei der Synchronisierung der IP-Informationen zur Datenbank: %{error}"
+  es_ES: "Error al sincronizar info de IP a la base de datos: %{error}"
+  fr_FR: "Erreur de synchronisation des infos IP vers la BDD : %{error}"
+  pl_PL: "Błąd synchronizacji informacji IP z bazą danych: %{error}"
+
+net.gateway.cannot-forget-connected-interface:
+  en_US: "Cannot forget currently connected interface"
+  de_DE: "Aktuell verbundene Schnittstelle kann nicht vergessen werden"
+  es_ES: "No se puede olvidar la interfaz actualmente conectada"
+  fr_FR: "Impossible d'oublier l'interface actuellement connectée"
+  pl_PL: "Nie można zapomnieć aktualnie podłączonego interfejsu"
+
+net.gateway.cannot-delete-without-connection:
+  en_US: "Cannot delete device without active connection"
+  de_DE: "Gerät kann nicht ohne aktive Verbindung gelöscht werden"
+  es_ES: "No se puede eliminar el dispositivo sin conexión activa"
+  fr_FR: "Impossible de supprimer l'appareil sans connexion active"
+  pl_PL: "Nie można usunąć urządzenia bez aktywnego połączenia"
+
+# net/dns.rs
+net.dns.timeout-updating-catalog:
+  en_US: "timed out waiting to update dns catalog"
+  de_DE: "Zeitüberschreitung beim Warten auf Aktualisierung des DNS-Katalogs"
+  es_ES: "tiempo de espera agotado esperando actualizar catálogo DNS"
+  fr_FR: "délai d'attente dépassé pour la mise à jour du catalogue DNS"
+  pl_PL: "przekroczono limit czasu oczekiwania na aktualizację katalogu DNS"
+
+net.dns.could-not-determine-source-interface:
+  en_US: "Could not determine source interface of %{src}"
+  de_DE: "Quellschnittstelle von %{src} konnte nicht ermittelt werden"
+  es_ES: "No se pudo determinar la interfaz de origen de %{src}"
+  fr_FR: "Impossible de déterminer l'interface source de %{src}"
+  pl_PL: "Nie można określić interfejsu źródłowego %{src}"
+
+net.dns.error-resolving-internal:
+  en_US: "Error resolving internal DNS: %{error}"
+  de_DE: "Fehler bei der Auflösung des internen DNS: %{error}"
+  es_ES: "Error al resolver DNS interno: %{error}"
+  fr_FR: "Erreur de résolution DNS interne : %{error}"
+  pl_PL: "Błąd rozwiązywania wewnętrznego DNS: %{error}"
+
+net.dns.server-thread-exited:
+  en_US: "DNS Server Thread has exited"
+  de_DE: "DNS-Server-Thread wurde beendet"
+  es_ES: "El hilo del servidor DNS ha terminado"
+  fr_FR: "Le thread du serveur DNS s'est terminé"
+  pl_PL: "Wątek serwera DNS zakończył się"
+
+# lxc/mod.rs
+lxc.mod.rootfs-not-empty:
+  en_US: "rootfs is not empty, refusing to delete"
+  de_DE: "rootfs ist nicht leer, Löschung verweigert"
+  es_ES: "rootfs no está vacío, se rechaza eliminar"
+  fr_FR: "rootfs n'est pas vide, suppression refusée"
+  pl_PL: "rootfs nie jest pusty, odmowa usunięcia"
+
+lxc.mod.dhcp-timeout:
+  en_US: "Timed out waiting for container to acquire DHCP lease"
+  de_DE: "Zeitüberschreitung beim Warten auf DHCP-Lease für Container"
+  es_ES: "Tiempo de espera agotado esperando que el contenedor adquiera lease DHCP"
+  fr_FR: "Délai d'attente dépassé pour l'acquisition du bail DHCP par le conteneur"
+  pl_PL: "Przekroczono limit czasu oczekiwania na uzyskanie dzierżawy DHCP przez kontener"
+
+lxc.mod.command-failed:
+  en_US: "Command failed with exit code: %{code}\nMessage: %{message}"
+  de_DE: "Befehl mit Exit-Code fehlgeschlagen: %{code}\nNachricht: %{message}"
+  es_ES: "Comando falló con código de salida: %{code}\nMensaje: %{message}"
+  fr_FR: "La commande a échoué avec le code de sortie : %{code}\nMessage : %{message}"
+  pl_PL: "Polecenie nie powiodło się z kodem wyjścia: %{code}\nKomunikat: %{message}"
+
+lxc.mod.socket-timeout:
+  en_US: "timed out waiting for socket"
+  de_DE: "Zeitüberschreitung beim Warten auf Socket"
+  es_ES: "tiempo de espera agotado esperando socket"
+  fr_FR: "délai d'attente dépassé pour le socket"
+  pl_PL: "przekroczono limit czasu oczekiwania na gniazdo"
+
+lxc.mod.connected-to-socket:
+  en_US: "Connected to socket in %{elapsed}"
+  de_DE: "Mit Socket verbunden in %{elapsed}"
+  es_ES: "Conectado al socket en %{elapsed}"
+  fr_FR: "Connecté au socket en %{elapsed}"
+  pl_PL: "Połączono z gniazdem w %{elapsed}"
+
+lxc.mod.container-ungracefully-dropped:
+  en_US: "Container %{container} was ungracefully dropped. Cleaning up dangling containers..."
+  de_DE: "Container %{container} wurde unsauber beendet. Bereinige hängende Container..."
+  es_ES: "El contenedor %{container} fue eliminado abruptamente. Limpiando contenedores colgantes..."
+  fr_FR: "Le conteneur %{container} a été abandonné brutalement. Nettoyage des conteneurs orphelins..."
+  pl_PL: "Kontener %{container} został nieprawidłowo usunięty. Czyszczenie wiszących kontenerów..."
+
+lxc.mod.error-reading-crashed-logs:
+  en_US: "Error reading logs from crashed container: %{error}"
+  de_DE: "Fehler beim Lesen der Protokolle vom abgestürzten Container: %{error}"
+  es_ES: "Error al leer registros del contenedor caído: %{error}"
+  fr_FR: "Erreur de lecture des journaux du conteneur planté : %{error}"
+  pl_PL: "Błąd odczytu logów z uszkodzonego kontenera: %{error}"
+
+lxc.mod.error-cleaning-up-containers:
+  en_US: "Error cleaning up dangling LXC containers: %{error}"
+  de_DE: "Fehler bei der Bereinigung hängender LXC-Container: %{error}"
+  es_ES: "Error al limpiar contenedores LXC colgantes: %{error}"
+  fr_FR: "Erreur lors du nettoyage des conteneurs LXC orphelins : %{error}"
+  pl_PL: "Błąd czyszczenia wiszących kontenerów LXC: %{error}"
+
+lxc.mod.cleaned-up-containers:
+  en_US: "Successfully cleaned up dangling LXC containers"
+  de_DE: "Hängende LXC-Container erfolgreich bereinigt"
+  es_ES: "Contenedores LXC colgantes limpiados exitosamente"
+  fr_FR: "Conteneurs LXC orphelins nettoyés avec succès"
+  pl_PL: "Pomyślnie wyczyszczono wiszące kontenery LXC"
+
+# registry/admin.rs
+registry.admin.unknown-signer:
+  en_US: "Unknown signer"
+  de_DE: "Unbekannter Unterzeichner"
+  es_ES: "Firmante desconocido"
+  fr_FR: "Signataire inconnu"
+  pl_PL: "Nieznany sygnatariusz"
+
+registry.admin.signer-already-exists:
+  en_US: "A signer %{guid} (%{name}) already exists with a matching key"
+  de_DE: "Ein Unterzeichner %{guid} (%{name}) existiert bereits mit einem passenden Schlüssel"
+  es_ES: "Un firmante %{guid} (%{name}) ya existe con una clave coincidente"
+  fr_FR: "Un signataire %{guid} (%{name}) existe déjà avec une clé correspondante"
+  pl_PL: "Sygnatariusz %{guid} (%{name}) już istnieje z pasującym kluczem"
+
+# registry/signer.rs
+registry.signer.not-accepted:
+  en_US: "Signer(s) not accepted"
+  de_DE: "Unterzeichner nicht akzeptiert"
+  es_ES: "Firmante(s) no aceptado(s)"
+  fr_FR: "Signataire(s) non accepté(s)"
+  pl_PL: "Sygnatariusz(e) nieakceptowany(i)"
+
+# registry/asset.rs
+registry.asset.failed-to-load-http-url:
+  en_US: "Failed to load any HTTP URL"
+  de_DE: "Fehler beim Laden einer HTTP-URL"
+  es_ES: "Error al cargar cualquier URL HTTP"
+  fr_FR: "Échec du chargement de toute URL HTTP"
+  pl_PL: "Nie udało się załadować żadnego adresu HTTP"
+
+# registry/context.rs
+registry.context.missing-hostname:
+  en_US: "Missing required configuration: registry-hostname"
+  de_DE: "Fehlende erforderliche Konfiguration: registry-hostname"
+  es_ES: "Falta configuración requerida: registry-hostname"
+  fr_FR: "Configuration requise manquante : registry-hostname"
+  pl_PL: "Brak wymaganej konfiguracji: registry-hostname"
+
+registry.context.registry-required:
+  en_US: "`--registry` required"
+  de_DE: "`--registry` erforderlich"
+  es_ES: "`--registry` requerido"
+  fr_FR: "`--registry` requis"
+  pl_PL: "Wymagany `--registry`"
+
+registry.context.unauthorized:
+  en_US: "Unauthorized"
+  de_DE: "Nicht autorisiert"
+  es_ES: "No autorizado"
+  fr_FR: "Non autorisé"
+  pl_PL: "Brak autoryzacji"
+
+# registry/os/asset/add.rs
+registry.os.asset.commitment-mismatch:
+  en_US: "Commitment does not match"
+  de_DE: "Commitment stimmt nicht überein"
+  es_ES: "El compromiso no coincide"
+  fr_FR: "L'engagement ne correspond pas"
+  pl_PL: "Zobowiązanie nie pasuje"
+
+registry.os.asset.unauthorized:
+  en_US: "Unauthorized"
+  de_DE: "Nicht autorisiert"
+  es_ES: "No autorizado"
+  fr_FR: "Non autorisé"
+  pl_PL: "Brak autoryzacji"
+
+registry.os.asset.unknown-extension:
+  en_US: "Unknown extension"
+  de_DE: "Unbekannte Erweiterung"
+  es_ES: "Extensión desconocida"
+  fr_FR: "Extension inconnue"
+  pl_PL: "Nieznane rozszerzenie"
+
+registry.os.asset.failed-read-metadata:
+  en_US: "Failed to read file metadata"
+  de_DE: "Fehler beim Lesen der Dateimetadaten"
+  es_ES: "Error al leer los metadatos del archivo"
+  fr_FR: "Échec de la lecture des métadonnées du fichier"
+  pl_PL: "Nie udało się odczytać metadanych pliku"
+
+registry.os.asset.signer-not-authorized:
+  en_US: "Signer %{guid} is not authorized"
+  de_DE: "Unterzeichner %{guid} ist nicht autorisiert"
+  es_ES: "El firmante %{guid} no está autorizado"
+  fr_FR: "Le signataire %{guid} n'est pas autorisé"
+  pl_PL: "Sygnatariusz %{guid} nie jest autoryzowany"
+
+# registry/os/version/signer.rs
+registry.os.version.signer-not-authorized:
+  en_US: "Signer %{signer} is not authorized to sign for v%{version}"
+  de_DE: "Unterzeichner %{signer} ist nicht autorisiert, für v%{version} zu signieren"
+  es_ES: "El firmante %{signer} no está autorizado para firmar v%{version}"
+  fr_FR: "Le signataire %{signer} n'est pas autorisé à signer pour v%{version}"
+  pl_PL: "Sygnatariusz %{signer} nie jest autoryzowany do podpisywania v%{version}"
+
+# registry/package/mod.rs
+registry.package.remove-not-exist:
+  en_US: "%{id}@%{version}%{sighash} does not exist, so not removed"
+  de_DE: "%{id}@%{version}%{sighash} existiert nicht, daher nicht entfernt"
+  es_ES: "%{id}@%{version}%{sighash} no existe, por lo que no se eliminó"
+  fr_FR: "%{id}@%{version}%{sighash} n'existe pas, donc non supprimé"
+  pl_PL: "%{id}@%{version}%{sighash} nie istnieje, więc nie usunięto"
+
+# registry/package/add.rs
+registry.package.add.must-specify-url:
+  en_US: "Must specify at least 1 URL"
+  de_DE: "Mindestens 1 URL muss angegeben werden"
+  es_ES: "Debe especificar al menos 1 URL"
+  fr_FR: "Doit spécifier au moins 1 URL"
+  pl_PL: "Należy podać co najmniej 1 adres URL"
+
+registry.package.add.unauthorized:
+  en_US: "Unauthorized"
+  de_DE: "Nicht autorisiert"
+  es_ES: "No autorizado"
+  fr_FR: "Non autorisé"
+  pl_PL: "Brak autoryzacji"
+
+registry.package.missing-signer:
+  en_US: "Missing signer"
+  de_DE: "Fehlender Unterzeichner"
+  es_ES: "Falta firmante"
+  fr_FR: "Signataire manquant"
+  pl_PL: "Brak sygnatariusza"
+
+registry.package.unauthorized:
+  en_US: "Unauthorized"
+  de_DE: "Nicht autorisiert"
+  es_ES: "No autorizado"
+  fr_FR: "Non autorisé"
+  pl_PL: "Brak autoryzacji"
+
+registry.package.add-mirror.unauthorized:
+  en_US: "Unauthorized"
+  de_DE: "Nicht autorisiert"
+  es_ES: "No autorizado"
+  fr_FR: "Non autorisé"
+  pl_PL: "Brak autoryzacji"
+
+registry.package.cannot-remove-last-mirror:
+  en_US: "Cannot remove last mirror from an s9pk"
+  de_DE: "Letzter Spiegel kann nicht aus einem s9pk entfernt werden"
+  es_ES: "No se puede eliminar el último espejo de un s9pk"
+  fr_FR: "Impossible de supprimer le dernier miroir d'un s9pk"
+  pl_PL: "Nie można usunąć ostatniego serwera lustrzanego z s9pk"
+
+registry.package.remove-mirror.unauthorized:
+  en_US: "Unauthorized"
+  de_DE: "Nicht autorisiert"
+  es_ES: "No autorizado"
+  fr_FR: "Non autorisé"
+  pl_PL: "Brak autoryzacji"
+
+# registry/package/get.rs
+registry.package.get.version-not-found:
+  en_US: "Could not find a version of %{id} that satisfies %{version}"
+  de_DE: "Keine Version von %{id} gefunden, die %{version} erfüllt"
+  es_ES: "No se pudo encontrar una versión de %{id} que satisfaga %{version}"
+  fr_FR: "Impossible de trouver une version de %{id} qui satisfait %{version}"
+  pl_PL: "Nie można znaleźć wersji %{id} spełniającej %{version}"
+
+registry.package.get.download-complete:
+  en_US: "Download Complete"
+  de_DE: "Download abgeschlossen"
+  es_ES: "Descarga completada"
+  fr_FR: "Téléchargement terminé"
+  pl_PL: "Pobieranie zakończone"
+
+# registry/package/signer.rs
+registry.package.signer.not-authorized:
+  en_US: "Signer %{signer} is not authorized to sign for %{id}"
+  de_DE: "Unterzeichner %{signer} ist nicht autorisiert, für %{id} zu signieren"
+  es_ES: "El firmante %{signer} no está autorizado para firmar %{id}"
+  fr_FR: "Le signataire %{signer} n'est pas autorisé à signer pour %{id}"
+  pl_PL: "Sygnatariusz %{signer} nie jest autoryzowany do podpisywania %{id}"
+
+# service/mod.rs
+service.mod.service-actor-held-after-shutdown:
+  en_US: "ServiceActor held somewhere after actor shutdown"
+  de_DE: "ServiceActor wird nach dem Herunterfahren des Actors noch irgendwo gehalten"
+  es_ES: "ServiceActor retenido en algún lugar después del cierre del actor"
+  fr_FR: "ServiceActor détenu quelque part après l'arrêt de l'acteur"
+  pl_PL: "ServiceActor przetrzymywany gdzieś po zamknięciu aktora"
+
+service.mod.service-actor-seed-held-after-shutdown:
+  en_US: "ServiceActorSeed held somewhere after actor shutdown"
+  de_DE: "ServiceActorSeed wird nach dem Herunterfahren des Actors noch irgendwo gehalten"
+  es_ES: "ServiceActorSeed retenido en algún lugar después del cierre del actor"
+  fr_FR: "ServiceActorSeed détenu quelque part après l'arrêt de l'acteur"
+  pl_PL: "ServiceActorSeed przetrzymywany gdzieś po zamknięciu aktora"
+
+service.mod.race-condition-detected:
+  en_US: "Race condition detected - package state changed during load"
+  de_DE: "Race Condition erkannt - Paketstatus hat sich während des Ladens geändert"
+  es_ES: "Condición de carrera detectada - el estado del paquete cambió durante la carga"
+  fr_FR: "Condition de concurrence détectée - l'état du paquet a changé pendant le chargement"
+  pl_PL: "Wykryto wyścig - stan pakietu zmienił się podczas ładowania"
+
+service.mod.failed-to-parse-package-data-entry:
+  en_US: "Failed to parse PackageDataEntry, found %{error}"
+  de_DE: "Fehler beim Parsen von PackageDataEntry, gefunden: %{error}"
+  es_ES: "Error al analizar PackageDataEntry, encontrado: %{error}"
+  fr_FR: "Échec de l'analyse de PackageDataEntry, trouvé : %{error}"
+  pl_PL: "Nie udało się przeanalizować PackageDataEntry, znaleziono: %{error}"
+
+service.mod.no-matching-subcontainers:
+  en_US: "no matching subcontainers are running for %{id}; some possible choices are:\n%{subcontainers}"
+  de_DE: "keine passenden Subcontainer laufen für %{id}; einige mögliche Optionen sind:\n%{subcontainers}"
+  es_ES: "no hay subcontenedores coincidentes ejecutándose para %{id}; algunas opciones posibles son:\n%{subcontainers}"
+  fr_FR: "aucun sous-conteneur correspondant n'est en cours d'exécution pour %{id} ; voici quelques choix possibles :\n%{subcontainers}"
+  pl_PL: "nie działają pasujące podkontenery dla %{id}; niektóre możliwe wybory to:\n%{subcontainers}"
+
+service.mod.multiple-subcontainers-found:
+  en_US: "multiple subcontainers found for %{id}: \n%{subcontainer_ids}"
+  de_DE: "mehrere Subcontainer für %{id} gefunden: \n%{subcontainer_ids}"
+  es_ES: "se encontraron múltiples subcontenedores para %{id}: \n%{subcontainer_ids}"
+  fr_FR: "plusieurs sous-conteneurs trouvés pour %{id} : \n%{subcontainer_ids}"
+  pl_PL: "znaleziono wiele podkontenerów dla %{id}: \n%{subcontainer_ids}"
+
+service.mod.invalid-byte-length-for-signal:
+  en_US: "invalid byte length for signal: %{length}"
+  de_DE: "ungültige Bytelänge für Signal: %{length}"
+  es_ES: "longitud de bytes inválida para señal: %{length}"
+  fr_FR: "longueur d'octets invalide pour le signal : %{length}"
+  pl_PL: "nieprawidłowa długość bajtów dla sygnału: %{length}"
+
+service.mod.could-not-parse-etc-passwd:
+  en_US: "Could not parse /etc/passwd for shell: %{contents}"
+  de_DE: "Konnte /etc/passwd für Shell nicht parsen: %{contents}"
+  es_ES: "No se pudo analizar /etc/passwd para shell: %{contents}"
+  fr_FR: "Impossible d'analyser /etc/passwd pour le shell : %{contents}"
+  pl_PL: "Nie można przeanalizować /etc/passwd dla powłoki: %{contents}"
+
+service.mod.could-not-get-etc-passwd:
+  en_US: "Could not get the /etc/passwd: %{error}"
+  de_DE: "Konnte /etc/passwd nicht abrufen: %{error}"
+  es_ES: "No se pudo obtener /etc/passwd: %{error}"
+  fr_FR: "Impossible d'obtenir /etc/passwd : %{error}"
+  pl_PL: "Nie można uzyskać /etc/passwd: %{error}"
+
+service.mod.invalid-byte-length-for-exit-code:
+  en_US: "invalid byte length for exit code: %{length}"
+  de_DE: "ungültige Bytelänge für Exit-Code: %{length}"
+  es_ES: "longitud de bytes inválida para código de salida: %{length}"
+  fr_FR: "longueur d'octets invalide pour le code de sortie : %{length}"
+  pl_PL: "nieprawidłowa długość bajtów dla kodu wyjścia: %{length}"
+
+service.mod.deleting-task-action-no-longer-exists:
+  en_US: "Deleting task %{id} because action no longer exists"
+  de_DE: "Lösche Aufgabe %{id}, da die Aktion nicht mehr existiert"
+  es_ES: "Eliminando tarea %{id} porque la acción ya no existe"
+  fr_FR: "Suppression de la tâche %{id} car l'action n'existe plus"
+  pl_PL: "Usuwanie zadania %{id}, ponieważ akcja już nie istnieje"
+
+# service/action.rs
+service.action.action-request-invalid-state:
+  en_US: "action request exists in an invalid state %{task}"
+  de_DE: "Aktionsanfrage existiert in ungültigem Zustand %{task}"
+  es_ES: "la solicitud de acción existe en un estado inválido %{task}"
+  fr_FR: "la demande d'action existe dans un état invalide %{task}"
+  pl_PL: "żądanie akcji istnieje w nieprawidłowym stanie %{task}"
+
+service.action.action-is-disabled:
+  en_US: "action %{action_id} is disabled"
+  de_DE: "Aktion %{action_id} ist deaktiviert"
+  es_ES: "la acción %{action_id} está deshabilitada"
+  fr_FR: "l'action %{action_id} est désactivée"
+  pl_PL: "akcja %{action_id} jest wyłączona"
+
+service.action.service-not-in-allowed-status:
+  en_US: "service is not in allowed status for %{action_id}"
+  de_DE: "Dienst ist nicht im erlaubten Status für %{action_id}"
+  es_ES: "el servicio no está en un estado permitido para %{action_id}"
+  fr_FR: "le service n'est pas dans un état autorisé pour %{action_id}"
+  pl_PL: "usługa nie jest w dozwolonym stanie dla %{action_id}"
+
+# service/effects/action.rs
+service.effects.action.calling-actions-on-other-packages-unsupported:
+  en_US: "calling actions on other packages is unsupported at this time"
+  de_DE: "Aufrufen von Aktionen auf anderen Paketen wird derzeit nicht unterstützt"
+  es_ES: "llamar acciones en otros paquetes no está soportado en este momento"
+  fr_FR: "l'appel d'actions sur d'autres paquets n'est pas pris en charge pour le moment"
+  pl_PL: "wywoływanie akcji na innych pakietach nie jest obecnie obsługiwane"
+
+service.effects.action.input-not-matches-requires-input:
+  en_US: "input-not-matches trigger requires input to be specified"
+  de_DE: "input-not-matches Trigger erfordert Eingabe"
+  es_ES: "el disparador input-not-matches requiere que se especifique la entrada"
+  fr_FR: "le déclencheur input-not-matches nécessite une entrée spécifiée"
+  pl_PL: "wyzwalacz input-not-matches wymaga określenia wejścia"
+
+service.effects.action.action-has-no-input:
+  en_US: "action %{action_id} of %{package_id} has no input"
+  de_DE: "Aktion %{action_id} von %{package_id} hat keine Eingabe"
+  es_ES: "la acción %{action_id} de %{package_id} no tiene entrada"
+  fr_FR: "l'action %{action_id} de %{package_id} n'a pas d'entrée"
+  pl_PL: "akcja %{action_id} pakietu %{package_id} nie ma wejścia"
+
+# service/effects/dependency.rs
+service.effects.dependency.unknown-dependency-kind:
+  en_US: "unknown dependency kind %{kind}"
+  de_DE: "unbekannter Abhängigkeitstyp %{kind}"
+  es_ES: "tipo de dependencia desconocido %{kind}"
+  fr_FR: "type de dépendance inconnu %{kind}"
+  pl_PL: "nieznany rodzaj zależności %{kind}"
+
+# service/service_actor.rs
+service.service-actor.error-synchronizing-state:
+  en_US: "error synchronizing state of service: %{error}"
+  de_DE: "Fehler beim Synchronisieren des Dienststatus: %{error}"
+  es_ES: "error al sincronizar el estado del servicio: %{error}"
+  fr_FR: "erreur lors de la synchronisation de l'état du service : %{error}"
+  pl_PL: "błąd synchronizacji stanu usługi: %{error}"
+
+service.service-actor.retrying-in-seconds:
+  en_US: "Retrying in %{seconds}s..."
+  de_DE: "Wiederholung in %{seconds}s..."
+  es_ES: "Reintentando en %{seconds}s..."
+  fr_FR: "Nouvelle tentative dans %{seconds}s..."
+  pl_PL: "Ponowna próba za %{seconds}s..."
+
+# service/persistent_container.rs
+service.persistent-container.container-destroyed:
+  en_US: "PersistentContainer has been destroyed"
+  de_DE: "PersistentContainer wurde zerstört"
+  es_ES: "PersistentContainer ha sido destruido"
+  fr_FR: "PersistentContainer a été détruit"
+  pl_PL: "PersistentContainer został zniszczony"
+
+service.persistent-container.error-on-unix-socket:
+  en_US: "error on unix socket %{path}: %{error}"
+  de_DE: "Fehler auf Unix-Socket %{path}: %{error}"
+  es_ES: "error en socket unix %{path}: %{error}"
+  fr_FR: "erreur sur le socket unix %{path} : %{error}"
+  pl_PL: "błąd na gnieździe unix %{path}: %{error}"
+
+service.persistent-container.unix-socket-server-panicked:
+  en_US: "unix socket server thread panicked"
+  de_DE: "Unix-Socket-Server-Thread ist abgestürzt"
+  es_ES: "el hilo del servidor de socket unix entró en pánico"
+  fr_FR: "le thread du serveur de socket unix a paniqué"
+  pl_PL: "wątek serwera gniazda unix spanikował"
+
+service.persistent-container.already-initialized:
+  en_US: "PersistentContainer already initialized"
+  de_DE: "PersistentContainer bereits initialisiert"
+  es_ES: "PersistentContainer ya inicializado"
+  fr_FR: "PersistentContainer déjà initialisé"
+  pl_PL: "PersistentContainer już zainicjalizowany"
+
+service.persistent-container.service-exited:
+  en_US: "Service for %{id} exited"
+  de_DE: "Dienst für %{id} beendet"
+  es_ES: "El servicio para %{id} terminó"
+  fr_FR: "Le service pour %{id} s'est terminé"
+  pl_PL: "Usługa dla %{id} zakończyła działanie"
+
+# service/uninstall.rs
+service.uninstall.invalid-package-state-for-cleanup:
+  en_US: "Invalid package state for cleanup: %{state}"
+  de_DE: "Ungültiger Paketstatus für Bereinigung: %{state}"
+  es_ES: "Estado de paquete inválido para limpieza: %{state}"
+  fr_FR: "État du paquet invalide pour le nettoyage : %{state}"
+  pl_PL: "Nieprawidłowy stan pakietu do czyszczenia: %{state}"
+
+# service/transition/backup.rs
+service.transition.backup.no-backup-to-resume:
+  en_US: "No backup to resume"
+  de_DE: "Keine Sicherung zum Fortsetzen"
+  es_ES: "No hay respaldo para reanudar"
+  fr_FR: "Aucune sauvegarde à reprendre"
+  pl_PL: "Brak kopii zapasowej do wznowienia"
+
+# context/setup.rs
+context.setup.couldnt-generate-ec-key:
+  en_US: "Couldn't generate ec key"
+  de_DE: "EC-Schlüssel konnte nicht generiert werden"
+  es_ES: "No se pudo generar la clave ec"
+  fr_FR: "Impossible de générer la clé ec"
+  pl_PL: "Nie można wygenerować klucza ec"
+
+context.setup.setup-complete:
+  en_US: "Setup complete!"
+  de_DE: "Einrichtung abgeschlossen!"
+  es_ES: "¡Configuración completada!"
+  fr_FR: "Configuration terminée !"
+  pl_PL: "Konfiguracja zakończona!"
+
+context.setup.setup-failed:
+  en_US: "Setup failed: %{error}"
+  de_DE: "Einrichtung fehlgeschlagen: %{error}"
+  es_ES: "Configuración fallida: %{error}"
+  fr_FR: "Échec de la configuration : %{error}"
+  pl_PL: "Konfiguracja nie powiodła się: %{error}"
+
+context.setup.setup-already-complete:
+  en_US: "Setup already complete"
+  de_DE: "Einrichtung bereits abgeschlossen"
+  es_ES: "La configuración ya está completa"
+  fr_FR: "Configuration déjà terminée"
+  pl_PL: "Konfiguracja już zakończona"
+
+context.setup.setup-already-in-progress:
+  en_US: "Setup already in progress"
+  de_DE: "Einrichtung bereits im Gange"
+  es_ES: "La configuración ya está en progreso"
+  fr_FR: "Configuration déjà en cours"
+  pl_PL: "Konfiguracja już w toku"
+
+context.setup.error-in-setup-progress-websocket:
+  en_US: "Error in setup progress websocket: %{error}"
+  de_DE: "Fehler im Setup-Fortschritts-WebSocket: %{error}"
+  es_ES: "Error en el websocket de progreso de configuración: %{error}"
+  fr_FR: "Erreur dans le websocket de progression de la configuration : %{error}"
+  pl_PL: "Błąd w websocket postępu konfiguracji: %{error}"
+
+# context/diagnostic.rs
+context.diagnostic.starting-diagnostic-ui:
+  en_US: "Error: %{error}: Starting diagnostic UI"
+  de_DE: "Fehler: %{error}: Starte Diagnose-UI"
+  es_ES: "Error: %{error}: Iniciando interfaz de diagnóstico"
+  fr_FR: "Erreur : %{error} : Démarrage de l'interface de diagnostic"
+  pl_PL: "Błąd: %{error}: Uruchamianie interfejsu diagnostycznego"
+
+# context/cli.rs
+context.cli.pkcs8-key-incorrect-length:
+  en_US: "pkcs8 key is of incorrect length"
+  de_DE: "PKCS8-Schlüssel hat falsche Länge"
+  es_ES: "la clave pkcs8 tiene una longitud incorrecta"
+  fr_FR: "la clé pkcs8 a une longueur incorrecte"
+  pl_PL: "klucz pkcs8 ma nieprawidłową długość"
+
+context.cli.developer-key-does-not-exist:
+  en_US: "Developer Key does not exist! Please run `start-cli init-key` before running this command."
+  de_DE: "Entwicklerschlüssel existiert nicht! Bitte führen Sie `start-cli init-key` aus, bevor Sie diesen Befehl ausführen."
+  es_ES: "¡La clave de desarrollador no existe! Por favor ejecute `start-cli init-key` antes de ejecutar este comando."
+  fr_FR: "La clé développeur n'existe pas ! Veuillez exécuter `start-cli init-key` avant d'exécuter cette commande."
+  pl_PL: "Klucz programisty nie istnieje! Proszę uruchomić `start-cli init-key` przed wykonaniem tego polecenia."
+
+context.cli.cannot-parse-scheme-from-base-url:
+  en_US: "Cannot parse scheme from base URL"
+  de_DE: "Schema kann nicht aus Basis-URL geparst werden"
+  es_ES: "No se puede analizar el esquema de la URL base"
+  fr_FR: "Impossible d'analyser le schéma de l'URL de base"
+  pl_PL: "Nie można przeanalizować schematu z podstawowego URL"
+
+context.cli.cannot-set-url-scheme:
+  en_US: "Cannot set URL scheme"
+  de_DE: "URL-Schema kann nicht gesetzt werden"
+  es_ES: "No se puede establecer el esquema de URL"
+  fr_FR: "Impossible de définir le schéma d'URL"
+  pl_PL: "Nie można ustawić schematu URL"
+
+# context/rpc.rs
+context.rpc.rpc-context-dropped:
+  en_US: "RpcContext is dropped"
+  de_DE: "RpcContext wurde verworfen"
+  es_ES: "RpcContext ha sido descartado"
+  fr_FR: "RpcContext a été abandonné"
+  pl_PL: "RpcContext został porzucony"
+
+context.rpc.opened-patchdb:
+  en_US: "Opened PatchDB"
+  de_DE: "PatchDB geöffnet"
+  es_ES: "PatchDB abierto"
+  fr_FR: "PatchDB ouvert"
+  pl_PL: "Otwarto PatchDB"
+
+context.rpc.initialized-net-controller:
+  en_US: "Initialized Net Controller"
+  de_DE: "Net Controller initialisiert"
+  es_ES: "Controlador de red inicializado"
+  fr_FR: "Contrôleur réseau initialisé"
+  pl_PL: "Zainicjalizowano kontroler sieci"
+
+context.rpc.nvidia-smi-error:
+  en_US: "nvidia-smi: %{error}"
+  de_DE: "nvidia-smi: %{error}"
+  es_ES: "nvidia-smi: %{error}"
+  fr_FR: "nvidia-smi : %{error}"
+  pl_PL: "nvidia-smi: %{error}"
+
+context.rpc.nvidia-warning-can-be-ignored:
+  en_US: "The above warning can be ignored if no NVIDIA card is present"
+  de_DE: "Die obige Warnung kann ignoriert werden, wenn keine NVIDIA-Karte vorhanden ist"
+  es_ES: "La advertencia anterior se puede ignorar si no hay tarjeta NVIDIA presente"
+  fr_FR: "L'avertissement ci-dessus peut être ignoré si aucune carte NVIDIA n'est présente"
+  pl_PL: "Powyższe ostrzeżenie można zignorować, jeśli nie ma karty NVIDIA"
+
+context.rpc.os-partition-info-missing:
+  en_US: "OS Partition Information Missing"
+  de_DE: "OS-Partitionsinformationen fehlen"
+  es_ES: "Falta información de la partición del SO"
+  fr_FR: "Informations de partition du système d'exploitation manquantes"
+  pl_PL: "Brak informacji o partycji systemu operacyjnego"
+
+context.rpc.couldnt-generate-ec-key:
+  en_US: "Couldn't generate ec key"
+  de_DE: "EC-Schlüssel konnte nicht generiert werden"
+  es_ES: "No se pudo generar la clave ec"
+  fr_FR: "Impossible de générer la clé ec"
+  pl_PL: "Nie można wygenerować klucza ec"
+
+context.rpc.cleaned-up-transient-states:
+  en_US: "Cleaned up transient states"
+  de_DE: "Transiente Zustände bereinigt"
+  es_ES: "Estados transitorios limpiados"
+  fr_FR: "États transitoires nettoyés"
+  pl_PL: "Wyczyszczono stany przejściowe"
+
+context.rpc.completed-migrations:
+  en_US: "Completed migrations"
+  de_DE: "Migrationen abgeschlossen"
+  es_ES: "Migraciones completadas"
+  fr_FR: "Migrations terminées"
+  pl_PL: "Migracje zakończone"
+
+context.rpc.rpc-context-shutdown:
+  en_US: "RpcContext is shutdown"
+  de_DE: "RpcContext ist heruntergefahren"
+  es_ES: "RpcContext está apagado"
+  fr_FR: "RpcContext est arrêté"
+  pl_PL: "RpcContext jest wyłączony"
+
+context.rpc.error-in-session-cleanup-cron:
+  en_US: "Error in session cleanup cron: %{error}"
+  de_DE: "Fehler im Sitzungsbereinigung-Cron: %{error}"
+  es_ES: "Error en el cron de limpieza de sesión: %{error}"
+  fr_FR: "Erreur dans le cron de nettoyage de session : %{error}"
+  pl_PL: "Błąd w cronie czyszczenia sesji: %{error}"
+
+# middleware/auth/local.rs
+middleware.auth.unauthorized:
+  en_US: "UNAUTHORIZED"
+  de_DE: "NICHT AUTORISIERT"
+  es_ES: "NO AUTORIZADO"
+  fr_FR: "NON AUTORISÉ"
+  pl_PL: "BRAK AUTORYZACJI"
+
+# middleware/auth/session.rs
+middleware.auth.rate-limited-login:
+  en_US: "Please limit login attempts to 3 per 20 seconds."
+  de_DE: "Bitte beschränken Sie Anmeldeversuche auf 3 pro 20 Sekunden."
+  es_ES: "Por favor limite los intentos de inicio de sesión a 3 por cada 20 segundos."
+  fr_FR: "Veuillez limiter les tentatives de connexion à 3 par 20 secondes."
+  pl_PL: "Proszę ograniczyć próby logowania do 3 na 20 sekund."
+
+# middleware/auth/signature.rs
+middleware.auth.key-not-authorized:
+  en_US: "Key is not authorized"
+  de_DE: "Schlüssel ist nicht autorisiert"
+  es_ES: "La clave no está autorizada"
+  fr_FR: "La clé n'est pas autorisée"
+  pl_PL: "Klucz nie jest autoryzowany"
+
+middleware.auth.replay-attack-detected:
+  en_US: "replay attack detected"
+  de_DE: "Replay-Angriff erkannt"
+  es_ES: "ataque de repetición detectado"
+  fr_FR: "attaque par rejeu détectée"
+  pl_PL: "wykryto atak powtórzeniowy"
+
+middleware.auth.no-valid-sig-context:
+  en_US: "no valid signature context available to verify"
+  de_DE: "kein gültiger Signaturkontext zur Verifizierung verfügbar"
+  es_ES: "no hay contexto de firma válido disponible para verificar"
+  fr_FR: "aucun contexte de signature valide disponible pour vérifier"
+  pl_PL: "brak prawidłowego kontekstu podpisu do weryfikacji"
+
+middleware.auth.timestamp-not-within-30s:
+  en_US: "timestamp not within 30s of now"
+  de_DE: "Zeitstempel nicht innerhalb von 30s der aktuellen Zeit"
+  es_ES: "la marca de tiempo no está dentro de 30s del momento actual"
+  fr_FR: "l'horodatage n'est pas dans les 30s de maintenant"
+  pl_PL: "znacznik czasu nie mieści się w 30s od teraz"
+
+middleware.auth.unknown-content-type:
+  en_US: "unknown content type"
+  de_DE: "unbekannter Inhaltstyp"
+  es_ES: "tipo de contenido desconocido"
+  fr_FR: "type de contenu inconnu"
+  pl_PL: "nieznany typ zawartości"
+
+# middleware/db.rs
+middleware.db.error-writing-patch-sequence-header:
+  en_US: "error writing X-Patch-Sequence header: %{error}"
+  de_DE: "Fehler beim Schreiben des X-Patch-Sequence Headers: %{error}"
+  es_ES: "error al escribir el encabezado X-Patch-Sequence: %{error}"
+  fr_FR: "erreur lors de l'écriture de l'en-tête X-Patch-Sequence : %{error}"
+  pl_PL: "błąd zapisu nagłówka X-Patch-Sequence: %{error}"
+
+# ssh.rs
+ssh.key-not-found:
+  en_US: "SSH Key Not Found"
+  de_DE: "SSH-Schlüssel nicht gefunden"
+  es_ES: "Clave SSH no encontrada"
+  fr_FR: "Clé SSH non trouvée"
+  pl_PL: "Nie znaleziono klucza SSH"
+
+# logs.rs
+logs.no-stdout-available:
+  en_US: "No stdout available"
+  de_DE: "Keine Standardausgabe verfügbar"
+  es_ES: "No hay stdout disponible"
+  fr_FR: "Pas de stdout disponible"
+  pl_PL: "Brak dostępnego stdout"
+
+logs.error-in-log-stream:
+  en_US: "Error in log stream: %{error}"
+  de_DE: "Fehler im Log-Stream: %{error}"
+  es_ES: "Error en el flujo de logs: %{error}"
+  fr_FR: "Erreur dans le flux de logs : %{error}"
+  pl_PL: "Błąd w strumieniu logów: %{error}"
+
+# notifications.rs
+notifications.invalid-level:
+  en_US: "Invalid Notification Level: %{level}"
+  de_DE: "Ungültige Benachrichtigungsstufe: %{level}"
+  es_ES: "Nivel de notificación inválido: %{level}"
+  fr_FR: "Niveau de notification invalide : %{level}"
+  pl_PL: "Nieprawidłowy poziom powiadomienia: %{level}"
+
+# update/mod.rs
+update.already-updated-restart-required:
+  en_US: "Server was already updated. Please restart your device before attempting to update again."
+  de_DE: "Server wurde bereits aktualisiert. Bitte starten Sie Ihr Gerät neu, bevor Sie erneut versuchen zu aktualisieren."
+  es_ES: "El servidor ya fue actualizado. Por favor reinicie su dispositivo antes de intentar actualizar nuevamente."
+  fr_FR: "Le serveur a déjà été mis à jour. Veuillez redémarrer votre appareil avant de tenter une nouvelle mise à jour."
+  pl_PL: "Serwer został już zaktualizowany. Proszę zrestartować urządzenie przed ponowną próbą aktualizacji."
+
+update.no-updates-available:
+  en_US: "No updates available"
+  de_DE: "Keine Updates verfügbar"
+  es_ES: "No hay actualizaciones disponibles"
+  fr_FR: "Aucune mise à jour disponible"
+  pl_PL: "Brak dostępnych aktualizacji"
+
+update.updating-to-version:
+  en_US: "Updating to v%{version}..."
+  de_DE: "Aktualisiere auf v%{version}..."
+  es_ES: "Actualizando a v%{version}..."
+  fr_FR: "Mise à jour vers v%{version}..."
+  pl_PL: "Aktualizacja do v%{version}..."
+
+update.complete-restart-to-apply:
+  en_US: "Update complete. Restart your server to apply the update."
+  de_DE: "Update abgeschlossen. Starten Sie Ihren Server neu, um das Update anzuwenden."
+  es_ES: "Actualización completada. Reinicie su servidor para aplicar la actualización."
+  fr_FR: "Mise à jour terminée. Redémarrez votre serveur pour appliquer la mise à jour."
+  pl_PL: "Aktualizacja zakończona. Zrestartuj serwer, aby zastosować aktualizację."
+
+update.already-updating:
+  en_US: "Server is already updating!"
+  de_DE: "Server wird bereits aktualisiert!"
+  es_ES: "¡El servidor ya se está actualizando!"
+  fr_FR: "Le serveur est déjà en cours de mise à jour !"
+  pl_PL: "Serwer jest już w trakcie aktualizacji!"
+
+update.error-returning-progress:
+  en_US: "Error returning progress of update: %{error}"
+  de_DE: "Fehler beim Zurückgeben des Update-Fortschritts: %{error}"
+  es_ES: "Error al devolver el progreso de la actualización: %{error}"
+  fr_FR: "Erreur lors du retour de la progression de la mise à jour : %{error}"
+  pl_PL: "Błąd zwracania postępu aktualizacji: %{error}"
+
+update.not-successful:
+  en_US: "Update was not successful because of %{error}"
+  de_DE: "Update war nicht erfolgreich wegen %{error}"
+  es_ES: "La actualización no fue exitosa debido a %{error}"
+  fr_FR: "La mise à jour n'a pas réussi à cause de %{error}"
+  pl_PL: "Aktualizacja nie powiodła się z powodu %{error}"
+
+update.failed-title:
+  en_US: "StartOS Update Failed"
+  de_DE: "StartOS-Update fehlgeschlagen"
+  es_ES: "Actualización de StartOS fallida"
+  fr_FR: "Échec de la mise à jour de StartOS"
+  pl_PL: "Aktualizacja StartOS nie powiodła się"
+
+# shutdown.rs
+shutdown.beginning-restart:
+  en_US: "Beginning server restart"
+  de_DE: "Server-Neustart wird begonnen"
+  es_ES: "Iniciando reinicio del servidor"
+  fr_FR: "Début du redémarrage du serveur"
+  pl_PL: "Rozpoczynanie restartu serwera"
+
+shutdown.beginning-shutdown:
+  en_US: "Beginning server shutdown"
+  de_DE: "Server-Herunterfahren wird begonnen"
+  es_ES: "Iniciando apagado del servidor"
+  fr_FR: "Début de l'arrêt du serveur"
+  pl_PL: "Rozpoczynanie zamykania serwera"
+
+shutdown.error-stopping-journald:
+  en_US: "Error Stopping Journald: %{error}"
+  de_DE: "Fehler beim Stoppen von Journald: %{error}"
+  es_ES: "Error al detener Journald: %{error}"
+  fr_FR: "Erreur lors de l'arrêt de Journald : %{error}"
+  pl_PL: "Błąd zatrzymywania Journald: %{error}"
+
+shutdown.error-exporting-volume-group:
+  en_US: "Error Exporting Volume Group: %{error}"
+  de_DE: "Fehler beim Exportieren der Volume-Gruppe: %{error}"
+  es_ES: "Error al exportar el grupo de volúmenes: %{error}"
+  fr_FR: "Erreur lors de l'exportation du groupe de volumes : %{error}"
+  pl_PL: "Błąd eksportowania grupy woluminów: %{error}"
+
+shutdown.error-playing-shutdown-song:
+  en_US: "Error Playing Shutdown Song: %{error}"
+  de_DE: "Fehler beim Abspielen der Herunterfahren-Melodie: %{error}"
+  es_ES: "Error al reproducir la canción de apagado: %{error}"
+  fr_FR: "Erreur lors de la lecture de la mélodie d'arrêt : %{error}"
+  pl_PL: "Błąd odtwarzania melodii zamykania: %{error}"
+
+# auth.rs
+auth.malformed-etc-shadow:
+  en_US: "malformed /etc/shadow"
+  de_DE: "fehlerhafte /etc/shadow"
+  es_ES: "/etc/shadow mal formado"
+  fr_FR: "/etc/shadow mal formé"
+  pl_PL: "zniekształcony /etc/shadow"
+
+auth.couldnt-decode-password:
+  en_US: "Couldn't decode password"
+  de_DE: "Passwort konnte nicht dekodiert werden"
+  es_ES: "No se pudo decodificar la contraseña"
+  fr_FR: "Impossible de décoder le mot de passe"
+  pl_PL: "Nie można zdekodować hasła"
+
+auth.password-incorrect:
+  en_US: "Password Incorrect"
+  de_DE: "Passwort falsch"
+  es_ES: "Contraseña incorrecta"
+  fr_FR: "Mot de passe incorrect"
+  pl_PL: "Nieprawidłowe hasło"
+
+auth.prompt-current-password:
+  en_US: "Current Password: "
+  de_DE: "Aktuelles Passwort: "
+  es_ES: "Contraseña actual: "
+  fr_FR: "Mot de passe actuel : "
+  pl_PL: "Obecne hasło: "
+
+auth.prompt-new-password:
+  en_US: "New Password: "
+  de_DE: "Neues Passwort: "
+  es_ES: "Nueva contraseña: "
+  fr_FR: "Nouveau mot de passe : "
+  pl_PL: "Nowe hasło: "
+
+auth.prompt-confirm:
+  en_US: "Confirm: "
+  de_DE: "Bestätigen: "
+  es_ES: "Confirmar: "
+  fr_FR: "Confirmer : "
+  pl_PL: "Potwierdź: "
+
+auth.passwords-do-not-match:
+  en_US: "Passwords do not match"
+  de_DE: "Passwörter stimmen nicht überein"
+  es_ES: "Las contraseñas no coinciden"
+  fr_FR: "Les mots de passe ne correspondent pas"
+  pl_PL: "Hasła nie pasują do siebie"
+
+# util/tui.rs
+util.tui.terminal-must-be-interactive:
+  en_US: "Terminal must be in interactive mode for this wizard"
+  de_DE: "Terminal muss für diesen Assistenten im interaktiven Modus sein"
+  es_ES: "El terminal debe estar en modo interactivo para este asistente"
+  fr_FR: "Le terminal doit être en mode interactif pour cet assistant"
+  pl_PL: "Terminal musi być w trybie interaktywnym dla tego kreatora"
+
+util.tui.enter-valid-value:
+  en_US: "Please enter a valid %{what}."
+  de_DE: "Bitte geben Sie einen gültigen %{what} ein."
+  es_ES: "Por favor ingrese un %{what} válido."
+  fr_FR: "Veuillez entrer un %{what} valide."
+  pl_PL: "Proszę wprowadzić prawidłowe %{what}."
+
+util.tui.aborted:
+  en_US: "Aborted"
+  de_DE: "Abgebrochen"
+  es_ES: "Abortado"
+  fr_FR: "Abandonné"
+  pl_PL: "Przerwano"
+
+util.tui.selected-choice-not-in-input:
+  en_US: "selected choice does not appear in input"
+  de_DE: "ausgewählte Option erscheint nicht in der Eingabe"
+  es_ES: "la opción seleccionada no aparece en la entrada"
+  fr_FR: "le choix sélectionné n'apparaît pas dans l'entrée"
+  pl_PL: "wybrany wybór nie pojawia się w danych wejściowych"
+
+# util/serde.rs
+util.serde.must-specify-units-for-duration:
+  en_US: "Must specify units for duration"
+  de_DE: "Einheiten für die Dauer müssen angegeben werden"
+  es_ES: "Debe especificar unidades para la duración"
+  fr_FR: "Doit spécifier les unités pour la durée"
+  pl_PL: "Należy określić jednostki dla czasu trwania"
+
+util.serde.invalid-units-for-duration:
+  en_US: "Invalid units for duration"
+  de_DE: "Ungültige Einheiten für die Dauer"
+  es_ES: "Unidades inválidas para la duración"
+  fr_FR: "Unités invalides pour la durée"
+  pl_PL: "Nieprawidłowe jednostki dla czasu trwania"
+
+util.serde.failed-to-create-from-buffer:
+  en_US: "failed to create from buffer"
+  de_DE: "Erstellung aus Puffer fehlgeschlagen"
+  es_ES: "error al crear desde el búfer"
+  fr_FR: "échec de la création à partir du tampon"
+  pl_PL: "nie udało się utworzyć z bufora"
+
+util.serde.failed-to-parse-expression:
+  en_US: "Failed to parse expression: %{errors}"
+  de_DE: "Ausdruck konnte nicht geparst werden: %{errors}"
+  es_ES: "Error al analizar la expresión: %{errors}"
+  fr_FR: "Échec de l'analyse de l'expression : %{errors}"
+  pl_PL: "Nie udało się przeanalizować wyrażenia: %{errors}"
+
+util.serde.failed-to-compile-expression:
+  en_US: "Failed to compile expression: %{errors}"
+  de_DE: "Ausdruck konnte nicht kompiliert werden: %{errors}"
+  es_ES: "Error al compilar la expresión: %{errors}"
+  fr_FR: "Échec de la compilation de l'expression : %{errors}"
+  pl_PL: "Nie udało się skompilować wyrażenia: %{errors}"
+
+util.serde.expr-returned-no-results:
+  en_US: "expr returned no results"
+  de_DE: "Ausdruck hat keine Ergebnisse zurückgegeben"
+  es_ES: "la expresión no devolvió resultados"
+  fr_FR: "l'expression n'a retourné aucun résultat"
+  pl_PL: "wyrażenie nie zwróciło wyników"
+
+util.serde.expr-returned-too-many-results:
+  en_US: "expr returned too many results"
+  de_DE: "Ausdruck hat zu viele Ergebnisse zurückgegeben"
+  es_ES: "la expresión devolvió demasiados resultados"
+  fr_FR: "l'expression a retourné trop de résultats"
+  pl_PL: "wyrażenie zwróciło zbyt wiele wyników"
+
+# util/cpupower.rs
+util.cpupower.governors-listed-before-cpu:
+  en_US: "governors listed before cpu"
+  de_DE: "Governors vor CPU aufgelistet"
+  es_ES: "governors listados antes de cpu"
+  fr_FR: "gouverneurs listés avant cpu"
+  pl_PL: "regulatory wymienione przed cpu"
+
+util.cpupower.failed-to-parse-output:
+  en_US: "Failed to parse cpupower output:\n%{output}"
+  de_DE: "Fehler beim Parsen der cpupower-Ausgabe:\n%{output}"
+  es_ES: "Error al analizar la salida de cpupower:\n%{output}"
+  fr_FR: "Échec de l'analyse de la sortie de cpupower :\n%{output}"
+  pl_PL: "Nie udało się przeanalizować wyjścia cpupower:\n%{output}"
+
+# util/rpc.rs
+util.rpc.unknown-scheme:
+  en_US: "unknown scheme: %{scheme}"
+  de_DE: "unbekanntes Schema: %{scheme}"
+  es_ES: "esquema desconocido: %{scheme}"
+  fr_FR: "schéma inconnu : %{scheme}"
+  pl_PL: "nieznany schemat: %{scheme}"
+
+# util/net.rs
+util.net.websocket-ping-timeout:
+  en_US: "Timeout: WebSocket did not respond to ping within %{timeout}"
+  de_DE: "Zeitüberschreitung: WebSocket hat nicht innerhalb von %{timeout} auf Ping geantwortet"
+  es_ES: "Tiempo de espera: WebSocket no respondió al ping dentro de %{timeout}"
+  fr_FR: "Délai d'attente : le WebSocket n'a pas répondu au ping dans les %{timeout}"
+  pl_PL: "Przekroczono limit czasu: WebSocket nie odpowiedział na ping w ciągu %{timeout}"
+
+# CLI command descriptions (about.*)
+about.add-address-to-host:
+  en_US: "Add an address to this host"
+  de_DE: "Eine Adresse zu diesem Host hinzufügen"
+  es_ES: "Agregar una dirección a este host"
+  fr_FR: "Ajouter une adresse à cet hôte"
+  pl_PL: "Dodaj adres do tego hosta"
+
+about.add-admin-signer:
+  en_US: "Add admin signer"
+  de_DE: "Admin-Unterzeichner hinzufügen"
+  es_ES: "Agregar firmante administrador"
+  fr_FR: "Ajouter un signataire administrateur"
+  pl_PL: "Dodaj sygnatariusza administratora"
+
+about.add-asset-registry:
+  en_US: "Add asset to registry"
+  de_DE: "Asset zum Registry hinzufügen"
+  es_ES: "Agregar activo al registro"
+  fr_FR: "Ajouter un actif au registre"
+  pl_PL: "Dodaj zasób do rejestru"
+
+about.add-category-registry:
+  en_US: "Add a category to the registry"
+  de_DE: "Eine Kategorie zum Registry hinzufügen"
+  es_ES: "Agregar una categoría al registro"
+  fr_FR: "Ajouter une catégorie au registre"
+  pl_PL: "Dodaj kategorię do rejestru"
+
+about.add-device-to-subnet:
+  en_US: "Add a device to a subnet"
+  de_DE: "Ein Gerät zu einem Subnetz hinzufügen"
+  es_ES: "Agregar un dispositivo a una subred"
+  fr_FR: "Ajouter un appareil à un sous-réseau"
+  pl_PL: "Dodaj urządzenie do podsieci"
+
+about.add-image-to-s9pk:
+  en_US: "Add image to s9pk"
+  de_DE: "Image zu s9pk hinzufügen"
+  es_ES: "Agregar imagen a s9pk"
+  fr_FR: "Ajouter une image au s9pk"
+  pl_PL: "Dodaj obraz do s9pk"
+
+about.add-mirror-s9pk:
+  en_US: "Add a mirror for an s9pk"
+  de_DE: "Einen Spiegel für ein s9pk hinzufügen"
+  es_ES: "Agregar un espejo para un s9pk"
+  fr_FR: "Ajouter un miroir pour un s9pk"
+  pl_PL: "Dodaj serwer lustrzany dla s9pk"
+
+about.add-new-authorized-key:
+  en_US: "Add a new authorized key"
+  de_DE: "Einen neuen autorisierten Schlüssel hinzufügen"
+  es_ES: "Agregar una nueva clave autorizada"
+  fr_FR: "Ajouter une nouvelle clé autorisée"
+  pl_PL: "Dodaj nowy autoryzowany klucz"
+
+about.add-new-backup-target:
+  en_US: "Add a new backup target"
+  de_DE: "Ein neues Backup-Ziel hinzufügen"
+  es_ES: "Agregar un nuevo destino de respaldo"
+  fr_FR: "Ajouter une nouvelle cible de sauvegarde"
+  pl_PL: "Dodaj nowy cel kopii zapasowej"
+
+about.add-new-port-forward:
+  en_US: "Add a new port forward"
+  de_DE: "Eine neue Portweiterleitung hinzufügen"
+  es_ES: "Agregar un nuevo reenvío de puerto"
+  fr_FR: "Ajouter une nouvelle redirection de port"
+  pl_PL: "Dodaj nowe przekierowanie portu"
+
+about.add-new-subnet:
+  en_US: "Add a new subnet"
+  de_DE: "Ein neues Subnetz hinzufügen"
+  es_ES: "Agregar una nueva subred"
+  fr_FR: "Ajouter un nouveau sous-réseau"
+  pl_PL: "Dodaj nową podsieć"
+
+about.add-new-tunnel:
+  en_US: "Add a new tunnel"
+  de_DE: "Einen neuen Tunnel hinzufügen"
+  es_ES: "Agregar un nuevo túnel"
+  fr_FR: "Ajouter un nouveau tunnel"
+  pl_PL: "Dodaj nowy tunel"
+
+about.add-onion-service-key-to-store:
+  en_US: "Add an onion service key to the key store"
+  de_DE: "Einen Onion-Service-Schlüssel zum Schlüsselspeicher hinzufügen"
+  es_ES: "Agregar una clave de servicio onion al almacén de claves"
+  fr_FR: "Ajouter une clé de service onion au magasin de clés"
+  pl_PL: "Dodaj klucz usługi onion do magazynu kluczy"
+
+about.add-or-remove-authorized-clients:
+  en_US: "Add or remove authorized clients"
+  de_DE: "Autorisierte Clients hinzufügen oder entfernen"
+  es_ES: "Agregar o eliminar clientes autorizados"
+  fr_FR: "Ajouter ou supprimer des clients autorisés"
+  pl_PL: "Dodaj lub usuń autoryzowanych klientów"
+
+about.add-os-version:
+  en_US: "Add OS version"
+  de_DE: "Betriebssystemversion hinzufügen"
+  es_ES: "Agregar versión del SO"
+  fr_FR: "Ajouter une version du système d'exploitation"
+  pl_PL: "Dodaj wersję systemu operacyjnego"
+
+about.add-package-category:
+  en_US: "Add a package to a category"
+  de_DE: "Ein Paket zu einer Kategorie hinzufügen"
+  es_ES: "Agregar un paquete a una categoría"
+  fr_FR: "Ajouter un paquet à une catégorie"
+  pl_PL: "Dodaj pakiet do kategorii"
+
+about.add-package-registry:
+  en_US: "Add package to registry index"
+  de_DE: "Paket zum Registry-Index hinzufügen"
+  es_ES: "Agregar paquete al índice del registro"
+  fr_FR: "Ajouter un paquet à l'index du registre"
+  pl_PL: "Dodaj pakiet do indeksu rejestru"
+
+about.add-package-signer:
+  en_US: "Add package signer"
+  de_DE: "Paket-Unterzeichner hinzufügen"
+  es_ES: "Agregar firmante de paquete"
+  fr_FR: "Ajouter un signataire de paquet"
+  pl_PL: "Dodaj sygnatariusza pakietu"
+
+about.add-path-value-db:
+  en_US: "Add path and value to db"
+  de_DE: "Pfad und Wert zur Datenbank hinzufügen"
+  es_ES: "Agregar ruta y valor a la base de datos"
+  fr_FR: "Ajouter un chemin et une valeur à la base de données"
+  pl_PL: "Dodaj ścieżkę i wartość do bazy danych"
+
+about.add-private-domain-to-host:
+  en_US: "Add a private domain to this host"
+  de_DE: "Eine private Domain zu diesem Host hinzufügen"
+  es_ES: "Agregar un dominio privado a este host"
+  fr_FR: "Ajouter un domaine privé à cet hôte"
+  pl_PL: "Dodaj prywatną domenę do tego hosta"
+
+about.add-public-domain-to-host:
+  en_US: "Add a public domain to this host"
+  de_DE: "Eine öffentliche Domain zu diesem Host hinzufügen"
+  es_ES: "Agregar un dominio público a este host"
+  fr_FR: "Ajouter un domaine public à cet hôte"
+  pl_PL: "Dodaj publiczną domenę do tego hosta"
+
+about.add-remove-list-package-signers:
+  en_US: "Add, remove, and list package signers"
+  de_DE: "Paket-Unterzeichner hinzufügen, entfernen und auflisten"
+  es_ES: "Agregar, eliminar y listar firmantes de paquetes"
+  fr_FR: "Ajouter, supprimer et lister les signataires de paquets"
+  pl_PL: "Dodaj, usuń i wyświetl sygnatariuszy pakietów"
+
+about.add-remove-list-version-signers:
+  en_US: "Add, remove, and list version signers"
+  de_DE: "Versions-Unterzeichner hinzufügen, entfernen und auflisten"
+  es_ES: "Agregar, eliminar y listar firmantes de versiones"
+  fr_FR: "Ajouter, supprimer et lister les signataires de versions"
+  pl_PL: "Dodaj, usuń i wyświetl sygnatariuszy wersji"
+
+about.add-remove-or-list-devices-in-subnets:
+  en_US: "Add, remove, or list devices in subnets"
+  de_DE: "Geräte in Subnetzen hinzufügen, entfernen oder auflisten"
+  es_ES: "Agregar, eliminar o listar dispositivos en subredes"
+  fr_FR: "Ajouter, supprimer ou lister les appareils dans les sous-réseaux"
+  pl_PL: "Dodaj, usuń lub wyświetl urządzenia w podsieciach"
+
+about.add-remove-or-modify-subnets:
+  en_US: "Add, remove, or modify subnets"
+  de_DE: "Subnetze hinzufügen, entfernen oder ändern"
+  es_ES: "Agregar, eliminar o modificar subredes"
+  fr_FR: "Ajouter, supprimer ou modifier des sous-réseaux"
+  pl_PL: "Dodaj, usuń lub zmodyfikuj podsieci"
+
+about.add-remove-update-backup-target:
+  en_US: "Add, remove, or update a backup target"
+  de_DE: "Backup-Ziel hinzufügen, entfernen oder aktualisieren"
+  es_ES: "Agregar, eliminar o actualizar un destino de respaldo"
+  fr_FR: "Ajouter, supprimer ou mettre à jour une cible de sauvegarde"
+  pl_PL: "Dodaj, usuń lub zaktualizuj cel kopii zapasowej"
+
+about.add-signer:
+  en_US: "Add signer"
+  de_DE: "Unterzeichner hinzufügen"
+  es_ES: "Agregar firmante"
+  fr_FR: "Ajouter un signataire"
+  pl_PL: "Dodaj sygnatariusza"
+
+about.add-ssh-key:
+  en_US: "Add ssh key"
+  de_DE: "SSH-Schlüssel hinzufügen"
+  es_ES: "Agregar clave ssh"
+  fr_FR: "Ajouter une clé ssh"
+  pl_PL: "Dodaj klucz ssh"
+
+about.add-version-signer:
+  en_US: "Add version signer"
+  de_DE: "Versions-Unterzeichner hinzufügen"
+  es_ES: "Agregar firmante de versión"
+  fr_FR: "Ajouter un signataire de version"
+  pl_PL: "Dodaj sygnatariusza wersji"
+
+about.add-wifi-ssid-password:
+  en_US: "Add wifi ssid and password"
+  de_DE: "WLAN-SSID und Passwort hinzufügen"
+  es_ES: "Agregar ssid y contraseña de wifi"
+  fr_FR: "Ajouter un ssid et mot de passe wifi"
+  pl_PL: "Dodaj ssid i hasło wifi"
+
+about.allow-gateway-infer-inbound-access-from-wan:
+  en_US: "Allow this gateway to infer whether it has inbound access from the WAN based on its IPv4 address"
+  de_DE: "Diesem Gateway erlauben, anhand seiner IPv4-Adresse zu ermitteln, ob es eingehenden Zugriff vom WAN hat"
+  es_ES: "Permitir que este gateway deduzca si tiene acceso entrante desde WAN basado en su dirección IPv4"
+  fr_FR: "Permettre à cette passerelle de déduire si elle a un accès entrant depuis le WAN en fonction de son adresse IPv4"
+  pl_PL: "Pozwól tej bramce wywnioskować, czy ma dostęp przychodzący z WAN na podstawie adresu IPv4"
+
+about.calculate-blake3-hash-for-file:
+  en_US: "Calculate blake3 hash for a file"
+  de_DE: "Blake3-Hash für eine Datei berechnen"
+  es_ES: "Calcular hash blake3 para un archivo"
+  fr_FR: "Calculer le hachage blake3 d'un fichier"
+  pl_PL: "Oblicz hash blake3 dla pliku"
+
+about.cancel-install-package:
+  en_US: "Cancel an install of a package"
+  de_DE: "Eine Paketinstallation abbrechen"
+  es_ES: "Cancelar la instalación de un paquete"
+  fr_FR: "Annuler l'installation d'un paquet"
+  pl_PL: "Anuluj instalację pakietu"
+
+about.check-update-startos:
+  en_US: "Check a given registry for StartOS updates and update if available"
+  de_DE: "Ein bestimmtes Registry auf StartOS-Updates prüfen und bei Verfügbarkeit aktualisieren"
+  es_ES: "Verificar un registro dado para actualizaciones de StartOS y actualizar si está disponible"
+  fr_FR: "Vérifier un registre donné pour les mises à jour StartOS et mettre à jour si disponible"
+  pl_PL: "Sprawdź dany rejestr pod kątem aktualizacji StartOS i zaktualizuj, jeśli dostępne"
+
+about.clear-service-task:
+  en_US: "Clear a service task"
+  de_DE: "Eine Dienstaufgabe löschen"
+  es_ES: "Borrar una tarea de servicio"
+  fr_FR: "Effacer une tâche de service"
+  pl_PL: "Wyczyść zadanie usługi"
+
+about.clear-smtp:
+  en_US: "Remove system smtp server and credentials"
+  de_DE: "System-SMTP-Server und Anmeldedaten entfernen"
+  es_ES: "Eliminar servidor smtp del sistema y credenciales"
+  fr_FR: "Supprimer le serveur smtp système et les identifiants"
+  pl_PL: "Usuń systemowy serwer smtp i dane uwierzytelniające"
+
+about.command-add-ui-record-db:
+  en_US: "Command for adding UI record to db"
+  de_DE: "Befehl zum Hinzufügen eines UI-Eintrags zur Datenbank"
+  es_ES: "Comando para agregar registro de UI a la base de datos"
+  fr_FR: "Commande pour ajouter un enregistrement UI à la base de données"
+  pl_PL: "Polecenie dodania rekordu UI do bazy danych"
+
+about.command-blake3-hash:
+  en_US: "Command for calculating the blake3 hash of a file"
+  de_DE: "Befehl zur Berechnung des Blake3-Hashs einer Datei"
+  es_ES: "Comando para calcular el hash blake3 de un archivo"
+  fr_FR: "Commande pour calculer le hachage blake3 d'un fichier"
+  pl_PL: "Polecenie obliczenia hashu blake3 pliku"
+
+about.command-list-available-wifi:
+  en_US: "Command to list available wifi networks"
+  de_DE: "Befehl zum Auflisten verfügbarer WLAN-Netzwerke"
+  es_ES: "Comando para listar redes wifi disponibles"
+  fr_FR: "Commande pour lister les réseaux wifi disponibles"
+  pl_PL: "Polecenie wyświetlenia dostępnych sieci wifi"
+
+about.command-remove-disk-filesystem:
+  en_US: "Command to remove disk from filesystem"
+  de_DE: "Befehl zum Entfernen der Festplatte aus dem Dateisystem"
+  es_ES: "Comando para eliminar disco del sistema de archivos"
+  fr_FR: "Commande pour retirer le disque du système de fichiers"
+  pl_PL: "Polecenie usunięcia dysku z systemu plików"
+
+about.commands-action:
+  en_US: "Commands to get action input or run an action"
+  de_DE: "Befehle zum Abrufen von Aktionseingaben oder Ausführen einer Aktion"
+  es_ES: "Comandos para obtener entrada de acción o ejecutar una acción"
+  fr_FR: "Commandes pour obtenir une entrée d'action ou exécuter une action"
+  pl_PL: "Polecenia do uzyskania wejścia akcji lub uruchomienia akcji"
+
+about.commands-add-image-or-edit-manifest:
+  en_US: "Commands to add an image to an s9pk or edit the manifest"
+  de_DE: "Befehle zum Hinzufügen eines Images zu einem s9pk oder Bearbeiten des Manifests"
+  es_ES: "Comandos para agregar una imagen a un s9pk o editar el manifiesto"
+  fr_FR: "Commandes pour ajouter une image à un s9pk ou éditer le manifeste"
+  pl_PL: "Polecenia dodania obrazu do s9pk lub edycji manifestu"
+
+about.commands-add-list-admins-signers:
+  en_US: "Commands to add or list admins or signers"
+  de_DE: "Befehle zum Hinzufügen oder Auflisten von Admins oder Unterzeichnern"
+  es_ES: "Comandos para agregar o listar administradores o firmantes"
+  fr_FR: "Commandes pour ajouter ou lister les administrateurs ou signataires"
+  pl_PL: "Polecenia dodania lub wyświetlenia administratorów lub sygnatariuszy"
+
+about.commands-add-list-signers:
+  en_US: "Commands to add or list signers"
+  de_DE: "Befehle zum Hinzufügen oder Auflisten von Unterzeichnern"
+  es_ES: "Comandos para agregar o listar firmantes"
+  fr_FR: "Commandes pour ajouter ou lister les signataires"
+  pl_PL: "Polecenia dodania lub wyświetlenia sygnatariuszy"
+
+about.commands-add-remove-list-versions:
+  en_US: "Commands to add, remove, or list versions or version signers"
+  de_DE: "Befehle zum Hinzufügen, Entfernen oder Auflisten von Versionen oder Versions-Unterzeichnern"
+  es_ES: "Comandos para agregar, eliminar o listar versiones o firmantes de versiones"
+  fr_FR: "Commandes pour ajouter, supprimer ou lister les versions ou signataires de versions"
+  pl_PL: "Polecenia dodania, usunięcia lub wyświetlenia wersji lub sygnatariuszy wersji"
+
+about.commands-add-sign-get-assets:
+  en_US: "Commands to add, sign, or get registry assets"
+  de_DE: "Befehle zum Hinzufügen, Signieren oder Abrufen von Registry-Assets"
+  es_ES: "Comandos para agregar, firmar u obtener activos del registro"
+  fr_FR: "Commandes pour ajouter, signer ou obtenir des actifs du registre"
+  pl_PL: "Polecenia dodania, podpisania lub pobrania zasobów rejestru"
+
+about.commands-authentication:
+  en_US: "Commands related to Authentication i.e. login, logout"
+  de_DE: "Befehle zur Authentifizierung, z.B. Anmelden, Abmelden"
+  es_ES: "Comandos relacionados con la autenticación, como iniciar sesión, cerrar sesión"
+  fr_FR: "Commandes liées à l'authentification, comme connexion, déconnexion"
+  pl_PL: "Polecenia związane z uwierzytelnianiem, np. logowanie, wylogowanie"
+
+about.commands-backup:
+  en_US: "Commands related to backup creation and backup targets"
+  de_DE: "Befehle zur Backup-Erstellung und Backup-Zielen"
+  es_ES: "Comandos relacionados con la creación de respaldos y destinos de respaldo"
+  fr_FR: "Commandes liées à la création de sauvegardes et aux cibles de sauvegarde"
+  pl_PL: "Polecenia związane z tworzeniem kopii zapasowych i celami kopii zapasowych"
+
+about.commands-backup-target:
+  en_US: "Commands related to a backup target"
+  de_DE: "Befehle zu einem Backup-Ziel"
+  es_ES: "Comandos relacionados con un destino de respaldo"
+  fr_FR: "Commandes liées à une cible de sauvegarde"
+  pl_PL: "Polecenia związane z celem kopii zapasowej"
+
+about.commands-db:
+  en_US: "Commands to interact with the db i.e. dump, put, apply"
+  de_DE: "Befehle zur Interaktion mit der Datenbank, z.B. dump, put, apply"
+  es_ES: "Comandos para interactuar con la base de datos, como dump, put, apply"
+  fr_FR: "Commandes pour interagir avec la base de données, comme dump, put, apply"
+  pl_PL: "Polecenia interakcji z bazą danych, np. dump, put, apply"
+
+about.commands-diagnostic:
+  en_US: "Commands to display logs, restart the server, etc"
+  de_DE: "Befehle zum Anzeigen von Logs, Neustart des Servers, usw."
+  es_ES: "Comandos para mostrar logs, reiniciar el servidor, etc."
+  fr_FR: "Commandes pour afficher les logs, redémarrer le serveur, etc."
+  pl_PL: "Polecenia wyświetlania logów, restartu serwera itp."
+
+about.commands-disk:
+  en_US: "Commands for listing disk info and repairing"
+  de_DE: "Befehle zum Auflisten von Festplatteninfo und Reparieren"
+  es_ES: "Comandos para listar información de disco y reparar"
+  fr_FR: "Commandes pour lister les informations de disque et réparer"
+  pl_PL: "Polecenia wyświetlania informacji o dysku i naprawy"
+
+about.commands-display-file-paths-contents-manifest:
+  en_US: "Commands to display file paths, file contents, or manifest"
+  de_DE: "Befehle zum Anzeigen von Dateipfaden, Dateiinhalten oder Manifest"
+  es_ES: "Comandos para mostrar rutas de archivos, contenidos de archivos o manifiesto"
+  fr_FR: "Commandes pour afficher les chemins de fichiers, contenus de fichiers ou manifeste"
+  pl_PL: "Polecenia wyświetlania ścieżek plików, zawartości plików lub manifestu"
+
+about.commands-download-assets:
+  en_US: "Commands to download image, iso, or squashfs files"
+  de_DE: "Befehle zum Herunterladen von Image-, ISO- oder Squashfs-Dateien"
+  es_ES: "Comandos para descargar archivos de imagen, iso o squashfs"
+  fr_FR: "Commandes pour télécharger des fichiers image, iso ou squashfs"
+  pl_PL: "Polecenia pobierania plików obrazu, iso lub squashfs"
+
+about.command-set-country:
+  en_US: "Command to set country"
+  de_DE: "Befehl zum Festlegen des Landes"
+  es_ES: "Comando para establecer el país"
+  fr_FR: "Commande pour définir le pays"
+  pl_PL: "Polecenie ustawienia kraju"
+
+about.commands-experimental:
+  en_US: "Commands related to configuring experimental options such as zram and cpu governor"
+  de_DE: "Befehle zur Konfiguration experimenteller Optionen wie zram und CPU-Governor"
+  es_ES: "Comandos relacionados con la configuración de opciones experimentales como zram y gobernador de CPU"
+  fr_FR: "Commandes liées à la configuration d'options expérimentales comme zram et le gouverneur CPU"
+  pl_PL: "Polecenia konfiguracji opcji eksperymentalnych jak zram i regulator CPU"
+
+about.commands-host-system-ui:
+  en_US: "Commands for modifying the host for the system ui"
+  de_DE: "Befehle zum Ändern des Hosts für die System-UI"
+  es_ES: "Comandos para modificar el host para la interfaz del sistema"
+  fr_FR: "Commandes pour modifier l'hôte pour l'interface système"
+  pl_PL: "Polecenia modyfikacji hosta dla interfejsu systemowego"
+
+about.commands-index-add-get-packages:
+  en_US: "Commands to index, add, or get packages"
+  de_DE: "Befehle zum Indizieren, Hinzufügen oder Abrufen von Paketen"
+  es_ES: "Comandos para indexar, agregar u obtener paquetes"
+  fr_FR: "Commandes pour indexer, ajouter ou obtenir des paquets"
+  pl_PL: "Polecenia indeksowania, dodawania lub pobierania pakietów"
+
+about.commands-interact-with-db-dump-apply:
+  en_US: "Commands to interact with the db i.e. dump and apply"
+  de_DE: "Befehle zur Interaktion mit der Datenbank, z.B. dump und apply"
+  es_ES: "Comandos para interactuar con la base de datos, como dump y apply"
+  fr_FR: "Commandes pour interagir avec la base de données, comme dump et apply"
+  pl_PL: "Polecenia interakcji z bazą danych, np. dump i apply"
+
+about.commands-notifications:
+  en_US: "Create, delete, or list notifications"
+  de_DE: "Benachrichtigungen erstellen, löschen oder auflisten"
+  es_ES: "Crear, eliminar o listar notificaciones"
+  fr_FR: "Créer, supprimer ou lister les notifications"
+  pl_PL: "Twórz, usuwaj lub wyświetlaj powiadomienia"
+
+about.commands-os-assets-versions:
+  en_US: "Commands related to OS assets and versions"
+  de_DE: "Befehle zu Betriebssystem-Assets und Versionen"
+  es_ES: "Comandos relacionados con activos y versiones del SO"
+  fr_FR: "Commandes liées aux actifs et versions du système d'exploitation"
+  pl_PL: "Polecenia związane z zasobami i wersjami systemu operacyjnego"
+
+about.commands-packages:
+  en_US: "Commands related to packages"
+  de_DE: "Befehle zu Paketen"
+  es_ES: "Comandos relacionados con paquetes"
+  fr_FR: "Commandes liées aux paquets"
+  pl_PL: "Polecenia związane z pakietami"
+
+about.commands-registry:
+  en_US: "Commands related to the registry"
+  de_DE: "Befehle zum Registry"
+  es_ES: "Comandos relacionados con el registro"
+  fr_FR: "Commandes liées au registre"
+  pl_PL: "Polecenia związane z rejestrem"
+
+about.commands-registry-db:
+  en_US: "Commands to interact with the db i.e. dump and apply"
+  de_DE: "Befehle zur Interaktion mit der Datenbank, z.B. dump und apply"
+  es_ES: "Comandos para interactuar con la base de datos, como dump y apply"
+  fr_FR: "Commandes pour interagir avec la base de données, comme dump et apply"
+  pl_PL: "Polecenia interakcji z bazą danych, np. dump i apply"
+
+about.commands-restore-backup:
+  en_US: "Commands for restoring package(s) from backup"
+  de_DE: "Befehle zum Wiederherstellen von Paketen aus dem Backup"
+  es_ES: "Comandos para restaurar paquete(s) desde respaldo"
+  fr_FR: "Commandes pour restaurer des paquets depuis une sauvegarde"
+  pl_PL: "Polecenia przywracania pakietów z kopii zapasowej"
+
+about.commands-s9pk:
+  en_US: "Commands for interacting with s9pk files"
+  de_DE: "Befehle zur Interaktion mit s9pk-Dateien"
+  es_ES: "Comandos para interactuar con archivos s9pk"
+  fr_FR: "Commandes pour interagir avec les fichiers s9pk"
+  pl_PL: "Polecenia interakcji z plikami s9pk"
+
+about.commands-server:
+  en_US: "Commands related to the server i.e. restart, update, and shutdown"
+  de_DE: "Befehle zum Server, z.B. Neustart, Update und Herunterfahren"
+  es_ES: "Comandos relacionados con el servidor, como reiniciar, actualizar y apagar"
+  fr_FR: "Commandes liées au serveur, comme redémarrer, mettre à jour et arrêter"
+  pl_PL: "Polecenia związane z serwerem, np. restart, aktualizacja i zamknięcie"
+
+about.commands-ssh-keys:
+  en_US: "Commands for interacting with ssh keys i.e. add, delete, list"
+  de_DE: "Befehle zur Interaktion mit SSH-Schlüsseln, z.B. hinzufügen, löschen, auflisten"
+  es_ES: "Comandos para interactuar con claves ssh, como agregar, eliminar, listar"
+  fr_FR: "Commandes pour interagir avec les clés ssh, comme ajouter, supprimer, lister"
+  pl_PL: "Polecenia interakcji z kluczami ssh, np. dodaj, usuń, wyświetl"
+
+about.commands-tunnel:
+  en_US: "Commands related to StartTunnel"
+  de_DE: "Befehle zu StartTunnel"
+  es_ES: "Comandos relacionados con StartTunnel"
+  fr_FR: "Commandes liées à StartTunnel"
+  pl_PL: "Polecenia związane z StartTunnel"
+
+about.commands-wifi:
+  en_US: "Commands related to wifi networks i.e. add, connect, delete"
+  de_DE: "Befehle zu WLAN-Netzwerken, z.B. hinzufügen, verbinden, löschen"
+  es_ES: "Comandos relacionados con redes wifi, como agregar, conectar, eliminar"
+  fr_FR: "Commandes liées aux réseaux wifi, comme ajouter, connecter, supprimer"
+  pl_PL: "Polecenia związane z sieciami wifi, np. dodaj, połącz, usuń"
+
+about.connect-wifi-network:
+  en_US: "Connect to a wifi network"
+  de_DE: "Mit einem WLAN-Netzwerk verbinden"
+  es_ES: "Conectar a una red wifi"
+  fr_FR: "Se connecter à un réseau wifi"
+  pl_PL: "Połącz z siecią wifi"
+
+about.convert-s9pk-v1-to-v2:
+  en_US: "Convert an s9pk from v1 to v2"
+  de_DE: "Konvertiere ein s9pk von v1 zu v2"
+  es_ES: "Convertir un s9pk de v1 a v2"
+  fr_FR: "Convertir un s9pk de v1 à v2"
+  pl_PL: "Konwertuj s9pk z v1 do v2"
+
+about.create-backup-all-packages:
+  en_US: "Create a backup for all packages"
+  de_DE: "Erstelle ein Backup für alle Pakete"
+  es_ES: "Crear una copia de seguridad de todos los paquetes"
+  fr_FR: "Créer une sauvegarde de tous les packages"
+  pl_PL: "Utwórz kopię zapasową wszystkich pakietów"
+
+about.create-developer-key:
+  en_US: "Create a new developer key"
+  de_DE: "Erstelle einen neuen Entwicklerschlüssel"
+  es_ES: "Crear una nueva clave de desarrollador"
+  fr_FR: "Créer une nouvelle clé de développeur"
+  pl_PL: "Utwórz nowy klucz deweloperski"
+
+about.disable-kiosk-mode:
+  en_US: "Disable kiosk mode"
+  de_DE: "Kioskmodus deaktivieren"
+  es_ES: "Desactivar el modo kiosco"
+  fr_FR: "Désactiver le mode kiosque"
+  pl_PL: "Wyłącz tryb kiosku"
+
+about.disable-webserver:
+  en_US: "Disable the webserver"
+  de_DE: "Webserver deaktivieren"
+  es_ES: "Desactivar el servidor web"
+  fr_FR: "Désactiver le serveur web"
+  pl_PL: "Wyłącz serwer internetowy"
+
+about.display-all-auth-sessions:
+  en_US: "Display all auth sessions"
+  de_DE: "Alle Authentifizierungssitzungen anzeigen"
+  es_ES: "Mostrar todas las sesiones de autenticación"
+  fr_FR: "Afficher toutes les sessions d'authentification"
+  pl_PL: "Wyświetl wszystkie sesje uwierzytelniania"
+
+about.display-current-api:
+  en_US: "Display the current api specification"
+  de_DE: "Aktuelle API-Spezifikation anzeigen"
+  es_ES: "Mostrar la especificación de la API actual"
+  fr_FR: "Afficher la spécification de l'API actuelle"
+  pl_PL: "Wyświetl bieżącą specyfikację API"
+
+about.display-diagnostic-error:
+  en_US: "Display diagnostic error"
+  de_DE: "Diagnosefehler anzeigen"
+  es_ES: "Mostrar error de diagnóstico"
+  fr_FR: "Afficher l'erreur de diagnostic"
+  pl_PL: "Wyświetl błąd diagnostyczny"
+
+about.display-file-contents:
+  en_US: "Display file contents from s9pk"
+  de_DE: "Dateiinhalte aus s9pk anzeigen"
+  es_ES: "Mostrar contenido del archivo desde s9pk"
+  fr_FR: "Afficher le contenu du fichier depuis s9pk"
+  pl_PL: "Wyświetl zawartość pliku z s9pk"
+
+about.display-githash:
+  en_US: "Display the git hash of this build"
+  de_DE: "Git-Hash dieses Builds anzeigen"
+  es_ES: "Mostrar el hash de git de esta compilación"
+  fr_FR: "Afficher le hash git de cette version"
+  pl_PL: "Wyświetl hash git tej kompilacji"
+
+about.display-installed-version:
+  en_US: "Display the installed version of a package"
+  de_DE: "Installierte Version eines Pakets anzeigen"
+  es_ES: "Mostrar la versión instalada de un paquete"
+  fr_FR: "Afficher la version installée d'un package"
+  pl_PL: "Wyświetl zainstalowaną wersję pakietu"
+
+about.display-kernel-logs:
+  en_US: "Display kernel logs"
+  de_DE: "Kernel-Logs anzeigen"
+  es_ES: "Mostrar registros del kernel"
+  fr_FR: "Afficher les journaux du noyau"
+  pl_PL: "Wyświetl logi jądra"
+
+about.display-list-of-paths:
+  en_US: "Display list of paths in s9pk"
+  de_DE: "Liste der Pfade in s9pk anzeigen"
+  es_ES: "Mostrar lista de rutas en s9pk"
+  fr_FR: "Afficher la liste des chemins dans s9pk"
+  pl_PL: "Wyświetl listę ścieżek w s9pk"
+
+about.display-os-logs:
+  en_US: "Display OS logs"
+  de_DE: "Betriebssystem-Logs anzeigen"
+  es_ES: "Mostrar registros del sistema operativo"
+  fr_FR: "Afficher les journaux du système d'exploitation"
+  pl_PL: "Wyświetl logi systemu operacyjnego"
+
+about.display-package-backup-information:
+  en_US: "Display backup information for a package"
+  de_DE: "Backup-Informationen für ein Paket anzeigen"
+  es_ES: "Mostrar información de copia de seguridad de un paquete"
+  fr_FR: "Afficher les informations de sauvegarde d'un package"
+  pl_PL: "Wyświetl informacje o kopii zapasowej pakietu"
+
+about.display-package-logs:
+  en_US: "Display logs for a package"
+  de_DE: "Logs für ein Paket anzeigen"
+  es_ES: "Mostrar registros de un paquete"
+  fr_FR: "Afficher les journaux d'un package"
+  pl_PL: "Wyświetl logi pakietu"
+
+about.display-registry-info:
+  en_US: "Display registry info"
+  de_DE: "Registry-Informationen anzeigen"
+  es_ES: "Mostrar información del registro"
+  fr_FR: "Afficher les informations du registre"
+  pl_PL: "Wyświetl informacje o rejestrze"
+
+about.display-s9pk-manifest:
+  en_US: "Display the s9pk manifest"
+  de_DE: "Das s9pk-Manifest anzeigen"
+  es_ES: "Mostrar el manifiesto s9pk"
+  fr_FR: "Afficher le manifeste s9pk"
+  pl_PL: "Wyświetl manifest s9pk"
+
+about.display-server-metrics:
+  en_US: "Display server metrics"
+  de_DE: "Server-Metriken anzeigen"
+  es_ES: "Mostrar métricas del servidor"
+  fr_FR: "Afficher les métriques du serveur"
+  pl_PL: "Wyświetl metryki serwera"
+
+about.display-time-uptime:
+  en_US: "Display server time and uptime"
+  de_DE: "Serverzeit und Betriebszeit anzeigen"
+  es_ES: "Mostrar tiempo del servidor y tiempo de actividad"
+  fr_FR: "Afficher l'heure et le temps de fonctionnement du serveur"
+  pl_PL: "Wyświetl czas serwera i czas działania"
+
+about.display-tor-logs:
+  en_US: "Display Tor logs"
+  de_DE: "Tor-Logs anzeigen"
+  es_ES: "Mostrar registros de Tor"
+  fr_FR: "Afficher les journaux Tor"
+  pl_PL: "Wyświetl logi Tora"
+
+about.display-tor-v3-onion-addresses:
+  en_US: "Display Tor v3 onion addresses"
+  de_DE: "Tor v3 Onion-Adressen anzeigen"
+  es_ES: "Mostrar direcciones onion Tor v3"
+  fr_FR: "Afficher les adresses onion Tor v3"
+  pl_PL: "Wyświetl adresy onion Tor v3"
+
+about.download-img:
+  en_US: "Download IMG file"
+  de_DE: "IMG-Datei herunterladen"
+  es_ES: "Descargar archivo IMG"
+  fr_FR: "Télécharger le fichier IMG"
+  pl_PL: "Pobierz plik IMG"
+
+about.download-iso:
+  en_US: "Download ISO file"
+  de_DE: "ISO-Datei herunterladen"
+  es_ES: "Descargar archivo ISO"
+  fr_FR: "Télécharger le fichier ISO"
+  pl_PL: "Pobierz plik ISO"
+
+about.download-s9pk:
+  en_US: "Download s9pk package"
+  de_DE: "s9pk-Paket herunterladen"
+  es_ES: "Descargar paquete s9pk"
+  fr_FR: "Télécharger le package s9pk"
+  pl_PL: "Pobierz pakiet s9pk"
+
+about.download-squashfs:
+  en_US: "Download squashfs file"
+  de_DE: "Squashfs-Datei herunterladen"
+  es_ES: "Descargar archivo squashfs"
+  fr_FR: "Télécharger le fichier squashfs"
+  pl_PL: "Pobierz plik squashfs"
+
+about.dump-address-resolution-table:
+  en_US: "Dump address resolution table"
+  de_DE: "Adressauflösungstabelle ausgeben"
+  es_ES: "Volcar tabla de resolución de direcciones"
+  fr_FR: "Exporter la table de résolution d'adresses"
+  pl_PL: "Zrzuć tabelę rozpoznawania adresów"
+
+about.echo-message:
+  en_US: "Echo a message back"
+  de_DE: "Eine Nachricht zurückgeben"
+  es_ES: "Devolver un mensaje"
+  fr_FR: "Renvoyer un message"
+  pl_PL: "Odzew wiadomości"
+
+about.edit-s9pk-manifest:
+  en_US: "Edit s9pk manifest"
+  de_DE: "s9pk-Manifest bearbeiten"
+  es_ES: "Editar manifiesto s9pk"
+  fr_FR: "Modifier le manifeste s9pk"
+  pl_PL: "Edytuj manifest s9pk"
+
+about.enable-disable-wifi:
+  en_US: "Enable or disable wifi"
+  de_DE: "WLAN aktivieren oder deaktivieren"
+  es_ES: "Activar o desactivar wifi"
+  fr_FR: "Activer ou désactiver le wifi"
+  pl_PL: "Włącz lub wyłącz wifi"
+
+about.enable-kiosk-mode:
+  en_US: "Enable kiosk mode"
+  de_DE: "Kioskmodus aktivieren"
+  es_ES: "Activar el modo kiosco"
+  fr_FR: "Activer le mode kiosque"
+  pl_PL: "Włącz tryb kiosku"
+
+about.enable-webserver:
+  en_US: "Enable the webserver"
+  de_DE: "Webserver aktivieren"
+  es_ES: "Activar el servidor web"
+  fr_FR: "Activer le serveur web"
+  pl_PL: "Włącz serwer internetowy"
+
+about.enable-zram:
+  en_US: "Enable ZRAM"
+  de_DE: "ZRAM aktivieren"
+  es_ES: "Activar ZRAM"
+  fr_FR: "Activer ZRAM"
+  pl_PL: "Włącz ZRAM"
+
+about.execute-commands-container:
+  en_US: "Execute commands in container"
+  de_DE: "Befehle im Container ausführen"
+  es_ES: "Ejecutar comandos en el contenedor"
+  fr_FR: "Exécuter des commandes dans le conteneur"
+  pl_PL: "Wykonaj polecenia w kontenerze"
+
+about.filter-query-db:
+  en_US: "Filter and query the database"
+  de_DE: "Datenbank filtern und abfragen"
+  es_ES: "Filtrar y consultar la base de datos"
+  fr_FR: "Filtrer et interroger la base de données"
+  pl_PL: "Filtruj i odpytuj bazę danych"
+
+about.filter-query-db-display-tables-records:
+  en_US: "Filter and query the database, display tables and records"
+  de_DE: "Datenbank filtern und abfragen, Tabellen und Einträge anzeigen"
+  es_ES: "Filtrar y consultar la base de datos, mostrar tablas y registros"
+  fr_FR: "Filtrer et interroger la base de données, afficher les tables et les enregistrements"
+  pl_PL: "Filtruj i odpytuj bazę danych, wyświetlaj tabele i rekordy"
+
+about.flash-startos:
+  en_US: "Flash StartOS to a drive"
+  de_DE: "StartOS auf ein Laufwerk flashen"
+  es_ES: "Flashear StartOS a una unidad"
+  fr_FR: "Flasher StartOS sur un lecteur"
+  pl_PL: "Flashuj StartOS na dysk"
+
+about.forget-disconnected-gateway:
+  en_US: "Forget a disconnected gateway"
+  de_DE: "Getrenntes Gateway vergessen"
+  es_ES: "Olvidar un gateway desconectado"
+  fr_FR: "Oublier une passerelle déconnectée"
+  pl_PL: "Zapomnij odłączoną bramę"
+
+about.generate-certificate-for-webserver:
+  en_US: "Generate a certificate for the webserver"
+  de_DE: "Zertifikat für den Webserver generieren"
+  es_ES: "Generar un certificado para el servidor web"
+  fr_FR: "Générer un certificat pour le serveur web"
+  pl_PL: "Wygeneruj certyfikat dla serwera internetowego"
+
+about.generate-onion-service-key-add-to-store:
+  en_US: "Generate an onion service key and add to store"
+  de_DE: "Onion-Service-Schlüssel generieren und zum Speicher hinzufügen"
+  es_ES: "Generar una clave de servicio onion y agregar al almacén"
+  fr_FR: "Générer une clé de service onion et ajouter au stockage"
+  pl_PL: "Wygeneruj klucz usługi onion i dodaj do magazynu"
+
+about.get-action-input-spec:
+  en_US: "Get action input specification"
+  de_DE: "Eingabespezifikation der Aktion abrufen"
+  es_ES: "Obtener especificación de entrada de la acción"
+  fr_FR: "Obtenir la spécification d'entrée de l'action"
+  pl_PL: "Pobierz specyfikację wejścia akcji"
+
+about.get-available-ip-addresses-to-bind:
+  en_US: "Get available IP addresses to bind"
+  de_DE: "Verfügbare IP-Adressen zum Binden abrufen"
+  es_ES: "Obtener direcciones IP disponibles para vincular"
+  fr_FR: "Obtenir les adresses IP disponibles à lier"
+  pl_PL: "Pobierz dostępne adresy IP do powiązania"
+
+about.get-certificate-for-webserver:
+  en_US: "Get the certificate for the webserver"
+  de_DE: "Zertifikat für den Webserver abrufen"
+  es_ES: "Obtener el certificado del servidor web"
+  fr_FR: "Obtenir le certificat du serveur web"
+  pl_PL: "Pobierz certyfikat dla serwera internetowego"
+
+about.get-developer-pubkey:
+  en_US: "Get the developer public key"
+  de_DE: "Öffentlichen Entwicklerschlüssel abrufen"
+  es_ES: "Obtener la clave pública del desarrollador"
+  fr_FR: "Obtenir la clé publique du développeur"
+  pl_PL: "Pobierz klucz publiczny dewelopera"
+
+about.get-initialization-progress:
+  en_US: "Get initialization progress"
+  de_DE: "Initialisierungsfortschritt abrufen"
+  es_ES: "Obtener progreso de inicialización"
+  fr_FR: "Obtenir la progression de l'initialisation"
+  pl_PL: "Pobierz postęp inicjalizacji"
+
+about.get-listen-address-for-webserver:
+  en_US: "Get the listen address for the webserver"
+  de_DE: "Adresse abrufen, auf der der Webserver lauscht"
+  es_ES: "Obtener la dirección de escucha del servidor web"
+  fr_FR: "Obtenir l'adresse d'écoute du serveur web"
+  pl_PL: "Pobierz adres nasłuchiwania serwera internetowego"
+
+about.get-os-versions-info:
+  en_US: "Get OS versions info"
+  de_DE: "Informationen zu Betriebssystemversionen abrufen"
+  es_ES: "Obtener información de versiones del sistema operativo"
+  fr_FR: "Obtenir les informations sur les versions du système d'exploitation"
+  pl_PL: "Pobierz informacje o wersjach systemu operacyjnego"
+
+about.get-pubkey-from-server:
+  en_US: "Get the public key from the server"
+  de_DE: "Öffentlichen Schlüssel vom Server abrufen"
+  es_ES: "Obtener la clave pública del servidor"
+  fr_FR: "Obtenir la clé publique du serveur"
+  pl_PL: "Pobierz klucz publiczny z serwera"
+
+about.import-certificate-for-webserver:
+  en_US: "Import a certificate for the webserver"
+  de_DE: "Zertifikat für den Webserver importieren"
+  es_ES: "Importar un certificado para el servidor web"
+  fr_FR: "Importer un certificat pour le serveur web"
+  pl_PL: "Importuj certyfikat dla serwera internetowego"
+
+about.indicate-gateway-inbound-access-from-wan:
+  en_US: "Indicate gateway inbound access from WAN"
+  de_DE: "Eingehenden Zugriff vom WAN zum Gateway anzeigen"
+  es_ES: "Indicar acceso entrante del gateway desde WAN"
+  fr_FR: "Indiquer l'accès entrant de la passerelle depuis le WAN"
+  pl_PL: "Wskaż dostęp przychodzący bramy z WAN"
+
+about.initialize-webserver:
+  en_US: "Initialize the webserver"
+  de_DE: "Webserver initialisieren"
+  es_ES: "Inicializar el servidor web"
+  fr_FR: "Initialiser le serveur web"
+  pl_PL: "Zainicjuj serwer internetowy"
+
+about.install-package:
+  en_US: "Install a package"
+  de_DE: "Ein Paket installieren"
+  es_ES: "Instalar un paquete"
+  fr_FR: "Installer un package"
+  pl_PL: "Zainstaluj pakiet"
+
+about.list-addresses-for-host:
+  en_US: "List addresses for a host"
+  de_DE: "Adressen für einen Host auflisten"
+  es_ES: "Listar direcciones de un host"
+  fr_FR: "Lister les adresses d'un hôte"
+  pl_PL: "Wyświetl adresy dla hosta"
+
+about.list-admin-signers:
+  en_US: "List admin signers"
+  de_DE: "Admin-Unterzeichner auflisten"
+  es_ES: "Listar firmantes de administrador"
+  fr_FR: "Lister les signataires administrateurs"
+  pl_PL: "Wyświetl sygnatariuszy administratorów"
+
+about.list-authorized-keys:
+  en_US: "List authorized keys"
+  de_DE: "Autorisierte Schlüssel auflisten"
+  es_ES: "Listar claves autorizadas"
+  fr_FR: "Lister les clés autorisées"
+  pl_PL: "Wyświetl autoryzowane klucze"
+
+about.list-available-wifi-networks:
+  en_US: "List available wifi networks"
+  de_DE: "Verfügbare WLAN-Netzwerke auflisten"
+  es_ES: "Listar redes wifi disponibles"
+  fr_FR: "Lister les réseaux wifi disponibles"
+  pl_PL: "Wyświetl dostępne sieci wifi"
+
+about.list-bindings-for-host:
+  en_US: "List bindings for a host"
+  de_DE: "Bindungen für einen Host auflisten"
+  es_ES: "Listar enlaces de un host"
+  fr_FR: "Lister les liaisons d'un hôte"
+  pl_PL: "Wyświetl powiązania dla hosta"
+
+about.list-devices-in-subnet:
+  en_US: "List devices in a subnet"
+  de_DE: "Geräte in einem Subnetz auflisten"
+  es_ES: "Listar dispositivos en una subred"
+  fr_FR: "Lister les appareils dans un sous-réseau"
+  pl_PL: "Wyświetl urządzenia w podsieci"
+
+about.list-disk-info:
+  en_US: "List disk information"
+  de_DE: "Festplatteninformationen auflisten"
+  es_ES: "Listar información del disco"
+  fr_FR: "Lister les informations du disque"
+  pl_PL: "Wyświetl informacje o dysku"
+
+about.list-existing-backup-targets:
+  en_US: "List existing backup targets"
+  de_DE: "Vorhandene Backup-Ziele auflisten"
+  es_ES: "Listar objetivos de copia de seguridad existentes"
+  fr_FR: "Lister les cibles de sauvegarde existantes"
+  pl_PL: "Wyświetl istniejące cele kopii zapasowych"
+
+about.list-host-ids-for-service:
+  en_US: "List host IDs for a service"
+  de_DE: "Host-IDs für einen Dienst auflisten"
+  es_ES: "Listar IDs de host para un servicio"
+  fr_FR: "Lister les IDs d'hôte pour un service"
+  pl_PL: "Wyświetl identyfikatory hostów dla usługi"
+
+about.list-installation-candidates:
+  en_US: "List installation candidates"
+  de_DE: "Installationskandidaten auflisten"
+  es_ES: "Listar candidatos de instalación"
+  fr_FR: "Lister les candidats à l'installation"
+  pl_PL: "Wyświetl kandydatów do instalacji"
+
+about.list-installed-packages:
+  en_US: "List installed packages"
+  de_DE: "Installierte Pakete auflisten"
+  es_ES: "Listar paquetes instalados"
+  fr_FR: "Lister les packages installés"
+  pl_PL: "Wyświetl zainstalowane pakiety"
+
+about.list-lxc-container-info:
+  en_US: "List LXC container information"
+  de_DE: "LXC-Container-Informationen auflisten"
+  es_ES: "Listar información del contenedor LXC"
+  fr_FR: "Lister les informations du conteneur LXC"
+  pl_PL: "Wyświetl informacje o kontenerze LXC"
+
+about.list-notifications:
+  en_US: "List notifications"
+  de_DE: "Benachrichtigungen auflisten"
+  es_ES: "Listar notificaciones"
+  fr_FR: "Lister les notifications"
+  pl_PL: "Wyświetl powiadomienia"
+
+about.list-onion-services-with-keys-in-store:
+  en_US: "List onion services with keys in store"
+  de_DE: "Onion-Dienste mit Schlüsseln im Speicher auflisten"
+  es_ES: "Listar servicios onion con claves en el almacén"
+  fr_FR: "Lister les services onion avec des clés en stockage"
+  pl_PL: "Wyświetl usługi onion z kluczami w magazynie"
+
+about.list-or-kill-auth-sessions:
+  en_US: "List or kill auth sessions"
+  de_DE: "Authentifizierungssitzungen auflisten oder beenden"
+  es_ES: "Listar o terminar sesiones de autenticación"
+  fr_FR: "Lister ou terminer les sessions d'authentification"
+  pl_PL: "Wyświetl lub zakończ sesje uwierzytelniania"
+
+about.list-os-versions-index:
+  en_US: "List OS versions index"
+  de_DE: "Index der Betriebssystemversionen auflisten"
+  es_ES: "Listar índice de versiones del sistema operativo"
+  fr_FR: "Lister l'index des versions du système d'exploitation"
+  pl_PL: "Wyświetl indeks wersji systemu operacyjnego"
+
+about.list-packages-categories:
+  en_US: "List packages and categories"
+  de_DE: "Pakete und Kategorien auflisten"
+  es_ES: "Listar paquetes y categorías"
+  fr_FR: "Lister les packages et catégories"
+  pl_PL: "Wyświetl pakiety i kategorie"
+
+about.list-package-signers:
+  en_US: "List package signers"
+  de_DE: "Paket-Unterzeichner auflisten"
+  es_ES: "Listar firmantes de paquetes"
+  fr_FR: "Lister les signataires de packages"
+  pl_PL: "Wyświetl sygnatariuszy pakietów"
+
+about.list-paths-of-package-ingredients:
+  en_US: "List paths of package ingredients"
+  de_DE: "Pfade der Paketbestandteile auflisten"
+  es_ES: "Listar rutas de los componentes del paquete"
+  fr_FR: "Lister les chemins des composants du package"
+  pl_PL: "Wyświetl ścieżki składników pakietu"
+
+about.list-registry-info-packages:
+  en_US: "List registry info and packages"
+  de_DE: "Registry-Informationen und Pakete auflisten"
+  es_ES: "Listar información del registro y paquetes"
+  fr_FR: "Lister les informations du registre et les packages"
+  pl_PL: "Wyświetl informacje o rejestrze i pakiety"
+
+about.list-signers:
+  en_US: "List signers"
+  de_DE: "Unterzeichner auflisten"
+  es_ES: "Listar firmantes"
+  fr_FR: "Lister les signataires"
+  pl_PL: "Wyświetl sygnatariuszy"
+
+about.list-ssh-keys:
+  en_US: "List SSH keys"
+  de_DE: "SSH-Schlüssel auflisten"
+  es_ES: "Listar claves SSH"
+  fr_FR: "Lister les clés SSH"
+  pl_PL: "Wyświetl klucze SSH"
+
+about.list-version-signers:
+  en_US: "List version signers"
+  de_DE: "Versions-Unterzeichner auflisten"
+  es_ES: "Listar firmantes de versiones"
+  fr_FR: "Lister les signataires de versions"
+  pl_PL: "Wyświetl sygnatariuszy wersji"
+
+about.list-wifi-info:
+  en_US: "List wifi information"
+  de_DE: "WLAN-Informationen auflisten"
+  es_ES: "Listar información wifi"
+  fr_FR: "Lister les informations wifi"
+  pl_PL: "Wyświetl informacje o wifi"
+
+about.login-new-auth-session:
+  en_US: "Login to a new auth session"
+  de_DE: "Bei einer neuen Authentifizierungssitzung anmelden"
+  es_ES: "Iniciar sesión en una nueva sesión de autenticación"
+  fr_FR: "Se connecter à une nouvelle session d'authentification"
+  pl_PL: "Zaloguj się do nowej sesji uwierzytelniania"
+
+about.logout-current-auth-session:
+  en_US: "Logout from current auth session"
+  de_DE: "Von aktueller Authentifizierungssitzung abmelden"
+  es_ES: "Cerrar sesión de la sesión de autenticación actual"
+  fr_FR: "Se déconnecter de la session d'authentification actuelle"
+  pl_PL: "Wyloguj się z bieżącej sesji uwierzytelniania"
+
+about.manage-network-hosts-package:
+  en_US: "Manage network hosts for a package"
+  de_DE: "Netzwerk-Hosts für ein Paket verwalten"
+  es_ES: "Gestionar hosts de red de un paquete"
+  fr_FR: "Gérer les hôtes réseau d'un package"
+  pl_PL: "Zarządzaj hostami sieciowymi dla pakietu"
+
+about.manage-onion-service-key-store:
+  en_US: "Manage onion service key store"
+  de_DE: "Onion-Service-Schlüsselspeicher verwalten"
+  es_ES: "Gestionar almacén de claves de servicio onion"
+  fr_FR: "Gérer le stockage des clés de service onion"
+  pl_PL: "Zarządzaj magazynem kluczy usługi onion"
+
+about.manage-port-forwards:
+  en_US: "Manage port forwards"
+  de_DE: "Portweiterleitungen verwalten"
+  es_ES: "Gestionar reenvíos de puertos"
+  fr_FR: "Gérer les redirections de ports"
+  pl_PL: "Zarządzaj przekierowaniami portów"
+
+about.manage-query-dns:
+  en_US: "Manage and query DNS"
+  de_DE: "DNS verwalten und abfragen"
+  es_ES: "Gestionar y consultar DNS"
+  fr_FR: "Gérer et interroger le DNS"
+  pl_PL: "Zarządzaj i odpytuj DNS"
+
+about.manage-ssl-vhost-proxy:
+  en_US: "Manage SSL vhost proxy"
+  de_DE: "SSL-vhost-Proxy verwalten"
+  es_ES: "Gestionar proxy SSL vhost"
+  fr_FR: "Gérer le proxy SSL vhost"
+  pl_PL: "Zarządzaj proxy SSL vhost"
+
+about.manage-tunnels:
+  en_US: "Manage tunnels"
+  de_DE: "Tunnel verwalten"
+  es_ES: "Gestionar túneles"
+  fr_FR: "Gérer les tunnels"
+  pl_PL: "Zarządzaj tunelami"
+
+about.mark-notifications-seen:
+  en_US: "Mark notifications as seen"
+  de_DE: "Benachrichtigungen als gelesen markieren"
+  es_ES: "Marcar notificaciones como vistas"
+  fr_FR: "Marquer les notifications comme vues"
+  pl_PL: "Oznacz powiadomienia jako przeczytane"
+
+about.mark-notifications-seen-before-id:
+  en_US: "Mark notifications as seen before a given ID"
+  de_DE: "Benachrichtigungen vor einer bestimmten ID als gelesen markieren"
+  es_ES: "Marcar notificaciones como vistas antes de un ID dado"
+  fr_FR: "Marquer les notifications comme vues avant un ID donné"
+  pl_PL: "Oznacz powiadomienia jako przeczytane przed danym ID"
+
+about.mark-notifications-unseen:
+  en_US: "Mark notifications as unseen"
+  de_DE: "Benachrichtigungen als ungelesen markieren"
+  es_ES: "Marcar notificaciones como no vistas"
+  fr_FR: "Marquer les notifications comme non vues"
+  pl_PL: "Oznacz powiadomienia jako nieprzeczytane"
+
+about.mount-backup-target:
+  en_US: "Mount a backup target"
+  de_DE: "Ein Backup-Ziel einbinden"
+  es_ES: "Montar un objetivo de copia de seguridad"
+  fr_FR: "Monter une cible de sauvegarde"
+  pl_PL: "Zamontuj cel kopii zapasowej"
+
+about.network-commands:
+  en_US: "Network commands"
+  de_DE: "Netzwerkbefehle"
+  es_ES: "Comandos de red"
+  fr_FR: "Commandes réseau"
+  pl_PL: "Polecenia sieciowe"
+
+about.package-s9pk-input-files-into-valid-s9pk:
+  en_US: "Package input files into a valid s9pk"
+  de_DE: "Eingabedateien in ein gültiges s9pk verpacken"
+  es_ES: "Empaquetar archivos de entrada en un s9pk válido"
+  fr_FR: "Emballer les fichiers d'entrée dans un s9pk valide"
+  pl_PL: "Spakuj pliki wejściowe do prawidłowego s9pk"
+
+about.persist-new-notification:
+  en_US: "Persist a new notification"
+  de_DE: "Neue Benachrichtigung speichern"
+  es_ES: "Persistir una nueva notificación"
+  fr_FR: "Persister une nouvelle notification"
+  pl_PL: "Utrwal nowe powiadomienie"
+
+about.rebuild-service-container:
+  en_US: "Rebuild service container"
+  de_DE: "Dienst-Container neu erstellen"
+  es_ES: "Reconstruir contenedor de servicio"
+  fr_FR: "Reconstruire le conteneur du service"
+  pl_PL: "Przebuduj kontener usługi"
+
+about.remove-acme-certificate-acquisition-configuration:
+  en_US: "Remove ACME certificate acquisition configuration"
+  de_DE: "ACME-Zertifikatsbeschaffungskonfiguration entfernen"
+  es_ES: "Eliminar configuración de adquisición de certificado ACME"
+  fr_FR: "Supprimer la configuration d'acquisition de certificat ACME"
+  pl_PL: "Usuń konfigurację pozyskiwania certyfikatu ACME"
+
+about.remove-address-from-host:
+  en_US: "Remove address from host"
+  de_DE: "Adresse vom Host entfernen"
+  es_ES: "Eliminar dirección del host"
+  fr_FR: "Supprimer l'adresse de l'hôte"
+  pl_PL: "Usuń adres z hosta"
+
+about.remove-admin-signer:
+  en_US: "Remove admin signer"
+  de_DE: "Admin-Unterzeichner entfernen"
+  es_ES: "Eliminar firmante de administrador"
+  fr_FR: "Supprimer le signataire administrateur"
+  pl_PL: "Usuń sygnatariusza administratora"
+
+about.remove-authorized-key:
+  en_US: "Remove authorized key"
+  de_DE: "Autorisierten Schlüssel entfernen"
+  es_ES: "Eliminar clave autorizada"
+  fr_FR: "Supprimer la clé autorisée"
+  pl_PL: "Usuń autoryzowany klucz"
+
+about.remove-category-registry:
+  en_US: "Remove category from registry"
+  de_DE: "Kategorie aus der Registry entfernen"
+  es_ES: "Eliminar categoría del registro"
+  fr_FR: "Supprimer la catégorie du registre"
+  pl_PL: "Usuń kategorię z rejestru"
+
+about.remove-device-from-subnet:
+  en_US: "Remove device from subnet"
+  de_DE: "Gerät aus dem Subnetz entfernen"
+  es_ES: "Eliminar dispositivo de la subred"
+  fr_FR: "Supprimer l'appareil du sous-réseau"
+  pl_PL: "Usuń urządzenie z podsieci"
+
+about.remove-disk-filesystem:
+  en_US: "Remove disk filesystem"
+  de_DE: "Festplatten-Dateisystem entfernen"
+  es_ES: "Eliminar sistema de archivos del disco"
+  fr_FR: "Supprimer le système de fichiers du disque"
+  pl_PL: "Usuń system plików dysku"
+
+about.remove-existing-backup-target:
+  en_US: "Remove existing backup target"
+  de_DE: "Vorhandenes Backup-Ziel entfernen"
+  es_ES: "Eliminar objetivo de copia de seguridad existente"
+  fr_FR: "Supprimer la cible de sauvegarde existante"
+  pl_PL: "Usuń istniejący cel kopii zapasowej"
+
+about.remove-mirror-package:
+  en_US: "Remove mirror package"
+  de_DE: "Mirror-Paket entfernen"
+  es_ES: "Eliminar paquete espejo"
+  fr_FR: "Supprimer le package miroir"
+  pl_PL: "Usuń pakiet lustrzany"
+
+about.remove-notification-for-ids:
+  en_US: "Remove notification for IDs"
+  de_DE: "Benachrichtigung für IDs entfernen"
+  es_ES: "Eliminar notificación por IDs"
+  fr_FR: "Supprimer la notification par IDs"
+  pl_PL: "Usuń powiadomienie dla identyfikatorów"
+
+about.remove-notifications-before-id:
+  en_US: "Remove notifications before a given ID"
+  de_DE: "Benachrichtigungen vor einer bestimmten ID entfernen"
+  es_ES: "Eliminar notificaciones antes de un ID dado"
+  fr_FR: "Supprimer les notifications avant un ID donné"
+  pl_PL: "Usuń powiadomienia przed danym ID"
+
+about.remove-os-version:
+  en_US: "Remove OS version"
+  de_DE: "Betriebssystemversion entfernen"
+  es_ES: "Eliminar versión del sistema operativo"
+  fr_FR: "Supprimer la version du système d'exploitation"
+  pl_PL: "Usuń wersję systemu operacyjnego"
+
+about.remove-package:
+  en_US: "Remove a package"
+  de_DE: "Ein Paket entfernen"
+  es_ES: "Eliminar un paquete"
+  fr_FR: "Supprimer un package"
+  pl_PL: "Usuń pakiet"
+
+about.remove-package-category:
+  en_US: "Remove package from category"
+  de_DE: "Paket aus der Kategorie entfernen"
+  es_ES: "Eliminar paquete de la categoría"
+  fr_FR: "Supprimer le package de la catégorie"
+  pl_PL: "Usuń pakiet z kategorii"
+
+about.remove-package-registry:
+  en_US: "Remove package from registry"
+  de_DE: "Paket aus der Registry entfernen"
+  es_ES: "Eliminar paquete del registro"
+  fr_FR: "Supprimer le package du registre"
+  pl_PL: "Usuń pakiet z rejestru"
+
+about.remove-package-signer:
+  en_US: "Remove package signer"
+  de_DE: "Paket-Unterzeichner entfernen"
+  es_ES: "Eliminar firmante de paquete"
+  fr_FR: "Supprimer le signataire du package"
+  pl_PL: "Usuń sygnatariusza pakietu"
+
+about.remove-port-forward:
+  en_US: "Remove port forward"
+  de_DE: "Portweiterleitung entfernen"
+  es_ES: "Eliminar reenvío de puerto"
+  fr_FR: "Supprimer la redirection de port"
+  pl_PL: "Usuń przekierowanie portu"
+
+about.remove-private-domain-from-host:
+  en_US: "Remove private domain from host"
+  de_DE: "Private Domain vom Host entfernen"
+  es_ES: "Eliminar dominio privado del host"
+  fr_FR: "Supprimer le domaine privé de l'hôte"
+  pl_PL: "Usuń prywatną domenę z hosta"
+
+about.remove-public-domain-from-host:
+  en_US: "Remove public domain from host"
+  de_DE: "Öffentliche Domain vom Host entfernen"
+  es_ES: "Eliminar dominio público del host"
+  fr_FR: "Supprimer le domaine public de l'hôte"
+  pl_PL: "Usuń publiczną domenę z hosta"
+
+about.remove-ssh-key:
+  en_US: "Remove an SSH key"
+  de_DE: "Einen SSH-Schlüssel entfernen"
+  es_ES: "Eliminar una clave SSH"
+  fr_FR: "Supprimer une clé SSH"
+  pl_PL: "Usuń klucz SSH"
+
+about.remove-subnet:
+  en_US: "Remove a subnet"
+  de_DE: "Ein Subnetz entfernen"
+  es_ES: "Eliminar una subred"
+  fr_FR: "Supprimer un sous-réseau"
+  pl_PL: "Usuń podsieć"
+
+about.remove-tunnel:
+  en_US: "Remove a tunnel"
+  de_DE: "Einen Tunnel entfernen"
+  es_ES: "Eliminar un túnel"
+  fr_FR: "Supprimer un tunnel"
+  pl_PL: "Usuń tunel"
+
+about.remove-version-signer:
+  en_US: "Remove version signer"
+  de_DE: "Versions-Unterzeichner entfernen"
+  es_ES: "Eliminar firmante de versión"
+  fr_FR: "Supprimer le signataire de version"
+  pl_PL: "Usuń sygnatariusza wersji"
+
+about.remove-wifi-network:
+  en_US: "Remove a wifi network"
+  de_DE: "Ein WLAN-Netzwerk entfernen"
+  es_ES: "Eliminar una red wifi"
+  fr_FR: "Supprimer un réseau wifi"
+  pl_PL: "Usuń sieć wifi"
+
+about.rename-gateway:
+  en_US: "Rename a gateway"
+  de_DE: "Ein Gateway umbenennen"
+  es_ES: "Renombrar un gateway"
+  fr_FR: "Renommer une passerelle"
+  pl_PL: "Zmień nazwę bramy"
+
+about.repair-disk-corruption:
+  en_US: "Repair disk corruption"
+  de_DE: "Festplattenfehler reparieren"
+  es_ES: "Reparar corrupción del disco"
+  fr_FR: "Réparer la corruption du disque"
+  pl_PL: "Napraw uszkodzenie dysku"
+
+about.reset-password:
+  en_US: "Reset the password"
+  de_DE: "Das Passwort zurücksetzen"
+  es_ES: "Restablecer la contraseña"
+  fr_FR: "Réinitialiser le mot de passe"
+  pl_PL: "Zresetuj hasło"
+
+about.reset-tor-daemon:
+  en_US: "Reset Tor daemon"
+  de_DE: "Tor-Daemon zurücksetzen"
+  es_ES: "Restablecer demonio Tor"
+  fr_FR: "Réinitialiser le démon Tor"
+  pl_PL: "Zresetuj demona Tora"
+
+about.reset-user-interface-password:
+  en_US: "Reset user interface password"
+  de_DE: "Passwort der Benutzeroberfläche zurücksetzen"
+  es_ES: "Restablecer contraseña de la interfaz de usuario"
+  fr_FR: "Réinitialiser le mot de passe de l'interface utilisateur"
+  pl_PL: "Zresetuj hasło interfejsu użytkownika"
+
+about.reset-webserver:
+  en_US: "Reset the webserver"
+  de_DE: "Den Webserver zurücksetzen"
+  es_ES: "Restablecer el servidor web"
+  fr_FR: "Réinitialiser le serveur web"
+  pl_PL: "Zresetuj serwer internetowy"
+
+about.restart-server:
+  en_US: "Restart the server"
+  de_DE: "Den Server neu starten"
+  es_ES: "Reiniciar el servidor"
+  fr_FR: "Redémarrer le serveur"
+  pl_PL: "Uruchom ponownie serwer"
+
+about.restart-service:
+  en_US: "Restart a service"
+  de_DE: "Einen Dienst neu starten"
+  es_ES: "Reiniciar un servicio"
+  fr_FR: "Redémarrer un service"
+  pl_PL: "Uruchom ponownie usługę"
+
+about.restore-packages-from-backup:
+  en_US: "Restore packages from backup"
+  de_DE: "Pakete aus Backup wiederherstellen"
+  es_ES: "Restaurar paquetes desde copia de seguridad"
+  fr_FR: "Restaurer les packages depuis la sauvegarde"
+  pl_PL: "Przywróć pakiety z kopii zapasowej"
+
+about.run-service-action:
+  en_US: "Run a service action"
+  de_DE: "Eine Dienstaktion ausführen"
+  es_ES: "Ejecutar una acción de servicio"
+  fr_FR: "Exécuter une action de service"
+  pl_PL: "Uruchom akcję usługi"
+
+about.set-country:
+  en_US: "Set the country"
+  de_DE: "Das Land festlegen"
+  es_ES: "Establecer el país"
+  fr_FR: "Définir le pays"
+  pl_PL: "Ustaw kraj"
+
+about.set-gateway-enabled-for-binding:
+  en_US: "Set gateway enabled for binding"
+  de_DE: "Gateway für Bindung aktivieren"
+  es_ES: "Establecer gateway habilitado para enlace"
+  fr_FR: "Définir la passerelle activée pour la liaison"
+  pl_PL: "Ustaw bramę jako włączoną dla powiązania"
+
+about.set-listen-address-for-webserver:
+  en_US: "Set the listen address for the webserver"
+  de_DE: "Adresse festlegen, auf der der Webserver lauscht"
+  es_ES: "Establecer la dirección de escucha del servidor web"
+  fr_FR: "Définir l'adresse d'écoute du serveur web"
+  pl_PL: "Ustaw adres nasłuchiwania serwera internetowego"
+
+about.set-registry-icon:
+  en_US: "Set the registry icon"
+  de_DE: "Das Registry-Symbol festlegen"
+  es_ES: "Establecer el icono del registro"
+  fr_FR: "Définir l'icône du registre"
+  pl_PL: "Ustaw ikonę rejestru"
+
+about.set-registry-name:
+  en_US: "Set the registry name"
+  de_DE: "Den Registry-Namen festlegen"
+  es_ES: "Establecer el nombre del registro"
+  fr_FR: "Définir le nom du registre"
+  pl_PL: "Ustaw nazwę rejestru"
+
+about.set-smtp:
+  en_US: "Set SMTP configuration"
+  de_DE: "SMTP-Konfiguration festlegen"
+  es_ES: "Establecer configuración SMTP"
+  fr_FR: "Définir la configuration SMTP"
+  pl_PL: "Ustaw konfigurację SMTP"
+
+about.set-static-dns-servers:
+  en_US: "Set static DNS servers"
+  de_DE: "Statische DNS-Server festlegen"
+  es_ES: "Establecer servidores DNS estáticos"
+  fr_FR: "Définir les serveurs DNS statiques"
+  pl_PL: "Ustaw statyczne serwery DNS"
+
+about.set-user-interface-password:
+  en_US: "Set user interface password"
+  de_DE: "Passwort der Benutzeroberfläche festlegen"
+  es_ES: "Establecer contraseña de la interfaz de usuario"
+  fr_FR: "Définir le mot de passe de l'interface utilisateur"
+  pl_PL: "Ustaw hasło interfejsu użytkownika"
+
+about.setup-acme-certificate:
+  en_US: "Setup ACME certificate"
+  de_DE: "ACME-Zertifikat einrichten"
+  es_ES: "Configurar certificado ACME"
+  fr_FR: "Configurer le certificat ACME"
+  pl_PL: "Skonfiguruj certyfikat ACME"
+
+about.setup-acme-certificate-acquisition:
+  en_US: "Setup ACME certificate acquisition"
+  de_DE: "ACME-Zertifikatsbeschaffung einrichten"
+  es_ES: "Configurar adquisición de certificado ACME"
+  fr_FR: "Configurer l'acquisition de certificat ACME"
+  pl_PL: "Skonfiguruj pozyskiwanie certyfikatu ACME"
+
+about.show-cpu-governors:
+  en_US: "Show CPU governors"
+  de_DE: "CPU-Governors anzeigen"
+  es_ES: "Mostrar gobernadores de CPU"
+  fr_FR: "Afficher les gouverneurs CPU"
+  pl_PL: "Pokaż zarządców CPU"
+
+about.show-gateways-startos-can-listen-on:
+  en_US: "Show gateways StartOS can listen on"
+  de_DE: "Gateways anzeigen, auf denen StartOS lauschen kann"
+  es_ES: "Mostrar gateways en los que StartOS puede escuchar"
+  fr_FR: "Afficher les passerelles sur lesquelles StartOS peut écouter"
+  pl_PL: "Pokaż bramy, na których StartOS może nasłuchiwać"
+
+about.show-wireguard-configuration-for-device:
+  en_US: "Show WireGuard configuration for device"
+  de_DE: "WireGuard-Konfiguration für Gerät anzeigen"
+  es_ES: "Mostrar configuración de WireGuard para el dispositivo"
+  fr_FR: "Afficher la configuration WireGuard pour l'appareil"
+  pl_PL: "Pokaż konfigurację WireGuard dla urządzenia"
+
+about.shutdown-server:
+  en_US: "Shutdown the server"
+  de_DE: "Den Server herunterfahren"
+  es_ES: "Apagar el servidor"
+  fr_FR: "Arrêter le serveur"
+  pl_PL: "Wyłącz serwer"
+
+about.sign-file-add-registry:
+  en_US: "Sign file and add to registry"
+  de_DE: "Datei signieren und zur Registry hinzufügen"
+  es_ES: "Firmar archivo y agregar al registro"
+  fr_FR: "Signer le fichier et ajouter au registre"
+  pl_PL: "Podpisz plik i dodaj do rejestru"
+
+about.start-service:
+  en_US: "Start a service"
+  de_DE: "Einen Dienst starten"
+  es_ES: "Iniciar un servicio"
+  fr_FR: "Démarrer un service"
+  pl_PL: "Uruchom usługę"
+
+about.stop-service:
+  en_US: "Stop a service"
+  de_DE: "Einen Dienst stoppen"
+  es_ES: "Detener un servicio"
+  fr_FR: "Arrêter un service"
+  pl_PL: "Zatrzymaj usługę"
+
+about.teardown-rebuild-containers:
+  en_US: "Teardown and rebuild containers"
+  de_DE: "Container abbauen und neu erstellen"
+  es_ES: "Desmontar y reconstruir contenedores"
+  fr_FR: "Démonter et reconstruire les conteneurs"
+  pl_PL: "Rozmontuj i przebuduj kontenery"
+
+about.terminate-auth-sessions:
+  en_US: "Terminate auth sessions"
+  de_DE: "Authentifizierungssitzungen beenden"
+  es_ES: "Terminar sesiones de autenticación"
+  fr_FR: "Terminer les sessions d'authentification"
+  pl_PL: "Zakończ sesje uwierzytelniania"
+
+about.test-dns-configuration-for-domain:
+  en_US: "Test DNS configuration for a domain"
+  de_DE: "DNS-Konfiguration für eine Domain testen"
+  es_ES: "Probar configuración DNS para un dominio"
+  fr_FR: "Tester la configuration DNS pour un domaine"
+  pl_PL: "Przetestuj konfigurację DNS dla domeny"
+
+about.test-smtp:
+  en_US: "Test SMTP configuration"
+  de_DE: "SMTP-Konfiguration testen"
+  es_ES: "Probar configuración SMTP"
+  fr_FR: "Tester la configuration SMTP"
+  pl_PL: "Przetestuj konfigurację SMTP"
+
+about.tor-commands:
+  en_US: "Tor commands"
+  de_DE: "Tor-Befehle"
+  es_ES: "Comandos de Tor"
+  fr_FR: "Commandes Tor"
+  pl_PL: "Polecenia Tora"
+
+about.unmount-backup-target:
+  en_US: "Unmount a backup target"
+  de_DE: "Ein Backup-Ziel aushängen"
+  es_ES: "Desmontar un objetivo de copia de seguridad"
+  fr_FR: "Démonter une cible de sauvegarde"
+  pl_PL: "Odmontuj cel kopii zapasowej"
+
+about.update-categories-registry:
+  en_US: "Update categories in registry"
+  de_DE: "Kategorien in der Registry aktualisieren"
+  es_ES: "Actualizar categorías en el registro"
+  fr_FR: "Mettre à jour les catégories dans le registre"
+  pl_PL: "Zaktualizuj kategorie w rejestrze"
+
+about.update-db-record:
+  en_US: "Update a database record"
+  de_DE: "Einen Datenbankeintrag aktualisieren"
+  es_ES: "Actualizar un registro de la base de datos"
+  fr_FR: "Mettre à jour un enregistrement de la base de données"
+  pl_PL: "Zaktualizuj rekord bazy danych"
+
+about.update-existing-backup-target:
+  en_US: "Update an existing backup target"
+  de_DE: "Ein vorhandenes Backup-Ziel aktualisieren"
+  es_ES: "Actualizar un objetivo de copia de seguridad existente"
+  fr_FR: "Mettre à jour une cible de sauvegarde existante"
+  pl_PL: "Zaktualizuj istniejący cel kopii zapasowej"
+
+about.update-firmware:
+  en_US: "Update firmware"
+  de_DE: "Firmware aktualisieren"
+  es_ES: "Actualizar firmware"
+  fr_FR: "Mettre à jour le firmware"
+  pl_PL: "Zaktualizuj oprogramowanie układowe"
+
+about.view-edit-gateway-configs:
+  en_US: "View and edit gateway configurations"
+  de_DE: "Gateway-Konfigurationen anzeigen und bearbeiten"
+  es_ES: "Ver y editar configuraciones de gateway"
+  fr_FR: "Voir et modifier les configurations de passerelle"
+  pl_PL: "Wyświetl i edytuj konfiguracje bramy"

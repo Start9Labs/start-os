@@ -84,7 +84,7 @@ pub struct RpcContextSeed {
 }
 impl Drop for RpcContextSeed {
     fn drop(&mut self) {
-        tracing::info!("RpcContext is dropped");
+        tracing::info!("{}", t!("context.rpc.rpc-context-dropped"));
     }
 }
 
@@ -155,7 +155,7 @@ impl RpcContext {
         let peek = db.peek().await;
         let account = AccountInfo::load(&peek)?;
         load_db.complete();
-        tracing::info!("Opened PatchDB");
+        tracing::info!("{}", t!("context.rpc.opened-patchdb"));
 
         init_net_ctrl.start();
         let (net_controller, os_net_service) = if let Some(InitResult {
@@ -172,15 +172,15 @@ impl RpcContext {
             (net_ctrl, os_net_service)
         };
         init_net_ctrl.complete();
-        tracing::info!("Initialized Net Controller");
+        tracing::info!("{}", t!("context.rpc.initialized-net-controller"));
 
         if PLATFORM.ends_with("-nonfree") {
             if let Err(e) = Command::new("nvidia-smi")
                 .invoke(ErrorKind::ParseSysInfo)
                 .await
             {
-                tracing::warn!("nvidia-smi: {e}");
-                tracing::info!("The above warning can be ignored if no NVIDIA card is present");
+                tracing::warn!("{}", t!("context.rpc.nvidia-smi-error", error = e));
+                tracing::info!("{}", t!("context.rpc.nvidia-warning-can-be-ignored"));
             } else {
                 async {
                     let version: InternedString = String::from_utf8(
@@ -335,7 +335,7 @@ impl RpcContext {
             is_closed: AtomicBool::new(false),
             os_partitions: config.os_partitions.clone().ok_or_else(|| {
                 Error::new(
-                    eyre!("OS Partition Information Missing"),
+                    eyre!("{}", t!("context.rpc.os-partition-info-missing")),
                     ErrorKind::Filesystem,
                 )
             })?,
@@ -365,9 +365,9 @@ impl RpcContext {
             current_secret: Arc::new(
                 Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).map_err(|e| {
                     tracing::debug!("{:?}", e);
-                    tracing::error!("Couldn't generate ec key");
+                    tracing::error!("{}", t!("context.rpc.couldnt-generate-ec-key"));
                     Error::new(
-                        color_eyre::eyre::eyre!("Couldn't generate ec key"),
+                        color_eyre::eyre::eyre!("{}", t!("context.rpc.couldnt-generate-ec-key")),
                         crate::ErrorKind::Unknown,
                     )
                 })?,
@@ -382,10 +382,10 @@ impl RpcContext {
 
         let res = Self(seed.clone());
         res.cleanup_and_initialize(cleanup_init).await?;
-        tracing::info!("Cleaned up transient states");
+        tracing::info!("{}", t!("context.rpc.cleaned-up-transient-states"));
 
         crate::version::post_init(&res, run_migrations).await?;
-        tracing::info!("Completed migrations");
+        tracing::info!("{}", t!("context.rpc.completed-migrations"));
         Ok(res)
     }
 
@@ -394,7 +394,7 @@ impl RpcContext {
         self.crons.mutate(|c| std::mem::take(c));
         self.services.shutdown_all().await?;
         self.is_closed.store(true, Ordering::SeqCst);
-        tracing::info!("RpcContext is shutdown");
+        tracing::info!("{}", t!("context.rpc.rpc-context-shutdown"));
         Ok(())
     }
 
@@ -463,7 +463,7 @@ impl RpcContext {
                     .await
                     .result
                 {
-                    tracing::error!("Error in session cleanup cron: {e}");
+                    tracing::error!("{}", t!("context.rpc.error-in-session-cleanup-cron", error = e));
                     tracing::debug!("{e:?}");
                 }
             }

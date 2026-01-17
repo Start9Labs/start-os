@@ -17,16 +17,16 @@ pub fn os_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(index::get_os_index)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
-                .with_about("List index of OS versions")
+                .with_about("about.list-os-versions-index")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "asset",
-            asset::asset_api::<C>().with_about("Commands to add, sign, or get registry assets"),
+            asset::asset_api::<C>().with_about("about.commands-add-sign-get-assets"),
         )
         .subcommand(
             "version",
             version::version_api::<C>()
-                .with_about("Commands to add, remove, or list versions or version signers"),
+                .with_about("about.commands-add-remove-list-versions"),
         )
 }

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
+use rust_i18n::t;
 use tokio::process::Command;
 use tracing::instrument;
 
@@ -225,7 +226,7 @@ pub async fn import<P: AsRef<Path>>(
         .is_none()
     {
         return Err(Error::new(
-            eyre!("StartOS disk not found."),
+            eyre!("{}", t!("disk.main.disk-not-found")),
             crate::ErrorKind::DiskNotAvailable,
         ));
     }
@@ -235,7 +236,7 @@ pub async fn import<P: AsRef<Path>>(
         .any(|id| id == guid)
     {
         return Err(Error::new(
-            eyre!("A StartOS disk was found, but it is not the correct disk for this device."),
+            eyre!("{}", t!("disk.main.incorrect-disk")),
             crate::ErrorKind::IncorrectDisk,
         ));
     }

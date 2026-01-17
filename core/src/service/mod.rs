@@ -28,6 +28,7 @@ use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use ts_rs::TS;
 use url::Url;
 
+
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::package::{
     InstalledState, ManifestPreference, PackageState, PackageStateMatchModelRef, TaskSeverity,
@@ -172,7 +173,7 @@ impl ServiceRef {
         }
         let service = Arc::try_unwrap(self.0).map_err(|_| {
             Error::new(
-                eyre!("ServiceActor held somewhere after actor shutdown"),
+                eyre!("{}", t!("service.mod.service-actor-held-after-shutdown")),
                 ErrorKind::Unknown,
             )
         })?;
@@ -183,7 +184,7 @@ impl ServiceRef {
         Arc::try_unwrap(service.seed)
             .map_err(|_| {
                 Error::new(
-                    eyre!("ServiceActorSeed held somewhere after actor shutdown"),
+                    eyre!("{}", t!("service.mod.service-actor-seed-held-after-shutdown")),
                     ErrorKind::Unknown,
                 )
             })?
@@ -375,7 +376,7 @@ impl Service {
                                     {
                                         Ok(PackageState::Installed(InstalledState { manifest }))
                                     } else {
-                                        Err(Error::new(eyre!("Race condition detected - package state changed during load"), ErrorKind::Database))
+                                        Err(Error::new(eyre!("{}", t!("service.mod.race-condition-detected")), ErrorKind::Database))
                                     }
                                 })
                         }
@@ -446,7 +447,7 @@ impl Service {
                 handle_installed(S9pk::open(s9pk_path, Some(id)).await?).await
             }
             PackageStateMatchModelRef::Error(e) => Err(Error::new(
-                eyre!("Failed to parse PackageDataEntry, found {e:?}"),
+                eyre!("{}", t!("service.mod.failed-to-parse-package-data-entry", error = format!("{e:?}"))),
                 ErrorKind::Deserialization,
             )),
         }
@@ -552,7 +553,7 @@ impl Service {
                                 true
                             } else {
                                 tracing::warn!(
-                                    "Deleting task {id} because action no longer exists"
+                                    "{}", t!("service.mod.deleting-task-action-no-longer-exists", id = id)
                                 );
                                 false
                             }
@@ -789,7 +790,7 @@ pub async fn attach(
                 .join("\n");
             return Err(Error::new(
                 eyre!(
-                    "no matching subcontainers are running for {id}; some possible choices are:\n{subcontainers}"
+                    "{}", t!("service.mod.no-matching-subcontainers", id = id, subcontainers = subcontainers)
                 ),
                 ErrorKind::NotFound,
             ));
@@ -828,7 +829,7 @@ pub async fn attach(
                 .map(format_subcontainer_pair)
                 .join("\n");
             return Err(Error::new(
-                eyre!("multiple subcontainers found for {id}: \n{subcontainer_ids}"),
+                eyre!("{}", t!("service.mod.multiple-subcontainers-found", id = id, subcontainer_ids = subcontainer_ids)),
                 ErrorKind::InvalidRequest,
             ));
         }
@@ -985,7 +986,7 @@ pub async fn attach(
                                     "signal" => {
                                         if data.len() != 4 {
                                             return Err(Error::new(
-                                                eyre!("invalid byte length for signal: {}", data.len()),
+                                                eyre!("{}", t!("service.mod.invalid-byte-length-for-signal", length = data.len())),
                                                 ErrorKind::InvalidRequest
                                             ));
                                         }
@@ -1118,14 +1119,14 @@ async fn get_passwd_command(etc_passwd_path: PathBuf, user: &str) -> RootCommand
             }
         }
         Err(Error::new(
-            eyre!("Could not parse /etc/passwd for shell: {}", contents),
+            eyre!("{}", t!("service.mod.could-not-parse-etc-passwd", contents = contents)),
             ErrorKind::Filesystem,
         ))
     }
     .await
     .map(RootCommand)
     .unwrap_or_else(|e| {
-        tracing::error!("Could not get the /etc/passwd: {e}");
+        tracing::error!("{}", t!("service.mod.could-not-get-etc-passwd", error = e));
         tracing::debug!("{e:?}");
         RootCommand("/bin/sh".to_string())
     })
@@ -1287,7 +1288,7 @@ pub async fn cli_attach(
                                 "exit" => {
                                     if data.len() != 4 {
                                         return Err(Error::new(
-                                            eyre!("invalid byte length for exit code: {}", data.len()),
+                                            eyre!("{}", t!("service.mod.invalid-byte-length-for-exit-code", length = data.len())),
                                             ErrorKind::InvalidRequest
                                         ));
                                     }

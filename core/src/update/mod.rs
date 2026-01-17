@@ -82,9 +82,7 @@ pub async fn update_system(
         .de()?
     {
         return Err(Error::new(
-            eyre!(
-                "Server was already updated. Please restart your device before attempting to update again."
-            ),
+            eyre!("{}", t!("update.already-updated-restart-required")),
             ErrorKind::InvalidRequest,
         ));
     }
@@ -143,7 +141,7 @@ pub async fn update_system(
                         }
                         .await
                         {
-                            tracing::error!("Error returning progress of update: {e}");
+                            tracing::error!("{}", t!("update.error-returning-progress", error = e.to_string()));
                             tracing::debug!("{e:?}")
                         }
                     },
@@ -176,11 +174,11 @@ pub async fn cli_update_system(
             .await?,
     )?;
     match res.target {
-        None => println!("No updates available"),
+        None => println!("{}", t!("update.no-updates-available")),
         Some(v) => {
             if let Some(progress) = res.progress {
                 let mut ws = context.ws_continuation(progress).await?;
-                let mut progress = PhasedProgressBar::new(&format!("Updating to v{v}..."));
+                let mut progress = PhasedProgressBar::new(&t!("update.updating-to-version", version = v.to_string()));
                 let mut prev = None;
                 while let Some(msg) = ws.try_next().await.with_kind(ErrorKind::Network)? {
                     if let tokio_tungstenite::tungstenite::Message::Text(msg) = msg {
@@ -201,9 +199,9 @@ pub async fn cli_update_system(
                     prev.overall.set_complete();
                     progress.update(&prev);
                 }
-                println!("Update complete. Restart your server to apply the update.")
+                println!("{}", t!("update.complete-restart-to-apply"))
             } else {
-                println!("Updating to v{v}...")
+                println!("{}", t!("update.updating-to-version", version = v.to_string()))
             }
         }
     }
@@ -279,7 +277,7 @@ async fn maybe_do_update(
             let mut status = peeked.as_public().as_server_info().as_status_info().de()?;
             if status.update_progress.is_some() {
                 return Err(Error::new(
-                    eyre!("Server is already updating!"),
+                    eyre!("{}", t!("update.already-updating")),
                     crate::ErrorKind::InvalidRequest,
                 ));
             }
@@ -296,9 +294,7 @@ async fn maybe_do_update(
 
     if status.updated {
         return Err(Error::new(
-            eyre!(
-                "Server was already updated. Please restart your device before attempting to update again."
-            ),
+            eyre!("{}", t!("update.already-updated-restart-required")),
             crate::ErrorKind::InvalidRequest,
         ));
     }
@@ -343,7 +339,7 @@ async fn maybe_do_update(
                 CIRCLE_OF_5THS_SHORT.play().await.log_err();
             }
             Err(e) => {
-                let err_string = format!("Update was not successful because of {}", e);
+                let err_string = t!("update.not-successful", error = e.to_string()).to_string();
                 ctx.db
                     .mutate(|db| {
                         db.as_public_mut()
@@ -355,7 +351,7 @@ async fn maybe_do_update(
                             db,
                             None,
                             NotificationLevel::Error,
-                            "StartOS Update Failed".to_owned(),
+                            t!("update.failed-title").to_string(),
                             err_string,
                             (),
                         )

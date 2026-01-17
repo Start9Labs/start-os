@@ -22,7 +22,7 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
             "dump",
             from_fn_async(cli_dump)
                 .with_display_serializable()
-                .with_about("Filter/query db to display tables and records"),
+                .with_about("about.filter-query-db"),
         )
         .subcommand(
             "dump",
@@ -34,7 +34,7 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
             "apply",
             from_fn_async(cli_apply)
                 .no_display()
-                .with_about("Update a db record"),
+                .with_about("about.update-db-record"),
         )
         .subcommand(
             "apply",

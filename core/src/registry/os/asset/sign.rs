@@ -89,7 +89,7 @@ async fn sign_asset(
                 .contains(&guid)
             {
                 return Err(Error::new(
-                    eyre!("signer {guid} is not authorized"),
+                    eyre!("{}", t!("registry.os.asset.signer-not-authorized", guid = guid)),
                     ErrorKind::Authorization,
                 ));
             }
@@ -163,7 +163,7 @@ pub async fn cli_sign_asset(
         Some("squashfs") => "squashfs",
         _ => {
             return Err(Error::new(
-                eyre!("Unknown extension"),
+                eyre!("{}", t!("registry.os.asset.unknown-extension")),
                 ErrorKind::InvalidRequest,
             ));
         }
@@ -186,7 +186,7 @@ pub async fn cli_sign_asset(
     let size = file
         .size()
         .await
-        .ok_or_else(|| Error::new(eyre!("failed to read file metadata"), ErrorKind::Filesystem))?;
+        .ok_or_else(|| Error::new(eyre!("{}", t!("registry.os.asset.failed-read-metadata")), ErrorKind::Filesystem))?;
     let commitment = Blake3Commitment {
         hash: Base64(*blake3.as_bytes()),
         size,

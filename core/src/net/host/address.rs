@@ -120,7 +120,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
                                 .with_metadata("sync_db", Value::Bool(true))
                                 .with_inherited(|_, a| a)
                                 .no_display()
-                                .with_about("Add a public domain to this host")
+                                .with_about("about.add-public-domain-to-host")
                                 .with_call_remote::<CliContext>(),
                         )
                         .subcommand(
@@ -129,7 +129,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
                                 .with_metadata("sync_db", Value::Bool(true))
                                 .with_inherited(|_, a| a)
                                 .no_display()
-                                .with_about("Remove a public domain from this host")
+                                .with_about("about.remove-public-domain-from-host")
                                 .with_call_remote::<CliContext>(),
                         )
                         .with_inherited(|_, a| a),
@@ -143,7 +143,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
                                 .with_metadata("sync_db", Value::Bool(true))
                                 .with_inherited(|_, a| a)
                                 .no_display()
-                                .with_about("Add a private domain to this host")
+                                .with_about("about.add-private-domain-to-host")
                                 .with_call_remote::<CliContext>(),
                         )
                         .subcommand(
@@ -152,7 +152,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
                                 .with_metadata("sync_db", Value::Bool(true))
                                 .with_inherited(|_, a| a)
                                 .no_display()
-                                .with_about("Remove a private domain from this host")
+                                .with_about("about.remove-private-domain-from-host")
                                 .with_call_remote::<CliContext>(),
                         )
                         .with_inherited(|_, a| a),
@@ -168,7 +168,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
                         .with_metadata("sync_db", Value::Bool(true))
                         .with_inherited(|_, a| a)
                         .no_display()
-                        .with_about("Add an address to this host")
+                        .with_about("about.add-address-to-host")
                         .with_call_remote::<CliContext>(),
                 )
                 .subcommand(
@@ -177,7 +177,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
                         .with_metadata("sync_db", Value::Bool(true))
                         .with_inherited(|_, a| a)
                         .no_display()
-                        .with_about("Remove an address from this host")
+                        .with_about("about.remove-address-from-host")
                         .with_call_remote::<CliContext>(),
                 )
                 .with_inherited(Kind::inheritance),
@@ -230,7 +230,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
 
                     Ok(())
                 })
-                .with_about("List addresses for this host")
+                .with_about("about.list-addresses-for-host")
                 .with_call_remote::<CliContext>(),
         )
 }

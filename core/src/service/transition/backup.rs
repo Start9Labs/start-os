@@ -25,7 +25,7 @@ impl ServiceActorSeed {
                     fut.await.map_err(Error::from)
                 } else {
                     Err(Error::new(
-                        eyre!("No backup to resume"),
+                        eyre!("{}", t!("service.transition.backup.no-backup-to-resume")),
                         ErrorKind::Cancelled,
                     ))
                 };

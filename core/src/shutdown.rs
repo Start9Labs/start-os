@@ -1,3 +1,4 @@
+
 use crate::PLATFORM;
 use crate::context::RpcContext;
 use crate::disk::main::export;
@@ -17,9 +18,9 @@ impl Shutdown {
         use std::process::Command;
 
         if self.restart {
-            tracing::info!("Beginning server restart");
+            tracing::info!("{}", t!("shutdown.beginning-restart"));
         } else {
-            tracing::info!("Beginning server shutdown");
+            tracing::info!("{}", t!("shutdown.beginning-shutdown"));
         }
 
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -35,18 +36,18 @@ impl Shutdown {
                 .invoke(crate::ErrorKind::Journald)
                 .await
             {
-                tracing::error!("Error Stopping Journald: {}", e);
+                tracing::error!("{}", t!("shutdown.error-stopping-journald", error = e.to_string()));
                 tracing::debug!("{:?}", e);
             }
             if let Some(guid) = &self.disk_guid {
                 if let Err(e) = export(guid, crate::DATA_DIR).await {
-                    tracing::error!("Error Exporting Volume Group: {}", e);
+                    tracing::error!("{}", t!("shutdown.error-exporting-volume-group", error = e.to_string()));
                     tracing::debug!("{:?}", e);
                 }
             }
             if &*PLATFORM != "raspberrypi" || self.restart {
                 if let Err(e) = SHUTDOWN.play().await {
-                    tracing::error!("Error Playing Shutdown Song: {}", e);
+                    tracing::error!("{}", t!("shutdown.error-playing-shutdown-song", error = e.to_string()));
                     tracing::debug!("{:?}", e);
                 }
             }

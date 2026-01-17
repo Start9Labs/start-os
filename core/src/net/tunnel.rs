@@ -19,14 +19,14 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "add",
             from_fn_async(add_tunnel)
-                .with_about("Add a new tunnel")
+                .with_about("about.add-new-tunnel")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove_tunnel)
                 .no_display()
-                .with_about("Remove a tunnel")
+                .with_about("about.remove-tunnel")
                 .with_call_remote::<CliContext>(),
         )
 }

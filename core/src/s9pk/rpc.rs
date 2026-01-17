@@ -25,7 +25,7 @@ pub fn s9pk() -> ParentHandler<CliContext> {
             "pack",
             from_fn_async(super::v2::pack::pack)
                 .no_display()
-                .with_about("Package s9pk input files into valid s9pk"),
+                .with_about("about.package-s9pk-input-files-into-valid-s9pk"),
         )
         .subcommand(
             "list-ingredients",
@@ -45,21 +45,21 @@ pub fn s9pk() -> ParentHandler<CliContext> {
                     println!();
                     Ok(())
                 })
-                .with_about("List paths of package ingredients"),
+                .with_about("about.list-paths-of-package-ingredients"),
         )
         .subcommand(
             "edit",
-            edit().with_about("Commands to add an image to an s9pk or edit the manifest"),
+            edit().with_about("about.commands-add-image-or-edit-manifest"),
         )
         .subcommand(
             "inspect",
-            inspect().with_about("Commands to display file paths, file contents, or manifest"),
+            inspect().with_about("about.commands-display-file-paths-contents-manifest"),
         )
         .subcommand(
             "convert",
             from_fn_async(convert)
                 .no_display()
-                .with_about("Convert s9pk from v1 to v2"),
+                .with_about("about.convert-s9pk-v1-to-v2"),
         )
 }
 
@@ -76,14 +76,14 @@ fn edit() -> ParentHandler<CliContext, S9pkPath> {
             from_fn_async(add_image)
                 .with_inherited(only_parent)
                 .no_display()
-                .with_about("Add image to s9pk"),
+                .with_about("about.add-image-to-s9pk"),
         )
         .subcommand(
             "manifest",
             from_fn_async(edit_manifest)
                 .with_inherited(only_parent)
                 .with_display_serializable()
-                .with_about("Edit s9pk manifest"),
+                .with_about("about.edit-s9pk-manifest"),
         )
 }
 
@@ -95,21 +95,21 @@ fn inspect() -> ParentHandler<CliContext, S9pkPath> {
             from_fn_async(file_tree)
                 .with_inherited(only_parent)
                 .with_display_serializable()
-                .with_about("Display list of paths"),
+                .with_about("about.display-list-of-paths"),
         )
         .subcommand(
             "cat",
             from_fn_async(cat)
                 .with_inherited(only_parent)
                 .no_display()
-                .with_about("Display file contents"),
+                .with_about("about.display-file-contents"),
         )
         .subcommand(
             "manifest",
             from_fn_async(inspect_manifest)
                 .with_inherited(only_parent)
                 .with_display_serializable()
-                .with_about("Display s9pk manifest"),
+                .with_about("about.display-s9pk-manifest"),
         )
 }
 

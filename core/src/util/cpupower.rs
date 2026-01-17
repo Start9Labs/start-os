@@ -67,7 +67,7 @@ pub async fn get_available_governors() -> Result<BTreeSet<Governor>, Error> {
                 for_cpu
                     .entry(current_cpu.ok_or_else(|| {
                         Error::new(
-                            eyre!("governors listed before cpu"),
+                            eyre!("{}", t!("util.cpupower.governors-listed-before-cpu")),
                             ErrorKind::ParseSysInfo,
                         )
                     })?)
@@ -95,6 +95,7 @@ pub async fn current_governor() -> Result<Option<Governor>, Error> {
     let Some(raw) = Command::new("cpupower")
         .arg("frequency-info")
         .arg("-p")
+        .env("LANG", "C.UTF-8")
         .invoke(ErrorKind::CpuSettings)
         .await
         .and_then(|s| Ok(Some(String::from_utf8(s)?)))
@@ -122,7 +123,10 @@ pub async fn current_governor() -> Result<Option<Governor>, Error> {
         }
     }
     Err(Error::new(
-        eyre!("Failed to parse cpupower output:\n{raw}"),
+        eyre!(
+            "{}",
+            t!("util.cpupower.failed-to-parse-output", output = raw)
+        ),
         ErrorKind::ParseSysInfo,
     ))
 }

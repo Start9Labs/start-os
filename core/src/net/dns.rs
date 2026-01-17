@@ -54,13 +54,13 @@ pub fn dns_api<C: Context>() -> ParentHandler<C> {
 
                     Ok(())
                 })
-                .with_about("Test the DNS configuration for a domain"),
+                .with_about("about.test-dns-configuration-for-domain"),
         )
         .subcommand(
             "set-static",
             from_fn_async(set_static_dns)
                 .no_display()
-                .with_about("Set static DNS servers")
+                .with_about("about.set-static-dns-servers")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -88,7 +88,7 @@ pub fn dns_api<C: Context>() -> ParentHandler<C> {
 
                     Ok(())
                 })
-                .with_about("Dump address resolution table")
+                .with_about("about.dump-address-resolution-table")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -292,7 +292,7 @@ impl Resolver {
                                     .await
                                     .map_err(|_| {
                                         Error::new(
-                                            eyre!("timed out waiting to update dns catalog"),
+                                            eyre!("{}", t!("net.dns.timeout-updating-catalog")),
                                             ErrorKind::Timeout,
                                         )
                                     })?;
@@ -348,7 +348,13 @@ impl Resolver {
                 }) {
                     return Some(res);
                 } else {
-                    tracing::warn!("Could not determine source interface of {src}");
+                    tracing::warn!(
+                        "{}",
+                        t!(
+                            "net.dns.could-not-determine-source-interface",
+                            src = src.to_string()
+                        )
+                    );
                 }
             }
             if STARTOS.zone_of(name) || EMBASSY.zone_of(name) {
@@ -473,7 +479,10 @@ impl RequestHandler for Resolver {
             Ok(Some(a)) => return a,
             Ok(None) => (),
             Err(e) => {
-                tracing::error!("Error resolving internal DNS: {e}");
+                tracing::error!(
+                    "{}",
+                    t!("net.dns.error-resolving-internal", error = e.to_string())
+                );
                 tracing::debug!("{e:?}");
                 let mut header = Header::response_from_request(request.header());
                 header.set_recursion_available(true);
@@ -557,7 +566,7 @@ impl DnsController {
             })
         } else {
             Err(Error::new(
-                eyre!("DNS Server Thread has exited"),
+                eyre!("{}", t!("net.dns.server-thread-exited")),
                 crate::ErrorKind::Network,
             ))
         }
@@ -577,7 +586,7 @@ impl DnsController {
             })
         } else {
             Err(Error::new(
-                eyre!("DNS Server Thread has exited"),
+                eyre!("{}", t!("net.dns.server-thread-exited")),
                 crate::ErrorKind::Network,
             ))
         }
@@ -598,7 +607,7 @@ impl DnsController {
             })
         } else {
             Err(Error::new(
-                eyre!("DNS Server Thread has exited"),
+                eyre!("{}", t!("net.dns.server-thread-exited")),
                 crate::ErrorKind::Network,
             ))
         }
@@ -624,7 +633,7 @@ impl DnsController {
             })
         } else {
             Err(Error::new(
-                eyre!("DNS Server Thread has exited"),
+                eyre!("{}", t!("net.dns.server-thread-exited")),
                 crate::ErrorKind::Network,
             ))
         }

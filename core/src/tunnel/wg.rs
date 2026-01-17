@@ -41,6 +41,7 @@ impl WgServer {
         Command::new("wg-quick")
             .arg("down")
             .arg(WIREGUARD_INTERFACE_NAME)
+            .env("LANG", "C.UTF-8")
             .invoke(ErrorKind::Network)
             .await
             .or_else(|e| {

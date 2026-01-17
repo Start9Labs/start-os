@@ -51,7 +51,7 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
             from_fn_async(list)
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| display_disk_info(handle.params, result))
-                .with_about("List disk info")
+                .with_about("about.list-disk-info")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand("repair", from_fn_async(|_: C| repair()).no_cli())
@@ -60,7 +60,7 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
             CallRemoteHandler::<CliContext, _, _>::new(
                 from_fn_async(|_: RpcContext| repair())
                     .no_display()
-                    .with_about("Repair disk in the event of corruption"),
+                    .with_about("about.repair-disk-corruption"),
             ),
         )
 }

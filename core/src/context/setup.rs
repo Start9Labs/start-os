@@ -33,7 +33,7 @@ use crate::util::sync::SyncMutex;
 lazy_static::lazy_static! {
     pub static ref CURRENT_SECRET: Jwk = Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).unwrap_or_else(|e| {
         tracing::debug!("{:?}", e);
-        tracing::error!("Couldn't generate ec key");
+        tracing::error!("{}", t!("context.setup.couldnt-generate-ec-key"));
         panic!("Couldn't generate ec key")
     });
 }
@@ -125,11 +125,11 @@ impl SetupContext {
                         .get_or_init(|| async {
                             match f().await {
                                 Ok(res) => {
-                                    tracing::info!("Setup complete!");
+                                    tracing::info!("{}", t!("context.setup.setup-complete"));
                                     Ok(res)
                                 }
                                 Err(e) => {
-                                    tracing::error!("Setup failed: {e}");
+                                    tracing::error!("{}", t!("context.setup.setup-failed", error = e));
                                     tracing::debug!("{e:?}");
                                     Err(e)
                                 }
@@ -142,10 +142,10 @@ impl SetupContext {
             )
             .map_err(|_| {
                 if self.result.initialized() {
-                    Error::new(eyre!("Setup already complete"), ErrorKind::InvalidRequest)
+                    Error::new(eyre!("{}", t!("context.setup.setup-already-complete")), ErrorKind::InvalidRequest)
                 } else {
                     Error::new(
-                        eyre!("Setup already in progress"),
+                        eyre!("{}", t!("context.setup.setup-already-in-progress")),
                         ErrorKind::InvalidRequest,
                     )
                 }
@@ -195,7 +195,7 @@ impl SetupContext {
                         }
                         .await
                         {
-                            tracing::error!("Error in setup progress websocket: {e}");
+                            tracing::error!("{}", t!("context.setup.error-in-setup-progress-websocket", error = e));
                             tracing::debug!("{e:?}");
                         }
                     },

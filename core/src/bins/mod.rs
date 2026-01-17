@@ -2,6 +2,8 @@ use std::collections::{BTreeMap, VecDeque};
 use std::ffi::OsString;
 use std::path::Path;
 
+use rust_i18n::t;
+
 pub mod container_cli;
 pub mod deprecated;
 pub mod registry;
@@ -9,6 +11,72 @@ pub mod start_cli;
 pub mod start_init;
 pub mod startd;
 pub mod tunnel;
+
+pub fn set_locale() {
+    let lang = std::env::var("LANG").ok();
+    let lang = lang
+        .as_deref()
+        .map_or("C", |l| l.strip_suffix(".UTF-8").unwrap_or(l));
+    let mut set_lang = lang;
+    for l in rust_i18n::available_locales!() {
+        if l == lang {
+            set_lang = l;
+            break;
+        }
+        if l.split("_").next().unwrap() == lang.split("_").next().unwrap() {
+            set_lang = l;
+        }
+    }
+    rust_i18n::set_locale(set_lang);
+}
+
+pub fn translate_cli(mut cmd: clap::Command) -> clap::Command {
+    fn translate(s: impl std::fmt::Display) -> String {
+        t!(s.to_string()).into_owned()
+    }
+    if let Some(s) = cmd.get_about() {
+        let s = translate(s);
+        cmd = cmd.about(s);
+    }
+    if let Some(s) = cmd.get_long_about() {
+        let s = translate(s);
+        cmd = cmd.long_about(s);
+    }
+    if let Some(s) = cmd.get_before_help() {
+        let s = translate(s);
+        cmd = cmd.before_help(s);
+    }
+    if let Some(s) = cmd.get_before_long_help() {
+        let s = translate(s);
+        cmd = cmd.before_long_help(s);
+    }
+    if let Some(s) = cmd.get_after_help() {
+        let s = translate(s);
+        cmd = cmd.after_help(s);
+    }
+    if let Some(s) = cmd.get_after_long_help() {
+        let s = translate(s);
+        cmd = cmd.after_long_help(s);
+    }
+
+    let args = cmd.get_arguments().cloned().collect::<Vec<_>>();
+    for mut arg in args {
+        if let Some(s) = arg.get_help() {
+            let s = translate(s);
+            arg = arg.help(s);
+        }
+        if let Some(s) = arg.get_long_help() {
+            let s = translate(s);
+            arg = arg.long_help(s);
+        }
+        cmd = cmd.arg(arg);
+    }
+    for cmd in cmd.get_subcommands_mut() {
+        *cmd = translate_cli(cmd.clone());
+    }
+
+    cmd
+}
 
 #[derive(Default)]
 pub struct MultiExecutable {
@@ -58,7 +126,7 @@ impl MultiExecutable {
         if let Some((name, _)) = self.bins.get_key_value(name) {
             self.default = Some(*name);
         } else {
-            panic!("{name} does not exist in MultiExecutable");
+            panic!("{}", t!("bins.mod.does-not-exist", name = name));
         }
         self
     }
@@ -68,6 +136,8 @@ impl MultiExecutable {
     }
 
     pub fn execute(&self) {
+        set_locale();
+
         let mut popped = Vec::with_capacity(2);
         let mut args = std::env::args_os().collect::<VecDeque<_>>();
 
@@ -96,11 +166,15 @@ impl MultiExecutable {
         }
         let args = std::env::args().collect::<VecDeque<_>>();
         eprintln!(
-            "unknown executable: {}",
-            args.get(1)
-                .or_else(|| args.get(0))
-                .map(|s| s.as_str())
-                .unwrap_or("N/A")
+            "{}",
+            t!(
+                "bins.mod.unknown-executable",
+                name = args
+                    .get(1)
+                    .or_else(|| args.get(0))
+                    .map(|s| s.as_str())
+                    .unwrap_or("N/A")
+            )
         );
         std::process::exit(1);
     }

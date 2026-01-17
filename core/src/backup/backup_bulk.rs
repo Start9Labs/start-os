@@ -69,8 +69,8 @@ impl BackupStatusGuard {
                             db,
                             None,
                             NotificationLevel::Success,
-                            "Backup Complete".to_owned(),
-                            "Your backup has completed".to_owned(),
+                            t!("backup.bulk.complete-title").to_string(),
+                            t!("backup.bulk.complete-message").to_string(),
                             BackupReport {
                                 server: ServerBackupReport {
                                     attempted: true,
@@ -88,9 +88,8 @@ impl BackupStatusGuard {
                             db,
                             None,
                             NotificationLevel::Warning,
-                            "Backup Complete".to_owned(),
-                            "Your backup has completed, but some package(s) failed to backup"
-                                .to_owned(),
+                            t!("backup.bulk.complete-title").to_string(),
+                            t!("backup.bulk.complete-with-failures").to_string(),
                             BackupReport {
                                 server: ServerBackupReport {
                                     attempted: true,
@@ -103,7 +102,7 @@ impl BackupStatusGuard {
                     .await
                 }
                 Err(e) => {
-                    tracing::error!("Backup Failed: {}", e);
+                    tracing::error!("{}", t!("backup.bulk.failed-error", error = e));
                     tracing::debug!("{:?}", e);
                     let err_string = e.to_string();
                     db.mutate(|db| {
@@ -111,8 +110,8 @@ impl BackupStatusGuard {
                             db,
                             None,
                             NotificationLevel::Error,
-                            "Backup Failed".to_owned(),
-                            "Your backup failed to complete.".to_owned(),
+                            t!("backup.bulk.failed-title").to_string(),
+                            t!("backup.bulk.failed-message").to_string(),
                             BackupReport {
                                 server: ServerBackupReport {
                                     attempted: true,
@@ -224,7 +223,7 @@ fn assure_backing_up<'a>(
         .as_backup_progress_mut();
     if backing_up.transpose_ref().is_some() {
         return Err(Error::new(
-            eyre!("Server is already backing up!"),
+            eyre!("{}", t!("backup.bulk.already-backing-up")),
             ErrorKind::InvalidRequest,
         ));
     }
@@ -303,7 +302,7 @@ async fn perform_backup(
 
     let mut backup_guard = Arc::try_unwrap(backup_guard).map_err(|_| {
         Error::new(
-            eyre!("leaked reference to BackupMountGuard"),
+            eyre!("{}", t!("backup.bulk.leaked-reference")),
             ErrorKind::Incoherent,
         )
     })?;

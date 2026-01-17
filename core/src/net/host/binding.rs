@@ -209,7 +209,7 @@ pub fn binding<C: Context, Kind: HostApiKind>()
 
                     Ok(())
                 })
-                .with_about("List bindinges for this host")
+                .with_about("about.list-bindings-for-host")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -218,7 +218,7 @@ pub fn binding<C: Context, Kind: HostApiKind>()
                 .with_metadata("sync_db", Value::Bool(true))
                 .with_inherited(Kind::inheritance)
                 .no_display()
-                .with_about("Set whether this gateway should be enabled for this binding")
+                .with_about("about.set-gateway-enabled-for-binding")
                 .with_call_remote::<CliContext>(),
         )
 }

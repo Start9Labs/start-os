@@ -40,7 +40,7 @@ impl LocalAuthContext for RpcContext {
 }
 
 fn unauthorized() -> Error {
-    Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
+    Error::new(eyre!("{}", t!("middleware.auth.unauthorized")), crate::ErrorKind::Authorization)
 }
 
 async fn check_from_header<C: LocalAuthContext>(header: Option<&HeaderValue>) -> Result<(), Error> {

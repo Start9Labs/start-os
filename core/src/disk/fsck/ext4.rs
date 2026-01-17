@@ -4,6 +4,7 @@ use std::path::Path;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use futures::future::BoxFuture;
+use rust_i18n::t;
 use tokio::process::Command;
 use tracing::instrument;
 
@@ -62,33 +63,31 @@ async fn e2fsck_runner(
     let e2fsck_stderr = String::from_utf8(e2fsck_out.stderr)?;
     let code = e2fsck_out.status.code().ok_or_else(|| {
         Error::new(
-            eyre!("e2fsck: process terminated by signal"),
+            eyre!("{}", t!("disk.fsck.process-terminated-by-signal")),
             crate::ErrorKind::DiskManagement,
         )
     })?;
     if code & 4 != 0 {
         tracing::error!(
-            "some filesystem errors NOT corrected on {}:\n{}",
-            logicalname.as_ref().display(),
-            e2fsck_stderr,
+            "{}",
+            t!("disk.fsck.errors-not-corrected", device = logicalname.as_ref().display(), stderr = e2fsck_stderr),
         );
     } else if code & 1 != 0 {
         tracing::warn!(
-            "filesystem errors corrected on {}:\n{}",
-            logicalname.as_ref().display(),
-            e2fsck_stderr,
+            "{}",
+            t!("disk.fsck.errors-corrected", device = logicalname.as_ref().display(), stderr = e2fsck_stderr),
         );
     }
     if code < 8 {
         if code & 2 != 0 {
-            tracing::warn!("reboot required");
+            tracing::warn!("{}", t!("disk.fsck.reboot-required"));
             Ok(RequiresReboot(true))
         } else {
             Ok(RequiresReboot(false))
         }
     } else {
         Err(Error::new(
-            eyre!("e2fsck: {}", e2fsck_stderr),
+            eyre!("{}", t!("disk.fsck.e2fsck-error", stderr = e2fsck_stderr)),
             crate::ErrorKind::DiskManagement,
         ))
     }

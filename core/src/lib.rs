@@ -135,80 +135,63 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
     let mut api = ParentHandler::new()
         .subcommand(
             "git-info",
-            from_fn(|_: C| version::git_info()).with_about("Display the githash of StartOS CLI"),
+            from_fn(|_: C| version::git_info()).with_about("about.display-githash"),
         )
         .subcommand(
             "echo",
             from_fn(echo::<RpcContext>)
                 .with_metadata("authenticated", Value::Bool(false))
-                .with_about("Echo a message")
+                .with_about("about.echo-message")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "state",
             from_fn(|_: RpcContext| Ok::<_, Error>(ApiState::Running))
                 .with_metadata("authenticated", Value::Bool(false))
-                .with_about("Display the API that is currently serving")
+                .with_about("about.display-current-api")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "state",
             from_fn(|_: InitContext| Ok::<_, Error>(ApiState::Initializing))
                 .with_metadata("authenticated", Value::Bool(false))
-                .with_about("Display the API that is currently serving")
+                .with_about("about.display-current-api")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "state",
             from_fn(|_: DiagnosticContext| Ok::<_, Error>(ApiState::Error))
                 .with_metadata("authenticated", Value::Bool(false))
-                .with_about("Display the API that is currently serving")
+                .with_about("about.display-current-api")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand(
-            "server",
-            server::<C>()
-                .with_about("Commands related to the server i.e. restart, update, and shutdown"),
-        )
+        .subcommand("server", server::<C>().with_about("about.commands-server"))
         .subcommand(
             "package",
-            package::<C>().with_about("Commands related to packages"),
+            package::<C>().with_about("about.commands-packages"),
         )
         .subcommand(
             "net",
-            net::net_api::<C>().with_about("Network commands related to tor and dhcp"),
+            net::net_api::<C>().with_about("about.network-commands"),
         )
         .subcommand(
             "auth",
-            auth::auth::<C, RpcContext>()
-                .with_about("Commands related to Authentication i.e. login, logout"),
+            auth::auth::<C, RpcContext>().with_about("about.commands-authentication"),
         )
-        .subcommand(
-            "db",
-            db::db::<C>().with_about("Commands to interact with the db i.e. dump, put, apply"),
-        )
-        .subcommand(
-            "ssh",
-            ssh::ssh::<C>()
-                .with_about("Commands for interacting with ssh keys i.e. add, delete, list"),
-        )
+        .subcommand("db", db::db::<C>().with_about("about.commands-db"))
+        .subcommand("ssh", ssh::ssh::<C>().with_about("about.commands-ssh-keys"))
         .subcommand(
             "wifi",
-            net::wifi::wifi::<C>()
-                .with_about("Commands related to wifi networks i.e. add, connect, delete"),
+            net::wifi::wifi::<C>().with_about("about.commands-wifi"),
         )
-        .subcommand(
-            "disk",
-            disk::disk::<C>().with_about("Commands for listing disk info and repairing"),
-        )
+        .subcommand("disk", disk::disk::<C>().with_about("about.commands-disk"))
         .subcommand(
             "notification",
-            notifications::notification::<C>().with_about("Create, delete, or list notifications"),
+            notifications::notification::<C>().with_about("about.commands-notifications"),
         )
         .subcommand(
             "backup",
-            backup::backup::<C>()
-                .with_about("Commands related to backup creation and backup targets"),
+            backup::backup::<C>().with_about("about.commands-backup"),
         )
         .subcommand(
             "registry",
@@ -219,7 +202,7 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "registry",
-            registry::registry_api::<CliContext>().with_about("Commands related to the registry"),
+            registry::registry_api::<CliContext>().with_about("about.commands-registry"),
         )
         .subcommand(
             "tunnel",
@@ -228,31 +211,26 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "tunnel",
-            tunnel::api::tunnel_api::<CliContext>().with_about("Commands related to StartTunnel"),
+            tunnel::api::tunnel_api::<CliContext>().with_about("about.commands-tunnel"),
         )
-        .subcommand(
-            "s9pk",
-            s9pk::rpc::s9pk().with_about("Commands for interacting with s9pk files"),
-        )
+        .subcommand("s9pk", s9pk::rpc::s9pk().with_about("about.commands-s9pk"))
         .subcommand(
             "util",
-            util::rpc::util::<C>().with_about("Command for calculating the blake3 hash of a file"),
+            util::rpc::util::<C>().with_about("about.command-blake3-hash"),
         )
         .subcommand(
             "init-key",
             from_fn_async(developer::init)
                 .no_display()
-                .with_about("Create developer key if it doesn't exist"),
+                .with_about("about.create-developer-key"),
         )
         .subcommand(
             "pubkey",
-            from_fn_blocking(developer::pubkey)
-                .with_about("Get public key for developer private key"),
+            from_fn_blocking(developer::pubkey).with_about("about.get-developer-pubkey"),
         )
         .subcommand(
             "diagnostic",
-            diagnostic::diagnostic::<C>()
-                .with_about("Commands to display logs, restart the server, etc"),
+            diagnostic::diagnostic::<C>().with_about("about.commands-diagnostic"),
         )
         .subcommand("init", init::init_api::<C>())
         .subcommand("setup", setup::setup::<C>());
@@ -265,7 +243,7 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
             "flash-os",
             from_fn_async(os_install::cli_install_os)
                 .no_display()
-                .with_about("Flash StartOS to a disk from a squashfs"),
+                .with_about("about.flash-startos"),
         );
     }
     api
@@ -280,29 +258,32 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     system::display_time(handle.params, result)
                 })
-                .with_about("Display current time and server uptime")
-                .with_call_remote::<CliContext>()
+                .with_about("about.display-time-uptime")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "experimental",
-            system::experimental::<C>()
-                .with_about("Commands related to configuring experimental options such as zram and cpu governor"),
+            system::experimental::<C>().with_about("about.commands-experimental"),
         )
         .subcommand(
             "logs",
-            system::logs::<RpcContext>().with_about("Display OS logs"),
+            system::logs::<RpcContext>().with_about("about.display-os-logs"),
         )
         .subcommand(
             "logs",
-            from_fn_async(logs::cli_logs::<RpcContext, Empty>).no_display().with_about("Display OS logs"),
+            from_fn_async(logs::cli_logs::<RpcContext, Empty>)
+                .no_display()
+                .with_about("about.display-os-logs"),
         )
         .subcommand(
             "kernel-logs",
-            system::kernel_logs::<RpcContext>().with_about("Display Kernel logs"),
+            system::kernel_logs::<RpcContext>().with_about("about.display-kernel-logs"),
         )
         .subcommand(
             "kernel-logs",
-            from_fn_async(logs::cli_logs::<RpcContext, Empty>).no_display().with_about("Display Kernel logs"),
+            from_fn_async(logs::cli_logs::<RpcContext, Empty>)
+                .no_display()
+                .with_about("about.display-kernel-logs"),
         )
         .subcommand(
             "metrics",
@@ -310,35 +291,31 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 .root_handler(
                     from_fn_async(system::metrics)
                         .with_display_serializable()
-                        .with_about("Display information about the server i.e. temperature, RAM, CPU, and disk usage")
-                        .with_call_remote::<CliContext>()
+                        .with_about("about.display-server-metrics")
+                        .with_call_remote::<CliContext>(),
                 )
-                .subcommand(
-                    "follow", 
-                    from_fn_async(system::metrics_follow)
-                        .no_cli()
-                )
+                .subcommand("follow", from_fn_async(system::metrics_follow).no_cli()),
         )
         .subcommand(
             "shutdown",
             from_fn_async(shutdown::shutdown)
                 .no_display()
-                .with_about("Shutdown the server")
-                .with_call_remote::<CliContext>()
+                .with_about("about.shutdown-server")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "restart",
             from_fn_async(shutdown::restart)
                 .no_display()
-                .with_about("Restart the server")
-                .with_call_remote::<CliContext>()
+                .with_about("about.restart-server")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "rebuild",
             from_fn_async(shutdown::rebuild)
                 .no_display()
-                .with_about("Teardown and rebuild service containers")
-                .with_call_remote::<CliContext>()
+                .with_about("about.teardown-rebuild-containers")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "update",
@@ -348,7 +325,9 @@ pub fn server<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "update",
-            from_fn_async(update::cli_update_system).no_display().with_about("Check a given registry for StartOS updates and update if available"),
+            from_fn_async(update::cli_update_system)
+                .no_display()
+                .with_about("about.check-update-startos"),
         )
         .subcommand(
             "update-firmware",
@@ -363,37 +342,41 @@ pub fn server<C: Context>() -> ParentHandler<C> {
             .with_custom_display_fn(|_handle, result| {
                 Ok(firmware::display_firmware_update_result(result))
             })
-            .with_about("Update the mainboard's firmware to the latest firmware available in this version of StartOS if available. Note: This command does not reach out to the Internet")
-            .with_call_remote::<CliContext>()
+            .with_about("about.update-firmware")
+            .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "set-smtp",
             from_fn_async(system::set_system_smtp)
                 .no_display()
-                .with_about("Set system smtp server and credentials")
-                .with_call_remote::<CliContext>()
+                .with_about("about.set-smtp")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "test-smtp", 
+            "test-smtp",
             from_fn_async(system::test_smtp)
                 .no_display()
-                .with_about("Send test email using provided smtp server and credentials")
-                .with_call_remote::<CliContext>()
+                .with_about("about.test-smtp")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "clear-smtp",
             from_fn_async(system::clear_system_smtp)
                 .no_display()
-                .with_about("Remove system smtp server and credentials")
-                .with_call_remote::<CliContext>()
-        ).subcommand("host", net::host::server_host_api::<C>().with_about("Commands for modifying the host for the system ui"))
+                .with_about("about.clear-smtp")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "host",
+            net::host::server_host_api::<C>().with_about("about.commands-host-system-ui"),
+        )
 }
 
 pub fn package<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "action",
-            action::action_api::<C>().with_about("Commands to get action input or run an action"),
+            action::action_api::<C>().with_about("about.commands-action"),
         )
         .subcommand(
             "install",
@@ -411,13 +394,13 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             "install",
             from_fn_async_local(install::cli_install)
                 .no_display()
-                .with_about("Install a package from a marketplace or via sideloading"),
+                .with_about("about.install-package"),
         )
         .subcommand(
             "cancel-install",
             from_fn(install::cancel_install)
                 .no_display()
-                .with_about("Cancel an install of a package")
+                .with_about("about.cancel-install-package")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -425,21 +408,21 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             from_fn_async(install::uninstall)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Remove a package")
+                .with_about("about.remove-package")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "list",
             from_fn_async(install::list)
                 .with_display_serializable()
-                .with_about("List installed packages")
+                .with_about("about.list-installed-packages")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "installed-version",
             from_fn_async(install::installed_version)
                 .with_display_serializable()
-                .with_about("Display installed version for a PackageId")
+                .with_about("about.display-installed-version")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -447,7 +430,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             from_fn_async(control::start)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Start a service")
+                .with_about("about.start-service")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -455,7 +438,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             from_fn_async(control::stop)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Stop a service")
+                .with_about("about.stop-service")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -463,7 +446,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             from_fn_async(control::restart)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Restart a service")
+                .with_about("about.restart-service")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -471,7 +454,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             from_fn_async(service::rebuild)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Rebuild service container")
+                .with_about("about.rebuild-service-container")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -511,35 +494,34 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                     table.print_tty(false)?;
                     Ok(())
                 })
-                .with_about("List information related to the lxc containers i.e. CPU, Memory, Disk")
+                .with_about("about.list-lxc-container-info")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand("logs", logs::package_logs())
         .subcommand(
             "logs",
-            logs::package_logs().with_about("Display package logs"),
+            logs::package_logs().with_about("about.display-package-logs"),
         )
         .subcommand(
             "logs",
             from_fn_async(logs::cli_logs::<RpcContext, logs::PackageIdParams>)
                 .no_display()
-                .with_about("Display package logs"),
+                .with_about("about.display-package-logs"),
         )
         .subcommand(
             "backup",
-            backup::package_backup::<C>()
-                .with_about("Commands for restoring package(s) from backup"),
+            backup::package_backup::<C>().with_about("about.commands-restore-backup"),
         )
         .subcommand(
             "attach",
             from_fn_async(service::attach)
                 .with_metadata("get_session", Value::Bool(true))
-                .with_about("Execute commands within a service container")
+                .with_about("about.execute-commands-container")
                 .no_cli(),
         )
         .subcommand("attach", from_fn_async(service::cli_attach).no_display())
         .subcommand(
             "host",
-            net::host::host_api::<C>().with_about("Manage network hosts for a package"),
+            net::host::host_api::<C>().with_about("about.manage-network-hosts-package"),
         )
 }

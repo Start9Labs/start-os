@@ -5,6 +5,7 @@ use std::str::FromStr;
 use clap::builder::ValueParserFactory;
 use exver::VersionRange;
 use imbl_value::InternedString;
+use rust_i18n::t;
 
 use crate::db::model::package::{
     CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind, ManifestPreference,
@@ -148,13 +149,13 @@ impl FromStr for DependencyRequirement {
                         .map(|id| id.parse().map_err(Error::from))
                         .collect(),
                     Some((kind, _)) => Err(Error::new(
-                        eyre!("unknown dependency kind {kind}"),
+                        eyre!("{}", t!("service.effects.dependency.unknown-dependency-kind", kind = kind)),
                         ErrorKind::InvalidRequest,
                     )),
                     None => match rest {
                         "r" | "running" => Ok(BTreeSet::new()),
                         kind => Err(Error::new(
-                            eyre!("unknown dependency kind {kind}"),
+                            eyre!("{}", t!("service.effects.dependency.unknown-dependency-kind", kind = kind)),
                             ErrorKind::InvalidRequest,
                         )),
                     },

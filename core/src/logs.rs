@@ -554,7 +554,7 @@ pub async fn journalctl(
         let mut child = follow_cmd.stdout(Stdio::piped()).spawn()?;
         let out =
             BufReader::new(child.stdout.take().ok_or_else(|| {
-                Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald)
+                Error::new(eyre!("{}", t!("logs.no-stdout-available")), crate::ErrorKind::Journald)
             })?);
 
         let journalctl_entries = LinesStream::new(out.lines());
@@ -700,7 +700,7 @@ pub async fn follow_logs<Context: AsRef<RpcContinuations>>(
             RpcContinuation::ws(
                 move |socket| async move {
                     if let Err(e) = ws_handler(first_entry, stream, socket).await {
-                        tracing::error!("Error in log stream: {}", e);
+                        tracing::error!("{}", t!("logs.error-in-log-stream", error = e.to_string()));
                     }
                 },
                 Duration::from_secs(30),

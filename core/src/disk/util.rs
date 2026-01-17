@@ -95,7 +95,7 @@ pub async fn get_vendor<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error
         Path::new(SYS_BLOCK_PATH)
             .join(path.as_ref().strip_prefix("/dev").map_err(|_| {
                 Error::new(
-                    eyre!("not a canonical block device"),
+                    eyre!("{}", t!("disk.util.not-canonical-block-device")),
                     crate::ErrorKind::BlockDevice,
                 )
             })?)
@@ -118,7 +118,7 @@ pub async fn get_model<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
         Path::new(SYS_BLOCK_PATH)
             .join(path.as_ref().strip_prefix("/dev").map_err(|_| {
                 Error::new(
-                    eyre!("not a canonical block device"),
+                    eyre!("{}", t!("disk.util.not-canonical-block-device")),
                     crate::ErrorKind::BlockDevice,
                 )
             })?)
@@ -374,23 +374,22 @@ async fn disk_info(disk: PathBuf) -> DiskInfo {
         .await
         .map_err(|e| {
             tracing::warn!(
-                "Could not get partition table of {}: {}",
-                disk.display(),
-                e.source
+                "{}",
+                t!("disk.util.could-not-get-partition-table", disk = disk.display(), error = e.source)
             )
         })
         .unwrap_or_default();
     let vendor = get_vendor(&disk)
         .await
-        .map_err(|e| tracing::warn!("Could not get vendor of {}: {}", disk.display(), e.source))
+        .map_err(|e| tracing::warn!("{}", t!("disk.util.could-not-get-vendor", disk = disk.display(), error = e.source)))
         .unwrap_or_default();
     let model = get_model(&disk)
         .await
-        .map_err(|e| tracing::warn!("Could not get model of {}: {}", disk.display(), e.source))
+        .map_err(|e| tracing::warn!("{}", t!("disk.util.could-not-get-model", disk = disk.display(), error = e.source)))
         .unwrap_or_default();
     let capacity = get_capacity(&disk)
         .await
-        .map_err(|e| tracing::warn!("Could not get capacity of {}: {}", disk.display(), e.source))
+        .map_err(|e| tracing::warn!("{}", t!("disk.util.could-not-get-capacity", disk = disk.display(), error = e.source)))
         .unwrap_or_default();
     DiskInfo {
         logicalname: disk,
@@ -407,21 +406,21 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
     let mut start_os = BTreeMap::new();
     let label = get_label(&part)
         .await
-        .map_err(|e| tracing::warn!("Could not get label of {}: {}", part.display(), e.source))
+        .map_err(|e| tracing::warn!("{}", t!("disk.util.could-not-get-label", part = part.display(), error = e.source)))
         .unwrap_or_default();
     let capacity = get_capacity(&part)
         .await
-        .map_err(|e| tracing::warn!("Could not get capacity of {}: {}", part.display(), e.source))
+        .map_err(|e| tracing::warn!("{}", t!("disk.util.could-not-get-capacity-part", part = part.display(), error = e.source)))
         .unwrap_or_default();
     let mut used = None;
 
     match TmpMountGuard::mount(&BlockDev::new(&part), ReadOnly).await {
-        Err(e) => tracing::warn!("Could not collect usage information: {}", e.source),
+        Err(e) => tracing::warn!("{}", t!("disk.util.could-not-collect-usage-info", error = e.source)),
         Ok(mount_guard) => {
             used = get_used(mount_guard.path())
                 .await
                 .map_err(|e| {
-                    tracing::warn!("Could not get usage of {}: {}", part.display(), e.source)
+                    tracing::warn!("{}", t!("disk.util.could-not-get-usage", part = part.display(), error = e.source))
                 })
                 .ok();
             match recovery_info(mount_guard.path()).await {
@@ -429,11 +428,11 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
                     start_os = a;
                 }
                 Err(e) => {
-                    tracing::error!("Error fetching unencrypted backup metadata: {}", e);
+                    tracing::error!("{}", t!("disk.util.error-fetching-backup-metadata", error = e));
                 }
             }
             if let Err(e) = mount_guard.unmount().await {
-                tracing::error!("Error unmounting partition {}: {}", part.display(), e);
+                tracing::error!("{}", t!("disk.util.error-unmounting-partition", part = part.display(), error = e));
             }
         }
     }
@@ -474,7 +473,7 @@ fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<Interned
                 ret.insert(PathBuf::from(pv), vg.map(InternedString::intern));
             }
             Err(_) => {
-                tracing::warn!("Failed to parse pvscan output line: {}", entry);
+                tracing::warn!("{}", t!("disk.util.failed-to-parse-pvscan", line = entry));
             }
         }
     }

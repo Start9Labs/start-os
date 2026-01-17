@@ -34,7 +34,7 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
             "iso",
             from_fn_async(cli_get_os_asset)
                 .no_display()
-                .with_about("Download iso"),
+                .with_about("about.download-iso"),
         )
         .subcommand(
             "img",
@@ -46,7 +46,7 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
             "img",
             from_fn_async(cli_get_os_asset)
                 .no_display()
-                .with_about("Download img"),
+                .with_about("about.download-img"),
         )
         .subcommand(
             "squashfs",
@@ -58,7 +58,7 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
             "squashfs",
             from_fn_async(cli_get_os_asset)
                 .no_display()
-                .with_about("Download squashfs"),
+                .with_about("about.download-squashfs"),
         )
 }
 
