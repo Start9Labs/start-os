@@ -99,6 +99,7 @@ export default {
   101: 'Masz niezapisane zmiany. Czy na pewno chcesz opuścić tę stronę?',
   102: 'Opuść',
   103: 'Czy jesteś pewien?',
+  104: 'Nowa brama sieciowa',
   108: 'publiczny',
   109: 'prywatny',
   111: 'Brak domeny onion',

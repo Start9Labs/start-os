@@ -99,6 +99,7 @@ export default {
   101: 'Sie haben nicht gespeicherte Änderungen. Möchten Sie die Seite wirklich verlassen?',
   102: 'Verlassen',
   103: 'Sind Sie sicher?',
+  104: 'Neues Netzwerk-Gateway',
   108: 'Öffentlich',
   109: 'privat',
   111: 'Keine Onion-Domains',

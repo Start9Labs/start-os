@@ -98,6 +98,7 @@ export const ENGLISH = {
   'You have unsaved changes. Are you sure you want to leave?': 101,
   'Leave': 102,
   'Are you sure?': 103,
+  'New gateway': 104, // as in, a network gateway
   'public': 108,
   'private': 109,
   'No Tor domains': 111,

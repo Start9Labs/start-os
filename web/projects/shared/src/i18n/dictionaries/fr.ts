@@ -99,6 +99,7 @@ export default {
   101: 'Vous avez des modifications non enregistrées. Voulez-vous vraiment quitter ?',
   102: 'Quitter',
   103: 'Êtes-vous sûr ?',
+  104: 'Nouvelle passerelle réseau',
   108: 'public',
   109: 'privé',
   111: 'Aucune domaine onion',

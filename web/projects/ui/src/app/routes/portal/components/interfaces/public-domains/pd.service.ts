@@ -250,7 +250,7 @@ export class PublicDomainService {
             [gateway.id]: gateway.name || gateway.ipInfo.name,
             ...obj,
           }),
-          { '~/system/gateways': 'Add new gateway' },
+          { '~/system/gateways': this.i18n.transform('New gateway') },
         ),
         default: '',
         disabled: gateways

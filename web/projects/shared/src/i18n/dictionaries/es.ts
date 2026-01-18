@@ -99,6 +99,7 @@ export default {
   101: 'Tienes cambios no guardados. ¿Estás seguro de que deseas salir?',
   102: 'Salir',
   103: '¿Estás seguro?',
+  104: 'Nueva puerta de enlace de red',
   108: 'público',
   109: 'privado',
   111: 'Sin dominios onion',
