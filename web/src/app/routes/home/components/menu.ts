@@ -30,7 +30,7 @@ export const MENU = {
     {
       name: 'IPv6 Firewall',
       icon: '@tui.brick-wall-fire',
-      link: 'forwarding',
+      link: 'firewall',
     },
   ],
   'Security Profiles': [

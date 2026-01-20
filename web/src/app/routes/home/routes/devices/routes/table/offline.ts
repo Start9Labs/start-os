@@ -15,6 +15,7 @@ import {
   TuiLink,
 } from '@taiga-ui/core'
 import { TuiChip } from '@taiga-ui/kit'
+import { Placeholder } from 'src/app/routes/home/components/placeholder'
 import { DevicesService } from 'src/app/routes/home/routes/devices/service'
 import { DeviceTableItem } from 'src/app/routes/home/routes/devices/utils'
 
@@ -93,8 +94,9 @@ type SortDirection = 'asc' | 'desc' | null
       } @empty {
         <tr>
           <td colspan="5">
-            <tui-icon icon="@tui.monitor-smartphone" />
-            No offline devices
+            <app-placeholder icon="@tui.screen-share-off">
+              No offline devices
+            </app-placeholder>
           </td>
         </tr>
       }
@@ -128,6 +130,7 @@ type SortDirection = 'asc' | 'desc' | null
     TuiFormatNumberPipe,
     TuiChip,
     TuiLink,
+    Placeholder,
   ],
   host: { class: 'g-table' },
   changeDetection: ChangeDetectionStrategy.OnPush,
