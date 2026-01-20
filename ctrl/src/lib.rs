@@ -11,6 +11,7 @@ pub mod wifi;
 
 use std::fs::{File, OpenOptions};
 use std::io::BufReader;
+use std::ops::Deref;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
@@ -113,6 +114,14 @@ impl Drop for CliContextSeed {
 #[derive(Clone)]
 pub struct CliContext(Arc<CliContextSeed>);
 
+impl Deref for CliContext {
+    type Target = CliContextSeed;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl CliContext {
     pub fn init(args: CliArgs) -> Result<Self, Error> {
         let cookie_path = cookies_path();
@@ -144,15 +153,14 @@ impl CliContext {
     }
 
     pub fn client(&self) -> &Client {
-        &self.0.client
+        &self.client
     }
 }
 
 impl Context for CliContext {
     fn runtime(&self) -> Option<Arc<Runtime>> {
         Some(
-            self.0
-                .runtime
+            self.runtime
                 .get_or_init(|| {
                     Arc::new(
                         tokio::runtime::Builder::new_current_thread()
@@ -168,11 +176,11 @@ impl Context for CliContext {
 
 impl CtrlContext for CliContext {
     fn uci_root(&self) -> PathBuf {
-        self.0.config_root.clone()
+        self.config_root.clone()
     }
 
     fn effectful(&self) -> bool {
-        self.0.configs_only
+        self.configs_only
     }
 }
 
@@ -183,7 +191,7 @@ impl CallRemote<ServerContext> for CliContext {
         params: Value,
         _extra: Empty,
     ) -> Result<Value, RpcError> {
-        call_remote_http(self.client(), self.0.host.clone(), method, params).await
+        call_remote_http(self.client(), self.host.clone(), method, params).await
     }
 }
 
