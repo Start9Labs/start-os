@@ -9,8 +9,9 @@ pub mod uci;
 pub mod utils;
 pub mod wifi;
 
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::BufReader;
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
@@ -72,7 +73,13 @@ impl Drop for CliContextSeed {
                 return;
             }
         }
-        let file = match File::create(&tmp) {
+        let file = match OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(&tmp)
+        {
             Ok(f) => f,
             Err(e) => {
                 tracing::warn!("Failed to create cookie temp file: {}", e);
