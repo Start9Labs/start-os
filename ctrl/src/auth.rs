@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
+
+use tokio::io::AsyncWriteExt;
 
 use chrono::{DateTime, TimeDelta, Utc};
 use clap::Parser;
@@ -191,67 +192,77 @@ fn load_sessions() -> Result<Sessions, Error> {
     Ok(sessions)
 }
 
-fn save_sessions(sessions: &Sessions) -> Result<(), Error> {
+fn to_tmp_path(path: &Path) -> Result<PathBuf, Error> {
+    let parent = path.parent();
+    let file_name = path
+        .file_name()
+        .and_then(|f| f.to_str())
+        .ok_or_else(|| Error::other("Invalid session file path"))?;
+    Ok(parent.unwrap_or(Path::new(".")).join(format!(".{file_name}.tmp")))
+}
+
+async fn save_sessions(sessions: &Sessions) -> Result<(), Error> {
     let path = Path::new(&*SESSION_FILE_PATH);
+    let tmp_path = to_tmp_path(path)?;
 
     let parent = path
         .parent()
         .ok_or_else(|| Error::other("Invalid session file path"))?;
 
-    fs::create_dir_all(parent)
+    tokio::fs::create_dir_all(parent)
+        .await
         .map_err(|e| Error::other(format!("Failed to create session directory: {e}")))?;
 
     let content = serde_json::to_string_pretty(sessions)
         .map_err(|e| Error::other(format!("Failed to serialize sessions: {e}")))?;
 
     // Create temp file in same directory to ensure atomic rename works
-    let mut temp_file = tempfile::NamedTempFile::new_in(parent)
+    let mut file = tokio::fs::File::create(&tmp_path)
+        .await
         .map_err(|e| Error::other(format!("Failed to create temp file: {e}")))?;
 
-    temp_file
-        .write_all(content.as_bytes())
+    file.write_all(content.as_bytes())
+        .await
         .map_err(|e| Error::other(format!("Failed to write sessions file: {e}")))?;
 
-    temp_file
-        .flush()
+    file.flush()
+        .await
         .map_err(|e| Error::other(format!("Failed to flush sessions file: {e}")))?;
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        temp_file
-            .as_file()
-            .set_permissions(fs::Permissions::from_mode(0o600))
+        file.set_permissions(fs::Permissions::from_mode(0o600))
+            .await
             .map_err(|e| Error::other(format!("Failed to set sessions file permissions: {e}")))?;
     }
 
-    temp_file
-        .as_file()
-        .sync_all()
+    file.sync_all()
+        .await
         .map_err(|e| Error::other(format!("Failed to sync sessions file: {e}")))?;
 
     // Atomic rename from temp to final path
-    temp_file
-        .persist(path)
+    tokio::fs::rename(&tmp_path, path)
+        .await
         .map_err(|e| Error::other(format!("Failed to persist sessions file: {e}")))?;
 
     Ok(())
 }
 
-fn add_session(token_hash: &str, session: Session) -> Result<(), Error> {
+async fn add_session(token_hash: &str, session: Session) -> Result<(), Error> {
     let mut sessions = load_sessions()?;
     sessions.insert(token_hash.to_string(), session);
-    save_sessions(&sessions)
+    save_sessions(&sessions).await
 }
 
-fn remove_session(token_hash: &str) -> Result<(), Error> {
+async fn remove_session(token_hash: &str) -> Result<(), Error> {
     let mut sessions = load_sessions()?;
     sessions.remove(token_hash);
-    save_sessions(&sessions)
+    save_sessions(&sessions).await
 }
 
 /// Validate a session token hash, check expiration, and update last_active timestamp
-pub fn validate_session(token_hash: &str) -> Result<(), Error> {
+pub async fn validate_session(token_hash: &str) -> Result<(), Error> {
     let mut sessions = load_sessions()?;
 
     let session = sessions
@@ -263,7 +274,7 @@ pub fn validate_session(token_hash: &str) -> Result<(), Error> {
         if Utc::now() - session.last_active > expiry {
             // Remove expired session
             sessions.remove(token_hash);
-            save_sessions(&sessions)?;
+            save_sessions(&sessions).await?;
             return Err(Error::other("Session expired"));
         }
     }
@@ -274,7 +285,7 @@ pub fn validate_session(token_hash: &str) -> Result<(), Error> {
         ..session.clone()
     };
     sessions.insert(token_hash.to_string(), updated_session);
-    save_sessions(&sessions)?;
+    save_sessions(&sessions).await?;
 
     Ok(())
 }
@@ -296,7 +307,7 @@ pub async fn login_impl(
         user_agent,
     };
 
-    add_session(hash_token.hashed(), session)?;
+    add_session(hash_token.hashed(), session).await?;
 
     Ok(hash_token.to_login_res())
 }
@@ -316,7 +327,7 @@ pub async fn logout(
     LogoutParams { session_hash }: LogoutParams,
 ) -> Result<(), Error> {
     if let Some(hash) = session_hash {
-        remove_session(&hash)?;
+        remove_session(&hash).await?;
     }
     Ok(())
 }

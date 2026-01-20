@@ -85,7 +85,7 @@ impl<C: Context> Middleware<C> for SessionAuth {
         metadata: Self::Metadata,
         request: &mut RpcRequest,
     ) -> Result<(), RpcResponse> {
-        let result: Result<(), Error> = (|| {
+        let result: Result<(), Error> = async {
             if metadata.login {
                 self.is_login = true;
                 // Rate limit login attempts: 3 per 20 seconds
@@ -113,7 +113,7 @@ impl<C: Context> Middleware<C> for SessionAuth {
                     .extract_session_from_cookie()
                     .ok_or_else(|| Error::other("UNAUTHORIZED"))?;
 
-                validate_session(session_token.hashed())?;
+                validate_session(session_token.hashed()).await?;
 
                 // Inject session hash into request params if requested
                 if metadata.get_session {
@@ -122,7 +122,8 @@ impl<C: Context> Middleware<C> for SessionAuth {
                 }
             }
             Ok(())
-        })();
+        }
+        .await;
 
         result.map_err(|e| {
             RpcResponse::from(RpcError {
