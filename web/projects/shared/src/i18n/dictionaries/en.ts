@@ -493,6 +493,7 @@ export const ENGLISH = {
   'Recommended': 516, // as in, we recommend this
   'Are you sure you want to dismiss this task?': 517,
   'Dismiss': 518, // as in, dismiss or delete a task
+  'Must be a valid IPv4 or Ipv6 address with optional port': 519,
   'Update available': 520,
   'To resolve the issue, refer to': 521,
   'SDK version': 522,
@@ -582,10 +583,10 @@ export const ENGLISH = {
   'Reason': 612, // as in, an explanation for something
   'Cannot disable private gateways for StartOS UI': 613,
   'Root CA': 614, // as in, the unique, fixed-length digital identifier generated from a certificate's data using a cryptographic hash function
-  'DHCP Servers': 615,
-  'Cannot edit DHCP servers': 616,
+  'Use the DNS servers provided by your router': 615,
+  'Use DNS servers you specify manually': 616,
   'Static': 617, // as in, unchanging
-  'Static Servers': 618, // as in, servers that do not change
+  'Servers': 618, // as in, computer servers
   'Warning. StartOS is currently using the following gateway for DNS': 619,
   'If you intend to use this gateway for private domain resolution, set alternative static DNS servers using the form above.': 620,
   'Package a service': 621, // as in, package a software application for an operating system
