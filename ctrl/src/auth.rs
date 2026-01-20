@@ -348,6 +348,78 @@ pub struct ResetPasswordParams {
     pub new_password: String,
 }
 
+/// Update a user's password hash in /etc/shadow
+async fn update_shadow_hash(username: &str, new_hash: &str) -> Result<(), Error> {
+    const SHADOW_PATH: &str = "/etc/shadow";
+    let shadow_path = Path::new(SHADOW_PATH);
+    let tmp_path = shadow_path
+        .parent()
+        .unwrap_or(Path::new("/etc"))
+        .join(".shadow.tmp");
+
+    let shadow_content = tokio::fs::read_to_string(SHADOW_PATH)
+        .await
+        .map_err(|e| Error::other(format!("Failed to read /etc/shadow: {e}")))?;
+
+    // Update the user's hash line
+    let mut found = false;
+    let new_content = shadow_content
+        .lines()
+        .map(|line| {
+            if line.starts_with(&format!("{username}:")) {
+                found = true;
+                let mut parts: Vec<&str> = line.split(':').collect();
+                if parts.len() >= 2 {
+                    parts[1] = new_hash;
+                }
+                parts.join(":")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    if !found {
+        return Err(Error::other(format!("User '{username}' not found in /etc/shadow")));
+    }
+
+    // Ensure file ends with newline
+    let new_content = if new_content.ends_with('\n') {
+        new_content
+    } else {
+        format!("{new_content}\n")
+    };
+
+    // Write atomically with restricted permissions (0600)
+    let mut file = tokio::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(&tmp_path)
+        .await
+        .map_err(|e| Error::other(format!("Failed to create temp shadow file: {e}")))?;
+
+    file.write_all(new_content.as_bytes())
+        .await
+        .map_err(|e| Error::other(format!("Failed to write shadow file: {e}")))?;
+
+    file.flush()
+        .await
+        .map_err(|e| Error::other(format!("Failed to flush shadow file: {e}")))?;
+
+    file.sync_all()
+        .await
+        .map_err(|e| Error::other(format!("Failed to sync shadow file: {e}")))?;
+
+    tokio::fs::rename(&tmp_path, shadow_path)
+        .await
+        .map_err(|e| Error::other(format!("Failed to rename shadow file: {e}")))?;
+
+    Ok(())
+}
+
 #[instrument(skip_all)]
 pub async fn reset_password_impl(
     _ctx: ServerContext,
@@ -356,37 +428,15 @@ pub async fn reset_password_impl(
         new_password,
     }: ResetPasswordParams,
 ) -> Result<(), Error> {
-    use std::process::Stdio;
-    use tokio::process::Command;
-
     // Verify old password first
     check_password(&old_password).await?;
 
-    // Use chpasswd to set new password
-    let mut child = Command::new("chpasswd")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| Error::other(format!("Failed to spawn chpasswd: {e}")))?;
+    // Generate new password hash using SHA-256 crypt
+    let new_hash = pwhash::sha256_crypt::hash(&new_password)
+        .map_err(|e| Error::other(format!("Failed to hash password: {e}")))?;
 
-    if let Some(stdin) = child.stdin.as_mut() {
-        use tokio::io::AsyncWriteExt;
-        stdin
-            .write_all(format!("root:{new_password}\n").as_bytes())
-            .await
-            .map_err(|e| Error::other(format!("Failed to write to chpasswd: {e}")))?;
-    }
-
-    let output = child
-        .wait_with_output()
-        .await
-        .map_err(|e| Error::other(format!("Failed to wait for chpasswd: {e}")))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(Error::other(format!("chpasswd failed: {stderr}")));
-    }
+    // Update /etc/shadow directly
+    update_shadow_hash("root", &new_hash).await?;
 
     Ok(())
 }
