@@ -1,11 +1,9 @@
 import { KeyValuePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { Router, RouterLink, RouterLinkActive } from '@angular/router'
-import { TuiNotificationService, TuiButton, TuiScrollbar } from '@taiga-ui/core'
-import { TuiNotificationMiddleService } from '@taiga-ui/kit'
+import { RouterLink, RouterLinkActive } from '@angular/router'
+import { TuiButton, TuiScrollbar, TuiIcon } from '@taiga-ui/core'
 import { MENU } from 'src/app/routes/home/components/menu'
-import { ApiService } from 'src/app/services/api/api.service'
-import { AuthService } from 'src/app/services/auth.service'
+import { SystemService } from 'src/app/services/system.service'
 import { SidebarService } from 'src/app/services/sidebar.service'
 
 @Component({
@@ -24,6 +22,9 @@ import { SidebarService } from 'src/app/services/sidebar.service'
             [routerLink]="route.link"
           >
             {{ route.name }}
+            @if (route.link === 'settings' && system.updateAvailable()) {
+              <tui-icon icon="@tui.rocket" class="update-icon" />
+            }
           </a>
         }
         @if (!$last) {
@@ -31,15 +32,6 @@ import { SidebarService } from 'src/app/services/sidebar.service'
         }
       }
     </tui-scrollbar>
-    <button
-      tuiButton
-      iconStart="@tui.log-out"
-      appearance="neutral"
-      size="s"
-      (click)="logout()"
-    >
-      Logout
-    </button>
   `,
   styles: `
     :host {
@@ -86,10 +78,10 @@ import { SidebarService } from 'src/app/services/sidebar.service'
       margin: 0.5rem 0;
     }
 
-    button {
-      width: 100%;
-      border-radius: 0;
-      justify-content: flex-start;
+    .update-icon {
+      margin-inline-start: auto;
+      color: var(--tui-status-positive);
+      font-size: 1rem;
     }
 
     :host-context(tui-root._mobile) {
@@ -108,6 +100,7 @@ import { SidebarService } from 'src/app/services/sidebar.service'
   imports: [
     TuiScrollbar,
     TuiButton,
+    TuiIcon,
     RouterLink,
     KeyValuePipe,
     RouterLinkActive,
@@ -119,28 +112,9 @@ import { SidebarService } from 'src/app/services/sidebar.service'
   },
 })
 export class Nav {
-  private readonly service = inject(AuthService)
-  private readonly router = inject(Router)
-  private readonly api = inject(ApiService)
-  private readonly alerts = inject(TuiNotificationService)
-  private readonly loading = inject(TuiNotificationMiddleService)
-
   protected readonly sidebars = inject(SidebarService)
+  protected readonly system = inject(SystemService)
   protected readonly routes = MENU
-
-  protected async logout() {
-    const loading = this.loading.open('').subscribe()
-    try {
-      await this.api.logout()
-      this.service.authenticated.set(false)
-      this.router.navigate(['.'])
-    } catch (e: any) {
-      console.error(e)
-      this.alerts.open(e, { appearance: 'negative' }).subscribe()
-    } finally {
-      loading.unsubscribe()
-    }
-  }
 
   protected asIs(): number {
     return 0

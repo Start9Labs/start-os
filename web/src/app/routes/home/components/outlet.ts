@@ -11,6 +11,7 @@ import { TuiScrollbar } from '@taiga-ui/core'
 import { Aside } from 'src/app/routes/home/components/aside'
 import { Header } from 'src/app/routes/home/components/header'
 import { Nav } from 'src/app/routes/home/components/nav'
+import { SystemService } from 'src/app/services/system.service'
 import { SidebarService } from 'src/app/services/sidebar.service'
 
 @Component({
@@ -70,4 +71,8 @@ export class Outlet {
     .subscribe(() => {
       this.scrollbar()?.nativeElement.scrollTo({ top: 0 })
     })
+
+  constructor() {
+    inject(SystemService).init()
+  }
 }

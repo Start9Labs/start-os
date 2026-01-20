@@ -8,8 +8,13 @@ import {
   GetFileRes,
   GetUciReq,
   LoginReq,
+  SystemInfoRes,
+  SetFileReq,
   SetUciReq,
   SetUciRes,
+  VersionInfo,
+  SetPasswordReq,
+  SetPreferencesReq,
 } from './api.service'
 import { UciFile, UciSection } from './types'
 import { wanIpv4Dhcp } from 'src/app/routes/home/routes/wan/routes/ipv4/uci/mocks'
@@ -130,8 +135,18 @@ export class MockApiService extends ApiService {
     }
   }
 
+  private mockAuthorizedKeys = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl matt@macbook
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa lucy@desktop`
+
   async getFile(params: GetFileReq): Promise<GetFileRes> {
     await pauseFor(1000)
+
+    if (params.path === '/root/.ssh/authorized_keys') {
+      return {
+        modified: new Date().toISOString(),
+        contents: this.mockAuthorizedKeys,
+      }
+    }
 
     return {
       modified: new Date().toISOString(),
@@ -139,8 +154,12 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async setFile(params: GetFileRes): Promise<null> {
+  async setFile(params: SetFileReq): Promise<null> {
     await pauseFor(1000)
+
+    if (params.path === '/root/.ssh/authorized_keys') {
+      this.mockAuthorizedKeys = params.contents
+    }
 
     return null
   }
@@ -171,6 +190,65 @@ export class MockApiService extends ApiService {
       }),
       {} as SetUciRes<T>,
     )
+  }
+
+  async systemInfo(): Promise<SystemInfoRes> {
+    await pauseFor(300)
+
+    return {
+      version: '1.0.0',
+      language: 'English',
+      date: new Date().toISOString(),
+      theme: 'system',
+    }
+  }
+
+  async systemNewerVersions(): Promise<VersionInfo[]> {
+    await pauseFor(500)
+
+    return [
+      {
+        version: '1.0.1',
+        releaseNotes: `## Bug Fixes
+
+- Resolved issue with DHCP lease renewals
+- Fixed port forwarding rules not persisting after reboot
+- Corrected timezone display in system logs
+
+## Security Updates
+
+- Updated OpenSSL to latest version
+- Patched CVE-2024-1234 vulnerability`,
+      },
+      {
+        version: '1.0.2',
+        releaseNotes: `## What's New
+
+- Improved Wi-Fi stability and range
+- Fixed intermittent connection drops on 5GHz band
+- Added support for WPA3 security protocol
+- Performance improvements for VPN connections`,
+      },
+    ]
+  }
+
+  async systemRestart(): Promise<null> {
+    await pauseFor(1000)
+    return null
+  }
+
+  async setPassword(params: SetPasswordReq): Promise<null> {
+    await pauseFor(500)
+    // Mock validation - in real implementation, backend validates old password
+    if (params.oldPassword === '') {
+      throw new Error('Invalid old password')
+    }
+    return null
+  }
+
+  async setPreferences(params: SetPreferencesReq): Promise<null> {
+    await pauseFor(300)
+    return null
   }
 }
 

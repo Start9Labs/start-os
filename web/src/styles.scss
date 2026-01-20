@@ -100,7 +100,7 @@ header[tuiHeader] {
     gap: inherit;
     flex-wrap: wrap;
 
-    > *:has([tuiInput]) {
+    > *:has([tuiInput], [tuiSelect]) {
       display: flex;
       flex: 1;
       min-width: 12rem;

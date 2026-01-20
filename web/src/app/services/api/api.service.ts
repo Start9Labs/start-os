@@ -9,11 +9,16 @@ export abstract class ApiService {
   abstract logout(): Promise<null>
   abstract exec(params: ExecReq): Promise<ExecRes>
   abstract getFile(params: GetFileReq): Promise<GetFileRes>
-  abstract setFile(params: GetFileRes): Promise<null>
+  abstract setFile(params: SetFileReq): Promise<null>
   abstract getUci<T extends Record<string, UciFile<any>>>(
     params: GetUciReq,
   ): Promise<T>
   abstract setUci<T extends string[]>(params: SetUciReq): Promise<SetUciRes<T>>
+  abstract systemInfo(): Promise<SystemInfoRes>
+  abstract systemNewerVersions(): Promise<VersionInfo[]>
+  abstract systemRestart(): Promise<null>
+  abstract setPassword(params: SetPasswordReq): Promise<null>
+  abstract setPreferences(params: SetPreferencesReq): Promise<null>
 }
 
 export type LoginReq = { password: string }
@@ -52,3 +57,30 @@ export type SetUciReq = Record<string, UciFile<any>>
 export type SetUciRes<T extends string[]> = {
   [K in T[number]]: string
 }
+
+export type SystemInfoRes = {
+  version: string
+  language: string
+  date: string
+  theme: 'dark' | 'light' | 'system'
+}
+
+export type VersionInfo = {
+  version: string
+  releaseNotes: string
+}
+
+export type SetPasswordReq = {
+  oldPassword: string
+  newPassword: string
+}
+
+export type Theme = 'dark' | 'light' | 'system'
+
+export type RemoteAccess = 'default' | 'never' | 'always'
+
+export type SetPreferencesReq = Partial<{
+  language: string
+  theme: Theme
+  remoteAccess: RemoteAccess
+}>

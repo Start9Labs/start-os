@@ -41,7 +41,14 @@ import { ToCamelPipe } from 'src/app/pipes/to-camel.pipe'
   ],
 })
 class Settings {
-  protected readonly tabs = ['General', 'Security', 'Logs']
+  protected readonly tabs = [
+    'General',
+    'Password',
+    'SSH Keys',
+    'Activity',
+    'Logs',
+    'Advanced',
+  ]
 }
 
 export default [
@@ -54,12 +61,24 @@ export default [
         loadComponent: () => import('./routes/general'),
       },
       {
-        path: 'security',
-        loadComponent: () => import('./routes/security'),
+        path: 'password',
+        loadComponent: () => import('./routes/password'),
+      },
+      {
+        path: 'ssh-keys',
+        loadComponent: () => import('./routes/ssh-keys'),
+      },
+      {
+        path: 'activity',
+        loadComponent: () => import('./routes/activity'),
       },
       {
         path: 'logs',
         loadComponent: () => import('./routes/logs'),
+      },
+      {
+        path: 'advanced',
+        loadComponent: () => import('./routes/advanced'),
       },
       {
         path: '**',

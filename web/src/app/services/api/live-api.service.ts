@@ -7,9 +7,13 @@ import {
   GetFileRes,
   GetUciReq,
   LoginReq,
+  SystemInfoRes,
   SetFileReq,
   SetUciReq,
   SetUciRes,
+  VersionInfo,
+  SetPasswordReq,
+  SetPreferencesReq,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -48,5 +52,26 @@ export class LiveApiService extends ApiService {
 
   async setUci<T extends string[]>(params: SetUciReq): Promise<SetUciRes<T>> {
     return this.rpc.request({ method: 'uci.set', params })
+  }
+
+  async systemInfo(): Promise<SystemInfoRes> {
+    return this.rpc.request({ method: 'system.info', params: {} })
+  }
+
+  async systemNewerVersions(): Promise<VersionInfo[]> {
+    return this.rpc.request({ method: 'system.newer-versions', params: {} })
+  }
+
+  async systemRestart(): Promise<null> {
+    await this.exec({ command: 'reboot', args: [], timeout: 5000 })
+    return null
+  }
+
+  async setPassword(params: SetPasswordReq): Promise<null> {
+    return this.rpc.request({ method: 'auth.set-password', params })
+  }
+
+  async setPreferences(params: SetPreferencesReq): Promise<null> {
+    return this.rpc.request({ method: 'system.set-preferences', params })
   }
 }

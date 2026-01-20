@@ -1,25 +1,22 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { ReactiveFormsModule } from '@angular/forms'
-import { TuiLabel, TuiNotification, TuiTitle } from '@taiga-ui/core'
+import { ControlContainer, ReactiveFormsModule } from '@angular/forms'
+import { TuiLabel, TuiNotification } from '@taiga-ui/core'
 import { TuiRadio } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiForm } from '@taiga-ui/layout'
 
 import Security from '../'
 
 @Component({
   selector: 'security-access',
   template: `
-    <form tuiForm="m" tuiCardLarge class="g-form" [formGroup]="form">
-      <header tuiHeader>
-        <h2 tuiTitle>Remote Access</h2>
-      </header>
+    <section tuiForm="m" tuiCardLarge class="g-form">
       @if (form.value.remote === 'always') {
         <div tuiNotification appearance="warning">
           This setting is not recommended as your router will be exposed to the
           internet
         </div>
       }
-      <section>
+      <div class="options">
         @for (value of ['default', 'never', 'always']; track $index) {
           <label tuiLabel>
             <input
@@ -31,19 +28,29 @@ import Security from '../'
             {{ $index ? value : 'When behind NAT (Default)' }}
           </label>
         }
-      </section>
-    </form>
+      </div>
+    </section>
   `,
   styles: `
     label {
       text-transform: capitalize;
     }
+
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
   `,
+  viewProviders: [
+    {
+      provide: ControlContainer,
+      useFactory: () => inject(ControlContainer, { skipSelf: true }),
+    },
+  ],
   imports: [
     TuiCardLarge,
     TuiForm,
-    TuiHeader,
-    TuiTitle,
     ReactiveFormsModule,
     TuiNotification,
     TuiLabel,

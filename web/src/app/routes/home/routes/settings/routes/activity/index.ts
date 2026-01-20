@@ -12,55 +12,59 @@ import {
   tuiTablePaginationOptionsProvider,
 } from '@taiga-ui/addon-table'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { TuiHeader } from '@taiga-ui/layout'
+import { Help } from 'src/app/directives/help'
+
+import { ActivityAside } from './aside'
 
 @Component({
-  selector: 'security-activity',
   template: `
-    <form tuiForm="m" tuiCardLarge class="g-form">
-      <header tuiHeader>
-        <h2 tuiTitle>Activity</h2>
-        <aside tuiAccessories>
-          <tui-table-pagination
-            [style.align-self]="'center'"
-            [total]="activity().length"
-            [page]="page()"
-            [size]="size()"
-            (paginationChange)="page.set($event.page); size.set($event.size)"
-          />
-        </aside>
-      </header>
-      <table tuiTable class="g-table">
-        <thead>
+    <activity-aside *help />
+    <header tuiHeader>
+      <h2 tuiTitle>Activity Log</h2>
+    </header>
+    <table tuiTable class="g-table">
+      <thead>
+        <tr>
+          <th tuiTh>Date</th>
+          <th tuiTh>Detail</th>
+          <th tuiTh></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of filtered(); track $index) {
           <tr>
-            <th tuiTh>Date</th>
-            <th tuiTh>Detail</th>
-            <th tuiTh></th>
+            <td tuiTd>{{ item.date | date: 'medium' }}</td>
+            <td tuiTd>{{ item.key }}</td>
+            <td tuiTd>
+              <button
+                tuiIconButton
+                type="button"
+                size="xs"
+                appearance="icon"
+                iconStart="@tui.trash"
+                (click)="remove($index)"
+              >
+                Delete
+              </button>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          @for (item of filtered(); track $index) {
-            <tr>
-              <td tuiTd>{{ item.date | date: 'medium' }}</td>
-              <td tuiTd>{{ item.key }}</td>
-              <td tuiTd>
-                <button
-                  tuiIconButton
-                  type="button"
-                  size="xs"
-                  appearance="icon"
-                  iconStart="@tui.trash"
-                  (click)="remove($index)"
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </form>
+        }
+      </tbody>
+    </table>
+    <tui-table-pagination
+      [total]="activity().length"
+      [page]="page()"
+      [size]="size()"
+      (paginationChange)="page.set($event.page); size.set($event.size)"
+    />
   `,
+  styles: `
+    tui-table-pagination {
+      margin-top: 0.5rem;
+    }
+  `,
+  host: { class: 'g-page' },
   providers: [
     tuiTablePaginationOptionsProvider({ showPages: false }),
     {
@@ -70,17 +74,17 @@ import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
   ],
   imports: [
     DatePipe,
-    TuiCardLarge,
-    TuiForm,
-    TuiHeader,
-    TuiTitle,
     TuiTable,
     TuiTablePagination,
     TuiButton,
+    TuiHeader,
+    TuiTitle,
+    Help,
+    ActivityAside,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SecurityActivity {
+export default class Activity {
   protected readonly page = signal(0)
   protected readonly size = signal(10)
   protected readonly activity = signal(
