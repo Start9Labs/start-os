@@ -216,8 +216,13 @@ async fn save_sessions(sessions: &Sessions) -> Result<(), Error> {
     let content = serde_json::to_string_pretty(sessions)
         .map_err(|e| Error::other(format!("Failed to serialize sessions: {e}")))?;
 
-    // Create temp file in same directory to ensure atomic rename works
-    let mut file = tokio::fs::File::create(&tmp_path)
+    // Create temp file with restricted permissions from the start
+    let mut file = tokio::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(&tmp_path)
         .await
         .map_err(|e| Error::other(format!("Failed to create temp file: {e}")))?;
 
@@ -228,14 +233,6 @@ async fn save_sessions(sessions: &Sessions) -> Result<(), Error> {
     file.flush()
         .await
         .map_err(|e| Error::other(format!("Failed to flush sessions file: {e}")))?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        file.set_permissions(fs::Permissions::from_mode(0o600))
-            .await
-            .map_err(|e| Error::other(format!("Failed to set sessions file permissions: {e}")))?;
-    }
 
     file.sync_all()
         .await
