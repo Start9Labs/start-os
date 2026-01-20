@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::fs::{self, File};
+use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::sync::LazyLock;
@@ -194,26 +194,46 @@ fn load_sessions() -> Result<Sessions, Error> {
 fn save_sessions(sessions: &Sessions) -> Result<(), Error> {
     let path = Path::new(&*SESSION_FILE_PATH);
 
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| Error::other(format!("Failed to create session directory: {}", e)))?;
-    }
+    let parent = path
+        .parent()
+        .ok_or_else(|| Error::other("Invalid session file path"))?;
+
+    fs::create_dir_all(parent)
+        .map_err(|e| Error::other(format!("Failed to create session directory: {e}")))?;
 
     let content = serde_json::to_string_pretty(sessions)
-        .map_err(|e| Error::other(format!("Failed to serialize sessions: {}", e)))?;
+        .map_err(|e| Error::other(format!("Failed to serialize sessions: {e}")))?;
 
-    let mut file = File::create(path)
-        .map_err(|e| Error::other(format!("Failed to create sessions file: {}", e)))?;
+    // Create temp file in same directory to ensure atomic rename works
+    let mut temp_file = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|e| Error::other(format!("Failed to create temp file: {e}")))?;
 
-    file.write_all(content.as_bytes())
-        .map_err(|e| Error::other(format!("Failed to write sessions file: {}", e)))?;
+    temp_file
+        .write_all(content.as_bytes())
+        .map_err(|e| Error::other(format!("Failed to write sessions file: {e}")))?;
+
+    temp_file
+        .flush()
+        .map_err(|e| Error::other(format!("Failed to flush sessions file: {e}")))?;
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o600))
-            .map_err(|e| Error::other(format!("Failed to set sessions file permissions: {}", e)))?;
+        temp_file
+            .as_file()
+            .set_permissions(fs::Permissions::from_mode(0o600))
+            .map_err(|e| Error::other(format!("Failed to set sessions file permissions: {e}")))?;
     }
+
+    temp_file
+        .as_file()
+        .sync_all()
+        .map_err(|e| Error::other(format!("Failed to sync sessions file: {e}")))?;
+
+    // Atomic rename from temp to final path
+    temp_file
+        .persist(path)
+        .map_err(|e| Error::other(format!("Failed to persist sessions file: {e}")))?;
 
     Ok(())
 }
