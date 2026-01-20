@@ -24,7 +24,7 @@ pub use error::{Error, ErrorKind};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    call_remote_http, from_fn,
+    call_remote_http, from_fn_async,
     reqwest::{Client, Url},
     CallRemote, Context, Empty, HandlerExt, ParentHandler,
 };
@@ -206,7 +206,7 @@ pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
         .subcommand("dir", files::dir::<C>())
         .subcommand(
             "exec",
-            from_fn(exec::exec_command)
+            from_fn_async(exec::exec_command)
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )

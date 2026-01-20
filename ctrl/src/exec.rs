@@ -1,12 +1,16 @@
-use crate::{Error, ServerContext};
+use std::time::Duration;
+
 use clap::Parser;
 use serde::{Deserialize, Serialize};
-use std::process::Command;
+use tokio::process::Command;
+
+use crate::{Error, ServerContext};
 
 #[derive(Parser, Serialize, Deserialize)]
 pub struct ExecReq {
     pub command: String,
     pub args: Vec<String>,
+    /// Timeout in milliseconds
     #[clap(long, default_value = "5000")]
     pub timeout: u64,
 }
@@ -19,11 +23,14 @@ pub struct ExecRes {
     pub exit_code: i32,
 }
 
-pub fn exec_command(_ctx: ServerContext, req: ExecReq) -> Result<ExecRes, Error> {
-    let output = Command::new(&req.command)
-        .args(&req.args)
-        .output()
-        .map_err(|e| Error::other(format!("failed to execute {}: {}", req.command, e)))?;
+pub async fn exec_command(_ctx: ServerContext, req: ExecReq) -> Result<ExecRes, Error> {
+    let output = tokio::time::timeout(
+        Duration::from_millis(req.timeout),
+        Command::new(&req.command).args(&req.args).output(),
+    )
+    .await
+    .map_err(|_| Error::other(format!("command {} timed out after {}ms", req.command, req.timeout)))?
+    .map_err(|e| Error::other(format!("failed to execute {}: {}", req.command, e)))?;
 
     Ok(ExecRes {
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
@@ -36,8 +43,8 @@ pub fn exec_command(_ctx: ServerContext, req: ExecReq) -> Result<ExecRes, Error>
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_exec_echo() {
+    #[tokio::test]
+    async fn test_exec_echo() {
         let result = exec_command(
             ServerContext,
             ExecReq {
@@ -45,7 +52,8 @@ mod tests {
                 args: vec!["hello".to_string(), "world".to_string()],
                 timeout: 5000,
             },
-        );
+        )
+        .await;
 
         assert!(result.is_ok());
         let res = result.unwrap();
@@ -54,8 +62,8 @@ mod tests {
         assert_eq!(res.exit_code, 0);
     }
 
-    #[test]
-    fn test_exec_nonexistent_command() {
+    #[tokio::test]
+    async fn test_exec_nonexistent_command() {
         let result = exec_command(
             ServerContext,
             ExecReq {
@@ -63,13 +71,14 @@ mod tests {
                 args: vec![],
                 timeout: 5000,
             },
-        );
+        )
+        .await;
 
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_exec_with_exit_code() {
+    #[tokio::test]
+    async fn test_exec_with_exit_code() {
         let result = exec_command(
             ServerContext,
             ExecReq {
@@ -77,15 +86,16 @@ mod tests {
                 args: vec!["-c".to_string(), "exit 42".to_string()],
                 timeout: 5000,
             },
-        );
+        )
+        .await;
 
         assert!(result.is_ok());
         let res = result.unwrap();
         assert_eq!(res.exit_code, 42);
     }
 
-    #[test]
-    fn test_exec_stderr() {
+    #[tokio::test]
+    async fn test_exec_stderr() {
         let result = exec_command(
             ServerContext,
             ExecReq {
@@ -93,11 +103,29 @@ mod tests {
                 args: vec!["-c".to_string(), "echo error >&2".to_string()],
                 timeout: 5000,
             },
-        );
+        )
+        .await;
 
         assert!(result.is_ok());
         let res = result.unwrap();
         assert_eq!(res.stderr.trim(), "error");
         assert_eq!(res.exit_code, 0);
+    }
+
+    #[tokio::test]
+    async fn test_exec_timeout() {
+        let result = exec_command(
+            ServerContext,
+            ExecReq {
+                command: "sleep".to_string(),
+                args: vec!["10".to_string()],
+                timeout: 100,
+            },
+        )
+        .await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("timed out"));
     }
 }
