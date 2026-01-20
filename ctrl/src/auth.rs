@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
@@ -99,8 +98,9 @@ pub struct LoginParams {
 }
 
 /// Read and parse the shadow file to get the password hash for a user
-fn get_shadow_hash(username: &str) -> Result<Option<String>, Error> {
-    let shadow_content = fs::read_to_string("/etc/shadow")
+async fn get_shadow_hash(username: &str) -> Result<Option<String>, Error> {
+    let shadow_content = tokio::fs::read_to_string("/etc/shadow")
+        .await
         .map_err(|e| Error::other(format!("Failed to read /etc/shadow: {}", e)))?;
 
     for line in shadow_content.lines() {
@@ -139,7 +139,7 @@ fn verify_password(password: &str, hash: &str) -> Result<bool, Error> {
 }
 
 /// Check password against /etc/shadow (or dev password if STARTWRT_DEV_PASSWORD is set)
-pub fn check_password(password: &str) -> Result<(), Error> {
+pub async fn check_password(password: &str) -> Result<(), Error> {
     // Dev mode: check against env var password (for development without root access)
     if let Ok(dev_password) = std::env::var("STARTWRT_DEV_PASSWORD") {
         tracing::warn!("DEV MODE: Using development password authentication");
@@ -149,7 +149,7 @@ pub fn check_password(password: &str) -> Result<(), Error> {
         return Err(Error::other("Incorrect password"));
     }
 
-    let hash = get_shadow_hash("root")?;
+    let hash = get_shadow_hash("root").await?;
 
     match hash {
         None => {
@@ -176,20 +176,18 @@ pub fn check_password(password: &str) -> Result<(), Error> {
 /// Map of session token hashes to session data
 type Sessions = BTreeMap<String, Session>;
 
-fn load_sessions() -> Result<Sessions, Error> {
+async fn load_sessions() -> Result<Sessions, Error> {
     let path = Path::new(&*SESSION_FILE_PATH);
 
-    if !path.exists() {
-        return Ok(Sessions::new());
+    match tokio::fs::read_to_string(path).await {
+        Ok(content) => {
+            let sessions: Sessions = serde_json::from_str(&content)
+                .map_err(|e| Error::other(format!("Failed to parse sessions file: {}", e)))?;
+            Ok(sessions)
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Sessions::new()),
+        Err(e) => Err(Error::other(format!("Failed to read sessions file: {}", e))),
     }
-
-    let content = fs::read_to_string(path)
-        .map_err(|e| Error::other(format!("Failed to read sessions file: {}", e)))?;
-
-    let sessions: Sessions = serde_json::from_str(&content)
-        .map_err(|e| Error::other(format!("Failed to parse sessions file: {}", e)))?;
-
-    Ok(sessions)
 }
 
 fn to_tmp_path(path: &Path) -> Result<PathBuf, Error> {
@@ -247,20 +245,20 @@ async fn save_sessions(sessions: &Sessions) -> Result<(), Error> {
 }
 
 async fn add_session(token_hash: &str, session: Session) -> Result<(), Error> {
-    let mut sessions = load_sessions()?;
+    let mut sessions = load_sessions().await?;
     sessions.insert(token_hash.to_string(), session);
     save_sessions(&sessions).await
 }
 
 async fn remove_session(token_hash: &str) -> Result<(), Error> {
-    let mut sessions = load_sessions()?;
+    let mut sessions = load_sessions().await?;
     sessions.remove(token_hash);
     save_sessions(&sessions).await
 }
 
 /// Validate a session token hash, check expiration, and update last_active timestamp
 pub async fn validate_session(token_hash: &str) -> Result<(), Error> {
-    let mut sessions = load_sessions()?;
+    let mut sessions = load_sessions().await?;
 
     let session = sessions
         .get(token_hash)
@@ -295,7 +293,7 @@ pub async fn login_impl(
         user_agent,
     }: LoginParams,
 ) -> Result<LoginRes, Error> {
-    check_password(&password)?;
+    check_password(&password).await?;
 
     let hash_token = HashSessionToken::new();
     let session = Session {
@@ -329,6 +327,70 @@ pub async fn logout(
     Ok(())
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyPasswordParams {
+    pub password: String,
+}
+
+#[instrument(skip_all)]
+pub async fn verify_password_impl(
+    _ctx: ServerContext,
+    VerifyPasswordParams { password }: VerifyPasswordParams,
+) -> Result<(), Error> {
+    check_password(&password).await
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct ResetPasswordParams {
+    pub old_password: String,
+    pub new_password: String,
+}
+
+#[instrument(skip_all)]
+pub async fn reset_password_impl(
+    _ctx: ServerContext,
+    ResetPasswordParams {
+        old_password,
+        new_password,
+    }: ResetPasswordParams,
+) -> Result<(), Error> {
+    use std::process::Stdio;
+    use tokio::process::Command;
+
+    // Verify old password first
+    check_password(&old_password).await?;
+
+    // Use chpasswd to set new password
+    let mut child = Command::new("chpasswd")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| Error::other(format!("Failed to spawn chpasswd: {e}")))?;
+
+    if let Some(stdin) = child.stdin.as_mut() {
+        use tokio::io::AsyncWriteExt;
+        stdin
+            .write_all(format!("root:{new_password}\n").as_bytes())
+            .await
+            .map_err(|e| Error::other(format!("Failed to write to chpasswd: {e}")))?;
+    }
+
+    let output = child
+        .wait_with_output()
+        .await
+        .map_err(|e| Error::other(format!("Failed to wait for chpasswd: {e}")))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(Error::other(format!("chpasswd failed: {stderr}")));
+    }
+
+    Ok(())
+}
+
 #[instrument(skip_all)]
 async fn cli_login(
     HandlerArgs {
@@ -350,6 +412,48 @@ async fn cli_login(
     .await?;
 
     println!("Login successful. Session saved.");
+    Ok(())
+}
+
+#[instrument(skip_all)]
+async fn cli_reset_password(
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        ..
+    }: HandlerArgs<CliContext>,
+) -> Result<(), RpcError> {
+    let old_password = rpassword::prompt_password("Current Password: ")?;
+
+    // Verify old password before prompting for new one
+    let verify_method = parent_method.clone().into_iter().chain(["verify-password"]).join(".");
+    ctx.call_remote(
+        &verify_method,
+        json!({ "password": old_password }),
+        Empty {},
+    )
+    .await?;
+
+    // Old password verified, now prompt for new password
+    let new_password = rpassword::prompt_password("New Password: ")?;
+    let confirm = rpassword::prompt_password("Confirm Password: ")?;
+
+    if new_password != confirm {
+        return Err(Error::other("Passwords do not match").into());
+    }
+
+    ctx.call_remote(
+        &parent_method.into_iter().chain(method).join("."),
+        json!({
+            "oldPassword": old_password,
+            "newPassword": new_password,
+        }),
+        Empty {},
+    )
+    .await?;
+
+    println!("Password changed successfully.");
     Ok(())
 }
 
@@ -377,5 +481,22 @@ pub fn auth<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_about("Log out of current auth session")
                 .with_call_remote::<CliContext>(),
+        )
+        // Verify password endpoint (RPC only, used internally by CLI)
+        .subcommand(
+            "verify-password",
+            from_fn_async(verify_password_impl).no_cli(),
+        )
+        // RPC/HTTP reset-password endpoint (hidden from CLI)
+        .subcommand(
+            "reset-password",
+            from_fn_async(reset_password_impl).no_cli(),
+        )
+        // CLI reset-password endpoint (prompts for passwords, calls RPC)
+        .subcommand(
+            "reset-password",
+            from_fn_async(cli_reset_password)
+                .no_display()
+                .with_about("Reset root password"),
         )
 }
