@@ -9,6 +9,7 @@ import {
 import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiButton, TuiIcon, TuiLink } from '@taiga-ui/core'
+import { Placeholder } from 'src/app/routes/home/components/placeholder'
 import { DevicesService } from 'src/app/routes/home/routes/devices/service'
 import { DeviceTableItem } from 'src/app/routes/home/routes/devices/utils'
 
@@ -61,8 +62,9 @@ type SortDirection = 'asc' | 'desc' | null
       } @empty {
         <tr>
           <td colspan="3">
-            <tui-icon icon="@tui.monitor-smartphone" />
-            No blocked devices
+            <app-placeholder icon="@tui.shield">
+              No blocked devices
+            </app-placeholder>
           </td>
         </tr>
       }
@@ -88,7 +90,7 @@ type SortDirection = 'asc' | 'desc' | null
       }
     }
   `,
-  imports: [RouterLink, TuiTable, TuiIcon, TuiButton, TuiLink],
+  imports: [RouterLink, TuiTable, TuiIcon, TuiButton, TuiLink, Placeholder],
   host: { class: 'g-table' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

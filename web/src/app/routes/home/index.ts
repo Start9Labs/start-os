@@ -23,6 +23,10 @@ export default [
         loadChildren: () => import('./routes/devices'),
       },
       {
+        path: 'forwarding',
+        loadComponent: () => import('./routes/forwarding'),
+      },
+      {
         path: 'settings',
         loadChildren: () => import('./routes/settings'),
       },

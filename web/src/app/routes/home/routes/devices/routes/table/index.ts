@@ -61,9 +61,6 @@ import { DevicesOnline } from './online'
     }
 
     table {
-      overflow: unset;
-      margin: 1rem 0;
-
       ::ng-deep {
         td[colspan] {
           text-align: center;

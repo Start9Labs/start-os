@@ -11,6 +11,7 @@ import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { Help } from 'src/app/directives/help'
+import { Placeholder } from 'src/app/routes/home/components/placeholder'
 import { ADD } from 'src/app/routes/home/routes/outbound/dialog'
 import { OutboundService } from 'src/app/routes/home/routes/outbound/service'
 
@@ -59,7 +60,13 @@ import { OutboundAside } from './aside'
             </td>
           </tr>
         } @empty {
-          <tr><td tuiTd></td></tr>
+          <tr>
+            <td tuiTd colspan="4">
+              <app-placeholder icon="@tui.globe-lock">
+                No Outbound VPN Clients configured
+              </app-placeholder>
+            </td>
+          </tr>
         }
       </tbody>
     </table>
@@ -96,6 +103,7 @@ import { OutboundAside } from './aside'
     TuiSkeleton,
     Help,
     OutboundAside,
+    Placeholder,
   ],
 })
 export default class OutboundTable {
