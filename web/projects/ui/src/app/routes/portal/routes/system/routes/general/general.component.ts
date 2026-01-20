@@ -18,7 +18,7 @@ import {
   i18nPipe,
   i18nService,
   Keyboard,
-  KeyboardCode,
+  KeyboardLayout,
   Language,
   LANGUAGES,
   LANGUAGE_TO_CODE,
@@ -317,29 +317,30 @@ export default class SystemGeneralComponent {
     if (!server) return
 
     const keyboards = getAllKeyboardsSorted(LANGUAGE_TO_CODE[server.language])
-    const currentKeyboard = (server.keyboard?.layout as KeyboardCode) || null
+    const currentLayout = (server.keyboard?.layout as KeyboardLayout) || null
 
     this.dialog
-      .openComponent<KeyboardCode | null>(
+      .openComponent<Keyboard | null>(
         new PolymorpheusComponent(KeyboardSelectComponent, this.injector),
         {
           label: 'Select Keyboard Layout',
           size: 's',
-          data: { keyboards, currentKeyboard },
+          data: { keyboards, currentLayout },
         },
       )
-      .pipe(filter((code): code is KeyboardCode => code !== null))
-      .subscribe(keyboardCode => {
-        this.saveKeyboard(keyboardCode)
+      .pipe(filter((keyboard): keyboard is Keyboard => keyboard !== null))
+      .subscribe(keyboard => {
+        this.saveKeyboard(keyboard)
       })
   }
 
-  private async saveKeyboard(keyboardCode: KeyboardCode) {
+  private async saveKeyboard(keyboard: Keyboard) {
     const loader = this.loader.open('Saving').subscribe()
 
     try {
       await this.api.setKeyboard({
-        layout: keyboardCode,
+        layout: keyboard.layout,
+        keymap: keyboard.keymap,
         model: null,
         variant: null,
         options: [],
@@ -457,17 +458,17 @@ export default class SystemGeneralComponent {
 
   private promptKeyboardSelection(keyboards: Keyboard[]) {
     this.dialog
-      .openComponent<KeyboardCode | null>(
+      .openComponent<Keyboard | null>(
         new PolymorpheusComponent(KeyboardSelectComponent, this.injector),
         {
           label: 'Select Keyboard Layout',
           size: 's',
-          data: { keyboards, currentKeyboard: null },
+          data: { keyboards, currentLayout: null },
         },
       )
-      .pipe(filter((code): code is KeyboardCode => code !== null))
-      .subscribe(keyboardCode => {
-        this.enableKioskWithKeyboard(keyboardCode)
+      .pipe(filter((keyboard): keyboard is Keyboard => keyboard !== null))
+      .subscribe(keyboard => {
+        this.enableKioskWithKeyboard(keyboard)
       })
   }
 
@@ -484,12 +485,13 @@ export default class SystemGeneralComponent {
     }
   }
 
-  private async enableKioskWithKeyboard(keyboardCode: KeyboardCode) {
+  private async enableKioskWithKeyboard(keyboard: Keyboard) {
     const loader = this.loader.open('Enabling').subscribe()
 
     try {
       await this.api.setKeyboard({
-        layout: keyboardCode,
+        layout: keyboard.layout,
+        keymap: keyboard.keymap,
         model: null,
         variant: null,
         options: [],

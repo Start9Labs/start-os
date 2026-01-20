@@ -1,9 +1,14 @@
 import { LanguageCode } from './languages'
 
 /**
- * Keyboard layout codes
+ * Keyboard layout codes (X11/Wayland)
  */
-export type KeyboardCode = 'us' | 'gb' | 'es' | 'latam' | 'de' | 'fr' | 'pl'
+export type KeyboardLayout = 'us' | 'gb' | 'es' | 'latam' | 'de' | 'fr' | 'pl'
+
+/**
+ * Keyboard keymap codes (console/TTY)
+ */
+export type KeyboardKeymap = 'us' | 'uk' | 'es' | 'la' | 'de' | 'fr' | 'pl'
 
 /**
  * Keyboard layout display names
@@ -18,10 +23,11 @@ export type KeyboardName =
   | 'Polish'
 
 /**
- * Keyboard layout definition
+ * Keyboard definition with layout and keymap
  */
 export interface Keyboard {
-  code: KeyboardCode
+  layout: KeyboardLayout
+  keymap: KeyboardKeymap
   name: KeyboardName
 }
 
@@ -29,7 +35,8 @@ export interface Keyboard {
  * Full keyboard configuration for backend API
  */
 export interface FullKeyboard {
-  layout: string
+  layout: KeyboardLayout
+  keymap: KeyboardKeymap
   model: string | null
   variant: string | null
   options: string[]
@@ -40,29 +47,29 @@ export interface FullKeyboard {
  */
 export const KEYBOARDS_BY_LANGUAGE: Record<LanguageCode, Keyboard[]> = {
   en: [
-    { code: 'us', name: 'US English' },
-    { code: 'gb', name: 'UK English' },
+    { layout: 'us', keymap: 'us', name: 'US English' },
+    { layout: 'gb', keymap: 'uk', name: 'UK English' },
   ],
   es: [
-    { code: 'es', name: 'Spanish' },
-    { code: 'latam', name: 'Latin American' },
+    { layout: 'es', keymap: 'es', name: 'Spanish' },
+    { layout: 'latam', keymap: 'la', name: 'Latin American' },
   ],
-  de: [{ code: 'de', name: 'German' }],
-  fr: [{ code: 'fr', name: 'French' }],
-  pl: [{ code: 'pl', name: 'Polish' }],
+  de: [{ layout: 'de', keymap: 'de', name: 'German' }],
+  fr: [{ layout: 'fr', keymap: 'fr', name: 'French' }],
+  pl: [{ layout: 'pl', keymap: 'pl', name: 'Polish' }],
 }
 
 /**
  * All available keyboard layouts
  */
 export const ALL_KEYBOARDS: Keyboard[] = [
-  { code: 'us', name: 'US English' },
-  { code: 'gb', name: 'UK English' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'latam', name: 'Latin American' },
-  { code: 'de', name: 'German' },
-  { code: 'fr', name: 'French' },
-  { code: 'pl', name: 'Polish' },
+  { layout: 'us', keymap: 'us', name: 'US English' },
+  { layout: 'gb', keymap: 'uk', name: 'UK English' },
+  { layout: 'es', keymap: 'es', name: 'Spanish' },
+  { layout: 'latam', keymap: 'la', name: 'Latin American' },
+  { layout: 'de', keymap: 'de', name: 'German' },
+  { layout: 'fr', keymap: 'fr', name: 'French' },
+  { layout: 'pl', keymap: 'pl', name: 'Polish' },
 ]
 
 /**
@@ -71,20 +78,20 @@ export const ALL_KEYBOARDS: Keyboard[] = [
  */
 export function getAllKeyboardsSorted(languageCode: LanguageCode): Keyboard[] {
   const languageKeyboards = KEYBOARDS_BY_LANGUAGE[languageCode]
-  const languageKeyboardCodes = new Set(languageKeyboards.map(kb => kb.code))
+  const languageLayouts = new Set(languageKeyboards.map(kb => kb.layout))
   const otherKeyboards = ALL_KEYBOARDS.filter(
-    kb => !languageKeyboardCodes.has(kb.code),
+    kb => !languageLayouts.has(kb.layout),
   ).sort((a, b) => a.name.localeCompare(b.name))
   return [...languageKeyboards, ...otherKeyboards]
 }
 
 /**
- * Get the display name for a keyboard code.
+ * Get the display name for a keyboard layout.
  */
 export function getKeyboardName(
-  code: KeyboardCode | string,
+  layout: KeyboardLayout | string,
 ): KeyboardName | string {
-  const keyboard = ALL_KEYBOARDS.find(kb => kb.code === code)
+  const keyboard = ALL_KEYBOARDS.find(kb => kb.layout === layout)
   if (keyboard) return keyboard.name
-  return code // fallback to the code itself if not found
+  return layout // fallback to the layout itself if not found
 }

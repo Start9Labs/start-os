@@ -222,6 +222,7 @@ export const mockPatchData: DataModel = {
     language: 'en_US',
     keyboard: {
       layout: 'us',
+      keymap: 'us',
       model: null,
       variant: null,
       options: [],

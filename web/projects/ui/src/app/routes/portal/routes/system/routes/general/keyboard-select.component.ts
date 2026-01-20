@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { i18nPipe, Keyboard, KeyboardCode } from '@start9labs/shared'
+import { i18nPipe, Keyboard, KeyboardLayout } from '@start9labs/shared'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import { TuiButton, TuiDialogContext, TuiTextfield } from '@taiga-ui/core'
 import { TuiChevron, TuiDataListWrapper, TuiSelect } from '@taiga-ui/kit'
@@ -29,7 +29,7 @@ import { injectContext } from '@taiga-ui/polymorpheus'
       </button>
       <button
         tuiButton
-        [disabled]="!selected || selected.code === initialCode"
+        [disabled]="!selected || selected.layout === initialLayout"
         (click)="confirm()"
       >
         {{ 'Confirm' | i18n }}
@@ -61,16 +61,16 @@ export class KeyboardSelectComponent {
   private readonly context =
     injectContext<
       TuiDialogContext<
-        KeyboardCode | null,
-        { keyboards: Keyboard[]; currentKeyboard: KeyboardCode | null }
+        Keyboard | null,
+        { keyboards: Keyboard[]; currentLayout: KeyboardLayout | null }
       >
     >()
 
   protected readonly mobile = inject(TUI_IS_MOBILE)
   readonly keyboards = this.context.data.keyboards
-  readonly initialCode = this.context.data.currentKeyboard
+  readonly initialLayout = this.context.data.currentLayout
   selected =
-    this.keyboards.find(kb => kb.code === this.initialCode) ||
+    this.keyboards.find(kb => kb.layout === this.initialLayout) ||
     this.keyboards[0]!
 
   readonly stringify = (kb: Keyboard) => kb.name
@@ -80,6 +80,6 @@ export class KeyboardSelectComponent {
   }
 
   confirm() {
-    this.context.completeWith(this.selected.code)
+    this.context.completeWith(this.selected)
   }
 }

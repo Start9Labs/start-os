@@ -82,7 +82,7 @@ export default class KeyboardPage {
     this.stateService.language as LanguageCode,
   )
   selected =
-    this.keyboards.find(k => k.code === this.stateService.keyboard) ||
+    this.keyboards.find(k => k.layout === this.stateService.keyboard) ||
     this.keyboards[0]!
 
   readonly saving = signal(false)
@@ -95,13 +95,14 @@ export default class KeyboardPage {
     try {
       // Send keyboard to backend
       await this.api.setKeyboard({
-        layout: this.selected.code,
+        layout: this.selected.layout,
+        keymap: this.selected.keymap,
         model: null,
         variant: null,
         options: [],
       })
 
-      this.stateService.keyboard = this.selected.code
+      this.stateService.keyboard = this.selected.layout
       await this.navigateToNextStep()
     } finally {
       this.saving.set(false)

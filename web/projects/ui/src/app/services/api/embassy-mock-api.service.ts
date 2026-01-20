@@ -460,12 +460,7 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.REPLACE,
         path: '/serverInfo/keyboard',
-        value: {
-          layout: params.layout,
-          model: params.model,
-          variant: params.variant,
-          options: params.options,
-        },
+        value: params,
       },
     ]
     this.mockRevision(patch)
