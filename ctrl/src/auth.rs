@@ -427,13 +427,8 @@ async fn cli_reset_password(
     let old_password = rpassword::prompt_password("Current Password: ")?;
 
     // Verify old password before prompting for new one
-    let verify_method = parent_method.clone().into_iter().chain(["verify-password"]).join(".");
-    ctx.call_remote(
-        &verify_method,
-        json!({ "password": old_password }),
-        Empty {},
-    )
-    .await?;
+    ctx.call_remote("auth.verify-password", json!({ "password": old_password }), Empty {})
+        .await?;
 
     // Old password verified, now prompt for new password
     let new_password = rpassword::prompt_password("New Password: ")?;
