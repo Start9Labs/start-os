@@ -31,6 +31,7 @@ import {
   mockDhcpHosts,
   mockDhcpLeasesOutput,
 } from 'src/app/routes/home/routes/devices/uci/mocks'
+import { mockPortForwarding } from 'src/app/routes/home/routes/forwarding/uci/mocks'
 
 @Injectable({
   providedIn: 'root',
@@ -183,6 +184,16 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
 
     const isoString = new Date().toISOString()
 
+    // Actually update the mock data
+    for (const name of Object.keys(params)) {
+      if (mockUci[name]) {
+        mockUci[name] = {
+          ...params[name],
+          modified: isoString,
+        }
+      }
+    }
+
     return Object.keys(params).reduce(
       (obj, name) => ({
         ...obj,
@@ -272,7 +283,7 @@ export const mockUci: Record<string, UciFile<UciSection>> = {
     modified: new Date().toISOString(),
   },
   firewall: {
-    sections: [...mockBlockedDevices],
+    sections: [...mockBlockedDevices, ...mockPortForwarding],
     modified: new Date().toISOString(),
   },
 }

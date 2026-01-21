@@ -3,8 +3,8 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 @Component({
   selector: 'forwarding-aside',
   template: `
-    <h3>Purpose</h3>
-    Define the purpose of the port forward rule, such as "Web Server Access,"
+    <h3>Label</h3>
+    Define a label for the port forward rule, such as "Web Server Access,"
     "Online Gaming," or "Remote Desktop", to make the rule easily identifiable.
     <h3>Protocol</h3>
     Specifies the protocol (TCP/UDP) for port forwarding. Determines the type of

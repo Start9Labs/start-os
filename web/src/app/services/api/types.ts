@@ -5,6 +5,7 @@ export type UciSection =
   | DhcpSection
   | DhcpHostSection
   | FirewallRuleSection
+  | FirewallRedirectSection
   | WireGuardInterfaceSection
   | WireGuardPeerSection
 
@@ -122,6 +123,24 @@ export type FirewallRuleSection = {
   lists: {
     src_mac?: string[] // Can also be a list
   }
+}
+
+// Firewall redirect for port forwarding
+export type FirewallRedirectSection = {
+  type: 'redirect'
+  name: string | null
+  options: {
+    name?: string // Purpose/description
+    src?: string // Source zone, e.g., 'wan'
+    dest?: string // Destination zone, e.g., 'lan'
+    target?: 'DNAT' | 'SNAT'
+    proto?: 'tcp' | 'udp' | 'tcp udp'
+    src_dport?: string // External port(s)
+    dest_ip?: string // Internal IP address
+    dest_port?: string // Internal port(s)
+    enabled?: '0' | '1'
+  }
+  lists: {}
 }
 
 export type WireGuardInterfaceSection = {

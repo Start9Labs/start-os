@@ -1,10 +1,15 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+} from '@angular/core'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { TuiAutoFocus, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
+import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
   TuiButton,
   TuiDialogContext,
@@ -17,12 +22,16 @@ import { TuiForm } from '@taiga-ui/layout'
 import { injectContext } from '@taiga-ui/polymorpheus'
 import { Forwarding } from 'src/app/routes/home/routes/forwarding/service'
 
+export interface ForwardingDialogData {
+  deviceNames: Record<string, string>
+}
+
 @Component({
   template: `
     <form tuiForm="m" [formGroup]="form" (submit.prevent)="save()">
       <tui-textfield>
-        <label tuiLabel>Purpose</label>
-        <input tuiInput tuiAutoFocus formControlName="purpose" />
+        <label tuiLabel>Label</label>
+        <input tuiInput formControlName="purpose" />
       </tui-textfield>
       <tui-error formControlName="purpose" />
       <tui-textfield tuiChevron [tuiTextfieldCleaner]="false">
@@ -34,12 +43,16 @@ import { Forwarding } from 'src/app/routes/home/routes/forwarding/service'
         />
       </tui-textfield>
       <tui-textfield tuiChevron [content]="ip" [tuiTextfieldCleaner]="false">
-        <label tuiLabel>IP Address</label>
+        <label tuiLabel>Target Device/IP</label>
         <input tuiSelect formControlName="ip" />
-        <tui-data-list-wrapper *tuiDropdown [items]="ips" [itemContent]="ip" />
+        <tui-data-list-wrapper
+          *tuiDropdown
+          [items]="ips()"
+          [itemContent]="ip"
+        />
         <ng-template #ip let-value>
           <span class="ip">
-            <span>{{ names[value] }}</span>
+            <span>{{ names()[value] }}</span>
             <span class="g-secondary">{{ value }}</span>
           </span>
         </ng-template>
@@ -99,12 +112,12 @@ import { Forwarding } from 'src/app/routes/home/routes/forwarding/service'
     TuiError,
     TuiButton,
     TuiChevron,
-    TuiAutoFocus,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ForwardingDialog {
-  protected readonly context = injectContext<TuiDialogContext<Forwarding>>()
+  protected readonly context =
+    injectContext<TuiDialogContext<Forwarding, ForwardingDialogData>>()
   protected readonly form = inject(NonNullableFormBuilder).group({
     purpose: ['', Validators.required],
     protocol: ['TCP/UDP', Validators.required],
@@ -113,12 +126,10 @@ export class ForwardingDialog {
     internal: ['', Validators.required],
   })
 
-  protected readonly ips = ['192.168.237.42', '192.168.0.69']
-  protected readonly names: Record<string, string> = {
-    '192.168.237.42': 'Device A',
-    '192.168.0.69':
-      'A very very long device name that is never gonna fit and therefore should be truncated',
-  }
+  protected readonly names = computed(() => this.context.data.deviceNames)
+  protected readonly ips = computed(() =>
+    Object.keys(this.context.data.deviceNames),
+  )
 
   protected save() {
     if (this.form.invalid) {

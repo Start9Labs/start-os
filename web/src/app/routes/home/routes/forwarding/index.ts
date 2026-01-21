@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+} from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
@@ -9,6 +15,7 @@ import {
   injectFormService,
   provideFormService,
 } from 'src/app/services/form.service'
+import { DevicesUciService } from 'src/app/routes/home/routes/devices/uci/service'
 
 import { ForwardingAside } from './aside'
 import { ForwardingDialog } from './dialog'
@@ -28,8 +35,10 @@ import { ForwardingTable } from './table'
     </header>
     <table
       [style.margin-block.rem]="1"
-      [forwardingTable]="service.data() || []"
-      [tuiSkeleton]="!service.data()"
+      [style.min-height.rem]="loading() ? 10 : 0"
+      [forwardingTable]="loading() ? [] : service.data() || []"
+      [deviceNames]="deviceNames() ?? {}"
+      [tuiSkeleton]="loading()"
     ></table>
   `,
   providers: [provideFormService(ForwardingService)],
@@ -45,13 +54,35 @@ import { ForwardingTable } from './table'
   ],
 })
 export default class PortForwarding {
+  private readonly devicesUci = inject(DevicesUciService)
+
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = injectFormService<Forwarding[]>()
+  protected readonly deviceNames = signal<Record<string, string> | null>(null)
+  protected readonly loading = computed(
+    () => !this.service.data() || !this.deviceNames(),
+  )
+
+  constructor() {
+    this.loadDeviceNames()
+  }
+
+  private async loadDeviceNames() {
+    const devices = await this.devicesUci.get()
+    const names: Record<string, string> = {}
+    for (const device of devices) {
+      if (device.ipv4) {
+        names[device.ipv4] = device.name || device.hostname
+      }
+    }
+    this.deviceNames.set(names)
+  }
 
   add() {
     this.dialogs
       .open<Forwarding>(new PolymorpheusComponent(ForwardingDialog), {
         label: 'Add Port Forwarding Rule',
+        data: { deviceNames: this.deviceNames() ?? {} },
       })
       .subscribe(value => {
         this.service.save((this.service.data() || []).concat(value))
