@@ -680,4 +680,4 @@ export const ENGLISH = {
   'Installation Complete!': 714,
   'StartOS has been installed successfully.': 715,
   'Continue to Setup': 716,
-} as Record<any, any>
+} as const

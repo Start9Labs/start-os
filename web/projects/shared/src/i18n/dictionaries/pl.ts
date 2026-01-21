@@ -677,7 +677,7 @@ export default {
   711: 'Lista jest pusta',
   712: 'Uruchom ponownie teraz',
   713: 'Później',
-  714: 'Instalacja zakończona',
+  714: 'Instalacja zakończona!',
   715: 'StartOS został pomyślnie zainstalowany.',
   716: 'Przejdź do konfiguracji',
 } satisfies i18n
