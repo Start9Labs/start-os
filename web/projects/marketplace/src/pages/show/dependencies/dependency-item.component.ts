@@ -1,7 +1,7 @@
 import { KeyValue } from '@angular/common'
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject, Input } from '@angular/core'
 import { RouterModule } from '@angular/router'
-import { ExverPipesModule, i18nPipe } from '@start9labs/shared'
+import { ExverPipesModule, i18nPipe, i18nService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiAvatar, TuiLineClamp } from '@taiga-ui/kit'
 import { MarketplacePkgBase } from '../../../types'
@@ -97,6 +97,8 @@ import { MarketplacePkgBase } from '../../../types'
   imports: [RouterModule, TuiAvatar, ExverPipesModule, TuiLineClamp, i18nPipe],
 })
 export class MarketplaceDepItemComponent {
+  private readonly i18nService = inject(i18nService)
+
   @Input({ required: true })
   pkg!: MarketplacePkgBase
 
@@ -109,6 +111,7 @@ export class MarketplaceDepItemComponent {
   }
 
   getTitle(key: string): string {
-    return this.pkg.dependencyMetadata[key]?.title || key
+    const title = this.pkg.dependencyMetadata[key]?.title
+    return title ? this.i18nService.localize(title) : key
   }
 }

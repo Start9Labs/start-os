@@ -1,6 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core'
 import { TuiLanguageName, TuiLanguageSwitcherService } from '@taiga-ui/i18n'
 import { I18N, I18N_LOADER, I18N_STORAGE } from './i18n.providers'
+import { T } from '@start9labs/start-sdk'
 
 export const languages = ['en_US', 'es_ES', 'de_DE', 'fr_FR', 'pl_PL'] as const
 export type Languages = (typeof languages)[number]
@@ -34,6 +35,14 @@ export class i18nService extends TuiLanguageSwitcherService {
       (Object.entries(LANGUAGE_TO_TUI).find(
         ([, tui]) => tui === this.language,
       )?.[0] as Languages) || 'en_US'
+    )
+  }
+
+  localize(string: T.LocaleString): string {
+    if (typeof string === 'string') return string
+
+    return (
+      string[this.lang] ?? string['en_US'] ?? Object.values(string)[0] ?? ''
     )
   }
 

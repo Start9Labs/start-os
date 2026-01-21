@@ -8,7 +8,7 @@
     </div>
     <span class="category-title" [tuiSkeleton]="categories ? false : 3">
       {{
-        cat.key === 'ai' ? (cat.key | uppercase) : (cat.value.name | titlecase)
+        cat.key === 'ai' ? (cat.key | uppercase) : (cat.value.name | localize | titlecase)
       }}
     </span>
   </button>

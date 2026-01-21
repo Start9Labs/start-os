@@ -290,12 +290,12 @@ impl Model<PackageVersionInfo> {
                 let metadata = self.as_metadata_mut();
                 metadata
                     .as_alerts_mut()
-                    .mutate(|a| Ok(a.localize_for(locale)));
+                    .mutate(|a| Ok(a.localize_for(locale)))?;
                 metadata
                     .as_dependency_metadata_mut()
                     .as_entries_mut()?
                     .into_iter()
-                    .try_for_each(|(_, d)| d.mutate(|d| Ok(d.localize_for(locale))));
+                    .try_for_each(|(_, d)| d.mutate(|d| Ok(d.localize_for(locale))))?;
                 metadata
                     .as_description_mut()
                     .mutate(|d| Ok(d.localize_for(locale)))?;

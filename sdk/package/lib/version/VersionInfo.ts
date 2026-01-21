@@ -7,7 +7,7 @@ export type VersionOptions<Version extends string> = {
   /** The exver-compliant version number */
   version: Version & ValidateExVer<Version>
   /** The release notes for this version */
-  releaseNotes: string
+  releaseNotes: T.LocaleString
   /** Data migrations for this version */
   migrations: {
     /**

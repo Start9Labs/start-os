@@ -228,7 +228,7 @@ pub async fn set_dependencies(
                 .s9pk
                 .dependency_metadata(&dep_id)
                 .await?
-                .map(|m| m.title.localized()),
+                .map(|m| m.title),
             icon: context
                 .seed
                 .persistent_container
@@ -345,7 +345,7 @@ pub async fn check_dependencies(
                 .collect();
             results.push(CheckDependenciesResult {
                 package_id,
-                title,
+                title: title.map(|t| t.localized()),
                 installed_version: None,
                 satisfies: BTreeSet::new(),
                 is_running: false,
@@ -371,7 +371,7 @@ pub async fn check_dependencies(
             .collect();
         results.push(CheckDependenciesResult {
             package_id,
-            title,
+            title: title.map(|t| t.localized()),
             installed_version,
             satisfies,
             is_running,

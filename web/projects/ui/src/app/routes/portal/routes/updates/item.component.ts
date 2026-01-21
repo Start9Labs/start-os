@@ -12,6 +12,7 @@ import {
   DialogService,
   i18nKey,
   i18nPipe,
+  LocalizePipe,
   MarkdownPipe,
   SafeLinksDirective,
 } from '@start9labs/shared'
@@ -138,7 +139,7 @@ import UpdatesComponent from './updates.component'
           </p>
           <p
             safeLinks
-            [innerHTML]="item().releaseNotes | markdown | dompurify"
+            [innerHTML]="item().releaseNotes | localize | markdown | dompurify"
           ></p>
         </tui-expand>
       </td>
@@ -237,6 +238,7 @@ import UpdatesComponent from './updates.component'
     TuiProgressCircle,
     TuiTitle,
     TuiFade,
+    LocalizePipe,
     MarkdownPipe,
     NgDompurifyPipe,
     SafeLinksDirective,

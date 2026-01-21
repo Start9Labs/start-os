@@ -18,6 +18,7 @@ export * from './directives/safe-links.directive'
 export * from './i18n/i18n.pipe'
 export * from './i18n/i18n.providers'
 export * from './i18n/i18n.service'
+export * from './i18n/localize.pipe'
 
 export * from './pipes/exver/exver.module'
 export * from './pipes/exver/exver.pipe'

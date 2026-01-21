@@ -14,6 +14,7 @@ import {
   Exver,
   ExverPipesModule,
   i18nPipe,
+  i18nService,
   LoadingService,
   sameUrl,
 } from '@start9labs/shared'
@@ -122,6 +123,7 @@ export class MarketplaceControlsComponent {
   private readonly router = inject(Router)
   private readonly marketplace = inject(MarketplaceService)
   private readonly api = inject(ApiService)
+  private readonly i18n = inject(i18nService)
 
   readonly pkg = input.required<Pick<MarketplacePkg, KEYS>>()
 
@@ -148,7 +150,7 @@ export class MarketplaceControlsComponent {
     const originalUrl = localPkg?.registry || null
 
     if (!localPkg) {
-      if (await this.alerts.alertInstall(this.pkg().alerts.install || '')) {
+      if (await this.alerts.alertInstall(this.i18n.localize(this.pkg().alerts.install || ''))) {
         this.installOrUpload(currentUrl)
       }
       return
