@@ -118,26 +118,6 @@ async fn get_shadow_hash(username: &str) -> Result<Option<String>, Error> {
     Ok(None)
 }
 
-/// Verify a password against the shadow file hash
-fn verify_password(password: &str, hash: &str) -> Result<bool, Error> {
-    // @TODO remove branches once a default algo is selected for start-wrt
-    if hash.starts_with("$1$") {
-        // MD5
-        Ok(pwhash::md5_crypt::verify(password, hash))
-    } else if hash.starts_with("$5$") {
-        // SHA-256
-        Ok(pwhash::sha256_crypt::verify(password, hash))
-    } else if hash.starts_with("$6$") {
-        // SHA-512
-        Ok(pwhash::sha512_crypt::verify(password, hash))
-    } else {
-        Err(Error::other(format!(
-            "Unsupported password hash format: {}",
-            hash.chars().take(3).collect::<String>()
-        )))
-    }
-}
-
 /// Check password against /etc/shadow (or dev password if STARTWRT_DEV_PASSWORD is set)
 pub async fn check_password(password: &str) -> Result<(), Error> {
     // Dev mode: check against env var password (for development without root access)
@@ -154,17 +134,16 @@ pub async fn check_password(password: &str) -> Result<(), Error> {
     match hash {
         None => {
             /*
-                start-wrt will be initialized with a password which will persist across "soft" factory resets.
+                start-wrt will be initialized with a password which will persist across factory resets.
 
-                However in the case of a "hard" factory reset, in the case of a lost password, the root user will have no password;
+                However in the case of a reflash, the root user will have no password;
                 Which is the default for openwrt
             */
             println!("No password has been set. Please set a password.");
             Ok(())
         }
         Some(hash) => {
-            let valid = verify_password(password, &hash)?;
-            if !valid {
+            if pwhash::unix::verify(password, &hash) {
                 Err(Error::other("Incorrect password"))
             } else {
                 Ok(())
