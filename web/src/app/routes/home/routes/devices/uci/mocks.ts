@@ -71,7 +71,9 @@ export const mockBlockedDevices: FirewallRuleSection[] = [
 // Format: IP dev INTERFACE lladdr MAC STATE
 export const mockArpOutput = `192.168.1.100 dev br-lan lladdr 00:1a:2b:3c:4d:5e REACHABLE
 192.168.1.101 dev br-lan lladdr 00:1a:2b:3c:4d:5f STALE
-fe80::1a:2bff:fe3c:4d5e dev br-lan lladdr 00:1a:2b:3c:4d:5e router REACHABLE
+192.168.1.102 dev br-lan lladdr de:ad:be:ef:ca:fe STALE
+192.168.1.103 dev br-lan lladdr de:ad:be:ef:ca:ff REACHABLE
+fe80::1a:2bff:fe3c:4d5e dev br-lan lladdr 00:1a:2b:3c:4d:5e REACHABLE
 fe80::1a:2bff:fe3c:4d5f dev br-lan lladdr 00:1a:2b:3c:4d:5f STALE`
 
 // Mock DHCP leases file output (from /tmp/dhcp.leases)

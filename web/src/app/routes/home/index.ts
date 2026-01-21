@@ -11,6 +11,10 @@ export default [
         loadChildren: () => import('./routes/wan'),
       },
       {
+        path: 'published-ports',
+        loadComponent: () => import('./routes/published-ports'),
+      },
+      {
         path: 'outbound',
         loadChildren: () => import('./routes/outbound'),
       },
@@ -21,10 +25,6 @@ export default [
       {
         path: 'devices',
         loadChildren: () => import('./routes/devices'),
-      },
-      {
-        path: 'forwarding',
-        loadComponent: () => import('./routes/forwarding'),
       },
       {
         path: 'settings',

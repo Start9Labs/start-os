@@ -6,8 +6,13 @@ export const MENU = {
       link: 'wan',
     },
     {
-      name: 'Outbound VPNs',
+      name: 'Published Ports',
       icon: '@tui.globe-lock',
+      link: 'published-ports',
+    },
+    {
+      name: 'Outbound VPNs',
+      icon: '@tui.shield',
       link: 'outbound',
     },
   ],
@@ -21,16 +26,6 @@ export const MENU = {
       name: 'Devices',
       icon: '@tui.monitor-smartphone',
       link: 'devices',
-    },
-    {
-      name: 'Port Forwarding',
-      icon: '@tui.chevrons-right',
-      link: 'forwarding',
-    },
-    {
-      name: 'IPv6 Firewall',
-      icon: '@tui.brick-wall-fire',
-      link: 'firewall',
     },
   ],
   'Security Profiles': [

@@ -31,7 +31,7 @@ import {
   mockDhcpHosts,
   mockDhcpLeasesOutput,
 } from 'src/app/routes/home/routes/devices/uci/mocks'
-import { mockPortForwarding } from 'src/app/routes/home/routes/forwarding/uci/mocks'
+import { mockPublishedPorts } from 'src/app/routes/home/routes/published-ports/uci/mocks'
 
 @Injectable({
   providedIn: 'root',
@@ -283,7 +283,7 @@ export const mockUci: Record<string, UciFile<UciSection>> = {
     modified: new Date().toISOString(),
   },
   firewall: {
-    sections: [...mockBlockedDevices, ...mockPortForwarding],
+    sections: [...mockBlockedDevices, ...mockPublishedPorts],
     modified: new Date().toISOString(),
   },
 }
