@@ -48,9 +48,9 @@ export type SDKManifest = {
   readonly docsUrl: string
   readonly description: {
     /** Short description to display on the marketplace list page. Max length 80 chars. */
-    readonly short: string
+    readonly short: T.LocaleString
     /** Long description to display on the marketplace details page for this service. Max length 500 chars. */
-    readonly long: string
+    readonly long: T.LocaleString
   }
   /**
    * override the StartOS version this package was made for
@@ -96,17 +96,17 @@ export type SDKManifest = {
 
   readonly alerts?: {
     /** An warning alert requiring user confirmation before proceeding with initial installation of this service. */
-    readonly install?: string | null
+    readonly install?: T.LocaleString | null
     /** An warning alert requiring user confirmation before updating this service. */
-    readonly update?: string | null
+    readonly update?: T.LocaleString | null
     /** An warning alert requiring user confirmation before uninstalling this service. */
-    readonly uninstall?: string | null
+    readonly uninstall?: T.LocaleString | null
     /** An warning alert requiring user confirmation before restoring this service from backup. */
-    readonly restore?: string | null
+    readonly restore?: T.LocaleString | null
     /** An warning alert requiring user confirmation before starting this service. */
-    readonly start?: string | null
+    readonly start?: T.LocaleString | null
     /** An warning alert requiring user confirmation before stopping this service. */
-    readonly stop?: string | null
+    readonly stop?: T.LocaleString | null
   }
   /**
    * @description A mapping of service dependencies to be displayed to users when viewing the Marketplace

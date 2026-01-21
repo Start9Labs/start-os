@@ -377,6 +377,20 @@ pub fn server<C: Context>() -> ParentHandler<C> {
             "host",
             net::host::server_host_api::<C>().with_about("about.commands-host-system-ui"),
         )
+        .subcommand(
+            "set-keyboard",
+            from_fn_async(system::set_keyboard)
+                .no_display()
+                .with_about("about.set-keyboard")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set-language",
+            from_fn_async(system::set_language)
+                .no_display()
+                .with_about("about.set-language")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 pub fn package<C: Context>() -> ParentHandler<C> {

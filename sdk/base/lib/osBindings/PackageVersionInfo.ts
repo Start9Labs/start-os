@@ -5,6 +5,7 @@ import type { DependencyMetadata } from "./DependencyMetadata"
 import type { Description } from "./Description"
 import type { GitHash } from "./GitHash"
 import type { HardwareRequirements } from "./HardwareRequirements"
+import type { LocaleString } from "./LocaleString"
 import type { MerkleArchiveCommitment } from "./MerkleArchiveCommitment"
 import type { PackageId } from "./PackageId"
 import type { RegistryAsset } from "./RegistryAsset"
@@ -15,7 +16,7 @@ export type PackageVersionInfo = {
   title: string
   icon: DataUrl
   description: Description
-  releaseNotes: string
+  releaseNotes: LocaleString
   gitHash: GitHash | null
   license: string
   wrapperRepo: string

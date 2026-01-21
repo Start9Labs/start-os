@@ -43,15 +43,15 @@ export interface InstallOsRes {
 // === Attach ===
 
 export interface AttachParams {
-  startOsPassword: T.EncryptedWire | null
+  password: T.EncryptedWire | null
   guid: string // data drive
 }
 
 // === Execute ===
 
 export interface SetupExecuteParams {
-  startOsLogicalname: string
-  startOsPassword: T.EncryptedWire | null // null = keep existing password (for restore/transfer)
+  guid: string
+  password: T.EncryptedWire | null // null = keep existing password (for restore/transfer)
   recoverySource:
     | {
         type: 'migrate'

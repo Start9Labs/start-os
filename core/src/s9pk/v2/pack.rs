@@ -20,7 +20,7 @@ use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::s9pk::S9pk;
 use crate::s9pk::git_hash::GitHash;
-use crate::s9pk::manifest::Manifest;
+use crate::s9pk::manifest::{LocaleString, Manifest};
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
@@ -756,7 +756,7 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
                     }
                 };
                 Some((
-                    s9pk.as_manifest().title.clone(),
+                    LocaleString::Translated(s9pk.as_manifest().title.to_string()),
                     s9pk.icon_data_url().await?,
                 ))
             }

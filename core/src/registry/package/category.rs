@@ -11,6 +11,7 @@ use crate::context::CliContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::Category;
+use crate::s9pk::manifest::LocaleString;
 use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 
 pub fn category_api<C: Context>() -> ParentHandler<C> {
@@ -66,7 +67,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
 pub struct AddCategoryParams {
     #[ts(type = "string")]
     pub id: InternedString,
-    pub name: String,
+    pub name: LocaleString,
 }
 
 pub async fn add_category(
@@ -196,7 +197,7 @@ pub fn display_categories<T>(
         "NAME",
     ]);
     for (id, info) in categories {
-        table.add_row(row![&*id, &info.name]);
+        table.add_row(row![&*id, &info.name.localized()]);
     }
     table.print_tty(false)?;
     Ok(())

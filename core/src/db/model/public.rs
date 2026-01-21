@@ -45,7 +45,12 @@ pub struct Public {
     pub ui: Value,
 }
 impl Public {
-    pub fn init(account: &AccountInfo, kiosk: Option<bool>) -> Result<Self, Error> {
+    pub fn init(
+        account: &AccountInfo,
+        kiosk: Option<bool>,
+        language: Option<InternedString>,
+        keyboard: Option<KeyboardOptions>,
+    ) -> Result<Self, Error> {
         Ok(Self {
             server_info: ServerInfo {
                 arch: get_arch(),
@@ -139,8 +144,8 @@ impl Public {
                 ram: 0,
                 devices: Vec::new(),
                 kiosk,
-                language: None,
-                keyboard: None,
+                language,
+                keyboard,
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(*DB_UI_SEED_CELL.get().unwrap_or(&"null"))

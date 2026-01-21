@@ -9,7 +9,7 @@ use tokio::process::Command;
 
 use crate::dependencies::{DepInfo, Dependencies};
 use crate::prelude::*;
-use crate::s9pk::manifest::{DeviceFilter, Manifest};
+use crate::s9pk::manifest::{DeviceFilter, LocaleString, Manifest};
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::TmpSource;
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
@@ -198,7 +198,7 @@ impl TryFrom<ManifestV1> for Manifest {
             title: format!("{} (Legacy)", value.title).into(),
             version: version.into(),
             satisfies: BTreeSet::new(),
-            release_notes: value.release_notes,
+            release_notes: LocaleString::Translated(value.release_notes),
             can_migrate_from: VersionRange::any(),
             can_migrate_to: VersionRange::none(),
             license: value.license.into(),
@@ -226,7 +226,7 @@ impl TryFrom<ManifestV1> for Manifest {
                         (
                             id,
                             DepInfo {
-                                description: value.description,
+                                description: value.description.map(LocaleString::Translated),
                                 optional: !value.requirement.required(),
                                 metadata: None,
                             },

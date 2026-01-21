@@ -417,8 +417,7 @@ impl Map for CurrentDependencies {
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct CurrentDependencyInfo {
-    #[ts(type = "string | null")]
-    pub title: Option<InternedString>,
+    pub title: Option<String>,
     pub icon: Option<DataUrl<'static>>,
     #[serde(flatten)]
     pub kind: CurrentDependencyKind,

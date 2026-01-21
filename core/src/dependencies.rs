@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::prelude::*;
+use crate::s9pk::manifest::LocaleString;
 use crate::util::PathOrUrl;
 use crate::{Error, PackageId};
 
@@ -28,7 +28,7 @@ impl Map for Dependencies {
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct DepInfo {
-    pub description: Option<String>,
+    pub description: Option<LocaleString>,
     pub optional: bool,
     #[serde(flatten)]
     pub metadata: Option<MetadataSrc>,
@@ -73,7 +73,7 @@ pub enum MetadataSrc {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Metadata {
-    pub title: InternedString,
+    pub title: LocaleString,
     pub icon: PathOrUrl,
 }
 
@@ -82,5 +82,5 @@ pub struct Metadata {
 #[model = "Model<Self>"]
 pub struct DependencyMetadata {
     #[ts(type = "string")]
-    pub title: InternedString,
+    pub title: LocaleString,
 }

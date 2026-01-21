@@ -6,6 +6,7 @@ import type { GitHash } from "./GitHash"
 import type { HardwareRequirements } from "./HardwareRequirements"
 import type { ImageConfig } from "./ImageConfig"
 import type { ImageId } from "./ImageId"
+import type { LocaleString } from "./LocaleString"
 import type { PackageId } from "./PackageId"
 import type { Version } from "./Version"
 import type { VolumeId } from "./VolumeId"
@@ -15,7 +16,7 @@ export type Manifest = {
   title: string
   version: Version
   satisfies: Array<Version>
-  releaseNotes: string
+  releaseNotes: LocaleString
   canMigrateTo: string
   canMigrateFrom: string
   license: string

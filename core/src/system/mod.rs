@@ -15,6 +15,7 @@ use tokio::sync::broadcast::Receiver;
 use tracing::instrument;
 use ts_rs::TS;
 
+use crate::bins::set_locale;
 use crate::context::{CliContext, RpcContext};
 use crate::disk::util::{get_available, get_used};
 use crate::logs::{LogSource, LogsParams, SYSTEM_UNIT};
@@ -1140,9 +1141,11 @@ pub async fn test_smtp(
 pub struct KeyboardOptions {
     #[arg(help = "help.arg.keyboard-layout")]
     pub layout: InternedString,
-    #[arg(long, help = "help.arg.keyboard-model")]
+    #[arg(short, long, help = "help.arg.keyboard-keymap")]
+    pub keymap: Option<InternedString>,
+    #[arg(short, long, help = "help.arg.keyboard-model")]
     pub model: Option<InternedString>,
-    #[arg(long, help = "help.arg.keyboard-variant")]
+    #[arg(short, long, help = "help.arg.keyboard-variant")]
     pub variant: Option<InternedString>,
     #[arg(short, long = "option", help = "help.arg.keyboard-option")]
     #[serde(default)]
@@ -1166,7 +1169,18 @@ impl KeyboardOptions {
     }
 
     pub async fn save(&self) -> Result<(), Error> {
-        // TODO: set console keyboard
+        write_file_atomic(
+            "/media/startos/config/overlay/etc/vconsole.conf",
+            format!(
+                include_str!("./vconsole.conf.template"),
+                model = self.model.as_deref().unwrap_or_default(),
+                layout = &*self.layout,
+                variant = self.variant.as_deref().unwrap_or_default(),
+                options = self.options.join(","),
+                keymap = self.keymap.as_deref().unwrap_or(&*self.layout),
+            ),
+        )
+        .await?;
         write_file_atomic(
             "/media/startos/config/overlay/etc/X11/xorg.conf.d/00-keyboard.conf",
             format!(
@@ -1203,10 +1217,7 @@ pub struct SetLanguageParams {
     pub language: InternedString,
 }
 
-pub async fn set_language(
-    ctx: RpcContext,
-    SetLanguageParams { language }: SetLanguageParams,
-) -> Result<(), Error> {
+pub async fn save_language(language: &str) -> Result<(), Error> {
     write_file_atomic(
         "/etc/locale.gen",
         format!("{language}.UTF-8 UTF-8\n").as_bytes(),
@@ -1225,6 +1236,15 @@ pub async fn set_language(
         format!("LANG={language}.UTF-8\n").as_bytes(),
     )
     .await?;
+    Ok(())
+}
+
+pub async fn set_language(
+    ctx: RpcContext,
+    SetLanguageParams { language }: SetLanguageParams,
+) -> Result<(), Error> {
+    set_locale(&*language);
+    save_language(&*language).await?;
     ctx.db
         .mutate(|db| {
             db.as_public_mut()
@@ -1234,7 +1254,6 @@ pub async fn set_language(
         })
         .await
         .result?;
-    rust_i18n::set_locale(&*language);
     Ok(())
 }
 

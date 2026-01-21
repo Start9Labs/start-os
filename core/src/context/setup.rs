@@ -6,6 +6,7 @@ use std::time::Duration;
 use futures::{Future, StreamExt};
 use imbl_value::InternedString;
 use josekit::jwk::Jwk;
+use openssl::x509::X509;
 use patch_db::PatchDb;
 use rpc_toolkit::Context;
 use serde::{Deserialize, Serialize};
@@ -15,10 +16,9 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::MAIN_DATA;
-use crate::account::AccountInfo;
 use crate::context::RpcContext;
 use crate::context::config::ServerConfig;
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
 use crate::hostname::Hostname;
 use crate::net::gateway::UpgradableListener;
 use crate::net::web_server::{WebServer, WebServerAcceptorSetter};
@@ -27,7 +27,9 @@ use crate::progress::FullProgressTracker;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::setup::SetupProgress;
 use crate::shutdown::Shutdown;
+use crate::system::KeyboardOptions;
 use crate::util::future::NonDetachingJoinHandle;
+use crate::util::serde::Pem;
 use crate::util::sync::SyncMutex;
 
 lazy_static::lazy_static! {
@@ -42,27 +44,10 @@ lazy_static::lazy_static! {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetupResult {
-    pub tor_addresses: Vec<String>,
     #[ts(type = "string")]
     pub hostname: Hostname,
-    #[ts(type = "string")]
-    pub lan_address: InternedString,
-    pub root_ca: String,
-}
-impl TryFrom<&AccountInfo> for SetupResult {
-    type Error = Error;
-    fn try_from(value: &AccountInfo) -> Result<Self, Self::Error> {
-        Ok(Self {
-            tor_addresses: value
-                .tor_keys
-                .iter()
-                .map(|tor_key| format!("https://{}", tor_key.onion_address()))
-                .collect(),
-            hostname: value.hostname.clone(),
-            lan_address: value.hostname.lan_address(),
-            root_ca: String::from_utf8(value.root_ca_cert.to_pem()?)?,
-        })
-    }
+    pub root_ca: Pem<X509>,
+    pub needs_restart: bool,
 }
 
 pub struct SetupContextSeed {
@@ -75,7 +60,9 @@ pub struct SetupContextSeed {
     pub disk_guid: OnceCell<InternedString>,
     pub shutdown: Sender<Option<Shutdown>>,
     pub rpc_continuations: RpcContinuations,
-    pub install_rootfs: SyncMutex<Option<TmpMountGuard>>,
+    pub install_rootfs: SyncMutex<Option<(TmpMountGuard, MountGuard)>>,
+    pub keyboard: SyncMutex<Option<KeyboardOptions>>,
+    pub language: SyncMutex<Option<InternedString>>,
 }
 
 #[derive(Clone)]
@@ -100,6 +87,8 @@ impl SetupContext {
             shutdown,
             rpc_continuations: RpcContinuations::new(),
             install_rootfs: SyncMutex::new(None),
+            language: SyncMutex::new(None),
+            keyboard: SyncMutex::new(None),
         })))
     }
     #[instrument(skip_all)]
@@ -129,7 +118,10 @@ impl SetupContext {
                                     Ok(res)
                                 }
                                 Err(e) => {
-                                    tracing::error!("{}", t!("context.setup.setup-failed", error = e));
+                                    tracing::error!(
+                                        "{}",
+                                        t!("context.setup.setup-failed", error = e)
+                                    );
                                     tracing::debug!("{e:?}");
                                     Err(e)
                                 }
@@ -142,7 +134,10 @@ impl SetupContext {
             )
             .map_err(|_| {
                 if self.result.initialized() {
-                    Error::new(eyre!("{}", t!("context.setup.setup-already-complete")), ErrorKind::InvalidRequest)
+                    Error::new(
+                        eyre!("{}", t!("context.setup.setup-already-complete")),
+                        ErrorKind::InvalidRequest,
+                    )
                 } else {
                     Error::new(
                         eyre!("{}", t!("context.setup.setup-already-in-progress")),

@@ -163,11 +163,11 @@ setup.no-backup-found:
   pl_PL: "Nie znaleziono kopii zapasowej"
 
 setup.couldnt-decode-startos-password:
-  en_US: "Couldn't decode startOsPassword"
-  de_DE: "startOsPassword konnte nicht dekodiert werden"
-  es_ES: "No se pudo decodificar startOsPassword"
-  fr_FR: "Impossible de décoder startOsPassword"
-  pl_PL: "Nie można zdekodować startOsPassword"
+  en_US: "Couldn't decode password"
+  de_DE: "Passwort konnte nicht dekodiert werden"
+  es_ES: "No se pudo decodificar la contraseña"
+  fr_FR: "Impossible de décoder le mot de passe"
+  pl_PL: "Nie można zdekodować hasła"
 
 setup.couldnt-decode-recovery-password:
   en_US: "Couldn't decode recoveryPassword"
@@ -182,13 +182,6 @@ setup.execute-not-completed:
   es_ES: "setup.execute no se completó correctamente"
   fr_FR: "setup.execute ne s'est pas terminé avec succès"
   pl_PL: "setup.execute nie zakończyło się pomyślnie"
-
-setup.formatting-data-drive:
-  en_US: "Formatting data drive"
-  de_DE: "Datenlaufwerk wird formatiert"
-  es_ES: "Formateando unidad de datos"
-  fr_FR: "Formatage du disque de données"
-  pl_PL: "Formatowanie dysku danych"
 
 setup.restoring-backup:
   en_US: "Restoring backup"
@@ -3472,6 +3465,13 @@ help.arg.keyboard-variant:
   fr_FR: "Variante de disposition du clavier"
   pl_PL: "Wariant układu klawiatury"
 
+help.arg.keyboard-keymap:
+  en_US: "Console keymap for vconsole"
+  de_DE: "Konsolen-Tastaturbelegung für vconsole"
+  es_ES: "Mapa de teclado de consola para vconsole"
+  fr_FR: "Disposition clavier de console pour vconsole"
+  pl_PL: "Mapa klawiszy konsoli dla vconsole"
+
 help.arg.language-code:
   en_US: "Language code"
   de_DE: "Sprachcode"
@@ -5124,6 +5124,20 @@ about.set-gateway-enabled-for-binding:
   es_ES: "Establecer gateway habilitado para enlace"
   fr_FR: "Définir la passerelle activée pour la liaison"
   pl_PL: "Ustaw bramę jako włączoną dla powiązania"
+
+about.set-keyboard:
+  en_US: "Set the keyboard layout"
+  de_DE: "Das Tastaturlayout festlegen"
+  es_ES: "Establecer la distribución del teclado"
+  fr_FR: "Définir la disposition du clavier"
+  pl_PL: "Ustaw układ klawiatury"
+
+about.set-language:
+  en_US: "Set the system language"
+  de_DE: "Die Systemsprache festlegen"
+  es_ES: "Establecer el idioma del sistema"
+  fr_FR: "Définir la langue du système"
+  pl_PL: "Ustaw język systemu"
 
 about.set-listen-address-for-webserver:
   en_US: "Set the listen address for the webserver"

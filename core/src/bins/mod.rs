@@ -12,22 +12,27 @@ pub mod start_init;
 pub mod startd;
 pub mod tunnel;
 
-pub fn set_locale() {
+pub fn set_locale_from_env() {
     let lang = std::env::var("LANG").ok();
     let lang = lang
         .as_deref()
         .map_or("C", |l| l.strip_suffix(".UTF-8").unwrap_or(l));
-    let mut set_lang = lang;
+    set_locale(lang)
+}
+
+pub fn set_locale(lang: &str) {
+    let mut best = None;
+    let prefix = lang.split_inclusive("_").next().unwrap();
     for l in rust_i18n::available_locales!() {
         if l == lang {
-            set_lang = l;
+            best = Some(l);
             break;
         }
-        if l.split("_").next().unwrap() == lang.split("_").next().unwrap() {
-            set_lang = l;
+        if best.is_none() && l.starts_with(prefix) {
+            best = Some(l);
         }
     }
-    rust_i18n::set_locale(set_lang);
+    rust_i18n::set_locale(best.unwrap_or(lang));
 }
 
 pub fn translate_cli(mut cmd: clap::Command) -> clap::Command {
@@ -144,7 +149,7 @@ impl MultiExecutable {
     }
 
     pub fn execute(&self) {
-        set_locale();
+        set_locale_from_env();
 
         let mut popped = Vec::with_capacity(2);
         let mut args = std::env::args_os().collect::<VecDeque<_>>();

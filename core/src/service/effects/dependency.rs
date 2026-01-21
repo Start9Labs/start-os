@@ -4,7 +4,6 @@ use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
 use exver::VersionRange;
-use imbl_value::InternedString;
 use rust_i18n::t;
 
 use crate::db::model::package::{
@@ -149,13 +148,25 @@ impl FromStr for DependencyRequirement {
                         .map(|id| id.parse().map_err(Error::from))
                         .collect(),
                     Some((kind, _)) => Err(Error::new(
-                        eyre!("{}", t!("service.effects.dependency.unknown-dependency-kind", kind = kind)),
+                        eyre!(
+                            "{}",
+                            t!(
+                                "service.effects.dependency.unknown-dependency-kind",
+                                kind = kind
+                            )
+                        ),
                         ErrorKind::InvalidRequest,
                     )),
                     None => match rest {
                         "r" | "running" => Ok(BTreeSet::new()),
                         kind => Err(Error::new(
-                            eyre!("{}", t!("service.effects.dependency.unknown-dependency-kind", kind = kind)),
+                            eyre!(
+                                "{}",
+                                t!(
+                                    "service.effects.dependency.unknown-dependency-kind",
+                                    kind = kind
+                                )
+                            ),
                             ErrorKind::InvalidRequest,
                         )),
                     },
@@ -217,7 +228,7 @@ pub async fn set_dependencies(
                 .s9pk
                 .dependency_metadata(&dep_id)
                 .await?
-                .map(|m| m.title),
+                .map(|m| m.title.localized()),
             icon: context
                 .seed
                 .persistent_container
@@ -294,8 +305,7 @@ pub struct CheckDependenciesParam {
 #[ts(export)]
 pub struct CheckDependenciesResult {
     package_id: PackageId,
-    #[ts(type = "string | null")]
-    title: Option<InternedString>,
+    title: Option<String>,
     installed_version: Option<VersionString>,
     satisfies: BTreeSet<VersionString>,
     is_running: bool,

@@ -454,20 +454,25 @@ pub async fn install_os(
                 )
             })?;
         }
-        if let Some(guid) = disks.iter().find_map(|d| {
-            d.guid
-                .as_ref()
-                .filter(|_| &d.logicalname == logicalname)
-                .cloned()
-                .or_else(|| {
-                    d.partitions.iter().find_map(|p| {
-                        p.guid
-                            .as_ref()
-                            .filter(|_| &p.logicalname == logicalname)
-                            .cloned()
+        if let Some(guid) = (!data_drive.wipe)
+            .then(|| disks.iter())
+            .into_iter()
+            .flatten()
+            .find_map(|d| {
+                d.guid
+                    .as_ref()
+                    .filter(|_| &d.logicalname == logicalname)
+                    .cloned()
+                    .or_else(|| {
+                        d.partitions.iter().find_map(|p| {
+                            p.guid
+                                .as_ref()
+                                .filter(|_| &p.logicalname == logicalname)
+                                .cloned()
+                        })
                     })
-                })
-        }) {
+            })
+        {
             setup_info.guid = Some(guid);
             setup_info.attach = true;
         } else {
@@ -476,13 +481,20 @@ pub async fn install_os(
         }
     }
 
+    let config = MountGuard::mount(
+        &Bind::new(rootfs.path().join("config")),
+        "/media/startos/config",
+        ReadWrite,
+    )
+    .await?;
+
     write_file_atomic(
-        rootfs.path().join("config/setup.json"),
+        "/media/startos/config/setup.json",
         IoFormat::JsonPretty.to_vec(&setup_info)?,
     )
     .await?;
 
-    ctx.install_rootfs.replace(Some(rootfs));
+    ctx.install_rootfs.replace(Some((rootfs, config)));
 
     Ok(setup_info)
 }

@@ -79,20 +79,20 @@ pub struct GetPackageResponse {
     pub other_versions: Option<BTreeMap<VersionString, PackageInfoShort>>,
 }
 impl GetPackageResponse {
-    pub fn tables(&self) -> Vec<prettytable::Table> {
+    pub fn tables(self) -> Vec<prettytable::Table> {
         use prettytable::*;
 
         let mut res = Vec::with_capacity(self.best.len());
 
-        for (version, info) in &self.best {
-            let mut table = info.table(version);
+        for (version, info) in self.best {
+            let mut table = info.table(&version);
 
             let lesser_versions: BTreeMap<_, _> = self
                 .other_versions
                 .as_ref()
                 .into_iter()
                 .flatten()
-                .filter(|(v, _)| ***v < **version)
+                .filter(|(v, _)| ***v < *version)
                 .collect();
 
             if !lesser_versions.is_empty() {
@@ -121,13 +121,17 @@ pub struct GetPackageResponseFull {
     pub other_versions: BTreeMap<VersionString, PackageVersionInfo>,
 }
 impl GetPackageResponseFull {
-    pub fn tables(&self) -> Vec<prettytable::Table> {
+    pub fn tables(self) -> Vec<prettytable::Table> {
         let mut res = Vec::with_capacity(self.best.len());
 
-        let all: BTreeMap<_, _> = self.best.iter().chain(self.other_versions.iter()).collect();
+        let all: BTreeMap<_, _> = self
+            .best
+            .into_iter()
+            .chain(self.other_versions.into_iter())
+            .collect();
 
         for (version, info) in all {
-            res.push(info.table(version));
+            res.push(info.table(&version));
         }
 
         res
@@ -444,7 +448,11 @@ pub async fn cli_download(
             return Err(Error::new(
                 eyre!(
                     "{}",
-                    t!("registry.package.get.version-not-found", id = id, version = target_version.unwrap_or(VersionRange::Any))
+                    t!(
+                        "registry.package.get.version-not-found",
+                        id = id,
+                        version = target_version.unwrap_or(VersionRange::Any)
+                    )
                 ),
                 ErrorKind::NotFound,
             ));
@@ -465,7 +473,11 @@ pub async fn cli_download(
             return Err(Error::new(
                 eyre!(
                     "{}",
-                    t!("registry.package.get.version-not-found", id = id, version = target_version.unwrap_or(VersionRange::Any))
+                    t!(
+                        "registry.package.get.version-not-found",
+                        id = id,
+                        version = target_version.unwrap_or(VersionRange::Any)
+                    )
                 ),
                 ErrorKind::NotFound,
             ));

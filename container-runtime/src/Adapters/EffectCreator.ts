@@ -319,6 +319,7 @@ export function makeEffects(context: EffectContext): Effects {
   }
   if (context.callbacks?.onLeaveContext)
     self.onLeaveContext(() => {
+      self.constRetry = undefined
       self.isInContext = false
       self.onLeaveContext = () => {
         console.warn(

@@ -23,8 +23,8 @@ use crate::progress::ProgressUnits;
 use crate::s9pk::S9pk;
 use crate::service::service_map::DownloadInstallFuture;
 use crate::setup::SetupExecuteProgress;
-use crate::system::sync_kiosk;
-use crate::util::serde::IoFormat;
+use crate::system::{save_language, sync_kiosk};
+use crate::util::serde::{IoFormat, Pem};
 use crate::{PLATFORM, PackageId};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -66,7 +66,10 @@ pub async fn restore_packages_rpc(
                 match async { res.await?.await }.await {
                     Ok(_) => (),
                     Err(err) => {
-                        tracing::error!("{}", t!("backup.restore.package-error", id = id, error = err));
+                        tracing::error!(
+                            "{}",
+                            t!("backup.restore.package-error", id = id, error = err)
+                        );
                         tracing::debug!("{:?}", err);
                     }
                 }
@@ -81,7 +84,7 @@ pub async fn restore_packages_rpc(
 pub async fn recover_full_server(
     ctx: &SetupContext,
     disk_guid: InternedString,
-    start_os_password: String,
+    password: String,
     recovery_source: TmpMountGuard,
     server_id: &str,
     recovery_password: &str,
@@ -105,7 +108,7 @@ pub async fn recover_full_server(
     )?;
 
     os_backup.account.password = argon2::hash_encoded(
-        start_os_password.as_bytes(),
+        password.as_bytes(),
         &rand::random::<[u8; 16]>()[..],
         &argon2::Config::rfc9106_low_mem(),
     )
@@ -114,9 +117,23 @@ pub async fn recover_full_server(
     let kiosk = Some(kiosk.unwrap_or(true)).filter(|_| &*PLATFORM != "raspberrypi");
     sync_kiosk(kiosk).await?;
 
+    let language = ctx.language.peek(|a| a.clone());
+    let keyboard = ctx.keyboard.peek(|a| a.clone());
+
+    if let Some(language) = &language {
+        save_language(&**language).await?;
+    }
+
+    if let Some(keyboard) = &keyboard {
+        keyboard.save().await?;
+    }
+
     let db = ctx.db().await?;
-    db.put(&ROOT, &Database::init(&os_backup.account, kiosk)?)
-        .await?;
+    db.put(
+        &ROOT,
+        &Database::init(&os_backup.account, kiosk, language, keyboard)?,
+    )
+    .await?;
     drop(db);
 
     let config = ctx.config.peek(|c| c.clone());
@@ -150,7 +167,10 @@ pub async fn recover_full_server(
                 match async { res.await?.await }.await {
                     Ok(_) => (),
                     Err(err) => {
-                        tracing::error!("{}", t!("backup.restore.package-error", id = id, error = err));
+                        tracing::error!(
+                            "{}",
+                            t!("backup.restore.package-error", id = id, error = err)
+                        );
                         tracing::debug!("{:?}", err);
                     }
                 }
@@ -160,7 +180,14 @@ pub async fn recover_full_server(
         .await;
     restore_phase.lock().await.complete();
 
-    Ok(((&os_backup.account).try_into()?, rpc_ctx))
+    Ok((
+        SetupResult {
+            hostname: os_backup.account.hostname,
+            root_ca: Pem(os_backup.account.root_ca_cert),
+            needs_restart: ctx.install_rootfs.peek(|a| a.is_some()),
+        },
+        rpc_ctx,
+    ))
 }
 
 #[instrument(skip(ctx, backup_guard))]

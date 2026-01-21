@@ -78,37 +78,6 @@ pub async fn partition(
 
         gpt.update_partitions(Default::default())?;
 
-        // Calculate where the OS partitions will end
-        // EFI/BIOS: 100MB or 8MB, Boot: 1GB, Root: 15GB
-        let efi_size_sectors = if use_efi {
-            100 * 1024 * 1024 / 512
-        } else {
-            8 * 1024 * 1024 / 512
-        };
-        let boot_size_sectors = 1024 * 1024 * 1024 / 512;
-        let root_size_sectors = 15 * 1024 * 1024 * 1024 / 512;
-        // GPT typically starts partitions at sector 2048
-        let os_partitions_end_sector =
-            2048 + efi_size_sectors + boot_size_sectors + root_size_sectors;
-
-        // Check if protected partition would be overwritten
-        if let Some((first_lba, _, ref path)) = protected_partition_info {
-            if first_lba < os_partitions_end_sector {
-                return Err(Error::new(
-                    eyre!(
-                        concat!(
-                            "Protected partition {} starts at sector {}",
-                            " which would be overwritten by OS partitions ending at sector {}"
-                        ),
-                        path.display(),
-                        first_lba,
-                        os_partitions_end_sector
-                    ),
-                    crate::ErrorKind::DiskManagement,
-                ));
-            }
-        }
-
         let efi = if use_efi {
             gpt.add_partition("efi", 100 * 1024 * 1024, gpt::partition_types::EFI, 0, None)?;
             true
@@ -140,6 +109,30 @@ pub async fn partition(
             0,
             None,
         )?;
+
+        // Check if protected partition would be overwritten by OS partitions
+        if let Some((first_lba, _, ref path)) = protected_partition_info {
+            // Get the actual end sector of the last OS partition (root = partition 3)
+            let os_partitions_end_sector = gpt
+                .partitions()
+                .get(&3)
+                .map(|p| p.last_lba)
+                .unwrap_or(0);
+            if first_lba <= os_partitions_end_sector {
+                return Err(Error::new(
+                    eyre!(
+                        concat!(
+                            "Protected partition {} starts at sector {}",
+                            " which would be overwritten by OS partitions ending at sector {}"
+                        ),
+                        path.display(),
+                        first_lba,
+                        os_partitions_end_sector
+                    ),
+                    crate::ErrorKind::DiskManagement,
+                ));
+            }
+        }
 
         let data_part = if let Some((first_lba, last_lba, path)) = protected_partition_info {
             // Re-create the data partition entry at the same location

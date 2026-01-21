@@ -51,7 +51,7 @@ export class StateService {
   async attachDrive(password: string | null): Promise<void> {
     await this.api.attach({
       guid: this.dataDriveGuid,
-      startOsPassword: password ? await this.api.encrypt(password) : null,
+      password: password ? await this.api.encrypt(password) : null,
     })
   }
 
@@ -77,8 +77,8 @@ export class StateService {
     }
 
     await this.api.execute({
-      startOsLogicalname: this.dataDriveGuid,
-      startOsPassword: password ? await this.api.encrypt(password) : null,
+      guid: this.dataDriveGuid,
+      password: password ? await this.api.encrypt(password) : null,
       recoverySource,
     })
   }
