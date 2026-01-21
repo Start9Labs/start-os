@@ -90,13 +90,24 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
     )
 }
 
+const LIVE_MEDIUM_PATH: &str = "/run/live/medium";
+
 pub async fn list_disks(ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
-    crate::disk::util::list(
+    let mut disks = crate::disk::util::list(
         &ctx.config
             .peek(|c| c.os_partitions.clone())
             .unwrap_or_default(),
     )
-    .await
+    .await?;
+
+    // Filter out the disk containing the live medium (installer USB)
+    if let Ok(Some(live_medium_source)) =
+        crate::disk::util::get_mount_source(LIVE_MEDIUM_PATH).await
+    {
+        disks.retain(|disk| disk.logicalname != live_medium_source);
+    }
+
+    Ok(disks)
 }
 
 #[instrument(skip_all)]

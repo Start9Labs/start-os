@@ -259,6 +259,31 @@ pub async fn recovery_info(
     Ok(res)
 }
 
+/// Returns the canonical path of the source device for a given mount point,
+/// or None if the mount point doesn't exist or isn't mounted.
+#[instrument(skip_all)]
+pub async fn get_mount_source(mountpoint: impl AsRef<Path>) -> Result<Option<PathBuf>, Error> {
+    let mounts_content = tokio::fs::read_to_string("/proc/mounts")
+        .await
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, "/proc/mounts"))?;
+
+    let mountpoint = mountpoint.as_ref();
+    for line in mounts_content.lines() {
+        let mut parts = line.split_whitespace();
+        let source = parts.next();
+        let mount = parts.next();
+        if let (Some(source), Some(mount)) = (source, mount) {
+            if Path::new(mount) == mountpoint {
+                // Try to canonicalize the source path
+                if let Ok(canonical) = tokio::fs::canonicalize(source).await {
+                    return Ok(Some(canonical));
+                }
+            }
+        }
+    }
+    Ok(None)
+}
+
 #[instrument(skip_all)]
 pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
     struct DiskIndex {

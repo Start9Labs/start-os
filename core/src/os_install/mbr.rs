@@ -64,8 +64,8 @@ pub async fn partition(
             };
 
         // MBR partition layout:
-        // Partition 1 (boot): starts at 2048, ends at 2099200 (sectors: 2097152 = 1GB)
-        // Partition 2 (root): starts at 2099200, ends at 33556480 (sectors: 31457280 = 15GB)
+        // Partition 1 (boot): starts at 2048, ends at 4196352 (sectors: 4194304 = 2GB)
+        // Partition 2 (root): starts at 4196352, ends at 33556480 (sectors: 29360128 = 14GB)
         // OS partitions end at sector 33556480
         let os_partitions_end_sector: u32 = 33556480;
 
@@ -99,15 +99,15 @@ pub async fn partition(
             sys: 0x0b,
             last_chs: CHS::empty(),
             starting_lba: 2048,
-            sectors: 2099200 - 2048,
+            sectors: 4196352 - 2048,
         };
         mbr[2] = MBRPartitionEntry {
             boot: 0,
             first_chs: CHS::empty(),
             sys: 0x83,
             last_chs: CHS::empty(),
-            starting_lba: 2099200,
-            sectors: 33556480 - 2099200,
+            starting_lba: 4196352,
+            sectors: 33556480 - 4196352,
         };
 
         let data_part = if let Some((starting_lba, part_sectors, path)) = protected_partition_info {

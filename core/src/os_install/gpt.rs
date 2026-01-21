@@ -93,14 +93,14 @@ pub async fn partition(
         };
         gpt.add_partition(
             "boot",
-            1024 * 1024 * 1024,
+            2 * 1024 * 1024 * 1024,
             gpt::partition_types::LINUX_FS,
             0,
             None,
         )?;
         gpt.add_partition(
             "root",
-            15 * 1024 * 1024 * 1024,
+            14 * 1024 * 1024 * 1024,
             match crate::ARCH {
                 "x86_64" => gpt::partition_types::LINUX_ROOT_X64,
                 "aarch64" => gpt::partition_types::LINUX_ROOT_ARM_64,
