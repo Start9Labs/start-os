@@ -149,6 +149,13 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async shutdown() {
+    await this.rpcRequest<void>({
+      method: 'setup.shutdown',
+      params: {},
+    })
+  }
+
   async restart() {
     await this.rpcRequest<void>({
       method: 'setup.restart',

@@ -73,7 +73,7 @@ import { SetupCompleteRes } from '../types'
           >
             <tui-avatar appearance="secondary" src="@tui.usb" />
             <div tuiTitle>
-              {{ 'Remove USB Media' | i18n }}
+              {{ 'USB Removed' | i18n }}
               <div tuiSubtitle>
                 {{
                   'Remove the USB installation media from your server' | i18n

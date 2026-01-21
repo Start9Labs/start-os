@@ -644,7 +644,7 @@ export const ENGLISH = {
   'http://start.local was for setup only. It will no longer work.': 675,
   'Download Address Info': 676,
   "Contains your server's permanent local address and Root CA": 677,
-  'Remove USB Media': 678,
+  'USB Removed': 678,
   'Remove the USB installation media from your server': 679,
   'Restart Server': 680,
   'Waiting for server to come back online': 681,
@@ -677,4 +677,7 @@ export const ENGLISH = {
   'The list is empty': 711,
   'Restart now': 712,
   'Later': 713, // as in, (do it) later
-} as const
+  'Installation Complete!': 714,
+  'StartOS has been installed successfully.': 715,
+  'Continue to Setup': 716,
+} as Record<any, any>

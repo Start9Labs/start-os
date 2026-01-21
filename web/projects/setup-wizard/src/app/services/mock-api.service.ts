@@ -70,13 +70,13 @@ export class MockApiService extends ApiService {
     this.statusIndex++
 
     if (this.statusIndex === 1) {
-      // return { status: 'needs-install', keyboard: null }
-      return {
-        status: 'incomplete',
-        attach: false,
-        guid: 'mock-data-guid',
-        keyboard: null,
-      }
+      return { status: 'needs-install', keyboard: null }
+      // return {
+      //   status: 'incomplete',
+      //   attach: false,
+      //   guid: 'mock-data-guid',
+      //   keyboard: null,
+      // }
     }
 
     if (this.statusIndex > 3) {
@@ -184,6 +184,10 @@ export class MockApiService extends ApiService {
   }
 
   async exit(): Promise<void> {
+    await pauseFor(500)
+  }
+
+  async shutdown(): Promise<void> {
     await pauseFor(500)
   }
 

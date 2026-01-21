@@ -336,12 +336,46 @@ export default class DrivesPage {
       this.stateService.dataDriveGuid = result.guid
       this.stateService.attach = result.attach
 
-      if (result.attach) {
-        this.stateService.setupType = 'attach'
-        await this.router.navigate(['/password'])
-      } else {
-        await this.router.navigate(['/home'])
-      }
+      loader.unsubscribe()
+
+      // Show success dialog
+      this.dialogs
+        .openConfirm({
+          label: 'Installation Complete!',
+          size: 's',
+          data: {
+            content: 'StartOS has been installed successfully.',
+            yes: 'Continue to Setup',
+            no: 'Shutdown',
+          },
+        })
+        .subscribe(continueSetup => {
+          if (continueSetup) {
+            this.navigateToNextStep(result.attach)
+          } else {
+            this.shutdownServer()
+          }
+        })
+    } catch (e: any) {
+      loader.unsubscribe()
+      this.errorService.handleError(e)
+    }
+  }
+
+  private async navigateToNextStep(attach: boolean) {
+    if (attach) {
+      this.stateService.setupType = 'attach'
+      await this.router.navigate(['/password'])
+    } else {
+      await this.router.navigate(['/home'])
+    }
+  }
+
+  private async shutdownServer() {
+    const loader = this.loader.open('Beginning shutdown').subscribe()
+
+    try {
+      await this.api.shutdown()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

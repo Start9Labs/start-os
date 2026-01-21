@@ -644,7 +644,7 @@ export default {
   675: 'http://start.local war nur für die Einrichtung gedacht. Es funktioniert nicht mehr.',
   676: 'Adressinformationen herunterladen',
   677: 'Enthält die permanente lokale Adresse Ihres Servers und die Root-CA',
-  678: 'USB-Medium entfernen',
+  678: 'USB entfernt',
   679: 'Entfernen Sie das USB-Installationsmedium aus Ihrem Server',
   680: 'Server neu starten',
   681: 'Warten, bis der Server wieder online ist',
@@ -677,4 +677,7 @@ export default {
   711: 'Die Liste ist leer',
   712: 'Jetzt neu starten',
   713: 'Später',
+  714: 'Installation abgeschlossen!',
+  715: 'StartOS wurde erfolgreich installiert.',
+  716: 'Weiter zur Einrichtung',
 } satisfies i18n

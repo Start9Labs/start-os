@@ -46,6 +46,7 @@ export abstract class ApiService {
   // Completion
   abstract complete(): Promise<SetupCompleteRes> // setup.complete
   abstract exit(): Promise<void> // setup.exit
+  abstract shutdown(): Promise<void> // setup.shutdown
 
   // Logs & Progress
   abstract initFollowLogs(): Promise<FollowLogsRes> // setup.logs.follow
