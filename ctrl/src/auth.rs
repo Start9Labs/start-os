@@ -410,8 +410,8 @@ pub async fn reset_password_impl(
     // Verify old password first
     check_password(&old_password).await?;
 
-    // Generate new password hash using SHA-256 crypt
-    let new_hash = pwhash::sha256_crypt::hash(&new_password)
+    // Generate new password hash using SHA-512 crypt
+    let new_hash = pwhash::sha512_crypt::hash(&new_password)
         .map_err(|e| Error::other(format!("Failed to hash password: {e}")))?;
 
     // Update /etc/shadow directly
