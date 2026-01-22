@@ -17,7 +17,7 @@ const SUMMARY_FIELDS = [
 type SummaryField = (typeof SUMMARY_FIELDS)[number]
 
 @Component({
-  selector: '[ipv4Summary]',
+  selector: '[wanIpv4Summary]',
   template: `
     <section>
       @for (item of items(); track item.label) {
@@ -32,7 +32,7 @@ type SummaryField = (typeof SUMMARY_FIELDS)[number]
   imports: [Summary, DnsSummary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Ipv4Summary {
+export class WanIpv4Summary {
   protected readonly service = injectFormService<WanIpv4Form>()
 
   readonly items = computed(() => {

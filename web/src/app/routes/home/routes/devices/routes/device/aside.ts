@@ -8,7 +8,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
     <h3>Summary</h3>
     <p>
       Displays the device's current status, connection type, security profile,
-      and IP addresses. A lock icon indicates a static IP assignment.
+      and IP addresses. A lock icon indicates a reserved IP address.
     </p>
 
     <h3>Data Usage</h3>
@@ -24,11 +24,11 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
       default to.
     </p>
 
-    <h3>Static IP</h3>
+    <h3>Reserved IP</h3>
     <p>
-      Enable static IP to assign a fixed IPv4 or IPv6 address that won't change
-      between reboots. Useful for servers, printers, NAS devices, or anything
-      you need to access by a consistent IP address.
+      Reserve an IP address to assign a fixed IPv4 or IPv6 address that won't
+      change between reboots. Useful for servers, printers, NAS devices, or
+      anything you need to access by a consistent IP address.
     </p>
 
     <h3>Block</h3>
@@ -47,8 +47,8 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
     <h3>Forget</h3>
     <p>
       Removes an offline or blocked device from your device list. Any custom
-      name or static IP settings will be lost. If the device reconnects, it will
-      appear as a new device.
+      name or reserved IP settings will be lost. If the device reconnects, it
+      will appear as a new device.
     </p>
   `,
   host: { class: 'g-aside' },

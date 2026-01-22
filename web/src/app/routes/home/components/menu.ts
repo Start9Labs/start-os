@@ -7,12 +7,12 @@ export const MENU = {
     },
     {
       name: 'Published Ports',
-      icon: '@tui.globe-lock',
+      icon: '@tui.door-open',
       link: 'published-ports',
     },
     {
       name: 'Outbound VPNs',
-      icon: '@tui.shield',
+      icon: '@tui.hat-glasses',
       link: 'outbound',
     },
   ],
@@ -31,7 +31,7 @@ export const MENU = {
   'Security Profiles': [
     {
       name: 'Profiles',
-      icon: '@tui.scroll-text',
+      icon: '@tui.user-lock',
       link: 'profiles',
     },
   ],

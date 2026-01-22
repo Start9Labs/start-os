@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   inject,
+  signal,
 } from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
@@ -14,12 +15,16 @@ import {
   injectFormService,
   provideFormService,
 } from 'src/app/services/form.service'
+import { LanIpv6UciService } from 'src/app/routes/home/routes/lan/routes/ipv6/uci/service'
+import { WanIpv6UciService } from 'src/app/routes/home/routes/wan/routes/ipv6/uci/service'
+import { WanIpv4UciService } from 'src/app/routes/home/routes/wan/routes/ipv4/uci/service'
+import { DdnsUciService } from 'src/app/routes/home/routes/wan/routes/ddns/uci/service'
 
 import { PublishedPortsAside } from './aside'
 import { PublishPortDialog } from './dialog'
 import { PublishedPortsService } from './service'
 import { PublishedPortsTable } from './table'
-import { PublishedPort, PublishedPortDisplay } from './types'
+import { PublishedPortDialogResult, PublishedPortDisplay } from './types'
 
 @Component({
   template: `
@@ -34,6 +39,7 @@ import { PublishedPort, PublishedPortDisplay } from './types'
       [style.margin-block.rem]="1"
       [style.min-height.rem]="loading() ? 10 : 0"
       [publishedPortsTable]="loading() ? [] : service.data() || []"
+      [ipv4EndpointHost]="ipv4EndpointHost()"
       [tuiSkeleton]="loading()"
       (edit)="edit($event)"
     ></table>
@@ -55,17 +61,57 @@ export default class PublishedPorts {
   protected readonly service = injectFormService<
     PublishedPortDisplay[]
   >() as PublishedPortsService
+  protected readonly lanIpv6Uci = inject(LanIpv6UciService)
+  protected readonly wanIpv6Uci = inject(WanIpv6UciService)
+  protected readonly wanIpv4Uci = inject(WanIpv4UciService)
+  protected readonly ddnsUci = inject(DdnsUciService)
   protected readonly loading = computed(() => !this.service.data())
+
+  protected readonly ipv6Available = signal(true)
+
+  // IPv4 endpoint host: DDNS hostname or WAN IP
+  protected readonly ipv4EndpointHost = signal<string | null>(null)
+
+  constructor() {
+    this.loadDependencies()
+  }
+
+  private async loadDependencies() {
+    const [wanEnabled, lanEnabled, ddnsHostname, wanIp] = await Promise.all([
+      this.wanIpv6Uci.isEnabled(),
+      this.lanIpv6Uci.isEnabled(),
+      this.ddnsUci.getHostname(),
+      this.wanIpv4Uci.getWanIp(),
+    ])
+    this.ipv6Available.set(wanEnabled && lanEnabled)
+
+    // Use DDNS hostname if available, otherwise WAN IP
+    this.ipv4EndpointHost.set(ddnsHostname || wanIp)
+  }
 
   add() {
     const devices = this.service.getDevices()
 
     this.dialogs
-      .open<PublishedPort>(new PolymorpheusComponent(PublishPortDialog), {
-        label: 'Publish Ports',
-        data: { devices },
-      })
-      .subscribe(value => {
+      .open<PublishedPortDialogResult>(
+        new PolymorpheusComponent(PublishPortDialog),
+        {
+          label: 'Publish Ports',
+          data: { devices, ipv6Available: this.ipv6Available() },
+        },
+      )
+      .subscribe(result => {
+        const { port: value, reserveIpv4, reserveIpv6 } = result
+
+        // Handle IP reservations if needed
+        if (reserveIpv4 || reserveIpv6) {
+          this.service.reserveDeviceIps(
+            value.deviceMac,
+            reserveIpv4,
+            reserveIpv6,
+          )
+        }
+
         // Enrich the new port with display data
         const device = this.service.getDevice(value.deviceMac)
         const newPort: PublishedPortDisplay = {
@@ -74,13 +120,6 @@ export default class PublishedPorts {
           deviceName: device?.name || device?.hostname,
           deviceIpv4: device?.ipv4,
           deviceIpv6: device?.ipv6,
-          endpointIpv4: value.ipv4
-            ? `example.ddns.net:${value.ipv4PublicPort || value.ports}`
-            : undefined,
-          endpointIpv6:
-            value.ipv6 && device?.ipv6
-              ? `[${device.ipv6}]:${value.ports}`
-              : undefined,
         }
 
         this.service.save([...(this.service.data() || []), newPort])
@@ -91,11 +130,29 @@ export default class PublishedPorts {
     const devices = this.service.getDevices()
 
     this.dialogs
-      .open<PublishedPort>(new PolymorpheusComponent(PublishPortDialog), {
-        label: 'Edit Published Port',
-        data: { devices, existing: item },
-      })
-      .subscribe(value => {
+      .open<PublishedPortDialogResult>(
+        new PolymorpheusComponent(PublishPortDialog),
+        {
+          label: 'Edit Published Port',
+          data: {
+            devices,
+            existing: item,
+            ipv6Available: this.ipv6Available(),
+          },
+        },
+      )
+      .subscribe(result => {
+        const { port: value, reserveIpv4, reserveIpv6 } = result
+
+        // Handle IP reservations if needed
+        if (reserveIpv4 || reserveIpv6) {
+          this.service.reserveDeviceIps(
+            value.deviceMac,
+            reserveIpv4,
+            reserveIpv6,
+          )
+        }
+
         // Update the port with new values
         const device = this.service.getDevice(value.deviceMac)
         const updatedPort: PublishedPortDisplay = {
@@ -104,13 +161,6 @@ export default class PublishedPorts {
           deviceName: device?.name || device?.hostname,
           deviceIpv4: device?.ipv4,
           deviceIpv6: device?.ipv6,
-          endpointIpv4: value.ipv4
-            ? `example.ddns.net:${value.ipv4PublicPort || value.ports}`
-            : undefined,
-          endpointIpv6:
-            value.ipv6 && device?.ipv6
-              ? `[${device.ipv6}]:${value.ports}`
-              : undefined,
         }
 
         // Replace the existing item

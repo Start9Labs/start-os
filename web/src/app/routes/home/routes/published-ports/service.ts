@@ -7,7 +7,10 @@ import {
   PublishedPortStatus,
 } from './types'
 import { DevicesUciService } from 'src/app/routes/home/routes/devices/uci/service'
-import { Device } from 'src/app/routes/home/routes/devices/utils'
+import {
+  Device,
+  DeviceUpdateData,
+} from 'src/app/routes/home/routes/devices/utils'
 
 @Injectable()
 export class PublishedPortsService extends FormService<PublishedPortDisplay[]> {
@@ -58,6 +61,33 @@ export class PublishedPortsService extends FormService<PublishedPortDisplay[]> {
   }
 
   /**
+   * Reserve static IP addresses for a device
+   */
+  async reserveDeviceIps(
+    mac: string,
+    reserveIpv4: boolean,
+    reserveIpv6: boolean,
+  ): Promise<void> {
+    const device = this.getDevice(mac)
+    if (!device) return
+
+    // Build update data with current device values
+    const updates: DeviceUpdateData = {
+      name: device.name,
+      ipv4Static: reserveIpv4 ? true : device.ipv4Static,
+      ipv4: device.ipv4 || '',
+      ipv6Static: reserveIpv6 ? true : device.ipv6Static,
+      ipv6: device.ipv6 || '',
+    }
+
+    await this.devicesUci.update(mac, updates)
+
+    // Update local device cache
+    if (reserveIpv4) device.ipv4Static = true
+    if (reserveIpv6) device.ipv6Static = true
+  }
+
+  /**
    * Check if a device has any published ports
    */
   deviceHasPublishedPorts(mac: string): boolean {
@@ -81,8 +111,6 @@ export class PublishedPortsService extends FormService<PublishedPortDisplay[]> {
         deviceName: device?.name || device?.hostname || 'Unknown Device',
         deviceIpv4: device?.ipv4,
         deviceIpv6: device?.ipv6,
-        endpointIpv4: this.computeEndpointIpv4(port, device),
-        endpointIpv6: this.computeEndpointIpv6(port, device),
       }
     })
   }
@@ -123,25 +151,5 @@ export class PublishedPortsService extends FormService<PublishedPortDisplay[]> {
     }
 
     return { status: 'active' }
-  }
-
-  private computeEndpointIpv4(
-    port: PublishedPort,
-    device?: Device,
-  ): string | undefined {
-    if (!port.ipv4 || !device?.ipv4) return undefined
-
-    const publicPort = port.ipv4PublicPort || port.ports
-    // TODO: Get actual DDNS hostname or WAN IP
-    return `example.ddns.net:${publicPort}`
-  }
-
-  private computeEndpointIpv6(
-    port: PublishedPort,
-    device?: Device,
-  ): string | undefined {
-    if (!port.ipv6 || !device?.ipv6) return undefined
-
-    return `[${device.ipv6}]:${port.ports}`
   }
 }

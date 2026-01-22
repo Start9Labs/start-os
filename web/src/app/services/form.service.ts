@@ -40,6 +40,13 @@ export abstract class FormService<T> {
   abstract load(): Promise<T>
   abstract store(data: T): Promise<void>
 
+  /**
+   * Force a refresh of the data
+   */
+  refresh(): void {
+    this.load$.next()
+  }
+
   async save(data: T): Promise<boolean> {
     const saving = this.saving$.subscribe()
 

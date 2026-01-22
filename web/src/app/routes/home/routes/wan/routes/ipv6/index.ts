@@ -1,8 +1,10 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   inject,
+  signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
@@ -18,19 +20,20 @@ import {
   provideFormService,
 } from 'src/app/services/form.service'
 import { CustomValidators } from 'src/app/utils/validators'
-import { IPv6Aside } from './aside'
+import { PublishedPortsUciService } from 'src/app/routes/home/routes/published-ports/uci/service'
+import { WanIpv6Aside } from './aside'
 import { Dns } from '../../dns/dns'
 import { updateDnsValidators } from '../../dns/utils'
-import { Ipv6Ip } from './form/ip'
-import { Ipv6Summary } from './summary'
-import { Ipv6Service } from './service'
+import { WanIpv6Ip } from './form/ip'
+import { WanIpv6Summary } from './summary'
+import { WanIpv6Service } from './service'
 import { getWanIpv6Form, updateIpv6Validators, WanIpv6Form } from './utils'
 
 @Component({
   template: `
-    <ipv6-aside *help />
+    <wan-ipv6-aside *help />
     <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
-    <article ipv6Summary [formLoading]="!service.data()"></article>
+    <article wanIpv6Summary [formLoading]="!service.data()"></article>
     <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
     <form
       [formGroup]="form"
@@ -38,7 +41,7 @@ import { getWanIpv6Form, updateIpv6Validators, WanIpv6Form } from './utils'
       (reset.prevent)="form.reset(service.data())"
       (ngSubmit)="onSave()"
     >
-      <ipv6-ip formGroupName="ip" />
+      <wan-ipv6-ip formGroupName="ip" [disabledLocked]="hasIpv6Ports()" />
       @if (ipMode() !== 'disabled') {
         <wan-dns [mode]="dnsMode()" formGroupName="dns" />
       }
@@ -54,20 +57,24 @@ import { getWanIpv6Form, updateIpv6Validators, WanIpv6Form } from './utils'
     Footer,
     Form,
     Help,
-    Ipv6Summary,
-    Ipv6Ip,
+    WanIpv6Summary,
+    WanIpv6Ip,
     Dns,
-    IPv6Aside,
+    WanIpv6Aside,
   ],
   host: { class: 'g-page' },
-  providers: [provideFormService(Ipv6Service)],
+  providers: [provideFormService(WanIpv6Service)],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export default class Ipv6 {
+export default class WanIpv6 {
   protected readonly builder = inject(NonNullableFormBuilder)
   protected readonly service = injectFormService<WanIpv6Form>()
+  private readonly publishedPortsUci = inject(PublishedPortsUciService)
 
   readonly form = getWanIpv6Form(this.builder)
+
+  // Track if any published port uses IPv6
+  readonly hasIpv6Ports = signal(false)
 
   readonly ipMode = toSignal(
     this.form.controls.ip.controls.mode.valueChanges.pipe(
@@ -84,6 +91,9 @@ export default class Ipv6 {
   )
 
   constructor() {
+    // Load IPv6 port usage
+    this.loadIpv6PortUsage()
+
     // Reset form when data loads
     effect(() => {
       const data = this.service.data()
@@ -113,6 +123,11 @@ export default class Ipv6 {
         ])
       }
     })
+  }
+
+  private async loadIpv6PortUsage() {
+    const hasPorts = await this.publishedPortsUci.hasIpv6Ports()
+    this.hasIpv6Ports.set(hasPorts)
   }
 
   async onSave() {

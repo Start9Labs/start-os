@@ -27,6 +27,61 @@ const SERVICE_PROVIDER_MAP = Object.fromEntries(
 export class DdnsUciService {
   private readonly api = inject(ApiService)
   private _uciFiles?: UciFiles
+  private _cachedData?: DdnsForm
+
+  /**
+   * Check if DDNS is enabled
+   */
+  async isEnabled(): Promise<boolean> {
+    const data = await this.get()
+    return data.enabled
+  }
+
+  /**
+   * Get the DDNS hostname if enabled
+   * Always fetches fresh data to ensure accuracy
+   * For Start9: queries the auto-assigned hostname from the system
+   * For other providers: returns the user-configured hostname
+   */
+  async getHostname(): Promise<string | null> {
+    const data = await this.get()
+    if (!data.enabled) return null
+
+    // Start9 auto-assigns a hostname - query it from the system
+    if (data.provider === 'start9') {
+      return this.getStart9Hostname()
+    }
+
+    return data.fields.hostname || null
+  }
+
+  /**
+   * Get the Start9 auto-assigned DDNS hostname
+   * Start9 stores the assigned hostname in /etc/start9/hostname
+   */
+  private async getStart9Hostname(): Promise<string | null> {
+    try {
+      const result = await this.api.exec({
+        command: 'cat',
+        args: ['/etc/start9/hostname'],
+        timeout: 5000,
+      })
+      if (result.exitCode === 0 && result.stdout.trim()) {
+        return result.stdout.trim()
+      }
+    } catch {
+      // File doesn't exist or not accessible
+    }
+    return null
+  }
+
+  /**
+   * Get cached data or load if not available
+   */
+  async getData(): Promise<DdnsForm> {
+    if (this._cachedData) return this._cachedData
+    return this.get()
+  }
 
   async get(): Promise<DdnsForm> {
     this._uciFiles = await this.api.getUci<UciFiles>({
@@ -39,7 +94,7 @@ export class DdnsUciService {
     )
 
     if (!ddnsService) {
-      return {
+      this._cachedData = {
         enabled: false,
         provider: 'start9',
         fields: {
@@ -50,12 +105,13 @@ export class DdnsUciService {
           zone: '',
         },
       }
+      return this._cachedData
     }
 
     const serviceName = ddnsService.options.service_name || ''
     const provider = SERVICE_PROVIDER_MAP[serviceName] || 'start9'
 
-    return {
+    this._cachedData = {
       enabled: ddnsService.options.enabled === '1',
       provider,
       fields: {
@@ -67,6 +123,8 @@ export class DdnsUciService {
         zone: '', // Cloudflare-specific, stored differently
       },
     }
+
+    return this._cachedData
   }
 
   async set({ enabled, provider, fields }: DdnsForm): Promise<void> {
@@ -121,6 +179,9 @@ export class DdnsUciService {
     }
 
     await this.api.setUci<(keyof typeof uciFiles)[]>(uciFiles)
+
+    // Clear cache
+    this._cachedData = undefined
 
     // Restart DDNS service
     await this.api.exec({

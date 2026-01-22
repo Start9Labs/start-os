@@ -38,6 +38,7 @@ type UciFiles = {
 export class PublishedPortsUciService {
   private readonly api = inject(ApiService)
   private _uciFiles?: UciFiles
+  private _cachedPorts?: PublishedPort[]
 
   async get(): Promise<PublishedPort[]> {
     this._uciFiles = await this.api.getUci<UciFiles>({
@@ -50,7 +51,45 @@ export class PublishedPortsUciService {
       (s): s is FirewallRedirectSection => s.type === 'redirect',
     )
 
-    return redirects.map(section => this.sectionToPublishedPort(section))
+    this._cachedPorts = redirects.map(section =>
+      this.sectionToPublishedPort(section),
+    )
+    return this._cachedPorts
+  }
+
+  /**
+   * Get cached ports or load them if not available
+   */
+  async getPorts(): Promise<PublishedPort[]> {
+    if (this._cachedPorts) return this._cachedPorts
+    return this.get()
+  }
+
+  /**
+   * Check if a device has any published port rules using a specific IP version
+   */
+  async getDevicePortUsage(
+    mac: string,
+  ): Promise<{ usesIpv4: boolean; usesIpv6: boolean }> {
+    const ports = await this.getPorts()
+    const macUpper = mac.toUpperCase()
+
+    const devicePorts = ports.filter(
+      p => p.deviceMac.toUpperCase() === macUpper && p.enabled,
+    )
+
+    return {
+      usesIpv4: devicePorts.some(p => p.ipv4),
+      usesIpv6: devicePorts.some(p => p.ipv6),
+    }
+  }
+
+  /**
+   * Check if any published port uses IPv6
+   */
+  async hasIpv6Ports(): Promise<boolean> {
+    const ports = await this.getPorts()
+    return ports.some(p => p.ipv6 && p.enabled)
   }
 
   async set(items: PublishedPort[]): Promise<void> {
@@ -72,6 +111,9 @@ export class PublishedPortsUciService {
     uciFiles.firewall.sections.push(...newSections)
 
     await this.api.setUci<(keyof typeof uciFiles)[]>(uciFiles)
+
+    // Update cache
+    this._cachedPorts = items
 
     // Restart firewall
     await this.api.exec({

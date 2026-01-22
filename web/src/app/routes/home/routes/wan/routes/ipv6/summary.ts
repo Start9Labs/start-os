@@ -14,7 +14,7 @@ const SUMMARY_FIELDS = [
 ] as const
 
 @Component({
-  selector: '[ipv6Summary]',
+  selector: '[wanIpv6Summary]',
   template: `
     <section>
       @for (item of items(); track item.label) {
@@ -29,7 +29,7 @@ const SUMMARY_FIELDS = [
   imports: [Summary, DnsSummary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Ipv6Summary {
+export class WanIpv6Summary {
   protected readonly service = injectFormService<WanIpv6Form>()
 
   readonly items = computed(() => {

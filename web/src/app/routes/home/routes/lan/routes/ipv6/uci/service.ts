@@ -24,6 +24,23 @@ export type LanIpv6Data = LanIpv6Form & {
 export class LanIpv6UciService {
   private readonly api = inject(ApiService)
   private _uciFiles?: UciFiles
+  private _cachedData?: LanIpv6Data
+
+  /**
+   * Check if LAN IPv6 is enabled (SLAAC or DHCPv6 active)
+   */
+  async isEnabled(): Promise<boolean> {
+    const data = await this.getData()
+    return data.strategy.slaac || data.strategy.dhcpv6
+  }
+
+  /**
+   * Get cached data or load if not available
+   */
+  async getData(): Promise<LanIpv6Data> {
+    if (this._cachedData) return this._cachedData
+    return this.get()
+  }
 
   async get(): Promise<LanIpv6Data> {
     this._uciFiles = await this.api.getUci<UciFiles>({
@@ -74,7 +91,7 @@ export class LanIpv6UciService {
     // Get IPv6 address for summary (if assigned)
     const ip6addr = lanInterface?.options.ip6addr || ''
 
-    return {
+    this._cachedData = {
       strategy: {
         slaac,
         dhcpv6,
@@ -85,6 +102,8 @@ export class LanIpv6UciService {
       ip6addr,
       wanPrefix,
     }
+
+    return this._cachedData
   }
 
   async set(form: LanIpv6Form): Promise<void> {
@@ -151,6 +170,9 @@ export class LanIpv6UciService {
     }
 
     await this.api.setUci<(keyof typeof uciFiles)[]>(uciFiles)
+
+    // Clear cache
+    this._cachedData = undefined
 
     // Restart services
     await this.api.exec({

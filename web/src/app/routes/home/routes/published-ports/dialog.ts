@@ -5,6 +5,7 @@ import {
   inject,
   OnInit,
 } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -17,6 +18,7 @@ import {
   TuiError,
   TuiInput,
   TuiLabel,
+  TuiNotification,
   TuiTextfield,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
@@ -29,11 +31,12 @@ import {
 import { TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { injectContext } from '@taiga-ui/polymorpheus'
 import { Device } from 'src/app/routes/home/routes/devices/utils'
-import { Protocol, PublishedPort } from './types'
+import { Protocol, PublishedPort, PublishedPortDialogResult } from './types'
 
 export interface PublishPortDialogData {
   devices: Device[]
   existing?: PublishedPort
+  ipv6Available: boolean
 }
 
 @Component({
@@ -125,11 +128,17 @@ export interface PublishPortDialogData {
         formControlName="ipVersion"
         [items]="ipVersionValues"
         [itemContent]="ipVersionContent"
+        [disabledItemHandler]="isIpVersionDisabled"
         [style.flex-direction]="'row'"
       />
       <ng-template #ipVersionContent let-value>
         {{ getIpVersionLabel(value) }}
       </ng-template>
+      @if (!context.data.ipv6Available) {
+        <div class="ipv6-unavailable-hint">
+          IPv6 options require WAN IPv6 and LAN IPv6 to be enabled
+        </div>
+      }
 
       @if (form.value.ipVersion === 'ipv4' || form.value.ipVersion === 'both') {
         <h3 tuiHeader="body-m">IPv4 External Port(s)</h3>
@@ -153,6 +162,17 @@ export interface PublishPortDialogData {
           </tui-textfield>
           <tui-error formControlName="ipv4PublicPort" />
         }
+      }
+
+      @if (reservationNeeds().ipv4) {
+        <div tuiNotification appearance="info" size="s">
+          Device IPv4 address will be reserved
+        </div>
+      }
+      @if (reservationNeeds().ipv6) {
+        <div tuiNotification appearance="info" size="s">
+          Device IPv6 address will be reserved
+        </div>
       }
 
       <footer>
@@ -200,10 +220,24 @@ export interface PublishPortDialogData {
     .device-option {
       display: flex;
       flex-direction: column;
+
+      .g-secondary {
+        white-space: pre-line;
+      }
     }
 
     .public-port-input {
       max-width: 10rem;
+    }
+
+    [tuiNotification] {
+      margin-top: 0.5rem;
+    }
+
+    .ipv6-unavailable-hint {
+      font-size: 0.8125rem;
+      color: var(--tui-text-secondary);
+      margin-top: 0.25rem;
     }
   `,
   providers: [
@@ -225,12 +259,15 @@ export interface PublishPortDialogData {
     TuiChevron,
     TuiRadioList,
     TuiHeader,
+    TuiNotification,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PublishPortDialog implements OnInit {
   protected readonly context =
-    injectContext<TuiDialogContext<PublishedPort, PublishPortDialogData>>()
+    injectContext<
+      TuiDialogContext<PublishedPortDialogResult, PublishPortDialogData>
+    >()
 
   // Port pattern: single port (1-65535) or range (port-port)
   private readonly portPattern =
@@ -248,6 +285,32 @@ export class PublishPortDialog implements OnInit {
     ipVersion: ['both' as 'ipv4' | 'ipv6' | 'both'],
     ipv4PublicPortType: ['same' as 'same' | 'other'],
     ipv4PublicPort: [''],
+  })
+
+  // Track form values as signals for computed
+  private readonly selectedDeviceMac = toSignal(
+    this.form.controls.deviceMac.valueChanges,
+    { initialValue: '' },
+  )
+  private readonly selectedIpVersion = toSignal(
+    this.form.controls.ipVersion.valueChanges,
+    { initialValue: 'both' as const },
+  )
+
+  // Compute which reservations are needed
+  protected readonly reservationNeeds = computed(() => {
+    const mac = this.selectedDeviceMac()
+    const ipVersion = this.selectedIpVersion()
+    const device = this.deviceMap().get(mac)
+
+    if (!device) return { ipv4: false, ipv6: false }
+
+    const needsIpv4 =
+      (ipVersion === 'ipv4' || ipVersion === 'both') && !device.ipv4Static
+    const needsIpv6 =
+      (ipVersion === 'ipv6' || ipVersion === 'both') && !device.ipv6Static
+
+    return { ipv4: needsIpv4, ipv6: needsIpv6 }
   })
 
   protected readonly protocolValues: Protocol[] = ['tcp', 'udp', 'tcp+udp']
@@ -270,6 +333,13 @@ export class PublishPortDialog implements OnInit {
     both: 'IPv4 + IPv6',
   }
 
+  protected readonly isIpVersionDisabled = (value: string): boolean => {
+    if (!this.context.data.ipv6Available) {
+      return value === 'ipv6' || value === 'both'
+    }
+    return false
+  }
+
   protected readonly publicPortTypeValues = ['same', 'other'] as const
   private readonly publicPortTypeLabels: Record<string, string> = {
     same: 'Same as device',
@@ -278,6 +348,8 @@ export class PublishPortDialog implements OnInit {
 
   ngOnInit() {
     const existing = this.context.data.existing
+    const ipv6Available = this.context.data.ipv6Available
+
     if (existing) {
       const isPublicPortSame =
         !existing.ipv4PublicPort || existing.ipv4PublicPort === existing.ports
@@ -292,6 +364,11 @@ export class PublishPortDialog implements OnInit {
         ipVersion = 'ipv6'
       }
 
+      // If IPv6 is not available, force to IPv4
+      if (!ipv6Available && (ipVersion === 'ipv6' || ipVersion === 'both')) {
+        ipVersion = 'ipv4'
+      }
+
       this.form.patchValue({
         label: existing.label,
         deviceMac: existing.deviceMac,
@@ -303,6 +380,11 @@ export class PublishPortDialog implements OnInit {
         ipv4PublicPortType: isPublicPortSame ? 'same' : 'other',
         ipv4PublicPort: existing.ipv4PublicPort || '',
       })
+    } else {
+      // For new ports, default to IPv4 only if IPv6 is not available
+      if (!ipv6Available) {
+        this.form.patchValue({ ipVersion: 'ipv4' })
+      }
     }
 
     // Update sourceValue validator when sourceType changes
@@ -397,13 +479,9 @@ export class PublishPortDialog implements OnInit {
     const device = this.deviceMap().get(mac)
     if (!device) return undefined
 
-    const parts: string[] = []
-    if (device.connection) parts.push(device.connection)
-    if (device.ipv4) parts.push(device.ipv4)
-
     return {
       label: device.name || device.hostname,
-      sublabel: parts.join(' • '),
+      sublabel: [device.ipv4, mac].filter(Boolean).join('\n'),
     }
   }
 
@@ -429,7 +507,7 @@ export class PublishPortDialog implements OnInit {
           : value.ipv4PublicPort || value.ports
     }
 
-    const result: PublishedPort = {
+    const port: PublishedPort = {
       id: existing?.id || crypto.randomUUID(),
       enabled: existing?.enabled ?? true,
       label: value.label,
@@ -440,6 +518,13 @@ export class PublishPortDialog implements OnInit {
       ipv6,
       ipv4PublicPort,
       source: value.sourceType === 'any' ? 'any' : value.sourceValue,
+    }
+
+    const needs = this.reservationNeeds()
+    const result: PublishedPortDialogResult = {
+      port,
+      reserveIpv4: needs.ipv4,
+      reserveIpv6: needs.ipv6,
     }
 
     this.context.completeWith(result)

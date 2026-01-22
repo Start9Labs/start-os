@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 
 @Component({
-  selector: 'ipv4-aside',
+  selector: 'wan-ipv4-aside',
   template: `
     <h3>IP Address</h3>
     <ul>
@@ -37,4 +37,4 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
   host: { class: 'g-aside' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class IPv4Aside {}
+export class WanIpv4Aside {}

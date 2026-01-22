@@ -28,6 +28,7 @@ type SortColumn =
   | 'name'
   | 'device'
   | 'protocol'
+  | 'ipVersion'
   | 'ports'
   | 'source'
   | null
@@ -69,6 +70,15 @@ type SortDirection = 'asc' | 'desc'
         </th>
         <th
           tuiTh
+          [class.active]="sortColumn() === 'ports'"
+          class="sortable"
+          (click)="toggleSort('ports')"
+        >
+          Port(s)
+          <tui-icon [icon]="getSortIcon('ports')" />
+        </th>
+        <th
+          tuiTh
           [class.active]="sortColumn() === 'protocol'"
           class="sortable"
           (click)="toggleSort('protocol')"
@@ -78,12 +88,12 @@ type SortDirection = 'asc' | 'desc'
         </th>
         <th
           tuiTh
-          [class.active]="sortColumn() === 'ports'"
+          [class.active]="sortColumn() === 'ipVersion'"
           class="sortable"
-          (click)="toggleSort('ports')"
+          (click)="toggleSort('ipVersion')"
         >
-          Port(s)
-          <tui-icon [icon]="getSortIcon('ports')" />
+          IP Version
+          <tui-icon [icon]="getSortIcon('ipVersion')" />
         </th>
         <th
           tuiTh
@@ -94,7 +104,7 @@ type SortDirection = 'asc' | 'desc'
           Source
           <tui-icon [icon]="getSortIcon('source')" />
         </th>
-        <th tuiTh [style.min-width.rem]="14">Endpoints</th>
+        <th tuiTh [style.min-width.rem]="16">Endpoints</th>
         <th tuiTh [style.width.rem]="3"></th>
       </tr>
     </thead>
@@ -122,34 +132,33 @@ type SortDirection = 'asc' | 'desc'
             <strong>{{ item.label }}</strong>
           </td>
           <td tuiTd>
-            <a tuiLink [routerLink]="['/devices', item.deviceMac]">
+            <a
+              tuiLink
+              [routerLink]="['/devices', item.deviceMac]"
+              [state]="{ returnUrl: '/published-ports' }"
+            >
               {{ item.deviceName }}
             </a>
           </td>
-          <td tuiTd>{{ protocolLabel(item.protocol) }}</td>
           <td tuiTd>{{ item.ports }}</td>
+          <td tuiTd>{{ protocolLabel(item.protocol) }}</td>
+          <td tuiTd>{{ ipVersionLabel(item) }}</td>
           <td tuiTd>{{ item.source === 'any' ? 'Any' : item.source }}</td>
           <td tuiTd>
             <div class="endpoints">
-              @if (item.endpointIpv4) {
-                <button
-                  class="endpoint"
-                  (click)="copyEndpoint(item.endpointIpv4)"
-                >
-                  {{ item.endpointIpv4 }}
+              @if (getEndpointIpv4(item); as endpoint) {
+                <button class="endpoint" (click)="copyEndpoint(endpoint)">
+                  {{ endpoint }}
                   <tui-icon icon="@tui.copy" class="copy-icon" />
                 </button>
               }
-              @if (item.endpointIpv6) {
-                <button
-                  class="endpoint"
-                  (click)="copyEndpoint(item.endpointIpv6)"
-                >
-                  {{ item.endpointIpv6 }}
+              @if (getEndpointIpv6(item); as endpoint) {
+                <button class="endpoint" (click)="copyEndpoint(endpoint)">
+                  {{ endpoint }}
                   <tui-icon icon="@tui.copy" class="copy-icon" />
                 </button>
               }
-              @if (!item.endpointIpv4 && !item.endpointIpv6) {
+              @if (!getEndpointIpv4(item) && !getEndpointIpv6(item)) {
                 <span class="no-endpoint">—</span>
               }
             </div>
@@ -202,7 +211,7 @@ type SortDirection = 'asc' | 'desc'
         </tr>
       } @empty {
         <tr>
-          <td tuiTd colspan="8">
+          <td tuiTd colspan="9">
             <app-placeholder icon="@tui.globe">
               No ports have been published
             </app-placeholder>
@@ -274,6 +283,7 @@ type SortDirection = 'asc' | 'desc'
       display: flex;
       flex-direction: column;
       gap: 0.25rem;
+      white-space: nowrap;
 
       .endpoint {
         background: none;
@@ -283,7 +293,6 @@ type SortDirection = 'asc' | 'desc'
         color: var(--tui-text-action);
         cursor: pointer;
         text-align: left;
-        word-break: break-all;
         display: inline-flex;
         align-items: center;
         gap: 0.25rem;
@@ -344,6 +353,7 @@ export class PublishedPortsTable {
   protected readonly service = injectFormService<PublishedPortDisplay[]>()
 
   public readonly publishedPortsTable = input<PublishedPortDisplay[]>([])
+  public readonly ipv4EndpointHost = input<string | null>(null)
   public readonly edit = output<PublishedPortDisplay>()
 
   protected dropdownOpen: boolean[] = []
@@ -365,6 +375,7 @@ export class PublishedPortsTable {
     if (!column) return items
 
     const statusOrder = ['active', 'partial', 'paused', 'error', 'disabled']
+    const ipVersionOrder = ['ipv4', 'ipv6', 'both']
 
     return [...items].sort((a, b) => {
       let compare = 0
@@ -382,6 +393,11 @@ export class PublishedPortsTable {
           break
         case 'protocol':
           compare = a.protocol.localeCompare(b.protocol)
+          break
+        case 'ipVersion':
+          compare =
+            ipVersionOrder.indexOf(this.getIpVersion(a)) -
+            ipVersionOrder.indexOf(this.getIpVersion(b))
           break
         case 'ports':
           compare = a.ports.localeCompare(b.ports, undefined, { numeric: true })
@@ -415,6 +431,43 @@ export class PublishedPortsTable {
 
   protected protocolLabel(protocol: string) {
     return PROTOCOL_LABELS[protocol as keyof typeof PROTOCOL_LABELS] || protocol
+  }
+
+  protected ipVersionLabel(item: PublishedPortDisplay): string {
+    const version = this.getIpVersion(item)
+    if (version === 'both') return 'IPv4 + IPv6'
+    if (version === 'ipv6') return 'IPv6'
+    return 'IPv4'
+  }
+
+  private getIpVersion(item: PublishedPortDisplay): 'ipv4' | 'ipv6' | 'both' {
+    if (item.ipv4 && item.ipv6) return 'both'
+    if (item.ipv6) return 'ipv6'
+    return 'ipv4'
+  }
+
+  protected getEndpointIpv4(item: PublishedPortDisplay): string | null {
+    if (!item.ipv4) return null
+    const host = this.ipv4EndpointHost()
+    if (!host) return null
+    const port = item.ipv4PublicPort || item.ports
+    return `${host}:${port}`
+  }
+
+  protected getEndpointIpv6(item: PublishedPortDisplay): string | null {
+    if (!item.ipv6 || !item.deviceIpv6) return null
+    // Don't show non-routable addresses:
+    // - fe80:: = link-local (not routable)
+    // - fd = ULA (local only, requires WAN IPv6 for global address)
+    // - :: = incomplete/placeholder
+    if (
+      item.deviceIpv6.startsWith('fe80:') ||
+      item.deviceIpv6.startsWith('fd') ||
+      item.deviceIpv6.startsWith('::')
+    ) {
+      return null
+    }
+    return `[${item.deviceIpv6}]:${item.ports}`
   }
 
   protected copyEndpoint(endpoint: string) {

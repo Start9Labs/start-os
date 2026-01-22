@@ -21,9 +21,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
     <h3>Source</h3>
     Limit who can connect by specifying an IP address or CIDR range. Use "Any"
     to allow connections from anywhere on the internet.
-    <h3>IP Versions</h3>
-    IPv4 uses NAT to forward traffic. IPv6 opens the firewall directly to the
-    device. Enable both for maximum compatibility.
+    <h3>Endpoints</h3>
+    The public addresses where this port can be reached. IPv4 endpoints use NAT
+    to forward traffic, while IPv6 opens the firewall directly to the device.
   `,
   host: { class: 'g-aside' },
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -11,6 +11,7 @@ export const mockDhcpHosts: DhcpHostSection[] = [
     options: {
       mac: '00:1A:2B:3C:4D:5E',
       ip: '192.168.1.100',
+      hostid: '1a2b:3c4d:5e00:0001', // IPv6 reservation for published port
       name: 'humble-weeds',
       dns: '1',
     },
@@ -21,6 +22,7 @@ export const mockDhcpHosts: DhcpHostSection[] = [
     name: 'host_pixel',
     options: {
       mac: '00:1A:2B:3C:4D:5F',
+      ip: '192.168.1.101', // IPv4 reservation for published port
       name: 'Pixel',
       dns: '1',
     },
@@ -41,8 +43,6 @@ export const mockDhcpHosts: DhcpHostSection[] = [
     name: 'host_mariusz',
     options: {
       mac: 'DE:AD:BE:EF:CA:FF',
-      ip: '192.168.1.103',
-      hostid: 'dead:beef:cafe:0002',
       name: "Mariusz's Phone",
       dns: '1',
     },
@@ -69,12 +69,49 @@ export const mockBlockedDevices: FirewallRuleSection[] = [
 
 // Mock ARP table output (from `ip neigh show`)
 // Format: IP dev INTERFACE lladdr MAC STATE
-export const mockArpOutput = `192.168.1.100 dev br-lan lladdr 00:1a:2b:3c:4d:5e REACHABLE
+
+// Base ARP output (IPv4 + link-local IPv6)
+const mockArpBase = `192.168.1.100 dev br-lan lladdr 00:1a:2b:3c:4d:5e REACHABLE
 192.168.1.101 dev br-lan lladdr 00:1a:2b:3c:4d:5f STALE
 192.168.1.102 dev br-lan lladdr de:ad:be:ef:ca:fe STALE
 192.168.1.103 dev br-lan lladdr de:ad:be:ef:ca:ff REACHABLE
 fe80::1a:2bff:fe3c:4d5e dev br-lan lladdr 00:1a:2b:3c:4d:5e REACHABLE
 fe80::1a:2bff:fe3c:4d5f dev br-lan lladdr 00:1a:2b:3c:4d:5f STALE`
+
+// Global IPv6 addresses (when WAN IPv6 is enabled)
+const mockArpGlobalIpv6 = `2001:db8:abcd:1::100 dev br-lan lladdr 00:1a:2b:3c:4d:5e REACHABLE
+2001:db8:abcd:1::101 dev br-lan lladdr 00:1a:2b:3c:4d:5f STALE
+2001:db8:abcd:1::102 dev br-lan lladdr de:ad:be:ef:ca:fe STALE
+2001:db8:abcd:1::103 dev br-lan lladdr de:ad:be:ef:ca:ff REACHABLE`
+
+// ULA IPv6 addresses (when WAN IPv6 is disabled but LAN IPv6 is enabled)
+const mockArpUlaIpv6 = `fd00:1234:5678::100 dev br-lan lladdr 00:1a:2b:3c:4d:5e REACHABLE
+fd00:1234:5678::101 dev br-lan lladdr 00:1a:2b:3c:4d:5f STALE
+fd00:1234:5678::102 dev br-lan lladdr de:ad:be:ef:ca:fe STALE
+fd00:1234:5678::103 dev br-lan lladdr de:ad:be:ef:ca:ff REACHABLE`
+
+// Export function to get ARP output based on IPv6 status
+export function getMockArpOutput(
+  wanIpv6Enabled: boolean,
+  lanIpv6Enabled: boolean,
+): string {
+  if (!lanIpv6Enabled) {
+    // No IPv6 at all - just base (IPv4 + link-local)
+    return mockArpBase
+  }
+  if (wanIpv6Enabled) {
+    // Global IPv6 addresses
+    return `${mockArpBase}
+${mockArpGlobalIpv6}`
+  }
+  // ULA IPv6 addresses (LAN IPv6 only)
+  return `${mockArpBase}
+${mockArpUlaIpv6}`
+}
+
+// Default export for backwards compatibility (assumes both enabled)
+export const mockArpOutput = `${mockArpBase}
+${mockArpGlobalIpv6}`
 
 // Mock DHCP leases file output (from /tmp/dhcp.leases)
 // Format: expiry_timestamp mac_address ip_address hostname client_id

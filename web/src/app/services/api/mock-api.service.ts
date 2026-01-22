@@ -16,17 +16,22 @@ import {
   SetPasswordReq,
   SetPreferencesReq,
 } from './api.service'
-import { UciFile, UciSection } from './types'
+import {
+  DhcpSection,
+  NetworkInterfaceSection,
+  UciFile,
+  UciSection,
+} from './types'
 import { wanIpv4Dhcp } from 'src/app/routes/home/routes/wan/routes/ipv4/uci/mocks'
 import { wanIpv6Slaac } from 'src/app/routes/home/routes/wan/routes/ipv6/uci/mock'
-import { ddnsStart9 } from 'src/app/routes/home/routes/wan/routes/ddns/uci/mocks'
+import { ddnsDyndns } from 'src/app/routes/home/routes/wan/routes/ddns/uci/mocks'
 import { macRouterDevice } from 'src/app/routes/home/routes/wan/routes/mac/uci/mocks'
 import { lanDefault } from 'src/app/routes/home/routes/lan/routes/ipv4/uci/mocks'
 import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/home/routes/lan/routes/ipv6/uci/mocks'
 import { mockWireGuardSections } from 'src/app/routes/home/routes/outbound/uci/mocks'
 import {
   generateMockDataUsage,
-  mockArpOutput,
+  getMockArpOutput,
   mockBlockedDevices,
   mockDhcpHosts,
   mockDhcpLeasesOutput,
@@ -54,9 +59,13 @@ export class MockApiService extends ApiService {
 
     // Handle specific commands for device discovery
     if (params.command === 'ip' && params.args[0] === 'neigh') {
+      // Check WAN and LAN IPv6 status to determine which addresses to show
+      const wanIpv6Enabled = this.isWanIpv6Enabled()
+      const lanIpv6Enabled = this.isLanIpv6Enabled()
+
       return {
         exitCode: 0,
-        stdout: mockArpOutput,
+        stdout: getMockArpOutput(wanIpv6Enabled, lanIpv6Enabled),
         stderr: '',
       }
     }
@@ -69,15 +78,41 @@ export class MockApiService extends ApiService {
       }
     }
 
+    // Mock Start9 DDNS hostname file
+    if (params.command === 'cat' && params.args[0] === '/etc/start9/hostname') {
+      return {
+        exitCode: 0,
+        stdout: 'abc123xyz.start9.net',
+        stderr: '',
+      }
+    }
+
     // Handle service restart commands
     if (
       params.command === '/etc/init.d/firewall' ||
       params.command === '/etc/init.d/dnsmasq' ||
-      params.command === '/etc/init.d/network'
+      params.command === '/etc/init.d/network' ||
+      params.command === '/etc/init.d/ddns'
     ) {
       return {
         exitCode: 0,
         stdout: '',
+        stderr: '',
+      }
+    }
+
+    // Handle ubus calls for WAN status
+    if (
+      params.command === 'ubus' &&
+      params.args[0] === 'call' &&
+      params.args[1] === 'network.interface.wan'
+    ) {
+      return {
+        exitCode: 0,
+        stdout: JSON.stringify({
+          'ipv4-address': [{ address: '203.0.113.45', mask: 24 }],
+          'ipv6-address': [],
+        }),
         stderr: '',
       }
     }
@@ -261,6 +296,40 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
     await pauseFor(300)
     return null
   }
+
+  /**
+   * Check if WAN IPv6 is enabled in mock UCI data
+   */
+  private isWanIpv6Enabled(): boolean {
+    const network = mockUci['network']
+    if (!network) return false
+
+    const wan6 = network.sections.find(
+      s => s.type === 'interface' && s.name === 'wan6',
+    ) as NetworkInterfaceSection | undefined
+    if (!wan6) return false
+
+    // Check if proto is not 'none' or disabled
+    const proto = wan6.options?.proto
+    return !!proto && proto !== 'none'
+  }
+
+  /**
+   * Check if LAN IPv6 is enabled in mock UCI data
+   */
+  private isLanIpv6Enabled(): boolean {
+    const dhcp = mockUci['dhcp']
+    if (!dhcp) return false
+
+    const lan = dhcp.sections.find(
+      s => s.type === 'dhcp' && s.name === 'lan',
+    ) as DhcpSection | undefined
+    if (!lan) return false
+
+    // Check ra (router advertisement) setting
+    const ra = lan.options?.ra
+    return !!ra && ra !== 'disabled'
+  }
 }
 
 export const mockUci: Record<string, UciFile<UciSection>> = {
@@ -275,7 +344,7 @@ export const mockUci: Record<string, UciFile<UciSection>> = {
     modified: new Date().toISOString(),
   },
   ddns: {
-    sections: [ddnsStart9],
+    sections: [ddnsDyndns],
     modified: new Date().toISOString(),
   },
   dhcp: {

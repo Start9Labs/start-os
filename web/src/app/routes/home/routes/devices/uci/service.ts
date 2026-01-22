@@ -270,6 +270,21 @@ export class DevicesUciService {
     })
   }
 
+  /**
+   * Check if any device has a reserved IPv6 address
+   */
+  async hasIpv6Reservations(): Promise<boolean> {
+    if (!this._uciFiles) {
+      await this.get() // Load if not already loaded
+    }
+
+    const dhcpHosts = this._uciFiles!.dhcp.sections.filter(
+      (s): s is DhcpHostSection => s.type === 'host',
+    )
+
+    return dhcpHosts.some(host => !!host.options.hostid)
+  }
+
   private ruleBlocksMac(rule: FirewallRuleSection, mac: string): boolean {
     // Check single MAC in options
     if (rule.options.src_mac?.toUpperCase() === mac) {
@@ -450,12 +465,18 @@ export class DevicesUciService {
 
       // Get IPs from ARP entries
       const ipv4Entry = arpList.find(e => !e.ip.includes(':'))
-      const ipv6Entry = arpList.find(e => e.ip.includes(':'))
+      // Prefer global IPv6 address over link-local (fe80::)
+      const globalIpv6Entry = arpList.find(
+        e => e.ip.includes(':') && !e.ip.startsWith('fe80:'),
+      )
+      const linkLocalIpv6Entry = arpList.find(e => e.ip.startsWith('fe80:'))
+      const ipv6Entry = globalIpv6Entry || linkLocalIpv6Entry
 
-      // Determine IPv6 address: prefer dynamic from ARP, fall back to static hostid
-      let ipv6: string | undefined = ipv6Entry?.ip
+      // Determine IPv6 address: prefer global from ARP, then link-local, fall back to static hostid
+      let ipv6: string | undefined = globalIpv6Entry?.ip
       if (!ipv6 && host?.options.hostid) {
         // Format hostid as IPv6 suffix (it's the interface identifier)
+        // This is just a placeholder - real global address would come from prefix + hostid
         ipv6 = `::${host.options.hostid}`
       }
 

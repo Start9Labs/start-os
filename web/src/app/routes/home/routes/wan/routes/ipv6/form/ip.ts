@@ -1,9 +1,15 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+} from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
 import { MaskitoDirective } from '@maskito/angular'
 import { MaskitoOptions } from '@maskito/core'
 import {
   TuiError,
+  TuiHint,
   TuiInput,
   TuiTextfield,
   TuiTitle,
@@ -21,16 +27,37 @@ import {
   IPV6_STATIC_CONTROLS,
   IPV6_VALIDATION_ERRORS,
 } from '../utils'
-import Ipv6 from '../'
+import WanIpv6 from '../'
 
 @Component({
-  selector: 'ipv6-ip',
+  selector: 'wan-ipv6-ip',
   template: `
     <header tuiHeader="body-l"><h2 tuiTitle>IP Address</h2></header>
     <section>
       @for (mode of modes; track $index) {
-        <label tuiLabel>
-          <input type="radio" tuiRadio formControlName="mode" [value]="mode" />
+        <label
+          tuiLabel
+          [class.locked]="
+            mode === 'disabled' &&
+            disabledLocked() &&
+            parent.ipMode() !== 'disabled'
+          "
+          [tuiHint]="
+            mode === 'disabled' &&
+            disabledLocked() &&
+            parent.ipMode() !== 'disabled'
+              ? 'Published ports are using IPv6'
+              : null
+          "
+          tuiHintAppearance="error"
+        >
+          <input
+            type="radio"
+            tuiRadio
+            formControlName="mode"
+            [value]="mode"
+            (click)="onModeClick($event, mode)"
+          />
           {{ labels[mode] }}{{ $index ? '' : ' (Default)' }}
         </label>
       }
@@ -46,6 +73,7 @@ import Ipv6 from '../'
                 tuiInput
                 [formControlName]="control"
                 [maskito]="control === 'prefix' ? prefixMask : null"
+                [placeholder]="control === 'prefix' ? 'Auto' : ''"
               />
             </tui-textfield>
             <tui-error [formControlName]="control" />
@@ -64,6 +92,7 @@ import Ipv6 from '../'
                 tuiInput
                 [formControlName]="control"
                 [maskito]="control === 'prefix' ? prefixMask : null"
+                [placeholder]="control === 'prefix' ? 'Auto' : ''"
               />
             </tui-textfield>
             <tui-error [formControlName]="control" />
@@ -110,6 +139,16 @@ import Ipv6 from '../'
       </section>
     }
   `,
+  styles: `
+    label.locked {
+      opacity: 0.6;
+      cursor: not-allowed;
+
+      input {
+        pointer-events: none;
+      }
+    }
+  `,
   viewProviders: [FORM],
   hostDirectives: [TuiForm, TuiCardLarge],
   providers: [tuiValidationErrorsProvider(IPV6_VALIDATION_ERRORS)],
@@ -122,11 +161,14 @@ import Ipv6 from '../'
     TuiRadio,
     TuiError,
     TuiInput,
+    TuiHint,
     MaskitoDirective,
   ],
 })
-export class Ipv6Ip {
-  protected readonly parent = inject(Ipv6)
+export class WanIpv6Ip {
+  protected readonly parent = inject(WanIpv6)
+
+  readonly disabledLocked = input(false)
 
   protected readonly modes = IPV6_MODES
   protected readonly labels = IPV6_LABELS
@@ -137,5 +179,17 @@ export class Ipv6Ip {
 
   protected readonly prefixMask: MaskitoOptions = {
     mask: ['/', /\d/, /\d/, /\d/],
+  }
+
+  onModeClick(event: Event, mode: string) {
+    // Prevent selecting 'disabled' if locked and not already disabled
+    if (
+      mode === 'disabled' &&
+      this.disabledLocked() &&
+      this.parent.ipMode() !== 'disabled'
+    ) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
   }
 }

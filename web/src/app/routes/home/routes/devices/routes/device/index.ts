@@ -4,6 +4,7 @@ import {
   computed,
   effect,
   inject,
+  signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
@@ -20,6 +21,8 @@ import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
 import { DevicesService } from 'src/app/routes/home/routes/devices/service'
+import { LanIpv6UciService } from 'src/app/routes/home/routes/lan/routes/ipv6/uci/service'
+import { PublishedPortsUciService } from 'src/app/routes/home/routes/published-ports/uci/service'
 import {
   DEVICE_VALIDATION_ERRORS,
   getDeviceForm,
@@ -39,7 +42,7 @@ import { DeviceSummary } from './summary'
         <h2>
           <a
             tuiLink
-            routerLink=".."
+            [routerLink]="returnUrl"
             appearance=""
             iconStart="@tui.chevron-left"
             [style.font]="'inherit'"
@@ -95,7 +98,12 @@ import { DeviceSummary } from './summary'
     >
       <device-name [formGroup]="form" [hostname]="data()?.hostname ?? ''" />
       <hr />
-      <device-ip formGroupName="ip" />
+      <device-ip
+        formGroupName="ip"
+        [ipv4Locked]="portUsage().usesIpv4"
+        [ipv6Locked]="portUsage().usesIpv6"
+        [ipv6Enabled]="ipv6Available()"
+      />
       @if (data()) {
         <footer appFooter></footer>
       }
@@ -132,11 +140,23 @@ import { DeviceSummary } from './summary'
 export default class DeviceDetail {
   private readonly route = inject(ActivatedRoute)
   private readonly router = inject(Router)
+  private readonly publishedPortsUci = inject(PublishedPortsUciService)
+  private readonly lanIpv6Uci = inject(LanIpv6UciService)
 
   readonly service = inject(DevicesService)
   readonly mac = this.route.snapshot.params['mac']
+  readonly returnUrl = history.state?.['returnUrl'] || '/devices'
 
   readonly form = getDeviceForm(inject(NonNullableFormBuilder))
+
+  // Track if this device has published ports using IPv4/IPv6
+  readonly portUsage = signal<{ usesIpv4: boolean; usesIpv6: boolean }>({
+    usesIpv4: false,
+    usesIpv6: false,
+  })
+
+  // Track if IPv6 is available (LAN IPv6 enabled)
+  readonly ipv6Available = signal(true)
 
   readonly data = computed(() => {
     const allDevices = this.service.data()
@@ -158,6 +178,12 @@ export default class DeviceDetail {
   )
 
   constructor() {
+    // Refresh device data to get latest IPv6 addresses
+    this.service.refresh()
+
+    // Load published port usage and IPv6 status for this device
+    this.loadDependencies()
+
     // Reset form when data loads
     effect(() => {
       const data = this.data()
@@ -179,6 +205,16 @@ export default class DeviceDetail {
     effect(() => {
       updateDeviceValidators(this.form, this.ipv4Static(), this.ipv6Static())
     })
+  }
+
+  private async loadDependencies() {
+    const [usage, lanIpv6Enabled] = await Promise.all([
+      this.publishedPortsUci.getDevicePortUsage(this.mac),
+      this.lanIpv6Uci.isEnabled(),
+    ])
+    this.portUsage.set(usage)
+    // IPv6 reservations only require LAN IPv6 (ULA addresses work without WAN IPv6)
+    this.ipv6Available.set(lanIpv6Enabled)
   }
 
   async onSave() {

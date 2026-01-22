@@ -15,9 +15,26 @@ type UciFiles = {
 @Injectable({
   providedIn: 'root',
 })
-export class Ipv6UciService {
+export class WanIpv6UciService {
   private readonly api = inject(ApiService)
   private _uciFiles?: UciFiles
+  private _cachedData?: WanIpv6Form
+
+  /**
+   * Check if WAN IPv6 is enabled (not disabled mode)
+   */
+  async isEnabled(): Promise<boolean> {
+    const data = await this.getData()
+    return data.ip.mode !== 'disabled'
+  }
+
+  /**
+   * Get cached data or load if not available
+   */
+  async getData(): Promise<WanIpv6Form> {
+    if (this._cachedData) return this._cachedData
+    return this.get()
+  }
 
   async get() {
     this._uciFiles = await this.api.getUci<UciFiles>({
@@ -31,10 +48,11 @@ export class Ipv6UciService {
     )
 
     if (!wan6Interface) {
-      return {
+      this._cachedData = {
         ip: { mode: 'disabled' },
         dns: { mode: 'isp' },
       } as WanIpv6Form
+      return this._cachedData
     }
 
     const proto = wan6Interface.options.proto
@@ -73,10 +91,12 @@ export class Ipv6UciService {
       : ''
     ip.border = wan6Interface.options.ip6prefix || ''
 
-    return {
+    this._cachedData = {
       ip,
       dns: parseDnsFromInterface(wan6Interface),
     }
+
+    return this._cachedData
   }
 
   async set({ ip, dns }: WanIpv6Form) {
@@ -172,6 +192,9 @@ export class Ipv6UciService {
     }
 
     await this.api.setUci<(keyof typeof uciFiles)[]>(uciFiles)
+
+    // Clear cache
+    this._cachedData = undefined
 
     // Restart network service
     await this.api.exec({

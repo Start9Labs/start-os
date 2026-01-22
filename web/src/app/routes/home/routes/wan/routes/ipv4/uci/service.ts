@@ -19,9 +19,44 @@ type UciFiles = {
 @Injectable({
   providedIn: 'root',
 })
-export class Ipv4UciService {
+export class WanIpv4UciService {
   private readonly api = inject(ApiService)
   private _uciFiles?: UciFiles
+  private _cachedData?: WanIpv4Form
+
+  /**
+   * Get the current WAN IPv4 address
+   * For DHCP/PPPoE, queries the actual assigned IP via ubus
+   */
+  async getWanIp(): Promise<string | null> {
+    try {
+      // Use ubus to get the actual WAN IP (works for DHCP, PPPoE, and static)
+      const result = await this.api.exec({
+        command: 'ubus',
+        args: ['call', 'network.interface.wan', 'status'],
+        timeout: 5000,
+      })
+
+      if (result.exitCode === 0 && result.stdout) {
+        const status = JSON.parse(result.stdout)
+        const ipv4Addr = status['ipv4-address']?.[0]?.address
+        return ipv4Addr || null
+      }
+    } catch {
+      // Fall back to cached/configured IP if ubus fails
+      const data = await this.getData()
+      return data.ip.wan || null
+    }
+    return null
+  }
+
+  /**
+   * Get cached data or load if not available
+   */
+  async getData(): Promise<WanIpv4Form> {
+    if (this._cachedData) return this._cachedData
+    return this.get()
+  }
 
   async get() {
     this._uciFiles = await this.api.getUci<UciFiles>({
@@ -52,10 +87,12 @@ export class Ipv4UciService {
       ip.device = wanInterface.options.device || ''
     }
 
-    return {
+    this._cachedData = {
       ip,
       dns: parseDnsFromInterface(wanInterface),
     }
+
+    return this._cachedData
   }
 
   async set({ ip, dns }: WanIpv4Form) {
@@ -105,6 +142,9 @@ export class Ipv4UciService {
     applyDnsToInterface(dns, wan)
 
     await this.api.setUci<(keyof typeof uciFiles)[]>(uciFiles)
+
+    // Clear cache
+    this._cachedData = undefined
 
     // Restart network
     await this.api.exec({

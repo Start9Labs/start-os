@@ -18,19 +18,19 @@ import {
   provideFormService,
 } from 'src/app/services/form.service'
 import { CustomValidators } from 'src/app/utils/validators'
-import { IPv4Aside } from './aside'
+import { WanIpv4Aside } from './aside'
 import { Dns } from '../../dns/dns'
 import { updateDnsValidators } from '../../dns/utils'
-import { Ipv4Ip } from './form/ip'
-import { Ipv4Service } from './service'
-import { Ipv4Summary } from './summary'
+import { WanIpv4Ip } from './form/ip'
+import { WanIpv4Service } from './service'
+import { WanIpv4Summary } from './summary'
 import { getWanIpv4Form, updateIpv4Validators, WanIpv4Form } from './utils'
 
 @Component({
   template: `
-    <ipv4-aside *help />
+    <wan-ipv4-aside *help />
     <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
-    <article ipv4Summary [formLoading]="!service.data()"></article>
+    <article wanIpv4Summary [formLoading]="!service.data()"></article>
     <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
     <form
       [formGroup]="form"
@@ -38,7 +38,7 @@ import { getWanIpv4Form, updateIpv4Validators, WanIpv4Form } from './utils'
       (reset.prevent)="form.reset(service.data())"
       (ngSubmit)="onSave()"
     >
-      <ipv4-ip formGroupName="ip" />
+      <wan-ipv4-ip formGroupName="ip" />
       <hr />
       <wan-dns [mode]="dnsMode()" formGroupName="dns" />
       @if (service.data()) {
@@ -53,16 +53,16 @@ import { getWanIpv4Form, updateIpv4Validators, WanIpv4Form } from './utils'
     Footer,
     Form,
     Help,
-    Ipv4Summary,
-    Ipv4Ip,
+    WanIpv4Summary,
+    WanIpv4Ip,
     Dns,
-    IPv4Aside,
+    WanIpv4Aside,
   ],
   host: { class: 'g-page' },
-  providers: [provideFormService(Ipv4Service)],
+  providers: [provideFormService(WanIpv4Service)],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export default class Ipv4 {
+export default class WanIpv4 {
   protected readonly builder = inject(NonNullableFormBuilder)
   protected readonly service = injectFormService<WanIpv4Form>()
 

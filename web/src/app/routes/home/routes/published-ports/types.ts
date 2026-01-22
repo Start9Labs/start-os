@@ -20,6 +20,12 @@ export interface PublishedPort {
   source: 'any' | string // 'any' or CIDR like "203.0.113.0/24"
 }
 
+export interface PublishedPortDialogResult {
+  port: PublishedPort
+  reserveIpv4: boolean
+  reserveIpv6: boolean
+}
+
 export interface PublishedPortDisplay extends PublishedPort {
   status: PublishedPortStatus
   statusReason?: string
@@ -35,8 +41,8 @@ export const STATUS_LABELS: Record<
   { icon: string; label: string; class: string }
 > = {
   active: { icon: '🟢', label: 'Active', class: 'status-active' },
-  partial: { icon: '⚠️', label: 'Partial', class: 'status-partial' },
-  paused: { icon: '⏸', label: 'Paused', class: 'status-paused' },
+  partial: { icon: '🟡', label: 'Partial', class: 'status-partial' },
+  paused: { icon: '⚠️', label: 'Paused', class: 'status-paused' },
   error: { icon: '🔴', label: 'Error', class: 'status-error' },
   disabled: { icon: '⚪', label: 'Disabled', class: 'status-disabled' },
 }

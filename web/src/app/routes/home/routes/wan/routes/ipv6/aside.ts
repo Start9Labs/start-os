@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 
 @Component({
-  selector: 'ipv6-aside',
+  selector: 'wan-ipv6-aside',
   template: `
     <h3>IP Address</h3>
     <ul>
@@ -29,6 +29,12 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
         Disables IPv6 on the WAN interface.
       </li>
     </ul>
+    <h3>IPv6 Prefix</h3>
+    <p>
+      For SLAAC and DHCPv6, the prefix specifies the requested prefix length for
+      prefix delegation (e.g., /48, /56, /64). Leave empty to let your ISP
+      decide automatically.
+    </p>
     <h3>DNS</h3>
     <p>DNS (Domain Name System) translates domain names to IP addresses.</p>
     <ul>
@@ -46,4 +52,4 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
   host: { class: 'g-aside' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class IPv6Aside {}
+export class WanIpv6Aside {}

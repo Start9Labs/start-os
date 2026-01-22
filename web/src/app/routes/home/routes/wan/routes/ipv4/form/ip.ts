@@ -26,10 +26,10 @@ import {
   IPV4_VALIDATION_ERRORS,
   netmaskFromPrefix,
 } from '../utils'
-import Ipv4 from '../'
+import WanIpv4 from '../'
 
 @Component({
-  selector: 'ipv4-ip',
+  selector: 'wan-ipv4-ip',
   template: `
     <header tuiHeader="body-l"><h2 tuiTitle>IP Address</h2></header>
     <section>
@@ -96,8 +96,8 @@ import Ipv4 from '../'
     MaskitoDirective,
   ],
 })
-export class Ipv4Ip {
-  protected readonly parent = inject(Ipv4)
+export class WanIpv4Ip {
+  protected readonly parent = inject(WanIpv4)
 
   protected readonly modes = IPV4_MODES
   protected readonly staticControls = IPV4_STATIC_CONTROLS
