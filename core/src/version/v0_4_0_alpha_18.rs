@@ -32,6 +32,8 @@ impl VersionT for Version {
     }
     #[instrument(skip_all)]
     fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
+        db["public"]["serverInfo"]["devices"] = Value::Array(Default::default());
+
         let lang = db["public"]["ui"]
             .as_object_mut()
             .map_or(Value::Null, |m| m.remove("language").unwrap_or_default());
