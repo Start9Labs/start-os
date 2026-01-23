@@ -15,6 +15,10 @@ export default [
         loadComponent: () => import('./routes/published-ports'),
       },
       {
+        path: 'ethernet',
+        loadComponent: () => import('./routes/ethernet'),
+      },
+      {
         path: 'outbound',
         loadChildren: () => import('./routes/outbound'),
       },

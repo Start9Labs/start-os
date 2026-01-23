@@ -97,6 +97,7 @@ export default class PublishedPorts {
         new PolymorpheusComponent(PublishPortDialog),
         {
           label: 'Publish Ports',
+          size: 's',
           data: { devices, ipv6Available: this.ipv6Available() },
         },
       )

@@ -21,7 +21,7 @@
     "@taiga-ui/addon-table": "5.0.0-rc.1",
     "@taiga-ui/cdk": "5.0.0-rc.1",
     "@taiga-ui/core": "5.0.0-rc.1",
-    "@taiga-ui/dompurify": "4.1.11",
+    "@taiga-ui/dompurify": "5.0.1",
     "@taiga-ui/event-plugins": "^5.0.0",
     "@taiga-ui/icons": "5.0.0-rc.1",
     "@taiga-ui/kit": "5.0.0-rc.1",
