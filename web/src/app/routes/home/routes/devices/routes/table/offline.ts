@@ -1,25 +1,17 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   inject,
   input,
-  signal,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
-import {
-  TuiButton,
-  TuiFormatNumberPipe,
-  TuiIcon,
-  TuiLink,
-} from '@taiga-ui/core'
+import { TuiButton, TuiFormatNumberPipe, TuiLink } from '@taiga-ui/core'
 import { TuiChip } from '@taiga-ui/kit'
+import { TuiSorterPipe } from 'src/app/pipes/sorter.pipe'
 import { Placeholder } from 'src/app/routes/home/components/placeholder'
 import { DevicesService } from 'src/app/routes/home/routes/devices/service'
 import { DeviceTableItem } from 'src/app/routes/home/routes/devices/utils'
-
-type SortDirection = 'asc' | 'desc' | null
 
 @Component({
   selector: 'table[devicesOffline]',
@@ -29,10 +21,7 @@ type SortDirection = 'asc' | 'desc' | null
     </caption>
     <thead>
       <tr>
-        <th tuiTh class="sortable" (click)="toggleSort()">
-          Name
-          <tui-icon [icon]="sortIcon()" />
-        </th>
+        <th tuiTh [sorter]="'name' | tuiSorter">Name</th>
         <th tuiTh>MAC</th>
         <th tuiTh>IP</th>
         <th tuiTh>Data</th>
@@ -40,7 +29,7 @@ type SortDirection = 'asc' | 'desc' | null
       </tr>
     </thead>
     <tbody>
-      @for (item of sortedDevices(); track item.mac) {
+      @for (item of devicesOffline() | tuiTableSort; track item.mac) {
         <tr>
           <td tuiTd>
             <a tuiLink [routerLink]="item.mac">
@@ -103,17 +92,6 @@ type SortDirection = 'asc' | 'desc' | null
     </tbody>
   `,
   styles: `
-    .sortable {
-      cursor: pointer;
-      user-select: none;
-
-      tui-icon {
-        font-size: 1rem;
-        vertical-align: middle;
-        margin-left: 0.25rem;
-      }
-    }
-
     .actions {
       text-align: right;
 
@@ -125,12 +103,12 @@ type SortDirection = 'asc' | 'desc' | null
   imports: [
     RouterLink,
     TuiTable,
-    TuiIcon,
     TuiButton,
     TuiFormatNumberPipe,
     TuiChip,
     TuiLink,
     Placeholder,
+    TuiSorterPipe,
   ],
   host: { class: 'g-table' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -139,41 +117,6 @@ export class DevicesOffline {
   private readonly service = inject(DevicesService)
 
   readonly devicesOffline = input<readonly DeviceTableItem[]>([])
-
-  protected readonly sortDirection = signal<SortDirection>(null)
-
-  protected readonly sortIcon = computed(() => {
-    switch (this.sortDirection()) {
-      case 'asc':
-        return '@tui.arrow-up'
-      case 'desc':
-        return '@tui.arrow-down'
-      default:
-        return '@tui.arrow-up-down'
-    }
-  })
-
-  protected readonly sortedDevices = computed(() => {
-    const devices = this.devicesOffline()
-    const direction = this.sortDirection()
-    if (!direction) return devices
-
-    return [...devices].sort((a, b) => {
-      const compare = a.name.localeCompare(b.name)
-      return direction === 'asc' ? compare : -compare
-    })
-  })
-
-  protected toggleSort() {
-    const current = this.sortDirection()
-    if (current === null) {
-      this.sortDirection.set('asc')
-    } else if (current === 'asc') {
-      this.sortDirection.set('desc')
-    } else {
-      this.sortDirection.set(null)
-    }
-  }
 
   async onBlock(mac: string) {
     await this.service.block(mac)
