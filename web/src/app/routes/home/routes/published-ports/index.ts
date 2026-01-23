@@ -32,7 +32,9 @@ import { PublishedPortDialogResult, PublishedPortDisplay } from './types'
     <header tuiHeader>
       <hgroup tuiTitle><h2>Published Ports</h2></hgroup>
       <aside tuiAccessories>
-        <button tuiButton iconStart="@tui.plus" (click)="add()">New</button>
+        @if (!loading()) {
+          <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
+        }
       </aside>
     </header>
     <table
@@ -83,6 +85,7 @@ export default class PublishedPorts {
       this.ddnsUci.getHostname(),
       this.wanIpv4Uci.getWanIp(),
     ])
+    // IPv6 port forwarding requires WAN IPv6 + LAN IPv6
     this.ipv6Available.set(wanEnabled && lanEnabled)
 
     // Use DDNS hostname if available, otherwise WAN IP
@@ -102,15 +105,11 @@ export default class PublishedPorts {
         },
       )
       .subscribe(result => {
-        const { port: value, reserveIpv4, reserveIpv6 } = result
+        const { port: value, reserveIpv4 } = result
 
-        // Handle IP reservations if needed
-        if (reserveIpv4 || reserveIpv6) {
-          this.service.reserveDeviceIps(
-            value.deviceMac,
-            reserveIpv4,
-            reserveIpv6,
-          )
+        // Handle IPv4 reservation if needed
+        if (reserveIpv4) {
+          this.service.reserveDeviceIps(value.deviceMac, true, false)
         }
 
         // Enrich the new port with display data
@@ -143,15 +142,11 @@ export default class PublishedPorts {
         },
       )
       .subscribe(result => {
-        const { port: value, reserveIpv4, reserveIpv6 } = result
+        const { port: value, reserveIpv4 } = result
 
-        // Handle IP reservations if needed
-        if (reserveIpv4 || reserveIpv6) {
-          this.service.reserveDeviceIps(
-            value.deviceMac,
-            reserveIpv4,
-            reserveIpv6,
-          )
+        // Handle IPv4 reservation if needed
+        if (reserveIpv4) {
+          this.service.reserveDeviceIps(value.deviceMac, true, false)
         }
 
         // Update the port with new values

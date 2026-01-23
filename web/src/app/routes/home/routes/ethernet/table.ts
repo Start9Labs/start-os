@@ -1,35 +1,26 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  inject,
+  computed,
   input,
-  signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable, TuiTableDirective } from '@taiga-ui/addon-table'
-import { TuiButton, TuiDataList, TuiDropdown, TuiLink } from '@taiga-ui/core'
-import {
-  TUI_CONFIRM,
-  TuiBadge,
-  TuiButtonSelect,
-  TuiChevron,
-} from '@taiga-ui/kit'
-import { filter } from 'rxjs'
+import { TuiDataList, TuiDropdown, TuiLink } from '@taiga-ui/core'
+import { TuiBadge, TuiButtonSelect, TuiChevron } from '@taiga-ui/kit'
 import { TuiSorterPipe } from 'src/app/pipes/sorter.pipe'
 import { injectFormService } from 'src/app/services/form.service'
 
-import { EthernetPort } from './service'
+import { EthernetPort, EthernetService } from './service'
 
 @Component({
   selector: '[ethernetTable]',
   template: `
     <thead>
       <tr>
-        <th tuiTh [sorter]="'name' | tuiSorter">Name</th>
-        <th tuiTh [sorter]="'permissions' | tuiSorter">Permissions</th>
-        <th tuiTh></th>
+        <th tuiTh [sorter]="'name' | tuiSorter">Port</th>
+        <th tuiTh [sorter]="'profile' | tuiSorter">Security Profile</th>
       </tr>
     </thead>
     <tbody>
@@ -49,21 +40,16 @@ import { EthernetPort } from './service'
                 tuiLink
                 tuiChevron
                 tuiButtonSelect
-                iconStart="@tui.user-lock"
                 tuiDropdownAlign="start"
-                [textContent]="item.permissions"
-                [(ngModel)]="item.permissions"
-                (ngModelChange)="onPermissions()"
+                [textContent]="item.profile"
+                [(ngModel)]="item.profile"
+                (ngModelChange)="onProfile()"
               >
                 <tui-data-list *tuiDropdown>
                   <tui-opt-group label="Profiles">
-                    @for (item of permissions(); track $index) {
-                      <button
-                        iconStart="@tui.user-lock"
-                        tuiOption
-                        [value]="item"
-                      >
-                        {{ item }}
+                    @for (profile of profiles(); track $index) {
+                      <button tuiOption [value]="profile">
+                        {{ profile }}
                       </button>
                     }
                   </tui-opt-group>
@@ -76,28 +62,14 @@ import { EthernetPort } from './service'
               </button>
             }
           </td>
-          <td tuiTd>
-            @if (!item.wan) {
-              <button tuiButton size="xs" (click)="makeWan($index)">
-                Make WAN
-              </button>
-            }
-          </td>
         </tr>
       }
     </tbody>
   `,
   styles: `
     :host {
-      max-inline-size: 30rem;
-      margin: 1rem 0;
-
       [tuiLink]::after {
         vertical-align: text-bottom;
-      }
-
-      td:last-child {
-        text-align: end;
       }
 
       [tuiBadge] {
@@ -123,37 +95,20 @@ import { EthernetPort } from './service'
     TuiDropdown,
     TuiChevron,
     TuiBadge,
-    TuiButton,
     RouterLink,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EthernetTable {
-  protected readonly dialogs = inject(TuiResponsiveDialogService)
-  protected readonly service = injectFormService<EthernetPort[]>()
-  protected readonly permissions = signal(['Admin', 'Guest'])
+  protected readonly service = injectFormService<
+    EthernetPort[]
+  >() as EthernetService
 
   readonly ethernetTable = input<EthernetPort[]>([])
 
-  onPermissions() {
+  readonly profiles = computed(() => this.service.getProfiles())
+
+  onProfile() {
     this.service.save([...this.ethernetTable()])
-  }
-
-  makeWan(index: number) {
-    this.dialogs
-      .open(TUI_CONFIRM, {
-        label: 'Are you sure?',
-        size: 's',
-        data: { content: 'This action is not reversible.' },
-      })
-      .pipe(filter(Boolean))
-      .subscribe(() => {
-        const items = this.ethernetTable().slice()
-
-        items.forEach(i => (i.wan = false))
-        items[index].wan = true
-
-        this.service.save(items)
-      })
   }
 }

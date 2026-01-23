@@ -80,7 +80,7 @@ export interface PublishPortDialogData {
         </tui-textfield>
         <span class="colon-separator">:</span>
         <tui-textfield class="port-field">
-          <label tuiLabel>Port(s)</label>
+          <label tuiLabel>Port</label>
           <input tuiInput formControlName="ports" placeholder="e.g. 443" />
         </tui-textfield>
       </div>
@@ -141,7 +141,7 @@ export interface PublishPortDialogData {
       }
 
       @if (form.value.ipVersion === 'ipv4' || form.value.ipVersion === 'both') {
-        <h3 tuiHeader="body-m">IPv4 External Port(s)</h3>
+        <h3 tuiHeader="body-m">IPv4 External Port</h3>
         <tui-radio-list
           size="s"
           formControlName="ipv4PublicPortType"
@@ -164,14 +164,9 @@ export interface PublishPortDialogData {
         }
       }
 
-      @if (reservationNeeds().ipv4) {
+      @if (reservationNeeds()) {
         <div tuiNotification appearance="info" size="s">
           Device IPv4 address will be reserved
-        </div>
-      }
-      @if (reservationNeeds().ipv6) {
-        <div tuiNotification appearance="info" size="s">
-          Device IPv6 address will be reserved
         </div>
       }
 
@@ -297,20 +292,15 @@ export class PublishPortDialog implements OnInit {
     { initialValue: 'both' as const },
   )
 
-  // Compute which reservations are needed
+  // Compute if IPv4 reservation is needed
   protected readonly reservationNeeds = computed(() => {
     const mac = this.selectedDeviceMac()
     const ipVersion = this.selectedIpVersion()
     const device = this.deviceMap().get(mac)
 
-    if (!device) return { ipv4: false, ipv6: false }
+    if (!device) return false
 
-    const needsIpv4 =
-      (ipVersion === 'ipv4' || ipVersion === 'both') && !device.ipv4Static
-    const needsIpv6 =
-      (ipVersion === 'ipv6' || ipVersion === 'both') && !device.ipv6Static
-
-    return { ipv4: needsIpv4, ipv6: needsIpv6 }
+    return (ipVersion === 'ipv4' || ipVersion === 'both') && !device.ipv4Static
   })
 
   protected readonly protocolValues: Protocol[] = ['tcp', 'udp', 'tcp+udp']
@@ -520,11 +510,9 @@ export class PublishPortDialog implements OnInit {
       source: value.sourceType === 'any' ? 'any' : value.sourceValue,
     }
 
-    const needs = this.reservationNeeds()
     const result: PublishedPortDialogResult = {
       port,
-      reserveIpv4: needs.ipv4,
-      reserveIpv6: needs.ipv6,
+      reserveIpv4: this.reservationNeeds(),
     }
 
     this.context.completeWith(result)

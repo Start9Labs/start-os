@@ -108,17 +108,26 @@ export type DhcpHostSection = {
   lists: {}
 }
 
-// Firewall rule for MAC blocking
+// Firewall rule for MAC blocking or IPv6 port forwarding
 export type FirewallRuleSection = {
   type: 'rule'
   name: string | null
   options: {
-    src?: string // e.g., 'lan'
-    dest?: string // e.g., 'wan'
+    src?: string // e.g., 'lan', 'wan'
+    dest?: string // e.g., 'wan', 'lan'
     src_mac?: string // MAC address to block
     target?: 'ACCEPT' | 'REJECT' | 'DROP'
     enabled?: '0' | '1'
     name?: string // Rule description
+    // IPv6 port forwarding options
+    proto?: 'tcp' | 'udp' | 'tcp udp'
+    dest_ip?: string // Destination IP (for IPv6 allow rules)
+    dest_port?: string // Destination port
+    src_ip?: string // Source IP/CIDR restriction
+    family?: 'ipv4' | 'ipv6' // Address family
+    // Published port metadata (ignored by firewall, used by our app)
+    _pp_id?: string // Links IPv4 redirect and IPv6 rule
+    _pp_mac?: string // Device MAC address
   }
   lists: {
     src_mac?: string[] // Can also be a list
@@ -135,10 +144,14 @@ export type FirewallRedirectSection = {
     dest?: string // Destination zone, e.g., 'lan'
     target?: 'DNAT' | 'SNAT'
     proto?: 'tcp' | 'udp' | 'tcp udp'
-    src_dport?: string // External port(s)
+    src_ip?: string // Source IP/CIDR restriction
+    src_dport?: string // External port
     dest_ip?: string // Internal IP address
-    dest_port?: string // Internal port(s)
+    dest_port?: string // Internal port
     enabled?: '0' | '1'
+    // Published port metadata (ignored by firewall, used by our app)
+    _pp_id?: string // Links IPv4 redirect and IPv6 rule
+    _pp_mac?: string // Device MAC address
   }
   lists: {}
 }

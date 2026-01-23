@@ -23,9 +23,9 @@ import { OutboundAside } from './aside'
     <header tuiHeader>
       <hgroup tuiTitle><h2>Outbound VPNs (Clients)</h2></hgroup>
       <aside tuiAccessories>
-        <button tuiButton iconStart="@tui.plus" (click)="add()">
-          Add Client
-        </button>
+        @if (!loading()) {
+          <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
+        }
       </aside>
     </header>
     <table tuiTable size="m" class="g-table" [tuiSkeleton]="loading()">

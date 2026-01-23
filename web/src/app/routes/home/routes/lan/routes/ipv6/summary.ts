@@ -9,16 +9,15 @@ import { LanIpv6Data } from './uci/service'
   template: `
     <section>
       <div appSummary>
-        Strategy
+        Status
         <span tuiSubtitle [style.gap.rem]="0.375">
           @if (slaac()) {
-            <span tuiBadge tuiStatus appearance="positive">SLAAC</span>
+            <span tuiBadge tuiStatus appearance="positive">Enabled</span>
+          } @else {
+            <span tuiBadge tuiStatus appearance="neutral">Disabled</span>
           }
           @if (dhcpv6()) {
             <span tuiBadge tuiStatus appearance="positive">DHCPv6</span>
-          }
-          @if (!slaac()) {
-            <span tuiBadge tuiStatus appearance="neutral">Disabled</span>
           }
         </span>
       </div>

@@ -21,7 +21,6 @@ import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
 import { DevicesService } from 'src/app/routes/home/routes/devices/service'
-import { LanIpv6UciService } from 'src/app/routes/home/routes/lan/routes/ipv6/uci/service'
 import { PublishedPortsUciService } from 'src/app/routes/home/routes/published-ports/uci/service'
 import {
   DEVICE_VALIDATION_ERRORS,
@@ -98,12 +97,7 @@ import { DeviceSummary } from './summary'
     >
       <device-name [formGroup]="form" [hostname]="data()?.hostname ?? ''" />
       <hr />
-      <device-ip
-        formGroupName="ip"
-        [ipv4Locked]="portUsage().usesIpv4"
-        [ipv6Locked]="portUsage().usesIpv6"
-        [ipv6Enabled]="ipv6Available()"
-      />
+      <device-ip formGroupName="ip" [ipv4Locked]="portUsage().usesIpv4" />
       @if (data()) {
         <footer appFooter></footer>
       }
@@ -141,7 +135,6 @@ export default class DeviceDetail {
   private readonly route = inject(ActivatedRoute)
   private readonly router = inject(Router)
   private readonly publishedPortsUci = inject(PublishedPortsUciService)
-  private readonly lanIpv6Uci = inject(LanIpv6UciService)
 
   readonly service = inject(DevicesService)
   readonly mac = this.route.snapshot.params['mac']
@@ -149,14 +142,11 @@ export default class DeviceDetail {
 
   readonly form = getDeviceForm(inject(NonNullableFormBuilder))
 
-  // Track if this device has published ports using IPv4/IPv6
+  // Track if this device has published ports using IPv4
   readonly portUsage = signal<{ usesIpv4: boolean; usesIpv6: boolean }>({
     usesIpv4: false,
     usesIpv6: false,
   })
-
-  // Track if IPv6 is available (LAN IPv6 enabled)
-  readonly ipv6Available = signal(true)
 
   readonly data = computed(() => {
     const allDevices = this.service.data()
@@ -170,18 +160,11 @@ export default class DeviceDetail {
     { requireSync: true },
   )
 
-  readonly ipv6Static = toSignal(
-    this.form.controls.ip.controls.ipv6Static.valueChanges.pipe(
-      startWith(this.form.controls.ip.controls.ipv6Static.value),
-    ),
-    { requireSync: true },
-  )
-
   constructor() {
-    // Refresh device data to get latest IPv6 addresses
+    // Refresh device data to get latest info
     this.service.refresh()
 
-    // Load published port usage and IPv6 status for this device
+    // Load published port usage for this device
     this.loadDependencies()
 
     // Reset form when data loads
@@ -203,18 +186,13 @@ export default class DeviceDetail {
 
     // Update validators when static toggles change
     effect(() => {
-      updateDeviceValidators(this.form, this.ipv4Static(), this.ipv6Static())
+      updateDeviceValidators(this.form, this.ipv4Static(), false)
     })
   }
 
   private async loadDependencies() {
-    const [usage, lanIpv6Enabled] = await Promise.all([
-      this.publishedPortsUci.getDevicePortUsage(this.mac),
-      this.lanIpv6Uci.isEnabled(),
-    ])
+    const usage = await this.publishedPortsUci.getDevicePortUsage(this.mac)
     this.portUsage.set(usage)
-    // IPv6 reservations only require LAN IPv6 (ULA addresses work without WAN IPv6)
-    this.ipv6Available.set(lanIpv6Enabled)
   }
 
   async onSave() {

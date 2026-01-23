@@ -50,7 +50,7 @@ type SortDirection = 'asc' | 'desc'
         </th>
         <th
           tuiTh
-          [style.min-width.rem]="12"
+          [style.min-width.rem]="10.5"
           [class.active]="sortColumn() === 'name'"
           class="sortable"
           (click)="toggleSort('name')"
@@ -70,15 +70,17 @@ type SortDirection = 'asc' | 'desc'
         </th>
         <th
           tuiTh
+          [style.min-width.rem]="6"
           [class.active]="sortColumn() === 'ports'"
           class="sortable"
           (click)="toggleSort('ports')"
         >
-          Port(s)
+          Port
           <tui-icon [icon]="getSortIcon('ports')" />
         </th>
         <th
           tuiTh
+          [style.min-width.rem]="8"
           [class.active]="sortColumn() === 'protocol'"
           class="sortable"
           (click)="toggleSort('protocol')"
@@ -88,6 +90,7 @@ type SortDirection = 'asc' | 'desc'
         </th>
         <th
           tuiTh
+          [style.min-width.rem]="9"
           [class.active]="sortColumn() === 'ipVersion'"
           class="sortable"
           (click)="toggleSort('ipVersion')"
@@ -97,6 +100,7 @@ type SortDirection = 'asc' | 'desc'
         </th>
         <th
           tuiTh
+          [style.min-width.rem]="6"
           [class.active]="sortColumn() === 'source'"
           class="sortable"
           (click)="toggleSort('source')"

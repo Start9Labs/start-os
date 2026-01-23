@@ -1,45 +1,35 @@
-import { Injectable } from '@angular/core'
+import { inject, Injectable } from '@angular/core'
 import { FormService } from 'src/app/services/form.service'
-import { pauseFor } from 'src/app/utils/pauseFor'
+import { ApiService } from 'src/app/services/api/api.service'
+import { EthernetPort, EthernetUciService } from './uci/service'
 
-export interface EthernetPort {
-  name: string
-  permissions: string
-  wan: boolean
-}
+// Re-export for convenience
+export type { EthernetPort }
 
 @Injectable()
 export class EthernetService extends FormService<EthernetPort[]> {
-  private items: EthernetPort[] = [
-    {
-      name: 'eth0',
-      permissions: 'Admin',
-      wan: true,
-    },
-    {
-      name: 'eth1',
-      permissions: 'Admin',
-      wan: false,
-    },
-    {
-      name: 'eth2',
-      permissions: 'Guest',
-      wan: false,
-    },
-    {
-      name: 'eth3',
-      permissions: 'Guest',
-      wan: false,
-    },
-  ]
+  private readonly api = inject(ApiService)
+  private readonly uci = inject(EthernetUciService)
 
   async load(): Promise<EthernetPort[]> {
-    await pauseFor(2000)
-
-    return this.items
+    return this.uci.get()
   }
 
   async store(items: EthernetPort[]): Promise<void> {
-    this.items = items
+    await this.uci.set(items)
+  }
+
+  /**
+   * Get available security profiles (stub)
+   */
+  getProfiles(): string[] {
+    return this.uci.getProfiles()
+  }
+
+  /**
+   * Restart the router
+   */
+  restart(): void {
+    this.api.systemRestart()
   }
 }

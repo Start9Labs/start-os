@@ -10,9 +10,10 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
     A descriptive name to help you identify this rule, such as "Home Assistant"
     or "Minecraft Server".
     <h3>Device</h3>
-    The device you select will be assigned stable IP addresses to ensure the
-    port forwarding rule always reaches the intended device.
-    <h3>Port(s)</h3>
+    The device you select will be assigned a stable IPv4 address to ensure the
+    port forwarding rule always reaches the intended device. IPv6 addresses are
+    typically stable through SLAAC.
+    <h3>Port</h3>
     The port or port range on the device to expose. For example, "443" for a
     single port or "27015-27030" for a range.
     <h3>Protocol</h3>

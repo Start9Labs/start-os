@@ -37,25 +37,29 @@ import {
   mockDhcpLeasesOutput,
 } from 'src/app/routes/home/routes/devices/uci/mocks'
 import { mockPublishedPorts } from 'src/app/routes/home/routes/published-ports/uci/mocks'
+import {
+  mockBrLan,
+  mockWanDevice,
+} from 'src/app/routes/home/routes/ethernet/uci/mocks'
 
 @Injectable({
   providedIn: 'root',
 })
 export class MockApiService extends ApiService {
   async login(params: LoginReq): Promise<null> {
-    await pauseFor(1000)
+    await pauseFor(250)
 
     return null
   }
 
   async logout(): Promise<null> {
-    await pauseFor(1000)
+    await pauseFor(250)
 
     return null
   }
 
   async exec(params: ExecReq): Promise<ExecRes> {
-    await pauseFor(300)
+    await pauseFor(250)
 
     // Handle specific commands for device discovery
     if (params.command === 'ip' && params.args[0] === 'neigh') {
@@ -175,7 +179,7 @@ export class MockApiService extends ApiService {
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa lucy@desktop`
 
   async getFile(params: GetFileReq): Promise<GetFileRes> {
-    await pauseFor(1000)
+    await pauseFor(250)
 
     if (params.path === '/root/.ssh/authorized_keys') {
       return {
@@ -191,7 +195,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
   }
 
   async setFile(params: SetFileReq): Promise<null> {
-    await pauseFor(1000)
+    await pauseFor(250)
 
     if (params.path === '/root/.ssh/authorized_keys') {
       this.mockAuthorizedKeys = params.contents
@@ -203,7 +207,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
   async getUci<T extends Record<string, UciFile<any>>>(
     params: GetUciReq,
   ): Promise<T> {
-    await pauseFor(1000)
+    await pauseFor(250)
 
     return params.names.reduce(
       (obj, name) => ({
@@ -215,7 +219,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
   }
 
   async setUci<T extends string[]>(params: SetUciReq): Promise<SetUciRes<T>> {
-    await pauseFor(1000)
+    await pauseFor(250)
 
     const isoString = new Date().toISOString()
 
@@ -239,7 +243,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
   }
 
   async systemInfo(): Promise<SystemInfoRes> {
-    await pauseFor(300)
+    await pauseFor(250)
 
     return {
       version: '1.0.0',
@@ -250,7 +254,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
   }
 
   async systemNewerVersions(): Promise<VersionInfo[]> {
-    await pauseFor(500)
+    await pauseFor(250)
 
     return [
       {
@@ -279,12 +283,12 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
   }
 
   async systemRestart(): Promise<null> {
-    await pauseFor(1000)
+    await pauseFor(250)
     return null
   }
 
   async setPassword(params: SetPasswordReq): Promise<null> {
-    await pauseFor(500)
+    await pauseFor(250)
     // Mock validation - in real implementation, backend validates old password
     if (params.oldPassword === '') {
       throw new Error('Invalid old password')
@@ -293,7 +297,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
   }
 
   async setPreferences(params: SetPreferencesReq): Promise<null> {
-    await pauseFor(300)
+    await pauseFor(250)
     return null
   }
 
@@ -339,6 +343,8 @@ export const mockUci: Record<string, UciFile<UciSection>> = {
       wanIpv6Slaac,
       macRouterDevice,
       lanDefault,
+      mockBrLan,
+      mockWanDevice,
       ...mockWireGuardSections,
     ],
     modified: new Date().toISOString(),

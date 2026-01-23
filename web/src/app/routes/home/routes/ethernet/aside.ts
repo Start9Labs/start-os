@@ -3,15 +3,19 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 @Component({
   selector: 'ethernet-aside',
   template: `
-    <h3>Name</h3>
-    A preset identifier for the associated Ethernet port.
-    <h3>Permissions</h3>
-    The default security profile or schedule assigned to devices connected via
-    the specified Ethernet port.
+    <h3>Port</h3>
+    The physical Ethernet port identifier (e.g., eth0, eth1).
+    <h3>Security Profile</h3>
+    The default security profile assigned to devices connected via the specified
+    Ethernet port.
     <h3>WAN</h3>
-    The Wide Area Network (WAN) port that manages the connection to your ISP,
-    ensuring proper internet connectivity. Only one Ethernet port can have this
-    designation.
+    The Wide Area Network (WAN) port connects to your ISP modem or upstream
+    network. Only one Ethernet port can be designated as WAN at a time.
+    <h3>Change WAN Port</h3>
+    Use the "Change WAN Port" button to reassign the WAN designation to a
+    different Ethernet port. This will interrupt your internet connection and
+    restart the router. Ensure your modem is connected to the new WAN port
+    before confirming.
   `,
   host: { class: 'g-aside' },
   changeDetection: ChangeDetectionStrategy.OnPush,

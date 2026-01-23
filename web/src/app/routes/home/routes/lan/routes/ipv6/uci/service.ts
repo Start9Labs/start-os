@@ -35,6 +35,14 @@ export class LanIpv6UciService {
   }
 
   /**
+   * Check if DHCPv6 is enabled (required for IPv6 reservations)
+   */
+  async isDhcpv6Enabled(): Promise<boolean> {
+    const data = await this.getData()
+    return data.strategy.dhcpv6
+  }
+
+  /**
    * Get cached data or load if not available
    */
   async getData(): Promise<LanIpv6Data> {
@@ -157,15 +165,11 @@ export class LanIpv6UciService {
       lanInterface.options.ip6assign = String(
         prefixToNumber(form.subnet.prefix),
       )
+      // Preserve existing DHCPv6 setting (don't modify it)
     } else {
       dhcpLan.options.ra = 'disabled'
       delete lanInterface.options.ip6assign
-    }
-
-    // Update DHCPv6 (only if SLAAC is enabled)
-    if (form.strategy.slaac && form.strategy.dhcpv6) {
-      dhcpLan.options.dhcpv6 = 'server'
-    } else {
+      // Disable DHCPv6 when SLAAC is disabled
       dhcpLan.options.dhcpv6 = 'disabled'
     }
 

@@ -6,6 +6,7 @@ export const lanDefault: NetworkInterfaceSection = {
   name: 'lan',
   options: {
     proto: 'static',
+    device: 'br-lan',
     ipaddr: '192.168.0.1',
     netmask: '255.255.255.0',
     ip6assign: '64',

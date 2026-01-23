@@ -26,9 +26,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 
     <h3>Reserved IP</h3>
     <p>
-      Reserve an IP address to assign a fixed IPv4 or IPv6 address that won't
-      change between reboots. Useful for servers, printers, NAS devices, or
-      anything you need to access by a consistent IP address.
+      Reserve an IP address to assign a fixed IPv4 address that won't change
+      between reboots. Useful for servers, printers, NAS devices, or anything
+      you need to access by a consistent IP address.
     </p>
 
     <h3>Block</h3>
