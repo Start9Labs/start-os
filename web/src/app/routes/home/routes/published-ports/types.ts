@@ -34,20 +34,3 @@ export interface PublishedPortDisplay extends PublishedPort {
   endpointIpv4?: string // e.g., "example.ddns.net:8123"
   endpointIpv6?: string // e.g., "[2001:db8::50]:8123"
 }
-
-export const STATUS_LABELS: Record<
-  PublishedPortStatus,
-  { icon: string; label: string; class: string }
-> = {
-  active: { icon: '🟢', label: 'Active', class: 'status-active' },
-  partial: { icon: '🟡', label: 'Partial', class: 'status-partial' },
-  paused: { icon: '⚠️', label: 'Paused', class: 'status-paused' },
-  error: { icon: '🔴', label: 'Error', class: 'status-error' },
-  disabled: { icon: '⚪', label: 'Disabled', class: 'status-disabled' },
-}
-
-export const PROTOCOL_LABELS: Record<Protocol, string> = {
-  tcp: 'TCP',
-  udp: 'UDP',
-  'tcp+udp': 'TCP + UDP',
-}
