@@ -40,7 +40,7 @@ import { PublishedPortDialogResult, PublishedPortDisplay } from './types'
     <table
       [style.margin-block.rem]="1"
       [style.min-height.rem]="loading() ? 10 : 0"
-      [publishedPortsTable]="loading() ? [] : service.data() || []"
+      [publishedPorts]="loading() ? [] : service.data() || []"
       [ipv4EndpointHost]="ipv4EndpointHost()"
       [tuiSkeleton]="loading()"
       (edit)="edit($event)"

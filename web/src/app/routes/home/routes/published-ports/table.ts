@@ -1,131 +1,75 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
-  inject,
   input,
   output,
-  signal,
 } from '@angular/core'
-import { Clipboard } from '@angular/cdk/clipboard'
 import { RouterLink } from '@angular/router'
 import { TuiTable, TuiTableDirective } from '@taiga-ui/addon-table'
+import { TuiComparator } from '@taiga-ui/addon-table/types'
 import {
   TuiButton,
   TuiDataList,
   TuiDropdown,
   TuiHint,
-  TuiIcon,
   TuiLink,
-  TuiNotificationService,
 } from '@taiga-ui/core'
+import { TuiSorterPipe } from 'src/app/pipes/sorter.pipe'
+import { Copy } from 'src/app/routes/home/components/copy'
 import { Placeholder } from 'src/app/routes/home/components/placeholder'
 import { injectFormService } from 'src/app/services/form.service'
-import { PublishedPortDisplay, PROTOCOL_LABELS, STATUS_LABELS } from './types'
+import { PublishedPortDisplay } from './types'
 
-type SortColumn =
-  | 'status'
-  | 'name'
-  | 'device'
-  | 'protocol'
-  | 'ipVersion'
-  | 'ports'
-  | 'source'
-  | null
-type SortDirection = 'asc' | 'desc'
+const PROTOCOL_LABELS = {
+  tcp: 'TCP',
+  udp: 'UDP',
+  'tcp+udp': 'TCP + UDP',
+} as const
 
 @Component({
-  selector: '[publishedPortsTable]',
+  selector: '[publishedPorts]',
   template: `
     <thead tuiThead>
       <tr>
-        <th
-          tuiTh
-          [style.width.rem]="3"
-          [class.active]="sortColumn() === 'status'"
-          class="sortable"
-          (click)="toggleSort('status')"
-        >
-          <tui-icon [icon]="getSortIcon('status')" />
-        </th>
-        <th
-          tuiTh
-          [style.min-width.rem]="10.5"
-          [class.active]="sortColumn() === 'name'"
-          class="sortable"
-          (click)="toggleSort('name')"
-        >
+        <th tuiTh [style.width.rem]="3" [sorter]="'status' | tuiSorter"></th>
+        <th tuiTh [style.min-width.rem]="10.5" [sorter]="'label' | tuiSorter">
           Label
-          <tui-icon [icon]="getSortIcon('name')" />
         </th>
         <th
           tuiTh
           [style.min-width.rem]="10"
-          [class.active]="sortColumn() === 'device'"
-          class="sortable"
-          (click)="toggleSort('device')"
+          [sorter]="'deviceName' | tuiSorter"
         >
           Device
-          <tui-icon [icon]="getSortIcon('device')" />
         </th>
-        <th
-          tuiTh
-          [style.min-width.rem]="6"
-          [class.active]="sortColumn() === 'ports'"
-          class="sortable"
-          (click)="toggleSort('ports')"
-        >
+        <th tuiTh [style.min-width.rem]="6" [sorter]="'ports' | tuiSorter">
           Port
-          <tui-icon [icon]="getSortIcon('ports')" />
         </th>
-        <th
-          tuiTh
-          [style.min-width.rem]="8"
-          [class.active]="sortColumn() === 'protocol'"
-          class="sortable"
-          (click)="toggleSort('protocol')"
-        >
+        <th tuiTh [style.min-width.rem]="8" [sorter]="'protocol' | tuiSorter">
           Protocol
-          <tui-icon [icon]="getSortIcon('protocol')" />
         </th>
-        <th
-          tuiTh
-          [style.min-width.rem]="9"
-          [class.active]="sortColumn() === 'ipVersion'"
-          class="sortable"
-          (click)="toggleSort('ipVersion')"
-        >
-          IP Version
-          <tui-icon [icon]="getSortIcon('ipVersion')" />
-        </th>
-        <th
-          tuiTh
-          [style.min-width.rem]="6"
-          [class.active]="sortColumn() === 'source'"
-          class="sortable"
-          (click)="toggleSort('source')"
-        >
+        <th tuiTh [style.min-width.rem]="9" [sorter]="ipSorter">IP Version</th>
+        <th tuiTh [style.min-width.rem]="6" [sorter]="'source' | tuiSorter">
           Source
-          <tui-icon [icon]="getSortIcon('source')" />
         </th>
         <th tuiTh [style.min-width.rem]="16">Endpoints</th>
         <th tuiTh [style.width.rem]="3"></th>
       </tr>
     </thead>
     <tbody>
-      @for (item of sortedItems(); track item.id; let i = $index) {
+      @for (item of publishedPorts() | tuiTableSort; track item.id) {
         <tr>
           <td tuiTd>
             <span
-              class="status-icon {{ statusInfo(item).class }}"
+              class="status-icon"
               [tuiHint]="statusHint"
               tuiHintDirection="end"
             >
-              {{ statusInfo(item).icon }}
+              {{ statusIcon(item) }}
             </span>
             <ng-template #statusHint>
-              <span class="status-hint">
-                <strong>{{ statusInfo(item).label }}</strong>
+              <span class="flex">
+                <strong>{{ item.status }}</strong>
                 @if (item.statusReason) {
                   <span>{{ item.statusReason }}</span>
                 }
@@ -149,21 +93,15 @@ type SortDirection = 'asc' | 'desc'
           <td tuiTd>{{ ipVersionLabel(item) }}</td>
           <td tuiTd>{{ item.source === 'any' ? 'Any' : item.source }}</td>
           <td tuiTd>
-            <div class="endpoints">
+            <div class="flex">
               @if (getEndpointIpv4(item); as endpoint) {
-                <button class="endpoint" (click)="copyEndpoint(endpoint)">
-                  {{ endpoint }}
-                  <tui-icon icon="@tui.copy" class="copy-icon" />
-                </button>
+                <button tuiLink appCopy>{{ endpoint }}</button>
               }
               @if (getEndpointIpv6(item); as endpoint) {
-                <button class="endpoint" (click)="copyEndpoint(endpoint)">
-                  {{ endpoint }}
-                  <tui-icon icon="@tui.copy" class="copy-icon" />
-                </button>
+                <button tuiLink appCopy>{{ endpoint }}</button>
               }
               @if (!getEndpointIpv4(item) && !getEndpointIpv6(item)) {
-                <span class="no-endpoint">—</span>
+                <span class="g-secondary">—</span>
               }
             </div>
           </td>
@@ -173,44 +111,41 @@ type SortDirection = 'asc' | 'desc'
               size="xs"
               iconStart="@tui.ellipsis-vertical"
               appearance="icon"
-              [tuiDropdown]="actionsDropdown"
-              [(tuiDropdownOpen)]="dropdownOpen[i]"
+              tuiDropdownAuto
+              tuiDropdown
             >
               Actions
-            </button>
-            <ng-template #actionsDropdown>
-              <tui-data-list size="s">
+              <tui-data-list
+                *tuiDropdown="let close"
+                size="s"
+                (click)="close()"
+              >
                 <button
                   tuiOption
-                  type="button"
-                  (click)="toggleEnabled(item); dropdownOpen[i] = false"
+                  [iconStart]="
+                    item.enabled ? '@tui.circle-pause' : '@tui.circle-play'
+                  "
+                  (click)="toggleEnabled(item)"
                 >
-                  <tui-icon
-                    [icon]="
-                      item.enabled ? '@tui.circle-pause' : '@tui.circle-play'
-                    "
-                  />
                   {{ item.enabled ? 'Disable' : 'Enable' }}
                 </button>
                 <button
                   tuiOption
-                  type="button"
-                  (click)="edit.emit(item); dropdownOpen[i] = false"
+                  iconStart="@tui.pencil"
+                  (click)="edit.emit(item)"
                 >
-                  <tui-icon icon="@tui.pencil" />
                   Edit
                 </button>
                 <button
                   tuiOption
-                  type="button"
-                  class="delete-option"
-                  (click)="delete(item.id); dropdownOpen[i] = false"
+                  class="g-negative"
+                  iconStart="@tui.trash"
+                  (click)="delete(item.id)"
                 >
-                  <tui-icon icon="@tui.trash" />
                   Delete
                 </button>
               </tui-data-list>
-            </ng-template>
+            </button>
           </td>
         </tr>
       } @empty {
@@ -225,114 +160,24 @@ type SortDirection = 'asc' | 'desc'
     </tbody>
   `,
   styles: `
-    .sortable {
-      cursor: pointer;
-      user-select: none;
-
-      > tui-icon {
-        font-size: 1rem;
-        vertical-align: middle;
-        margin-left: 0.25rem;
-        opacity: 0.4;
-        transition: opacity 0.15s;
-      }
-
-      &:hover > tui-icon {
-        opacity: 0.7;
-      }
-
-      &.active > tui-icon {
-        opacity: 1;
-      }
-    }
-
-    th.sortable:first-child {
-      > tui-icon {
-        margin-left: 0;
-      }
-    }
-
     .status-icon {
       cursor: help;
       font-size: 0.875rem;
-
-      &.status-active {
-        color: var(--tui-status-positive);
-      }
-
-      &.status-partial {
-        color: var(--tui-status-warning);
-      }
-
-      &.status-paused {
-        color: var(--tui-text-secondary);
-      }
-
-      &.status-error {
-        color: var(--tui-status-negative);
-      }
-
-      &.status-disabled {
-        color: var(--tui-text-tertiary);
-      }
     }
 
-    .status-hint {
+    .flex {
       display: flex;
       flex-direction: column;
+      align-items: flex-start;
       gap: 0.25rem;
-    }
 
-    .endpoints {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      white-space: nowrap;
-
-      .endpoint {
-        background: none;
-        border: none;
-        padding: 0;
-        font: inherit;
-        color: var(--tui-text-action);
-        cursor: pointer;
-        text-align: left;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-
-        .copy-icon {
-          font-size: 0.875rem;
-          opacity: 0;
-          transition: opacity 0.15s;
-        }
-
-        &:hover .copy-icon {
-          opacity: 1;
-        }
-      }
-
-      .no-endpoint {
-        color: var(--tui-text-tertiary);
+      strong::first-letter {
+        text-transform: uppercase;
       }
     }
 
     [tuiIconButton] {
       margin-block: -0.25rem;
-    }
-
-    [tuiOption] {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-
-      tui-icon {
-        font-size: 1rem;
-      }
-    }
-
-    .delete-option {
-      color: var(--tui-status-negative);
     }
   `,
   hostDirectives: [TuiTableDirective],
@@ -344,93 +189,36 @@ type SortDirection = 'asc' | 'desc'
     TuiDataList,
     TuiDropdown,
     TuiHint,
-    TuiIcon,
     TuiLink,
+    TuiSorterPipe,
     Placeholder,
+    Copy,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PublishedPortsTable {
-  private readonly clipboard = inject(Clipboard)
-  private readonly alerts = inject(TuiNotificationService)
+  private readonly service = injectFormService<PublishedPortDisplay[]>()
 
-  protected readonly service = injectFormService<PublishedPortDisplay[]>()
-
-  public readonly publishedPortsTable = input<PublishedPortDisplay[]>([])
+  public readonly publishedPorts = input<PublishedPortDisplay[]>([])
   public readonly ipv4EndpointHost = input<string | null>(null)
   public readonly edit = output<PublishedPortDisplay>()
 
-  protected dropdownOpen: boolean[] = []
-  protected readonly sortColumn = signal<SortColumn>(null)
-  protected readonly sortDirection = signal<SortDirection>('asc')
+  protected readonly ipSorter: TuiComparator<PublishedPortDisplay> = (a, b) =>
+    getIpVersion(a).localeCompare(getIpVersion(b))
 
-  protected getSortIcon(column: SortColumn): string {
-    if (this.sortColumn() !== column) {
-      return '@tui.arrow-up-down'
+  protected statusIcon(item: PublishedPortDisplay) {
+    switch (item.status) {
+      case 'active':
+        return '🟢'
+      case 'disabled':
+        return '⚪'
+      case 'error':
+        return '🔴'
+      case 'partial':
+        return '🟡'
+      case 'paused':
+        return '🟠'
     }
-    return this.sortDirection() === 'asc' ? '@tui.arrow-up' : '@tui.arrow-down'
-  }
-
-  protected readonly sortedItems = computed(() => {
-    const items = this.publishedPortsTable()
-    const column = this.sortColumn()
-    const direction = this.sortDirection()
-
-    if (!column) return items
-
-    const statusOrder = ['active', 'partial', 'paused', 'error', 'disabled']
-    const ipVersionOrder = ['ipv4', 'ipv6', 'both']
-
-    return [...items].sort((a, b) => {
-      let compare = 0
-
-      switch (column) {
-        case 'status':
-          compare =
-            statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status)
-          break
-        case 'name':
-          compare = a.label.localeCompare(b.label)
-          break
-        case 'device':
-          compare = (a.deviceName || '').localeCompare(b.deviceName || '')
-          break
-        case 'protocol':
-          compare = a.protocol.localeCompare(b.protocol)
-          break
-        case 'ipVersion':
-          compare =
-            ipVersionOrder.indexOf(this.getIpVersion(a)) -
-            ipVersionOrder.indexOf(this.getIpVersion(b))
-          break
-        case 'ports':
-          compare = a.ports.localeCompare(b.ports, undefined, { numeric: true })
-          break
-        case 'source':
-          compare = a.source.localeCompare(b.source)
-          break
-      }
-
-      return direction === 'asc' ? compare : -compare
-    })
-  })
-
-  protected toggleSort(column: SortColumn) {
-    if (this.sortColumn() === column) {
-      // Toggle direction or clear
-      if (this.sortDirection() === 'asc') {
-        this.sortDirection.set('desc')
-      } else {
-        this.sortColumn.set(null)
-      }
-    } else {
-      this.sortColumn.set(column)
-      this.sortDirection.set('asc')
-    }
-  }
-
-  protected statusInfo(item: PublishedPortDisplay) {
-    return STATUS_LABELS[item.status]
   }
 
   protected protocolLabel(protocol: string) {
@@ -438,24 +226,20 @@ export class PublishedPortsTable {
   }
 
   protected ipVersionLabel(item: PublishedPortDisplay): string {
-    const version = this.getIpVersion(item)
-    if (version === 'both') return 'IPv4 + IPv6'
-    if (version === 'ipv6') return 'IPv6'
-    return 'IPv4'
-  }
+    const version = getIpVersion(item)
 
-  private getIpVersion(item: PublishedPortDisplay): 'ipv4' | 'ipv6' | 'both' {
-    if (item.ipv4 && item.ipv6) return 'both'
-    if (item.ipv6) return 'ipv6'
-    return 'ipv4'
+    if (version === 'both') return 'IPv4 + IPv6'
+
+    return version === 'ipv6' ? 'IPv6' : 'IPv4'
   }
 
   protected getEndpointIpv4(item: PublishedPortDisplay): string | null {
     if (!item.ipv4) return null
+
     const host = this.ipv4EndpointHost()
-    if (!host) return null
     const port = item.ipv4PublicPort || item.ports
-    return `${host}:${port}`
+
+    return host ? `${host}:${port}` : null
   }
 
   protected getEndpointIpv6(item: PublishedPortDisplay): string | null {
@@ -464,29 +248,26 @@ export class PublishedPortsTable {
     // - fe80:: = link-local (not routable)
     // - fd = ULA (local only, requires WAN IPv6 for global address)
     // - :: = incomplete/placeholder
-    if (
-      item.deviceIpv6.startsWith('fe80:') ||
+    return item.deviceIpv6.startsWith('fe80:') ||
       item.deviceIpv6.startsWith('fd') ||
       item.deviceIpv6.startsWith('::')
-    ) {
-      return null
-    }
-    return `[${item.deviceIpv6}]:${item.ports}`
-  }
-
-  protected copyEndpoint(endpoint: string) {
-    this.clipboard.copy(endpoint)
-    this.alerts.open('Copied', { appearance: 'positive' }).subscribe()
+      ? null
+      : `[${item.deviceIpv6}]:${item.ports}`
   }
 
   protected toggleEnabled(item: PublishedPortDisplay) {
     item.enabled = !item.enabled
     item.status = item.enabled ? 'active' : 'disabled'
-    this.service.save([...this.publishedPortsTable()])
+    this.service.save([...this.publishedPorts()])
   }
 
   protected delete(id: string) {
-    const items = this.publishedPortsTable().filter(item => item.id !== id)
-    this.service.save(items)
+    this.service.save(this.publishedPorts().filter(item => item.id !== id))
   }
+}
+
+function getIpVersion(item: PublishedPortDisplay): 'ipv4' | 'ipv6' | 'both' {
+  if (item.ipv4 && item.ipv6) return 'both'
+
+  return item.ipv6 ? 'ipv6' : 'ipv4'
 }
