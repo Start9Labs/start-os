@@ -20,13 +20,13 @@ import { EthernetPort, EthernetService } from './service'
     <ethernet-aside *help />
     <header tuiHeader>
       <hgroup tuiTitle><h2>Ethernet</h2></hgroup>
-      <aside tuiAccessories>
-        @if (service.data()) {
-          <button tuiButton size="s" appearance="flat" (click)="onChangeWan()">
+      @if (service.data()) {
+        <aside tuiAccessories>
+          <button tuiButton size="s" (click)="onChangeWan()">
             Change WAN Port
           </button>
-        }
-      </aside>
+        </aside>
+      }
     </header>
     <table
       [tuiSkeleton]="!service.data()"

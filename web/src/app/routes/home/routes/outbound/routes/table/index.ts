@@ -118,8 +118,8 @@ export default class OutboundTable {
 
     this.dialogs
       .open<any>(ADD, {
-        label: 'Add Outbound VPN (Client)',
-        size: 'm',
+        label: 'Add Outbound VPN',
+        size: 's',
         data: { targetOptions },
       })
       .subscribe(async ({ label, target, config }) => {

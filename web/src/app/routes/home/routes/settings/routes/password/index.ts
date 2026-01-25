@@ -18,7 +18,7 @@ import {
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
 import { TuiNotificationMiddleService, TuiPassword } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { TuiHeader } from '@taiga-ui/layout'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
@@ -41,34 +41,31 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
     <password-aside *help />
     <form [formGroup]="form" [formLoading]="false" (ngSubmit)="onSubmit()">
       <header tuiHeader="h6"><h2 tuiTitle>Change Password</h2></header>
-      <section tuiForm="m" tuiCardLarge class="g-form">
-        <div>
-          <tui-textfield>
-            <label tuiLabel>Old password</label>
-            <input tuiInput formControlName="old" type="password" />
-            <tui-icon tuiPassword />
-          </tui-textfield>
-          <tui-error formControlName="old" />
-        </div>
-        <div>
-          <tui-textfield>
-            <label tuiLabel>New password</label>
-            <input tuiInput formControlName="password" type="password" />
-            <tui-icon tuiPassword />
-          </tui-textfield>
-          <tui-error formControlName="password" />
-        </div>
-        <div>
-          <tui-textfield>
-            <label tuiLabel>Confirm password</label>
-            <input tuiInput formControlName="confirm" type="password" />
-            <tui-icon tuiPassword />
-          </tui-textfield>
-          <tui-error formControlName="confirm" />
-        </div>
-      </section>
+      <tui-textfield>
+        <label tuiLabel>Old password</label>
+        <input tuiInput formControlName="old" type="password" />
+        <tui-icon tuiPassword />
+      </tui-textfield>
+      <tui-error formControlName="old" />
+      <tui-textfield>
+        <label tuiLabel>New password</label>
+        <input tuiInput formControlName="password" type="password" />
+        <tui-icon tuiPassword />
+      </tui-textfield>
+      <tui-error formControlName="password" />
+      <tui-textfield>
+        <label tuiLabel>Confirm password</label>
+        <input tuiInput formControlName="confirm" type="password" />
+        <tui-icon tuiPassword />
+      </tui-textfield>
+      <tui-error formControlName="confirm" />
       <footer appFooter></footer>
     </form>
+  `,
+  styles: `
+    tui-textfield {
+      max-inline-size: 20rem;
+    }
   `,
   host: { class: 'g-page' },
   providers: [
@@ -79,8 +76,6 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   ],
   imports: [
     ReactiveFormsModule,
-    TuiCardLarge,
-    TuiForm,
     TuiHeader,
     TuiTitle,
     TuiError,

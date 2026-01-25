@@ -16,6 +16,7 @@ import {
   tuiTextfieldOptionsProvider,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { TuiTextarea } from '@taiga-ui/kit'
 import { TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent, injectContext } from '@taiga-ui/polymorpheus'
 
@@ -39,13 +40,14 @@ function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
 @Component({
   template: `
     <form tuiForm="m" [style.margin-top.rem]="1" [formGroup]="form">
-      <h3 tuiHeader="body-m">Public Key *</h3>
       <tui-textfield>
-        <input
-          tuiInput
+        <label tuiLabel>Public Key</label>
+        <textarea
+          tuiTextarea
           placeholder="ssh-ed25519 AAAA... user@host"
           formControlName="key"
-        />
+          [min]="3"
+        ></textarea>
       </tui-textfield>
       <tui-error formControlName="key" />
       <footer>
@@ -68,13 +70,13 @@ function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
     }),
   ],
   imports: [
+    ReactiveFormsModule,
     TuiForm,
     TuiTextfield,
     TuiError,
     TuiInput,
-    ReactiveFormsModule,
-    TuiHeader,
     TuiButton,
+    TuiTextarea,
   ],
 })
 export class AddSshKey {

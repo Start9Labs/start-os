@@ -84,64 +84,60 @@ const THEMES: Record<string, Theme> = {
     }
     <form [formGroup]="form" [formLoading]="false" (ngSubmit)="onSubmit()">
       <header tuiHeader="h6"><h2 tuiTitle>Preferences</h2></header>
-      <article tuiCardLarge class="g-form">
-        <section>
-          <div>
-            <tui-textfield tuiChevron>
-              <label tuiLabel>Theme</label>
-              <input
-                tuiSelect
-                formControlName="theme"
-                (tuiValueChanges)="onTheme($event)"
-              />
-              <tui-data-list-wrapper
-                *tuiDropdown
-                [items]="['System', 'Dark', 'Light']"
-              />
-            </tui-textfield>
-          </div>
-          <div>
-            <tui-textfield tuiChevron [stringify]="stringifyLanguage">
-              <label tuiLabel>Language</label>
-              <input tuiSelect formControlName="language" />
-              <tui-data-list *tuiDropdown>
-                @for (lang of languages; track lang.posix) {
-                  <button tuiOption [value]="lang.posix">
-                    <div class="language-option">
-                      <span class="native">{{ lang.nativeName }}</span>
-                      <span class="translated">
-                        {{ getTranslatedName(lang.posix) }}
-                      </span>
-                    </div>
-                  </button>
-                }
-              </tui-data-list>
-            </tui-textfield>
-          </div>
-        </section>
-      </article>
-      <header tuiHeader="h6"><h2 tuiTitle>Remote Access</h2></header>
-      <article tuiCardLarge class="g-form">
-        @if (form.value.remote === 'always') {
-          <div tuiNotification appearance="warning">
-            This setting is not recommended as your router will be exposed to
-            the internet
-          </div>
-        }
-        <div class="remote-options">
-          @for (value of ['default', 'never', 'always']; track $index) {
-            <label tuiLabel>
-              <input
-                type="radio"
-                tuiRadio
-                formControlName="remote"
-                [value]="value"
-              />
-              {{ $index ? value : 'When behind NAT (Default)' }}
-            </label>
-          }
+      <section>
+        <div>
+          <tui-textfield tuiChevron>
+            <label tuiLabel>Theme</label>
+            <input
+              tuiSelect
+              formControlName="theme"
+              (tuiValueChanges)="onTheme($event)"
+            />
+            <tui-data-list-wrapper
+              *tuiDropdown
+              [items]="['System', 'Dark', 'Light']"
+            />
+          </tui-textfield>
         </div>
-      </article>
+        <div>
+          <tui-textfield tuiChevron [stringify]="stringifyLanguage">
+            <label tuiLabel>Language</label>
+            <input tuiSelect formControlName="language" />
+            <tui-data-list *tuiDropdown>
+              @for (lang of languages; track lang.posix) {
+                <button tuiOption [value]="lang.posix">
+                  <div class="language-option">
+                    <span class="native">{{ lang.nativeName }}</span>
+                    <span class="translated">
+                      {{ getTranslatedName(lang.posix) }}
+                    </span>
+                  </div>
+                </button>
+              }
+            </tui-data-list>
+          </tui-textfield>
+        </div>
+      </section>
+      <header tuiHeader="h6"><h2 tuiTitle>Remote Access</h2></header>
+      @if (form.value.remote === 'always') {
+        <div tuiNotification appearance="warning">
+          This setting is not recommended as your router will be exposed to the
+          internet
+        </div>
+      }
+      <div class="remote-options">
+        @for (value of ['default', 'never', 'always']; track $index) {
+          <label tuiLabel>
+            <input
+              type="radio"
+              tuiRadio
+              formControlName="remote"
+              [value]="value"
+            />
+            {{ $index ? value : 'When behind NAT (Default)' }}
+          </label>
+        }
+      </div>
       <footer appFooter></footer>
     </form>
   `,
