@@ -6,6 +6,7 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { Router, RouterLink } from '@angular/router'
+import { TuiDropdownSheet } from '@taiga-ui/addon-mobile'
 import {
   TuiDataList,
   TuiDropdown,
@@ -41,58 +42,49 @@ import { SystemService } from 'src/app/services/system.service'
       <input type="checkbox" tuiSwitch size="s" [(ngModel)]="sidebars.end" />
       Help
     </label>
-    <button
-      class="start9-menu"
-      [tuiDropdown]="menuDropdown"
-      [(tuiDropdownOpen)]="menuOpen"
-    >
+    <button class="start9-menu" tuiDropdownSheet tuiDropdown tuiDropdownAuto>
       <img alt="Start9" src="assets/favicon.svg" />
-    </button>
-    <ng-template #menuDropdown>
-      <tui-data-list size="s">
-        <button
-          tuiOption
-          type="button"
-          (click)="menuOpen.set(false); showAbout()"
-        >
-          <tui-icon icon="@tui.info" />
-          About
-        </button>
-        <hr />
-        <a
-          tuiOption
-          href="https://docs.start9.com"
-          target="_blank"
-          rel="noopener"
-        >
-          <tui-icon icon="@tui.book-open" />
-          Documentation
-        </a>
-        <a
-          tuiOption
-          href="https://start9.com/contact"
-          target="_blank"
-          rel="noopener"
-        >
-          <tui-icon icon="@tui.life-buoy" />
-          Contact Support
-        </a>
-        <hr />
-        <a tuiOption routerLink="/settings" (click)="menuOpen.set(false)">
-          <tui-icon icon="@tui.settings" />
-          System Settings
-        </a>
-        <hr />
-        <button tuiOption type="button" (click)="logout()">
-          <tui-icon icon="@tui.log-out" />
-          Logout
-        </button>
-        <button tuiOption type="button" (click)="restart()">
-          <tui-icon icon="@tui.refresh-cw" />
-          Restart
-        </button>
+      <tui-data-list *tuiDropdown="let close" size="m" (click)="close()">
+        <tui-opt-group>
+          <button tuiOption iconStart="@tui.info" (click)="showAbout()">
+            About
+          </button>
+        </tui-opt-group>
+        <tui-opt-group>
+          <a
+            tuiOption
+            iconStart="@tui.book-open"
+            href="https://docs.start9.com"
+            target="_blank"
+            rel="noopener"
+          >
+            Documentation
+          </a>
+          <a
+            tuiOption
+            iconStart="@tui.life-buoy"
+            href="https://start9.com/contact"
+            target="_blank"
+            rel="noopener"
+          >
+            Contact Support
+          </a>
+        </tui-opt-group>
+        <tui-opt-group>
+          <a tuiOption iconStart="@tui.settings" routerLink="/settings">
+            System Settings
+          </a>
+        </tui-opt-group>
+        <tui-opt-group>
+          <button tuiOption iconStart="@tui.log-out" (click)="logout()">
+            Logout
+          </button>
+          <button tuiOption iconStart="@tui.refresh-cw" (click)="restart()">
+            Restart
+          </button>
+        </tui-opt-group>
       </tui-data-list>
-    </ng-template>
+    </button>
   `,
   styles: `
     :host {
@@ -121,7 +113,7 @@ import { SystemService } from 'src/app/services/system.service'
       width: min(15rem, calc(100vw - 13rem));
     }
 
-    [tuiInput],
+    tui-textfield,
     [tuiBlock] {
       border-radius: 2rem;
     }
@@ -133,20 +125,6 @@ import { SystemService } from 'src/app/services/system.service'
       border: none;
       padding: 0;
       cursor: pointer;
-    }
-
-    tui-data-list {
-      tui-icon {
-        font-size: 1rem;
-        margin-inline-end: 0.5rem;
-      }
-
-      hr {
-        height: 1px;
-        border: none;
-        background: var(--tui-border-normal);
-        margin: 0.25rem 0;
-      }
     }
 
     :host-context(tui-root._mobile) {
@@ -176,6 +154,7 @@ import { SystemService } from 'src/app/services/system.service'
     TuiTextfield,
     TuiBlock,
     TuiSwitch,
+    TuiDropdownSheet,
   ],
   providers: [
     tuiTextfieldOptionsProvider({
@@ -194,7 +173,6 @@ export class Header {
   protected readonly sidebars = inject(SidebarService)
   protected readonly system = inject(SystemService)
   protected readonly search = signal('')
-  protected readonly menuOpen = signal(false)
 
   protected showAbout(): void {
     const info = this.system.info()
@@ -206,7 +184,6 @@ export class Header {
   }
 
   protected async logout(): Promise<void> {
-    this.menuOpen.set(false)
     const loading = this.loading.open('').subscribe()
     try {
       await this.api.logout()
@@ -221,7 +198,6 @@ export class Header {
   }
 
   protected async restart(): Promise<void> {
-    this.menuOpen.set(false)
     const loading = this.loading.open('Restarting...').subscribe()
     try {
       await this.api.systemRestart()

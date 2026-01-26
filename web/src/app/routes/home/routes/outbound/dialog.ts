@@ -3,9 +3,9 @@ import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
   TuiButton,
+  TuiDialogContext,
   TuiError,
   TuiInput,
-  TuiDialogContext,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
   tuiValidationErrorsProvider,
@@ -17,8 +17,11 @@ import {
   TuiFiles,
   TuiSelect,
 } from '@taiga-ui/kit'
-import { TuiForm, TuiHeader } from '@taiga-ui/layout'
-import { PolymorpheusComponent, injectContext } from '@taiga-ui/polymorpheus'
+import { TuiForm } from '@taiga-ui/layout'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { ModalHelp } from 'src/app/directives/modal-help'
+
+import { OutboundDialogAside } from './aside'
 import { getAddOutboundVpnForm, OUTBOUND_VALIDATION_ERRORS } from './utils'
 
 interface AddVPNData {
@@ -27,9 +30,10 @@ interface AddVPNData {
 
 @Component({
   template: `
+    <outbound-dialog-aside *modalHelp />
     <form tuiForm="m" [style.margin-top.rem]="1" [formGroup]="form">
-      <h3 tuiHeader="body-m">Label *</h3>
       <tui-textfield>
+        <label tuiLabel>Label</label>
         <input
           tuiInput
           placeholder="e.g. Mullvad Sweden"
@@ -37,11 +41,17 @@ interface AddVPNData {
         />
       </tui-textfield>
       <tui-error formControlName="label" />
-      <h3 tuiHeader="body-m">WireGuard Configuration *</h3>
       @if (!form.value.config || form.controls.config.invalid) {
         <label tuiInputFiles class="g-action">
           <input tuiInputFiles accept=".conf" formControlName="config" />
-          <ng-template>Drop .conf file here or click to browse</ng-template>
+          <ng-template>
+            <div>
+              Drop WireGuard
+              <b>.conf</b>
+              file here
+              <div>or click to browse</div>
+            </div>
+          </ng-template>
         </label>
       } @else {
         <tui-file
@@ -50,8 +60,8 @@ interface AddVPNData {
         />
       }
       <tui-error formControlName="config" />
-      <h3 tuiHeader="body-m">Target</h3>
       <tui-textfield tuiChevron>
+        <label tuiLabel>Target</label>
         <input tuiSelect formControlName="target" />
         <tui-data-list-wrapper
           *tuiDropdown
@@ -89,12 +99,13 @@ interface AddVPNData {
     ReactiveFormsModule,
     TuiFiles,
     TuiFile,
-    TuiHeader,
     TuiSelect,
     TuiDataListWrapper,
     TuiChevron,
     TuiButton,
     TuiInput,
+    ModalHelp,
+    OutboundDialogAside,
   ],
 })
 export class AddVPN {

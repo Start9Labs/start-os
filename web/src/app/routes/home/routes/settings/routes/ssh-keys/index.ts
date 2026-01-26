@@ -163,7 +163,7 @@ export default class SshKeys implements OnInit {
     this.dialogs
       .open<string>(ADD_SSH_KEY, {
         label: 'Add SSH Key',
-        size: 'm',
+        size: 's',
       })
       .subscribe(async rawKey => {
         const loading = this.loader.open('').subscribe()
