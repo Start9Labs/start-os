@@ -23,11 +23,30 @@ if [ -f /etc/default/grub ]; then
 	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos console=ttyS0,115200n8 console=tty0"' /etc/default/grub
 	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX_DEFAULT=/c\GRUB_CMDLINE_LINUX_DEFAULT=""' /etc/default/grub
 	sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
-	sed -i '/\(^\|#\)GRUB_TERMINAL=/c\GRUB_TERMINAL="serial"\nGRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' /etc/default/grub
+	# Enable both graphical and serial terminal output
+	sed -i '/\(^\|#\)GRUB_TERMINAL_INPUT=/c\GRUB_TERMINAL_INPUT="console serial"' /etc/default/grub
+	sed -i '/\(^\|#\)GRUB_TERMINAL_OUTPUT=/c\GRUB_TERMINAL_OUTPUT="gfxterm serial"' /etc/default/grub
+	# Remove GRUB_TERMINAL if present (replaced by INPUT/OUTPUT above)
+	sed -i '/^\(#\|\)GRUB_TERMINAL=/d' /etc/default/grub
+	# Serial console settings
 	if grep '^GRUB_SERIAL_COMMAND=' /etc/default/grub > /dev/null; then
 		sed -i '/\(^\|#\)GRUB_SERIAL_COMMAND=/c\GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' /etc/default/grub
 	else
 		echo 'GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' >> /etc/default/grub
+	fi
+	# Graphics mode and splash background
+	sed -i '/\(^\|#\)GRUB_GFXMODE=/c\GRUB_GFXMODE=800x600' /etc/default/grub
+	sed -i '/\(^\|#\)GRUB_GFXPAYLOAD_LINUX=/c\GRUB_GFXPAYLOAD_LINUX=keep' /etc/default/grub
+	sed -i '/\(^\|#\)GRUB_BACKGROUND=/c\GRUB_BACKGROUND="/boot/grub/splash.png"' /etc/default/grub
+	sed -i '/\(^\|#\)GRUB_THEME=/c\GRUB_THEME="/boot/grub/startos-theme/theme.txt"' /etc/default/grub
+	# Copy splash image and theme to boot partition
+	if [ -f /usr/lib/startos/splash.png ]; then
+		mkdir -p /boot/grub
+		cp /usr/lib/startos/splash.png /boot/grub/splash.png
+	fi
+	if [ -d /usr/lib/startos/grub-theme ]; then
+		mkdir -p /boot/grub/startos-theme
+		cp -r /usr/lib/startos/grub-theme/* /boot/grub/startos-theme/
 	fi
 fi
 

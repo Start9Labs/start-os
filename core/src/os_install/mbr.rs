@@ -2,10 +2,12 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
 use mbrman::{CHS, MBR, MBRPartitionEntry};
+use tokio::process::Command;
 
 use crate::disk::OsPartitionInfo;
 use crate::os_install::partition_for;
 use crate::prelude::*;
+use crate::util::Invoke;
 
 pub async fn partition(
     disk_path: &Path,
@@ -138,6 +140,28 @@ pub async fn partition(
     })
     .await
     .unwrap()?;
+
+    // Re-read partition table and wait for udev to create device nodes
+    Command::new("vgchange")
+        .arg("-an")
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await
+        .ok();
+    Command::new("dmsetup")
+        .arg("remove_all")
+        .arg("--force")
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await
+        .ok();
+    Command::new("blockdev")
+        .arg("--rereadpt")
+        .arg(&disk_path)
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?;
+    Command::new("udevadm")
+        .arg("settle")
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?;
 
     Ok(OsPartitionInfo {
         efi: None,

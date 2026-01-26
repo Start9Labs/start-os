@@ -490,7 +490,10 @@ pub async fn exit(ctx: SetupContext) -> Result<(), Error> {
         None
     };
 
-    ctx.shutdown.send(shutdown).expect("failed to shutdown");
+    ctx.shutdown
+        .send(shutdown)
+        .map_err(|e| eyre!("failed to shutdown: {e}"))
+        .log_err();
     Ok(())
 }
 
@@ -505,7 +508,8 @@ pub async fn restart(ctx: SetupContext) -> Result<(), Error> {
             disk_guid: ctx.disk_guid.get().cloned(),
             restart: true,
         }))
-        .expect("failed to shutdown");
+        .map_err(|e| eyre!("failed to shutdown: {e}"))
+        .log_err();
     Ok(())
 }
 
@@ -520,7 +524,8 @@ pub async fn shutdown(ctx: SetupContext) -> Result<(), Error> {
             disk_guid: ctx.disk_guid.get().cloned(),
             restart: false,
         }))
-        .expect("failed to shutdown");
+        .map_err(|e| eyre!("failed to shutdown: {e}"))
+        .log_err();
     Ok(())
 }
 

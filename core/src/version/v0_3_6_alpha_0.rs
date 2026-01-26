@@ -168,6 +168,12 @@ impl VersionT for Version {
 
         let tor_keys = previous_tor_keys(&pg).await?;
 
+        Command::new("systemctl")
+            .arg("stop")
+            .arg("postgresql@*.service")
+            .invoke(crate::ErrorKind::Database)
+            .await?;
+
         Ok((account, ssh_keys, cifs, tor_keys))
     }
     fn up(

@@ -2,10 +2,12 @@ use std::path::{Path, PathBuf};
 
 use gpt::GptConfig;
 use gpt::disk::LogicalBlockSize;
+use tokio::process::Command;
 
 use crate::disk::OsPartitionInfo;
 use crate::os_install::partition_for;
 use crate::prelude::*;
+use crate::util::Invoke;
 
 pub async fn partition(
     disk_path: &Path,
@@ -113,11 +115,8 @@ pub async fn partition(
         // Check if protected partition would be overwritten by OS partitions
         if let Some((first_lba, _, ref path)) = protected_partition_info {
             // Get the actual end sector of the last OS partition (root = partition 3)
-            let os_partitions_end_sector = gpt
-                .partitions()
-                .get(&3)
-                .map(|p| p.last_lba)
-                .unwrap_or(0);
+            let os_partitions_end_sector =
+                gpt.partitions().get(&3).map(|p| p.last_lba).unwrap_or(0);
             if first_lba <= os_partitions_end_sector {
                 return Err(Error::new(
                     eyre!(
@@ -175,6 +174,28 @@ pub async fn partition(
     })
     .await
     .unwrap()?;
+
+    // Re-read partition table and wait for udev to create device nodes
+    Command::new("vgchange")
+        .arg("-an")
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await
+        .ok();
+    Command::new("dmsetup")
+        .arg("remove_all")
+        .arg("--force")
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await
+        .ok();
+    Command::new("blockdev")
+        .arg("--rereadpt")
+        .arg(&disk_path)
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?;
+    Command::new("udevadm")
+        .arg("settle")
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?;
 
     Ok(OsPartitionInfo {
         efi: efi.then(|| partition_for(&disk_path, 1)),
