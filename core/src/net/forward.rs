@@ -34,7 +34,7 @@ impl AvailablePorts {
     pub fn alloc(&mut self) -> Result<u16, Error> {
         self.0.request_id().ok_or_else(|| {
             Error::new(
-                eyre!("No more dynamic ports available!"),
+                eyre!("{}", t!("net.forward.no-dynamic-ports-available")),
                 ErrorKind::Network,
             )
         })
@@ -240,7 +240,7 @@ impl PortForwardController {
             }
             .await
             {
-                tracing::error!("error initializing PortForwardController: {e:#}");
+                tracing::error!("{}", t!("net.forward.error-initializing-controller", error = format!("{e:#}")));
                 tracing::debug!("{e:?}");
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
@@ -400,7 +400,7 @@ impl InterfaceForwardEntry {
     ) -> Result<Arc<()>, Error> {
         if external != self.external {
             return Err(Error::new(
-                eyre!("Mismatched external port in InterfaceForwardEntry"),
+                eyre!("{}", t!("net.forward.mismatched-external-port")),
                 ErrorKind::InvalidRequest,
             ));
         }
@@ -477,7 +477,7 @@ impl InterfaceForwardState {
 
 fn err_has_exited<T>(_: T) -> Error {
     Error::new(
-        eyre!("PortForwardController thread has exited"),
+        eyre!("{}", t!("net.forward.controller-thread-exited")),
         ErrorKind::Unknown,
     )
 }

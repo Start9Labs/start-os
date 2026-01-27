@@ -23,16 +23,19 @@ use crate::progress::ProgressUnits;
 use crate::s9pk::S9pk;
 use crate::service::service_map::DownloadInstallFuture;
 use crate::setup::SetupExecuteProgress;
-use crate::system::sync_kiosk;
-use crate::util::serde::IoFormat;
+use crate::system::{save_language, sync_kiosk};
+use crate::util::serde::{IoFormat, Pem};
 use crate::{PLATFORM, PackageId};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct RestorePackageParams {
+    #[arg(help = "help.arg.package-ids")]
     pub ids: Vec<PackageId>,
+    #[arg(help = "help.arg.backup-target-id")]
     pub target_id: BackupTargetId,
+    #[arg(help = "help.arg.backup-password")]
     pub password: String,
 }
 
@@ -63,7 +66,10 @@ pub async fn restore_packages_rpc(
                 match async { res.await?.await }.await {
                     Ok(_) => (),
                     Err(err) => {
-                        tracing::error!("Error restoring package {}: {}", id, err);
+                        tracing::error!(
+                            "{}",
+                            t!("backup.restore.package-error", id = id, error = err)
+                        );
                         tracing::debug!("{:?}", err);
                     }
                 }
@@ -75,10 +81,10 @@ pub async fn restore_packages_rpc(
 }
 
 #[instrument(skip_all)]
-pub async fn recover_full_embassy(
+pub async fn recover_full_server(
     ctx: &SetupContext,
-    disk_guid: Arc<String>,
-    start_os_password: String,
+    disk_guid: InternedString,
+    password: String,
     recovery_source: TmpMountGuard,
     server_id: &str,
     recovery_password: &str,
@@ -102,7 +108,7 @@ pub async fn recover_full_embassy(
     )?;
 
     os_backup.account.password = argon2::hash_encoded(
-        start_os_password.as_bytes(),
+        password.as_bytes(),
         &rand::random::<[u8; 16]>()[..],
         &argon2::Config::rfc9106_low_mem(),
     )
@@ -111,16 +117,32 @@ pub async fn recover_full_embassy(
     let kiosk = Some(kiosk.unwrap_or(true)).filter(|_| &*PLATFORM != "raspberrypi");
     sync_kiosk(kiosk).await?;
 
+    let language = ctx.language.peek(|a| a.clone());
+    let keyboard = ctx.keyboard.peek(|a| a.clone());
+
+    if let Some(language) = &language {
+        save_language(&**language).await?;
+    }
+
+    if let Some(keyboard) = &keyboard {
+        keyboard.save().await?;
+    }
+
     let db = ctx.db().await?;
-    db.put(&ROOT, &Database::init(&os_backup.account, kiosk)?)
-        .await?;
+    db.put(
+        &ROOT,
+        &Database::init(&os_backup.account, kiosk, language, keyboard)?,
+    )
+    .await?;
     drop(db);
 
-    let init_result = init(&ctx.webserver, &ctx.config, init_phases).await?;
+    let config = ctx.config.peek(|c| c.clone());
+
+    let init_result = init(&ctx.webserver, &config, init_phases).await?;
 
     let rpc_ctx = RpcContext::init(
         &ctx.webserver,
-        &ctx.config,
+        &config,
         disk_guid.clone(),
         Some(init_result),
         rpc_ctx_phases,
@@ -145,7 +167,10 @@ pub async fn recover_full_embassy(
                 match async { res.await?.await }.await {
                     Ok(_) => (),
                     Err(err) => {
-                        tracing::error!("Error restoring package {}: {}", id, err);
+                        tracing::error!(
+                            "{}",
+                            t!("backup.restore.package-error", id = id, error = err)
+                        );
                         tracing::debug!("{:?}", err);
                     }
                 }
@@ -155,7 +180,14 @@ pub async fn recover_full_embassy(
         .await;
     restore_phase.lock().await.complete();
 
-    Ok(((&os_backup.account).try_into()?, rpc_ctx))
+    Ok((
+        SetupResult {
+            hostname: os_backup.account.hostname,
+            root_ca: Pem(os_backup.account.root_ca_cert),
+            needs_restart: ctx.install_rootfs.peek(|a| a.is_some()),
+        },
+        rpc_ctx,
+    ))
 }
 
 #[instrument(skip(ctx, backup_guard))]

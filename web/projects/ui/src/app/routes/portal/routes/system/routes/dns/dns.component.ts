@@ -9,7 +9,7 @@ import {
   i18nPipe,
   LoadingService,
 } from '@start9labs/shared'
-import { ISB } from '@start9labs/start-sdk'
+import { ISB, utils } from '@start9labs/start-sdk'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
@@ -20,6 +20,14 @@ import { FormService } from 'src/app/services/form.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
+
+// IPv4
+const ipv4 =
+  /(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}/
+
+// IPv6 (your existing pattern)
+const ipv6 =
+  /(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))/
 
 @Component({
   template: `
@@ -111,17 +119,11 @@ export default class SystemDnsComponent {
     strategy: ISB.Value.union({
       name: 'strategy',
       default: 'dhcp',
+      description: `<ul><li><b>DHCP</b>: ${this.i18n.transform('Use the DNS servers provided by your router')}</li><li><b>${this.i18n.transform('Static')}</b>: ${this.i18n.transform('Use DNS servers you specify manually')}</li></ul>`,
       variants: ISB.Variants.of({
         dhcp: {
           name: 'DHCP',
-          spec: ISB.InputSpec.of({
-            servers: ISB.Value.dynamicText(() => ({
-              name: this.i18n.transform('DHCP Servers'),
-              default: null,
-              required: true,
-              disabled: this.i18n.transform('Cannot edit DHCP servers'),
-            })),
-          }),
+          spec: ISB.InputSpec.of({}),
         },
         static: {
           name: this.i18n.transform('Static'),
@@ -129,11 +131,21 @@ export default class SystemDnsComponent {
             servers: ISB.Value.list(
               ISB.List.text(
                 {
-                  name: this.i18n.transform('Static Servers'),
+                  name: this.i18n.transform('Servers'),
                   minLength: 1,
                   maxLength: 3,
                 },
-                { placeholder: '1.1.1.1' },
+                {
+                  placeholder: '1.1.1.1',
+                  patterns: [
+                    {
+                      regex: `^(${ipv4.source}(:\\d{1,5})?|${ipv6.source}|\\[${ipv6.source}\\](:\\d{1,5})?)$`,
+                      description: this.i18n.transform(
+                        'Must be a valid IPv4 or Ipv6 address with optional port',
+                      ),
+                    },
+                  ],
+                },
               ),
             ),
           }),

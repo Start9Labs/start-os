@@ -12,15 +12,20 @@ import { RouterLink } from '@angular/router'
 import {
   DialogService,
   ErrorService,
+  getAllKeyboardsSorted,
+  getKeyboardName,
   i18nKey,
   i18nPipe,
   i18nService,
-  languages,
-  Languages,
+  Keyboard,
+  KeyboardLayout,
+  Language,
+  LANGUAGES,
+  LANGUAGE_TO_CODE,
   LoadingService,
 } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiAnimated, TuiContext, TuiStringHandler } from '@taiga-ui/cdk'
+import { TuiAnimated } from '@taiga-ui/cdk'
 import {
   TuiAppearance,
   TuiButton,
@@ -49,6 +54,7 @@ import { TitleDirective } from 'src/app/services/title.service'
 import { SnekDirective } from './snek.directive'
 import { UPDATE } from './update.component'
 import { SystemWipeComponent } from './wipe.component'
+import { KeyboardSelectComponent } from './keyboard-select.component'
 
 @Component({
   template: `
@@ -104,20 +110,16 @@ import { SystemWipeComponent } from './wipe.component'
         <tui-icon icon="@tui.languages" />
         <span tuiTitle>
           <strong>{{ 'Language' | i18n }}</strong>
-          <span tuiSubtitle [style.text-transform]="'capitalize'">
-            @if (language; as lang) {
-              {{ lang | i18n }}
-            } @else {
-              {{ i18nService.language }}
-            }
+          <span tuiSubtitle>
+            {{ currentLanguage?.nativeName }}
           </span>
         </span>
         <button
           tuiButtonSelect
           tuiButton
           [loading]="i18nService.loading()"
-          [ngModel]="i18nService.language"
-          (ngModelChange)="i18nService.setLanguage($event)"
+          [ngModel]="currentLanguage"
+          (ngModelChange)="onLanguageChange($event)"
         >
           {{ 'Change' | i18n }}
           <tui-data-list-wrapper
@@ -125,29 +127,50 @@ import { SystemWipeComponent } from './wipe.component'
             new
             size="l"
             [items]="languages"
-            [itemContent]="translation"
+            [itemContent]="languageContent"
           />
         </button>
+        <ng-template #languageContent let-item>
+          {{ item.nativeName }}
+        </ng-template>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.monitor" />
         <span tuiTitle>
           <strong>
             {{ 'Kiosk Mode' | i18n }}
-            <tui-badge size="m" appearance="primary-grayscale">
+            <tui-badge
+              size="m"
+              [appearance]="server.kiosk ? 'warning' : 'primary-grayscale'"
+            >
               {{ server.kiosk ? ('Enabled' | i18n) : ('Disabled' | i18n) }}
             </tui-badge>
           </strong>
-          <span tuiSubtitle>
-            {{
-              server.kiosk === true
-                ? ('Disable Kiosk Mode unless you need to attach a monitor'
-                  | i18n)
-                : server.kiosk === false
-                  ? ('Enable Kiosk Mode if you need to attach a monitor' | i18n)
-                  : ('Kiosk Mode is unavailable on this device' | i18n)
-            }}
+          <span tuiSubtitle [class.warning-text]="server.kiosk">
+            @if (server.kiosk === null) {
+              {{ 'Kiosk Mode is unavailable on this device' | i18n }}
+            } @else {
+              {{
+                server.kiosk
+                  ? ('Disable Kiosk Mode unless you need to attach a monitor'
+                    | i18n)
+                  : ('Enable Kiosk Mode if you need to attach a monitor' | i18n)
+              }}
+            }
           </span>
+          @if (server.kiosk !== null && server.keyboard?.layout; as layout) {
+            <span tuiSubtitle class="keyboard-info">
+              <tui-icon icon="@tui.keyboard" />
+              {{ getKeyboardName(layout) }}
+              <button
+                tuiIconButton
+                appearance="icon"
+                iconStart="@tui.pencil"
+                size="xs"
+                (click)="onChangeKeyboard()"
+              ></button>
+            </span>
+          }
         </span>
         @if (server.kiosk !== null) {
           <button tuiButton appearance="primary" (click)="toggleKiosk()">
@@ -214,6 +237,21 @@ import { SystemWipeComponent } from './wipe.component'
     [tuiAnimated].tui-leave {
       animation-name: tuiFade, tuiScale;
     }
+
+    .keyboard-info {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+
+      tui-icon {
+        font-size: 0.875rem;
+      }
+    }
+
+    .warning-text,
+    [tuiSubtitle].warning-text {
+      color: var(--tui-status-warning) !important;
+    }
   `,
   providers: [tuiCellOptionsProvider({ height: 'spacious' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -258,17 +296,60 @@ export default class SystemGeneralComponent {
   readonly score = toSignal(this.patch.watch$('ui', 'snakeHighScore'))
   readonly os = inject(OSService)
   readonly i18nService = inject(i18nService)
-  readonly languages = languages
-  readonly translation: TuiStringHandler<TuiContext<Languages>> = ({
-    $implicit,
-  }) => {
-    const [head = '', ...result] = this.i18n.transform($implicit) || ''
+  readonly languages = LANGUAGES
 
-    return [head.toUpperCase(), ...result].join('')
+  get currentLanguage(): Language | undefined {
+    return LANGUAGES.find(lang => lang.name === this.i18nService.lang)
   }
 
-  get language(): Languages | undefined {
-    return this.languages.find(lang => lang === this.i18nService.language)
+  onLanguageChange(language: Language) {
+    this.i18nService.setLang(language.name)
+  }
+
+  // Expose shared utilities for template use
+  readonly getKeyboardName = getKeyboardName
+
+  /**
+   * Open keyboard selection dialog to change keyboard layout
+   */
+  onChangeKeyboard() {
+    const server = this.server()
+    if (!server) return
+
+    const keyboards = getAllKeyboardsSorted(LANGUAGE_TO_CODE[server.language])
+    const currentLayout = (server.keyboard?.layout as KeyboardLayout) || null
+
+    this.dialog
+      .openComponent<Keyboard | null>(
+        new PolymorpheusComponent(KeyboardSelectComponent, this.injector),
+        {
+          label: 'Select Keyboard Layout',
+          size: 's',
+          data: { keyboards, currentLayout },
+        },
+      )
+      .pipe(filter((keyboard): keyboard is Keyboard => keyboard !== null))
+      .subscribe(keyboard => {
+        this.saveKeyboard(keyboard)
+      })
+  }
+
+  private async saveKeyboard(keyboard: Keyboard) {
+    const loader = this.loader.open('Saving').subscribe()
+
+    try {
+      await this.api.setKeyboard({
+        layout: keyboard.layout,
+        keymap: keyboard.keymap,
+        model: null,
+        variant: null,
+        options: [],
+      })
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
   }
 
   onUpdate() {
@@ -352,24 +433,103 @@ export default class SystemGeneralComponent {
   }
 
   async toggleKiosk() {
-    const kiosk = this.server()?.kiosk
+    const server = this.server()
+    if (!server) return
 
-    const loader = this.loader
-      .open(kiosk ? 'Disabling' : 'Enabling')
-      .subscribe()
+    const kiosk = server.kiosk
+
+    // If disabling kiosk, just disable it
+    if (kiosk) {
+      await this.disableKiosk()
+      return
+    }
+
+    // Enabling kiosk - check if keyboard is already set
+    if (server.keyboard) {
+      // Keyboard already set, just enable kiosk
+      await this.enableKiosk()
+      return
+    }
+
+    // No keyboard set - prompt user to select from all keyboards
+    const keyboards = getAllKeyboardsSorted(LANGUAGE_TO_CODE[server.language])
+    this.promptKeyboardSelection(keyboards)
+  }
+
+  private promptKeyboardSelection(keyboards: Keyboard[]) {
+    this.dialog
+      .openComponent<Keyboard | null>(
+        new PolymorpheusComponent(KeyboardSelectComponent, this.injector),
+        {
+          label: 'Select Keyboard Layout',
+          size: 's',
+          data: { keyboards, currentLayout: null },
+        },
+      )
+      .pipe(filter((keyboard): keyboard is Keyboard => keyboard !== null))
+      .subscribe(keyboard => {
+        this.enableKioskWithKeyboard(keyboard)
+      })
+  }
+
+  private async enableKiosk() {
+    const loader = this.loader.open('Enabling').subscribe()
 
     try {
-      await this.api.toggleKiosk(!kiosk)
-      this.dialog
-        .openAlert('This change will take effect after the next boot', {
-          label: 'Restart to apply',
-        })
-        .subscribe()
+      await this.api.toggleKiosk(true)
+      this.promptRestart()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
+  }
+
+  private async enableKioskWithKeyboard(keyboard: Keyboard) {
+    const loader = this.loader.open('Enabling').subscribe()
+
+    try {
+      await this.api.setKeyboard({
+        layout: keyboard.layout,
+        keymap: keyboard.keymap,
+        model: null,
+        variant: null,
+        options: [],
+      })
+      await this.api.toggleKiosk(true)
+      this.promptRestart()
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  private async disableKiosk() {
+    const loader = this.loader.open('Disabling').subscribe()
+
+    try {
+      await this.api.toggleKiosk(false)
+      this.promptRestart()
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  private promptRestart() {
+    this.dialog
+      .openConfirm({
+        label: 'Restart to apply',
+        data: {
+          content: 'This change will take effect after the next boot',
+          yes: 'Restart now',
+          no: 'Later',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.restart())
   }
 
   private async resetTor(wipeState: boolean) {

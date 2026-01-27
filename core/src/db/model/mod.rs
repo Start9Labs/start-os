@@ -14,6 +14,7 @@ use crate::notifications::Notifications;
 use crate::prelude::*;
 use crate::sign::AnyVerifyingKey;
 use crate::ssh::SshKeys;
+use crate::system::KeyboardOptions;
 use crate::util::serde::Pem;
 
 pub mod package;
@@ -28,9 +29,14 @@ pub struct Database {
     pub private: Private,
 }
 impl Database {
-    pub fn init(account: &AccountInfo, kiosk: Option<bool>) -> Result<Self, Error> {
+    pub fn init(
+        account: &AccountInfo,
+        kiosk: Option<bool>,
+        language: Option<InternedString>,
+        keyboard: Option<KeyboardOptions>,
+    ) -> Result<Self, Error> {
         Ok(Self {
-            public: Public::init(account, kiosk)?,
+            public: Public::init(account, kiosk, language, keyboard)?,
             private: Private {
                 key_store: KeyStore::new(account)?,
                 password: account.password.clone(),

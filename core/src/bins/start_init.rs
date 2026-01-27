@@ -1,11 +1,9 @@
-use std::sync::Arc;
-
 use tokio::process::Command;
 use tracing::instrument;
 
 use crate::context::config::ServerConfig;
 use crate::context::rpc::InitRpcContextPhases;
-use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
+use crate::context::{DiagnosticContext, InitContext, RpcContext, SetupContext};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
@@ -27,7 +25,13 @@ async fn setup_or_init(
     if let Some(firmware) = check_for_firmware_update()
         .await
         .map_err(|e| {
-            tracing::warn!("Error checking for firmware update: {e}");
+            tracing::warn!(
+                "{}",
+                t!(
+                    "bins.start-init.error-checking-firmware",
+                    error = e.to_string()
+                )
+            );
             tracing::debug!("{e:?}");
         })
         .ok()
@@ -35,14 +39,21 @@ async fn setup_or_init(
     {
         let init_ctx = InitContext::init(config).await?;
         let handle = &init_ctx.progress;
-        let mut update_phase = handle.add_phase("Updating Firmware".into(), Some(10));
-        let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
+        let mut update_phase =
+            handle.add_phase(t!("bins.start-init.updating-firmware").into(), Some(10));
+        let mut reboot_phase = handle.add_phase(t!("bins.start-init.rebooting").into(), Some(1));
 
         server.serve_ui_for(init_ctx);
 
         update_phase.start();
         if let Err(e) = update_firmware(firmware).await {
-            tracing::warn!("Error performing firmware update: {e}");
+            tracing::warn!(
+                "{}",
+                t!(
+                    "bins.start-init.error-firmware-update",
+                    error = e.to_string()
+                )
+            );
             tracing::debug!("{e:?}");
         } else {
             update_phase.complete();
@@ -79,40 +90,11 @@ async fn setup_or_init(
         .invoke(crate::ErrorKind::OpenSsl)
         .await?;
 
-    if tokio::fs::metadata("/run/live/medium").await.is_ok() {
-        Command::new("sed")
-            .arg("-i")
-            .arg("s/PasswordAuthentication no/PasswordAuthentication yes/g")
-            .arg("/etc/ssh/sshd_config")
-            .invoke(crate::ErrorKind::Filesystem)
-            .await?;
-        Command::new("systemctl")
-            .arg("reload")
-            .arg("ssh")
-            .invoke(crate::ErrorKind::OpenSsh)
-            .await?;
-
-        let ctx = InstallContext::init().await?;
-
-        server.serve_ui_for(ctx.clone());
-
-        ctx.shutdown
-            .subscribe()
-            .recv()
-            .await
-            .expect("context dropped");
-
-        return Ok(Err(Shutdown {
-            disk_guid: None,
-            restart: true,
-        }));
-    }
-
     if tokio::fs::metadata("/media/startos/config/disk.guid")
         .await
         .is_err()
     {
-        let ctx = SetupContext::init(server, config)?;
+        let ctx = SetupContext::init(server, config.clone())?;
 
         server.serve_ui_for(ctx.clone());
 
@@ -127,7 +109,13 @@ async fn setup_or_init(
             .invoke(ErrorKind::NotFound)
             .await
         {
-            tracing::error!("Failed to kill kiosk: {}", e);
+            tracing::error!(
+                "{}",
+                t!(
+                    "bins.start-init.failed-to-kill-kiosk",
+                    error = e.to_string()
+                )
+            );
             tracing::debug!("{:?}", e);
         }
 
@@ -136,7 +124,7 @@ async fn setup_or_init(
             Some(Err(e)) => return Err(e.clone_output()),
             None => {
                 return Err(Error::new(
-                    eyre!("Setup mode exited before setup completed"),
+                    eyre!("{}", t!("bins.start-init.setup-mode-exited")),
                     ErrorKind::Unknown,
                 ));
             }
@@ -146,7 +134,8 @@ async fn setup_or_init(
         let handle = init_ctx.progress.clone();
         let err_channel = init_ctx.error.clone();
 
-        let mut disk_phase = handle.add_phase("Opening data drive".into(), Some(10));
+        let mut disk_phase =
+            handle.add_phase(t!("bins.start-init.opening-data-drive").into(), Some(10));
         let init_phases = InitPhases::new(&handle);
         let rpc_ctx_phases = InitRpcContextPhases::new(&handle);
 
@@ -156,9 +145,9 @@ async fn setup_or_init(
             disk_phase.start();
             let guid_string = tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                 .await?;
-            let disk_guid = Arc::new(String::from(guid_string.trim()));
+            let disk_guid = InternedString::intern(guid_string.trim());
             let requires_reboot = crate::disk::main::import(
-                &**disk_guid,
+                &*disk_guid,
                 DATA_DIR,
                 if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
                     RepairStrategy::Aggressive
@@ -178,11 +167,12 @@ async fn setup_or_init(
                     .with_ctx(|_| (crate::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
             }
             disk_phase.complete();
-            tracing::info!("Loaded Disk");
+            tracing::info!("{}", t!("bins.start-init.loaded-disk"));
 
             if requires_reboot.0 {
-                tracing::info!("Rebooting...");
-                let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
+                tracing::info!("{}", t!("bins.start-init.rebooting"));
+                let mut reboot_phase =
+                    handle.add_phase(t!("bins.start-init.rebooting").into(), Some(1));
                 reboot_phase.start();
                 return Ok(Err(Shutdown {
                     disk_guid: Some(disk_guid),
@@ -236,11 +226,10 @@ pub async fn main(
                         .await
                         .is_ok()
                     {
-                        Some(Arc::new(
+                        Some(InternedString::intern(
                             tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                                 .await?
-                                .trim()
-                                .to_owned(),
+                                .trim(),
                         ))
                     } else {
                         None

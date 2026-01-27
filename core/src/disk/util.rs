@@ -20,9 +20,9 @@ use super::mount::guard::TmpMountGuard;
 use crate::disk::OsPartitionInfo;
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::hostname::Hostname;
+use crate::prelude::*;
 use crate::util::Invoke;
 use crate::util::serde::IoFormat;
-use crate::{Error, ResultExt as _};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,7 +40,7 @@ pub struct DiskInfo {
     pub model: Option<String>,
     pub partitions: Vec<PartitionInfo>,
     pub capacity: u64,
-    pub guid: Option<String>,
+    pub guid: Option<InternedString>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -51,7 +51,7 @@ pub struct PartitionInfo {
     pub capacity: u64,
     pub used: Option<u64>,
     pub start_os: BTreeMap<String, StartOsRecoveryInfo>,
-    pub guid: Option<String>,
+    pub guid: Option<InternedString>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -95,7 +95,7 @@ pub async fn get_vendor<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error
         Path::new(SYS_BLOCK_PATH)
             .join(path.as_ref().strip_prefix("/dev").map_err(|_| {
                 Error::new(
-                    eyre!("not a canonical block device"),
+                    eyre!("{}", t!("disk.util.not-canonical-block-device")),
                     crate::ErrorKind::BlockDevice,
                 )
             })?)
@@ -118,7 +118,7 @@ pub async fn get_model<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
         Path::new(SYS_BLOCK_PATH)
             .join(path.as_ref().strip_prefix("/dev").map_err(|_| {
                 Error::new(
-                    eyre!("not a canonical block device"),
+                    eyre!("{}", t!("disk.util.not-canonical-block-device")),
                     crate::ErrorKind::BlockDevice,
                 )
             })?)
@@ -215,7 +215,7 @@ pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
 }
 
 #[instrument(skip_all)]
-pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<String>>, Error> {
+pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<InternedString>>, Error> {
     let pvscan_out = Command::new("pvscan")
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
@@ -257,6 +257,31 @@ pub async fn recovery_info(
     }
 
     Ok(res)
+}
+
+/// Returns the canonical path of the source device for a given mount point,
+/// or None if the mount point doesn't exist or isn't mounted.
+#[instrument(skip_all)]
+pub async fn get_mount_source(mountpoint: impl AsRef<Path>) -> Result<Option<PathBuf>, Error> {
+    let mounts_content = tokio::fs::read_to_string("/proc/mounts")
+        .await
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, "/proc/mounts"))?;
+
+    let mountpoint = mountpoint.as_ref();
+    for line in mounts_content.lines() {
+        let mut parts = line.split_whitespace();
+        let source = parts.next();
+        let mount = parts.next();
+        if let (Some(source), Some(mount)) = (source, mount) {
+            if Path::new(mount) == mountpoint {
+                // Try to canonicalize the source path
+                if let Ok(canonical) = tokio::fs::canonicalize(source).await {
+                    return Ok(Some(canonical));
+                }
+            }
+        }
+    }
+    Ok(None)
 }
 
 #[instrument(skip_all)]
@@ -374,23 +399,53 @@ async fn disk_info(disk: PathBuf) -> DiskInfo {
         .await
         .map_err(|e| {
             tracing::warn!(
-                "Could not get partition table of {}: {}",
-                disk.display(),
-                e.source
+                "{}",
+                t!(
+                    "disk.util.could-not-get-partition-table",
+                    disk = disk.display(),
+                    error = e.source
+                )
             )
         })
         .unwrap_or_default();
     let vendor = get_vendor(&disk)
         .await
-        .map_err(|e| tracing::warn!("Could not get vendor of {}: {}", disk.display(), e.source))
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-vendor",
+                    disk = disk.display(),
+                    error = e.source
+                )
+            )
+        })
         .unwrap_or_default();
     let model = get_model(&disk)
         .await
-        .map_err(|e| tracing::warn!("Could not get model of {}: {}", disk.display(), e.source))
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-model",
+                    disk = disk.display(),
+                    error = e.source
+                )
+            )
+        })
         .unwrap_or_default();
     let capacity = get_capacity(&disk)
         .await
-        .map_err(|e| tracing::warn!("Could not get capacity of {}: {}", disk.display(), e.source))
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-capacity",
+                    disk = disk.display(),
+                    error = e.source
+                )
+            )
+        })
         .unwrap_or_default();
     DiskInfo {
         logicalname: disk,
@@ -407,21 +462,49 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
     let mut start_os = BTreeMap::new();
     let label = get_label(&part)
         .await
-        .map_err(|e| tracing::warn!("Could not get label of {}: {}", part.display(), e.source))
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-label",
+                    part = part.display(),
+                    error = e.source
+                )
+            )
+        })
         .unwrap_or_default();
     let capacity = get_capacity(&part)
         .await
-        .map_err(|e| tracing::warn!("Could not get capacity of {}: {}", part.display(), e.source))
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-capacity-part",
+                    part = part.display(),
+                    error = e.source
+                )
+            )
+        })
         .unwrap_or_default();
     let mut used = None;
 
     match TmpMountGuard::mount(&BlockDev::new(&part), ReadOnly).await {
-        Err(e) => tracing::warn!("Could not collect usage information: {}", e.source),
+        Err(e) => tracing::warn!(
+            "{}",
+            t!("disk.util.could-not-collect-usage-info", error = e.source)
+        ),
         Ok(mount_guard) => {
             used = get_used(mount_guard.path())
                 .await
                 .map_err(|e| {
-                    tracing::warn!("Could not get usage of {}: {}", part.display(), e.source)
+                    tracing::warn!(
+                        "{}",
+                        t!(
+                            "disk.util.could-not-get-usage",
+                            part = part.display(),
+                            error = e.source
+                        )
+                    )
                 })
                 .ok();
             match recovery_info(mount_guard.path()).await {
@@ -429,11 +512,21 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
                     start_os = a;
                 }
                 Err(e) => {
-                    tracing::error!("Error fetching unencrypted backup metadata: {}", e);
+                    tracing::error!(
+                        "{}",
+                        t!("disk.util.error-fetching-backup-metadata", error = e)
+                    );
                 }
             }
             if let Err(e) = mount_guard.unmount().await {
-                tracing::error!("Error unmounting partition {}: {}", part.display(), e);
+                tracing::error!(
+                    "{}",
+                    t!(
+                        "disk.util.error-unmounting-partition",
+                        part = part.display(),
+                        error = e
+                    )
+                );
             }
         }
     }
@@ -448,7 +541,7 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
     }
 }
 
-fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<String>> {
+fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<InternedString>> {
     fn parse_line(line: &str) -> IResult<&str, (&str, Option<&str>)> {
         let pv_parse = preceded(
             tag("  PV "),
@@ -471,10 +564,10 @@ fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<String>>
     for entry in entries {
         match parse_line(entry) {
             Ok((_, (pv, vg))) => {
-                ret.insert(PathBuf::from(pv), vg.map(|s| s.to_owned()));
+                ret.insert(PathBuf::from(pv), vg.map(InternedString::intern));
             }
             Err(_) => {
-                tracing::warn!("Failed to parse pvscan output line: {}", entry);
+                tracing::warn!("{}", t!("disk.util.failed-to-parse-pvscan", line = entry));
             }
         }
     }

@@ -249,26 +249,26 @@ pub fn tor_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(list_services)
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| display_services(handle.params, result))
-                .with_about("Display Tor V3 Onion Addresses")
+                .with_about("about.display-tor-v3-onion-addresses")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("logs", logs().with_about("Display Tor logs"))
+        .subcommand("logs", logs().with_about("about.display-tor-logs"))
         .subcommand(
             "logs",
             from_fn_async(crate::logs::cli_logs::<RpcContext, Empty>)
                 .no_display()
-                .with_about("Display Tor logs"),
+                .with_about("about.display-tor-logs"),
         )
         .subcommand(
             "reset",
             from_fn_async(reset)
                 .no_display()
-                .with_about("Reset Tor daemon")
+                .with_about("about.reset-tor-daemon")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "key",
-            key::<C>().with_about("Manage the onion service key store"),
+            key::<C>().with_about("about.manage-onion-service-key-store"),
         )
 }
 
@@ -277,13 +277,13 @@ pub fn key<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "generate",
             from_fn_async(generate_key)
-                .with_about("Generate an onion service key and add it to the key store")
+                .with_about("about.generate-onion-service-key-add-to-store")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "add",
             from_fn_async(add_key)
-                .with_about("Add an onion service key to the key store")
+                .with_about("about.add-onion-service-key-to-store")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -295,7 +295,7 @@ pub fn key<C: Context>() -> ParentHandler<C> {
                     }
                     Ok(())
                 })
-                .with_about("List onion services with keys in the key store")
+                .with_about("about.list-onion-services-with-keys-in-store")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -316,6 +316,7 @@ pub async fn generate_key(ctx: RpcContext) -> Result<OnionAddress, Error> {
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct AddKeyParams {
+    #[arg(help = "help.arg.onion-secret-key")]
     pub key: Base64<[u8; 64]>,
 }
 
@@ -350,8 +351,9 @@ pub async fn list_keys(ctx: RpcContext) -> Result<BTreeSet<OnionAddress>, Error>
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ResetParams {
-    #[arg(name = "wipe-state", short = 'w', long = "wipe-state")]
+    #[arg(name = "wipe-state", short = 'w', long = "wipe-state", help = "help.arg.wipe-tor-state")]
     wipe_state: bool,
+    #[arg(help = "help.arg.reset-reason")]
     reason: String,
 }
 

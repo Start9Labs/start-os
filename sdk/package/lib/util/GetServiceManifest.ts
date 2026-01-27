@@ -19,10 +19,13 @@ export class GetServiceManifest<Mapped = Manifest> {
     const watch = this.watch(abort.signal)
     const res = await watch.next()
     if (this.effects.constRetry) {
-      watch.next().then(() => {
-        abort.abort()
-        this.effects.constRetry && this.effects.constRetry()
-      })
+      watch
+        .next()
+        .then(() => {
+          abort.abort()
+          this.effects.constRetry && this.effects.constRetry()
+        })
+        .catch()
     }
     return res.value
   }

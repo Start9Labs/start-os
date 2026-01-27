@@ -10,7 +10,7 @@ import {
   DialogService,
   formatProgress,
   getErrorMessage,
-  i18nKey,
+  i18nPipe,
   InitializingComponent,
   LoadingService,
 } from '@start9labs/shared'
@@ -26,17 +26,17 @@ import {
   tap,
   timer,
 } from 'rxjs'
-import { ApiService } from 'src/app/services/api.service'
-import { StateService } from 'src/app/services/state.service'
+import { ApiService } from '../services/api.service'
+import { StateService } from '../services/state.service'
 
 @Component({
   template: `
     @if (error(); as err) {
       <section>
-        <h1>{{ 'Error initializing server' }}</h1>
+        <h1>{{ 'Error initializing server' | i18n }}</h1>
         <p>{{ err }}</p>
         <button tuiButton (click)="restart()">
-          {{ 'Restart server' }}
+          {{ 'Restart server' | i18n }}
         </button>
       </section>
     } @else {
@@ -54,22 +54,21 @@ import { StateService } from 'src/app/services/state.service'
       padding: 1rem;
       margin: 1.5rem;
       text-align: center;
-      // @TODO Theme
       background: #e0e0e0;
       color: #333;
       --tui-background-neutral-1: rgba(0, 0, 0, 0.1);
     }
   `,
-  imports: [InitializingComponent, TuiButton],
+  imports: [InitializingComponent, TuiButton, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class LoadingPage {
   private readonly api = inject(ApiService)
   private readonly loader = inject(LoadingService)
   private readonly dialog = inject(DialogService)
+  private readonly router = inject(Router)
 
   readonly type = inject(StateService).setupType
-  readonly router = inject(Router)
   readonly progress = toSignal(
     from(this.getStatus()).pipe(
       filter(Boolean),
@@ -99,12 +98,13 @@ export default class LoadingPage {
     try {
       const res = await this.api.getStatus()
 
-      if (!res) {
-        this.router.navigate(['home'])
-      } else if (res.status === 'complete') {
-        this.router.navigate(['success'])
-      } else {
+      if (res.status === 'running') {
         return res
+      } else if (res.status === 'complete') {
+        this.router.navigate(['/success'])
+      } else {
+        // incomplete or needs-install - shouldn't happen on loading page
+        this.router.navigate(['/language'])
       }
     } catch (e: any) {
       this.error.set(getErrorMessage(e))
@@ -119,7 +119,7 @@ export default class LoadingPage {
     try {
       await this.api.restart()
       this.dialog
-        .openAlert('Wait 1-2 minutes and refresh the page' as i18nKey, {
+        .openAlert('Wait 1-2 minutes and refresh the page', {
           label: 'Server is restarting',
         })
         .subscribe()

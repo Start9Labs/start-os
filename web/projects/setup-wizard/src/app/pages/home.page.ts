@@ -1,134 +1,74 @@
-import { Component, inject, OnInit } from '@angular/core'
-import { RouterModule } from '@angular/router'
-import { ErrorService } from '@start9labs/shared'
-import { TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
-import { TuiCardLarge, TuiCell } from '@taiga-ui/layout'
-import { RecoverComponent } from 'src/app/components/recover.component'
-import { ApiService } from 'src/app/services/api.service'
-import { StateService } from 'src/app/services/state.service'
+import { Component, inject } from '@angular/core'
+import { Router } from '@angular/router'
+import { i18nPipe } from '@start9labs/shared'
+import { TuiAppearance, TuiTitle } from '@taiga-ui/core'
+import { TuiAvatar } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiCell, TuiHeader } from '@taiga-ui/layout'
+import { StateService } from '../services/state.service'
 
 @Component({
   template: `
-    <img class="logo" src="assets/img/icon.png" alt="Start9" />
-    @if (!loading) {
-      <section tuiCardLarge="compact">
-        <header [style.padding-top.rem]="1.25">
-          @if (recover) {
-            <button
-              tuiIconButton
-              appearance="flat-grayscale"
-              class="back"
-              iconStart="@tui.chevron-left"
-              (click)="recover = false"
-            >
-              Back
-            </button>
-          }
-          {{ recover ? 'Recover Options' : 'StartOS Setup' }}
-        </header>
-        <div class="pages">
-          <div class="options" [class.options_recover]="recover">
-            <button tuiCell [routerLink]="error || recover ? null : '/storage'">
-              <tui-icon icon="@tui.plus" />
-              <span tuiTitle>
-                <span class="g-positive">Start Fresh</span>
-                <span tuiSubtitle>
-                  Get started with a brand new Start9 server
-                </span>
-              </span>
-            </button>
-            <button
-              tuiCell
-              [disabled]="error || recover"
-              (click)="recover = true"
-            >
-              <tui-icon icon="@tui.rotate-cw" />
-              <span tuiTitle>
-                <span class="g-warning">Recover</span>
-                <span tuiSubtitle>
-                  Recover, restore, or transfer StartOS data
-                </span>
-              </span>
-            </button>
-          </div>
-          <app-recover class="options" [disabled]="!recover" />
+    <div tuiCardLarge="compact">
+      <header tuiHeader>
+        <h2 tuiTitle>{{ 'Select Setup Flow' | i18n }}</h2>
+      </header>
+
+      <button tuiCell="l" (click)="startFresh()">
+        <tui-avatar appearance="positive" src="@tui.plus" />
+        <div tuiTitle>
+          {{ 'Start Fresh' | i18n }}
+          <div tuiSubtitle>{{ 'Set up a brand new server' | i18n }}</div>
         </div>
-      </section>
-    }
-  `,
-  styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+      </button>
 
-    .logo {
-      width: 6rem;
-      margin: auto auto -2rem;
-      z-index: 1;
+      <button tuiCell="l" (click)="restore()">
+        <tui-avatar appearance="warning" src="@tui.archive-restore" />
+        <div tuiTitle>
+          {{ 'Restore from Backup' | i18n }}
+          <div tuiSubtitle>
+            {{ 'Restore StartOS data from an encrypted backup' | i18n }}
+          </div>
+        </div>
+      </button>
 
-      &:only-child {
-        margin: auto;
-      }
-
-      + * {
-        margin-top: 0;
-      }
-    }
-
-    .back {
-      position: absolute;
-      top: 1rem;
-      border-radius: 10rem;
-    }
-
-    .pages {
-      display: flex;
-      align-items: center;
-      overflow: hidden;
-    }
-
-    .options {
-      @include taiga.transition(margin);
-
-      min-width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-      padding: 1rem;
-      box-sizing: border-box;
-
-      &_recover {
-        margin-left: -100%;
-      }
-    }
+      <button tuiCell="l" (click)="transfer()">
+        <tui-avatar appearance="info" src="@tui.hard-drive-download" />
+        <div tuiTitle>
+          {{ 'Transfer' | i18n }}
+          <div tuiSubtitle>
+            {{ 'Transfer data from an existing StartOS data drive' | i18n }}
+          </div>
+        </div>
+      </button>
+    </div>
   `,
   imports: [
-    RouterModule,
+    TuiAppearance,
     TuiCardLarge,
-    TuiButton,
+    TuiHeader,
     TuiCell,
-    TuiIcon,
     TuiTitle,
-    RecoverComponent,
+    TuiAvatar,
+    i18nPipe,
   ],
 })
-export default class HomePage implements OnInit {
-  private readonly api = inject(ApiService)
-  private readonly errorService = inject(ErrorService)
+export default class HomePage {
+  private readonly router = inject(Router)
   private readonly stateService = inject(StateService)
 
-  error = false
-  loading = true
-  recover = false
-
-  async ngOnInit() {
+  async startFresh() {
     this.stateService.setupType = 'fresh'
+    this.stateService.recoverySource = undefined
+    await this.router.navigate(['/password'])
+  }
 
-    try {
-      await this.api.getPubKey()
-    } catch (e: any) {
-      this.error = true
-      this.errorService.handleError(e)
-    } finally {
-      this.loading = false
-    }
+  async restore() {
+    this.stateService.setupType = 'restore'
+    await this.router.navigate(['/restore'])
+  }
+
+  async transfer() {
+    this.stateService.setupType = 'transfer'
+    await this.router.navigate(['/transfer'])
   }
 }

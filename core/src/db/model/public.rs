@@ -25,7 +25,7 @@ use crate::net::utils::ipv6_is_local;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::progress::FullProgress;
-use crate::system::SmtpValue;
+use crate::system::{KeyboardOptions, SmtpValue};
 use crate::util::cpupower::Governor;
 use crate::util::lshw::LshwDevice;
 use crate::util::serde::MaybeUtf8String;
@@ -45,7 +45,12 @@ pub struct Public {
     pub ui: Value,
 }
 impl Public {
-    pub fn init(account: &AccountInfo, kiosk: Option<bool>) -> Result<Self, Error> {
+    pub fn init(
+        account: &AccountInfo,
+        kiosk: Option<bool>,
+        language: Option<InternedString>,
+        keyboard: Option<KeyboardOptions>,
+    ) -> Result<Self, Error> {
         Ok(Self {
             server_info: ServerInfo {
                 arch: get_arch(),
@@ -139,6 +144,8 @@ impl Public {
                 ram: 0,
                 devices: Vec::new(),
                 kiosk,
+                language,
+                keyboard,
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(*DB_UI_SEED_CELL.get().unwrap_or(&"null"))
@@ -195,6 +202,8 @@ pub struct ServerInfo {
     pub ram: u64,
     pub devices: Vec<LshwDevice>,
     pub kiosk: Option<bool>,
+    pub language: Option<InternedString>,
+    pub keyboard: Option<KeyboardOptions>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]

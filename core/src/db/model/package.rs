@@ -14,7 +14,7 @@ use crate::net::host::Hosts;
 use crate::net::service_interface::ServiceInterface;
 use crate::prelude::*;
 use crate::progress::FullProgress;
-use crate::s9pk::manifest::Manifest;
+use crate::s9pk::manifest::{LocaleString, Manifest};
 use crate::status::StatusInfo;
 use crate::util::DataUrl;
 use crate::util::serde::{Pem, is_partial_of};
@@ -417,8 +417,7 @@ impl Map for CurrentDependencies {
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct CurrentDependencyInfo {
-    #[ts(type = "string | null")]
-    pub title: Option<InternedString>,
+    pub title: Option<LocaleString>,
     pub icon: Option<DataUrl<'static>>,
     #[serde(flatten)]
     pub kind: CurrentDependencyKind,

@@ -6,15 +6,15 @@ use rpc_toolkit::yajrc::RpcError;
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;
 
-use crate::Error;
 use crate::context::config::ServerConfig;
+use crate::prelude::*;
 use crate::rpc_continuations::RpcContinuations;
 use crate::shutdown::Shutdown;
 
 pub struct DiagnosticContextSeed {
     pub shutdown: Sender<Shutdown>,
     pub error: Arc<RpcError>,
-    pub disk_guid: Option<Arc<String>>,
+    pub disk_guid: Option<InternedString>,
     pub rpc_continuations: RpcContinuations,
 }
 
@@ -24,10 +24,10 @@ impl DiagnosticContext {
     #[instrument(skip_all)]
     pub fn init(
         _config: &ServerConfig,
-        disk_guid: Option<Arc<String>>,
+        disk_guid: Option<InternedString>,
         error: Error,
     ) -> Result<Self, Error> {
-        tracing::error!("Error: {}: Starting diagnostic UI", error);
+        tracing::error!("{}", t!("context.diagnostic.starting-diagnostic-ui", error = error));
         tracing::debug!("{:?}", error);
 
         let (shutdown, _) = tokio::sync::broadcast::channel(1);

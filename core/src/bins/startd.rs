@@ -1,10 +1,10 @@
 use std::cmp::max;
 use std::ffi::OsString;
-use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Parser;
 use color_eyre::eyre::eyre;
+use rust_i18n::t;
 use futures::{FutureExt, TryFutureExt};
 use tokio::signal::unix::signal;
 use tracing::instrument;
@@ -15,11 +15,11 @@ use crate::context::{DiagnosticContext, InitContext, RpcContext};
 use crate::net::gateway::{BindTcp, SelfContainedNetworkInterfaceListener, UpgradableListener};
 use crate::net::static_server::refresher;
 use crate::net::web_server::{Acceptor, WebServer};
+use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::system::launch_metrics_task;
 use crate::util::io::append_file;
 use crate::util::logger::LOGGER;
-use crate::{Error, ErrorKind, ResultExt};
 
 #[instrument(skip_all)]
 async fn inner_main(
@@ -53,11 +53,10 @@ async fn inner_main(
         let ctx = RpcContext::init(
             &server.acceptor_setter(),
             config,
-            Arc::new(
+            InternedString::intern(
                 tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                     .await?
-                    .trim()
-                    .to_owned(),
+                    .trim(),
             ),
             None,
             rpc_ctx_phases,
@@ -114,11 +113,11 @@ async fn inner_main(
         metrics_task
             .map_err(|e| {
                 Error::new(
-                    eyre!("{}", e).wrap_err("Metrics daemon panicked!"),
+                    eyre!("{}", e).wrap_err(t!("bins.startd.metrics-daemon-panicked").to_string()),
                     ErrorKind::Unknown,
                 )
             })
-            .map_ok(|_| tracing::debug!("Metrics daemon Shutdown"))
+            .map_ok(|_| tracing::debug!("{}", t!("bins.startd.metrics-daemon-shutdown")))
             .await?;
 
         let shutdown = shutdown_recv
@@ -146,7 +145,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
             .worker_threads(max(1, num_cpus::get()))
             .enable_all()
             .build()
-            .expect("failed to initialize runtime");
+            .expect(&t!("bins.startd.failed-to-initialize-runtime"));
         let res = rt.block_on(async {
             let mut server = WebServer::new(
                 Acceptor::bind_upgradable(SelfContainedNetworkInterfaceListener::bind(BindTcp, 80)),
@@ -167,11 +166,10 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
                                 .await
                                 .is_ok()
                             {
-                                Some(Arc::new(
+                                Some(InternedString::intern(
                                     tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                                         .await?
-                                        .trim()
-                                        .to_owned(),
+                                        .trim(),
                                 ))
                             } else {
                                 None

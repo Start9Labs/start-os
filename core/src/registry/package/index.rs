@@ -17,7 +17,7 @@ use crate::registry::device_info::DeviceInfo;
 use crate::rpc_continuations::Guid;
 use crate::s9pk::S9pk;
 use crate::s9pk::git_hash::GitHash;
-use crate::s9pk::manifest::{Alerts, Description, HardwareRequirements};
+use crate::s9pk::manifest::{Alerts, Description, HardwareRequirements, LocaleString};
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::sign::{AnySignature, AnyVerifyingKey};
@@ -49,22 +49,27 @@ pub struct PackageInfo {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct Category {
-    pub name: String,
+    pub name: LocaleString,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct DependencyMetadata {
-    #[ts(type = "string | null")]
-    pub title: Option<InternedString>,
+    pub title: Option<LocaleString>,
     pub icon: Option<DataUrl<'static>>,
-    pub description: Option<String>,
+    pub description: Option<LocaleString>,
     pub optional: bool,
 }
+impl DependencyMetadata {
+    pub fn localize_for(&mut self, locale: &str) {
+        self.title.as_mut().map(|t| t.localize_for(locale));
+        self.description.as_mut().map(|d| d.localize_for(locale));
+    }
+}
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct PackageMetadata {
@@ -72,7 +77,7 @@ pub struct PackageMetadata {
     pub title: InternedString,
     pub icon: DataUrl<'static>,
     pub description: Description,
-    pub release_notes: String,
+    pub release_notes: LocaleString,
     pub git_hash: Option<GitHash>,
     #[ts(type = "string")]
     pub license: InternedString,
@@ -199,20 +204,20 @@ impl PackageVersionInfo {
         self.s9pks.sort_by_key(|(h, _)| h.specificity_desc());
         Ok(())
     }
-    pub fn table(&self, version: &VersionString) -> prettytable::Table {
+    pub fn table(self, version: &VersionString) -> prettytable::Table {
         use prettytable::*;
 
         let mut table = Table::new();
 
         table.add_row(row![bc => &self.metadata.title]);
         table.add_row(row![br -> "VERSION", AsRef::<str>::as_ref(version)]);
-        table.add_row(row![br -> "RELEASE NOTES", &self.metadata.release_notes]);
+        table.add_row(row![br -> "RELEASE NOTES", &self.metadata.release_notes.localized()]);
         table.add_row(
-            row![br -> "ABOUT", &textwrap::wrap(&self.metadata.description.short, 80).join("\n")],
+            row![br -> "ABOUT", &textwrap::wrap(&self.metadata.description.short.localized(), 80).join("\n")],
         );
         table.add_row(row![
             br -> "DESCRIPTION",
-            &textwrap::wrap(&self.metadata.description.long, 80).join("\n")
+            &textwrap::wrap(&self.metadata.description.long.localized(), 80).join("\n")
         ]);
         table.add_row(row![br -> "GIT HASH", self.metadata.git_hash.as_deref().unwrap_or("N/A")]);
         table.add_row(row![br -> "LICENSE", &self.metadata.license]);
@@ -279,6 +284,24 @@ impl Model<PackageVersionInfo> {
                 .map_or(true, |s| s.is_empty())
             {
                 return Ok(false);
+            }
+
+            if let Some(locale) = device_info.os.language.as_deref() {
+                let metadata = self.as_metadata_mut();
+                metadata
+                    .as_alerts_mut()
+                    .mutate(|a| Ok(a.localize_for(locale)))?;
+                metadata
+                    .as_dependency_metadata_mut()
+                    .as_entries_mut()?
+                    .into_iter()
+                    .try_for_each(|(_, d)| d.mutate(|d| Ok(d.localize_for(locale))))?;
+                metadata
+                    .as_description_mut()
+                    .mutate(|d| Ok(d.localize_for(locale)))?;
+                metadata
+                    .as_release_notes_mut()
+                    .mutate(|r| Ok(r.localize_for(locale)))?;
             }
         }
 

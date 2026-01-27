@@ -2,7 +2,7 @@
 import type { EncryptedWire } from "./EncryptedWire"
 
 export type AttachParams = {
-  startOsPassword: EncryptedWire | null
+  password: EncryptedWire | null
   guid: string
   kiosk?: boolean
 }

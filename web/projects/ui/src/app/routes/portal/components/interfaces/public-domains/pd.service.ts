@@ -247,10 +247,10 @@ export class PublicDomainService {
         ),
         values: gateways.reduce<Record<string, string>>(
           (obj, gateway) => ({
-            ...obj,
             [gateway.id]: gateway.name || gateway.ipInfo.name,
+            ...obj,
           }),
-          {},
+          { '~/system/gateways': this.i18n.transform('New gateway') },
         ),
         default: '',
         disabled: gateways

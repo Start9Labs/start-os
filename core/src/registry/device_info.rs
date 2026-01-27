@@ -44,28 +44,44 @@ impl DeviceInfo {
 impl DeviceInfo {
     pub fn to_header_value(&self) -> HeaderValue {
         let mut url: Url = "http://localhost".parse().unwrap();
-        url.query_pairs_mut()
-            .append_pair("os.version", &self.os.version.to_string())
+        let mut qp = url.query_pairs_mut();
+        qp.append_pair("os.version", &self.os.version.to_string())
             .append_pair("os.compat", &self.os.compat.to_string())
             .append_pair("os.platform", &*self.os.platform);
+        if let Some(lang) = self.os.language.as_deref() {
+            qp.append_pair("os.language", lang);
+        }
+        drop(qp);
 
         HeaderValue::from_str(url.query().unwrap_or_default()).unwrap()
     }
     pub fn from_header_value(header: &HeaderValue) -> Result<Self, Error> {
         let query: BTreeMap<_, _> = form_urlencoded::parse(header.as_bytes()).collect();
         let has_hw_info = query.keys().any(|k| k.starts_with("hardware."));
+        let version = query
+            .get("os.version")
+            .or_not_found("os.version")?
+            .parse()?;
         Ok(Self {
             os: OsInfo {
-                version: query
-                    .get("os.version")
-                    .or_not_found("os.version")?
-                    .parse()?,
                 compat: query.get("os.compat").or_not_found("os.compat")?.parse()?,
                 platform: query
                     .get("os.platform")
                     .or_not_found("os.platform")?
                     .deref()
                     .into(),
+                language: query
+                    .get("os.language")
+                    .map(|v| v.deref())
+                    .map(InternedString::intern)
+                    .or_else(|| {
+                        if version < "0.4.0-alpha.18".parse().ok()? {
+                            Some(rust_i18n::locale().deref().into())
+                        } else {
+                            None
+                        }
+                    }),
+                version,
             },
             hardware: has_hw_info
                 .then(|| {
@@ -190,8 +206,8 @@ pub struct OsInfo {
     pub version: Version,
     #[ts(type = "string")]
     pub compat: VersionRange,
-    #[ts(type = "string")]
     pub platform: InternedString,
+    pub language: Option<InternedString>,
 }
 impl From<&RpcContext> for OsInfo {
     fn from(_: &RpcContext) -> Self {
@@ -199,6 +215,7 @@ impl From<&RpcContext> for OsInfo {
             version: crate::version::Current::default().semver(),
             compat: crate::version::Current::default().compat().clone(),
             platform: InternedString::intern(&*crate::PLATFORM),
+            language: Some(InternedString::intern(&*rust_i18n::locale())),
         }
     }
 }

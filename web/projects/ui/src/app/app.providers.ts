@@ -1,7 +1,7 @@
 import { inject, provideAppInitializer } from '@angular/core'
 import { UntypedFormBuilder } from '@angular/forms'
 import { provideAnimations } from '@angular/platform-browser/animations'
-import { Router } from '@angular/router'
+import { ActivationStart, Router } from '@angular/router'
 import { WA_LOCATION } from '@ng-web-apis/common'
 import initArgon from '@start9labs/argon2'
 import {
@@ -12,6 +12,7 @@ import {
   I18N_PROVIDERS,
   I18N_STORAGE,
   i18nService,
+  Languages,
   RELATIVE_URL,
   VERSION,
   WorkspaceConfig,
@@ -32,7 +33,7 @@ import {
   TUI_DATE_VALUE_TRANSFORMER,
 } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { filter, identity, of, pairwise } from 'rxjs'
+import { filter, identity, merge, of, pairwise } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
 import {
   PATCH_CACHE,
@@ -115,11 +116,15 @@ export const APP_PROVIDERS = [
   {
     provide: TUI_DIALOGS_CLOSE,
     useFactory: () =>
-      inject(StateService).pipe(
-        pairwise(),
-        filter(
-          ([prev, curr]) =>
-            prev === 'running' && (curr === 'error' || curr === 'initializing'),
+      merge(
+        inject(Router).events.pipe(filter(e => e instanceof ActivationStart)),
+        inject(StateService).pipe(
+          pairwise(),
+          filter(
+            ([prev, curr]) =>
+              prev === 'running' &&
+              (curr === 'error' || curr === 'initializing'),
+          ),
         ),
       ),
   },
@@ -128,7 +133,7 @@ export const APP_PROVIDERS = [
     useFactory: () => {
       const api = inject(ApiService)
 
-      return (language: string) => api.setDbValue(['language'], language)
+      return (language: Languages) => api.setLanguage({ language })
     },
   },
   {

@@ -6,6 +6,7 @@ use std::time::Duration;
 use futures::{Future, StreamExt};
 use imbl_value::InternedString;
 use josekit::jwk::Jwk;
+use openssl::x509::X509;
 use patch_db::PatchDb;
 use rpc_toolkit::Context;
 use serde::{Deserialize, Serialize};
@@ -15,10 +16,9 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::MAIN_DATA;
-use crate::account::AccountInfo;
 use crate::context::RpcContext;
 use crate::context::config::ServerConfig;
-use crate::disk::OsPartitionInfo;
+use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
 use crate::hostname::Hostname;
 use crate::net::gateway::UpgradableListener;
 use crate::net::web_server::{WebServer, WebServerAcceptorSetter};
@@ -27,12 +27,15 @@ use crate::progress::FullProgressTracker;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::setup::SetupProgress;
 use crate::shutdown::Shutdown;
+use crate::system::KeyboardOptions;
 use crate::util::future::NonDetachingJoinHandle;
+use crate::util::serde::Pem;
+use crate::util::sync::SyncMutex;
 
 lazy_static::lazy_static! {
     pub static ref CURRENT_SECRET: Jwk = Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).unwrap_or_else(|e| {
         tracing::debug!("{:?}", e);
-        tracing::error!("Couldn't generate ec key");
+        tracing::error!("{}", t!("context.setup.couldnt-generate-ec-key"));
         panic!("Couldn't generate ec key")
     });
 }
@@ -41,40 +44,25 @@ lazy_static::lazy_static! {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetupResult {
-    pub tor_addresses: Vec<String>,
     #[ts(type = "string")]
     pub hostname: Hostname,
-    #[ts(type = "string")]
-    pub lan_address: InternedString,
-    pub root_ca: String,
-}
-impl TryFrom<&AccountInfo> for SetupResult {
-    type Error = Error;
-    fn try_from(value: &AccountInfo) -> Result<Self, Self::Error> {
-        Ok(Self {
-            tor_addresses: value
-                .tor_keys
-                .iter()
-                .map(|tor_key| format!("https://{}", tor_key.onion_address()))
-                .collect(),
-            hostname: value.hostname.clone(),
-            lan_address: value.hostname.lan_address(),
-            root_ca: String::from_utf8(value.root_ca_cert.to_pem()?)?,
-        })
-    }
+    pub root_ca: Pem<X509>,
+    pub needs_restart: bool,
 }
 
 pub struct SetupContextSeed {
     pub webserver: WebServerAcceptorSetter<UpgradableListener>,
-    pub config: ServerConfig,
-    pub os_partitions: OsPartitionInfo,
+    pub config: SyncMutex<ServerConfig>,
     pub disable_encryption: bool,
     pub progress: FullProgressTracker,
     pub task: OnceCell<NonDetachingJoinHandle<()>>,
     pub result: OnceCell<Result<(SetupResult, RpcContext), Error>>,
-    pub disk_guid: OnceCell<Arc<String>>,
+    pub disk_guid: OnceCell<InternedString>,
     pub shutdown: Sender<Option<Shutdown>>,
     pub rpc_continuations: RpcContinuations,
+    pub install_rootfs: SyncMutex<Option<(TmpMountGuard, MountGuard)>>,
+    pub keyboard: SyncMutex<Option<KeyboardOptions>>,
+    pub language: SyncMutex<Option<InternedString>>,
 }
 
 #[derive(Clone)]
@@ -83,27 +71,24 @@ impl SetupContext {
     #[instrument(skip_all)]
     pub fn init(
         webserver: &WebServer<UpgradableListener>,
-        config: &ServerConfig,
+        config: ServerConfig,
     ) -> Result<Self, Error> {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let mut progress = FullProgressTracker::new();
         progress.enable_logging(true);
         Ok(Self(Arc::new(SetupContextSeed {
             webserver: webserver.acceptor_setter(),
-            config: config.clone(),
-            os_partitions: config.os_partitions.clone().ok_or_else(|| {
-                Error::new(
-                    eyre!("missing required configuration: `os-partitions`"),
-                    ErrorKind::NotFound,
-                )
-            })?,
             disable_encryption: config.disable_encryption.unwrap_or(false),
+            config: SyncMutex::new(config),
             progress,
             task: OnceCell::new(),
             result: OnceCell::new(),
             disk_guid: OnceCell::new(),
             shutdown,
             rpc_continuations: RpcContinuations::new(),
+            install_rootfs: SyncMutex::new(None),
+            language: SyncMutex::new(None),
+            keyboard: SyncMutex::new(None),
         })))
     }
     #[instrument(skip_all)]
@@ -129,11 +114,14 @@ impl SetupContext {
                         .get_or_init(|| async {
                             match f().await {
                                 Ok(res) => {
-                                    tracing::info!("Setup complete!");
+                                    tracing::info!("{}", t!("context.setup.setup-complete"));
                                     Ok(res)
                                 }
                                 Err(e) => {
-                                    tracing::error!("Setup failed: {e}");
+                                    tracing::error!(
+                                        "{}",
+                                        t!("context.setup.setup-failed", error = e)
+                                    );
                                     tracing::debug!("{e:?}");
                                     Err(e)
                                 }
@@ -146,10 +134,13 @@ impl SetupContext {
             )
             .map_err(|_| {
                 if self.result.initialized() {
-                    Error::new(eyre!("Setup already complete"), ErrorKind::InvalidRequest)
+                    Error::new(
+                        eyre!("{}", t!("context.setup.setup-already-complete")),
+                        ErrorKind::InvalidRequest,
+                    )
                 } else {
                     Error::new(
-                        eyre!("Setup already in progress"),
+                        eyre!("{}", t!("context.setup.setup-already-in-progress")),
                         ErrorKind::InvalidRequest,
                     )
                 }
@@ -199,7 +190,7 @@ impl SetupContext {
                         }
                         .await
                         {
-                            tracing::error!("Error in setup progress websocket: {e}");
+                            tracing::error!("{}", t!("context.setup.error-in-setup-progress-websocket", error = e));
                             tracing::debug!("{e:?}");
                         }
                     },

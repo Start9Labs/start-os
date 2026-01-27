@@ -146,7 +146,7 @@ impl HashSessionToken {
             }
         }
         Err(Error::new(
-            eyre!("UNAUTHORIZED"),
+            eyre!("{}", t!("middleware.auth.unauthorized")),
             crate::ErrorKind::Authorization,
         ))
     }
@@ -221,7 +221,7 @@ impl ValidSessionToken {
             }
         }
         Err(Error::new(
-            eyre!("UNAUTHORIZED"),
+            eyre!("{}", t!("middleware.auth.unauthorized")),
             crate::ErrorKind::Authorization,
         ))
     }
@@ -244,7 +244,7 @@ impl ValidSessionToken {
                     C::access_sessions(db)
                         .as_idx_mut(session_hash)
                         .ok_or_else(|| {
-                            Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
+                            Error::new(eyre!("{}", t!("middleware.auth.unauthorized")), crate::ErrorKind::Authorization)
                         })?
                         .mutate(|s| {
                             s.last_active = Utc::now();
@@ -305,7 +305,7 @@ impl<C: SessionAuthContext> Middleware<C> for SessionAuth {
                 self.rate_limiter.mutate(|(count, time)| {
                     if time.elapsed() < Duration::from_secs(20) && *count >= 3 {
                         Err(Error::new(
-                            eyre!("Please limit login attempts to 3 per 20 seconds."),
+                            eyre!("{}", t!("middleware.auth.rate-limited-login")),
                             crate::ErrorKind::RateLimited,
                         ))
                     } else {

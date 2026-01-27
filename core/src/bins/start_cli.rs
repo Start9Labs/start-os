@@ -19,6 +19,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
         |cfg: ClientConfig| Ok(CliContext::init(cfg.load()?)?),
         crate::main_api(),
     )
+    .mutate_command(super::translate_cli)
     .run(args)
     {
         match e.data {

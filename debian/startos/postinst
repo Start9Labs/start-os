@@ -23,11 +23,31 @@ if [ -f /etc/default/grub ]; then
 	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos console=ttyS0,115200n8 console=tty0"' /etc/default/grub
 	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX_DEFAULT=/c\GRUB_CMDLINE_LINUX_DEFAULT=""' /etc/default/grub
 	sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
-	sed -i '/\(^\|#\)GRUB_TERMINAL=/c\GRUB_TERMINAL="serial"\nGRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' /etc/default/grub
-	if grep '^GRUB_SERIAL_COMMAND=' /etc/default/grub > /dev/null; then
-		sed -i '/\(^\|#\)GRUB_SERIAL_COMMAND=/c\GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' /etc/default/grub
-	else
-		echo 'GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' >> /etc/default/grub
+	# Set a GRUB variable, replacing if it exists (even commented) or appending if not
+	grub_set() {
+		sed -i '/\(^\|#\)'"$1"'=/d' /etc/default/grub
+		printf '%s="%s"\n' "$1" "$2" >> /etc/default/grub
+	}
+	# Enable both graphical and serial terminal output
+	grub_set GRUB_TERMINAL_INPUT 'console serial'
+	grub_set GRUB_TERMINAL_OUTPUT 'gfxterm serial'
+	# Remove GRUB_TERMINAL if present (replaced by INPUT/OUTPUT above)
+	sed -i '/^\(#\|\)GRUB_TERMINAL=/d' /etc/default/grub
+	# Serial console settings
+	grub_set GRUB_SERIAL_COMMAND 'serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1'
+	# Graphics mode and splash background
+	grub_set GRUB_GFXMODE 800x600
+	grub_set GRUB_GFXPAYLOAD_LINUX keep
+	grub_set GRUB_BACKGROUND '/boot/grub/splash.png'
+	grub_set GRUB_THEME '/boot/grub/startos-theme/theme.txt'
+	# Copy splash image and theme to boot partition
+	if [ -f /usr/lib/startos/splash.png ]; then
+		mkdir -p /boot/grub
+		cp /usr/lib/startos/splash.png /boot/grub/splash.png
+	fi
+	if [ -d /usr/lib/startos/grub-theme ]; then
+		mkdir -p /boot/grub/startos-theme
+		cp -r /usr/lib/startos/grub-theme/* /boot/grub/startos-theme/
 	fi
 fi
 

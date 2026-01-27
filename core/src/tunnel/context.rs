@@ -43,11 +43,11 @@ use crate::util::sync::{SyncMutex, Watch};
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct TunnelConfig {
-    #[arg(short = 'c', long = "config")]
+    #[arg(short = 'c', long = "config", help = "help.arg.config-file-path")]
     pub config: Option<PathBuf>,
-    #[arg(short = 'l', long = "listen")]
+    #[arg(short = 'l', long = "listen", help = "help.arg.tunnel-listen-address")]
     pub tunnel_listen: Option<SocketAddr>,
-    #[arg(short = 'd', long = "datadir")]
+    #[arg(short = 'd', long = "datadir", help = "help.arg.data-directory")]
     pub datadir: Option<PathBuf>,
 }
 impl ContextConfig for TunnelConfig {
@@ -244,6 +244,7 @@ impl Deref for TunnelContext {
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
 pub struct TunnelAddrParams {
+    #[arg(help = "help.arg.tunnel-ip-address")]
     pub tunnel: IpAddr,
 }
 
@@ -310,6 +311,7 @@ impl CallRemote<TunnelContext> for CliContext {
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
 pub struct TunnelUrlParams {
+    #[arg(help = "help.arg.tunnel-url")]
     pub tunnel: Url,
 }
 

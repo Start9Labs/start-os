@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
@@ -18,8 +17,9 @@ use ts_rs::TS;
 
 use crate::account::AccountInfo;
 use crate::auth::write_shadow;
-use crate::backup::restore::recover_full_embassy;
+use crate::backup::restore::recover_full_server;
 use crate::backup::target::BackupTargetFS;
+use crate::bins::set_locale;
 use crate::context::rpc::InitRpcContextPhases;
 use crate::context::setup::SetupResult;
 use crate::context::{RpcContext, SetupContext};
@@ -37,10 +37,11 @@ use crate::prelude::*;
 use crate::progress::{FullProgress, PhaseProgressTrackerHandle, ProgressUnits};
 use crate::rpc_continuations::Guid;
 use crate::shutdown::Shutdown;
-use crate::system::sync_kiosk;
+use crate::system::{KeyboardOptions, SetLanguageParams, save_language, sync_kiosk};
 use crate::util::Invoke;
 use crate::util::crypto::EncryptedWire;
-use crate::util::io::{Counter, create_file, dir_copy, dir_size};
+use crate::util::io::{Counter, create_file, dir_copy, dir_size, read_file_to_string};
+use crate::util::serde::{IoFormat, Pem};
 use crate::{DATA_DIR, Error, ErrorKind, MAIN_DATA, PACKAGE_DATA, PLATFORM, ResultExt};
 
 pub fn setup<C: Context>() -> ParentHandler<C> {
@@ -53,6 +54,10 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
         )
         .subcommand("disk", disk::<C>())
         .subcommand("attach", from_fn_async(attach).no_cli())
+        .subcommand(
+            "install-os",
+            from_fn_async(crate::os_install::install_os).no_cli(),
+        )
         .subcommand("execute", from_fn_async(execute).no_cli())
         .subcommand("cifs", cifs::<C>())
         .subcommand("complete", from_fn_async(complete).no_cli())
@@ -66,9 +71,14 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
         .subcommand("logs", crate::system::logs::<SetupContext>())
         .subcommand(
             "logs",
-            from_fn_async(crate::logs::cli_logs::<SetupContext, Empty>).no_display(),
+            from_fn_async(crate::logs::cli_logs::<SetupContext, Empty>)
+                .no_display()
+                .with_about("about.display-os-logs"),
         )
         .subcommand("restart", from_fn_async(restart).no_cli())
+        .subcommand("shutdown", from_fn_async(shutdown).no_cli())
+        .subcommand("set-language", from_fn_async(set_language).no_cli())
+        .subcommand("set-keyboard", from_fn_async(set_keyboard).no_cli())
 }
 
 pub fn disk<C: Context>() -> ParentHandler<C> {
@@ -80,8 +90,24 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
     )
 }
 
+const LIVE_MEDIUM_PATH: &str = "/run/live/medium";
+
 pub async fn list_disks(ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
-    crate::disk::util::list(&ctx.os_partitions).await
+    let mut disks = crate::disk::util::list(
+        &ctx.config
+            .peek(|c| c.os_partitions.clone())
+            .unwrap_or_default(),
+    )
+    .await?;
+
+    // Filter out the disk containing the live medium (installer USB)
+    if let Ok(Some(live_medium_source)) =
+        crate::disk::util::get_mount_source(LIVE_MEDIUM_PATH).await
+    {
+        disks.retain(|disk| disk.logicalname != live_medium_source);
+    }
+
+    Ok(disks)
 }
 
 #[instrument(skip_all)]
@@ -91,7 +117,9 @@ async fn setup_init(
     kiosk: Option<bool>,
     init_phases: InitPhases,
 ) -> Result<(AccountInfo, InitResult), Error> {
-    let init_result = init(&ctx.webserver, &ctx.config, init_phases).await?;
+    let init_result = init(&ctx.webserver, &ctx.config.peek(|c| c.clone()), init_phases).await?;
+    let language = ctx.language.peek(|a| a.clone());
+    let keyboard = ctx.keyboard.peek(|a| a.clone());
 
     let account = init_result
         .net_ctrl
@@ -107,6 +135,12 @@ async fn setup_init(
             if let Some(kiosk) = kiosk {
                 info.as_kiosk_mut().ser(&Some(kiosk))?;
             }
+            if let Some(language) = language.clone() {
+                info.as_language_mut().ser(&Some(language))?;
+            }
+            if let Some(keyboard) = keyboard.clone() {
+                info.as_keyboard_mut().ser(&Some(keyboard))?;
+            }
 
             Ok(account)
         })
@@ -114,6 +148,13 @@ async fn setup_init(
         .result?;
 
     sync_kiosk(kiosk).await?;
+
+    if let Some(language) = language {
+        save_language(&*language).await?;
+    }
+    if let Some(keyboard) = keyboard {
+        keyboard.save().await?;
+    }
 
     if let Some(password) = &password {
         write_shadow(&password).await?;
@@ -126,11 +167,10 @@ async fn setup_init(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AttachParams {
-    #[serde(rename = "startOsPassword")]
-    password: Option<EncryptedWire>,
-    guid: Arc<String>,
+    pub password: Option<EncryptedWire>,
+    pub guid: InternedString,
     #[ts(optional)]
-    kiosk: Option<bool>,
+    pub kiosk: Option<bool>,
 }
 
 #[instrument(skip_all)]
@@ -144,70 +184,95 @@ pub async fn attach(
 ) -> Result<SetupProgress, Error> {
     let setup_ctx = ctx.clone();
     ctx.run_setup(move || async move {
-            let progress = &setup_ctx.progress;
-            let mut disk_phase = progress.add_phase("Opening data drive".into(), Some(10));
-            let init_phases = InitPhases::new(&progress);
-            let rpc_ctx_phases = InitRpcContextPhases::new(&progress);
+        let progress = &setup_ctx.progress;
+        let mut disk_phase = progress.add_phase(t!("setup.opening-data-drive").into(), Some(10));
+        let init_phases = InitPhases::new(&progress);
+        let rpc_ctx_phases = InitRpcContextPhases::new(&progress);
 
-            let password: Option<String> = match password {
-                Some(a) => match a.decrypt(&setup_ctx) {
-                    a @ Some(_) => a,
-                    None => {
-                        return Err(Error::new(
-                            color_eyre::eyre::eyre!("Couldn't decode password"),
-                            crate::ErrorKind::Unknown,
-                        ));
-                    }
-                },
-                None => None,
-            };
+        let password: Option<String> = match password {
+            Some(a) => match a.decrypt(&setup_ctx) {
+                a @ Some(_) => a,
+                None => {
+                    return Err(Error::new(
+                        color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-password")),
+                        crate::ErrorKind::Unknown,
+                    ));
+                }
+            },
+            None => None,
+        };
 
-            disk_phase.start();
-            let requires_reboot = crate::disk::main::import(
-                &*disk_guid,
-                DATA_DIR,
-                if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
-                    RepairStrategy::Aggressive
-                } else {
-                    RepairStrategy::Preen
-                },
-                if disk_guid.ends_with("_UNENC") { None } else { Some(DEFAULT_PASSWORD) },
-            )
-            .await?;
-            let _ = setup_ctx.disk_guid.set(disk_guid.clone());
+        disk_phase.start();
+        let requires_reboot = crate::disk::main::import(
+            &*disk_guid,
+            DATA_DIR,
             if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
-                tokio::fs::remove_file(REPAIR_DISK_PATH)
-                    .await
-                    .with_ctx(|_| (ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
-            }
-            if requires_reboot.0 {
-                crate::disk::main::export(&*disk_guid, DATA_DIR).await?;
-                return Err(Error::new(
-                    eyre!(
-                        "Errors were corrected with your disk, but the server must be restarted in order to proceed"
-                    ),
-                    ErrorKind::DiskManagement,
-                ));
-            }
-            disk_phase.complete();
+                RepairStrategy::Aggressive
+            } else {
+                RepairStrategy::Preen
+            },
+            if disk_guid.ends_with("_UNENC") {
+                None
+            } else {
+                Some(DEFAULT_PASSWORD)
+            },
+        )
+        .await?;
+        let _ = setup_ctx.disk_guid.set(disk_guid.clone());
+        if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
+            tokio::fs::remove_file(REPAIR_DISK_PATH)
+                .await
+                .with_ctx(|_| (ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
+        }
+        if requires_reboot.0 {
+            crate::disk::main::export(&*disk_guid, DATA_DIR).await?;
+            return Err(Error::new(
+                eyre!("{}", t!("setup.disk-errors-corrected-restart-required")),
+                ErrorKind::DiskManagement,
+            ));
+        }
+        disk_phase.complete();
 
-            let (account, net_ctrl) = setup_init(&setup_ctx, password, kiosk, init_phases).await?;
+        let (account, net_ctrl) = setup_init(&setup_ctx, password, kiosk, init_phases).await?;
 
-            let rpc_ctx = RpcContext::init(&setup_ctx.webserver, &setup_ctx.config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
+        let rpc_ctx = RpcContext::init(
+            &setup_ctx.webserver,
+            &setup_ctx.config.peek(|c| c.clone()),
+            disk_guid,
+            Some(net_ctrl),
+            rpc_ctx_phases,
+        )
+        .await?;
 
-            Ok(((&account).try_into()?, rpc_ctx))
-        })?;
+        Ok((
+            SetupResult {
+                hostname: account.hostname,
+                root_ca: Pem(account.root_ca_cert),
+                needs_restart: setup_ctx.install_rootfs.peek(|a| a.is_some()),
+            },
+            rpc_ctx,
+        ))
+    })?;
 
     Ok(ctx.progress().await)
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 #[ts(export)]
 #[serde(tag = "status")]
 pub enum SetupStatusRes {
-    Complete(SetupResult),
+    NeedsInstall,
+    Incomplete(SetupInfo),
     Running(SetupProgress),
+    Complete(SetupResult),
+}
+
+#[derive(Default, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SetupInfo {
+    pub guid: Option<InternedString>,
+    pub attach: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
@@ -218,17 +283,23 @@ pub struct SetupProgress {
     pub guid: Guid,
 }
 
-pub async fn status(ctx: SetupContext) -> Result<Option<SetupStatusRes>, Error> {
+pub async fn status(ctx: SetupContext) -> Result<SetupStatusRes, Error> {
     if let Some(res) = ctx.result.get() {
         match res {
-            Ok((res, _)) => Ok(Some(SetupStatusRes::Complete(res.clone()))),
+            Ok((res, _)) => Ok(SetupStatusRes::Complete(res.clone())),
             Err(e) => Err(e.clone_output()),
         }
     } else {
         if ctx.task.initialized() {
-            Ok(Some(SetupStatusRes::Running(ctx.progress().await)))
+            Ok(SetupStatusRes::Running(ctx.progress().await))
         } else {
-            Ok(None)
+            let path = Path::new("/media/startos/config/setup.json");
+            if tokio::fs::metadata(path).await.is_err() {
+                return Ok(SetupStatusRes::NeedsInstall);
+            }
+            IoFormat::Json
+                .from_slice(read_file_to_string(path).await?.as_bytes())
+                .map(SetupStatusRes::Incomplete)
         }
     }
 }
@@ -282,7 +353,7 @@ pub async fn verify_cifs(
     guard.unmount().await?;
     if start_os.is_empty() {
         return Err(Error::new(
-            eyre!("No Backup Found"),
+            eyre!("{}", t!("setup.no-backup-found")),
             crate::ErrorKind::NotFound,
         ));
     }
@@ -304,12 +375,34 @@ pub enum RecoverySource<Password> {
     },
 }
 
+pub async fn setup_data_drive(
+    ctx: &SetupContext,
+    logicalname: &Path,
+) -> Result<InternedString, Error> {
+    let encryption_password = if ctx.disable_encryption {
+        None
+    } else {
+        Some(DEFAULT_PASSWORD)
+    };
+    let guid = crate::disk::main::create(
+        &[logicalname],
+        &pvscan().await?,
+        DATA_DIR,
+        encryption_password,
+    )
+    .await?;
+    let _ = crate::disk::main::import(&*guid, DATA_DIR, RepairStrategy::Preen, encryption_password)
+        .await?;
+    let _ = ctx.disk_guid.set(guid.clone());
+    Ok(guid)
+}
+
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetupExecuteParams {
-    start_os_logicalname: PathBuf,
-    start_os_password: EncryptedWire,
+    guid: InternedString,
+    password: EncryptedWire,
     recovery_source: Option<RecoverySource<EncryptedWire>>,
     #[ts(optional)]
     kiosk: Option<bool>,
@@ -319,17 +412,17 @@ pub struct SetupExecuteParams {
 pub async fn execute(
     ctx: SetupContext,
     SetupExecuteParams {
-        start_os_logicalname,
-        start_os_password,
+        guid,
+        password,
         recovery_source,
         kiosk,
     }: SetupExecuteParams,
 ) -> Result<SetupProgress, Error> {
-    let start_os_password = match start_os_password.decrypt(&ctx) {
+    let password = match password.decrypt(&ctx) {
         Some(a) => a,
         None => {
             return Err(Error::new(
-                color_eyre::eyre::eyre!("Couldn't decode startOsPassword"),
+                color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-startos-password")),
                 crate::ErrorKind::Unknown,
             ));
         }
@@ -343,7 +436,7 @@ pub async fn execute(
             target,
             password: password.decrypt(&ctx).ok_or_else(|| {
                 Error::new(
-                    color_eyre::eyre::eyre!("Couldn't decode recoveryPassword"),
+                    color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-recovery-password")),
                     crate::ErrorKind::Unknown,
                 )
             })?,
@@ -354,15 +447,7 @@ pub async fn execute(
     };
 
     let setup_ctx = ctx.clone();
-    ctx.run_setup(move || {
-        execute_inner(
-            setup_ctx,
-            start_os_logicalname,
-            start_os_password,
-            recovery,
-            kiosk,
-        )
-    })?;
+    ctx.run_setup(move || execute_inner(setup_ctx, guid, password, recovery, kiosk))?;
 
     Ok(ctx.progress().await)
 }
@@ -386,7 +471,7 @@ pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
         }
         Some(Err(e)) => Err(e.clone_output()),
         None => Err(Error::new(
-            eyre!("setup.execute has not completed successfully"),
+            eyre!("{}", t!("setup.execute-not-completed")),
             crate::ErrorKind::InvalidRequest,
         )),
     }
@@ -394,62 +479,76 @@ pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
 
 #[instrument(skip_all)]
 pub async fn exit(ctx: SetupContext) -> Result<(), Error> {
-    ctx.shutdown.send(None).expect("failed to shutdown");
+    let shutdown = if let Some((rootfs, config)) = ctx.install_rootfs.replace(None) {
+        config.unmount(false).await?;
+        rootfs.unmount().await?;
+        Some(Shutdown {
+            disk_guid: ctx.disk_guid.get().cloned(),
+            restart: true,
+        })
+    } else {
+        None
+    };
+
+    ctx.shutdown
+        .send(shutdown)
+        .map_err(|e| eyre!("failed to shutdown: {e}"))
+        .log_err();
     Ok(())
 }
 
 #[instrument(skip_all)]
 pub async fn restart(ctx: SetupContext) -> Result<(), Error> {
+    if let Some((rootfs, config)) = ctx.install_rootfs.replace(None) {
+        config.unmount(false).await?;
+        rootfs.unmount().await?;
+    }
     ctx.shutdown
         .send(Some(Shutdown {
             disk_guid: ctx.disk_guid.get().cloned(),
             restart: true,
         }))
-        .expect("failed to shutdown");
+        .map_err(|e| eyre!("failed to shutdown: {e}"))
+        .log_err();
+    Ok(())
+}
+
+#[instrument(skip_all)]
+pub async fn shutdown(ctx: SetupContext) -> Result<(), Error> {
+    if let Some((rootfs, config)) = ctx.install_rootfs.replace(None) {
+        config.unmount(false).await?;
+        rootfs.unmount().await?;
+    }
+    ctx.shutdown
+        .send(Some(Shutdown {
+            disk_guid: ctx.disk_guid.get().cloned(),
+            restart: false,
+        }))
+        .map_err(|e| eyre!("failed to shutdown: {e}"))
+        .log_err();
     Ok(())
 }
 
 #[instrument(skip_all)]
 pub async fn execute_inner(
     ctx: SetupContext,
-    start_os_logicalname: PathBuf,
-    start_os_password: String,
+    guid: InternedString,
+    password: String,
     recovery_source: Option<RecoverySource<String>>,
     kiosk: Option<bool>,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let progress = &ctx.progress;
-    let mut disk_phase = progress.add_phase("Formatting data drive".into(), Some(10));
     let restore_phase = match recovery_source.as_ref() {
         Some(RecoverySource::Backup { .. }) => {
-            Some(progress.add_phase("Restoring backup".into(), Some(100)))
+            Some(progress.add_phase(t!("setup.restoring-backup").into(), Some(100)))
         }
         Some(RecoverySource::Migrate { .. }) => {
-            Some(progress.add_phase("Transferring data".into(), Some(100)))
+            Some(progress.add_phase(t!("setup.transferring-data").into(), Some(100)))
         }
         None => None,
     };
     let init_phases = InitPhases::new(&progress);
     let rpc_ctx_phases = InitRpcContextPhases::new(&progress);
-
-    disk_phase.start();
-    let encryption_password = if ctx.disable_encryption {
-        None
-    } else {
-        Some(DEFAULT_PASSWORD)
-    };
-    let guid = Arc::new(
-        crate::disk::main::create(
-            &[start_os_logicalname],
-            &pvscan().await?,
-            DATA_DIR,
-            encryption_password,
-        )
-        .await?,
-    );
-    let _ = crate::disk::main::import(&*guid, DATA_DIR, RepairStrategy::Preen, encryption_password)
-        .await?;
-    let _ = ctx.disk_guid.set(guid.clone());
-    disk_phase.complete();
 
     let progress = SetupExecuteProgress {
         init_phases,
@@ -460,25 +559,25 @@ pub async fn execute_inner(
     match recovery_source {
         Some(RecoverySource::Backup {
             target,
-            password,
+            password: recovery_password,
             server_id,
         }) => {
             recover(
                 &ctx,
                 guid,
-                start_os_password,
+                password,
                 target,
                 server_id,
-                password,
+                recovery_password,
                 kiosk,
                 progress,
             )
             .await
         }
         Some(RecoverySource::Migrate { guid: old_guid }) => {
-            migrate(&ctx, guid, &old_guid, start_os_password, kiosk, progress).await
+            migrate(&ctx, guid, &old_guid, password, kiosk, progress).await
         }
-        None => fresh_setup(&ctx, guid, &start_os_password, kiosk, progress).await,
+        None => fresh_setup(&ctx, guid, &password, kiosk, progress).await,
     }
 }
 
@@ -490,8 +589,8 @@ pub struct SetupExecuteProgress {
 
 async fn fresh_setup(
     ctx: &SetupContext,
-    guid: Arc<String>,
-    start_os_password: &str,
+    guid: InternedString,
+    password: &str,
     kiosk: Option<bool>,
     SetupExecuteProgress {
         init_phases,
@@ -499,34 +598,56 @@ async fn fresh_setup(
         ..
     }: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
-    let account = AccountInfo::new(start_os_password, root_ca_start_time().await)?;
+    let account = AccountInfo::new(password, root_ca_start_time().await)?;
     let db = ctx.db().await?;
     let kiosk = Some(kiosk.unwrap_or(true)).filter(|_| &*PLATFORM != "raspberrypi");
     sync_kiosk(kiosk).await?;
-    db.put(&ROOT, &Database::init(&account, kiosk)?).await?;
+
+    let language = ctx.language.peek(|a| a.clone());
+    let keyboard = ctx.keyboard.peek(|a| a.clone());
+
+    if let Some(language) = &language {
+        save_language(&**language).await?;
+    }
+
+    if let Some(keyboard) = &keyboard {
+        keyboard.save().await?;
+    }
+
+    db.put(&ROOT, &Database::init(&account, kiosk, language, keyboard)?)
+        .await?;
     drop(db);
 
-    let init_result = init(&ctx.webserver, &ctx.config, init_phases).await?;
+    let config = ctx.config.peek(|c| c.clone());
+
+    let init_result = init(&ctx.webserver, &config, init_phases).await?;
 
     let rpc_ctx = RpcContext::init(
         &ctx.webserver,
-        &ctx.config,
+        &config,
         guid,
         Some(init_result),
         rpc_ctx_phases,
     )
     .await?;
 
-    write_shadow(start_os_password).await?;
+    write_shadow(password).await?;
 
-    Ok(((&account).try_into()?, rpc_ctx))
+    Ok((
+        SetupResult {
+            hostname: account.hostname,
+            root_ca: Pem(account.root_ca_cert),
+            needs_restart: ctx.install_rootfs.peek(|a| a.is_some()),
+        },
+        rpc_ctx,
+    ))
 }
 
 #[instrument(skip_all)]
 async fn recover(
     ctx: &SetupContext,
-    guid: Arc<String>,
-    start_os_password: String,
+    guid: InternedString,
+    password: String,
     recovery_source: BackupTargetFS,
     server_id: String,
     recovery_password: String,
@@ -534,10 +655,10 @@ async fn recover(
     progress: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let recovery_source = TmpMountGuard::mount(&recovery_source, ReadWrite).await?;
-    recover_full_embassy(
+    recover_full_server(
         ctx,
         guid.clone(),
-        start_os_password,
+        password,
         recovery_source,
         &server_id,
         &recovery_password,
@@ -550,9 +671,9 @@ async fn recover(
 #[instrument(skip_all)]
 async fn migrate(
     ctx: &SetupContext,
-    guid: Arc<String>,
+    guid: InternedString,
     old_guid: &str,
-    start_os_password: String,
+    password: String,
     kiosk: Option<bool>,
     SetupExecuteProgress {
         init_phases,
@@ -632,16 +753,38 @@ async fn migrate(
     crate::disk::main::export(&old_guid, "/media/startos/migrate").await?;
     restore_phase.complete();
 
-    let (account, net_ctrl) = setup_init(&ctx, Some(start_os_password), kiosk, init_phases).await?;
+    let (account, net_ctrl) = setup_init(&ctx, Some(password), kiosk, init_phases).await?;
 
     let rpc_ctx = RpcContext::init(
         &ctx.webserver,
-        &ctx.config,
+        &ctx.config.peek(|c| c.clone()),
         guid,
         Some(net_ctrl),
         rpc_ctx_phases,
     )
     .await?;
 
-    Ok(((&account).try_into()?, rpc_ctx))
+    Ok((
+        SetupResult {
+            hostname: account.hostname,
+            root_ca: Pem(account.root_ca_cert),
+            needs_restart: ctx.install_rootfs.peek(|a| a.is_some()),
+        },
+        rpc_ctx,
+    ))
+}
+
+pub async fn set_language(
+    ctx: SetupContext,
+    SetLanguageParams { language }: SetLanguageParams,
+) -> Result<(), Error> {
+    set_locale(&*language);
+    ctx.language.replace(Some(language));
+    Ok(())
+}
+
+pub async fn set_keyboard(ctx: SetupContext, options: KeyboardOptions) -> Result<(), Error> {
+    options.apply_to_session().await?;
+    ctx.keyboard.replace(Some(options));
+    Ok(())
 }

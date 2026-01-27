@@ -51,17 +51,18 @@ pub struct PackageInfoShort {
 #[ts(export)]
 #[model = "Model<Self>"]
 pub struct GetPackageParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: Option<PackageId>,
     #[ts(type = "string | null")]
-    #[arg(long, short = 'v')]
+    #[arg(long, short = 'v', help = "help.arg.target-version-range")]
     pub target_version: Option<VersionRange>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.source-version")]
     pub source_version: Option<VersionString>,
     #[ts(skip)]
     #[arg(skip)]
     #[serde(rename = "__DeviceInfo_device_info")]
     pub device_info: Option<DeviceInfo>,
-    #[arg(default_value = "none")]
+    #[arg(default_value = "none", help = "help.arg.other-versions-detail")]
     pub other_versions: Option<PackageDetailLevel>,
 }
 
@@ -78,20 +79,20 @@ pub struct GetPackageResponse {
     pub other_versions: Option<BTreeMap<VersionString, PackageInfoShort>>,
 }
 impl GetPackageResponse {
-    pub fn tables(&self) -> Vec<prettytable::Table> {
+    pub fn tables(self) -> Vec<prettytable::Table> {
         use prettytable::*;
 
         let mut res = Vec::with_capacity(self.best.len());
 
-        for (version, info) in &self.best {
-            let mut table = info.table(version);
+        for (version, info) in self.best {
+            let mut table = info.table(&version);
 
             let lesser_versions: BTreeMap<_, _> = self
                 .other_versions
                 .as_ref()
                 .into_iter()
                 .flatten()
-                .filter(|(v, _)| ***v < **version)
+                .filter(|(v, _)| ***v < *version)
                 .collect();
 
             if !lesser_versions.is_empty() {
@@ -120,13 +121,17 @@ pub struct GetPackageResponseFull {
     pub other_versions: BTreeMap<VersionString, PackageVersionInfo>,
 }
 impl GetPackageResponseFull {
-    pub fn tables(&self) -> Vec<prettytable::Table> {
+    pub fn tables(self) -> Vec<prettytable::Table> {
         let mut res = Vec::with_capacity(self.best.len());
 
-        let all: BTreeMap<_, _> = self.best.iter().chain(self.other_versions.iter()).collect();
+        let all: BTreeMap<_, _> = self
+            .best
+            .into_iter()
+            .chain(self.other_versions.into_iter())
+            .collect();
 
         for (version, info) in all {
-            res.push(info.table(version));
+            res.push(info.table(&version));
         }
 
         res
@@ -401,11 +406,12 @@ pub fn display_package_info(
 #[derive(Debug, Deserialize, Serialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct CliDownloadParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
-    #[arg(long, short = 'v')]
+    #[arg(long, short = 'v', help = "help.arg.target-version-range")]
     #[ts(type = "string | null")]
     pub target_version: Option<VersionRange>,
-    #[arg(short, long)]
+    #[arg(short, long, help = "help.arg.destination-path")]
     pub dest: Option<PathBuf>,
 }
 
@@ -441,8 +447,12 @@ pub async fn cli_download(
         0 => {
             return Err(Error::new(
                 eyre!(
-                    "Could not find a version of {id} that satisfies {}",
-                    target_version.unwrap_or(VersionRange::Any)
+                    "{}",
+                    t!(
+                        "registry.package.get.version-not-found",
+                        id = id,
+                        version = target_version.unwrap_or(VersionRange::Any)
+                    )
                 ),
                 ErrorKind::NotFound,
             ));
@@ -462,8 +472,12 @@ pub async fn cli_download(
         0 => {
             return Err(Error::new(
                 eyre!(
-                    "Could not find a version of {id} that satisfies {}",
-                    target_version.unwrap_or(VersionRange::Any)
+                    "{}",
+                    t!(
+                        "registry.package.get.version-not-found",
+                        id = id,
+                        version = target_version.unwrap_or(VersionRange::Any)
+                    )
                 ),
                 ErrorKind::NotFound,
             ));
@@ -551,7 +565,7 @@ pub async fn cli_download(
     progress_tracker.complete();
     progress.await.unwrap();
 
-    println!("Download Complete");
+    println!("{}", t!("registry.package.get.download-complete"));
 
     Ok(())
 }

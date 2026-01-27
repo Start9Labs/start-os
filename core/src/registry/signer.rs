@@ -90,7 +90,7 @@ impl AcceptSigners {
             Ok(())
         } else {
             Err(Error::new(
-                eyre!("signer(s) not accepted"),
+                eyre!("{}", t!("registry.signer.not-accepted")),
                 ErrorKind::InvalidSignature,
             ))
         }

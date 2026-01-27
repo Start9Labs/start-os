@@ -11,6 +11,7 @@ use crate::{Error, PackageId};
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ControlParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
 }
 

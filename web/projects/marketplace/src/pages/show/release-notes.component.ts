@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core'
-import { MarkdownPipe } from '@start9labs/shared'
+import { LocalizePipe, MarkdownPipe } from '@start9labs/shared'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { MarketplacePkgBase } from '../../types'
 
@@ -9,7 +9,7 @@ import { MarketplacePkgBase } from '../../types'
     <div class="background-border box-shadow-lg shadow-color-light">
       <div class="box-container">
         <h2 class="additional-detail-title">New in {{ pkg().version }}</h2>
-        <p [innerHTML]="pkg().releaseNotes | markdown | dompurify"></p>
+        <p [innerHTML]="pkg().releaseNotes | localize | markdown | dompurify"></p>
       </div>
     </div>
   `,
@@ -21,7 +21,7 @@ import { MarketplacePkgBase } from '../../types'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgDompurifyPipe, MarkdownPipe],
+  imports: [NgDompurifyPipe, MarkdownPipe, LocalizePipe],
 })
 export class MarketplaceReleaseNotesComponent {
   readonly pkg = input.required<MarketplacePkgBase>()

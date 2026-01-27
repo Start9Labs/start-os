@@ -23,6 +23,7 @@ export {
   matches,
   utils,
 }
+export { setupI18n } from "./i18n"
 export * as T from "./types"
 export { Daemons } from "./mainFn/Daemons"
 export { SubContainer } from "./util/SubContainer"

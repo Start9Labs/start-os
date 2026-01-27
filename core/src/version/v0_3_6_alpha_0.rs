@@ -168,6 +168,12 @@ impl VersionT for Version {
 
         let tor_keys = previous_tor_keys(&pg).await?;
 
+        Command::new("systemctl")
+            .arg("stop")
+            .arg("postgresql@*.service")
+            .invoke(crate::ErrorKind::Database)
+            .await?;
+
         Ok((account, ssh_keys, cifs, tor_keys))
     }
     fn up(
@@ -277,7 +283,12 @@ impl VersionT for Version {
     /// MUST be idempotent, and is run after *all* db migrations
     async fn post_up(self, ctx: &RpcContext, input: Value) -> Result<(), Error> {
         let path = Path::new(formatcp!("{PACKAGE_DATA}/archive/"));
-        if !path.is_dir() {
+        let metadata = tokio::fs::metadata(path).await;
+        if metadata.is_err() {
+            // Treat non-existent archive directory as empty
+            return Ok(());
+        }
+        if !metadata.unwrap().is_dir() {
             return Err(Error::new(
                 eyre!(
                     "expected path ({}) to be a directory",

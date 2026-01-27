@@ -27,49 +27,49 @@ pub fn notification<C: Context>() -> ParentHandler<C> {
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_about("List notifications")
+                .with_about("about.list-notifications")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove)
                 .no_display()
-                .with_about("Remove notification for given ids")
+                .with_about("about.remove-notification-for-ids")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove-before",
             from_fn_async(remove_before)
                 .no_display()
-                .with_about("Remove notifications preceding a given id")
+                .with_about("about.remove-notifications-before-id")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "mark-seen",
             from_fn_async(mark_seen)
                 .no_display()
-                .with_about("Mark given notifications as seen")
+                .with_about("about.mark-notifications-seen")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "mark-seen-before",
             from_fn_async(mark_seen_before)
                 .no_display()
-                .with_about("Mark notifications preceding a given id as seen")
+                .with_about("about.mark-notifications-seen-before-id")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "mark-unseen",
             from_fn_async(mark_unseen)
                 .no_display()
-                .with_about("Mark given notifications as unseen")
+                .with_about("about.mark-notifications-unseen")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "create",
             from_fn_async(create)
                 .no_display()
-                .with_about("Persist a newly created notification")
+                .with_about("about.persist-new-notification")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -78,8 +78,10 @@ pub fn notification<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ListNotificationParams {
+    #[arg(help = "help.arg.notification-before-id")]
     #[ts(type = "number | null")]
     before: Option<u32>,
+    #[arg(help = "help.arg.notification-limit")]
     #[ts(type = "number | null")]
     limit: Option<usize>,
 }
@@ -141,6 +143,7 @@ pub async fn list(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ModifyNotificationParams {
+    #[arg(help = "help.arg.notification-ids")]
     #[ts(type = "number[]")]
     ids: Vec<u32>,
 }
@@ -175,6 +178,7 @@ pub async fn remove(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ModifyNotificationBeforeParams {
+    #[arg(help = "help.arg.notification-before-id")]
     #[ts(type = "number")]
     before: u32,
 }
@@ -296,9 +300,13 @@ pub async fn mark_unseen(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CreateParams {
+    #[arg(help = "help.arg.package-id")]
     package: Option<PackageId>,
+    #[arg(help = "help.arg.notification-level")]
     level: NotificationLevel,
+    #[arg(help = "help.arg.notification-title")]
     title: String,
+    #[arg(help = "help.arg.notification-message")]
     message: String,
 }
 
@@ -346,7 +354,7 @@ pub struct InvalidNotificationLevel(String);
 impl From<InvalidNotificationLevel> for crate::Error {
     fn from(val: InvalidNotificationLevel) -> Self {
         Error::new(
-            eyre!("Invalid Notification Level: {}", val.0),
+            eyre!("{}", t!("notifications.invalid-level", level = val.0)),
             ErrorKind::ParseDbField,
         )
     }

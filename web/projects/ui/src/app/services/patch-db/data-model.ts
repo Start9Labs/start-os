@@ -1,8 +1,12 @@
-import { Languages } from '@start9labs/shared'
+import { FullKeyboard, Languages } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
-export type DataModel = T.Public & {
+export type DataModel = {
   ui: UIData
+  serverInfo: T.ServerInfo & {
+    language: Languages
+    keyboard: FullKeyboard | null
+  }
   packageData: AllPackageData
 }
 
@@ -11,7 +15,6 @@ export type UIData = {
   registries: Record<string, string | null>
   snakeHighScore: number
   startosRegistry: string
-  language: Languages
 }
 
 export type PackageDataEntry<T extends StateInfo = StateInfo> =

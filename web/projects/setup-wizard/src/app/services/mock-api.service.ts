@@ -1,111 +1,33 @@
 import { Injectable } from '@angular/core'
 import {
-  DiskListResponse,
+  DiskInfo,
   encodeBase64,
   FollowLogsRes,
+  FullKeyboard,
   pauseFor,
+  SetLanguageParams,
   StartOSDiskInfo,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import * as jose from 'node-jose'
-import { first, interval, map, Observable } from 'rxjs'
+import { interval, map, Observable } from 'rxjs'
 import { ApiService } from './api.service'
+import {
+  SetupStatusRes,
+  InstallOsParams,
+  InstallOsRes,
+  AttachParams,
+  SetupExecuteParams,
+  SetupCompleteRes,
+  EchoReq,
+} from '../types'
 
 @Injectable({
   providedIn: 'root',
 })
 export class MockApiService extends ApiService {
-  // fullProgress$(): Observable<T.FullProgress> {
-  //   const phases = [
-  //     {
-  //       name: 'Preparing Data',
-  //       progress: null,
-  //     },
-  //     {
-  //       name: 'Transferring Data',
-  //       progress: null,
-  //     },
-  //     {
-  //       name: 'Finalizing Setup',
-  //       progress: null,
-  //     },
-  //   ]
-
-  //   return from(phases).pipe(
-  //     switchScan((acc, val, i) => {}, { overall: null, phases }),
-  //   )
-  // }
-
-  // namedProgress$(namedProgress: T.NamedProgress): Observable<T.NamedProgress> {
-  //   return of(namedProgress).pipe(startWith(namedProgress))
-  // }
-
-  // progress$(progress: T.Progress): Observable<T.Progress> {}
-
-  // websocket
-
-  // oldMockProgress$(): Promise<T.FullProgress> {
-  //   const numPhases = PROGRESS.phases.length
-
-  //   return of(PROGRESS).pipe(
-  //     switchMap(full =>
-  //       from(PROGRESS.phases).pipe(
-  //         mergeScan((full, phase, i) => {
-  //           if (
-  //             !phase.progress ||
-  //             typeof phase.progress !== 'object' ||
-  //             !phase.progress.total
-  //           ) {
-  //             full.phases[i].progress = true
-
-  //             if (
-  //               full.overall &&
-  //               typeof full.overall === 'object' &&
-  //               full.overall.total
-  //             ) {
-  //               const step = full.overall.total / numPhases
-  //               full.overall.done += step
-  //             }
-
-  //             return of(full).pipe(delay(2000))
-  //           } else {
-  //             const total = phase.progress.total
-  //             const step = total / 4
-  //             let done = phase.progress.done
-
-  //             return interval(1000).pipe(
-  //               takeWhile(() => done < total),
-  //               map(() => {
-  //                 done += step
-
-  //                 console.error(done)
-
-  //                 if (
-  //                   full.overall &&
-  //                   typeof full.overall === 'object' &&
-  //                   full.overall.total
-  //                 ) {
-  //                   const step = full.overall.total / numPhases / 4
-
-  //                   full.overall.done += step
-  //                 }
-
-  //                 if (done === total) {
-  //                   full.phases[i].progress = true
-
-  //                   if (i === numPhases - 1) {
-  //                     full.overall = true
-  //                   }
-  //                 }
-  //                 return full
-  //               }),
-  //             )
-  //           }
-  //         }, full),
-  //       ),
-  //     ),
-  //   )
-  // }
+  private statusIndex = 0
+  private installCompleted = false
 
   openWebsocket$<T>(guid: string): Observable<T> {
     if (guid === 'logs-guid') {
@@ -117,24 +39,13 @@ export class MockApiService extends ApiService {
         })),
       ) as Observable<T>
     } else if (guid === 'progress-guid') {
-      // @TODO Matt mock progress
       return interval(1000).pipe(
-        first(),
         map(() => ({
           overall: true,
           phases: [
-            {
-              name: 'Preparing Data',
-              progress: true,
-            },
-            {
-              name: 'Transferring Data',
-              progress: true,
-            },
-            {
-              name: 'Finalizing Setup',
-              progress: true,
-            },
+            { name: 'Preparing Data', progress: true },
+            { name: 'Transferring Data', progress: true },
+            { name: 'Finalizing Setup', progress: true },
           ],
         })),
       ) as Observable<T>
@@ -143,40 +54,44 @@ export class MockApiService extends ApiService {
     }
   }
 
-  private statusIndex = 0
-  async getStatus(): Promise<T.SetupStatusRes | null> {
-    await pauseFor(1000)
+  async echo(params: EchoReq, url: string): Promise<string> {
+    if (url) {
+      const num = Math.floor(Math.random() * 10) + 1
+      if (num > 8) return params.message
+      throw new Error()
+    }
+    await pauseFor(500)
+    return params.message
+  }
+
+  async getStatus(): Promise<SetupStatusRes> {
+    await pauseFor(500)
 
     this.statusIndex++
 
-    switch (this.statusIndex) {
-      case 2:
-        return {
-          status: 'running',
-          progress: PROGRESS,
-          guid: 'progress-guid',
-        }
-      case 3:
-        return {
-          status: 'complete',
-          torAddresses: ['https://asdafsadasdasasdasdfasdfasdf.onion'],
-          hostname: 'adjective-noun',
-          lanAddress: 'https://adjective-noun.local',
-          rootCa: encodeBase64(rootCA),
-        }
-      default:
-        return null
+    if (this.statusIndex === 1) {
+      return { status: 'needs-install', keyboard: null }
+      // return {
+      //   status: 'incomplete',
+      //   attach: false,
+      //   guid: 'mock-data-guid',
+      //   keyboard: null,
+      // }
+    }
+
+    if (this.statusIndex > 3) {
+      return { status: 'complete' }
+    }
+
+    return {
+      status: 'running',
+      progress: PROGRESS,
+      guid: 'progress-guid',
     }
   }
 
   async getPubKey(): Promise<void> {
-    await pauseFor(1000)
-
-    // randomly generated
-    // const keystore = jose.JWK.createKeyStore()
-    // this.pubkey = await keystore.generate('EC', 'P-256')
-
-    // generated from backend
+    await pauseFor(300)
     this.pubkey = await jose.JWK.asKey({
       kty: 'EC',
       crv: 'P-256',
@@ -185,88 +100,28 @@ export class MockApiService extends ApiService {
     })
   }
 
-  async getDrives(): Promise<DiskListResponse> {
-    await pauseFor(1000)
-    return [
-      {
-        logicalname: '/dev/nvme0n1p3',
-        vendor: 'Unknown Vendor',
-        model: 'Samsung SSD - 970 EVO Plus 2TB',
-        partitions: [
-          {
-            logicalname: 'pabcd',
-            label: null,
-            capacity: 1979120929996,
-            used: null,
-            startOs: {
-              '1234-5678-9876-5432': {
-                hostname: 'adjective-noun',
-                version: '0.2.17',
-                timestamp: new Date().toISOString(),
-                passwordHash:
-                  '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-                wrappedKey: null,
-              },
-            },
-            guid: null,
-          },
-        ],
-        capacity: 1979120929996,
-        guid: 'uuid-uuid-uuid-uuid',
-      },
-      {
-        logicalname: 'dcba',
-        vendor: 'CT1000MX',
-        model: '500SSD1',
-        partitions: [
-          {
-            logicalname: 'pbcba',
-            label: null,
-            capacity: 73264762332,
-            used: null,
-            startOs: {
-              '1234-5678-9876-5432': {
-                hostname: 'adjective-noun',
-                version: '0.2.17',
-                timestamp: new Date().toISOString(),
-                passwordHash:
-                  '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-                wrappedKey: null,
-              },
-            },
-            guid: null,
-          },
-        ],
-        capacity: 1000190509056,
-        guid: null,
-      },
-      {
-        logicalname: '/dev/sda',
-        vendor: 'ASMT',
-        model: '2115',
-        partitions: [
-          {
-            logicalname: 'pbcba',
-            label: null,
-            capacity: 73264762332,
-            used: null,
-            startOs: {
-              '1234-5678-9876-5432': {
-                hostname: 'adjective-noun',
-                version: '0.2.17',
-                timestamp: new Date().toISOString(),
-                passwordHash:
-                  '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-                wrappedKey: null,
-              },
-            },
-            guid: 'guid-guid-guid-guid',
-          },
-        ],
-        capacity: 1000190509,
-        guid: null,
-      },
-    ]
+  async setKeyboard(_params: FullKeyboard): Promise<null> {
+    await pauseFor(300)
+    return null
+  }
+
+  async setLanguage(params: SetLanguageParams): Promise<null> {
+    await pauseFor(300)
+    return null
+  }
+
+  async getDisks(): Promise<DiskInfo[]> {
+    await pauseFor(500)
+    return MOCK_DISKS
+  }
+
+  async installOs(params: InstallOsParams): Promise<InstallOsRes> {
+    await pauseFor(2000)
+    this.installCompleted = true
+    return {
+      guid: 'mock-data-guid',
+      attach: !params.dataDrive.wipe,
+    }
   }
 
   async verifyCifs(
@@ -282,21 +137,29 @@ export class MockApiService extends ApiService {
           '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
         wrappedKey: '',
       },
+      '9876-5432-1234-5671': {
+        hostname: 'adjective-noun',
+        version: '0.3.6',
+        timestamp: new Date().toISOString(),
+        passwordHash:
+          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+        wrappedKey: '',
+      },
     }
   }
 
-  async attach(params: T.AttachParams): Promise<T.SetupProgress> {
+  async attach(params: AttachParams): Promise<T.SetupProgress> {
     await pauseFor(1000)
-
+    this.statusIndex = 1 // Jump to running state
     return {
       progress: PROGRESS,
       guid: 'progress-guid',
     }
   }
 
-  async execute(setupInfo: T.SetupExecuteParams): Promise<T.SetupProgress> {
+  async execute(params: SetupExecuteParams): Promise<T.SetupProgress> {
     await pauseFor(1000)
-
+    this.statusIndex = 1 // Jump to running state
     return {
       progress: PROGRESS,
       guid: 'progress-guid',
@@ -304,33 +167,113 @@ export class MockApiService extends ApiService {
   }
 
   async initFollowLogs(): Promise<FollowLogsRes> {
-    await pauseFor(1000)
+    await pauseFor(500)
     return {
       startCursor: 'fakestartcursor',
       guid: 'logs-guid',
     }
   }
 
-  async complete(): Promise<T.SetupResult> {
-    await pauseFor(1000)
+  async complete(): Promise<SetupCompleteRes> {
+    await pauseFor(500)
     return {
-      torAddresses: ['https://asdafsadasdasasdasdfasdfasdf.onion'],
       hostname: 'adjective-noun',
-      lanAddress: 'https://adjective-noun.local',
-      rootCa: encodeBase64(rootCA),
+      rootCa: encodeBase64(ROOT_CA),
+      needsRestart: this.installCompleted,
     }
   }
 
   async exit(): Promise<void> {
-    await pauseFor(1000)
+    await pauseFor(500)
+  }
+
+  async shutdown(): Promise<void> {
+    await pauseFor(500)
   }
 
   async restart(): Promise<void> {
-    await pauseFor(1000)
+    await pauseFor(500)
   }
 }
 
-const rootCA = `-----BEGIN CERTIFICATE-----
+const MOCK_DISKS: DiskInfo[] = [
+  {
+    logicalname: '/dev/sda',
+    vendor: 'Samsung',
+    model: 'SSD 970 EVO Plus',
+    partitions: [
+      {
+        logicalname: '/dev/sda1',
+        label: null,
+        capacity: 500000000000,
+        used: null,
+        startOs: {},
+        guid: null,
+      },
+    ],
+    capacity: 500000000000,
+    guid: null,
+  },
+  {
+    logicalname: '/dev/sdb',
+    vendor: 'Crucial',
+    model: 'MX500',
+    partitions: [
+      {
+        logicalname: '/dev/sdb1',
+        label: null,
+        capacity: 1000000000000,
+        used: null,
+        startOs: {
+          '1234-5678-9876-5432': {
+            hostname: 'existing-server',
+            version: '0.3.6',
+            timestamp: new Date().toISOString(),
+            passwordHash:
+              '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+            wrappedKey: null,
+          },
+        },
+        guid: 'existing-guid',
+      },
+    ],
+    capacity: 1000000000000,
+    guid: 'existing-guid',
+  },
+  {
+    logicalname: '/dev/sdc',
+    vendor: 'WD',
+    model: 'Blue SN570',
+    partitions: [
+      {
+        logicalname: '/dev/sdc1',
+        label: 'Backup',
+        capacity: 2000000000000,
+        used: 500000000000,
+        startOs: {
+          'backup-server-id': {
+            hostname: 'backup-server',
+            version: '0.3.5',
+            timestamp: new Date(Date.now() - 86400000).toISOString(),
+            passwordHash:
+              '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+            wrappedKey: '',
+          },
+        },
+        guid: null,
+      },
+    ],
+    capacity: 2000000000000,
+    guid: null,
+  },
+]
+
+const PROGRESS: T.FullProgress = {
+  overall: null,
+  phases: [],
+}
+
+const ROOT_CA = `-----BEGIN CERTIFICATE-----
 MIIDpzCCAo+gAwIBAgIRAIIuOarlQETlUQEOZJGZYdIwDQYJKoZIhvcNAQELBQAw
 bTELMAkGA1UEBhMCVVMxFTATBgNVBAoMDEV4YW1wbGUgQ29ycDEOMAwGA1UECwwF
 U2FsZXMxCzAJBgNVBAgMAldBMRgwFgYDVQQDDA93d3cuZXhhbXBsZS5jb20xEDAO
@@ -352,8 +295,3 @@ Rf3ZOPm9QP92YpWyYDkfAU04xdDo1vR0MYjKPkl4LjRqSU/tcCJnPMbJiwq+bWpX
 2WJoEBXB/p15Kn6JxjI0ze2SnSI48JZ8it4fvxrhOo0VoLNIuCuNXJOwU17Rdl1W
 YJidaq7je6k18AdgPA0Kh8y1XtfUH3fTaVw4
 -----END CERTIFICATE-----`
-
-const PROGRESS = {
-  overall: null,
-  phases: [],
-}

@@ -1,6 +1,12 @@
 import { Dump } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { StartOSDiskInfo, FetchLogsReq, FetchLogsRes } from '@start9labs/shared'
+import {
+  FetchLogsReq,
+  FetchLogsRes,
+  FullKeyboard,
+  SetLanguageParams,
+  StartOSDiskInfo,
+} from '@start9labs/shared'
 import { IST, T } from '@start9labs/start-sdk'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import {
@@ -119,6 +125,12 @@ export namespace RR {
     reason: string
   } // net.tor.reset
   export type ResetTorRes = null
+
+  export type SetKeyboardReq = FullKeyboard // server.set-keyboard
+  export type SetKeyboardRes = null
+
+  export type SetLanguageReq = SetLanguageParams // server.set-language
+  export type SetLanguageRes = null
 
   // smtp
 

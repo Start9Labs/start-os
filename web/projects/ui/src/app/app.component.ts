@@ -39,9 +39,9 @@ export class AppComponent {
     .subscribe()
 
   readonly ui = inject<PatchDB<DataModel>>(PatchDB)
-    .watch$('ui', 'language')
+    .watch$('serverInfo', 'language')
     .pipe(takeUntilDestroyed())
     .subscribe(language => {
-      this.i18n.setLanguage(language || 'english')
+      this.i18n.setLang(language || 'en_US')
     })
 }

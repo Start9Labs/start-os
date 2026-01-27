@@ -22,7 +22,7 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(add_package_signer)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Add package signer")
+                .with_about("about.add-package-signer")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -30,7 +30,7 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(remove_package_signer)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Remove package signer")
+                .with_about("about.remove-package-signer")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -41,7 +41,7 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     display_package_signers(handle.params, result)
                 })
-                .with_about("List package signers and related signer info")
+                .with_about("about.list-package-signers")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -51,9 +51,11 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AddPackageSignerParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
+    #[arg(help = "help.arg.signer-id")]
     pub signer: Guid,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.version-range")]
     #[ts(type = "string | null")]
     pub versions: Option<VersionRange>,
 }
@@ -93,7 +95,9 @@ pub async fn add_package_signer(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RemovePackageSignerParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
+    #[arg(help = "help.arg.signer-id")]
     pub signer: Guid,
 }
 
@@ -114,7 +118,7 @@ pub async fn remove_package_signer(
                 .is_some()
             {
                 return Err(Error::new(
-                    eyre!("signer {signer} is not authorized to sign for {id}"),
+                    eyre!("{}", t!("registry.package.signer.not-authorized", signer = signer, id = id)),
                     ErrorKind::NotFound,
                 ));
             }
@@ -130,6 +134,7 @@ pub async fn remove_package_signer(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ListPackageSignersParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
 }
 

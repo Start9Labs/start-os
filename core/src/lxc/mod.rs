@@ -141,7 +141,7 @@ impl LxcManager {
                         > 0
                     {
                         return Err(Error::new(
-                            eyre!("rootfs is not empty, refusing to delete"),
+                            eyre!("{}", t!("lxc.mod.rootfs-not-empty")),
                             ErrorKind::InvalidRequest,
                         ));
                     }
@@ -249,6 +249,7 @@ impl LxcContainer {
                 .arg("-R")
                 .arg("+C")
                 .arg(&log_mount_point)
+                .env("LANG", "C.UTF-8")
                 .invoke(ErrorKind::Filesystem)
                 .await
             {
@@ -381,7 +382,7 @@ impl LxcContainer {
             }
             if start.elapsed() > CONTAINER_DHCP_TIMEOUT {
                 return Err(Error::new(
-                    eyre!("Timed out waiting for container to acquire DHCP lease"),
+                    eyre!("{}", t!("lxc.mod.dhcp-timeout")),
                     ErrorKind::Timeout,
                 ));
             }
@@ -407,9 +408,12 @@ impl LxcContainer {
         if !output.status.success() {
             return Err(Error::new(
                 eyre!(
-                    "Command failed with exit code: {:?} \n Message: {:?}",
-                    output.status.code(),
-                    String::from_utf8(output.stderr)
+                    "{}",
+                    t!(
+                        "lxc.mod.command-failed",
+                        code = format!("{:?}", output.status.code()),
+                        message = format!("{:?}", String::from_utf8(output.stderr))
+                    )
                 ),
                 ErrorKind::Docker,
             ));
@@ -437,7 +441,7 @@ impl LxcContainer {
                 > 0
         {
             return Err(Error::new(
-                eyre!("rootfs is not empty, refusing to delete"),
+                eyre!("{}", t!("lxc.mod.rootfs-not-empty")),
                 ErrorKind::InvalidRequest,
             ));
         }
@@ -473,13 +477,19 @@ impl LxcContainer {
                         .await
                 );
                 return Err(Error::new(
-                    eyre!("timed out waiting for socket"),
+                    eyre!("{}", t!("lxc.mod.socket-timeout")),
                     ErrorKind::Timeout,
                 ));
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
-        tracing::info!("Connected to socket in {:?}", started.elapsed());
+        tracing::info!(
+            "{}",
+            t!(
+                "lxc.mod.connected-to-socket",
+                elapsed = format!("{:?}", started.elapsed())
+            )
+        );
         Ok(UnixRpcClient::new(sock_path))
     }
 
@@ -569,8 +579,11 @@ impl Drop for LxcContainer {
     fn drop(&mut self) {
         if !self.exited {
             tracing::warn!(
-                "Container {} was ungracefully dropped. Cleaning up dangling containers...",
-                &**self.guid
+                "{}",
+                t!(
+                    "lxc.mod.container-ungracefully-dropped",
+                    container = &**self.guid
+                )
             );
             let rootfs = self.rootfs.take();
             let guid = std::mem::take(&mut self.guid);
@@ -589,16 +602,25 @@ impl Drop for LxcContainer {
                     }
                     .await
                     {
-                        tracing::error!("Error reading logs from crashed container: {e}");
+                        tracing::error!(
+                            "{}",
+                            t!("lxc.mod.error-reading-crashed-logs", error = e.to_string())
+                        );
                         tracing::debug!("{e:?}")
                     }
                     rootfs.unmount(true).await.log_err();
                     drop(guid);
                     if let Err(e) = manager.gc().await {
-                        tracing::error!("Error cleaning up dangling LXC containers: {e}");
+                        tracing::error!(
+                            "{}",
+                            t!(
+                                "lxc.mod.error-cleaning-up-containers",
+                                error = e.to_string()
+                            )
+                        );
                         tracing::debug!("{e:?}")
                     } else {
-                        tracing::info!("Successfully cleaned up dangling LXC containers");
+                        tracing::info!("{}", t!("lxc.mod.cleaned-up-containers"));
                     }
                 });
             }

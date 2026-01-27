@@ -52,21 +52,21 @@ pub fn cifs<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add)
                 .no_display()
-                .with_about("Add a new backup target")
+                .with_about("about.add-new-backup-target")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "update",
             from_fn_async(update)
                 .no_display()
-                .with_about("Update an existing backup target")
+                .with_about("about.update-existing-backup-target")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove)
                 .no_display()
-                .with_about("Remove an existing backup target")
+                .with_about("about.remove-existing-backup-target")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -75,9 +75,13 @@ pub fn cifs<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct AddParams {
+    #[arg(help = "help.arg.cifs-hostname")]
     pub hostname: String,
+    #[arg(help = "help.arg.cifs-path")]
     pub path: PathBuf,
+    #[arg(help = "help.arg.cifs-username")]
     pub username: String,
+    #[arg(help = "help.arg.cifs-password")]
     pub password: Option<String>,
 }
 
@@ -130,10 +134,15 @@ pub async fn add(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UpdateParams {
+    #[arg(help = "help.arg.backup-target-id")]
     pub id: BackupTargetId,
+    #[arg(help = "help.arg.cifs-hostname")]
     pub hostname: String,
+    #[arg(help = "help.arg.cifs-path")]
     pub path: PathBuf,
+    #[arg(help = "help.arg.cifs-username")]
     pub username: String,
+    #[arg(help = "help.arg.cifs-password")]
     pub password: Option<String>,
 }
 
@@ -151,7 +160,7 @@ pub async fn update(
         id
     } else {
         return Err(Error::new(
-            eyre!("Backup Target ID {} Not Found", id),
+            eyre!("{}", t!("backup.target.cifs.target-not-found", id = id)),
             ErrorKind::NotFound,
         ));
     };
@@ -171,7 +180,7 @@ pub async fn update(
                 .as_idx_mut(&id)
                 .ok_or_else(|| {
                     Error::new(
-                        eyre!("Backup Target ID {} Not Found", BackupTargetId::Cifs { id }),
+                        eyre!("{}", t!("backup.target.cifs.target-not-found", id = BackupTargetId::Cifs { id })),
                         ErrorKind::NotFound,
                     )
                 })?
@@ -195,6 +204,7 @@ pub async fn update(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct RemoveParams {
+    #[arg(help = "help.arg.backup-target-id")]
     pub id: BackupTargetId,
 }
 
@@ -203,7 +213,7 @@ pub async fn remove(ctx: RpcContext, RemoveParams { id }: RemoveParams) -> Resul
         id
     } else {
         return Err(Error::new(
-            eyre!("Backup Target ID {} Not Found", id),
+            eyre!("{}", t!("backup.target.cifs.target-not-found", id = id)),
             ErrorKind::NotFound,
         ));
     };
@@ -220,7 +230,7 @@ pub fn load(db: &DatabaseModel, id: u32) -> Result<Cifs, Error> {
         .as_idx(&id)
         .ok_or_else(|| {
             Error::new(
-                eyre!("Backup Target ID {} Not Found", id),
+                eyre!("{}", t!("backup.target.cifs.target-not-found-id", id = id)),
                 ErrorKind::NotFound,
             )
         })?

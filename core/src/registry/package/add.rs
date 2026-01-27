@@ -56,7 +56,7 @@ pub async fn add_package(
 
     let Some(([url], rest)) = urls.split_at_checked(1) else {
         return Err(Error::new(
-            eyre!("must specify at least 1 url"),
+            eyre!("{}", t!("registry.package.add.must-specify-url")),
             ErrorKind::InvalidRequest,
         ));
     };
@@ -112,7 +112,7 @@ pub async fn add_package(
 
                 Ok(())
             } else {
-                Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+                Err(Error::new(eyre!("{}", t!("registry.package.add.unauthorized")), ErrorKind::Authorization))
             }
         })
         .await
@@ -123,10 +123,11 @@ pub async fn add_package(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddPackageParams {
+    #[arg(help = "help.arg.s9pk-file-path")]
     pub file: PathBuf,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.package-url")]
     pub url: Vec<Url>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.no-verify")]
     pub no_verify: bool,
 }
 
@@ -205,9 +206,11 @@ pub async fn cli_add_package(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RemovePackageParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
+    #[arg(help = "help.arg.package-version")]
     pub version: VersionString,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.signature-hash")]
     pub sighash: Option<Base64<[u8; 32]>>,
     #[ts(skip)]
     #[arg(skip)]
@@ -226,7 +229,7 @@ pub async fn remove_package(
 ) -> Result<bool, Error> {
     let peek = ctx.db.peek().await;
     let signer =
-        signer.ok_or_else(|| Error::new(eyre!("missing signer"), ErrorKind::InvalidRequest))?;
+        signer.ok_or_else(|| Error::new(eyre!("{}", t!("registry.package.missing-signer")), ErrorKind::InvalidRequest))?;
     let signer_guid = peek.as_index().as_signers().get_signer(&signer)?;
 
     let rev = ctx
@@ -267,7 +270,7 @@ pub async fn remove_package(
                 }
                 Ok(())
             } else {
-                Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+                Err(Error::new(eyre!("{}", t!("registry.package.unauthorized")), ErrorKind::Authorization))
             }
         })
         .await;
@@ -342,7 +345,7 @@ pub async fn add_mirror(
 
                 Ok(())
             } else {
-                Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+                Err(Error::new(eyre!("{}", t!("registry.package.add-mirror.unauthorized")), ErrorKind::Authorization))
             }
         })
         .await
@@ -353,8 +356,11 @@ pub async fn add_mirror(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddMirrorParams {
+    #[arg(help = "help.arg.s9pk-file-path")]
     pub file: PathBuf,
+    #[arg(help = "help.arg.mirror-url")]
     pub url: Url,
+    #[arg(long, help = "help.arg.no-verify")]
     pub no_verify: bool,
 }
 
@@ -432,9 +438,11 @@ pub async fn cli_add_mirror(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RemoveMirrorParams {
+    #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
+    #[arg(help = "help.arg.package-version")]
     pub version: VersionString,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.mirror-url")]
     #[ts(type = "string")]
     pub url: Url,
     #[ts(skip)]
@@ -454,7 +462,7 @@ pub async fn remove_mirror(
 ) -> Result<(), Error> {
     let peek = ctx.db.peek().await;
     let signer =
-        signer.ok_or_else(|| Error::new(eyre!("missing signer"), ErrorKind::InvalidRequest))?;
+        signer.ok_or_else(|| Error::new(eyre!("{}", t!("registry.package.missing-signer")), ErrorKind::InvalidRequest))?;
     let signer_guid = peek.as_index().as_signers().get_signer(&signer)?;
 
     ctx.db
@@ -483,7 +491,7 @@ pub async fn remove_mirror(
                             .for_each(|(_, asset)| asset.urls.retain(|u| u != &url));
                         if s.iter().any(|(_, asset)| asset.urls.is_empty()) {
                             Err(Error::new(
-                                eyre!("cannot remove last mirror from an s9pk"),
+                                eyre!("{}", t!("registry.package.cannot-remove-last-mirror")),
                                 ErrorKind::InvalidRequest,
                             ))
                         } else {
@@ -493,7 +501,7 @@ pub async fn remove_mirror(
                 }
                 Ok(())
             } else {
-                Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+                Err(Error::new(eyre!("{}", t!("registry.package.remove-mirror.unauthorized")), ErrorKind::Authorization))
             }
         })
         .await

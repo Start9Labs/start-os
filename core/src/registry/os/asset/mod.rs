@@ -11,7 +11,7 @@ pub fn asset_api<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add::cli_add_asset)
                 .no_display()
-                .with_about("Add asset to registry"),
+                .with_about("about.add-asset-registry"),
         )
         .subcommand("remove", add::remove_api::<C>())
         .subcommand("sign", sign::sign_api::<C>())
@@ -19,10 +19,10 @@ pub fn asset_api<C: Context>() -> ParentHandler<C> {
             "sign",
             from_fn_async(sign::cli_sign_asset)
                 .no_display()
-                .with_about("Sign file and add to registry index"),
+                .with_about("about.sign-file-add-registry"),
         )
         .subcommand(
             "get",
-            get::get_api::<C>().with_about("Commands to download image, iso, or squashfs files"),
+            get::get_api::<C>().with_about("about.commands-download-assets"),
         )
 }

@@ -1,97 +1,172 @@
 import { Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
 import {
+  DialogService,
   DiskInfo,
-  DriveComponent,
   ErrorService,
+  i18nPipe,
   toGuid,
 } from '@start9labs/shared'
 import {
   TuiButton,
-  TuiDialogOptions,
-  TuiDialogService,
+  TuiDataList,
+  TuiDropdown,
+  TuiIcon,
   TuiLoader,
+  TuiTitle,
 } from '@taiga-ui/core'
-import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiCell } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
-import { ApiService } from 'src/app/services/api.service'
-import { StateService } from 'src/app/services/state.service'
+import { ApiService } from '../services/api.service'
+import { StateService } from '../services/state.service'
 
 @Component({
   template: `
     <section tuiCardLarge="compact">
-      <header>Transfer</header>
-      Select the physical drive containing your StartOS data
+      <header tuiHeader>
+        <h2 tuiTitle>
+          {{ 'Transfer Data' | i18n }}
+          <span tuiSubtitle>
+            {{
+              'Select the drive containing your existing StartOS data' | i18n
+            }}
+            <a class="refresh" (click)="refresh()">
+              <tui-icon icon="@tui.rotate-cw" />
+              {{ 'Refresh' | i18n }}
+            </a>
+          </span>
+        </h2>
+      </header>
+
       @if (loading) {
         <tui-loader />
-      }
-      @for (drive of drives; track drive) {
-        <button tuiCell [drive]="drive" (click)="select(drive)"></button>
-      }
-      <footer>
-        <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
-          Refresh
+      } @else {
+        <button
+          tuiButton
+          iconEnd="@tui.chevron-down"
+          [tuiDropdown]="dropdown"
+          [tuiDropdownLimitWidth]="'fixed'"
+          [(tuiDropdownOpen)]="open"
+          style="width: 100%"
+        >
+          {{ 'Select Drive' | i18n }}
         </button>
-      </footer>
+
+        <ng-template #dropdown>
+          <tui-data-list>
+            @for (drive of drives; track drive.logicalname) {
+              <button tuiOption new (click)="select(drive)">
+                <div class="drive-item">
+                  <span>{{ drive.vendor }} {{ drive.model }}</span>
+                  <small>{{ drive.logicalname }}</small>
+                </div>
+              </button>
+            } @empty {
+              <div class="no-items">
+                {{ 'No StartOS data drives found' | i18n }}
+              </div>
+            }
+          </tui-data-list>
+        </ng-template>
+      }
     </section>
   `,
-  imports: [TuiCardLarge, TuiCell, TuiButton, TuiLoader, DriveComponent],
+  styles: `
+    .refresh {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      cursor: pointer;
+      color: var(--tui-text-action);
+
+      tui-icon {
+        font-size: 0.875rem;
+      }
+    }
+
+    .drive-item {
+      display: flex;
+      flex-direction: column;
+
+      small {
+        opacity: 0.7;
+      }
+    }
+
+    .no-items {
+      padding: 0.5rem 0.75rem;
+      color: var(--tui-text-secondary);
+      font-style: italic;
+    }
+  `,
+  imports: [
+    TuiButton,
+    TuiCardLarge,
+    TuiDataList,
+    TuiDropdown,
+    TuiIcon,
+    TuiLoader,
+    TuiTitle,
+    TuiHeader,
+    i18nPipe,
+  ],
 })
 export default class TransferPage {
-  private readonly apiService = inject(ApiService)
+  private readonly api = inject(ApiService)
   private readonly router = inject(Router)
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(DialogService)
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
 
   loading = true
+  open = false
   drives: DiskInfo[] = []
 
   async ngOnInit() {
-    this.stateService.setupType = 'transfer'
-    await this.getDrives()
+    await this.loadDrives()
   }
 
   async refresh() {
-    await this.getDrives()
+    this.loading = true
+    await this.loadDrives()
   }
 
-  async getDrives() {
-    this.loading = true
+  select(drive: DiskInfo) {
+    this.open = false
 
+    this.dialogs
+      .openConfirm({
+        label: 'Warning',
+        size: 's',
+        data: {
+          content:
+            'After transferring data from this drive, do not attempt to boot into it again as a Start9 Server. This may result in services malfunctioning, data corruption, or loss of funds.',
+          yes: 'Continue',
+          no: 'Cancel',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => {
+        const guid = toGuid(drive)
+        if (guid) {
+          this.stateService.recoverySource = {
+            type: 'migrate',
+            guid,
+          }
+          this.router.navigate(['/password'])
+        }
+      })
+  }
+
+  private async loadDrives() {
     try {
-      this.drives = await this.apiService
-        .getDrives()
-        .then(drives => drives.filter(toGuid))
+      const allDrives = await this.api.getDisks()
+      // Filter to only drives with StartOS data (guid)
+      this.drives = allDrives.filter(toGuid)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
       this.loading = false
     }
   }
-
-  select(drive: DiskInfo) {
-    this.dialogs
-      .open(TUI_CONFIRM, OPTIONS)
-      .pipe(filter(Boolean))
-      .subscribe(() => {
-        this.stateService.recoverySource = {
-          type: 'migrate',
-          guid: toGuid(drive) || '',
-        }
-        this.router.navigate([`storage`])
-      })
-  }
-}
-
-const OPTIONS: Partial<TuiDialogOptions<TuiConfirmData>> = {
-  label: 'Warning',
-  size: 's',
-  data: {
-    content:
-      'After transferring data from this drive, <b>do not</b> attempt to boot into it again as a Start9 Server. This may result in services malfunctioning, data corruption, or loss of funds.',
-    yes: 'Continue',
-    no: 'Cancel',
-  },
 }

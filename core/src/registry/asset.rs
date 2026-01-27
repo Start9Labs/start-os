@@ -49,7 +49,7 @@ impl<Commitment> RegistryAsset<Commitment> {
             }
         }
         Err(Error::new(
-            eyre!("Failed to load any http url"),
+            eyre!("{}", t!("registry.asset.failed-to-load-http-url")),
             ErrorKind::Network,
         ))
     }
@@ -64,7 +64,7 @@ impl<Commitment> RegistryAsset<Commitment> {
             }
         }
         Err(Error::new(
-            eyre!("Failed to load any http url"),
+            eyre!("{}", t!("registry.asset.failed-to-load-http-url")),
             ErrorKind::Network,
         ))
     }
@@ -80,7 +80,7 @@ impl<Commitment> RegistryAsset<Commitment> {
             }
         }
         Err(Error::new(
-            eyre!("Failed to load any http url"),
+            eyre!("{}", t!("registry.asset.failed-to-load-http-url")),
             ErrorKind::Network,
         ))
     }

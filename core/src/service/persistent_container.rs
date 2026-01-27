@@ -318,7 +318,7 @@ impl PersistentContainer {
             .get()
             .ok_or_else(|| {
                 Error::new(
-                    eyre!("PersistentContainer has been destroyed"),
+                    eyre!("{}", t!("service.persistent-container.container-destroyed")),
                     ErrorKind::Incoherent,
                 )
             })?
@@ -354,7 +354,7 @@ impl PersistentContainer {
             .get()
             .ok_or_else(|| {
                 Error::new(
-                    eyre!("PersistentContainer has been destroyed"),
+                    eyre!("{}", t!("service.persistent-container.container-destroyed")),
                     ErrorKind::Incoherent,
                 )
             })?
@@ -364,7 +364,7 @@ impl PersistentContainer {
         let handle = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let chown_status = async {
                 let res = server.run_unix(&path, |err| {
-                    tracing::error!("error on unix socket {}: {err}", path.display())
+                    tracing::error!("{}", t!("service.persistent-container.error-on-unix-socket", path = path.display(), error = err))
                 })?;
                 Command::new("chown")
                     .arg("100000:100000")
@@ -386,7 +386,7 @@ impl PersistentContainer {
         }));
         let shutdown = recv.await.map_err(|_| {
             Error::new(
-                eyre!("unix socket server thread panicked"),
+                eyre!("{}", t!("service.persistent-container.unix-socket-server-panicked")),
                 ErrorKind::Unknown,
             )
         })??;
@@ -396,7 +396,7 @@ impl PersistentContainer {
             .is_some()
         {
             return Err(Error::new(
-                eyre!("PersistentContainer already initialized"),
+                eyre!("{}", t!("service.persistent-container.already-initialized")),
                 ErrorKind::InvalidRequest,
             ));
         }
@@ -473,7 +473,7 @@ impl PersistentContainer {
         if let Some(destroy) = self.destroy(uninit) {
             destroy.await?;
         }
-        tracing::info!("Service for {} exited", self.s9pk.as_manifest().id);
+        tracing::info!("{}", t!("service.persistent-container.service-exited", id = self.s9pk.as_manifest().id));
 
         Ok(())
     }

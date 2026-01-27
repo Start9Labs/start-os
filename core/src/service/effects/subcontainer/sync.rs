@@ -107,22 +107,23 @@ fn open_file_read(path: impl AsRef<Path>) -> Result<File, Error> {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct ExecParams {
-    #[arg(long)]
+    #[arg(long, help = "help.arg.force-tty")]
     force_tty: bool,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.force-stderr-tty")]
     force_stderr_tty: bool,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.pty-size")]
     pty_size: Option<TermSize>,
-    #[arg(short, long)]
+    #[arg(short, long, help = "help.arg.env-variable")]
     env: Vec<String>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.env-file-path")]
     env_file: Option<PathBuf>,
-    #[arg(short, long)]
+    #[arg(short, long, help = "help.arg.workdir-path")]
     workdir: Option<PathBuf>,
-    #[arg(short, long)]
+    #[arg(short, long, help = "help.arg.user-name")]
     user: Option<String>,
+    #[arg(help = "help.arg.chroot-path")]
     chroot: PathBuf,
-    #[arg(trailing_var_arg = true)]
+    #[arg(trailing_var_arg = true, help = "help.arg.command-to-execute")]
     command: Vec<OsString>,
 }
 impl ExecParams {

@@ -230,10 +230,13 @@ export class FileHelper<A> {
         eq,
       ]
       this.consts.push(record)
-      watch.next().then(() => {
-        this.consts = this.consts.filter((r) => r !== record)
-        effects.constRetry && effects.constRetry()
-      })
+      watch
+        .next()
+        .then(() => {
+          this.consts = this.consts.filter((r) => r !== record)
+          effects.constRetry && effects.constRetry()
+        })
+        .catch()
     }
     return res.value
   }
@@ -263,6 +266,7 @@ export class FileHelper<A> {
           })
           .catch((e) => console.error(asError(e)))
         if (!prev || !eq(prev.value, newRes)) {
+          console.error("yielding", JSON.stringify({ prev: prev, newRes }))
           yield newRes
         }
         prev = { value: newRes }

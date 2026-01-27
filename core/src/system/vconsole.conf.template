@@ -1,0 +1,7 @@
+XKBMODEL="{model}"
+XKBLAYOUT="{layout}"
+XKBVARIANT="{variant}"
+XKBOPTIONS="{options}"
+
+KEYMAP="{keymap}"
+

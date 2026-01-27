@@ -76,26 +76,26 @@ pub fn registry_api<C: Context>() -> ParentHandler<C> {
             "index",
             from_fn_async(get_full_index)
                 .with_display_serializable()
-                .with_about("List info including registry name and packages")
+                .with_about("about.list-registry-info-packages")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand("info", info::info_api::<C>())
         // set info and categories
         .subcommand(
             "os",
-            os::os_api::<C>().with_about("Commands related to OS assets and versions"),
+            os::os_api::<C>().with_about("about.commands-os-assets-versions"),
         )
         .subcommand(
             "package",
-            package::package_api::<C>().with_about("Commands to index, add, or get packages"),
+            package::package_api::<C>().with_about("about.commands-index-add-get-packages"),
         )
         .subcommand(
             "admin",
-            admin::admin_api::<C>().with_about("Commands to add or list admins or signers"),
+            admin::admin_api::<C>().with_about("about.commands-add-list-admins-signers"),
         )
         .subcommand(
             "db",
-            db::db_api::<C>().with_about("Commands to interact with the db i.e. dump and apply"),
+            db::db_api::<C>().with_about("about.commands-registry-db"),
         )
 }
 

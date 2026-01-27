@@ -17,45 +17,46 @@ pub fn diagnostic<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "error",
             from_fn(error)
-                .with_about("Display diagnostic error")
+                .with_about("about.display-diagnostic-error")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "logs",
-            crate::system::logs::<DiagnosticContext>().with_about("Display OS logs"),
+            crate::system::logs::<DiagnosticContext>().with_about("about.display-os-logs"),
         )
         .subcommand(
             "logs",
             from_fn_async(crate::logs::cli_logs::<DiagnosticContext, Empty>)
                 .no_display()
-                .with_about("Display OS logs"),
+                .with_about("about.display-os-logs"),
         )
         .subcommand(
             "kernel-logs",
-            crate::system::kernel_logs::<DiagnosticContext>().with_about("Display kernel logs"),
+            crate::system::kernel_logs::<DiagnosticContext>()
+                .with_about("about.display-kernel-logs"),
         )
         .subcommand(
             "kernel-logs",
             from_fn_async(crate::logs::cli_logs::<DiagnosticContext, Empty>)
                 .no_display()
-                .with_about("Display kernal logs"),
+                .with_about("about.display-kernel-logs"),
         )
         .subcommand(
             "restart",
             from_fn(restart)
                 .no_display()
-                .with_about("Restart the server")
+                .with_about("about.restart-server")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "disk",
-            disk::<C>().with_about("Command to remove disk from filesystem"),
+            disk::<C>().with_about("about.command-remove-disk-filesystem"),
         )
         .subcommand(
             "rebuild",
             from_fn_async(rebuild)
                 .no_display()
-                .with_about("Teardown and rebuild service containers")
+                .with_about("about.teardown-rebuild-containers")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -89,16 +90,16 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
                 from_fn_async(forget_disk::<RpcContext>).no_display(),
             )
             .no_display()
-            .with_about("Remove disk from filesystem"),
+            .with_about("about.remove-disk-filesystem"),
         )
         .subcommand("repair", from_fn_async(|_: C| repair()).no_cli())
         .subcommand(
             "repair",
             CallRemoteHandler::<CliContext, _, _>::new(
-                from_fn_async(|_: RpcContext| repair())
-                    .no_display()
-                    .with_about("Repair disk in the event of corruption"),
-            ),
+                from_fn_async(|_: RpcContext| repair()).no_display(),
+            )
+            .no_display()
+            .with_about("about.repair-disk-corruption"),
         )
 }
 

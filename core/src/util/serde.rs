@@ -652,7 +652,7 @@ impl std::str::FromStr for Duration {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let units_idx = s.find(|c: char| c.is_alphabetic()).ok_or_else(|| {
             Error::new(
-                eyre!("Must specify units for duration"),
+                eyre!("{}", t!("util.serde.must-specify-units-for-duration")),
                 crate::ErrorKind::Deserialization,
             )
         })?;
@@ -691,7 +691,7 @@ impl std::str::FromStr for Duration {
             }
             _ => {
                 return Err(Error::new(
-                    eyre!("Invalid units for duration"),
+                    eyre!("{}", t!("util.serde.invalid-units-for-duration")),
                     crate::ErrorKind::Deserialization,
                 ));
             }
@@ -1050,7 +1050,7 @@ impl<T: TryFrom<Vec<u8>>> FromStr for Base64<T> {
             .map(Self)
             .map_err(|_| {
                 Error::new(
-                    eyre!("failed to create from buffer"),
+                    eyre!("{}", t!("util.serde.failed-to-create-from-buffer")),
                     ErrorKind::Deserialization,
                 )
             })
@@ -1151,7 +1151,7 @@ pub fn apply_expr(input: jaq_core::Val, expr: &str) -> Result<jaq_core::Val, Err
 
     let Some(expr) = expr else {
         return Err(Error::new(
-            eyre!("Failed to parse expression: {:?}", errs),
+            eyre!("{}", t!("util.serde.failed-to-parse-expression", errors = format!("{:?}", errs))),
             crate::ErrorKind::InvalidRequest,
         ));
     };
@@ -1167,7 +1167,7 @@ pub fn apply_expr(input: jaq_core::Val, expr: &str) -> Result<jaq_core::Val, Err
 
     if !errs.is_empty() {
         return Err(Error::new(
-            eyre!("Failed to compile expression: {:?}", errs),
+            eyre!("{}", t!("util.serde.failed-to-compile-expression", errors = format!("{:?}", errs))),
             crate::ErrorKind::InvalidRequest,
         ));
     };
@@ -1182,14 +1182,14 @@ pub fn apply_expr(input: jaq_core::Val, expr: &str) -> Result<jaq_core::Val, Err
         .with_kind(crate::ErrorKind::Deserialization)?
     else {
         return Err(Error::new(
-            eyre!("expr returned no results"),
+            eyre!("{}", t!("util.serde.expr-returned-no-results")),
             crate::ErrorKind::InvalidRequest,
         ));
     };
 
     if res_iter.next().is_some() {
         return Err(Error::new(
-            eyre!("expr returned too many results"),
+            eyre!("{}", t!("util.serde.expr-returned-too-many-results")),
             crate::ErrorKind::InvalidRequest,
         ));
     }

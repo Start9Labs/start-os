@@ -22,7 +22,6 @@ import { from, interval, map, shareReplay, startWith, Subject, tap } from 'rxjs'
 import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
 import { T } from '@start9labs/start-sdk'
-import { MarketplacePkg } from '@start9labs/marketplace'
 import { WebSocketSubject } from 'rxjs/webSocket'
 import { toAuthorityUrl } from 'src/app/utils/acme'
 
@@ -447,6 +446,36 @@ export class MockApiService extends ApiService {
         op: PatchOp.REPLACE,
         path: '/serverInfo/kiosk',
         value: enable,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setKeyboard(params: RR.SetKeyboardReq): Promise<RR.SetKeyboardRes> {
+    await pauseFor(1000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/keyboard',
+        value: params,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setLanguage(params: RR.SetLanguageReq): Promise<RR.SetLanguageRes> {
+    await pauseFor(1000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/language',
+        value: params.language,
       },
     ]
     this.mockRevision(patch)

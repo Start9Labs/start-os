@@ -9,6 +9,7 @@ use rpc_toolkit::reqwest;
 use rpc_toolkit::yajrc::{
     INVALID_PARAMS_ERROR, INVALID_REQUEST_ERROR, METHOD_NOT_FOUND_ERROR, PARSE_ERROR, RpcError,
 };
+use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
 use tokio_rustls::rustls;
@@ -97,95 +98,97 @@ pub enum ErrorKind {
     InstallFailed = 76,
     UpdateFailed = 77,
     Smtp = 78,
+    SetSysInfo = 79,
 }
 impl ErrorKind {
-    pub fn as_str(&self) -> &'static str {
+    pub fn as_str(&self) -> String {
         use ErrorKind::*;
         match self {
-            Unknown => "Unknown Error",
-            Filesystem => "Filesystem I/O Error",
-            Docker => "Docker Error",
-            ConfigSpecViolation => "Config Spec Violation",
-            ConfigRulesViolation => "Config Rules Violation",
-            NotFound => "Not Found",
-            IncorrectPassword => "Incorrect Password",
-            VersionIncompatible => "Version Incompatible",
-            Network => "Network Error",
-            Registry => "Registry Error",
-            Serialization => "Serialization Error",
-            Deserialization => "Deserialization Error",
-            Utf8 => "UTF-8 Parse Error",
-            ParseVersion => "Version Parsing Error",
-            IncorrectDisk => "Incorrect Disk",
-            // Nginx => "Nginx Error",
-            Dependency => "Dependency Error",
-            ParseS9pk => "S9PK Parsing Error",
-            ParseUrl => "URL Parsing Error",
-            DiskNotAvailable => "Disk Not Available",
-            BlockDevice => "Block Device Error",
-            InvalidOnionAddress => "Invalid Onion Address",
-            Pack => "Pack Error",
-            ValidateS9pk => "S9PK Validation Error",
-            DiskCorrupted => "Disk Corrupted", // Remove
-            Tor => "Tor Daemon Error",
-            ConfigGen => "Config Generation Error",
-            ParseNumber => "Number Parsing Error",
-            Database => "Database Error",
-            InvalidId => "Invalid ID",
-            InvalidSignature => "Invalid Signature",
-            Backup => "Backup Error",
-            Restore => "Restore Error",
-            Authorization => "Unauthorized",
-            AutoConfigure => "Auto-Configure Error",
-            Action => "Action Failed",
-            RateLimited => "Rate Limited",
-            InvalidRequest => "Invalid Request",
-            MigrationFailed => "Migration Failed",
-            Uninitialized => "Uninitialized",
-            ParseNetAddress => "Net Address Parsing Error",
-            ParseSshKey => "SSH Key Parsing Error",
-            SoundError => "Sound Interface Error",
-            ParseTimestamp => "Timestamp Parsing Error",
-            ParseSysInfo => "System Info Parsing Error",
-            Wifi => "WiFi Internal Error",
-            Journald => "Journald Error",
-            DiskManagement => "Disk Management Error",
-            OpenSsl => "OpenSSL Internal Error",
-            PasswordHashGeneration => "Password Hash Generation Error",
-            DiagnosticMode => "Server is in Diagnostic Mode",
-            ParseDbField => "Database Field Parse Error",
-            Duplicate => "Duplication Error",
-            MultipleErrors => "Multiple Errors",
-            Incoherent => "Incoherent",
-            InvalidBackupTargetId => "Invalid Backup Target ID",
-            ProductKeyMismatch => "Incompatible Product Keys",
-            LanPortConflict => "Incompatible LAN Port Configuration",
-            Javascript => "Javascript Engine Error",
-            Pem => "PEM Encoding Error",
-            TLSInit => "TLS Backend Initialization Error",
-            Ascii => "ASCII Parse Error",
-            MissingHeader => "Missing Header",
-            Grub => "Grub Error",
-            Systemd => "Systemd Error",
-            OpenSsh => "OpenSSH Error",
-            Zram => "Zram Error",
-            Lshw => "LSHW Error",
-            CpuSettings => "CPU Settings Error",
-            Firmware => "Firmware Error",
-            Timeout => "Timeout Error",
-            Lxc => "LXC Error",
-            Cancelled => "Cancelled",
-            Git => "Git Error",
-            DBus => "DBus Error",
-            InstallFailed => "Install Failed",
-            UpdateFailed => "Update Failed",
-            Smtp => "SMTP Error",
-        }
+            Unknown => t!("error.unknown"),
+            Filesystem => t!("error.filesystem"),
+            Docker => t!("error.docker"),
+            ConfigSpecViolation => t!("error.config-spec-violation"),
+            ConfigRulesViolation => t!("error.config-rules-violation"),
+            NotFound => t!("error.not-found"),
+            IncorrectPassword => t!("error.incorrect-password"),
+            VersionIncompatible => t!("error.version-incompatible"),
+            Network => t!("error.network"),
+            Registry => t!("error.registry"),
+            Serialization => t!("error.serialization"),
+            Deserialization => t!("error.deserialization"),
+            Utf8 => t!("error.utf8"),
+            ParseVersion => t!("error.parse-version"),
+            IncorrectDisk => t!("error.incorrect-disk"),
+            // Nginx => t!("error.nginx"),
+            Dependency => t!("error.dependency"),
+            ParseS9pk => t!("error.parse-s9pk"),
+            ParseUrl => t!("error.parse-url"),
+            DiskNotAvailable => t!("error.disk-not-available"),
+            BlockDevice => t!("error.block-device"),
+            InvalidOnionAddress => t!("error.invalid-onion-address"),
+            Pack => t!("error.pack"),
+            ValidateS9pk => t!("error.validate-s9pk"),
+            DiskCorrupted => t!("error.disk-corrupted"), // Remove
+            Tor => t!("error.tor"),
+            ConfigGen => t!("error.config-gen"),
+            ParseNumber => t!("error.parse-number"),
+            Database => t!("error.database"),
+            InvalidId => t!("error.invalid-id"),
+            InvalidSignature => t!("error.invalid-signature"),
+            Backup => t!("error.backup"),
+            Restore => t!("error.restore"),
+            Authorization => t!("error.authorization"),
+            AutoConfigure => t!("error.auto-configure"),
+            Action => t!("error.action"),
+            RateLimited => t!("error.rate-limited"),
+            InvalidRequest => t!("error.invalid-request"),
+            MigrationFailed => t!("error.migration-failed"),
+            Uninitialized => t!("error.uninitialized"),
+            ParseNetAddress => t!("error.parse-net-address"),
+            ParseSshKey => t!("error.parse-ssh-key"),
+            SoundError => t!("error.sound-error"),
+            ParseTimestamp => t!("error.parse-timestamp"),
+            ParseSysInfo => t!("error.parse-sys-info"),
+            Wifi => t!("error.wifi"),
+            Journald => t!("error.journald"),
+            DiskManagement => t!("error.disk-management"),
+            OpenSsl => t!("error.openssl"),
+            PasswordHashGeneration => t!("error.password-hash-generation"),
+            DiagnosticMode => t!("error.diagnostic-mode"),
+            ParseDbField => t!("error.parse-db-field"),
+            Duplicate => t!("error.duplicate"),
+            MultipleErrors => t!("error.multiple-errors"),
+            Incoherent => t!("error.incoherent"),
+            InvalidBackupTargetId => t!("error.invalid-backup-target-id"),
+            ProductKeyMismatch => t!("error.product-key-mismatch"),
+            LanPortConflict => t!("error.lan-port-conflict"),
+            Javascript => t!("error.javascript"),
+            Pem => t!("error.pem"),
+            TLSInit => t!("error.tls-init"),
+            Ascii => t!("error.ascii"),
+            MissingHeader => t!("error.missing-header"),
+            Grub => t!("error.grub"),
+            Systemd => t!("error.systemd"),
+            OpenSsh => t!("error.openssh"),
+            Zram => t!("error.zram"),
+            Lshw => t!("error.lshw"),
+            CpuSettings => t!("error.cpu-settings"),
+            Firmware => t!("error.firmware"),
+            Timeout => t!("error.timeout"),
+            Lxc => t!("error.lxc"),
+            Cancelled => t!("error.cancelled"),
+            Git => t!("error.git"),
+            DBus => t!("error.dbus"),
+            InstallFailed => t!("error.install-failed"),
+            UpdateFailed => t!("error.update-failed"),
+            Smtp => t!("error.smtp"),
+            SetSysInfo => t!("error.set-sys-info"),
+        }.to_string()
     }
 }
 impl Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}", &self.as_str())
     }
 }
 
@@ -199,7 +202,7 @@ pub struct Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {:#}", self.kind.as_str(), self.source)
+        write!(f, "{}: {:#}", &self.kind.as_str(), self.source)
     }
 }
 impl Debug for Error {
@@ -207,7 +210,7 @@ impl Debug for Error {
         write!(
             f,
             "{}: {:?}",
-            self.kind.as_str(),
+            &self.kind.as_str(),
             self.debug.as_ref().unwrap_or(&self.source)
         )
     }

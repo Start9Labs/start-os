@@ -15,6 +15,7 @@ use tokio::sync::broadcast::Receiver;
 use tracing::instrument;
 use ts_rs::TS;
 
+use crate::bins::set_locale;
 use crate::context::{CliContext, RpcContext};
 use crate::disk::util::{get_available, get_used};
 use crate::logs::{LogSource, LogsParams, SYSTEM_UNIT};
@@ -23,7 +24,7 @@ use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::shutdown::Shutdown;
 use crate::util::Invoke;
 use crate::util::cpupower::{Governor, get_available_governors, set_governor};
-use crate::util::io::open_file;
+use crate::util::io::{copy_file, open_file, write_file_atomic};
 use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 use crate::util::sync::Watch;
 use crate::{MAIN_DATA, PACKAGE_DATA};
@@ -34,7 +35,7 @@ pub fn experimental<C: Context>() -> ParentHandler<C> {
             "zram",
             from_fn_async(zram)
                 .no_display()
-                .with_about("Enable zram")
+                .with_about("about.enable-zram")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -44,7 +45,7 @@ pub fn experimental<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     display_governor_info(handle.params, result)
                 })
-                .with_about("Show current and available CPU governors")
+                .with_about("about.show-cpu-governors")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -81,6 +82,7 @@ pub async fn enable_zram() -> Result<(), Error> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ZramParams {
+    #[arg(help = "help.arg.enable-zram")]
     enable: bool,
 }
 
@@ -148,6 +150,7 @@ fn display_governor_info(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct GovernorParams {
+    #[arg(help = "help.arg.governor-name")]
     set: Option<Governor>,
 }
 
@@ -159,7 +162,10 @@ pub async fn governor(
     if let Some(set) = set {
         if !available.contains(&set) {
             return Err(Error::new(
-                eyre!("Governor {set} not available"),
+                eyre!(
+                    "{}",
+                    t!("system.governor-not-available", governor = set.to_string())
+                ),
                 ErrorKind::InvalidRequest,
             ));
         }
@@ -295,7 +301,7 @@ pub fn kiosk<C: Context>() -> ParentHandler<C> {
                 enable_kiosk().await
             })
             .no_display()
-            .with_about("Enable kiosk mode")
+            .with_about("about.enable-kiosk-mode")
             .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -313,7 +319,7 @@ pub fn kiosk<C: Context>() -> ParentHandler<C> {
                 disable_kiosk().await
             })
             .no_display()
-            .with_about("Disable kiosk mode")
+            .with_about("about.disable-kiosk-mode")
             .with_call_remote::<CliContext>(),
         )
 }
@@ -553,7 +559,13 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
     let init_temp = match get_temp().await {
         Ok(a) => Some(a),
         Err(e) => {
-            tracing::error!("Could not get initial temperature: {}", e);
+            tracing::error!(
+                "{}",
+                t!(
+                    "system.could-not-get-initial-temperature",
+                    error = e.to_string()
+                )
+            );
             tracing::debug!("{:?}", e);
             None
         }
@@ -570,12 +582,24 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
                     break;
                 }
                 Err(e) => {
-                    tracing::error!("Could not get initial cpu info: {}", e);
+                    tracing::error!(
+                        "{}",
+                        t!(
+                            "system.could-not-get-initial-cpu-info",
+                            error = e.to_string()
+                        )
+                    );
                     tracing::debug!("{:?}", e);
                 }
             },
             Err(e) => {
-                tracing::error!("Could not get initial proc stat: {}", e);
+                tracing::error!(
+                    "{}",
+                    t!(
+                        "system.could-not-get-initial-proc-stat",
+                        error = e.to_string()
+                    )
+                );
                 tracing::debug!("{:?}", e);
             }
         }
@@ -590,7 +614,13 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
                 break;
             }
             Err(e) => {
-                tracing::error!("Could not get initial mem info: {}", e);
+                tracing::error!(
+                    "{}",
+                    t!(
+                        "system.could-not-get-initial-mem-info",
+                        error = e.to_string()
+                    )
+                );
                 tracing::debug!("{:?}", e);
             }
         }
@@ -605,7 +635,13 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
                 break;
             }
             Err(e) => {
-                tracing::error!("Could not get initial disk info: {}", e);
+                tracing::error!(
+                    "{}",
+                    t!(
+                        "system.could-not-get-initial-disk-info",
+                        error = e.to_string()
+                    )
+                );
                 tracing::debug!("{:?}", e);
             }
         }
@@ -650,7 +686,13 @@ async fn launch_temp_task(
                 });
             }
             Err(e) => {
-                tracing::error!("Could not get new temperature: {}", e);
+                tracing::error!(
+                    "{}",
+                    t!(
+                        "system.could-not-get-new-temperature",
+                        error = e.to_string()
+                    )
+                );
                 tracing::debug!("{:?}", e);
             }
         }
@@ -673,7 +715,13 @@ async fn launch_cpu_task(
                 cache.send_modify(|c| c.as_mut().unwrap().cpu = info);
             }
             Err(e) => {
-                tracing::error!("Could not get new CPU Metrics: {}", e);
+                tracing::error!(
+                    "{}",
+                    t!(
+                        "system.could-not-get-new-cpu-metrics",
+                        error = e.to_string()
+                    )
+                );
                 tracing::debug!("{:?}", e);
             }
         }
@@ -692,7 +740,13 @@ async fn launch_mem_task(cache: &Watch<Option<Metrics>>, mut shutdown: Receiver<
                 cache.send_modify(|c| c.as_mut().unwrap().memory = a);
             }
             Err(e) => {
-                tracing::error!("Could not get new Memory Metrics: {}", e);
+                tracing::error!(
+                    "{}",
+                    t!(
+                        "system.could-not-get-new-memory-metrics",
+                        error = e.to_string()
+                    )
+                );
                 tracing::debug!("{:?}", e);
             }
         }
@@ -721,7 +775,13 @@ async fn launch_disk_task(
                 });
             }
             Err(e) => {
-                tracing::error!("Could not get new Disk Metrics: {}", e);
+                tracing::error!(
+                    "{}",
+                    t!(
+                        "system.could-not-get-new-disk-metrics",
+                        error = e.to_string()
+                    )
+                );
                 tracing::debug!("{:?}", e);
             }
         }
@@ -757,7 +817,12 @@ async fn get_temp() -> Result<Celsius, Error> {
         }
     })
     .reduce(f64::max)
-    .ok_or_else(|| Error::new(eyre!("No temperatures available"), ErrorKind::Filesystem))?;
+    .ok_or_else(|| {
+        Error::new(
+            eyre!("{}", t!("system.no-temperatures-available")),
+            ErrorKind::Filesystem,
+        )
+    })?;
     Ok(Celsius(temp))
 }
 
@@ -803,7 +868,10 @@ async fn get_proc_stat() -> Result<ProcStat, Error> {
         .map(|s| {
             s.parse::<u64>().map_err(|e| {
                 Error::new(
-                    color_eyre::eyre::eyre!("Invalid /proc/stat column value: {}", e),
+                    color_eyre::eyre::eyre!(
+                        "{}",
+                        t!("system.invalid-proc-stat-column", error = e.to_string())
+                    ),
                     ErrorKind::ParseSysInfo,
                 )
             })
@@ -813,8 +881,8 @@ async fn get_proc_stat() -> Result<ProcStat, Error> {
     if stats.len() < 10 {
         Err(Error::new(
             eyre!(
-                "Columns missing from /proc/stat. Need 10, found {}",
-                stats.len()
+                "{}",
+                t!("system.columns-missing-from-proc-stat", count = stats.len())
             ),
             ErrorKind::ParseSysInfo,
         ))
@@ -872,16 +940,22 @@ pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
         zram_free: None,
     };
     fn get_num_kb(l: &str) -> Result<u64, Error> {
-        let e = Error::new(
-            color_eyre::eyre::eyre!("Invalid meminfo line: {}", l),
-            ErrorKind::ParseSysInfo,
-        );
+        let line = l.to_string();
+        let e = || {
+            Error::new(
+                color_eyre::eyre::eyre!(
+                    "{}",
+                    t!("system.invalid-meminfo-line", line = line.clone())
+                ),
+                ErrorKind::ParseSysInfo,
+            )
+        };
         match l.split_whitespace().skip(1).next() {
             Some(x) => match x.parse() {
                 Ok(y) => Ok(y),
-                Err(_) => Err(e),
+                Err(_) => Err(e()),
             },
-            None => Err(e),
+            None => Err(e()),
         }
     }
     for entry in contents.lines() {
@@ -900,10 +974,19 @@ pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
         }
     }
     fn ensure_present(a: Option<u64>, field: &str) -> Result<u64, Error> {
-        a.ok_or(Error::new(
-            color_eyre::eyre::eyre!("{} missing from /proc/meminfo", field),
-            ErrorKind::ParseSysInfo,
-        ))
+        let field_str = field.to_string();
+        a.ok_or_else(|| {
+            Error::new(
+                color_eyre::eyre::eyre!(
+                    "{}",
+                    t!(
+                        "system.field-missing-from-meminfo",
+                        field = field_str.clone()
+                    )
+                ),
+                ErrorKind::ParseSysInfo,
+            )
+        })
     }
     let mem_total = ensure_present(mem_info.mem_total, "MemTotal")?;
     let mem_free = ensure_present(mem_info.mem_free, "MemFree")?;
@@ -963,15 +1046,15 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SmtpValue {
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-server")]
     pub server: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-port")]
     pub port: u16,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-from")]
     pub from: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-login")]
     pub login: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-password")]
     pub password: Option<String>,
 }
 pub async fn set_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Error> {
@@ -1009,17 +1092,17 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct TestSmtpParams {
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-server")]
     pub server: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-port")]
     pub port: u16,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-from")]
     pub from: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-to")]
     pub to: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-login")]
     pub login: String,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.smtp-password")]
     pub password: String,
 }
 pub async fn test_smtp(
@@ -1050,6 +1133,127 @@ pub async fn test_smtp(
                 .body("This is a test email sent from your StartOS Server".to_owned())?,
         )
         .await?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyboardOptions {
+    #[arg(help = "help.arg.keyboard-layout")]
+    pub layout: InternedString,
+    #[arg(short, long, help = "help.arg.keyboard-keymap")]
+    pub keymap: Option<InternedString>,
+    #[arg(short, long, help = "help.arg.keyboard-model")]
+    pub model: Option<InternedString>,
+    #[arg(short, long, help = "help.arg.keyboard-variant")]
+    pub variant: Option<InternedString>,
+    #[arg(short, long = "option", help = "help.arg.keyboard-option")]
+    #[serde(default)]
+    pub options: Vec<InternedString>,
+}
+impl KeyboardOptions {
+    /// NOTE: will error if kiosk inactive
+    pub async fn apply_to_session(&self) -> Result<(), Error> {
+        let mut cmd = Command::new("setxkbmap");
+        cmd.env("DISPLAY", ":0")
+            .env("XAUTHORITY", "/home/kiosk/.Xauthority");
+        cmd.arg("-layout").arg(&*self.layout);
+        if let Some(variant) = self.variant.as_deref() {
+            cmd.arg("-variant").arg(variant);
+        }
+        for option in &self.options {
+            cmd.arg("-option").arg(&**option);
+        }
+        cmd.invoke(ErrorKind::SetSysInfo).await?;
+        Ok(())
+    }
+
+    pub async fn save(&self) -> Result<(), Error> {
+        write_file_atomic(
+            "/media/startos/config/overlay/etc/vconsole.conf",
+            format!(
+                include_str!("./vconsole.conf.template"),
+                model = self.model.as_deref().unwrap_or_default(),
+                layout = &*self.layout,
+                variant = self.variant.as_deref().unwrap_or_default(),
+                options = self.options.join(","),
+                keymap = self.keymap.as_deref().unwrap_or(&*self.layout),
+            ),
+        )
+        .await?;
+        write_file_atomic(
+            "/media/startos/config/overlay/etc/X11/xorg.conf.d/00-keyboard.conf",
+            format!(
+                include_str!("./keyboard.conf.template"),
+                model = self.model.as_deref().unwrap_or_default(),
+                layout = &*self.layout,
+                variant = self.variant.as_deref().unwrap_or_default(),
+                options = self.options.join(","),
+            ),
+        )
+        .await
+    }
+}
+
+pub async fn set_keyboard(ctx: RpcContext, options: KeyboardOptions) -> Result<(), Error> {
+    options.apply_to_session().await.log_err();
+    options.save().await?;
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_keyboard_mut()
+                .ser(&Some(options))
+        })
+        .await
+        .result?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct SetLanguageParams {
+    #[arg(help = "help.arg.language-code")]
+    pub language: InternedString,
+}
+
+pub async fn save_language(language: &str) -> Result<(), Error> {
+    write_file_atomic(
+        "/etc/locale.gen",
+        format!("{language}.UTF-8 UTF-8\n").as_bytes(),
+    )
+    .await?;
+    Command::new("locale-gen")
+        .invoke(ErrorKind::SetSysInfo)
+        .await?;
+    copy_file(
+        "/usr/lib/locale/locale-archive",
+        "/media/startos/config/overlay/usr/lib/locale/locale-archive",
+    )
+    .await?;
+    write_file_atomic(
+        "/media/startos/config/overlay/etc/default/locale",
+        format!("LANG={language}.UTF-8\n").as_bytes(),
+    )
+    .await?;
+    Ok(())
+}
+
+pub async fn set_language(
+    ctx: RpcContext,
+    SetLanguageParams { language }: SetLanguageParams,
+) -> Result<(), Error> {
+    set_locale(&*language);
+    save_language(&*language).await?;
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_language_mut()
+                .ser(&Some(language.clone()))
+        })
+        .await
+        .result?;
     Ok(())
 }
 

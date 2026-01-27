@@ -15,7 +15,7 @@ license = "MIT"
 name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
-version = "0.4.0-alpha.17" # VERSION_BUMP
+version = "0.4.0-alpha.18" # VERSION_BUMP
 
 [lib]
 name = "startos"
@@ -213,6 +213,7 @@ reqwest = { version = "0.12.25", features = [
 reqwest_cookie_store = "0.9.0"
 rpassword = "7.2.0"
 rust-argon2 = "3.0.0"
+rust-i18n = "3.1.5"
 rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git" }
 safelog = { version = "0.4.8", git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
 semver = { version = "1.0.20", features = ["serde"] }
@@ -263,7 +264,7 @@ tower-service = "0.3.3"
 tracing = "0.1.39"
 tracing-error = "0.2.0"
 tracing-journald = "0.3.0"
-tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+tracing-subscriber = { version = "=0.3.19", features = ["env-filter"] }
 ts-rs = "9.0.1"
 typed-builder = "0.23.2"
 url = { version = "2.4.1", features = ["serde"] }

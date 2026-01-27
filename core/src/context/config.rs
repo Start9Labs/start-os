@@ -58,27 +58,27 @@ pub trait ContextConfig: DeserializeOwned + Default {
 #[command(rename_all = "kebab-case")]
 #[command(version = crate::version::Current::default().semver().to_string())]
 pub struct ClientConfig {
-    #[arg(short = 'c', long)]
+    #[arg(short = 'c', long, help = "help.arg.config-file-path")]
     pub config: Option<PathBuf>,
-    #[arg(short = 'H', long)]
+    #[arg(short = 'H', long, help = "help.arg.host-url")]
     pub host: Option<Url>,
-    #[arg(short = 'r', long)]
+    #[arg(short = 'r', long, help = "help.arg.registry-url")]
     pub registry: Option<Url>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.registry-hostname")]
     pub registry_hostname: Option<Vec<InternedString>>,
     #[arg(skip)]
     pub registry_listen: Option<SocketAddr>,
-    #[arg(short = 't', long)]
+    #[arg(short = 't', long, help = "help.arg.tunnel-address")]
     pub tunnel: Option<SocketAddr>,
     #[arg(skip)]
     pub tunnel_listen: Option<SocketAddr>,
-    #[arg(short = 'p', long)]
+    #[arg(short = 'p', long, help = "help.arg.proxy-url")]
     pub proxy: Option<Url>,
     #[arg(skip)]
     pub socks_listen: Option<SocketAddr>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.cookie-path")]
     pub cookie_path: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.developer-key-path")]
     pub developer_key_path: Option<PathBuf>,
 }
 impl ContextConfig for ClientConfig {
@@ -109,21 +109,19 @@ impl ClientConfig {
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct ServerConfig {
-    #[arg(short, long)]
+    #[arg(short, long, help = "help.arg.config-file-path")]
     pub config: Option<PathBuf>,
-    #[arg(long)]
-    pub ethernet_interface: Option<String>,
     #[arg(skip)]
     pub os_partitions: Option<OsPartitionInfo>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.socks-listen-address")]
     pub socks_listen: Option<SocketAddr>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.revision-cache-size")]
     pub revision_cache_size: Option<usize>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.disable-encryption")]
     pub disable_encryption: Option<bool>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.multi-arch-s9pks")]
     pub multi_arch_s9pks: Option<bool>,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.developer-key-path")]
     pub developer_key_path: Option<PathBuf>,
 }
 impl ContextConfig for ServerConfig {
@@ -131,7 +129,6 @@ impl ContextConfig for ServerConfig {
         self.config.take()
     }
     fn merge_with(&mut self, other: Self) {
-        self.ethernet_interface = self.ethernet_interface.take().or(other.ethernet_interface);
         self.os_partitions = self.os_partitions.take().or(other.os_partitions);
         self.socks_listen = self.socks_listen.take().or(other.socks_listen);
         self.revision_cache_size = self

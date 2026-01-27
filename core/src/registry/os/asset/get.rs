@@ -34,7 +34,7 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
             "iso",
             from_fn_async(cli_get_os_asset)
                 .no_display()
-                .with_about("Download iso"),
+                .with_about("about.download-iso"),
         )
         .subcommand(
             "img",
@@ -46,7 +46,7 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
             "img",
             from_fn_async(cli_get_os_asset)
                 .no_display()
-                .with_about("Download img"),
+                .with_about("about.download-img"),
         )
         .subcommand(
             "squashfs",
@@ -58,7 +58,7 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
             "squashfs",
             from_fn_async(cli_get_os_asset)
                 .no_display()
-                .with_about("Download squashfs"),
+                .with_about("about.download-squashfs"),
         )
 }
 
@@ -121,18 +121,20 @@ pub async fn get_squashfs(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliGetOsAssetParams {
+    #[arg(help = "help.arg.os-version")]
     pub version: Version,
+    #[arg(help = "help.arg.platform")]
     pub platform: InternedString,
     #[arg(
         long = "download",
         short = 'd',
-        help = "The path of the directory to download to"
+        help = "help.arg.download-directory"
     )]
     pub download: Option<PathBuf>,
     #[arg(
         long = "reverify",
         short = 'r',
-        help = "verify the hash of the file a second time after download"
+        help = "help.arg.reverify-hash"
     )]
     pub reverify: bool,
 }

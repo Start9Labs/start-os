@@ -395,7 +395,7 @@ pub fn acme_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(init)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Setup ACME certificate acquisition")
+                .with_about("about.setup-acme-certificate-acquisition")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -403,7 +403,7 @@ pub fn acme_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(remove)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Remove ACME certificate acquisition configuration")
+                .with_about("about.remove-acme-certificate-acquisition-configuration")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -463,9 +463,9 @@ impl ValueParserFactory for AcmeProvider {
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct InitAcmeParams {
-    #[arg(long)]
+    #[arg(long, help = "help.arg.acme-provider")]
     pub provider: AcmeProvider,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.acme-contact")]
     pub contact: Vec<String>,
 }
 
@@ -488,7 +488,7 @@ pub async fn init(
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct RemoveAcmeParams {
-    #[arg(long)]
+    #[arg(long, help = "help.arg.acme-provider")]
     pub provider: AcmeProvider,
 }
 

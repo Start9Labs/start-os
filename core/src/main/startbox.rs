@@ -11,11 +11,6 @@ fn main() {
             "$CARGO_MANIFEST_DIR/../web/dist/static/setup-wizard"
         ))
         .ok();
-    startos::net::static_server::INSTALL_WIZARD_CELL
-        .set(include_dir::include_dir!(
-            "$CARGO_MANIFEST_DIR/../web/dist/static/install-wizard"
-        ))
-        .ok();
     #[cfg(not(feature = "beta"))]
     startos::db::model::public::DB_UI_SEED_CELL
         .set(include_str!(concat!(

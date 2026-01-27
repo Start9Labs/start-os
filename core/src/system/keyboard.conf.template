@@ -1,0 +1,8 @@
+Section "InputClass"
+    Identifier "system-keyboard"
+    MatchIsKeyboard "on"
+    Option "XkbModel"   "{model}"
+    Option "XkbLayout"  "{layout}"
+    Option "XkbVariant" "{variant}"
+    Option "XkbOptions" "{options}"
+EndSection

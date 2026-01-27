@@ -3,8 +3,8 @@ import type { EncryptedWire } from "./EncryptedWire"
 import type { RecoverySource } from "./RecoverySource"
 
 export type SetupExecuteParams = {
-  startOsLogicalname: string
-  startOsPassword: EncryptedWire
+  guid: string
+  password: EncryptedWire
   recoverySource: RecoverySource<EncryptedWire> | null
   kiosk?: boolean
 }

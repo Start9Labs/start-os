@@ -143,13 +143,13 @@ pub fn target<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "cifs",
-            cifs::cifs::<C>().with_about("Add, remove, or update a backup target"),
+            cifs::cifs::<C>().with_about("about.add-remove-update-backup-target"),
         )
         .subcommand(
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_about("List existing backup targets")
+                .with_about("about.list-existing-backup-targets")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -159,20 +159,20 @@ pub fn target<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn::<CliContext, _>(|params, info| {
                     display_backup_info(params.params, info)
                 })
-                .with_about("Display package backup information")
+                .with_about("about.display-package-backup-information")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "mount",
             from_fn_async(mount)
-                .with_about("Mount backup target")
+                .with_about("about.mount-backup-target")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "umount",
             from_fn_async(umount)
                 .no_display()
-                .with_about("Unmount backup target")
+                .with_about("about.unmount-backup-target")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -268,8 +268,11 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) -> Re
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct InfoParams {
+    #[arg(help = "help.arg.backup-target-id")]
     target_id: BackupTargetId,
+    #[arg(help = "help.arg.server-id")]
     server_id: String,
+    #[arg(help = "help.arg.backup-password")]
     password: String,
 }
 
@@ -305,11 +308,13 @@ lazy_static::lazy_static! {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct MountParams {
+    #[arg(help = "help.arg.backup-target-id")]
     target_id: BackupTargetId,
-    #[arg(long)]
+    #[arg(long, help = "help.arg.server-id")]
     server_id: Option<String>,
+    #[arg(help = "help.arg.backup-password")]
     password: String, // TODO: rpassword
-    #[arg(long)]
+    #[arg(long, help = "help.arg.allow-partial-backup")]
     allow_partial: bool,
 }
 
@@ -385,6 +390,7 @@ pub async fn mount(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UmountParams {
+    #[arg(help = "help.arg.backup-target-id")]
     target_id: Option<BackupTargetId>,
 }
 

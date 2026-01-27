@@ -97,7 +97,7 @@ impl WebSocket {
             if self.ping_state.is_some() {
                 self.fused = true;
                 break Poll::Ready(Some(Err(axum::Error::new(eyre!(
-                    "Timeout: WebSocket did not respond to ping within {PING_TIMEOUT:?}"
+                    "{}", t!("util.net.websocket-ping-timeout", timeout = format!("{PING_TIMEOUT:?}"))
                 )))));
             }
             self.ping_state = Some((false, rand::random()));

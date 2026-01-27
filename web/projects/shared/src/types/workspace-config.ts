@@ -10,7 +10,7 @@ export type AccessType =
 export type WorkspaceConfig = {
   gitHash: string
   useMocks: boolean
-  // each key corresponds to a project and values adjust settings for that project, eg: ui, install-wizard, setup-wizard
+  // each key corresponds to a project and values adjust settings for that project, eg: ui, setup-wizard
   ui: {
     api: {
       url: string

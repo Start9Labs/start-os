@@ -107,7 +107,10 @@ impl TorSecretKey {
         Ok(Self(
             tor_llcrypto::pk::ed25519::ExpandedKeypair::from_secret_key_bytes(bytes)
                 .ok_or_else(|| {
-                    Error::new(eyre!("invalid ed25519 expanded secret key"), ErrorKind::Tor)
+                    Error::new(
+                        eyre!("{}", t!("net.tor.invalid-ed25519-key")),
+                        ErrorKind::Tor,
+                    )
                 })?
                 .into(),
         ))
@@ -226,19 +229,19 @@ pub fn tor_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(list_services)
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| display_services(handle.params, result))
-                .with_about("Display Tor V3 Onion Addresses")
+                .with_about("about.display-tor-v3-onion-addresses")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "reset",
             from_fn_async(reset)
                 .no_display()
-                .with_about("Reset Tor daemon")
+                .with_about("about.reset-tor-daemon")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "key",
-            key::<C>().with_about("Manage the onion service key store"),
+            key::<C>().with_about("about.manage-onion-service-key-store"),
         )
 }
 
@@ -247,13 +250,13 @@ pub fn key<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "generate",
             from_fn_async(generate_key)
-                .with_about("Generate an onion service key and add it to the key store")
+                .with_about("about.generate-onion-service-key-add-to-store")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "add",
             from_fn_async(add_key)
-                .with_about("Add an onion service key to the key store")
+                .with_about("about.add-onion-service-key-to-store")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -265,7 +268,7 @@ pub fn key<C: Context>() -> ParentHandler<C> {
                     }
                     Ok(())
                 })
-                .with_about("List onion services with keys in the key store")
+                .with_about("about.list-onion-services-with-keys-in-store")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -286,6 +289,7 @@ pub async fn generate_key(ctx: RpcContext) -> Result<OnionAddress, Error> {
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct AddKeyParams {
+    #[arg(help = "help.arg.onion-secret-key")]
     pub key: Base64<[u8; 64]>,
 }
 
@@ -320,7 +324,7 @@ pub async fn list_keys(ctx: RpcContext) -> Result<BTreeSet<OnionAddress>, Error>
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ResetParams {
-    #[arg(name = "wipe-state", short = 'w', long = "wipe-state")]
+    #[arg(name = "wipe-state", short = 'w', long = "wipe-state", help = "help.arg.wipe-tor-state")]
     wipe_state: bool,
 }
 
@@ -447,9 +451,13 @@ impl TorController {
                                     if prev_inst.elapsed() > BOOTSTRAP_PROGRESS_TIMEOUT {
                                         return Err(Error::new(
                                             eyre!(
-                                                "Bootstrap has not made progress for {}",
-                                                crate::util::serde::Duration::from(
-                                                    BOOTSTRAP_PROGRESS_TIMEOUT
+                                                "{}",
+                                                t!(
+                                                    "net.tor.bootstrap-no-progress",
+                                                    duration = crate::util::serde::Duration::from(
+                                                        BOOTSTRAP_PROGRESS_TIMEOUT
+                                                    )
+                                                    .to_string()
                                                 )
                                             ),
                                             ErrorKind::Tor,
@@ -466,7 +474,10 @@ impl TorController {
                             res = bootstrap_fut => res,
                             res = failure_fut => res,
                         } {
-                            tracing::error!("Tor Bootstrap Error: {e}");
+                            tracing::error!(
+                                "{}",
+                                t!("net.tor.bootstrap-error", error = e.to_string())
+                            );
                             tracing::debug!("{e:?}");
                         } else {
                             bootstrapper_client.send_modify(|_| ());
@@ -516,7 +527,13 @@ impl TorController {
                                                     }
                                                     .await
                                                     {
-                                                        tracing::error!("Tor Health Error: {e}");
+                                                        tracing::error!(
+                                                            "{}",
+                                                            t!(
+                                                                "net.tor.health-error",
+                                                                error = e.to_string()
+                                                            )
+                                                        );
                                                         tracing::debug!("{e:?}");
                                                     }
                                                 });
@@ -529,7 +546,10 @@ impl TorController {
                                                         }
                                                     }
                                                     Err(Error::new(
-                                                        eyre!("status event stream ended"),
+                                                        eyre!(
+                                                            "{}",
+                                                            t!("net.tor.status-stream-ended")
+                                                        ),
                                                         ErrorKind::Tor,
                                                     ))
                                                 })
@@ -560,13 +580,19 @@ impl TorController {
                                 }
                                 .await
                                 {
-                                    tracing::error!("Tor Client Health Error: {e}");
+                                    tracing::error!(
+                                        "{}",
+                                        t!("net.tor.client-health-error", error = e.to_string())
+                                    );
                                     tracing::debug!("{e:?}");
                                 }
                             }
                             tracing::error!(
-                                "Client failed health check {} times, recycling",
-                                HEALTH_CHECK_FAILURE_ALLOWANCE
+                                "{}",
+                                t!(
+                                    "net.tor.health-check-failed-recycling",
+                                    count = HEALTH_CHECK_FAILURE_ALLOWANCE
+                                )
                             );
                         }
 
@@ -574,7 +600,10 @@ impl TorController {
                     })
                     .await
                 {
-                    tracing::error!("Tor Bootstrapper Error: {e}");
+                    tracing::error!(
+                        "{}",
+                        t!("net.tor.bootstrapper-error", error = e.to_string())
+                    );
                     tracing::debug!("{e:?}");
                 }
                 if let Err::<(), Error>(e) = async {
@@ -592,7 +621,10 @@ impl TorController {
                 }
                 .await
                 {
-                    tracing::error!("Tor Client Creation Error: {e}");
+                    tracing::error!(
+                        "{}",
+                        t!("net.tor.client-creation-error", error = e.to_string())
+                    );
                     tracing::debug!("{e:?}");
                 }
             }
@@ -684,7 +716,10 @@ impl TorController {
                 .await
                 .with_kind(ErrorKind::Network)?;
             if let Err(e) = socket2::SockRef::from(&tcp_stream).set_keepalive(true) {
-                tracing::error!("Failed to set tcp keepalive: {e}");
+                tracing::error!(
+                    "{}",
+                    t!("net.tor.failed-to-set-tcp-keepalive", error = e.to_string())
+                );
                 tracing::debug!("{e:?}");
             }
             Ok(Box::new(tcp_stream))
@@ -812,7 +847,7 @@ impl OnionService {
                                                                 .await
                                                                 .with_kind(ErrorKind::Network)?;
                                                         if let Err(e) = socket2::SockRef::from(&outgoing).set_keepalive(true) {
-                                                            tracing::error!("Failed to set tcp keepalive: {e}");
+                                                            tracing::error!("{}", t!("net.tor.failed-to-set-tcp-keepalive", error = e.to_string()));
                                                             tracing::debug!("{e:?}");
                                                         }
                                                         let mut incoming = req
@@ -852,7 +887,7 @@ impl OnionService {
                             }
                             .await
                             {
-                                tracing::error!("Tor Client Error: {e}");
+                                tracing::error!("{}", t!("net.tor.client-error", error = e.to_string()));
                                 tracing::debug!("{e:?}");
                             }
                         }

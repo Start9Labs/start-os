@@ -92,14 +92,14 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add)
                 .no_display()
-                .with_about("Add ssh key")
+                .with_about("about.add-ssh-key")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove)
                 .no_display()
-                .with_about("Remove ssh key")
+                .with_about("about.remove-ssh-key")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -109,7 +109,7 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     display_all_ssh_keys(handle.params, result)
                 })
-                .with_about("List ssh keys")
+                .with_about("about.list-ssh-keys")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -118,6 +118,7 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct AddParams {
+    #[arg(help = "help.arg.ssh-public-key")]
     key: SshPubKey,
 }
 
@@ -152,6 +153,7 @@ pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKey
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DeleteParams {
+    #[arg(help = "help.arg.ssh-fingerprint")]
     #[ts(type = "string")]
     fingerprint: InternedString,
 }
@@ -168,7 +170,10 @@ pub async fn remove(
             if keys_ref.remove(&fingerprint)?.is_some() {
                 keys_ref.de()
             } else {
-                Err(Error::new(eyre!("SSH Key Not Found"), ErrorKind::NotFound))
+                Err(Error::new(
+                    eyre!("{}", t!("ssh.key-not-found")),
+                    ErrorKind::NotFound,
+                ))
             }
         })
         .await

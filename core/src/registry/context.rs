@@ -42,17 +42,17 @@ const DEFAULT_REGISTRY_LISTEN: SocketAddr =
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct RegistryConfig {
-    #[arg(short = 'c', long = "config")]
+    #[arg(short = 'c', long = "config", help = "help.arg.config-file-path")]
     pub config: Option<PathBuf>,
-    #[arg(short = 'l', long = "listen")]
+    #[arg(short = 'l', long = "listen", help = "help.arg.registry-listen-address")]
     pub registry_listen: Option<SocketAddr>,
-    #[arg(short = 'H', long = "hostname")]
+    #[arg(short = 'H', long = "hostname", help = "help.arg.registry-hostname")]
     pub registry_hostname: Vec<InternedString>,
-    #[arg(short = 'p', long = "tor-proxy")]
+    #[arg(short = 'p', long = "tor-proxy", help = "help.arg.tor-proxy-url")]
     pub tor_proxy: Option<Url>,
-    #[arg(short = 'd', long = "datadir")]
+    #[arg(short = 'd', long = "datadir", help = "help.arg.data-directory")]
     pub datadir: Option<PathBuf>,
-    #[arg(short = 'u', long = "pg-connection-url")]
+    #[arg(short = 'u', long = "pg-connection-url", help = "help.arg.postgres-connection-url")]
     pub pg_connection_url: Option<String>,
 }
 impl ContextConfig for RegistryConfig {
@@ -124,7 +124,7 @@ impl RegistryContext {
         };
         if config.registry_hostname.is_empty() {
             return Err(Error::new(
-                eyre!("missing required configuration: registry-hostname"),
+                eyre!("{}", t!("registry.context.missing-hostname")),
                 ErrorKind::NotFound,
             ));
         }
@@ -165,6 +165,7 @@ impl Deref for RegistryContext {
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
 pub struct RegistryUrlParams {
+    #[arg(help = "help.arg.registry-url")]
     pub registry: Url,
 }
 
@@ -195,7 +196,7 @@ impl CallRemote<RegistryContext> for CliContext {
             url
         } else {
             return Err(
-                Error::new(eyre!("`--registry` required"), ErrorKind::InvalidRequest).into(),
+                Error::new(eyre!("{}", t!("registry.context.registry-required")), ErrorKind::InvalidRequest).into(),
             );
         };
 
@@ -330,7 +331,7 @@ impl SignatureAuthContext for RegistryContext {
             }
         }
 
-        Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+        Err(Error::new(eyre!("{}", t!("registry.context.unauthorized")), ErrorKind::Authorization))
     }
     async fn post_auth_hook(
         &self,

@@ -30,7 +30,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, BufReader};
 use tokio_util::io::ReaderStream;
 use url::Url;
 
-use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
+use crate::context::{DiagnosticContext, InitContext, RpcContext, SetupContext};
 use crate::hostname::Hostname;
 use crate::middleware::auth::Auth;
 use crate::middleware::auth::session::ValidSessionToken;
@@ -169,20 +169,6 @@ pub static SETUP_WIZARD_CELL: OnceLock<Dir<'static>> = OnceLock::new();
 impl UiContext for SetupContext {
     fn ui_dir() -> &'static Dir<'static> {
         SETUP_WIZARD_CELL.get().unwrap_or(&EMPTY_DIR)
-    }
-    fn api() -> ParentHandler<Self> {
-        main_api()
-    }
-    fn middleware(server: Server<Self>) -> HttpServer<Self> {
-        server.middleware(Cors::new())
-    }
-}
-
-pub static INSTALL_WIZARD_CELL: OnceLock<Dir<'static>> = OnceLock::new();
-
-impl UiContext for InstallContext {
-    fn ui_dir() -> &'static Dir<'static> {
-        INSTALL_WIZARD_CELL.get().unwrap_or(&EMPTY_DIR)
     }
     fn api() -> ParentHandler<Self> {
         main_api()

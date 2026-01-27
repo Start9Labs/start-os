@@ -25,6 +25,7 @@ impl LshwDevice {
             Self::Display(_) => "display",
         }
     }
+    #[instrument(skip_all)]
     pub fn from_value(value: &Value) -> Option<Self> {
         match value["class"].as_str() {
             Some("processor") => Some(LshwDevice::Processor(LshwProcessor::from_value(value))),
@@ -41,6 +42,7 @@ pub struct LshwProcessor {
     pub capabilities: BTreeSet<InternedString>,
 }
 impl LshwProcessor {
+    #[instrument(skip_all)]
     fn from_value(value: &Value) -> Self {
         Self {
             product: value["product"].as_str().map(From::from),
@@ -63,6 +65,7 @@ pub struct LshwDisplay {
     pub driver: Option<InternedString>,
 }
 impl LshwDisplay {
+    #[instrument(skip_all)]
     fn from_value(value: &Value) -> Self {
         Self {
             product: value["product"].as_str().map(From::from),

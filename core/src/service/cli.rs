@@ -14,7 +14,7 @@ use crate::service::effects::context::EffectContext;
 
 #[derive(Debug, Default, Parser)]
 pub struct ContainerClientConfig {
-    #[arg(long = "socket")]
+    #[arg(long = "socket", help = "help.arg.socket-path")]
     pub socket: Option<PathBuf>,
 }
 

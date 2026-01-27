@@ -666,6 +666,27 @@ pub fn new_guid() -> InternedString {
     ))
 }
 
+/// A utility for lazily computing a Display value. This is useful for i18n
+/// where you want to defer the translation until the value is actually displayed,
+/// avoiding allocations in the common case where the message is not rendered.
+pub struct LazyDisplay<F>(F);
+impl<F: Fn() -> D, D: fmt::Display> LazyDisplay<F> {
+    pub fn new(f: F) -> Self {
+        LazyDisplay(f)
+    }
+}
+impl<F: Fn() -> D, D: fmt::Display> fmt::Display for LazyDisplay<F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", (self.0)())
+    }
+}
+
+/// Creates a lazily-evaluated Display implementation.
+/// The closure is only called when the value is actually displayed.
+pub fn lazy_display<F: Fn() -> D, D: fmt::Display>(f: F) -> LazyDisplay<F> {
+    LazyDisplay::new(f)
+}
+
 #[derive(Debug, Clone, TS)]
 #[ts(type = "string")]
 pub enum PathOrUrl {

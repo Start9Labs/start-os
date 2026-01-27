@@ -21,7 +21,7 @@ pub fn info_api<C: Context>() -> ParentHandler<C, WithIoFormat<Empty>> {
             from_fn_async(get_info)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
-                .with_about("Display registry name, icon, and package categories")
+                .with_about("about.display-registry-info")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -29,7 +29,7 @@ pub fn info_api<C: Context>() -> ParentHandler<C, WithIoFormat<Empty>> {
             from_fn_async(set_name)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Set the name for the registry")
+                .with_about("about.set-registry-name")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -42,7 +42,7 @@ pub fn info_api<C: Context>() -> ParentHandler<C, WithIoFormat<Empty>> {
             "set-icon",
             from_fn_async(cli_set_icon)
                 .no_display()
-                .with_about("Set the icon for the registry"),
+                .with_about("about.set-registry-icon"),
         )
 }
 
@@ -69,6 +69,7 @@ pub async fn get_info(ctx: RegistryContext) -> Result<RegistryInfo, Error> {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetNameParams {
+    #[arg(help = "help.arg.registry-name")]
     pub name: String,
 }
 
@@ -104,6 +105,7 @@ pub async fn set_icon(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CliSetIconParams {
+    #[arg(help = "help.arg.icon-path")]
     pub icon: PathBuf,
 }
 

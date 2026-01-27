@@ -23,7 +23,7 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::context::config::{ClientConfig, local_config_path};
-use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
+use crate::context::{DiagnosticContext, InitContext, RpcContext, SetupContext};
 use crate::developer::{OS_DEVELOPER_KEY_PATH, default_developer_key_path};
 use crate::middleware::auth::local::LocalAuthContext;
 use crate::prelude::*;
@@ -166,14 +166,14 @@ impl CliContext {
                 .with_kind(crate::ErrorKind::Pem)?;
                 let secret = ed25519_dalek::SecretKey::try_from(&pair.secret_key[..]).map_err(|_| {
                     Error::new(
-                        eyre!("pkcs8 key is of incorrect length"),
+                        eyre!("{}", t!("context.cli.pkcs8-key-incorrect-length")),
                         ErrorKind::OpenSsl,
                     )
                 })?;
                 return Ok(secret.into())
             }
             Err(Error::new(
-                eyre!("Developer Key does not exist! Please run `start-cli init-key` before running this command."),
+                eyre!("{}", t!("context.cli.developer-key-does-not-exist")),
                 crate::ErrorKind::Uninitialized
             ))
         })
@@ -189,14 +189,14 @@ impl CliContext {
             "http" => "ws",
             _ => {
                 return Err(Error::new(
-                    eyre!("Cannot parse scheme from base URL"),
+                    eyre!("{}", t!("context.cli.cannot-parse-scheme-from-base-url")),
                     crate::ErrorKind::ParseUrl,
                 )
                 .into());
             }
         };
         url.set_scheme(ws_scheme)
-            .map_err(|_| Error::new(eyre!("Cannot set URL scheme"), crate::ErrorKind::ParseUrl))?;
+            .map_err(|_| Error::new(eyre!("{}", t!("context.cli.cannot-set-url-scheme")), crate::ErrorKind::ParseUrl))?;
         url.path_segments_mut()
             .map_err(|_| eyre!("Url cannot be base"))
             .with_kind(crate::ErrorKind::ParseUrl)?
@@ -376,25 +376,6 @@ impl CallRemote<InitContext> for CliContext {
     }
 }
 impl CallRemote<SetupContext> for CliContext {
-    async fn call_remote(
-        &self,
-        method: &str,
-        _: OrdMap<&'static str, Value>,
-        params: Value,
-        _: Empty,
-    ) -> Result<Value, RpcError> {
-        crate::middleware::auth::signature::call_remote(
-            self,
-            self.rpc_url.clone(),
-            HeaderMap::new(),
-            self.rpc_url.host_str(),
-            method,
-            params,
-        )
-        .await
-    }
-}
-impl CallRemote<InstallContext> for CliContext {
     async fn call_remote(
         &self,
         method: &str,

@@ -166,11 +166,13 @@ impl Model<Host> {
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct RequiresPackageId {
+    #[arg(help = "help.arg.package-id")]
     package: PackageId,
 }
 
 #[derive(Deserialize, Serialize, Parser)]
 pub struct RequiresHostId {
+    #[arg(help = "help.arg.host-id")]
     host: HostId,
 }
 
@@ -243,7 +245,7 @@ pub fn host_api<C: Context>() -> ParentHandler<C, RequiresPackageId> {
                     }
                     Ok(())
                 })
-                .with_about("List host IDs available for this service"),
+                .with_about("about.list-host-ids-for-service"),
         )
         .subcommand(
             "address",

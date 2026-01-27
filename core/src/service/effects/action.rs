@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
+use rust_i18n::t;
 
 use crate::action::{ActionInput, ActionResult, display_action_result};
 use crate::db::model::package::{
@@ -80,7 +81,7 @@ pub async fn export_action(
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ClearActionsParams {
-    #[arg(long)]
+    #[arg(long, help = "help.arg.except-actions")]
     pub except: Vec<ActionId>,
 }
 
@@ -117,7 +118,9 @@ pub struct GetActionInputParams {
     #[arg(skip)]
     procedure_id: Guid,
     #[ts(optional)]
+    #[arg(help = "help.arg.package-id")]
     package_id: Option<PackageId>,
+    #[arg(help = "help.arg.action-id")]
     action_id: ActionId,
 }
 async fn get_action_input(
@@ -155,9 +158,12 @@ pub struct RunActionParams {
     #[arg(skip)]
     procedure_id: Guid,
     #[ts(optional)]
+    #[arg(help = "help.arg.package-id")]
     package_id: Option<PackageId>,
+    #[arg(help = "help.arg.action-id")]
     action_id: ActionId,
     #[ts(type = "any")]
+    #[arg(help = "help.arg.action-input")]
     input: Value,
 }
 async fn run_action(
@@ -175,7 +181,7 @@ async fn run_action(
 
     if package_id != &context.seed.id {
         return Err(Error::new(
-            eyre!("calling actions on other packages is unsupported at this time"),
+            eyre!("{}", t!("service.effects.action.calling-actions-on-other-packages-unsupported")),
             ErrorKind::InvalidRequest,
         ));
         context
@@ -220,7 +226,7 @@ async fn create_task(
             TaskCondition::InputNotMatches => {
                 let Some(input) = task.input.as_ref() else {
                     return Err(Error::new(
-                        eyre!("input-not-matches trigger requires input to be specified"),
+                        eyre!("{}", t!("service.effects.action.input-not-matches-requires-input")),
                         ErrorKind::InvalidRequest,
                     ));
                 };
@@ -238,9 +244,7 @@ async fn create_task(
                     else {
                         return Err(Error::new(
                             eyre!(
-                                "action {} of {} has no input",
-                                task.action_id,
-                                task.package_id
+                                "{}", t!("service.effects.action.action-has-no-input", action_id = task.action_id, package_id = task.package_id)
                             ),
                             ErrorKind::InvalidRequest,
                         ));
@@ -286,9 +290,9 @@ async fn create_task(
 #[ts(type = "{ only: string[] } | { except: string[] }")]
 #[ts(export)]
 pub struct ClearTasksParams {
-    #[arg(long, conflicts_with = "except")]
+    #[arg(long, conflicts_with = "except", help = "help.arg.only-tasks")]
     pub only: Option<Vec<ReplayId>>,
-    #[arg(long, conflicts_with = "only")]
+    #[arg(long, conflicts_with = "only", help = "help.arg.except-tasks")]
     pub except: Option<Vec<ReplayId>>,
 }
 

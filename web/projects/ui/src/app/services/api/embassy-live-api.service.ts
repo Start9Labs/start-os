@@ -256,6 +256,14 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async setKeyboard(params: RR.SetKeyboardReq): Promise<RR.SetKeyboardRes> {
+    return this.rpcRequest({ method: 'server.set-keyboard', params })
+  }
+
+  async setLanguage(params: RR.SetLanguageReq): Promise<RR.SetLanguageRes> {
+    return this.rpcRequest({ method: 'server.set-language', params })
+  }
+
   async setDns(params: RR.SetDnsReq): Promise<RR.SetDnsRes> {
     return this.rpcRequest({
       method: 'net.dns.set-static',

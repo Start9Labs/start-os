@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { SharedPipesModule, TickerComponent } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'marketplace-package-hero',
@@ -125,7 +126,7 @@ export class MarketplacePackageHeroComponent {
     id: string
     title: string
     version: string
-    description: { short: string }
+    description: { short: T.LocaleString }
     icon: string
   }
 

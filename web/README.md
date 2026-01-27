@@ -4,7 +4,6 @@ StartOS web UIs are written in [Angular/Typescript](https://angular.io/docs) and
 
 StartOS conditionally serves one of three Web UIs, depending on the state of the system and user choice.
 
-- **install-wizard** - UI for installing StartOS, served on localhost.
 - **setup-wizard** - UI for setting up StartOS, served on start.local.
 - **ui** - primary UI for administering StartOS, served on various hosts unique to the instance.
 
@@ -69,7 +68,6 @@ You can develop using mocks (recommended to start) or against a live server. Eit
 #### Start the standard development server
 
 ```sh
-npm run start:install
 npm run start:setup
 npm run start:ui
 ```
@@ -122,7 +120,6 @@ Translate the English dictionary below into `<language>`. Format the result as a
 #### Adding to StartOS
 
 - In the `shared` project:
-
   1. Create a new file (`language.ts`) in `src/i18n/dictionaries`
   2. Update the `I18N_PROVIDERS` array in `src/i18n/i18n.providers.ts` (2 places)
   3. Update the `languages` array in `/src/i18n/i18n.service.ts`
@@ -131,7 +128,6 @@ Translate the English dictionary below into `<language>`. Format the result as a
   If you have any doubt about the above steps, check the [French example PR](https://github.com/Start9Labs/start-os/pull/2945/files) for reference.
 
 - Here in this README:
-
   1. Add the language to the list of supported languages below
 
 ### Updating the English dictionary

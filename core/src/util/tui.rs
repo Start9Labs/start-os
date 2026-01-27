@@ -10,7 +10,7 @@ fn map_miette(m: miette::Error) -> Error {
 }
 fn noninteractive_err() -> Error {
     Error::new(
-        eyre!("Terminal must be in interactive mode for this wizard"),
+        eyre!("{}", t!("util.tui.terminal-must-be-interactive")),
         ErrorKind::Filesystem,
     )
 }
@@ -21,7 +21,7 @@ where
 {
     move |s| {
         s.parse::<T>()
-            .map_err(|_| format!("Please enter a valid {what}."))
+            .map_err(|_| t!("util.tui.enter-valid-value", what = what).to_string())
     }
 }
 
@@ -50,7 +50,7 @@ pub async fn prompt<T, E: std::fmt::Display, Parse: FnMut(&str) -> Result<T, E>>
                 }
             }
             ReadlineEvent::Eof | ReadlineEvent::Interrupted => {
-                return Err(Error::new(eyre!("Aborted"), ErrorKind::Cancelled));
+                return Err(Error::new(eyre!("{}", t!("util.tui.aborted")), ErrorKind::Cancelled));
             }
             _ => (),
         }
@@ -83,7 +83,7 @@ pub async fn prompt_multiline<
                 Err(e) => writeln!(&mut rl_ctx.shared_writer, "{e}")?,
             },
             ReadlineEvent::Eof | ReadlineEvent::Interrupted => {
-                return Err(Error::new(eyre!("Aborted"), ErrorKind::Cancelled));
+                return Err(Error::new(eyre!("{}", t!("util.tui.aborted")), ErrorKind::Cancelled));
             }
             _ => (),
         }
@@ -119,7 +119,7 @@ pub async fn choose_custom_display<'t, T>(
     .await
     .map_err(map_miette)?;
     if choice.len() < 1 {
-        return Err(Error::new(eyre!("Aborted"), ErrorKind::Cancelled));
+        return Err(Error::new(eyre!("{}", t!("util.tui.aborted")), ErrorKind::Cancelled));
     }
     let (idx, choice_str) = string_choices
         .iter()
@@ -127,7 +127,7 @@ pub async fn choose_custom_display<'t, T>(
         .find(|(_, s)| s.as_str() == choice[0].as_str())
         .ok_or_else(|| {
             Error::new(
-                eyre!("selected choice does not appear in input"),
+                eyre!("{}", t!("util.tui.selected-choice-not-in-input")),
                 ErrorKind::Incoherent,
             )
         })?;

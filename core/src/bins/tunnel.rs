@@ -6,6 +6,7 @@ use std::time::Duration;
 use clap::Parser;
 use futures::FutureExt;
 use rpc_toolkit::CliApp;
+use rust_i18n::t;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 use visit_rs::Visit;
@@ -70,7 +71,7 @@ async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
                                         true
                                     }
                                     Err(e) => {
-                                        tracing::error!("error adding ssl listener: {e}");
+                                        tracing::error!("{}", t!("bins.tunnel.error-adding-ssl-listener", error = e.to_string()));
                                         tracing::debug!("{e:?}");
 
                                         false
@@ -92,7 +93,7 @@ async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
                 }
                 .await
                 {
-                    tracing::error!("error updating webserver bind: {e}");
+                    tracing::error!("{}", t!("bins.tunnel.error-updating-webserver-bind", error = e.to_string()));
                     tracing::debug!("{e:?}");
                     tokio::time::sleep(Duration::from_secs(5)).await;
                 }
@@ -157,7 +158,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
-            .expect("failed to initialize runtime");
+            .expect(&t!("bins.tunnel.failed-to-initialize-runtime"));
         rt.block_on(inner_main(&config))
     };
 
@@ -179,6 +180,7 @@ pub fn cli(args: impl IntoIterator<Item = OsString>) {
         |cfg: ClientConfig| Ok(CliContext::init(cfg.load()?)?),
         crate::tunnel::api::tunnel_api(),
     )
+    .mutate_command(super::translate_cli)
     .run(args)
     {
         match e.data {

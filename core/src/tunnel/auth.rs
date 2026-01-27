@@ -129,14 +129,14 @@ pub fn auth_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "set-password",
             from_fn_async(set_password_cli)
-                .with_about("Set user interface password")
-                .no_display(),
+                .no_display()
+                .with_about("about.set-user-interface-password"),
         )
         .subcommand(
             "reset-password",
             from_fn_async(reset_password)
-                .with_about("Reset user interface password")
-                .no_display(),
+                .no_display()
+                .with_about("about.reset-user-interface-password"),
         )
         .subcommand(
             "key",
@@ -146,7 +146,7 @@ pub fn auth_api<C: Context>() -> ParentHandler<C> {
                     from_fn_async(add_key)
                         .with_metadata("sync_db", Value::Bool(true))
                         .no_display()
-                        .with_about("Add a new authorized key")
+                        .with_about("about.add-new-authorized-key")
                         .with_call_remote::<CliContext>(),
                 )
                 .subcommand(
@@ -154,7 +154,7 @@ pub fn auth_api<C: Context>() -> ParentHandler<C> {
                     from_fn_async(remove_key)
                         .with_metadata("sync_db", Value::Bool(true))
                         .no_display()
-                        .with_about("Remove an authorized key")
+                        .with_about("about.remove-authorized-key")
                         .with_call_remote::<CliContext>(),
                 )
                 .subcommand(
@@ -175,7 +175,7 @@ pub fn auth_api<C: Context>() -> ParentHandler<C> {
                             table.print_tty(false)?;
                             Ok(())
                         })
-                        .with_about("List authorized keys")
+                        .with_about("about.list-authorized-keys")
                         .with_call_remote::<CliContext>(),
                 ),
         )

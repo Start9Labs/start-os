@@ -232,6 +232,7 @@ pub const SYSTEM_UNIT: &str = "startd";
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct PackageIdParams {
+    #[arg(help = "help.arg.package-id")]
     id: PackageId,
 }
 
@@ -327,14 +328,14 @@ pub struct LogsParams<Extra: FromArgMatches + Args = Empty> {
     #[command(flatten)]
     #[serde(flatten)]
     extra: Extra,
-    #[arg(short = 'l', long = "limit")]
+    #[arg(short = 'l', long = "limit", help = "help.arg.log-limit")]
     limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor", conflicts_with = "follow")]
+    #[arg(short = 'c', long = "cursor", conflicts_with = "follow", help = "help.arg.log-cursor")]
     cursor: Option<String>,
-    #[arg(short = 'b', long = "boot")]
+    #[arg(short = 'b', long = "boot", help = "help.arg.log-boot")]
     #[serde(default)]
     boot: Option<BootIdentifier>,
-    #[arg(short = 'B', long = "before", conflicts_with = "follow")]
+    #[arg(short = 'B', long = "before", conflicts_with = "follow", help = "help.arg.log-before")]
     #[serde(default)]
     before: bool,
 }
@@ -346,7 +347,7 @@ pub struct CliLogsParams<Extra: FromArgMatches + Args = Empty> {
     #[command(flatten)]
     #[serde(flatten)]
     rpc_params: LogsParams<Extra>,
-    #[arg(short = 'f', long = "follow")]
+    #[arg(short = 'f', long = "follow", help = "help.arg.log-follow")]
     #[serde(default)]
     follow: bool,
 }
@@ -554,7 +555,7 @@ pub async fn journalctl(
         let mut child = follow_cmd.stdout(Stdio::piped()).spawn()?;
         let out =
             BufReader::new(child.stdout.take().ok_or_else(|| {
-                Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald)
+                Error::new(eyre!("{}", t!("logs.no-stdout-available")), crate::ErrorKind::Journald)
             })?);
 
         let journalctl_entries = LinesStream::new(out.lines());
@@ -700,7 +701,7 @@ pub async fn follow_logs<Context: AsRef<RpcContinuations>>(
             RpcContinuation::ws(
                 move |socket| async move {
                     if let Err(e) = ws_handler(first_entry, stream, socket).await {
-                        tracing::error!("Error in log stream: {}", e);
+                        tracing::error!("{}", t!("logs.error-in-log-stream", error = e.to_string()));
                     }
                 },
                 Duration::from_secs(30),

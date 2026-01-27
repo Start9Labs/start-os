@@ -9,6 +9,7 @@ import { PreloadAllModules, RouterModule } from '@angular/router'
 import { WA_LOCATION } from '@ng-web-apis/common'
 import initArgon from '@start9labs/argon2'
 import {
+  I18N_PROVIDERS,
   provideSetupLogsService,
   RELATIVE_URL,
   VERSION,
@@ -16,9 +17,9 @@ import {
 } from '@start9labs/shared'
 import { tuiButtonOptionsProvider, TuiRoot } from '@taiga-ui/core'
 import { NG_EVENT_PLUGINS } from '@taiga-ui/event-plugins'
-import { ApiService } from 'src/app/services/api.service'
-import { LiveApiService } from 'src/app/services/live-api.service'
-import { MockApiService } from 'src/app/services/mock-api.service'
+import { ApiService } from './services/api.service'
+import { LiveApiService } from './services/live-api.service'
+import { MockApiService } from './services/mock-api.service'
 import { AppComponent } from './app.component'
 import { ROUTES } from './app.routes'
 
@@ -41,6 +42,7 @@ const version = require('../../../../package.json').version
   ],
   providers: [
     NG_EVENT_PLUGINS,
+    I18N_PROVIDERS,
     provideSetupLogsService(ApiService),
     tuiButtonOptionsProvider({ size: 'm' }),
     {

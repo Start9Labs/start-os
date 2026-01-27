@@ -11,6 +11,7 @@ use crate::context::CliContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::Category;
+use crate::s9pk::manifest::LocaleString;
 use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 
 pub fn category_api<C: Context>() -> ParentHandler<C> {
@@ -20,7 +21,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(add_category)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Add a category to the registry")
+                .with_about("about.add-category-registry")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -28,7 +29,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(remove_category)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Remove a category from the registry")
+                .with_about("about.remove-category-registry")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -36,7 +37,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(add_package)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Add a package to a category")
+                .with_about("about.add-package-category")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -44,7 +45,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(remove_package)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_about("Remove a package from a category")
+                .with_about("about.remove-package-category")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -66,7 +67,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
 pub struct AddCategoryParams {
     #[ts(type = "string")]
     pub id: InternedString,
-    pub name: String,
+    pub name: LocaleString,
 }
 
 pub async fn add_category(
@@ -196,7 +197,7 @@ pub fn display_categories<T>(
         "NAME",
     ]);
     for (id, info) in categories {
-        table.add_row(row![&*id, &info.name]);
+        table.add_row(row![&*id, &info.name.localized()]);
     }
     table.print_tty(false)?;
     Ok(())
