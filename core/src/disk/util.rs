@@ -400,21 +400,52 @@ async fn disk_info(disk: PathBuf) -> DiskInfo {
         .map_err(|e| {
             tracing::warn!(
                 "{}",
-                t!("disk.util.could-not-get-partition-table", disk = disk.display(), error = e.source)
+                t!(
+                    "disk.util.could-not-get-partition-table",
+                    disk = disk.display(),
+                    error = e.source
+                )
             )
         })
         .unwrap_or_default();
     let vendor = get_vendor(&disk)
         .await
-        .map_err(|e| tracing::warn!("{}", t!("disk.util.could-not-get-vendor", disk = disk.display(), error = e.source)))
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-vendor",
+                    disk = disk.display(),
+                    error = e.source
+                )
+            )
+        })
         .unwrap_or_default();
     let model = get_model(&disk)
         .await
-        .map_err(|e| tracing::warn!("{}", t!("disk.util.could-not-get-model", disk = disk.display(), error = e.source)))
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-model",
+                    disk = disk.display(),
+                    error = e.source
+                )
+            )
+        })
         .unwrap_or_default();
     let capacity = get_capacity(&disk)
         .await
-        .map_err(|e| tracing::warn!("{}", t!("disk.util.could-not-get-capacity", disk = disk.display(), error = e.source)))
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-capacity",
+                    disk = disk.display(),
+                    error = e.source
+                )
+            )
+        })
         .unwrap_or_default();
     DiskInfo {
         logicalname: disk,
@@ -431,21 +462,49 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
     let mut start_os = BTreeMap::new();
     let label = get_label(&part)
         .await
-        .map_err(|e| tracing::warn!("{}", t!("disk.util.could-not-get-label", part = part.display(), error = e.source)))
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-label",
+                    part = part.display(),
+                    error = e.source
+                )
+            )
+        })
         .unwrap_or_default();
     let capacity = get_capacity(&part)
         .await
-        .map_err(|e| tracing::warn!("{}", t!("disk.util.could-not-get-capacity-part", part = part.display(), error = e.source)))
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-capacity-part",
+                    part = part.display(),
+                    error = e.source
+                )
+            )
+        })
         .unwrap_or_default();
     let mut used = None;
 
     match TmpMountGuard::mount(&BlockDev::new(&part), ReadOnly).await {
-        Err(e) => tracing::warn!("{}", t!("disk.util.could-not-collect-usage-info", error = e.source)),
+        Err(e) => tracing::warn!(
+            "{}",
+            t!("disk.util.could-not-collect-usage-info", error = e.source)
+        ),
         Ok(mount_guard) => {
             used = get_used(mount_guard.path())
                 .await
                 .map_err(|e| {
-                    tracing::warn!("{}", t!("disk.util.could-not-get-usage", part = part.display(), error = e.source))
+                    tracing::warn!(
+                        "{}",
+                        t!(
+                            "disk.util.could-not-get-usage",
+                            part = part.display(),
+                            error = e.source
+                        )
+                    )
                 })
                 .ok();
             match recovery_info(mount_guard.path()).await {
@@ -453,11 +512,21 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
                     start_os = a;
                 }
                 Err(e) => {
-                    tracing::error!("{}", t!("disk.util.error-fetching-backup-metadata", error = e));
+                    tracing::error!(
+                        "{}",
+                        t!("disk.util.error-fetching-backup-metadata", error = e)
+                    );
                 }
             }
             if let Err(e) = mount_guard.unmount().await {
-                tracing::error!("{}", t!("disk.util.error-unmounting-partition", part = part.display(), error = e));
+                tracing::error!(
+                    "{}",
+                    t!(
+                        "disk.util.error-unmounting-partition",
+                        part = part.display(),
+                        error = e
+                    )
+                );
             }
         }
     }
