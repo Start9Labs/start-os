@@ -12,16 +12,16 @@ import {
   TuiIcon,
   TuiInput,
   TuiLabel,
-  TuiNotificationService,
   TuiTextfield,
   TuiTitle,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TuiNotificationMiddleService, TuiPassword } from '@taiga-ui/kit'
+import { TuiPassword } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
+import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/api.service'
 
 import { PasswordAside } from './aside'
@@ -40,7 +40,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   template: `
     <password-aside *help />
     <form [formGroup]="form" [formLoading]="false" (ngSubmit)="onSubmit()">
-      <header tuiHeader="h6"><h2 tuiTitle>Change Password</h2></header>
+      <header tuiHeader="body-l"><h2 tuiTitle>Change Password</h2></header>
       <tui-textfield>
         <label tuiLabel>Old password</label>
         <input tuiInput formControlName="old" type="password" />
@@ -93,8 +93,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
 })
 export default class Password {
   private readonly api = inject(ApiService)
-  private readonly alerts = inject(TuiNotificationService)
-  private readonly loading = inject(TuiNotificationMiddleService)
+  private readonly actions = inject(ActionService)
 
   public readonly form = inject(NonNullableFormBuilder).group(
     {
@@ -108,28 +107,17 @@ export default class Password {
   async onSubmit(): Promise<void> {
     if (this.form.invalid) {
       tuiMarkControlAsTouchedAndValidate(this.form)
-      return
-    }
-
-    const loading = this.loading.open('').subscribe()
-    try {
-      await this.api.setPassword({
-        oldPassword: this.form.value.old!,
-        newPassword: this.form.value.password!,
-      })
-      this.alerts
-        .open('Password changed successfully', { appearance: 'positive' })
-        .subscribe()
+    } else if (
+      await this.actions.run(
+        () =>
+          this.api.setPassword({
+            oldPassword: this.form.value.old!,
+            newPassword: this.form.value.password!,
+          }),
+        { success: 'Password changed successfully' },
+      )
+    ) {
       this.form.reset()
-    } catch (e: any) {
-      console.error(e)
-      this.alerts
-        .open(e.message || 'Failed to change password', {
-          appearance: 'negative',
-        })
-        .subscribe()
-    } finally {
-      loading.unsubscribe()
     }
   }
 }

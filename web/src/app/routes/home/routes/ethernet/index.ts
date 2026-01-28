@@ -6,10 +6,7 @@ import { TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { Help } from 'src/app/directives/help'
 import { EthernetTable } from 'src/app/routes/home/routes/ethernet/table'
-import {
-  injectFormService,
-  provideFormService,
-} from 'src/app/services/form.service'
+import { provideFormService } from 'src/app/services/form.service'
 
 import { EthernetAside } from './aside'
 import { CHANGE_WAN_DIALOG } from './dialog'
@@ -20,9 +17,9 @@ import { EthernetPort, EthernetService } from './service'
     <ethernet-aside *help />
     <header tuiHeader>
       <hgroup tuiTitle><h2>Ethernet</h2></hgroup>
-      @if (service.data()) {
+      @if (service.data(); as data) {
         <aside tuiAccessories>
-          <button tuiButton size="s" (click)="onChangeWan()">
+          <button tuiButton size="s" (click)="onChangeWan(data)">
             Change WAN Port
           </button>
         </aside>
@@ -36,7 +33,6 @@ import { EthernetPort, EthernetService } from './service'
   styles: `
     :host {
       max-width: 30rem;
-      padding-top: 0;
     }
   `,
   host: { class: 'g-page' },
@@ -55,29 +51,19 @@ import { EthernetPort, EthernetService } from './service'
 export default class Ethernet {
   private readonly dialogs = inject(TuiResponsiveDialogService)
 
-  protected readonly service = injectFormService<
-    EthernetPort[]
-  >() as EthernetService
+  protected readonly service = inject(EthernetService)
 
-  onChangeWan() {
-    const ports = this.service.data()
-    if (!ports) return
-
+  onChangeWan(data: EthernetPort[]) {
     this.dialogs
-      .open<EthernetPort | null>(CHANGE_WAN_DIALOG, {
-        label: 'Change WAN Port',
-        size: 's',
-        data: ports,
-      })
+      .open<EthernetPort | null>(CHANGE_WAN_DIALOG, { size: 's', data })
       .pipe(filter(Boolean))
-      .subscribe(async newWanPort => {
-        const items = ports.map(p => ({
-          ...p,
-          wan: p.name === newWanPort.name,
+      .subscribe(async ({ name }) => {
+        const items = data.map(port => ({
+          ...port,
+          wan: port.name === name,
         }))
 
-        const success = await this.service.save(items)
-        if (success) {
+        if (await this.service.save(items)) {
           this.service.restart()
         }
       })

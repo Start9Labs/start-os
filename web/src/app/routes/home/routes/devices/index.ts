@@ -1,16 +1,13 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { RouterOutlet, Routes } from '@angular/router'
-import { FormService } from 'src/app/services/form.service'
+import { provideFormService } from 'src/app/services/form.service'
 import { DevicesService } from './service'
 
 @Component({
   template: '<router-outlet />',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterOutlet],
-  providers: [
-    DevicesService,
-    { provide: FormService, useExisting: DevicesService },
-  ],
+  providers: [provideFormService(DevicesService)],
 })
 export class Devices {}
 

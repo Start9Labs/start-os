@@ -50,6 +50,7 @@ import { TuiAccordion } from '@taiga-ui/kit'
       </tui-expand>
     </tui-accordion>
   `,
+  host: { class: 'g-aside' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiAccordion],
 })

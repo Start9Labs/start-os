@@ -7,7 +7,6 @@ import {
 import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiButton, TuiLink } from '@taiga-ui/core'
-import { TuiSorterPipe } from 'src/app/pipes/sorter.pipe'
 import { Placeholder } from 'src/app/routes/home/components/placeholder'
 import { DevicesService } from 'src/app/routes/home/routes/devices/service'
 import { DeviceTableItem } from 'src/app/routes/home/routes/devices/utils'
@@ -73,14 +72,7 @@ import { DeviceTableItem } from 'src/app/routes/home/routes/devices/utils'
       }
     }
   `,
-  imports: [
-    RouterLink,
-    TuiTable,
-    TuiButton,
-    TuiLink,
-    Placeholder,
-    TuiSorterPipe,
-  ],
+  imports: [RouterLink, TuiTable, TuiButton, TuiLink, Placeholder],
   host: { class: 'g-table' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

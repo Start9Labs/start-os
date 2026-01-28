@@ -104,10 +104,6 @@ import { DeviceSummary } from './summary'
     </form>
   `,
   styles: `
-    :host {
-      padding-top: 0;
-    }
-
     header[tuiHeader='h6'] {
       align-items: center;
     }

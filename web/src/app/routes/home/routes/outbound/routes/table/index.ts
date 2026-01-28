@@ -23,26 +23,24 @@ import { OutboundAside } from './aside'
     <header tuiHeader>
       <hgroup tuiTitle><h2>Outbound VPNs (Clients)</h2></hgroup>
       <aside tuiAccessories>
-        @if (!loading()) {
+        @if (service.data()) {
           <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
         }
       </aside>
     </header>
-    <table tuiTable size="m" class="g-table" [tuiSkeleton]="loading()">
+    <table tuiTable size="m" class="g-table" [tuiSkeleton]="!service.data()">
       <thead tuiThead>
         <tr>
-          <th tuiTh>Status</th>
-          <th tuiTh>Label</th>
-          <th tuiTh>Connects to</th>
+          <th tuiTh [style.width.rem]="5" [sorter]="'enabled' | tuiSorter"></th>
+          <th tuiTh [sorter]="'label' | tuiSorter">Label</th>
+          <th tuiTh [sorter]="'target' | tuiSorter">Connects to</th>
           <th tuiTh>Used by</th>
         </tr>
       </thead>
       <tbody>
-        @for (item of service.data(); track item.id) {
+        @for (item of service.data() | tuiTableSort; track item.id) {
           <tr>
-            <td tuiTd class="status">
-              <i [class.g-positive]="item.enabled"></i>
-            </td>
+            <td tuiTd>{{ item.enabled ? '🟢' : '⚪' }}</td>
             <td tuiTd>
               <a tuiLink [routerLink]="item.id">
                 <b>{{ item.label }}</b>
@@ -74,21 +72,6 @@ import { OutboundAside } from './aside'
   styles: `
     :host {
       max-width: 50rem;
-      padding-top: 0;
-    }
-
-    i {
-      display: block;
-      width: 0.5rem;
-      height: 0.5rem;
-      margin: 0 0.75rem;
-      border-radius: 100%;
-      background: currentColor;
-      color: var(--tui-text-negative);
-    }
-
-    .status {
-      width: 5rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -110,18 +93,12 @@ export default class OutboundTable {
   private readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(OutboundService)
 
-  protected readonly loading = computed(() => !this.service.data())
-
   protected add() {
-    const existingVpns = this.service.data() ?? []
-    const targetOptions = ['Internet', ...existingVpns.map(v => v.label)]
+    const existing = this.service.data() ?? []
+    const data = ['Internet', ...existing.map(v => v.label)]
 
     this.dialogs
-      .open<any>(ADD, {
-        label: 'Add Outbound VPN',
-        size: 's',
-        data: { targetOptions },
-      })
+      .open<any>(ADD, { label: 'Add Outbound VPN', size: 's', data })
       .subscribe(async ({ label, target, config }) => {
         await this.service.create({ label, target, config })
       })

@@ -55,6 +55,11 @@ import { SidebarService } from 'src/app/services/sidebar.service'
       display: flex;
       flex-direction: column;
       margin: 1rem 1.5rem;
+
+      &::after {
+        content: '';
+        block-size: 5rem;
+      }
     }
 
     :host-context(tui-root._mobile) {

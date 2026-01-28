@@ -24,10 +24,6 @@ import { ModalHelp } from 'src/app/directives/modal-help'
 import { OutboundDialogAside } from './aside'
 import { getAddOutboundVpnForm, OUTBOUND_VALIDATION_ERRORS } from './utils'
 
-interface AddVPNData {
-  targetOptions: string[]
-}
-
 @Component({
   template: `
     <outbound-dialog-aside *modalHelp />
@@ -63,10 +59,7 @@ interface AddVPNData {
       <tui-textfield tuiChevron>
         <label tuiLabel>Target</label>
         <input tuiSelect formControlName="target" />
-        <tui-data-list-wrapper
-          *tuiDropdown
-          [items]="context.data.targetOptions"
-        />
+        <tui-data-list-wrapper *tuiDropdown [items]="context.data" />
       </tui-textfield>
       <footer>
         <button
@@ -109,8 +102,7 @@ interface AddVPNData {
   ],
 })
 export class AddVPN {
-  protected readonly context =
-    injectContext<TuiDialogContext<any, AddVPNData>>()
+  protected readonly context = injectContext<TuiDialogContext<any, string[]>>()
   protected readonly form = getAddOutboundVpnForm(
     inject(NonNullableFormBuilder),
   )

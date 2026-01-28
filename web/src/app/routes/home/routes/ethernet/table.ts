@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
@@ -9,8 +10,6 @@ import { RouterLink } from '@angular/router'
 import { TuiTable, TuiTableDirective } from '@taiga-ui/addon-table'
 import { TuiDataList, TuiDropdown, TuiLink } from '@taiga-ui/core'
 import { TuiBadge, TuiButtonSelect, TuiChevron } from '@taiga-ui/kit'
-import { TuiSorterPipe } from 'src/app/pipes/sorter.pipe'
-import { injectFormService } from 'src/app/services/form.service'
 
 import { EthernetPort, EthernetService } from './service'
 
@@ -77,17 +76,11 @@ import { EthernetPort, EthernetService } from './service'
         margin: 0 0.125rem;
       }
     }
-
-    // TODO: Remove after v5-RC.2
-    a[tuiOption] ::ng-deep > *:first-child {
-      display: none;
-    }
   `,
   hostDirectives: [TuiTableDirective],
   host: { class: 'g-table' },
   imports: [
     TuiTable,
-    TuiSorterPipe,
     TuiLink,
     TuiButtonSelect,
     FormsModule,
@@ -100,9 +93,7 @@ import { EthernetPort, EthernetService } from './service'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EthernetTable {
-  protected readonly service = injectFormService<
-    EthernetPort[]
-  >() as EthernetService
+  protected readonly service = inject(EthernetService)
 
   readonly ethernetTable = input<EthernetPort[]>([])
 

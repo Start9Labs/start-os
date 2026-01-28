@@ -1,72 +1,49 @@
 import { inject, Type } from '@angular/core'
-import {
-  takeUntilDestroyed,
-  toObservable,
-  toSignal,
-} from '@angular/core/rxjs-interop'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { TuiNotificationService } from '@taiga-ui/core'
-import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import {
   catchError,
+  firstValueFrom,
   merge,
+  share,
   skip,
   Subject,
   switchMap,
-  switchMapTo,
-  takeUntil,
   timer,
 } from 'rxjs'
+import { ActionService } from 'src/app/services/action.service'
 
 export type FormRawValue<T> = T extends { getRawValue(): infer R } ? R : never
 
 export abstract class FormService<T> {
   private readonly load$ = new Subject<void>()
   private readonly alerts = inject(TuiNotificationService)
-
-  readonly data = toSignal(
-    merge(this.load$, timer(0, 5000)).pipe(
-      switchMap(() => this.load()),
-      catchError(e => this.alerts.open<never>(e, { appearance: 'negative' })),
-    ),
+  private readonly value$ = merge(this.load$, timer(0, 5000)).pipe(
+    switchMap(() => this.load()),
+    catchError(e => this.alerts.open<never>(e, { appearance: 'negative' })),
+    share(),
   )
 
-  private readonly saving$ = inject(TuiNotificationMiddleService)
-    .open('Saving')
-    .pipe(
-      takeUntil(this.load$.pipe(switchMapTo(toObservable(this.data)), skip(1))),
-      takeUntilDestroyed(),
-    )
+  protected readonly actions = inject(ActionService)
+  readonly data = toSignal(this.value$)
 
   abstract load(): Promise<T>
   abstract store(data: T): Promise<void>
 
-  /**
-   * Force a refresh of the data
-   */
   refresh(): void {
     this.load$.next()
   }
 
   async save(data: T): Promise<boolean> {
-    const saving = this.saving$.subscribe()
-
-    try {
-      await this.store(data)
-      this.load$.next()
-
-      return true
-    } catch (e: any) {
-      console.error(e)
-      this.alerts.open(e, { appearance: 'negative' }).subscribe()
-      saving.unsubscribe()
-
-      return false
-    }
+    return this.actions.run(async () => {
+      await this.store(data).then(() => this.refresh())
+      await firstValueFrom(this.value$.pipe(skip(1)))
+    })
   }
 }
 
-export function provideFormService<T = any>(useClass: Type<FormService<T>>) {
-  return { provide: FormService, useClass }
+export function provideFormService<T = any>(useExisting: Type<FormService<T>>) {
+  return [useExisting, { provide: FormService, useExisting }]
 }
 
 export function injectFormService<T>(): FormService<T> {
