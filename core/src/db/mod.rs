@@ -87,7 +87,11 @@ pub enum RevisionsRes {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliDumpParams {
-    #[arg(long = "include-private", short = 'p', help = "help.arg.include-private-data")]
+    #[arg(
+        long = "include-private",
+        short = 'p',
+        help = "help.arg.include-private-data"
+    )]
     #[serde(default)]
     include_private: bool,
     #[arg(help = "help.arg.db-path")]

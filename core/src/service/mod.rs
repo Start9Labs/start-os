@@ -28,7 +28,6 @@ use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use ts_rs::TS;
 use url::Url;
 
-
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::package::{
     InstalledState, ManifestPreference, PackageState, PackageStateMatchModelRef, TaskSeverity,
@@ -184,7 +183,10 @@ impl ServiceRef {
         Arc::try_unwrap(service.seed)
             .map_err(|_| {
                 Error::new(
-                    eyre!("{}", t!("service.mod.service-actor-seed-held-after-shutdown")),
+                    eyre!(
+                        "{}",
+                        t!("service.mod.service-actor-seed-held-after-shutdown")
+                    ),
                     ErrorKind::Unknown,
                 )
             })?
@@ -376,12 +378,16 @@ impl Service {
                                     {
                                         Ok(PackageState::Installed(InstalledState { manifest }))
                                     } else {
-                                        Err(Error::new(eyre!("{}", t!("service.mod.race-condition-detected")), ErrorKind::Database))
+                                        Err(Error::new(
+                                            eyre!("{}", t!("service.mod.race-condition-detected")),
+                                            ErrorKind::Database,
+                                        ))
                                     }
                                 })
                         }
                     })
-                    .await.result?;
+                    .await
+                    .result?;
                 handle_installed(s9pk).await
             }
             PackageStateMatchModelRef::Removing(_) | PackageStateMatchModelRef::Restoring(_) => {
@@ -447,7 +453,13 @@ impl Service {
                 handle_installed(S9pk::open(s9pk_path, Some(id)).await?).await
             }
             PackageStateMatchModelRef::Error(e) => Err(Error::new(
-                eyre!("{}", t!("service.mod.failed-to-parse-package-data-entry", error = format!("{e:?}"))),
+                eyre!(
+                    "{}",
+                    t!(
+                        "service.mod.failed-to-parse-package-data-entry",
+                        error = format!("{e:?}")
+                    )
+                ),
                 ErrorKind::Deserialization,
             )),
         }
@@ -553,7 +565,11 @@ impl Service {
                                 true
                             } else {
                                 tracing::warn!(
-                                    "{}", t!("service.mod.deleting-task-action-no-longer-exists", id = id)
+                                    "{}",
+                                    t!(
+                                        "service.mod.deleting-task-action-no-longer-exists",
+                                        id = id
+                                    )
                                 );
                                 false
                             }
@@ -791,7 +807,12 @@ pub async fn attach(
                 .join("\n");
             return Err(Error::new(
                 eyre!(
-                    "{}", t!("service.mod.no-matching-subcontainers", id = id, subcontainers = subcontainers)
+                    "{}",
+                    t!(
+                        "service.mod.no-matching-subcontainers",
+                        id = id,
+                        subcontainers = subcontainers
+                    )
                 ),
                 ErrorKind::NotFound,
             ));
@@ -830,7 +851,14 @@ pub async fn attach(
                 .map(format_subcontainer_pair)
                 .join("\n");
             return Err(Error::new(
-                eyre!("{}", t!("service.mod.multiple-subcontainers-found", id = id, subcontainer_ids = subcontainer_ids)),
+                eyre!(
+                    "{}",
+                    t!(
+                        "service.mod.multiple-subcontainers-found",
+                        id = id,
+                        subcontainer_ids = subcontainer_ids
+                    )
+                ),
                 ErrorKind::InvalidRequest,
             ));
         }
@@ -1120,7 +1148,13 @@ async fn get_passwd_command(etc_passwd_path: PathBuf, user: &str) -> RootCommand
             }
         }
         Err(Error::new(
-            eyre!("{}", t!("service.mod.could-not-parse-etc-passwd", contents = contents)),
+            eyre!(
+                "{}",
+                t!(
+                    "service.mod.could-not-parse-etc-passwd",
+                    contents = contents
+                )
+            ),
             ErrorKind::Filesystem,
         ))
     }

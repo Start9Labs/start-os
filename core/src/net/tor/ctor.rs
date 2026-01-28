@@ -351,7 +351,12 @@ pub async fn list_keys(ctx: RpcContext) -> Result<BTreeSet<OnionAddress>, Error>
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ResetParams {
-    #[arg(name = "wipe-state", short = 'w', long = "wipe-state", help = "help.arg.wipe-tor-state")]
+    #[arg(
+        name = "wipe-state",
+        short = 'w',
+        long = "wipe-state",
+        help = "help.arg.wipe-tor-state"
+    )]
     wipe_state: bool,
     #[arg(help = "help.arg.reset-reason")]
     reason: String,

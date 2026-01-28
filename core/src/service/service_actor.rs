@@ -47,9 +47,18 @@ impl Actor for ServiceActor {
                     }
                     .await
                     {
-                        tracing::error!("{}", t!("service.service-actor.error-synchronizing-state", error = e));
+                        tracing::error!(
+                            "{}",
+                            t!("service.service-actor.error-synchronizing-state", error = e)
+                        );
                         tracing::debug!("{e:?}");
-                        tracing::error!("{}", t!("service.service-actor.retrying-in-seconds", seconds = SYNC_RETRY_COOLDOWN_SECONDS));
+                        tracing::error!(
+                            "{}",
+                            t!(
+                                "service.service-actor.retrying-in-seconds",
+                                seconds = SYNC_RETRY_COOLDOWN_SECONDS
+                            )
+                        );
                         tokio::time::timeout(
                             Duration::from_secs(SYNC_RETRY_COOLDOWN_SECONDS),
                             async {

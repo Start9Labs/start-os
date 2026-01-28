@@ -240,7 +240,13 @@ impl PortForwardController {
             }
             .await
             {
-                tracing::error!("{}", t!("net.forward.error-initializing-controller", error = format!("{e:#}")));
+                tracing::error!(
+                    "{}",
+                    t!(
+                        "net.forward.error-initializing-controller",
+                        error = format!("{e:#}")
+                    )
+                );
                 tracing::debug!("{e:?}");
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }

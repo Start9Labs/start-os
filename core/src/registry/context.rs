@@ -44,7 +44,11 @@ const DEFAULT_REGISTRY_LISTEN: SocketAddr =
 pub struct RegistryConfig {
     #[arg(short = 'c', long = "config", help = "help.arg.config-file-path")]
     pub config: Option<PathBuf>,
-    #[arg(short = 'l', long = "listen", help = "help.arg.registry-listen-address")]
+    #[arg(
+        short = 'l',
+        long = "listen",
+        help = "help.arg.registry-listen-address"
+    )]
     pub registry_listen: Option<SocketAddr>,
     #[arg(short = 'H', long = "hostname", help = "help.arg.registry-hostname")]
     pub registry_hostname: Vec<InternedString>,
@@ -52,7 +56,11 @@ pub struct RegistryConfig {
     pub tor_proxy: Option<Url>,
     #[arg(short = 'd', long = "datadir", help = "help.arg.data-directory")]
     pub datadir: Option<PathBuf>,
-    #[arg(short = 'u', long = "pg-connection-url", help = "help.arg.postgres-connection-url")]
+    #[arg(
+        short = 'u',
+        long = "pg-connection-url",
+        help = "help.arg.postgres-connection-url"
+    )]
     pub pg_connection_url: Option<String>,
 }
 impl ContextConfig for RegistryConfig {
@@ -195,9 +203,11 @@ impl CallRemote<RegistryContext> for CliContext {
                 .push("v0");
             url
         } else {
-            return Err(
-                Error::new(eyre!("{}", t!("registry.context.registry-required")), ErrorKind::InvalidRequest).into(),
-            );
+            return Err(Error::new(
+                eyre!("{}", t!("registry.context.registry-required")),
+                ErrorKind::InvalidRequest,
+            )
+            .into());
         };
 
         if let Ok(local) = cookie {
@@ -331,7 +341,10 @@ impl SignatureAuthContext for RegistryContext {
             }
         }
 
-        Err(Error::new(eyre!("{}", t!("registry.context.unauthorized")), ErrorKind::Authorization))
+        Err(Error::new(
+            eyre!("{}", t!("registry.context.unauthorized")),
+            ErrorKind::Authorization,
+        ))
     }
     async fn post_auth_hook(
         &self,

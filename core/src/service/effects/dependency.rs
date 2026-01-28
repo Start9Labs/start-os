@@ -79,7 +79,7 @@ pub async fn mount(
     }
 
     IdMapped::new(
-        Bind::new(source).with_type(filetype),
+        Bind::new(source).with_type(filetype).recursive(true),
         IdMap::stack(
             vec![IdMap {
                 from_id: 0,

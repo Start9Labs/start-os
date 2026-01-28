@@ -180,7 +180,13 @@ pub async fn update(
                 .as_idx_mut(&id)
                 .ok_or_else(|| {
                     Error::new(
-                        eyre!("{}", t!("backup.target.cifs.target-not-found", id = BackupTargetId::Cifs { id })),
+                        eyre!(
+                            "{}",
+                            t!(
+                                "backup.target.cifs.target-not-found",
+                                id = BackupTargetId::Cifs { id }
+                            )
+                        ),
                         ErrorKind::NotFound,
                     )
                 })?

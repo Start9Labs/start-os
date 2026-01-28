@@ -181,7 +181,10 @@ async fn run_action(
 
     if package_id != &context.seed.id {
         return Err(Error::new(
-            eyre!("{}", t!("service.effects.action.calling-actions-on-other-packages-unsupported")),
+            eyre!(
+                "{}",
+                t!("service.effects.action.calling-actions-on-other-packages-unsupported")
+            ),
             ErrorKind::InvalidRequest,
         ));
         context
@@ -226,7 +229,10 @@ async fn create_task(
             TaskCondition::InputNotMatches => {
                 let Some(input) = task.input.as_ref() else {
                     return Err(Error::new(
-                        eyre!("{}", t!("service.effects.action.input-not-matches-requires-input")),
+                        eyre!(
+                            "{}",
+                            t!("service.effects.action.input-not-matches-requires-input")
+                        ),
                         ErrorKind::InvalidRequest,
                     ));
                 };
@@ -244,7 +250,12 @@ async fn create_task(
                     else {
                         return Err(Error::new(
                             eyre!(
-                                "{}", t!("service.effects.action.action-has-no-input", action_id = task.action_id, package_id = task.package_id)
+                                "{}",
+                                t!(
+                                    "service.effects.action.action-has-no-input",
+                                    action_id = task.action_id,
+                                    package_id = task.package_id
+                                )
                             ),
                             ErrorKind::InvalidRequest,
                         ));

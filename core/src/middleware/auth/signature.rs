@@ -347,6 +347,10 @@ pub async fn call_remote<Ctx: SigningContext + AsRef<Client>>(
                 .with_kind(ErrorKind::Deserialization)?
                 .result
         }
-        _ => Err(Error::new(eyre!("{}", t!("middleware.auth.unknown-content-type")), ErrorKind::Network).into()),
+        _ => Err(Error::new(
+            eyre!("{}", t!("middleware.auth.unknown-content-type")),
+            ErrorKind::Network,
+        )
+        .into()),
     }
 }

@@ -27,7 +27,10 @@ impl DiagnosticContext {
         disk_guid: Option<InternedString>,
         error: Error,
     ) -> Result<Self, Error> {
-        tracing::error!("{}", t!("context.diagnostic.starting-diagnostic-ui", error = error));
+        tracing::error!(
+            "{}",
+            t!("context.diagnostic.starting-diagnostic-ui", error = error)
+        );
         tracing::debug!("{:?}", error);
 
         let (shutdown, _) = tokio::sync::broadcast::channel(1);

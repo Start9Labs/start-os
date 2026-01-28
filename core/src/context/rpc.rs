@@ -463,7 +463,10 @@ impl RpcContext {
                     .await
                     .result
                 {
-                    tracing::error!("{}", t!("context.rpc.error-in-session-cleanup-cron", error = e));
+                    tracing::error!(
+                        "{}",
+                        t!("context.rpc.error-in-session-cleanup-cron", error = e)
+                    );
                     tracing::debug!("{e:?}");
                 }
             }

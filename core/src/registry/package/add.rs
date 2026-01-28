@@ -112,7 +112,10 @@ pub async fn add_package(
 
                 Ok(())
             } else {
-                Err(Error::new(eyre!("{}", t!("registry.package.add.unauthorized")), ErrorKind::Authorization))
+                Err(Error::new(
+                    eyre!("{}", t!("registry.package.add.unauthorized")),
+                    ErrorKind::Authorization,
+                ))
             }
         })
         .await
@@ -228,8 +231,12 @@ pub async fn remove_package(
     }: RemovePackageParams,
 ) -> Result<bool, Error> {
     let peek = ctx.db.peek().await;
-    let signer =
-        signer.ok_or_else(|| Error::new(eyre!("{}", t!("registry.package.missing-signer")), ErrorKind::InvalidRequest))?;
+    let signer = signer.ok_or_else(|| {
+        Error::new(
+            eyre!("{}", t!("registry.package.missing-signer")),
+            ErrorKind::InvalidRequest,
+        )
+    })?;
     let signer_guid = peek.as_index().as_signers().get_signer(&signer)?;
 
     let rev = ctx
@@ -270,7 +277,10 @@ pub async fn remove_package(
                 }
                 Ok(())
             } else {
-                Err(Error::new(eyre!("{}", t!("registry.package.unauthorized")), ErrorKind::Authorization))
+                Err(Error::new(
+                    eyre!("{}", t!("registry.package.unauthorized")),
+                    ErrorKind::Authorization,
+                ))
             }
         })
         .await;
@@ -345,7 +355,10 @@ pub async fn add_mirror(
 
                 Ok(())
             } else {
-                Err(Error::new(eyre!("{}", t!("registry.package.add-mirror.unauthorized")), ErrorKind::Authorization))
+                Err(Error::new(
+                    eyre!("{}", t!("registry.package.add-mirror.unauthorized")),
+                    ErrorKind::Authorization,
+                ))
             }
         })
         .await
@@ -461,8 +474,12 @@ pub async fn remove_mirror(
     }: RemoveMirrorParams,
 ) -> Result<(), Error> {
     let peek = ctx.db.peek().await;
-    let signer =
-        signer.ok_or_else(|| Error::new(eyre!("{}", t!("registry.package.missing-signer")), ErrorKind::InvalidRequest))?;
+    let signer = signer.ok_or_else(|| {
+        Error::new(
+            eyre!("{}", t!("registry.package.missing-signer")),
+            ErrorKind::InvalidRequest,
+        )
+    })?;
     let signer_guid = peek.as_index().as_signers().get_signer(&signer)?;
 
     ctx.db
@@ -501,7 +518,10 @@ pub async fn remove_mirror(
                 }
                 Ok(())
             } else {
-                Err(Error::new(eyre!("{}", t!("registry.package.remove-mirror.unauthorized")), ErrorKind::Authorization))
+                Err(Error::new(
+                    eyre!("{}", t!("registry.package.remove-mirror.unauthorized")),
+                    ErrorKind::Authorization,
+                ))
             }
         })
         .await

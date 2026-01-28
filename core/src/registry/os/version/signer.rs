@@ -95,7 +95,14 @@ pub async fn remove_version_signer(
                 .mutate(|s| Ok(s.remove(&signer)))?
             {
                 return Err(Error::new(
-                    eyre!("{}", t!("registry.os.version.signer-not-authorized", signer = signer, version = version)),
+                    eyre!(
+                        "{}",
+                        t!(
+                            "registry.os.version.signer-not-authorized",
+                            signer = signer,
+                            version = version
+                        )
+                    ),
                     ErrorKind::NotFound,
                 ));
             }

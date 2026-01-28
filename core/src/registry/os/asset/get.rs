@@ -125,17 +125,9 @@ pub struct CliGetOsAssetParams {
     pub version: Version,
     #[arg(help = "help.arg.platform")]
     pub platform: InternedString,
-    #[arg(
-        long = "download",
-        short = 'd',
-        help = "help.arg.download-directory"
-    )]
+    #[arg(long = "download", short = 'd', help = "help.arg.download-directory")]
     pub download: Option<PathBuf>,
-    #[arg(
-        long = "reverify",
-        short = 'r',
-        help = "help.arg.reverify-hash"
-    )]
+    #[arg(long = "reverify", short = 'r', help = "help.arg.reverify-hash")]
     pub reverify: bool,
 }
 

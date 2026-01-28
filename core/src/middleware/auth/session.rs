@@ -244,7 +244,10 @@ impl ValidSessionToken {
                     C::access_sessions(db)
                         .as_idx_mut(session_hash)
                         .ok_or_else(|| {
-                            Error::new(eyre!("{}", t!("middleware.auth.unauthorized")), crate::ErrorKind::Authorization)
+                            Error::new(
+                                eyre!("{}", t!("middleware.auth.unauthorized")),
+                                crate::ErrorKind::Authorization,
+                            )
                         })?
                         .mutate(|s| {
                             s.last_active = Utc::now();

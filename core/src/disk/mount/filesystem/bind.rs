@@ -29,16 +29,22 @@ impl Default for FileType {
 pub struct Bind<Src: AsRef<Path>> {
     src: Src,
     filetype: FileType,
+    recursive: bool,
 }
 impl<Src: AsRef<Path>> Bind<Src> {
     pub fn new(src: Src) -> Self {
         Self {
             src,
             filetype: FileType::Directory,
+            recursive: false,
         }
     }
     pub fn with_type(mut self, filetype: FileType) -> Self {
         self.filetype = filetype;
+        self
+    }
+    pub fn recursive(mut self, recursive: bool) -> Self {
+        self.recursive = recursive;
         self
     }
 }
@@ -47,7 +53,7 @@ impl<Src: AsRef<Path> + Send + Sync> FileSystem for Bind<Src> {
         Ok(Some(&self.src))
     }
     fn extra_args(&self) -> impl IntoIterator<Item = impl AsRef<std::ffi::OsStr>> {
-        ["--bind"]
+        [if self.recursive { "--rbind" } else { "--bind" }]
     }
     async fn pre_mount(&self, mountpoint: &Path, mount_type: MountType) -> Result<(), Error> {
         let from_meta = tokio::fs::metadata(&self.src).await.ok();

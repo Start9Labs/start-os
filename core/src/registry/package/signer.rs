@@ -118,7 +118,14 @@ pub async fn remove_package_signer(
                 .is_some()
             {
                 return Err(Error::new(
-                    eyre!("{}", t!("registry.package.signer.not-authorized", signer = signer, id = id)),
+                    eyre!(
+                        "{}",
+                        t!(
+                            "registry.package.signer.not-authorized",
+                            signer = signer,
+                            id = id
+                        )
+                    ),
                     ErrorKind::NotFound,
                 ));
             }

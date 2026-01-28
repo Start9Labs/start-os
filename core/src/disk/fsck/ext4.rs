@@ -70,12 +70,20 @@ async fn e2fsck_runner(
     if code & 4 != 0 {
         tracing::error!(
             "{}",
-            t!("disk.fsck.errors-not-corrected", device = logicalname.as_ref().display(), stderr = e2fsck_stderr),
+            t!(
+                "disk.fsck.errors-not-corrected",
+                device = logicalname.as_ref().display(),
+                stderr = e2fsck_stderr
+            ),
         );
     } else if code & 1 != 0 {
         tracing::warn!(
             "{}",
-            t!("disk.fsck.errors-corrected", device = logicalname.as_ref().display(), stderr = e2fsck_stderr),
+            t!(
+                "disk.fsck.errors-corrected",
+                device = logicalname.as_ref().display(),
+                stderr = e2fsck_stderr
+            ),
         );
     }
     if code < 8 {

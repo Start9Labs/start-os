@@ -385,13 +385,17 @@ impl ImageSource {
     pub fn ingredients(&self) -> Vec<PathBuf> {
         match self {
             Self::Packed => Vec::new(),
-            Self::DockerBuild { dockerfile, .. } => {
-                vec![
-                    dockerfile
+            Self::DockerBuild {
+                dockerfile,
+                workdir,
+                ..
+            } => {
+                vec![dockerfile.clone().unwrap_or_else(|| {
+                    workdir
                         .as_deref()
-                        .unwrap_or(Path::new("Dockerfile"))
-                        .to_owned(),
-                ]
+                        .unwrap_or(Path::new("."))
+                        .join("Dockerfile")
+                })]
             }
             Self::DockerTag(_) => Vec::new(),
         }

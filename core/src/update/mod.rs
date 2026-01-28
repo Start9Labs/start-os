@@ -179,7 +179,10 @@ pub async fn cli_update_system(
         Some(v) => {
             if let Some(progress) = res.progress {
                 let mut ws = context.ws_continuation(progress).await?;
-                let mut progress = PhasedProgressBar::new(&t!("update.updating-to-version", version = v.to_string()));
+                let mut progress = PhasedProgressBar::new(&t!(
+                    "update.updating-to-version",
+                    version = v.to_string()
+                ));
                 let mut prev = None;
                 while let Some(msg) = ws.try_next().await.with_kind(ErrorKind::Network)? {
                     if let tokio_tungstenite::tungstenite::Message::Text(msg) = msg {
@@ -202,7 +205,10 @@ pub async fn cli_update_system(
                 }
                 println!("{}", t!("update.complete-restart-to-apply"))
             } else {
-                println!("{}", t!("update.updating-to-version", version = v.to_string()))
+                println!(
+                    "{}",
+                    t!("update.updating-to-version", version = v.to_string())
+                )
             }
         }
     }

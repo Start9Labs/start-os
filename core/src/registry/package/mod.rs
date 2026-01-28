@@ -52,10 +52,14 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                     if !changed {
                         tracing::warn!(
                             "{}",
-                            t!("registry.package.remove-not-exist",
+                            t!(
+                                "registry.package.remove-not-exist",
                                 id = args.params.id,
                                 version = args.params.version,
-                                sighash = args.params.sighash.map_or(String::new(), |h| format!("#{h}"))
+                                sighash = args
+                                    .params
+                                    .sighash
+                                    .map_or(String::new(), |h| format!("#{h}"))
                             )
                         );
                     }
@@ -96,7 +100,6 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "category",
-            category::category_api::<C>()
-                .with_about("about.update-categories-registry"),
+            category::category_api::<C>().with_about("about.update-categories-registry"),
         )
 }

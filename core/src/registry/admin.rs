@@ -94,7 +94,12 @@ impl Model<BTreeMap<Guid, SignerInfo>> {
             .next()
             .transpose()?
             .map(|(a, _)| a)
-            .ok_or_else(|| Error::new(eyre!("{}", t!("registry.admin.unknown-signer")), ErrorKind::Authorization))
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("{}", t!("registry.admin.unknown-signer")),
+                    ErrorKind::Authorization,
+                )
+            })
     }
 
     pub fn get_signer_info(&self, key: &AnyVerifyingKey) -> Result<(Guid, SignerInfo), Error> {
@@ -104,7 +109,12 @@ impl Model<BTreeMap<Guid, SignerInfo>> {
             .filter_ok(|(_, s)| s.keys.contains(key))
             .next()
             .transpose()?
-            .ok_or_else(|| Error::new(eyre!("{}", t!("registry.admin.unknown-signer")), ErrorKind::Authorization))
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("{}", t!("registry.admin.unknown-signer")),
+                    ErrorKind::Authorization,
+                )
+            })
     }
 
     pub fn add_signer(&mut self, signer: &SignerInfo) -> Result<Guid, Error> {
@@ -119,7 +129,11 @@ impl Model<BTreeMap<Guid, SignerInfo>> {
             return Err(Error::new(
                 eyre!(
                     "{}",
-                    t!("registry.admin.signer-already-exists", guid = guid, name = s.name)
+                    t!(
+                        "registry.admin.signer-already-exists",
+                        guid = guid,
+                        name = s.name
+                    )
                 ),
                 ErrorKind::InvalidRequest,
             ));

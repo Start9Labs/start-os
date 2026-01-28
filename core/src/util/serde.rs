@@ -1151,7 +1151,13 @@ pub fn apply_expr(input: jaq_core::Val, expr: &str) -> Result<jaq_core::Val, Err
 
     let Some(expr) = expr else {
         return Err(Error::new(
-            eyre!("{}", t!("util.serde.failed-to-parse-expression", errors = format!("{:?}", errs))),
+            eyre!(
+                "{}",
+                t!(
+                    "util.serde.failed-to-parse-expression",
+                    errors = format!("{:?}", errs)
+                )
+            ),
             crate::ErrorKind::InvalidRequest,
         ));
     };
@@ -1167,7 +1173,13 @@ pub fn apply_expr(input: jaq_core::Val, expr: &str) -> Result<jaq_core::Val, Err
 
     if !errs.is_empty() {
         return Err(Error::new(
-            eyre!("{}", t!("util.serde.failed-to-compile-expression", errors = format!("{:?}", errs))),
+            eyre!(
+                "{}",
+                t!(
+                    "util.serde.failed-to-compile-expression",
+                    errors = format!("{:?}", errs)
+                )
+            ),
             crate::ErrorKind::InvalidRequest,
         ));
     };

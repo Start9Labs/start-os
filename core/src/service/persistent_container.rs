@@ -364,7 +364,14 @@ impl PersistentContainer {
         let handle = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let chown_status = async {
                 let res = server.run_unix(&path, |err| {
-                    tracing::error!("{}", t!("service.persistent-container.error-on-unix-socket", path = path.display(), error = err))
+                    tracing::error!(
+                        "{}",
+                        t!(
+                            "service.persistent-container.error-on-unix-socket",
+                            path = path.display(),
+                            error = err
+                        )
+                    )
                 })?;
                 Command::new("chown")
                     .arg("100000:100000")
@@ -386,7 +393,10 @@ impl PersistentContainer {
         }));
         let shutdown = recv.await.map_err(|_| {
             Error::new(
-                eyre!("{}", t!("service.persistent-container.unix-socket-server-panicked")),
+                eyre!(
+                    "{}",
+                    t!("service.persistent-container.unix-socket-server-panicked")
+                ),
                 ErrorKind::Unknown,
             )
         })??;
@@ -473,7 +483,13 @@ impl PersistentContainer {
         if let Some(destroy) = self.destroy(uninit) {
             destroy.await?;
         }
-        tracing::info!("{}", t!("service.persistent-container.service-exited", id = self.s9pk.as_manifest().id));
+        tracing::info!(
+            "{}",
+            t!(
+                "service.persistent-container.service-exited",
+                id = self.s9pk.as_manifest().id
+            )
+        );
 
         Ok(())
     }

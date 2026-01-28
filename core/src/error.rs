@@ -183,7 +183,8 @@ impl ErrorKind {
             UpdateFailed => t!("error.update-failed"),
             Smtp => t!("error.smtp"),
             SetSysInfo => t!("error.set-sys-info"),
-        }.to_string()
+        }
+        .to_string()
     }
 }
 impl Display for ErrorKind {

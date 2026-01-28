@@ -160,21 +160,23 @@ impl CliContext {
                 if !path.exists() {
                     continue;
                 }
-                let pair = <ed25519::KeypairBytes as ed25519::pkcs8::DecodePrivateKey>::from_pkcs8_pem(
-                    &std::fs::read_to_string(path)?,
-                )
-                .with_kind(crate::ErrorKind::Pem)?;
-                let secret = ed25519_dalek::SecretKey::try_from(&pair.secret_key[..]).map_err(|_| {
-                    Error::new(
-                        eyre!("{}", t!("context.cli.pkcs8-key-incorrect-length")),
-                        ErrorKind::OpenSsl,
+                let pair =
+                    <ed25519::KeypairBytes as ed25519::pkcs8::DecodePrivateKey>::from_pkcs8_pem(
+                        &std::fs::read_to_string(path)?,
                     )
-                })?;
-                return Ok(secret.into())
+                    .with_kind(crate::ErrorKind::Pem)?;
+                let secret =
+                    ed25519_dalek::SecretKey::try_from(&pair.secret_key[..]).map_err(|_| {
+                        Error::new(
+                            eyre!("{}", t!("context.cli.pkcs8-key-incorrect-length")),
+                            ErrorKind::OpenSsl,
+                        )
+                    })?;
+                return Ok(secret.into());
             }
             Err(Error::new(
                 eyre!("{}", t!("context.cli.developer-key-does-not-exist")),
-                crate::ErrorKind::Uninitialized
+                crate::ErrorKind::Uninitialized,
             ))
         })
     }
@@ -195,8 +197,12 @@ impl CliContext {
                 .into());
             }
         };
-        url.set_scheme(ws_scheme)
-            .map_err(|_| Error::new(eyre!("{}", t!("context.cli.cannot-set-url-scheme")), crate::ErrorKind::ParseUrl))?;
+        url.set_scheme(ws_scheme).map_err(|_| {
+            Error::new(
+                eyre!("{}", t!("context.cli.cannot-set-url-scheme")),
+                crate::ErrorKind::ParseUrl,
+            )
+        })?;
         url.path_segments_mut()
             .map_err(|_| eyre!("Url cannot be base"))
             .with_kind(crate::ErrorKind::ParseUrl)?

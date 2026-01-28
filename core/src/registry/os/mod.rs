@@ -26,7 +26,6 @@ pub fn os_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "version",
-            version::version_api::<C>()
-                .with_about("about.commands-add-remove-list-versions"),
+            version::version_api::<C>().with_about("about.commands-add-remove-list-versions"),
         )
 }

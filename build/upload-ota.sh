@@ -15,13 +15,12 @@ if [ "$SKIP_DL" != "1" ]; then
     fi
 
     if [ -n "$RUN_ID" ]; then
-        for arch in aarch64 aarch64-nonfree riscv64 riscv64-nonfree x86_64 x86_64-nonfree raspberrypi; do
+        for arch in aarch64 aarch64-nonfree riscv64 x86_64 x86_64-nonfree; do
             while ! gh run download -R Start9Labs/start-os $RUN_ID -n $arch.squashfs -D $(pwd); do sleep 1; done
         done
-        for arch in aarch64 aarch64-nonfree riscv64 riscv64-nonfree x86_64 x86_64-nonfree; do
+        for arch in aarch64 aarch64-nonfree riscv64 x86_64 x86_64-nonfree; do
             while ! gh run download -R Start9Labs/start-os $RUN_ID -n $arch.iso -D $(pwd); do sleep 1; done
         done
-        while ! gh run download -R Start9Labs/start-os $RUN_ID -n raspberrypi.img -D $(pwd); do sleep 1; done
     fi
 
     if [ -n "$ST_RUN_ID" ]; then
@@ -57,31 +56,23 @@ start-cli --registry=https://alpha-registry-x.start9.com registry os version add
 if [ "$SKIP_UL" = "2" ]; then
     exit 2
 elif [ "$SKIP_UL" != "1" ]; then
-    for file in *.squashfs *.iso *.deb start-cli_*; do
+    for file in *.deb start-cli_*; do
         gh release upload -R Start9Labs/start-os v$VERSION $file
     done
-    for file in *.img; do
-        if ! [ -f $file.gz ]; then
-            cat $file | pigz > $file.gz
-        fi
-        gh release upload -R Start9Labs/start-os v$VERSION $file.gz
+    for file in *.iso *.squashfs; do
+        s3cmd put -P $file s3://startos-images/v$VERSION/$file
     done
 fi
 
 if [ "$SKIP_INDEX" != "1" ]; then
-    for arch in aarch64 aarch64-nonfree riscv64 riscv64-nonfree x86_64 x86_64-nonfree; do
+    for arch in aarch64 aarch64-nonfree riscv64 x86_64 x86_64-nonfree; do
         for file in *_$arch.squashfs *_$arch.iso; do
-            start-cli --registry=https://alpha-registry-x.start9.com registry os asset add --platform=$arch --version=$VERSION $file https://github.com/Start9Labs/start-os/releases/download/v$VERSION/$(echo -n "$file" | sed 's/~/./g')
-        done
-    done
-    for arch in raspberrypi; do
-        for file in *_$arch.squashfs; do
-            start-cli --registry=https://alpha-registry-x.start9.com registry os asset add --platform=$arch --version=$VERSION $file https://github.com/Start9Labs/start-os/releases/download/v$VERSION/$(echo -n "$file" | sed 's/~/./g')
+            start-cli --registry=https://alpha-registry-x.start9.com registry os asset add --platform=$arch --version=$VERSION $file https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$file
         done
     done
 fi
 
-for file in *.iso *.img *.img.gz *.squashfs *.deb start-cli_*; do
+for file in *.iso *.squashfs *.deb start-cli_*; do
     gpg -u 7CFFDA41CA66056A --detach-sign --armor -o "${file}.asc" "$file"
 done
 
@@ -90,20 +81,30 @@ tar -czvf signatures.tar.gz *.asc
 
 gh release upload -R Start9Labs/start-os v$VERSION signatures.tar.gz
 
+cat << EOF
+# ISO Downloads
+
+- [x86_64/AMD64](https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$(ls *_x86_64-nonfree.iso))
+- [x86_64/AMD64 (Slim/FOSS-Only)](https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$(ls *_x86_64.iso) "Without proprietary software or drivers")
+- [aarch64/ARM64](https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$(ls *_aarch64-nonfree.iso))
+- [aarch64/ARM64 (Slim/FOSS-Only)](https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$(ls *_aarch64.iso) "Without proprietary software or drivers")
+- [RISCV64 (RVA23)](https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$(ls *_riscv64.iso))
+
+EOF
 cat << 'EOF'
 # StartOS Checksums
 
 ## SHA-256
 ```
 EOF
-sha256sum *.iso *.img *img.gz *.squashfs
+sha256sum *.iso *.squashfs
 cat << 'EOF'
 ```
 
 ## BLAKE-3
 ```
 EOF
-b3sum *.iso *.img *.img.gz *.squashfs
+b3sum *.iso *.squashfs
 cat << 'EOF'
 ```
 
@@ -139,4 +140,3 @@ b3sum start-cli_*
 cat << 'EOF'
 ```
 EOF
-

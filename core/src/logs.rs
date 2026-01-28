@@ -6,7 +6,6 @@ use std::str::FromStr;
 use std::time::{Duration, UNIX_EPOCH};
 
 use axum::extract::ws;
-use crate::util::net::WebSocket;
 use chrono::{DateTime, Utc};
 use clap::builder::ValueParserFactory;
 use clap::{Args, FromArgMatches, Parser};
@@ -31,6 +30,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::error::ResultExt;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
+use crate::util::net::WebSocket;
 use crate::util::serde::Reversible;
 use crate::util::{FromStrParser, Invoke};
 
@@ -330,12 +330,22 @@ pub struct LogsParams<Extra: FromArgMatches + Args = Empty> {
     extra: Extra,
     #[arg(short = 'l', long = "limit", help = "help.arg.log-limit")]
     limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor", conflicts_with = "follow", help = "help.arg.log-cursor")]
+    #[arg(
+        short = 'c',
+        long = "cursor",
+        conflicts_with = "follow",
+        help = "help.arg.log-cursor"
+    )]
     cursor: Option<String>,
     #[arg(short = 'b', long = "boot", help = "help.arg.log-boot")]
     #[serde(default)]
     boot: Option<BootIdentifier>,
-    #[arg(short = 'B', long = "before", conflicts_with = "follow", help = "help.arg.log-before")]
+    #[arg(
+        short = 'B',
+        long = "before",
+        conflicts_with = "follow",
+        help = "help.arg.log-before"
+    )]
     #[serde(default)]
     before: bool,
 }
@@ -553,10 +563,12 @@ pub async fn journalctl(
             follow_cmd.arg("--lines=0");
         }
         let mut child = follow_cmd.stdout(Stdio::piped()).spawn()?;
-        let out =
-            BufReader::new(child.stdout.take().ok_or_else(|| {
-                Error::new(eyre!("{}", t!("logs.no-stdout-available")), crate::ErrorKind::Journald)
-            })?);
+        let out = BufReader::new(child.stdout.take().ok_or_else(|| {
+            Error::new(
+                eyre!("{}", t!("logs.no-stdout-available")),
+                crate::ErrorKind::Journald,
+            )
+        })?);
 
         let journalctl_entries = LinesStream::new(out.lines());
 
@@ -701,7 +713,10 @@ pub async fn follow_logs<Context: AsRef<RpcContinuations>>(
             RpcContinuation::ws(
                 move |socket| async move {
                     if let Err(e) = ws_handler(first_entry, stream, socket).await {
-                        tracing::error!("{}", t!("logs.error-in-log-stream", error = e.to_string()));
+                        tracing::error!(
+                            "{}",
+                            t!("logs.error-in-log-stream", error = e.to_string())
+                        );
                     }
                 },
                 Duration::from_secs(30),

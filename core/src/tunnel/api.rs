@@ -19,8 +19,7 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
         .subcommand("web", super::web::web_api::<C>())
         .subcommand(
             "db",
-            super::db::db_api::<C>()
-                .with_about("about.commands-interact-with-db-dump-apply"),
+            super::db::db_api::<C>().with_about("about.commands-interact-with-db-dump-apply"),
         )
         .subcommand(
             "auth",

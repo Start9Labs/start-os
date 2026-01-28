@@ -62,7 +62,13 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, soft: bool) -> Result<(),
                 | PackageState::Removing(InstalledState { manifest }) => manifest,
                 s => {
                     return Err(Error::new(
-                        eyre!("{}", t!("service.uninstall.invalid-package-state-for-cleanup", state = format!("{s:?}"))),
+                        eyre!(
+                            "{}",
+                            t!(
+                                "service.uninstall.invalid-package-state-for-cleanup",
+                                state = format!("{s:?}")
+                            )
+                        ),
                         ErrorKind::InvalidRequest,
                     ));
                 }

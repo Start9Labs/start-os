@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use clap::Parser;
 use color_eyre::eyre::eyre;
-use rust_i18n::t;
 use futures::{FutureExt, TryFutureExt};
+use rust_i18n::t;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 

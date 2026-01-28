@@ -47,7 +47,13 @@ impl Middleware<RpcContext> for SyncDb {
         }
         .await
         {
-            tracing::error!("{}", t!("middleware.db.error-writing-patch-sequence-header", error = e));
+            tracing::error!(
+                "{}",
+                t!(
+                    "middleware.db.error-writing-patch-sequence-header",
+                    error = e
+                )
+            );
             tracing::debug!("{e:?}");
         }
     }

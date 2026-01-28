@@ -1,4 +1,3 @@
-
 use crate::PLATFORM;
 use crate::context::RpcContext;
 use crate::disk::main::export;
@@ -36,18 +35,33 @@ impl Shutdown {
                 .invoke(crate::ErrorKind::Journald)
                 .await
             {
-                tracing::error!("{}", t!("shutdown.error-stopping-journald", error = e.to_string()));
+                tracing::error!(
+                    "{}",
+                    t!("shutdown.error-stopping-journald", error = e.to_string())
+                );
                 tracing::debug!("{:?}", e);
             }
             if let Some(guid) = &self.disk_guid {
                 if let Err(e) = export(guid, crate::DATA_DIR).await {
-                    tracing::error!("{}", t!("shutdown.error-exporting-volume-group", error = e.to_string()));
+                    tracing::error!(
+                        "{}",
+                        t!(
+                            "shutdown.error-exporting-volume-group",
+                            error = e.to_string()
+                        )
+                    );
                     tracing::debug!("{:?}", e);
                 }
             }
             if &*PLATFORM != "raspberrypi" || self.restart {
                 if let Err(e) = SHUTDOWN.play().await {
-                    tracing::error!("{}", t!("shutdown.error-playing-shutdown-song", error = e.to_string()));
+                    tracing::error!(
+                        "{}",
+                        t!(
+                            "shutdown.error-playing-shutdown-song",
+                            error = e.to_string()
+                        )
+                    );
                     tracing::debug!("{:?}", e);
                 }
             }

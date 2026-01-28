@@ -24,7 +24,11 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
 ) -> Result<(), Error> {
     tracing::info!(
         "{}",
-        t!("disk.mount.binding", src = src.as_ref().display(), dst = dst.as_ref().display())
+        t!(
+            "disk.mount.binding",
+            src = src.as_ref().display(),
+            dst = dst.as_ref().display()
+        )
     );
     if is_mountpoint(&dst).await? {
         unmount(dst.as_ref(), true).await?;

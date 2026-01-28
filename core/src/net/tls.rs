@@ -171,16 +171,13 @@ where
             let mut tls_handler = self.tls_handler.clone();
             let mut fut = async move {
                 let res = async {
-                    let mut acceptor = LazyConfigAcceptor::new(
-                        Acceptor::default(),
-                        BackTrackingIO::new(stream),
-                    );
+                    let mut acceptor =
+                        LazyConfigAcceptor::new(Acceptor::default(), BackTrackingIO::new(stream));
                     let mut mid: tokio_rustls::StartHandshake<BackTrackingIO<AcceptStream>> =
                         match (&mut acceptor).await {
                             Ok(a) => a,
                             Err(e) => {
-                                let mut stream =
-                                    acceptor.take_io().or_not_found("acceptor io")?;
+                                let mut stream = acceptor.take_io().or_not_found("acceptor io")?;
                                 let (_, buf) = stream.rewind();
                                 if std::str::from_utf8(buf)
                                     .ok()

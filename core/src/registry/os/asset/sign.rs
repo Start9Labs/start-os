@@ -89,7 +89,10 @@ async fn sign_asset(
                 .contains(&guid)
             {
                 return Err(Error::new(
-                    eyre!("{}", t!("registry.os.asset.signer-not-authorized", guid = guid)),
+                    eyre!(
+                        "{}",
+                        t!("registry.os.asset.signer-not-authorized", guid = guid)
+                    ),
                     ErrorKind::Authorization,
                 ));
             }
@@ -184,10 +187,12 @@ pub async fn cli_sign_asset(
 
     sign_phase.start();
     let blake3 = file.blake3_mmap().await?;
-    let size = file
-        .size()
-        .await
-        .ok_or_else(|| Error::new(eyre!("{}", t!("registry.os.asset.failed-read-metadata")), ErrorKind::Filesystem))?;
+    let size = file.size().await.ok_or_else(|| {
+        Error::new(
+            eyre!("{}", t!("registry.os.asset.failed-read-metadata")),
+            ErrorKind::Filesystem,
+        )
+    })?;
     let commitment = Blake3Commitment {
         hash: Base64(*blake3.as_bytes()),
         size,
