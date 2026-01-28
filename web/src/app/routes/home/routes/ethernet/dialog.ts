@@ -1,68 +1,66 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
-import { TuiRadioList } from '@taiga-ui/kit'
+import { TuiButton, TuiDialogContext, TuiTitle } from '@taiga-ui/core'
+import {
+  TuiRadioList,
+  TuiStringifyContentPipe,
+  TuiStringifyPipe,
+} from '@taiga-ui/kit'
+import { TuiHeader } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 
 import type { EthernetPort } from './service'
 
 @Component({
-  selector: 'change-wan-dialog',
   template: `
-    <p>
-      Select which port should become the WAN port. This will break your current
-      Internet connection and restart the router.
-    </p>
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h2>Change WAN Port</h2>
+        <p>
+          Select which port should become the WAN port. This will break your
+          current Internet connection and restart the router.
+        </p>
+      </hgroup>
+    </header>
     <tui-radio-list
-      orientation="vertical"
-      [items]="portNames()"
-      [(ngModel)]="selectedPort"
+      [itemContent]="'name' | tuiStringify | tuiStringifyContent"
+      [items]="context.data"
+      [(ngModel)]="selected"
     />
     <footer>
-      <button tuiButton appearance="flat" (click)="onCancel()">Cancel</button>
-      <button tuiButton [disabled]="!canSubmit()" (click)="onConfirm()">
+      <button
+        tuiButton
+        appearance="flat"
+        (click)="context.$implicit.complete()"
+      >
+        Cancel
+      </button>
+      <button
+        tuiButton
+        [disabled]="!current || current === this.selected"
+        (click)="context.completeWith(selected)"
+      >
         Change and Restart
       </button>
     </footer>
   `,
-  styles: `
-    p {
-      margin: 0 0 1rem;
-    }
-
-    footer {
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.5rem;
-      margin-top: 1.5rem;
-    }
-  `,
-  imports: [FormsModule, TuiButton, TuiRadioList],
+  imports: [
+    FormsModule,
+    TuiButton,
+    TuiRadioList,
+    TuiHeader,
+    TuiTitle,
+    TuiStringifyPipe,
+    TuiStringifyContentPipe,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChangeWanDialog {
-  private readonly context =
-    injectContext<TuiDialogContext<EthernetPort | null, EthernetPort[]>>()
+  readonly context =
+    injectContext<TuiDialogContext<EthernetPort | undefined, EthernetPort[]>>()
 
-  readonly ports = this.context.data
-  readonly currentWan = this.ports.find(p => p.wan)
-
-  selectedPort = this.currentWan?.name || ''
-
-  readonly portNames = computed(() => this.ports.map(p => p.name))
-
-  canSubmit(): boolean {
-    return !!this.selectedPort && this.selectedPort !== this.currentWan?.name
-  }
-
-  onCancel() {
-    this.context.completeWith(null)
-  }
-
-  onConfirm() {
-    const port = this.ports.find(p => p.name === this.selectedPort)
-    this.context.completeWith(port || null)
-  }
+  current = this.context.data.find(p => p.wan)
+  selected = this.current
 }
 
 export const CHANGE_WAN_DIALOG = new PolymorpheusComponent(ChangeWanDialog)

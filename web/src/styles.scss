@@ -53,7 +53,7 @@ header[tuiHeader] {
 
   + tui-tabs {
     flex-shrink: 0;
-    margin-block-start: 1rem;
+    margin-block: 1rem;
   }
 }
 
@@ -61,7 +61,6 @@ header[tuiHeader] {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 2rem 0;
 
   > article.g-form {
     min-height: 6rem;
@@ -154,10 +153,6 @@ header[tuiHeader] {
     animation-name: tuiFade;
   }
 
-  &:last-child {
-    padding-bottom: 2rem;
-  }
-
   .g-delete {
     margin-inline-start: auto;
   }
@@ -174,8 +169,12 @@ header[tuiHeader] {
 }
 
 .g-aside {
-  padding: 1rem;
+  padding: 0 1rem 1rem;
   display: block;
+
+  &:has(tui-accordion) {
+    padding: 0;
+  }
 }
 
 .g-table {

@@ -11,14 +11,11 @@ import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { Help } from 'src/app/directives/help'
-import {
-  injectFormService,
-  provideFormService,
-} from 'src/app/services/form.service'
 import { LanIpv6UciService } from 'src/app/routes/home/routes/lan/routes/ipv6/uci/service'
-import { WanIpv6UciService } from 'src/app/routes/home/routes/wan/routes/ipv6/uci/service'
-import { WanIpv4UciService } from 'src/app/routes/home/routes/wan/routes/ipv4/uci/service'
 import { DdnsUciService } from 'src/app/routes/home/routes/wan/routes/ddns/uci/service'
+import { WanIpv4UciService } from 'src/app/routes/home/routes/wan/routes/ipv4/uci/service'
+import { WanIpv6UciService } from 'src/app/routes/home/routes/wan/routes/ipv6/uci/service'
+import { provideFormService } from 'src/app/services/form.service'
 
 import { PublishedPortsAside } from './aside'
 import { PublishPortDialog } from './dialog'
@@ -60,9 +57,7 @@ import { PublishedPortDialogResult, PublishedPortDisplay } from './types'
 })
 export default class PublishedPorts {
   protected readonly dialogs = inject(TuiResponsiveDialogService)
-  protected readonly service = injectFormService<
-    PublishedPortDisplay[]
-  >() as PublishedPortsService
+  protected readonly service = inject(PublishedPortsService)
   protected readonly lanIpv6Uci = inject(LanIpv6UciService)
   protected readonly wanIpv6Uci = inject(WanIpv6UciService)
   protected readonly wanIpv4Uci = inject(WanIpv4UciService)
@@ -134,6 +129,7 @@ export default class PublishedPorts {
         new PolymorpheusComponent(PublishPortDialog),
         {
           label: 'Edit Published Port',
+          size: 's',
           data: {
             devices,
             existing: item,

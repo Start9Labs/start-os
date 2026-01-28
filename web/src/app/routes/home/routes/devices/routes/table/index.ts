@@ -47,10 +47,6 @@ import { DevicesOnline } from './online'
     ></table>
   `,
   styles: `
-    :host {
-      padding-top: 0;
-    }
-
     aside {
       max-width: 21rem;
       flex: 8;

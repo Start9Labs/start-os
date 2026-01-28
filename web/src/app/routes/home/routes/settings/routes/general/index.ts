@@ -17,32 +17,31 @@ import {
   TuiIcon,
   TuiLabel,
   TuiNotification,
-  TuiNotificationService,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
   TuiTitle,
 } from '@taiga-ui/core'
+import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import {
   TuiAccordion,
   TuiChevron,
   TuiDataListWrapper,
-  TuiNotificationMiddleService,
   TuiRadio,
   TuiSelect,
 } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
-import { NgDompurifyPipe } from '@taiga-ui/dompurify'
+import { TuiHeader } from '@taiga-ui/layout'
+import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
-import { Footer } from 'src/app/components/footer'
 import { MarkdownPipe } from 'src/app/pipes/markdown.pipe'
-import { SystemService } from 'src/app/services/system.service'
+import { ActionService } from 'src/app/services/action.service'
 import {
   ApiService,
   RemoteAccess,
   Theme,
 } from 'src/app/services/api/api.service'
-import { LANGUAGES, Language, getTranslatedName } from 'src/app/utils/languages'
+import { SystemService } from 'src/app/services/system.service'
+import { getTranslatedName, Language, LANGUAGES } from 'src/app/utils/languages'
 
 import { GeneralAside } from './aside'
 
@@ -83,7 +82,7 @@ const THEMES: Record<string, Theme> = {
       </tui-accordion>
     }
     <form [formGroup]="form" [formLoading]="false" (ngSubmit)="onSubmit()">
-      <header tuiHeader="h6"><h2 tuiTitle>Preferences</h2></header>
+      <header tuiHeader="body-l"><h2 tuiTitle>Preferences</h2></header>
       <section>
         <div>
           <tui-textfield tuiChevron>
@@ -118,7 +117,7 @@ const THEMES: Record<string, Theme> = {
           </tui-textfield>
         </div>
       </section>
-      <header tuiHeader="h6"><h2 tuiTitle>Remote Access</h2></header>
+      <header tuiHeader="body-l"><h2 tuiTitle>Remote Access</h2></header>
       @if (form.value.remote === 'always') {
         <div tuiNotification appearance="warning">
           This setting is not recommended as your router will be exposed to the
@@ -219,7 +218,6 @@ const THEMES: Record<string, Theme> = {
     Form,
     Help,
     Footer,
-    TuiCardLarge,
     TuiHeader,
     TuiTitle,
     TuiButton,
@@ -242,8 +240,7 @@ const THEMES: Record<string, Theme> = {
 })
 export default class General {
   private readonly api = inject(ApiService)
-  private readonly alerts = inject(TuiNotificationService)
-  private readonly loading = inject(TuiNotificationMiddleService)
+  private readonly actions = inject(ActionService)
   private readonly mode = inject(TUI_DARK_MODE)
   private readonly localStorage = inject(WA_LOCAL_STORAGE)
   private readonly darkModeKey = inject(TUI_DARK_MODE_KEY)
@@ -285,26 +282,17 @@ export default class General {
   }
 
   async onSubmit(): Promise<void> {
-    const loading = this.loading.open('').subscribe()
-    try {
-      await this.api.setPreferences({
-        theme: THEMES[this.form.value.theme!],
-        language: this.form.value.language,
-        remoteAccess: this.form.value.remote as RemoteAccess,
-      })
-      this.alerts
-        .open('Preferences saved', { appearance: 'positive' })
-        .subscribe()
-      this.form.markAsPristine()
-    } catch (e: any) {
-      console.error(e)
-      this.alerts
-        .open(e.message || 'Failed to save preferences', {
-          appearance: 'negative',
-        })
-        .subscribe()
-    } finally {
-      loading.unsubscribe()
-    }
+    await this.actions.run(
+      () =>
+        this.api.setPreferences({
+          theme: THEMES[this.form.value.theme!],
+          language: this.form.value.language,
+          remoteAccess: this.form.value.remote as RemoteAccess,
+        }),
+      {
+        fail: 'Failed to save preferences',
+        success: 'Preferences saved',
+      },
+    )
   }
 }

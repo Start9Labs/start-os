@@ -14,7 +14,6 @@ import {
   TuiHint,
   TuiLink,
 } from '@taiga-ui/core'
-import { TuiSorterPipe } from 'src/app/pipes/sorter.pipe'
 import { Copy } from 'src/app/routes/home/components/copy'
 import { Placeholder } from 'src/app/routes/home/components/placeholder'
 import { injectFormService } from 'src/app/services/form.service'
@@ -190,7 +189,6 @@ const PROTOCOL_LABELS = {
     TuiDropdown,
     TuiHint,
     TuiLink,
-    TuiSorterPipe,
     Placeholder,
     Copy,
   ],

@@ -6,17 +6,17 @@ import {
   OnInit,
   signal,
 } from '@angular/core'
-import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiButton, TuiNotificationService, TuiTitle } from '@taiga-ui/core'
-import { TuiNotificationMiddleService, TuiSkeleton } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
-import { ApiService } from 'src/app/services/api/api.service'
+import { TuiTable } from '@taiga-ui/addon-table'
+import { TuiButton } from '@taiga-ui/core'
+import { TuiSkeleton } from '@taiga-ui/kit'
 import { Help } from 'src/app/directives/help'
+import { Placeholder } from 'src/app/routes/home/components/placeholder'
+import { ActionService } from 'src/app/services/action.service'
+import { ApiService } from 'src/app/services/api/api.service'
 
 import { SshKeysAside } from './aside'
 import { ADD_SSH_KEY } from './dialog'
-import { Placeholder } from 'src/app/routes/home/components/placeholder'
 
 const AUTHORIZED_KEYS_PATH = '/root/.ssh/authorized_keys'
 
@@ -47,21 +47,17 @@ function parseAuthorizedKeys(contents: string): SshKey[] {
 @Component({
   template: `
     <ssh-keys-aside *help />
-    <header tuiHeader>
-      <h2 tuiTitle>SSH Keys</h2>
-      <aside tuiAccessories>
-        <button tuiButton iconStart="@tui.plus" (click)="add()">
-          Add SSH key
-        </button>
-      </aside>
-    </header>
     <table tuiTable class="g-table" [tuiSkeleton]="loading()">
       <thead>
         <tr>
           <th tuiTh>Hostname</th>
           <th tuiTh>Algorithm</th>
-          <th tuiTh>Public Key</th>
-          <th tuiTh></th>
+          <th tuiTh colspan="2">
+            Public Key
+            <button tuiButton size="xs" iconStart="@tui.plus" (click)="add()">
+              Add SSH key
+            </button>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -96,6 +92,10 @@ function parseAuthorizedKeys(contents: string): SshKey[] {
     </table>
   `,
   styles: `
+    [tuiButton] {
+      float: inline-end;
+    }
+
     [tuiTd]:last-child {
       padding-block: 0;
     }
@@ -105,23 +105,13 @@ function parseAuthorizedKeys(contents: string): SshKey[] {
     }
   `,
   host: { class: 'g-page' },
-  imports: [
-    TuiButton,
-    TuiTable,
-    TuiSkeleton,
-    TuiHeader,
-    TuiTitle,
-    Help,
-    SshKeysAside,
-    Placeholder,
-  ],
+  imports: [TuiButton, TuiTable, TuiSkeleton, Help, SshKeysAside, Placeholder],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class SshKeys implements OnInit {
   private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
-  private readonly alerts = inject(TuiNotificationService)
-  private readonly loader = inject(TuiNotificationMiddleService)
+  private readonly actions = inject(ActionService)
 
   private modified = ''
 
@@ -135,59 +125,46 @@ export default class SshKeys implements OnInit {
   }
 
   protected async remove(index: number) {
-    const loading = this.loader.open('').subscribe()
-    try {
-      const updated = this.keys()?.filter((_, i) => i !== index) ?? []
-      await this.api.setFile({
-        path: AUTHORIZED_KEYS_PATH,
-        contents: updated.map(k => k.raw).join('\n'),
-        modified: this.modified,
-      })
+    const updated = this.keys()?.filter((_, i) => i !== index) ?? []
+
+    if (
+      await this.actions.run(
+        () =>
+          this.api.setFile({
+            path: AUTHORIZED_KEYS_PATH,
+            contents: updated.map(k => k.raw).join('\n'),
+            modified: this.modified,
+          }),
+        {
+          loading: '',
+          success: 'SSH key removed',
+          fail: 'Failed to remove SSH key',
+        },
+      )
+    ) {
       this.keys.set(updated)
-      this.alerts
-        .open('SSH key removed', { appearance: 'positive' })
-        .subscribe()
-    } catch (e: any) {
-      console.error(e)
-      this.alerts
-        .open(e.message || 'Failed to remove SSH key', {
-          appearance: 'negative',
-        })
-        .subscribe()
-    } finally {
-      loading.unsubscribe()
     }
   }
 
   protected add() {
     this.dialogs
-      .open<string>(ADD_SSH_KEY, {
-        label: 'Add SSH Key',
-        size: 's',
-      })
+      .open<string>(ADD_SSH_KEY, { label: 'Add SSH Key', size: 's' })
       .subscribe(async rawKey => {
-        const loading = this.loader.open('').subscribe()
-        try {
-          const newKey = parseAuthorizedKey(rawKey)
-          const updated = [...(this.keys() ?? []), newKey]
-          await this.api.setFile({
-            path: AUTHORIZED_KEYS_PATH,
-            contents: updated.map(k => k.raw).join('\n'),
-            modified: this.modified,
-          })
+        const newKey = parseAuthorizedKey(rawKey)
+        const updated = [...(this.keys() ?? []), newKey]
+
+        if (
+          await this.actions.run(
+            () =>
+              this.api.setFile({
+                path: AUTHORIZED_KEYS_PATH,
+                contents: updated.map(k => k.raw).join('\n'),
+                modified: this.modified,
+              }),
+            { success: 'SSH key added', fail: 'Failed to add SSH key' },
+          )
+        ) {
           this.keys.set(updated)
-          this.alerts
-            .open('SSH key added', { appearance: 'positive' })
-            .subscribe()
-        } catch (e: any) {
-          console.error(e)
-          this.alerts
-            .open(e.message || 'Failed to add SSH key', {
-              appearance: 'negative',
-            })
-            .subscribe()
-        } finally {
-          loading.unsubscribe()
         }
       })
   }

@@ -8,19 +8,16 @@ import { FormsModule } from '@angular/forms'
 import { Router, RouterLink } from '@angular/router'
 import { TuiDropdownSheet } from '@taiga-ui/addon-mobile'
 import {
+  TuiButton,
   TuiDataList,
   TuiDropdown,
-  TuiIcon,
   TuiInput,
   TuiNotificationService,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
-import {
-  TuiBlock,
-  TuiNotificationMiddleService,
-  TuiSwitch,
-} from '@taiga-ui/kit'
+import { TuiBlock, TuiSwitch } from '@taiga-ui/kit'
+import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { SidebarService } from 'src/app/services/sidebar.service'
@@ -30,10 +27,14 @@ import { SystemService } from 'src/app/services/system.service'
   selector: 'header',
   template: `
     <button
-      class="menu-toggle"
+      size="s"
+      appearance="icon"
+      iconStart="@tui.menu"
+      class="nav-menu g-primary"
+      tuiIconButton
       (click.stop)="sidebars.start.set(!sidebars.start())"
     >
-      <tui-icon icon="@tui.menu" />
+      Menu
     </button>
     <tui-textfield iconStart="@tui.search">
       <input tuiInput [(ngModel)]="search" />
@@ -42,8 +43,16 @@ import { SystemService } from 'src/app/services/system.service'
       <input type="checkbox" tuiSwitch size="s" [(ngModel)]="sidebars.end" />
       Help
     </label>
-    <button class="start9-menu" tuiDropdownSheet tuiDropdown tuiDropdownAuto>
-      <img alt="Start9" src="assets/favicon.svg" />
+    <button
+      size="s"
+      appearance=""
+      class="start9-menu"
+      tuiIconButton
+      tuiDropdown
+      tuiDropdownAuto
+      tuiDropdownSheet
+    >
+      <img alt="Start9" src="assets/favicon.svg" [style.margin]="0" />
       <tui-data-list *tuiDropdown="let close" size="m" (click)="close()">
         <tui-opt-group>
           <button tuiOption iconStart="@tui.info" (click)="showAbout()">
@@ -95,43 +104,27 @@ import { SystemService } from 'src/app/services/system.service'
       padding: 0 0.75rem;
       background: var(--tui-background-neutral-2);
       border-bottom: 1px solid var(--tui-border-normal);
-    }
 
-    .menu-toggle {
-      display: none;
-      width: 2rem;
-      height: 2rem;
-      background: none;
-      border: none;
-      padding: 0;
-      cursor: pointer;
-      color: var(--tui-text-primary);
+      tui-textfield,
+      [tuiBlock] {
+        border-radius: 2rem;
+      }
     }
 
     tui-textfield {
       margin-inline-end: auto;
-      width: min(15rem, calc(100vw - 13rem));
+      width: min(12.5rem, calc(100vw - 13rem));
     }
 
-    tui-textfield,
-    [tuiBlock] {
-      border-radius: 2rem;
-    }
-
-    .start9-menu {
-      width: 2rem;
-      height: 2rem;
-      background: none;
-      border: none;
-      padding: 0;
-      cursor: pointer;
+    .nav-menu {
+      display: none;
     }
 
     :host-context(tui-root._mobile) {
       grid-column: span 1;
 
-      .menu-toggle {
-        display: block;
+      .nav-menu {
+        display: flex;
       }
     }
 
@@ -149,12 +142,12 @@ import { SystemService } from 'src/app/services/system.service'
     RouterLink,
     TuiDataList,
     TuiDropdown,
-    TuiIcon,
     TuiInput,
     TuiTextfield,
     TuiBlock,
     TuiSwitch,
     TuiDropdownSheet,
+    TuiButton,
   ],
   providers: [
     tuiTextfieldOptionsProvider({
@@ -167,48 +160,32 @@ export class Header {
   private readonly api = inject(ApiService)
   private readonly auth = inject(AuthService)
   private readonly router = inject(Router)
+  private readonly actions = inject(ActionService)
   private readonly alerts = inject(TuiNotificationService)
-  private readonly loading = inject(TuiNotificationMiddleService)
 
   protected readonly sidebars = inject(SidebarService)
   protected readonly system = inject(SystemService)
   protected readonly search = signal('')
 
   protected showAbout(): void {
-    const info = this.system.info()
-    if (info) {
+    if (this.system.info()) {
       this.alerts
-        .open(`Version: ${info.version}`, { label: 'About' })
+        .open(`Version: ${this.system.info()?.version}`, { label: 'About' })
         .subscribe()
     }
   }
 
   protected async logout(): Promise<void> {
-    const loading = this.loading.open('').subscribe()
-    try {
-      await this.api.logout()
+    if (await this.actions.run(() => this.api.logout(), { loading: '' })) {
       this.auth.authenticated.set(false)
       this.router.navigate(['.'])
-    } catch (e: any) {
-      console.error(e)
-      this.alerts.open(e, { appearance: 'negative' }).subscribe()
-    } finally {
-      loading.unsubscribe()
     }
   }
 
   protected async restart(): Promise<void> {
-    const loading = this.loading.open('Restarting...').subscribe()
-    try {
-      await this.api.systemRestart()
-      this.alerts
-        .open('Router is restarting', { appearance: 'info' })
-        .subscribe()
-    } catch (e: any) {
-      console.error(e)
-      this.alerts.open(e, { appearance: 'negative' }).subscribe()
-    } finally {
-      loading.unsubscribe()
-    }
+    await this.actions.run(() => this.api.systemRestart(), {
+      loading: 'Restarting...',
+      success: 'Router is restarting',
+    })
   }
 }

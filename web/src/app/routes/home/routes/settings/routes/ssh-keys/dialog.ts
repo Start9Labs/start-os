@@ -39,7 +39,7 @@ function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
 
 @Component({
   template: `
-    <form tuiForm="m" [style.margin-top.rem]="1" [formGroup]="form">
+    <form tuiForm="m" [formGroup]="form">
       <tui-textfield>
         <label tuiLabel>Public Key</label>
         <textarea

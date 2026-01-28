@@ -20,9 +20,6 @@ import { ActivityAside } from './aside'
 @Component({
   template: `
     <activity-aside *help />
-    <header tuiHeader>
-      <h2 tuiTitle>Activity Log</h2>
-    </header>
     <table tuiTable class="g-table">
       <thead>
         <tr>
@@ -77,8 +74,6 @@ import { ActivityAside } from './aside'
     TuiTable,
     TuiTablePagination,
     TuiButton,
-    TuiHeader,
-    TuiTitle,
     Help,
     ActivityAside,
   ],

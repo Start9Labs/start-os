@@ -99,11 +99,6 @@ import { VPNSummary } from './summary'
       }
     </form>
   `,
-  styles: `
-    :host {
-      padding-top: 0;
-    }
-  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
   providers: [
@@ -191,14 +186,10 @@ export default class OutboundVPN {
 
   onDelete() {
     this.dialogs
-      .open(TUI_CONFIRM, {
-        label: 'Are you sure?',
-        size: 's',
-      })
+      .open(TUI_CONFIRM, { label: 'Are you sure?', size: 's' })
       .pipe(filter(Boolean))
       .subscribe(async () => {
-        const success = await this.service.remove(this.vpnId)
-        if (success) {
+        if (await this.service.remove(this.vpnId)) {
           this.router.navigate(['..'], { relativeTo: this.route })
         }
       })
