@@ -215,9 +215,7 @@ export default class SuccessPage implements AfterViewInit {
       .getElementById('cert')
       ?.setAttribute(
         'href',
-        URL.createObjectURL(
-          new Blob([this.result!.rootCa], { type: 'application/octet-stream' }),
-        ),
+        `data:application/x-x509-ca-cert;base64,${this.result!.rootCa}`,
       )
 
     const html = this.documentation?.nativeElement.innerHTML || ''
