@@ -75,10 +75,6 @@ import { InterfaceAddressItemComponent } from './item.component'
       th:nth-child(3) {
         width: 4rem;
       }
-
-      th:nth-child(4) {
-        width: 17rem;
-      }
     }
 
     .g-table:has(caption) {
