@@ -1,5 +1,5 @@
 // prettier-ignore
-export const ENGLISH = {
+export const ENGLISH: Record<string, number> = {
   'Change': 1, // verb
   'Update': 2, // verb
   'System': 4, // as in, system preferences
@@ -680,4 +680,4 @@ export const ENGLISH = {
   'Installation Complete!': 714,
   'StartOS has been installed successfully.': 715,
   'Continue to Setup': 716,
-} as const
+}

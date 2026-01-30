@@ -6,4 +6,5 @@ module.exports = {
   'projects/marketplace/**/*.ts': () => 'npm run check:marketplace',
   'projects/setup-wizard/**/*.ts': () => 'npm run check:setup',
   'projects/start-tunnel/**/*.ts': () => 'npm run check:tunnel',
+  'projects/**/*.{ts,html}': () => 'npm run check:i18n',
 }

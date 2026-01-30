@@ -3,7 +3,6 @@ import {
   DialogService,
   ErrorService,
   i18nKey,
-  i18nPipe,
   LoadingService,
 } from '@start9labs/shared'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -16,21 +15,6 @@ import { ActionSuccessPage } from 'src/app/routes/portal/routes/services/modals/
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 
-const allowedStatuses = {
-  'only-running': new Set(['running']),
-  'only-stopped': new Set(['stopped']),
-  any: new Set([
-    'running',
-    'stopped',
-    'restarting',
-    'restoring',
-    'stopping',
-    'starting',
-    'backing-up',
-    'task-required',
-  ]),
-}
-
 @Injectable({
   providedIn: 'root',
 })
@@ -40,58 +24,32 @@ export class ActionService {
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
   private readonly formDialog = inject(FormDialogService)
-  private readonly i18n = inject(i18nPipe)
 
   async present(data: PackageActionData) {
     const { pkgInfo, actionInfo } = data
 
-    if (
-      allowedStatuses[actionInfo.metadata.allowedStatuses].has(pkgInfo.status)
-    ) {
-      if (actionInfo.metadata.hasInput) {
-        this.formDialog.open<PackageActionData>(ActionInputModal, {
-          label: actionInfo.metadata.name as i18nKey,
-          data,
-        })
-      } else {
-        if (actionInfo.metadata.warning) {
-          this.dialog
-            .openConfirm({
-              label: 'Warning',
-              size: 's',
-              data: {
-                no: 'Cancel',
-                yes: 'Run',
-                content: actionInfo.metadata.warning as i18nKey,
-              },
-            })
-            .pipe(filter(Boolean))
-            .subscribe(() => this.execute(pkgInfo.id, null, actionInfo.id))
-        } else {
-          this.execute(pkgInfo.id, null, actionInfo.id)
-        }
-      }
+    if (actionInfo.metadata.hasInput) {
+      this.formDialog.open<PackageActionData>(ActionInputModal, {
+        label: actionInfo.metadata.name as i18nKey,
+        data,
+      })
     } else {
-      const statuses = [...allowedStatuses[actionInfo.metadata.allowedStatuses]]
-      const last = statuses.pop()
-      let statusesStr = statuses.join(', ')
-      if (statuses.length) {
-        if (statuses.length > 1) {
-          // oxford comma
-          statusesStr += ','
-        }
-        statusesStr += ` or ${last}`
-      } else if (last) {
-        statusesStr = last
+      if (actionInfo.metadata.warning) {
+        this.dialog
+          .openConfirm({
+            label: 'Warning',
+            size: 's',
+            data: {
+              no: 'Cancel',
+              yes: 'Run',
+              content: actionInfo.metadata.warning as i18nKey,
+            },
+          })
+          .pipe(filter(Boolean))
+          .subscribe(() => this.execute(pkgInfo.id, null, actionInfo.id))
+      } else {
+        this.execute(pkgInfo.id, null, actionInfo.id)
       }
-
-      this.dialog
-        .openAlert(
-          `${this.i18n.transform('Action can only be executed when service is')} ${statusesStr}` as i18nKey,
-          { label: 'Forbidden' },
-        )
-        .pipe(filter(Boolean))
-        .subscribe()
     }
   }
 

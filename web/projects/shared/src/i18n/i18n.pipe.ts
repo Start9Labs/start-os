@@ -13,6 +13,8 @@ export class i18nPipe implements PipeTransform {
   transform(englishKey: i18nKey | null | undefined | ''): string {
     englishKey = englishKey || ('' as i18nKey)
 
-    return this.i18n()?.[ENGLISH[englishKey]] || englishKey
+    const id = ENGLISH[englishKey]
+
+    return (id !== undefined && this.i18n()?.[id]) || englishKey
   }
 }

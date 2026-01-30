@@ -29,6 +29,21 @@ const INACTIVE: PrimaryStatus[] = [
   'backing-up',
 ]
 
+const ALLOWED_STATUSES: Record<T.AllowedStatuses, Set<string>> = {
+  'only-running': new Set(['running']),
+  'only-stopped': new Set(['stopped']),
+  any: new Set([
+    'running',
+    'stopped',
+    'restarting',
+    'restoring',
+    'stopping',
+    'starting',
+    'backing-up',
+    'task-required',
+  ]),
+}
+
 @Component({
   template: `
     @if (package(); as pkg) {
@@ -92,8 +107,9 @@ export default class ServiceActionsRoute {
           const specialGroup = Object.values(pkg.actions).some(a => !!a.group)
             ? 'Other'
             : 'General'
+          const status = renderPkgStatus(pkg).primary
           return {
-            status: renderPkgStatus(pkg).primary,
+            status,
             icon: pkg.icon,
             manifest: getManifest(pkg),
             actions: Object.entries(pkg.actions)
@@ -102,6 +118,13 @@ export default class ServiceActionsRoute {
                 ...action,
                 id,
                 group: action.group || specialGroup,
+                visibility: ALLOWED_STATUSES[action.allowedStatuses].has(
+                  status,
+                )
+                  ? action.visibility
+                  : ({
+                      disabled: `${this.i18n.transform('Action can only be executed when service is')} ${this.i18n.transform(action.allowedStatuses === 'only-running' ? 'Running' : 'Stopped')?.toLowerCase()}`,
+                    } as T.ActionVisibility),
               }))
               .sort((a, b) => {
                 if (a.group === specialGroup && b.group !== specialGroup)
