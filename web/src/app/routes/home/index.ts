@@ -23,6 +23,10 @@ export default [
         loadChildren: () => import('./routes/outbound'),
       },
       {
+        path: 'inbound',
+        loadChildren: () => import('./routes/inbound'),
+      },
+      {
         path: 'lan',
         loadChildren: () => import('./routes/lan'),
       },

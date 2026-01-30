@@ -100,7 +100,6 @@ export default class LanIpv4 {
             {
               label: 'IP Address Changed',
               dismissible: false,
-              size: 's',
               data: 'Open',
             },
           )

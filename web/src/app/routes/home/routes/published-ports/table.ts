@@ -30,25 +30,25 @@ const PROTOCOL_LABELS = {
   template: `
     <thead tuiThead>
       <tr>
-        <th tuiTh [style.width.rem]="3" [sorter]="'status' | tuiSorter"></th>
-        <th tuiTh [style.min-width.rem]="10.5" [sorter]="'label' | tuiSorter">
+        <th tuiTh [sorter]="'status' | tuiSorter" [style.width.rem]="3"></th>
+        <th tuiTh [sorter]="'label' | tuiSorter" [style.min-width.rem]="10.5">
           Label
         </th>
         <th
           tuiTh
-          [style.min-width.rem]="10"
           [sorter]="'deviceName' | tuiSorter"
+          [style.min-width.rem]="10"
         >
           Device
         </th>
-        <th tuiTh [style.min-width.rem]="6" [sorter]="'ports' | tuiSorter">
+        <th tuiTh [sorter]="'ports' | tuiSorter" [style.min-width.rem]="6">
           Port
         </th>
-        <th tuiTh [style.min-width.rem]="8" [sorter]="'protocol' | tuiSorter">
+        <th tuiTh [sorter]="'protocol' | tuiSorter" [style.min-width.rem]="8">
           Protocol
         </th>
-        <th tuiTh [style.min-width.rem]="9" [sorter]="ipSorter">IP Version</th>
-        <th tuiTh [style.min-width.rem]="6" [sorter]="'source' | tuiSorter">
+        <th tuiTh [sorter]="ipSorter" [style.min-width.rem]="9">IP Version</th>
+        <th tuiTh [sorter]="'source' | tuiSorter" [style.min-width.rem]="6">
           Source
         </th>
         <th tuiTh [style.min-width.rem]="16">Endpoints</th>
@@ -60,7 +60,7 @@ const PROTOCOL_LABELS = {
         <tr>
           <td tuiTd>
             <span
-              class="status-icon"
+              [style.cursor]="'help'"
               [tuiHint]="statusHint"
               tuiHintDirection="end"
             >
@@ -159,9 +159,8 @@ const PROTOCOL_LABELS = {
     </tbody>
   `,
   styles: `
-    .status-icon {
-      cursor: help;
-      font-size: 0.875rem;
+    td:first-child {
+      text-align: center;
     }
 
     .flex {
@@ -173,10 +172,6 @@ const PROTOCOL_LABELS = {
       strong::first-letter {
         text-transform: uppercase;
       }
-    }
-
-    [tuiIconButton] {
-      margin-block: -0.25rem;
     }
   `,
   hostDirectives: [TuiTableDirective],

@@ -48,9 +48,7 @@ import { DeviceTableItem } from 'src/app/routes/home/routes/devices/utils'
             </div>
           </td>
           <td tuiTd>
-            <a tuiLink>
-              <strong>{{ item.securityProfile || 'Default' }}</strong>
-            </a>
+            <a tuiLink>{{ item.securityProfile || 'Default' }}</a>
           </td>
           <td tuiTd>{{ item.mac }}</td>
           <td tuiTd>

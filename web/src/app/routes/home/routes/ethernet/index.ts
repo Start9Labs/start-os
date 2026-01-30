@@ -32,7 +32,7 @@ import { EthernetPort, EthernetService } from './service'
   `,
   styles: `
     :host {
-      max-width: 30rem;
+      max-width: 50rem;
     }
   `,
   host: { class: 'g-page' },

@@ -179,7 +179,7 @@ export interface PublishPortDialogData {
         >
           Cancel
         </button>
-        <button tuiButton [disabled]="form.invalid">Save</button>
+        <button tuiButton>Save</button>
       </footer>
     </form>
   `,
