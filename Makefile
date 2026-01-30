@@ -324,15 +324,19 @@ web/.angular/.updated: patch-db/client/dist/index.js sdk/baseDist/package.json w
 	mkdir -p web/.angular
 	touch web/.angular/.updated
 
-web/dist/raw/ui/index.html: $(WEB_UI_SRC) $(WEB_SHARED_SRC) web/.angular/.updated
+web/.i18n-checked: $(WEB_SHARED_SRC) $(WEB_UI_SRC) $(WEB_SETUP_WIZARD_SRC) $(WEB_START_TUNNEL_SRC)
+	npm --prefix web run check:i18n
+	touch web/.i18n-checked
+
+web/dist/raw/ui/index.html: $(WEB_UI_SRC) $(WEB_SHARED_SRC) web/.angular/.updated web/.i18n-checked
 	npm --prefix web run build:ui
 	touch web/dist/raw/ui/index.html
 
-web/dist/raw/setup-wizard/index.html: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular/.updated
+web/dist/raw/setup-wizard/index.html: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular/.updated web/.i18n-checked
 	npm --prefix web run build:setup
 	touch web/dist/raw/setup-wizard/index.html
 
-web/dist/raw/start-tunnel/index.html: $(WEB_START_TUNNEL_SRC) $(WEB_SHARED_SRC) web/.angular/.updated
+web/dist/raw/start-tunnel/index.html: $(WEB_START_TUNNEL_SRC) $(WEB_SHARED_SRC) web/.angular/.updated web/.i18n-checked
 	npm --prefix web run build:tunnel
 	touch web/dist/raw/start-tunnel/index.html
 

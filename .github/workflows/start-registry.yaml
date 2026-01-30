@@ -1,4 +1,4 @@
-name: Start-Registry
+name: start-registry
 
 on:
   workflow_call:
@@ -34,6 +34,10 @@ on:
     branches:
       - master
       - next/*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   NODEJS_VERSION: "24.11.0"
