@@ -686,7 +686,7 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
     let manifest = s9pk.as_manifest_mut();
     manifest.git_hash = Some(GitHash::from_path(params.path()).await?);
     if !params.arch.is_empty() {
-        let arches = match manifest.hardware_requirements.arch.take() {
+        let arches: BTreeSet<InternedString> = match manifest.hardware_requirements.arch.take() {
             Some(a) => params
                 .arch
                 .iter()
@@ -695,10 +695,26 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
                 .collect(),
             None => params.arch.iter().cloned().collect(),
         };
-        manifest
-            .images
-            .values_mut()
-            .for_each(|c| c.arch = c.arch.intersection(&arches).cloned().collect());
+        if arches.is_empty() {
+            return Err(Error::new(
+                eyre!(
+                    "none of the requested architectures ({:?}) are supported by this package",
+                    params.arch
+                ),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        manifest.images.values_mut().for_each(|c| {
+            let mut to_load = BTreeSet::new();
+            for arch in &arches {
+                if c.arch.contains(arch) {
+                    to_load.insert(arch.clone());
+                } else if let Some(ref emulate_as) = c.emulate_missing_as {
+                    to_load.insert(emulate_as.clone());
+                }
+            }
+            c.arch = to_load;
+        });
         manifest.hardware_requirements.arch = Some(arches);
     }
 

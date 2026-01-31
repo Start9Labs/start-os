@@ -132,7 +132,6 @@ export type SDKManifest = {
    *    `pattern` refers to a regular expression that at least one device of the specified class must match
    *    `patternDescription` is what will be displayed to the user about what kind of device is required
    * @property {number} ram - Minimum RAM requirement (in megabytes MB)
-   * @property {string[]} arch - List of supported arches
    * @example
    * ```
     hardwareRequirements: {
@@ -141,14 +140,12 @@ export type SDKManifest = {
         { class: 'processor', pattern: 'i[3579]-10[0-9]{3}U CPU', patternDescription: 'A 10th Generation Intel i-Series processor' },
       ],
       ram: 8192,
-      arch: ['x86-64'],
     },
    * ```
    */
   readonly hardwareRequirements?: {
     readonly device?: T.DeviceFilter[]
     readonly ram?: number | null
-    readonly arch?: string[] | null
   }
 
   /**

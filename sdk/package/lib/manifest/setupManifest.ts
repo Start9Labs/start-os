@@ -75,21 +75,18 @@ export function buildManifest<
     hardwareRequirements: {
       device: manifest.hardwareRequirements?.device || [],
       ram: manifest.hardwareRequirements?.ram || null,
-      arch:
-        manifest.hardwareRequirements?.arch === undefined
-          ? Object.values(images).reduce(
-              (arch, inputSpec) => {
-                if (inputSpec.emulateMissingAs) {
-                  return arch
-                }
-                if (arch === null) {
-                  return inputSpec.arch
-                }
-                return arch.filter((a) => inputSpec.arch.includes(a))
-              },
-              null as string[] | null,
-            )
-          : manifest.hardwareRequirements?.arch,
+      arch: Object.values(images).reduce(
+        (arch, inputSpec) => {
+          if (inputSpec.emulateMissingAs) {
+            return arch
+          }
+          if (arch === null) {
+            return inputSpec.arch
+          }
+          return arch.filter((a) => inputSpec.arch.includes(a))
+        },
+        null as string[] | null,
+      ),
     },
     hardwareAcceleration: manifest.hardwareAcceleration ?? false,
   }
