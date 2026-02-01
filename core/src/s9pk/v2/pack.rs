@@ -7,6 +7,7 @@ use clap::Parser;
 use futures::future::{BoxFuture, ready};
 use futures::{FutureExt, TryStreamExt};
 use imbl_value::InternedString;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::OnceCell;
@@ -704,16 +705,30 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
                 ErrorKind::InvalidRequest,
             ));
         }
-        manifest.images.values_mut().for_each(|c| {
-            let mut to_load = BTreeSet::new();
-            for arch in &arches {
-                if c.arch.contains(arch) {
-                    to_load.insert(arch.clone());
-                } else if let Some(ref emulate_as) = c.emulate_missing_as {
-                    to_load.insert(emulate_as.clone());
+        manifest.images.iter_mut().for_each(|(id, c)| {
+            let filtered = c
+                .arch
+                .intersection(&arches)
+                .cloned()
+                .collect::<BTreeSet<_>>();
+            if filtered.is_empty() {
+                if let Some(arch) = &c.emulate_missing_as {
+                    tracing::warn!(
+                        "ImageId {} is not available for {}, emulating as {}",
+                        id,
+                        arches.iter().join("/"),
+                        arch
+                    );
+                    c.arch = [arch.clone()].into_iter().collect();
+                } else {
+                    tracing::error!(
+                        "ImageId {} is not available for {}",
+                        id,
+                        arches.iter().join("/"),
+                    );
                 }
             }
-            c.arch = to_load;
+            c.arch = filtered;
         });
         manifest.hardware_requirements.arch = Some(arches);
     }
