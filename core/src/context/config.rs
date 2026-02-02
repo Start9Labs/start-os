@@ -68,6 +68,10 @@ pub struct ClientConfig {
     pub registry_hostname: Option<Vec<InternedString>>,
     #[arg(skip)]
     pub registry_listen: Option<SocketAddr>,
+    #[arg(long, help = "help.s9pk-s3base")]
+    pub s9pk_s3base: Option<Url>,
+    #[arg(long, help = "help.s9pk-s3bucket")]
+    pub s9pk_s3bucket: Option<InternedString>,
     #[arg(short = 't', long, help = "help.arg.tunnel-address")]
     pub tunnel: Option<SocketAddr>,
     #[arg(skip)]

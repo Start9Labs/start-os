@@ -131,6 +131,9 @@ pub async fn install(
     let package: GetPackageResponse = from_value(
         ctx.call_remote_with::<RegistryContext, _>(
             "package.get",
+            [("get_device_info", Value::Bool(true))]
+                .into_iter()
+                .collect(),
             json!({
                 "id": id,
                 "targetVersion": VersionRange::exactly(version.deref().clone()),

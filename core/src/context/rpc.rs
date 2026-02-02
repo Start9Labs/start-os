@@ -579,6 +579,7 @@ impl RpcContext {
     pub async fn call_remote<RemoteContext>(
         &self,
         method: &str,
+        metadata: OrdMap<&'static str, Value>,
         params: Value,
     ) -> Result<Value, RpcError>
     where
@@ -587,7 +588,7 @@ impl RpcContext {
         <Self as CallRemote<RemoteContext, Empty>>::call_remote(
             &self,
             method,
-            OrdMap::new(),
+            metadata,
             params,
             Empty {},
         )
@@ -596,20 +597,15 @@ impl RpcContext {
     pub async fn call_remote_with<RemoteContext, T>(
         &self,
         method: &str,
+        metadata: OrdMap<&'static str, Value>,
         params: Value,
         extra: T,
     ) -> Result<Value, RpcError>
     where
         Self: CallRemote<RemoteContext, T>,
     {
-        <Self as CallRemote<RemoteContext, T>>::call_remote(
-            &self,
-            method,
-            OrdMap::new(),
-            params,
-            extra,
-        )
-        .await
+        <Self as CallRemote<RemoteContext, T>>::call_remote(&self, method, metadata, params, extra)
+            .await
     }
 }
 impl AsRef<Client> for RpcContext {

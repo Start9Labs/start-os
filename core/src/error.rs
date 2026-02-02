@@ -4,7 +4,7 @@ use axum::http::StatusCode;
 use axum::http::uri::InvalidUri;
 use color_eyre::eyre::eyre;
 use num_enum::TryFromPrimitive;
-use patch_db::Revision;
+use patch_db::Value;
 use rpc_toolkit::reqwest;
 use rpc_toolkit::yajrc::{
     INVALID_PARAMS_ERROR, INVALID_REQUEST_ERROR, METHOD_NOT_FOUND_ERROR, PARSE_ERROR, RpcError,
@@ -16,6 +16,7 @@ use tokio_rustls::rustls;
 use ts_rs::TS;
 
 use crate::InvalidId;
+use crate::prelude::to_value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
 #[repr(i32)]
@@ -197,7 +198,7 @@ pub struct Error {
     pub source: color_eyre::eyre::Error,
     pub debug: Option<color_eyre::eyre::Error>,
     pub kind: ErrorKind,
-    pub revision: Option<Revision>,
+    pub info: Value,
     pub task: Option<JoinHandle<()>>,
 }
 
@@ -228,7 +229,7 @@ impl Error {
             source: source.into(),
             debug,
             kind,
-            revision: None,
+            info: Value::Null,
             task: None,
         }
     }
@@ -237,12 +238,16 @@ impl Error {
             source: eyre!("{}", self.source),
             debug: self.debug.as_ref().map(|e| eyre!("{e}")),
             kind: self.kind,
-            revision: self.revision.clone(),
+            info: self.info.clone(),
             task: None,
         }
     }
     pub fn with_task(mut self, task: JoinHandle<()>) -> Self {
         self.task = Some(task);
+        self
+    }
+    pub fn with_info(mut self, info: Value) -> Self {
+        self.info = info;
         self
     }
     pub async fn wait(mut self) -> Self {
@@ -423,6 +428,8 @@ impl From<patch_db::value::Error> for Error {
 pub struct ErrorData {
     pub details: String,
     pub debug: String,
+    #[serde(default)]
+    pub info: Value,
 }
 impl Display for ErrorData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -440,6 +447,7 @@ impl From<Error> for ErrorData {
         Self {
             details: value.to_string(),
             debug: format!("{:?}", value),
+            info: value.info,
         }
     }
 }
@@ -470,40 +478,31 @@ impl From<&RpcError> for ErrorData {
                         .or_else(|| d.as_str().map(|s| s.to_owned()))
                 })
                 .unwrap_or_else(|| value.message.clone().into_owned()),
+            info: to_value(
+                &value
+                    .data
+                    .as_ref()
+                    .and_then(|d| d.as_object().and_then(|d| d.get("info"))),
+            )
+            .unwrap_or_default(),
         }
     }
 }
 
 impl From<Error> for RpcError {
     fn from(e: Error) -> Self {
-        let mut data_object = serde_json::Map::with_capacity(3);
-        data_object.insert("details".to_owned(), format!("{}", e.source).into());
-        data_object.insert("debug".to_owned(), format!("{:?}", e.source).into());
-        data_object.insert(
-            "revision".to_owned(),
-            match serde_json::to_value(&e.revision) {
+        let kind = e.kind;
+        let data = ErrorData::from(e);
+        RpcError {
+            code: kind as i32,
+            message: kind.as_str().into(),
+            data: Some(match serde_json::to_value(&data) {
                 Ok(a) => a,
                 Err(e) => {
-                    tracing::warn!("Error serializing revision for Error object: {}", e);
+                    tracing::warn!("Error serializing ErrorData object: {}", e);
                     serde_json::Value::Null
                 }
-            },
-        );
-        RpcError {
-            code: e.kind as i32,
-            message: e.kind.as_str().into(),
-            data: Some(
-                match serde_json::to_value(&ErrorData {
-                    details: format!("{}", e.source),
-                    debug: format!("{:?}", e.source),
-                }) {
-                    Ok(a) => a,
-                    Err(e) => {
-                        tracing::warn!("Error serializing revision for Error object: {}", e);
-                        serde_json::Value::Null
-                    }
-                },
-            ),
+            }),
         }
     }
 }
@@ -606,7 +605,7 @@ where
                 kind,
                 source,
                 debug,
-                revision: None,
+                info: Value::Null,
                 task: None,
             }
         })

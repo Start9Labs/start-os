@@ -38,6 +38,8 @@ pub struct CliContextSeed {
     pub registry_url: Option<Url>,
     pub registry_hostname: Vec<InternedString>,
     pub registry_listen: Option<SocketAddr>,
+    pub s9pk_s3base: Option<Url>,
+    pub s9pk_s3bucket: Option<InternedString>,
     pub tunnel_addr: Option<SocketAddr>,
     pub tunnel_listen: Option<SocketAddr>,
     pub client: Client,
@@ -129,6 +131,8 @@ impl CliContext {
                 .transpose()?,
             registry_hostname: config.registry_hostname.unwrap_or_default(),
             registry_listen: config.registry_listen,
+            s9pk_s3base: config.s9pk_s3base,
+            s9pk_s3bucket: config.s9pk_s3bucket,
             tunnel_addr: config.tunnel,
             tunnel_listen: config.tunnel_listen,
             client: {

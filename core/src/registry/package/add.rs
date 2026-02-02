@@ -135,20 +135,24 @@ pub struct CliAddPackageParams {
 }
 
 pub async fn cli_add_package(
-    HandlerArgs {
-        context: ctx,
-        parent_method,
-        method,
-        params:
-            CliAddPackageParams {
-                file,
-                url,
-                no_verify,
-            },
-        ..
-    }: HandlerArgs<CliContext, CliAddPackageParams>,
+    ctx: CliContext,
+    CliAddPackageParams {
+        file,
+        url,
+        no_verify,
+    }: CliAddPackageParams,
 ) -> Result<(), Error> {
     let s9pk = S9pk::open(&file, None).await?;
+    cli_add_package_impl(ctx, s9pk, url, no_verify).await
+}
+
+pub async fn cli_add_package_impl(
+    ctx: CliContext,
+    s9pk: S9pk,
+    url: Vec<Url>,
+    no_verify: bool,
+) -> Result<(), Error> {
+    let manifest = s9pk.as_manifest();
 
     let progress = FullProgressTracker::new();
     let mut sign_phase = progress.add_phase(InternedString::intern("Signing File"), Some(1));
@@ -170,8 +174,16 @@ pub async fn cli_add_package(
         Some(1),
     );
 
-    let progress_task =
-        progress.progress_bar_task(&format!("Adding {} to registry...", file.display()));
+    let progress_task = progress.progress_bar_task(&format!(
+        "Adding {}@{}{} to registry...",
+        manifest.id,
+        manifest.version,
+        manifest
+            .hardware_requirements
+            .arch
+            .as_ref()
+            .map_or(String::new(), |a| format!(" ({})", a.iter().join("/")))
+    ));
 
     sign_phase.start();
     let commitment = s9pk.as_archive().commitment().await?;
@@ -188,7 +200,7 @@ pub async fn cli_add_package(
 
     index_phase.start();
     ctx.call_remote::<RegistryContext>(
-        &parent_method.into_iter().chain(method).join("."),
+        "package.add",
         imbl_value::json!({
             "urls": &url,
             "signature": AnySignature::Ed25519(signature),

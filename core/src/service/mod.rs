@@ -50,6 +50,7 @@ use crate::util::io::{AsyncReadStream, AtomicFile, TermSize, delete_file};
 use crate::util::net::WebSocket;
 use crate::util::serde::Pem;
 use crate::util::sync::SyncMutex;
+use crate::util::tui::choose;
 use crate::volume::data_dir;
 use crate::{ActionId, CAP_1_KiB, DATA_DIR, HostId, ImageId, PackageId};
 
@@ -709,6 +710,19 @@ pub async fn rebuild(ctx: RpcContext, RebuildParams { id }: RebuildParams) -> Re
     Ok(())
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SubcontainerInfo {
+    pub id: Guid,
+    pub name: InternedString,
+    pub image_id: ImageId,
+}
+impl std::fmt::Display for SubcontainerInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let SubcontainerInfo { id, name, image_id } = self;
+        write!(f, "{id} => Name: {name}; Image: {image_id}")
+    }
+}
+
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AttachParams {
@@ -722,7 +736,7 @@ pub struct AttachParams {
     #[serde(rename = "__Auth_session")]
     session: Option<InternedString>,
     #[ts(type = "string | null")]
-    subcontainer: Option<InternedString>,
+    subcontainer: Option<Guid>,
     #[ts(type = "string | null")]
     name: Option<InternedString>,
     #[ts(type = "string | null")]
@@ -745,7 +759,7 @@ pub async fn attach(
         user,
     }: AttachParams,
 ) -> Result<Guid, Error> {
-    let (container_id, subcontainer_id, image_id, workdir, root_command) = {
+    let (container_id, subcontainer_id, image_id, user, workdir, root_command) = {
         let id = &id;
 
         let service = ctx.services.get(id).await;
@@ -786,13 +800,6 @@ pub async fn attach(
                 }
             })
             .collect();
-        let format_subcontainer_pair = |(guid, wrapper): (&Guid, &Subcontainer)| {
-            format!(
-                "{guid} imageId: {image_id} name: \"{name}\"",
-                name = &wrapper.name,
-                image_id = &wrapper.image_id
-            )
-        };
         let Some((subcontainer_id, image_id)) = subcontainer_ids
             .first()
             .map::<(Guid, ImageId), _>(|&x| (x.0.clone(), x.1.image_id.clone()))
@@ -803,19 +810,17 @@ pub async fn attach(
                 .lock()
                 .await
                 .iter()
-                .map(format_subcontainer_pair)
-                .join("\n");
+                .map(|(g, s)| SubcontainerInfo {
+                    id: g.clone(),
+                    name: s.name.clone(),
+                    image_id: s.image_id.clone(),
+                })
+                .collect::<Vec<_>>();
             return Err(Error::new(
-                eyre!(
-                    "{}",
-                    t!(
-                        "service.mod.no-matching-subcontainers",
-                        id = id,
-                        subcontainers = subcontainers
-                    )
-                ),
+                eyre!("{}", t!("service.mod.no-matching-subcontainers", id = id)),
                 ErrorKind::NotFound,
-            ));
+            )
+            .with_info(to_value(&subcontainers)?));
         };
 
         let passwd = root_dir
@@ -835,38 +840,39 @@ pub async fn attach(
         )
         .with_kind(ErrorKind::Deserialization)?;
 
-        let root_command = get_passwd_command(
-            passwd,
-            user.as_deref()
-                .or_else(|| image_meta["user"].as_str())
-                .unwrap_or("root"),
-        )
-        .await;
+        let user = user
+            .clone()
+            .or_else(|| image_meta["user"].as_str().map(InternedString::intern))
+            .unwrap_or_else(|| InternedString::intern("root"));
+
+        let root_command = get_passwd_command(passwd, &*user).await;
 
         let workdir = image_meta["workdir"].as_str().map(|s| s.to_owned());
 
         if subcontainer_ids.len() > 1 {
-            let subcontainer_ids = subcontainer_ids
+            let subcontainers = subcontainer_ids
                 .into_iter()
-                .map(format_subcontainer_pair)
-                .join("\n");
+                .map(|(g, s)| SubcontainerInfo {
+                    id: g.clone(),
+                    name: s.name.clone(),
+                    image_id: s.image_id.clone(),
+                })
+                .collect::<Vec<_>>();
             return Err(Error::new(
                 eyre!(
                     "{}",
-                    t!(
-                        "service.mod.multiple-subcontainers-found",
-                        id = id,
-                        subcontainer_ids = subcontainer_ids
-                    )
+                    t!("service.mod.multiple-subcontainers-found", id = id,)
                 ),
                 ErrorKind::InvalidRequest,
-            ));
+            )
+            .with_info(to_value(&subcontainers)?));
         }
 
         (
             service_ref.container_id()?,
             subcontainer_id,
             image_id,
+            user.into(),
             workdir,
             root_command,
         )
@@ -883,7 +889,7 @@ pub async fn attach(
         pty_size: Option<TermSize>,
         image_id: ImageId,
         workdir: Option<String>,
-        user: Option<InternedString>,
+        user: InternedString,
         root_command: &RootCommand,
     ) -> Result<(), Error> {
         use axum::extract::ws::Message;
@@ -904,11 +910,9 @@ pub async fn attach(
                 Path::new("/media/startos/images")
                     .join(image_id)
                     .with_extension("env"),
-            );
-
-        if let Some(user) = user {
-            cmd.arg("--user").arg(&*user);
-        }
+            )
+            .arg("--user")
+            .arg(&*user);
 
         if let Some(workdir) = workdir {
             cmd.arg("--workdir").arg(workdir);
@@ -1091,45 +1095,6 @@ pub async fn attach(
     Ok(guid)
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-pub struct ListSubcontainersParams {
-    pub id: PackageId,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-pub struct SubcontainerInfo {
-    pub name: InternedString,
-    pub image_id: ImageId,
-}
-
-pub async fn list_subcontainers(
-    ctx: RpcContext,
-    ListSubcontainersParams { id }: ListSubcontainersParams,
-) -> Result<BTreeMap<Guid, SubcontainerInfo>, Error> {
-    let service = ctx.services.get(&id).await;
-    let service_ref = service.as_ref().or_not_found(&id)?;
-    let container = &service_ref.seed.persistent_container;
-
-    let subcontainers = container.subcontainers.lock().await;
-
-    let result: BTreeMap<Guid, SubcontainerInfo> = subcontainers
-        .iter()
-        .map(|(guid, subcontainer)| {
-            (
-                guid.clone(),
-                SubcontainerInfo {
-                    name: subcontainer.name.clone(),
-                    image_id: subcontainer.image_id.clone(),
-                },
-            )
-        })
-        .collect();
-
-    Ok(result)
-}
-
 async fn get_passwd_command(etc_passwd_path: PathBuf, user: &str) -> RootCommand {
     async {
         let mut file = tokio::fs::File::open(etc_passwd_path).await?;
@@ -1210,23 +1175,34 @@ pub async fn cli_attach(
         None
     };
 
+    let method = parent_method.into_iter().chain(method).join(".");
+    let mut params = json!({
+        "id": params.id,
+        "command": params.command,
+        "tty": tty,
+        "stderrTty": stderr.is_terminal(),
+        "ptySize": if tty { TermSize::get_current() } else { None },
+        "subcontainer": params.subcontainer,
+        "imageId": params.image_id,
+        "name": params.name,
+        "user": params.user,
+    });
     let guid: Guid = from_value(
-        context
-            .call_remote::<RpcContext>(
-                &parent_method.into_iter().chain(method).join("."),
-                json!({
-                    "id": params.id,
-                    "command": params.command,
-                    "tty": tty,
-                    "stderrTty": stderr.is_terminal(),
-                    "ptySize": if tty { TermSize::get_current() } else { None },
-                    "subcontainer": params.subcontainer,
-                    "imageId": params.image_id,
-                    "name": params.name,
-                    "user": params.user,
-                }),
-            )
-            .await?,
+        match context
+            .call_remote::<RpcContext>(&method, params.clone())
+            .await
+        {
+            Ok(a) => a,
+            Err(e) => {
+                let prompt = e.to_string();
+                let options: Vec<SubcontainerInfo> = from_value(e.info)?;
+                let choice = choose(&prompt, &options).await?;
+                params["subcontainer"] = to_value(&choice.id)?;
+                context
+                    .call_remote::<RpcContext>(&method, params.clone())
+                    .await?
+            }
+        },
     )?;
     let mut ws = context.ws_continuation(guid).await?;
 

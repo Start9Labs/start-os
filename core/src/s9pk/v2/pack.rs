@@ -727,8 +727,9 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
                         arches.iter().join("/"),
                     );
                 }
+            } else {
+                c.arch = filtered;
             }
-            c.arch = filtered;
         });
         manifest.hardware_requirements.arch = Some(arches);
     }

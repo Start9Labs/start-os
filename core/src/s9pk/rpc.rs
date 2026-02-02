@@ -1,10 +1,13 @@
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
 use rpc_toolkit::{Empty, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
+use tokio::process::Command;
 use ts_rs::TS;
+use url::Url;
 
 use crate::ImageId;
 use crate::context::CliContext;
@@ -13,9 +16,9 @@ use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::v2::pack::ImageConfig;
-use crate::util::Apply;
 use crate::util::io::{TmpDir, create_file, open_file};
 use crate::util::serde::{HandlerExtSerde, apply_expr};
+use crate::util::{Apply, Invoke};
 
 pub const SKIP_ENV: &[&str] = &["TERM", "container", "HOME", "HOSTNAME"];
 
@@ -60,6 +63,12 @@ pub fn s9pk() -> ParentHandler<CliContext> {
             from_fn_async(convert)
                 .no_display()
                 .with_about("about.convert-s9pk-v1-to-v2"),
+        )
+        .subcommand(
+            "publish",
+            from_fn_async(publish)
+                .no_display()
+                .with_about("about.publish-s9pk"),
         )
 }
 
@@ -255,4 +264,61 @@ async fn convert(ctx: CliContext, S9pkPath { s9pk: s9pk_path }: S9pkPath) -> Res
         .await?;
     tokio::fs::rename(tmp_path, s9pk_path).await?;
     Ok(())
+}
+
+async fn publish(ctx: CliContext, S9pkPath { s9pk: s9pk_path }: S9pkPath) -> Result<(), Error> {
+    let filename = s9pk_path.file_name().unwrap().to_string_lossy();
+    let s9pk = super::S9pk::open(&s9pk_path, None).await?;
+    let manifest = s9pk.as_manifest();
+    let path = [
+        manifest.id.deref(),
+        manifest.version.as_str(),
+        filename.deref(),
+    ];
+    let mut s3url = ctx
+        .s9pk_s3base
+        .as_ref()
+        .ok_or_else(|| Error::new(eyre!("--s9pk-s3base required"), ErrorKind::InvalidRequest))?
+        .clone();
+    s3url
+        .path_segments_mut()
+        .map_err(|_| {
+            Error::new(
+                eyre!("s9pk-s3base is invalid (missing protocol?)"),
+                ErrorKind::ParseUrl,
+            )
+        })?
+        .pop_if_empty()
+        .extend(path);
+
+    let mut s3dest = format!(
+        "s3://{}",
+        ctx.s9pk_s3bucket
+            .as_deref()
+            .or_else(|| s3url
+                .host_str()
+                .and_then(|h| h.split_once(".").map(|h| h.0)))
+            .ok_or_else(|| {
+                Error::new(eyre!("--s9pk-s3bucket required"), ErrorKind::InvalidRequest)
+            })?,
+    )
+    .parse::<Url>()?;
+    s3dest
+        .path_segments_mut()
+        .map_err(|_| {
+            Error::new(
+                eyre!("s9pk-s3base is invalid (missing protocol?)"),
+                ErrorKind::ParseUrl,
+            )
+        })?
+        .pop_if_empty()
+        .extend(path);
+    Command::new("s3cmd")
+        .arg("put")
+        .arg("-P")
+        .arg(s9pk_path)
+        .arg(s3dest.as_str())
+        .invoke(ErrorKind::Network)
+        .await?;
+    crate::registry::package::add::cli_add_package_impl(ctx, s9pk, vec![s3url], false).await
 }

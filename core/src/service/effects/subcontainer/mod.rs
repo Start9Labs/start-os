@@ -10,6 +10,7 @@ use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
 use crate::service::persistent_container::Subcontainer;
 use crate::util::Invoke;
+use crate::util::io::write_file_owned_atomic;
 
 pub const NVIDIA_OVERLAY_PATH: &str = "/var/tmp/startos/nvidia-overlay";
 pub const NVIDIA_OVERLAY_DEBIAN: &str = "/var/tmp/startos/nvidia-overlay/debian";
@@ -94,7 +95,7 @@ pub async fn create_subcontainer_fs(
         .cloned()
     {
         let guid = Guid::new();
-        let rootfs_dir = context
+        let lxc_container = context
             .seed
             .persistent_container
             .lxc_container
@@ -104,8 +105,9 @@ pub async fn create_subcontainer_fs(
                     eyre!("PersistentContainer has been destroyed"),
                     ErrorKind::Incoherent,
                 )
-            })?
-            .rootfs_dir();
+            })?;
+        let container_guid = &lxc_container.guid;
+        let rootfs_dir = lxc_container.rootfs_dir();
         let mountpoint = rootfs_dir
             .join("media/startos/subcontainers")
             .join(guid.as_ref());
@@ -154,6 +156,20 @@ pub async fn create_subcontainer_fs(
             .arg(&mountpoint)
             .invoke(ErrorKind::Filesystem)
             .await?;
+        write_file_owned_atomic(
+            mountpoint.join("etc/hostname"),
+            format!("{container_guid}\n"),
+            100000,
+            100000,
+        )
+        .await?;
+        write_file_owned_atomic(
+            mountpoint.join("etc/hosts"),
+            format!("127.0.0.1\tlocalhost\n127.0.1.1\t{container_guid}\n::1\tlocalhost ip6-localhost ip6-loopback\n"),
+            100000,
+            100000,
+        )
+        .await?;
         tracing::info!("Mounted overlay {guid} for {image_id}");
         context
             .seed
