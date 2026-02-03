@@ -47,6 +47,12 @@ runs:
         sudo rm -rf /usr/share/swift
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
+    # BuildJet runners lack /opt/hostedtoolcache, which actions/setup-python requires
+    - name: Ensure hostedtoolcache exists
+      if: inputs.setup-python == 'true'
+      shell: bash
+      run: sudo mkdir -p /opt/hostedtoolcache && sudo chown $USER:$USER /opt/hostedtoolcache
+
     - name: Set up Python
       if: inputs.setup-python == 'true'
       uses: actions/setup-python@v5
