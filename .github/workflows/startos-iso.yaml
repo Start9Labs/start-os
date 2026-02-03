@@ -118,13 +118,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # TODO: re-add "raspberrypi" to the platform list below
         platform: >-
           ${{
             fromJson(
               format(
                 '[
                   ["{0}"],
-                  ["x86_64", "x86_64-nonfree", "aarch64", "aarch64-nonfree", "riscv64"] # TODO: re-add "raspberrypi"
+                  ["x86_64", "x86_64-nonfree", "aarch64", "aarch64-nonfree", "riscv64"]
                 ]',
                 github.event.inputs.platform || 'ALL'
               )
