@@ -5,10 +5,6 @@ inputs:
   nodejs-version:
     description: Node.js version
     required: true
-  use-tmpfs:
-    description: Mount tmpfs (for fast runners)
-    required: false
-    default: "false"
   setup-python:
     description: Set up Python
     required: false
@@ -51,15 +47,6 @@ runs:
         sudo rm -rf /usr/share/swift
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
-    - name: Mount tmpfs
-      if: inputs.use-tmpfs == 'true'
-      shell: bash
-      run: sudo mount -t tmpfs tmpfs .
-
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
     - name: Set up Python
       if: inputs.setup-python == 'true'
       uses: actions/setup-python@v5
@@ -69,6 +56,8 @@ runs:
     - uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.nodejs-version }}
+        cache: npm
+        cache-dependency-path: "**/package-lock.json"
 
     - name: Set up Docker QEMU
       if: inputs.setup-docker == 'true'

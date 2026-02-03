@@ -24,6 +24,9 @@ jobs:
     if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: ./.github/actions/setup-build
         with:
           nodejs-version: ${{ env.NODEJS_VERSION }}

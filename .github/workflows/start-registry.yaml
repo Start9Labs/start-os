@@ -61,10 +61,15 @@ jobs:
           }}
     runs-on: ${{ fromJson('["ubuntu-latest", "buildjet-32vcpu-ubuntu-2204"]')[github.event.inputs.runner == 'fast'] }}
     steps:
+      - name: Mount tmpfs
+        if: ${{ github.event.inputs.runner == 'fast' }}
+        run: sudo mount -t tmpfs tmpfs .
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: ./.github/actions/setup-build
         with:
           nodejs-version: ${{ env.NODEJS_VERSION }}
-          use-tmpfs: ${{ github.event.inputs.runner == 'fast' }}
 
       - name: Make
         run: make registry-deb
