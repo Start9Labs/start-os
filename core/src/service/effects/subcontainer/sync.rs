@@ -1,7 +1,6 @@
-use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString, c_int};
 use std::fs::File;
-use std::io::{IsTerminal, Read};
+use std::io::{BufRead, BufReader, IsTerminal, Read};
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::{Path, PathBuf};
 use std::process::{Command as StdCommand, Stdio};
@@ -146,95 +145,160 @@ impl ExecParams {
 
         let mut cmd = StdCommand::new(command);
 
-        let passwd = std::fs::read_to_string(chroot.join("etc/passwd"))
-            .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"))
-            .log_err()
-            .unwrap_or_default();
-        let mut home = None;
+        let mut uid = Err(None);
+        let mut gid = Err(None);
+        let mut needs_home = true;
 
-        if let Some((uid, gid)) =
-            if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
-                Some((uid, uid))
-            } else if let Some((uid, gid)) = user
-                .as_deref()
-                .and_then(|u| u.split_once(":"))
-                .and_then(|(u, g)| Some((u.parse::<u32>().ok()?, g.parse::<u32>().ok()?)))
-            {
-                Some((uid, gid))
-            } else if let Some(user) = user {
-                Some(
-                    if let Some((uid, gid)) = passwd.lines().find_map(|l| {
-                        let l = l.trim();
-                        let mut split = l.split(":");
-                        if user != split.next()? {
-                            return None;
-                        }
-
-                        split.next(); // throw away x
-                        let uid = split.next()?.parse().ok()?;
-                        let gid = split.next()?.parse().ok()?;
-                        split.next(); // throw away group name
-
-                        home = split.next();
-
-                        Some((uid, gid))
-                        // uid gid
-                    }) {
-                        (uid, gid)
-                    } else if user == "root" {
-                        (0, 0)
-                    } else {
-                        None.or_not_found(lazy_format!("{user} in /etc/passwd"))?
-                    },
-                )
+        if let Some(user) = user {
+            if let Some((u, g)) = user.split_once(":") {
+                uid = Err(Some(u));
+                gid = Err(Some(g));
             } else {
-                None
+                uid = Err(Some(user));
             }
-        {
-            if home.is_none() {
-                home = passwd.lines().find_map(|l| {
-                    let l = l.trim();
-                    let mut split = l.split(":");
-
-                    split.next(); // throw away user name
-                    split.next(); // throw away x
-                    if split.next()?.parse::<u32>().ok()? != uid {
-                        return None;
-                    }
-                    split.next(); // throw away gid
-                    split.next(); // throw away group name
-
-                    split.next()
-                })
-            };
-            std::os::unix::fs::chown("/proc/self/fd/0", Some(uid), Some(gid)).ok();
-            std::os::unix::fs::chown("/proc/self/fd/1", Some(uid), Some(gid)).ok();
-            std::os::unix::fs::chown("/proc/self/fd/2", Some(uid), Some(gid)).ok();
-            cmd.uid(uid);
-            cmd.gid(gid);
-        } else {
-            home = Some("/root");
         }
-        cmd.env("HOME", home.unwrap_or("/"));
 
-        let env_string = if let Some(env_file) = &env_file {
-            std::fs::read_to_string(env_file)
-                .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("read {env:?}")))?
-        } else {
-            Default::default()
+        if let Some(u) = uid.err().flatten().and_then(|u| u.parse::<u32>().ok()) {
+            uid = Ok(u);
+        }
+        if let Some(g) = gid.err().flatten().and_then(|g| g.parse::<u32>().ok()) {
+            gid = Ok(g);
+        }
+
+        let mut update_env = |line: &str| {
+            if let Some((k, v)) = line.split_once("=") {
+                needs_home &= k != "HOME";
+                cmd.env(k, v);
+            } else {
+                tracing::warn!("Invalid line in env: {line}");
+            }
         };
-        let env = env_string
-            .lines()
-            .chain(env.iter().map(|l| l.as_str()))
-            .map(|l| l.trim())
-            .filter_map(|l| l.split_once("="))
-            .collect::<BTreeMap<_, _>>();
+        if let Some(f) = env_file {
+            let mut lines = BufReader::new(
+                File::open(&f).with_ctx(|_| (ErrorKind::Filesystem, format!("open r {f:?}")))?,
+            )
+            .lines();
+            while let Some(line) = lines.next().transpose()? {
+                update_env(&line);
+            }
+        }
+
+        for line in env {
+            update_env(&line);
+        }
+
+        let needs_gid = Err(None) == gid;
+        let mut username = InternedString::intern("root");
+        let mut handle_passwd_line = |line: &str| -> Option<()> {
+            let l = line.trim();
+            let mut split = l.split(":");
+            let user = split.next()?;
+            match uid {
+                Err(Some(u)) if u != user => return None,
+                _ => (),
+            }
+            split.next(); // throw away x
+            let u: u32 = split.next()?.parse().ok()?;
+            match uid {
+                Err(Some(_)) => uid = Ok(u),
+                Err(None) if u == 0 => uid = Ok(u),
+                Ok(uid) if uid != u => return None,
+                _ => (),
+            }
+
+            username = user.into();
+
+            if !needs_gid && !needs_home {
+                return Some(());
+            }
+            let g = split.next()?;
+            if needs_gid {
+                gid = Ok(g.parse().ok()?);
+            }
+
+            if needs_home {
+                split.next(); // throw away group name
+
+                let home = split.next()?;
+
+                cmd.env("HOME", home);
+            }
+
+            Some(())
+        };
+
+        let mut lines = BufReader::new(
+            File::open(chroot.join("etc/passwd"))
+                .with_ctx(|_| (ErrorKind::Filesystem, format!("open r /etc/passwd")))?,
+        )
+        .lines();
+        while let Some(line) = lines.next().transpose()? {
+            if handle_passwd_line(&line).is_some() {
+                break;
+            }
+        }
+
+        let mut groups = Vec::new();
+        let mut handle_group_line = |line: &str| -> Option<()> {
+            let l = line.trim();
+            let mut split = l.split(":");
+            let name = split.next()?;
+            split.next()?; // throw away x
+            let g = split.next()?.parse::<u32>().ok()?;
+            match gid {
+                Err(Some(n)) if n == name => gid = Ok(g),
+                _ => (),
+            }
+            let users = split.next()?;
+            if users.split(",").any(|u| u == &*username) {
+                groups.push(nix::unistd::Gid::from_raw(g));
+            }
+            Some(())
+        };
+        let mut lines = BufReader::new(
+            File::open(chroot.join("etc/group"))
+                .with_ctx(|_| (ErrorKind::Filesystem, format!("open r /etc/group")))?,
+        )
+        .lines();
+        while let Some(line) = lines.next().transpose()? {
+            if handle_group_line(&line).is_none() {
+                tracing::warn!("Invalid /etc/group line: {line}");
+            }
+        }
+
         std::os::unix::fs::chroot(chroot)
             .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("chroot {chroot:?}")))?;
-        cmd.args(args);
-        for (k, v) in env {
-            cmd.env(k, v);
+        if let Ok(uid) = uid {
+            if uid != 0 {
+                std::os::unix::fs::chown("/proc/self/fd/0", Some(uid), gid.ok()).ok();
+                std::os::unix::fs::chown("/proc/self/fd/1", Some(uid), gid.ok()).ok();
+                std::os::unix::fs::chown("/proc/self/fd/2", Some(uid), gid.ok()).ok();
+            }
         }
+        // Handle credential changes in pre_exec to control the order:
+        // setgroups must happen before setgid/setuid (requires CAP_SETGID)
+        {
+            let set_uid = uid.ok();
+            let set_gid = gid.ok();
+            unsafe {
+                cmd.pre_exec(move || {
+                    if !groups.is_empty() {
+                        nix::unistd::setgroups(&groups)
+                            .map_err(|e| std::io::Error::from_raw_os_error(e as i32))?;
+                    }
+                    if let Some(gid) = set_gid {
+                        nix::unistd::setgid(nix::unistd::Gid::from_raw(gid))
+                            .map_err(|e| std::io::Error::from_raw_os_error(e as i32))?;
+                    }
+                    if let Some(uid) = set_uid {
+                        nix::unistd::setuid(nix::unistd::Uid::from_raw(uid))
+                            .map_err(|e| std::io::Error::from_raw_os_error(e as i32))?;
+                    }
+                    Ok(())
+                });
+            }
+        }
+        cmd.args(args);
 
         if let Some(workdir) = workdir {
             cmd.current_dir(workdir);

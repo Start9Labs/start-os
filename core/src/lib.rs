@@ -540,7 +540,10 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_about("about.execute-commands-container")
                 .no_cli(),
         )
-        .subcommand("attach", from_fn_async(service::cli_attach).no_display())
+        .subcommand(
+            "attach",
+            from_fn_async_local(service::cli_attach).no_display(),
+        )
         .subcommand(
             "host",
             net::host::host_api::<C>().with_about("about.manage-network-hosts-package"),

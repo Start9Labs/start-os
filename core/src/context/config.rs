@@ -68,6 +68,10 @@ pub struct ClientConfig {
     pub registry_hostname: Option<Vec<InternedString>>,
     #[arg(skip)]
     pub registry_listen: Option<SocketAddr>,
+    #[arg(long, help = "help.s9pk-s3base")]
+    pub s9pk_s3base: Option<Url>,
+    #[arg(long, help = "help.s9pk-s3bucket")]
+    pub s9pk_s3bucket: Option<InternedString>,
     #[arg(short = 't', long, help = "help.arg.tunnel-address")]
     pub tunnel: Option<SocketAddr>,
     #[arg(skip)]
@@ -89,8 +93,13 @@ impl ContextConfig for ClientConfig {
         self.host = self.host.take().or(other.host);
         self.registry = self.registry.take().or(other.registry);
         self.registry_hostname = self.registry_hostname.take().or(other.registry_hostname);
+        self.registry_listen = self.registry_listen.take().or(other.registry_listen);
+        self.s9pk_s3base = self.s9pk_s3base.take().or(other.s9pk_s3base);
+        self.s9pk_s3bucket = self.s9pk_s3bucket.take().or(other.s9pk_s3bucket);
         self.tunnel = self.tunnel.take().or(other.tunnel);
+        self.tunnel_listen = self.tunnel_listen.take().or(other.tunnel_listen);
         self.proxy = self.proxy.take().or(other.proxy);
+        self.socks_listen = self.socks_listen.take().or(other.socks_listen);
         self.cookie_path = self.cookie_path.take().or(other.cookie_path);
         self.developer_key_path = self.developer_key_path.take().or(other.developer_key_path);
     }

@@ -46,6 +46,7 @@ openssh-server
 podman
 psmisc
 qemu-guest-agent
+qemu-user-static
 rfkill
 rsync
 samba-common-bin

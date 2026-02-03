@@ -6,6 +6,7 @@ use clap::{ArgAction, Parser};
 use color_eyre::eyre::{Result, eyre};
 use exver::{Version, VersionRange};
 use futures::TryStreamExt;
+use imbl::OrdMap;
 use imbl_value::json;
 use itertools::Itertools;
 use patch_db::json_ptr::JsonPointer;
@@ -245,6 +246,7 @@ async fn maybe_do_update(
     let mut available = from_value::<BTreeMap<Version, OsVersionInfo>>(
         ctx.call_remote_with::<RegistryContext, _>(
             "os.version.get",
+            OrdMap::new(),
             json!({
                 "source": current_version,
                 "target": target,

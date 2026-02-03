@@ -248,7 +248,7 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
                     .or(Some(&res.stdout))
                     .filter(|a| !a.is_empty())
                     .and_then(|a| std::str::from_utf8(a).ok())
-                    .unwrap_or(&format!("{} exited with code {}", cmd_str, res.status))
+                    .unwrap_or(&format!("{} exited with {}", cmd_str, res.status))
             );
             Ok(res.stdout)
         } else {
@@ -309,7 +309,7 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
                                 .filter(|a| !a.is_empty())
                                 .and_then(|a| std::str::from_utf8(a).ok())
                                 .unwrap_or(&format!(
-                                    "{} exited with code {}",
+                                    "{} exited with {}",
                                     cmd.as_std().get_program().to_string_lossy(),
                                     res.status
                                 ))

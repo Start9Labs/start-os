@@ -42,11 +42,11 @@ export function buildManifest<
 ): Manifest & T.Manifest {
   const images = Object.entries(manifest.images).reduce(
     (images, [k, v]) => {
-      v.arch = v.arch || ["aarch64", "x86_64"]
+      v.arch = v.arch ?? ["aarch64", "x86_64", "riscv64"]
       if (v.emulateMissingAs === undefined)
-        v.emulateMissingAs = (v.arch as string[]).includes("aarch64")
-          ? "aarch64"
-          : v.arch[0] || null
+        v.emulateMissingAs = (v.arch as string[]).includes("x86_64")
+          ? "x86_64"
+          : (v.arch[0] ?? null)
       v.nvidiaContainer = !!v.nvidiaContainer
       images[k] = v as ImageConfig
       return images
@@ -75,21 +75,18 @@ export function buildManifest<
     hardwareRequirements: {
       device: manifest.hardwareRequirements?.device || [],
       ram: manifest.hardwareRequirements?.ram || null,
-      arch:
-        manifest.hardwareRequirements?.arch === undefined
-          ? Object.values(images).reduce(
-              (arch, inputSpec) => {
-                if (inputSpec.emulateMissingAs) {
-                  return arch
-                }
-                if (arch === null) {
-                  return inputSpec.arch
-                }
-                return arch.filter((a) => inputSpec.arch.includes(a))
-              },
-              null as string[] | null,
-            )
-          : manifest.hardwareRequirements?.arch,
+      arch: Object.values(images).reduce(
+        (arch, inputSpec) => {
+          if (inputSpec.emulateMissingAs) {
+            return arch
+          }
+          if (arch === null) {
+            return inputSpec.arch
+          }
+          return arch.filter((a) => inputSpec.arch.includes(a))
+        },
+        null as string[] | null,
+      ),
     },
     hardwareAcceleration: manifest.hardwareAcceleration ?? false,
   }

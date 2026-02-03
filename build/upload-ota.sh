@@ -85,9 +85,9 @@ cat << EOF
 # ISO Downloads
 
 - [x86_64/AMD64](https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$(ls *_x86_64-nonfree.iso))
-- [x86_64/AMD64 (Slim/FOSS-Only)](https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$(ls *_x86_64.iso) "Without proprietary software or drivers")
+- [x86_64/AMD64-slim (FOSS-only)](https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$(ls *_x86_64.iso) "Without proprietary software or drivers")
 - [aarch64/ARM64](https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$(ls *_aarch64-nonfree.iso))
-- [aarch64/ARM64 (Slim/FOSS-Only)](https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$(ls *_aarch64.iso) "Without proprietary software or drivers")
+- [aarch64/ARM64-slim (FOSS-Only)](https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$(ls *_aarch64.iso) "Without proprietary software or drivers")
 - [RISCV64 (RVA23)](https://startos-images.nyc3.cdn.digitaloceanspaces.com/v$VERSION/$(ls *_riscv64.iso))
 
 EOF

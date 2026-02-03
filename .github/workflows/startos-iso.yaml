@@ -46,7 +46,7 @@ on:
       - next/*
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -56,6 +56,7 @@ env:
 jobs:
   compile:
     name: Compile Base Binaries
+    if: github.event.pull_request.draft != true
     strategy:
       fail-fast: true
       matrix:
@@ -90,54 +91,11 @@ jobs:
         )[github.event.inputs.runner == 'fast']
       }}
     steps:
-      - name: Cleaning up unnecessary files
-        run: |
-          sudo apt-get remove --purge -y azure-cli || true
-          sudo apt-get remove --purge -y firefox || true
-          sudo apt-get remove --purge -y ghc-* || true
-          sudo apt-get remove --purge -y google-cloud-sdk || true
-          sudo apt-get remove --purge -y google-chrome-stable || true
-          sudo apt-get remove --purge -y powershell || true
-          sudo apt-get remove --purge -y php* || true
-          sudo apt-get remove --purge -y ruby* || true
-          sudo apt-get remove --purge -y mono-* || true
-          sudo apt-get autoremove -y
-          sudo apt-get clean
-          sudo rm -rf /usr/lib/jvm               # All JDKs
-          sudo rm -rf /usr/local/.ghcup          # Haskell toolchain
-          sudo rm -rf /usr/local/lib/android     # Android SDK/NDK, emulator
-          sudo rm -rf /usr/share/dotnet          # .NET SDKs
-          sudo rm -rf /usr/share/swift           # Swift toolchain (if present)
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"    # Pre-cached tool cache (Go, Node, etc.)
-      - run: |
-          sudo mount -t tmpfs tmpfs .
-        if: ${{ github.event.inputs.runner == 'fast' }}
-
-      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-build
         with:
-          submodules: recursive
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODEJS_VERSION }}
-
-      - name: Set up docker QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Configure sccache
-        uses: actions/github-script@v7
-        with:
-          script: |
-            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+          nodejs-version: ${{ env.NODEJS_VERSION }}
+          use-tmpfs: ${{ github.event.inputs.runner == 'fast' }}
+          setup-python: "true"
 
       - name: Make
         run: make ARCH=${{ matrix.arch }} compiled-${{ matrix.arch }}.tar

@@ -1843,18 +1843,18 @@ service.mod.failed-to-parse-package-data-entry:
   pl_PL: "Nie udało się przeanalizować PackageDataEntry, znaleziono: %{error}"
 
 service.mod.no-matching-subcontainers:
-  en_US: "no matching subcontainers are running for %{id}; some possible choices are:\n%{subcontainers}"
-  de_DE: "keine passenden Subcontainer laufen für %{id}; einige mögliche Optionen sind:\n%{subcontainers}"
-  es_ES: "no hay subcontenedores coincidentes ejecutándose para %{id}; algunas opciones posibles son:\n%{subcontainers}"
-  fr_FR: "aucun sous-conteneur correspondant n'est en cours d'exécution pour %{id} ; voici quelques choix possibles :\n%{subcontainers}"
-  pl_PL: "nie działają pasujące podkontenery dla %{id}; niektóre możliwe wybory to:\n%{subcontainers}"
+  en_US: "no matching subcontainers are running for %{id}; some possible choices are:"
+  de_DE: "keine passenden Subcontainer laufen für %{id}; einige mögliche Optionen sind:"
+  es_ES: "no hay subcontenedores coincidentes ejecutándose para %{id}; algunas opciones posibles son:"
+  fr_FR: "aucun sous-conteneur correspondant n'est en cours d'exécution pour %{id} ; voici quelques choix possibles :"
+  pl_PL: "nie działają pasujące podkontenery dla %{id}; niektóre możliwe wybory to:"
 
 service.mod.multiple-subcontainers-found:
-  en_US: "multiple subcontainers found for %{id}: \n%{subcontainer_ids}"
-  de_DE: "mehrere Subcontainer für %{id} gefunden: \n%{subcontainer_ids}"
-  es_ES: "se encontraron múltiples subcontenedores para %{id}: \n%{subcontainer_ids}"
-  fr_FR: "plusieurs sous-conteneurs trouvés pour %{id} : \n%{subcontainer_ids}"
-  pl_PL: "znaleziono wiele podkontenerów dla %{id}: \n%{subcontainer_ids}"
+  en_US: "multiple subcontainers found for %{id}"
+  de_DE: "mehrere Subcontainer für %{id} gefunden"
+  es_ES: "se encontraron múltiples subcontenedores para %{id}"
+  fr_FR: "plusieurs sous-conteneurs trouvés pour %{id}"
+  pl_PL: "znaleziono wiele podkontenerów dla %{id}"
 
 service.mod.invalid-byte-length-for-signal:
   en_US: "invalid byte length for signal: %{length}"
@@ -3703,6 +3703,20 @@ help.arg.wireguard-config:
   fr_FR: "Configuration WireGuard"
   pl_PL: "Konfiguracja WireGuard"
 
+help.s9pk-s3base:
+  en_US: "Base URL for publishing s9pks"
+  de_DE: "Basis-URL für die Veröffentlichung von s9pks"
+  es_ES: "URL base para publicar s9pks"
+  fr_FR: "URL de base pour publier les s9pks"
+  pl_PL: "Bazowy URL do publikowania s9pks"
+
+help.s9pk-s3bucket:
+  en_US: "S3 bucket to publish s9pks to (should correspond to s3base)"
+  de_DE: "S3-Bucket zum Veröffentlichen von s9pks (sollte mit s3base übereinstimmen)"
+  es_ES: "Bucket S3 para publicar s9pks (debe corresponder con s3base)"
+  fr_FR: "Bucket S3 pour publier les s9pks (doit correspondre à s3base)"
+  pl_PL: "Bucket S3 do publikowania s9pks (powinien odpowiadać s3base)"
+
 # CLI command descriptions (about.*)
 about.add-address-to-host:
   en_US: "Add an address to this host"
@@ -4865,6 +4879,13 @@ about.persist-new-notification:
   es_ES: "Persistir una nueva notificación"
   fr_FR: "Persister une nouvelle notification"
   pl_PL: "Utrwal nowe powiadomienie"
+
+about.publish-s9pk:
+  en_US: "Publish s9pk to S3 bucket and index on registry"
+  de_DE: "S9pk in S3-Bucket veröffentlichen und in Registry indizieren"
+  es_ES: "Publicar s9pk en bucket S3 e indexar en el registro"
+  fr_FR: "Publier s9pk dans le bucket S3 et indexer dans le registre"
+  pl_PL: "Opublikuj s9pk do bucketu S3 i zindeksuj w rejestrze"
 
 about.rebuild-service-container:
   en_US: "Rebuild service container"
