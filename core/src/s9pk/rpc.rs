@@ -318,6 +318,7 @@ async fn publish(ctx: CliContext, S9pkPath { s9pk: s9pk_path }: S9pkPath) -> Res
         .arg("-P")
         .arg(s9pk_path)
         .arg(s3dest.as_str())
+        .capture(false)
         .invoke(ErrorKind::Network)
         .await?;
     crate::registry::package::add::cli_add_package_impl(ctx, s9pk, vec![s3url], false).await
