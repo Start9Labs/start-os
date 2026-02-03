@@ -27,7 +27,7 @@ on:
           - x86_64-nonfree
           - aarch64
           - aarch64-nonfree
-          - raspberrypi
+          # - raspberrypi
           - riscv64
       deploy:
         type: choice
@@ -124,7 +124,7 @@ jobs:
               format(
                 '[
                   ["{0}"],
-                  ["x86_64", "x86_64-nonfree", "aarch64", "aarch64-nonfree", "riscv64", "raspberrypi"]
+                  ["x86_64", "x86_64-nonfree", "aarch64", "aarch64-nonfree", "riscv64"] # TODO: re-add "raspberrypi"
                 ]',
                 github.event.inputs.platform || 'ALL'
               )
@@ -187,6 +187,10 @@ jobs:
           sudo rm -rf /usr/share/swift           # Swift toolchain (if present)
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"    # Pre-cached tool cache (Go, Node, etc.)
         if: ${{ github.event.inputs.runner != 'fast' }}
+
+      # BuildJet runners lack /opt/hostedtoolcache, which setup-qemu expects
+      - name: Ensure hostedtoolcache exists
+        run: sudo mkdir -p /opt/hostedtoolcache && sudo chown $USER:$USER /opt/hostedtoolcache
 
       - name: Set up docker QEMU
         uses: docker/setup-qemu-action@v3

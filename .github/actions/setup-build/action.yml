@@ -47,9 +47,8 @@ runs:
         sudo rm -rf /usr/share/swift
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
-    # BuildJet runners lack /opt/hostedtoolcache, which actions/setup-python requires
+    # BuildJet runners lack /opt/hostedtoolcache, which setup-python and setup-qemu expect
     - name: Ensure hostedtoolcache exists
-      if: inputs.setup-python == 'true'
       shell: bash
       run: sudo mkdir -p /opt/hostedtoolcache && sudo chown $USER:$USER /opt/hostedtoolcache
 
