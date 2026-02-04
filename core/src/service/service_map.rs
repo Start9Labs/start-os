@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -88,17 +88,77 @@ impl ServiceMap {
 
     #[instrument(skip_all)]
     pub async fn init(&self, ctx: &RpcContext) -> Result<(), Error> {
-        let ids = ctx.db.peek().await.as_public().as_package_data().keys()?;
-        let mut jobs = FuturesUnordered::new();
+        let db = ctx.db.peek().await;
+        let ids = db.as_public().as_package_data().keys()?;
+        
+        // Build dependency map for all packages
+        let mut dependencies: BTreeMap<PackageId, BTreeSet<PackageId>> = BTreeMap::new();
         for id in &ids {
-            jobs.push(self.load(ctx, id, LoadDisposition::Retry));
-        }
-        while let Some(res) = jobs.next().await {
-            if let Err(e) = res {
-                tracing::error!("Error loading installed package as service: {e}");
-                tracing::debug!("{e:?}");
+            if let Some(pde) = db.as_public().as_package_data().as_idx(&id) {
+                let deps: BTreeSet<PackageId> = pde
+                    .as_current_dependencies()
+                    .de()?
+                    .0
+                    .keys()
+                    .cloned()
+                    .collect();
+                dependencies.insert(id.clone(), deps);
             }
         }
+        
+        let mut remaining: BTreeSet<PackageId> = ids.iter().cloned().collect();
+        
+        while !remaining.is_empty() {
+            // Find packages with no remaining dependencies
+            let can_load: Vec<PackageId> = remaining
+                .iter()
+                .filter(|pkg_id| {
+                    // A package can be loaded if none of its dependencies are still in the remaining set
+                    if let Some(deps) = dependencies.get(*pkg_id) {
+                        !deps.iter().any(|dep| remaining.contains(dep))
+                    } else {
+                        true
+                    }
+                })
+                .cloned()
+                .collect();
+            
+            if can_load.is_empty() {
+                // Dependency cycle detected, load remaining packages anyway
+                tracing::warn!(
+                    "Dependency cycle detected, loading remaining packages in arbitrary order"
+                );
+                let mut jobs = FuturesUnordered::new();
+                for id in &remaining {
+                    jobs.push(self.load(ctx, id, LoadDisposition::Retry));
+                }
+                while let Some(res) = jobs.next().await {
+                    if let Err(e) = res {
+                        tracing::error!("Error loading installed package as service: {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                }
+                break;
+            }
+            
+            // Remove from remaining set
+            for id in &can_load {
+                remaining.remove(id);
+            }
+            
+            // Load packages with no remaining dependencies concurrently
+            let mut jobs = FuturesUnordered::new();
+            for id in &can_load {
+                jobs.push(self.load(ctx, id, LoadDisposition::Retry));
+            }
+            while let Some(res) = jobs.next().await {
+                if let Err(e) = res {
+                    tracing::error!("Error loading installed package as service: {e}");
+                    tracing::debug!("{e:?}");
+                }
+            }
+        }
+        
         Ok(())
     }
 
