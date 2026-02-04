@@ -5,6 +5,7 @@ import {
   ErrorService,
   i18nKey,
   i18nPipe,
+  i18nService,
   LoadingService,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -27,6 +28,7 @@ export class StandardActionsService {
   private readonly loader = inject(LoadingService)
   private readonly router = inject(Router)
   private readonly i18n = inject(i18nPipe)
+  private readonly i18nService = inject(i18nService)
 
   async rebuild(id: string) {
     const loader = this.loader.open('Rebuilding container').subscribe()
@@ -50,11 +52,12 @@ export class StandardActionsService {
   ): Promise<void> {
     let content = soft
       ? ''
-      : alerts.uninstall ||
-        `${this.i18n.transform('Uninstalling')} ${title} ${this.i18n.transform('will permanently delete its data.')}`
+      : alerts.uninstall
+        ? this.i18nService.localize(alerts.uninstall)
+        : `${this.i18n.transform('Uninstalling')} ${title} ${this.i18n.transform('will permanently delete its data.')}`
 
     if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
-      content = `${content}${content ? ' ' : ''}${this.i18n.transform('Services that depend on')} ${title} ${this.i18n.transform('will no longer work properly and may crash.')}`
+      content = `${content ? `${content} ` : ''}${this.i18n.transform('Services that depend on')} ${title} ${this.i18n.transform('will no longer work properly and may crash.')}`
     }
 
     if (!content) {
