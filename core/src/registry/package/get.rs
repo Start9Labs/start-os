@@ -15,6 +15,7 @@ use crate::progress::{FullProgressTracker, ProgressUnits};
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
 use crate::registry::package::index::{PackageIndex, PackageVersionInfo};
+use crate::s9pk::manifest::LocaleString;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::util::VersionString;
@@ -38,11 +39,11 @@ impl Default for PackageDetailLevel {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct PackageInfoShort {
-    pub release_notes: String,
+    pub release_notes: LocaleString,
 }
 
 #[derive(Debug, Deserialize, Serialize, TS, Parser, HasModel)]
@@ -89,17 +90,20 @@ impl GetPackageResponse {
 
             let lesser_versions: BTreeMap<_, _> = self
                 .other_versions
-                .as_ref()
+                .clone()
                 .into_iter()
                 .flatten()
-                .filter(|(v, _)| ***v < *version)
+                .filter(|(v, _)| **v < *version)
                 .collect();
 
             if !lesser_versions.is_empty() {
                 table.add_row(row![bc => "OLDER VERSIONS"]);
                 table.add_row(row![bc => "VERSION", "RELEASE NOTES"]);
                 for (version, info) in lesser_versions {
-                    table.add_row(row![AsRef::<str>::as_ref(version), &info.release_notes]);
+                    table.add_row(row![
+                        AsRef::<str>::as_ref(&version),
+                        &info.release_notes.localized()
+                    ]);
                 }
             }
 
@@ -568,4 +572,43 @@ pub async fn cli_download(
     println!("{}", t!("registry.package.get.download-complete"));
 
     Ok(())
+}
+
+#[test]
+fn check_matching_info_short() {
+    use crate::registry::package::index::PackageMetadata;
+    use crate::s9pk::manifest::{Alerts, Description};
+    use crate::util::DataUrl;
+
+    let lang_map = |s: &str| {
+        LocaleString::LanguageMap([("en".into(), s.into())].into_iter().collect())
+    };
+
+    let info = PackageVersionInfo {
+        metadata: PackageMetadata {
+            title: "Test Package".into(),
+            icon: DataUrl::from_vec("image/png", vec![]),
+            description: Description {
+                short: lang_map("A short description"),
+                long: lang_map("A longer description of the test package"),
+            },
+            release_notes: lang_map("Initial release"),
+            git_hash: None,
+            license: "MIT".into(),
+            wrapper_repo: "https://github.com/example/wrapper".parse().unwrap(),
+            upstream_repo: "https://github.com/example/upstream".parse().unwrap(),
+            support_site: "https://example.com/support".parse().unwrap(),
+            marketing_site: "https://example.com".parse().unwrap(),
+            donation_url: None,
+            docs_url: None,
+            alerts: Alerts::default(),
+            dependency_metadata: BTreeMap::new(),
+            os_version: exver::Version::new([0, 3, 6], []),
+            sdk_version: None,
+            hardware_acceleration: false,
+        },
+        source_version: None,
+        s9pks: Vec::new(),
+    };
+    from_value::<PackageInfoShort>(to_value(&info).unwrap()).unwrap();
 }
