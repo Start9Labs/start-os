@@ -14,6 +14,14 @@ import {
   VersionInfo,
   SetPasswordReq,
   SetPreferencesReq,
+  VpnServerDeleteArgs,
+  VpnServerPeerAddArgs,
+  VpnServerPeerAddResponse,
+  VpnServerPeerDeleteArgs,
+  VpnServerSetArgs,
+  VpnServers,
+  WifiConfig,
+  BlackoutWindow,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -73,5 +81,46 @@ export class LiveApiService extends ApiService {
 
   async setPreferences(params: SetPreferencesReq): Promise<null> {
     return this.rpc.request({ method: 'system.set-preferences', params })
+  }
+
+  async vpnServerList(): Promise<VpnServers> {
+    return this.rpc.request({ method: 'vpn-server.list', params: {} })
+  }
+
+  async vpnServerSet(params: VpnServerSetArgs): Promise<null> {
+    return this.rpc.request({ method: 'vpn-server.set', params })
+  }
+
+  async vpnServerDelete(params: VpnServerDeleteArgs): Promise<null> {
+    return this.rpc.request({ method: 'vpn-server.delete', params })
+  }
+
+  async vpnServerPeerAdd(
+    params: VpnServerPeerAddArgs,
+  ): Promise<VpnServerPeerAddResponse> {
+    return this.rpc.request({ method: 'vpn-server.peer-add', params })
+  }
+
+  async vpnServerPeerDelete(params: VpnServerPeerDeleteArgs): Promise<null> {
+    return this.rpc.request({ method: 'vpn-server.peer-delete', params })
+  }
+
+  async wifiGet(): Promise<WifiConfig> {
+    return this.rpc.request({ method: 'wifi.get', params: {} })
+  }
+
+  async wifiSet(params: WifiConfig): Promise<null> {
+    return this.rpc.request({ method: 'wifi.set', params })
+  }
+
+  async wifiBlackoutGet(): Promise<BlackoutWindow[]> {
+    return this.rpc.request({ method: 'wifi.blackout-get', params: {} })
+  }
+
+  async wifiBlackoutSet(params: BlackoutWindow[]): Promise<null> {
+    return this.rpc.request({
+      method: 'wifi.blackout-set',
+      params: { windows: params },
+    })
   }
 }

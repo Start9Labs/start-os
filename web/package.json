@@ -27,6 +27,7 @@
     "@taiga-ui/kit": "5.0.0-rc.2",
     "@taiga-ui/layout": "5.0.0-rc.2",
     "marked": "^17.0.1",
+    "ng-qrcode": "^21.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

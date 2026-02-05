@@ -148,7 +148,7 @@ export default class SshKeys implements OnInit {
 
   protected add() {
     this.dialogs
-      .open<string>(ADD_SSH_KEY, { label: 'Add SSH Key', size: 's' })
+      .open<string>(ADD_SSH_KEY, { label: 'Add SSH Key' })
       .subscribe(async rawKey => {
         const newKey = parseAuthorizedKey(rawKey)
         const updated = [...(this.keys() ?? []), newKey]

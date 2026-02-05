@@ -6,7 +6,6 @@ import {
   firstValueFrom,
   merge,
   share,
-  skip,
   Subject,
   switchMap,
   timer,
@@ -37,7 +36,7 @@ export abstract class FormService<T> {
   async save(data: T): Promise<boolean> {
     return this.actions.run(async () => {
       await this.store(data).then(() => this.refresh())
-      await firstValueFrom(this.value$.pipe(skip(1)))
+      await firstValueFrom(this.value$)
     })
   }
 }

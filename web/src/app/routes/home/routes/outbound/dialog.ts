@@ -70,9 +70,7 @@ import { getAddOutboundVpnForm, OUTBOUND_VALIDATION_ERRORS } from './utils'
         >
           Cancel
         </button>
-        <button tuiButton [disabled]="form.invalid" (click)="save()">
-          Add VPN
-        </button>
+        <button tuiButton (click)="save()">Add VPN</button>
       </footer>
     </form>
   `,
@@ -101,7 +99,7 @@ import { getAddOutboundVpnForm, OUTBOUND_VALIDATION_ERRORS } from './utils'
     OutboundDialogAside,
   ],
 })
-export class AddVPN {
+class AddClient {
   protected readonly context = injectContext<TuiDialogContext<any, string[]>>()
   protected readonly form = getAddOutboundVpnForm(
     inject(NonNullableFormBuilder),
@@ -124,4 +122,4 @@ export class AddVPN {
   }
 }
 
-export const ADD = new PolymorpheusComponent(AddVPN)
+export const ADD_CLIENT = new PolymorpheusComponent(AddClient)

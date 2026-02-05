@@ -31,27 +31,24 @@ import { DevicesService } from '../../service'
         tuiChevron
         size="s"
         appearance="secondary-grayscale"
-        [tuiDropdown]="periodDropdown"
-        [(tuiDropdownOpen)]="dropdownOpen"
+        tuiDropdown
+        tuiDropdownAuto
         [tuiSkeleton]="loading()"
       >
         {{ periodLabels[selectedPeriod()] }}
-      </button>
-      <ng-template #periodDropdown>
-        <tui-data-list size="s">
+        <tui-data-list *tuiDropdown="let close" size="s" (click)="close()">
           @for (period of periods; track period) {
             <button
               tuiOption
-              new
               type="button"
               [value]="period"
-              (click)="selectPeriod(period)"
+              (click)="selectedPeriod.set(period)"
             >
               {{ periodLabels[period] }}
             </button>
           }
         </tui-data-list>
-      </ng-template>
+      </button>
     </header>
     @if (loading() || initialLoading()) {
       <div class="chart-legend">
@@ -73,7 +70,6 @@ import { DevicesService } from '../../service'
         </span>
       </div>
       <tui-axes
-        axisY="none"
         [axisXLabels]="xLabels()"
         [axisYSecondaryLabels]="yLabels()"
         [horizontalLines]="3"
@@ -185,7 +181,6 @@ export class DataUsageChart {
   protected readonly selectedPeriod = signal<DataUsagePeriod>('week')
   protected readonly initialLoading = signal(true)
   protected readonly dataPoints = signal<DataUsagePoint[]>([])
-  protected dropdownOpen = false
 
   // Convert data to line chart format using absolute coordinates
   protected readonly chartLines = computed((): TuiPoint[][] => {
@@ -258,11 +253,6 @@ export class DataUsageChart {
         this.loadDataUsage(mac, period)
       }
     })
-  }
-
-  protected selectPeriod(period: DataUsagePeriod) {
-    this.selectedPeriod.set(period)
-    this.dropdownOpen = false
   }
 
   private async loadDataUsage(mac: string, period: DataUsagePeriod) {

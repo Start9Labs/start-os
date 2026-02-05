@@ -8,7 +8,12 @@ import {
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import { TuiTable, TuiTableDirective } from '@taiga-ui/addon-table'
-import { TuiDataList, TuiDropdown, TuiLink } from '@taiga-ui/core'
+import {
+  TuiAppearance,
+  TuiDataList,
+  TuiDropdown,
+  TuiLink,
+} from '@taiga-ui/core'
 import { TuiBadge, TuiButtonSelect, TuiChevron } from '@taiga-ui/kit'
 
 import { EthernetPort, EthernetService } from './service'
@@ -53,7 +58,12 @@ import { EthernetPort, EthernetService } from './service'
                     }
                   </tui-opt-group>
                   <tui-opt-group>
-                    <a tuiOption iconStart="@tui.pencil" routerLink="/profiles">
+                    <a
+                      tuiOption
+                      tuiAppearance="action"
+                      iconEnd="@tui.user-lock"
+                      routerLink="/profiles"
+                    >
                       Manage Profiles
                     </a>
                   </tui-opt-group>
@@ -89,6 +99,7 @@ import { EthernetPort, EthernetService } from './service'
     TuiChevron,
     TuiBadge,
     RouterLink,
+    TuiAppearance,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

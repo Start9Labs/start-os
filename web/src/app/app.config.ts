@@ -54,7 +54,7 @@ export const appConfig: ApplicationConfig = {
     tuiFormOptionsProvider({ size: 'm' }),
     tuiCardOptionsProvider({ space: 'compact' }),
     tuiDropdownOptionsProvider({ appearance: 'start-9' }),
-    tuiDialogOptionsProvider({ appearance: 'start-9 taiga' }),
+    tuiDialogOptionsProvider({ appearance: 'start-9 taiga', size: 's' }),
     tuiSheetDialogOptionsProvider({
       appearance: 'start-9 taiga',
       bar: false,

@@ -12,7 +12,7 @@ import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { Help } from 'src/app/directives/help'
 import { Placeholder } from 'src/app/routes/home/components/placeholder'
-import { ADD } from 'src/app/routes/home/routes/outbound/dialog'
+import { ADD_CLIENT } from 'src/app/routes/home/routes/outbound/dialog'
 import { OutboundService } from 'src/app/routes/home/routes/outbound/service'
 
 import { OutboundAside } from './aside'
@@ -21,7 +21,7 @@ import { OutboundAside } from './aside'
   template: `
     <outbound-aside *help />
     <header tuiHeader>
-      <hgroup tuiTitle><h2>Outbound VPNs (Clients)</h2></hgroup>
+      <hgroup tuiTitle><h2>Outbound VPNs</h2></hgroup>
       <aside tuiAccessories>
         @if (service.data()) {
           <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
@@ -31,7 +31,7 @@ import { OutboundAside } from './aside'
     <table tuiTable size="m" class="g-table" [tuiSkeleton]="!service.data()">
       <thead tuiThead>
         <tr>
-          <th tuiTh [style.width.rem]="5" [sorter]="'enabled' | tuiSorter"></th>
+          <th tuiTh [sorter]="'enabled' | tuiSorter" [style.width.rem]="3"></th>
           <th tuiTh [sorter]="'label' | tuiSorter">Label</th>
           <th tuiTh [sorter]="'target' | tuiSorter">Connects to</th>
           <th tuiTh>Used by</th>
@@ -60,7 +60,7 @@ import { OutboundAside } from './aside'
         } @empty {
           <tr>
             <td tuiTd colspan="4">
-              <app-placeholder icon="@tui.globe-lock">
+              <app-placeholder icon="@tui.hat-glasses">
                 No Outbound VPN Clients configured
               </app-placeholder>
             </td>
@@ -72,6 +72,10 @@ import { OutboundAside } from './aside'
   styles: `
     :host {
       max-width: 50rem;
+    }
+
+    td:first-child {
+      text-align: center;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -98,7 +102,7 @@ export default class OutboundTable {
     const data = ['Internet', ...existing.map(v => v.label)]
 
     this.dialogs
-      .open<any>(ADD, { label: 'Add Outbound VPN', size: 's', data })
+      .open<any>(ADD_CLIENT, { label: 'Add Outbound VPN', data })
       .subscribe(async ({ label, target, config }) => {
         await this.service.create({ label, target, config })
       })

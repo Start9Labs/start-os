@@ -186,7 +186,7 @@ export default class OutboundVPN {
 
   onDelete() {
     this.dialogs
-      .open(TUI_CONFIRM, { label: 'Are you sure?', size: 's' })
+      .open(TUI_CONFIRM, { label: 'Are you sure?' })
       .pipe(filter(Boolean))
       .subscribe(async () => {
         if (await this.service.remove(this.vpnId)) {
