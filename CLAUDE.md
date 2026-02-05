@@ -125,6 +125,21 @@ Git submodule providing diff-based state synchronization. Changes to `db/model/p
 The `agents/` directory contains detailed documentation for AI assistants:
 
 - `TODO.md` - Pending tasks for AI agents (check this first, remove items when completed)
+- `USER.md` - Current user identifier (gitignored, see below)
 - `rpc-toolkit.md` - JSON-RPC patterns and handler configuration
 - `core-rust-patterns.md` - Common utilities and patterns for Rust code in `/core` (guard pattern, mount guards, etc.)
 - `s9pk-structure.md` - S9PK package format structure
+
+### Session Startup
+
+On startup:
+
+1. **Check for `agents/USER.md`** - If it doesn't exist, prompt the user for their name/identifier and create it. This file is gitignored since it varies per developer.
+
+2. **Check `agents/TODO.md` for relevant tasks** - Show TODOs that either:
+   - Have no `@username` tag (relevant to everyone)
+   - Are tagged with the current user's identifier
+
+   Skip TODOs tagged with a different user.
+
+3. **Ask "What would you like to do today?"** - Offer options for each relevant TODO item, plus "Something else" for other requests.

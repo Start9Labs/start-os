@@ -21,3 +21,4 @@ secrets.db
 /build/lib/firmware
 tmp
 web/.i18n-checked
+agents/USER.md
