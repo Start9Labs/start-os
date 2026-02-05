@@ -129,6 +129,7 @@ The `agents/` directory contains detailed documentation for AI assistants:
 - `rpc-toolkit.md` - JSON-RPC patterns and handler configuration
 - `core-rust-patterns.md` - Common utilities and patterns for Rust code in `/core` (guard pattern, mount guards, etc.)
 - `s9pk-structure.md` - S9PK package format structure
+- `i18n-patterns.md` - Internationalization key conventions and usage in `/core`
 
 ### Session Startup
 
