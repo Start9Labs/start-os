@@ -1,12 +1,12 @@
-import { DEFAULT_SIGTERM_TIMEOUT } from "."
-import { NO_TIMEOUT, SIGTERM } from "../../../base/lib/types"
+import { DEFAULT_SIGTERM_TIMEOUT } from '.'
+import { NO_TIMEOUT, SIGTERM } from '../../../base/lib/types'
 
-import * as T from "../../../base/lib/types"
-import { SubContainer } from "../util/SubContainer"
-import { Drop, splitCommand } from "../util"
-import * as cp from "child_process"
-import * as fs from "node:fs/promises"
-import { DaemonCommandType, ExecCommandOptions, ExecFnOptions } from "./Daemons"
+import * as T from '../../../base/lib/types'
+import { SubContainer } from '../util/SubContainer'
+import { Drop, splitCommand } from '../util'
+import * as cp from 'child_process'
+import * as fs from 'node:fs/promises'
+import { DaemonCommandType, ExecCommandOptions, ExecFnOptions } from './Daemons'
 
 export class CommandController<
   Manifest extends T.SDKManifest,
@@ -31,7 +31,7 @@ export class CommandController<
       exec: DaemonCommandType<Manifest, C>,
     ) => {
       try {
-        if ("fn" in exec) {
+        if ('fn' in exec) {
           const abort = new AbortController()
           const cell: { ctrl: CommandController<Manifest, C> } = {
             ctrl: new CommandController<Manifest, C>(
@@ -63,9 +63,9 @@ export class CommandController<
         if (T.isUseEntrypoint(exec.command)) {
           const imageMeta: T.ImageMetadata = await fs
             .readFile(`/media/startos/images/${subcontainer!.imageId}.json`, {
-              encoding: "utf8",
+              encoding: 'utf8',
             })
-            .catch(() => "{}")
+            .catch(() => '{}')
             .then(JSON.parse)
           commands = imageMeta.entrypoint ?? []
           commands = commands.concat(
@@ -85,21 +85,21 @@ export class CommandController<
             env: exec.env,
             user: exec.user,
             cwd: exec.cwd,
-            stdio: exec.onStdout || exec.onStderr ? "pipe" : "inherit",
+            stdio: exec.onStdout || exec.onStderr ? 'pipe' : 'inherit',
           })
         }
 
-        if (exec.onStdout) childProcess.stdout?.on("data", exec.onStdout)
-        if (exec.onStderr) childProcess.stderr?.on("data", exec.onStderr)
+        if (exec.onStdout) childProcess.stdout?.on('data', exec.onStdout)
+        if (exec.onStderr) childProcess.stderr?.on('data', exec.onStderr)
 
         const state = { exited: false }
         const answer = new Promise<null>((resolve, reject) => {
-          childProcess.on("exit", (code) => {
+          childProcess.on('exit', (code) => {
             state.exited = true
             if (
               code === 0 ||
               code === 143 ||
-              (code === null && childProcess.signalCode == "SIGTERM")
+              (code === null && childProcess.signalCode == 'SIGTERM')
             ) {
               return resolve(null)
             }
@@ -142,7 +142,7 @@ export class CommandController<
           new Promise((_, reject) =>
             setTimeout(
               () =>
-                reject(new Error("Timed out waiting for js command to exit")),
+                reject(new Error('Timed out waiting for js command to exit')),
               timeout * 2,
             ),
           ),
@@ -151,7 +151,7 @@ export class CommandController<
     } finally {
       if (!this.state.exited) {
         if (this.process instanceof AbortController) this.process.abort()
-        else this.process.kill("SIGKILL")
+        else this.process.kill('SIGKILL')
       }
       await this.subcontainer?.destroy()
     }
@@ -161,10 +161,10 @@ export class CommandController<
       if (!this.state.exited) {
         if (this.process instanceof AbortController) return this.process.abort()
 
-        if (signal !== "SIGKILL") {
+        if (signal !== 'SIGKILL') {
           setTimeout(() => {
             if (this.process instanceof AbortController) this.process.abort()
-            else this.process.kill("SIGKILL")
+            else this.process.kill('SIGKILL')
           }, timeout)
         }
         if (!this.process.kill(signal)) {
@@ -180,7 +180,7 @@ export class CommandController<
           new Promise((_, reject) =>
             setTimeout(
               () =>
-                reject(new Error("Timed out waiting for js command to exit")),
+                reject(new Error('Timed out waiting for js command to exit')),
               timeout * 2,
             ),
           ),

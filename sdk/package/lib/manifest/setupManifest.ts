@@ -1,12 +1,12 @@
-import * as T from "../../../base/lib/types"
-import { ImageConfig, ImageId, VolumeId } from "../../../base/lib/types"
+import * as T from '../../../base/lib/types'
+import { ImageConfig, ImageId, VolumeId } from '../../../base/lib/types'
 import {
   SDKManifest,
   SDKImageInputSpec,
-} from "../../../base/lib/types/ManifestTypes"
-import { OSVersion } from "../StartSdk"
-import { VersionGraph } from "../version/VersionGraph"
-import { version as sdkVersion } from "../../package.json"
+} from '../../../base/lib/types/ManifestTypes'
+import { OSVersion } from '../StartSdk'
+import { VersionGraph } from '../version/VersionGraph'
+import { version as sdkVersion } from '../../package.json'
 
 /**
  * @description Use this function to define critical information about your package
@@ -42,10 +42,10 @@ export function buildManifest<
 ): Manifest & T.Manifest {
   const images = Object.entries(manifest.images).reduce(
     (images, [k, v]) => {
-      v.arch = v.arch ?? ["aarch64", "x86_64", "riscv64"]
+      v.arch = v.arch ?? ['aarch64', 'x86_64', 'riscv64']
       if (v.emulateMissingAs === undefined)
-        v.emulateMissingAs = (v.arch as string[]).includes("x86_64")
-          ? "x86_64"
+        v.emulateMissingAs = (v.arch as string[]).includes('x86_64')
+          ? 'x86_64'
           : (v.arch[0] ?? null)
       v.nvidiaContainer = !!v.nvidiaContainer
       images[k] = v as ImageConfig

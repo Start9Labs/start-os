@@ -1,5 +1,5 @@
-import * as fs from "node:fs/promises"
-import * as T from "../../../base/lib/types"
+import * as fs from 'node:fs/promises'
+import * as T from '../../../base/lib/types'
 
 /**
  * Common interface for objects that have a subpath method (Volume, SubContainer, etc.)
@@ -27,7 +27,7 @@ export class Volume<Id extends string = string> implements PathBase {
    * @param subpath Path relative to the volume root
    */
   subpath(subpath: string): string {
-    return subpath.startsWith("/")
+    return subpath.startsWith('/')
       ? `${this.path}${subpath}`
       : `${this.path}/${subpath}`
   }
@@ -61,7 +61,7 @@ export class Volume<Id extends string = string> implements PathBase {
     options?: Parameters<typeof fs.writeFile>[2],
   ): Promise<void> {
     const fullPath = this.subpath(subpath)
-    const dir = fullPath.replace(/\/[^/]*\/?$/, "")
+    const dir = fullPath.replace(/\/[^/]*\/?$/, '')
     await fs.mkdir(dir, { recursive: true })
     return fs.writeFile(fullPath, data, options)
   }
@@ -71,7 +71,7 @@ export class Volume<Id extends string = string> implements PathBase {
  * Type-safe volumes object that provides Volume instances for each volume defined in the manifest
  */
 export type Volumes<Manifest extends T.SDKManifest> = {
-  [K in Manifest["volumes"][number]]: Volume<K>
+  [K in Manifest['volumes'][number]]: Volume<K>
 }
 
 /**

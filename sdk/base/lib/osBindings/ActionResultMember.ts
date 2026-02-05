@@ -11,7 +11,7 @@ export type ActionResultMember = {
   description: string | null
 } & (
   | {
-      type: "single"
+      type: 'single'
       /**
        * The actual string value to display
        */
@@ -30,7 +30,7 @@ export type ActionResultMember = {
       masked: boolean
     }
   | {
-      type: "group"
+      type: 'group'
       /**
        * An new group of nested values, experienced by the user as an accordion dropdown
        */

@@ -1,10 +1,10 @@
-import { Effects, HealthCheckId } from "../../../base/lib/types"
-import { HealthCheckResult } from "./checkFns/HealthCheckResult"
-import { Trigger } from "../trigger"
-import { TriggerInput } from "../trigger/TriggerInput"
-import { defaultTrigger } from "../trigger/defaultTrigger"
-import { once, asError, Drop } from "../util"
-import { object, unknown } from "ts-matches"
+import { Effects, HealthCheckId } from '../../../base/lib/types'
+import { HealthCheckResult } from './checkFns/HealthCheckResult'
+import { Trigger } from '../trigger'
+import { TriggerInput } from '../trigger/TriggerInput'
+import { defaultTrigger } from '../trigger/defaultTrigger'
+import { once, asError, Drop } from '../util'
+import { object, unknown } from 'ts-matches'
 
 export type HealthCheckParams = {
   id: HealthCheckId
@@ -59,15 +59,15 @@ export class HealthCheck extends Drop {
             try {
               let { result, message } = await o.fn()
               if (
-                result === "failure" &&
+                result === 'failure' &&
                 performance.now() - started <= gracePeriod
               )
-                result = "starting"
+                result = 'starting'
               await effects.setHealth({
                 name: o.name,
                 id: o.id,
                 result,
-                message: message || "",
+                message: message || '',
               })
               this.currentValue.lastResult = result
             } catch (e) {
@@ -76,11 +76,11 @@ export class HealthCheck extends Drop {
                 id: o.id,
                 result:
                   performance.now() - started <= gracePeriod
-                    ? "starting"
-                    : "failure",
-                message: asMessage(e) || "",
+                    ? 'starting'
+                    : 'failure',
+                message: asMessage(e) || '',
               })
-              this.currentValue.lastResult = "failure"
+              this.currentValue.lastResult = 'failure'
             }
           }
         } else triggered = false

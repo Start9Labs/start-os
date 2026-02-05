@@ -1,5 +1,5 @@
-import { Trigger } from "."
-import { HealthStatus } from "../../../base/lib/types"
+import { Trigger } from '.'
+import { HealthStatus } from '../../../base/lib/types'
 
 export type LastStatusTriggerParams = { [k in HealthStatus]?: Trigger } & {
   default: Trigger
@@ -15,13 +15,13 @@ export function lastStatus(o: LastStatusTriggerParams): Trigger {
     }
     while (true) {
       let currentValue = getInput()
-      let prev: HealthStatus | "default" | undefined = currentValue.lastResult
+      let prev: HealthStatus | 'default' | undefined = currentValue.lastResult
       if (!prev) {
         yield
         continue
       }
       if (!(prev in o)) {
-        prev = "default"
+        prev = 'default'
       }
       if (!triggers[prev]) {
         triggers[prev] = o[prev]!(getInput)

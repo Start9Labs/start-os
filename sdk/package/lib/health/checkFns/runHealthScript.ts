@@ -1,7 +1,7 @@
-import { HealthCheckResult } from "./HealthCheckResult"
-import { timeoutPromise } from "./index"
-import { SubContainer } from "../../util/SubContainer"
-import { SDKManifest } from "../../types"
+import { HealthCheckResult } from './HealthCheckResult'
+import { timeoutPromise } from './index'
+import { SubContainer } from '../../util/SubContainer'
+import { SDKManifest } from '../../types'
 
 /**
  * Running a health script, is used when we want to have a simple
@@ -27,10 +27,10 @@ export const runHealthScript = async <Manifest extends SDKManifest>(
     console.warn(errorMessage)
     console.warn(JSON.stringify(e))
     console.warn(e.toString())
-    throw { result: "failure", message: errorMessage } as HealthCheckResult
+    throw { result: 'failure', message: errorMessage } as HealthCheckResult
   })
   return {
-    result: "success",
+    result: 'success',
     message: message(res.stdout.toString()),
   } as HealthCheckResult
 }

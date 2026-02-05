@@ -1,7 +1,7 @@
-import { containsAddress } from "../health/checkFns/checkPortListening"
+import { containsAddress } from '../health/checkFns/checkPortListening'
 
-describe("Health ready check", () => {
-  it("Should be able to parse an example information", () => {
+describe('Health ready check', () => {
+  it('Should be able to parse an example information', () => {
     let input = `
   
   sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     

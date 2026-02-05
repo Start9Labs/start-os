@@ -1,13 +1,13 @@
-import * as fs from "fs/promises"
-import * as T from "../../../base/lib/types"
-import * as cp from "child_process"
-import { promisify } from "util"
-import { Buffer } from "node:buffer"
-import { once } from "../../../base/lib/util/once"
-import { Drop } from "../../../base/lib/util/Drop"
-import { Mounts } from "../mainFn/Mounts"
-import { BackupEffects } from "../backup/Backups"
-import { PathBase } from "./Volume"
+import * as fs from 'fs/promises'
+import * as T from '../../../base/lib/types'
+import * as cp from 'child_process'
+import { promisify } from 'util'
+import { Buffer } from 'node:buffer'
+import { once } from '../../../base/lib/util/once'
+import { Drop } from '../../../base/lib/util/Drop'
+import { Mounts } from '../mainFn/Mounts'
+import { BackupEffects } from '../backup/Backups'
+import { PathBase } from './Volume'
 
 export const execFile = promisify(cp.execFile)
 const False = () => false
@@ -28,20 +28,20 @@ const TIMES_TO_WAIT_FOR_PROC = 100
 async function prepBind(
   from: string | null,
   to: string,
-  type: "file" | "directory" | "infer",
+  type: 'file' | 'directory' | 'infer',
 ) {
   const fromMeta = from ? await fs.stat(from).catch((_) => null) : null
   const toMeta = await fs.stat(to).catch((_) => null)
 
-  if (type === "file" || (type === "infer" && from && fromMeta?.isFile())) {
+  if (type === 'file' || (type === 'infer' && from && fromMeta?.isFile())) {
     if (toMeta && toMeta.isDirectory()) await fs.rmdir(to, { recursive: false })
     if (from && !fromMeta) {
-      await fs.mkdir(from.replace(/\/[^\/]*\/?$/, ""), { recursive: true })
-      await fs.writeFile(from, "")
+      await fs.mkdir(from.replace(/\/[^\/]*\/?$/, ''), { recursive: true })
+      await fs.writeFile(from, '')
     }
     if (!toMeta) {
-      await fs.mkdir(to.replace(/\/[^\/]*\/?$/, ""), { recursive: true })
-      await fs.writeFile(to, "")
+      await fs.mkdir(to.replace(/\/[^\/]*\/?$/, ''), { recursive: true })
+      await fs.writeFile(to, '')
     }
   } else {
     if (toMeta && toMeta.isFile() && !toMeta.size) await fs.rm(to)
@@ -53,20 +53,20 @@ async function prepBind(
 async function bind(
   from: string,
   to: string,
-  type: "file" | "directory" | "infer",
+  type: 'file' | 'directory' | 'infer',
   idmap: IdMap[],
 ) {
   await prepBind(from, to, type)
 
-  const args = ["--bind"]
+  const args = ['--bind']
 
   if (idmap.length) {
     args.push(
-      `-oX-mount.idmap=${idmap.map((i) => `b:${i.fromId}:${i.toId}:${i.range}`).join(" ")}`,
+      `-oX-mount.idmap=${idmap.map((i) => `b:${i.fromId}:${i.toId}:${i.range}`).join(' ')}`,
     )
   }
 
-  await execFile("mount", [...args, from, to])
+  await execFile('mount', [...args, from, to])
 }
 
 export interface SubContainer<
@@ -74,7 +74,7 @@ export interface SubContainer<
   Effects extends T.Effects = T.Effects,
 > extends Drop,
     PathBase {
-  readonly imageId: keyof Manifest["images"] & T.ImageId
+  readonly imageId: keyof Manifest['images'] & T.ImageId
   readonly rootfs: string
   readonly guid: T.Guid
 
@@ -185,21 +185,21 @@ export class SubContainerOwned<
   private waitProc: () => Promise<null>
   private constructor(
     readonly effects: Effects,
-    readonly imageId: keyof Manifest["images"] & T.ImageId,
+    readonly imageId: keyof Manifest['images'] & T.ImageId,
     readonly rootfs: string,
     readonly guid: T.Guid,
   ) {
     super()
     this.leaderExited = false
     this.leader = cp.spawn(
-      "start-container",
-      ["subcontainer", "launch", rootfs],
+      'start-container',
+      ['subcontainer', 'launch', rootfs],
       {
-        killSignal: "SIGKILL",
-        stdio: "inherit",
+        killSignal: 'SIGKILL',
+        stdio: 'inherit',
       },
     )
-    this.leader.on("exit", () => {
+    this.leader.on('exit', () => {
       this.leaderExited = true
     })
     this.waitProc = once(
@@ -210,7 +210,7 @@ export class SubContainerOwned<
             !(await fs.stat(`${this.rootfs}/proc/1`).then((x) => !!x, False))
           ) {
             if (count++ > TIMES_TO_WAIT_FOR_PROC) {
-              console.debug("Failed to start subcontainer", {
+              console.debug('Failed to start subcontainer', {
                 guid: this.guid,
                 imageId: this.imageId,
                 rootfs: this.rootfs,
@@ -228,7 +228,7 @@ export class SubContainerOwned<
   static async of<Manifest extends T.SDKManifest, Effects extends T.Effects>(
     effects: Effects,
     image: {
-      imageId: keyof Manifest["images"] & T.ImageId
+      imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
     mounts:
@@ -256,20 +256,20 @@ export class SubContainerOwned<
       if (mounts) {
         await res.mount(mounts)
       }
-      const shared = ["dev", "sys"]
+      const shared = ['dev', 'sys']
       if (!!sharedRun) {
-        shared.push("run")
+        shared.push('run')
       }
 
       await fs.mkdir(`${rootfs}/etc`, { recursive: true })
-      await fs.copyFile("/etc/resolv.conf", `${rootfs}/etc/resolv.conf`)
+      await fs.copyFile('/etc/resolv.conf', `${rootfs}/etc/resolv.conf`)
 
       for (const dirPart of shared) {
         const from = `/${dirPart}`
         const to = `${rootfs}/${dirPart}`
         await fs.mkdir(from, { recursive: true })
         await fs.mkdir(to, { recursive: true })
-        await execFile("mount", ["--rbind", from, to])
+        await execFile('mount', ['--rbind', from, to])
       }
 
       return res
@@ -286,7 +286,7 @@ export class SubContainerOwned<
   >(
     effects: Effects,
     image: {
-      imageId: keyof Manifest["images"] & T.ImageId
+      imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
     mounts:
@@ -317,7 +317,7 @@ export class SubContainerOwned<
   }
 
   subpath(path: string): string {
-    return path.startsWith("/")
+    return path.startsWith('/')
       ? `${this.rootfs}${path}`
       : `${this.rootfs}/${path}`
   }
@@ -335,36 +335,36 @@ export class SubContainerOwned<
   ): Promise<this> {
     for (let mount of mounts.build()) {
       let { options, mountpoint } = mount
-      const path = mountpoint.startsWith("/")
+      const path = mountpoint.startsWith('/')
         ? `${this.rootfs}${mountpoint}`
         : `${this.rootfs}/${mountpoint}`
-      if (options.type === "volume") {
+      if (options.type === 'volume') {
         const subpath = options.subpath
-          ? options.subpath.startsWith("/")
+          ? options.subpath.startsWith('/')
             ? options.subpath
             : `/${options.subpath}`
-          : "/"
+          : '/'
         const from = `/media/startos/volumes/${options.volumeId}${subpath}`
 
         await bind(from, path, options.filetype, options.idmap)
-      } else if (options.type === "assets") {
+      } else if (options.type === 'assets') {
         const subpath = options.subpath
-          ? options.subpath.startsWith("/")
+          ? options.subpath.startsWith('/')
             ? options.subpath
             : `/${options.subpath}`
-          : "/"
+          : '/'
         const from = `/media/startos/assets/${subpath}`
 
         await bind(from, path, options.filetype, options.idmap)
-      } else if (options.type === "pointer") {
-        await prepBind(null, path, "directory")
+      } else if (options.type === 'pointer') {
+        await prepBind(null, path, 'directory')
         await this.effects.mount({ location: path, target: options })
-      } else if (options.type === "backup") {
+      } else if (options.type === 'backup') {
         const subpath = options.subpath
-          ? options.subpath.startsWith("/")
+          ? options.subpath.startsWith('/')
             ? options.subpath
             : `/${options.subpath}`
-          : "/"
+          : '/'
         const from = `/media/startos/backup${subpath}`
 
         await bind(from, path, options.filetype, options.idmap)
@@ -381,13 +381,13 @@ export class SubContainerOwned<
     }
     return new Promise<null>((resolve, reject) => {
       try {
-        let timeout = setTimeout(() => this.leader.kill("SIGKILL"), 30000)
-        this.leader.on("exit", () => {
+        let timeout = setTimeout(() => this.leader.kill('SIGKILL'), 30000)
+        this.leader.on('exit', () => {
           clearTimeout(timeout)
           resolve(null)
         })
-        if (!this.leader.kill("SIGTERM")) {
-          reject(new Error("kill(2) failed"))
+        if (!this.leader.kill('SIGTERM')) {
+          reject(new Error('kill(2) failed'))
         }
       } catch (e) {
         reject(e)
@@ -435,17 +435,17 @@ export class SubContainerOwned<
     await this.waitProc()
     const imageMeta: T.ImageMetadata = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
-        encoding: "utf8",
+        encoding: 'utf8',
       })
-      .catch(() => "{}")
+      .catch(() => '{}')
       .then(JSON.parse)
     let extra: string[] = []
-    let user = imageMeta.user || "root"
+    let user = imageMeta.user || 'root'
     if (options?.user) {
       user = options.user
       delete options.user
     }
-    let workdir = imageMeta.workdir || "/"
+    let workdir = imageMeta.workdir || '/'
     if (options?.cwd) {
       workdir = options.cwd
       delete options.cwd
@@ -456,10 +456,10 @@ export class SubContainerOwned<
       }
     }
     const child = cp.spawn(
-      "start-container",
+      'start-container',
       [
-        "subcontainer",
-        "exec",
+        'subcontainer',
+        'exec',
         `--env-file=/media/startos/images/${this.imageId}.env`,
         `--user=${user}`,
         `--workdir=${workdir}`,
@@ -469,11 +469,11 @@ export class SubContainerOwned<
       ],
       options || {},
     )
-    abort?.signal.addEventListener("abort", () => child.kill("SIGKILL"))
+    abort?.signal.addEventListener('abort', () => child.kill('SIGKILL'))
     if (options?.input) {
       await new Promise<null>((resolve, reject) => {
         try {
-          child.stdin.on("error", (e) => reject(e))
+          child.stdin.on('error', (e) => reject(e))
           child.stdin.write(options.input, (e) => {
             if (e) {
               reject(e)
@@ -493,25 +493,25 @@ export class SubContainerOwned<
         }
       })
     }
-    const stdout = { data: "" as string }
-    const stderr = { data: "" as string }
+    const stdout = { data: '' as string }
+    const stderr = { data: '' as string }
     const appendData =
       (appendTo: { data: string }) => (chunk: string | Buffer | any) => {
-        if (typeof chunk === "string" || chunk instanceof Buffer) {
+        if (typeof chunk === 'string' || chunk instanceof Buffer) {
           appendTo.data += chunk.toString()
         } else {
-          console.error("received unexpected chunk", chunk)
+          console.error('received unexpected chunk', chunk)
         }
       }
     return new Promise((resolve, reject) => {
-      child.on("error", reject)
+      child.on('error', reject)
       let killTimeout: NodeJS.Timeout | undefined
       if (timeoutMs !== null && child.pid) {
-        killTimeout = setTimeout(() => child.kill("SIGKILL"), timeoutMs)
+        killTimeout = setTimeout(() => child.kill('SIGKILL'), timeoutMs)
       }
-      child.stdout.on("data", appendData(stdout))
-      child.stderr.on("data", appendData(stderr))
-      child.on("exit", (code, signal) => {
+      child.stdout.on('data', appendData(stdout))
+      child.stderr.on('data', appendData(stderr))
+      child.on('exit', (code, signal) => {
         clearTimeout(killTimeout)
         const result = {
           exitCode: code,
@@ -560,17 +560,17 @@ export class SubContainerOwned<
     await this.waitProc()
     const imageMeta: T.ImageMetadata = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
-        encoding: "utf8",
+        encoding: 'utf8',
       })
-      .catch(() => "{}")
+      .catch(() => '{}')
       .then(JSON.parse)
     let extra: string[] = []
-    let user = imageMeta.user || "root"
+    let user = imageMeta.user || 'root'
     if (options?.user) {
       user = options.user
       delete options.user
     }
-    let workdir = imageMeta.workdir || "/"
+    let workdir = imageMeta.workdir || '/'
     if (options?.cwd) {
       workdir = options.cwd
       delete options.cwd
@@ -585,10 +585,10 @@ export class SubContainerOwned<
     await this.killLeader()
     this.leaderExited = false
     this.leader = cp.spawn(
-      "start-container",
+      'start-container',
       [
-        "subcontainer",
-        "launch",
+        'subcontainer',
+        'launch',
         `--env-file=/media/startos/images/${this.imageId}.env`,
         `--user=${user}`,
         `--workdir=${workdir}`,
@@ -596,9 +596,9 @@ export class SubContainerOwned<
         this.rootfs,
         ...command,
       ],
-      { ...options, stdio: "inherit" },
+      { ...options, stdio: 'inherit' },
     )
-    this.leader.on("exit", () => {
+    this.leader.on('exit', () => {
       this.leaderExited = true
     })
     return this.leader as cp.ChildProcessWithoutNullStreams
@@ -606,22 +606,22 @@ export class SubContainerOwned<
 
   async spawn(
     command: string[],
-    options: CommandOptions & StdioOptions = { stdio: "inherit" },
+    options: CommandOptions & StdioOptions = { stdio: 'inherit' },
   ): Promise<cp.ChildProcess> {
     await this.waitProc()
     const imageMeta: T.ImageMetadata = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
-        encoding: "utf8",
+        encoding: 'utf8',
       })
-      .catch(() => "{}")
+      .catch(() => '{}')
       .then(JSON.parse)
     let extra: string[] = []
-    let user = imageMeta.user || "root"
+    let user = imageMeta.user || 'root'
     if (options?.user) {
       user = options.user
       delete options.user
     }
-    let workdir = imageMeta.workdir || "/"
+    let workdir = imageMeta.workdir || '/'
     if (options.cwd) {
       workdir = options.cwd
       delete options.cwd
@@ -634,10 +634,10 @@ export class SubContainerOwned<
       }
     }
     return cp.spawn(
-      "start-container",
+      'start-container',
       [
-        "subcontainer",
-        "exec",
+        'subcontainer',
+        'exec',
         `--env-file=/media/startos/images/${this.imageId}.env`,
         `--user=${user}`,
         `--workdir=${workdir}`,
@@ -665,7 +665,7 @@ export class SubContainerOwned<
     options?: Parameters<typeof fs.writeFile>[2],
   ): Promise<void> {
     const fullPath = this.subpath(path)
-    const dir = fullPath.replace(/\/[^/]*\/?$/, "")
+    const dir = fullPath.replace(/\/[^/]*\/?$/, '')
     await fs.mkdir(dir, { recursive: true })
     return fs.writeFile(fullPath, data, options)
   }
@@ -709,7 +709,7 @@ export class SubContainerRc<
   static async of<Manifest extends T.SDKManifest, Effects extends T.Effects>(
     effects: Effects,
     image: {
-      imageId: keyof Manifest["images"] & T.ImageId
+      imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
     mounts:
@@ -737,7 +737,7 @@ export class SubContainerRc<
   >(
     effects: Effects,
     image: {
-      imageId: keyof Manifest["images"] & T.ImageId
+      imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
     mounts:
@@ -783,7 +783,7 @@ export class SubContainerRc<
         const rcs = --this.subcontainer.rcs
         if (rcs <= 0) {
           this.destroying = this.subcontainer.destroy()
-          if (rcs < 0) console.error(new Error("UNREACHABLE: rcs < 0").stack)
+          if (rcs < 0) console.error(new Error('UNREACHABLE: rcs < 0').stack)
         }
       }
       if (this.destroying) {
@@ -850,7 +850,7 @@ export class SubContainerRc<
 
   async spawn(
     command: string[],
-    options: CommandOptions & StdioOptions = { stdio: "inherit" },
+    options: CommandOptions & StdioOptions = { stdio: 'inherit' },
   ): Promise<cp.ChildProcess> {
     return this.subcontainer.spawn(command, options)
   }
@@ -910,23 +910,23 @@ export type MountOptions =
   | MountOptionsBackup
 
 export type MountOptionsVolume = {
-  type: "volume"
+  type: 'volume'
   volumeId: string
   subpath: string | null
   readonly: boolean
-  filetype: "file" | "directory" | "infer"
+  filetype: 'file' | 'directory' | 'infer'
   idmap: IdMap[]
 }
 
 export type MountOptionsAssets = {
-  type: "assets"
+  type: 'assets'
   subpath: string | null
-  filetype: "file" | "directory" | "infer"
+  filetype: 'file' | 'directory' | 'infer'
   idmap: { fromId: number; toId: number; range: number }[]
 }
 
 export type MountOptionsPointer = {
-  type: "pointer"
+  type: 'pointer'
   packageId: string
   volumeId: string
   subpath: string | null
@@ -935,9 +935,9 @@ export type MountOptionsPointer = {
 }
 
 export type MountOptionsBackup = {
-  type: "backup"
+  type: 'backup'
   subpath: string | null
-  filetype: "file" | "directory" | "infer"
+  filetype: 'file' | 'directory' | 'infer'
   idmap: { fromId: number; toId: number; range: number }[]
 }
 function wait(time: number) {

@@ -1,4 +1,4 @@
-export * as inputSpecTypes from "./actions/input/inputSpecTypes"
+export * as inputSpecTypes from './actions/input/inputSpecTypes'
 
 import {
   DependencyRequirement,
@@ -6,19 +6,19 @@ import {
   Manifest,
   ServiceInterface,
   ActionId,
-} from "./osBindings"
-import { Affine, StringObject, ToKebab } from "./util"
-import { Action, Actions } from "./actions/setupActions"
-import { Effects } from "./Effects"
-import { ExtendedVersion, VersionRange } from "./exver"
+} from './osBindings'
+import { Affine, StringObject, ToKebab } from './util'
+import { Action, Actions } from './actions/setupActions'
+import { Effects } from './Effects'
+import { ExtendedVersion, VersionRange } from './exver'
 export { Effects }
-export * from "./osBindings"
-export { SDKManifest } from "./types/ManifestTypes"
+export * from './osBindings'
+export { SDKManifest } from './types/ManifestTypes'
 export {
   RequiredDependenciesOf as RequiredDependencies,
   OptionalDependenciesOf as OptionalDependencies,
   CurrentDependenciesResult,
-} from "./dependencies/setupDependencies"
+} from './dependencies/setupDependencies'
 
 export type DaemonBuildable = {
   build(): Promise<{
@@ -26,10 +26,10 @@ export type DaemonBuildable = {
   }>
 }
 
-export type ServiceInterfaceType = "ui" | "p2p" | "api"
+export type ServiceInterfaceType = 'ui' | 'p2p' | 'api'
 export type Signals = NodeJS.Signals
-export const SIGTERM: Signals = "SIGTERM"
-export const SIGKILL: Signals = "SIGKILL"
+export const SIGTERM: Signals = 'SIGTERM'
+export const SIGKILL: Signals = 'SIGKILL'
 export const NO_TIMEOUT = -1
 
 export type PathMaker = (options: { volume: string; path: string }) => string
@@ -52,7 +52,7 @@ export namespace ExpectedExports {
    */
   export type init = (options: {
     effects: Effects
-    kind: "install" | "update" | "restore" | null
+    kind: 'install' | 'update' | 'restore' | null
   }) => Promise<unknown>
   /** This will be ran during any time a package is uninstalled, for example during a update
    * this will be called.
@@ -87,7 +87,7 @@ export type Daemon = {
   [DaemonProof]: never
 }
 
-export type HealthStatus = NamedHealthCheckResult["result"]
+export type HealthStatus = NamedHealthCheckResult['result']
 export type SmtpValue = {
   server: string
   port: number
@@ -97,13 +97,13 @@ export type SmtpValue = {
 }
 
 export class UseEntrypoint {
-  readonly USE_ENTRYPOINT = "USE_ENTRYPOINT"
+  readonly USE_ENTRYPOINT = 'USE_ENTRYPOINT'
   constructor(readonly overridCmd?: string[]) {}
 }
 export function isUseEntrypoint(
   command: CommandType,
 ): command is UseEntrypoint {
-  return typeof command === "object" && "USE_ENTRYPOINT" in command
+  return typeof command === 'object' && 'USE_ENTRYPOINT' in command
 }
 
 export type CommandType = string | [string, ...string[]] | UseEntrypoint
@@ -163,7 +163,7 @@ export type SetResult = {
 
 export type PackageId = string
 export type Message = string
-export type DependencyKind = "running" | "exists"
+export type DependencyKind = 'running' | 'exists'
 
 export type DependsOn = {
   [packageId: string]: string[] | readonly string[]

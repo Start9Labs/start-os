@@ -1,5 +1,5 @@
-import * as T from "../../../base/lib/types"
-import { IdMap, MountOptions } from "../util/SubContainer"
+import * as T from '../../../base/lib/types'
+import { IdMap, MountOptions } from '../util/SubContainer'
 
 type MountArray = { mountpoint: string; options: MountOptions }[]
 
@@ -13,7 +13,7 @@ type SharedOptions = {
    *
    * defaults to "directory"
    * */
-  type?: "file" | "directory" | "infer"
+  type?: 'file' | 'directory' | 'infer'
   // /**
   //  * Whether to map uids/gids for the mount
   //  *
@@ -35,16 +35,16 @@ type SharedOptions = {
 
 type VolumeOpts<Manifest extends T.SDKManifest> = {
   /** The ID of the volume to mount. Must be one of the volume IDs defined in the manifest */
-  volumeId: Manifest["volumes"][number]
+  volumeId: Manifest['volumes'][number]
   /** Whether or not the resource should be readonly for this subcontainer */
   readonly: boolean
 } & SharedOptions
 
 type DependencyOpts<Manifest extends T.SDKManifest> = {
   /** The ID of the dependency */
-  dependencyId: Manifest["id"]
+  dependencyId: Manifest['id']
   /** The ID of the volume to mount. Must be one of the volume IDs defined in the manifest of the dependency */
-  volumeId: Manifest["volumes"][number]
+  volumeId: Manifest['volumes'][number]
   /** Whether or not the resource should be readonly for this subcontainer */
   readonly: boolean
 } & SharedOptions
@@ -126,11 +126,11 @@ export class Mounts<
         this.volumes.map((v) => ({
           mountpoint: v.mountpoint,
           options: {
-            type: "volume",
+            type: 'volume',
             volumeId: v.volumeId,
             subpath: v.subpath,
             readonly: v.readonly,
-            filetype: v.type ?? "directory",
+            filetype: v.type ?? 'directory',
             idmap: [],
           },
         })),
@@ -139,9 +139,9 @@ export class Mounts<
         this.assets.map((a) => ({
           mountpoint: a.mountpoint,
           options: {
-            type: "assets",
+            type: 'assets',
             subpath: a.subpath,
-            filetype: a.type ?? "directory",
+            filetype: a.type ?? 'directory',
             idmap: [],
           },
         })),
@@ -150,12 +150,12 @@ export class Mounts<
         this.dependencies.map((d) => ({
           mountpoint: d.mountpoint,
           options: {
-            type: "pointer",
+            type: 'pointer',
             packageId: d.dependencyId,
             volumeId: d.volumeId,
             subpath: d.subpath,
             readonly: d.readonly,
-            filetype: d.type ?? "directory",
+            filetype: d.type ?? 'directory',
             idmap: [],
           },
         })),
@@ -163,6 +163,6 @@ export class Mounts<
   }
 }
 
-const a = Mounts.of().mountBackups({ subpath: null, mountpoint: "" })
+const a = Mounts.of().mountBackups({ subpath: null, mountpoint: '' })
 // @ts-expect-error
 const m: Mounts<T.SDKManifest, never> = a

@@ -1,6 +1,6 @@
-import { Effects } from "../Effects"
-import * as T from "../types"
-import { DropGenerator, DropPromise } from "./Drop"
+import { Effects } from '../Effects'
+import * as T from '../types'
+import { DropGenerator, DropPromise } from './Drop'
 
 export class GetSystemSmtp {
   constructor(readonly effects: Effects) {}
@@ -27,7 +27,7 @@ export class GetSystemSmtp {
     this.effects.onLeaveContext(() => {
       resolveCell.resolve()
     })
-    abort?.addEventListener("abort", () => resolveCell.resolve())
+    abort?.addEventListener('abort', () => resolveCell.resolve())
     while (this.effects.isInContext && !abort?.aborted) {
       let callback: () => void = () => {}
       const waitForNext = new Promise<void>((resolve) => {
@@ -39,7 +39,7 @@ export class GetSystemSmtp {
       })
       await waitForNext
     }
-    return new Promise<never>((_, rej) => rej(new Error("aborted")))
+    return new Promise<never>((_, rej) => rej(new Error('aborted')))
   }
 
   /**
@@ -49,7 +49,7 @@ export class GetSystemSmtp {
     abort?: AbortSignal,
   ): AsyncGenerator<T.SmtpValue | null, never, unknown> {
     const ctrl = new AbortController()
-    abort?.addEventListener("abort", () => ctrl.abort())
+    abort?.addEventListener('abort', () => ctrl.abort())
     return DropGenerator.of(this.watchGen(ctrl.signal), () => ctrl.abort())
   }
 
@@ -73,7 +73,7 @@ export class GetSystemSmtp {
           }
         } catch (e) {
           console.error(
-            "callback function threw an error @ GetSystemSmtp.onChange",
+            'callback function threw an error @ GetSystemSmtp.onChange',
             e,
           )
         }
@@ -82,7 +82,7 @@ export class GetSystemSmtp {
       .catch((e) => callback(null, e))
       .catch((e) =>
         console.error(
-          "callback function threw an error @ GetSystemSmtp.onChange",
+          'callback function threw an error @ GetSystemSmtp.onChange',
           e,
         ),
       )

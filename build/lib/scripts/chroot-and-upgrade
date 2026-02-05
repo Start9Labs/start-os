@@ -111,6 +111,6 @@ if [ "$CHROOT_RES" -eq 0 ]; then
     reboot
 fi
 
-umount -R /media/startos/next
+umount /media/startos/next
 umount /media/startos/upper
 rm -rf /media/startos/upper /media/startos/next

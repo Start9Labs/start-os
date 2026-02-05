@@ -1,17 +1,17 @@
-import { Effects } from "../../../../base/lib/types"
-import { stringFromStdErrOut } from "../../util"
-import { HealthCheckResult } from "./HealthCheckResult"
-import { promisify } from "node:util"
-import * as CP from "node:child_process"
+import { Effects } from '../../../../base/lib/types'
+import { stringFromStdErrOut } from '../../util'
+import { HealthCheckResult } from './HealthCheckResult'
+import { promisify } from 'node:util'
+import * as CP from 'node:child_process'
 
 const cpExec = promisify(CP.exec)
 
 export function containsAddress(x: string, port: number, address?: bigint) {
   const readPorts = x
-    .split("\n")
+    .split('\n')
     .filter(Boolean)
     .splice(1)
-    .map((x) => x.split(" ").filter(Boolean)[1]?.split(":"))
+    .map((x) => x.split(' ').filter(Boolean)[1]?.split(':'))
     .filter((x) => x?.length > 1)
     .map(([addr, p]) => [BigInt(`0x${addr}`), Number.parseInt(p, 16)] as const)
   return !!readPorts.find(
@@ -46,19 +46,19 @@ export async function checkPortListening(
           BigInt(0),
         ) ||
         containsAddress(
-          await cpExec("cat /proc/net/udp", {}).then(stringFromStdErrOut),
+          await cpExec('cat /proc/net/udp', {}).then(stringFromStdErrOut),
           port,
         ) ||
         containsAddress(
-          await cpExec("cat /proc/net/udp6", {}).then(stringFromStdErrOut),
+          await cpExec('cat /proc/net/udp6', {}).then(stringFromStdErrOut),
           port,
           BigInt(0),
         )
       if (hasAddress) {
-        return { result: "success", message: options.successMessage }
+        return { result: 'success', message: options.successMessage }
       }
       return {
-        result: "failure",
+        result: 'failure',
         message: options.errorMessage,
       }
     }),
@@ -66,7 +66,7 @@ export async function checkPortListening(
       setTimeout(
         () =>
           resolve({
-            result: "failure",
+            result: 'failure',
             message:
               options.timeoutMessage || `Timeout trying to check port ${port}`,
           }),

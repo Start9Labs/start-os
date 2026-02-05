@@ -11,123 +11,190 @@ This guide is for contributing to the StartOS. If you are interested in packagin
 
 ```bash
 /
-├── assets/
-├── container-runtime/
-├── core/
-├── build/
-├── debian/
-├── web/
-├── image-recipe/
-├── patch-db
-└── sdk/
+├── assets/              # Screenshots for README
+├── build/               # Auxiliary files and scripts for deployed images
+├── container-runtime/   # Node.js program managing package containers
+├── core/                # Rust backend: API, daemon (startd), CLI (start-cli)
+├── debian/              # Debian package maintainer scripts
+├── image-recipe/        # Scripts for building StartOS images
+├── patch-db/            # (submodule) Diff-based data store for frontend sync
+├── sdk/                 # TypeScript SDK for building StartOS packages
+└── web/                 # Web UIs (Angular)
 ```
 
-#### assets
-
-screenshots for the StartOS README
-
-#### container-runtime
-
-A NodeJS program that dynamically loads maintainer scripts and communicates with the OS to manage packages
-
-#### core
-
-An API, daemon (startd), and CLI (start-cli) that together provide the core functionality of StartOS.
-
-#### build
-
-Auxiliary files and scripts to include in deployed StartOS images
-
-#### debian
-
-Maintainer scripts for the StartOS Debian package
-
-#### web
-
-Web UIs served under various conditions and used to interact with StartOS APIs.
-
-#### image-recipe
-
-Scripts for building StartOS images
-
-#### patch-db (submodule)
-
-A diff based data store used to synchronize data between the web interfaces and server.
-
-#### sdk
-
-A typescript sdk for building start-os packages
+See component READMEs for details:
+- [`core`](core/README.md)
+- [`web`](web/README.md)
+- [`build`](build/README.md)
+- [`patch-db`](https://github.com/Start9Labs/patch-db)
 
 ## Environment Setup
-
-#### Clone the StartOS repository
 
 ```sh
 git clone https://github.com/Start9Labs/start-os.git --recurse-submodules
 cd start-os
 ```
 
-#### Continue to your project of interest for additional instructions:
+### Development Mode
 
-- [`core`](core/README.md)
-- [`web-interfaces`](web-interfaces/README.md)
-- [`build`](build/README.md)
-- [`patch-db`](https://github.com/Start9Labs/patch-db)
+For faster iteration during development:
+
+```sh
+. ./devmode.sh
+```
+
+This sets `ENVIRONMENT=dev` and `GIT_BRANCH_AS_HASH=1` to prevent rebuilds on every commit.
 
 ## Building
 
-This project uses [GNU Make](https://www.gnu.org/software/make/) to build its components. To build any specific component, simply run `make <TARGET>` replacing `<TARGET>` with the name of the target you'd like to build
+All builds can be performed on any operating system that can run Docker.
+
+This project uses [GNU Make](https://www.gnu.org/software/make/) to build its components.
 
 ### Requirements
 
 - [GNU Make](https://www.gnu.org/software/make/)
-- [Docker](https://docs.docker.com/get-docker/)
+- [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/)
 - [NodeJS v20.16.0](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
-- [sed](https://www.gnu.org/software/sed/)
-- [grep](https://www.gnu.org/software/grep/)
-- [awk](https://www.gnu.org/software/gawk/)
+- [Rust](https://rustup.rs/) (nightly for formatting)
+- [sed](https://www.gnu.org/software/sed/), [grep](https://www.gnu.org/software/grep/), [awk](https://www.gnu.org/software/gawk/)
 - [jq](https://jqlang.github.io/jq/)
-- [gzip](https://www.gnu.org/software/gzip/)
-- [brotli](https://github.com/google/brotli)
+- [gzip](https://www.gnu.org/software/gzip/), [brotli](https://github.com/google/brotli)
 
-### Environment variables
+### Environment Variables
 
-- `PLATFORM`: which platform you would like to build for. Must be one of `x86_64`, `x86_64-nonfree`, `aarch64`, `aarch64-nonfree`, `raspberrypi`
-  - NOTE: `nonfree` images are for including `nonfree` firmware packages in the built ISO
-- `ENVIRONMENT`: a hyphen separated set of feature flags to enable
-  - `dev`: enables password ssh (INSECURE!) and does not compress frontends
-  - `unstable`: enables assertions that will cause errors on unexpected inconsistencies that are undesirable in production use either for performance or reliability reasons
-  - `docker`: use `docker` instead of `podman`
-- `GIT_BRANCH_AS_HASH`: set to `1` to use the current git branch name as the git hash so that the project does not need to be rebuilt on each commit
+| Variable | Description |
+|----------|-------------|
+| `PLATFORM` | Target platform: `x86_64`, `x86_64-nonfree`, `aarch64`, `aarch64-nonfree`, `riscv64`, `raspberrypi` |
+| `ENVIRONMENT` | Hyphen-separated feature flags (see below) |
+| `PROFILE` | Build profile: `release` (default) or `dev` |
+| `GIT_BRANCH_AS_HASH` | Set to `1` to use git branch name as version hash (avoids rebuilds) |
 
-### Useful Make Targets
+**ENVIRONMENT flags:**
+- `dev` - Enables password SSH before setup, skips frontend compression
+- `unstable` - Enables assertions and debugging with performance penalty
+- `console` - Enables tokio-console for async debugging
 
-- `iso`: Create a full `.iso` image
-  - Only possible from Debian
-  - Not available for `PLATFORM=raspberrypi`
-  - Additional Requirements:
-    - [debspawn](https://github.com/lkhq/debspawn)
-- `img`: Create a full `.img` image
-  - Only possible from Debian
-  - Only available for `PLATFORM=raspberrypi`
-  - Additional Requirements:
-    - [debspawn](https://github.com/lkhq/debspawn)
-- `format`: Run automatic code formatting for the project
-  - Additional Requirements:
-    - [rust](https://rustup.rs/)
-- `test`: Run automated tests for the project
-  - Additional Requirements:
-    - [rust](https://rustup.rs/)
-- `update`: Deploy the current working project to a device over ssh as if through an over-the-air update
-  - Requires an argument `REMOTE` which is the ssh address of the device, i.e. `start9@192.168.122.2`
-- `reflash`: Deploy the current working project to a device over ssh as if using a live `iso` image to reflash it
-  - Requires an argument `REMOTE` which is the ssh address of the device, i.e. `start9@192.168.122.2`
-- `update-overlay`: Deploy the current working project to a device over ssh to the in-memory overlay without restarting it
-  - WARNING: changes will be reverted after the device is rebooted
-  - WARNING: changes to `init` will not take effect as the device is already initialized
-  - Requires an argument `REMOTE` which is the ssh address of the device, i.e. `start9@192.168.122.2`
-- `wormhole`: Deploy the `startbox` to a device using [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole)
-  - When the build it complete will emit a command to paste into the shell of the device to upgrade it
-  - Additional Requirements:
-    - [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole)
-- `clean`: Delete all compiled artifacts
+**Platform notes:**
+- `-nonfree` variants include proprietary firmware and drivers
+- `raspberrypi` includes non-free components by necessity
+- Platform is remembered between builds if not specified
+
+### Make Targets
+
+#### Building
+
+| Target | Description |
+|--------|-------------|
+| `iso` | Create full `.iso` image (not for raspberrypi) |
+| `img` | Create full `.img` image (raspberrypi only) |
+| `deb` | Build Debian package |
+| `all` | Build all Rust binaries |
+| `uis` | Build all web UIs |
+| `ui` | Build main UI only |
+| `ts-bindings` | Generate TypeScript bindings from Rust types |
+
+#### Deploying to Device
+
+For devices on the same network:
+
+| Target | Description |
+|--------|-------------|
+| `update-startbox REMOTE=start9@<ip>` | Deploy binary + UI only (fastest) |
+| `update-deb REMOTE=start9@<ip>` | Deploy full Debian package |
+| `update REMOTE=start9@<ip>` | OTA-style update |
+| `reflash REMOTE=start9@<ip>` | Reflash as if using live ISO |
+| `update-overlay REMOTE=start9@<ip>` | Deploy to in-memory overlay (reverts on reboot) |
+
+For devices on different networks (uses [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole)):
+
+| Target | Description |
+|--------|-------------|
+| `wormhole` | Send startbox binary |
+| `wormhole-deb` | Send Debian package |
+| `wormhole-squashfs` | Send squashfs image |
+
+#### Other
+
+| Target | Description |
+|--------|-------------|
+| `format` | Run code formatting (Rust nightly required) |
+| `test` | Run all automated tests |
+| `test-core` | Run Rust tests |
+| `test-sdk` | Run SDK tests |
+| `test-container-runtime` | Run container runtime tests |
+| `clean` | Delete all compiled artifacts |
+
+## Testing
+
+```bash
+make test                    # All tests
+make test-core               # Rust tests (via ./core/run-tests.sh)
+make test-sdk                # SDK tests
+make test-container-runtime  # Container runtime tests
+
+# Run specific Rust test
+cd core && cargo test <test_name> --features=test
+```
+
+## Code Formatting
+
+```bash
+# Rust (requires nightly)
+make format
+
+# TypeScript/HTML/SCSS (web)
+cd web && npm run format
+```
+
+## Code Style Guidelines
+
+### Formatting
+
+Run the formatters before committing. Configuration is handled by `rustfmt.toml` (Rust) and prettier configs (TypeScript).
+
+### Documentation & Comments
+
+**Rust:**
+- Add doc comments (`///`) to public APIs, structs, and non-obvious functions
+- Use `//` comments sparingly for complex logic that isn't self-evident
+- Prefer self-documenting code (clear naming, small functions) over comments
+
+**TypeScript:**
+- Document exported functions and complex types with JSDoc
+- Keep comments focused on "why" rather than "what"
+
+**General:**
+- Don't add comments that just restate the code
+- Update or remove comments when code changes
+- TODOs should include context: `// TODO(username): reason`
+
+### Commit Messages
+
+Use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+**Types:**
+- `feat` - New feature
+- `fix` - Bug fix
+- `docs` - Documentation only
+- `style` - Formatting, no code change
+- `refactor` - Code change that neither fixes a bug nor adds a feature
+- `test` - Adding or updating tests
+- `chore` - Build process, dependencies, etc.
+
+**Examples:**
+```
+feat(web): add dark mode toggle
+fix(core): resolve race condition in service startup
+docs: update CONTRIBUTING.md with style guidelines
+refactor(sdk): simplify package validation logic
+```
+

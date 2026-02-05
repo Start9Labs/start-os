@@ -1,7 +1,7 @@
-import * as T from "../../../base/lib/types"
-import { Daemons } from "./Daemons"
-import "../../../base/lib/interfaces/ServiceInterfaceBuilder"
-import "../../../base/lib/interfaces/Origin"
+import * as T from '../../../base/lib/types'
+import { Daemons } from './Daemons'
+import '../../../base/lib/interfaces/ServiceInterfaceBuilder'
+import '../../../base/lib/interfaces/Origin'
 
 export const DEFAULT_SIGTERM_TIMEOUT = 60_000
 /**

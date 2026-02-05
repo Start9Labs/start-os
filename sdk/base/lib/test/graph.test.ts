@@ -1,110 +1,110 @@
-import { Graph } from "../util"
+import { Graph } from '../util'
 
-describe("graph", () => {
+describe('graph', () => {
   {
     {
-      test("findVertex", () => {
+      test('findVertex', () => {
         const graph = new Graph<string, string>()
-        const foo = graph.addVertex("foo", [], [])
+        const foo = graph.addVertex('foo', [], [])
         const bar = graph.addVertex(
-          "bar",
-          [{ from: foo, metadata: "foo-bar" }],
+          'bar',
+          [{ from: foo, metadata: 'foo-bar' }],
           [],
         )
         const baz = graph.addVertex(
-          "baz",
-          [{ from: bar, metadata: "bar-baz" }],
+          'baz',
+          [{ from: bar, metadata: 'bar-baz' }],
           [],
         )
         const qux = graph.addVertex(
-          "qux",
-          [{ from: baz, metadata: "baz-qux" }],
+          'qux',
+          [{ from: baz, metadata: 'baz-qux' }],
           [],
         )
-        const match = Array.from(graph.findVertex((v) => v.metadata === "qux"))
+        const match = Array.from(graph.findVertex((v) => v.metadata === 'qux'))
         expect(match).toHaveLength(1)
         expect(match[0]).toBe(qux)
       })
-      test("shortestPathA", () => {
+      test('shortestPathA', () => {
         const graph = new Graph<string, string>()
-        const foo = graph.addVertex("foo", [], [])
+        const foo = graph.addVertex('foo', [], [])
         const bar = graph.addVertex(
-          "bar",
-          [{ from: foo, metadata: "foo-bar" }],
+          'bar',
+          [{ from: foo, metadata: 'foo-bar' }],
           [],
         )
         const baz = graph.addVertex(
-          "baz",
-          [{ from: bar, metadata: "bar-baz" }],
+          'baz',
+          [{ from: bar, metadata: 'bar-baz' }],
           [],
         )
         const qux = graph.addVertex(
-          "qux",
-          [{ from: baz, metadata: "baz-qux" }],
+          'qux',
+          [{ from: baz, metadata: 'baz-qux' }],
           [],
         )
-        graph.addEdge("foo-qux", foo, qux)
+        graph.addEdge('foo-qux', foo, qux)
         expect(graph.shortestPath(foo, qux) || []).toHaveLength(1)
       })
-      test("shortestPathB", () => {
+      test('shortestPathB', () => {
         const graph = new Graph<string, string>()
-        const foo = graph.addVertex("foo", [], [])
+        const foo = graph.addVertex('foo', [], [])
         const bar = graph.addVertex(
-          "bar",
-          [{ from: foo, metadata: "foo-bar" }],
+          'bar',
+          [{ from: foo, metadata: 'foo-bar' }],
           [],
         )
         const baz = graph.addVertex(
-          "baz",
-          [{ from: bar, metadata: "bar-baz" }],
+          'baz',
+          [{ from: bar, metadata: 'bar-baz' }],
           [],
         )
         const qux = graph.addVertex(
-          "qux",
-          [{ from: baz, metadata: "baz-qux" }],
+          'qux',
+          [{ from: baz, metadata: 'baz-qux' }],
           [],
         )
-        graph.addEdge("bar-qux", bar, qux)
+        graph.addEdge('bar-qux', bar, qux)
         expect(graph.shortestPath(foo, qux) || []).toHaveLength(2)
       })
-      test("shortestPathC", () => {
+      test('shortestPathC', () => {
         const graph = new Graph<string, string>()
-        const foo = graph.addVertex("foo", [], [])
+        const foo = graph.addVertex('foo', [], [])
         const bar = graph.addVertex(
-          "bar",
-          [{ from: foo, metadata: "foo-bar" }],
+          'bar',
+          [{ from: foo, metadata: 'foo-bar' }],
           [],
         )
         const baz = graph.addVertex(
-          "baz",
-          [{ from: bar, metadata: "bar-baz" }],
+          'baz',
+          [{ from: bar, metadata: 'bar-baz' }],
           [],
         )
         const qux = graph.addVertex(
-          "qux",
-          [{ from: baz, metadata: "baz-qux" }],
-          [{ to: foo, metadata: "qux-foo" }],
+          'qux',
+          [{ from: baz, metadata: 'baz-qux' }],
+          [{ to: foo, metadata: 'qux-foo' }],
         )
         expect(graph.shortestPath(foo, qux) || []).toHaveLength(3)
       })
-      test("bfs", () => {
+      test('bfs', () => {
         const graph = new Graph<string, string>()
-        const foo = graph.addVertex("foo", [], [])
+        const foo = graph.addVertex('foo', [], [])
         const bar = graph.addVertex(
-          "bar",
-          [{ from: foo, metadata: "foo-bar" }],
+          'bar',
+          [{ from: foo, metadata: 'foo-bar' }],
           [],
         )
         const baz = graph.addVertex(
-          "baz",
-          [{ from: bar, metadata: "bar-baz" }],
+          'baz',
+          [{ from: bar, metadata: 'bar-baz' }],
           [],
         )
         const qux = graph.addVertex(
-          "qux",
+          'qux',
           [
-            { from: foo, metadata: "foo-qux" },
-            { from: baz, metadata: "baz-qux" },
+            { from: foo, metadata: 'foo-qux' },
+            { from: baz, metadata: 'baz-qux' },
           ],
           [],
         )
@@ -115,24 +115,24 @@ describe("graph", () => {
         expect(bfs[2]).toBe(qux)
         expect(bfs[3]).toBe(baz)
       })
-      test("reverseBfs", () => {
+      test('reverseBfs', () => {
         const graph = new Graph<string, string>()
-        const foo = graph.addVertex("foo", [], [])
+        const foo = graph.addVertex('foo', [], [])
         const bar = graph.addVertex(
-          "bar",
-          [{ from: foo, metadata: "foo-bar" }],
+          'bar',
+          [{ from: foo, metadata: 'foo-bar' }],
           [],
         )
         const baz = graph.addVertex(
-          "baz",
-          [{ from: bar, metadata: "bar-baz" }],
+          'baz',
+          [{ from: bar, metadata: 'bar-baz' }],
           [],
         )
         const qux = graph.addVertex(
-          "qux",
+          'qux',
           [
-            { from: foo, metadata: "foo-qux" },
-            { from: baz, metadata: "baz-qux" },
+            { from: foo, metadata: 'foo-qux' },
+            { from: baz, metadata: 'baz-qux' },
           ],
           [],
         )

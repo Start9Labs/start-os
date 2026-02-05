@@ -1,8 +1,8 @@
-import { Effects } from "../../../../base/lib/types"
-import { asError } from "../../util"
-import { HealthCheckResult } from "./HealthCheckResult"
-import { timeoutPromise } from "./index"
-import "isomorphic-fetch"
+import { Effects } from '../../../../base/lib/types'
+import { asError } from '../../util'
+import { HealthCheckResult } from './HealthCheckResult'
+import { timeoutPromise } from './index'
+import 'isomorphic-fetch'
 
 /**
  * This is a helper function to check if a web url is reachable.
@@ -23,7 +23,7 @@ export const checkWebUrl = async (
     .then(
       (x) =>
         ({
-          result: "success",
+          result: 'success',
           message: successMessage,
         }) as const,
     )
@@ -31,6 +31,6 @@ export const checkWebUrl = async (
       console.warn(`Error while fetching URL: ${url}`)
       console.error(JSON.stringify(e))
       console.error(asError(e))
-      return { result: "failure" as const, message: errorMessage }
+      return { result: 'failure' as const, message: errorMessage }
     })
 }

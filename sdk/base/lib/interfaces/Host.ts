@@ -1,10 +1,10 @@
-import { object, string } from "ts-matches"
-import { Effects } from "../Effects"
-import { Origin } from "./Origin"
-import { AddSslOptions, BindParams } from "../osBindings"
-import { Security } from "../osBindings"
-import { BindOptions } from "../osBindings"
-import { AlpnInfo } from "../osBindings"
+import { object, string } from 'ts-matches'
+import { Effects } from '../Effects'
+import { Origin } from './Origin'
+import { AddSslOptions, BindParams } from '../osBindings'
+import { Security } from '../osBindings'
+import { BindOptions } from '../osBindings'
+import { AlpnInfo } from '../osBindings'
 
 export { AddSslOptions, Security, BindOptions }
 
@@ -12,8 +12,8 @@ export const knownProtocols = {
   http: {
     secure: null,
     defaultPort: 80,
-    withSsl: "https",
-    alpn: { specified: ["http/1.1"] } as AlpnInfo,
+    withSsl: 'https',
+    alpn: { specified: ['http/1.1'] } as AlpnInfo,
   },
   https: {
     secure: { ssl: true },
@@ -22,8 +22,8 @@ export const knownProtocols = {
   ws: {
     secure: null,
     defaultPort: 80,
-    withSsl: "wss",
-    alpn: { specified: ["http/1.1"] } as AlpnInfo,
+    withSsl: 'wss',
+    alpn: { specified: ['http/1.1'] } as AlpnInfo,
   },
   wss: {
     secure: { ssl: true },
@@ -140,8 +140,8 @@ export class MultiHost {
           addXForwardedHeaders: false,
           preferredExternalPort: knownProtocols[sslProto].defaultPort,
           scheme: sslProto,
-          alpn: "alpn" in protoInfo ? protoInfo.alpn : null,
-          ...("addSsl" in options ? options.addSsl : null),
+          alpn: 'alpn' in protoInfo ? protoInfo.alpn : null,
+          ...('addSsl' in options ? options.addSsl : null),
         }
       : options.addSsl
         ? {
@@ -149,7 +149,7 @@ export class MultiHost {
             preferredExternalPort: 443,
             scheme: sslProto,
             alpn: null,
-            ...("addSsl" in options ? options.addSsl : null),
+            ...('addSsl' in options ? options.addSsl : null),
           }
         : null
 
@@ -169,8 +169,8 @@ export class MultiHost {
   private getSslProto(options: BindOptionsByKnownProtocol) {
     const proto = options.protocol
     const protoInfo = knownProtocols[proto]
-    if (inObject("noAddSsl", options) && options.noAddSsl) return null
-    if ("withSsl" in protoInfo && protoInfo.withSsl) return protoInfo.withSsl
+    if (inObject('noAddSsl', options) && options.noAddSsl) return null
+    if ('withSsl' in protoInfo && protoInfo.withSsl) return protoInfo.withSsl
     if (protoInfo.secure?.ssl) return proto
     return null
   }

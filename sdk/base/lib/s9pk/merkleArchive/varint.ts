@@ -1,4 +1,4 @@
-import { asError } from "../../util"
+import { asError } from '../../util'
 
 const msb = 0x80
 const dropMsb = 0x7f
@@ -13,7 +13,7 @@ export class VarIntProcessor {
   }
   push(b: number) {
     if (this.i >= maxSize) {
-      throw new Error("Unterminated varint")
+      throw new Error('Unterminated varint')
     }
     this.buf[this.i] = b
     this.i += 1

@@ -1,18 +1,18 @@
 export type InputSpec = Record<string, ValueSpec>
 export type ValueType =
-  | "text"
-  | "textarea"
-  | "number"
-  | "color"
-  | "datetime"
-  | "toggle"
-  | "select"
-  | "multiselect"
-  | "list"
-  | "object"
-  | "file"
-  | "union"
-  | "hidden"
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'color'
+  | 'datetime'
+  | 'toggle'
+  | 'select'
+  | 'multiselect'
+  | 'list'
+  | 'object'
+  | 'file'
+  | 'union'
+  | 'hidden'
 export type ValueSpec = ValueSpecOf<ValueType>
 /** core spec types. These types provide the metadata for performing validations */
 // prettier-ignore
@@ -37,13 +37,13 @@ export type ValueSpecText = {
   description: string | null
   warning: string | null
 
-  type: "text"
+  type: 'text'
   patterns: Pattern[]
   minLength: number | null
   maxLength: number | null
   masked: boolean
 
-  inputmode: "text" | "email" | "tel" | "url"
+  inputmode: 'text' | 'email' | 'tel' | 'url'
   placeholder: string | null
 
   required: boolean
@@ -57,7 +57,7 @@ export type ValueSpecTextarea = {
   description: string | null
   warning: string | null
 
-  type: "textarea"
+  type: 'textarea'
   patterns: Pattern[]
   placeholder: string | null
   minLength: number | null
@@ -71,7 +71,7 @@ export type ValueSpecTextarea = {
 }
 
 export type ValueSpecNumber = {
-  type: "number"
+  type: 'number'
   min: number | null
   max: number | null
   integer: boolean
@@ -91,7 +91,7 @@ export type ValueSpecColor = {
   description: string | null
   warning: string | null
 
-  type: "color"
+  type: 'color'
   required: boolean
   default: string | null
   disabled: false | string
@@ -101,9 +101,9 @@ export type ValueSpecDatetime = {
   name: string
   description: string | null
   warning: string | null
-  type: "datetime"
+  type: 'datetime'
   required: boolean
-  inputmode: "date" | "time" | "datetime-local"
+  inputmode: 'date' | 'time' | 'datetime-local'
   min: string | null
   max: string | null
   default: string | null
@@ -115,7 +115,7 @@ export type ValueSpecSelect = {
   name: string
   description: string | null
   warning: string | null
-  type: "select"
+  type: 'select'
   default: string | null
   disabled: false | string | string[]
   immutable: boolean
@@ -127,7 +127,7 @@ export type ValueSpecMultiselect = {
   description: string | null
   warning: string | null
 
-  type: "multiselect"
+  type: 'multiselect'
   minLength: number | null
   maxLength: number | null
   disabled: false | string | string[]
@@ -139,7 +139,7 @@ export type ValueSpecToggle = {
   description: string | null
   warning: string | null
 
-  type: "toggle"
+  type: 'toggle'
   default: boolean | null
   disabled: false | string
   immutable: boolean
@@ -149,7 +149,7 @@ export type ValueSpecUnion = {
   description: string | null
   warning: string | null
 
-  type: "union"
+  type: 'union'
   variants: Record<
     string,
     {
@@ -165,7 +165,7 @@ export type ValueSpecFile = {
   name: string
   description: string | null
   warning: string | null
-  type: "file"
+  type: 'file'
   extensions: string[]
   required: boolean
 }
@@ -173,13 +173,13 @@ export type ValueSpecObject = {
   name: string
   description: string | null
   warning: string | null
-  type: "object"
+  type: 'object'
   spec: InputSpec
 }
 export type ValueSpecHidden = {
-  type: "hidden"
+  type: 'hidden'
 }
-export type ListValueSpecType = "text" | "object"
+export type ListValueSpecType = 'text' | 'object'
 // prettier-ignore
 export type ListValueSpecOf<T extends ListValueSpecType> = 
   T extends "text" ? ListValueSpecText :
@@ -190,7 +190,7 @@ export type ValueSpecListOf<T extends ListValueSpecType> = {
   name: string
   description: string | null
   warning: string | null
-  type: "list"
+  type: 'list'
   spec: ListValueSpecOf<T>
   minLength: number | null
   maxLength: number | null
@@ -208,18 +208,18 @@ export type Pattern = {
   description: string
 }
 export type ListValueSpecText = {
-  type: "text"
+  type: 'text'
   patterns: Pattern[]
   minLength: number | null
   maxLength: number | null
   masked: boolean
 
   generate: null | RandomString
-  inputmode: "text" | "email" | "tel" | "url"
+  inputmode: 'text' | 'email' | 'tel' | 'url'
   placeholder: string | null
 }
 export type ListValueSpecObject = {
-  type: "object"
+  type: 'object'
   spec: InputSpec
   uniqueBy: UniqueBy
   displayAs: string | null
@@ -244,5 +244,5 @@ export function isValueSpecListOf<S extends ListValueSpecType>(
   t: ValueSpec,
   s: S,
 ): t is ValueSpecListOf<S> & { spec: ListValueSpecOf<S> } {
-  return "spec" in t && t.spec.type === s
+  return 'spec' in t && t.spec.type === s
 }

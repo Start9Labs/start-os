@@ -1,2 +1,2 @@
-export * from "./VersionGraph"
-export * from "./VersionInfo"
+export * from './VersionGraph'
+export * from './VersionInfo'

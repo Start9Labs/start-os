@@ -1,14 +1,14 @@
-import * as T from "../../../base/lib/types"
-import { asError } from "../../../base/lib/util/asError"
-import { Drop } from "../util"
+import * as T from '../../../base/lib/types'
+import { asError } from '../../../base/lib/util/asError'
+import { Drop } from '../util'
 import {
   SubContainer,
   SubContainerOwned,
   SubContainerRc,
-} from "../util/SubContainer"
-import { CommandController } from "./CommandController"
-import { DaemonCommandType } from "./Daemons"
-import { Oneshot } from "./Oneshot"
+} from '../util/SubContainer'
+import { CommandController } from './CommandController'
+import { DaemonCommandType } from './Daemons'
+import { Oneshot } from './Oneshot'
 
 const TIMEOUT_INCREMENT_MS = 1000
 const MAX_TIMEOUT_MS = 30000
@@ -87,7 +87,7 @@ export class Daemon<
             try {
               fn(success)
             } catch (e) {
-              console.error("EXIT handler", e)
+              console.error('EXIT handler', e)
             }
           }
           if (success && this.oneshot) {

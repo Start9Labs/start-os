@@ -1,4 +1,4 @@
-import { Effects } from "../types"
+import { Effects } from '../types'
 import {
   CheckDependenciesParam,
   ClearTasksParams,
@@ -14,27 +14,27 @@ import {
   SetDataVersionParams,
   SetMainStatus,
   GetServiceManifestParams,
-} from ".././osBindings"
-import { CreateSubcontainerFsParams } from ".././osBindings"
-import { DestroySubcontainerFsParams } from ".././osBindings"
-import { BindParams } from ".././osBindings"
-import { GetHostInfoParams } from ".././osBindings"
-import { SetHealth } from ".././osBindings"
-import { GetSslCertificateParams } from ".././osBindings"
-import { GetSslKeyParams } from ".././osBindings"
-import { GetServiceInterfaceParams } from ".././osBindings"
-import { SetDependenciesParams } from ".././osBindings"
-import { GetSystemSmtpParams } from ".././osBindings"
-import { GetServicePortForwardParams } from ".././osBindings"
-import { ExportServiceInterfaceParams } from ".././osBindings"
-import { ListServiceInterfacesParams } from ".././osBindings"
-import { ExportActionParams } from ".././osBindings"
-import { MountParams } from ".././osBindings"
-import { StringObject } from "../util"
-import { ExtendedVersion, VersionRange } from "../exver"
+} from '.././osBindings'
+import { CreateSubcontainerFsParams } from '.././osBindings'
+import { DestroySubcontainerFsParams } from '.././osBindings'
+import { BindParams } from '.././osBindings'
+import { GetHostInfoParams } from '.././osBindings'
+import { SetHealth } from '.././osBindings'
+import { GetSslCertificateParams } from '.././osBindings'
+import { GetSslKeyParams } from '.././osBindings'
+import { GetServiceInterfaceParams } from '.././osBindings'
+import { SetDependenciesParams } from '.././osBindings'
+import { GetSystemSmtpParams } from '.././osBindings'
+import { GetServicePortForwardParams } from '.././osBindings'
+import { ExportServiceInterfaceParams } from '.././osBindings'
+import { ListServiceInterfacesParams } from '.././osBindings'
+import { ExportActionParams } from '.././osBindings'
+import { MountParams } from '.././osBindings'
+import { StringObject } from '../util'
+import { ExtendedVersion, VersionRange } from '../exver'
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
 
-type WithCallback<T> = Omit<T, "callback"> & { callback: () => void }
+type WithCallback<T> = Omit<T, 'callback'> & { callback: () => void }
 
 type EffectsTypeChecker<T extends StringObject = Effects> = {
   [K in keyof T]: T[K] extends (args: infer A) => any
@@ -44,11 +44,11 @@ type EffectsTypeChecker<T extends StringObject = Effects> = {
       : never
 }
 
-describe("startosTypeValidation ", () => {
+describe('startosTypeValidation ', () => {
   test(`checking the params match`, () => {
     typeEquality<EffectsTypeChecker>({
       eventId: {} as never,
-      child: "",
+      child: '',
       isInContext: {} as never,
       onLeaveContext: () => {},
       clearCallbacks: {} as ClearCallbacksParams,

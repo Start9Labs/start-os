@@ -1,27 +1,27 @@
-import * as T from "../types"
-import { once } from "../util"
+import * as T from '../types'
+import { once } from '../util'
 
 export type RequiredDependenciesOf<Manifest extends T.SDKManifest> = {
-  [K in keyof Manifest["dependencies"]]: Exclude<
-    Manifest["dependencies"][K],
+  [K in keyof Manifest['dependencies']]: Exclude<
+    Manifest['dependencies'][K],
     undefined
-  >["optional"] extends false
+  >['optional'] extends false
     ? K
     : never
-}[keyof Manifest["dependencies"]]
+}[keyof Manifest['dependencies']]
 export type OptionalDependenciesOf<Manifest extends T.SDKManifest> = Exclude<
-  keyof Manifest["dependencies"],
+  keyof Manifest['dependencies'],
   RequiredDependenciesOf<Manifest>
 >
 
 type DependencyRequirement =
   | {
-      kind: "running"
+      kind: 'running'
       healthChecks: Array<T.HealthCheckId>
       versionRange: string
     }
   | {
-      kind: "exists"
+      kind: 'exists'
       versionRange: string
     }
 type Matches<T, U> = T extends U ? (U extends T ? null : never) : never

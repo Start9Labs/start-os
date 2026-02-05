@@ -1,5 +1,5 @@
-import { ExtendedVersion, VersionRange } from "../../../base/lib/exver"
-import * as T from "../../../base/lib/types"
+import { ExtendedVersion, VersionRange } from '../../../base/lib/exver'
+import * as T from '../../../base/lib/types'
 import {
   InitFn,
   InitKind,
@@ -8,9 +8,9 @@ import {
   UninitFn,
   UninitScript,
   UninitScriptOrFn,
-} from "../../../base/lib/inits"
-import { Graph, Vertex, once } from "../util"
-import { IMPOSSIBLE, VersionInfo } from "./VersionInfo"
+} from '../../../base/lib/inits'
+import { Graph, Vertex, once } from '../util'
+import { IMPOSSIBLE, VersionInfo } from './VersionInfo'
 
 export async function getDataVersion(effects: T.Effects) {
   const versionStr = await effects.getDataVersion()
@@ -30,11 +30,11 @@ export async function setDataVersion(
 }
 
 function isExver(v: ExtendedVersion | VersionRange): v is ExtendedVersion {
-  return "satisfies" in v
+  return 'satisfies' in v
 }
 
 function isRange(v: ExtendedVersion | VersionRange): v is VersionRange {
-  return "satisfiedBy" in v
+  return 'satisfiedBy' in v
 }
 
 export function overlaps(
@@ -64,7 +64,7 @@ export class VersionGraph<CurrentVersion extends string>
   private constructor(
     readonly current: VersionInfo<CurrentVersion>,
     versions: Array<VersionInfo<any>>,
-    private readonly preInstall?: InitScriptOrFn<"install">,
+    private readonly preInstall?: InitScriptOrFn<'install'>,
     private readonly uninstall?: UninitScript | UninitFn,
   ) {
     this.graph = once(() => {
@@ -86,7 +86,7 @@ export class VersionGraph<CurrentVersion extends string>
       for (let version of [current, ...versions]) {
         const v = ExtendedVersion.parse(version.options.version)
         const vertex = graph.addVertex(v, [], [])
-        const flavor = v.flavor || ""
+        const flavor = v.flavor || ''
         if (!flavorMap[flavor]) {
           flavorMap[flavor] = []
         }
@@ -109,11 +109,11 @@ export class VersionGraph<CurrentVersion extends string>
             let range
             if (prev) {
               graph.addEdge(version.options.migrations.up, prev[2], vertex)
-              range = VersionRange.anchor(">=", prev[0]).and(
-                VersionRange.anchor("<", v),
+              range = VersionRange.anchor('>=', prev[0]).and(
+                VersionRange.anchor('<', v),
               )
             } else {
-              range = VersionRange.anchor("<", v)
+              range = VersionRange.anchor('<', v)
             }
             const vRange = graph.addVertex(range, [], [])
             graph.addEdge(version.options.migrations.up, vRange, vertex)
@@ -123,11 +123,11 @@ export class VersionGraph<CurrentVersion extends string>
             let range
             if (prev) {
               graph.addEdge(version.options.migrations.down, vertex, prev[2])
-              range = VersionRange.anchor(">=", prev[0]).and(
-                VersionRange.anchor("<", v),
+              range = VersionRange.anchor('>=', prev[0]).and(
+                VersionRange.anchor('<', v),
               )
             } else {
-              range = VersionRange.anchor("<", v)
+              range = VersionRange.anchor('<', v)
             }
             const vRange = graph.addVertex(range, [], [])
             graph.addEdge(version.options.migrations.down, vertex, vRange)
@@ -173,7 +173,7 @@ export class VersionGraph<CurrentVersion extends string>
     /**
      * A script to run only on fresh install
      */
-    preInstall?: InitScriptOrFn<"install">
+    preInstall?: InitScriptOrFn<'install'>
     /**
      * A script to run only on uninstall
      */
@@ -211,8 +211,8 @@ export class VersionGraph<CurrentVersion extends string>
                   acc +
                   (prev && prev != x.from.metadata.toString()
                     ? ` (as ${prev})`
-                    : "") +
-                  " -> " +
+                    : '') +
+                  ' -> ' +
                   x.to.metadata.toString(),
                 prev: x.to.metadata.toString(),
               }),
@@ -246,7 +246,7 @@ export class VersionGraph<CurrentVersion extends string>
           acc.or(
             isRange(x.metadata)
               ? x.metadata
-              : VersionRange.anchor("=", x.metadata),
+              : VersionRange.anchor('=', x.metadata),
           ),
         VersionRange.none(),
       )
@@ -263,7 +263,7 @@ export class VersionGraph<CurrentVersion extends string>
           acc.or(
             isRange(x.metadata)
               ? x.metadata
-              : VersionRange.anchor("=", x.metadata),
+              : VersionRange.anchor('=', x.metadata),
           ),
         VersionRange.none(),
       )
@@ -279,9 +279,9 @@ export class VersionGraph<CurrentVersion extends string>
         to: this.currentVersion(),
       })
     } else {
-      kind = "install" // implied by !dataVersion
+      kind = 'install' // implied by !dataVersion
       if (this.preInstall)
-        if ("init" in this.preInstall) await this.preInstall.init(effects, kind)
+        if ('init' in this.preInstall) await this.preInstall.init(effects, kind)
         else await this.preInstall(effects, kind)
       await effects.setDataVersion({ version: this.current.options.version })
     }
@@ -302,7 +302,7 @@ export class VersionGraph<CurrentVersion extends string>
       }
     } else {
       if (this.uninstall)
-        if ("uninit" in this.uninstall)
+        if ('uninit' in this.uninstall)
           await this.uninstall.uninit(effects, target)
         else await this.uninstall(effects, target)
     }

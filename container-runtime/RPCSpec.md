@@ -1,16 +1,21 @@
-# Container RPC SERVER Specification
+# Container RPC Server Specification
+
+The container runtime exposes a JSON-RPC server over a Unix socket at `/media/startos/rpc/service.sock`.
 
 ## Methods
 
 ### init
 
-initialize runtime (mount `/proc`, `/sys`, `/dev`, and `/run` to each image in `/media/images`)
+Initialize the runtime and system.
 
-called after os has mounted js and images to the container
+#### params
 
-#### args
-
-`[]`
+```ts
+{
+  id: string,
+  kind: "install" | "update" | "restore" | null,
+}
+```
 
 #### response
 
@@ -18,11 +23,16 @@ called after os has mounted js and images to the container
 
 ### exit
 
-shutdown runtime
+Shutdown runtime and optionally run exit hooks for a target version.
 
-#### args
+#### params
 
-`[]`
+```ts
+{
+  id: string,
+  target: string | null,  // ExtendedVersion or VersionRange
+}
+```
 
 #### response
 
@@ -30,11 +40,11 @@ shutdown runtime
 
 ### start
 
-run main method if not already running
+Run main method if not already running.
 
-#### args
+#### params
 
-`[]`
+None
 
 #### response
 
@@ -42,11 +52,11 @@ run main method if not already running
 
 ### stop
 
-stop main method by sending SIGTERM to child processes, and SIGKILL after timeout
+Stop main method by sending SIGTERM to child processes, and SIGKILL after timeout.
 
-#### args
+#### params
 
-`{ timeout: millis }`
+None
 
 #### response
 
@@ -54,15 +64,16 @@ stop main method by sending SIGTERM to child processes, and SIGKILL after timeou
 
 ### execute
 
-run a specific package procedure
+Run a specific package procedure.
 
-#### args
+#### params
 
 ```ts
 {
-    procedure: JsonPath,
-    input: any,
-    timeout: millis,
+  id: string,           // event ID
+  procedure: string,    // JSON path (e.g., "/backup/create", "/actions/{name}/run")
+  input: any,
+  timeout: number | null,
 }
 ```
 
@@ -72,18 +83,64 @@ run a specific package procedure
 
 ### sandbox
 
-run a specific package procedure in sandbox mode
+Run a specific package procedure in sandbox mode. Same interface as `execute`.
 
-#### args
+UNIMPLEMENTED: this feature is planned but does not exist
+
+#### params
 
 ```ts
 {
-    procedure: JsonPath,
-    input: any,
-    timeout: millis,
+  id: string,
+  procedure: string,
+  input: any,
+  timeout: number | null,
 }
 ```
 
 #### response
 
 `any`
+
+### callback
+
+Handle a callback from an effect.
+
+#### params
+
+```ts
+{
+  id: number,
+  args: any[],
+}
+```
+
+#### response
+
+`null` (no response sent)
+
+### eval
+
+Evaluate a script in the runtime context. Used for debugging.
+
+#### params
+
+```ts
+{
+  script: string,
+}
+```
+
+#### response
+
+`any`
+
+## Procedures
+
+The `execute` and `sandbox` methods route to procedures based on the `procedure` path:
+
+| Procedure | Description |
+|-----------|-------------|
+| `/backup/create` | Create a backup |
+| `/actions/{name}/getInput` | Get input spec for an action |
+| `/actions/{name}/run` | Run an action with input |
