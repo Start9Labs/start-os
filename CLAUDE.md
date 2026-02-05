@@ -14,55 +14,19 @@ StartOS is an open-source Linux distribution for running personal servers. It ma
 - API: JSON-RPC via rpc-toolkit (see `agents/rpc-toolkit.md`)
 - Auth: Password + session cookie, public/private key signatures, local authcookie (see `core/src/middleware/auth/`)
 
-## Build Commands
+## Build & Development
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Environment setup and requirements
+- Build commands and make targets
+- Testing and formatting commands
+- Environment variables
+
+**Quick reference:**
 ```bash
-# Set platform (x86_64, aarch64, riscv64, raspberrypi, x86_64-nonfree, aarch64-nonfree)
-# Can export or set inline. Most recent platform is remembered if not specified.
-export PLATFORM=x86_64
-# or: PLATFORM=x86_64 make iso
-
-# Development mode - sets dev environment, prevents rebuilds on git hash changes
-. ./devmode.sh
-
-# Full ISO build
-make iso
-
-# Faster development iterations (same network)
-make update-startbox REMOTE=start9@<ip>  # Binary + UI only (fastest, no container runtime)
-make update-deb REMOTE=start9@<ip>        # Full Debian package
-make update REMOTE=start9@<ip>            # OTA-style update
-
-# Remote device updates (different network, uses magic-wormhole)
-make wormhole                              # Send startbox binary
-make wormhole-deb                          # Send Debian package
-make wormhole-squashfs                     # Send squashfs image
-
-# Build specific components
-make all                                   # All Rust binaries
-make uis                                   # All web UIs
-make ui                                    # Main UI only
-make deb                                   # Debian package
-```
-
-## Testing
-
-```bash
-make test                    # All tests
-make test-core               # Rust tests (via ./core/run-tests.sh)
-make test-sdk                # SDK tests
-make test-container-runtime  # Container runtime tests
-
-# Run specific Rust test
-cd core && cargo test <test_name> --features=test
-```
-
-## Code Formatting
-
-```bash
-make format              # Rust (requires nightly)
-cd web && npm run check  # TypeScript type checking
-cd web && npm run format # TypeScript/HTML/SCSS formatting (prettier)
+. ./devmode.sh                            # Enable dev mode
+make update-startbox REMOTE=start9@<ip>   # Fastest iteration (binary + UI)
+make test-core                            # Run Rust tests
 ```
 
 ## Architecture
@@ -129,7 +93,7 @@ The container runtime communicates with the host via JSON-RPC over Unix socket. 
 | `rpc/service.sock` | RPC socket (container runtime listens here) |
 | `rpc/host.sock` | Host RPC socket (for effects callbacks to host) |
 
-**S9PK Structure:** See `agents/s9pk-structure.md` (TODO: create this doc)
+**S9PK Structure:** See `agents/s9pk-structure.md`
 
 ### SDK (`/sdk`)
 TypeScript SDK for packaging services (`@start9labs/start-sdk`).
@@ -156,35 +120,11 @@ Git submodule providing diff-based state synchronization. Changes to `db/model/p
 - `.mutate(|v| ...)` - Deserialize, mutate, reserialize
 - For maps: `.keys()`, `.as_idx(&key)`, `.as_idx_mut(&key)`, `.insert()`, `.remove()`, `.contains_key()`
 
-## Environment Variables
-
-- `PLATFORM` - Target platform
-- `ENVIRONMENT` - Feature flags (comma-separated):
-  - `dev` - Enables password SSH before setup, other developer conveniences
-  - `unstable` - Adds debugging with performance penalty, enables throwing in non-prod scenarios
-  - `console` - Enables tokio-console for async debugging
-- `PROFILE` - Build profile (`release`, `dev`)
-- `GIT_BRANCH_AS_HASH` - Use git branch as version hash
-
-## TypeScript Bindings
-
-Rust types export to TypeScript via ts-rs:
-```bash
-make ts-bindings  # Generates core/bindings/, copies to sdk/base/lib/osBindings/
-```
-
-## Multi-Platform Support
-
-Platforms: `x86_64`, `x86_64-nonfree`, `aarch64`, `aarch64-nonfree`, `riscv64`, `raspberrypi`
-
-The `-nonfree` variants include non-free firmware and drivers. Some platforms like `raspberrypi` also include non-free components by necessity.
-
-The build system uses cross-compilation with zig for musl targets. Platform-specific code checks `PLATFORM` constant.
-
 ## Supplementary Documentation
 
-The `agents/` directory contains detailed documentation and task tracking for AI assistants:
+The `agents/` directory contains detailed documentation for AI assistants:
 
 - `TODO.md` - Pending tasks for AI agents (check this first, remove items when completed)
 - `rpc-toolkit.md` - JSON-RPC patterns and handler configuration
 - `core-rust-patterns.md` - Common utilities and patterns for Rust code in `/core` (guard pattern, mount guards, etc.)
+- `s9pk-structure.md` - S9PK package format structure
