@@ -47,6 +47,8 @@ This sets `ENVIRONMENT=dev` and `GIT_BRANCH_AS_HASH=1` to prevent rebuilds on ev
 
 ## Building
 
+All builds can be performed on any operating system that can run Docker.
+
 This project uses [GNU Make](https://www.gnu.org/software/make/) to build its components.
 
 ### Requirements
@@ -84,8 +86,8 @@ This project uses [GNU Make](https://www.gnu.org/software/make/) to build its co
 
 | Target | Description |
 |--------|-------------|
-| `iso` | Create full `.iso` image (Debian only, not for raspberrypi) |
-| `img` | Create full `.img` image (Debian only, raspberrypi only) |
+| `iso` | Create full `.iso` image (not for raspberrypi) |
+| `img` | Create full `.img` image (raspberrypi only) |
 | `deb` | Build Debian package |
 | `all` | Build all Rust binaries |
 | `uis` | Build all web UIs |
