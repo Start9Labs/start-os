@@ -151,6 +151,7 @@ fn get_matching_models(
         id,
         source_version,
         device_info,
+        target_version,
         ..
     }: &GetPackageParams,
 ) -> Result<Vec<(PackageId, ExtendedVersion, Model<PackageVersionInfo>)>, Error> {
@@ -169,26 +170,29 @@ fn get_matching_models(
             .as_entries()?
             .into_iter()
             .map(|(v, info)| {
+                let ev = ExtendedVersion::from(v);
                 Ok::<_, Error>(
-                    if source_version.as_ref().map_or(Ok(true), |source_version| {
-                        Ok::<_, Error>(
-                            source_version.satisfies(
-                                &info
-                                    .as_source_version()
-                                    .de()?
-                                    .unwrap_or(VersionRange::any()),
-                            ),
-                        )
-                    })? {
+                    if target_version.as_ref().map_or(true, |tv| ev.satisfies(tv))
+                        && source_version.as_ref().map_or(Ok(true), |source_version| {
+                            Ok::<_, Error>(
+                                source_version.satisfies(
+                                    &info
+                                        .as_source_version()
+                                        .de()?
+                                        .unwrap_or(VersionRange::any()),
+                                ),
+                            )
+                        })?
+                    {
                         let mut info = info.clone();
                         if let Some(device_info) = &device_info {
                             if info.for_device(device_info)? {
-                                Some((k.clone(), ExtendedVersion::from(v), info))
+                                Some((k.clone(), ev, info))
                             } else {
                                 None
                             }
                         } else {
-                            Some((k.clone(), ExtendedVersion::from(v), info))
+                            Some((k.clone(), ev, info))
                         }
                     } else {
                         None
@@ -211,12 +215,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
     for (id, version, info) in get_matching_models(&peek.as_index().as_package(), &params)? {
         let package_best = best.entry(id.clone()).or_default();
         let package_other = other.entry(id.clone()).or_default();
-        if params
-            .target_version
-            .as_ref()
-            .map_or(true, |v| version.satisfies(v))
-            && package_best.keys().all(|k| !(**k > version))
-        {
+        if package_best.keys().all(|k| !(**k > version)) {
             for worse_version in package_best
                 .keys()
                 .filter(|k| ***k < version)
