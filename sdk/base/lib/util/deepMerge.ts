@@ -23,7 +23,7 @@ export function partialDiff<T>(
     } else {
       return
     }
-  } else if (typeof prev === "object" && typeof next === "object") {
+  } else if (typeof prev === 'object' && typeof next === 'object') {
     if (prev === null || next === null) return { diff: next }
     const res = { diff: {} as Record<keyof T, any> }
     const keys = Object.keys(next) as (keyof T)[]
@@ -48,14 +48,14 @@ export function partialDiff<T>(
 
 export function deepMerge(...args: unknown[]): unknown {
   const lastItem = (args as any)[args.length - 1]
-  if (typeof lastItem !== "object" || !lastItem) return lastItem
+  if (typeof lastItem !== 'object' || !lastItem) return lastItem
   if (Array.isArray(lastItem))
     return deepMergeList(
       ...(args.filter((x) => Array.isArray(x)) as unknown[][]),
     )
   return deepMergeObject(
     ...(args.filter(
-      (x) => typeof x === "object" && x && !Array.isArray(x),
+      (x) => typeof x === 'object' && x && !Array.isArray(x),
     ) as object[]),
   )
 }

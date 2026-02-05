@@ -1,6 +1,6 @@
-import { ServiceInterfaceType } from "../types"
-import { Effects } from "../Effects"
-import { Scheme } from "./Host"
+import { ServiceInterfaceType } from '../types'
+import { Effects } from '../Effects'
+import { Scheme } from './Host'
 
 /**
  * A helper class for creating a Network Interface

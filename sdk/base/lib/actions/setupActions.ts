@@ -1,16 +1,16 @@
-import { InputSpec } from "./input/builder"
-import { ExtractInputSpecType } from "./input/builder/inputSpec"
-import * as T from "../types"
-import { once } from "../util"
-import { InitScript } from "../inits"
-import { Parser } from "ts-matches"
+import { InputSpec } from './input/builder'
+import { ExtractInputSpecType } from './input/builder/inputSpec'
+import * as T from '../types'
+import { once } from '../util'
+import { InitScript } from '../inits'
+import { Parser } from 'ts-matches'
 
 type MaybeInputSpec<Type> = {} extends Type ? null : InputSpec<Type>
 export type Run<A extends Record<string, any>> = (options: {
   effects: T.Effects
   input: A
   spec: T.inputSpecTypes.InputSpec
-}) => Promise<(T.ActionResult & { version: "1" }) | null | void | undefined>
+}) => Promise<(T.ActionResult & { version: '1' }) | null | void | undefined>
 export type GetInput<A extends Record<string, any>> = (options: {
   effects: T.Effects
 }) => Promise<null | void | undefined | T.DeepPartial<A>>
@@ -65,7 +65,7 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
     InputSpecType extends InputSpec<Record<string, any>>,
   >(
     id: Id,
-    metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
+    metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput'>>,
     inputSpec: InputSpecType,
     getInput: GetInput<ExtractInputSpecType<InputSpecType>>,
     run: Run<ExtractInputSpecType<InputSpecType>>,
@@ -80,7 +80,7 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
   }
   static withoutInput<Id extends T.ActionId>(
     id: Id,
-    metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
+    metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput'>>,
     run: Run<{}>,
   ): Action<Id, {}> {
     return new Action(
@@ -156,7 +156,7 @@ export class Actions<
   }
   addAction<A extends Action<T.ActionId, any>>(
     action: A, // TODO: prevent duplicates
-  ): Actions<AllActions & { [id in A["id"]]: A }> {
+  ): Actions<AllActions & { [id in A['id']]: A }> {
     return new Actions({ ...this.actions, [action.id]: action })
   }
   async init(effects: T.Effects): Promise<void> {

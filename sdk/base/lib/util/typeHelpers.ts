@@ -1,4 +1,4 @@
-import * as T from "../types"
+import * as T from '../types'
 
 // prettier-ignore
 export type FlattenIntersection<T> = 
@@ -9,7 +9,7 @@ T extends object ? {} & {[P in keyof T]: T[P]} :
 export type _<T> = FlattenIntersection<T>
 
 export const isKnownError = (e: unknown): e is T.KnownError =>
-  e instanceof Object && ("error" in e || "error-code" in e)
+  e instanceof Object && ('error' in e || 'error-code' in e)
 
 declare const affine: unique symbol
 
@@ -23,41 +23,41 @@ export type NoAny<A> = NeverPossible extends A
   : A
 
 type CapitalLetters =
-  | "A"
-  | "B"
-  | "C"
-  | "D"
-  | "E"
-  | "F"
-  | "G"
-  | "H"
-  | "I"
-  | "J"
-  | "K"
-  | "L"
-  | "M"
-  | "N"
-  | "O"
-  | "P"
-  | "Q"
-  | "R"
-  | "S"
-  | "T"
-  | "U"
-  | "V"
-  | "W"
-  | "X"
-  | "Y"
-  | "Z"
+  | 'A'
+  | 'B'
+  | 'C'
+  | 'D'
+  | 'E'
+  | 'F'
+  | 'G'
+  | 'H'
+  | 'I'
+  | 'J'
+  | 'K'
+  | 'L'
+  | 'M'
+  | 'N'
+  | 'O'
+  | 'P'
+  | 'Q'
+  | 'R'
+  | 'S'
+  | 'T'
+  | 'U'
+  | 'V'
+  | 'W'
+  | 'X'
+  | 'Y'
+  | 'Z'
 
-type Numbers = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+type Numbers = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
 
 type CapitalChars = CapitalLetters | Numbers
 
 export type ToKebab<S extends string> = S extends string
   ? S extends `${infer Head}${CapitalChars}${infer Tail}` // string has a capital char somewhere
-    ? Head extends "" // there is a capital char in the first position
-      ? Tail extends ""
+    ? Head extends '' // there is a capital char in the first position
+      ? Tail extends ''
         ? Lowercase<S> /*  'A' */
         : S extends `${infer Caps}${Tail}` // tail exists, has capital characters
           ? Caps extends CapitalChars
@@ -68,7 +68,7 @@ export type ToKebab<S extends string> = S extends string
                 : `${ToKebab<Caps>}${ToKebab<Tail>}` /* 'AbCD','AbcD',  */ /* TODO: if tail is only numbers, append without underscore */
             : never /* never reached, used for inference of caps */
           : never
-      : Tail extends "" /* 'aB' 'abCD' 'ABCD' 'AB' */
+      : Tail extends '' /* 'aB' 'abCD' 'ABCD' 'AB' */
         ? S extends `${Head}${infer Caps}`
           ? Caps extends CapitalChars
             ? Head extends Lowercase<Head> /* 'abcD' */
@@ -110,7 +110,7 @@ function test() {
       B extends A ? null : never
     ) : never
   )) =>{ }
-  t<"foo-bar", ToKebab<"FooBar">>(null)
+  t<'foo-bar', ToKebab<'FooBar'>>(null)
   // @ts-expect-error
-  t<"foo-3ar", ToKebab<"FooBar">>(null)
+  t<'foo-3ar', ToKebab<'FooBar'>>(null)
 }

@@ -1,8 +1,8 @@
-import { VersionRange } from "../../../base/lib/exver"
-import * as T from "../../../base/lib/types"
-import { once } from "../util"
+import { VersionRange } from '../../../base/lib/exver'
+import * as T from '../../../base/lib/types'
+import { once } from '../util'
 
-export type InitKind = "install" | "update" | "restore" | null
+export type InitKind = 'install' | 'update' | 'restore' | null
 
 export type InitFn<Kind extends InitKind = InitKind> = (
   effects: T.Effects,
@@ -31,7 +31,7 @@ export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
           complete.then(() => fn()).catch(console.error),
         )
         try {
-          if ("init" in init) await init.init(e, opts.kind)
+          if ('init' in init) await init.init(e, opts.kind)
           else await init(e, opts.kind)
         } finally {
           res()
@@ -43,7 +43,7 @@ export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
 }
 
 export function setupOnInit(onInit: InitScriptOrFn): InitScript {
-  return "init" in onInit
+  return 'init' in onInit
     ? onInit
     : {
         init: async (effects, kind) => {

@@ -508,8 +508,10 @@ impl From<Error> for RpcError {
 }
 impl From<RpcError> for Error {
     fn from(e: RpcError) -> Self {
+        let data = ErrorData::from(&e);
+        let info = data.info.clone();
         Error::new(
-            ErrorData::from(&e),
+            data,
             if let Ok(kind) = e.code.try_into() {
                 kind
             } else if e.code == METHOD_NOT_FOUND_ERROR.code {
@@ -523,6 +525,7 @@ impl From<RpcError> for Error {
                 ErrorKind::Unknown
             },
         )
+        .with_info(info)
     }
 }
 

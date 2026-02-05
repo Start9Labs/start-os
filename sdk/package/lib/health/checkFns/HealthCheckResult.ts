@@ -1,3 +1,3 @@
-import { T } from "../../../../base/lib"
+import { T } from '../../../../base/lib'
 
-export type HealthCheckResult = Omit<T.NamedHealthCheckResult, "name">
+export type HealthCheckResult = Omit<T.NamedHealthCheckResult, 'name'>

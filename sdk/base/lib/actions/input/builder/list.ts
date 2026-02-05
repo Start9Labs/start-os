@@ -1,4 +1,4 @@
-import { InputSpec, LazyBuild } from "./inputSpec"
+import { InputSpec, LazyBuild } from './inputSpec'
 import {
   ListValueSpecText,
   Pattern,
@@ -6,8 +6,8 @@ import {
   UniqueBy,
   ValueSpecList,
   ValueSpecListOf,
-} from "../inputSpecTypes"
-import { Parser, arrayOf, string } from "ts-matches"
+} from '../inputSpecTypes'
+import { Parser, arrayOf, string } from 'ts-matches'
 
 export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
   private constructor(
@@ -55,7 +55,7 @@ export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
        * @description Informs the browser how to behave and which keyboard to display on mobile
        * @default "text"
        */
-      inputmode?: ListValueSpecText["inputmode"]
+      inputmode?: ListValueSpecText['inputmode']
       /**
        * @description Displays a button that will generate a random string according to the provided charset and len attributes.
        */
@@ -65,21 +65,21 @@ export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     const validator = arrayOf(string)
     return new List<string[]>(() => {
       const spec = {
-        type: "text" as const,
+        type: 'text' as const,
         placeholder: null,
         minLength: null,
         maxLength: null,
         masked: false,
-        inputmode: "text" as const,
+        inputmode: 'text' as const,
         generate: null,
         patterns: aSpec.patterns || [],
         ...aSpec,
       }
-      const built: ValueSpecListOf<"text"> = {
+      const built: ValueSpecListOf<'text'> = {
         description: null,
         warning: null,
         default: [],
-        type: "list" as const,
+        type: 'list' as const,
         minLength: null,
         maxLength: null,
         disabled: false,
@@ -106,7 +106,7 @@ export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         minLength?: number | null
         maxLength?: number | null
         patterns?: Pattern[]
-        inputmode?: ListValueSpecText["inputmode"]
+        inputmode?: ListValueSpecText['inputmode']
       }
     }>,
   ) {
@@ -114,21 +114,21 @@ export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     return new List<string[]>(async (options) => {
       const { spec: aSpec, ...a } = await getA(options)
       const spec = {
-        type: "text" as const,
+        type: 'text' as const,
         placeholder: null,
         minLength: null,
         maxLength: null,
         masked: false,
-        inputmode: "text" as const,
+        inputmode: 'text' as const,
         generate: null,
         patterns: aSpec.patterns || [],
         ...aSpec,
       }
-      const built: ValueSpecListOf<"text"> = {
+      const built: ValueSpecListOf<'text'> = {
         description: null,
         warning: null,
         default: [],
-        type: "list" as const,
+        type: 'list' as const,
         minLength: null,
         maxLength: null,
         disabled: false,
@@ -162,7 +162,7 @@ export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       const { spec: previousSpecSpec, ...restSpec } = aSpec
       const built = await previousSpecSpec.build(options)
       const spec = {
-        type: "object" as const,
+        type: 'object' as const,
         displayAs: null,
         uniqueBy: null,
         ...restSpec,
@@ -179,7 +179,7 @@ export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
           warning: null,
           minLength: null,
           maxLength: null,
-          type: "list" as const,
+          type: 'list' as const,
           disabled: false,
           ...value,
         },

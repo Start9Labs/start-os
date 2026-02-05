@@ -1,2 +1,2 @@
-export * from "../../base/lib/types"
-export { HealthCheck } from "./health"
+export * from '../../base/lib/types'
+export { HealthCheck } from './health'

@@ -1,20 +1,20 @@
-import { testOutput } from "./output.test"
-import { InputSpec } from "../../../base/lib/actions/input/builder/inputSpec"
-import { List } from "../../../base/lib/actions/input/builder/list"
-import { Value } from "../../../base/lib/actions/input/builder/value"
-import { Variants } from "../../../base/lib/actions/input/builder/variants"
-import { ValueSpec } from "../../../base/lib/actions/input/inputSpecTypes"
-import { setupManifest } from "../manifest/setupManifest"
-import { StartSdk } from "../StartSdk"
+import { testOutput } from './output.test'
+import { InputSpec } from '../../../base/lib/actions/input/builder/inputSpec'
+import { List } from '../../../base/lib/actions/input/builder/list'
+import { Value } from '../../../base/lib/actions/input/builder/value'
+import { Variants } from '../../../base/lib/actions/input/builder/variants'
+import { ValueSpec } from '../../../base/lib/actions/input/inputSpecTypes'
+import { setupManifest } from '../manifest/setupManifest'
+import { StartSdk } from '../StartSdk'
 
-describe("builder tests", () => {
-  test("text", async () => {
+describe('builder tests', () => {
+  test('text', async () => {
     const bitcoinPropertiesBuilt: {
-      "peer-tor-address": ValueSpec
+      'peer-tor-address': ValueSpec
     } = await InputSpec.of({
-      "peer-tor-address": Value.text({
-        name: "Peer tor address",
-        description: "The Tor address of the peer interface",
+      'peer-tor-address': Value.text({
+        name: 'Peer tor address',
+        description: 'The Tor address of the peer interface',
         required: true,
         default: null,
       }),
@@ -22,9 +22,9 @@ describe("builder tests", () => {
       .build({} as any)
       .then((a) => a.spec)
     expect(bitcoinPropertiesBuilt).toMatchObject({
-      "peer-tor-address": {
-        type: "text",
-        description: "The Tor address of the peer interface",
+      'peer-tor-address': {
+        type: 'text',
+        description: 'The Tor address of the peer interface',
         warning: null,
         masked: false,
         placeholder: null,
@@ -32,8 +32,8 @@ describe("builder tests", () => {
         maxLength: null,
         patterns: [],
         disabled: false,
-        inputmode: "text",
-        name: "Peer tor address",
+        inputmode: 'text',
+        name: 'Peer tor address',
         required: true,
         default: null,
       },
@@ -41,10 +41,10 @@ describe("builder tests", () => {
   })
 })
 
-describe("values", () => {
-  test("toggle", async () => {
+describe('values', () => {
+  test('toggle', async () => {
     const value = await Value.toggle({
-      name: "Testing",
+      name: 'Testing',
       description: null,
       warning: null,
       default: false,
@@ -53,87 +53,87 @@ describe("values", () => {
     validator.unsafeCast(false)
     testOutput<typeof validator._TYPE, boolean>()(null)
   })
-  test("text", async () => {
+  test('text', async () => {
     const value = await Value.text({
-      name: "Testing",
+      name: 'Testing',
       required: true,
       default: null,
     }).build({} as any)
     const validator = value.validator
     const rawIs = value.spec
-    validator.unsafeCast("test text")
+    validator.unsafeCast('test text')
     expect(() => validator.unsafeCast(null)).toThrowError()
     testOutput<typeof validator._TYPE, string>()(null)
   })
-  test("text with default", async () => {
+  test('text with default', async () => {
     const value = await Value.text({
-      name: "Testing",
+      name: 'Testing',
       required: true,
-      default: "this is a default value",
+      default: 'this is a default value',
     }).build({} as any)
     const validator = value.validator
     const rawIs = value.spec
-    validator.unsafeCast("test text")
+    validator.unsafeCast('test text')
     expect(() => validator.unsafeCast(null)).toThrowError()
     testOutput<typeof validator._TYPE, string>()(null)
   })
-  test("optional text", async () => {
+  test('optional text', async () => {
     const value = await Value.text({
-      name: "Testing",
+      name: 'Testing',
       required: false,
       default: null,
     }).build({} as any)
     const validator = value.validator
     const rawIs = value.spec
-    validator.unsafeCast("test text")
+    validator.unsafeCast('test text')
     validator.unsafeCast(null)
     testOutput<typeof validator._TYPE, string | null>()(null)
   })
-  test("color", async () => {
+  test('color', async () => {
     const value = await Value.color({
-      name: "Testing",
+      name: 'Testing',
       required: false,
       default: null,
       description: null,
       warning: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast("#000000")
+    validator.unsafeCast('#000000')
     testOutput<typeof validator._TYPE, string | null>()(null)
   })
-  test("datetime", async () => {
+  test('datetime', async () => {
     const value = await Value.datetime({
-      name: "Testing",
+      name: 'Testing',
       required: true,
       default: null,
       description: null,
       warning: null,
-      inputmode: "date",
+      inputmode: 'date',
       min: null,
       max: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast("2021-01-01")
+    validator.unsafeCast('2021-01-01')
     testOutput<typeof validator._TYPE, string>()(null)
   })
-  test("optional datetime", async () => {
+  test('optional datetime', async () => {
     const value = await Value.datetime({
-      name: "Testing",
+      name: 'Testing',
       required: false,
       default: null,
       description: null,
       warning: null,
-      inputmode: "date",
+      inputmode: 'date',
       min: null,
       max: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast("2021-01-01")
+    validator.unsafeCast('2021-01-01')
     testOutput<typeof validator._TYPE, string | null>()(null)
   })
-  test("textarea", async () => {
+  test('textarea', async () => {
     const value = await Value.textarea({
-      name: "Testing",
+      name: 'Testing',
       required: false,
       default: null,
       description: null,
@@ -145,12 +145,12 @@ describe("values", () => {
       placeholder: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast("test text")
+    validator.unsafeCast('test text')
     testOutput<typeof validator._TYPE, string | null>()(null)
   })
-  test("number", async () => {
+  test('number', async () => {
     const value = await Value.number({
-      name: "Testing",
+      name: 'Testing',
       required: true,
       default: null,
       integer: false,
@@ -166,9 +166,9 @@ describe("values", () => {
     validator.unsafeCast(2)
     testOutput<typeof validator._TYPE, number>()(null)
   })
-  test("optional number", async () => {
+  test('optional number', async () => {
     const value = await Value.number({
-      name: "Testing",
+      name: 'Testing',
       required: false,
       default: null,
       integer: false,
@@ -184,45 +184,45 @@ describe("values", () => {
     validator.unsafeCast(2)
     testOutput<typeof validator._TYPE, number | null>()(null)
   })
-  test("select", async () => {
+  test('select', async () => {
     const value = await Value.select({
-      name: "Testing",
-      default: "a",
+      name: 'Testing',
+      default: 'a',
       values: {
-        a: "A",
-        b: "B",
+        a: 'A',
+        b: 'B',
       },
       description: null,
       warning: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast("a")
-    validator.unsafeCast("b")
-    expect(() => validator.unsafeCast("c")).toThrowError()
-    testOutput<typeof validator._TYPE, "a" | "b">()(null)
+    validator.unsafeCast('a')
+    validator.unsafeCast('b')
+    expect(() => validator.unsafeCast('c')).toThrowError()
+    testOutput<typeof validator._TYPE, 'a' | 'b'>()(null)
   })
-  test("nullable select", async () => {
+  test('nullable select', async () => {
     const value = await Value.select({
-      name: "Testing",
-      default: "a",
+      name: 'Testing',
+      default: 'a',
       values: {
-        a: "A",
-        b: "B",
+        a: 'A',
+        b: 'B',
       },
       description: null,
       warning: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast("a")
-    validator.unsafeCast("b")
-    testOutput<typeof validator._TYPE, "a" | "b">()(null)
+    validator.unsafeCast('a')
+    validator.unsafeCast('b')
+    testOutput<typeof validator._TYPE, 'a' | 'b'>()(null)
   })
-  test("multiselect", async () => {
+  test('multiselect', async () => {
     const value = await Value.multiselect({
-      name: "Testing",
+      name: 'Testing',
       values: {
-        a: "A",
-        b: "B",
+        a: 'A',
+        b: 'B',
       },
       default: [],
       description: null,
@@ -232,21 +232,21 @@ describe("values", () => {
     }).build({} as any)
     const validator = value.validator
     validator.unsafeCast([])
-    validator.unsafeCast(["a", "b"])
+    validator.unsafeCast(['a', 'b'])
 
-    expect(() => validator.unsafeCast(["e"])).toThrowError()
+    expect(() => validator.unsafeCast(['e'])).toThrowError()
     expect(() => validator.unsafeCast([4])).toThrowError()
-    testOutput<typeof validator._TYPE, Array<"a" | "b">>()(null)
+    testOutput<typeof validator._TYPE, Array<'a' | 'b'>>()(null)
   })
-  test("object", async () => {
+  test('object', async () => {
     const value = await Value.object(
       {
-        name: "Testing",
+        name: 'Testing',
         description: null,
       },
       InputSpec.of({
         a: Value.toggle({
-          name: "test",
+          name: 'test',
           description: null,
           warning: null,
           default: false,
@@ -257,18 +257,18 @@ describe("values", () => {
     validator.unsafeCast({ a: true })
     testOutput<typeof validator._TYPE, { a: boolean }>()(null)
   })
-  test("union", async () => {
+  test('union', async () => {
     const value = await Value.union({
-      name: "Testing",
-      default: "a",
+      name: 'Testing',
+      default: 'a',
       description: null,
       warning: null,
       variants: Variants.of({
         a: {
-          name: "a",
+          name: 'a',
           spec: InputSpec.of({
             b: Value.toggle({
-              name: "b",
+              name: 'b',
               description: null,
               warning: null,
               default: false,
@@ -278,12 +278,12 @@ describe("values", () => {
       }),
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast({ selection: "a", value: { b: false } })
+    validator.unsafeCast({ selection: 'a', value: { b: false } })
     type Test = typeof validator._TYPE
     testOutput<
       Test,
       {
-        selection: "a"
+        selection: 'a'
         value: {
           b: boolean
         }
@@ -292,15 +292,15 @@ describe("values", () => {
     >()(null)
   })
 
-  describe("dynamic", () => {
+  describe('dynamic', () => {
     const fakeOptions = {
-      inputSpec: "inputSpec",
-      effects: "effects",
-      utils: "utils",
+      inputSpec: 'inputSpec',
+      effects: 'effects',
+      utils: 'utils',
     } as any
-    test("toggle", async () => {
+    test('toggle', async () => {
       const value = await Value.dynamicToggle(async () => ({
-        name: "Testing",
+        name: 'Testing',
         description: null,
         warning: null,
         default: false,
@@ -310,98 +310,98 @@ describe("values", () => {
       expect(() => validator.unsafeCast(null)).toThrowError()
       testOutput<typeof validator._TYPE, boolean>()(null)
       expect(value.spec).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
         description: null,
         warning: null,
         default: false,
       })
     })
-    test("text", async () => {
+    test('text', async () => {
       const value = await Value.dynamicText(async () => ({
-        name: "Testing",
+        name: 'Testing',
         required: false,
         default: null,
       })).build({} as any)
       const validator = value.validator
       const rawIs = value.spec
-      validator.unsafeCast("test text")
+      validator.unsafeCast('test text')
       validator.unsafeCast(null)
       testOutput<typeof validator._TYPE, string | null>()(null)
       expect(value.spec).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
         required: false,
         default: null,
       })
     })
-    test("text with default", async () => {
+    test('text with default', async () => {
       const value = await Value.dynamicText(async () => ({
-        name: "Testing",
+        name: 'Testing',
         required: false,
-        default: "this is a default value",
+        default: 'this is a default value',
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast("test text")
+      validator.unsafeCast('test text')
       validator.unsafeCast(null)
       testOutput<typeof validator._TYPE, string | null>()(null)
       expect(value.spec).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
         required: false,
-        default: "this is a default value",
+        default: 'this is a default value',
       })
     })
-    test("optional text", async () => {
+    test('optional text', async () => {
       const value = await Value.dynamicText(async () => ({
-        name: "Testing",
+        name: 'Testing',
         required: false,
         default: null,
       })).build({} as any)
       const validator = value.validator
       const rawIs = value.spec
-      validator.unsafeCast("test text")
+      validator.unsafeCast('test text')
       validator.unsafeCast(null)
       testOutput<typeof validator._TYPE, string | null>()(null)
       expect(value.spec).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
         required: false,
         default: null,
       })
     })
-    test("color", async () => {
+    test('color', async () => {
       const value = await Value.dynamicColor(async () => ({
-        name: "Testing",
+        name: 'Testing',
         required: false,
         default: null,
         description: null,
         warning: null,
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast("#000000")
+      validator.unsafeCast('#000000')
       validator.unsafeCast(null)
       testOutput<typeof validator._TYPE, string | null>()(null)
       expect(value.spec).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
         required: false,
         default: null,
         description: null,
         warning: null,
       })
     })
-    test("datetime", async () => {
+    test('datetime', async () => {
       const sdk = StartSdk.of()
         .withManifest(
           setupManifest({
-            id: "testOutput",
-            title: "",
-            license: "",
-            wrapperRepo: "",
-            upstreamRepo: "",
-            supportSite: "",
-            marketingSite: "",
+            id: 'testOutput',
+            title: '',
+            license: '',
+            wrapperRepo: '',
+            upstreamRepo: '',
+            supportSite: '',
+            marketingSite: '',
             donationUrl: null,
-            docsUrl: "",
+            docsUrl: '',
             description: {
-              short: "",
-              long: "",
+              short: '',
+              long: '',
             },
             images: {},
             volumes: [],
@@ -414,10 +414,10 @@ describe("values", () => {
               stop: null,
             },
             dependencies: {
-              "remote-test": {
-                description: "",
+              'remote-test': {
+                description: '',
                 optional: true,
-                s9pk: "https://example.com/remote-test.s9pk",
+                s9pk: 'https://example.com/remote-test.s9pk',
               },
             },
           }),
@@ -426,28 +426,28 @@ describe("values", () => {
 
       const value = await Value.dynamicDatetime(async ({ effects }) => {
         return {
-          name: "Testing",
+          name: 'Testing',
           required: false,
           default: null,
-          inputmode: "date",
+          inputmode: 'date',
         }
       }).build({} as any)
       const validator = value.validator
-      validator.unsafeCast("2021-01-01")
+      validator.unsafeCast('2021-01-01')
       validator.unsafeCast(null)
       testOutput<typeof validator._TYPE, string | null>()(null)
       expect(value.spec).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
         required: false,
         default: null,
         description: null,
         warning: null,
-        inputmode: "date",
+        inputmode: 'date',
       })
     })
-    test("textarea", async () => {
+    test('textarea', async () => {
       const value = await Value.dynamicTextarea(async () => ({
-        name: "Testing",
+        name: 'Testing',
         required: false,
         default: null,
         description: null,
@@ -459,16 +459,16 @@ describe("values", () => {
         placeholder: null,
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast("test text")
+      validator.unsafeCast('test text')
       testOutput<typeof validator._TYPE, string | null>()(null)
       expect(value.spec).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
         required: false,
       })
     })
-    test("number", async () => {
+    test('number', async () => {
       const value = await Value.dynamicNumber(() => ({
-        name: "Testing",
+        name: 'Testing',
         required: false,
         default: null,
         integer: false,
@@ -483,38 +483,38 @@ describe("values", () => {
       const validator = value.validator
       validator.unsafeCast(2)
       validator.unsafeCast(null)
-      expect(() => validator.unsafeCast("null")).toThrowError()
+      expect(() => validator.unsafeCast('null')).toThrowError()
       testOutput<typeof validator._TYPE, number | null>()(null)
       expect(value.spec).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
         required: false,
       })
     })
-    test("select", async () => {
+    test('select', async () => {
       const value = await Value.dynamicSelect(() => ({
-        name: "Testing",
-        default: "a",
+        name: 'Testing',
+        default: 'a',
         values: {
-          a: "A",
-          b: "B",
+          a: 'A',
+          b: 'B',
         },
         description: null,
         warning: null,
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast("a")
-      validator.unsafeCast("b")
-      testOutput<typeof validator._TYPE, "a" | "b">()(null)
+      validator.unsafeCast('a')
+      validator.unsafeCast('b')
+      testOutput<typeof validator._TYPE, 'a' | 'b'>()(null)
       expect(value.spec).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
       })
     })
-    test("multiselect", async () => {
+    test('multiselect', async () => {
       const value = await Value.dynamicMultiselect(() => ({
-        name: "Testing",
+        name: 'Testing',
         values: {
-          a: "A",
-          b: "B",
+          a: 'A',
+          b: 'B',
         },
         default: [],
         description: null,
@@ -524,31 +524,31 @@ describe("values", () => {
       })).build({} as any)
       const validator = value.validator
       validator.unsafeCast([])
-      validator.unsafeCast(["a", "b"])
+      validator.unsafeCast(['a', 'b'])
 
       expect(() => validator.unsafeCast([4])).toThrowError()
       expect(() => validator.unsafeCast(null)).toThrowError()
-      testOutput<typeof validator._TYPE, Array<"a" | "b">>()(null)
+      testOutput<typeof validator._TYPE, Array<'a' | 'b'>>()(null)
       expect(value.spec).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
         default: [],
       })
     })
   })
-  describe("filtering", () => {
-    test("union", async () => {
+  describe('filtering', () => {
+    test('union', async () => {
       const value = await Value.dynamicUnion(() => ({
-        name: "Testing",
-        default: "a",
+        name: 'Testing',
+        default: 'a',
         description: null,
         warning: null,
-        disabled: ["a", "c"],
+        disabled: ['a', 'c'],
         variants: Variants.of({
           a: {
-            name: "a",
+            name: 'a',
             spec: InputSpec.of({
               b: Value.toggle({
-                name: "b",
+                name: 'b',
                 description: null,
                 warning: null,
                 default: false,
@@ -556,10 +556,10 @@ describe("values", () => {
             }),
           },
           b: {
-            name: "b",
+            name: 'b',
             spec: InputSpec.of({
               b: Value.toggle({
-                name: "b",
+                name: 'b',
                 description: null,
                 warning: null,
                 default: false,
@@ -569,12 +569,12 @@ describe("values", () => {
         }),
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast({ selection: "a", value: { b: false } })
+      validator.unsafeCast({ selection: 'a', value: { b: false } })
       type Test = typeof validator._TYPE
       testOutput<
         Test,
         | {
-            selection: "a"
+            selection: 'a'
             value: {
               b: boolean
             }
@@ -585,7 +585,7 @@ describe("values", () => {
             }
           }
         | {
-            selection: "b"
+            selection: 'b'
             value: {
               b: boolean
             }
@@ -599,41 +599,41 @@ describe("values", () => {
 
       const built = value.spec
       expect(built).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
         variants: {
           b: {},
         },
       })
       expect(built).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
         variants: {
           a: {},
           b: {},
         },
       })
       expect(built).toMatchObject({
-        name: "Testing",
+        name: 'Testing',
         variants: {
           a: {},
           b: {},
         },
-        disabled: ["a", "c"],
+        disabled: ['a', 'c'],
       })
     })
   })
-  test("dynamic union", async () => {
+  test('dynamic union', async () => {
     const value = await Value.dynamicUnion(() => ({
-      disabled: ["a", "c"],
-      name: "Testing",
-      default: "b",
+      disabled: ['a', 'c'],
+      name: 'Testing',
+      default: 'b',
       description: null,
       warning: null,
       variants: Variants.of({
         a: {
-          name: "a",
+          name: 'a',
           spec: InputSpec.of({
             b: Value.toggle({
-              name: "b",
+              name: 'b',
               description: null,
               warning: null,
               default: false,
@@ -641,10 +641,10 @@ describe("values", () => {
           }),
         },
         b: {
-          name: "b",
+          name: 'b',
           spec: InputSpec.of({
             b: Value.toggle({
-              name: "b",
+              name: 'b',
               description: null,
               warning: null,
               default: false,
@@ -654,12 +654,12 @@ describe("values", () => {
       }),
     })).build({} as any)
     const validator = value.validator
-    validator.unsafeCast({ selection: "a", value: { b: false } })
+    validator.unsafeCast({ selection: 'a', value: { b: false } })
     type Test = typeof validator._TYPE
     testOutput<
       Test,
       | {
-          selection: "a"
+          selection: 'a'
           value: {
             b: boolean
           }
@@ -670,7 +670,7 @@ describe("values", () => {
           }
         }
       | {
-          selection: "b"
+          selection: 'b'
           value: {
             b: boolean
           }
@@ -684,40 +684,40 @@ describe("values", () => {
 
     const built = value.spec
     expect(built).toMatchObject({
-      name: "Testing",
+      name: 'Testing',
       variants: {
         b: {},
       },
     })
     expect(built).toMatchObject({
-      name: "Testing",
+      name: 'Testing',
       variants: {
         a: {},
         b: {},
       },
     })
     expect(built).toMatchObject({
-      name: "Testing",
+      name: 'Testing',
       variants: {
         a: {},
         b: {},
       },
-      disabled: ["a", "c"],
+      disabled: ['a', 'c'],
     })
   })
 })
 
-describe("Builder List", () => {
-  test("obj", async () => {
+describe('Builder List', () => {
+  test('obj', async () => {
     const value = await Value.list(
       List.obj(
         {
-          name: "test",
+          name: 'test',
         },
         {
           spec: InputSpec.of({
             test: Value.toggle({
-              name: "test",
+              name: 'test',
               description: null,
               warning: null,
               default: false,
@@ -730,11 +730,11 @@ describe("Builder List", () => {
     validator.unsafeCast([{ test: true }])
     testOutput<typeof validator._TYPE, { test: boolean }[]>()(null)
   })
-  test("text", async () => {
+  test('text', async () => {
     const value = await Value.list(
       List.text(
         {
-          name: "test",
+          name: 'test',
         },
         {
           patterns: [],
@@ -742,53 +742,53 @@ describe("Builder List", () => {
       ),
     ).build({} as any)
     const validator = value.validator
-    validator.unsafeCast(["test", "text"])
+    validator.unsafeCast(['test', 'text'])
     testOutput<typeof validator._TYPE, string[]>()(null)
   })
-  describe("dynamic", () => {
-    test("text", async () => {
+  describe('dynamic', () => {
+    test('text', async () => {
       const value = await Value.list(
         List.dynamicText(() => ({
-          name: "test",
+          name: 'test',
           spec: { patterns: [] },
         })),
       ).build({} as any)
       const validator = value.validator
-      validator.unsafeCast(["test", "text"])
+      validator.unsafeCast(['test', 'text'])
       expect(() => validator.unsafeCast([3, 4])).toThrowError()
       expect(() => validator.unsafeCast(null)).toThrowError()
       testOutput<typeof validator._TYPE, string[]>()(null)
       expect(value.spec).toMatchObject({
-        name: "test",
+        name: 'test',
         spec: { patterns: [] },
       })
     })
   })
 })
 
-describe("Nested nullable values", () => {
-  test("Testing text", async () => {
+describe('Nested nullable values', () => {
+  test('Testing text', async () => {
     const value = await InputSpec.of({
       a: Value.text({
-        name: "Temp Name",
+        name: 'Temp Name',
         description:
-          "If no name is provided, the name from inputSpec will be used",
+          'If no name is provided, the name from inputSpec will be used',
         required: false,
         default: null,
       }),
     }).build({} as any)
     const validator = value.validator
     validator.unsafeCast({ a: null })
-    validator.unsafeCast({ a: "test" })
+    validator.unsafeCast({ a: 'test' })
     expect(() => validator.unsafeCast({ a: 4 })).toThrowError()
     testOutput<typeof validator._TYPE, { a: string | null }>()(null)
   })
-  test("Testing number", async () => {
+  test('Testing number', async () => {
     const value = await InputSpec.of({
       a: Value.number({
-        name: "Temp Name",
+        name: 'Temp Name',
         description:
-          "If no name is provided, the name from inputSpec will be used",
+          'If no name is provided, the name from inputSpec will be used',
         required: false,
         default: null,
         warning: null,
@@ -803,15 +803,15 @@ describe("Nested nullable values", () => {
     const validator = value.validator
     validator.unsafeCast({ a: null })
     validator.unsafeCast({ a: 5 })
-    expect(() => validator.unsafeCast({ a: "4" })).toThrowError()
+    expect(() => validator.unsafeCast({ a: '4' })).toThrowError()
     testOutput<typeof validator._TYPE, { a: number | null }>()(null)
   })
-  test("Testing color", async () => {
+  test('Testing color', async () => {
     const value = await InputSpec.of({
       a: Value.color({
-        name: "Temp Name",
+        name: 'Temp Name',
         description:
-          "If no name is provided, the name from inputSpec will be used",
+          'If no name is provided, the name from inputSpec will be used',
         required: false,
         default: null,
         warning: null,
@@ -819,50 +819,50 @@ describe("Nested nullable values", () => {
     }).build({} as any)
     const validator = value.validator
     validator.unsafeCast({ a: null })
-    validator.unsafeCast({ a: "5" })
+    validator.unsafeCast({ a: '5' })
     expect(() => validator.unsafeCast({ a: 4 })).toThrowError()
     testOutput<typeof validator._TYPE, { a: string | null }>()(null)
   })
-  test("Testing select", async () => {
+  test('Testing select', async () => {
     const value = await InputSpec.of({
       a: Value.select({
-        name: "Temp Name",
+        name: 'Temp Name',
         description:
-          "If no name is provided, the name from inputSpec will be used",
-        default: "a",
+          'If no name is provided, the name from inputSpec will be used',
+        default: 'a',
         warning: null,
         values: {
-          a: "A",
+          a: 'A',
         },
       }),
     }).build({} as any)
     const higher = await Value.select({
-      name: "Temp Name",
+      name: 'Temp Name',
       description:
-        "If no name is provided, the name from inputSpec will be used",
-      default: "a",
+        'If no name is provided, the name from inputSpec will be used',
+      default: 'a',
       warning: null,
       values: {
-        a: "A",
+        a: 'A',
       },
     }).build({} as any)
 
     const validator = value.validator
-    validator.unsafeCast({ a: "a" })
-    expect(() => validator.unsafeCast({ a: "4" })).toThrowError()
-    testOutput<typeof validator._TYPE, { a: "a" }>()(null)
+    validator.unsafeCast({ a: 'a' })
+    expect(() => validator.unsafeCast({ a: '4' })).toThrowError()
+    testOutput<typeof validator._TYPE, { a: 'a' }>()(null)
   })
-  test("Testing multiselect", async () => {
+  test('Testing multiselect', async () => {
     const value = await InputSpec.of({
       a: Value.multiselect({
-        name: "Temp Name",
+        name: 'Temp Name',
         description:
-          "If no name is provided, the name from inputSpec will be used",
+          'If no name is provided, the name from inputSpec will be used',
 
         warning: null,
         default: [],
         values: {
-          a: "A",
+          a: 'A',
         },
         minLength: null,
         maxLength: null,
@@ -870,9 +870,9 @@ describe("Nested nullable values", () => {
     }).build({} as any)
     const validator = value.validator
     validator.unsafeCast({ a: [] })
-    validator.unsafeCast({ a: ["a"] })
-    expect(() => validator.unsafeCast({ a: ["4"] })).toThrowError()
-    expect(() => validator.unsafeCast({ a: "4" })).toThrowError()
-    testOutput<typeof validator._TYPE, { a: "a"[] }>()(null)
+    validator.unsafeCast({ a: ['a'] })
+    expect(() => validator.unsafeCast({ a: ['4'] })).toThrowError()
+    expect(() => validator.unsafeCast({ a: '4' })).toThrowError()
+    testOutput<typeof validator._TYPE, { a: 'a'[] }>()(null)
   })
 })

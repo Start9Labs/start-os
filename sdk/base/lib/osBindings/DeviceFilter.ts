@@ -2,7 +2,7 @@
 
 export type DeviceFilter = {
   description: string
-  class: "processor" | "display"
+  class: 'processor' | 'display'
   product: string | null
   vendor: string | null
   capabilities?: Array<string>

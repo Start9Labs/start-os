@@ -1,8 +1,8 @@
-import * as T from "../../../base/lib/types"
-import { SubContainer, SubContainerOwned } from "../util/SubContainer"
-import { CommandController } from "./CommandController"
-import { Daemon } from "./Daemon"
-import { DaemonCommandType } from "./Daemons"
+import * as T from '../../../base/lib/types'
+import { SubContainer, SubContainerOwned } from '../util/SubContainer'
+import { CommandController } from './CommandController'
+import { Daemon } from './Daemon'
+import { DaemonCommandType } from './Daemons'
 
 /**
  * This is a wrapper around CommandController that has a state of off, where the command shouldn't be running

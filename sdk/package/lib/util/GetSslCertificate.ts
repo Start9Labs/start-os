@@ -1,6 +1,6 @@
-import { T } from ".."
-import { Effects } from "../../../base/lib/Effects"
-import { DropGenerator, DropPromise } from "../../../base/lib/util/Drop"
+import { T } from '..'
+import { Effects } from '../../../base/lib/Effects'
+import { DropGenerator, DropPromise } from '../../../base/lib/util/Drop'
 
 export class GetSslCertificate {
   constructor(
@@ -36,7 +36,7 @@ export class GetSslCertificate {
     this.effects.onLeaveContext(() => {
       resolveCell.resolve()
     })
-    abort?.addEventListener("abort", () => resolveCell.resolve())
+    abort?.addEventListener('abort', () => resolveCell.resolve())
     while (this.effects.isInContext && !abort?.aborted) {
       let callback: () => void = () => {}
       const waitForNext = new Promise<void>((resolve) => {
@@ -50,7 +50,7 @@ export class GetSslCertificate {
       })
       await waitForNext
     }
-    return new Promise<never>((_, rej) => rej(new Error("aborted")))
+    return new Promise<never>((_, rej) => rej(new Error('aborted')))
   }
 
   /**
@@ -60,7 +60,7 @@ export class GetSslCertificate {
     abort?: AbortSignal,
   ): AsyncGenerator<[string, string, string], never, unknown> {
     const ctrl = new AbortController()
-    abort?.addEventListener("abort", () => ctrl.abort())
+    abort?.addEventListener('abort', () => ctrl.abort())
     return DropGenerator.of(this.watchGen(ctrl.signal), () => ctrl.abort())
   }
 
@@ -84,7 +84,7 @@ export class GetSslCertificate {
           }
         } catch (e) {
           console.error(
-            "callback function threw an error @ GetSslCertificate.onChange",
+            'callback function threw an error @ GetSslCertificate.onChange',
             e,
           )
         }
@@ -93,7 +93,7 @@ export class GetSslCertificate {
       .catch((e) => callback(null, e))
       .catch((e) =>
         console.error(
-          "callback function threw an error @ GetSslCertificate.onChange",
+          'callback function threw an error @ GetSslCertificate.onChange',
           e,
         ),
       )

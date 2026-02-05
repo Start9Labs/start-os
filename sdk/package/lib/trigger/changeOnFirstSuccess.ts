@@ -1,4 +1,4 @@
-import { Trigger } from "./index"
+import { Trigger } from './index'
 
 export function changeOnFirstSuccess(o: {
   beforeFirstSuccess: Trigger
@@ -13,7 +13,7 @@ export function changeOnFirstSuccess(o: {
     const beforeFirstSuccess = o.beforeFirstSuccess(getInput)
     for (
       let res = await beforeFirstSuccess.next();
-      currentValue?.lastResult !== "success" && !res.done;
+      currentValue?.lastResult !== 'success' && !res.done;
       res = await beforeFirstSuccess.next()
     ) {
       yield

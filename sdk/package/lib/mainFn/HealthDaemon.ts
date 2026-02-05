@@ -1,8 +1,8 @@
-import { HealthCheckResult } from "../health/checkFns"
-import { defaultTrigger } from "../trigger/defaultTrigger"
-import { Ready } from "./Daemons"
-import { Daemon } from "./Daemon"
-import { SetHealth, Effects, SDKManifest } from "../../../base/lib/types"
+import { HealthCheckResult } from '../health/checkFns'
+import { defaultTrigger } from '../trigger/defaultTrigger'
+import { Ready } from './Daemons'
+import { Daemon } from './Daemon'
+import { SetHealth, Effects, SDKManifest } from '../../../base/lib/types'
 
 const oncePromise = <T>() => {
   let resolve: (value: T) => void
@@ -12,7 +12,7 @@ const oncePromise = <T>() => {
   return { resolve: resolve!, promise }
 }
 
-export const EXIT_SUCCESS = "EXIT_SUCCESS" as const
+export const EXIT_SUCCESS = 'EXIT_SUCCESS' as const
 
 /**
  * Wanted a structure that deals with controlling daemons by their health status
@@ -22,7 +22,7 @@ export const EXIT_SUCCESS = "EXIT_SUCCESS" as const
  *
  */
 export class HealthDaemon<Manifest extends SDKManifest> {
-  private _health: HealthCheckResult = { result: "waiting", message: null }
+  private _health: HealthCheckResult = { result: 'waiting', message: null }
   private healthWatchers: Array<() => unknown> = []
   private running = false
   private started?: number
@@ -102,21 +102,21 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }
   private async setupHealthCheck() {
     this.daemon?.onExit((success) => {
-      if (success && this.ready === "EXIT_SUCCESS") {
-        this.setHealth({ result: "success", message: null })
+      if (success && this.ready === 'EXIT_SUCCESS') {
+        this.setHealth({ result: 'success', message: null })
       } else if (!success) {
         this.setHealth({
-          result: "failure",
+          result: 'failure',
           message: `${this.id} daemon crashed`,
         })
       } else if (!this.daemon?.isOneshot()) {
         this.setHealth({
-          result: "failure",
+          result: 'failure',
           message: `${this.id} daemon exited`,
         })
       }
     })
-    if (this.ready === "EXIT_SUCCESS") return
+    if (this.ready === 'EXIT_SUCCESS') return
     if (this.healthCheckCleanup) return
     const trigger = (this.ready.trigger ?? defaultTrigger)(() => ({
       lastResult: this._health.result,
@@ -127,7 +127,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     }>()
     const { promise: exited, resolve: setExited } = oncePromise<null>()
     new Promise(async () => {
-      if (this.ready === "EXIT_SUCCESS") return
+      if (this.ready === 'EXIT_SUCCESS') return
       for (
         let res = await Promise.race([status, trigger.next()]);
         !res.done;
@@ -137,8 +137,8 @@ export class HealthDaemon<Manifest extends SDKManifest> {
           this.ready.fn(),
         ).catch((err) => {
           return {
-            result: "failure",
-            message: "message" in err ? err.message : String(err),
+            result: 'failure',
+            message: 'message' in err ? err.message : String(err),
           }
         })
 
@@ -166,23 +166,23 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   private async setHealth(health: HealthCheckResult) {
     const changed = this._health.result !== health.result
     this._health = health
-    if (this.resolveReady && health.result === "success") {
+    if (this.resolveReady && health.result === 'success') {
       this.resolveReady()
     }
     if (changed) this.healthWatchers.forEach((watcher) => watcher())
-    if (this.ready === "EXIT_SUCCESS") return
+    if (this.ready === 'EXIT_SUCCESS') return
     const display = this.ready.display
     if (!display) {
       return
     }
     let result = health.result
     if (
-      result === "failure" &&
+      result === 'failure' &&
       this.started &&
       performance.now() - this.started <= (this.ready.gracePeriod ?? 10_000)
     )
-      result = "starting"
-    if (result === "failure") {
+      result = 'starting'
+    if (result === 'failure') {
       console.error(`Health Check ${this.id} failed:`, health.message)
     }
     await this.effects.setHealth({
@@ -197,10 +197,10 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     const healths = this.dependencies.map((d) => ({
       health: d.running && d._health,
       id: d.id,
-      display: typeof d.ready === "object" ? d.ready.display : null,
+      display: typeof d.ready === 'object' ? d.ready.display : null,
     }))
     const waitingOn = healths.filter(
-      (h) => !h.health || h.health.result !== "success",
+      (h) => !h.health || h.health.result !== 'success',
     )
     if (waitingOn.length)
       console.debug(
@@ -210,10 +210,10 @@ export class HealthDaemon<Manifest extends SDKManifest> {
       const waitingOnNames = waitingOn.flatMap((w) =>
         w.display ? [w.display] : [],
       )
-      const message = waitingOnNames.length ? waitingOnNames.join(", ") : null
-      await this.setHealth({ result: "waiting", message })
+      const message = waitingOnNames.length ? waitingOnNames.join(', ') : null
+      await this.setHealth({ result: 'waiting', message })
     } else {
-      await this.setHealth({ result: "starting", message: null })
+      await this.setHealth({ result: 'starting', message: null })
     }
     await this.changeRunning(!waitingOn.length)
   }

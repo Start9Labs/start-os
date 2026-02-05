@@ -1,3 +1,3 @@
-import "./checkFns"
+import './checkFns'
 
-export { HealthCheck } from "./HealthCheck"
+export { HealthCheck } from './HealthCheck'

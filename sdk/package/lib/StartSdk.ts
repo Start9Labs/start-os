@@ -1,73 +1,73 @@
-import { Value } from "../../base/lib/actions/input/builder/value"
-import { InputSpec } from "../../base/lib/actions/input/builder/inputSpec"
-import { Variants } from "../../base/lib/actions/input/builder/variants"
+import { Value } from '../../base/lib/actions/input/builder/value'
+import { InputSpec } from '../../base/lib/actions/input/builder/inputSpec'
+import { Variants } from '../../base/lib/actions/input/builder/variants'
 import {
   Action,
   ActionInfo,
   Actions,
-} from "../../base/lib/actions/setupActions"
+} from '../../base/lib/actions/setupActions'
 import {
   SyncOptions,
   ServiceInterfaceId,
   PackageId,
   ServiceInterfaceType,
   Effects,
-} from "../../base/lib/types"
-import * as patterns from "../../base/lib/util/patterns"
-import { BackupSync, Backups } from "./backup/Backups"
-import { smtpInputSpec } from "../../base/lib/actions/input/inputSpecConstants"
-import { Daemon, Daemons } from "./mainFn/Daemons"
-import { checkPortListening } from "./health/checkFns/checkPortListening"
-import { checkWebUrl, runHealthScript } from "./health/checkFns"
-import { List } from "../../base/lib/actions/input/builder/list"
-import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
-import { setupMain } from "./mainFn"
-import { defaultTrigger } from "./trigger/defaultTrigger"
-import { changeOnFirstSuccess, cooldownTrigger } from "./trigger"
-import { setupServiceInterfaces } from "../../base/lib/interfaces/setupInterfaces"
-import { successFailure } from "./trigger/successFailure"
-import { MultiHost, Scheme } from "../../base/lib/interfaces/Host"
-import { ServiceInterfaceBuilder } from "../../base/lib/interfaces/ServiceInterfaceBuilder"
-import { GetSystemSmtp } from "./util"
-import { nullIfEmpty } from "./util"
-import { getServiceInterface, getServiceInterfaces } from "./util"
+} from '../../base/lib/types'
+import * as patterns from '../../base/lib/util/patterns'
+import { BackupSync, Backups } from './backup/Backups'
+import { smtpInputSpec } from '../../base/lib/actions/input/inputSpecConstants'
+import { Daemon, Daemons } from './mainFn/Daemons'
+import { checkPortListening } from './health/checkFns/checkPortListening'
+import { checkWebUrl, runHealthScript } from './health/checkFns'
+import { List } from '../../base/lib/actions/input/builder/list'
+import { SetupBackupsParams, setupBackups } from './backup/setupBackups'
+import { setupMain } from './mainFn'
+import { defaultTrigger } from './trigger/defaultTrigger'
+import { changeOnFirstSuccess, cooldownTrigger } from './trigger'
+import { setupServiceInterfaces } from '../../base/lib/interfaces/setupInterfaces'
+import { successFailure } from './trigger/successFailure'
+import { MultiHost, Scheme } from '../../base/lib/interfaces/Host'
+import { ServiceInterfaceBuilder } from '../../base/lib/interfaces/ServiceInterfaceBuilder'
+import { GetSystemSmtp } from './util'
+import { nullIfEmpty } from './util'
+import { getServiceInterface, getServiceInterfaces } from './util'
 import {
   CommandOptions,
   ExitError,
   SubContainer,
   SubContainerOwned,
-} from "./util/SubContainer"
-import { splitCommand } from "./util"
-import { Mounts } from "./mainFn/Mounts"
-import { setupDependencies } from "../../base/lib/dependencies/setupDependencies"
-import * as T from "../../base/lib/types"
-import { testTypeVersion } from "../../base/lib/exver"
+} from './util/SubContainer'
+import { splitCommand } from './util'
+import { Mounts } from './mainFn/Mounts'
+import { setupDependencies } from '../../base/lib/dependencies/setupDependencies'
+import * as T from '../../base/lib/types'
+import { testTypeVersion } from '../../base/lib/exver'
 import {
   CheckDependencies,
   checkDependencies,
-} from "../../base/lib/dependencies/dependencies"
-import { GetSslCertificate, getServiceManifest } from "./util"
-import { getDataVersion, setDataVersion } from "./version"
-import { MaybeFn } from "../../base/lib/actions/setupActions"
-import { GetInput } from "../../base/lib/actions/setupActions"
-import { Run } from "../../base/lib/actions/setupActions"
-import * as actions from "../../base/lib/actions"
-import * as fs from "node:fs/promises"
+} from '../../base/lib/dependencies/dependencies'
+import { GetSslCertificate, getServiceManifest } from './util'
+import { getDataVersion, setDataVersion } from './version'
+import { MaybeFn } from '../../base/lib/actions/setupActions'
+import { GetInput } from '../../base/lib/actions/setupActions'
+import { Run } from '../../base/lib/actions/setupActions'
+import * as actions from '../../base/lib/actions'
+import * as fs from 'node:fs/promises'
 import {
   setupInit,
   setupUninit,
   setupOnInit,
   setupOnUninit,
-} from "../../base/lib/inits"
-import { DropGenerator } from "../../base/lib/util/Drop"
+} from '../../base/lib/inits'
+import { DropGenerator } from '../../base/lib/util/Drop'
 import {
   getOwnServiceInterface,
   ServiceInterfaceFilled,
-} from "../../base/lib/util/getServiceInterface"
-import { getOwnServiceInterfaces } from "../../base/lib/util/getServiceInterfaces"
-import { Volumes, createVolumes } from "./util/Volume"
+} from '../../base/lib/util/getServiceInterface'
+import { getOwnServiceInterfaces } from '../../base/lib/util/getServiceInterfaces'
+import { Volumes, createVolumes } from './util/Volume'
 
-export const OSVersion = testTypeVersion("0.4.0-alpha.19")
+export const OSVersion = testTypeVersion('0.4.0-alpha.19')
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -85,29 +85,29 @@ export class StartSdk<Manifest extends T.SDKManifest> {
     return new StartSdk<Manifest>(manifest)
   }
 
-  build(isReady: AnyNeverCond<[Manifest], "Build not ready", true>) {
-    type NestedEffects = "subcontainer" | "store" | "action"
+  build(isReady: AnyNeverCond<[Manifest], 'Build not ready', true>) {
+    type NestedEffects = 'subcontainer' | 'store' | 'action'
     type InterfaceEffects =
-      | "getServiceInterface"
-      | "listServiceInterfaces"
-      | "exportServiceInterface"
-      | "clearServiceInterfaces"
-      | "bind"
-      | "getHostInfo"
-    type MainUsedEffects = "setMainStatus"
+      | 'getServiceInterface'
+      | 'listServiceInterfaces'
+      | 'exportServiceInterface'
+      | 'clearServiceInterfaces'
+      | 'bind'
+      | 'getHostInfo'
+    type MainUsedEffects = 'setMainStatus'
     type CallbackEffects =
-      | "child"
-      | "constRetry"
-      | "isInContext"
-      | "onLeaveContext"
-      | "clearCallbacks"
+      | 'child'
+      | 'constRetry'
+      | 'isInContext'
+      | 'onLeaveContext'
+      | 'clearCallbacks'
     type AlreadyExposed =
-      | "getSslCertificate"
-      | "getSystemSmtp"
-      | "getContainerIp"
-      | "getDataVersion"
-      | "setDataVersion"
-      | "getServiceManifest"
+      | 'getSslCertificate'
+      | 'getSystemSmtp'
+      | 'getContainerIp'
+      | 'getDataVersion'
+      | 'setDataVersion'
+      | 'getServiceManifest'
 
     // prettier-ignore
     type StartSdkEffectWrapper = {
@@ -171,8 +171,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           effects.action.clearTasks({ only: replayIds }),
       },
       checkDependencies: checkDependencies as <
-        DependencyId extends keyof Manifest["dependencies"] &
-          PackageId = keyof Manifest["dependencies"] & PackageId,
+        DependencyId extends keyof Manifest['dependencies'] &
+          PackageId = keyof Manifest['dependencies'] & PackageId,
       >(
         effects: Effects,
         packageIds?: DependencyId[],
@@ -186,8 +186,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       getContainerIp: (
         effects: T.Effects,
         options: Omit<
-          Parameters<T.Effects["getContainerIp"]>[0],
-          "callback"
+          Parameters<T.Effects['getContainerIp']>[0],
+          'callback'
         > = {},
       ) => {
         async function* watch(abort?: AbortSignal) {
@@ -195,7 +195,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           effects.onLeaveContext(() => {
             resolveCell.resolve()
           })
-          abort?.addEventListener("abort", () => resolveCell.resolve())
+          abort?.addEventListener('abort', () => resolveCell.resolve())
           while (effects.isInContext && !abort?.aborted) {
             let callback: () => void = () => {}
             const waitForNext = new Promise<void>((resolve) => {
@@ -217,7 +217,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           once: () => effects.getContainerIp(options),
           watch: (abort?: AbortSignal) => {
             const ctrl = new AbortController()
-            abort?.addEventListener("abort", () => ctrl.abort())
+            abort?.addEventListener('abort', () => ctrl.abort())
             return DropGenerator.of(watch(ctrl.signal), () => ctrl.abort())
           },
           onChange: (
@@ -237,7 +237,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
                   }
                 } catch (e) {
                   console.error(
-                    "callback function threw an error @ getContainerIp.onChange",
+                    'callback function threw an error @ getContainerIp.onChange',
                     e,
                   )
                 }
@@ -246,7 +246,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
               .catch((e) => callback(null, e))
               .catch((e) =>
                 console.error(
-                  "callback function threw an error @ getContainerIp.onChange",
+                  'callback function threw an error @ getContainerIp.onChange',
                   e,
                 ),
               )
@@ -388,7 +388,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         */
         withoutInput: <Id extends T.ActionId>(
           id: Id,
-          metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
+          metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput'>>,
           run: Run<{}>,
         ) => Action.withoutInput(id, metadata, run),
       },
@@ -701,7 +701,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         of(
           effects: Effects,
           image: {
-            imageId: T.ImageId & keyof Manifest["images"]
+            imageId: T.ImageId & keyof Manifest['images']
             sharedRun?: boolean
           },
           mounts: Mounts<Manifest> | null,
@@ -724,7 +724,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         withTemp<T>(
           effects: T.Effects,
           image: {
-            imageId: T.ImageId & keyof Manifest["images"]
+            imageId: T.ImageId & keyof Manifest['images']
             sharedRun?: boolean
           },
           mounts: Mounts<Manifest> | null,
@@ -743,7 +743,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
 
 export async function runCommand<Manifest extends T.SDKManifest>(
   effects: Effects,
-  image: { imageId: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
+  image: { imageId: keyof Manifest['images'] & T.ImageId; sharedRun?: boolean },
   command: T.CommandType,
   options: CommandOptions & {
     mounts: Mounts<Manifest> | null
@@ -754,9 +754,9 @@ export async function runCommand<Manifest extends T.SDKManifest>(
   if (T.isUseEntrypoint(command)) {
     const imageMeta: T.ImageMetadata = await fs
       .readFile(`/media/startos/images/${image.imageId}.json`, {
-        encoding: "utf8",
+        encoding: 'utf8',
       })
-      .catch(() => "{}")
+      .catch(() => '{}')
       .then(JSON.parse)
     commands = imageMeta.entrypoint ?? []
     commands = commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
@@ -768,13 +768,13 @@ export async function runCommand<Manifest extends T.SDKManifest>(
     name ||
       commands
         .map((c) => {
-          if (c.includes(" ")) {
+          if (c.includes(' ')) {
             return `"${c.replace(/"/g, `\"`)}"`
           } else {
             return c
           }
         })
-        .join(" "),
+        .join(' '),
     async (subcontainer) => {
       const res = await subcontainer.exec(commands)
       if (res.exitCode || res.exitSignal) {

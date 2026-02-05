@@ -1,11 +1,11 @@
-import { ExtendedVersion, VersionRange } from "../exver"
+import { ExtendedVersion, VersionRange } from '../exver'
 import {
   PackageId,
   HealthCheckId,
   DependencyRequirement,
   CheckDependenciesResult,
-} from "../types"
-import { Effects } from "../Effects"
+} from '../types'
+import { Effects } from '../Effects'
 
 export type CheckDependencies<DependencyId extends PackageId = PackageId> = {
   infoFor: (packageId: DependencyId) => {
@@ -73,11 +73,11 @@ export async function checkDependencies<
   }
   const runningSatisfied = (packageId: DependencyId) => {
     const dep = infoFor(packageId)
-    return dep.requirement.kind !== "running" || dep.result.isRunning
+    return dep.requirement.kind !== 'running' || dep.result.isRunning
   }
   const tasksSatisfied = (packageId: DependencyId) =>
     Object.entries(infoFor(packageId).result.tasks).filter(
-      ([_, t]) => t?.active && t.task.severity === "critical",
+      ([_, t]) => t?.active && t.task.severity === 'critical',
     ).length === 0
   const healthCheckSatisfied = (
     packageId: DependencyId,
@@ -86,17 +86,17 @@ export async function checkDependencies<
     const dep = infoFor(packageId)
     if (
       healthCheckId &&
-      (dep.requirement.kind !== "running" ||
+      (dep.requirement.kind !== 'running' ||
         !dep.requirement.healthChecks.includes(healthCheckId))
     ) {
       throw new Error(`Unknown HealthCheckId ${healthCheckId}`)
     }
     const errors =
-      dep.requirement.kind === "running"
+      dep.requirement.kind === 'running'
         ? dep.requirement.healthChecks
             .map((id) => [id, dep.result.healthChecks[id] ?? null] as const)
             .filter(([id, _]) => (healthCheckId ? id === healthCheckId : true))
-            .filter(([_, res]) => res?.result !== "success")
+            .filter(([_, res]) => res?.result !== 'success')
         : []
     return errors.length === 0
   }
@@ -138,7 +138,7 @@ export async function checkDependencies<
   }
   const throwIfRunningNotSatisfied = (packageId: DependencyId) => {
     const dep = infoFor(packageId)
-    if (dep.requirement.kind === "running" && !dep.result.isRunning) {
+    if (dep.requirement.kind === 'running' && !dep.result.isRunning) {
       throw new Error(`${dep.result.title || packageId} is not running`)
     }
     return null
@@ -146,11 +146,11 @@ export async function checkDependencies<
   const throwIfTasksNotSatisfied = (packageId: DependencyId) => {
     const dep = infoFor(packageId)
     const reqs = Object.entries(dep.result.tasks)
-      .filter(([_, t]) => t?.active && t.task.severity === "critical")
+      .filter(([_, t]) => t?.active && t.task.severity === 'critical')
       .map(([id, _]) => id)
     if (reqs.length) {
       throw new Error(
-        `The following action requests have not been fulfilled: ${reqs.join(", ")}`,
+        `The following action requests have not been fulfilled: ${reqs.join(', ')}`,
       )
     }
     return null
@@ -162,27 +162,27 @@ export async function checkDependencies<
     const dep = infoFor(packageId)
     if (
       healthCheckId &&
-      (dep.requirement.kind !== "running" ||
+      (dep.requirement.kind !== 'running' ||
         !dep.requirement.healthChecks.includes(healthCheckId))
     ) {
       throw new Error(`Unknown HealthCheckId ${healthCheckId}`)
     }
     const errors =
-      dep.requirement.kind === "running"
+      dep.requirement.kind === 'running'
         ? dep.requirement.healthChecks
             .map((id) => [id, dep.result.healthChecks[id] ?? null] as const)
             .filter(([id, _]) => (healthCheckId ? id === healthCheckId : true))
-            .filter(([_, res]) => res?.result !== "success")
+            .filter(([_, res]) => res?.result !== 'success')
         : []
     if (errors.length) {
       throw new Error(
         errors
           .map(([id, e]) =>
             e
-              ? `Health Check ${e.name} of ${dep.result.title || packageId} failed with status ${e.result}${e.message ? `: ${e.message}` : ""}`
+              ? `Health Check ${e.name} of ${dep.result.title || packageId} failed with status ${e.result}${e.message ? `: ${e.message}` : ''}`
               : `Health Check ${id} of ${dep.result.title} does not exist`,
           )
-          .join("; "),
+          .join('; '),
       )
     }
     return null
@@ -209,7 +209,7 @@ export async function checkDependencies<
             return []
           })
           if (err.length) {
-            throw new Error(err.join("; "))
+            throw new Error(err.join('; '))
           }
           return null
         })()

@@ -1,11 +1,11 @@
-import { PackageId, ServiceInterfaceId, ServiceInterfaceType } from "../types"
-import { knownProtocols } from "../interfaces/Host"
-import { AddressInfo, Host, Hostname, HostnameInfo } from "../types"
-import { Effects } from "../Effects"
-import { DropGenerator, DropPromise } from "./Drop"
-import { IpAddress, IPV6_LINK_LOCAL } from "./ip"
-import { deepEqual } from "./deepEqual"
-import { once } from "./once"
+import { PackageId, ServiceInterfaceId, ServiceInterfaceType } from '../types'
+import { knownProtocols } from '../interfaces/Host'
+import { AddressInfo, Host, Hostname, HostnameInfo } from '../types'
+import { Effects } from '../Effects'
+import { DropGenerator, DropPromise } from './Drop'
+import { IpAddress, IPV6_LINK_LOCAL } from './ip'
+import { deepEqual } from './deepEqual'
+import { once } from './once'
 
 export type UrlString = string
 export type HostId = string
@@ -14,68 +14,68 @@ const getHostnameRegex = /^(\w+:\/\/)?([^\/\:]+)(:\d{1,3})?(\/)?/
 export const getHostname = (url: string): Hostname | null => {
   const founds = url.match(getHostnameRegex)?.[2]
   if (!founds) return null
-  const parts = founds.split("@")
+  const parts = founds.split('@')
   const last = parts[parts.length - 1] as Hostname | null
   return last
 }
 
 type FilterKinds =
-  | "onion"
-  | "mdns"
-  | "domain"
-  | "ip"
-  | "ipv4"
-  | "ipv6"
-  | "localhost"
-  | "link-local"
+  | 'onion'
+  | 'mdns'
+  | 'domain'
+  | 'ip'
+  | 'ipv4'
+  | 'ipv6'
+  | 'localhost'
+  | 'link-local'
 export type Filter = {
-  visibility?: "public" | "private"
+  visibility?: 'public' | 'private'
   kind?: FilterKinds | FilterKinds[]
   predicate?: (h: HostnameInfo) => boolean
   exclude?: Filter
 }
 
-type VisibilityFilter<V extends "public" | "private"> = V extends "public"
-  ? (HostnameInfo & { public: true }) | VisibilityFilter<Exclude<V, "public">>
-  : V extends "private"
+type VisibilityFilter<V extends 'public' | 'private'> = V extends 'public'
+  ? (HostnameInfo & { public: true }) | VisibilityFilter<Exclude<V, 'public'>>
+  : V extends 'private'
     ?
         | (HostnameInfo & { public: false })
-        | VisibilityFilter<Exclude<V, "private">>
+        | VisibilityFilter<Exclude<V, 'private'>>
     : never
-type KindFilter<K extends FilterKinds> = K extends "onion"
-  ? (HostnameInfo & { kind: "onion" }) | KindFilter<Exclude<K, "onion">>
-  : K extends "mdns"
+type KindFilter<K extends FilterKinds> = K extends 'onion'
+  ? (HostnameInfo & { kind: 'onion' }) | KindFilter<Exclude<K, 'onion'>>
+  : K extends 'mdns'
     ?
-        | (HostnameInfo & { kind: "ip"; hostname: { kind: "local" } })
-        | KindFilter<Exclude<K, "mdns">>
-    : K extends "domain"
+        | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'local' } })
+        | KindFilter<Exclude<K, 'mdns'>>
+    : K extends 'domain'
       ?
-          | (HostnameInfo & { kind: "ip"; hostname: { kind: "domain" } })
-          | KindFilter<Exclude<K, "domain">>
-      : K extends "ipv4"
+          | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'domain' } })
+          | KindFilter<Exclude<K, 'domain'>>
+      : K extends 'ipv4'
         ?
-            | (HostnameInfo & { kind: "ip"; hostname: { kind: "ipv4" } })
-            | KindFilter<Exclude<K, "ipv4">>
-        : K extends "ipv6"
+            | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'ipv4' } })
+            | KindFilter<Exclude<K, 'ipv4'>>
+        : K extends 'ipv6'
           ?
-              | (HostnameInfo & { kind: "ip"; hostname: { kind: "ipv6" } })
-              | KindFilter<Exclude<K, "ipv6">>
-          : K extends "ip"
-            ? KindFilter<Exclude<K, "ip"> | "ipv4" | "ipv6">
+              | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'ipv6' } })
+              | KindFilter<Exclude<K, 'ipv6'>>
+          : K extends 'ip'
+            ? KindFilter<Exclude<K, 'ip'> | 'ipv4' | 'ipv6'>
             : never
 
 type FilterReturnTy<F extends Filter> = F extends {
-  visibility: infer V extends "public" | "private"
+  visibility: infer V extends 'public' | 'private'
 }
-  ? VisibilityFilter<V> & FilterReturnTy<Omit<F, "visibility">>
+  ? VisibilityFilter<V> & FilterReturnTy<Omit<F, 'visibility'>>
   : F extends {
         kind: (infer K extends FilterKinds) | (infer K extends FilterKinds)[]
       }
-    ? KindFilter<K> & FilterReturnTy<Omit<F, "kind">>
+    ? KindFilter<K> & FilterReturnTy<Omit<F, 'kind'>>
     : F extends {
           predicate: (h: HostnameInfo) => h is infer H extends HostnameInfo
         }
-      ? H & FilterReturnTy<Omit<F, "predicate">>
+      ? H & FilterReturnTy<Omit<F, 'predicate'>>
       : F extends { exclude: infer E extends Filter } // MUST BE LAST
         ? HostnameInfo extends FilterReturnTy<E>
           ? HostnameInfo
@@ -84,26 +84,26 @@ type FilterReturnTy<F extends Filter> = F extends {
 
 const nonLocalFilter = {
   exclude: {
-    kind: ["localhost", "link-local"] as ("localhost" | "link-local")[],
+    kind: ['localhost', 'link-local'] as ('localhost' | 'link-local')[],
   },
 } as const
 const publicFilter = {
-  visibility: "public",
+  visibility: 'public',
 } as const
 const onionFilter = {
-  kind: "onion",
+  kind: 'onion',
 } as const
 
-type Formats = "hostname-info" | "urlstring" | "url"
+type Formats = 'hostname-info' | 'urlstring' | 'url'
 type FormatReturnTy<
   F extends Filter,
   Format extends Formats,
-> = Format extends "hostname-info"
-  ? FilterReturnTy<F> | FormatReturnTy<F, Exclude<Format, "hostname-info">>
-  : Format extends "url"
-    ? URL | FormatReturnTy<F, Exclude<Format, "url">>
-    : Format extends "urlstring"
-      ? UrlString | FormatReturnTy<F, Exclude<Format, "urlstring">>
+> = Format extends 'hostname-info'
+  ? FilterReturnTy<F> | FormatReturnTy<F, Exclude<Format, 'hostname-info'>>
+  : Format extends 'url'
+    ? URL | FormatReturnTy<F, Exclude<Format, 'url'>>
+    : Format extends 'urlstring'
+      ? UrlString | FormatReturnTy<F, Exclude<Format, 'urlstring'>>
       : never
 
 export type Filled<F extends Filter = {}> = {
@@ -114,7 +114,7 @@ export type Filled<F extends Filter = {}> = {
     sslUrl: UrlString | null
   }
 
-  format: <Format extends Formats = "urlstring">(
+  format: <Format extends Formats = 'urlstring'>(
     format?: Format,
   ) => FormatReturnTy<{}, Format>[]
 
@@ -162,12 +162,12 @@ export const addressHostToUrl = (
       scheme in knownProtocols &&
       port === knownProtocols[scheme as keyof typeof knownProtocols].defaultPort
     let hostname
-    if (host.kind === "onion") {
+    if (host.kind === 'onion') {
       hostname = host.hostname.value
-    } else if (host.kind === "ip") {
-      if (host.hostname.kind === "domain") {
+    } else if (host.kind === 'ip') {
+      if (host.hostname.kind === 'domain') {
         hostname = host.hostname.value
-      } else if (host.hostname.kind === "ipv6") {
+      } else if (host.hostname.kind === 'ipv6') {
         hostname = IPV6_LINK_LOCAL.contains(host.hostname.value)
           ? `[${host.hostname.value}%${host.hostname.scopeId}]`
           : `[${host.hostname.value}]`
@@ -175,9 +175,9 @@ export const addressHostToUrl = (
         hostname = host.hostname.value
       }
     }
-    return `${scheme ? `${scheme}://` : ""}${
-      username ? `${username}@` : ""
-    }${hostname}${excludePort ? "" : `:${port}`}${suffix}`
+    return `${scheme ? `${scheme}://` : ''}${
+      username ? `${username}@` : ''
+    }${hostname}${excludePort ? '' : `:${port}`}${suffix}`
   }
   let url = null
   if (hostname.hostname.port !== null) {
@@ -200,39 +200,39 @@ function filterRec(
     const pred = filter.predicate
     hostnames = hostnames.filter((h) => invert !== pred(h))
   }
-  if (filter.visibility === "public")
+  if (filter.visibility === 'public')
     hostnames = hostnames.filter(
-      (h) => invert !== (h.kind === "onion" || h.public),
+      (h) => invert !== (h.kind === 'onion' || h.public),
     )
-  if (filter.visibility === "private")
+  if (filter.visibility === 'private')
     hostnames = hostnames.filter(
-      (h) => invert !== (h.kind !== "onion" && !h.public),
+      (h) => invert !== (h.kind !== 'onion' && !h.public),
     )
   if (filter.kind) {
     const kind = new Set(
       Array.isArray(filter.kind) ? filter.kind : [filter.kind],
     )
-    if (kind.has("ip")) {
-      kind.add("ipv4")
-      kind.add("ipv6")
+    if (kind.has('ip')) {
+      kind.add('ipv4')
+      kind.add('ipv6')
     }
     hostnames = hostnames.filter(
       (h) =>
         invert !==
-        ((kind.has("onion") && h.kind === "onion") ||
-          (kind.has("mdns") &&
-            h.kind === "ip" &&
-            h.hostname.kind === "local") ||
-          (kind.has("domain") &&
-            h.kind === "ip" &&
-            h.hostname.kind === "domain") ||
-          (kind.has("ipv4") && h.kind === "ip" && h.hostname.kind === "ipv4") ||
-          (kind.has("ipv6") && h.kind === "ip" && h.hostname.kind === "ipv6") ||
-          (kind.has("localhost") &&
-            ["localhost", "127.0.0.1", "::1"].includes(h.hostname.value)) ||
-          (kind.has("link-local") &&
-            h.kind === "ip" &&
-            h.hostname.kind === "ipv6" &&
+        ((kind.has('onion') && h.kind === 'onion') ||
+          (kind.has('mdns') &&
+            h.kind === 'ip' &&
+            h.hostname.kind === 'local') ||
+          (kind.has('domain') &&
+            h.kind === 'ip' &&
+            h.hostname.kind === 'domain') ||
+          (kind.has('ipv4') && h.kind === 'ip' && h.hostname.kind === 'ipv4') ||
+          (kind.has('ipv6') && h.kind === 'ip' && h.hostname.kind === 'ipv6') ||
+          (kind.has('localhost') &&
+            ['localhost', '127.0.0.1', '::1'].includes(h.hostname.value)) ||
+          (kind.has('link-local') &&
+            h.kind === 'ip' &&
+            h.hostname.kind === 'ipv6' &&
             IPV6_LINK_LOCAL.contains(IpAddress.parse(h.hostname.value)))),
     )
   }
@@ -275,11 +275,11 @@ export const filledAddress = (
       ...addressInfo,
       hostnames,
       toUrls,
-      format: <Format extends Formats = "urlstring">(format?: Format) => {
+      format: <Format extends Formats = 'urlstring'>(format?: Format) => {
         let res: FormatReturnTy<{}, Format>[] = hostnames as any
-        if (format === "hostname-info") return res
+        if (format === 'hostname-info') return res
         const urls = hostnames.flatMap(toUrlArray)
-        if (format === "url") res = urls.map((u) => new URL(u)) as any
+        if (format === 'url') res = urls.map((u) => new URL(u)) as any
         else res = urls as any
         return res
       },
@@ -386,7 +386,7 @@ export class GetServiceInterface<Mapped = ServiceInterfaceFilled | null> {
     this.effects.onLeaveContext(() => {
       resolveCell.resolve()
     })
-    abort?.addEventListener("abort", () => resolveCell.resolve())
+    abort?.addEventListener('abort', () => resolveCell.resolve())
     while (this.effects.isInContext && !abort?.aborted) {
       let callback: () => void = () => {}
       const waitForNext = new Promise<void>((resolve) => {
@@ -406,7 +406,7 @@ export class GetServiceInterface<Mapped = ServiceInterfaceFilled | null> {
       }
       await waitForNext
     }
-    return new Promise<never>((_, rej) => rej(new Error("aborted")))
+    return new Promise<never>((_, rej) => rej(new Error('aborted')))
   }
 
   /**
@@ -414,7 +414,7 @@ export class GetServiceInterface<Mapped = ServiceInterfaceFilled | null> {
    */
   watch(abort?: AbortSignal): AsyncGenerator<Mapped, never, unknown> {
     const ctrl = new AbortController()
-    abort?.addEventListener("abort", () => ctrl.abort())
+    abort?.addEventListener('abort', () => ctrl.abort())
     return DropGenerator.of(this.watchGen(ctrl.signal), () => ctrl.abort())
   }
 
@@ -438,7 +438,7 @@ export class GetServiceInterface<Mapped = ServiceInterfaceFilled | null> {
           }
         } catch (e) {
           console.error(
-            "callback function threw an error @ GetServiceInterface.onChange",
+            'callback function threw an error @ GetServiceInterface.onChange',
             e,
           )
         }
@@ -447,7 +447,7 @@ export class GetServiceInterface<Mapped = ServiceInterfaceFilled | null> {
       .catch((e) => callback(null, e))
       .catch((e) =>
         console.error(
-          "callback function threw an error @ GetServiceInterface.onChange",
+          'callback function threw an error @ GetServiceInterface.onChange',
           e,
         ),
       )
@@ -465,7 +465,7 @@ export class GetServiceInterface<Mapped = ServiceInterfaceFilled | null> {
             return next
           }
         }
-        throw new Error("context left before predicate passed")
+        throw new Error('context left before predicate passed')
       }),
       () => ctrl.abort(),
     )

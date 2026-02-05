@@ -1,9 +1,9 @@
-import * as T from "../../../base/lib/types"
-import * as child_process from "child_process"
-import * as fs from "fs/promises"
-import { Affine, asError } from "../util"
-import { ExtendedVersion, VersionRange } from "../../../base/lib"
-import { InitKind, InitScript } from "../../../base/lib/inits"
+import * as T from '../../../base/lib/types'
+import * as child_process from 'child_process'
+import * as fs from 'fs/promises'
+import { Affine, asError } from '../util'
+import { ExtendedVersion, VersionRange } from '../../../base/lib'
+import { InitKind, InitScript } from '../../../base/lib/inits'
 
 export const DEFAULT_OPTIONS: T.SyncOptions = {
   delete: true,
@@ -17,14 +17,14 @@ export type BackupSync<Volumes extends string> = {
   restoreOptions?: Partial<T.SyncOptions>
 }
 
-export type BackupEffects = T.Effects & Affine<"Backups">
+export type BackupEffects = T.Effects & Affine<'Backups'>
 
 export class Backups<M extends T.SDKManifest> implements InitScript {
   private constructor(
     private options = DEFAULT_OPTIONS,
     private restoreOptions: Partial<T.SyncOptions> = {},
     private backupOptions: Partial<T.SyncOptions> = {},
-    private backupSet = [] as BackupSync<M["volumes"][number]>[],
+    private backupSet = [] as BackupSync<M['volumes'][number]>[],
     private preBackup = async (effects: BackupEffects) => {},
     private postBackup = async (effects: BackupEffects) => {},
     private preRestore = async (effects: BackupEffects) => {},
@@ -32,7 +32,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
   ) {}
 
   static ofVolumes<M extends T.SDKManifest = never>(
-    ...volumeNames: Array<M["volumes"][number]>
+    ...volumeNames: Array<M['volumes'][number]>
   ): Backups<M> {
     return Backups.ofSyncs(
       ...volumeNames.map((srcVolume) => ({
@@ -43,7 +43,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
   }
 
   static ofSyncs<M extends T.SDKManifest = never>(
-    ...syncs: BackupSync<M["volumes"][number]>[]
+    ...syncs: BackupSync<M['volumes'][number]>[]
   ) {
     return syncs.reduce((acc, x) => acc.addSync(x), new Backups<M>())
   }
@@ -99,7 +99,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
   }
 
   addVolume(
-    volume: M["volumes"][number],
+    volume: M['volumes'][number],
     options?: Partial<{
       options: T.SyncOptions
       backupOptions: T.SyncOptions
@@ -113,7 +113,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     })
   }
 
-  addSync(sync: BackupSync<M["volumes"][0]>) {
+  addSync(sync: BackupSync<M['volumes'][0]>) {
     this.backupSet.push(sync)
     return this
   }
@@ -136,15 +136,15 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
 
     const dataVersion = await effects.getDataVersion()
     if (dataVersion)
-      await fs.writeFile("/media/startos/backup/dataVersion.txt", dataVersion, {
-        encoding: "utf-8",
+      await fs.writeFile('/media/startos/backup/dataVersion.txt', dataVersion, {
+        encoding: 'utf-8',
       })
     await this.postBackup(effects as BackupEffects)
     return
   }
 
   async init(effects: T.Effects, kind: InitKind): Promise<void> {
-    if (kind === "restore") {
+    if (kind === 'restore') {
       await this.restoreBackup(effects)
     }
   }
@@ -166,8 +166,8 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       await rsyncResults.wait()
     }
     const dataVersion = await fs
-      .readFile("/media/startos/backup/dataVersion.txt", {
-        encoding: "utf-8",
+      .readFile('/media/startos/backup/dataVersion.txt', {
+        encoding: 'utf-8',
       })
       .catch((_) => null)
     if (dataVersion) await effects.setDataVersion({ version: dataVersion })
@@ -189,23 +189,23 @@ async function runRsync(rsyncOptions: {
 
   await fs.mkdir(dstPath, { recursive: true })
 
-  const command = "rsync"
+  const command = 'rsync'
   const args: string[] = []
   if (options.delete) {
-    args.push("--delete")
+    args.push('--delete')
   }
   for (const exclude of options.exclude) {
     args.push(`--exclude=${exclude}`)
   }
-  args.push("-rlptgocAXH")
-  args.push("--info=progress2")
-  args.push("--no-inc-recursive")
+  args.push('-rlptgocAXH')
+  args.push('--info=progress2')
+  args.push('--no-inc-recursive')
   args.push(srcPath)
   args.push(dstPath)
   const spawned = child_process.spawn(command, args, { detached: true })
   let percentage = 0.0
-  spawned.stdout.on("data", (data: unknown) => {
-    const lines = String(data).replace(/\r/g, "\n").split("\n")
+  spawned.stdout.on('data', (data: unknown) => {
+    const lines = String(data).replace(/\r/g, '\n').split('\n')
     for (const line of lines) {
       const parsed = /$([0-9.]+)%/.exec(line)?.[1]
       if (!parsed) {
@@ -216,10 +216,10 @@ async function runRsync(rsyncOptions: {
     }
   })
 
-  let stderr = ""
+  let stderr = ''
 
-  spawned.stderr.on("data", (data: string | Buffer) => {
-    const errString = data.toString("utf-8")
+  spawned.stderr.on('data', (data: string | Buffer) => {
+    const errString = data.toString('utf-8')
     stderr += errString
     console.error(`Backups.runAsync`, asError(errString))
   })
@@ -227,12 +227,12 @@ async function runRsync(rsyncOptions: {
   const id = async () => {
     const pid = spawned.pid
     if (pid === undefined) {
-      throw new Error("rsync process has no pid")
+      throw new Error('rsync process has no pid')
     }
     return String(pid)
   }
   const waitPromise = new Promise<null>((resolve, reject) => {
-    spawned.on("exit", (code: any) => {
+    spawned.on('exit', (code: any) => {
       if (code === 0) {
         resolve(null)
       } else {
