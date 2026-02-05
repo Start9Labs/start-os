@@ -5,6 +5,7 @@ use color_eyre::eyre::Context;
 use rpc_toolkit::{from_fn, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::path::PathBuf;
 use std::process::Command;
 use uciedit::openwrt::{
     WifiChannel, WifiDevice, WifiDynamicVlan, WifiInterface, WifiMode, WifiStation, WifiVlan,
@@ -15,6 +16,7 @@ pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Password<Id: Ord> {
+    pub label: String,
     pub profile: Option<Id>,
     pub password: String,
 }
@@ -22,6 +24,7 @@ pub struct Password<Id: Ord> {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct WifiRadio {
     pub band: String,
+    pub channel: String,
     pub enabled: bool,
     pub broadcast: bool,
 }
@@ -33,11 +36,32 @@ pub struct Wifi<Id: Ord = ProfileId> {
     pub passwords: BTreeSet<Password<Id>>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BlackoutWindow {
+    pub start_time: String,
+    pub end_time: String,
+    pub days: [bool; 7],
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BlackoutWindows {
+    pub windows: Vec<BlackoutWindow>,
+}
+
 pub fn wifi<C: CtrlContext + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
         .subcommand("set", from_fn(set::<C>).with_display_serializable())
         .subcommand("edit", from_fn(edit::<C>).with_display_serializable())
+        .subcommand(
+            "blackout-get",
+            from_fn(blackout_get::<C>).with_display_serializable(),
+        )
+        .subcommand(
+            "blackout-set",
+            from_fn(blackout_set::<C>).with_display_serializable(),
+        )
 }
 
 type Relevant = (String, WifiInterface, WifiDevice, Option<WifiRadio>);
@@ -126,7 +150,12 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
             }
         }
         let profile = station.vid.and_then(|vid| lookup.from_vlan(vid)).cloned();
+        let label = profile
+            .as_ref()
+            .map(|p| p.fullname.clone())
+            .unwrap_or_default();
         passwords.insert(Password {
+            label,
             profile,
             password: station.key,
         });
@@ -138,6 +167,7 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
             name.clone(),
             WifiRadio {
                 band: device.band.clone(),
+                channel: device.channel.to_string(),
                 enabled: !device.disabled,
                 broadcast: !device.disabled && !iface.hidden,
             },
@@ -145,6 +175,7 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
         if iface.dynamic_vlan != WifiDynamicVlan::REQUIRED {
             if let Some(key) = &iface.key {
                 passwords.insert(Password {
+                    label: String::new(),
                     profile: None,
                     password: key.clone(),
                 });
@@ -175,6 +206,10 @@ fn set_config(
                 if rel_iface.device == name {
                     device.disabled = !rel_radio.enabled;
                     device.band = rel_radio.band.clone();
+                    device.channel = match rel_radio.channel.as_str() {
+                        "auto" | "Auto" => WifiChannel::Auto,
+                        n => n.parse::<u32>().map(WifiChannel::Int).unwrap_or(WifiChannel::Auto),
+                    };
                     s.set(&device)?;
                     break;
                 }
@@ -283,6 +318,7 @@ pub fn set<C: CtrlContext>(
                 .iter()
                 .map(|pass| {
                     Ok(Password {
+                        label: pass.label.clone(),
                         profile: match &pass.profile {
                             Some(p) => Some(lookup.resolve(p)?.clone()),
                             None => None,
@@ -292,6 +328,16 @@ pub fn set<C: CtrlContext>(
                 })
                 .collect::<Result<_, Error>>()?,
         };
+        let mut seen_passwords = std::collections::HashSet::new();
+        let mut seen_labels = std::collections::HashSet::new();
+        for pass in &wifi.passwords {
+            if !seen_passwords.insert(&pass.password) {
+                return Err(ErrorKind::DuplicatePassword.into());
+            }
+            if !seen_labels.insert(&pass.label) {
+                return Err(ErrorKind::DuplicatePasswordLabel.into());
+            }
+        }
         let res = set_config(&ctx, &mut cfgs, &wifi, &lookup);
         match res {
             Err(Error {
@@ -339,6 +385,7 @@ pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
             .passwords
             .into_iter()
             .map(|pass| Password {
+                label: pass.label,
                 profile: pass.profile.map(Into::into),
                 password: pass.password,
             })
@@ -346,4 +393,148 @@ pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
     };
     let modified_wifi = crate::utils::edit_in_editor(&current_wifi)?;
     set(ctx, DeserializeStdin(modified_wifi))
+}
+
+const BLACKOUT_TAG: &str = "# start-wrt-wifi-blackout";
+const CRONTAB_PATH: &str = "/etc/crontabs/root";
+
+fn crontab_path(ctx: &impl CtrlContext) -> PathBuf {
+    if ctx.effectful() {
+        PathBuf::from(CRONTAB_PATH)
+    } else {
+        ctx.uci_root().join("crontab_root")
+    }
+}
+
+fn parse_hhmm(s: &str) -> Result<(u32, u32), Error> {
+    let parts: Vec<&str> = s.split(':').collect();
+    if parts.len() != 2 {
+        return Err(Error::other(format!("invalid time format: {s:?}")));
+    }
+    let h: u32 = parts[0]
+        .parse()
+        .map_err(|_| Error::other(format!("invalid hour: {}", parts[0])))?;
+    let m: u32 = parts[1]
+        .parse()
+        .map_err(|_| Error::other(format!("invalid minute: {}", parts[1])))?;
+    Ok((h, m))
+}
+
+pub fn blackout_get<C: CtrlContext>(ctx: C) -> Result<Vec<BlackoutWindow>, Error> {
+    let path = crontab_path(&ctx);
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+
+    let tagged: Vec<&str> = content
+        .lines()
+        .filter(|l| l.contains(BLACKOUT_TAG))
+        .collect();
+
+    // Collect down/up line pairs
+    let down_lines: Vec<&str> = tagged.iter().filter(|l| l.contains("wifi down")).copied().collect();
+    let up_lines: Vec<&str> = tagged.iter().filter(|l| l.contains("wifi up")).copied().collect();
+
+    let mut windows = Vec::new();
+    for (down, up) in down_lines.iter().zip(up_lines.iter()) {
+        let down_parts: Vec<&str> = down.split_whitespace().collect();
+        let up_parts: Vec<&str> = up.split_whitespace().collect();
+
+        let start_time = if down_parts.len() >= 2 {
+            format!(
+                "{:02}:{:02}",
+                down_parts[1].parse::<u32>().unwrap_or(0),
+                down_parts[0].parse::<u32>().unwrap_or(0)
+            )
+        } else {
+            continue;
+        };
+
+        let end_time = if up_parts.len() >= 2 {
+            format!(
+                "{:02}:{:02}",
+                up_parts[1].parse::<u32>().unwrap_or(0),
+                up_parts[0].parse::<u32>().unwrap_or(0)
+            )
+        } else {
+            continue;
+        };
+
+        let mut days = [false; 7];
+        if down_parts.len() >= 5 {
+            for d in down_parts[4].split(',') {
+                if let Ok(n) = d.parse::<usize>() {
+                    if n < 7 {
+                        days[n] = true;
+                    }
+                }
+            }
+        }
+
+        windows.push(BlackoutWindow {
+            start_time,
+            end_time,
+            days,
+        });
+    }
+
+    Ok(windows)
+}
+
+pub fn blackout_set<C: CtrlContext>(
+    ctx: C,
+    DeserializeStdin(input): DeserializeStdin<BlackoutWindows>,
+) -> Result<(), Error> {
+    let path = crontab_path(&ctx);
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+
+    let filtered: Vec<&str> = content
+        .lines()
+        .filter(|l| !l.contains(BLACKOUT_TAG))
+        .collect();
+
+    let mut new_content = filtered.join("\n");
+    if !new_content.is_empty() && !new_content.ends_with('\n') {
+        new_content.push('\n');
+    }
+
+    for window in &input.windows {
+        let days_str: String = window
+            .days
+            .iter()
+            .enumerate()
+            .filter(|(_, &on)| on)
+            .map(|(i, _)| i.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+
+        if days_str.is_empty() {
+            continue;
+        }
+
+        let (start_h, start_m) = parse_hhmm(&window.start_time)?;
+        let (end_h, end_m) = parse_hhmm(&window.end_time)?;
+
+        new_content.push_str(&format!(
+            "{} {} * * {} wifi down {}\n",
+            start_m, start_h, days_str, BLACKOUT_TAG
+        ));
+        new_content.push_str(&format!(
+            "{} {} * * {} wifi up {}\n",
+            end_m, end_h, days_str, BLACKOUT_TAG
+        ));
+    }
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&path, &new_content)?;
+
+    if ctx.effectful() {
+        let _ = Command::new("/etc/init.d/cron")
+            .arg("restart")
+            .spawn()
+            .context("restarting cron")?
+            .wait();
+    }
+
+    Ok(())
 }
