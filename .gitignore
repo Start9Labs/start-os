@@ -20,3 +20,4 @@ secrets.db
 /compiled-*.tar
 /build/lib/firmware
 tmp
+web/.i18n-checked

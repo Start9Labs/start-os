@@ -28,7 +28,9 @@
     "start:ui": "npm run-script build-config && ng serve --project ui --host 0.0.0.0",
     "start:tunnel": "ng serve --project start-tunnel --host 0.0.0.0",
     "start:ui:proxy": "npm run-script build-config && ng serve --project ui --host 0.0.0.0 --proxy-config proxy.conf.json",
-    "build-config": "node build-config.js"
+    "build-config": "node build-config.js",
+    "format": "prettier --write projects/",
+    "format:check": "prettier --check projects/"
   },
   "dependencies": {
     "@angular/animations": "^20.3.0",
