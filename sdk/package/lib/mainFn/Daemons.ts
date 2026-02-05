@@ -1,20 +1,20 @@
-import { Signals } from "../../../base/lib/types"
+import { Signals } from '../../../base/lib/types'
 
-import { HealthCheckResult } from "../health/checkFns"
+import { HealthCheckResult } from '../health/checkFns'
 
-import { Trigger } from "../trigger"
-import * as T from "../../../base/lib/types"
-import { SubContainer } from "../util/SubContainer"
+import { Trigger } from '../trigger'
+import * as T from '../../../base/lib/types'
+import { SubContainer } from '../util/SubContainer'
 
-import { promisify } from "node:util"
-import * as CP from "node:child_process"
+import { promisify } from 'node:util'
+import * as CP from 'node:child_process'
 
-export { Daemon } from "./Daemon"
-export { CommandController } from "./CommandController"
-import { EXIT_SUCCESS, HealthDaemon } from "./HealthDaemon"
-import { Daemon } from "./Daemon"
-import { CommandController } from "./CommandController"
-import { Oneshot } from "./Oneshot"
+export { Daemon } from './Daemon'
+export { CommandController } from './CommandController'
+import { EXIT_SUCCESS, HealthDaemon } from './HealthDaemon'
+import { Daemon } from './Daemon'
+import { CommandController } from './CommandController'
+import { Oneshot } from './Oneshot'
 
 export const cpExec = promisify(CP.exec)
 export const cpExecFile = promisify(CP.execFile)
@@ -231,7 +231,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     const res = (options: AddDaemonParams<Manifest, Ids, Id, C> | null) => {
       if (!options) return prev
       const daemon =
-        "daemon" in options
+        'daemon' in options
           ? options.daemon
           : Daemon.of<Manifest>()<C>(
               this.effects,
@@ -369,8 +369,8 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     const healthDaemon = new HealthDaemon<Manifest>(
       daemon,
       [...this.healthDaemons],
-      "__RUN_UNTIL_SUCCESS",
-      "EXIT_SUCCESS",
+      '__RUN_UNTIL_SUCCESS',
+      'EXIT_SUCCESS',
       this.effects,
     )
     const daemons = await new Daemons<Manifest, Ids>(this.effects, this.ids, [
@@ -400,7 +400,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       if (canShutdown.length === 0) {
         // Dependency cycle that should not happen, just shutdown remaining daemons
         console.warn(
-          "Dependency cycle detected, shutting down remaining daemons",
+          'Dependency cycle detected, shutting down remaining daemons',
         )
         canShutdown.push(...[...remaining].reverse())
       }

@@ -26,10 +26,10 @@ export function setupI18n<
   Dict extends Record<string, number>,
   Translations extends Record<string, Record<number, string>>,
 >(defaultDict: Dict, translations: Translations, defaultLang: string) {
-  const lang = process.env.LANG?.replace(/\.UTF-8$/, "") || defaultLang
+  const lang = process.env.LANG?.replace(/\.UTF-8$/, '') || defaultLang
 
   // Convert locale format from en_US to en-US for Intl APIs
-  const intlLocale = lang.replace("_", "-")
+  const intlLocale = lang.replace('_', '-')
 
   function getTranslation(): Record<number, string> | null {
     if (lang === defaultLang) return null
@@ -38,7 +38,7 @@ export function setupI18n<
 
     const match =
       availableLangs.find((l) => l === lang) ??
-      availableLangs.find((l) => String(l).startsWith(lang.split("_")[0] + "_"))
+      availableLangs.find((l) => String(l).startsWith(lang.split('_')[0] + '_'))
 
     return match ? (translations[match] as Record<number, string>) : null
   }
@@ -46,7 +46,7 @@ export function setupI18n<
   const translation = getTranslation()
 
   function formatValue(value: ParamValue): string {
-    if (typeof value === "number") {
+    if (typeof value === 'number') {
       return new Intl.NumberFormat(intlLocale).format(value)
     }
     if (value instanceof Date) {

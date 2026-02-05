@@ -1,5 +1,5 @@
-import { Trigger } from "."
-import { lastStatus } from "./lastStatus"
+import { Trigger } from '.'
+import { lastStatus } from './lastStatus'
 
 export const successFailure = (o: {
   duringSuccess: Trigger

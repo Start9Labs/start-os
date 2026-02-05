@@ -1,19 +1,19 @@
-import { Pattern } from "../actions/input/inputSpecTypes"
-import * as regexes from "./regexes"
+import { Pattern } from '../actions/input/inputSpecTypes'
+import * as regexes from './regexes'
 
 export const ipv6: Pattern = {
   regex: regexes.ipv6.matches(),
-  description: "Must be a valid IPv6 address",
+  description: 'Must be a valid IPv6 address',
 }
 
 export const ipv4: Pattern = {
   regex: regexes.ipv4.matches(),
-  description: "Must be a valid IPv4 address",
+  description: 'Must be a valid IPv4 address',
 }
 
 export const hostname: Pattern = {
   regex: regexes.hostname.matches(),
-  description: "Must be a valid hostname",
+  description: 'Must be a valid hostname',
 }
 
 export const localHostname: Pattern = {
@@ -28,7 +28,7 @@ export const torHostname: Pattern = {
 
 export const url: Pattern = {
   regex: regexes.url.matches(),
-  description: "Must be a valid URL",
+  description: 'Must be a valid URL',
 }
 
 export const localUrl: Pattern = {
@@ -44,26 +44,26 @@ export const torUrl: Pattern = {
 export const ascii: Pattern = {
   regex: regexes.ascii.matches(),
   description:
-    "May only contain ASCII characters. See https://www.w3schools.com/charsets/ref_html_ascii.asp",
+    'May only contain ASCII characters. See https://www.w3schools.com/charsets/ref_html_ascii.asp',
 }
 
 export const domain: Pattern = {
   regex: regexes.domain.matches(),
-  description: "Must be a valid Fully Qualified Domain Name",
+  description: 'Must be a valid Fully Qualified Domain Name',
 }
 
 export const email: Pattern = {
   regex: regexes.email.matches(),
-  description: "Must be a valid email address",
+  description: 'Must be a valid email address',
 }
 
 export const emailWithName: Pattern = {
   regex: regexes.emailWithName.matches(),
-  description: "Must be a valid email address, optionally with a name",
+  description: 'Must be a valid email address, optionally with a name',
 }
 
 export const base64: Pattern = {
   regex: regexes.base64.matches(),
   description:
-    "May only contain base64 characters. See https://base64.guru/learn/base64-characters",
+    'May only contain base64 characters. See https://base64.guru/learn/base64-characters',
 }

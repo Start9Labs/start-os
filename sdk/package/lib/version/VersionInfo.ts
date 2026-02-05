@@ -1,7 +1,7 @@
-import { ValidateExVer } from "../../../base/lib/exver"
-import * as T from "../../../base/lib/types"
+import { ValidateExVer } from '../../../base/lib/exver'
+import * as T from '../../../base/lib/types'
 
-export const IMPOSSIBLE: unique symbol = Symbol("IMPOSSIBLE")
+export const IMPOSSIBLE: unique symbol = Symbol('IMPOSSIBLE')
 
 export type VersionOptions<Version extends string> = {
   /** The exver-compliant version number */
@@ -60,30 +60,30 @@ export class VersionInfo<Version extends string> {
 }
 
 function __type_tests() {
-  const version: VersionInfo<"1.0.0:0"> = VersionInfo.of({
-    version: "1.0.0:0",
-    releaseNotes: "",
+  const version: VersionInfo<'1.0.0:0'> = VersionInfo.of({
+    version: '1.0.0:0',
+    releaseNotes: '',
     migrations: {},
   })
-    .satisfies("#other:1.0.0:0")
-    .satisfies("#other:2.0.0:0")
+    .satisfies('#other:1.0.0:0')
+    .satisfies('#other:2.0.0:0')
     // @ts-expect-error
-    .satisfies("#other:2.f.0:0")
+    .satisfies('#other:2.f.0:0')
 
-  let a: VersionInfo<"1.0.0:0"> = version
+  let a: VersionInfo<'1.0.0:0'> = version
   // @ts-expect-error
-  let b: VersionInfo<"1.0.0:3"> = version
+  let b: VersionInfo<'1.0.0:3'> = version
 
   VersionInfo.of({
     // @ts-expect-error
-    version: "test",
-    releaseNotes: "",
+    version: 'test',
+    releaseNotes: '',
     migrations: {},
   })
   VersionInfo.of({
     // @ts-expect-error
-    version: "test" as string,
-    releaseNotes: "",
+    version: 'test' as string,
+    releaseNotes: '',
     migrations: {},
   })
 }

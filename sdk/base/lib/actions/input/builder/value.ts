@@ -1,6 +1,6 @@
-import { InputSpec, LazyBuild } from "./inputSpec"
-import { List } from "./list"
-import { UnionRes, UnionResStaticValidatedAs, Variants } from "./variants"
+import { InputSpec, LazyBuild } from './inputSpec'
+import { List } from './list'
+import { UnionRes, UnionResStaticValidatedAs, Variants } from './variants'
 import {
   Pattern,
   RandomString,
@@ -9,9 +9,9 @@ import {
   ValueSpecHidden,
   ValueSpecText,
   ValueSpecTextarea,
-} from "../inputSpecTypes"
-import { DefaultString } from "../inputSpecTypes"
-import { _, once } from "../../../util"
+} from '../inputSpecTypes'
+import { DefaultString } from '../inputSpecTypes'
+import { _, once } from '../../../util'
 import {
   Parser,
   any,
@@ -23,8 +23,8 @@ import {
   number,
   object,
   string,
-} from "ts-matches"
-import { DeepPartial } from "../../../types"
+} from 'ts-matches'
+import { DeepPartial } from '../../../types'
 
 export const fileInfoParser = object({
   path: string,
@@ -42,7 +42,7 @@ const testForAsRequiredParser = once(
 function asRequiredParser<Type, Input extends { required: boolean }>(
   parser: Parser<unknown, Type>,
   input: Input,
-): Parser<unknown, AsRequired<Type, Input["required"]>> {
+): Parser<unknown, AsRequired<Type, Input['required']>> {
   if (testForAsRequiredParser()(input)) return parser as any
   return parser.nullable() as any
 }
@@ -92,7 +92,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         spec: {
           description: null,
           warning: null,
-          type: "toggle" as const,
+          type: 'toggle' as const,
           disabled: false,
           immutable: a.immutable ?? false,
           ...a,
@@ -117,7 +117,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         spec: {
           description: null,
           warning: null,
-          type: "toggle" as const,
+          type: 'toggle' as const,
           disabled: false,
           immutable: false,
           ...(await a(options)),
@@ -191,7 +191,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
      * @description Informs the browser how to behave and which keyboard to display on mobile
      * @default "text"
      */
-    inputmode?: ValueSpecText["inputmode"]
+    inputmode?: ValueSpecText['inputmode']
     /**
      * @description Once set, the value can never be changed.
      * @default false
@@ -206,7 +206,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     return new Value<AsRequired<string, Required>>(
       async () => ({
         spec: {
-          type: "text" as const,
+          type: 'text' as const,
           description: null,
           warning: null,
           masked: false,
@@ -214,7 +214,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
           minLength: null,
           maxLength: null,
           patterns: [],
-          inputmode: "text",
+          inputmode: 'text',
           disabled: false,
           immutable: a.immutable ?? false,
           generate: a.generate ?? null,
@@ -237,7 +237,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       minLength?: number | null
       maxLength?: number | null
       patterns?: Pattern[]
-      inputmode?: ValueSpecText["inputmode"]
+      inputmode?: ValueSpecText['inputmode']
       disabled?: string | false
       generate?: null | RandomString
     }>,
@@ -247,7 +247,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         const a = await getA(options)
         return {
           spec: {
-            type: "text" as const,
+            type: 'text' as const,
             description: null,
             warning: null,
             masked: false,
@@ -255,7 +255,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
             minLength: null,
             maxLength: null,
             patterns: [],
-            inputmode: "text",
+            inputmode: 'text',
             disabled: false,
             immutable: false,
             generate: a.generate ?? null,
@@ -334,7 +334,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         minRows: 3,
         maxRows: 6,
         placeholder: null,
-        type: "textarea" as const,
+        type: 'textarea' as const,
         disabled: false,
         immutable: a.immutable ?? false,
         ...a,
@@ -371,7 +371,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
             minRows: 3,
             maxRows: 6,
             placeholder: null,
-            type: "textarea" as const,
+            type: 'textarea' as const,
             disabled: false,
             immutable: false,
             ...a,
@@ -444,7 +444,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     return new Value<AsRequired<number, Required>>(
       () => ({
         spec: {
-          type: "number" as const,
+          type: 'number' as const,
           description: null,
           warning: null,
           min: null,
@@ -482,7 +482,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         const a = await getA(options)
         return {
           spec: {
-            type: "number" as const,
+            type: 'number' as const,
             description: null,
             warning: null,
             min: null,
@@ -540,7 +540,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     return new Value<AsRequired<string, Required>>(
       () => ({
         spec: {
-          type: "color" as const,
+          type: 'color' as const,
           description: null,
           warning: null,
           disabled: false,
@@ -568,7 +568,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         const a = await getA(options)
         return {
           spec: {
-            type: "color" as const,
+            type: 'color' as const,
             description: null,
             warning: null,
             disabled: false,
@@ -618,7 +618,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
      * @description Informs the browser how to behave and which date/time component to display.
      * @default "datetime-local"
      */
-    inputmode?: ValueSpecDatetime["inputmode"]
+    inputmode?: ValueSpecDatetime['inputmode']
     min?: string | null
     max?: string | null
     /**
@@ -631,10 +631,10 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     return new Value<AsRequired<string, Required>>(
       () => ({
         spec: {
-          type: "datetime" as const,
+          type: 'datetime' as const,
           description: null,
           warning: null,
-          inputmode: "datetime-local",
+          inputmode: 'datetime-local',
           min: null,
           max: null,
           step: null,
@@ -654,7 +654,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       warning?: string | null
       default: string | null
       required: Required
-      inputmode?: ValueSpecDatetime["inputmode"]
+      inputmode?: ValueSpecDatetime['inputmode']
       min?: string | null
       max?: string | null
       disabled?: false | string
@@ -665,10 +665,10 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         const a = await getA(options)
         return {
           spec: {
-            type: "datetime" as const,
+            type: 'datetime' as const,
             description: null,
             warning: null,
-            inputmode: "datetime-local",
+            inputmode: 'datetime-local',
             min: null,
             max: null,
             disabled: false,
@@ -740,7 +740,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         spec: {
           description: null,
           warning: null,
-          type: "select" as const,
+          type: 'select' as const,
           disabled: false,
           immutable: a.immutable ?? false,
           ...a,
@@ -766,7 +766,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         spec: {
           description: null,
           warning: null,
-          type: "select" as const,
+          type: 'select' as const,
           disabled: false,
           immutable: false,
           ...a,
@@ -837,7 +837,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     return new Value<(keyof Values & string)[]>(
       () => ({
         spec: {
-          type: "multiselect" as const,
+          type: 'multiselect' as const,
           minLength: null,
           maxLength: null,
           warning: null,
@@ -867,7 +867,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       const a = await getA(options)
       return {
         spec: {
-          type: "multiselect" as const,
+          type: 'multiselect' as const,
           minLength: null,
           maxLength: null,
           warning: null,
@@ -915,7 +915,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       const built = await spec.build(options as any)
       return {
         spec: {
-          type: "object" as const,
+          type: 'object' as const,
           description: null,
           warning: null,
           ...a,
@@ -933,7 +933,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     required: Required
   }) {
     const buildValue = {
-      type: "file" as const,
+      type: 'file' as const,
       description: null,
       warning: null,
       ...a,
@@ -960,7 +960,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     return new Value<AsRequired<FileInfo, Required>, FileInfo | null>(
       async (options) => {
         const spec = {
-          type: "file" as const,
+          type: 'file' as const,
           description: null,
           warning: null,
           ...(await a(options)),
@@ -1034,7 +1034,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       const built = await a.variants.build(options as any)
       return {
         spec: {
-          type: "union" as const,
+          type: 'union' as const,
           description: null,
           warning: null,
           disabled: false,
@@ -1109,7 +1109,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         const built = await newValues.variants.build(options as any)
         return {
           spec: {
-            type: "union" as const,
+            type: 'union' as const,
             description: null,
             warning: null,
             ...newValues,
@@ -1202,7 +1202,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     return new Value<T, typeof parser._TYPE>(async () => {
       return {
         spec: {
-          type: "hidden" as const,
+          type: 'hidden' as const,
         } as ValueSpecHidden,
         validator: parser,
       }
@@ -1221,7 +1221,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       const validator = await getParser(options)
       return {
         spec: {
-          type: "hidden" as const,
+          type: 'hidden' as const,
         } as ValueSpecHidden,
         validator,
       }

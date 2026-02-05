@@ -1,12 +1,12 @@
-import * as matches from "ts-matches"
-import * as YAML from "yaml"
-import * as TOML from "@iarna/toml"
-import * as INI from "ini"
-import * as T from "../../../base/lib/types"
-import * as fs from "node:fs/promises"
-import { asError, deepEqual } from "../../../base/lib/util"
-import { DropGenerator, DropPromise } from "../../../base/lib/util/Drop"
-import { PathBase } from "./Volume"
+import * as matches from 'ts-matches'
+import * as YAML from 'yaml'
+import * as TOML from '@iarna/toml'
+import * as INI from 'ini'
+import * as T from '../../../base/lib/types'
+import * as fs from 'node:fs/promises'
+import { asError, deepEqual } from '../../../base/lib/util'
+import { DropGenerator, DropPromise } from '../../../base/lib/util/Drop'
+import { PathBase } from './Volume'
 
 const previousPath = /(.+?)\/([^/]*)$/
 
@@ -17,14 +17,14 @@ const exists = (path: string) =>
   )
 
 async function onCreated(path: string) {
-  if (path === "/") return
-  if (!path.startsWith("/")) path = `${process.cwd()}/${path}`
+  if (path === '/') return
+  if (!path.startsWith('/')) path = `${process.cwd()}/${path}`
   if (await exists(path)) {
     return
   }
-  const split = path.split("/")
+  const split = path.split('/')
   const filename = split.pop()
-  const parent = split.join("/")
+  const parent = split.join('/')
   await onCreated(parent)
   const ctrl = new AbortController()
   const watch = fs.watch(parent, { persistent: false, signal: ctrl.signal })
@@ -43,7 +43,7 @@ async function onCreated(path: string) {
   }
   for await (let event of watch) {
     if (event.filename === filename) {
-      ctrl.abort("finished")
+      ctrl.abort('finished')
       return
     }
   }
@@ -56,8 +56,8 @@ function fileMerge(...args: any[]): any {
     else if (
       res &&
       arg &&
-      typeof res === "object" &&
-      typeof arg === "object" &&
+      typeof res === 'object' &&
+      typeof arg === 'object' &&
       !Array.isArray(res) &&
       !Array.isArray(arg)
     ) {
@@ -70,7 +70,7 @@ function fileMerge(...args: any[]): any {
 }
 
 function filterUndefined<A>(a: A): A {
-  if (a && typeof a === "object") {
+  if (a && typeof a === 'object') {
     if (Array.isArray(a)) {
       return a.map(filterUndefined) as A
     }
@@ -91,7 +91,7 @@ export type Transformers<Raw = unknown, Transformed = unknown> = {
 
 type ToPath = string | { base: PathBase; subpath: string }
 function toPath(path: ToPath): string {
-  if (typeof path === "string") {
+  if (typeof path === 'string') {
     return path
   }
   return path.base.subpath(path.subpath)
@@ -195,7 +195,7 @@ export class FileHelper<A> {
     if (!(await exists(this.path))) {
       return null
     }
-    return await fs.readFile(this.path).then((data) => data.toString("utf-8"))
+    return await fs.readFile(this.path).then((data) => data.toString('utf-8'))
   }
 
   private async readFile(): Promise<unknown> {
@@ -251,7 +251,7 @@ export class FileHelper<A> {
     while (effects.isInContext && !abort?.aborted) {
       if (await exists(this.path)) {
         const ctrl = new AbortController()
-        abort?.addEventListener("abort", () => ctrl.abort())
+        abort?.addEventListener('abort', () => ctrl.abort())
         const watch = fs.watch(this.path, {
           persistent: false,
           signal: ctrl.signal,
@@ -266,7 +266,7 @@ export class FileHelper<A> {
           })
           .catch((e) => console.error(asError(e)))
         if (!prev || !eq(prev.value, newRes)) {
-          console.error("yielding", JSON.stringify({ prev: prev, newRes }))
+          console.error('yielding', JSON.stringify({ prev: prev, newRes }))
           yield newRes
         }
         prev = { value: newRes }
@@ -276,7 +276,7 @@ export class FileHelper<A> {
         await onCreated(this.path).catch((e) => console.error(asError(e)))
       }
     }
-    return new Promise<never>((_, rej) => rej(new Error("aborted")))
+    return new Promise<never>((_, rej) => rej(new Error('aborted')))
   }
 
   private readOnChange<B>(
@@ -296,7 +296,7 @@ export class FileHelper<A> {
           if (res.cancel) ctrl.abort()
         } catch (e) {
           console.error(
-            "callback function threw an error @ FileHelper.read.onChange",
+            'callback function threw an error @ FileHelper.read.onChange',
             e,
           )
         }
@@ -305,7 +305,7 @@ export class FileHelper<A> {
       .catch((e) => callback(null, e))
       .catch((e) =>
         console.error(
-          "callback function threw an error @ FileHelper.read.onChange",
+          'callback function threw an error @ FileHelper.read.onChange',
           e,
         ),
       )
@@ -359,7 +359,7 @@ export class FileHelper<A> {
       const: (effects: T.Effects) => this.readConst(effects, map, eq),
       watch: (effects: T.Effects, abort?: AbortSignal) => {
         const ctrl = new AbortController()
-        abort?.addEventListener("abort", () => ctrl.abort())
+        abort?.addEventListener('abort', () => ctrl.abort())
         return DropGenerator.of(
           this.readWatch(effects, map, eq, ctrl.signal),
           () => ctrl.abort(),
@@ -620,15 +620,15 @@ export class FileHelper<A> {
       (inData) =>
         Object.entries(inData)
           .map(([k, v]) => `${k}=${v}`)
-          .join("\n"),
+          .join('\n'),
       (inString) =>
         Object.fromEntries(
           inString
-            .split("\n")
+            .split('\n')
             .map((line) => line.trim())
-            .filter((line) => !line.startsWith("#") && line.includes("="))
+            .filter((line) => !line.startsWith('#') && line.includes('='))
             .map((line) => {
-              const pos = line.indexOf("=")
+              const pos = line.indexOf('=')
               return [line.slice(0, pos), line.slice(pos + 1)]
             }),
         ),

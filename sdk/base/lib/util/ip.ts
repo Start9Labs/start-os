@@ -8,9 +8,9 @@ export class IpAddress {
   }
   static parse(address: string): IpAddress {
     let octets
-    if (address.includes(":")) {
+    if (address.includes(':')) {
       octets = new Array(16).fill(0)
-      const segs = address.split(":")
+      const segs = address.split(':')
       let idx = 0
       let octIdx = 0
       while (segs[idx]) {
@@ -31,23 +31,23 @@ export class IpAddress {
         }
       }
     } else {
-      octets = address.split(".").map(Number)
-      if (octets.length !== 4) throw new Error("invalid ipv4 address")
+      octets = address.split('.').map(Number)
+      if (octets.length !== 4) throw new Error('invalid ipv4 address')
     }
     if (octets.some((o) => isNaN(o) || o > 255)) {
-      throw new Error("invalid ip address")
+      throw new Error('invalid ip address')
     }
     return new IpAddress(octets, address)
   }
   static fromOctets(octets: number[]) {
     if (octets.length == 4) {
       if (octets.some((o) => o > 255)) {
-        throw new Error("invalid ip address")
+        throw new Error('invalid ip address')
       }
-      return new IpAddress(octets, octets.join("."))
+      return new IpAddress(octets, octets.join('.'))
     } else if (octets.length == 16) {
       if (octets.some((o) => o > 255)) {
-        throw new Error("invalid ip address")
+        throw new Error('invalid ip address')
       }
       let pre = octets.slice(0, 8)
       while (pre[pre.length - 1] == 0) {
@@ -58,12 +58,12 @@ export class IpAddress {
         post.unshift()
       }
       if (pre.length + post.length == 16) {
-        return new IpAddress(octets, octets.join(":"))
+        return new IpAddress(octets, octets.join(':'))
       } else {
-        return new IpAddress(octets, pre.join(":") + "::" + post.join(":"))
+        return new IpAddress(octets, pre.join(':') + '::' + post.join(':'))
       }
     } else {
-      throw new Error("invalid ip address")
+      throw new Error('invalid ip address')
     }
   }
   isIpv4(): boolean {
@@ -88,7 +88,7 @@ export class IpAddress {
       }
     }
     if (octets[0] > 255) {
-      throw new Error("overflow incrementing ip")
+      throw new Error('overflow incrementing ip')
     }
     return IpAddress.fromOctets(octets)
   }
@@ -105,12 +105,12 @@ export class IpAddress {
       }
     }
     if (octets[0] < 0) {
-      throw new Error("underflow decrementing ip")
+      throw new Error('underflow decrementing ip')
     }
     return IpAddress.fromOctets(octets)
   }
   cmp(other: string | IpAddress): -1 | 0 | 1 {
-    if (typeof other === "string") other = IpAddress.parse(other)
+    if (typeof other === 'string') other = IpAddress.parse(other)
     const len = Math.max(this.octets.length, other.octets.length)
     for (let i = 0; i < len; i++) {
       const left = this.octets[i] || 0
@@ -130,7 +130,7 @@ export class IpAddress {
     ) {
       // already rendered
     } else if (this.octets.length === 4) {
-      this.renderedAddress = this.octets.join(".")
+      this.renderedAddress = this.octets.join('.')
       this.renderedOctets = [...this.octets]
     } else if (this.octets.length === 16) {
       const contigZeros = this.octets.reduce(
@@ -149,12 +149,12 @@ export class IpAddress {
         { start: 0, end: 0, current: 0 },
       )
       if (contigZeros.end - contigZeros.start >= 2) {
-        return `${this.octets.slice(0, contigZeros.start).join(":")}::${this.octets.slice(contigZeros.end).join(":")}`
+        return `${this.octets.slice(0, contigZeros.start).join(':')}::${this.octets.slice(contigZeros.end).join(':')}`
       }
-      this.renderedAddress = this.octets.join(":")
+      this.renderedAddress = this.octets.join(':')
       this.renderedOctets = [...this.octets]
     } else {
-      console.warn("invalid octet length for IpAddress", this.octets)
+      console.warn('invalid octet length for IpAddress', this.octets)
     }
     return this.renderedAddress
   }
@@ -170,18 +170,18 @@ export class IpNet extends IpAddress {
   }
   static fromIpPrefix(ip: IpAddress, prefix: number): IpNet {
     if (prefix > ip.octets.length * 8) {
-      throw new Error("invalid prefix")
+      throw new Error('invalid prefix')
     }
     return new IpNet(ip.octets, prefix, ip.address)
   }
   static parse(ipnet: string): IpNet {
-    const [address, prefixStr] = ipnet.split("/", 2)
+    const [address, prefixStr] = ipnet.split('/', 2)
     const ip = IpAddress.parse(address)
     const prefix = Number(prefixStr)
     return IpNet.fromIpPrefix(ip, prefix)
   }
   contains(address: string | IpAddress | IpNet): boolean {
-    if (typeof address === "string") address = IpAddress.parse(address)
+    if (typeof address === 'string') address = IpAddress.parse(address)
     if (address instanceof IpNet && address.prefix < this.prefix) return false
     if (this.octets.length !== address.octets.length) return false
     let prefix = this.prefix
@@ -235,14 +235,14 @@ export class IpNet extends IpAddress {
 }
 
 export const PRIVATE_IPV4_RANGES = [
-  IpNet.parse("127.0.0.0/8"),
-  IpNet.parse("10.0.0.0/8"),
-  IpNet.parse("172.16.0.0/12"),
-  IpNet.parse("192.168.0.0/16"),
+  IpNet.parse('127.0.0.0/8'),
+  IpNet.parse('10.0.0.0/8'),
+  IpNet.parse('172.16.0.0/12'),
+  IpNet.parse('192.168.0.0/16'),
 ]
 
-export const IPV4_LOOPBACK = IpNet.parse("127.0.0.0/8")
-export const IPV6_LOOPBACK = IpNet.parse("::1/128")
-export const IPV6_LINK_LOCAL = IpNet.parse("fe80::/10")
+export const IPV4_LOOPBACK = IpNet.parse('127.0.0.0/8')
+export const IPV6_LOOPBACK = IpNet.parse('::1/128')
+export const IPV6_LINK_LOCAL = IpNet.parse('fe80::/10')
 
-export const CGNAT = IpNet.parse("100.64.0.0/10")
+export const CGNAT = IpNet.parse('100.64.0.0/10')

@@ -1,4 +1,4 @@
-import { object } from "ts-matches"
+import { object } from 'ts-matches'
 
 export function deepEqual(...args: unknown[]) {
   const objects = args.filter(object.test)

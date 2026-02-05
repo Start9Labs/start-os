@@ -1,6 +1,6 @@
-import * as T from "../types"
-import { once } from "../util"
-import { AddressReceipt } from "./AddressReceipt"
+import * as T from '../types'
+import { once } from '../util'
+import { AddressReceipt } from './AddressReceipt'
 
 declare const UpdateServiceInterfacesProof: unique symbol
 export type UpdateServiceInterfacesReceipt = {

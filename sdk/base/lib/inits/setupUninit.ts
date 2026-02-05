@@ -1,5 +1,5 @@
-import { ExtendedVersion, VersionRange } from "../../../base/lib/exver"
-import * as T from "../../../base/lib/types"
+import { ExtendedVersion, VersionRange } from '../../../base/lib/exver'
+import * as T from '../../../base/lib/types'
 
 export type UninitFn = (
   effects: T.Effects,
@@ -34,14 +34,14 @@ export function setupUninit(
 ): T.ExpectedExports.uninit {
   return async (opts) => {
     for (const uninit of uninits) {
-      if ("uninit" in uninit) await uninit.uninit(opts.effects, opts.target)
+      if ('uninit' in uninit) await uninit.uninit(opts.effects, opts.target)
       else await uninit(opts.effects, opts.target)
     }
   }
 }
 
 export function setupOnUninit(onUninit: UninitScriptOrFn): UninitScript {
-  return "uninit" in onUninit
+  return 'uninit' in onUninit
     ? onUninit
     : {
         uninit: async (effects, target) => {

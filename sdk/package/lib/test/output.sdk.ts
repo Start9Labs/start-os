@@ -1,31 +1,31 @@
-import { StartSdk } from "../StartSdk"
-import { setupManifest } from "../manifest/setupManifest"
-import { VersionGraph } from "../version/VersionGraph"
+import { StartSdk } from '../StartSdk'
+import { setupManifest } from '../manifest/setupManifest'
+import { VersionGraph } from '../version/VersionGraph'
 
 export type Manifest = any
 export const sdk = StartSdk.of()
   .withManifest(
     setupManifest({
-      id: "testOutput",
-      title: "",
-      license: "",
-      wrapperRepo: "",
-      upstreamRepo: "",
-      supportSite: "",
-      marketingSite: "",
+      id: 'testOutput',
+      title: '',
+      license: '',
+      wrapperRepo: '',
+      upstreamRepo: '',
+      supportSite: '',
+      marketingSite: '',
       donationUrl: null,
-      docsUrl: "",
+      docsUrl: '',
       description: {
-        short: "",
-        long: "",
+        short: '',
+        long: '',
       },
       images: {
         main: {
           source: {
-            dockerTag: "start9/hello-world",
+            dockerTag: 'start9/hello-world',
           },
-          arch: ["aarch64", "x86_64"],
-          emulateMissingAs: "aarch64",
+          arch: ['aarch64', 'x86_64'],
+          emulateMissingAs: 'aarch64',
         },
       },
       volumes: [],
@@ -38,10 +38,10 @@ export const sdk = StartSdk.of()
         stop: null,
       },
       dependencies: {
-        "remote-test": {
-          description: "",
+        'remote-test': {
+          description: '',
           optional: false,
-          s9pk: "https://example.com/remote-test.s9pk",
+          s9pk: 'https://example.com/remote-test.s9pk',
         },
       },
     }),

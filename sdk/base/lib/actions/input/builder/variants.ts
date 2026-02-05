@@ -1,12 +1,12 @@
-import { DeepPartial } from "../../../types"
-import { ValueSpec, ValueSpecUnion } from "../inputSpecTypes"
+import { DeepPartial } from '../../../types'
+import { ValueSpec, ValueSpecUnion } from '../inputSpecTypes'
 import {
   LazyBuild,
   InputSpec,
   ExtractInputSpecType,
   ExtractInputSpecStaticValidatedAs,
-} from "./inputSpec"
-import { Parser, any, anyOf, literal, object } from "ts-matches"
+} from './inputSpec'
+import { Parser, any, anyOf, literal, object } from 'ts-matches'
 
 export type UnionRes<
   VariantValues extends {
@@ -19,10 +19,10 @@ export type UnionRes<
 > = {
   [key in keyof VariantValues]: {
     selection: key
-    value: ExtractInputSpecType<VariantValues[key]["spec"]>
+    value: ExtractInputSpecType<VariantValues[key]['spec']>
     other?: {
       [key2 in Exclude<keyof VariantValues & string, key>]?: DeepPartial<
-        ExtractInputSpecType<VariantValues[key2]["spec"]>
+        ExtractInputSpecType<VariantValues[key2]['spec']>
       >
     }
   }
@@ -39,10 +39,10 @@ export type UnionResStaticValidatedAs<
 > = {
   [key in keyof VariantValues]: {
     selection: key
-    value: ExtractInputSpecStaticValidatedAs<VariantValues[key]["spec"]>
+    value: ExtractInputSpecStaticValidatedAs<VariantValues[key]['spec']>
     other?: {
       [key2 in Exclude<keyof VariantValues & string, key>]?: DeepPartial<
-        ExtractInputSpecStaticValidatedAs<VariantValues[key2]["spec"]>
+        ExtractInputSpecStaticValidatedAs<VariantValues[key2]['spec']>
       >
     }
   }
@@ -106,7 +106,7 @@ export class Variants<
 > {
   private constructor(
     public build: LazyBuild<{
-      spec: ValueSpecUnion["variants"]
+      spec: ValueSpecUnion['variants']
       validator: Parser<unknown, UnionRes<VariantValues>>
     }>,
     public readonly validator: Parser<
@@ -126,7 +126,7 @@ export class Variants<
     const staticValidators = {} as {
       [K in keyof VariantValues]: Parser<
         unknown,
-        ExtractInputSpecStaticValidatedAs<VariantValues[K]["spec"]>
+        ExtractInputSpecStaticValidatedAs<VariantValues[K]['spec']>
       >
     }
     for (const key in a) {
@@ -143,7 +143,7 @@ export class Variants<
         const validators = {} as {
           [K in keyof VariantValues]: Parser<
             unknown,
-            ExtractInputSpecType<VariantValues[K]["spec"]>
+            ExtractInputSpecType<VariantValues[K]['spec']>
           >
         }
         const variants = {} as {

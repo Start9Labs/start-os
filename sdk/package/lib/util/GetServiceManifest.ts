@@ -1,7 +1,7 @@
-import { Effects } from "../../../base/lib/Effects"
-import { Manifest, PackageId } from "../../../base/lib/osBindings"
-import { DropGenerator, DropPromise } from "../../../base/lib/util/Drop"
-import { deepEqual } from "../../../base/lib/util/deepEqual"
+import { Effects } from '../../../base/lib/Effects'
+import { Manifest, PackageId } from '../../../base/lib/osBindings'
+import { DropGenerator, DropPromise } from '../../../base/lib/util/Drop'
+import { deepEqual } from '../../../base/lib/util/deepEqual'
 
 export class GetServiceManifest<Mapped = Manifest> {
   constructor(
@@ -45,7 +45,7 @@ export class GetServiceManifest<Mapped = Manifest> {
     this.effects.onLeaveContext(() => {
       resolveCell.resolve()
     })
-    abort?.addEventListener("abort", () => resolveCell.resolve())
+    abort?.addEventListener('abort', () => resolveCell.resolve())
     while (this.effects.isInContext && !abort?.aborted) {
       let callback: () => void = () => {}
       const waitForNext = new Promise<void>((resolve) => {
@@ -64,7 +64,7 @@ export class GetServiceManifest<Mapped = Manifest> {
       }
       await waitForNext
     }
-    return new Promise<never>((_, rej) => rej(new Error("aborted")))
+    return new Promise<never>((_, rej) => rej(new Error('aborted')))
   }
 
   /**
@@ -72,7 +72,7 @@ export class GetServiceManifest<Mapped = Manifest> {
    */
   watch(abort?: AbortSignal): AsyncGenerator<Mapped, never, unknown> {
     const ctrl = new AbortController()
-    abort?.addEventListener("abort", () => ctrl.abort())
+    abort?.addEventListener('abort', () => ctrl.abort())
     return DropGenerator.of(this.watchGen(ctrl.signal), () => ctrl.abort())
   }
 
@@ -96,7 +96,7 @@ export class GetServiceManifest<Mapped = Manifest> {
           }
         } catch (e) {
           console.error(
-            "callback function threw an error @ GetServiceManifest.onChange",
+            'callback function threw an error @ GetServiceManifest.onChange',
             e,
           )
         }
@@ -105,7 +105,7 @@ export class GetServiceManifest<Mapped = Manifest> {
       .catch((e) => callback(null, e))
       .catch((e) =>
         console.error(
-          "callback function threw an error @ GetServiceManifest.onChange",
+          'callback function threw an error @ GetServiceManifest.onChange',
           e,
         ),
       )
@@ -123,7 +123,7 @@ export class GetServiceManifest<Mapped = Manifest> {
             return next
           }
         }
-        throw new Error("context left before predicate passed")
+        throw new Error('context left before predicate passed')
       }),
       () => ctrl.abort(),
     )

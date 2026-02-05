@@ -11,7 +11,7 @@ export function getRandomCharInSet(charset: string): string {
     }
     charIdx -= range.len
   }
-  throw new Error("unreachable")
+  throw new Error('unreachable')
 }
 function stringToCharSet(charset: string): CharSet {
   let set: CharSet = { ranges: [], len: 0 }
@@ -20,10 +20,10 @@ function stringToCharSet(charset: string): CharSet {
   let in_range = false
   for (let char of charset) {
     switch (char) {
-      case ",":
+      case ',':
         if (start !== null && end !== null) {
           if (start!.charCodeAt(0) > end!.charCodeAt(0)) {
-            throw new Error("start > end of charset")
+            throw new Error('start > end of charset')
           }
           const len = end.charCodeAt(0) - start.charCodeAt(0) + 1
           set.ranges.push({
@@ -40,20 +40,20 @@ function stringToCharSet(charset: string): CharSet {
           set.ranges.push({ start, end: start, len: 1 })
           start = null
         } else if (start !== null && in_range) {
-          end = ","
+          end = ','
         } else if (start === null && end === null && !in_range) {
-          start = ","
+          start = ','
         } else {
           throw new Error('unexpected ","')
         }
         break
-      case "-":
+      case '-':
         if (start === null) {
-          start = "-"
+          start = '-'
         } else if (!in_range) {
           in_range = true
         } else if (in_range && end === null) {
-          end = "-"
+          end = '-'
         } else {
           throw new Error('unexpected "-"')
         }
@@ -70,7 +70,7 @@ function stringToCharSet(charset: string): CharSet {
   }
   if (start !== null && end !== null) {
     if (start!.charCodeAt(0) > end!.charCodeAt(0)) {
-      throw new Error("start > end of charset")
+      throw new Error('start > end of charset')
     }
     const len = end.charCodeAt(0) - start.charCodeAt(0) + 1
     set.ranges.push({

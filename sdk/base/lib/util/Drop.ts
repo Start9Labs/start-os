@@ -1,4 +1,4 @@
-const dropId: unique symbol = Symbol("id")
+const dropId: unique symbol = Symbol('id')
 export type DropRef = { [dropId]: number }
 
 export abstract class Drop {
@@ -19,7 +19,7 @@ export abstract class Drop {
 
     return new Proxy(this, {
       set(target: any, prop, value) {
-        if (prop === "dropRef" || prop == "dropId") return false
+        if (prop === 'dropRef' || prop == 'dropId') return false
         target[prop] = value
         ;(weak as any)[prop] = value
         return true
@@ -60,7 +60,7 @@ export class DropPromise<T> implements Promise<T> {
   private static idCtr: number = 0
   private dropId: number
   private dropRef: DropRef;
-  [Symbol.toStringTag] = "DropPromise"
+  [Symbol.toStringTag] = 'DropPromise'
   private constructor(
     private readonly promise: Promise<T>,
     dropFnOrRef?: (() => void) | DropRef,

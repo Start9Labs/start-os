@@ -1,8 +1,8 @@
-import { ArrayBufferReader, Entry } from "."
-import { blake3 } from "@noble/hashes/blake3"
-import { serializeVarint } from "./varint"
-import { FileContents } from "./fileContents"
-import { compare } from ".."
+import { ArrayBufferReader, Entry } from '.'
+import { blake3 } from '@noble/hashes/blake3'
+import { serializeVarint } from './varint'
+import { FileContents } from './fileContents'
+import { compare } from '..'
 
 export class DirectoryContents {
   static readonly headerSize =
@@ -18,7 +18,7 @@ export class DirectoryContents {
     const position = header.nextU64()
     const size = header.nextU64()
     if (size > maxSize) {
-      throw new Error("size is greater than signed")
+      throw new Error('size is greater than signed')
     }
 
     const tocReader = new ArrayBufferReader(
@@ -37,7 +37,7 @@ export class DirectoryContents {
     const res = new DirectoryContents(entries)
 
     if (!compare(res.sighash(), sighash)) {
-      throw new Error("hash sum does not match")
+      throw new Error('hash sum does not match')
     }
 
     return res

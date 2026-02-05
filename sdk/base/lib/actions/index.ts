@@ -1,7 +1,7 @@
-import * as T from "../types"
-import * as IST from "../actions/input/inputSpecTypes"
-import { Action, ActionInfo } from "./setupActions"
-import { ExtractInputSpecType } from "./input/builder/inputSpec"
+import * as T from '../types'
+import * as IST from '../actions/input/inputSpecTypes'
+import { Action, ActionInfo } from './setupActions'
+import { ExtractInputSpecType } from './input/builder/inputSpec'
 
 export type RunActionInput<Input> =
   | Input
@@ -53,17 +53,17 @@ type TaskBase = {
   replayId?: string
 }
 type TaskInput<T extends ActionInfo<T.ActionId, any>> = {
-  kind: "partial"
+  kind: 'partial'
   value: T.DeepPartial<GetActionInputType<T>>
 }
 export type TaskOptions<T extends ActionInfo<T.ActionId, any>> = TaskBase &
   (
     | {
-        when?: Exclude<T.TaskTrigger, { condition: "input-not-matches" }>
+        when?: Exclude<T.TaskTrigger, { condition: 'input-not-matches' }>
         input?: TaskInput<T>
       }
     | {
-        when: T.TaskTrigger & { condition: "input-not-matches" }
+        when: T.TaskTrigger & { condition: 'input-not-matches' }
         input: TaskInput<T>
       }
   )

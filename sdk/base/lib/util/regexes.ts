@@ -19,7 +19,7 @@ export class ComposableRegex {
 }
 
 export const escapeLiteral = (str: string) =>
-  str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 // https://ihateregex.io/expr/ipv6/
 export const ipv6 = new ComposableRegex(

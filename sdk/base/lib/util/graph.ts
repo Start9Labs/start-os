@@ -1,5 +1,5 @@
-import { boolean } from "ts-matches"
-import { ExtendedVersion } from "../exver"
+import { boolean } from 'ts-matches'
+import { ExtendedVersion } from '../exver'
 
 export type Vertex<VMetadata = null, EMetadata = null> = {
   metadata: VMetadata
@@ -23,9 +23,9 @@ export class Graph<VMetadata = null, EMetadata = null> {
     return JSON.stringify(
       this.vertices,
       (k, v) => {
-        if (k === "metadata") return metadataRepr(v)
-        if (k === "from") return metadataRepr(v.metadata)
-        if (k === "to") return metadataRepr(v.metadata)
+        if (k === 'metadata') return metadataRepr(v)
+        if (k === 'from') return metadataRepr(v.metadata)
+        if (k === 'to') return metadataRepr(v.metadata)
         return v
       },
       2,
@@ -33,8 +33,8 @@ export class Graph<VMetadata = null, EMetadata = null> {
   }
   addVertex(
     metadata: VMetadata,
-    fromEdges: Array<Omit<Edge<EMetadata, VMetadata>, "to">>,
-    toEdges: Array<Omit<Edge<EMetadata, VMetadata>, "from">>,
+    fromEdges: Array<Omit<Edge<EMetadata, VMetadata>, 'to'>>,
+    toEdges: Array<Omit<Edge<EMetadata, VMetadata>, 'from'>>,
   ): Vertex<VMetadata, EMetadata> {
     const vertex: Vertex<VMetadata, EMetadata> = {
       metadata,

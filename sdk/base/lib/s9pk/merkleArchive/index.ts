@@ -1,10 +1,10 @@
-import { MerkleArchiveCommitment } from "../../osBindings"
-import { DirectoryContents } from "./directoryContents"
-import { FileContents } from "./fileContents"
-import { ed25519ph } from "@noble/curves/ed25519"
-import { sha512 } from "@noble/hashes/sha2"
-import { VarIntProcessor } from "./varint"
-import { compare } from ".."
+import { MerkleArchiveCommitment } from '../../osBindings'
+import { DirectoryContents } from './directoryContents'
+import { FileContents } from './fileContents'
+import { ed25519ph } from '@noble/curves/ed25519'
+import { sha512 } from '@noble/hashes/sha2'
+import { VarIntProcessor } from './varint'
+import { compare } from '..'
 
 const maxVarstringLen = 1024 * 1024
 
@@ -33,7 +33,7 @@ export class ArrayBufferReader {
     }
     const res = p.decode()
     if (res === null) {
-      throw new Error("Reached EOF")
+      throw new Error('Reached EOF')
     }
     return res
   }
@@ -79,24 +79,24 @@ export class MerkleArchive {
         },
       )
     ) {
-      throw new Error("signature verification failed")
+      throw new Error('signature verification failed')
     }
 
     if (commitment) {
       if (
         !compare(
           sighash,
-          new Uint8Array(Buffer.from(commitment.rootSighash, "base64").buffer),
+          new Uint8Array(Buffer.from(commitment.rootSighash, 'base64').buffer),
         )
       ) {
-        throw new Error("merkle root mismatch")
+        throw new Error('merkle root mismatch')
       }
       if (maxSize > commitment.rootMaxsize) {
-        throw new Error("root directory max size too large")
+        throw new Error('root directory max size too large')
       }
     } else if (maxSize > 1024 * 1024) {
       throw new Error(
-        "root directory max size over 1MiB, cancelling download in case of DOS attack",
+        'root directory max size over 1MiB, cancelling download in case of DOS attack',
       )
     }
 
@@ -137,10 +137,10 @@ export class Entry {
   }
   async verifiedFileContents(): Promise<ArrayBuffer> {
     if (!this.contents) {
-      throw new Error("file is missing from archive")
+      throw new Error('file is missing from archive')
     }
     if (!(this.contents instanceof FileContents)) {
-      throw new Error("is not a regular file")
+      throw new Error('is not a regular file')
     }
     return this.contents.verified(this.hash)
   }

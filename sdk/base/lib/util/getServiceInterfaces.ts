@@ -1,8 +1,8 @@
-import { Effects } from "../Effects"
-import { PackageId } from "../osBindings"
-import { deepEqual } from "./deepEqual"
-import { DropGenerator, DropPromise } from "./Drop"
-import { ServiceInterfaceFilled, filledAddress } from "./getServiceInterface"
+import { Effects } from '../Effects'
+import { PackageId } from '../osBindings'
+import { deepEqual } from './deepEqual'
+import { DropGenerator, DropPromise } from './Drop'
+import { ServiceInterfaceFilled, filledAddress } from './getServiceInterface'
 
 const makeManyInterfaceFilled = async ({
   effects,
@@ -86,7 +86,7 @@ export class GetServiceInterfaces<Mapped = ServiceInterfaceFilled[]> {
     this.effects.onLeaveContext(() => {
       resolveCell.resolve()
     })
-    abort?.addEventListener("abort", () => resolveCell.resolve())
+    abort?.addEventListener('abort', () => resolveCell.resolve())
     while (this.effects.isInContext && !abort?.aborted) {
       let callback: () => void = () => {}
       const waitForNext = new Promise<void>((resolve) => {
@@ -105,7 +105,7 @@ export class GetServiceInterfaces<Mapped = ServiceInterfaceFilled[]> {
       }
       await waitForNext
     }
-    return new Promise<never>((_, rej) => rej(new Error("aborted")))
+    return new Promise<never>((_, rej) => rej(new Error('aborted')))
   }
 
   /**
@@ -113,7 +113,7 @@ export class GetServiceInterfaces<Mapped = ServiceInterfaceFilled[]> {
    */
   watch(abort?: AbortSignal): AsyncGenerator<Mapped, never, unknown> {
     const ctrl = new AbortController()
-    abort?.addEventListener("abort", () => ctrl.abort())
+    abort?.addEventListener('abort', () => ctrl.abort())
     return DropGenerator.of(this.watchGen(ctrl.signal), () => ctrl.abort())
   }
 
@@ -137,7 +137,7 @@ export class GetServiceInterfaces<Mapped = ServiceInterfaceFilled[]> {
           }
         } catch (e) {
           console.error(
-            "callback function threw an error @ GetServiceInterfaces.onChange",
+            'callback function threw an error @ GetServiceInterfaces.onChange',
             e,
           )
         }
@@ -146,7 +146,7 @@ export class GetServiceInterfaces<Mapped = ServiceInterfaceFilled[]> {
       .catch((e) => callback(null, e))
       .catch((e) =>
         console.error(
-          "callback function threw an error @ GetServiceInterfaces.onChange",
+          'callback function threw an error @ GetServiceInterfaces.onChange',
           e,
         ),
       )
@@ -164,7 +164,7 @@ export class GetServiceInterfaces<Mapped = ServiceInterfaceFilled[]> {
             return next
           }
         }
-        throw new Error("context left before predicate passed")
+        throw new Error('context left before predicate passed')
       }),
       () => ctrl.abort(),
     )

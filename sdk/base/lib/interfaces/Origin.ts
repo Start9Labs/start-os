@@ -1,7 +1,7 @@
-import { AddressInfo } from "../types"
-import { AddressReceipt } from "./AddressReceipt"
-import { MultiHost, Scheme } from "./Host"
-import { ServiceInterfaceBuilder } from "./ServiceInterfaceBuilder"
+import { AddressInfo } from '../types'
+import { AddressReceipt } from './AddressReceipt'
+import { MultiHost, Scheme } from './Host'
+import { ServiceInterfaceBuilder } from './ServiceInterfaceBuilder'
 
 export class Origin {
   constructor(
@@ -21,9 +21,9 @@ export class Origin {
       .map(
         ([key, val]) => `${encodeURIComponent(key)}=${encodeURIComponent(val)}`,
       )
-      .join("&")
+      .join('&')
 
-    const qp = qpEntries.length ? `?${qpEntries}` : ""
+    const qp = qpEntries.length ? `?${qpEntries}` : ''
 
     return {
       hostId: this.host.options.id,

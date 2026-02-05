@@ -16,14 +16,14 @@ import {
   MountParams,
   StatusInfo,
   Manifest,
-} from "./osBindings"
+} from './osBindings'
 import {
   PackageId,
   Dependencies,
   ServiceInterfaceId,
   SmtpValue,
   ActionResult,
-} from "./types"
+} from './types'
 
 /** Used to reach out from the pure js runtime */
 
@@ -155,13 +155,13 @@ export type Effects = {
   /** Returns a PEM encoded fullchain for the hostnames specified */
   getSslCertificate: (options: {
     hostnames: string[]
-    algorithm?: "ecdsa" | "ed25519"
+    algorithm?: 'ecdsa' | 'ed25519'
     callback?: () => void
   }) => Promise<[string, string, string]>
   /** Returns a PEM encoded private key corresponding to the certificate for the hostnames specified */
   getSslKey: (options: {
     hostnames: string[]
-    algorithm?: "ecdsa" | "ed25519"
+    algorithm?: 'ecdsa' | 'ed25519'
   }) => Promise<string>
 
   /** sets the version that this service's data has been migrated to */
