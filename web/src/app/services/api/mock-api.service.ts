@@ -15,6 +15,15 @@ import {
   VersionInfo,
   SetPasswordReq,
   SetPreferencesReq,
+  VpnServer,
+  VpnServerDeleteArgs,
+  VpnServerPeerAddArgs,
+  VpnServerPeerAddResponse,
+  VpnServerPeerDeleteArgs,
+  VpnServerSetArgs,
+  VpnServers,
+  WifiConfig,
+  BlackoutWindow,
 } from './api.service'
 import {
   DhcpSection,
@@ -298,6 +307,211 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
 
   async setPreferences(params: SetPreferencesReq): Promise<null> {
     await pauseFor(250)
+    return null
+  }
+
+  private mockVpnServers: VpnServer[] = this.loadVpnServers()
+  private mockNextIpCounter = this.loadIpCounter()
+
+  private loadVpnServers(): VpnServer[] {
+    const stored = localStorage.getItem('mock:vpn-servers')
+    if (stored) {
+      try {
+        return JSON.parse(stored)
+      } catch {}
+    }
+    return [
+      {
+        profile: 'guest',
+        label: 'Family',
+        enabled: true,
+        listen_port: 51820,
+        endpoint: '100.65.227.234',
+        public_key: 'aB3dE5fG7hI9jK1lM3nO5pQ7rS9tU1vW3xY5zA7bC9d=',
+        server_address: '192.168.1.1',
+        peers: [],
+      },
+      {
+        profile: 'lan',
+        label: 'Matt',
+        enabled: false,
+        listen_port: 51821,
+        endpoint: 'agf5d.start9.me',
+        public_key: 'xY5zA7bC9daB3dE5fG7hI9jK1lM3nO5pQ7rS9tU1vW3=',
+        server_address: '192.168.1.1',
+        peers: [
+          {
+            name: 'tablet',
+            ip: '192.168.1.2',
+            public_key: '2JIBoK+Bxe7MJzX9zV+lFjqHxLTvehLp3piEROaNJjw=',
+          },
+          {
+            name: 'Smartphone',
+            ip: '192.168.1.3',
+            public_key: 'bZIOgRYRGTX9x0OQsN1K+R63EhT2Pgo0WzYatTmzdDU=',
+          },
+        ],
+      },
+    ]
+  }
+
+  private loadIpCounter(): number {
+    const stored = localStorage.getItem('mock:vpn-ip-counter')
+    return stored ? parseInt(stored, 10) : 4
+  }
+
+  private persistVpnServers(): void {
+    localStorage.setItem(
+      'mock:vpn-servers',
+      JSON.stringify(this.mockVpnServers),
+    )
+  }
+
+  private persistIpCounter(): void {
+    localStorage.setItem('mock:vpn-ip-counter', String(this.mockNextIpCounter))
+  }
+
+  async vpnServerList(): Promise<VpnServers> {
+    await pauseFor(250)
+    return { servers: this.mockVpnServers }
+  }
+
+  async vpnServerSet(params: VpnServerSetArgs): Promise<null> {
+    await pauseFor(250)
+    const existingIndex = this.mockVpnServers.findIndex(
+      s => s.profile === params.profile,
+    )
+    if (existingIndex >= 0) {
+      this.mockVpnServers = this.mockVpnServers.map((s, i) =>
+        i === existingIndex
+          ? { ...s, ...params.config, public_key: s.public_key }
+          : s,
+      )
+    } else {
+      this.mockVpnServers = [
+        ...this.mockVpnServers,
+        {
+          profile: params.profile,
+          ...params.config,
+          public_key: 'mock' + btoa(String(Date.now())).slice(0, 40) + '=',
+          server_address: '192.168.1.1',
+          peers: [],
+        },
+      ]
+    }
+    this.persistVpnServers()
+    return null
+  }
+
+  async vpnServerDelete(params: VpnServerDeleteArgs): Promise<null> {
+    await pauseFor(250)
+    this.mockVpnServers = this.mockVpnServers.filter(
+      s => s.profile !== params.profile,
+    )
+    this.persistVpnServers()
+    return null
+  }
+
+  async vpnServerPeerAdd(
+    params: VpnServerPeerAddArgs,
+  ): Promise<VpnServerPeerAddResponse> {
+    await pauseFor(250)
+    const server = this.mockVpnServers.find(s => s.profile === params.profile)
+    const generatedKey =
+      params.peer.public_key || btoa(String(Date.now())).slice(0, 40) + '='
+    const ip =
+      params.peer.ip ||
+      `${server?.server_address.replace(/\.\d+$/, '')}.${this.mockNextIpCounter++}`
+    this.persistIpCounter()
+    const peer = { ...params.peer, public_key: generatedKey, ip }
+    this.mockVpnServers = this.mockVpnServers.map(s =>
+      s.profile === params.profile ? { ...s, peers: [...s.peers, peer] } : s,
+    )
+    this.persistVpnServers()
+    return {
+      public_key: generatedKey,
+      ip,
+      client_config: params.peer.public_key
+        ? undefined
+        : `[Interface]\nPrivateKey = MOCK_PRIVATE_KEY\nAddress = ${ip}/32\n\n[Peer]\nPublicKey = ${server?.public_key ?? 'mockServerKey'}\nEndpoint = ${server?.endpoint ?? 'mock'}:${server?.listen_port ?? 51820}\nAllowedIPs = 0.0.0.0/0`,
+    }
+  }
+
+  async vpnServerPeerDelete(params: VpnServerPeerDeleteArgs): Promise<null> {
+    await pauseFor(250)
+    this.mockVpnServers = this.mockVpnServers.map(s =>
+      s.profile === params.profile
+        ? {
+            ...s,
+            peers: s.peers.filter(p => p.public_key !== params.public_key),
+          }
+        : s,
+    )
+    this.persistVpnServers()
+    return null
+  }
+
+  private mockWifi: WifiConfig = {
+    ssid: 'StartOS',
+    radios: {
+      default_radio0: {
+        band: '2g',
+        channel: 'auto',
+        enabled: true,
+        broadcast: true,
+      },
+      default_radio1: {
+        band: '5g',
+        channel: 'auto',
+        enabled: true,
+        broadcast: true,
+      },
+    },
+    passwords: [
+      {
+        label: 'Home Network',
+        profile: null,
+        password: 'password123',
+      },
+      {
+        label: 'Guest Wi-Fi',
+        profile: {
+          fullname: 'Guest',
+          interface: 'guest',
+          vlan_tag: 100,
+        },
+        password: 'guestpass456',
+      },
+    ],
+  }
+
+  async wifiGet(): Promise<WifiConfig> {
+    await pauseFor(250)
+    return structuredClone(this.mockWifi)
+  }
+
+  async wifiSet(params: WifiConfig): Promise<null> {
+    await pauseFor(250)
+    this.mockWifi = structuredClone(params)
+    return null
+  }
+
+  private mockBlackoutWindows: BlackoutWindow[] = [
+    {
+      startTime: '22:00',
+      endTime: '23:00',
+      days: [false, true, true, true, true, true, false],
+    },
+  ]
+
+  async wifiBlackoutGet(): Promise<BlackoutWindow[]> {
+    await pauseFor(250)
+    return structuredClone(this.mockBlackoutWindows)
+  }
+
+  async wifiBlackoutSet(params: BlackoutWindow[]): Promise<null> {
+    await pauseFor(250)
+    this.mockBlackoutWindows = structuredClone(params)
     return null
   }
 

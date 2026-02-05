@@ -21,7 +21,7 @@ export default [
         loadComponent: () => import('./routes/table'),
       },
       {
-        path: ':id',
+        path: ':listen_port',
         loadComponent: () => import('./routes/clients'),
       },
     ],

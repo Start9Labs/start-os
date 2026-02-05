@@ -5,8 +5,10 @@ import {
   signal,
 } from '@angular/core'
 import {
+  AbstractControl,
   NonNullableFormBuilder,
   ReactiveFormsModule,
+  ValidationErrors,
   Validators,
 } from '@angular/forms'
 import { RouterLink } from '@angular/router'
@@ -26,9 +28,23 @@ import { TuiChevron, TuiInputNumber, TuiSelect } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ModalHelp } from 'src/app/directives/modal-help'
-import { Inbound } from 'src/app/routes/home/routes/inbound/service'
+import { VpnServer } from 'src/app/routes/home/routes/inbound/service'
 
 import { InboundDialogAside } from './aside'
+
+export interface ServerDialogData {
+  server?: VpnServer
+  profiles: string[]
+  usedPorts: number[]
+}
+
+export interface ServerDialogResult {
+  profile: string
+  label: string
+  enabled: boolean
+  listen_port: number
+  endpoint: string
+}
 
 @Component({
   template: `
@@ -45,23 +61,23 @@ import { InboundDialogAside } from './aside'
       </tui-textfield>
       <tui-error formControlName="label" />
       <tui-textfield tuiChevron>
-        <label tuiLabel>Address</label>
-        <input tuiSelect formControlName="address" />
+        <label tuiLabel>Endpoint</label>
+        <input tuiSelect formControlName="endpoint" />
         <tui-data-list *tuiDropdown>
-          @for (item of keys; track $index) {
+          @for (item of endpointKeys; track $index) {
             <button tuiOption [value]="item">
               {{ item }}
-              @if (addresses[item]) {
-                <span class="g-secondary">({{ addresses[item] }})</span>
+              @if (endpoints[item]) {
+                <span class="g-secondary">({{ endpoints[item] }})</span>
               }
             </button>
           }
         </tui-data-list>
       </tui-textfield>
-      <tui-error formControlName="address" />
+      <tui-error formControlName="endpoint" />
       <tui-textfield tuiChevron>
         <label tuiLabel>Security Profile</label>
-        <input tuiSelect formControlName="securityProfile" />
+        <input tuiSelect formControlName="profile" />
         <tui-data-list *tuiDropdown>
           <tui-opt-group>
             @for (item of profiles; track $index) {
@@ -81,14 +97,14 @@ import { InboundDialogAside } from './aside'
           </tui-opt-group>
         </tui-data-list>
       </tui-textfield>
-      <tui-error formControlName="securityProfile" />
+      <tui-error formControlName="profile" />
       <tui-textfield
         [tuiNumberFormat]="{ precision: 0, thousandSeparator: '' }"
       >
         <label tuiLabel>Port</label>
-        <input tuiInputNumber formControlName="port" />
+        <input tuiInputNumber formControlName="listen_port" />
       </tui-textfield>
-      <tui-error formControlName="port" />
+      <tui-error formControlName="listen_port" />
       <footer>
         <button
           tuiButton
@@ -98,7 +114,9 @@ import { InboundDialogAside } from './aside'
         >
           Cancel
         </button>
-        <button tuiButton>{{ context.data ? 'Save VPN' : 'Add VPN' }}</button>
+        <button tuiButton>
+          {{ context.data.server ? 'Save VPN' : 'Add VPN' }}
+        </button>
       </footer>
     </form>
   `,
@@ -125,27 +143,53 @@ import { InboundDialogAside } from './aside'
 })
 class AddServer {
   protected readonly context =
-    injectContext<TuiDialogContext<Inbound, Inbound | undefined>>()
+    injectContext<TuiDialogContext<ServerDialogResult, ServerDialogData>>()
+
+  private readonly server = this.context.data?.server
+  private readonly usedPorts = this.context.data?.usedPorts ?? []
 
   protected readonly form = inject(NonNullableFormBuilder).group({
-    label: [this.context.data?.label ?? '', Validators.required],
-    address: [this.context.data?.address ?? 'Custom', Validators.required],
-    port: [this.context.data?.port ?? 51820, Validators.required],
-    securityProfile: [
-      this.context.data?.securityProfile ?? '',
-      Validators.required,
+    label: [this.server?.label ?? '', Validators.required],
+    endpoint: [this.server?.endpoint ?? '', Validators.required],
+    listen_port: [
+      this.server?.listen_port ?? this.nextAvailablePort(),
+      [
+        Validators.required,
+        Validators.min(1),
+        Validators.max(65535),
+        this.uniquePortValidator(),
+      ],
     ],
+    profile: [this.server?.profile ?? '', Validators.required],
   })
 
-  protected readonly addresses: Record<string, string> = {
+  private nextAvailablePort(): number {
+    let port = 51820
+    while (this.usedPorts.includes(port)) port++
+    return port
+  }
+
+  private uniquePortValidator(): (
+    control: AbstractControl,
+  ) => ValidationErrors | null {
+    return (control: AbstractControl) => {
+      return this.usedPorts.includes(control.value)
+        ? { uniquePort: 'Port is already in use' }
+        : null
+    }
+  }
+
+  protected readonly endpoints: Record<string, string> = {
     '100.65.227.234': 'WAN IPv4',
     '2001:db8:abcd:1234::2': 'WAN IPv6',
     'agf5d.start9.me': 'DDNS',
-    Custom: '',
   }
 
-  protected readonly keys = Object.keys(this.addresses)
-  protected readonly profiles = ['Admin', 'Guest']
+  protected readonly endpointKeys = Object.keys(this.endpoints)
+  protected readonly profiles = this.context.data?.profiles ?? [
+    'Admin',
+    'Guest',
+  ]
 
   protected save(): void {
     tuiMarkControlAsTouchedAndValidate(this.form)
@@ -153,9 +197,7 @@ class AddServer {
     if (this.form.valid) {
       this.context.completeWith({
         ...this.form.getRawValue(),
-        id: this.context.data?.id || String(Date.now()),
-        enabled: !!this.context.data?.enabled,
-        clients: this.context.data?.clients || [],
+        enabled: this.server?.enabled ?? true,
       })
     }
   }

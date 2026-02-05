@@ -21,7 +21,7 @@ import { OutboundAside } from './aside'
   template: `
     <outbound-aside *help />
     <header tuiHeader>
-      <hgroup tuiTitle><h2>Outbound VPNs (Clients)</h2></hgroup>
+      <hgroup tuiTitle><h2>Outbound VPNs</h2></hgroup>
       <aside tuiAccessories>
         @if (service.data()) {
           <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>

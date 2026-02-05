@@ -17,10 +17,13 @@ import { TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { Help } from 'src/app/directives/help'
 import { Placeholder } from 'src/app/routes/home/components/placeholder'
-import { ADD_SERVER } from 'src/app/routes/home/routes/inbound/dialog'
 import {
-  Inbound,
+  ADD_SERVER,
+  ServerDialogResult,
+} from 'src/app/routes/home/routes/inbound/dialog'
+import {
   InboundService,
+  VpnServer,
 } from 'src/app/routes/home/routes/inbound/service'
 
 import { InboundAside } from './aside'
@@ -29,11 +32,9 @@ import { InboundAside } from './aside'
   template: `
     <inbound-aside *help />
     <header tuiHeader>
-      <hgroup tuiTitle><h2>Inbound VPNs (Servers)</h2></hgroup>
+      <hgroup tuiTitle><h2>Inbound VPNs</h2></hgroup>
       <aside tuiAccessories>
-        <button tuiButton iconStart="@tui.plus" (click)="edit()">
-          Add server
-        </button>
+        <button tuiButton iconStart="@tui.plus" (click)="edit()">Add</button>
       </aside>
     </header>
     <table tuiTable class="g-table" [tuiSkeleton]="!service.data()">
@@ -41,24 +42,26 @@ import { InboundAside } from './aside'
         <tr>
           <th tuiTh [sorter]="'enabled' | tuiSorter" [style.width.rem]="3"></th>
           <th tuiTh [sorter]="'label' | tuiSorter">Label</th>
+          <th tuiTh [sorter]="'endpoint' | tuiSorter">Endpoint</th>
+          <th tuiTh [sorter]="'listen_port' | tuiSorter">Port</th>
           <th tuiTh [sorter]="'profile' | tuiSorter">Security Profile</th>
-          <th tuiTh [sorter]="'port' | tuiSorter">Port</th>
           <th tuiTh></th>
         </tr>
       </thead>
       <tbody>
-        @for (item of service.data() | tuiTableSort; track item.id) {
+        @for (item of service.data() | tuiTableSort; track item.profile) {
           <tr>
             <td tuiTd>{{ item.enabled ? '🟢' : '⚪' }}</td>
             <td tuiTd>
-              <a tuiLink [routerLink]="item.id">
+              <a tuiLink [routerLink]="item.listen_port">
                 <b>{{ item.label }}</b>
               </a>
             </td>
+            <td tuiTd>{{ item.endpoint }}</td>
+            <td tuiTd>{{ item.listen_port }}</td>
             <td tuiTd>
-              <a tuiLink>{{ item.loh || 'Default' }}</a>
+              <a tuiLink>{{ item.profile }}</a>
             </td>
-            <td tuiTd>{{ item.port }}</td>
             <td tuiTd>
               <button
                 tuiIconButton
@@ -79,10 +82,17 @@ import { InboundAside } from './aside'
                     [iconStart]="
                       item.enabled ? '@tui.circle-pause' : '@tui.circle-play'
                     "
-                    (click)="toggleEnabled(item.id)"
+                    (click)="toggleEnabled(item)"
                   >
                     {{ item.enabled ? 'Disable' : 'Enable' }}
                   </button>
+                  <a
+                    tuiOption
+                    iconStart="@tui.monitor-smartphone"
+                    [routerLink]="item.listen_port"
+                  >
+                    Manage clients
+                  </a>
                   <button
                     tuiOption
                     iconStart="@tui.pencil"
@@ -94,7 +104,7 @@ import { InboundAside } from './aside'
                     tuiOption
                     class="g-negative"
                     iconStart="@tui.trash"
-                    (click)="delete(item.id)"
+                    (click)="delete(item.profile)"
                   >
                     Delete
                   </button>
@@ -104,7 +114,7 @@ import { InboundAside } from './aside'
           </tr>
         } @empty {
           <tr>
-            <td tuiTd colspan="4">
+            <td tuiTd colspan="6">
               <app-placeholder icon="@tui.hard-drive-download">
                 No Inbound VPN Servers configured
               </app-placeholder>
@@ -151,41 +161,43 @@ export default class InboundTable {
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(InboundService)
 
-  delete(id: string) {
+  delete(profile: string) {
     this.dialogs
       .open(TUI_CONFIRM, { label: 'Are you sure?' })
       .pipe(filter(Boolean))
       .subscribe(() => {
-        this.service.save(
-          this.service.data()?.filter(item => item.id !== id) || [],
-        )
+        this.service.deleteServer(profile)
       })
   }
 
-  toggleEnabled(id: string) {
-    this.service.save(
-      this.service
-        .data()
-        ?.map(item =>
-          item.id === id ? { ...item, enabled: !item.enabled } : item,
-        ) || [],
-    )
+  toggleEnabled(item: VpnServer) {
+    this.service.setServer(item.profile, {
+      label: item.label,
+      enabled: !item.enabled,
+      listen_port: item.listen_port,
+      endpoint: item.endpoint,
+    })
   }
 
-  edit(data?: Inbound) {
-    const value = this.service.data() || []
-
+  edit(data?: VpnServer) {
     this.dialogs
-      .open<Inbound>(ADD_SERVER, {
+      .open<ServerDialogResult>(ADD_SERVER, {
         label: data ? 'Edit Inbound VPN' : 'Add Inbound VPN',
-        data,
+        data: {
+          server: data,
+          profiles: ['Admin', 'Guest'],
+          usedPorts: (this.service.data() ?? [])
+            .filter(s => s.listen_port !== data?.listen_port)
+            .map(s => s.listen_port),
+        },
       })
       .subscribe(response => {
-        this.service.save(
-          data
-            ? value.map(item => (item === data ? response : item))
-            : value.concat(response),
-        )
+        this.service.setServer(response.profile, {
+          label: response.label,
+          enabled: response.enabled,
+          listen_port: response.listen_port,
+          endpoint: response.endpoint,
+        })
       })
   }
 }

@@ -3,20 +3,32 @@ import {
   Component,
   computed,
   inject,
+  signal,
 } from '@angular/core'
-import { ReactiveFormsModule } from '@angular/forms'
 import { ActivatedRoute, RouterLink } from '@angular/router'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
-import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiDataListComponent,
+  TuiDropdownContent,
+  TuiDropdownDirective,
+  TuiDropdownOpen,
+  TuiLink,
+  TuiOption,
+  TuiTitle,
+} from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { Help } from 'src/app/directives/help'
 import { Placeholder } from 'src/app/routes/home/components/placeholder'
+import { DevicesUciService } from 'src/app/routes/home/routes/devices/uci/service'
 
-import { ADD_CLIENT } from './dialog'
-import { Client, InboundService } from '../../service'
+import { CLIENT_CONFIG } from './config-dialog'
+import { ADD_CLIENT, ClientDialogData } from './dialog'
+import { RENAME_CLIENT } from './rename-dialog'
+import { InboundService, VpnServerPeer } from '../../service'
 import { InboundClientsAside } from './aside'
 
 @Component({
@@ -33,48 +45,73 @@ import { InboundClientsAside } from './aside'
             [style.font]="'inherit'"
             [style.text-decoration]="'none'"
           >
-            Client devices
-            <span [tuiSkeleton]="!client()">({{ client()?.label }})</span>
+            <span [tuiSkeleton]="!server()">{{ server()?.label }}</span>
+            (client devices)
           </a>
         </h2>
       </hgroup>
       <aside tuiAccessories>
-        <button tuiButton iconStart="@tui.plus" (click)="edit()">
-          Add client device
+        <button
+          tuiButton
+          iconStart="@tui.plus"
+          [disabled]="!deviceIps()"
+          (click)="add()"
+        >
+          Add
         </button>
       </aside>
     </header>
-    <table tuiTable class="g-table" [tuiSkeleton]="!client()">
+    <table tuiTable class="g-table" [tuiSkeleton]="!server()">
       <thead>
         <tr>
           <th tuiTh [sorter]="'name' | tuiSorter">Name</th>
-          <th tuiTh [sorter]="'address' | tuiSorter">Lan IP Address</th>
+          <th tuiTh [sorter]="'ip' | tuiSorter">LAN IP Address</th>
           <th tuiTh></th>
         </tr>
       </thead>
       <tbody>
-        @for (item of client()?.clients | tuiTableSort; track $index) {
+        @for (item of server()?.peers | tuiTableSort; track item.public_key) {
           <tr>
             <td tuiTd>{{ item.name }}</td>
-            <td tuiTd>{{ item.address }}</td>
+            <td tuiTd>{{ item.ip }}</td>
             <td tuiTd>
               <button
                 tuiIconButton
                 size="xs"
-                iconStart="@tui.pencil"
+                iconStart="@tui.ellipsis-vertical"
                 appearance="icon"
-                (click)="edit(item)"
+                tuiDropdownAuto
+                tuiDropdown
               >
-                Edit
-              </button>
-              <button
-                tuiIconButton
-                size="xs"
-                iconStart="@tui.trash"
-                appearance="icon"
-                (click)="delete($index)"
-              >
-                Delete
+                Actions
+                <tui-data-list
+                  *tuiDropdown="let close"
+                  size="s"
+                  (click)="close()"
+                >
+                  <button
+                    tuiOption
+                    iconStart="@tui.pencil"
+                    (click)="rename(item)"
+                  >
+                    Rename
+                  </button>
+                  <button
+                    tuiOption
+                    iconStart="@tui.file-text"
+                    (click)="viewConfig(item)"
+                  >
+                    View Config
+                  </button>
+                  <button
+                    tuiOption
+                    class="g-negative"
+                    iconStart="@tui.trash"
+                    (click)="delete(item)"
+                  >
+                    Delete
+                  </button>
+                </tui-data-list>
               </button>
             </td>
           </tr>
@@ -92,7 +129,7 @@ import { InboundClientsAside } from './aside'
   `,
   styles: `
     :host {
-      max-width: 50rem;
+      max-width: 36rem;
     }
 
     span {
@@ -109,67 +146,121 @@ import { InboundClientsAside } from './aside'
   host: { class: 'g-page' },
   imports: [
     RouterLink,
-    ReactiveFormsModule,
     TuiHeader,
     TuiTitle,
     TuiLink,
     TuiButton,
     TuiTable,
     TuiSkeleton,
+    TuiDataListComponent,
+    TuiDropdownContent,
+    TuiDropdownDirective,
+    TuiDropdownOpen,
+    TuiOption,
     Help,
     Placeholder,
     InboundClientsAside,
   ],
 })
 export default class InboundClients {
-  private readonly id = inject(ActivatedRoute).snapshot.params['id']
+  private readonly listenPort =
+    +inject(ActivatedRoute).snapshot.params['listen_port']
   private readonly service = inject(InboundService)
+  private readonly devices = inject(DevicesUciService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
 
-  protected readonly client = computed(() =>
-    this.service.data()?.find(item => item.id === this.id),
+  protected readonly server = computed(() =>
+    this.service.data()?.find(item => item.listen_port === this.listenPort),
   )
 
-  edit(data?: Client) {
-    const value = this.service.data() || []
+  protected readonly deviceIps = signal<string[] | null>(null)
+
+  constructor() {
+    this.devices.get().then(devices => {
+      this.deviceIps.set(devices.map(d => d.ipv4).filter(Boolean) as string[])
+    })
+  }
+
+  add() {
+    const server = this.server()
+    if (!server) return
+
+    const peerIps = server.peers.map(p => p.ip).filter(Boolean) as string[]
+    const usedIps = [
+      ...new Set([
+        server.server_address,
+        ...(this.deviceIps() ?? []),
+        ...peerIps,
+      ]),
+    ]
 
     this.dialogs
-      .open<Client>(ADD_CLIENT, {
-        label: data ? 'Edit client device' : 'Add client device',
-        data,
+      .open<VpnServerPeer>(ADD_CLIENT, {
+        label: 'Add client device',
+        data: {
+          serverAddress: server.server_address,
+          usedIps,
+        } satisfies ClientDialogData,
       })
-      .subscribe(response => {
-        this.service.save(
-          value.map(item =>
-            item === this.client()
-              ? {
-                  ...item,
-                  clients: data
-                    ? item.clients.map(c => (c === data ? response : c))
-                    : item.clients.concat(response),
-                }
-              : item,
-          ),
-        )
+      .subscribe(async peer => {
+        const response = await this.service.addPeer(server.profile, peer)
+        if (response?.client_config) {
+          this.dialogs
+            .open(CLIENT_CONFIG, {
+              label: peer.name,
+              data: response.client_config,
+            })
+            .subscribe()
+        }
       })
   }
 
-  delete(index: number) {
+  rename(peer: VpnServerPeer) {
+    const profile = this.server()?.profile
+    if (!profile) return
+
+    this.dialogs
+      .open<string>(RENAME_CLIENT, {
+        label: 'Rename Device',
+        data: peer.name,
+      })
+      .subscribe(newName => {
+        this.service.addPeer(profile, { ...peer, name: newName })
+      })
+  }
+
+  viewConfig(peer: VpnServerPeer) {
+    const server = this.server()
+    if (!server) return
+
+    const config = [
+      '[Interface]',
+      'PrivateKey = <PRIVATE_KEY>',
+      `Address = ${peer.ip}/32`,
+      '',
+      '[Peer]',
+      `PublicKey = ${server.public_key}`,
+      `Endpoint = ${server.endpoint}:${server.listen_port}`,
+      'AllowedIPs = 0.0.0.0/0',
+    ].join('\n')
+
+    this.dialogs
+      .open(CLIENT_CONFIG, {
+        label: peer.name,
+        data: config,
+      })
+      .subscribe()
+  }
+
+  delete(peer: VpnServerPeer) {
     this.dialogs
       .open(TUI_CONFIRM, { label: 'Are you sure?' })
       .pipe(filter(Boolean))
       .subscribe(() => {
-        this.service.save(
-          this.service.data()?.map(item =>
-            item.id === this.client()?.id
-              ? {
-                  ...item,
-                  clients:
-                    this.client()?.clients.filter((_, i) => i !== index) || [],
-                }
-              : item,
-          ) || [],
-        )
+        const profile = this.server()?.profile
+        if (profile && peer.public_key) {
+          this.service.deletePeer(profile, peer.public_key)
+        }
       })
   }
 }

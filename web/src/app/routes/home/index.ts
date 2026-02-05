@@ -19,6 +19,10 @@ export default [
         loadComponent: () => import('./routes/ethernet'),
       },
       {
+        path: 'wifi',
+        loadChildren: () => import('./routes/wifi'),
+      },
+      {
         path: 'outbound',
         loadChildren: () => import('./routes/outbound'),
       },

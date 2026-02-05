@@ -19,6 +19,17 @@ export abstract class ApiService {
   abstract systemRestart(): Promise<null>
   abstract setPassword(params: SetPasswordReq): Promise<null>
   abstract setPreferences(params: SetPreferencesReq): Promise<null>
+  abstract vpnServerList(): Promise<VpnServers>
+  abstract vpnServerSet(params: VpnServerSetArgs): Promise<null>
+  abstract vpnServerDelete(params: VpnServerDeleteArgs): Promise<null>
+  abstract vpnServerPeerAdd(
+    params: VpnServerPeerAddArgs,
+  ): Promise<VpnServerPeerAddResponse>
+  abstract vpnServerPeerDelete(params: VpnServerPeerDeleteArgs): Promise<null>
+  abstract wifiGet(): Promise<WifiConfig>
+  abstract wifiSet(params: WifiConfig): Promise<null>
+  abstract wifiBlackoutGet(): Promise<BlackoutWindow[]>
+  abstract wifiBlackoutSet(params: BlackoutWindow[]): Promise<null>
 }
 
 export type LoginReq = { password: string }
@@ -84,3 +95,89 @@ export type SetPreferencesReq = Partial<{
   theme: Theme
   remoteAccess: RemoteAccess
 }>
+
+export interface VpnServerPeer {
+  name: string
+  ip?: string
+  public_key?: string
+  preshared_key?: string
+}
+
+export interface VpnServer {
+  profile: string
+  label: string
+  enabled: boolean
+  listen_port: number
+  endpoint: string
+  public_key: string
+  server_address: string
+  peers: VpnServerPeer[]
+}
+
+export interface VpnServerConfig {
+  label: string
+  enabled: boolean
+  listen_port: number
+  endpoint: string
+  private_key?: string
+}
+
+export interface VpnServers {
+  servers: VpnServer[]
+}
+
+export interface VpnServerSetArgs {
+  profile: string
+  config: VpnServerConfig
+}
+
+export interface VpnServerDeleteArgs {
+  profile: string
+}
+
+export interface VpnServerPeerAddArgs {
+  profile: string
+  peer: VpnServerPeer
+}
+
+export interface VpnServerPeerDeleteArgs {
+  profile: string
+  public_key: string
+}
+
+export interface VpnServerPeerAddResponse {
+  client_config?: string
+  public_key: string
+  ip: string
+}
+
+export interface WifiRadio {
+  band: string
+  channel: string
+  enabled: boolean
+  broadcast: boolean
+}
+
+export interface WifiPassword {
+  label: string
+  profile: WifiProfileId | null
+  password: string
+}
+
+export interface WifiProfileId {
+  fullname: string
+  interface: string
+  vlan_tag: number
+}
+
+export interface WifiConfig {
+  ssid: string
+  radios: Record<string, WifiRadio>
+  passwords: WifiPassword[]
+}
+
+export interface BlackoutWindow {
+  startTime: string
+  endTime: string
+  days: [boolean, boolean, boolean, boolean, boolean, boolean, boolean]
+}

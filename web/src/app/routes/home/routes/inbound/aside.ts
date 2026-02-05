@@ -6,8 +6,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
     <h3>Label</h3>
     A clear and descriptive name for the VPN server, such as "Office VPN Server"
     or "Home VPN Server," to differentiate it from other VPN connections.
-    <h3>Address</h3>
-    The IP address or domain name where the VPN server can be accessed.
+    <h3>Endpoint</h3>
+    The IP address or domain name where the VPN server can be reached by clients
+    connecting over the internet.
     <h3>Security Profile</h3>
     The initial set of access rights and restrictions assigned to clients when
     they connect to the VPN server. Select a previously created profile or

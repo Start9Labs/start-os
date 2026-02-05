@@ -1,64 +1,61 @@
-import { Injectable } from '@angular/core'
+import { inject, Injectable } from '@angular/core'
+import {
+  ApiService,
+  VpnServer,
+  VpnServerConfig,
+  VpnServerPeer,
+  VpnServerPeerAddResponse,
+} from 'src/app/services/api/api.service'
 import { FormService } from 'src/app/services/form.service'
-import { pauseFor } from 'src/app/utils/pauseFor'
 
-export interface Client {
-  name: string
-  address: string
-  key: string
-}
-
-export interface Inbound {
-  id: string
-  label: string
-  enabled: boolean
-  securityProfile: string
-  address: string
-  port: number
-  clients: Client[]
+export type {
+  VpnServer,
+  VpnServerPeer,
+  VpnServerConfig,
+  VpnServerPeerAddResponse,
 }
 
 @Injectable()
-export class InboundService extends FormService<Inbound[]> {
-  private items: Inbound[] = [
-    {
-      id: '1',
-      label: 'Family',
-      address: 'Custom',
-      enabled: true,
-      securityProfile: 'Guest',
-      port: 237,
-      clients: [],
-    },
-    {
-      id: '2',
-      label: 'Matt',
-      address: 'agf5d.start9.me',
-      enabled: false,
-      securityProfile: 'Admin',
-      port: 42,
-      clients: [
-        {
-          name: 'tablet',
-          address: '192.168.0.237',
-          key: '2JIBoK+Bxe7MJzX9zV+lFjqHxLTvehLp3piEROaNJjw=',
-        },
-        {
-          name: 'Smartphone',
-          address: '192.168.0.42',
-          key: 'bZIOgRYRGTX9x0OQsN1K+R63EhT2Pgo0WzYatTmzdDU=',
-        },
-      ],
-    },
-  ]
+export class InboundService extends FormService<VpnServer[]> {
+  private readonly api = inject(ApiService)
 
   async load() {
-    await pauseFor(2000)
-
-    return this.items
+    const res = await this.api.vpnServerList()
+    return res.servers
   }
 
-  async store(items: Inbound[]) {
-    this.items = items
+  async store() {}
+
+  async setServer(profile: string, config: VpnServerConfig) {
+    await this.actions.run(async () => {
+      await this.api.vpnServerSet({ profile, config })
+      this.refresh()
+    })
+  }
+
+  async deleteServer(profile: string) {
+    await this.actions.run(async () => {
+      await this.api.vpnServerDelete({ profile })
+      this.refresh()
+    })
+  }
+
+  async addPeer(
+    profile: string,
+    peer: VpnServerPeer,
+  ): Promise<VpnServerPeerAddResponse | undefined> {
+    let response: VpnServerPeerAddResponse | undefined
+    await this.actions.run(async () => {
+      response = await this.api.vpnServerPeerAdd({ profile, peer })
+      this.refresh()
+    })
+    return response
+  }
+
+  async deletePeer(profile: string, public_key: string) {
+    await this.actions.run(async () => {
+      await this.api.vpnServerPeerDelete({ profile, public_key })
+      this.refresh()
+    })
   }
 }

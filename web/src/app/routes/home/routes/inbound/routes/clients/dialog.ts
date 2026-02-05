@@ -15,26 +15,27 @@ import {
   TuiDialogContext,
   TuiError,
   TuiInput,
-  TuiLink,
-  TuiNotification,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
-import { TuiSegmented } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { QrCodeComponent } from 'ng-qrcode'
 import { ModalHelp } from 'src/app/directives/modal-help'
-import { Client } from 'src/app/routes/home/routes/inbound/service'
+import { VpnServerPeer } from 'src/app/routes/home/routes/inbound/service'
 
 import { InboundClientsDialogAside } from './dialog-aside'
+
+export interface ClientDialogData {
+  serverAddress: string
+  usedIps: string[]
+}
 
 @Component({
   template: `
     <inbound-client-dialog-aside *modalHelp />
     <form tuiForm="m" [formGroup]="form" (submit.prevent)="save()">
       <tui-textfield>
-        <label tuiLabel>Name</label>
+        <label tuiLabel>Label</label>
         <input
           tuiInput
           placeholder="What to call the client device"
@@ -44,52 +45,14 @@ import { InboundClientsDialogAside } from './dialog-aside'
       <tui-error formControlName="name" />
       <tui-textfield>
         <label tuiLabel>LAN IP Address</label>
-        <input tuiInput formControlName="address" />
+        <input tuiInput formControlName="ip" />
       </tui-textfield>
-      <tui-error formControlName="address" />
-      <tui-error
-        class="g-secondary"
-        error="Address must not be used by another client device"
-      />
-      <tui-segmented [(activeItemIndex)]="index">
-        <button type="button">Generate client keys</button>
-        <button type="button">Provide existing</button>
-      </tui-segmented>
-      @if (!index()) {
-        <div tuiNotification appearance="info">
-          WireGuard must first be installed on the client device and a key pair
-          generated. The public key from this key pair will be used in this
-          setup.
-          <a tuiLink>Click here for device install instructions</a>
-        </div>
-        <tui-textfield>
-          <label tuiLabel>Client Public Key</label>
-          <input tuiInput formControlName="key" />
-        </tui-textfield>
-        <tui-error formControlName="key" />
-        <div class="g-secondary">
-          Download the config file below. In your client device configuration,
-          paste the downloaded server configuration
-          <b>
-            replacing the private key placeholder with your client's private key
-          </b>
-        </div>
-      } @else {
-        <div>
-          To connect to a client device, scan the QR code or use the
-          configuration file.
-        </div>
-        <div tuiNotification appearance="warning">
-          <b>Note:</b>
-          Multiple WireGuard clients should not share the same VPN configuration
-          file for security reasons.
-        </div>
-        <qr-code size="180" [value]="form.value.key || 'test'" />
-      }
+      <tui-error formControlName="ip" />
+      <tui-textfield>
+        <label tuiLabel>Public Key (optional)</label>
+        <input tuiInput formControlName="public_key" />
+      </tui-textfield>
       <footer>
-        <a tuiButton appearance="outline" iconStart="@tui.download">
-          Download File
-        </a>
         <button
           tuiButton
           type="button"
@@ -102,31 +65,14 @@ import { InboundClientsDialogAside } from './dialog-aside'
       </footer>
     </form>
   `,
-  styles: `
-    tui-segmented button {
-      flex: 1;
-    }
-
-    qr-code {
-      margin: 0 auto;
-    }
-
-    footer a {
-      margin-inline-end: auto;
-    }
-  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [tuiTextfieldOptionsProvider({ cleaner: signal(false) })],
   imports: [
     ReactiveFormsModule,
-    QrCodeComponent,
     TuiForm,
     TuiTextfield,
     TuiError,
     TuiButton,
-    TuiSegmented,
-    TuiNotification,
-    TuiLink,
     TuiInput,
     ModalHelp,
     InboundClientsDialogAside,
@@ -134,20 +80,37 @@ import { InboundClientsDialogAside } from './dialog-aside'
 })
 class AddClient {
   protected readonly context =
-    injectContext<TuiDialogContext<Client, Client | undefined>>()
+    injectContext<TuiDialogContext<VpnServerPeer, ClientDialogData>>()
 
-  protected readonly index = signal(1)
+  private readonly serverAddress = this.context.data.serverAddress
+  private readonly usedIps = this.context.data.usedIps
+
   protected readonly form = inject(NonNullableFormBuilder).group({
-    name: [this.context.data?.name || '', Validators.required],
-    address: [this.context.data?.address || '', Validators.required],
-    key: [this.context.data?.key || '', Validators.required],
+    name: ['', Validators.required],
+    ip: [this.nextAvailableIp(), Validators.required],
+    public_key: [''],
   })
+
+  private nextAvailableIp(): string {
+    const prefix = this.serverAddress.replace(/\.\d+$/, '')
+    const startOctet = parseInt(this.serverAddress.split('.').pop()!, 10) + 1
+    for (let i = startOctet; i <= 254; i++) {
+      const candidate = `${prefix}.${i}`
+      if (!this.usedIps.includes(candidate)) return candidate
+    }
+    return `${prefix}.${startOctet}`
+  }
 
   protected save(): void {
     tuiMarkControlAsTouchedAndValidate(this.form)
 
     if (this.form.valid) {
-      this.context.completeWith(this.form.getRawValue())
+      const { name, ip, public_key } = this.form.getRawValue()
+      this.context.completeWith({
+        name,
+        ip,
+        public_key: public_key || undefined,
+      })
     }
   }
 }
