@@ -6,4 +6,8 @@ Pending tasks for AI agents. Remove items when completed.
 
 - [ ] Architecture - Web (`/web`) - @MattDHill
 
+## Docs to Create
+
+- [ ] Document i18n ID patterns in `core/` (localization keys, conventions, where they're defined)
+
 
