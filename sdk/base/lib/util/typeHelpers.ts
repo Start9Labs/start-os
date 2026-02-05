@@ -1,18 +1,60 @@
+/**
+ * @module typeHelpers
+ *
+ * Utility types and type guards used throughout the SDK for type manipulation
+ * and runtime type checking.
+ */
 import * as T from "../types"
 
+/**
+ * Flattens an intersection type into a single object type.
+ * Makes hover information more readable by expanding intersections.
+ *
+ * @example
+ * ```typescript
+ * type A = { foo: string }
+ * type B = { bar: number }
+ * type AB = A & B  // Shows as "A & B"
+ * type Flat = FlattenIntersection<A & B>  // Shows as { foo: string; bar: number }
+ * ```
+ */
 // prettier-ignore
-export type FlattenIntersection<T> = 
+export type FlattenIntersection<T> =
 T extends ArrayLike<any> ? T :
 T extends object ? {} & {[P in keyof T]: T[P]} :
  T;
 
+/**
+ * Alias for FlattenIntersection for shorter usage.
+ * @see FlattenIntersection
+ */
 export type _<T> = FlattenIntersection<T>
 
+/**
+ * Type guard to check if a value is a KnownError.
+ * KnownError is the standard error format for service operations.
+ *
+ * @param e - The value to check
+ * @returns True if the value is a KnownError object
+ */
 export const isKnownError = (e: unknown): e is T.KnownError =>
   e instanceof Object && ("error" in e || "error-code" in e)
 
+/** @internal Symbol for affine type branding */
 declare const affine: unique symbol
 
+/**
+ * Type brand for creating affine types (types that can only be used in specific contexts).
+ * Used to prevent values from being used outside their intended context.
+ *
+ * @typeParam A - The context identifier
+ *
+ * @example
+ * ```typescript
+ * type BackupEffects = Effects & Affine<"Backups">
+ * // BackupEffects can only be created in backup context
+ * ```
+ */
 export type Affine<A> = { [affine]: A }
 
 type NeverPossible = { [affine]: string }

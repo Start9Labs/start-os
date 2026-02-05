@@ -1,3 +1,34 @@
+/**
+ * @module Daemons
+ *
+ * This module provides the Daemons class for managing service processes (daemons)
+ * and their health checks. Daemons are long-running processes that make up the
+ * core functionality of a StartOS service.
+ *
+ * @example
+ * ```typescript
+ * // Basic daemon setup
+ * export const main = sdk.setupMain(async ({ effects }) => {
+ *   const container = await sdk.SubContainer.of(effects, { imageId: 'main' }, mounts, 'main')
+ *
+ *   return sdk.Daemons.of(effects)
+ *     .addDaemon('primary', {
+ *       subcontainer: container,
+ *       exec: { command: ['my-server', '--config', '/data/config.json'] },
+ *       ready: {
+ *         display: 'Server',
+ *         fn: () => sdk.healthCheck.checkPortListening(effects, 8080, {
+ *           successMessage: 'Server is ready',
+ *           errorMessage: 'Server is not responding',
+ *         }),
+ *         gracePeriod: 30000, // 30 second startup grace period
+ *       },
+ *       requires: [],
+ *     })
+ * })
+ * ```
+ */
+
 import { Signals } from "../../../base/lib/types"
 
 import { HealthCheckResult } from "../health/checkFns"
@@ -16,48 +47,124 @@ import { Daemon } from "./Daemon"
 import { CommandController } from "./CommandController"
 import { Oneshot } from "./Oneshot"
 
+/** @internal Promisified child process exec */
 export const cpExec = promisify(CP.exec)
+/** @internal Promisified child process execFile */
 export const cpExecFile = promisify(CP.execFile)
+
+/**
+ * Configuration for a daemon's readiness/health check.
+ *
+ * Health checks determine when a daemon is considered "ready" and report
+ * status to the StartOS UI. They run periodically and can be customized
+ * with grace periods and triggers.
+ */
 export type Ready = {
-  /** A human-readable display name for the health check. If null, the health check itself will be from the UI */
-  display: string | null
   /**
-   * @description The function to determine the health status of the daemon
-   * 
-   *   The SDK provides some built-in health checks. To see them, type sdk.healthCheck.
-   * 
-   * @example
-   * ```
-    fn: () =>
-      sdk.healthCheck.checkPortListening(effects, 80, {
-        successMessage: 'service listening on port 80',
-        errorMessage: 'service is unreachable',
-      })
-  * ```
-  */
-  fn: () => Promise<HealthCheckResult> | HealthCheckResult
-  /**
-   * A duration in milliseconds to treat a failing health check as "starting"
+   * Human-readable display name for the health check shown in the UI.
+   * If null, the health check will not be visible in the UI.
    *
-   * defaults to 5000
+   * @example "Web Interface"
+   * @example "Database Connection"
+   */
+  display: string | null
+
+  /**
+   * Function that determines the health status of the daemon.
+   *
+   * The SDK provides built-in health checks:
+   * - `sdk.healthCheck.checkPortListening()` - Check if a port is listening
+   * - `sdk.healthCheck.checkWebUrl()` - Check if an HTTP endpoint responds
+   * - `sdk.healthCheck.runHealthScript()` - Run a custom health check script
+   *
+   * @returns HealthCheckResult with status ("success", "failure", or "starting") and message
+   *
+   * @example
+   * ```typescript
+   * fn: () => sdk.healthCheck.checkPortListening(effects, 8080, {
+   *   successMessage: 'Server is ready',
+   *   errorMessage: 'Server is not responding',
+   * })
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Custom health check
+   * fn: async () => {
+   *   const result = await container.exec(['my-health-check'])
+   *   return result.exitCode === 0
+   *     ? { result: 'success', message: 'Healthy' }
+   *     : { result: 'failure', message: 'Unhealthy' }
+   * }
+   * ```
+   */
+  fn: () => Promise<HealthCheckResult> | HealthCheckResult
+
+  /**
+   * Duration in milliseconds to treat a failing health check as "starting" instead of "failure".
+   *
+   * This gives the daemon time to initialize before health check failures are reported.
+   * After the grace period expires, failures will be reported normally.
+   *
+   * @default 5000 (5 seconds)
+   *
+   * @example 30000 // 30 second startup time
+   * @example 120000 // 2 minutes for slow-starting services
    */
   gracePeriod?: number
+
+  /**
+   * Optional trigger configuration for when to run the health check.
+   * If not specified, uses the default trigger (periodic checks).
+   *
+   * @see defaultTrigger, cooldownTrigger, changeOnFirstSuccess, successFailure
+   */
   trigger?: Trigger
 }
 
+/**
+ * Options for executing a command as a daemon.
+ */
 export type ExecCommandOptions = {
+  /** The command to execute (string, array, or UseEntrypoint) */
   command: T.CommandType
-  // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
+
+  /**
+   * Timeout in milliseconds to wait for graceful shutdown after sending SIGTERM.
+   * After this timeout, SIGKILL will be sent.
+   * @default 30000 (30 seconds)
+   */
   sigtermTimeout?: number
+
+  /**
+   * If true, run the command as PID 1 (init process).
+   * This affects signal handling and zombie process reaping.
+   */
   runAsInit?: boolean
+
+  /** Environment variables to set for the process */
   env?:
     | {
         [variable in string]?: string
       }
     | undefined
+
+  /** Working directory for the process */
   cwd?: string | undefined
+
+  /** User to run the process as (e.g., "root", "nobody") */
   user?: string | undefined
+
+  /**
+   * Callback invoked for each chunk of stdout output.
+   * Useful for logging or monitoring process output.
+   */
   onStdout?: (chunk: Buffer | string | any) => void
+
+  /**
+   * Callback invoked for each chunk of stderr output.
+   * Useful for logging or monitoring process errors.
+   */
   onStderr?: (chunk: Buffer | string | any) => void
 }
 
@@ -127,31 +234,61 @@ type AddHealthCheckParams<Ids extends string, Id extends string> = {
 
 type ErrorDuplicateId<Id extends string> = `The id '${Id}' is already used`
 
+/** @internal Helper to create a CommandController */
 export const runCommand = <Manifest extends T.SDKManifest>() =>
   CommandController.of<Manifest, SubContainer<Manifest>>()
 
 /**
- * A class for defining and controlling the service daemons
-```ts
-Daemons.of({
-  effects,
-  started,
-  interfaceReceipt, // Provide the interfaceReceipt to prove it was completed
-  healthReceipts, // Provide the healthReceipts or [] to prove they were at least considered
-}).addDaemon('webui', {
-  command: 'hello-world', // The command to start the daemon
-  ready: {
-    display: 'Web Interface',
-    // The function to run to determine the health status of the daemon
-    fn: () =>
-      checkPortListening(effects, 80, {
-        successMessage: 'The web interface is ready',
-        errorMessage: 'The web interface is not ready',
-      }),
-  },
-  requires: [],
-})
-```
+ * Manager class for defining and controlling service daemons.
+ *
+ * Exposed via `sdk.Daemons`. Daemons are long-running processes that make up
+ * your service. The Daemons class provides a fluent API for:
+ * - Defining multiple daemons with dependencies between them
+ * - Configuring health checks for each daemon
+ * - Managing startup order based on dependency requirements
+ * - Handling graceful shutdown in reverse dependency order
+ *
+ * @typeParam Manifest - The service manifest type
+ * @typeParam Ids - Union type of all daemon IDs (accumulates as daemons are added)
+ *
+ * @example
+ * ```typescript
+ * // Single daemon service
+ * return sdk.Daemons.of(effects)
+ *   .addDaemon('primary', {
+ *     subcontainer,
+ *     exec: { command: sdk.useEntrypoint() },
+ *     ready: {
+ *       display: 'Server',
+ *       fn: () => sdk.healthCheck.checkPortListening(effects, 8080, { ... }),
+ *     },
+ *     requires: [],
+ *   })
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Multi-daemon service with dependencies
+ * return sdk.Daemons.of(effects)
+ *   .addDaemon('database', {
+ *     subcontainer: dbContainer,
+ *     exec: { command: ['postgres', '-D', '/data'] },
+ *     ready: { display: 'Database', fn: checkDbReady },
+ *     requires: [],  // No dependencies
+ *   })
+ *   .addDaemon('api', {
+ *     subcontainer: apiContainer,
+ *     exec: { command: ['node', 'server.js'] },
+ *     ready: { display: 'API Server', fn: checkApiReady },
+ *     requires: ['database'],  // Waits for database to be ready
+ *   })
+ *   .addDaemon('worker', {
+ *     subcontainer: workerContainer,
+ *     exec: { command: ['node', 'worker.js'] },
+ *     ready: { display: 'Background Worker', fn: checkWorkerReady },
+ *     requires: ['database', 'api'],  // Waits for both
+ *   })
+ * ```
  */
 export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   implements T.DaemonBuildable

@@ -1,6 +1,50 @@
+/**
+ * @module Drop
+ *
+ * Provides RAII-style resource management for JavaScript using FinalizationRegistry.
+ * Classes extending Drop get automatic cleanup when garbage collected, ensuring
+ * resources are released even if explicitly dropped.
+ *
+ * This is used for managing long-lived resources like health checks, daemons,
+ * and other objects that need cleanup when no longer referenced.
+ */
+
+/** @internal Unique symbol for drop reference identification */
 const dropId: unique symbol = Symbol("id")
+
+/** @internal Reference type for tracking droppable resources */
 export type DropRef = { [dropId]: number }
 
+/**
+ * Abstract base class for objects that need cleanup when garbage collected.
+ *
+ * Subclasses must implement `onDrop()` to define cleanup behavior.
+ * The cleanup is automatically triggered when the object is garbage collected,
+ * or can be triggered manually by calling `drop()`.
+ *
+ * @example
+ * ```typescript
+ * class ResourceHolder extends Drop {
+ *   private handle: Handle
+ *
+ *   constructor() {
+ *     super()
+ *     this.handle = acquireResource()
+ *   }
+ *
+ *   onDrop(): void {
+ *     releaseResource(this.handle)
+ *   }
+ * }
+ *
+ * // Resource is automatically released when holder is garbage collected
+ * let holder = new ResourceHolder()
+ * holder = null // Eventually triggers onDrop()
+ *
+ * // Or manually release
+ * holder.drop()
+ * ```
+ */
 export abstract class Drop {
   private static weak: { [id: number]: Drop } = {}
   private static registry = new FinalizationRegistry((id: number) => {

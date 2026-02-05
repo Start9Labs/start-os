@@ -67,24 +67,83 @@ import {
 import { getOwnServiceInterfaces } from "../../base/lib/util/getServiceInterfaces"
 import { Volumes, createVolumes } from "./util/Volume"
 
+/**
+ * The minimum StartOS version this SDK is compatible with.
+ * Used internally for version checking.
+ */
 export const OSVersion = testTypeVersion("0.4.0-alpha.19")
 
+/** @internal Helper type for conditional type resolution */
 // prettier-ignore
-type AnyNeverCond<T extends any[], Then, Else> = 
+type AnyNeverCond<T extends any[], Then, Else> =
     T extends [] ? Else :
     T extends [never, ...Array<any>] ? Then :
     T extends [any, ...infer U] ? AnyNeverCond<U,Then, Else> :
     never
 
+/**
+ * The main SDK class for building StartOS service packages.
+ *
+ * StartSdk provides a fluent API for creating services with type-safe access to:
+ * - Service manifest and volumes
+ * - Actions (user-callable operations)
+ * - Health checks and daemon management
+ * - Network interfaces
+ * - Dependency management
+ * - Backup/restore functionality
+ * - Container management (SubContainer)
+ *
+ * @typeParam Manifest - The service manifest type, providing type safety for volumes, images, and dependencies
+ *
+ * @example
+ * ```typescript
+ * // In sdk.ts - create and export the SDK instance
+ * import { StartSdk } from '@start9labs/start-sdk'
+ * import { manifest } from './manifest'
+ *
+ * export const sdk = StartSdk.of().withManifest(manifest).build(true)
+ *
+ * // Now use sdk throughout your package:
+ * // sdk.volumes.main - type-safe access to volumes
+ * // sdk.Action.withInput(...) - create actions
+ * // sdk.Daemons.of(effects) - create daemon managers
+ * // sdk.SubContainer.of(...) - create containers
+ * ```
+ */
 export class StartSdk<Manifest extends T.SDKManifest> {
   private constructor(readonly manifest: Manifest) {}
+
+  /**
+   * Creates a new StartSdk builder instance.
+   * Call `.withManifest()` next to attach your service manifest.
+   *
+   * @returns A new StartSdk instance (uninitialized)
+   */
   static of() {
     return new StartSdk<never>(null as never)
   }
+
+  /**
+   * Attaches a manifest to the SDK, enabling type-safe access to
+   * volumes, images, and dependencies defined in the manifest.
+   *
+   * @typeParam Manifest - The manifest type
+   * @param manifest - The service manifest object
+   * @returns A new StartSdk instance with the manifest attached
+   */
   withManifest<Manifest extends T.SDKManifest = never>(manifest: Manifest) {
     return new StartSdk<Manifest>(manifest)
   }
 
+  /**
+   * Builds the final SDK instance with all utilities and helpers.
+   *
+   * This must be called after `.withManifest()` to get the usable SDK object.
+   * The `isReady` parameter is a type-level check that ensures a manifest was provided.
+   *
+   * @param isReady - Pass `true` (only compiles if manifest was provided)
+   * @returns The complete SDK object with all methods and utilities
+   */
   build(isReady: AnyNeverCond<[Manifest], "Build not ready", true>) {
     type NestedEffects = "subcontainer" | "store" | "action"
     type InterfaceEffects =
@@ -741,6 +800,45 @@ export class StartSdk<Manifest extends T.SDKManifest> {
   }
 }
 
+/**
+ * Runs a command in a temporary container and returns the output.
+ *
+ * This is a convenience function for one-off command execution.
+ * For long-running processes or multiple commands, use `sdk.SubContainer` instead.
+ *
+ * @typeParam Manifest - The service manifest type
+ *
+ * @param effects - Effects instance for system operations
+ * @param image - The container image to use
+ * @param image.imageId - Image ID from the manifest's images
+ * @param image.sharedRun - Whether to share the run directory with other containers
+ * @param command - The command to execute (string, array, or UseEntrypoint)
+ * @param options - Execution options including mounts and environment
+ * @param options.mounts - Volume mounts for the container (or null for none)
+ * @param name - Optional name for debugging/logging
+ * @returns Promise resolving to stdout and stderr from the command
+ * @throws ExitError if the command exits with a non-zero code or signal
+ *
+ * @example
+ * ```typescript
+ * // Run a simple command
+ * const result = await runCommand(
+ *   effects,
+ *   { imageId: 'main' },
+ *   ['echo', 'Hello, World!'],
+ *   { mounts: null }
+ * )
+ * console.log(result.stdout) // "Hello, World!\n"
+ *
+ * // Run with volume mounts
+ * const result = await runCommand(
+ *   effects,
+ *   { imageId: 'main' },
+ *   ['cat', '/data/config.json'],
+ *   { mounts: sdk.Mounts.of().mountVolume({ volumeId: 'main', mountpoint: '/data' }) }
+ * )
+ * ```
+ */
 export async function runCommand<Manifest extends T.SDKManifest>(
   effects: Effects,
   image: { imageId: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },

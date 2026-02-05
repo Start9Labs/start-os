@@ -1,3 +1,24 @@
+/**
+ * Computes a partial diff between two values.
+ * Returns undefined if values are equal, otherwise returns the differences.
+ *
+ * For objects, recursively compares properties. For arrays, finds new items
+ * not present in the previous array.
+ *
+ * @typeParam T - The type of values being compared
+ * @param prev - The previous value
+ * @param next - The next value
+ * @returns Object containing diff, or undefined if equal
+ *
+ * @example
+ * ```typescript
+ * partialDiff({ a: 1, b: 2 }, { a: 1, b: 3 })
+ * // Returns: { diff: { b: 3 } }
+ *
+ * partialDiff({ a: 1 }, { a: 1 })
+ * // Returns: undefined
+ * ```
+ */
 export function partialDiff<T>(
   prev: T,
   next: T,
@@ -46,6 +67,28 @@ export function partialDiff<T>(
   }
 }
 
+/**
+ * Deeply merges multiple objects or arrays into one.
+ *
+ * For objects: Recursively merges properties from all input objects.
+ * For arrays: Combines unique items from all input arrays.
+ * Primitives: Returns the last non-object value.
+ *
+ * @param args - Values to merge (objects, arrays, or primitives)
+ * @returns The merged result
+ *
+ * @example
+ * ```typescript
+ * deepMerge({ a: 1 }, { b: 2 })
+ * // Returns: { a: 1, b: 2 }
+ *
+ * deepMerge({ a: { x: 1 } }, { a: { y: 2 } })
+ * // Returns: { a: { x: 1, y: 2 } }
+ *
+ * deepMerge([1, 2], [2, 3])
+ * // Returns: [1, 2, 3]
+ * ```
+ */
 export function deepMerge(...args: unknown[]): unknown {
   const lastItem = (args as any)[args.length - 1]
   if (typeof lastItem !== "object" || !lastItem) return lastItem

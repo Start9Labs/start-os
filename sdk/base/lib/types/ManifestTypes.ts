@@ -1,6 +1,40 @@
+/**
+ * @module ManifestTypes
+ *
+ * Defines the type for the service manifest, which contains all metadata about
+ * a StartOS package including its name, description, images, volumes, dependencies,
+ * and other configuration.
+ *
+ * The manifest is defined in your package and exported as the `manifest` constant.
+ * It's used by the SDK for type checking and by StartOS for package management.
+ *
+ * @example
+ * ```typescript
+ * import { sdk } from './sdk'
+ *
+ * export const manifest = sdk.Manifest({
+ *   id: 'myservice',
+ *   title: 'My Service',
+ *   license: 'MIT',
+ *   images: { main: { source: { dockerTag: 'myimage:latest' } } },
+ *   volumes: ['main'],
+ *   dependencies: {},
+ *   // ... other required fields
+ * })
+ * ```
+ */
 import { T } from ".."
 import { ImageId, ImageSource } from "../types"
 
+/**
+ * The manifest type for StartOS service packages.
+ *
+ * This is the primary type used to describe a service package. All fields provide
+ * metadata used by StartOS for installation, marketplace display, and runtime configuration.
+ *
+ * Required fields include package identification (id, title), licensing info,
+ * repository URLs, descriptions, and technical specifications (images, volumes).
+ */
 export type SDKManifest = {
   /**
    * The package identifier used by StartOS. This must be unique amongst all other known packages.
@@ -154,7 +188,11 @@ export type SDKManifest = {
   readonly hardwareAcceleration?: boolean
 }
 
-// this is hacky but idk a more elegant way
+/**
+ * @internal
+ * Helper type for generating all valid architecture combinations.
+ * Allows specifying one, two, or three target architectures in any order.
+ */
 type ArchOptions = {
   0: ["x86_64", "aarch64", "riscv64"]
   1: ["aarch64", "x86_64", "riscv64"]
@@ -172,13 +210,55 @@ type ArchOptions = {
   13: ["aarch64"]
   14: ["riscv64"]
 }
+
+/**
+ * Configuration for a Docker image used by the service.
+ *
+ * Specifies where to get the image (Docker Hub, local build) and
+ * which CPU architectures it supports.
+ *
+ * @example
+ * ```typescript
+ * // Using a pre-built Docker Hub image
+ * {
+ *   source: { dockerTag: 'nginx:latest' },
+ *   arch: ['x86_64', 'aarch64']
+ * }
+ *
+ * // Building from a local Dockerfile
+ * {
+ *   source: {
+ *     dockerBuild: {
+ *       dockerFile: './Dockerfile',
+ *       workdir: '.'
+ *     }
+ *   },
+ *   arch: ['x86_64']
+ * }
+ *
+ * // With NVIDIA GPU support
+ * {
+ *   source: { dockerTag: 'tensorflow/tensorflow:latest-gpu' },
+ *   arch: ['x86_64'],
+ *   nvidiaContainer: true
+ * }
+ * ```
+ */
 export type SDKImageInputSpec = {
   [A in keyof ArchOptions]: {
+    /** Where to get the image (Docker tag or local build) */
     source: Exclude<ImageSource, "packed">
+    /** CPU architectures this image supports */
     arch?: ArchOptions[A]
+    /** If architecture is missing, use this architecture with emulation */
     emulateMissingAs?: ArchOptions[A][number] | null
+    /** Enable NVIDIA container runtime for GPU acceleration */
     nvidiaContainer?: boolean
   }
 }[keyof ArchOptions]
 
+/**
+ * Configuration for a service dependency.
+ * Extracted from the main Manifest type for dependency declarations.
+ */
 export type ManifestDependency = T.Manifest["dependencies"][string]

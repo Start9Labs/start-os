@@ -1,3 +1,15 @@
+/**
+ * @module Host
+ *
+ * This module provides the MultiHost class for binding network ports and
+ * exposing service interfaces through the StartOS networking layer.
+ *
+ * MultiHost handles the complexity of:
+ * - Port binding with protocol-specific defaults
+ * - Automatic SSL/TLS setup for secure protocols
+ * - Integration with Tor and LAN networking
+ */
+
 import { object, string } from "ts-matches"
 import { Effects } from "../Effects"
 import { Origin } from "./Origin"
@@ -8,37 +20,53 @@ import { AlpnInfo } from "../osBindings"
 
 export { AddSslOptions, Security, BindOptions }
 
+/**
+ * Known protocol definitions with their default ports and SSL variants.
+ *
+ * Each protocol includes:
+ * - `secure` - Whether the protocol is inherently secure (SSL/TLS)
+ * - `defaultPort` - Standard port for this protocol
+ * - `withSsl` - The SSL variant of the protocol (if applicable)
+ * - `alpn` - ALPN negotiation info for TLS
+ */
 export const knownProtocols = {
+  /** HTTP - plain text web traffic, auto-upgrades to HTTPS */
   http: {
     secure: null,
     defaultPort: 80,
     withSsl: "https",
     alpn: { specified: ["http/1.1"] } as AlpnInfo,
   },
+  /** HTTPS - encrypted web traffic */
   https: {
     secure: { ssl: true },
     defaultPort: 443,
   },
+  /** WebSocket - plain text, auto-upgrades to WSS */
   ws: {
     secure: null,
     defaultPort: 80,
     withSsl: "wss",
     alpn: { specified: ["http/1.1"] } as AlpnInfo,
   },
+  /** Secure WebSocket */
   wss: {
     secure: { ssl: true },
     defaultPort: 443,
   },
+  /** SSH - inherently secure (no SSL wrapper needed) */
   ssh: {
     secure: { ssl: false },
     defaultPort: 22,
   },
+  /** DNS - domain name service */
   dns: {
     secure: { ssl: false },
     defaultPort: 53,
   },
 } as const
 
+/** Protocol scheme string or null for no scheme */
 export type Scheme = string | null
 
 type KnownProtocols = typeof knownProtocols
@@ -69,14 +97,47 @@ export type BindOptionsByProtocol =
   | BindOptionsByKnownProtocol
   | (BindOptions & { protocol: null })
 
+/** @internal Helper to detect if protocol is a known protocol string */
 const hasStringProtocol = object({
   protocol: string,
 }).test
 
+/**
+ * Manages network bindings for a service interface.
+ *
+ * MultiHost is the primary way to expose your service's ports to users.
+ * It handles:
+ * - Port binding with the StartOS networking layer
+ * - Protocol-aware defaults (HTTP uses port 80, HTTPS uses 443, etc.)
+ * - Automatic SSL certificate provisioning for secure protocols
+ * - Creation of Origin objects for exporting service interfaces
+ *
+ * @example
+ * ```typescript
+ * // Create a host for the web UI
+ * const webHost = sdk.MultiHost.of(effects, 'webui')
+ *
+ * // Bind port 3000 with HTTP (automatically adds HTTPS variant)
+ * const webOrigin = await webHost.bindPort(3000, { protocol: 'http' })
+ *
+ * // Export the interface
+ * await webOrigin.export([
+ *   sdk.ServiceInterfaceBuilder.of({
+ *     effects,
+ *     name: 'Web Interface',
+ *     id: 'webui',
+ *     description: 'Access the dashboard',
+ *     type: 'ui',
+ *   })
+ * ])
+ * ```
+ */
 export class MultiHost {
   constructor(
     readonly options: {
+      /** Effects instance for system operations */
       effects: Effects
+      /** Unique identifier for this host binding */
       id: string
     },
   ) {}

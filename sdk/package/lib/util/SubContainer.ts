@@ -1,3 +1,51 @@
+/**
+ * @module SubContainer
+ *
+ * This module provides the SubContainer class for running containerized processes.
+ * SubContainers are isolated environments created from Docker images where your
+ * service's main processes run.
+ *
+ * SubContainers provide:
+ * - Isolated filesystem from a Docker image
+ * - Volume mounting for persistent data
+ * - Command execution (exec, execFail, spawn, launch)
+ * - File system operations within the container
+ *
+ * @example
+ * ```typescript
+ * // Create a subcontainer with volume mounts
+ * const container = await sdk.SubContainer.of(
+ *   effects,
+ *   { imageId: 'main' },
+ *   sdk.Mounts.of()
+ *     .mountVolume({ volumeId: 'main', mountpoint: '/data' }),
+ *   'my-container'
+ * )
+ *
+ * // Execute a command
+ * const result = await container.exec(['cat', '/data/config.json'])
+ * console.log(result.stdout)
+ *
+ * // Run as a daemon
+ * const process = await container.launch(['my-server', '--config', '/data/config.json'])
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Use withTemp for one-off commands
+ * const output = await sdk.SubContainer.withTemp(
+ *   effects,
+ *   { imageId: 'main' },
+ *   mounts,
+ *   'generate-password',
+ *   async (container) => {
+ *     const result = await container.execFail(['openssl', 'rand', '-hex', '16'])
+ *     return result.stdout.toString().trim()
+ *   }
+ * )
+ * ```
+ */
+
 import * as fs from "fs/promises"
 import * as T from "../../../base/lib/types"
 import * as cp from "child_process"
@@ -9,17 +57,29 @@ import { Mounts } from "../mainFn/Mounts"
 import { BackupEffects } from "../backup/Backups"
 import { PathBase } from "./Volume"
 
+/** @internal Promisified execFile */
 export const execFile = promisify(cp.execFile)
 const False = () => false
 
+/**
+ * Results from executing a command in a SubContainer.
+ */
 type ExecResults = {
+  /** Exit code (null if terminated by signal) */
   exitCode: number | null
+  /** Signal that terminated the process (null if exited normally) */
   exitSignal: NodeJS.Signals | null
+  /** Standard output from the command */
   stdout: string | Buffer
+  /** Standard error from the command */
   stderr: string | Buffer
 }
 
+/**
+ * Options for exec operations.
+ */
 export type ExecOptions = {
+  /** Input to write to the command's stdin */
   input?: string | Buffer
 }
 
@@ -69,18 +129,38 @@ async function bind(
   await execFile("mount", [...args, from, to])
 }
 
+/**
+ * Interface for a SubContainer - an isolated container environment for running processes.
+ *
+ * SubContainers provide a sandboxed filesystem from a Docker image with mounted
+ * volumes for persistent data. Use `sdk.SubContainer.of()` to create one.
+ *
+ * @typeParam Manifest - The service manifest type (for type-safe image/volume references)
+ * @typeParam Effects - The Effects type (usually T.Effects)
+ */
 export interface SubContainer<
   Manifest extends T.SDKManifest,
   Effects extends T.Effects = T.Effects,
 > extends Drop,
     PathBase {
+  /** The image ID this container was created from */
   readonly imageId: keyof Manifest["images"] & T.ImageId
+  /** The root filesystem path of this container */
   readonly rootfs: string
+  /** Unique identifier for this container instance */
   readonly guid: T.Guid
 
   /**
-   * Get the absolute path to a file or directory within this subcontainer's rootfs
-   * @param path Path relative to the rootfs
+   * Gets the absolute path to a file or directory within this container's rootfs.
+   *
+   * @param path - Path relative to the rootfs (e.g., "/data/config.json")
+   * @returns The absolute path on the host filesystem
+   *
+   * @example
+   * ```typescript
+   * const configPath = container.subpath('/data/config.json')
+   * // Returns something like "/media/startos/containers/<guid>/data/config.json"
+   * ```
    */
   subpath(path: string): string
 
@@ -168,7 +248,30 @@ export interface SubContainer<
 }
 
 /**
- * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
+ * An owned SubContainer that manages its own lifecycle.
+ *
+ * This is the primary implementation of SubContainer. When destroyed, it cleans up
+ * the container filesystem. Use `sdk.SubContainer.of()` which returns a reference-counted
+ * wrapper for easier lifecycle management.
+ *
+ * @typeParam Manifest - The service manifest type
+ * @typeParam Effects - The Effects type
+ *
+ * @example
+ * ```typescript
+ * // Direct usage (manual cleanup required)
+ * const container = await SubContainerOwned.of(effects, { imageId: 'main' }, mounts, 'name')
+ * try {
+ *   await container.exec(['my-command'])
+ * } finally {
+ *   await container.destroy()
+ * }
+ *
+ * // Or use withTemp for automatic cleanup
+ * await SubContainerOwned.withTemp(effects, { imageId: 'main' }, mounts, 'name', async (c) => {
+ *   await c.exec(['my-command'])
+ * })
+ * ```
  */
 export class SubContainerOwned<
     Manifest extends T.SDKManifest,
@@ -882,71 +985,131 @@ export class SubContainerRc<
   }
 }
 
+/**
+ * Options for command execution in a SubContainer.
+ */
 export type CommandOptions = {
   /**
-   * Environment variables to set for this command
+   * Environment variables to set for this command.
+   * Variables with undefined values are ignored.
+   *
+   * @example
+   * ```typescript
+   * env: { NODE_ENV: 'production', DEBUG: 'app:*' }
+   * ```
    */
   env?: { [variable in string]?: string }
+
   /**
-   * the working directory to run this command in
+   * The working directory to run this command in.
+   * Defaults to the image's WORKDIR or "/" if not specified.
    */
   cwd?: string
+
   /**
-   * the user to run this command as
+   * The user to run this command as.
+   * Defaults to the image's USER or "root" if not specified.
+   *
+   * @example "root", "nobody", "app"
    */
   user?: string
 }
 
+/**
+ * Options for process stdio handling.
+ */
 export type StdioOptions = {
+  /** How to handle stdio streams */
   stdio?: cp.IOType
 }
 
-export type IdMap = { fromId: number; toId: number; range: number }
+/**
+ * User/group ID mapping for volume mounts.
+ * Used for mapping container UIDs to host UIDs.
+ */
+export type IdMap = {
+  /** Source ID in the host namespace */
+  fromId: number
+  /** Target ID in the container namespace */
+  toId: number
+  /** Number of IDs to map (contiguous range) */
+  range: number
+}
 
+/** Union of all mount option types */
 export type MountOptions =
   | MountOptionsVolume
   | MountOptionsAssets
   | MountOptionsPointer
   | MountOptionsBackup
 
+/** Mount options for a service volume */
 export type MountOptionsVolume = {
   type: "volume"
+  /** ID of the volume to mount */
   volumeId: string
+  /** Subpath within the volume (null for root) */
   subpath: string | null
+  /** Whether the mount is read-only */
   readonly: boolean
+  /** How to treat the mount target (file, directory, or auto-detect) */
   filetype: "file" | "directory" | "infer"
+  /** UID/GID mappings */
   idmap: IdMap[]
 }
 
+/** Mount options for service assets (read-only resources bundled with the package) */
 export type MountOptionsAssets = {
   type: "assets"
+  /** Subpath within the assets directory */
   subpath: string | null
+  /** How to treat the mount target */
   filetype: "file" | "directory" | "infer"
+  /** UID/GID mappings */
   idmap: { fromId: number; toId: number; range: number }[]
 }
 
+/** Mount options for a volume from another service (dependency) */
 export type MountOptionsPointer = {
   type: "pointer"
+  /** Package ID of the dependency */
   packageId: string
+  /** Volume ID within the dependency */
   volumeId: string
+  /** Subpath within the volume */
   subpath: string | null
+  /** Whether the mount is read-only */
   readonly: boolean
+  /** UID/GID mappings */
   idmap: { fromId: number; toId: number; range: number }[]
 }
 
+/** Mount options for backup data (during backup/restore operations) */
 export type MountOptionsBackup = {
   type: "backup"
+  /** Subpath within the backup */
   subpath: string | null
+  /** How to treat the mount target */
   filetype: "file" | "directory" | "infer"
+  /** UID/GID mappings */
   idmap: { fromId: number; toId: number; range: number }[]
 }
+
+/** @internal Helper to wait for a specified time */
 function wait(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time))
 }
 
+/**
+ * Error thrown when a command exits with a non-zero code or signal.
+ *
+ * Contains the full execution result including stdout/stderr for debugging.
+ */
 export class ExitError extends Error {
   constructor(
+    /** The command that was executed */
     readonly command: string,
+    /** The execution result */
     readonly result: {
       exitCode: number | null
       exitSignal: T.Signals | null

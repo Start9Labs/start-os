@@ -6,6 +6,15 @@ import * as CP from "node:child_process"
 
 const cpExec = promisify(CP.exec)
 
+/**
+ * Parses /proc/net/tcp* or /proc/net/udp* output to check if a port is listening.
+ *
+ * @param x - Raw content from /proc/net/tcp or similar file
+ * @param port - Port number to look for
+ * @param address - Optional specific address to match (undefined matches any)
+ * @returns True if the port is found in the listening sockets
+ * @internal
+ */
 export function containsAddress(x: string, port: number, address?: bigint) {
   const readPorts = x
     .split("\n")
@@ -20,8 +29,42 @@ export function containsAddress(x: string, port: number, address?: bigint) {
 }
 
 /**
- * This is used to check if a port is listening on the system.
- * Used during the health check fn or the check main fn.
+ * Checks if a specific port is listening on the local system.
+ *
+ * This is a low-level health check that reads from /proc/net/ to determine
+ * if a service is listening on a port. It checks both TCP and UDP, on both
+ * IPv4 and IPv6 interfaces.
+ *
+ * This is useful for services where you want to verify the server process
+ * has started and is accepting connections, even if it's not yet responding
+ * to application-level requests.
+ *
+ * @param effects - Effects instance (currently unused but included for API consistency)
+ * @param port - The port number to check
+ * @param options.successMessage - Message to include when the port is listening
+ * @param options.errorMessage - Message to include when the port is not listening
+ * @param options.timeoutMessage - Message when the check times out (default: auto-generated)
+ * @param options.timeout - Maximum time to wait for the check in milliseconds (default: 1000)
+ * @returns Promise resolving to a HealthCheckResult
+ *
+ * @example
+ * ```typescript
+ * // Check if PostgreSQL is listening on port 5432
+ * const check = () => checkPortListening(effects, 5432, {
+ *   successMessage: 'PostgreSQL is accepting connections',
+ *   errorMessage: 'PostgreSQL is not listening on port 5432'
+ * })
+ *
+ * // Use in health check config
+ * daemons.addHealthCheck({
+ *   id: 'database',
+ *   name: 'Database Port',
+ *   fn: () => checkPortListening(effects, 5432, {
+ *     successMessage: 'Database listening',
+ *     errorMessage: 'Database not responding'
+ *   })
+ * })
+ * ```
  */
 export async function checkPortListening(
   effects: Effects,
