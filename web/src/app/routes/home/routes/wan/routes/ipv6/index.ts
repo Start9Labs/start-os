@@ -19,11 +19,8 @@ import {
   injectFormService,
   provideFormService,
 } from 'src/app/services/form.service'
-import { CustomValidators } from 'src/app/utils/validators'
 import { PublishedPortsUciService } from 'src/app/routes/home/routes/published-ports/uci/service'
 import { WanIpv6Aside } from './aside'
-import { Dns } from '../../dns/dns'
-import { updateDnsValidators } from '../../dns/utils'
 import { WanIpv6Ip } from './form/ip'
 import { WanIpv6Summary } from './summary'
 import { WanIpv6Service } from './service'
@@ -42,9 +39,6 @@ import { getWanIpv6Form, updateIpv6Validators, WanIpv6Form } from './utils'
       (ngSubmit)="onSave()"
     >
       <wan-ipv6-ip formGroupName="ip" [disabledLocked]="hasIpv6Ports()" />
-      @if (ipMode() !== 'disabled') {
-        <wan-dns [mode]="dnsMode()" formGroupName="dns" />
-      }
       @if (service.data()) {
         <footer appFooter></footer>
       }
@@ -59,7 +53,6 @@ import { getWanIpv6Form, updateIpv6Validators, WanIpv6Form } from './utils'
     Help,
     WanIpv6Summary,
     WanIpv6Ip,
-    Dns,
     WanIpv6Aside,
   ],
   host: { class: 'g-page' },
@@ -83,13 +76,6 @@ export default class WanIpv6 {
     { requireSync: true },
   )
 
-  readonly dnsMode = toSignal(
-    this.form.controls.dns.controls.mode.valueChanges.pipe(
-      startWith(this.form.controls.dns.controls.mode.value),
-    ),
-    { requireSync: true },
-  )
-
   constructor() {
     // Load IPv6 port usage
     this.loadIpv6PortUsage()
@@ -100,9 +86,6 @@ export default class WanIpv6 {
       if (data && this.form.pristine) {
         this.form.reset(data)
         updateIpv6Validators(this.form, data.ip.mode)
-        updateDnsValidators(this.form.controls.dns, data.dns.mode, [
-          CustomValidators.ipv4OrIpv6(),
-        ])
       }
     })
 
@@ -111,16 +94,6 @@ export default class WanIpv6 {
       const mode = this.ipMode()
       if (mode) {
         updateIpv6Validators(this.form, mode)
-      }
-    })
-
-    // Update validators when DNS mode changes
-    effect(() => {
-      const mode = this.dnsMode()
-      if (mode) {
-        updateDnsValidators(this.form.controls.dns, mode, [
-          CustomValidators.ipv4OrIpv6(),
-        ])
       }
     })
   }

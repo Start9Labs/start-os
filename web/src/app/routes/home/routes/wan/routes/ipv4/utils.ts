@@ -1,6 +1,5 @@
 import { NonNullableFormBuilder, Validators } from '@angular/forms'
 import { FormRawValue } from 'src/app/services/form.service'
-import { getDnsForm } from '../../dns/utils'
 import { CustomValidators } from 'src/app/utils/validators'
 
 export const IPV4_MODES = ['dhcp', 'pppoe', 'static'] as const
@@ -49,7 +48,6 @@ export function getWanIpv4Form(builder: NonNullableFormBuilder) {
       password: builder.control(''),
       device: builder.control(''),
     }),
-    dns: getDnsForm(builder, [CustomValidators.ipv4()]),
   })
 }
 

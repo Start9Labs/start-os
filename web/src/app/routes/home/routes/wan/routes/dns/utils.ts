@@ -6,7 +6,7 @@ export const DNS_MODES = ['isp', 'custom'] as const
 
 export type DnsMode = (typeof DNS_MODES)[number]
 
-export const LABELS: Record<DnsMode, string> = {
+export const DNS_LABELS: Record<DnsMode, string> = {
   isp: 'Get from ISP',
   custom: 'Custom',
 }
