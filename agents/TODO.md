@@ -57,7 +57,46 @@ Pending tasks for AI agents. Remove items when completed.
   After this change, `assigned_ssl_port` may match the preferred port if it was available, or fall back
   to the dynamic range as before.
 
-  #### 2. Eliminate the Port 5443 Hack: Source-IP-Based Public/Private Gating (`vhost.rs`, `net_controller.rs`)
+  #### 2. User-Controlled Public/Private on Bindings
+
+  There are three distinct concepts for public/private in the system:
+
+  1. **Gateway public/private** (descriptive): A property of the gateway/network interface — whether
+     its ports are publicly reachable from the internet without port forwards. This is
+     `NetworkInterfaceInfo::public()`.
+  2. **Binding public/private** (user intent): Whether the user wants this binding to be reachable from
+     the internet. This is a **new** user-controlled field on the binding.
+  3. **`public_enabled` / `private_disabled`** (per-gateway overrides): Override the default behavior
+     where private gateways are enabled and public gateways are disabled. These sets are per-gateway
+     exceptions to that default.
+
+  Add a `public` field to `BindInfo` (or `NetInfo`) representing user intent:
+
+  - **When `public = false`** (default): Block WAN traffic to this binding using source-IP gating
+    (see Section 3). The binding is only accessible on the LAN.
+  - **When `public = true`**: Allow WAN traffic. Additionally, maintain a port forward mapping in
+    patch-db (see Section 4) so the user knows what to configure on their router.
+
+  **New RPC endpoints** (`binding.rs`):
+
+  Following the existing `HostApiKind` pattern, add a new subcommand to the `binding` parent handler:
+
+  - **`set-public`** — Set whether a binding should be publicly accessible.
+
+    ```ts
+    interface BindingSetPublicParams {
+      internalPort: number
+      public: boolean
+    }
+    ```
+
+    Mutates `BindInfo` to set the `public` field, syncs the host. Uses `sync_db` metadata.
+
+    This yields two RPC methods:
+    - `server.host.binding.set-public`
+    - `package.host.binding.set-public`
+
+  #### 3. Eliminate the Port 5443 Hack: Source-IP-Based WAN Blocking (`vhost.rs`, `net_controller.rs`)
 
   **Current problem**: The `if ssl.preferred_external_port == 443` branch (line 341 of
   `net_controller.rs`) creates a bespoke dual-vhost setup: port 5443 for private-only access and port
@@ -73,7 +112,7 @@ Pending tasks for AI agents. Remove items when completed.
   This applies to **all** vhost targets, not just port 443:
 
   - **Add a `public` field to `ProxyTarget`** (or an enum: `Public`, `Private`, `Both`) indicating
-    what traffic this target accepts.
+    what traffic this target accepts, derived from the binding's user-controlled `public` field.
   - **Modify `VHostTarget::filter()`** (`vhost.rs:342`): Instead of (or in addition to) checking the
     network interface via `GatewayInfo`, check the source IP of the TCP connection against known gateway
     IPs. If the source IP matches a gateway or IP outside the subnet, the connection is public;
@@ -82,7 +121,21 @@ Pending tasks for AI agents. Remove items when completed.
     serve both public and private traffic, with per-target source-IP gating determining which backend
     handles which connections.
 
-  #### 3. Simplify `update()` Domain Vhost Logic (`net_controller.rs`)
+  #### 4. Port Forward Mapping in Patch-DB
+
+  When a binding is marked `public = true`, StartOS must record the required port forwards in patch-db
+  so the frontend can display them to the user. The user then configures these on their router manually.
+
+  For each public binding, store:
+  - The external port the router should forward (the actual vhost port used for domains, or the
+    `assigned_port` / `assigned_ssl_port` for non-domain access)
+  - The protocol (TCP/UDP)
+  - The StartOS LAN IP as the forward target
+  - Which service/binding this forward is for (for display purposes)
+
+  This mapping should be in the public database model so the frontend can read and display it.
+
+  #### 5. Simplify `update()` Domain Vhost Logic (`net_controller.rs`)
 
   With source-IP gating in the vhost controller:
 
@@ -93,16 +146,17 @@ Pending tasks for AI agents. Remove items when completed.
     This succeeds if the port is either unused or already has an SSL listener (SNI handles sharing).
     It fails only if the port is already in use by a non-SSL binding, or is a restricted port. On
     failure, fall back to `assigned_ssl_port`.
-  - Each domain vhost entry declares whether it's public, private, or both — the vhost controller uses
-    source IP to enforce this.
+  - The binding's `public` field determines the `ProxyTarget`'s public/private gating.
   - Hostname info must exactly match the actual vhost port used: for server hostnames, report
     `ssl_port: assigned_ssl_port`. For domains, report `ssl_port: preferred_external_port` if it was
     successfully used for the domain vhost, otherwise report `ssl_port: assigned_ssl_port`.
 
-  #### 4. No SDK or Frontend Changes Needed
+  #### 6. SDK and Frontend Changes
 
-  - SDK: `preferredExternalPort` is already exposed in `BindOptions` and `AddSslOptions`.
-  - Frontend: Already reads `assigned_port`/`assigned_ssl_port` from `NetInfo`.
+  - **SDK**: `preferredExternalPort` is already exposed. No additional SDK changes needed.
+  - **Frontend**: Needs to display the port forward mapping from patch-db, showing the user what
+    router configuration is required for their public bindings. Also needs UI for toggling the
+    `public` field on a binding. Bindings are always private by default.
 
   ### Key Files
 
@@ -114,3 +168,14 @@ Pending tasks for AI agents. Remove items when completed.
   | `core/src/net/vhost.rs` | `VHostController` / `ProxyTarget` — source-IP gating for public/private |
   | `core/src/net/gateway.rs` | `PublicFilter`, `InterfaceFilter` — may need refactoring |
   | `sdk/base/lib/interfaces/Host.ts` | SDK `MultiHost.bindPort()` — no changes needed |
+  | `core/src/db/model/public.rs` | Public DB model — port forward mapping |
+
+- [ ] Auto-configure port forwards via UPnP/NAT-PMP/PCP - @dr-bonez
+
+  **Blocked by**: "Support preferred external ports besides 443" (must be implemented and tested
+  end-to-end first).
+
+  **Goal**: When a binding is marked public, automatically configure port forwards on the user's router
+  using UPnP, NAT-PMP, or PCP, instead of requiring manual router configuration. Fall back to
+  displaying manual instructions (the port forward mapping from patch-db) when auto-configuration is
+  unavailable or fails.
