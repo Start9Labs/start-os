@@ -35,7 +35,7 @@ type OnionForm = {
   selector: 'section[torDomains]',
   template: `
     <header>
-      Tor Domains
+      {{ 'Tor Domains' | i18n }}
       <a
         tuiIconButton
         docsLink
