@@ -137,6 +137,7 @@ pub async fn install(
             json!({
                 "id": id,
                 "targetVersion": VersionRange::exactly(version.deref().clone()),
+                "otherVersions": "none",
             }),
             RegistryUrlParams {
                 registry: registry.clone(),
@@ -484,7 +485,7 @@ pub async fn cli_install(
             let mut packages: GetPackageResponse = from_value(
                 ctx.call_remote::<RegistryContext>(
                     "package.get",
-                    json!({ "id": &id, "targetVersion": version, "sourceVersion": source_version }),
+                    json!({ "id": &id, "targetVersion": version, "sourceVersion": source_version, "otherVersions": "none" }),
                 )
                 .await?,
             )?;
