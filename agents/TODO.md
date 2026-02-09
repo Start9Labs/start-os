@@ -57,44 +57,73 @@ Pending tasks for AI agents. Remove items when completed.
   After this change, `assigned_ssl_port` may match the preferred port if it was available, or fall back
   to the dynamic range as before.
 
-  #### 2. User-Controlled Public/Private on Bindings
+  #### 2. Per-Address Enable/Disable (replaces gateway overrides)
 
-  There are three distinct concepts for public/private in the system:
+  **Current model being removed**: `NetInfo` has `private_disabled: OrdSet<GatewayId>` and
+  `public_enabled: OrdSet<GatewayId>` — gateway-level toggles where private gateways are enabled by
+  default and public gateways are disabled by default. The `set-gateway-enabled` RPC endpoint and the
+  `InterfaceFilter` impl on `NetInfo` use these sets. This model is unintuitive because users think in
+  terms of individual addresses, not gateways.
 
-  1. **Gateway public/private** (descriptive): A property of the gateway/network interface — whether
-     its ports are publicly reachable from the internet without port forwards. This is
-     `NetworkInterfaceInfo::public()`.
-  2. **Binding public/private** (user intent): Whether the user wants this binding to be reachable from
-     the internet. This is a **new** user-controlled field on the binding.
-  3. **`public_enabled` / `private_disabled`** (per-gateway overrides): Override the default behavior
-     where private gateways are enabled and public gateways are disabled. These sets are per-gateway
-     exceptions to that default.
+  **New model**: Per-address enable/disable. Each computed address in `hostname_info` gets an `enabled`
+  field. Users toggle individual addresses on the View page (see Section 6).
 
-  Add a `public` field to `BindInfo` (or `NetInfo`) representing user intent:
+  **How disabling works per address type**:
 
-  - **When `public = false`** (default): Block WAN traffic to this binding using source-IP gating
-    (see Section 3). The binding is only accessible on the LAN.
-  - **When `public = true`**: Allow WAN traffic. Additionally, maintain a port forward mapping in
-    patch-db (see Section 4) so the user knows what to configure on their router.
+  The enforcement mechanism varies by address type because different addresses are reached through
+  different network paths:
 
-  **New RPC endpoints** (`binding.rs`):
+  - **WAN IP:port** (public gateway IP addresses): Disabled via **source-IP gating** in the vhost
+    layer (Section 3). Public and private traffic share the same port listener, so we can't just
+    remove the vhost entry — that would also block private traffic. Instead, the vhost target is
+    tagged with which source-IP classes it accepts. When a WAN IP address is disabled, the vhost
+    target rejects connections whose source IP matches the gateway (i.e., NAT'd internet traffic)
+    or falls outside the gateway's LAN subnets. LAN traffic to the same port is unaffected.
+  - **LAN IP:port** (private gateway IP addresses): Also enforced via **source-IP gating**. When
+    disabled, the vhost target rejects connections from LAN subnets on that gateway. This is the
+    inverse of the WAN case — same mechanism, different source-IP class.
+  - **Hostname-based addresses** (`.local`, domains): Disabled by **not creating the vhost/SNI
+    entry** for that hostname. Since hostname-based routing uses SNI (SSL) or Host header (HTTP),
+    removing the entry means the hostname simply doesn't resolve to a backend. No traffic reaches
+    the service for that hostname.
+  - **Onion addresses**: Disabled by **not creating the Tor hidden service mapping**. The Tor
+    daemon won't advertise the onion:port, so no traffic arrives.
 
-  Following the existing `HostApiKind` pattern, add a new subcommand to the `binding` parent handler:
+  **Backend changes**:
 
-  - **`set-public`** — Set whether a binding should be publicly accessible.
+  - **Remove from `NetInfo`**: Delete the `private_disabled` and `public_enabled` fields entirely.
+  - **Add to `NetInfo`**: A `disabled` set containing identifiers for addresses the user has explicitly
+    disabled. The identifier must be stable across network changes — e.g., `(gateway_id, hostname_kind)`
+    for IP/Local addresses, `(gateway_id, domain_value)` for domain addresses, or `onion_value` for
+    onion addresses. Exact format TBD at implementation time.
+  - **Default behavior preserved**: Private-gateway addresses default to enabled, public-gateway
+    addresses default to disabled. An address is enabled if it's not in the `disabled` set AND either
+    (a) the gateway is private, or (b) the user has explicitly enabled it.
+  - **Add `enabled` field to `HostnameInfo`**: The computed `hostname_info` output should include
+    whether each address is enabled, derived from the `disabled` set during `NetServiceData::update()`.
+  - **Remove `set-gateway-enabled`** RPC endpoint from `binding.rs`.
+  - **Remove `InterfaceFilter` impl for `NetInfo`**: The per-gateway filter logic is replaced by
+    per-address filtering in `update()`.
+
+  **New RPC endpoint** (`binding.rs`):
+
+  Following the existing `HostApiKind` pattern, replace `set-gateway-enabled` with:
+
+  - **`set-address-enabled`** — Toggle an individual address on or off.
 
     ```ts
-    interface BindingSetPublicParams {
+    interface BindingSetAddressEnabledParams {
       internalPort: number
-      public: boolean
+      addressId: AddressId   // identifies a specific HostnameInfo entry
+      enabled: boolean
     }
     ```
 
-    Mutates `BindInfo` to set the `public` field, syncs the host. Uses `sync_db` metadata.
+    Mutates `NetInfo.disabled` and syncs the host. Uses `sync_db` metadata.
 
     This yields two RPC methods:
-    - `server.host.binding.set-public`
-    - `package.host.binding.set-public`
+    - `server.host.binding.set-address-enabled`
+    - `package.host.binding.set-address-enabled`
 
   #### 3. Eliminate the Port 5443 Hack: Source-IP-Based WAN Blocking (`vhost.rs`, `net_controller.rs`)
 
@@ -151,22 +180,106 @@ Pending tasks for AI agents. Remove items when completed.
     `ssl_port: assigned_ssl_port`. For domains, report `ssl_port: preferred_external_port` if it was
     successfully used for the domain vhost, otherwise report `ssl_port: assigned_ssl_port`.
 
-  #### 6. SDK and Frontend Changes
+  #### 6. Frontend: Interfaces Page Overhaul (View/Manage Split)
 
-  - **SDK**: `preferredExternalPort` is already exposed. No additional SDK changes needed.
-  - **Frontend**: Needs to display the port forward mapping from patch-db, showing the user what
-    router configuration is required for their public bindings. Also needs UI for toggling the
-    `public` field on a binding. Bindings are always private by default.
+  The current interfaces page is a single page showing gateways (with toggle), addresses, public
+  domains, Tor domains, and private domains. It gets split into two pages: **View** and **Manage**.
+
+  **SDK**: `preferredExternalPort` is already exposed. No additional SDK changes needed.
+
+  ##### View Page
+
+  Displays all computed addresses for the interface (from `hostname_info`) as a flat list. For each
+  address:
+
+  - **Enable/disable toggle**: Calls `set-address-enabled` RPC endpoint to toggle the address. Reflects
+    the `enabled` field from `HostnameInfo`.
+  - **Address details**: URL, type (IPv4, IPv6, .local, domain, onion), access level (public/private),
+    gateway name.
+  - **Port forward info**: For public addresses, display the required port forward mapping (external
+    port, protocol, LAN IP target) so the user knows what to configure on their router.
+  - **Test button**: Per-address reachability test (see Section 7). The backend returns structured
+    failure data (which check failed, relevant context like expected IP, actual IP, port, etc.).
+    The frontend constructs user-facing fix messaging from the structured result.
+
+  No gateway-level toggles. The old `gateways.component.ts` toggle UI is removed.
+
+  ##### Manage Page
+
+  Simple CRUD interface for configuring which addresses exist. Three sections:
+
+  - **Public domains**: Add/remove. Uses existing RPC endpoints:
+    - `{server,package}.host.address.domain.public.add`
+    - `{server,package}.host.address.domain.public.remove`
+  - **Private domains**: Add/remove. Uses existing RPC endpoints:
+    - `{server,package}.host.address.domain.private.add`
+    - `{server,package}.host.address.domain.private.remove`
+  - **Onion addresses**: Add/remove. Uses existing RPC endpoints:
+    - `{server,package}.host.address.onion.add`
+    - `{server,package}.host.address.onion.remove`
+
+  ##### Key Frontend Files to Modify
+
+  | File | Change |
+  |------|--------|
+  | `web/projects/ui/src/app/routes/portal/components/interfaces/` | Overhaul: split into view/manage |
+  | `web/projects/ui/src/app/routes/portal/components/interfaces/gateways.component.ts` | Remove (replaced by per-address toggles on View page) |
+  | `web/projects/ui/src/app/routes/portal/components/interfaces/interface.service.ts` | Update `MappedServiceInterface` to use `enabled` field from `HostnameInfo` |
+  | `web/projects/ui/src/app/routes/portal/components/interfaces/addresses/` | Refactor for View page with enable/disable toggles and test buttons |
+  | `web/projects/ui/src/app/routes/portal/routes/services/services.routes.ts` | Add routes for view/manage sub-pages |
+  | `web/projects/ui/src/app/routes/portal/routes/system/system.routes.ts` | Add routes for view/manage sub-pages |
+
+  #### 7. Reachability Test Endpoint
+
+  New RPC endpoint that tests whether an address is actually reachable, with diagnostic info on
+  failure.
+
+  **RPC endpoint** (`binding.rs` or new file):
+
+  - **`test-address`** — Test reachability of a specific address.
+
+    ```ts
+    interface BindingTestAddressParams {
+      internalPort: number
+      addressId: AddressId
+    }
+    ```
+
+    The backend simply performs the raw checks and returns the results. The **frontend** owns all
+    interpretation — it already knows the address type, expected IP, expected port, etc. from the
+    `HostnameInfo` data, so it can compare against the backend results and construct fix messaging.
+
+    ```ts
+    interface TestAddressResult {
+      dns: string[] | null      // resolved IPs, null if not a domain address or lookup failed
+      portOpen: boolean | null  // TCP connect result, null if not applicable
+    }
+    ```
+
+    This yields two RPC methods:
+    - `server.host.binding.test-address`
+    - `package.host.binding.test-address`
+
+  The frontend already has the full `HostnameInfo` context (expected IP, domain, port, gateway,
+  public/private). It compares the backend's raw results against the expected state and constructs
+  localized fix instructions. For example:
+  - `dns` returned but doesn't contain the expected WAN IP → "Update DNS A record for {domain}
+    to {wanIp}"
+  - `dns` is `null` for a domain address → "DNS lookup failed for {domain}"
+  - `portOpen` is `false` → "Configure port forward on your router: external {port} TCP →
+    {lanIp}:{port}"
 
   ### Key Files
 
   | File | Role |
   |------|------|
   | `core/src/net/forward.rs` | `AvailablePorts` — port pool allocation |
-  | `core/src/net/host/binding.rs` | `BindInfo::new()` / `update()` — port assignment at bind time |
-  | `core/src/net/net_controller.rs:259` | `NetServiceData::update()` — vhost/forward/DNS reconciliation, 5443 hack removal |
+  | `core/src/net/host/binding.rs` | `BindInfo`/`NetInfo` — remove gateway overrides, add per-address disable set, new RPC endpoints |
+  | `core/src/net/net_controller.rs:259` | `NetServiceData::update()` — compute `enabled` on `HostnameInfo`, vhost/forward/DNS reconciliation, 5443 hack removal |
   | `core/src/net/vhost.rs` | `VHostController` / `ProxyTarget` — source-IP gating for public/private |
-  | `core/src/net/gateway.rs` | `PublicFilter`, `InterfaceFilter` — may need refactoring |
+  | `core/src/net/gateway.rs` | `InterfaceFilter` — remove `NetInfo` impl, simplify |
+  | `core/src/net/service_interface.rs` | `HostnameInfo` — add `enabled` field |
+  | `core/src/net/host/address.rs` | Existing domain/onion CRUD endpoints (no changes needed) |
   | `sdk/base/lib/interfaces/Host.ts` | SDK `MultiHost.bindPort()` — no changes needed |
   | `core/src/db/model/public.rs` | Public DB model — port forward mapping |
 
