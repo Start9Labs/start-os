@@ -190,19 +190,15 @@ Pending tasks for AI agents. Remove items when completed.
   ##### View Page
 
   Displays all computed addresses for the interface (from `hostname_info`) as a flat list. For each
-  address:
-
-  - **Enable/disable toggle**: Calls `set-address-enabled` RPC endpoint to toggle the address. Reflects
-    the `enabled` field from `HostnameInfo`.
-  - **Address details**: URL, type (IPv4, IPv6, .local, domain, onion), access level (public/private),
-    gateway name.
-  - **Port forward info**: For public addresses, display the required port forward mapping (external
-    port, protocol, LAN IP target) so the user knows what to configure on their router.
-  - **Test button**: Per-address reachability test (see Section 7). The backend returns structured
-    failure data (which check failed, relevant context like expected IP, actual IP, port, etc.).
-    The frontend constructs user-facing fix messaging from the structured result.
+  address, show: URL, type (IPv4, IPv6, .local, domain, onion), access level (public/private),
+  gateway name, SSL indicator (especially relevant for onion addresses which may have both SSL and
+  non-SSL entries), enable/disable state, port forward info for public addresses, and a test button
+  for reachability (see Section 7).
 
   No gateway-level toggles. The old `gateways.component.ts` toggle UI is removed.
+
+  **Note**: Exact UI element placement (where toggles, buttons, info badges go) is sensitive.
+  Prompt the user for specific placement decisions during implementation.
 
   ##### Manage Page
 
@@ -225,7 +221,7 @@ Pending tasks for AI agents. Remove items when completed.
   | `web/projects/ui/src/app/routes/portal/components/interfaces/` | Overhaul: split into view/manage |
   | `web/projects/ui/src/app/routes/portal/components/interfaces/gateways.component.ts` | Remove (replaced by per-address toggles on View page) |
   | `web/projects/ui/src/app/routes/portal/components/interfaces/interface.service.ts` | Update `MappedServiceInterface` to use `enabled` field from `HostnameInfo` |
-  | `web/projects/ui/src/app/routes/portal/components/interfaces/addresses/` | Refactor for View page with enable/disable toggles and test buttons |
+  | `web/projects/ui/src/app/routes/portal/components/interfaces/addresses/` | Refactor for View page with overflow menu (enable/disable) and test buttons |
   | `web/projects/ui/src/app/routes/portal/routes/services/services.routes.ts` | Add routes for view/manage sub-pages |
   | `web/projects/ui/src/app/routes/portal/routes/system/system.routes.ts` | Add routes for view/manage sub-pages |
 
