@@ -13,10 +13,6 @@ export const ROUTES: Routes = [
     path: 'os',
     loadComponent: () => import('./routes/os.component'),
   },
-  {
-    path: 'tor',
-    loadComponent: () => import('./routes/tor.component'),
-  },
 ]
 
 export default ROUTES

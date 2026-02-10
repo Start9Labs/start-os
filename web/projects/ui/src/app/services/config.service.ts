@@ -32,7 +32,6 @@ export class ConfigService {
   private getAccessType = utils.once(() => {
     if (useMocks) return mocks.maskAs
     if (this.hostname === 'localhost') return 'localhost'
-    if (this.hostname.endsWith('.onion')) return 'tor'
     if (this.hostname.endsWith('.local')) return 'mdns'
     let ip = null
     try {
@@ -51,7 +50,7 @@ export class ConfigService {
   }
 
   isLanHttp(): boolean {
-    return !this.isHttps() && !['localhost', 'tor'].includes(this.accessType)
+    return !this.isHttps() && this.accessType !== 'localhost'
   }
 
   isHttps(): boolean {

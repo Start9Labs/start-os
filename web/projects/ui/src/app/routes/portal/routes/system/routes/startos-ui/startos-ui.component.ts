@@ -100,7 +100,6 @@ export default class StartOsUiComponent {
             : !binding?.net.privateDisabled.includes(g.id)) ?? false,
         ...g,
       })),
-      torDomains: network.host.onions,
       publicDomains: getPublicDomains(network.host.publicDomains, gateways),
       privateDomains: network.host.privateDomains,
       addSsl: true,

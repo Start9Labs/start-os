@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
-use imbl::{OrdMap, vector};
+use imbl::vector;
 use imbl_value::InternedString;
 use ipnet::IpNet;
 use tokio::sync::Mutex;
@@ -19,24 +19,22 @@ use crate::net::dns::DnsController;
 use crate::net::forward::{InterfacePortForwardController, START9_BRIDGE_IFACE, add_iptables_rule};
 use crate::net::gateway::{
     AndFilter, DynInterfaceFilter, IdFilter, InterfaceFilter, NetworkInterfaceController, OrFilter,
-    PublicFilter, SecureFilter, TypeFilter,
+    PublicFilter, SecureFilter,
 };
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions};
 use crate::net::host::{Host, Hosts, host_for};
-use crate::net::service_interface::{GatewayInfo, HostnameInfo, IpHostname, OnionHostname};
+use crate::net::service_interface::{GatewayInfo, HostnameInfo, IpHostname};
 use crate::net::socks::SocksController;
-use crate::net::tor::{OnionAddress, TorController, TorSecretKey};
 use crate::net::utils::ipv6_is_local;
 use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
 use crate::prelude::*;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::util::serde::MaybeUtf8String;
-use crate::{GatewayId, HOST_IP, HostId, OptionExt, PackageId};
+use crate::{HOST_IP, HostId, OptionExt, PackageId};
 
 pub struct NetController {
     pub(crate) db: TypedPatchDb<Database>,
-    pub(super) tor: TorController,
     pub(super) vhost: VHostController,
     pub(super) tls_client_config: Arc<TlsClientConfig>,
     pub(crate) net_iface: Arc<NetworkInterfaceController>,
@@ -54,8 +52,7 @@ impl NetController {
         socks_listen: SocketAddr,
     ) -> Result<Self, Error> {
         let net_iface = Arc::new(NetworkInterfaceController::new(db.clone()));
-        let tor = TorController::new()?;
-        let socks = SocksController::new(socks_listen, tor.clone())?;
+        let socks = SocksController::new(socks_listen)?;
         let crypto_provider = Arc::new(tokio_rustls::rustls::crypto::ring::default_provider());
         let tls_client_config = Arc::new(crate::net::tls::client_config(
             crypto_provider.clone(),
@@ -87,7 +84,6 @@ impl NetController {
         .await?;
         Ok(Self {
             db: db.clone(),
-            tor,
             vhost: VHostController::new(db.clone(), net_iface.clone(), crypto_provider),
             tls_client_config,
             dns: DnsController::init(db, &net_iface.watcher).await?,
@@ -168,7 +164,6 @@ struct HostBinds {
     forwards: BTreeMap<u16, (SocketAddrV4, DynInterfaceFilter, Arc<()>)>,
     vhosts: BTreeMap<(Option<InternedString>, u16), (ProxyTarget, Arc<()>)>,
     private_dns: BTreeMap<InternedString, Arc<()>>,
-    tor: BTreeMap<OnionAddress, (OrdMap<u16, SocketAddr>, Vec<Arc<()>>)>,
 }
 
 pub struct NetServiceData {
@@ -260,8 +255,6 @@ impl NetServiceData {
         let mut forwards: BTreeMap<u16, (SocketAddrV4, DynInterfaceFilter)> = BTreeMap::new();
         let mut vhosts: BTreeMap<(Option<InternedString>, u16), ProxyTarget> = BTreeMap::new();
         let mut private_dns: BTreeSet<InternedString> = BTreeSet::new();
-        let mut tor: BTreeMap<OnionAddress, (TorSecretKey, OrdMap<u16, SocketAddr>)> =
-            BTreeMap::new();
         let mut hostname_info: BTreeMap<u16, Vec<HostnameInfo>> = BTreeMap::new();
         let binds = self.binds.entry(id.clone()).or_default();
 
@@ -308,29 +301,6 @@ impl NetServiceData {
                     }
                     for address in host.addresses() {
                         match address {
-                            HostAddress::Onion { address } => {
-                                let hostname = InternedString::from_display(&address);
-                                if hostnames.insert(hostname.clone()) {
-                                    vhosts.insert(
-                                        (Some(hostname), external),
-                                        ProxyTarget {
-                                            filter: OrFilter(
-                                                TypeFilter(NetworkInterfaceType::Loopback),
-                                                IdFilter(GatewayId::from(InternedString::from(
-                                                    START9_BRIDGE_IFACE,
-                                                ))),
-                                            )
-                                            .into_dyn(),
-                                            acme: None,
-                                            addr,
-                                            add_x_forwarded_headers: ssl.add_x_forwarded_headers,
-                                            connect_ssl: connect_ssl
-                                                .clone()
-                                                .map(|_| ctrl.tls_client_config.clone()),
-                                        },
-                                    ); // TODO: wrap onion ssl stream directly in tor ctrl
-                                }
-                            }
                             HostAddress::Domain {
                                 address,
                                 public,
@@ -615,66 +585,6 @@ impl NetServiceData {
             }
         }
 
-        struct TorHostnamePorts {
-            non_ssl: Option<u16>,
-            ssl: Option<u16>,
-        }
-        let mut tor_hostname_ports = BTreeMap::<u16, TorHostnamePorts>::new();
-        let mut tor_binds = OrdMap::<u16, SocketAddr>::new();
-        for (internal, info) in &host.bindings {
-            if !info.enabled {
-                continue;
-            }
-            tor_binds.insert(
-                info.options.preferred_external_port,
-                SocketAddr::from((self.ip, *internal)),
-            );
-            if let (Some(ssl), Some(ssl_internal)) =
-                (&info.options.add_ssl, info.net.assigned_ssl_port)
-            {
-                tor_binds.insert(
-                    ssl.preferred_external_port,
-                    SocketAddr::from(([127, 0, 0, 1], ssl_internal)),
-                );
-                tor_hostname_ports.insert(
-                    *internal,
-                    TorHostnamePorts {
-                        non_ssl: Some(info.options.preferred_external_port)
-                            .filter(|p| *p != ssl.preferred_external_port),
-                        ssl: Some(ssl.preferred_external_port),
-                    },
-                );
-            } else {
-                tor_hostname_ports.insert(
-                    *internal,
-                    TorHostnamePorts {
-                        non_ssl: Some(info.options.preferred_external_port),
-                        ssl: None,
-                    },
-                );
-            }
-        }
-
-        for tor_addr in host.onions.iter() {
-            let key = peek
-                .as_private()
-                .as_key_store()
-                .as_onion()
-                .get_key(tor_addr)?;
-            tor.insert(key.onion_address(), (key, tor_binds.clone()));
-            for (internal, ports) in &tor_hostname_ports {
-                let mut bind_hostname_info = hostname_info.remove(internal).unwrap_or_default();
-                bind_hostname_info.push(HostnameInfo::Onion {
-                    hostname: OnionHostname {
-                        value: InternedString::from_display(tor_addr),
-                        port: ports.non_ssl,
-                        ssl_port: ports.ssl,
-                    },
-                });
-                hostname_info.insert(*internal, bind_hostname_info);
-            }
-        }
-
         let all = binds
             .forwards
             .keys()
@@ -763,48 +673,9 @@ impl NetServiceData {
         }
         ctrl.dns.gc_private_domains(&rm)?;
 
-        let all = binds
-            .tor
-            .keys()
-            .chain(tor.keys())
-            .cloned()
-            .collect::<BTreeSet<_>>();
-        for onion in all {
-            let mut prev = binds.tor.remove(&onion);
-            if let Some((key, tor_binds)) = tor.remove(&onion).filter(|(_, b)| !b.is_empty()) {
-                prev = prev.filter(|(b, _)| b == &tor_binds);
-                binds.tor.insert(
-                    onion,
-                    if let Some(prev) = prev {
-                        prev
-                    } else {
-                        let service = ctrl.tor.service(key)?;
-                        let rcs = service.proxy_all(tor_binds.iter().map(|(k, v)| (*k, *v)));
-                        (tor_binds, rcs)
-                    },
-                );
-            } else {
-                if let Some((_, rc)) = prev {
-                    drop(rc);
-                    ctrl.tor.gc(Some(onion)).await?;
-                }
-            }
-        }
-
-        let res = ctrl
-            .db
-            .mutate(|db| {
-                host_for(db, self.id.as_ref(), &id)?
-                    .as_hostname_info_mut()
-                    .ser(&hostname_info)
-            })
-            .await;
-        res.result?;
         if let Some(pkg_id) = self.id.as_ref() {
-            if res.revision.is_some() {
-                if let Some(cbs) = ctrl.callbacks.get_host_info(&(pkg_id.clone(), id)) {
-                    cbs.call(vector![]).await?;
-                }
+            if let Some(cbs) = ctrl.callbacks.get_host_info(&(pkg_id.clone(), id)) {
+                cbs.call(vector![]).await?;
             }
         }
         Ok(())

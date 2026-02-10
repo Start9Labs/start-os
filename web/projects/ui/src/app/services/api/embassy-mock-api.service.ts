@@ -281,17 +281,6 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async getTorLogs(params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {
-    await pauseFor(2000)
-    const entries = this.randomLogs(params.limit)
-
-    return {
-      entries,
-      startCursor: 'start-cursor',
-      endCursor: 'end-cursor',
-    }
-  }
-
   async getKernelLogs(
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes> {
@@ -306,16 +295,6 @@ export class MockApiService extends ApiService {
   }
 
   async followServerLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
-    await pauseFor(2000)
-    return {
-      startCursor: 'start-cursor',
-      guid: 'logs-guid',
-    }
-  }
-
-  async followTorLogs(
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes> {
     await pauseFor(2000)
@@ -501,11 +480,6 @@ export class MockApiService extends ApiService {
   async queryDns(params: RR.QueryDnsReq): Promise<RR.QueryDnsRes> {
     await pauseFor(2000)
 
-    return null
-  }
-
-  async resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes> {
-    await pauseFor(2000)
     return null
   }
 
@@ -1374,16 +1348,6 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async addTorKey(params: RR.AddTorKeyReq): Promise<RR.AddTorKeyRes> {
-    await pauseFor(2000)
-    return 'vanityabcdefghijklmnop.onion'
-  }
-
-  async generateTorKey(params: RR.GenerateTorKeyReq): Promise<RR.AddTorKeyRes> {
-    await pauseFor(2000)
-    return 'abcdefghijklmnopqrstuv.onion'
-  }
-
   async serverBindingToggleGateway(
     params: RR.ServerBindingToggleGatewayReq,
   ): Promise<RR.ServerBindingToggleGatewayRes> {
@@ -1394,53 +1358,6 @@ export class MockApiService extends ApiService {
         op: PatchOp.REPLACE,
         path: `/serverInfo/network/host/bindings/${params.internalPort}/net/publicEnabled`,
         value: params.enabled ? [params.gateway] : [],
-      },
-    ]
-    this.mockRevision(patch)
-
-    return null
-  }
-
-  async serverAddOnion(params: RR.ServerAddOnionReq): Promise<RR.AddOnionRes> {
-    await pauseFor(2000)
-
-    const patch: Operation<any>[] = [
-      {
-        op: PatchOp.ADD,
-        path: `/serverInfo/host/onions/0`,
-        value: params.onion,
-      },
-      {
-        op: PatchOp.ADD,
-        path: `/serverInfo/host/hostnameInfo/80/0`,
-        value: {
-          kind: 'onion',
-          hostname: {
-            port: 80,
-            sslPort: 443,
-            value: params.onion,
-          },
-        },
-      },
-    ]
-    this.mockRevision(patch)
-
-    return null
-  }
-
-  async serverRemoveOnion(
-    params: RR.ServerRemoveOnionReq,
-  ): Promise<RR.RemoveOnionRes> {
-    await pauseFor(2000)
-
-    const patch: RemoveOperation[] = [
-      {
-        op: PatchOp.REMOVE,
-        path: `/serverInfo/host/onions/0`,
-      },
-      {
-        op: PatchOp.REMOVE,
-        path: `/serverInfo/host/hostnameInfo/80/-1`,
       },
     ]
     this.mockRevision(patch)
@@ -1567,53 +1484,6 @@ export class MockApiService extends ApiService {
         op: PatchOp.REPLACE,
         path: `/packageData/${params.package}/hosts/${params.host}/bindings/${params.internalPort}/net/privateDisabled`,
         value: params.enabled ? [] : [params.gateway],
-      },
-    ]
-    this.mockRevision(patch)
-
-    return null
-  }
-
-  async pkgAddOnion(params: RR.PkgAddOnionReq): Promise<RR.AddOnionRes> {
-    await pauseFor(2000)
-
-    const patch: Operation<any>[] = [
-      {
-        op: PatchOp.ADD,
-        path: `/packageData/${params.package}/hosts/${params.host}/onions/0`,
-        value: params.onion,
-      },
-      {
-        op: PatchOp.ADD,
-        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
-        value: {
-          kind: 'onion',
-          hostname: {
-            port: 80,
-            sslPort: 443,
-            value: params.onion,
-          },
-        },
-      },
-    ]
-    this.mockRevision(patch)
-
-    return null
-  }
-
-  async pkgRemoveOnion(
-    params: RR.PkgRemoveOnionReq,
-  ): Promise<RR.RemoveOnionRes> {
-    await pauseFor(2000)
-
-    const patch: RemoveOperation[] = [
-      {
-        op: PatchOp.REMOVE,
-        path: `/packageData/${params.package}/hosts/${params.host}/onions/0`,
-      },
-      {
-        op: PatchOp.REMOVE,
-        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
       },
     ]
     this.mockRevision(patch)

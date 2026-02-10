@@ -2138,7 +2138,6 @@ export namespace Mock {
         },
         publicDomains: {},
         privateDomains: [],
-        onions: [],
         hostnameInfo: {
           80: [
             {
@@ -2209,14 +2208,6 @@ export namespace Mock {
                 sslPort: 1234,
               },
             },
-            {
-              kind: 'onion',
-              hostname: {
-                value: 'bitcoin-p2p.onion',
-                port: 80,
-                sslPort: 443,
-              },
-            },
           ],
         },
       },
@@ -2239,7 +2230,6 @@ export namespace Mock {
         },
         publicDomains: {},
         privateDomains: [],
-        onions: [],
         hostnameInfo: {
           8332: [],
         },
@@ -2263,7 +2253,6 @@ export namespace Mock {
         },
         publicDomains: {},
         privateDomains: [],
-        onions: [],
         hostnameInfo: {
           8333: [],
         },

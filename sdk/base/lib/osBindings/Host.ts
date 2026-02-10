@@ -5,7 +5,6 @@ import type { PublicDomainConfig } from './PublicDomainConfig'
 
 export type Host = {
   bindings: { [key: number]: BindInfo }
-  onions: string[]
   publicDomains: { [key: string]: PublicDomainConfig }
   privateDomains: Array<string>
   /**

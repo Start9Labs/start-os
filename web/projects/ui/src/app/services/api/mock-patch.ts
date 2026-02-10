@@ -54,7 +54,6 @@ export const mockPatchData: DataModel = {
         },
         publicDomains: {},
         privateDomains: [],
-        onions: ['myveryownspecialtoraddress'],
         hostnameInfo: {
           80: [
             {
@@ -122,14 +121,6 @@ export const mockPatchData: DataModel = {
                 value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
                 scopeId: 3,
                 port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'onion',
-              hostname: {
-                value: 'myveryownspecialtoraddress.onion',
-                port: 80,
                 sslPort: 443,
               },
             },
@@ -524,7 +515,6 @@ export const mockPatchData: DataModel = {
           },
           publicDomains: {},
           privateDomains: [],
-          onions: [],
           hostnameInfo: {
             80: [
               {
@@ -595,14 +585,6 @@ export const mockPatchData: DataModel = {
                   sslPort: 1234,
                 },
               },
-              {
-                kind: 'onion',
-                hostname: {
-                  value: 'bitcoin-p2p.onion',
-                  port: 80,
-                  sslPort: 443,
-                },
-              },
             ],
           },
         },
@@ -625,7 +607,6 @@ export const mockPatchData: DataModel = {
           },
           publicDomains: {},
           privateDomains: [],
-          onions: [],
           hostnameInfo: {
             8332: [],
           },
@@ -649,7 +630,6 @@ export const mockPatchData: DataModel = {
           },
           publicDomains: {},
           privateDomains: [],
-          onions: [],
           hostnameInfo: {
             8333: [],
           },

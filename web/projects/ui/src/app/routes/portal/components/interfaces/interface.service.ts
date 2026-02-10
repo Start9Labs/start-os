@@ -27,14 +27,6 @@ function cmpWithRankedPredicates<T extends AddressWithInfo>(
   return 0
 }
 
-type TorAddress = AddressWithInfo & { info: { kind: 'onion' } }
-function filterTor(a: AddressWithInfo): a is TorAddress {
-  return a.info.kind === 'onion'
-}
-function cmpTor(a: TorAddress, b: TorAddress): -1 | 0 | 1 {
-  return cmpWithRankedPredicates(a, b, [x => !x.showSsl])
-}
-
 type LanAddress = AddressWithInfo & { info: { kind: 'ip'; public: false } }
 function filterLan(a: AddressWithInfo): a is LanAddress {
   return a.info.kind === 'ip' && !a.info.public
@@ -171,7 +163,6 @@ export class InterfaceService {
       },
     )
 
-    const torAddrs = allAddressesWithInfo.filter(filterTor).sort(cmpTor)
     const lanAddrs = allAddressesWithInfo
       .filter(filterLan)
       .sort((a, b) => cmpLan(host, a, b))
@@ -188,7 +179,6 @@ export class InterfaceService {
         clearnetAddrs[0],
       lanAddrs[0],
       vpnAddrs[0],
-      torAddrs[0],
     ]
       .filter(a => !!a)
       .reduce((acc, x) => {
@@ -214,9 +204,8 @@ export class InterfaceService {
       kind: 'domain',
       visibility: 'public',
     })
-    const tor = addresses.filter({ kind: 'onion' })
     const wanIp = addresses.filter({ kind: 'ipv4', visibility: 'public' })
-    const bestPublic = [publicDomains, tor, wanIp].flatMap(h =>
+    const bestPublic = [publicDomains, wanIp].flatMap(h =>
       h.format('urlstring'),
     )[0]
     const privateDomains = addresses.filter({
@@ -253,9 +242,6 @@ export class InterfaceService {
           .filter({ kind: 'localhost' })
           .format('urlstring')[0]
         onLan = true
-        break
-      case 'tor':
-        matching = tor.format('urlstring')[0]
         break
       case 'mdns':
         matching = mdns.format('urlstring')[0]
@@ -302,31 +288,7 @@ export class InterfaceService {
       "Requires trusting your server's Root CA",
     )
 
-    // ** Tor **
-    if (info.kind === 'onion') {
-      access = null
-      gatewayName = null
-      type = 'Tor'
-      bullets = [
-        this.i18n.transform('Connections can be slow or unreliable at times'),
-        this.i18n.transform(
-          'Public if you share the address publicly, otherwise private',
-        ),
-        this.i18n.transform('Requires using a Tor-enabled device or browser'),
-      ]
-      // Tor (SSL)
-      if (showSsl) {
-        bullets = [rootCaRequired, ...bullets]
-        // Tor (NON-SSL)
-      } else {
-        bullets.unshift(
-          this.i18n.transform(
-            'Ideal for anonymous, censorship-resistant hosting and remote access',
-          ),
-        )
-      }
-      // ** Not Tor **
-    } else {
+    {
       const port = info.hostname.sslPort || info.hostname.port
       gatewayName = info.gateway.name
 
@@ -479,7 +441,6 @@ export class InterfaceService {
 
 export type MappedServiceInterface = T.ServiceInterface & {
   gateways: InterfaceGateway[]
-  torDomains: string[]
   publicDomains: PublicDomain[]
   privateDomains: string[]
   addresses: {

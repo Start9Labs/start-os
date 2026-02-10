@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { MappedServiceInterface } from './interface.service'
 import { InterfaceGatewaysComponent } from './gateways.component'
-import { InterfaceTorDomainsComponent } from './tor-domains.component'
 import { PublicDomainsComponent } from './public-domains/pd.component'
 import { InterfacePrivateDomainsComponent } from './private-domains.component'
 import { InterfaceAddressesComponent } from './addresses/addresses.component'
@@ -16,7 +15,6 @@ import { InterfaceAddressesComponent } from './addresses/addresses.component'
         [publicDomains]="value()?.publicDomains"
         [addSsl]="value()?.addSsl || false"
       ></section>
-      <section [torDomains]="value()?.torDomains"></section>
       <section [privateDomains]="value()?.privateDomains"></section>
     </div>
     <hr [style.width.rem]="10" />
@@ -52,7 +50,6 @@ import { InterfaceAddressesComponent } from './addresses/addresses.component'
   providers: [tuiButtonOptionsProvider({ size: 'xs' })],
   imports: [
     InterfaceGatewaysComponent,
-    InterfaceTorDomainsComponent,
     PublicDomainsComponent,
     InterfacePrivateDomainsComponent,
     InterfaceAddressesComponent,

@@ -20,7 +20,6 @@ export const getHostname = (url: string): Hostname | null => {
 }
 
 type FilterKinds =
-  | 'onion'
   | 'mdns'
   | 'domain'
   | 'ip'
@@ -42,27 +41,25 @@ type VisibilityFilter<V extends 'public' | 'private'> = V extends 'public'
         | (HostnameInfo & { public: false })
         | VisibilityFilter<Exclude<V, 'private'>>
     : never
-type KindFilter<K extends FilterKinds> = K extends 'onion'
-  ? (HostnameInfo & { kind: 'onion' }) | KindFilter<Exclude<K, 'onion'>>
-  : K extends 'mdns'
+type KindFilter<K extends FilterKinds> = K extends 'mdns'
+  ?
+      | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'local' } })
+      | KindFilter<Exclude<K, 'mdns'>>
+  : K extends 'domain'
     ?
-        | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'local' } })
-        | KindFilter<Exclude<K, 'mdns'>>
-    : K extends 'domain'
+        | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'domain' } })
+        | KindFilter<Exclude<K, 'domain'>>
+    : K extends 'ipv4'
       ?
-          | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'domain' } })
-          | KindFilter<Exclude<K, 'domain'>>
-      : K extends 'ipv4'
+          | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'ipv4' } })
+          | KindFilter<Exclude<K, 'ipv4'>>
+      : K extends 'ipv6'
         ?
-            | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'ipv4' } })
-            | KindFilter<Exclude<K, 'ipv4'>>
-        : K extends 'ipv6'
-          ?
-              | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'ipv6' } })
-              | KindFilter<Exclude<K, 'ipv6'>>
-          : K extends 'ip'
-            ? KindFilter<Exclude<K, 'ip'> | 'ipv4' | 'ipv6'>
-            : never
+            | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'ipv6' } })
+            | KindFilter<Exclude<K, 'ipv6'>>
+        : K extends 'ip'
+          ? KindFilter<Exclude<K, 'ip'> | 'ipv4' | 'ipv6'>
+          : never
 
 type FilterReturnTy<F extends Filter> = F extends {
   visibility: infer V extends 'public' | 'private'
@@ -90,10 +87,6 @@ const nonLocalFilter = {
 const publicFilter = {
   visibility: 'public',
 } as const
-const onionFilter = {
-  kind: 'onion',
-} as const
-
 type Formats = 'hostname-info' | 'urlstring' | 'url'
 type FormatReturnTy<
   F extends Filter,
@@ -124,7 +117,6 @@ export type Filled<F extends Filter = {}> = {
 
   nonLocal: Filled<typeof nonLocalFilter & Filter>
   public: Filled<typeof publicFilter & Filter>
-  onion: Filled<typeof onionFilter & Filter>
 }
 export type FilledAddressInfo = AddressInfo & Filled
 export type ServiceInterfaceFilled = {
@@ -162,9 +154,7 @@ export const addressHostToUrl = (
       scheme in knownProtocols &&
       port === knownProtocols[scheme as keyof typeof knownProtocols].defaultPort
     let hostname
-    if (host.kind === 'onion') {
-      hostname = host.hostname.value
-    } else if (host.kind === 'ip') {
+    if (host.kind === 'ip') {
       if (host.hostname.kind === 'domain') {
         hostname = host.hostname.value
       } else if (host.hostname.kind === 'ipv6') {
@@ -201,13 +191,9 @@ function filterRec(
     hostnames = hostnames.filter((h) => invert !== pred(h))
   }
   if (filter.visibility === 'public')
-    hostnames = hostnames.filter(
-      (h) => invert !== (h.kind === 'onion' || h.public),
-    )
+    hostnames = hostnames.filter((h) => invert !== h.public)
   if (filter.visibility === 'private')
-    hostnames = hostnames.filter(
-      (h) => invert !== (h.kind !== 'onion' && !h.public),
-    )
+    hostnames = hostnames.filter((h) => invert !== !h.public)
   if (filter.kind) {
     const kind = new Set(
       Array.isArray(filter.kind) ? filter.kind : [filter.kind],
@@ -219,10 +205,7 @@ function filterRec(
     hostnames = hostnames.filter(
       (h) =>
         invert !==
-        ((kind.has('onion') && h.kind === 'onion') ||
-          (kind.has('mdns') &&
-            h.kind === 'ip' &&
-            h.hostname.kind === 'local') ||
+        ((kind.has('mdns') && h.kind === 'ip' && h.hostname.kind === 'local') ||
           (kind.has('domain') &&
             h.kind === 'ip' &&
             h.hostname.kind === 'domain') ||
@@ -266,11 +249,6 @@ export const filledAddress = (
         filterRec(hostnames, publicFilter, false),
       ),
     )
-    const getOnion = once(() =>
-      filledAddressFromHostnames<typeof onionFilter & F>(
-        filterRec(hostnames, onionFilter, false),
-      ),
-    )
     return {
       ...addressInfo,
       hostnames,
@@ -293,9 +271,6 @@ export const filledAddress = (
       },
       get public(): Filled<typeof publicFilter & F> {
         return getPublic()
-      },
-      get onion(): Filled<typeof onionFilter & F> {
-        return getOnion()
       },
     }
   }

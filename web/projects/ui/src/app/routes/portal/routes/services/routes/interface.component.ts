@@ -139,7 +139,6 @@ export default class ServiceInterfaceRoute {
               : !binding?.net.privateDisabled.includes(g.id)) ?? false,
           ...g,
         })) || [],
-      torDomains: host.onions,
       publicDomains: getPublicDomains(host.publicDomains, gateways),
       privateDomains: host.privateDomains,
       addSsl: !!binding?.options.addSsl,

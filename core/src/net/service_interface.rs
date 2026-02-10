@@ -17,15 +17,11 @@ pub enum HostnameInfo {
         public: bool,
         hostname: IpHostname,
     },
-    Onion {
-        hostname: OnionHostname,
-    },
 }
 impl HostnameInfo {
     pub fn to_san_hostname(&self) -> InternedString {
         match self {
             Self::Ip { hostname, .. } => hostname.to_san_hostname(),
-            Self::Onion { hostname } => hostname.to_san_hostname(),
         }
     }
 }
@@ -37,21 +33,6 @@ pub struct GatewayInfo {
     pub id: GatewayId,
     pub name: InternedString,
     pub public: bool,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct OnionHostname {
-    #[ts(type = "string")]
-    pub value: InternedString,
-    pub port: Option<u16>,
-    pub ssl_port: Option<u16>,
-}
-impl OnionHostname {
-    pub fn to_san_hostname(&self) -> InternedString {
-        self.value.clone()
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

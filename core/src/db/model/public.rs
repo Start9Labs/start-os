@@ -89,7 +89,6 @@ impl Public {
                         )]
                         .into_iter()
                         .collect(),
-                        onions: account.tor_keys.iter().map(|k| k.onion_address()).collect(),
                         public_domains: BTreeMap::new(),
                         private_domains: BTreeSet::new(),
                         hostname_info: BTreeMap::new(),
