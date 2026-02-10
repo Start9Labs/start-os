@@ -9,20 +9,14 @@ use crate::{GatewayId, HostId, ServiceInterfaceId};
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-#[serde(rename_all_fields = "camelCase")]
-#[serde(tag = "kind")]
-pub enum HostnameInfo {
-    Ip {
-        gateway: GatewayInfo,
-        public: bool,
-        hostname: IpHostname,
-    },
+pub struct HostnameInfo {
+    pub gateway: GatewayInfo,
+    pub public: bool,
+    pub hostname: IpHostname,
 }
 impl HostnameInfo {
     pub fn to_san_hostname(&self) -> InternedString {
-        match self {
-            Self::Ip { hostname, .. } => hostname.to_san_hostname(),
-        }
+        self.hostname.to_san_hostname()
     }
 }
 

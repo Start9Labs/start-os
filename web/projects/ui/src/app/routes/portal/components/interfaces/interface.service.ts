@@ -27,9 +27,9 @@ function cmpWithRankedPredicates<T extends AddressWithInfo>(
   return 0
 }
 
-type LanAddress = AddressWithInfo & { info: { kind: 'ip'; public: false } }
+type LanAddress = AddressWithInfo & { info: { public: false } }
 function filterLan(a: AddressWithInfo): a is LanAddress {
-  return a.info.kind === 'ip' && !a.info.public
+  return !a.info.public
 }
 function cmpLan(host: T.Host, a: LanAddress, b: LanAddress): -1 | 0 | 1 {
   return cmpWithRankedPredicates(a, b, [
@@ -45,15 +45,12 @@ function cmpLan(host: T.Host, a: LanAddress, b: LanAddress): -1 | 0 | 1 {
 
 type VpnAddress = AddressWithInfo & {
   info: {
-    kind: 'ip'
     public: false
     hostname: { kind: 'ipv4' | 'ipv6' | 'domain' }
   }
 }
 function filterVpn(a: AddressWithInfo): a is VpnAddress {
-  return (
-    a.info.kind === 'ip' && !a.info.public && a.info.hostname.kind !== 'local'
-  )
+  return !a.info.public && a.info.hostname.kind !== 'local'
 }
 function cmpVpn(host: T.Host, a: VpnAddress, b: VpnAddress): -1 | 0 | 1 {
   return cmpWithRankedPredicates(a, b, [
@@ -68,13 +65,12 @@ function cmpVpn(host: T.Host, a: VpnAddress, b: VpnAddress): -1 | 0 | 1 {
 
 type ClearnetAddress = AddressWithInfo & {
   info: {
-    kind: 'ip'
     public: true
     hostname: { kind: 'ipv4' | 'ipv6' | 'domain' }
   }
 }
 function filterClearnet(a: AddressWithInfo): a is ClearnetAddress {
-  return a.info.kind === 'ip' && a.info.public
+  return a.info.public
 }
 function cmpClearnet(
   host: T.Host,
@@ -134,10 +130,7 @@ export class InterfaceService {
           h,
         )
         const info = h
-        const gateway =
-          h.kind === 'ip'
-            ? gateways.find(g => h.gateway.id === g.id)
-            : undefined
+        const gateway = gateways.find(g => h.gateway.id === g.id)
         const res = []
         if (url) {
           res.push({
@@ -266,10 +259,9 @@ export class InterfaceService {
         h =>
           this.config.accessType === 'localhost' ||
           !(
-            h.kind === 'ip' &&
-            ((h.hostname.kind === 'ipv6' &&
+            (h.hostname.kind === 'ipv6' &&
               utils.IPV6_LINK_LOCAL.contains(h.hostname.value)) ||
-              h.gateway.id === 'lo')
+              h.gateway.id === 'lo'
           ),
       ) || []
     )

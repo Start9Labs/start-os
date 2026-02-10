@@ -3,7 +3,6 @@ import type { GatewayInfo } from './GatewayInfo'
 import type { IpHostname } from './IpHostname'
 
 export type HostnameInfo = {
-  kind: 'ip'
   gateway: GatewayInfo
   public: boolean
   hostname: IpHostname

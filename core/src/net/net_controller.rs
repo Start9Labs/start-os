@@ -481,7 +481,7 @@ impl NetServiceData {
                             i.device_type != Some(NetworkInterfaceType::Wireguard)
                         })
                     {
-                        bind_hostname_info.push(HostnameInfo::Ip {
+                        bind_hostname_info.push(HostnameInfo {
                             gateway: gateway.clone(),
                             public: false,
                             hostname: IpHostname::Local {
@@ -514,7 +514,7 @@ impl NetServiceData {
                                     .as_ref()
                                     .map_or(false, |ssl| ssl.preferred_external_port == 443)
                                 {
-                                    bind_hostname_info.push(HostnameInfo::Ip {
+                                    bind_hostname_info.push(HostnameInfo {
                                         gateway: gateway.clone(),
                                         public,
                                         hostname: IpHostname::Domain {
@@ -524,7 +524,7 @@ impl NetServiceData {
                                         },
                                     });
                                 } else {
-                                    bind_hostname_info.push(HostnameInfo::Ip {
+                                    bind_hostname_info.push(HostnameInfo {
                                         gateway: gateway.clone(),
                                         public,
                                         hostname: IpHostname::Domain {
@@ -540,7 +540,7 @@ impl NetServiceData {
                     if let Some(ip_info) = &info.ip_info {
                         let public = info.public();
                         if let Some(wan_ip) = ip_info.wan_ip {
-                            bind_hostname_info.push(HostnameInfo::Ip {
+                            bind_hostname_info.push(HostnameInfo {
                                 gateway: gateway.clone(),
                                 public: true,
                                 hostname: IpHostname::Ipv4 {
@@ -554,7 +554,7 @@ impl NetServiceData {
                             match ipnet {
                                 IpNet::V4(net) => {
                                     if !public {
-                                        bind_hostname_info.push(HostnameInfo::Ip {
+                                        bind_hostname_info.push(HostnameInfo {
                                             gateway: gateway.clone(),
                                             public,
                                             hostname: IpHostname::Ipv4 {
@@ -566,7 +566,7 @@ impl NetServiceData {
                                     }
                                 }
                                 IpNet::V6(net) => {
-                                    bind_hostname_info.push(HostnameInfo::Ip {
+                                    bind_hostname_info.push(HostnameInfo {
                                         gateway: gateway.clone(),
                                         public: public && !ipv6_is_local(net.addr()),
                                         hostname: IpHostname::Ipv6 {

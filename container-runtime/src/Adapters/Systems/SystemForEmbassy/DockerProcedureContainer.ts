@@ -93,7 +93,7 @@ export class DockerProcedureContainer extends Drop {
                 )?.hostnameInfo || {},
               )
                 .flatMap((h) => h)
-                .flatMap((h) => (h.kind === "onion" ? [h.hostname.value] : [])),
+                .map((h) => h.hostname.value),
             ).values(),
           ]
           const certChain = await effects.getSslCertificate({

@@ -43,19 +43,19 @@ type VisibilityFilter<V extends 'public' | 'private'> = V extends 'public'
     : never
 type KindFilter<K extends FilterKinds> = K extends 'mdns'
   ?
-      | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'local' } })
+      | (HostnameInfo & { hostname: { kind: 'local' } })
       | KindFilter<Exclude<K, 'mdns'>>
   : K extends 'domain'
     ?
-        | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'domain' } })
+        | (HostnameInfo & { hostname: { kind: 'domain' } })
         | KindFilter<Exclude<K, 'domain'>>
     : K extends 'ipv4'
       ?
-          | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'ipv4' } })
+          | (HostnameInfo & { hostname: { kind: 'ipv4' } })
           | KindFilter<Exclude<K, 'ipv4'>>
       : K extends 'ipv6'
         ?
-            | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'ipv6' } })
+            | (HostnameInfo & { hostname: { kind: 'ipv6' } })
             | KindFilter<Exclude<K, 'ipv6'>>
         : K extends 'ip'
           ? KindFilter<Exclude<K, 'ip'> | 'ipv4' | 'ipv6'>
@@ -154,16 +154,14 @@ export const addressHostToUrl = (
       scheme in knownProtocols &&
       port === knownProtocols[scheme as keyof typeof knownProtocols].defaultPort
     let hostname
-    if (host.kind === 'ip') {
-      if (host.hostname.kind === 'domain') {
-        hostname = host.hostname.value
-      } else if (host.hostname.kind === 'ipv6') {
-        hostname = IPV6_LINK_LOCAL.contains(host.hostname.value)
-          ? `[${host.hostname.value}%${host.hostname.scopeId}]`
-          : `[${host.hostname.value}]`
-      } else {
-        hostname = host.hostname.value
-      }
+    if (host.hostname.kind === 'domain') {
+      hostname = host.hostname.value
+    } else if (host.hostname.kind === 'ipv6') {
+      hostname = IPV6_LINK_LOCAL.contains(host.hostname.value)
+        ? `[${host.hostname.value}%${host.hostname.scopeId}]`
+        : `[${host.hostname.value}]`
+    } else {
+      hostname = host.hostname.value
     }
     return `${scheme ? `${scheme}://` : ''}${
       username ? `${username}@` : ''
@@ -205,16 +203,13 @@ function filterRec(
     hostnames = hostnames.filter(
       (h) =>
         invert !==
-        ((kind.has('mdns') && h.kind === 'ip' && h.hostname.kind === 'local') ||
-          (kind.has('domain') &&
-            h.kind === 'ip' &&
-            h.hostname.kind === 'domain') ||
-          (kind.has('ipv4') && h.kind === 'ip' && h.hostname.kind === 'ipv4') ||
-          (kind.has('ipv6') && h.kind === 'ip' && h.hostname.kind === 'ipv6') ||
+        ((kind.has('mdns') && h.hostname.kind === 'local') ||
+          (kind.has('domain') && h.hostname.kind === 'domain') ||
+          (kind.has('ipv4') && h.hostname.kind === 'ipv4') ||
+          (kind.has('ipv6') && h.hostname.kind === 'ipv6') ||
           (kind.has('localhost') &&
             ['localhost', '127.0.0.1', '::1'].includes(h.hostname.value)) ||
           (kind.has('link-local') &&
-            h.kind === 'ip' &&
             h.hostname.kind === 'ipv6' &&
             IPV6_LINK_LOCAL.contains(IpAddress.parse(h.hostname.value)))),
     )

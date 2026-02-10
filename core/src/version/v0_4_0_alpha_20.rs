@@ -58,7 +58,7 @@ impl VersionT for Version {
         }
 
         // Remove onion entries from hostnameInfo in server host
-        remove_onion_hostname_info(
+        migrate_hostname_info(
             db.get_mut("public")
                 .and_then(|p| p.get_mut("serverInfo"))
                 .and_then(|s| s.get_mut("network"))
@@ -74,7 +74,7 @@ impl VersionT for Version {
             for (_, package) in packages.iter_mut() {
                 if let Some(hosts) = package.get_mut("hosts").and_then(|h| h.as_object_mut()) {
                     for (_, host) in hosts.iter_mut() {
-                        remove_onion_hostname_info(Some(host));
+                        migrate_hostname_info(Some(host));
                     }
                 }
             }
@@ -96,14 +96,21 @@ impl VersionT for Version {
     }
 }
 
-fn remove_onion_hostname_info(host: Option<&mut Value>) {
+fn migrate_hostname_info(host: Option<&mut Value>) {
     if let Some(hostname_info) = host
         .and_then(|h| h.get_mut("hostnameInfo"))
         .and_then(|h| h.as_object_mut())
     {
         for (_, infos) in hostname_info.iter_mut() {
             if let Some(arr) = infos.as_array_mut() {
+                // Remove onion entries
                 arr.retain(|info| info.get("kind").and_then(|k| k.as_str()) != Some("onion"));
+                // Strip "kind" field from remaining entries (HostnameInfo flattened from enum to struct)
+                for info in arr.iter_mut() {
+                    if let Some(obj) = info.as_object_mut() {
+                        obj.remove("kind");
+                    }
+                }
             }
         }
     }
