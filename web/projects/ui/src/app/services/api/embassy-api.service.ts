@@ -183,6 +183,14 @@ export abstract class ApiService {
 
   abstract removeTunnel(params: RR.RemoveTunnelReq): Promise<RR.RemoveTunnelRes>
 
+  abstract setDefaultOutbound(
+    params: RR.SetDefaultOutboundReq,
+  ): Promise<RR.SetDefaultOutboundRes>
+
+  abstract setServiceOutbound(
+    params: RR.SetServiceOutboundReq,
+  ): Promise<RR.SetServiceOutboundRes>
+
   // ** domains **
 
   // wifi

@@ -258,10 +258,13 @@ export namespace RR {
 
   // network
 
+  export type GatewayType = 'inbound-outbound' | 'outbound-only'
+
   export type AddTunnelReq = {
     name: string
     config: string // file contents
-    public: boolean
+    type: GatewayType
+    setAsDefaultOutbound?: boolean
   } // net.tunnel.add
   export type AddTunnelRes = {
     id: string
@@ -275,6 +278,17 @@ export namespace RR {
 
   export type RemoveTunnelReq = { id: string } // net.tunnel.remove
   export type RemoveTunnelRes = null
+
+  // Set default outbound gateway
+  export type SetDefaultOutboundReq = { gateway: string | null } // net.gateway.set-default-outbound
+  export type SetDefaultOutboundRes = null
+
+  // Set service outbound gateway
+  export type SetServiceOutboundReq = {
+    packageId: string
+    gateway: string | null
+  } // package.set-outbound-gateway
+  export type SetServiceOutboundRes = null
 
   export type InitAcmeReq = {
     provider: string

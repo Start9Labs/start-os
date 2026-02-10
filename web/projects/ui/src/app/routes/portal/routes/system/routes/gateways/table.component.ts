@@ -8,12 +8,21 @@ import { GatewayService } from 'src/app/services/gateway.service'
 @Component({
   selector: 'gateways-table',
   template: `
-    <table [appTable]="['Name', 'Type', $any('LAN IP'), $any('WAN IP'), null]">
+    <table
+      [appTable]="[
+        'Name',
+        'Connection',
+        'Type',
+        $any('WAN IP'),
+        $any('LAN IP'),
+        null,
+      ]"
+    >
       @for (gateway of gatewayService.gateways(); track $index) {
         <tr [gateway]="gateway"></tr>
       } @empty {
         <tr>
-          <td colspan="5">
+          <td colspan="7">
             <div [tuiSkeleton]="true">{{ 'Loading' | i18n }}</div>
           </td>
         </tr>

@@ -369,6 +369,18 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'net.tunnel.remove', params })
   }
 
+  async setDefaultOutbound(
+    params: RR.SetDefaultOutboundReq,
+  ): Promise<RR.SetDefaultOutboundRes> {
+    return this.rpcRequest({ method: 'net.gateway.set-default-outbound', params })
+  }
+
+  async setServiceOutbound(
+    params: RR.SetServiceOutboundReq,
+  ): Promise<RR.SetServiceOutboundRes> {
+    return this.rpcRequest({ method: 'package.set-outbound-gateway', params })
+  }
+
   // wifi
 
   async enableWifi(params: RR.EnabledWifiReq): Promise<RR.EnabledWifiRes> {
