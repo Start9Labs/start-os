@@ -11,31 +11,52 @@ StartWRT routers use **two separate passwords** set at different times:
 
 The WiFi password is a unique **12-character** string from a 68-char unambiguous charset, printed on a sticker on the bottom of the device. It provides **~73 bits of entropy**, making rainbow table attacks infeasible even with a static SSID.
 
-The admin password is user-chosen (any length/format) and stored in `/etc/shadow` on the overlay filesystem.
+The admin password is user-chosen (minimum 12 characters, any format) and stored in `/etc/shadow` on the overlay filesystem.
 
 ### Password lifecycle
 
 | Stage | WiFi password | Admin password | Other settings |
 |-------|--------------|----------------|----------------|
 | **Manufacturing** | PMK stored on eMMC | Not set | Default config |
-| **End user unboxing** | Works via sticker | User creates on first `router.local` visit | User configures |
-| **Factory reset** | Restored from eMMC | Cleared — user sets via `router.local` | Wiped (overlay gone) |
-| **Reflash / Update** | Restored from eMMC | User sets in captive portal wizard | **Preserved** |
-| **Fresh Start** | User sets new in wizard (replaces eMMC) | User sets in captive portal wizard | Wiped |
+| **End user unboxing** | Works via sticker | User creates via captive portal | User configures |
+| **Factory reset** (no microSD) | Restored from eMMC | Cleared — user sets via captive portal on reboot | Wiped (overlay gone), firmware unchanged |
+| **Reflash / Update** (microSD) | Restored from eMMC (or replaced by custom image) | User sets in wizard before reboot | **Preserved**, firmware replaced |
+| **Fresh Start** (microSD) | Restored from eMMC (or replaced by custom image) | User sets in wizard before reboot | Wiped, firmware replaced |
 
-### eMMC persistent partition
+### Storage Architecture
 
-Mounted at **`/persistent`** — a dedicated partition on the same eMMC chip, excluded from factory reset wipes.
+The BPI-F3 eMMC is partitioned for both firmware and persistent data. SPI NOR holds only the bootloader.
 
-One file — the **WPA-PSK PMK** (no plaintext, no admin credentials):
+| Storage | Contents | Purpose |
+|---------|----------|---------|
+| **SPI NOR** (4MB) | U-Boot | Bootloader — selects eMMC or microSD boot |
+| **eMMC — firmware partitions** | Kernel, SquashFS root, overlay | Main OS — factory reset wipes overlay only |
+| **eMMC — `/persistent` partition** | `wifi_pmk` (64 hex chars, PBKDF2-SHA1) | WPA2-PSK key — survives factory reset and reflash |
+| **microSD** (removable) | Bootable reflash image | Recovery / reflash (Part 3) |
 
-| File | Contents | Purpose |
-|------|----------|---------|
-| `/persistent/wifi_pmk` | 64 hex chars (PBKDF2-SHA1 output) | WPA2-PSK key for `/etc/config/wireless` |
+The `/persistent` partition is excluded from factory reset wipes. It stores one file — the **WPA-PSK PMK** (no plaintext, no admin credentials).
 
 ---
 
-## Part 1: Manufacturing Init Tool
+## Part 1: Manufacturing
+
+### Initial Firmware Flash
+
+U-Boot auto-flashes firmware from microSD to the eMMC firmware partitions at the bootloader level — no OS is booted from the microSD.
+
+```
+1. Factory worker inserts microSD containing firmware image file
+2. Powers on device
+3. U-Boot detects firmware image on microSD → writes to eMMC firmware partitions
+4. Flash complete (LED/serial confirmation)
+5. Factory worker removes microSD
+6. Device reboots from eMMC
+7. Serial dispatcher sees no /persistent/wifi_pmk → launches startwrt-cli init
+```
+
+> **Note**: This is distinct from the Part 3 reflash flow, where the microSD contains a bootable image that runs a setup wizard. Here, U-Boot copies a raw image to eMMC firmware partitions without booting it. The `/persistent` partition is untouched.
+
+### Init Tool
 
 **`startwrt-cli init`** — a local-only subcommand. Provisions WiFi only.
 
@@ -93,24 +114,37 @@ Inittab: `ttyS0::respawn:/sbin/agetty -L -l /usr/sbin/startwrt-serial ttyS0 1152
 
 ---
 
+## Captive Portal Mechanism
+
+Both first-time setup (Part 2) and reflash (Part 3) use the same two-layer mechanism:
+
+1. **DNS hijacking** — `dnsmasq` configured with `address=/#/<router IP>` makes all DNS queries resolve to the router.
+2. **Captive portal detection** — Modern OSes probe known URLs on network join. When DNS hijacking redirects these probes, the OS detects a captive portal and auto-opens a browser pointed at the router's setup page.
+
+Both scenarios use the same `StartWRT` SSID — they differ only in what the setup page does. Part 2 always uses the eMMC WiFi PMK; Part 3 resolves the PMK via precedence (baked-in first, then eMMC — see Part 3).
+
+---
+
 ## Part 2: First-Time User Setup (Unboxing / Factory Reset)
 
-After unboxing or factory reset, WiFi works immediately but no admin password is set. DNS hijacking forces setup before normal use.
+After unboxing or factory reset, WiFi works immediately but no admin password is set. A captive portal on the main network forces setup before normal use.
 
 ```
 1. User powers on router (or reboots after factory reset)
 2. Connects to WiFi "StartWRT" using sticker password
-3. No admin password → DNS hijacking active (all queries → router IP)
+3. No admin password → captive portal active (all DNS queries → router IP)
 4. OS detects captive portal → auto-opens browser with setup page
 5. GUI prompts: "Create your admin password"
-6. User creates password (any length/format) → SHA-512 crypt → /etc/shadow
-7. DNS hijacking disabled → normal browsing resumes
-8. User is logged in
+6. User creates password (minimum 12 characters)
+7. User confirms password
+8. SHA-512 crypt → /etc/shadow
+9. DNS hijacking disabled → normal browsing resumes
+10. User is logged in
 ```
 
-DNS hijacking ensures the admin password cannot be ignored — all internet access is blocked until setup is complete. If the user dismisses the captive portal popup, native apps and browsing remain broken until they open a browser and reach the setup page.
+The captive portal ensures the admin password cannot be ignored — all internet access is blocked until setup is complete. If the user dismisses the captive portal popup, native apps and browsing remain broken until they open a browser and reach the setup page.
 
-Implementation: `dnsmasq` config `address=/#/<router IP>` when no root hash in `/etc/shadow`. Removed after password is set.
+Implementation: `dnsmasq` `address=/#/<router IP>` when no root hash in `/etc/shadow`. Removed after password is set. Unlike the reflash captive portal, `max_num_sta` is not restricted — the device is already on a private network protected by the sticker password.
 
 > **Note**: After a reflash, the admin password is set in the captive portal wizard (Part 3), so this flow only applies to unboxing and factory reset.
 
@@ -122,71 +156,85 @@ Implementation: `dnsmasq` config `address=/#/<router IP>` when no root hash in `
 
 Boot from **microSD card** with StartWRT image. U-Boot prioritizes microSD.
 
+### WiFi PMK Precedence
+
+The microSD image resolves the WiFi PMK with baked-in taking priority over eMMC:
+
+```
+Baked-in PMK in image (e.g. /image/wifi_pmk)?
+├── Yes → Use baked-in PMK (custom image — user lost sticker)
+└── No  → Read /persistent/wifi_pmk from eMMC
+            ├── Found → Use eMMC PMK (standard image — sticker password)
+            └── Not found → Cannot start AP — custom image required
+```
+
+This precedence ensures a custom image user (who has lost their sticker password) can always connect.
+
 ### Captive Portal
 
-The microSD image starts a captive portal for the setup wizard:
+The microSD image starts the `StartWRT` AP using the resolved PMK with a captive portal:
 
 | Setting | Value |
 |---------|-------|
-| **SSID** | `StartWRT-Setup` |
-| **Password** | Default, documented (not printed on device) |
+| **SSID** | `StartWRT` |
+| **Password** | Resolved PMK (baked-in or eMMC — see precedence above) |
 | **Security** | WPA2-PSK |
-| `max_num_sta` | `1` (single client limit) |
-| **Timeout** | AP shuts down after inactivity; re-insert microSD to restart |
+| `max_num_sta` | `1` (single client limit during setup) |
 | **DNS** | All queries resolve to router IP |
 
-The user connects to `StartWRT-Setup`. DNS hijacking redirects all requests to the wizard. Modern OSes detect the captive portal and auto-open a browser window.
+The user connects to `StartWRT` using their sticker password (or the password they chose when building a custom image). The captive portal redirects all requests to the wizard — the OS detects this and auto-opens a browser window.
+
+> **Lost sticker password?** A separate image-building tool creates a custom microSD image with a user-chosen WiFi password baked in. The baked-in PMK is written to eMMC during flashing, permanently replacing the original sticker password.
 
 ### Detection Logic
 
-| Onboard config? | eMMC PMK? | Options |
-|:---:|:---:|---|
-| Yes | Yes | **Update** or **Fresh Start** |
-| Yes | No | **Fresh Start** only |
-| No | Yes | **Fresh Start** (WiFi auto-configured) |
-| No | No | **Fresh Start** only |
+| Onboard config? | eMMC PMK? | Standard image | Custom image (baked-in password) |
+|:---:|:---:|---|---|
+| Yes | Yes | **Update** or **Fresh Start** | **Update** or **Fresh Start** (replaces eMMC PMK) |
+| Yes | No | Cannot start AP — custom image required | **Update** or **Fresh Start** (writes PMK to eMMC) |
+| No | Yes | **Fresh Start** | **Fresh Start** (replaces eMMC PMK) |
+| No | No | Cannot start AP — custom image required | **Fresh Start** (writes PMK to eMMC) |
 
 ### Path A: Update (keep settings, new admin password)
 
 Physical access (microSD) = sufficient authorization.
 
 ```
- 1. Detect onboard disk with config + eMMC WiFi PMK
+ 1. Detect onboard disk with config + WiFi PMK (resolved via precedence)
  2. User selects "Update"
- 3. Create admin password (any length/format)
+ 3. Create admin password (minimum 12 characters)
  4. Confirm admin password
- 5. Flash new firmware (replace squashfs base)
- 6. Preserve config overlay EXCEPT /etc/shadow
- 7. Write admin hash → /etc/shadow
- 8. Restore eMMC WiFi PMK → /etc/config/wireless
- 9. "Update complete. Remove microSD and reboot."
+ 5. Backup config files (sysupgrade conffiles list)
+ 6. Flash new firmware (replace squashfs base, wipe overlay)
+ 7. Restore config files EXCEPT /etc/shadow
+ 8. Write admin hash → /etc/shadow
+ 9. If custom image: write baked-in PMK to eMMC (replaces old)
+10. Restore WiFi PMK → /etc/config/wireless
+11. "Update complete. Remove microSD and reboot."
 ```
 
-On first boot: WiFi works immediately (eMMC PMK, SSID `"StartWRT"`), admin login works immediately. All other settings (profiles, firewall, SSH keys, etc.) are preserved.
+On first boot: WiFi works immediately (eMMC PMK, SSID `"StartWRT"`), admin login works immediately. Config files (firewall rules, WiFi profiles, SSH keys, etc.) are preserved via `sysupgrade` conffiles. User-installed package binaries are wiped — users must reinstall packages, though their config files are retained. If a custom image was used, the sticker password is permanently replaced by the baked-in password.
 
-### Path B: Fresh Start (full wipe, new WiFi + admin passwords)
+### Path B: Fresh Start (full wipe, new admin password)
 
 ```
  1. User selects "Fresh Start"
- 2. Select Language, Country, Drive
- 3. Enter new WiFi password (any format/length)
- 4. Confirm WiFi password
- 5. Create admin password (any length/format)
- 6. Confirm admin password
- 7. PBKDF2-SHA1(WiFi password, "StartWRT", 4096) → new PMK
- 8. Write new PMK to eMMC (replaces old)
- 9. Wipe onboard disk config overlay entirely
-10. Flash fresh firmware
-11. Write PMK → /etc/config/wireless
-12. Write admin hash → /etc/shadow
-13. "Setup complete. Remove microSD and reboot."
+ 2. Select Language, Country, Drive/Partition
+ 3. Create admin password (minimum 12 characters)
+ 4. Confirm admin password
+ 5. Wipe onboard disk config overlay entirely
+ 6. Flash fresh firmware
+ 7. If custom image: write baked-in PMK to eMMC (replaces old)
+ 8. Restore WiFi PMK from eMMC → /etc/config/wireless
+ 9. Write admin hash → /etc/shadow
+10. "Setup complete. Remove microSD and reboot."
 ```
 
-On first boot: WiFi works immediately (new PMK, SSID `"StartWRT"`), admin login works immediately. All settings start fresh.
+On first boot: WiFi works immediately (eMMC PMK, SSID `"StartWRT"`), admin login works immediately. All settings start fresh. If a custom image was used, the sticker password is permanently replaced by the baked-in password.
 
 ### Package Management
 
-> **Open question**: User-installed packages (via `opkg`) live in the overlay. The Update path preserves the overlay, but package binaries may be incompatible with the new base firmware (kernel modules, ABI changes, renamed packages). Strategy TBD — options include: saving package list for manual reinstall, best-effort auto-reinstall, or documenting as a known limitation.
+All packages required by StartWRT are included in the firmware image. Both Update and Fresh Start wipe the overlay, so user-installed package binaries are always removed to avoid conflicts with the new firmware or UCI config files. The Update path preserves config files via `sysupgrade` conffiles — so package configs survive even though binaries are wiped. Users will need to reinstall any additional packages after reflash.
 
 ### Web UI Architecture
 
@@ -200,17 +248,18 @@ On first boot: WiFi works immediately (new PMK, SSID `"StartWRT"`), admin login 
 
 ```
 microSD boot?
-├── Yes → Start captive portal ("StartWRT-Setup" AP, DNS hijack)
-│         → Serve setup wizard
+├── Yes → Resolve WiFi PMK (baked-in first, then eMMC) → Start "StartWRT" AP
+│         → Captive portal (DNS hijack) → Serve setup wizard
 └── No  → Normal boot
-          ├── Admin password set?
-          │   ├── Yes → Normal operation
-          │   └── No  → DNS hijack active (forces admin setup via captive portal)
-          ├── WiFi in /etc/config/wireless? → Normal operation
-          └── No WiFi + eMMC PMK? → Auto-restore WiFi → Normal operation
+          1. WiFi in /etc/config/wireless?
+          │   ├── Yes → skip
+          │   └── No  → eMMC PMK? → Auto-restore WiFi → continue
+          2. Admin password set?
+              ├── Yes → Normal operation
+              └── No  → Captive portal active (forces admin setup before normal browsing)
 ```
 
-Auto-restore: factory reset wipes overlay → boot script restores WiFi PMK from eMMC. Admin password not restored — DNS hijacking forces user to set it before normal browsing works.
+Auto-restore: factory reset wipes overlay → boot script restores WiFi PMK from eMMC. Admin password not restored — captive portal forces user to set it before normal browsing works.
 
 ---
 
@@ -229,11 +278,11 @@ WiFi Interface (iface.key = sticker PMK)
 
 ### Why PMK, Not Plaintext
 
-eMMC survives factory resets. Storing plaintext creates a persistent attack surface — malware that exfiltrates the password retains access even after the device is wiped. PMK is one-way and SSID-bound: changing the SSID invalidates a stolen PMK.
+eMMC survives factory resets. PMK is one-way — if malware exfiltrates it, the attacker gains WiFi access but cannot recover the plaintext password (which the user may reuse elsewhere). Storing plaintext would expose the actual password from the sticker.
 
 ### WiFi Key in UI
 
-The WiFi key (whether PMK or passphrase) is never displayed in the admin interface. The sticker is the source of truth.
+The WiFi key (whether PMK or passphrase) is never displayed in the admin interface. The sticker is the source of truth — unless a custom image has replaced the eMMC PMK, in which case the user's chosen password supersedes the sticker permanently.
 
 ---
 
@@ -280,5 +329,7 @@ The WiFi key (whether PMK or passphrase) is never displayed in the admin interfa
 | 6 | First-time admin | GUI prompts for admin password when unset |
 | 7 | Factory reset | WiFi restores from eMMC, admin unset, settings wiped |
 | 8 | Update path | Settings preserved, `/etc/shadow` cleared, WiFi restored, admin re-prompted |
-| 9 | Fresh Start | New PMK on eMMC, everything wiped, admin re-prompted |
+| 9 | Fresh Start | Everything wiped, WiFi PMK preserved (or replaced by custom image), admin re-prompted |
 | 10 | Identity PSK | After reset, sticker WiFi works; profiles can be recreated |
+| 11 | Custom image | Baked-in PMK used for AP, written to eMMC, survives reboot, old sticker invalid |
+| 12 | Standard image + no eMMC PMK | AP fails to start, error displayed on serial console |
