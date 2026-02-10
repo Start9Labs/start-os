@@ -65,8 +65,26 @@ Pending tasks for AI agents. Remove items when completed.
   `InterfaceFilter` impl on `NetInfo` use these sets. This model is unintuitive because users think in
   terms of individual addresses, not gateways.
 
-  **New model**: Per-address enable/disable. Each computed address in `hostname_info` gets an `enabled`
-  field. Users toggle individual addresses on the View page (see Section 6).
+  **New model**: Per-address enable/disable using `DerivedAddressInfo` on `BindInfo`. Instead of
+  gateway-level toggles, users toggle individual addresses. The `hostnameInfo` field moves from `Host`
+  to `BindInfo.addresses` (as the computed `possible` set).
+
+  **`DerivedAddressInfo` struct** (added to `BindInfo`):
+
+  ```rust
+  pub struct DerivedAddressInfo {
+      /// User-controlled: private-gateway addresses the user has disabled
+      pub private_disabled: BTreeSet<HostnameInfo>,
+      /// User-controlled: public-gateway addresses the user has enabled
+      pub public_enabled: BTreeSet<HostnameInfo>,
+      /// COMPUTED by update(): all possible addresses for this binding
+      pub possible: BTreeSet<HostnameInfo>,
+  }
+  ```
+
+  `DerivedAddressInfo::enabled()` returns `possible` filtered by the two sets: private addresses are
+  enabled by default (disabled if in `private_disabled`), public addresses are disabled by default
+  (enabled if in `public_enabled`). Requires `HostnameInfo` to derive `Ord` for `BTreeSet` usage.
 
   **How disabling works per address type**:
 
@@ -86,24 +104,20 @@ Pending tasks for AI agents. Remove items when completed.
     entry** for that hostname. Since hostname-based routing uses SNI (SSL) or Host header (HTTP),
     removing the entry means the hostname simply doesn't resolve to a backend. No traffic reaches
     the service for that hostname.
-  - **Onion addresses**: Disabled by **not creating the Tor hidden service mapping**. The Tor
-    daemon won't advertise the onion:port, so no traffic arrives.
 
   **Backend changes**:
 
   - **Remove from `NetInfo`**: Delete the `private_disabled` and `public_enabled` fields entirely.
-  - **Add to `NetInfo`**: A `disabled` set containing identifiers for addresses the user has explicitly
-    disabled. The identifier must be stable across network changes — e.g., `(gateway_id, hostname_kind)`
-    for IP/Local addresses, `(gateway_id, domain_value)` for domain addresses, or `onion_value` for
-    onion addresses. Exact format TBD at implementation time.
+    `NetInfo` becomes just `{ assigned_port: Option<u16>, assigned_ssl_port: Option<u16> }`.
+  - **Add `addresses: DerivedAddressInfo` to `BindInfo`**: User-controlled sets (`private_disabled`,
+    `public_enabled`) are preserved across updates; `possible` is recomputed by `update()`.
+  - **Remove `hostname_info` from `Host`**: Computed addresses now live in `BindInfo.addresses.possible`
+    instead of being a top-level field on `Host` that was never persisted to the DB.
   - **Default behavior preserved**: Private-gateway addresses default to enabled, public-gateway
-    addresses default to disabled. An address is enabled if it's not in the `disabled` set AND either
-    (a) the gateway is private, or (b) the user has explicitly enabled it.
-  - **Add `enabled` field to `HostnameInfo`**: The computed `hostname_info` output should include
-    whether each address is enabled, derived from the `disabled` set during `NetServiceData::update()`.
+    addresses default to disabled, via the `enabled()` method on `DerivedAddressInfo`.
   - **Remove `set-gateway-enabled`** RPC endpoint from `binding.rs`.
   - **Remove `InterfaceFilter` impl for `NetInfo`**: The per-gateway filter logic is replaced by
-    per-address filtering in `update()`.
+    per-address filtering derived from `DerivedAddressInfo`.
 
   **New RPC endpoint** (`binding.rs`):
 
@@ -114,12 +128,15 @@ Pending tasks for AI agents. Remove items when completed.
     ```ts
     interface BindingSetAddressEnabledParams {
       internalPort: number
-      addressId: AddressId   // identifies a specific HostnameInfo entry
-      enabled: boolean
+      address: HostnameInfo   // identifies the address directly (no separate AddressId type needed)
+      enabled: boolean | null // null = reset to default
     }
     ```
 
-    Mutates `NetInfo.disabled` and syncs the host. Uses `sync_db` metadata.
+    Mutates `BindInfo.addresses.private_disabled` / `.public_enabled` based on the address's `public`
+    field. If `public == true` and enabled, add to `public_enabled`; if disabled, remove. If
+    `public == false` and enabled, remove from `private_disabled`; if disabled, add. Uses `sync_db`
+    metadata.
 
     This yields two RPC methods:
     - `server.host.binding.set-address-enabled`
@@ -183,16 +200,15 @@ Pending tasks for AI agents. Remove items when completed.
   #### 6. Frontend: Interfaces Page Overhaul (View/Manage Split)
 
   The current interfaces page is a single page showing gateways (with toggle), addresses, public
-  domains, Tor domains, and private domains. It gets split into two pages: **View** and **Manage**.
+  domains, and private domains. It gets split into two pages: **View** and **Manage**.
 
   **SDK**: `preferredExternalPort` is already exposed. No additional SDK changes needed.
 
   ##### View Page
 
   Displays all computed addresses for the interface (from `hostname_info`) as a flat list. For each
-  address, show: URL, type (IPv4, IPv6, .local, domain, onion), access level (public/private),
-  gateway name, SSL indicator (especially relevant for onion addresses which may have both SSL and
-  non-SSL entries), enable/disable state, port forward info for public addresses, and a test button
+  address, show: URL, type (IPv4, IPv6, .local, domain), access level (public/private),
+  gateway name, SSL indicator, enable/disable state, port forward info for public addresses, and a test button
   for reachability (see Section 7).
 
   No gateway-level toggles. The old `gateways.component.ts` toggle UI is removed.
@@ -202,7 +218,7 @@ Pending tasks for AI agents. Remove items when completed.
 
   ##### Manage Page
 
-  Simple CRUD interface for configuring which addresses exist. Three sections:
+  Simple CRUD interface for configuring which addresses exist. Two sections:
 
   - **Public domains**: Add/remove. Uses existing RPC endpoints:
     - `{server,package}.host.address.domain.public.add`
@@ -210,9 +226,6 @@ Pending tasks for AI agents. Remove items when completed.
   - **Private domains**: Add/remove. Uses existing RPC endpoints:
     - `{server,package}.host.address.domain.private.add`
     - `{server,package}.host.address.domain.private.remove`
-  - **Onion addresses**: Add/remove. Uses existing RPC endpoints:
-    - `{server,package}.host.address.onion.add`
-    - `{server,package}.host.address.onion.remove`
 
   ##### Key Frontend Files to Modify
 
@@ -220,7 +233,7 @@ Pending tasks for AI agents. Remove items when completed.
   |------|--------|
   | `web/projects/ui/src/app/routes/portal/components/interfaces/` | Overhaul: split into view/manage |
   | `web/projects/ui/src/app/routes/portal/components/interfaces/gateways.component.ts` | Remove (replaced by per-address toggles on View page) |
-  | `web/projects/ui/src/app/routes/portal/components/interfaces/interface.service.ts` | Update `MappedServiceInterface` to use `enabled` field from `HostnameInfo` |
+  | `web/projects/ui/src/app/routes/portal/components/interfaces/interface.service.ts` | Update `MappedServiceInterface` to compute enabled addresses from `DerivedAddressInfo` |
   | `web/projects/ui/src/app/routes/portal/components/interfaces/addresses/` | Refactor for View page with overflow menu (enable/disable) and test buttons |
   | `web/projects/ui/src/app/routes/portal/routes/services/services.routes.ts` | Add routes for view/manage sub-pages |
   | `web/projects/ui/src/app/routes/portal/routes/system/system.routes.ts` | Add routes for view/manage sub-pages |
@@ -237,7 +250,7 @@ Pending tasks for AI agents. Remove items when completed.
     ```ts
     interface BindingTestAddressParams {
       internalPort: number
-      addressId: AddressId
+      address: HostnameInfo
     }
     ```
 
@@ -270,41 +283,14 @@ Pending tasks for AI agents. Remove items when completed.
   | File | Role |
   |------|------|
   | `core/src/net/forward.rs` | `AvailablePorts` — port pool allocation |
-  | `core/src/net/host/binding.rs` | `BindInfo`/`NetInfo` — remove gateway overrides, add per-address disable set, new RPC endpoints |
+  | `core/src/net/host/binding.rs` | `BindInfo`/`NetInfo`/`DerivedAddressInfo` — remove gateway overrides, add per-address enable/disable sets, new RPC endpoints |
   | `core/src/net/net_controller.rs:259` | `NetServiceData::update()` — compute `enabled` on `HostnameInfo`, vhost/forward/DNS reconciliation, 5443 hack removal |
   | `core/src/net/vhost.rs` | `VHostController` / `ProxyTarget` — source-IP gating for public/private |
   | `core/src/net/gateway.rs` | `InterfaceFilter` — remove `NetInfo` impl, simplify |
-  | `core/src/net/service_interface.rs` | `HostnameInfo` — add `enabled` field |
+  | `core/src/net/service_interface.rs` | `HostnameInfo` — add `Ord` derives for use in `BTreeSet` |
   | `core/src/net/host/address.rs` | Existing domain/onion CRUD endpoints (no changes needed) |
   | `sdk/base/lib/interfaces/Host.ts` | SDK `MultiHost.bindPort()` — no changes needed |
   | `core/src/db/model/public.rs` | Public DB model — port forward mapping |
-
-- [ ] Remove Tor from StartOS core - @dr-bonez
-
-  **Goal**: Remove all built-in Tor functionality from StartOS. Tor will now be provided by a service
-  running on StartOS rather than being integrated into the core OS.
-
-  **Scope**: Remove the Arti-based Tor client, onion address management in the networking stack, Tor
-  hidden service creation in the vhost/net controller layers, and any Tor-specific configuration in the
-  database models. The core should no longer start, manage, or depend on a Tor daemon.
-
-  **Key areas to modify**:
-
-  | Area | Change |
-  |------|--------|
-  | `core/src/net/tor/` | Remove the Tor module entirely (Arti client, hidden service management) |
-  | `core/src/net/net_controller.rs` | Remove Tor hidden service creation/teardown in `update()` |
-  | `core/src/net/host/address.rs` | Remove onion address CRUD RPC endpoints (`address.onion.add`, `address.onion.remove`) |
-  | `core/src/net/host/binding.rs` | Remove onion-related fields from `NetInfo` |
-  | `core/src/net/service_interface.rs` | Remove onion-related variants from `HostnameInfo` |
-  | `core/src/db/model/` | Remove Tor/onion fields from public and private DB models |
-  | `sdk/base/lib/interfaces/Host.ts` | Remove onion-related types and options from the SDK |
-  | `web/projects/ui/` | Remove onion address UI from interfaces pages |
-  | `Cargo.toml` / dependencies | Remove Arti and related Tor crate dependencies |
-
-  **Migration**: Existing onion address data in the database should be cleaned up during migration.
-  Services that previously relied on the OS-provided Tor integration will need to use the new Tor
-  service instead (service-level integration is out of scope for this task).
 
 - [ ] Auto-configure port forwards via UPnP/NAT-PMP/PCP - @dr-bonez
 
