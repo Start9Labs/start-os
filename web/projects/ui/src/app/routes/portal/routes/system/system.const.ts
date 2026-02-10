@@ -28,7 +28,7 @@ export const SYSTEM_MENU = [
     },
     {
       icon: '@tui.mail',
-      item: 'Email',
+      item: 'SMTP',
       link: 'email',
     },
     {

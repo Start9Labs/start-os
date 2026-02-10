@@ -8,6 +8,7 @@ import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import {
+  DocsLinkDirective,
   ErrorService,
   i18nKey,
   i18nPipe,
@@ -19,11 +20,9 @@ import {
   TuiAppearance,
   TuiButton,
   TuiLoader,
-  TuiNotification,
-  TuiTitle,
 } from '@taiga-ui/core'
 import { TuiSwitch } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
+import { TuiCardLarge } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { catchError, defer, map, merge, Observable, of, Subject } from 'rxjs'
 import {
@@ -47,23 +46,20 @@ import { wifiSpec } from './wifi.const'
       </a>
       WiFi
     </ng-container>
-    <header tuiHeader>
-      <tui-notification appearance="negative">
-        <div tuiTitle>
-          {{ 'Deprecated' | i18n }}
-          <div tuiSubtitle>
-            {{
-              'WiFi support will be removed in StartOS v0.4.1. If you do not have access to Ethernet, you can use a WiFi extender to connect to the local network, then connect your server to the extender via Ethernet. Please contact Start9 support with any questions or concerns.'
-                | i18n
-            }}
-          </div>
-        </div>
-      </tui-notification>
-    </header>
     @if (status()?.interface) {
       <section class="g-card">
         <header>
           Wi-Fi
+          <a
+            tuiIconButton
+            size="xs"
+            docsLink
+            path="/user-manual/wifi.html"
+            appearance="icon"
+            iconStart="@tui.external-link"
+          >
+            {{ 'Documentation' | i18n }}
+          </a>
           <input
             type="checkbox"
             tuiSwitch
@@ -92,8 +88,8 @@ import { wifiSpec } from './wifi.const'
               ></div>
             }
             <p>
-              <button tuiButton (click)="other(data)">
-                {{ 'Add' | i18n }}
+              <button tuiButton (click)="other(data)" appearance="flat">
+                + {{ 'Connect to hidden network' | i18n }}
               </button>
             </p>
           } @else {
@@ -128,10 +124,8 @@ import { wifiSpec } from './wifi.const'
     TitleDirective,
     RouterLink,
     PlaceholderComponent,
-    TuiHeader,
-    TuiTitle,
-    TuiNotification,
     i18nPipe,
+    DocsLinkDirective,
   ],
 })
 export default class SystemWifiComponent {

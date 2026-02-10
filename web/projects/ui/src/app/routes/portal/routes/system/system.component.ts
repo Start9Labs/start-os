@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterModule } from '@angular/router'
@@ -6,12 +5,9 @@ import { i18nPipe } from '@start9labs/shared'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiBadgeNotification } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
-import { PatchDB } from 'patch-db-client'
 import { BadgeService } from 'src/app/services/badge.service'
-import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SYSTEM_MENU } from './system.const'
-import { map } from 'rxjs'
 
 @Component({
   template: `
@@ -26,9 +22,6 @@ import { map } from 'rxjs'
             tuiCell="s"
             routerLinkActive="active"
             [routerLink]="page.link"
-            [style.display]="
-              !(wifiEnabled$ | async) && page.item === 'WiFi' ? 'none' : null
-            "
           >
             <tui-icon [icon]="page.icon" />
             <span tuiTitle>
@@ -116,13 +109,9 @@ import { map } from 'rxjs'
     TitleDirective,
     TuiBadgeNotification,
     i18nPipe,
-    AsyncPipe,
   ],
 })
 export class SystemComponent {
   readonly menu = SYSTEM_MENU
   readonly badge = toSignal(inject(BadgeService).getCount('system'))
-  readonly wifiEnabled$ = inject<PatchDB<DataModel>>(PatchDB)
-    .watch$('serverInfo', 'network', 'wifi')
-    .pipe(map(wifi => !!wifi.interface && wifi.enabled))
 }
