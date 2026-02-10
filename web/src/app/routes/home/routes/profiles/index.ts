@@ -3,7 +3,6 @@ import {
   Component,
   computed,
   inject,
-  signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
@@ -11,26 +10,23 @@ import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
 import {
   TuiButton,
-  TuiDataListComponent,
-  TuiDropdownContent,
-  TuiDropdownDirective,
-  TuiDropdownOpen,
+  TuiDataList,
+  TuiDropdown,
   TuiHint,
   TuiLink,
-  TuiOption,
   TuiTitle,
 } from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { filter, from } from 'rxjs'
+import { Placeholder } from 'src/app/components/placeholder'
 import { Help } from 'src/app/directives/help'
-import { Placeholder } from 'src/app/routes/home/components/placeholder'
+import { OutboundService } from 'src/app/routes/home/routes/outbound/service'
 import { ApiService, SecurityProfile } from 'src/app/services/api/api.service'
 import { NetworkInterfaceSection, UciFile } from 'src/app/services/api/types'
-import { OutboundService } from 'src/app/routes/home/routes/outbound/service'
 import { ProfilesAside } from './aside'
+import { ADD_PROFILE, ProfileDialogResult } from './dialog'
 import { ProfilesService } from './service'
-import { ADD_PROFILE, ProfileDialogData, ProfileDialogResult } from './dialog'
 
 @Component({
   template: `
@@ -38,7 +34,7 @@ import { ADD_PROFILE, ProfileDialogData, ProfileDialogResult } from './dialog'
     <header tuiHeader>
       <hgroup tuiTitle><h2>Security Profiles</h2></hgroup>
       <aside tuiAccessories>
-        <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
+        <button tuiButton iconStart="@tui.plus" (click)="edit()">Add</button>
       </aside>
     </header>
     <table tuiTable class="g-table" [tuiSkeleton]="!service.data()">
@@ -55,9 +51,7 @@ import { ADD_PROFILE, ProfileDialogData, ProfileDialogResult } from './dialog'
       <tbody>
         @for (item of tableData() | tuiTableSort; track item.interface) {
           <tr>
-            <td tuiTd>
-              <b>{{ item.fullname }}</b>
-            </td>
+            <td tuiTd>{{ item.fullname }}</td>
             <td tuiTd>{{ item.dnsDisplay }}</td>
             <td tuiTd>
               @if (item.outbound === 'wan') {
@@ -76,6 +70,7 @@ import { ADD_PROFILE, ProfileDialogData, ProfileDialogResult } from './dialog'
                 size="xs"
                 iconStart="@tui.ellipsis-vertical"
                 appearance="icon"
+                tuiDropdownAlign="end"
                 tuiDropdownAuto
                 tuiDropdown
               >
@@ -127,6 +122,10 @@ import { ADD_PROFILE, ProfileDialogData, ProfileDialogResult } from './dialog'
       max-width: 60rem;
     }
 
+    td:first-child {
+      font-weight: bold;
+    }
+
     td:last-child {
       text-align: end;
     }
@@ -142,12 +141,9 @@ import { ADD_PROFILE, ProfileDialogData, ProfileDialogResult } from './dialog'
     TuiTable,
     TuiSkeleton,
     Placeholder,
-    TuiDataListComponent,
-    TuiDropdownContent,
-    TuiDropdownDirective,
-    TuiDropdownOpen,
+    TuiDataList,
+    TuiDropdown,
     TuiHint,
-    TuiOption,
     TuiLink,
     RouterLink,
   ],
@@ -156,6 +152,7 @@ export default class Profiles {
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(ProfilesService)
   protected readonly outboundService = inject(OutboundService)
+
   private readonly api = inject(ApiService)
 
   // Load LAN subnet configuration
@@ -203,47 +200,48 @@ export default class Profiles {
   }
 
   private getDnsDisplay(profile: SecurityProfile): string {
-    if (profile.dns_override && profile.dns_override.length > 0) {
-      return 'Custom'
-    }
-    return 'System'
+    return profile.dns_override && profile.dns_override.length
+      ? 'Custom'
+      : 'System'
   }
 
   private getRoutingDisplay(
     outbound: string,
     vpns: Array<{ id: string; label: string }>,
   ): string {
-    if (outbound === 'wan') {
-      return 'WAN'
-    }
-    const vpn = vpns.find(v => v.id === outbound)
-    return vpn ? vpn.label : 'Unknown'
+    return outbound === 'wan'
+      ? 'WAN'
+      : (vpns.find(v => v.id === outbound)?.label ?? 'Unknown')
   }
 
   private getWanAccessDisplay(access: SecurityProfile['wan_access']): string {
     if (access === 'ALL') return 'All'
     if (access === 'NONE') return 'None'
+
     if (typeof access === 'object' && 'whitelist' in access) {
       return 'Whitelist'
     }
-    if (typeof access === 'object' && 'blacklist' in access) {
-      return 'Blacklist'
-    }
-    return 'Unknown'
+
+    return typeof access === 'object' && 'blacklist' in access
+      ? 'Blacklist'
+      : 'Unknown'
   }
 
   private getLanAccessDisplay(access: SecurityProfile['lan_access']): string {
     if (access === 'ALL') return 'All'
     if (access === 'SAME_PROFILE') return 'Same profile'
-    if (typeof access === 'object' && 'other_profiles' in access) {
-      return 'Whitelist'
-    }
-    return 'Unknown'
+
+    return typeof access === 'object' && 'other_profiles' in access
+      ? 'Whitelist'
+      : 'Unknown'
   }
 
-  add() {
+  edit(profile?: SecurityProfile) {
     const profiles = this.service.data() || []
-    const usedSubnets = profiles.map(p =>
+    const otherProfiles = profiles.filter(
+      p => p.interface !== profile?.interface,
+    )
+    const usedSubnets = otherProfiles.map(p =>
       parseInt(p.gateway_ip.split('.')[2], 10),
     )
     const vpns = this.outboundService.data() || []
@@ -255,42 +253,7 @@ export default class Profiles {
 
     this.dialogs
       .open<ProfileDialogResult>(ADD_PROFILE, {
-        label: 'Add Security Profile',
-        size: 'm',
-        data: {
-          otherProfiles: profiles,
-          outboundVpns,
-          usedSubnets,
-          subnetBase: {
-            firstOctet: subnet.firstOctet,
-            secondOctet: subnet.secondOctet,
-          },
-        },
-      })
-      .subscribe(result => {
-        this.service.createProfile(result)
-      })
-  }
-
-  edit(profile: SecurityProfile) {
-    const profiles = this.service.data() || []
-    const otherProfiles = profiles.filter(
-      p => p.interface !== profile.interface,
-    )
-    const usedSubnets = profiles
-      .filter(p => p.interface !== profile.interface)
-      .map(p => parseInt(p.gateway_ip.split('.')[2], 10))
-    const vpns = this.outboundService.data() || []
-    const outboundVpns = vpns.map(v => ({
-      interface: v.id,
-      label: v.label,
-    }))
-    const subnet = this.lanSubnet()
-
-    this.dialogs
-      .open<ProfileDialogResult>(ADD_PROFILE, {
-        label: 'Edit Security Profile',
-        size: 'm',
+        label: profile ? 'Edit Security Profile' : 'Add Security Profile',
         data: {
           existing: profile,
           otherProfiles,
@@ -303,18 +266,14 @@ export default class Profiles {
         },
       })
       .subscribe(result => {
-        this.service.updateProfile({
-          interface: profile.interface,
-          vlan_tag: profile.vlan_tag,
-          fullname: result.fullname,
-          gateway_ip: result.gateway_ip,
-          outbound: result.outbound,
-          lan_access: result.lan_access,
-          wan_access: result.wan_access,
-          access_to_new_profiles: result.access_to_new_profiles,
-          owns_lan: profile.owns_lan,
-          dns_override: result.dns_override,
-        })
+        if (profile) {
+          this.service.updateProfile({
+            ...profile,
+            ...result,
+          })
+        } else {
+          this.service.createProfile(result)
+        }
       })
   }
 

@@ -11,27 +11,26 @@ import {
   TuiDataList,
   TuiInput,
   TuiLabel,
+  TuiRadio,
   TuiTextfield,
-  TuiTitle,
+  tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
-import { tuiTextfieldOptionsProvider } from '@taiga-ui/core'
-import { TuiChevron, TuiRadio, TuiSelect, TuiSwitch } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { TuiChevron, TuiSelect, TuiSwitch } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiForm } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
+import { Help } from 'src/app/directives/help'
+import { WifiSettingsAside } from './aside'
 import { WifiService } from '../../service'
 
 @Component({
   template: `
-    <header tuiHeader><h2 tuiTitle>Settings</h2></header>
+    <wifi-settings-aside *help />
     <form tuiForm="m" tuiCardLarge class="g-form" [formGroup]="form">
-      <header tuiHeader="h6"><h2 tuiTitle>Enable/Disable</h2></header>
       <label tuiLabel>
         <input type="checkbox" tuiSwitch formControlName="enabled" />
         Enable Wi-Fi
       </label>
-      <hr />
-      <header tuiHeader="h6"><h2 tuiTitle>SSID</h2></header>
-      <tui-textfield class="input">
+      <tui-textfield>
         <label tuiLabel>SSID</label>
         <input tuiInput formControlName="ssid" />
       </tui-textfield>
@@ -39,9 +38,8 @@ import { WifiService } from '../../service'
         <input type="checkbox" tuiSwitch formControlName="broadcast" />
         Broadcast
       </label>
-      <hr />
-      <header tuiHeader="h6"><h2 tuiTitle>Frequency Band</h2></header>
-      <div class="options">
+      <fieldset>
+        <legend>Frequency Band</legend>
         @for (value of bands; track $index) {
           <label tuiLabel>
             <input
@@ -53,7 +51,7 @@ import { WifiService } from '../../service'
             {{ value }}
           </label>
         }
-      </div>
+      </fieldset>
       @if (band() === 'Both') {
         <label tuiLabel>
           <input
@@ -64,38 +62,38 @@ import { WifiService } from '../../service'
           Broadcast Separately
         </label>
       }
-      <hr />
-      <header tuiHeader="h6"><h2 tuiTitle>Frequency Range</h2></header>
-      <!-- @TODO: Implement channel optimization (requires backend channel scan endpoint) -->
-      <tui-textfield tuiChevron class="input">
-        <label tuiLabel>2.4 GHz Channel</label>
-        <input tuiSelect formControlName="channel24" />
-        <tui-data-list *tuiDropdown>
-          @for (ch of channels24; track ch) {
-            <button tuiOption [value]="ch">{{ ch }}</button>
-          }
-        </tui-data-list>
-      </tui-textfield>
-      <tui-textfield tuiChevron class="input">
-        <label tuiLabel>5 GHz Channel</label>
-        <input tuiSelect formControlName="channel5" />
-        <tui-data-list *tuiDropdown>
-          @for (ch of channels5; track ch) {
-            <button tuiOption [value]="ch">{{ ch }}</button>
-          }
-        </tui-data-list>
-      </tui-textfield>
+      <fieldset>
+        <legend>Frequency Range</legend>
+        <!-- @TODO: Implement channel optimization (requires backend channel scan endpoint) -->
+        <tui-textfield tuiChevron>
+          <label tuiLabel>2.4 GHz Channel</label>
+          <input tuiSelect formControlName="channel24" />
+          <tui-data-list *tuiDropdown>
+            @for (ch of channels24; track ch) {
+              <button tuiOption [value]="ch">{{ ch }}</button>
+            }
+          </tui-data-list>
+        </tui-textfield>
+        <tui-textfield tuiChevron>
+          <label tuiLabel>5 GHz Channel</label>
+          <input tuiSelect formControlName="channel5" />
+          <tui-data-list *tuiDropdown>
+            @for (ch of channels5; track ch) {
+              <button tuiOption [value]="ch">{{ ch }}</button>
+            }
+          </tui-data-list>
+        </tui-textfield>
+      </fieldset>
     </form>
   `,
   styles: `
-    .input {
-      max-width: 16rem;
+    fieldset {
+      display: flex !important;
     }
 
-    .options {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
+    tui-textfield {
+      flex: 1;
+      max-width: 16rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -103,8 +101,6 @@ import { WifiService } from '../../service'
   host: { class: 'g-page' },
   imports: [
     ReactiveFormsModule,
-    TuiHeader,
-    TuiTitle,
     TuiForm,
     TuiCardLarge,
     TuiLabel,
@@ -115,6 +111,8 @@ import { WifiService } from '../../service'
     TuiSelect,
     TuiChevron,
     TuiDataList,
+    WifiSettingsAside,
+    Help,
   ],
 })
 export default class WifiSettings {

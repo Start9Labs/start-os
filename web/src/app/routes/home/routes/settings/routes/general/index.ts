@@ -17,6 +17,7 @@ import {
   TuiIcon,
   TuiLabel,
   TuiNotification,
+  TuiRadio,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
   TuiTitle,
@@ -26,7 +27,6 @@ import {
   TuiAccordion,
   TuiChevron,
   TuiDataListWrapper,
-  TuiRadio,
   TuiSelect,
 } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'

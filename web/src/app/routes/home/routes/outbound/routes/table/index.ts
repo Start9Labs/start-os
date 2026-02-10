@@ -11,7 +11,7 @@ import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { Help } from 'src/app/directives/help'
-import { Placeholder } from 'src/app/routes/home/components/placeholder'
+import { Placeholder } from 'src/app/components/placeholder'
 import { ADD_CLIENT } from 'src/app/routes/home/routes/outbound/dialog'
 import { OutboundService } from 'src/app/routes/home/routes/outbound/service'
 

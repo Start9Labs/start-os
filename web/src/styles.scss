@@ -46,17 +46,6 @@ li {
   margin-block-end: 0.5rem;
 }
 
-header[tuiHeader] {
-  position: sticky;
-  left: 1.5rem;
-  max-width: calc(100vw - 3rem);
-
-  + tui-tabs {
-    flex-shrink: 0;
-    margin-block: 1rem;
-  }
-}
-
 .g-page {
   display: flex;
   flex-direction: column;
@@ -94,6 +83,11 @@ header[tuiHeader] {
     border: 0;
   }
 
+  // TODO: Remove after Taiga UI 5.0
+  fieldset {
+    flex-wrap: wrap;
+  }
+
   section {
     display: flex;
     gap: inherit;
@@ -119,10 +113,6 @@ header[tuiHeader] {
   label:has(input[type='checkbox'], input[type='radio']) {
     cursor: pointer;
     align-items: center;
-  }
-
-  [tuiHeader] {
-    left: unset;
   }
 
   [tuiCardLarge][data-space] {
@@ -261,6 +251,18 @@ tui-dropdown[data-appearance='start-9'] {
   }
 }
 
-tui-data-list input {
-  --tui-text-action: var(--tui-text-primary);
+[tuiSurface][data-appearance='neutral'] {
+  background: var(--tui-background-neutral-1) !important;
+}
+
+tui-data-list {
+  [tuiOption]:disabled {
+    // For tooltips
+    pointer-events: auto;
+  }
+
+  input {
+    // Checkmark
+    --tui-text-action: var(--tui-text-primary);
+  }
 }

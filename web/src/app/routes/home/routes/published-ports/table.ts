@@ -14,8 +14,8 @@ import {
   TuiHint,
   TuiLink,
 } from '@taiga-ui/core'
-import { Copy } from 'src/app/routes/home/components/copy'
-import { Placeholder } from 'src/app/routes/home/components/placeholder'
+import { Copy } from 'src/app/components/copy'
+import { Placeholder } from 'src/app/components/placeholder'
 import { injectFormService } from 'src/app/services/form.service'
 import { PublishedPortDisplay } from './types'
 
@@ -110,6 +110,7 @@ const PROTOCOL_LABELS = {
               size="xs"
               iconStart="@tui.ellipsis-vertical"
               appearance="icon"
+              tuiDropdownAlign="end"
               tuiDropdownAuto
               tuiDropdown
             >

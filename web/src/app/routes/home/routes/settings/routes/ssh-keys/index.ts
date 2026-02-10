@@ -11,7 +11,7 @@ import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
 import { Help } from 'src/app/directives/help'
-import { Placeholder } from 'src/app/routes/home/components/placeholder'
+import { Placeholder } from 'src/app/components/placeholder'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/api.service'
 

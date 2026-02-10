@@ -56,6 +56,17 @@ import { SidebarService } from 'src/app/services/sidebar.service'
       flex-direction: column;
       margin: 1rem 1.5rem;
 
+      > header[tuiHeader] {
+        position: sticky;
+        inset-inline-start: 1.5rem;
+        max-width: calc(100vw - 3rem);
+
+        + tui-tabs {
+          flex-shrink: 0;
+          margin-block: 1rem;
+        }
+      }
+
       &::after {
         content: '';
         block-size: 5rem;
