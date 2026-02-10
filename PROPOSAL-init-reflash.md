@@ -1,301 +1,284 @@
 # StartWRT Init & Reflash Proposal
 
-## Table of Contents
-
-- [Context](#context)
-- [Part 1: Manufacturing Init Tool](#part-1-manufacturing-init-tool)
-  - [Architecture](#architecture)
-  - [Init Tool Flow](#init-tool-flow)
-  - [Password Character Set](#password-character-set)
-- [Part 2: Reflash / Reset Flow](#part-2-reflash--reset-flow)
-  - [Trigger Mechanism](#trigger-mechanism)
-  - [Setup Wizard Detection Logic](#setup-wizard-detection-logic)
-  - [Path A: Update](#path-a-update-keep-config-reuse-emmc-hash)
-  - [Path B: Fresh Start](#path-b-fresh-start-full-reset-new-password)
-  - [Web UI Architecture](#web-ui-architecture)
-  - [Boot Detection: Setup Mode vs Normal Mode](#boot-detection-setup-mode-vs-normal-mode)
-- [Implementation Details](#implementation-details)
-  - [Files to Create / Modify](#files-to-create--modify)
-  - [Reusable Code](#reusable-code)
-  - [New Dependencies](#new-dependencies)
-- [Verification](#verification)
-
----
-
 ## Context
 
-StartWRT routers ship with a unique **12-character password** printed on a sticker on the bottom of the device. This single password is used for both:
+StartWRT routers use **two separate passwords** set at different times:
 
-- **Admin login** — web UI authentication
-- **WiFi access** — WPA2-PSK
+| Password | Set by | When | Purpose |
+|----------|--------|------|---------|
+| **WiFi password** | Factory worker (from sticker) | Manufacturing via serial console | WPA2-PSK WiFi access |
+| **Admin password** | End user | First GUI access after unboxing, factory reset, or reflash | Web UI authentication |
 
-The WiFi SSID is **static** across all devices (e.g., `StartWRT`). A 12-character password from the 68-char unambiguous charset provides **~73 bits of entropy**, making rainbow table attacks infeasible even with a shared SSID (~207 million GPU-years computation, ~31 exabytes storage).
+The WiFi password is a unique **12-character** string from a 68-char unambiguous charset, printed on a sticker on the bottom of the device. It provides **~73 bits of entropy**, making rainbow table attacks infeasible even with a static SSID.
+
+The admin password is user-chosen (any length/format) and stored in `/etc/shadow` on the overlay filesystem.
 
 ### Password lifecycle
 
-| Stage | What happens |
-|-------|-------------|
-| **Manufacturing** | Factory worker enters sticker password via serial console. Two one-way hashes are stored on eMMC. |
-| **End user setup** | User connects to WiFi (`StartWRT`) and web UI (`router.local`) using the sticker password. |
-| **Factory reset** | Overlay is wiped, but eMMC hashes survive. Boot script auto-restores admin + WiFi credentials. |
-| **Reflash / recovery** | User boots from microSD. Can either keep the eMMC password or set a new one. |
+| Stage | WiFi password | Admin password | Other settings |
+|-------|--------------|----------------|----------------|
+| **Manufacturing** | PMK stored on eMMC | Not set | Default config |
+| **End user unboxing** | Works via sticker | User creates on first `router.local` visit | User configures |
+| **Factory reset** | Restored from eMMC | Cleared — user sets via `router.local` | Wiped (overlay gone) |
+| **Reflash / Update** | Restored from eMMC | User sets in captive portal wizard | **Preserved** |
+| **Fresh Start** | User sets new in wizard (replaces eMMC) | User sets in captive portal wizard | Wiped |
 
-### What's stored on eMMC
+### eMMC persistent partition
 
-Two one-way hashes — **no plaintext** is ever stored:
+Mounted at **`/persistent`** — a dedicated partition on the same eMMC chip, excluded from factory reset wipes.
+
+One file — the **WPA-PSK PMK** (no plaintext, no admin credentials):
 
 | File | Contents | Purpose |
 |------|----------|---------|
-| `/mnt/persistent/password_hash` | `$6$...` SHA-512 crypt hash | Admin authentication (`/etc/shadow`) |
-| `/mnt/persistent/wifi_pmk` | 64 hex chars (PBKDF2 output) | WPA2-PSK key (`/etc/config/wireless`) |
+| `/persistent/wifi_pmk` | 64 hex chars (PBKDF2-SHA1 output) | WPA2-PSK key for `/etc/config/wireless` |
 
 ---
 
 ## Part 1: Manufacturing Init Tool
 
-### Architecture
-
-**`startwrt-cli init`** — a new local-only subcommand of the existing CLI binary.
+**`startwrt-cli init`** — a local-only subcommand. Provisions WiFi only.
 
 | Design decision | Rationale |
 |----------------|-----------|
-| Subcommand of `startwrt-cli` (not a separate binary) | Zero additional deployment overhead. `CliContext::init()` builds an HTTP client but doesn't connect — the `init` handler simply skips RPC calls. |
-| Rust (not a shell script) | SHA-512 crypt hashing requires `pwhash` (already a dependency). Shell would need `openssl passwd -6` which isn't guaranteed on minimal OpenWrt. |
-| agetty wrapper script | agetty's `-l` flag expects a single binary. A one-line wrapper bridges to `startwrt-cli init`. |
+| Subcommand of `startwrt-cli` | Zero deployment overhead. Handler skips RPC calls. |
+| Rust (not shell) | PBKDF2-SHA1 requires crypto libs not guaranteed on minimal OpenWrt. |
+| Smart serial dispatcher | Keeps serial useful for debugging the live system. |
 
-#### agetty integration
+### Serial Console Dispatcher
 
-Wrapper script at `/usr/sbin/startwrt-init-wrapper`:
+`/usr/sbin/startwrt-serial`:
 
 ```sh
 #!/bin/sh
-exec startwrt-cli init
+if grep -q "mmcblk1" /proc/cmdline; then
+    exec /bin/login                    # microSD boot → login (wizard on web)
+elif ! [ -f /persistent/wifi_pmk ]; then
+    exec startwrt-cli init             # no WiFi key → manufacturing init
+else
+    exec /bin/login                    # normal → login for debugging
+fi
 ```
 
-OpenWrt `/etc/inittab` entry:
-
-```
-ttyS0::respawn:/sbin/agetty -L -l /usr/sbin/startwrt-init-wrapper ttyS0 115200 vt100
-```
-
-#### eMMC persistent partition
-
-A small dedicated eMMC partition mounted at `/mnt/persistent`. The partition and mount point are device-specific and configured per hardware target.
-
-- Permissions: `0600`, owned by root
-- Written atomically (temp file + rename + fsync)
+Inittab: `ttyS0::respawn:/sbin/agetty -L -l /usr/sbin/startwrt-serial ttyS0 115200 vt100`
 
 ### Init Tool Flow
 
 ```
- 1. Check eMMC partition mounted at /mnt/persistent
-    └─ If not mounted → attempt mount → if fails, print error and exit
-
- 2. Check for existing /mnt/persistent/password_hash
-    └─ If exists → print "Device already initialized." → exit 0
-
- 3. Display banner: "StartWRT Device Initialization"
-
+ 1. Check /persistent mounted → if not, attempt mount → fail = error + exit
+ 2. /persistent/wifi_pmk exists? → "Device already initialized." + exit
+ 3. Banner: "StartWRT Device Initialization"
  4. Prompt: "Enter device password: " (no echo)
-
- 5. Validate password:
-    ├─ Exactly 12 characters
-    ├─ Only unambiguous characters (see charset below)
-    └─ If invalid → print error → reprompt (step 4)
-
+ 5. Validate: exactly 12 chars, unambiguous charset only
  6. Prompt: "Confirm device password: " (no echo)
-
- 7. Compare entries
-    └─ If mismatch → print "Passwords do not match." → reprompt (step 4)
-
- 8. Compute hashes:
-    ├─ SHA-512 crypt (pwhash::sha512_crypt::hash) → admin auth
-    └─ WPA-PSK PMK via PBKDF2(password, "StartWRT", 4096) → WiFi
-
- 9. Write to eMMC (atomic):
-    ├─ /mnt/persistent/password_hash
-    └─ /mnt/persistent/wifi_pmk
-
-10. Write admin hash → /etc/shadow (root user)
-
-11. Write WiFi PMK → /etc/config/wireless (hex PSK key)
-
-12. Enable WiFi: SSID "StartWRT", WPA2-PSK
-
-13. Print "Device initialized successfully." → exit 0
+ 7. Mismatch → reprompt
+ 8. Compute PBKDF2-SHA1(password, "StartWRT", 4096, 32) → 64 hex chars
+ 9. Write /persistent/wifi_pmk (atomic)
+10. Write PMK → /etc/config/wireless
+11. Enable WiFi: SSID "StartWRT", WPA2-PSK, dynamic_vlan = ALLOWED
+12. "Device initialized successfully." + exit
 ```
 
 ### Password Character Set
 
 | Category | Characters | Count |
 |----------|-----------|-------|
-| Uppercase | `A B C D E F G H J K L M N P Q R S T U V W X Y Z` | 24 (no `I`, `O`) |
-| Lowercase | `a b c d e f g h i j k m n p q r s t u v w x y z` | 24 (no `l`, `o`) |
-| Digits | `2 3 4 5 6 7 8 9` | 8 (no `0`, `1`) |
+| Uppercase | `A-Z` minus `I`, `O` | 24 |
+| Lowercase | `a-z` minus `l`, `o` | 24 |
+| Digits | `2-9` | 8 |
 | Special | `! @ # $ % ^ & * - _ + =` | 12 |
 | **Total** | | **68** |
 
-> **Entropy**: 12 chars from 68-char set = log2(68^12) ≈ **73 bits**
->
-> **Rainbow table cost**: ~207 million GPU-years computation, ~31 exabytes storage — **infeasible**
+12 chars × 68-char set ≈ **73 bits entropy**
 
 ---
 
-## Part 2: Reflash / Reset Flow
+## Part 2: First-Time User Setup (Unboxing / Factory Reset)
 
-### Trigger Mechanism
+After unboxing or factory reset, WiFi works immediately but no admin password is set. DNS hijacking forces setup before normal use.
 
-Modeled after **start-os**: the reflash flow is triggered by **booting from a microSD card** containing a StartWRT image.
+```
+1. User powers on router (or reboots after factory reset)
+2. Connects to WiFi "StartWRT" using sticker password
+3. No admin password → DNS hijacking active (all queries → router IP)
+4. OS detects captive portal → auto-opens browser with setup page
+5. GUI prompts: "Create your admin password"
+6. User creates password (any length/format) → SHA-512 crypt → /etc/shadow
+7. DNS hijacking disabled → normal browsing resumes
+8. User is logged in
+```
 
-1. User flashes a StartWRT image to a microSD card
-2. Inserts microSD into the router's slot
-3. Bootloader (U-Boot) prioritizes microSD over onboard disk
-4. Web-based setup wizard starts at **`router.local`** (mDNS)
+DNS hijacking ensures the admin password cannot be ignored — all internet access is blocked until setup is complete. If the user dismisses the captive portal popup, native apps and browsing remain broken until they open a browser and reach the setup page.
 
-### Setup Wizard Detection Logic
+Implementation: `dnsmasq` config `address=/#/<router IP>` when no root hash in `/etc/shadow`. Removed after password is set.
 
-On boot from microSD, the wizard inspects the onboard disk and eMMC persistent partition:
+> **Note**: After a reflash, the admin password is set in the captive portal wizard (Part 3), so this flow only applies to unboxing and factory reset.
 
-| Onboard config? | eMMC hash? | Options presented |
+---
+
+## Part 3: Reflash / Reset Flow
+
+### Trigger
+
+Boot from **microSD card** with StartWRT image. U-Boot prioritizes microSD.
+
+### Captive Portal
+
+The microSD image starts a captive portal for the setup wizard:
+
+| Setting | Value |
+|---------|-------|
+| **SSID** | `StartWRT-Setup` |
+| **Password** | Default, documented (not printed on device) |
+| **Security** | WPA2-PSK |
+| `max_num_sta` | `1` (single client limit) |
+| **Timeout** | AP shuts down after inactivity; re-insert microSD to restart |
+| **DNS** | All queries resolve to router IP |
+
+The user connects to `StartWRT-Setup`. DNS hijacking redirects all requests to the wizard. Modern OSes detect the captive portal and auto-open a browser window.
+
+### Detection Logic
+
+| Onboard config? | eMMC PMK? | Options |
 |:---:|:---:|---|
 | Yes | Yes | **Update** or **Fresh Start** |
 | Yes | No | **Fresh Start** only |
-| No | Yes | **Fresh Start** (eMMC hash offered as default) |
+| No | Yes | **Fresh Start** (WiFi auto-configured) |
 | No | No | **Fresh Start** only |
 
-### Path A: Update (keep config, reuse eMMC hash)
+### Path A: Update (keep settings, new admin password)
 
-Physical access (having the microSD) is sufficient authorization — **no password prompt required**.
+Physical access (microSD) = sufficient authorization.
 
 ```
-1. Wizard detects onboard disk with existing StartWRT config
-2. Wizard detects eMMC password hash
-3. User selects "Update"
-4. System flashes new firmware to onboard disk
-5. Preserves config overlay (UCI files, SSH keys, etc.)
-6. Restores eMMC password hash → /etc/shadow
-7. Restores eMMC WiFi PMK → /etc/config/wireless
-8. "Update complete. Remove microSD and reboot."
+ 1. Detect onboard disk with config + eMMC WiFi PMK
+ 2. User selects "Update"
+ 3. Create admin password (any length/format)
+ 4. Confirm admin password
+ 5. Flash new firmware (replace squashfs base)
+ 6. Preserve config overlay EXCEPT /etc/shadow
+ 7. Write admin hash → /etc/shadow
+ 8. Restore eMMC WiFi PMK → /etc/config/wireless
+ 9. "Update complete. Remove microSD and reboot."
 ```
 
-### Path B: Fresh Start (full reset, new password)
+On first boot: WiFi works immediately (eMMC PMK, SSID `"StartWRT"`), admin login works immediately. All other settings (profiles, firewall, SSH keys, etc.) are preserved.
 
-Recovery path for lost passwords. The user chooses a **new password of any length/format** — no sticker constraints.
+### Path B: Fresh Start (full wipe, new WiFi + admin passwords)
 
 ```
  1. User selects "Fresh Start"
- 2. Select Language
- 3. Select Country
- 4. Select Drive (if multiple targets available)
- 5. Enter new password (user-chosen, any format/length)
- 6. Confirm new password
- 7. Compute hashes:
-    ├─ SHA-512 crypt hash → admin auth
-    └─ WPA-PSK PMK → WiFi
- 8. Write new hashes to eMMC (replaces old values)
- 9. Wipe onboard disk config overlay
+ 2. Select Language, Country, Drive
+ 3. Enter new WiFi password (any format/length)
+ 4. Confirm WiFi password
+ 5. Create admin password (any length/format)
+ 6. Confirm admin password
+ 7. PBKDF2-SHA1(WiFi password, "StartWRT", 4096) → new PMK
+ 8. Write new PMK to eMMC (replaces old)
+ 9. Wipe onboard disk config overlay entirely
 10. Flash fresh firmware
-11. Write hashes to /etc/shadow and /etc/config/wireless
-12. "Setup complete. Remove microSD and reboot."
+11. Write PMK → /etc/config/wireless
+12. Write admin hash → /etc/shadow
+13. "Setup complete. Remove microSD and reboot."
 ```
+
+On first boot: WiFi works immediately (new PMK, SSID `"StartWRT"`), admin login works immediately. All settings start fresh.
+
+### Package Management
+
+> **Open question**: User-installed packages (via `opkg`) live in the overlay. The Update path preserves the overlay, but package binaries may be incompatible with the new base firmware (kernel modules, ABI changes, renamed packages). Strategy TBD — options include: saving package list for manual reinstall, best-effort auto-reinstall, or documenting as a known limitation.
 
 ### Web UI Architecture
 
-Modeled after start-os's setup wizard (`start-os/web/projects/setup-wizard/`):
-
 | Component | Details |
 |-----------|---------|
-| **Frontend** | Angular app served from the microSD boot image |
-| **Backend** | `startwrt-ctrld` in "setup mode" (like start-os's `startd` setup vs init detection) |
-| **API endpoints** | Disk detection, firmware flashing, password setting, eMMC read/write |
-| **Progress** | WebSocket or polling for flash progress updates |
-| **Hostname** | `router.local` via mDNS (`umdns` or avahi on OpenWrt) |
+| **Frontend** | Angular app from microSD image |
+| **Backend** | `startwrt-ctrld` in "setup mode" |
+| **Access** | Captive portal (DNS hijack → any URL reaches wizard) |
 
-### Boot Detection: Setup Mode vs Normal Mode
+### Boot Detection
 
 ```
-Boot from microSD detected?
-├── Yes → Enter setup/reflash mode (serve wizard UI at router.local)
+microSD boot?
+├── Yes → Start captive portal ("StartWRT-Setup" AP, DNS hijack)
+│         → Serve setup wizard
 └── No  → Normal boot
-          ├── /etc/shadow has root password? → Normal operation
-          └── No password + eMMC hash exists? → Auto-restore → Normal operation
+          ├── Admin password set?
+          │   ├── Yes → Normal operation
+          │   └── No  → DNS hijack active (forces admin setup via captive portal)
+          ├── WiFi in /etc/config/wireless? → Normal operation
+          └── No WiFi + eMMC PMK? → Auto-restore WiFi → Normal operation
 ```
 
-The **auto-restore** case handles factory reset: overlay is wiped (including `/etc/shadow` and `/etc/config/wireless`) but eMMC survives. A boot-time script restores both values silently:
-
-- SHA-512 hash → `/etc/shadow` (admin login)
-- WPA PMK → `/etc/config/wireless` (WiFi with SSID `StartWRT`)
+Auto-restore: factory reset wipes overlay → boot script restores WiFi PMK from eMMC. Admin password not restored — DNS hijacking forces user to set it before normal browsing works.
 
 ---
 
-## Implementation Details
+## Design Notes
 
-### Files to Create / Modify
+### WiFi PSK and Security Profiles
 
-#### Init Tool (manufacturing)
+PMK as `iface.key` is fully compatible with identity PSK. The code in `wifi.rs` treats the key as an opaque string (read/write pass-through). Hostapd handles both passphrases and hex PMKs in `option key`. Per-profile PSKs in `wpa_psk_file` are processed independently.
+
+```
+WiFi Interface (iface.key = sticker PMK)
+├── dynamic_vlan = ALLOWED
+├── WifiStation { key: "profile1_pass", vid: 101 }
+└── Default: sticker PMK → no VLAN → main LAN
+```
+
+### Why PMK, Not Plaintext
+
+eMMC survives factory resets. Storing plaintext creates a persistent attack surface — malware that exfiltrates the password retains access even after the device is wiped. PMK is one-way and SSID-bound: changing the SSID invalidates a stolen PMK.
+
+### WiFi Key in UI
+
+The WiFi key (whether PMK or passphrase) is never displayed in the admin interface. The sticker is the source of truth.
+
+---
+
+## Implementation
+
+### Files
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `ctrl/src/init.rs` | **Create** | Init subcommand: password prompting, validation, eMMC write |
-| `ctrl/src/lib.rs` | **Modify** | Add `pub mod init;`, wire `init` into `main_api()` |
-| `ctrl/src/auth.rs` | **Modify** | Make `update_shadow_hash()` public for reuse |
-| `firstboot_config/inittab` | **Create** | OpenWrt inittab with agetty serial console config |
-
-#### Reflash Flow
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `ctrl/src/setup.rs` | **Create** | Setup/reflash mode: disk detection, firmware flash, eMMC management |
-| `ctrl/src/bin/startwrt-ctrld.rs` | **Modify** | Boot-time eMMC hash restore + setup mode detection |
-| `web/` (setup wizard pages) | **Create** | Angular setup wizard UI: language, country, drive, password |
-
-#### Shared
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `ctrl/src/emmc.rs` | **Create** | eMMC partition helpers (read/write hash, mount check) — used by both init tool and reflash |
+| `ctrl/src/init.rs` | **Create** | Init subcommand: password prompt, validation, PMK derivation, eMMC write |
+| `ctrl/src/emmc.rs` | **Create** | eMMC helpers: read/write PMK, mount check (shared by init + reflash + boot restore) |
+| `ctrl/src/lib.rs` | **Modify** | Add modules, wire `init` into CLI |
+| `firstboot_config/inittab` | **Create** | agetty serial config |
+| `firstboot_config/startwrt-serial` | **Create** | Serial dispatcher script |
+| `ctrl/src/setup.rs` | **Create** | Reflash mode: disk detection, flash, eMMC management |
+| `ctrl/src/bin/startwrt-ctrld.rs` | **Modify** | Boot-time WiFi auto-restore + setup mode detection |
+| `web/` (setup wizard) | **Create** | Angular wizard UI |
 
 ### Reusable Code
 
-| Source | What to reuse |
-|--------|--------------|
-| `ctrl/src/auth.rs:331` — `update_shadow_hash()` | Atomic `/etc/shadow` update. Make `pub`. |
-| `ctrl/src/auth.rs:414` — `pwhash::sha512_crypt::hash()` | SHA-512 crypt hashing |
-| `ctrl/src/auth.rs:432` — `rpassword::prompt_password()` | No-echo password prompting |
-| `ctrl/src/auth.rs` — atomic write pattern | temp file → write → fsync → rename |
-| `uciedit` (workspace crate) | UCI config parser for writing WiFi config |
-| `ctrl/src/wifi.rs` | Reference for wireless UCI config structure |
-| `start-os/web/projects/setup-wizard/` | Reference architecture for Angular wizard UI |
+| Source | Reuse |
+|--------|-------|
+| `auth.rs:432` — `rpassword::prompt_password()` | No-echo prompting |
+| `auth.rs` — atomic write pattern | temp → write → fsync → rename |
+| `uciedit` crate | UCI config writing |
+| `wifi.rs` | WiFi PSK + dynamic VLAN structure |
+| `start-os/web/projects/setup-wizard/` | Angular wizard reference |
 
 ### New Dependencies
 
-| Crate | Purpose |
-|-------|---------|
-| `pbkdf2` | PBKDF2 key derivation |
-| `hmac` | HMAC for PBKDF2 |
-| `sha1` | SHA-1 hash (WPA-PSK uses PBKDF2-SHA1) |
-
-> These are needed to compute the WPA-PSK PMK: `PBKDF2-SHA1(password, SSID, 4096, 32)`. Alternatively, the existing `pwhash` crate or OpenSSL bindings may provide this.
+`pbkdf2`, `hmac`, `sha1` — for WPA-PSK PMK derivation.
 
 ---
 
 ## Verification
 
-### Init Tool
-
-| # | Test | What to verify |
-|---|------|---------------|
-| 1 | **Unit: charset validation** | Valid 12-char passwords pass; too short/long, ambiguous chars (`0`, `O`, `l`, `1`, `I`, `o`), disallowed specials are rejected |
-| 2 | **Integration: eMMC write** | Set `STARTWRT_EMMC_PATH` to temp dir, pipe stdin, verify `password_hash` is valid `$6$...` and `wifi_pmk` is 64 hex chars |
-| 3 | **Hash compatibility** | Stored admin hash works with `check_password()` in `auth.rs` (`pwhash::unix::verify`) |
-| 4 | **WiFi PMK compatibility** | Stored PMK matches output of `wpa_passphrase "StartWRT" <password>` |
-| 5 | **Manual serial test** | Full agetty → init tool flow on hardware. WiFi comes up with correct SSID and password. |
-
-### Reflash Flow
-
-| # | Test | What to verify |
-|---|------|---------------|
-| 6 | **Boot detection** | Setup mode entered from microSD boot; normal mode from onboard disk |
-| 7 | **Update path** | Config preserved, eMMC hashes restored to `/etc/shadow` and `/etc/config/wireless` |
-| 8 | **Fresh Start path** | New password replaces eMMC hashes, onboard disk wiped clean |
-| 9 | **Auto-restore** | Simulate factory reset (wipe overlay), boot-time script restores both hashes without user interaction |
+| # | Test | Verify |
+|---|------|--------|
+| 1 | Charset validation | 12-char valid passes; ambiguous/wrong-length rejected |
+| 2 | eMMC write | `wifi_pmk` is 64 hex chars |
+| 3 | PMK compatibility | Matches `wpa_passphrase "StartWRT" <password>` |
+| 4 | Serial dispatcher | Correct mode per state |
+| 5 | Manual serial test | Full agetty → init flow, WiFi works with sticker password |
+| 6 | First-time admin | GUI prompts for admin password when unset |
+| 7 | Factory reset | WiFi restores from eMMC, admin unset, settings wiped |
+| 8 | Update path | Settings preserved, `/etc/shadow` cleared, WiFi restored, admin re-prompted |
+| 9 | Fresh Start | New PMK on eMMC, everything wiped, admin re-prompted |
+| 10 | Identity PSK | After reset, sticker WiFi works; profiles can be recreated |
