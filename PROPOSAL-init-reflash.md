@@ -40,21 +40,22 @@ The `/persistent` partition is excluded from factory reset wipes. It stores one 
 
 ## Part 1: Manufacturing
 
-### Initial Firmware Flash
+### Initial Firmware Flash + WiFi Provisioning
 
-U-Boot auto-flashes firmware from microSD to the eMMC firmware partitions at the bootloader level — no OS is booted from the microSD.
+U-Boot tries microSD first by default on the BPI-F3 (boot selection switch SW1). Manufacturing uses the same bootable microSD image as end-user reflash (Part 3), but driven via serial console instead of the WiFi wizard.
 
 ```
-1. Factory worker inserts microSD containing firmware image file
+1. Factory worker inserts microSD with bootable StartWRT image
 2. Powers on device
-3. U-Boot detects firmware image on microSD → writes to eMMC firmware partitions
-4. Flash complete (LED/serial confirmation)
-5. Factory worker removes microSD
-6. Device reboots from eMMC
-7. Serial dispatcher sees no /persistent/wifi_pmk → launches startwrt-cli init
+3. U-Boot boots from microSD
+4. Serial dispatcher → login shell
+5. Factory worker flashes firmware to eMMC partitions (e.g. startwrt-cli flash)
+6. Factory worker runs startwrt-cli init → enters sticker password → PMK written to eMMC /persistent
+7. Factory worker removes microSD
+8. Device reboots from eMMC — WiFi works immediately, no admin password set
 ```
 
-> **Note**: This is distinct from the Part 3 reflash flow, where the microSD contains a bootable image that runs a setup wizard. Here, U-Boot copies a raw image to eMMC firmware partitions without booting it. The `/persistent` partition is untouched.
+> **Note**: Manufacturing and reflash share the same microSD image. Manufacturing uses serial; reflash uses the WiFi captive portal wizard. This avoids maintaining separate images.
 
 ### Init Tool
 
