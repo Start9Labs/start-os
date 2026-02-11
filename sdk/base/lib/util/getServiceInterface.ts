@@ -1,6 +1,12 @@
 import { PackageId, ServiceInterfaceId, ServiceInterfaceType } from '../types'
 import { knownProtocols } from '../interfaces/Host'
-import { AddressInfo, Host, Hostname, HostnameInfo } from '../types'
+import {
+  AddressInfo,
+  DerivedAddressInfo,
+  Host,
+  Hostname,
+  HostnameInfo,
+} from '../types'
 import { Effects } from '../Effects'
 import { DropGenerator, DropPromise } from './Drop'
 import { IpAddress, IPV6_LINK_LOCAL } from './ip'
@@ -220,6 +226,14 @@ function filterRec(
   return hostnames
 }
 
+function enabledAddresses(addr: DerivedAddressInfo): HostnameInfo[] {
+  return addr.possible.filter((h) =>
+    h.public
+      ? addr.publicEnabled.some((e) => deepEqual(e, h))
+      : !addr.privateDisabled.some((d) => deepEqual(d, h)),
+  )
+}
+
 export const filledAddress = (
   host: Host,
   addressInfo: AddressInfo,
@@ -229,7 +243,8 @@ export const filledAddress = (
     const u = toUrls(h)
     return [u.url, u.sslUrl].filter((u) => u !== null)
   }
-  const hostnames = host.hostnameInfo[addressInfo.internalPort] ?? []
+  const binding = host.bindings[addressInfo.internalPort]
+  const hostnames = binding ? enabledAddresses(binding.addresses) : []
 
   function filledAddressFromHostnames<F extends Filter>(
     hostnames: HostnameInfo[],

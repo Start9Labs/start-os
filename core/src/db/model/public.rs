@@ -20,7 +20,7 @@ use crate::db::model::Database;
 use crate::db::model::package::AllPackageData;
 use crate::net::acme::AcmeProvider;
 use crate::net::host::Host;
-use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, NetInfo};
+use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, Bindings, DerivedAddressInfo, NetInfo};
 use crate::net::utils::ipv6_is_local;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
@@ -63,35 +63,35 @@ impl Public {
                 post_init_migration_todos: BTreeMap::new(),
                 network: NetworkInfo {
                     host: Host {
-                        bindings: [(
-                            80,
-                            BindInfo {
-                                enabled: false,
-                                options: BindOptions {
-                                    preferred_external_port: 80,
-                                    add_ssl: Some(AddSslOptions {
-                                        preferred_external_port: 443,
-                                        add_x_forwarded_headers: false,
-                                        alpn: Some(AlpnInfo::Specified(vec![
-                                            MaybeUtf8String("h2".into()),
-                                            MaybeUtf8String("http/1.1".into()),
-                                        ])),
-                                    }),
-                                    secure: None,
+                        bindings: Bindings(
+                            [(
+                                80,
+                                BindInfo {
+                                    enabled: false,
+                                    options: BindOptions {
+                                        preferred_external_port: 80,
+                                        add_ssl: Some(AddSslOptions {
+                                            preferred_external_port: 443,
+                                            add_x_forwarded_headers: false,
+                                            alpn: Some(AlpnInfo::Specified(vec![
+                                                MaybeUtf8String("h2".into()),
+                                                MaybeUtf8String("http/1.1".into()),
+                                            ])),
+                                        }),
+                                        secure: None,
+                                    },
+                                    net: NetInfo {
+                                        assigned_port: None,
+                                        assigned_ssl_port: Some(443),
+                                    },
+                                    addresses: DerivedAddressInfo::default(),
                                 },
-                                net: NetInfo {
-                                    assigned_port: None,
-                                    assigned_ssl_port: Some(443),
-                                    private_disabled: OrdSet::new(),
-                                    public_enabled: OrdSet::new(),
-                                },
-                            },
-                        )]
-                        .into_iter()
-                        .collect(),
+                            )]
+                            .into_iter()
+                            .collect(),
+                        ),
                         public_domains: BTreeMap::new(),
                         private_domains: BTreeSet::new(),
-                        hostname_info: BTreeMap::new(),
                     },
                     wifi: WifiInfo {
                         enabled: true,

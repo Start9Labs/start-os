@@ -3,16 +3,17 @@ use std::str::FromStr;
 
 use clap::Parser;
 use clap::builder::ValueParserFactory;
-use imbl::OrdSet;
 use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::NetworkInterfaceInfo;
+use crate::db::prelude::Map;
 use crate::net::forward::AvailablePorts;
 use crate::net::gateway::InterfaceFilter;
 use crate::net::host::HostApiKind;
+use crate::net::service_interface::HostnameInfo;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::util::FromStrParser;
@@ -45,51 +46,137 @@ impl FromStr for BindId {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, TS)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, TS, HasModel)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
+#[model = "Model<Self>"]
+pub struct DerivedAddressInfo {
+    /// User-controlled: private-gateway addresses the user has disabled
+    pub private_disabled: BTreeSet<HostnameInfo>,
+    /// User-controlled: public-gateway addresses the user has enabled
+    pub public_enabled: BTreeSet<HostnameInfo>,
+    /// COMPUTED: NetServiceData::update — all possible addresses for this binding
+    pub possible: BTreeSet<HostnameInfo>,
+}
+
+impl DerivedAddressInfo {
+    /// Returns addresses that are currently enabled.
+    /// Private addresses are enabled by default (disabled if in private_disabled).
+    /// Public addresses are disabled by default (enabled if in public_enabled).
+    pub fn enabled(&self) -> BTreeSet<&HostnameInfo> {
+        self.possible
+            .iter()
+            .filter(|h| {
+                if h.public {
+                    self.public_enabled.contains(h)
+                } else {
+                    !self.private_disabled.contains(h)
+                }
+            })
+            .collect()
+    }
+
+    /// Derive a gateway-level InterfaceFilter from the enabled addresses.
+    /// A gateway passes the filter if it has any enabled address for this binding.
+    pub fn gateway_filter(&self) -> AddressFilter {
+        let enabled_gateways: BTreeSet<GatewayId> = self
+            .enabled()
+            .into_iter()
+            .map(|h| h.gateway.id.clone())
+            .collect();
+        AddressFilter(enabled_gateways)
+    }
+}
+
+/// Gateway-level filter derived from DerivedAddressInfo.
+/// Passes if the gateway has at least one enabled address.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct AddressFilter(pub BTreeSet<GatewayId>);
+impl InterfaceFilter for AddressFilter {
+    fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
+        info.ip_info.is_some() && self.0.contains(id)
+    }
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct Bindings(pub BTreeMap<u16, BindInfo>);
+
+impl Map for Bindings {
+    type Key = u16;
+    type Value = BindInfo;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Self::key_string(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(InternedString::from_display(key))
+    }
+}
+
+impl std::ops::Deref for Bindings {
+    type Target = BTreeMap<u16, BindInfo>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for Bindings {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
 #[ts(export)]
 pub struct BindInfo {
     pub enabled: bool,
     pub options: BindOptions,
     pub net: NetInfo,
+    pub addresses: DerivedAddressInfo,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct NetInfo {
-    #[ts(as = "BTreeSet::<GatewayId>")]
-    #[serde(default)]
-    pub private_disabled: OrdSet<GatewayId>,
-    #[ts(as = "BTreeSet::<GatewayId>")]
-    #[serde(default)]
-    pub public_enabled: OrdSet<GatewayId>,
     pub assigned_port: Option<u16>,
     pub assigned_ssl_port: Option<u16>,
 }
+impl InterfaceFilter for NetInfo {
+    fn filter(&self, _id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
+        info.ip_info.is_some()
+    }
+}
+
 impl BindInfo {
     pub fn new(available_ports: &mut AvailablePorts, options: BindOptions) -> Result<Self, Error> {
         let mut assigned_port = None;
         let mut assigned_ssl_port = None;
-        if options.add_ssl.is_some() {
-            assigned_ssl_port = Some(available_ports.alloc()?);
+        if let Some(ssl) = &options.add_ssl {
+            assigned_ssl_port = available_ports
+                .try_alloc(ssl.preferred_external_port, true)
+                .or_else(|| Some(available_ports.alloc(true).ok()?));
         }
         if options
             .secure
             .map_or(true, |s| !(s.ssl && options.add_ssl.is_some()))
         {
-            assigned_port = Some(available_ports.alloc()?);
+            assigned_port = available_ports
+                .try_alloc(options.preferred_external_port, false)
+                .or_else(|| Some(available_ports.alloc(false).ok()?));
         }
 
         Ok(Self {
             enabled: true,
             options,
             net: NetInfo {
-                private_disabled: OrdSet::new(),
-                public_enabled: OrdSet::new(),
                 assigned_port,
                 assigned_ssl_port,
             },
+            addresses: DerivedAddressInfo::default(),
         })
     }
     pub fn update(
@@ -97,7 +184,11 @@ impl BindInfo {
         available_ports: &mut AvailablePorts,
         options: BindOptions,
     ) -> Result<Self, Error> {
-        let Self { net: mut lan, .. } = self;
+        let Self {
+            net: mut lan,
+            addresses,
+            ..
+        } = self;
         if options
             .secure
             .map_or(true, |s| !(s.ssl && options.add_ssl.is_some()))
@@ -105,19 +196,26 @@ impl BindInfo {
         {
             lan.assigned_port = if let Some(port) = lan.assigned_port.take() {
                 Some(port)
+            } else if let Some(port) =
+                available_ports.try_alloc(options.preferred_external_port, false)
+            {
+                Some(port)
             } else {
-                Some(available_ports.alloc()?)
+                Some(available_ports.alloc(false)?)
             };
         } else {
             if let Some(port) = lan.assigned_port.take() {
                 available_ports.free([port]);
             }
         }
-        if options.add_ssl.is_some() {
+        if let Some(ssl) = &options.add_ssl {
             lan.assigned_ssl_port = if let Some(port) = lan.assigned_ssl_port.take() {
                 Some(port)
+            } else if let Some(port) = available_ports.try_alloc(ssl.preferred_external_port, true)
+            {
+                Some(port)
             } else {
-                Some(available_ports.alloc()?)
+                Some(available_ports.alloc(true)?)
             };
         } else {
             if let Some(port) = lan.assigned_ssl_port.take() {
@@ -128,20 +226,15 @@ impl BindInfo {
             enabled: true,
             options,
             net: lan,
+            addresses: DerivedAddressInfo {
+                private_disabled: addresses.private_disabled,
+                public_enabled: addresses.public_enabled,
+                possible: BTreeSet::new(),
+            },
         })
     }
     pub fn disable(&mut self) {
         self.enabled = false;
-    }
-}
-impl InterfaceFilter for NetInfo {
-    fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        info.ip_info.is_some()
-            && if info.public() {
-                self.public_enabled.contains(id)
-            } else {
-                !self.private_disabled.contains(id)
-            }
     }
 }
 
@@ -188,7 +281,7 @@ pub fn binding<C: Context, Kind: HostApiKind>()
 
                     let mut table = Table::new();
                     table.add_row(row![bc => "INTERNAL PORT", "ENABLED", "EXTERNAL PORT", "EXTERNAL SSL PORT"]);
-                    for (internal, info) in res {
+                    for (internal, info) in res.iter() {
                         table.add_row(row![
                             internal,
                             info.enabled,
@@ -213,12 +306,12 @@ pub fn binding<C: Context, Kind: HostApiKind>()
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "set-gateway-enabled",
-            from_fn_async(set_gateway_enabled::<Kind>)
+            "set-address-enabled",
+            from_fn_async(set_address_enabled::<Kind>)
                 .with_metadata("sync_db", Value::Bool(true))
                 .with_inherited(Kind::inheritance)
                 .no_display()
-                .with_about("about.set-gateway-enabled-for-binding")
+                .with_about("about.set-address-enabled-for-binding")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -227,7 +320,7 @@ pub async fn list_bindings<Kind: HostApiKind>(
     ctx: RpcContext,
     _: Empty,
     inheritance: Kind::Inheritance,
-) -> Result<BTreeMap<u16, BindInfo>, Error> {
+) -> Result<Bindings, Error> {
     Kind::host_for(&inheritance, &mut ctx.db.peek().await)?
         .as_bindings()
         .de()
@@ -236,50 +329,44 @@ pub async fn list_bindings<Kind: HostApiKind>(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct BindingGatewaySetEnabledParams {
+pub struct BindingSetAddressEnabledParams {
     #[arg(help = "help.arg.internal-port")]
     internal_port: u16,
-    #[arg(help = "help.arg.gateway-id")]
-    gateway: GatewayId,
+    #[arg(long, help = "help.arg.address")]
+    address: String,
     #[arg(long, help = "help.arg.binding-enabled")]
     enabled: Option<bool>,
 }
 
-pub async fn set_gateway_enabled<Kind: HostApiKind>(
+pub async fn set_address_enabled<Kind: HostApiKind>(
     ctx: RpcContext,
-    BindingGatewaySetEnabledParams {
+    BindingSetAddressEnabledParams {
         internal_port,
-        gateway,
+        address,
         enabled,
-    }: BindingGatewaySetEnabledParams,
+    }: BindingSetAddressEnabledParams,
     inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
     let enabled = enabled.unwrap_or(true);
-    let gateway_public = ctx
-        .net_controller
-        .net_iface
-        .watcher
-        .ip_info()
-        .get(&gateway)
-        .or_not_found(&gateway)?
-        .public();
+    let address: HostnameInfo =
+        serde_json::from_str(&address).with_kind(ErrorKind::Deserialization)?;
     ctx.db
         .mutate(|db| {
             Kind::host_for(&inheritance, db)?
                 .as_bindings_mut()
                 .mutate(|b| {
-                    let net = &mut b.get_mut(&internal_port).or_not_found(internal_port)?.net;
-                    if gateway_public {
+                    let bind = b.get_mut(&internal_port).or_not_found(internal_port)?;
+                    if address.public {
                         if enabled {
-                            net.public_enabled.insert(gateway);
+                            bind.addresses.public_enabled.insert(address.clone());
                         } else {
-                            net.public_enabled.remove(&gateway);
+                            bind.addresses.public_enabled.remove(&address);
                         }
                     } else {
                         if enabled {
-                            net.private_disabled.remove(&gateway);
+                            bind.addresses.private_disabled.remove(&address);
                         } else {
-                            net.private_disabled.insert(gateway);
+                            bind.addresses.private_disabled.insert(address.clone());
                         }
                     }
                     Ok(())

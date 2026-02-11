@@ -2126,8 +2126,74 @@ export namespace Mock {
             net: {
               assignedPort: 80,
               assignedSslPort: 443,
-              publicEnabled: [],
+            },
+            addresses: {
               privateDisabled: [],
+              publicEnabled: [],
+              possible: [
+                {
+                  gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                  public: false,
+                  hostname: {
+                    kind: 'local',
+                    value: 'adjective-noun.local',
+                    port: null,
+                    sslPort: 1234,
+                  },
+                },
+                {
+                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  public: false,
+                  hostname: {
+                    kind: 'local',
+                    value: 'adjective-noun.local',
+                    port: null,
+                    sslPort: 1234,
+                  },
+                },
+                {
+                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  public: false,
+                  hostname: {
+                    kind: 'ipv4',
+                    value: '192.168.10.11',
+                    port: null,
+                    sslPort: 1234,
+                  },
+                },
+                {
+                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  public: false,
+                  hostname: {
+                    kind: 'ipv4',
+                    value: '10.0.0.2',
+                    port: null,
+                    sslPort: 1234,
+                  },
+                },
+                {
+                  gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                  public: false,
+                  hostname: {
+                    kind: 'ipv6',
+                    value: '[fe80:cd00:0000:0cde:1257:0000:211e:72cd]',
+                    scopeId: 2,
+                    port: null,
+                    sslPort: 1234,
+                  },
+                },
+                {
+                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  public: false,
+                  hostname: {
+                    kind: 'ipv6',
+                    value: '[fe80:cd00:0000:0cde:1257:0000:211e:1234]',
+                    scopeId: 3,
+                    port: null,
+                    sslPort: 1234,
+                  },
+                },
+              ],
             },
             options: {
               addSsl: null,
@@ -2138,78 +2204,6 @@ export namespace Mock {
         },
         publicDomains: {},
         privateDomains: [],
-        hostnameInfo: {
-          80: [
-            {
-              kind: 'ip',
-              gateway: { id: 'eth0', name: 'Ethernet', public: false },
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '192.168.10.11',
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '10.0.0.2',
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'eth0', name: 'Ethernet', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: '[fe80:cd00:0000:0cde:1257:0000:211e:72cd]',
-                scopeId: 2,
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: '[fe80:cd00:0000:0cde:1257:0000:211e:1234]',
-                scopeId: 3,
-                port: null,
-                sslPort: 1234,
-              },
-            },
-          ],
-        },
       },
       bcdefgh: {
         bindings: {
@@ -2218,8 +2212,11 @@ export namespace Mock {
             net: {
               assignedPort: 8332,
               assignedSslPort: null,
-              publicEnabled: [],
+            },
+            addresses: {
               privateDisabled: [],
+              publicEnabled: [],
+              possible: [],
             },
             options: {
               addSsl: null,
@@ -2230,9 +2227,6 @@ export namespace Mock {
         },
         publicDomains: {},
         privateDomains: [],
-        hostnameInfo: {
-          8332: [],
-        },
       },
       cdefghi: {
         bindings: {
@@ -2241,8 +2235,11 @@ export namespace Mock {
             net: {
               assignedPort: 8333,
               assignedSslPort: null,
-              publicEnabled: [],
+            },
+            addresses: {
               privateDisabled: [],
+              publicEnabled: [],
+              possible: [],
             },
             options: {
               addSsl: null,
@@ -2253,9 +2250,6 @@ export namespace Mock {
         },
         publicDomains: {},
         privateDomains: [],
-        hostnameInfo: {
-          8333: [],
-        },
       },
     },
     storeExposedDependents: [],

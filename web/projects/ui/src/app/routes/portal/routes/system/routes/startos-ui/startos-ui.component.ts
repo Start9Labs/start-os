@@ -96,8 +96,8 @@ export default class StartOsUiComponent {
       gateways: gateways.map(g => ({
         enabled:
           (g.public
-            ? binding?.net.publicEnabled.includes(g.id)
-            : !binding?.net.privateDisabled.includes(g.id)) ?? false,
+            ? binding?.addresses.publicEnabled.some(a => a.gateway.id === g.id)
+            : !binding?.addresses.privateDisabled.some(a => a.gateway.id === g.id)) ?? false,
         ...g,
       })),
       publicDomains: getPublicDomains(network.host.publicDomains, gateways),

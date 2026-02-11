@@ -1685,19 +1685,9 @@ where
 
 #[test]
 fn test_filter() {
-    use crate::net::host::binding::NetInfo;
     let wg1 = "wg1".parse::<GatewayId>().unwrap();
     assert!(!InterfaceFilter::filter(
-        &AndFilter(
-            NetInfo {
-                private_disabled: [wg1.clone()].into_iter().collect(),
-                public_enabled: Default::default(),
-                assigned_port: None,
-                assigned_ssl_port: None,
-            },
-            AndFilter(IdFilter(wg1.clone()), PublicFilter { public: false }),
-        )
-        .into_dyn(),
+        &AndFilter(IdFilter(wg1.clone()), PublicFilter { public: false }).into_dyn(),
         &wg1,
         &NetworkInterfaceInfo {
             name: None,

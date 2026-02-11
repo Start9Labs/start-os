@@ -33,114 +33,39 @@ Pending tasks for AI agents. Remove items when completed.
   `preferred_external_port: 443` won't get 443 as its `assigned_ssl_port` (it's taken), but it CAN
   still have domain vhost entries on port 443 — SNI routes by hostname.
 
-  #### 1. Preferred Port Allocation for Ownership (`forward.rs`, `binding.rs`)
+  #### 1. Preferred Port Allocation for Ownership ✅ DONE
 
-  Expand `AvailablePorts` to support trying a preferred port before falling back to the dynamic range:
+  `AvailablePorts::try_alloc(port) -> Option<u16>` added to `forward.rs`. `BindInfo::new()` and
+  `BindInfo::update()` attempt the preferred port first, falling back to dynamic-range allocation.
 
-  - Add `try_alloc(port) -> Option<u16>`: Attempts to exclusively allocate a specific port. Returns
-    `None` if the port is already allocated or restricted.
-  - Enforce the restricted port list (currently noted in `vhost.rs:89`: `<=1024, >=32768, 5355, 5432,
-    9050, 6010, 9051, 5353`) — skip the preferred port if restricted, except for ports the OS itself
-    uses (80, 443).
-  - No SSL-vs-non-SSL distinction or refcounting needed at this layer — ownership is always exclusive.
-    SSL port sharing for domains is handled entirely by the VHostController via SNI.
+  #### 2. Per-Address Enable/Disable ✅ DONE
 
-  Modify `BindInfo::new()` and `BindInfo::update()` to attempt the preferred port first:
+  Gateway-level `private_disabled`/`public_enabled` on `NetInfo` replaced with per-address
+  `DerivedAddressInfo` on `BindInfo`. `hostname_info` removed from `Host` — computed addresses now
+  live in `BindInfo.addresses.possible`.
 
-  ```
-  assigned_ssl_port = try_alloc(ssl.preferred_external_port)
-                      .unwrap_or(dynamic_pool.alloc())
-  assigned_port     = try_alloc(options.preferred_external_port)
-                      .unwrap_or(dynamic_pool.alloc())
-  ```
-
-  After this change, `assigned_ssl_port` may match the preferred port if it was available, or fall back
-  to the dynamic range as before.
-
-  #### 2. Per-Address Enable/Disable (replaces gateway overrides)
-
-  **Current model being removed**: `NetInfo` has `private_disabled: OrdSet<GatewayId>` and
-  `public_enabled: OrdSet<GatewayId>` — gateway-level toggles where private gateways are enabled by
-  default and public gateways are disabled by default. The `set-gateway-enabled` RPC endpoint and the
-  `InterfaceFilter` impl on `NetInfo` use these sets. This model is unintuitive because users think in
-  terms of individual addresses, not gateways.
-
-  **New model**: Per-address enable/disable using `DerivedAddressInfo` on `BindInfo`. Instead of
-  gateway-level toggles, users toggle individual addresses. The `hostnameInfo` field moves from `Host`
-  to `BindInfo.addresses` (as the computed `possible` set).
-
-  **`DerivedAddressInfo` struct** (added to `BindInfo`):
+  **`DerivedAddressInfo` struct** (on `BindInfo`):
 
   ```rust
   pub struct DerivedAddressInfo {
-      /// User-controlled: private-gateway addresses the user has disabled
       pub private_disabled: BTreeSet<HostnameInfo>,
-      /// User-controlled: public-gateway addresses the user has enabled
       pub public_enabled: BTreeSet<HostnameInfo>,
-      /// COMPUTED by update(): all possible addresses for this binding
-      pub possible: BTreeSet<HostnameInfo>,
+      pub possible: BTreeSet<HostnameInfo>,  // COMPUTED by update()
   }
   ```
 
-  `DerivedAddressInfo::enabled()` returns `possible` filtered by the two sets: private addresses are
-  enabled by default (disabled if in `private_disabled`), public addresses are disabled by default
-  (enabled if in `public_enabled`). Requires `HostnameInfo` to derive `Ord` for `BTreeSet` usage.
+  `DerivedAddressInfo::enabled()` returns `possible` filtered by the two sets. `HostnameInfo` derives
+  `Ord` for `BTreeSet` usage. `AddressFilter` (implementing `InterfaceFilter`) derives enabled
+  gateway set from `DerivedAddressInfo` for vhost/forward filtering.
 
-  **How disabling works per address type**:
+  **RPC endpoint**: `set-gateway-enabled` replaced with `set-address-enabled` (on both
+  `server.host.binding` and `package.host.binding`).
 
-  The enforcement mechanism varies by address type because different addresses are reached through
-  different network paths:
+  **How disabling works per address type** (enforcement deferred to Section 3):
 
-  - **WAN IP:port** (public gateway IP addresses): Disabled via **source-IP gating** in the vhost
-    layer (Section 3). Public and private traffic share the same port listener, so we can't just
-    remove the vhost entry — that would also block private traffic. Instead, the vhost target is
-    tagged with which source-IP classes it accepts. When a WAN IP address is disabled, the vhost
-    target rejects connections whose source IP matches the gateway (i.e., NAT'd internet traffic)
-    or falls outside the gateway's LAN subnets. LAN traffic to the same port is unaffected.
-  - **LAN IP:port** (private gateway IP addresses): Also enforced via **source-IP gating**. When
-    disabled, the vhost target rejects connections from LAN subnets on that gateway. This is the
-    inverse of the WAN case — same mechanism, different source-IP class.
+  - **WAN/LAN IP:port**: Will be enforced via **source-IP gating** in the vhost layer (Section 3).
   - **Hostname-based addresses** (`.local`, domains): Disabled by **not creating the vhost/SNI
-    entry** for that hostname. Since hostname-based routing uses SNI (SSL) or Host header (HTTP),
-    removing the entry means the hostname simply doesn't resolve to a backend. No traffic reaches
-    the service for that hostname.
-
-  **Backend changes**:
-
-  - **Remove from `NetInfo`**: Delete the `private_disabled` and `public_enabled` fields entirely.
-    `NetInfo` becomes just `{ assigned_port: Option<u16>, assigned_ssl_port: Option<u16> }`.
-  - **Add `addresses: DerivedAddressInfo` to `BindInfo`**: User-controlled sets (`private_disabled`,
-    `public_enabled`) are preserved across updates; `possible` is recomputed by `update()`.
-  - **Remove `hostname_info` from `Host`**: Computed addresses now live in `BindInfo.addresses.possible`
-    instead of being a top-level field on `Host` that was never persisted to the DB.
-  - **Default behavior preserved**: Private-gateway addresses default to enabled, public-gateway
-    addresses default to disabled, via the `enabled()` method on `DerivedAddressInfo`.
-  - **Remove `set-gateway-enabled`** RPC endpoint from `binding.rs`.
-  - **Remove `InterfaceFilter` impl for `NetInfo`**: The per-gateway filter logic is replaced by
-    per-address filtering derived from `DerivedAddressInfo`.
-
-  **New RPC endpoint** (`binding.rs`):
-
-  Following the existing `HostApiKind` pattern, replace `set-gateway-enabled` with:
-
-  - **`set-address-enabled`** — Toggle an individual address on or off.
-
-    ```ts
-    interface BindingSetAddressEnabledParams {
-      internalPort: number
-      address: HostnameInfo   // identifies the address directly (no separate AddressId type needed)
-      enabled: boolean | null // null = reset to default
-    }
-    ```
-
-    Mutates `BindInfo.addresses.private_disabled` / `.public_enabled` based on the address's `public`
-    field. If `public == true` and enabled, add to `public_enabled`; if disabled, remove. If
-    `public == false` and enabled, remove from `private_disabled`; if disabled, add. Uses `sync_db`
-    metadata.
-
-    This yields two RPC methods:
-    - `server.host.binding.set-address-enabled`
-    - `package.host.binding.set-address-enabled`
+    entry** for that hostname.
 
   #### 3. Eliminate the Port 5443 Hack: Source-IP-Based WAN Blocking (`vhost.rs`, `net_controller.rs`)
 
@@ -206,7 +131,7 @@ Pending tasks for AI agents. Remove items when completed.
 
   ##### View Page
 
-  Displays all computed addresses for the interface (from `hostname_info`) as a flat list. For each
+  Displays all computed addresses for the interface (from `BindInfo.addresses`) as a flat list. For each
   address, show: URL, type (IPv4, IPv6, .local, domain), access level (public/private),
   gateway name, SSL indicator, enable/disable state, port forward info for public addresses, and a test button
   for reachability (see Section 7).
@@ -282,13 +207,13 @@ Pending tasks for AI agents. Remove items when completed.
 
   | File | Role |
   |------|------|
-  | `core/src/net/forward.rs` | `AvailablePorts` — port pool allocation |
-  | `core/src/net/host/binding.rs` | `BindInfo`/`NetInfo`/`DerivedAddressInfo` — remove gateway overrides, add per-address enable/disable sets, new RPC endpoints |
-  | `core/src/net/net_controller.rs:259` | `NetServiceData::update()` — compute `enabled` on `HostnameInfo`, vhost/forward/DNS reconciliation, 5443 hack removal |
+  | `core/src/net/forward.rs` | `AvailablePorts` — port pool allocation, `try_alloc()` for preferred ports |
+  | `core/src/net/host/binding.rs` | `Bindings` (Map wrapper for patchdb), `BindInfo`/`NetInfo`/`DerivedAddressInfo`/`AddressFilter` — per-address enable/disable, `set-address-enabled` RPC |
+  | `core/src/net/net_controller.rs:259` | `NetServiceData::update()` — computes `DerivedAddressInfo.possible`, vhost/forward/DNS reconciliation, 5443 hack removal |
   | `core/src/net/vhost.rs` | `VHostController` / `ProxyTarget` — source-IP gating for public/private |
-  | `core/src/net/gateway.rs` | `InterfaceFilter` — remove `NetInfo` impl, simplify |
-  | `core/src/net/service_interface.rs` | `HostnameInfo` — add `Ord` derives for use in `BTreeSet` |
-  | `core/src/net/host/address.rs` | Existing domain/onion CRUD endpoints (no changes needed) |
+  | `core/src/net/gateway.rs` | `InterfaceFilter` trait and filter types (`AddressFilter`, `PublicFilter`, etc.) |
+  | `core/src/net/service_interface.rs` | `HostnameInfo` — derives `Ord` for `BTreeSet` usage |
+  | `core/src/net/host/address.rs` | `HostAddress` (flattened struct), domain CRUD endpoints |
   | `sdk/base/lib/interfaces/Host.ts` | SDK `MultiHost.bindPort()` — no changes needed |
   | `core/src/db/model/public.rs` | Public DB model — port forward mapping |
 

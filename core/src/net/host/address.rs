@@ -16,15 +16,11 @@ use crate::prelude::*;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-#[serde(rename_all_fields = "camelCase")]
-#[serde(tag = "kind")]
-pub enum HostAddress {
-    Domain {
-        address: InternedString,
-        public: Option<PublicDomainConfig>,
-        private: bool,
-    },
+#[serde(rename_all = "camelCase")]
+pub struct HostAddress {
+    pub address: InternedString,
+    pub public: Option<PublicDomainConfig>,
+    pub private: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
@@ -151,29 +147,18 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
 
                     let mut table = Table::new();
                     table.add_row(row![bc => "ADDRESS", "PUBLIC", "ACME PROVIDER"]);
-                    for address in &res {
-                        match address {
-                            HostAddress::Domain {
-                                address,
-                                public: Some(PublicDomainConfig { gateway, acme }),
-                                private,
-                            } => {
-                                table.add_row(row![
-                                    address,
-                                    &format!(
-                                        "{} ({gateway})",
-                                        if *private { "YES" } else { "ONLY" }
-                                    ),
-                                    acme.as_ref().map(|a| a.0.as_str()).unwrap_or("NONE")
-                                ]);
-                            }
-                            HostAddress::Domain {
-                                address,
-                                public: None,
-                                ..
-                            } => {
-                                table.add_row(row![address, &format!("NO"), "N/A"]);
-                            }
+                    for entry in &res {
+                        if let Some(PublicDomainConfig { gateway, acme }) = &entry.public {
+                            table.add_row(row![
+                                entry.address,
+                                &format!(
+                                    "{} ({gateway})",
+                                    if entry.private { "YES" } else { "ONLY" }
+                                ),
+                                acme.as_ref().map(|a| a.0.as_str()).unwrap_or("NONE")
+                            ]);
+                        } else {
+                            table.add_row(row![entry.address, &format!("NO"), "N/A"]);
                         }
                     }
 

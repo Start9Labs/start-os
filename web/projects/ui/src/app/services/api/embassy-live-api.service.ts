@@ -607,11 +607,11 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async serverBindingToggleGateway(
-    params: RR.ServerBindingToggleGatewayReq,
-  ): Promise<RR.ServerBindingToggleGatewayRes> {
+  async serverBindingSetAddressEnabled(
+    params: RR.ServerBindingSetAddressEnabledReq,
+  ): Promise<RR.ServerBindingSetAddressEnabledRes> {
     return this.rpcRequest({
-      method: 'server.host.binding.set-gateway-enabled',
+      method: 'server.host.binding.set-address-enabled',
       params,
     })
   }
@@ -652,11 +652,11 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async pkgBindingToggleGateway(
-    params: RR.PkgBindingToggleGatewayReq,
-  ): Promise<RR.PkgBindingToggleGatewayRes> {
+  async pkgBindingSetAddressEnabled(
+    params: RR.PkgBindingSetAddressEnabledReq,
+  ): Promise<RR.PkgBindingSetAddressEnabledRes> {
     return this.rpcRequest({
-      method: 'package.host.binding.set-gateway-enabled',
+      method: 'package.host.binding.set-address-enabled',
       params,
     })
   }

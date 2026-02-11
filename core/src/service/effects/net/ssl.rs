@@ -60,10 +60,10 @@ pub async fn get_ssl_certificate(
                         .into_iter()
                         .chain(m.as_private_domains().de()?)
                         .chain(
-                            m.as_hostname_info()
+                            m.as_bindings()
                                 .de()?
                                 .values()
-                                .flatten()
+                                .flat_map(|b| b.addresses.possible.iter().cloned())
                                 .map(|h| h.to_san_hostname()),
                         )
                         .collect::<Vec<InternedString>>())
@@ -184,10 +184,10 @@ pub async fn get_ssl_key(
                         .into_iter()
                         .chain(m.as_private_domains().de()?)
                         .chain(
-                            m.as_hostname_info()
+                            m.as_bindings()
                                 .de()?
                                 .values()
-                                .flatten()
+                                .flat_map(|b| b.addresses.possible.iter().cloned())
                                 .map(|h| h.to_san_hostname()),
                         )
                         .collect::<Vec<InternedString>>())

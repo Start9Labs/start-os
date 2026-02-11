@@ -57,29 +57,6 @@ impl VersionT for Version {
             }
         }
 
-        // Remove onion entries from hostnameInfo in server host
-        migrate_hostname_info(
-            db.get_mut("public")
-                .and_then(|p| p.get_mut("serverInfo"))
-                .and_then(|s| s.get_mut("network"))
-                .and_then(|n| n.get_mut("host")),
-        );
-
-        // Remove onion entries from hostnameInfo in all package hosts
-        if let Some(packages) = db
-            .get_mut("public")
-            .and_then(|p| p.get_mut("packageData"))
-            .and_then(|p| p.as_object_mut())
-        {
-            for (_, package) in packages.iter_mut() {
-                if let Some(hosts) = package.get_mut("hosts").and_then(|h| h.as_object_mut()) {
-                    for (_, host) in hosts.iter_mut() {
-                        migrate_hostname_info(Some(host));
-                    }
-                }
-            }
-        }
-
         // Remove onion store from private keyStore
         if let Some(key_store) = db
             .get_mut("private")
@@ -89,6 +66,29 @@ impl VersionT for Version {
             key_store.remove("onion");
         }
 
+        // Migrate server host: remove hostnameInfo, add addresses to bindings, clean net
+        migrate_host(
+            db.get_mut("public")
+                .and_then(|p| p.get_mut("serverInfo"))
+                .and_then(|s| s.get_mut("network"))
+                .and_then(|n| n.get_mut("host")),
+        );
+
+        // Migrate all package hosts
+        if let Some(packages) = db
+            .get_mut("public")
+            .and_then(|p| p.get_mut("packageData"))
+            .and_then(|p| p.as_object_mut())
+        {
+            for (_, package) in packages.iter_mut() {
+                if let Some(hosts) = package.get_mut("hosts").and_then(|h| h.as_object_mut()) {
+                    for (_, host) in hosts.iter_mut() {
+                        migrate_host(Some(host));
+                    }
+                }
+            }
+        }
+
         Ok(Value::Null)
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {
@@ -96,20 +96,35 @@ impl VersionT for Version {
     }
 }
 
-fn migrate_hostname_info(host: Option<&mut Value>) {
-    if let Some(hostname_info) = host
-        .and_then(|h| h.get_mut("hostnameInfo"))
-        .and_then(|h| h.as_object_mut())
-    {
-        for (_, infos) in hostname_info.iter_mut() {
-            if let Some(arr) = infos.as_array_mut() {
-                // Remove onion entries
-                arr.retain(|info| info.get("kind").and_then(|k| k.as_str()) != Some("onion"));
-                // Strip "kind" field from remaining entries (HostnameInfo flattened from enum to struct)
-                for info in arr.iter_mut() {
-                    if let Some(obj) = info.as_object_mut() {
-                        obj.remove("kind");
-                    }
+fn migrate_host(host: Option<&mut Value>) {
+    let Some(host) = host.and_then(|h| h.as_object_mut()) else {
+        return;
+    };
+
+    // Remove hostnameInfo from host
+    host.remove("hostnameInfo");
+
+    // For each binding: add "addresses" field, remove gateway-level fields from "net"
+    if let Some(bindings) = host.get_mut("bindings").and_then(|b| b.as_object_mut()) {
+        for (_, binding) in bindings.iter_mut() {
+            if let Some(binding_obj) = binding.as_object_mut() {
+                // Add addresses if not present
+                if !binding_obj.contains_key("addresses") {
+                    binding_obj.insert(
+                        "addresses".into(),
+                        serde_json::json!({
+                            "privateDisabled": [],
+                            "publicEnabled": [],
+                            "possible": []
+                        })
+                        .into(),
+                    );
+                }
+
+                // Remove gateway-level privateDisabled/publicEnabled from net
+                if let Some(net) = binding_obj.get_mut("net").and_then(|n| n.as_object_mut()) {
+                    net.remove("privateDisabled");
+                    net.remove("publicEnabled");
                 }
             }
         }

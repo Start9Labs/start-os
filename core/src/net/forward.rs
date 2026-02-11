@@ -4,8 +4,8 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use futures::channel::oneshot;
-use id_pool::IdPool;
 use iddqd::{IdOrdItem, IdOrdMap};
+use rand::Rng;
 use imbl::OrdMap;
 use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
@@ -23,25 +23,49 @@ use crate::util::serde::{HandlerExtSerde, display_serializable};
 use crate::util::sync::Watch;
 
 pub const START9_BRIDGE_IFACE: &str = "lxcbr0";
-pub const FIRST_DYNAMIC_PRIVATE_PORT: u16 = 49152;
+const EPHEMERAL_PORT_START: u16 = 49152;
+// vhost.rs:89 — not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
+const RESTRICTED_PORTS: &[u16] = &[5353, 5355, 5432, 6010, 9050, 9051];
+
+fn is_restricted(port: u16) -> bool {
+    port <= 1024 || RESTRICTED_PORTS.contains(&port)
+}
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct AvailablePorts(IdPool);
+pub struct AvailablePorts(BTreeMap<u16, bool>);
 impl AvailablePorts {
     pub fn new() -> Self {
-        Self(IdPool::new_ranged(FIRST_DYNAMIC_PRIVATE_PORT..u16::MAX))
+        Self(BTreeMap::new())
     }
-    pub fn alloc(&mut self) -> Result<u16, Error> {
-        self.0.request_id().ok_or_else(|| {
-            Error::new(
-                eyre!("{}", t!("net.forward.no-dynamic-ports-available")),
-                ErrorKind::Network,
-            )
-        })
+    pub fn alloc(&mut self, ssl: bool) -> Result<u16, Error> {
+        let mut rng = rand::rng();
+        for _ in 0..1000 {
+            let port = rng.random_range(EPHEMERAL_PORT_START..u16::MAX);
+            if !self.0.contains_key(&port) {
+                self.0.insert(port, ssl);
+                return Ok(port);
+            }
+        }
+        Err(Error::new(
+            eyre!("{}", t!("net.forward.no-dynamic-ports-available")),
+            ErrorKind::Network,
+        ))
+    }
+    /// Try to allocate a specific port. Returns Some(port) if available, None if taken/restricted.
+    pub fn try_alloc(&mut self, port: u16, ssl: bool) -> Option<u16> {
+        if is_restricted(port) || self.0.contains_key(&port) {
+            return None;
+        }
+        self.0.insert(port, ssl);
+        Some(port)
+    }
+    /// Returns whether a given allocated port is SSL.
+    pub fn is_ssl(&self, port: u16) -> bool {
+        self.0.get(&port).copied().unwrap_or(false)
     }
     pub fn free(&mut self, ports: impl IntoIterator<Item = u16>) {
         for port in ports {
-            self.0.return_id(port).unwrap_or_default();
+            self.0.remove(&port);
         }
     }
 }

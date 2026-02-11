@@ -1348,20 +1348,12 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async serverBindingToggleGateway(
-    params: RR.ServerBindingToggleGatewayReq,
-  ): Promise<RR.ServerBindingToggleGatewayRes> {
+  async serverBindingSetAddressEnabled(
+    params: RR.ServerBindingSetAddressEnabledReq,
+  ): Promise<RR.ServerBindingSetAddressEnabledRes> {
     await pauseFor(2000)
 
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/serverInfo/network/host/bindings/${params.internalPort}/net/publicEnabled`,
-        value: params.enabled ? [params.gateway] : [],
-      },
-    ]
-    this.mockRevision(patch)
-
+    // Mock: no-op since address enable/disable modifies DerivedAddressInfo sets
     return null
   }
 
@@ -1380,10 +1372,9 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.ADD,
-        path: `/serverInfo/host/hostnameInfo/80/0`,
+        path: `/serverInfo/network/host/bindings/80/addresses/possible/0`,
         value: {
-          kind: 'ip',
-          gatewayId: 'eth0',
+          gateway: { id: 'eth0', name: 'Ethernet', public: false },
           public: true,
           hostname: {
             kind: 'domain',
@@ -1412,7 +1403,7 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.REMOVE,
-        path: `/serverInfo/host/hostnameInfo/80/0`,
+        path: `/serverInfo/network/host/bindings/80/addresses/possible/0`,
       },
     ]
     this.mockRevision(patch)
@@ -1433,10 +1424,9 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.ADD,
-        path: `/serverInfo/host/hostnameInfo/80/0`,
+        path: `/serverInfo/network/host/bindings/80/addresses/possible/0`,
         value: {
-          kind: 'ip',
-          gatewayId: 'eth0',
+          gateway: { id: 'eth0', name: 'Ethernet', public: false },
           public: false,
           hostname: {
             kind: 'domain',
@@ -1466,7 +1456,7 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.REMOVE,
-        path: `/serverInfo/host/hostnameInfo/80/0`,
+        path: `/serverInfo/network/host/bindings/80/addresses/possible/0`,
       },
     ]
     this.mockRevision(patch)
@@ -1474,20 +1464,12 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async pkgBindingToggleGateway(
-    params: RR.PkgBindingToggleGatewayReq,
-  ): Promise<RR.PkgBindingToggleGatewayRes> {
+  async pkgBindingSetAddressEnabled(
+    params: RR.PkgBindingSetAddressEnabledReq,
+  ): Promise<RR.PkgBindingSetAddressEnabledRes> {
     await pauseFor(2000)
 
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/packageData/${params.package}/hosts/${params.host}/bindings/${params.internalPort}/net/privateDisabled`,
-        value: params.enabled ? [] : [params.gateway],
-      },
-    ]
-    this.mockRevision(patch)
-
+    // Mock: no-op since address enable/disable modifies DerivedAddressInfo sets
     return null
   }
 
@@ -1506,10 +1488,9 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.ADD,
-        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/possible/0`,
         value: {
-          kind: 'ip',
-          gatewayId: 'eth0',
+          gateway: { id: 'eth0', name: 'Ethernet', public: false },
           public: true,
           hostname: {
             kind: 'domain',
@@ -1538,7 +1519,7 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.REMOVE,
-        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/possible/0`,
       },
     ]
     this.mockRevision(patch)
@@ -1559,10 +1540,9 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.ADD,
-        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/possible/0`,
         value: {
-          kind: 'ip',
-          gatewayId: 'eth0',
+          gateway: { id: 'eth0', name: 'Ethernet', public: false },
           public: false,
           hostname: {
             kind: 'domain',
@@ -1592,7 +1572,7 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.REMOVE,
-        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/possible/0`,
       },
     ]
     this.mockRevision(patch)

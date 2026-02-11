@@ -281,13 +281,13 @@ export namespace RR {
   }
   export type RemoveAcmeRes = null
 
-  export type ServerBindingToggleGatewayReq = {
-    // server.host.binding.set-gateway-enabled
-    gateway: T.GatewayId
+  export type ServerBindingSetAddressEnabledReq = {
+    // server.host.binding.set-address-enabled
     internalPort: 80
-    enabled: boolean
+    address: string // JSON-serialized HostnameInfo
+    enabled: boolean | null // null = reset to default
   }
-  export type ServerBindingToggleGatewayRes = null
+  export type ServerBindingSetAddressEnabledRes = null
 
   export type OsUiAddPublicDomainReq = {
     // server.host.address.domain.public.add
@@ -315,16 +315,16 @@ export namespace RR {
   }
   export type OsUiRemovePrivateDomainRes = null
 
-  export type PkgBindingToggleGatewayReq = Omit<
-    ServerBindingToggleGatewayReq,
+  export type PkgBindingSetAddressEnabledReq = Omit<
+    ServerBindingSetAddressEnabledReq,
     'internalPort'
   > & {
-    // package.host.binding.set-gateway-enabled
+    // package.host.binding.set-address-enabled
     internalPort: number
     package: T.PackageId // string
     host: T.HostId // string
   }
-  export type PkgBindingToggleGatewayRes = null
+  export type PkgBindingSetAddressEnabledRes = null
 
   export type PkgAddPublicDomainReq = OsUiAddPublicDomainReq & {
     // package.host.address.domain.public.add

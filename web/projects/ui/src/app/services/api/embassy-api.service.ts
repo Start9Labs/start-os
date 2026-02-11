@@ -336,9 +336,9 @@ export abstract class ApiService {
 
   abstract removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes>
 
-  abstract serverBindingToggleGateway(
-    params: RR.ServerBindingToggleGatewayReq,
-  ): Promise<RR.ServerBindingToggleGatewayRes>
+  abstract serverBindingSetAddressEnabled(
+    params: RR.ServerBindingSetAddressEnabledReq,
+  ): Promise<RR.ServerBindingSetAddressEnabledRes>
 
   abstract osUiAddPublicDomain(
     params: RR.OsUiAddPublicDomainReq,
@@ -356,9 +356,9 @@ export abstract class ApiService {
     params: RR.OsUiRemovePrivateDomainReq,
   ): Promise<RR.OsUiRemovePrivateDomainRes>
 
-  abstract pkgBindingToggleGateway(
-    params: RR.PkgBindingToggleGatewayReq,
-  ): Promise<RR.PkgBindingToggleGatewayRes>
+  abstract pkgBindingSetAddressEnabled(
+    params: RR.PkgBindingSetAddressEnabledReq,
+  ): Promise<RR.PkgBindingSetAddressEnabledRes>
 
   abstract pkgAddPublicDomain(
     params: RR.PkgAddPublicDomainReq,

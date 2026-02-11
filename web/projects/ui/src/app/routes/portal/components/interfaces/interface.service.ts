@@ -252,18 +252,23 @@ export class InterfaceService {
     serviceInterface: T.ServiceInterface,
     host: T.Host,
   ): T.HostnameInfo[] {
-    let hostnameInfo =
-      host.hostnameInfo[serviceInterface.addressInfo.internalPort]
-    return (
-      hostnameInfo?.filter(
-        h =>
-          this.config.accessType === 'localhost' ||
-          !(
-            (h.hostname.kind === 'ipv6' &&
-              utils.IPV6_LINK_LOCAL.contains(h.hostname.value)) ||
-              h.gateway.id === 'lo'
-          ),
-      ) || []
+    const binding =
+      host.bindings[serviceInterface.addressInfo.internalPort]
+    if (!binding) return []
+    const addr = binding.addresses
+    const enabled = addr.possible.filter(h =>
+      h.public
+        ? addr.publicEnabled.some(e => utils.deepEqual(e, h))
+        : !addr.privateDisabled.some(d => utils.deepEqual(d, h)),
+    )
+    return enabled.filter(
+      h =>
+        this.config.accessType === 'localhost' ||
+        !(
+          (h.hostname.kind === 'ipv6' &&
+            utils.IPV6_LINK_LOCAL.contains(h.hostname.value)) ||
+            h.gateway.id === 'lo'
+        ),
     )
   }
 

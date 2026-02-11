@@ -13,8 +13,7 @@ use crate::context::RpcContext;
 use crate::db::model::DatabaseModel;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::{HostAddress, PublicDomainConfig, address_api};
-use crate::net::host::binding::{BindInfo, BindOptions, binding};
-use crate::net::service_interface::HostnameInfo;
+use crate::net::host::binding::{BindInfo, BindOptions, Bindings, binding};
 use crate::prelude::*;
 use crate::{HostId, PackageId};
 
@@ -26,11 +25,9 @@ pub mod binding;
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct Host {
-    pub bindings: BTreeMap<u16, BindInfo>,
+    pub bindings: Bindings,
     pub public_domains: BTreeMap<InternedString, PublicDomainConfig>,
     pub private_domains: BTreeSet<InternedString>,
-    /// COMPUTED: NetService::update
-    pub hostname_info: BTreeMap<u16, Vec<HostnameInfo>>, // internal port -> Hostnames
 }
 
 impl AsRef<Host> for Host {
@@ -45,7 +42,7 @@ impl Host {
     pub fn addresses<'a>(&'a self) -> impl Iterator<Item = HostAddress> + 'a {
         self.public_domains
             .iter()
-            .map(|(address, config)| HostAddress::Domain {
+            .map(|(address, config)| HostAddress {
                 address: address.clone(),
                 public: Some(config.clone()),
                 private: self.private_domains.contains(address),
@@ -54,7 +51,7 @@ impl Host {
                 self.private_domains
                     .iter()
                     .filter(|a| !self.public_domains.contains_key(*a))
-                    .map(|address| HostAddress::Domain {
+                    .map(|address| HostAddress {
                         address: address.clone(),
                         public: None,
                         private: true,
