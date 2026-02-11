@@ -4,6 +4,7 @@ use imbl::vector;
 
 use crate::context::RpcContext;
 use crate::db::model::package::{InstalledState, InstallingInfo, InstallingState, PackageState};
+use crate::disk::mount::util::{has_mounts_under, unmount_all_under};
 use crate::prelude::*;
 use crate::volume::PKG_VOLUME_DIR;
 use crate::{DATA_DIR, PACKAGE_DATA, PackageId};
@@ -81,6 +82,22 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, soft: bool) -> Result<(),
             if !soft {
                 let path = Path::new(DATA_DIR).join(PKG_VOLUME_DIR).join(&manifest.id);
                 if tokio::fs::metadata(&path).await.is_ok() {
+                    // Best-effort cleanup of any propagated mounts (e.g. NAS)
+                    // that survived container destroy or were never cleaned up
+                    // (force-uninstall skips destroy entirely).
+                    unmount_all_under(&path, true).await.log_err();
+                    // Hard check: refuse to delete if mounts are still active,
+                    // to avoid traversing into a live NFS/NAS mount.
+                    if has_mounts_under(&path).await? {
+                        return Err(Error::new(
+                            eyre!(
+                                "Refusing to remove {}: active mounts remain under this path. \
+                                 Unmount them manually and retry.",
+                                path.display()
+                            ),
+                            ErrorKind::Filesystem,
+                        ));
+                    }
                     tokio::fs::remove_dir_all(&path).await?;
                 }
                 let logs_dir = Path::new(PACKAGE_DATA).join("logs").join(&manifest.id);

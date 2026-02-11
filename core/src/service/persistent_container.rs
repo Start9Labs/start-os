@@ -20,6 +20,7 @@ use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::{MountType, ReadOnly};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
+use crate::disk::mount::util::{is_mountpoint, unmount};
 use crate::lxc::{HOST_RPC_SERVER_SOCKET, LxcConfig, LxcContainer};
 use crate::net::net_controller::NetService;
 use crate::prelude::*;
@@ -76,6 +77,7 @@ pub struct PersistentContainer {
     pub(super) rpc_client: UnixRpcClient,
     pub(super) rpc_server: watch::Sender<Option<(NonDetachingJoinHandle<()>, ShutdownHandle)>>,
     js_mount: MountGuard,
+    host_volume_binds: BTreeMap<VolumeId, MountGuard>,
     volumes: BTreeMap<VolumeId, MountGuard>,
     assets: Vec<MountGuard>,
     pub(super) images: BTreeMap<ImageId, Arc<MountGuard>>,
@@ -120,6 +122,7 @@ impl PersistentContainer {
             .is_ok();
 
         let mut volumes = BTreeMap::new();
+        let mut host_volume_binds = BTreeMap::new();
 
         // TODO: remove once packages are reconverted
         let added = if is_compat {
@@ -128,13 +131,35 @@ impl PersistentContainer {
             BTreeSet::default()
         };
         for volume in s9pk.as_manifest().volumes.union(&added) {
+            let host_volume_dir = data_dir(DATA_DIR, &s9pk.as_manifest().id, volume);
+
+            // Self-bind the host volume directory and mark it rshared so that
+            // mounts created inside the container (e.g. NAS mounts from
+            // postinit.sh) propagate back to the host path and are visible to
+            // dependent services that bind-mount the same volume.
+            if is_mountpoint(&host_volume_dir).await? {
+                unmount(&host_volume_dir, true).await?;
+            }
+            let host_bind = MountGuard::mount(
+                &Bind::new(&host_volume_dir),
+                &host_volume_dir,
+                MountType::ReadWrite,
+            )
+            .await?;
+            Command::new("mount")
+                .arg("--make-rshared")
+                .arg(&host_volume_dir)
+                .invoke(ErrorKind::Filesystem)
+                .await?;
+            host_volume_binds.insert(volume.clone(), host_bind);
+
             let mountpoint = lxc_container
                 .rootfs_dir()
                 .join("media/startos/volumes")
                 .join(volume);
             let mount = MountGuard::mount(
                 &IdMapped::new(
-                    Bind::new(data_dir(DATA_DIR, &s9pk.as_manifest().id, volume)),
+                    Bind::new(&host_volume_dir),
                     vec![IdMap {
                         from_id: 0,
                         to_id: 100000,
@@ -296,6 +321,7 @@ impl PersistentContainer {
             rpc_server: watch::channel(None).0,
             // procedures: Default::default(),
             js_mount,
+            host_volume_binds,
             volumes,
             assets,
             images,
@@ -439,6 +465,7 @@ impl PersistentContainer {
         let rpc_server = self.rpc_server.send_replace(None);
         let js_mount = self.js_mount.take();
         let volumes = std::mem::take(&mut self.volumes);
+        let host_volume_binds = std::mem::take(&mut self.host_volume_binds);
         let assets = std::mem::take(&mut self.assets);
         let images = std::mem::take(&mut self.images);
         let subcontainers = self.subcontainers.clone();
@@ -460,6 +487,11 @@ impl PersistentContainer {
             }
             for (_, volume) in volumes {
                 errs.handle(volume.unmount(true).await);
+            }
+            // Unmount host-side shared binds after the rootfs-side volume
+            // mounts. Use delete_mountpoint=false to preserve the data dirs.
+            for (_, host_bind) in host_volume_binds {
+                errs.handle(host_bind.unmount(false).await);
             }
             for assets in assets {
                 errs.handle(assets.unmount(true).await);

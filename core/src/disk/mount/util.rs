@@ -61,6 +61,24 @@ pub async fn unmount<P: AsRef<Path>>(mountpoint: P, lazy: bool) -> Result<(), Er
     Ok(())
 }
 
+/// Returns true if any mountpoints exist under (or at) the given path.
+pub async fn has_mounts_under<P: AsRef<Path>>(path: P) -> Result<bool, Error> {
+    let path = path.as_ref();
+    let canonical_path = tokio::fs::canonicalize(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("canonicalize {path:?}")))?;
+
+    let mounts_content = tokio::fs::read_to_string("/proc/mounts")
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, "read /proc/mounts"))?;
+
+    Ok(mounts_content.lines().any(|line| {
+        line.split_whitespace()
+            .nth(1)
+            .map_or(false, |mp| Path::new(mp).starts_with(&canonical_path))
+    }))
+}
+
 /// Unmounts all mountpoints under (and including) the given path, in reverse
 /// depth order so that nested mounts are unmounted before their parents.
 #[instrument(skip_all)]

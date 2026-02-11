@@ -6,6 +6,8 @@ use clap::builder::ValueParserFactory;
 use exver::VersionRange;
 use rust_i18n::t;
 
+use tokio::process::Command;
+
 use crate::db::model::package::{
     CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind, ManifestPreference,
     TaskEntry,
@@ -19,7 +21,7 @@ use crate::service::effects::callbacks::CallbackHandler;
 use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
 use crate::status::health_check::NamedHealthCheckResult;
-use crate::util::{FromStrParser, VersionString};
+use crate::util::{FromStrParser, Invoke, VersionString};
 use crate::volume::data_dir;
 use crate::{DATA_DIR, HealthCheckId, PackageId, ReplayId, VolumeId};
 
@@ -90,7 +92,7 @@ pub async fn mount(
         ),
     )
     .mount(
-        mountpoint,
+        &mountpoint,
         if readonly {
             MountType::ReadOnly
         } else {
@@ -98,6 +100,15 @@ pub async fn mount(
         },
     )
     .await?;
+
+    // Make the dependency mount a slave so it receives propagated mounts
+    // (e.g. NAS mounts from the source service) but cannot propagate
+    // mounts back to the source service's volume.
+    Command::new("mount")
+        .arg("--make-rslave")
+        .arg(&mountpoint)
+        .invoke(ErrorKind::Filesystem)
+        .await?;
 
     Ok(())
 }
