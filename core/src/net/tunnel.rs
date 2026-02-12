@@ -195,8 +195,12 @@ pub async fn remove_tunnel(
                 let host = host?;
                 host.as_bindings_mut().mutate(|b| {
                     Ok(b.values_mut().for_each(|v| {
-                        v.net.private_disabled.remove(&id);
-                        v.net.public_enabled.remove(&id);
+                        v.addresses
+                            .private_disabled
+                            .retain(|h| h.gateway.id != id);
+                        v.addresses
+                            .public_enabled
+                            .retain(|h| h.gateway.id != id);
                     }))
                 })?;
             }

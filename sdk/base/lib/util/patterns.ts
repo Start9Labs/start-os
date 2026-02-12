@@ -21,11 +21,6 @@ export const localHostname: Pattern = {
   description: 'Must be a valid ".local" hostname',
 }
 
-export const torHostname: Pattern = {
-  regex: regexes.torHostname.matches(),
-  description: 'Must be a valid Tor (".onion") hostname',
-}
-
 export const url: Pattern = {
   regex: regexes.url.matches(),
   description: 'Must be a valid URL',
@@ -34,11 +29,6 @@ export const url: Pattern = {
 export const localUrl: Pattern = {
   regex: regexes.localUrl.matches(),
   description: 'Must be a valid ".local" URL',
-}
-
-export const torUrl: Pattern = {
-  regex: regexes.torUrl.matches(),
-  description: 'Must be a valid Tor (".onion") URL',
 }
 
 export const ascii: Pattern = {

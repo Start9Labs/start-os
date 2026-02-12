@@ -13,9 +13,7 @@ use crate::context::RpcContext;
 use crate::db::model::DatabaseModel;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::{HostAddress, PublicDomainConfig, address_api};
-use crate::net::host::binding::{BindInfo, BindOptions, binding};
-use crate::net::service_interface::HostnameInfo;
-use crate::net::tor::OnionAddress;
+use crate::net::host::binding::{BindInfo, BindOptions, Bindings, binding};
 use crate::prelude::*;
 use crate::{HostId, PackageId};
 
@@ -27,13 +25,9 @@ pub mod binding;
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct Host {
-    pub bindings: BTreeMap<u16, BindInfo>,
-    #[ts(type = "string[]")]
-    pub onions: BTreeSet<OnionAddress>,
+    pub bindings: Bindings,
     pub public_domains: BTreeMap<InternedString, PublicDomainConfig>,
     pub private_domains: BTreeSet<InternedString>,
-    /// COMPUTED: NetService::update
-    pub hostname_info: BTreeMap<u16, Vec<HostnameInfo>>, // internal port -> Hostnames
 }
 
 impl AsRef<Host> for Host {
@@ -46,24 +40,18 @@ impl Host {
         Self::default()
     }
     pub fn addresses<'a>(&'a self) -> impl Iterator<Item = HostAddress> + 'a {
-        self.onions
+        self.public_domains
             .iter()
-            .cloned()
-            .map(|address| HostAddress::Onion { address })
-            .chain(
-                self.public_domains
-                    .iter()
-                    .map(|(address, config)| HostAddress::Domain {
-                        address: address.clone(),
-                        public: Some(config.clone()),
-                        private: self.private_domains.contains(address),
-                    }),
-            )
+            .map(|(address, config)| HostAddress {
+                address: address.clone(),
+                public: Some(config.clone()),
+                private: self.private_domains.contains(address),
+            })
             .chain(
                 self.private_domains
                     .iter()
                     .filter(|a| !self.public_domains.contains_key(*a))
-                    .map(|address| HostAddress::Domain {
+                    .map(|address| HostAddress {
                         address: address.clone(),
                         public: None,
                         private: true,
@@ -112,22 +100,7 @@ pub fn host_for<'a>(
                 .as_hosts_mut(),
         )
     }
-    let tor_key = if host_info(db, package_id)?.as_idx(host_id).is_none() {
-        Some(
-            db.as_private_mut()
-                .as_key_store_mut()
-                .as_onion_mut()
-                .new_key()?,
-        )
-    } else {
-        None
-    };
-    host_info(db, package_id)?.upsert(host_id, || {
-        let mut h = Host::new();
-        h.onions
-            .insert(tor_key.or_not_found("generated tor key")?.onion_address());
-        Ok(h)
-    })
+    host_info(db, package_id)?.upsert(host_id, || Ok(Host::new()))
 }
 
 pub fn all_hosts(db: &mut DatabaseModel) -> impl Iterator<Item = Result<&mut Model<Host>, Error>> {

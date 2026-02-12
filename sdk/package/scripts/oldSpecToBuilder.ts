@@ -1,9 +1,9 @@
-import * as fs from "fs"
+import * as fs from 'fs'
 
 // https://stackoverflow.com/questions/2970525/converting-any-string-into-camel-case
 export function camelCase(value: string) {
   return value
-    .replace(/([\(\)\[\]])/g, "")
+    .replace(/([\(\)\[\]])/g, '')
     .replace(/^([A-Z])|[\s-_](\w)/g, function (match, p1, p2, offset) {
       if (p2) return p2.toUpperCase()
       return p1.toLowerCase()
@@ -23,12 +23,12 @@ export async function oldSpecToBuilder(
 }
 
 function isString(x: unknown): x is string {
-  return typeof x === "string"
+  return typeof x === 'string'
 }
 
 export default async function makeFileContentFromOld(
   inputData: Promise<any> | any,
-  { StartSdk = "start-sdk", nested = true } = {},
+  { StartSdk = 'start-sdk', nested = true } = {},
 ) {
   const outputLines: string[] = []
   outputLines.push(`
@@ -37,16 +37,16 @@ const {InputSpec, List, Value, Variants} = sdk
 `)
   const data = await inputData
 
-  const namedConsts = new Set(["InputSpec", "Value", "List"])
-  const inputSpecName = newConst("inputSpecSpec", convertInputSpec(data))
+  const namedConsts = new Set(['InputSpec', 'Value', 'List'])
+  const inputSpecName = newConst('inputSpecSpec', convertInputSpec(data))
   outputLines.push(`export type InputSpecSpec = typeof ${inputSpecName}._TYPE;`)
 
-  return outputLines.join("\n")
+  return outputLines.join('\n')
 
   function newConst(key: string, data: string, type?: string) {
     const variableName = getNextConstName(camelCase(key))
     outputLines.push(
-      `export const ${variableName}${!type ? "" : `: ${type}`} = ${data};`,
+      `export const ${variableName}${!type ? '' : `: ${type}`} = ${data};`,
     )
     return variableName
   }
@@ -55,7 +55,7 @@ const {InputSpec, List, Value, Variants} = sdk
     return newConst(key, data)
   }
   function convertInputSpecInner(data: any) {
-    let answer = "{"
+    let answer = '{'
     for (const [key, value] of Object.entries(data)) {
       const variableName = maybeNewConst(key, convertValueSpec(value))
 
@@ -69,7 +69,7 @@ const {InputSpec, List, Value, Variants} = sdk
   }
   function convertValueSpec(value: any): string {
     switch (value.type) {
-      case "string": {
+      case 'string': {
         if (value.textarea) {
           return `${rangeToTodoComment(
             value?.range,
@@ -99,12 +99,12 @@ const {InputSpec, List, Value, Variants} = sdk
             warning: value.warning || null,
             masked: value.masked || false,
             placeholder: value.placeholder || null,
-            inputmode: "text",
+            inputmode: 'text',
             patterns: value.pattern
               ? [
                   {
                     regex: value.pattern,
-                    description: value["pattern-description"],
+                    description: value['pattern-description'],
                   },
                 ]
               : [],
@@ -115,7 +115,7 @@ const {InputSpec, List, Value, Variants} = sdk
           2,
         )})`
       }
-      case "number": {
+      case 'number': {
         return `${rangeToTodoComment(
           value?.range,
         )}Value.number(${JSON.stringify(
@@ -136,7 +136,7 @@ const {InputSpec, List, Value, Variants} = sdk
           2,
         )})`
       }
-      case "boolean": {
+      case 'boolean': {
         return `Value.toggle(${JSON.stringify(
           {
             name: value.name || null,
@@ -148,15 +148,15 @@ const {InputSpec, List, Value, Variants} = sdk
           2,
         )})`
       }
-      case "enum": {
+      case 'enum': {
         const allValueNames = new Set([
-          ...(value?.["values"] || []),
-          ...Object.keys(value?.["value-names"] || {}),
+          ...(value?.['values'] || []),
+          ...Object.keys(value?.['value-names'] || {}),
         ])
         const values = Object.fromEntries(
           Array.from(allValueNames)
             .filter(isString)
-            .map((key) => [key, value?.spec?.["value-names"]?.[key] || key]),
+            .map((key) => [key, value?.spec?.['value-names']?.[key] || key]),
         )
         return `Value.select(${JSON.stringify(
           {
@@ -170,9 +170,9 @@ const {InputSpec, List, Value, Variants} = sdk
           2,
         )} as const)`
       }
-      case "object": {
+      case 'object': {
         const specName = maybeNewConst(
-          value.name + "_spec",
+          value.name + '_spec',
           convertInputSpec(value.spec),
         )
         return `Value.object({
@@ -180,10 +180,10 @@ const {InputSpec, List, Value, Variants} = sdk
         description: ${JSON.stringify(value.description || null)},
       }, ${specName})`
       }
-      case "union": {
+      case 'union': {
         const variants = maybeNewConst(
-          value.name + "_variants",
-          convertVariants(value.variants, value.tag["variant-names"] || {}),
+          value.name + '_variants',
+          convertVariants(value.variants, value.tag['variant-names'] || {}),
         )
 
         return `Value.union({
@@ -194,18 +194,18 @@ const {InputSpec, List, Value, Variants} = sdk
         variants: ${variants},
       })`
       }
-      case "list": {
-        if (value.subtype === "enum") {
+      case 'list': {
+        if (value.subtype === 'enum') {
           const allValueNames = new Set([
-            ...(value?.spec?.["values"] || []),
-            ...Object.keys(value?.spec?.["value-names"] || {}),
+            ...(value?.spec?.['values'] || []),
+            ...Object.keys(value?.spec?.['value-names'] || {}),
           ])
           const values = Object.fromEntries(
             Array.from(allValueNames)
               .filter(isString)
               .map((key: string) => [
                 key,
-                value?.spec?.["value-names"]?.[key] ?? key,
+                value?.spec?.['value-names']?.[key] ?? key,
               ]),
           )
           return `Value.multiselect(${JSON.stringify(
@@ -222,10 +222,10 @@ const {InputSpec, List, Value, Variants} = sdk
             2,
           )})`
         }
-        const list = maybeNewConst(value.name + "_list", convertList(value))
+        const list = maybeNewConst(value.name + '_list', convertList(value))
         return `Value.list(${list})`
       }
-      case "pointer": {
+      case 'pointer': {
         return `/* TODO deal with point removed point "${value.name}" */null as any`
       }
     }
@@ -234,7 +234,7 @@ const {InputSpec, List, Value, Variants} = sdk
 
   function convertList(value: any) {
     switch (value.subtype) {
-      case "string": {
+      case 'string': {
         return `${rangeToTodoComment(value?.range)}List.text(${JSON.stringify(
           {
             name: value.name || null,
@@ -253,7 +253,7 @@ const {InputSpec, List, Value, Variants} = sdk
             ? [
                 {
                   regex: value.spec.pattern,
-                  description: value?.spec?.["pattern-description"],
+                  description: value?.spec?.['pattern-description'],
                 },
               ]
             : [],
@@ -281,12 +281,12 @@ const {InputSpec, List, Value, Variants} = sdk
       //     placeholder: value?.spec?.placeholder || null,
       //   })})`
       // }
-      case "enum": {
-        return "/* error!! list.enum */"
+      case 'enum': {
+        return '/* error!! list.enum */'
       }
-      case "object": {
+      case 'object': {
         const specName = maybeNewConst(
-          value.name + "_spec",
+          value.name + '_spec',
           convertInputSpec(value.spec.spec),
         )
         return `${rangeToTodoComment(value?.range)}List.obj({
@@ -297,20 +297,20 @@ const {InputSpec, List, Value, Variants} = sdk
           description: ${JSON.stringify(value.description || null)},
         }, {
           spec: ${specName},
-          displayAs: ${JSON.stringify(value?.spec?.["display-as"] || null)},
-          uniqueBy: ${JSON.stringify(value?.spec?.["unique-by"] || null)},
+          displayAs: ${JSON.stringify(value?.spec?.['display-as'] || null)},
+          uniqueBy: ${JSON.stringify(value?.spec?.['unique-by'] || null)},
         })`
       }
-      case "union": {
+      case 'union': {
         const variants = maybeNewConst(
-          value.name + "_variants",
+          value.name + '_variants',
           convertVariants(
             value.spec.variants,
-            value.spec["variant-names"] || {},
+            value.spec['variant-names'] || {},
           ),
         )
         const unionValueName = maybeNewConst(
-          value.name + "_union",
+          value.name + '_union',
           `${rangeToTodoComment(value?.range)}
           Value.union({
             name: ${JSON.stringify(value?.spec?.tag?.name || null)},
@@ -324,7 +324,7 @@ const {InputSpec, List, Value, Variants} = sdk
         `,
         )
         const listInputSpec = maybeNewConst(
-          value.name + "_list_inputSpec",
+          value.name + '_list_inputSpec',
           `
           InputSpec.of({
             "union": ${unionValueName}
@@ -340,8 +340,8 @@ const {InputSpec, List, Value, Variants} = sdk
           warning: ${JSON.stringify(value.warning || null)},
         }, {
           spec: ${listInputSpec},
-          displayAs: ${JSON.stringify(value?.spec?.["display-as"] || null)},
-          uniqueBy: ${JSON.stringify(value?.spec?.["unique-by"] || null)},
+          displayAs: ${JSON.stringify(value?.spec?.['display-as'] || null)},
+          uniqueBy: ${JSON.stringify(value?.spec?.['unique-by'] || null)},
         })`
       }
     }
@@ -352,7 +352,7 @@ const {InputSpec, List, Value, Variants} = sdk
     variants: Record<string, unknown>,
     variantNames: Record<string, string>,
   ): string {
-    let answer = "Variants.of({"
+    let answer = 'Variants.of({'
     for (const [key, value] of Object.entries(variants)) {
       const variantSpec = maybeNewConst(key, convertInputSpec(value))
       answer += `"${key}": {name: "${
@@ -373,7 +373,7 @@ const {InputSpec, List, Value, Variants} = sdk
 }
 
 function rangeToTodoComment(range: string | undefined) {
-  if (!range) return ""
+  if (!range) return ''
   return `/* TODO: Convert range for this value (${range})*/`
 }
 

@@ -79,14 +79,14 @@ export namespace RR {
     uptime: number // seconds
   }
 
-  export type GetServerLogsReq = FetchLogsReq // server.logs & server.kernel-logs & net.tor.logs
+  export type GetServerLogsReq = FetchLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = FetchLogsRes
 
   export type FollowServerLogsReq = {
     limit?: number // (optional) default is 50. Ignored if cursor provided
     boot?: number | string | null // (optional) number is offset (0: current, -1 prev, +1 first), string is a specific boot id, null is all. Default is undefined
     cursor?: string // the last known log. Websocket will return all logs since this log
-  } // server.logs.follow & server.kernel-logs.follow & net.tor.follow-logs
+  } // server.logs.follow & server.kernel-logs.follow
   export type FollowServerLogsRes = {
     startCursor: string
     guid: string
@@ -119,12 +119,6 @@ export namespace RR {
     fqdn: string
   } // net.dns.query
   export type QueryDnsRes = string | null
-
-  export type ResetTorReq = {
-    wipeState: boolean
-    reason: string
-  } // net.tor.reset
-  export type ResetTorRes = null
 
   export type SetKeyboardReq = FullKeyboard // server.set-keyboard
   export type SetKeyboardRes = null
@@ -301,29 +295,13 @@ export namespace RR {
   }
   export type RemoveAcmeRes = null
 
-  export type AddTorKeyReq = {
-    // net.tor.key.add
-    key: string
-  }
-  export type GenerateTorKeyReq = {} // net.tor.key.generate
-  export type AddTorKeyRes = string // onion address *with* .onion suffix
-
-  export type ServerBindingToggleGatewayReq = {
-    // server.host.binding.set-gateway-enabled
-    gateway: T.GatewayId
+  export type ServerBindingSetAddressEnabledReq = {
+    // server.host.binding.set-address-enabled
     internalPort: 80
-    enabled: boolean
+    address: string // JSON-serialized HostnameInfo
+    enabled: boolean | null // null = reset to default
   }
-  export type ServerBindingToggleGatewayRes = null
-
-  export type ServerAddOnionReq = {
-    // server.host.address.onion.add
-    onion: string // address *with* .onion suffix
-  }
-  export type AddOnionRes = null
-
-  export type ServerRemoveOnionReq = ServerAddOnionReq // server.host.address.onion.remove
-  export type RemoveOnionRes = null
+  export type ServerBindingSetAddressEnabledRes = null
 
   export type OsUiAddPublicDomainReq = {
     // server.host.address.domain.public.add
@@ -351,23 +329,16 @@ export namespace RR {
   }
   export type OsUiRemovePrivateDomainRes = null
 
-  export type PkgBindingToggleGatewayReq = Omit<
-    ServerBindingToggleGatewayReq,
+  export type PkgBindingSetAddressEnabledReq = Omit<
+    ServerBindingSetAddressEnabledReq,
     'internalPort'
   > & {
-    // package.host.binding.set-gateway-enabled
+    // package.host.binding.set-address-enabled
     internalPort: number
     package: T.PackageId // string
     host: T.HostId // string
   }
-  export type PkgBindingToggleGatewayRes = null
-
-  export type PkgAddOnionReq = ServerAddOnionReq & {
-    // package.host.address.onion.add
-    package: T.PackageId // string
-    host: T.HostId // string
-  }
-  export type PkgRemoveOnionReq = PkgAddOnionReq // package.host.address.onion.remove
+  export type PkgBindingSetAddressEnabledRes = null
 
   export type PkgAddPublicDomainReq = OsUiAddPublicDomainReq & {
     // package.host.address.domain.public.add

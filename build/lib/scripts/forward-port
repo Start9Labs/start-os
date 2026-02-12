@@ -5,7 +5,7 @@ if [ -z "$sip" ] || [ -z "$dip" ] || [ -z "$dprefix" ] || [ -z "$sport" ] || [ -
     exit 1
 fi
 
-NAME="F$(echo "$sip:$sport -> $dip/$dprefix:$dport" | sha256sum | head -c 15)"
+NAME="F$(echo "$sip:$sport -> $dip/$dprefix:$dport ${src_subnet:-any} ${excluded_src:-none}" | sha256sum | head -c 15)"
 
 for kind in INPUT FORWARD ACCEPT; do
     if ! iptables -C $kind -j "${NAME}_${kind}" 2> /dev/null; then
@@ -36,8 +36,22 @@ if [ "$UNDO" = 1 ]; then
 fi
 
 # DNAT: rewrite destination for incoming packets (external traffic)
-iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
-iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+# When src_subnet is set, only forward traffic from that subnet (private forwards)
+# excluded_src: comma-separated gateway/router IPs to reject (they may masquerade internet traffic)
+if [ -n "$src_subnet" ]; then
+    if [ -n "$excluded_src" ]; then
+        IFS=',' read -ra EXCLUDED <<< "$excluded_src"
+        for excl in "${EXCLUDED[@]}"; do
+            iptables -t nat -A ${NAME}_PREROUTING -s "$excl" -d "$sip" -p tcp --dport "$sport" -j RETURN
+            iptables -t nat -A ${NAME}_PREROUTING -s "$excl" -d "$sip" -p udp --dport "$sport" -j RETURN
+        done
+    fi
+    iptables -t nat -A ${NAME}_PREROUTING -s "$src_subnet" -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+    iptables -t nat -A ${NAME}_PREROUTING -s "$src_subnet" -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+else
+    iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+    iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+fi
 
 # DNAT: rewrite destination for locally-originated packets (hairpin from host itself)
 iptables -t nat -A ${NAME}_OUTPUT -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"

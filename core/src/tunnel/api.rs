@@ -459,7 +459,7 @@ pub async fn add_forward(
         })
         .map(|s| s.prefix_len())
         .unwrap_or(32);
-    let rc = ctx.forward.add_forward(source, target, prefix).await?;
+    let rc = ctx.forward.add_forward(source, target, prefix, None).await?;
     ctx.active_forwards.mutate(|m| {
         m.insert(source, rc);
     });

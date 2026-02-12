@@ -199,7 +199,7 @@ impl TunnelContext {
                 })
                 .map(|s| s.prefix_len())
                 .unwrap_or(32);
-            active_forwards.insert(from, forward.add_forward(from, to, prefix).await?);
+            active_forwards.insert(from, forward.add_forward(from, to, prefix, None).await?);
         }
 
         Ok(Self(Arc::new(TunnelContextSeed {

@@ -135,11 +135,10 @@ export default class ServiceInterfaceRoute {
         gateways.map(g => ({
           enabled:
             (g.public
-              ? binding?.net.publicEnabled.includes(g.id)
-              : !binding?.net.privateDisabled.includes(g.id)) ?? false,
+              ? binding?.addresses.publicEnabled.some(a => a.gateway.id === g.id)
+              : !binding?.addresses.privateDisabled.some(a => a.gateway.id === g.id)) ?? false,
           ...g,
         })) || [],
-      torDomains: host.onions,
       publicDomains: getPublicDomains(host.publicDomains, gateways),
       privateDomains: host.privateDomains,
       addSsl: !!binding?.options.addSsl,

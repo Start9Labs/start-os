@@ -8,7 +8,6 @@ use socks5_impl::server::{AuthAdaptor, ClientConnection, Server};
 use tokio::net::{TcpListener, TcpStream};
 
 use crate::HOST_IP;
-use crate::net::tor::TorController;
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::future::NonDetachingJoinHandle;
@@ -22,7 +21,7 @@ pub struct SocksController {
     _thread: NonDetachingJoinHandle<()>,
 }
 impl SocksController {
-    pub fn new(listen: SocketAddr, tor: TorController) -> Result<Self, Error> {
+    pub fn new(listen: SocketAddr) -> Result<Self, Error> {
         Ok(Self {
             _thread: tokio::spawn(async move {
                 let auth: AuthAdaptor<()> = Arc::new(NoAuth);
@@ -45,7 +44,6 @@ impl SocksController {
                         loop {
                             match server.accept().await {
                                 Ok((stream, _)) => {
-                                    let tor = tor.clone();
                                     bg.add_job(async move {
                                         if let Err(e) = async {
                                             match stream
@@ -57,40 +55,6 @@ impl SocksController {
                                                 .await
                                                 .with_kind(ErrorKind::Network)?
                                             {
-                                                ClientConnection::Connect(
-                                                    reply,
-                                                    Address::DomainAddress(domain, port),
-                                                ) if domain.ends_with(".onion") => {
-                                                    if let Ok(mut target) = tor
-                                                        .connect_onion(&domain.parse()?, port)
-                                                        .await
-                                                    {
-                                                        let mut sock = reply
-                                                            .reply(
-                                                                Reply::Succeeded,
-                                                                Address::unspecified(),
-                                                            )
-                                                            .await
-                                                            .with_kind(ErrorKind::Network)?;
-                                                        tokio::io::copy_bidirectional(
-                                                            &mut sock,
-                                                            &mut target,
-                                                        )
-                                                        .await
-                                                        .with_kind(ErrorKind::Network)?;
-                                                    } else {
-                                                        let mut sock = reply
-                                                            .reply(
-                                                                Reply::HostUnreachable,
-                                                                Address::unspecified(),
-                                                            )
-                                                            .await
-                                                            .with_kind(ErrorKind::Network)?;
-                                                        sock.shutdown()
-                                                            .await
-                                                            .with_kind(ErrorKind::Network)?;
-                                                    }
-                                                }
                                                 ClientConnection::Connect(reply, addr) => {
                                                     if let Ok(mut target) = match addr {
                                                         Address::DomainAddress(domain, port) => {

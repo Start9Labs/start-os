@@ -1,5 +1,4 @@
 export type AccessType =
-  | 'tor'
   | 'mdns'
   | 'localhost'
   | 'ipv4'

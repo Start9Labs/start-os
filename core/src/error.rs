@@ -42,11 +42,11 @@ pub enum ErrorKind {
     ParseUrl = 19,
     DiskNotAvailable = 20,
     BlockDevice = 21,
-    InvalidOnionAddress = 22,
+    // InvalidOnionAddress = 22,
     Pack = 23,
     ValidateS9pk = 24,
     DiskCorrupted = 25, // Remove
-    Tor = 26,
+    // Tor = 26,
     ConfigGen = 27,
     ParseNumber = 28,
     Database = 29,
@@ -126,11 +126,11 @@ impl ErrorKind {
             ParseUrl => t!("error.parse-url"),
             DiskNotAvailable => t!("error.disk-not-available"),
             BlockDevice => t!("error.block-device"),
-            InvalidOnionAddress => t!("error.invalid-onion-address"),
+            // InvalidOnionAddress => t!("error.invalid-onion-address"),
             Pack => t!("error.pack"),
             ValidateS9pk => t!("error.validate-s9pk"),
             DiskCorrupted => t!("error.disk-corrupted"), // Remove
-            Tor => t!("error.tor"),
+            // Tor => t!("error.tor"),
             ConfigGen => t!("error.config-gen"),
             ParseNumber => t!("error.parse-number"),
             Database => t!("error.database"),
@@ -368,17 +368,6 @@ impl From<reqwest::Error> for Error {
             _ => ErrorKind::Network,
         };
         Error::new(e, kind)
-    }
-}
-#[cfg(feature = "arti")]
-impl From<arti_client::Error> for Error {
-    fn from(e: arti_client::Error) -> Self {
-        Error::new(e, ErrorKind::Tor)
-    }
-}
-impl From<torut::control::ConnError> for Error {
-    fn from(e: torut::control::ConnError) -> Self {
-        Error::new(e, ErrorKind::Tor)
     }
 }
 impl From<zbus::Error> for Error {

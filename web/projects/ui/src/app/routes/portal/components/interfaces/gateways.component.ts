@@ -83,32 +83,8 @@ export class InterfaceGatewaysComponent {
 
   readonly gateways = input.required<InterfaceGateway[] | undefined>()
 
-  async onToggle(gateway: InterfaceGateway) {
-    const addressInfo = this.interface.value()!.addressInfo
-    const pkgId = this.interface.packageId()
-
-    const loader = this.loader.open().subscribe()
-
-    try {
-      if (pkgId) {
-        await this.api.pkgBindingToggleGateway({
-          gateway: gateway.id,
-          enabled: !gateway.enabled,
-          internalPort: addressInfo.internalPort,
-          host: addressInfo.hostId,
-          package: pkgId,
-        })
-      } else {
-        await this.api.serverBindingToggleGateway({
-          gateway: gateway.id,
-          enabled: !gateway.enabled,
-          internalPort: 80,
-        })
-      }
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
+  async onToggle(_gateway: InterfaceGateway) {
+    // TODO: Replace with per-address toggle UI (Section 6 frontend overhaul).
+    // Gateway-level toggle replaced by set-address-enabled RPC.
   }
 }

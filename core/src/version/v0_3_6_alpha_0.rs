@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::path::Path;
 
@@ -23,17 +23,14 @@ use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::util::unmount;
 use crate::hostname::Hostname;
 use crate::net::forward::AvailablePorts;
-use crate::net::host::Host;
 use crate::net::keys::KeyStore;
-use crate::net::tor::{OnionAddress, TorSecretKey};
 use crate::notifications::Notifications;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::ssh::{SshKeys, SshPubKey};
 use crate::util::Invoke;
-use crate::util::crypto::ed25519_expand_key;
 use crate::util::serde::Pem;
-use crate::{DATA_DIR, HostId, Id, PACKAGE_DATA, PackageId, ReplayId};
+use crate::{DATA_DIR, PACKAGE_DATA, PackageId, ReplayId};
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_0: exver::Version = exver::Version::new(
@@ -146,12 +143,7 @@ pub struct Version;
 
 impl VersionT for Version {
     type Previous = v0_3_5_2::Version;
-    type PreUpRes = (
-        AccountInfo,
-        SshKeys,
-        CifsTargets,
-        BTreeMap<PackageId, BTreeMap<HostId, TorSecretKey>>,
-    );
+    type PreUpRes = (AccountInfo, SshKeys, CifsTargets);
     fn semver(self) -> exver::Version {
         V0_3_6_alpha_0.clone()
     }
@@ -166,20 +158,18 @@ impl VersionT for Version {
 
         let cifs = previous_cifs(&pg).await?;
 
-        let tor_keys = previous_tor_keys(&pg).await?;
-
         Command::new("systemctl")
             .arg("stop")
             .arg("postgresql@*.service")
             .invoke(crate::ErrorKind::Database)
             .await?;
 
-        Ok((account, ssh_keys, cifs, tor_keys))
+        Ok((account, ssh_keys, cifs))
     }
     fn up(
         self,
         db: &mut Value,
-        (account, ssh_keys, cifs, tor_keys): Self::PreUpRes,
+        (account, ssh_keys, cifs): Self::PreUpRes,
     ) -> Result<Value, Error> {
         let prev_package_data = db["package-data"].clone();
 
@@ -242,11 +232,7 @@ impl VersionT for Version {
             "ui": db["ui"],
         });
 
-        let mut keystore = KeyStore::new(&account)?;
-        for key in tor_keys.values().flat_map(|v| v.values()) {
-            assert!(key.is_valid());
-            keystore.onion.insert(key.clone());
-        }
+        let keystore = KeyStore::new(&account)?;
 
         let private = {
             let mut value = json!({});
@@ -350,20 +336,6 @@ impl VersionT for Version {
                         false
                     };
 
-                    let onions = input[&*id]["installed"]["interface-addresses"]
-                        .as_object()
-                        .into_iter()
-                        .flatten()
-                        .filter_map(|(id, addrs)| {
-                            addrs["tor-address"].as_str().map(|addr| {
-                                Ok((
-                                    HostId::from(Id::try_from(id.clone())?),
-                                    addr.parse::<OnionAddress>()?,
-                                ))
-                            })
-                        })
-                        .collect::<Result<BTreeMap<_, _>, Error>>()?;
-
                     if let Err(e) = async {
                         let package_s9pk = tokio::fs::File::open(path).await?;
                         let file = MultiCursorFile::open(&package_s9pk).await?;
@@ -381,11 +353,8 @@ impl VersionT for Version {
                             .await?
                             .await?;
 
-                        let to_sync = ctx
-                            .db
+                        ctx.db
                             .mutate(|db| {
-                                let mut to_sync = BTreeSet::new();
-
                                 let package = db
                                     .as_public_mut()
                                     .as_package_data_mut()
@@ -396,28 +365,10 @@ impl VersionT for Version {
                                         .as_tasks_mut()
                                         .remove(&ReplayId::from("needs-config"))?;
                                 }
-                                for (id, onion) in onions {
-                                    package
-                                        .as_hosts_mut()
-                                        .upsert(&id, || Ok(Host::new()))?
-                                        .as_onions_mut()
-                                        .mutate(|o| {
-                                            o.clear();
-                                            o.insert(onion);
-                                            Ok(())
-                                        })?;
-                                    to_sync.insert(id);
-                                }
-                                Ok(to_sync)
+                                Ok(())
                             })
                             .await
                             .result?;
-
-                        if let Some(service) = &*ctx.services.get(&id).await {
-                            for host_id in to_sync {
-                                service.sync_host(host_id.clone()).await?;
-                            }
-                        }
 
                         Ok::<_, Error>(())
                     }
@@ -481,33 +432,6 @@ async fn previous_account_info(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<Accoun
             password: account_query
                 .try_get("password")
                 .with_ctx(|_| (ErrorKind::Database, "password"))?,
-            tor_keys: vec![TorSecretKey::from_bytes(
-                if let Some(bytes) = account_query
-                    .try_get::<Option<Vec<u8>>, _>("tor_key")
-                    .with_ctx(|_| (ErrorKind::Database, "tor_key"))?
-                {
-                    <[u8; 64]>::try_from(bytes).map_err(|e| {
-                        Error::new(
-                            eyre!("expected vec of len 64, got len {}", e.len()),
-                            ErrorKind::ParseDbField,
-                        )
-                    })?
-                } else {
-                    ed25519_expand_key(
-                        &<[u8; 32]>::try_from(
-                            account_query
-                                .try_get::<Vec<u8>, _>("network_key")
-                                .with_kind(ErrorKind::Database)?,
-                        )
-                        .map_err(|e| {
-                            Error::new(
-                                eyre!("expected vec of len 32, got len {}", e.len()),
-                                ErrorKind::ParseDbField,
-                            )
-                        })?,
-                    )
-                },
-            )?],
             server_id: account_query
                 .try_get("server_id")
                 .with_ctx(|_| (ErrorKind::Database, "server_id"))?,
@@ -579,68 +503,3 @@ async fn previous_ssh_keys(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<SshKeys, E
     Ok(ssh_keys)
 }
 
-#[tracing::instrument(skip_all)]
-async fn previous_tor_keys(
-    pg: &sqlx::Pool<sqlx::Postgres>,
-) -> Result<BTreeMap<PackageId, BTreeMap<HostId, TorSecretKey>>, Error> {
-    let mut res = BTreeMap::<PackageId, BTreeMap<HostId, TorSecretKey>>::new();
-    let net_key_query = sqlx::query(r#"SELECT * FROM network_keys"#)
-        .fetch_all(pg)
-        .await
-        .with_kind(ErrorKind::Database)?;
-
-    for row in net_key_query {
-        let package_id: PackageId = row
-            .try_get::<String, _>("package")
-            .with_ctx(|_| (ErrorKind::Database, "network_keys::package"))?
-            .parse()?;
-        let interface_id: HostId = row
-            .try_get::<String, _>("interface")
-            .with_ctx(|_| (ErrorKind::Database, "network_keys::interface"))?
-            .parse()?;
-        let key = TorSecretKey::from_bytes(ed25519_expand_key(
-            &<[u8; 32]>::try_from(
-                row.try_get::<Vec<u8>, _>("key")
-                    .with_ctx(|_| (ErrorKind::Database, "network_keys::key"))?,
-            )
-            .map_err(|e| {
-                Error::new(
-                    eyre!("expected vec of len 32, got len {}", e.len()),
-                    ErrorKind::ParseDbField,
-                )
-            })?,
-        ))?;
-        res.entry(package_id).or_default().insert(interface_id, key);
-    }
-
-    let tor_key_query = sqlx::query(r#"SELECT * FROM tor"#)
-        .fetch_all(pg)
-        .await
-        .with_kind(ErrorKind::Database)?;
-
-    for row in tor_key_query {
-        let package_id: PackageId = row
-            .try_get::<String, _>("package")
-            .with_ctx(|_| (ErrorKind::Database, "tor::package"))?
-            .parse()?;
-        let interface_id: HostId = row
-            .try_get::<String, _>("interface")
-            .with_ctx(|_| (ErrorKind::Database, "tor::interface"))?
-            .parse()?;
-        let key = TorSecretKey::from_bytes(
-            <[u8; 64]>::try_from(
-                row.try_get::<Vec<u8>, _>("key")
-                    .with_ctx(|_| (ErrorKind::Database, "tor::key"))?,
-            )
-            .map_err(|e| {
-                Error::new(
-                    eyre!("expected vec of len 64, got len {}", e.len()),
-                    ErrorKind::ParseDbField,
-                )
-            })?,
-        )?;
-        res.entry(package_id).or_default().insert(interface_id, key);
-    }
-
-    Ok(res)
-}

@@ -38,8 +38,74 @@ export const mockPatchData: DataModel = {
             net: {
               assignedPort: null,
               assignedSslPort: 443,
-              publicEnabled: [],
+            },
+            addresses: {
               privateDisabled: [],
+              publicEnabled: [],
+              possible: [
+                {
+                  gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                  public: false,
+                  hostname: {
+                    kind: 'local',
+                    value: 'adjective-noun.local',
+                    port: null,
+                    sslPort: 443,
+                  },
+                },
+                {
+                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  public: false,
+                  hostname: {
+                    kind: 'local',
+                    value: 'adjective-noun.local',
+                    port: null,
+                    sslPort: 443,
+                  },
+                },
+                {
+                  gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                  public: false,
+                  hostname: {
+                    kind: 'ipv4',
+                    value: '10.0.0.1',
+                    port: null,
+                    sslPort: 443,
+                  },
+                },
+                {
+                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  public: false,
+                  hostname: {
+                    kind: 'ipv4',
+                    value: '10.0.0.2',
+                    port: null,
+                    sslPort: 443,
+                  },
+                },
+                {
+                  gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                  public: false,
+                  hostname: {
+                    kind: 'ipv6',
+                    value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
+                    scopeId: 2,
+                    port: null,
+                    sslPort: 443,
+                  },
+                },
+                {
+                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  public: false,
+                  hostname: {
+                    kind: 'ipv6',
+                    value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
+                    scopeId: 3,
+                    port: null,
+                    sslPort: 443,
+                  },
+                },
+              ],
             },
             options: {
               preferredExternalPort: 80,
@@ -54,87 +120,6 @@ export const mockPatchData: DataModel = {
         },
         publicDomains: {},
         privateDomains: [],
-        onions: ['myveryownspecialtoraddress'],
-        hostnameInfo: {
-          80: [
-            {
-              kind: 'ip',
-              gateway: { id: 'eth0', name: 'Ethernet', public: false },
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'eth0', name: 'Ethernet', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '10.0.0.1',
-                port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '10.0.0.2',
-                port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'eth0', name: 'Ethernet', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
-                scopeId: 2,
-                port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
-                scopeId: 3,
-                port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'onion',
-              hostname: {
-                value: 'myveryownspecialtoraddress.onion',
-                port: 80,
-                sslPort: 443,
-              },
-            },
-          ],
-        },
       },
       gateways: {
         eth0: {
@@ -529,8 +514,74 @@ export const mockPatchData: DataModel = {
               net: {
                 assignedPort: 80,
                 assignedSslPort: 443,
-                publicEnabled: [],
+              },
+              addresses: {
                 privateDisabled: [],
+                publicEnabled: [],
+                possible: [
+                  {
+                    gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                    public: false,
+                    hostname: {
+                      kind: 'local',
+                      value: 'adjective-noun.local',
+                      port: null,
+                      sslPort: 1234,
+                    },
+                  },
+                  {
+                    gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                    public: false,
+                    hostname: {
+                      kind: 'local',
+                      value: 'adjective-noun.local',
+                      port: null,
+                      sslPort: 1234,
+                    },
+                  },
+                  {
+                    gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                    public: false,
+                    hostname: {
+                      kind: 'ipv4',
+                      value: '10.0.0.1',
+                      port: null,
+                      sslPort: 1234,
+                    },
+                  },
+                  {
+                    gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                    public: false,
+                    hostname: {
+                      kind: 'ipv4',
+                      value: '10.0.0.2',
+                      port: null,
+                      sslPort: 1234,
+                    },
+                  },
+                  {
+                    gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                    public: false,
+                    hostname: {
+                      kind: 'ipv6',
+                      value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
+                      scopeId: 2,
+                      port: null,
+                      sslPort: 1234,
+                    },
+                  },
+                  {
+                    gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                    public: false,
+                    hostname: {
+                      kind: 'ipv6',
+                      value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
+                      scopeId: 3,
+                      port: null,
+                      sslPort: 1234,
+                    },
+                  },
+                ],
               },
               options: {
                 addSsl: null,
@@ -541,87 +592,6 @@ export const mockPatchData: DataModel = {
           },
           publicDomains: {},
           privateDomains: [],
-          onions: [],
-          hostnameInfo: {
-            80: [
-              {
-                kind: 'ip',
-                gateway: { id: 'eth0', name: 'Ethernet', public: false },
-                public: false,
-                hostname: {
-                  kind: 'local',
-                  value: 'adjective-noun.local',
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'ip',
-                gateway: { id: 'wlan0', name: 'Wireless', public: false },
-                public: false,
-                hostname: {
-                  kind: 'local',
-                  value: 'adjective-noun.local',
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'ip',
-                gateway: { id: 'eth0', name: 'Ethernet', public: false },
-                public: false,
-                hostname: {
-                  kind: 'ipv4',
-                  value: '10.0.0.1',
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'ip',
-                gateway: { id: 'wlan0', name: 'Wireless', public: false },
-                public: false,
-                hostname: {
-                  kind: 'ipv4',
-                  value: '10.0.0.2',
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'ip',
-                gateway: { id: 'eth0', name: 'Ethernet', public: false },
-                public: false,
-                hostname: {
-                  kind: 'ipv6',
-                  value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
-                  scopeId: 2,
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'ip',
-                gateway: { id: 'wlan0', name: 'Wireless', public: false },
-                public: false,
-                hostname: {
-                  kind: 'ipv6',
-                  value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
-                  scopeId: 3,
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'onion',
-                hostname: {
-                  value: 'bitcoin-p2p.onion',
-                  port: 80,
-                  sslPort: 443,
-                },
-              },
-            ],
-          },
         },
         bcdefgh: {
           bindings: {
@@ -630,8 +600,11 @@ export const mockPatchData: DataModel = {
               net: {
                 assignedPort: 8332,
                 assignedSslPort: null,
-                publicEnabled: [],
+              },
+              addresses: {
                 privateDisabled: [],
+                publicEnabled: [],
+                possible: [],
               },
               options: {
                 addSsl: null,
@@ -642,10 +615,6 @@ export const mockPatchData: DataModel = {
           },
           publicDomains: {},
           privateDomains: [],
-          onions: [],
-          hostnameInfo: {
-            8332: [],
-          },
         },
         cdefghi: {
           bindings: {
@@ -654,8 +623,11 @@ export const mockPatchData: DataModel = {
               net: {
                 assignedPort: 8333,
                 assignedSslPort: null,
-                publicEnabled: [],
+              },
+              addresses: {
                 privateDisabled: [],
+                publicEnabled: [],
+                possible: [],
               },
               options: {
                 addSsl: null,
@@ -666,10 +638,6 @@ export const mockPatchData: DataModel = {
           },
           publicDomains: {},
           privateDomains: [],
-          onions: [],
-          hostnameInfo: {
-            8333: [],
-          },
         },
       },
       storeExposedDependents: [],

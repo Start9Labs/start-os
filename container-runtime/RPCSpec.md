@@ -139,8 +139,8 @@ Evaluate a script in the runtime context. Used for debugging.
 
 The `execute` and `sandbox` methods route to procedures based on the `procedure` path:
 
-| Procedure | Description |
-|-----------|-------------|
-| `/backup/create` | Create a backup |
+| Procedure                  | Description                  |
+| -------------------------- | ---------------------------- |
+| `/backup/create`           | Create a backup              |
 | `/actions/{name}/getInput` | Get input spec for an action |
-| `/actions/{name}/run` | Run an action with input |
+| `/actions/{name}/run`      | Run an action with input     |

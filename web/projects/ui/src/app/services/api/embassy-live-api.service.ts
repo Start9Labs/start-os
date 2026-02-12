@@ -195,10 +195,6 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.logs', params })
   }
 
-  async getTorLogs(params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {
-    return this.rpcRequest({ method: 'net.tor.logs', params })
-  }
-
   async getKernelLogs(
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes> {
@@ -209,12 +205,6 @@ export class LiveApiService extends ApiService {
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes> {
     return this.rpcRequest({ method: 'server.logs.follow', params })
-  }
-
-  async followTorLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
-    return this.rpcRequest({ method: 'net.tor.logs.follow', params })
   }
 
   async followKernelLogs(
@@ -276,10 +266,6 @@ export class LiveApiService extends ApiService {
       method: 'net.dns.query',
       params,
     })
-  }
-
-  async resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes> {
-    return this.rpcRequest({ method: 'net.tor.reset', params })
   }
 
   // marketplace URLs
@@ -633,41 +619,11 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async addTorKey(params: RR.AddTorKeyReq): Promise<RR.AddTorKeyRes> {
+  async serverBindingSetAddressEnabled(
+    params: RR.ServerBindingSetAddressEnabledReq,
+  ): Promise<RR.ServerBindingSetAddressEnabledRes> {
     return this.rpcRequest({
-      method: 'net.tor.key.add',
-      params,
-    })
-  }
-
-  async generateTorKey(params: RR.GenerateTorKeyReq): Promise<RR.AddTorKeyRes> {
-    return this.rpcRequest({
-      method: 'net.tor.key.generate',
-      params,
-    })
-  }
-
-  async serverBindingToggleGateway(
-    params: RR.ServerBindingToggleGatewayReq,
-  ): Promise<RR.ServerBindingToggleGatewayRes> {
-    return this.rpcRequest({
-      method: 'server.host.binding.set-gateway-enabled',
-      params,
-    })
-  }
-
-  async serverAddOnion(params: RR.ServerAddOnionReq): Promise<RR.AddOnionRes> {
-    return this.rpcRequest({
-      method: 'server.host.address.onion.add',
-      params,
-    })
-  }
-
-  async serverRemoveOnion(
-    params: RR.ServerRemoveOnionReq,
-  ): Promise<RR.RemoveOnionRes> {
-    return this.rpcRequest({
-      method: 'server.host.address.onion.remove',
+      method: 'server.host.binding.set-address-enabled',
       params,
     })
   }
@@ -708,27 +664,11 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async pkgBindingToggleGateway(
-    params: RR.PkgBindingToggleGatewayReq,
-  ): Promise<RR.PkgBindingToggleGatewayRes> {
+  async pkgBindingSetAddressEnabled(
+    params: RR.PkgBindingSetAddressEnabledReq,
+  ): Promise<RR.PkgBindingSetAddressEnabledRes> {
     return this.rpcRequest({
-      method: 'package.host.binding.set-gateway-enabled',
-      params,
-    })
-  }
-
-  async pkgAddOnion(params: RR.PkgAddOnionReq): Promise<RR.AddOnionRes> {
-    return this.rpcRequest({
-      method: 'package.host.address.onion.add',
-      params,
-    })
-  }
-
-  async pkgRemoveOnion(
-    params: RR.PkgRemoveOnionReq,
-  ): Promise<RR.RemoveOnionRes> {
-    return this.rpcRequest({
-      method: 'package.host.address.onion.remove',
+      method: 'package.host.binding.set-address-enabled',
       params,
     })
   }

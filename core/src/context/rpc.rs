@@ -34,7 +34,7 @@ use crate::disk::mount::guard::MountGuard;
 use crate::init::{InitResult, check_time_is_synchronized};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::LxcManager;
-use crate::net::gateway::UpgradableListener;
+use crate::net::gateway::WildcardListener;
 use crate::net::net_controller::{NetController, NetService};
 use crate::net::socks::DEFAULT_SOCKS_LISTEN;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
@@ -132,7 +132,7 @@ pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip_all)]
     pub async fn init(
-        webserver: &WebServerAcceptorSetter<UpgradableListener>,
+        webserver: &WebServerAcceptorSetter<WildcardListener>,
         config: &ServerConfig,
         disk_guid: InternedString,
         init_result: Option<InitResult>,
@@ -167,7 +167,7 @@ impl RpcContext {
         } else {
             let net_ctrl =
                 Arc::new(NetController::init(db.clone(), &account.hostname, socks_proxy).await?);
-            webserver.try_upgrade(|a| net_ctrl.net_iface.watcher.upgrade_listener(a))?;
+            webserver.send_modify(|wl| wl.set_ip_info(net_ctrl.net_iface.watcher.subscribe()));
             let os_net_service = net_ctrl.os_bindings().await?;
             (net_ctrl, os_net_service)
         };

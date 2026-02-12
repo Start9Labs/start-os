@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
-use imbl::{OrdMap, vector};
+use imbl::vector;
 use imbl_value::InternedString;
 use ipnet::IpNet;
 use tokio::sync::Mutex;
@@ -16,17 +16,15 @@ use crate::db::model::public::NetworkInterfaceType;
 use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
-use crate::net::forward::{InterfacePortForwardController, START9_BRIDGE_IFACE, add_iptables_rule};
-use crate::net::gateway::{
-    AndFilter, DynInterfaceFilter, IdFilter, InterfaceFilter, NetworkInterfaceController, OrFilter,
-    PublicFilter, SecureFilter, TypeFilter,
+use crate::net::forward::{
+    ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, add_iptables_rule,
 };
+use crate::net::gateway::NetworkInterfaceController;
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions};
 use crate::net::host::{Host, Hosts, host_for};
-use crate::net::service_interface::{GatewayInfo, HostnameInfo, IpHostname, OnionHostname};
+use crate::net::service_interface::{GatewayInfo, HostnameInfo, IpHostname};
 use crate::net::socks::SocksController;
-use crate::net::tor::{OnionAddress, TorController, TorSecretKey};
 use crate::net::utils::ipv6_is_local;
 use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
 use crate::prelude::*;
@@ -36,7 +34,6 @@ use crate::{GatewayId, HOST_IP, HostId, OptionExt, PackageId};
 
 pub struct NetController {
     pub(crate) db: TypedPatchDb<Database>,
-    pub(super) tor: TorController,
     pub(super) vhost: VHostController,
     pub(super) tls_client_config: Arc<TlsClientConfig>,
     pub(crate) net_iface: Arc<NetworkInterfaceController>,
@@ -54,8 +51,7 @@ impl NetController {
         socks_listen: SocketAddr,
     ) -> Result<Self, Error> {
         let net_iface = Arc::new(NetworkInterfaceController::new(db.clone()));
-        let tor = TorController::new()?;
-        let socks = SocksController::new(socks_listen, tor.clone())?;
+        let socks = SocksController::new(socks_listen)?;
         let crypto_provider = Arc::new(tokio_rustls::rustls::crypto::ring::default_provider());
         let tls_client_config = Arc::new(crate::net::tls::client_config(
             crypto_provider.clone(),
@@ -87,7 +83,6 @@ impl NetController {
         .await?;
         Ok(Self {
             db: db.clone(),
-            tor,
             vhost: VHostController::new(db.clone(), net_iface.clone(), crypto_provider),
             tls_client_config,
             dns: DnsController::init(db, &net_iface.watcher).await?,
@@ -165,10 +160,9 @@ impl NetController {
 
 #[derive(Default, Debug)]
 struct HostBinds {
-    forwards: BTreeMap<u16, (SocketAddrV4, DynInterfaceFilter, Arc<()>)>,
+    forwards: BTreeMap<u16, (SocketAddrV4, ForwardRequirements, Arc<()>)>,
     vhosts: BTreeMap<(Option<InternedString>, u16), (ProxyTarget, Arc<()>)>,
     private_dns: BTreeMap<InternedString, Arc<()>>,
-    tor: BTreeMap<OnionAddress, (OrdMap<u16, SocketAddr>, Vec<Arc<()>>)>,
 }
 
 pub struct NetServiceData {
@@ -207,7 +201,7 @@ impl NetServiceData {
                         .as_entries_mut()?
                     {
                         host.as_bindings_mut().mutate(|b| {
-                            for (internal_port, info) in b {
+                            for (internal_port, info) in b.iter_mut() {
                                 if !except.contains(&BindId {
                                     id: host_id.clone(),
                                     internal_port: *internal_port,
@@ -238,7 +232,7 @@ impl NetServiceData {
                         .as_network_mut()
                         .as_host_mut();
                     host.as_bindings_mut().mutate(|b| {
-                        for (internal_port, info) in b {
+                        for (internal_port, info) in b.iter_mut() {
                             if !except.contains(&BindId {
                                 id: HostId::default(),
                                 internal_port: *internal_port,
@@ -256,425 +250,295 @@ impl NetServiceData {
         }
     }
 
-    async fn update(&mut self, ctrl: &NetController, id: HostId, host: Host) -> Result<(), Error> {
-        let mut forwards: BTreeMap<u16, (SocketAddrV4, DynInterfaceFilter)> = BTreeMap::new();
+    async fn update(
+        &mut self,
+        ctrl: &NetController,
+        id: HostId,
+        mut host: Host,
+    ) -> Result<(), Error> {
+        let mut forwards: BTreeMap<u16, (SocketAddrV4, ForwardRequirements)> = BTreeMap::new();
         let mut vhosts: BTreeMap<(Option<InternedString>, u16), ProxyTarget> = BTreeMap::new();
         let mut private_dns: BTreeSet<InternedString> = BTreeSet::new();
-        let mut tor: BTreeMap<OnionAddress, (TorSecretKey, OrdMap<u16, SocketAddr>)> =
-            BTreeMap::new();
-        let mut hostname_info: BTreeMap<u16, Vec<HostnameInfo>> = BTreeMap::new();
         let binds = self.binds.entry(id.clone()).or_default();
 
         let peek = ctrl.db.peek().await;
-
-        // LAN
         let server_info = peek.as_public().as_server_info();
         let net_ifaces = ctrl.net_iface.watcher.ip_info();
         let hostname = server_info.as_hostname().de()?;
-        for (port, bind) in &host.bindings {
+        let host_addresses: Vec<_> = host.addresses().collect();
+
+        // Collect private DNS entries (domains without public config)
+        for HostAddress {
+            address, public, ..
+        } in &host_addresses
+        {
+            if public.is_none() {
+                private_dns.insert(address.clone());
+            }
+        }
+
+        // ── Phase 1: Compute possible addresses ──
+        for (_port, bind) in host.bindings.iter_mut() {
             if !bind.enabled {
                 continue;
             }
-            if bind.net.assigned_port.is_some() || bind.net.assigned_ssl_port.is_some() {
-                let mut hostnames = BTreeSet::new();
-                if let Some(ssl) = &bind.options.add_ssl {
-                    let external = bind
-                        .net
-                        .assigned_ssl_port
-                        .or_not_found("assigned ssl port")?;
-                    let addr = (self.ip, *port).into();
-                    let connect_ssl = if let Some(alpn) = ssl.alpn.clone() {
-                        Err(alpn)
-                    } else {
-                        if bind.options.secure.as_ref().map_or(false, |s| s.ssl) {
-                            Ok(())
-                        } else {
-                            Err(AlpnInfo::Reflect)
-                        }
-                    };
-                    for hostname in ctrl.server_hostnames.iter().cloned() {
-                        vhosts.insert(
-                            (hostname, external),
-                            ProxyTarget {
-                                filter: bind.net.clone().into_dyn(),
-                                acme: None,
-                                addr,
-                                add_x_forwarded_headers: ssl.add_x_forwarded_headers,
-                                connect_ssl: connect_ssl
-                                    .clone()
-                                    .map(|_| ctrl.tls_client_config.clone()),
-                            },
-                        );
-                    }
-                    for address in host.addresses() {
-                        match address {
-                            HostAddress::Onion { address } => {
-                                let hostname = InternedString::from_display(&address);
-                                if hostnames.insert(hostname.clone()) {
-                                    vhosts.insert(
-                                        (Some(hostname), external),
-                                        ProxyTarget {
-                                            filter: OrFilter(
-                                                TypeFilter(NetworkInterfaceType::Loopback),
-                                                IdFilter(GatewayId::from(InternedString::from(
-                                                    START9_BRIDGE_IFACE,
-                                                ))),
-                                            )
-                                            .into_dyn(),
-                                            acme: None,
-                                            addr,
-                                            add_x_forwarded_headers: ssl.add_x_forwarded_headers,
-                                            connect_ssl: connect_ssl
-                                                .clone()
-                                                .map(|_| ctrl.tls_client_config.clone()),
-                                        },
-                                    ); // TODO: wrap onion ssl stream directly in tor ctrl
-                                }
-                            }
-                            HostAddress::Domain {
-                                address,
-                                public,
-                                private,
-                            } => {
-                                if hostnames.insert(address.clone()) {
-                                    let address = Some(address.clone());
-                                    if ssl.preferred_external_port == 443 {
-                                        if let Some(public) = &public {
-                                            vhosts.insert(
-                                                (address.clone(), 5443),
-                                                ProxyTarget {
-                                                    filter: AndFilter(
-                                                        bind.net.clone(),
-                                                        AndFilter(
-                                                            IdFilter(public.gateway.clone()),
-                                                            PublicFilter { public: false },
-                                                        ),
-                                                    )
-                                                    .into_dyn(),
-                                                    acme: public.acme.clone(),
-                                                    addr,
-                                                    add_x_forwarded_headers: ssl
-                                                        .add_x_forwarded_headers,
-                                                    connect_ssl: connect_ssl
-                                                        .clone()
-                                                        .map(|_| ctrl.tls_client_config.clone()),
-                                                },
-                                            );
-                                            vhosts.insert(
-                                                (address.clone(), 443),
-                                                ProxyTarget {
-                                                    filter: AndFilter(
-                                                        bind.net.clone(),
-                                                        if private {
-                                                            OrFilter(
-                                                                IdFilter(public.gateway.clone()),
-                                                                PublicFilter { public: false },
-                                                            )
-                                                            .into_dyn()
-                                                        } else {
-                                                            AndFilter(
-                                                                IdFilter(public.gateway.clone()),
-                                                                PublicFilter { public: true },
-                                                            )
-                                                            .into_dyn()
-                                                        },
-                                                    )
-                                                    .into_dyn(),
-                                                    acme: public.acme.clone(),
-                                                    addr,
-                                                    add_x_forwarded_headers: ssl
-                                                        .add_x_forwarded_headers,
-                                                    connect_ssl: connect_ssl
-                                                        .clone()
-                                                        .map(|_| ctrl.tls_client_config.clone()),
-                                                },
-                                            );
-                                        } else {
-                                            vhosts.insert(
-                                                (address.clone(), 443),
-                                                ProxyTarget {
-                                                    filter: AndFilter(
-                                                        bind.net.clone(),
-                                                        PublicFilter { public: false },
-                                                    )
-                                                    .into_dyn(),
-                                                    acme: None,
-                                                    addr,
-                                                    add_x_forwarded_headers: ssl
-                                                        .add_x_forwarded_headers,
-                                                    connect_ssl: connect_ssl
-                                                        .clone()
-                                                        .map(|_| ctrl.tls_client_config.clone()),
-                                                },
-                                            );
-                                        }
-                                    } else {
-                                        if let Some(public) = public {
-                                            vhosts.insert(
-                                                (address.clone(), external),
-                                                ProxyTarget {
-                                                    filter: AndFilter(
-                                                        bind.net.clone(),
-                                                        if private {
-                                                            OrFilter(
-                                                                IdFilter(public.gateway.clone()),
-                                                                PublicFilter { public: false },
-                                                            )
-                                                            .into_dyn()
-                                                        } else {
-                                                            IdFilter(public.gateway.clone())
-                                                                .into_dyn()
-                                                        },
-                                                    )
-                                                    .into_dyn(),
-                                                    acme: public.acme.clone(),
-                                                    addr,
-                                                    add_x_forwarded_headers: ssl
-                                                        .add_x_forwarded_headers,
-                                                    connect_ssl: connect_ssl
-                                                        .clone()
-                                                        .map(|_| ctrl.tls_client_config.clone()),
-                                                },
-                                            );
-                                        } else {
-                                            vhosts.insert(
-                                                (address.clone(), external),
-                                                ProxyTarget {
-                                                    filter: AndFilter(
-                                                        bind.net.clone(),
-                                                        PublicFilter { public: false },
-                                                    )
-                                                    .into_dyn(),
-                                                    acme: None,
-                                                    addr,
-                                                    add_x_forwarded_headers: ssl
-                                                        .add_x_forwarded_headers,
-                                                    connect_ssl: connect_ssl
-                                                        .clone()
-                                                        .map(|_| ctrl.tls_client_config.clone()),
-                                                },
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                if bind
-                    .options
-                    .secure
-                    .map_or(true, |s| !(s.ssl && bind.options.add_ssl.is_some()))
-                {
-                    let external = bind.net.assigned_port.or_not_found("assigned lan port")?;
-                    forwards.insert(
-                        external,
-                        (
-                            SocketAddrV4::new(self.ip, *port),
-                            AndFilter(
-                                SecureFilter {
-                                    secure: bind.options.secure.is_some(),
-                                },
-                                bind.net.clone(),
-                            )
-                            .into_dyn(),
-                        ),
-                    );
-                }
-                let mut bind_hostname_info: Vec<HostnameInfo> =
-                    hostname_info.remove(port).unwrap_or_default();
-                for (gateway_id, info) in net_ifaces
-                    .iter()
-                    .filter(|(_, info)| {
-                        info.ip_info.as_ref().map_or(false, |i| {
-                            !matches!(i.device_type, Some(NetworkInterfaceType::Bridge))
-                        })
+            if bind.net.assigned_port.is_none() && bind.net.assigned_ssl_port.is_none() {
+                continue;
+            }
+
+            bind.addresses.possible.clear();
+            for (gateway_id, info) in net_ifaces
+                .iter()
+                .filter(|(_, info)| {
+                    info.ip_info.as_ref().map_or(false, |i| {
+                        !matches!(i.device_type, Some(NetworkInterfaceType::Bridge))
                     })
-                    .filter(|(id, info)| bind.net.filter(id, info))
+                })
+                .filter(|(_, info)| info.ip_info.is_some())
+            {
+                let gateway = GatewayInfo {
+                    id: gateway_id.clone(),
+                    name: info
+                        .name
+                        .clone()
+                        .or_else(|| info.ip_info.as_ref().map(|i| i.name.clone()))
+                        .unwrap_or_else(|| gateway_id.clone().into()),
+                    public: info.public(),
+                };
+                let port = bind.net.assigned_port.filter(|_| {
+                    bind.options.secure.map_or(false, |s| {
+                        !(s.ssl && bind.options.add_ssl.is_some()) || info.secure()
+                    })
+                });
+                // .local addresses (private only, non-public, non-wireguard gateways)
+                if !info.public()
+                    && info.ip_info.as_ref().map_or(false, |i| {
+                        i.device_type != Some(NetworkInterfaceType::Wireguard)
+                    })
                 {
-                    let gateway = GatewayInfo {
-                        id: gateway_id.clone(),
-                        name: info
-                            .name
-                            .clone()
-                            .or_else(|| info.ip_info.as_ref().map(|i| i.name.clone()))
-                            .unwrap_or_else(|| gateway_id.clone().into()),
-                        public: info.public(),
-                    };
-                    let port = bind.net.assigned_port.filter(|_| {
-                        bind.options.secure.map_or(false, |s| {
-                            !(s.ssl && bind.options.add_ssl.is_some()) || info.secure()
-                        })
+                    bind.addresses.possible.insert(HostnameInfo {
+                        gateway: gateway.clone(),
+                        public: false,
+                        hostname: IpHostname::Local {
+                            value: InternedString::from_display(&{
+                                let hostname = &hostname;
+                                lazy_format!("{hostname}.local")
+                            }),
+                            port,
+                            ssl_port: bind.net.assigned_ssl_port,
+                        },
                     });
-                    if !info.public()
-                        && info.ip_info.as_ref().map_or(false, |i| {
-                            i.device_type != Some(NetworkInterfaceType::Wireguard)
-                        })
-                    {
-                        bind_hostname_info.push(HostnameInfo::Ip {
+                }
+                // Domain addresses
+                for HostAddress {
+                    address,
+                    public,
+                    private,
+                } in host_addresses.iter().cloned()
+                {
+                    let private = private && !info.public();
+                    let public =
+                        public.as_ref().map_or(false, |p| &p.gateway == gateway_id);
+                    if public || private {
+                        let (domain_port, domain_ssl_port) = if bind
+                            .options
+                            .add_ssl
+                            .as_ref()
+                            .map_or(false, |ssl| ssl.preferred_external_port == 443)
+                        {
+                            (None, Some(443))
+                        } else {
+                            (port, bind.net.assigned_ssl_port)
+                        };
+                        bind.addresses.possible.insert(HostnameInfo {
                             gateway: gateway.clone(),
-                            public: false,
-                            hostname: IpHostname::Local {
-                                value: InternedString::from_display(&{
-                                    let hostname = &hostname;
-                                    lazy_format!("{hostname}.local")
-                                }),
+                            public,
+                            hostname: IpHostname::Domain {
+                                value: address.clone(),
+                                port: domain_port,
+                                ssl_port: domain_ssl_port,
+                            },
+                        });
+                    }
+                }
+                // IP addresses
+                if let Some(ip_info) = &info.ip_info {
+                    let public = info.public();
+                    if let Some(wan_ip) = ip_info.wan_ip {
+                        bind.addresses.possible.insert(HostnameInfo {
+                            gateway: gateway.clone(),
+                            public: true,
+                            hostname: IpHostname::Ipv4 {
+                                value: wan_ip,
                                 port,
                                 ssl_port: bind.net.assigned_ssl_port,
                             },
                         });
                     }
-                    for address in host.addresses() {
-                        if let HostAddress::Domain {
-                            address,
-                            public,
-                            private,
-                        } = address
-                        {
-                            if public.is_none() {
-                                private_dns.insert(address.clone());
-                            }
-                            let private = private && !info.public();
-                            let public =
-                                public.as_ref().map_or(false, |p| &p.gateway == gateway_id);
-                            if public || private {
-                                if bind
-                                    .options
-                                    .add_ssl
-                                    .as_ref()
-                                    .map_or(false, |ssl| ssl.preferred_external_port == 443)
-                                {
-                                    bind_hostname_info.push(HostnameInfo::Ip {
+                    for ipnet in &ip_info.subnets {
+                        match ipnet {
+                            IpNet::V4(net) => {
+                                if !public {
+                                    bind.addresses.possible.insert(HostnameInfo {
                                         gateway: gateway.clone(),
                                         public,
-                                        hostname: IpHostname::Domain {
-                                            value: address.clone(),
-                                            port: None,
-                                            ssl_port: Some(443),
-                                        },
-                                    });
-                                } else {
-                                    bind_hostname_info.push(HostnameInfo::Ip {
-                                        gateway: gateway.clone(),
-                                        public,
-                                        hostname: IpHostname::Domain {
-                                            value: address.clone(),
+                                        hostname: IpHostname::Ipv4 {
+                                            value: net.addr(),
                                             port,
                                             ssl_port: bind.net.assigned_ssl_port,
                                         },
                                     });
                                 }
+                            }
+                            IpNet::V6(net) => {
+                                bind.addresses.possible.insert(HostnameInfo {
+                                    gateway: gateway.clone(),
+                                    public: public && !ipv6_is_local(net.addr()),
+                                    hostname: IpHostname::Ipv6 {
+                                        value: net.addr(),
+                                        scope_id: ip_info.scope_id,
+                                        port,
+                                        ssl_port: bind.net.assigned_ssl_port,
+                                    },
+                                });
                             }
                         }
                     }
-                    if let Some(ip_info) = &info.ip_info {
-                        let public = info.public();
-                        if let Some(wan_ip) = ip_info.wan_ip {
-                            bind_hostname_info.push(HostnameInfo::Ip {
-                                gateway: gateway.clone(),
-                                public: true,
-                                hostname: IpHostname::Ipv4 {
-                                    value: wan_ip,
-                                    port,
-                                    ssl_port: bind.net.assigned_ssl_port,
+                }
+            }
+        }
+
+        // ── Phase 2: Build controller entries from enabled addresses ──
+        for (port, bind) in host.bindings.iter() {
+            if !bind.enabled {
+                continue;
+            }
+            if bind.net.assigned_port.is_none() && bind.net.assigned_ssl_port.is_none() {
+                continue;
+            }
+
+            let enabled_addresses = bind.addresses.enabled();
+            let addr: SocketAddr = (self.ip, *port).into();
+
+            // SSL vhosts
+            if let Some(ssl) = &bind.options.add_ssl {
+                let connect_ssl = if let Some(alpn) = ssl.alpn.clone() {
+                    Err(alpn)
+                } else if bind.options.secure.as_ref().map_or(false, |s| s.ssl) {
+                    Ok(())
+                } else {
+                    Err(AlpnInfo::Reflect)
+                };
+
+                if let Some(assigned_ssl_port) = bind.net.assigned_ssl_port {
+                    // Collect private IPs from enabled private addresses' gateways
+                    let server_private_ips: BTreeSet<IpAddr> = enabled_addresses
+                        .iter()
+                        .filter(|a| !a.public)
+                        .filter_map(|a| {
+                            net_ifaces
+                                .get(&a.gateway.id)
+                                .and_then(|info| info.ip_info.as_ref())
+                        })
+                        .flat_map(|ip_info| ip_info.subnets.iter().map(|s| s.addr()))
+                        .collect();
+
+                    // Server hostname vhosts (on assigned_ssl_port) — private only
+                    if !server_private_ips.is_empty() {
+                        for hostname in ctrl.server_hostnames.iter().cloned() {
+                            vhosts.insert(
+                                (hostname, assigned_ssl_port),
+                                ProxyTarget {
+                                    public: BTreeSet::new(),
+                                    private: server_private_ips.clone(),
+                                    acme: None,
+                                    addr,
+                                    add_x_forwarded_headers: ssl.add_x_forwarded_headers,
+                                    connect_ssl: connect_ssl
+                                        .clone()
+                                        .map(|_| ctrl.tls_client_config.clone()),
                                 },
-                            });
+                            );
                         }
-                        for ipnet in &ip_info.subnets {
-                            match ipnet {
-                                IpNet::V4(net) => {
-                                    if !public {
-                                        bind_hostname_info.push(HostnameInfo::Ip {
-                                            gateway: gateway.clone(),
-                                            public,
-                                            hostname: IpHostname::Ipv4 {
-                                                value: net.addr(),
-                                                port,
-                                                ssl_port: bind.net.assigned_ssl_port,
-                                            },
-                                        });
+                    }
+                }
+
+                // Domain vhosts: group by (domain, ssl_port), merge public/private sets
+                for addr_info in &enabled_addresses {
+                    if let IpHostname::Domain {
+                        value: domain,
+                        ssl_port: Some(domain_ssl_port),
+                        ..
+                    } = &addr_info.hostname
+                    {
+                        let key = (Some(domain.clone()), *domain_ssl_port);
+                        let target = vhosts.entry(key).or_insert_with(|| ProxyTarget {
+                            public: BTreeSet::new(),
+                            private: BTreeSet::new(),
+                            acme: host_addresses
+                                .iter()
+                                .find(|a| &a.address == domain)
+                                .and_then(|a| a.public.as_ref())
+                                .and_then(|p| p.acme.clone()),
+                            addr,
+                            add_x_forwarded_headers: ssl.add_x_forwarded_headers,
+                            connect_ssl: connect_ssl
+                                .clone()
+                                .map(|_| ctrl.tls_client_config.clone()),
+                        });
+                        if addr_info.public {
+                            target.public.insert(addr_info.gateway.id.clone());
+                        } else {
+                            // Add interface IPs for this gateway to private set
+                            if let Some(info) = net_ifaces.get(&addr_info.gateway.id) {
+                                if let Some(ip_info) = &info.ip_info {
+                                    for subnet in &ip_info.subnets {
+                                        target.private.insert(subnet.addr());
                                     }
-                                }
-                                IpNet::V6(net) => {
-                                    bind_hostname_info.push(HostnameInfo::Ip {
-                                        gateway: gateway.clone(),
-                                        public: public && !ipv6_is_local(net.addr()),
-                                        hostname: IpHostname::Ipv6 {
-                                            value: net.addr(),
-                                            scope_id: ip_info.scope_id,
-                                            port,
-                                            ssl_port: bind.net.assigned_ssl_port,
-                                        },
-                                    });
                                 }
                             }
                         }
                     }
                 }
-                hostname_info.insert(*port, bind_hostname_info);
             }
-        }
 
-        struct TorHostnamePorts {
-            non_ssl: Option<u16>,
-            ssl: Option<u16>,
-        }
-        let mut tor_hostname_ports = BTreeMap::<u16, TorHostnamePorts>::new();
-        let mut tor_binds = OrdMap::<u16, SocketAddr>::new();
-        for (internal, info) in &host.bindings {
-            if !info.enabled {
-                continue;
-            }
-            tor_binds.insert(
-                info.options.preferred_external_port,
-                SocketAddr::from((self.ip, *internal)),
-            );
-            if let (Some(ssl), Some(ssl_internal)) =
-                (&info.options.add_ssl, info.net.assigned_ssl_port)
+            // Non-SSL forwards
+            if bind
+                .options
+                .secure
+                .map_or(true, |s| !(s.ssl && bind.options.add_ssl.is_some()))
             {
-                tor_binds.insert(
-                    ssl.preferred_external_port,
-                    SocketAddr::from(([127, 0, 0, 1], ssl_internal)),
-                );
-                tor_hostname_ports.insert(
-                    *internal,
-                    TorHostnamePorts {
-                        non_ssl: Some(info.options.preferred_external_port)
-                            .filter(|p| *p != ssl.preferred_external_port),
-                        ssl: Some(ssl.preferred_external_port),
-                    },
-                );
-            } else {
-                tor_hostname_ports.insert(
-                    *internal,
-                    TorHostnamePorts {
-                        non_ssl: Some(info.options.preferred_external_port),
-                        ssl: None,
-                    },
+                let external = bind.net.assigned_port.or_not_found("assigned lan port")?;
+                let fwd_public: BTreeSet<GatewayId> = enabled_addresses
+                    .iter()
+                    .filter(|a| a.public)
+                    .map(|a| a.gateway.id.clone())
+                    .collect();
+                let fwd_private: BTreeSet<IpAddr> = enabled_addresses
+                    .iter()
+                    .filter(|a| !a.public)
+                    .filter_map(|a| {
+                        net_ifaces
+                            .get(&a.gateway.id)
+                            .and_then(|i| i.ip_info.as_ref())
+                    })
+                    .flat_map(|ip| ip.subnets.iter().map(|s| s.addr()))
+                    .collect();
+                forwards.insert(
+                    external,
+                    (
+                        SocketAddrV4::new(self.ip, *port),
+                        ForwardRequirements {
+                            public_gateways: fwd_public,
+                            private_ips: fwd_private,
+                            secure: bind.options.secure.is_some(),
+                        },
+                    ),
                 );
             }
         }
 
-        for tor_addr in host.onions.iter() {
-            let key = peek
-                .as_private()
-                .as_key_store()
-                .as_onion()
-                .get_key(tor_addr)?;
-            tor.insert(key.onion_address(), (key, tor_binds.clone()));
-            for (internal, ports) in &tor_hostname_ports {
-                let mut bind_hostname_info = hostname_info.remove(internal).unwrap_or_default();
-                bind_hostname_info.push(HostnameInfo::Onion {
-                    hostname: OnionHostname {
-                        value: InternedString::from_display(tor_addr),
-                        port: ports.non_ssl,
-                        ssl_port: ports.ssl,
-                    },
-                });
-                hostname_info.insert(*internal, bind_hostname_info);
-            }
-        }
-
+        // ── Phase 3: Reconcile ──
         let all = binds
             .forwards
             .keys()
@@ -683,8 +547,8 @@ impl NetServiceData {
             .collect::<BTreeSet<_>>();
         for external in all {
             let mut prev = binds.forwards.remove(&external);
-            if let Some((internal, filter)) = forwards.remove(&external) {
-                prev = prev.filter(|(i, f, _)| i == &internal && *f == filter);
+            if let Some((internal, reqs)) = forwards.remove(&external) {
+                prev = prev.filter(|(i, r, _)| i == &internal && *r == reqs);
                 binds.forwards.insert(
                     external,
                     if let Some(prev) = prev {
@@ -692,11 +556,11 @@ impl NetServiceData {
                     } else {
                         (
                             internal,
-                            filter.clone(),
+                            reqs.clone(),
                             ctrl.forward
                                 .add(
                                     external,
-                                    filter,
+                                    reqs,
                                     internal,
                                     net_ifaces
                                         .iter()
@@ -763,40 +627,18 @@ impl NetServiceData {
         }
         ctrl.dns.gc_private_domains(&rm)?;
 
-        let all = binds
-            .tor
-            .keys()
-            .chain(tor.keys())
-            .cloned()
-            .collect::<BTreeSet<_>>();
-        for onion in all {
-            let mut prev = binds.tor.remove(&onion);
-            if let Some((key, tor_binds)) = tor.remove(&onion).filter(|(_, b)| !b.is_empty()) {
-                prev = prev.filter(|(b, _)| b == &tor_binds);
-                binds.tor.insert(
-                    onion,
-                    if let Some(prev) = prev {
-                        prev
-                    } else {
-                        let service = ctrl.tor.service(key)?;
-                        let rcs = service.proxy_all(tor_binds.iter().map(|(k, v)| (*k, *v)));
-                        (tor_binds, rcs)
-                    },
-                );
-            } else {
-                if let Some((_, rc)) = prev {
-                    drop(rc);
-                    ctrl.tor.gc(Some(onion)).await?;
-                }
-            }
-        }
-
         let res = ctrl
             .db
             .mutate(|db| {
-                host_for(db, self.id.as_ref(), &id)?
-                    .as_hostname_info_mut()
-                    .ser(&hostname_info)
+                let bindings = host_for(db, self.id.as_ref(), &id)?.as_bindings_mut();
+                for (port, bind) in host.bindings.0 {
+                    if let Some(b) = bindings.as_idx_mut(&port) {
+                        b.as_addresses_mut()
+                            .as_possible_mut()
+                            .ser(&bind.addresses.possible)?;
+                    }
+                }
+                Ok(())
             })
             .await;
         res.result?;

@@ -1,19 +1,19 @@
 use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, SocketAddr, SocketAddrV6};
 use std::sync::{Arc, Weak};
 use std::task::{Poll, ready};
-use std::time::Duration;
 
 use async_acme::acme::ACME_TLS_ALPN_NAME;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use futures::future::BoxFuture;
+use imbl::OrdMap;
 use imbl_value::{InOMap, InternedString};
 use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn};
 use serde::{Deserialize, Serialize};
-use tokio::net::TcpStream;
+use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::TlsConnector;
 use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::ServerName;
@@ -23,28 +23,28 @@ use tracing::instrument;
 use ts_rs::TS;
 use visit_rs::Visit;
 
-use crate::ResultExt;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
-use crate::db::model::public::AcmeSettings;
+use crate::db::model::public::{AcmeSettings, NetworkInterfaceInfo};
 use crate::db::{DbAccessByKey, DbAccessMut};
 use crate::net::acme::{
     AcmeCertStore, AcmeProvider, AcmeTlsAlpnCache, AcmeTlsHandler, GetAcmeProvider,
 };
 use crate::net::gateway::{
-    AnyFilter, BindTcp, DynInterfaceFilter, GatewayInfo, InterfaceFilter,
-    NetworkInterfaceController, NetworkInterfaceListener,
+    GatewayInfo, NetworkInterfaceController, NetworkInterfaceListenerAcceptMetadata,
 };
 use crate::net::ssl::{CertStore, RootCaTlsHandler};
 use crate::net::tls::{
     ChainedHandler, TlsHandlerWrapper, TlsListener, TlsMetadata, WrapTlsHandler,
 };
+use crate::net::utils::ipv6_is_link_local;
 use crate::net::web_server::{Accept, AcceptStream, ExtractVisitor, TcpMetadata, extract};
 use crate::prelude::*;
 use crate::util::collections::EqSet;
 use crate::util::future::{NonDetachingJoinHandle, WeakFuture};
 use crate::util::serde::{HandlerExtSerde, MaybeUtf8String, display_serializable};
 use crate::util::sync::{SyncMutex, Watch};
+use crate::{GatewayId, ResultExt};
 
 pub fn vhost_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand(
@@ -93,7 +93,7 @@ pub struct VHostController {
     interfaces: Arc<NetworkInterfaceController>,
     crypto_provider: Arc<CryptoProvider>,
     acme_cache: AcmeTlsAlpnCache,
-    servers: SyncMutex<BTreeMap<u16, VHostServer<NetworkInterfaceListener>>>,
+    servers: SyncMutex<BTreeMap<u16, VHostServer<VHostBindListener>>>,
 }
 impl VHostController {
     pub fn new(
@@ -114,14 +114,22 @@ impl VHostController {
         &self,
         hostname: Option<InternedString>,
         external: u16,
-        target: DynVHostTarget<NetworkInterfaceListener>,
+        target: DynVHostTarget<VHostBindListener>,
     ) -> Result<Arc<()>, Error> {
         self.servers.mutate(|writable| {
             let server = if let Some(server) = writable.remove(&external) {
                 server
             } else {
+                let bind_reqs = Watch::new(VHostBindRequirements::default());
+                let listener = VHostBindListener {
+                    ip_info: self.interfaces.watcher.subscribe(),
+                    port: external,
+                    bind_reqs: bind_reqs.clone_unseen(),
+                    listeners: BTreeMap::new(),
+                };
                 VHostServer::new(
-                    self.interfaces.watcher.bind(BindTcp, external)?,
+                    listener,
+                    bind_reqs,
                     self.db.clone(),
                     self.crypto_provider.clone(),
                     self.acme_cache.clone(),
@@ -173,6 +181,143 @@ impl VHostController {
     }
 }
 
+/// Union of all ProxyTargets' bind requirements for a VHostServer.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct VHostBindRequirements {
+    pub public_gateways: BTreeSet<GatewayId>,
+    pub private_ips: BTreeSet<IpAddr>,
+}
+
+fn compute_bind_reqs<A: Accept + 'static>(mapping: &Mapping<A>) -> VHostBindRequirements {
+    let mut reqs = VHostBindRequirements::default();
+    for (_, targets) in mapping {
+        for (target, rc) in targets {
+            if rc.strong_count() > 0 {
+                let (pub_gw, priv_ip) = target.0.bind_requirements();
+                reqs.public_gateways.extend(pub_gw);
+                reqs.private_ips.extend(priv_ip);
+            }
+        }
+    }
+    reqs
+}
+
+/// Listener that manages its own TCP listeners with IP-level precision.
+/// Binds ALL IPs of public gateways and ONLY matching private IPs.
+pub struct VHostBindListener {
+    ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
+    port: u16,
+    bind_reqs: Watch<VHostBindRequirements>,
+    listeners: BTreeMap<SocketAddr, (TcpListener, GatewayInfo)>,
+}
+
+fn update_vhost_listeners(
+    listeners: &mut BTreeMap<SocketAddr, (TcpListener, GatewayInfo)>,
+    port: u16,
+    ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+    reqs: &VHostBindRequirements,
+) -> Result<(), Error> {
+    let mut keep = BTreeSet::<SocketAddr>::new();
+    for (gw_id, info) in ip_info {
+        if let Some(ip_info) = &info.ip_info {
+            for ipnet in &ip_info.subnets {
+                let ip = ipnet.addr();
+                let should_bind =
+                    reqs.public_gateways.contains(gw_id) || reqs.private_ips.contains(&ip);
+                if should_bind {
+                    let addr = match ip {
+                        IpAddr::V6(ip6) => SocketAddrV6::new(
+                            ip6,
+                            port,
+                            0,
+                            if ipv6_is_link_local(ip6) {
+                                ip_info.scope_id
+                            } else {
+                                0
+                            },
+                        )
+                        .into(),
+                        ip => SocketAddr::new(ip, port),
+                    };
+                    keep.insert(addr);
+                    if let Some((_, existing_info)) = listeners.get_mut(&addr) {
+                        *existing_info = GatewayInfo {
+                            id: gw_id.clone(),
+                            info: info.clone(),
+                        };
+                    } else {
+                        let tcp = TcpListener::from_std(
+                            mio::net::TcpListener::bind(addr)
+                                .with_kind(ErrorKind::Network)?
+                                .into(),
+                        )
+                        .with_kind(ErrorKind::Network)?;
+                        listeners.insert(
+                            addr,
+                            (
+                                tcp,
+                                GatewayInfo {
+                                    id: gw_id.clone(),
+                                    info: info.clone(),
+                                },
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+    }
+    listeners.retain(|key, _| keep.contains(key));
+    Ok(())
+}
+
+impl Accept for VHostBindListener {
+    type Metadata = NetworkInterfaceListenerAcceptMetadata;
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
+        // Update listeners when ip_info or bind_reqs change
+        while self.ip_info.poll_changed(cx).is_ready()
+            || self.bind_reqs.poll_changed(cx).is_ready()
+        {
+            let reqs = self.bind_reqs.read_and_mark_seen();
+            let listeners = &mut self.listeners;
+            let port = self.port;
+            self.ip_info.peek_and_mark_seen(|ip_info| {
+                update_vhost_listeners(listeners, port, ip_info, &reqs)
+            })?;
+        }
+
+        // Poll each listener for incoming connections
+        for (&addr, (listener, gw_info)) in &self.listeners {
+            match listener.poll_accept(cx) {
+                Poll::Ready(Ok((stream, peer_addr))) => {
+                    if let Err(e) = socket2::SockRef::from(&stream).set_keepalive(true) {
+                        tracing::error!("Failed to set tcp keepalive: {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                    return Poll::Ready(Ok((
+                        NetworkInterfaceListenerAcceptMetadata {
+                            inner: TcpMetadata {
+                                local_addr: addr,
+                                peer_addr,
+                            },
+                            info: gw_info.clone(),
+                        },
+                        Box::pin(stream),
+                    )));
+                }
+                Poll::Ready(Err(e)) => {
+                    tracing::trace!("VHostBindListener accept error on {addr}: {e}");
+                }
+                Poll::Pending => {}
+            }
+        }
+        Poll::Pending
+    }
+}
+
 pub trait VHostTarget<A: Accept>: std::fmt::Debug + Eq {
     type PreprocessRes: Send + 'static;
     #[allow(unused_variables)]
@@ -181,6 +326,10 @@ pub trait VHostTarget<A: Accept>: std::fmt::Debug + Eq {
     }
     fn acme(&self) -> Option<&AcmeProvider> {
         None
+    }
+    /// Returns (public_gateways, private_ips) this target needs the listener to bind on.
+    fn bind_requirements(&self) -> (BTreeSet<GatewayId>, BTreeSet<IpAddr>) {
+        (BTreeSet::new(), BTreeSet::new())
     }
     fn preprocess<'a>(
         &'a self,
@@ -200,6 +349,7 @@ pub trait VHostTarget<A: Accept>: std::fmt::Debug + Eq {
 pub trait DynVHostTargetT<A: Accept>: std::fmt::Debug + Any {
     fn filter(&self, metadata: &<A as Accept>::Metadata) -> bool;
     fn acme(&self) -> Option<&AcmeProvider>;
+    fn bind_requirements(&self) -> (BTreeSet<GatewayId>, BTreeSet<IpAddr>);
     fn preprocess<'a>(
         &'a self,
         prev: ServerConfig,
@@ -223,6 +373,9 @@ impl<A: Accept, T: VHostTarget<A> + 'static> DynVHostTargetT<A> for T {
     }
     fn acme(&self) -> Option<&AcmeProvider> {
         VHostTarget::acme(self)
+    }
+    fn bind_requirements(&self) -> (BTreeSet<GatewayId>, BTreeSet<IpAddr>) {
+        VHostTarget::bind_requirements(self)
     }
     fn preprocess<'a>(
         &'a self,
@@ -301,7 +454,8 @@ impl<A: Accept + 'static> Preprocessed<A> {
 
 #[derive(Clone)]
 pub struct ProxyTarget {
-    pub filter: DynInterfaceFilter,
+    pub public: BTreeSet<GatewayId>,
+    pub private: BTreeSet<IpAddr>,
     pub acme: Option<AcmeProvider>,
     pub addr: SocketAddr,
     pub add_x_forwarded_headers: bool,
@@ -309,7 +463,8 @@ pub struct ProxyTarget {
 }
 impl PartialEq for ProxyTarget {
     fn eq(&self, other: &Self) -> bool {
-        self.filter == other.filter
+        self.public == other.public
+            && self.private == other.private
             && self.acme == other.acme
             && self.addr == other.addr
             && self.connect_ssl.as_ref().map(Arc::as_ptr)
@@ -320,7 +475,8 @@ impl Eq for ProxyTarget {}
 impl fmt::Debug for ProxyTarget {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ProxyTarget")
-            .field("filter", &self.filter)
+            .field("public", &self.public)
+            .field("private", &self.private)
             .field("acme", &self.acme)
             .field("addr", &self.addr)
             .field("add_x_forwarded_headers", &self.add_x_forwarded_headers)
@@ -340,15 +496,36 @@ where
 {
     type PreprocessRes = AcceptStream;
     fn filter(&self, metadata: &<A as Accept>::Metadata) -> bool {
-        let info = extract::<GatewayInfo, _>(metadata);
-        if info.is_none() {
-            tracing::warn!("No GatewayInfo on metadata");
+        let gw = extract::<GatewayInfo, _>(metadata);
+        let tcp = extract::<TcpMetadata, _>(metadata);
+        let (Some(gw), Some(tcp)) = (gw, tcp) else {
+            return false;
+        };
+        let Some(ip_info) = &gw.info.ip_info else {
+            return false;
+        };
+
+        let src = tcp.peer_addr.ip();
+        // Public if: source is a gateway/router IP (NAT'd internet),
+        // or source is outside all known subnets (direct internet)
+        let is_public = ip_info.lan_ip.contains(&src)
+            || !ip_info.subnets.iter().any(|s| s.contains(&src));
+
+        if is_public {
+            self.public.contains(&gw.id)
+        } else {
+            // Private: accept if connection arrived on an interface with a matching IP
+            ip_info
+                .subnets
+                .iter()
+                .any(|s| self.private.contains(&s.addr()))
         }
-        info.as_ref()
-            .map_or(true, |i| self.filter.filter(&i.id, &i.info))
     }
     fn acme(&self) -> Option<&AcmeProvider> {
         self.acme.as_ref()
+    }
+    fn bind_requirements(&self) -> (BTreeSet<GatewayId>, BTreeSet<IpAddr>) {
+        (self.public.clone(), self.private.clone())
     }
     async fn preprocess<'a>(
         &'a self,
@@ -634,28 +811,15 @@ where
 
 struct VHostServer<A: Accept + 'static> {
     mapping: Watch<Mapping<A>>,
+    bind_reqs: Watch<VHostBindRequirements>,
     _thread: NonDetachingJoinHandle<()>,
-}
-
-impl<'a> From<&'a BTreeMap<Option<InternedString>, BTreeMap<ProxyTarget, Weak<()>>>> for AnyFilter {
-    fn from(value: &'a BTreeMap<Option<InternedString>, BTreeMap<ProxyTarget, Weak<()>>>) -> Self {
-        Self(
-            value
-                .iter()
-                .flat_map(|(_, v)| {
-                    v.iter()
-                        .filter(|(_, r)| r.strong_count() > 0)
-                        .map(|(t, _)| t.filter.clone())
-                })
-                .collect(),
-        )
-    }
 }
 
 impl<A: Accept> VHostServer<A> {
     #[instrument(skip_all)]
     fn new<M: HasModel>(
         listener: A,
+        bind_reqs: Watch<VHostBindRequirements>,
         db: TypedPatchDb<M>,
         crypto_provider: Arc<CryptoProvider>,
         acme_cache: AcmeTlsAlpnCache,
@@ -679,6 +843,7 @@ impl<A: Accept> VHostServer<A> {
         let mapping = Watch::new(BTreeMap::new());
         Self {
             mapping: mapping.clone(),
+            bind_reqs,
             _thread: tokio::spawn(async move {
                 let mut listener = VHostListener(TlsListener::new(
                     listener,
@@ -729,6 +894,9 @@ impl<A: Accept> VHostServer<A> {
             targets.insert(target, Arc::downgrade(&rc));
             writable.insert(hostname, targets);
             res = Ok(rc);
+            if changed {
+                self.update_bind_reqs(writable);
+            }
             changed
         });
         if self.mapping.watcher_count() > 1 {
@@ -752,7 +920,21 @@ impl<A: Accept> VHostServer<A> {
             if !targets.is_empty() {
                 writable.insert(hostname, targets);
             }
+            if pre != post {
+                self.update_bind_reqs(writable);
+            }
             pre == post
+        });
+    }
+    fn update_bind_reqs(&self, mapping: &Mapping<A>) {
+        let new_reqs = compute_bind_reqs(mapping);
+        self.bind_reqs.send_if_modified(|reqs| {
+            if *reqs != new_reqs {
+                *reqs = new_reqs;
+                true
+            } else {
+                false
+            }
         });
     }
     fn is_empty(&self) -> bool {
