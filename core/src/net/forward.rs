@@ -3,6 +3,8 @@ use std::net::{IpAddr, SocketAddrV4};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
+use ipnet::IpNet;
+
 use futures::channel::oneshot;
 use iddqd::{IdOrdItem, IdOrdMap};
 use rand::Rng;
@@ -45,16 +47,6 @@ impl std::fmt::Display for ForwardRequirements {
             self.public_gateways, self.private_ips, self.secure
         )
     }
-}
-
-/// Source-IP filter for private forwards: restricts traffic to a subnet
-/// while excluding gateway/router IPs that may masquerade internet traffic.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct SourceFilter {
-    /// Network CIDR to allow (e.g. "192.168.1.0/24")
-    subnet: String,
-    /// Comma-separated gateway IPs to exclude (they may masquerade internet traffic)
-    excluded: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -129,7 +121,7 @@ struct ForwardMapping {
     source: SocketAddrV4,
     target: SocketAddrV4,
     target_prefix: u8,
-    src_filter: Option<SourceFilter>,
+    src_filter: Option<IpNet>,
     rc: Weak<()>,
 }
 
@@ -144,7 +136,7 @@ impl PortForwardState {
         source: SocketAddrV4,
         target: SocketAddrV4,
         target_prefix: u8,
-        src_filter: Option<SourceFilter>,
+        src_filter: Option<IpNet>,
     ) -> Result<Arc<()>, Error> {
         if let Some(existing) = self.mappings.get_mut(&source) {
             if existing.target == target && existing.src_filter == src_filter {
@@ -241,7 +233,7 @@ enum PortForwardCommand {
         source: SocketAddrV4,
         target: SocketAddrV4,
         target_prefix: u8,
-        src_filter: Option<SourceFilter>,
+        src_filter: Option<IpNet>,
         respond: oneshot::Sender<Result<Arc<()>, Error>>,
     },
     Gc {
@@ -358,7 +350,7 @@ impl PortForwardController {
         source: SocketAddrV4,
         target: SocketAddrV4,
         target_prefix: u8,
-        src_filter: Option<SourceFilter>,
+        src_filter: Option<IpNet>,
     ) -> Result<Arc<()>, Error> {
         let (send, recv) = oneshot::channel();
         self.req
@@ -455,19 +447,7 @@ impl InterfaceForwardEntry {
                                 if reqs.public_gateways.contains(gw_id) {
                                     None
                                 } else if reqs.private_ips.contains(&IpAddr::V4(ip)) {
-                                    let excluded = ip_info
-                                        .lan_ip
-                                        .iter()
-                                        .filter_map(|ip| match ip {
-                                            IpAddr::V4(v4) => Some(v4.to_string()),
-                                            _ => None,
-                                        })
-                                        .collect::<Vec<_>>()
-                                        .join(",");
-                                    Some(SourceFilter {
-                                        subnet: subnet.trunc().to_string(),
-                                        excluded,
-                                    })
+                                    Some(subnet.trunc())
                                 } else {
                                     continue;
                                 };
@@ -725,7 +705,7 @@ async fn forward(
     source: SocketAddrV4,
     target: SocketAddrV4,
     target_prefix: u8,
-    src_filter: Option<&SourceFilter>,
+    src_filter: Option<&IpNet>,
 ) -> Result<(), Error> {
     let mut cmd = Command::new("/usr/lib/startos/scripts/forward-port");
     cmd.env("sip", source.ip().to_string())
@@ -733,11 +713,8 @@ async fn forward(
         .env("dprefix", target_prefix.to_string())
         .env("sport", source.port().to_string())
         .env("dport", target.port().to_string());
-    if let Some(filter) = src_filter {
-        cmd.env("src_subnet", &filter.subnet);
-        if !filter.excluded.is_empty() {
-            cmd.env("excluded_src", &filter.excluded);
-        }
+    if let Some(subnet) = src_filter {
+        cmd.env("src_subnet", subnet.to_string());
     }
     cmd.invoke(ErrorKind::Network).await?;
     Ok(())
@@ -747,7 +724,7 @@ async fn unforward(
     source: SocketAddrV4,
     target: SocketAddrV4,
     target_prefix: u8,
-    src_filter: Option<&SourceFilter>,
+    src_filter: Option<&IpNet>,
 ) -> Result<(), Error> {
     let mut cmd = Command::new("/usr/lib/startos/scripts/forward-port");
     cmd.env("UNDO", "1")
@@ -756,11 +733,8 @@ async fn unforward(
         .env("dprefix", target_prefix.to_string())
         .env("sport", source.port().to_string())
         .env("dport", target.port().to_string());
-    if let Some(filter) = src_filter {
-        cmd.env("src_subnet", &filter.subnet);
-        if !filter.excluded.is_empty() {
-            cmd.env("excluded_src", &filter.excluded);
-        }
+    if let Some(subnet) = src_filter {
+        cmd.env("src_subnet", subnet.to_string());
     }
     cmd.invoke(ErrorKind::Network).await?;
     Ok(())

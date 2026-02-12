@@ -657,6 +657,62 @@ async fn watch_ip(
                                 None
                             };
 
+                            // Policy routing: track per-interface table for cleanup on scope exit
+                            let policy_table_id = if !matches!(
+                                device_type,
+                                Some(
+                                    NetworkInterfaceType::Bridge
+                                        | NetworkInterfaceType::Loopback
+                                )
+                            ) {
+                                if_nametoindex(iface.as_str())
+                                    .map(|idx| 1000 + idx)
+                                    .log_err()
+                            } else {
+                                None
+                            };
+                            struct PolicyRoutingCleanup {
+                                table_id: u32,
+                                iface: String,
+                            }
+                            impl Drop for PolicyRoutingCleanup {
+                                fn drop(&mut self) {
+                                    let table_str = self.table_id.to_string();
+                                    let iface = std::mem::take(&mut self.iface);
+                                    tokio::spawn(async move {
+                                        Command::new("ip")
+                                            .arg("rule").arg("del")
+                                            .arg("fwmark").arg(&table_str)
+                                            .arg("lookup").arg(&table_str)
+                                            .invoke(ErrorKind::Network)
+                                            .await
+                                            .log_err();
+                                        Command::new("ip")
+                                            .arg("route").arg("flush")
+                                            .arg("table").arg(&table_str)
+                                            .invoke(ErrorKind::Network)
+                                            .await
+                                            .log_err();
+                                        Command::new("iptables")
+                                            .arg("-t").arg("mangle")
+                                            .arg("-D").arg("PREROUTING")
+                                            .arg("-i").arg(&iface)
+                                            .arg("-m").arg("conntrack")
+                                            .arg("--ctstate").arg("NEW")
+                                            .arg("-j").arg("CONNMARK")
+                                            .arg("--set-mark").arg(&table_str)
+                                            .invoke(ErrorKind::Network)
+                                            .await
+                                            .log_err();
+                                    });
+                                }
+                            }
+                            let _policy_guard: Option<PolicyRoutingCleanup> =
+                                policy_table_id.map(|t| PolicyRoutingCleanup {
+                                    table_id: t,
+                                    iface: iface.as_str().to_owned(),
+                                });
+
                             loop {
                                 until
                                     .run(async {
@@ -666,7 +722,7 @@ async fn watch_ip(
                                             .into_iter()
                                             .chain(ip6_proxy.address_data().await?)
                                             .collect_vec();
-                                        let lan_ip = [
+                                        let lan_ip: OrdSet<IpAddr> = [
                                             Some(ip4_proxy.gateway().await?)
                                                 .filter(|g| !g.is_empty())
                                                 .and_then(|g| g.parse::<IpAddr>().log_err()),
@@ -703,22 +759,122 @@ async fn watch_ip(
                                             .into_iter()
                                             .map(IpNet::try_from)
                                             .try_collect()?;
-                                        // let tables = ip4_proxy.route_data().await?.into_iter().filter_map(|d|d.table).collect::<Vec<_>>();
-                                        // if !tables.is_empty() {
-                                        //     let rules = String::from_utf8(Command::new("ip").arg("rule").arg("list").invoke(ErrorKind::Network).await?)?;
-                                        //     for table in tables {
-                                        //         for subnet in subnets.iter().filter(|s| s.addr().is_ipv4()) {
-                                        //             let subnet_string = subnet.trunc().to_string();
-                                        //             let rule = ["from", &subnet_string, "lookup", &table.to_string()];
-                                        //             if !rules.contains(&rule.join(" ")) {
-                                        //                 if rules.contains(&rule[..2].join(" ")) {
-                                        //                     Command::new("ip").arg("rule").arg("del").args(&rule[..2]).invoke(ErrorKind::Network).await?;
-                                        //                 }
-                                        //                 Command::new("ip").arg("rule").arg("add").args(rule).invoke(ErrorKind::Network).await?;
-                                        //             }
-                                        //         }
-                                        //     }
-                                        // }
+                                        // Policy routing: ensure replies exit the same interface
+                                        // they arrived on, eliminating the need for MASQUERADE.
+                                        if let Some(guard) = &_policy_guard {
+                                            let table_id = guard.table_id;
+                                            let table_str = table_id.to_string();
+
+                                            let ipv4_gateway: Option<Ipv4Addr> =
+                                                lan_ip.iter().find_map(|ip| match ip {
+                                                    IpAddr::V4(v4) => Some(v4),
+                                                    _ => None,
+                                                }).copied();
+                                            let ipv4_subnets: Vec<IpNet> = subnets
+                                                .iter()
+                                                .filter(|s| s.addr().is_ipv4())
+                                                .cloned()
+                                                .collect();
+
+                                            // Flush and rebuild per-interface routing table
+                                            Command::new("ip")
+                                                .arg("route").arg("flush")
+                                                .arg("table").arg(&table_str)
+                                                .invoke(ErrorKind::Network)
+                                                .await
+                                                .log_err();
+                                            for subnet in &ipv4_subnets {
+                                                let subnet_str = subnet.trunc().to_string();
+                                                Command::new("ip")
+                                                    .arg("route").arg("add").arg(&subnet_str)
+                                                    .arg("dev").arg(iface.as_str())
+                                                    .arg("table").arg(&table_str)
+                                                    .invoke(ErrorKind::Network)
+                                                    .await
+                                                    .log_err();
+                                            }
+                                            {
+                                                let mut cmd = Command::new("ip");
+                                                cmd.arg("route").arg("add").arg("default");
+                                                if let Some(gw) = ipv4_gateway {
+                                                    cmd.arg("via").arg(gw.to_string());
+                                                }
+                                                cmd.arg("dev").arg(iface.as_str())
+                                                    .arg("table").arg(&table_str);
+                                                if ipv4_gateway.is_none() {
+                                                    cmd.arg("scope").arg("link");
+                                                }
+                                                cmd.invoke(ErrorKind::Network)
+                                                    .await
+                                                    .log_err();
+                                            }
+
+                                            // Ensure global CONNMARK restore rule in mangle PREROUTING
+                                            // (restores fwmark from conntrack mark on reply packets)
+                                            if !Command::new("iptables")
+                                                .arg("-t").arg("mangle")
+                                                .arg("-C").arg("PREROUTING")
+                                                .arg("-j").arg("CONNMARK")
+                                                .arg("--restore-mark")
+                                                .status().await
+                                                .map_or(false, |s| s.success())
+                                            {
+                                                Command::new("iptables")
+                                                    .arg("-t").arg("mangle")
+                                                    .arg("-I").arg("PREROUTING").arg("1")
+                                                    .arg("-j").arg("CONNMARK")
+                                                    .arg("--restore-mark")
+                                                    .invoke(ErrorKind::Network)
+                                                    .await
+                                                    .log_err();
+                                            }
+
+                                            // Mark NEW connections arriving on this interface
+                                            // with its routing table ID via conntrack mark
+                                            if !Command::new("iptables")
+                                                .arg("-t").arg("mangle")
+                                                .arg("-C").arg("PREROUTING")
+                                                .arg("-i").arg(iface.as_str())
+                                                .arg("-m").arg("conntrack")
+                                                .arg("--ctstate").arg("NEW")
+                                                .arg("-j").arg("CONNMARK")
+                                                .arg("--set-mark").arg(&table_str)
+                                                .status().await
+                                                .map_or(false, |s| s.success())
+                                            {
+                                                Command::new("iptables")
+                                                    .arg("-t").arg("mangle")
+                                                    .arg("-A").arg("PREROUTING")
+                                                    .arg("-i").arg(iface.as_str())
+                                                    .arg("-m").arg("conntrack")
+                                                    .arg("--ctstate").arg("NEW")
+                                                    .arg("-j").arg("CONNMARK")
+                                                    .arg("--set-mark").arg(&table_str)
+                                                    .invoke(ErrorKind::Network)
+                                                    .await
+                                                    .log_err();
+                                            }
+
+                                            // Ensure fwmark-based ip rule for this interface's table
+                                            let rules_output = String::from_utf8(
+                                                Command::new("ip")
+                                                    .arg("rule").arg("list")
+                                                    .invoke(ErrorKind::Network)
+                                                    .await?,
+                                            )?;
+                                            if !rules_output.lines().any(|l| {
+                                                l.contains("fwmark")
+                                                    && l.contains(&format!("lookup {table_id}"))
+                                            }) {
+                                                Command::new("ip")
+                                                    .arg("rule").arg("add")
+                                                    .arg("fwmark").arg(&table_str)
+                                                    .arg("lookup").arg(&table_str)
+                                                    .invoke(ErrorKind::Network)
+                                                    .await
+                                                    .log_err();
+                                            }
+                                        }
                                         let wan_ip = if !subnets.is_empty()
                                             && !matches!(
                                                 device_type,
