@@ -18,10 +18,14 @@ import {
 import { TuiBlock, TuiInputTime } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { ModalHelp } from 'src/app/directives/modal-help'
 import { BlackoutWindow } from './service'
+
+import { BlackoutDialogAside } from './dialog-aside'
 
 @Component({
   template: `
+    <blackout-dialog-aside *modalHelp />
     <form
       tuiForm="m"
       class="g-form"
@@ -85,6 +89,8 @@ import { BlackoutWindow } from './service'
     TuiInputTime,
     TuiGroup,
     TuiBlock,
+    ModalHelp,
+    BlackoutDialogAside,
   ],
 })
 class AddBlackoutWindow {

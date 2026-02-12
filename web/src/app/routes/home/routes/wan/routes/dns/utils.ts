@@ -26,8 +26,10 @@ export function getDnsForm(
     mode: builder.control<DnsMode>('isp'),
     custom1: builder.control('', validators),
     custom2: builder.control('', validators),
+    custom3: builder.control('', validators),
     custom1Tls: builder.control(false),
     custom2Tls: builder.control(false),
+    custom3Tls: builder.control(false),
   })
 }
 
@@ -72,13 +74,18 @@ export function parseDnsFromInterface(iface: NetworkInterfaceSection): DnsForm {
     const server2 = dnsServers[1]
       ? parseDnsServer(dnsServers[1])
       : { ip: '', tls: false }
+    const server3 = dnsServers[2]
+      ? parseDnsServer(dnsServers[2])
+      : { ip: '', tls: false }
 
     return {
       mode: 'custom',
       custom1: server1.ip,
       custom2: server2.ip,
+      custom3: server3.ip,
       custom1Tls: server1.tls,
       custom2Tls: server2.tls,
+      custom3Tls: server3.tls,
     }
   }
 
@@ -86,8 +93,10 @@ export function parseDnsFromInterface(iface: NetworkInterfaceSection): DnsForm {
     mode: 'isp',
     custom1: '',
     custom2: '',
+    custom3: '',
     custom1Tls: false,
     custom2Tls: false,
+    custom3Tls: false,
   }
 }
 
@@ -106,6 +115,9 @@ export function applyDnsToInterface(
     }
     if (dns.custom2) {
       servers.push(dns.custom2Tls ? `${dns.custom2}@853` : dns.custom2)
+    }
+    if (dns.custom3) {
+      servers.push(dns.custom3Tls ? `${dns.custom3}@853` : dns.custom3)
     }
     iface.lists.dns = servers
   }

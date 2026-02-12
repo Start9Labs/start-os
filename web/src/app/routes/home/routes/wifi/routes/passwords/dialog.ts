@@ -25,6 +25,9 @@ import {
 import { TuiChevron, TuiPassword, TuiSelect } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { ModalHelp } from 'src/app/directives/modal-help'
+
+import { WifiPasswordsDialogAside } from './dialog-aside'
 
 export interface WifiPasswordEntry {
   label: string
@@ -45,6 +48,7 @@ export interface WifiPasswordDialogResult {
 
 @Component({
   template: `
+    <wifi-passwords-dialog-aside *modalHelp />
     <form tuiForm="m" [formGroup]="form" (submit.prevent)="save()">
       <tui-textfield>
         <label tuiLabel>Label</label>
@@ -124,6 +128,8 @@ export interface WifiPasswordDialogResult {
     TuiDataList,
     TuiAppearance,
     RouterLink,
+    ModalHelp,
+    WifiPasswordsDialogAside,
   ],
 })
 class AddWifiPassword {

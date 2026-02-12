@@ -84,6 +84,17 @@ import {
           </label>
         </section>
         <tui-error formControlName="custom2" />
+        <section>
+          <tui-textfield>
+            <label tuiLabel>Tertiary</label>
+            <input tuiInput formControlName="custom3" />
+          </tui-textfield>
+          <label tuiLabel>
+            <input type="checkbox" tuiSwitch formControlName="custom3Tls" />
+            TLS
+          </label>
+        </section>
+        <tui-error formControlName="custom3" />
       }
       @if (service.data()) {
         <footer appFooter></footer>

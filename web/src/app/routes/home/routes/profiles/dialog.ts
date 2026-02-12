@@ -44,6 +44,7 @@ import {
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { startWith } from 'rxjs'
+import { ModalHelp } from 'src/app/directives/modal-help'
 import type {
   LanAccess,
   ProfileIdOpt,
@@ -51,6 +52,8 @@ import type {
   WanAccess,
 } from 'src/app/services/api/api.service'
 import { CustomValidators } from 'src/app/utils/validators'
+
+import { ProfilesDialogAside } from './dialog-aside'
 
 export interface ProfileDialogData {
   existing?: SecurityProfile
@@ -73,6 +76,7 @@ export interface ProfileDialogResult {
 
 @Component({
   template: `
+    <profiles-dialog-aside *modalHelp />
     <form
       tuiForm="m"
       class="g-form"
@@ -279,6 +283,8 @@ export interface ProfileDialogResult {
     TuiDataListWrapper,
     FormsModule,
     TuiStringifyPipe,
+    ModalHelp,
+    ProfilesDialogAside,
   ],
 })
 class AddProfile {
