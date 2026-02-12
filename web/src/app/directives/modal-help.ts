@@ -17,14 +17,15 @@ import {
   PolymorpheusComponent,
   provideContext,
 } from '@taiga-ui/polymorpheus'
+import { SidebarService } from 'src/app/services/sidebar.service'
 
 @Component({
   template: `
     <label tuiBlock="s" appearance="secondary-grayscale">
-      <input type="checkbox" tuiSwitch size="s" [(ngModel)]="open" />
+      <input type="checkbox" tuiSwitch size="s" [(ngModel)]="service.end" />
       Help
     </label>
-    <section *tuiPopup="open()" tuiAnimated class="modal-help">
+    <section *tuiPopup="service.end()" tuiAnimated class="modal-help">
       <ng-container *ngTemplateOutlet="template" />
     </section>
   `,
@@ -41,43 +42,37 @@ import {
       border-radius: 10rem;
     }
 
-    ::ng-deep {
-      .modal-help {
-        position: fixed;
-        inset: 4.5rem 1rem 1rem auto;
-        width: 18rem;
-        border-radius: var(--tui-radius-l);
-        background: var(--tui-background-elevation-1);
-        box-shadow: var(--tui-shadow-popup);
-        backdrop-filter: blur(1rem);
+    .modal-help {
+      position: fixed;
+      inset: 4.5rem 1rem 1rem auto;
+      width: 18rem;
+      border-radius: var(--tui-radius-l);
+      background: var(--tui-background-elevation-1);
+      box-shadow: var(--tui-shadow-popup);
+      backdrop-filter: blur(1rem);
 
-        --tui-from: translate3d(150%, 0, 0);
+      --tui-from: translate3d(150%, 0, 0);
 
-        &.tui-enter,
-        &.tui-leave {
-          animation-name: tuiSlide;
-        }
+      &.tui-enter,
+      &.tui-leave {
+        animation-name: tuiSlide;
       }
+    }
 
-      tui-root._mobile .modal-help {
-        width: calc(100% - 2rem);
-      }
+    ::ng-deep tui-root._mobile .modal-help {
+      width: calc(100% - 2rem);
+    }
 
-      [tuiTheme='dark'] .modal-help {
-        background:
-          linear-gradient(45deg, rgba(82, 64, 168, 0.6117647059), transparent),
-          linear-gradient(
-            to bottom,
-            rgba(82, 64, 168, 0.3294117647),
-            transparent
-          ),
-          color-mix(
-            in hsl,
-            var(--tui-background-elevation-1) 90%,
-            transparent 10%
-          );
-        background-blend-mode: multiply;
-      }
+    ::ng-deep [tuiTheme='dark'] .modal-help {
+      background:
+        linear-gradient(45deg, rgba(82, 64, 168, 0.6), transparent),
+        linear-gradient(to bottom, rgba(82, 64, 168, 0.33), transparent),
+        color-mix(
+          in hsl,
+          var(--tui-background-elevation-1) 90%,
+          transparent 10%
+        );
+      background-blend-mode: multiply;
     }
   `,
   imports: [
@@ -90,7 +85,7 @@ import {
   ],
 })
 class ModalToggle {
-  readonly open = signal(false)
+  readonly service = inject(SidebarService)
   readonly template = injectContext<TemplateRef<any>>()
 }
 

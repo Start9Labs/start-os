@@ -11,10 +11,11 @@ import {
   TuiCheckbox,
   TuiDialogContext,
   TuiError,
+  TuiGroup,
   TuiLabel,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TuiInputTime } from '@taiga-ui/kit'
+import { TuiBlock, TuiInputTime } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { BlackoutWindow } from './service'
@@ -41,12 +42,14 @@ import { BlackoutWindow } from './service'
       <tui-error [formGroup]="form" />
       <fieldset formGroupName="days" [style.display]="'flex'">
         <legend>Days</legend>
-        @for (day of displayDays; track day.key) {
-          <label tuiLabel>
-            <input type="checkbox" tuiCheckbox [formControlName]="day.key" />
-            {{ day.label }}
-          </label>
-        }
+        <div tuiGroup [collapsed]="true">
+          @for (day of displayDays; track day.key) {
+            <label tuiBlock="s" appearance="">
+              <input type="checkbox" tuiBlock="s" [formControlName]="day.key" />
+              {{ day.label }}
+            </label>
+          }
+        </div>
       </fieldset>
       <footer>
         <button
@@ -61,6 +64,12 @@ import { BlackoutWindow } from './service'
       </footer>
     </form>
   `,
+  styles: `
+    [tuiGroup] {
+      width: 100%;
+      height: var(--tui-height-m);
+    }
+  `,
   providers: [
     tuiValidationErrorsProvider({
       endBeforeStart: 'End time must be later than start time',
@@ -71,10 +80,11 @@ import { BlackoutWindow } from './service'
     ReactiveFormsModule,
     TuiForm,
     TuiLabel,
-    TuiCheckbox,
     TuiButton,
     TuiError,
     TuiInputTime,
+    TuiGroup,
+    TuiBlock,
   ],
 })
 class AddBlackoutWindow {

@@ -16,16 +16,17 @@ import {
   tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
 import { TuiChevron, TuiSelect, TuiSwitch } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiForm } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
+import { Footer } from 'src/app/components/footer'
+import { Form } from 'src/app/directives/form'
 import { Help } from 'src/app/directives/help'
-import { WifiSettingsAside } from './aside'
 import { WifiService } from '../../service'
+import { WifiSettingsAside } from './aside'
 
 @Component({
   template: `
     <wifi-settings-aside *help />
-    <form tuiForm="m" tuiCardLarge class="g-form" [formGroup]="form">
+    <form [formGroup]="form" [formLoading]="!service.data()">
       <label tuiLabel>
         <input type="checkbox" tuiSwitch formControlName="enabled" />
         Enable Wi-Fi
@@ -84,6 +85,9 @@ import { WifiService } from '../../service'
           </tui-data-list>
         </tui-textfield>
       </fieldset>
+      @if (service.data()) {
+        <footer appFooter></footer>
+      }
     </form>
   `,
   styles: `
@@ -101,8 +105,6 @@ import { WifiService } from '../../service'
   host: { class: 'g-page' },
   imports: [
     ReactiveFormsModule,
-    TuiForm,
-    TuiCardLarge,
     TuiLabel,
     TuiSwitch,
     TuiRadio,
@@ -113,11 +115,12 @@ import { WifiService } from '../../service'
     TuiDataList,
     WifiSettingsAside,
     Help,
+    Footer,
+    Form,
   ],
 })
 export default class WifiSettings {
-  private readonly service = inject(WifiService)
-
+  protected readonly service = inject(WifiService)
   protected readonly form = inject(NonNullableFormBuilder).group({
     enabled: [true],
     ssid: ['StartOS'],
@@ -136,7 +139,6 @@ export default class WifiSettings {
   )
 
   protected readonly bands = ['2.4 GHz', '5 GHz', 'Both']
-
   protected readonly channels24 = [
     'Auto',
     '1',
@@ -184,14 +186,14 @@ export default class WifiSettings {
   constructor() {
     effect(() => {
       const config = this.service.data()
-      if (!config) return
+
+      if (!config || !this.form.pristine) return
 
       const radios = Object.entries(config.radios)
       const radio2g = radios.find(([, r]) => r.band === '2g')
       const radio5g = radios.find(([, r]) => r.band === '5g')
       const anyEnabled = radios.some(([, r]) => r.enabled)
       const anyBroadcast = radios.some(([, r]) => r.broadcast)
-
       const channelToOption = (ch: string) => (ch === 'auto' ? 'Auto' : ch)
 
       this.form.patchValue(

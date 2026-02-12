@@ -50,23 +50,20 @@ import { EthernetPort, EthernetService } from './service'
                 (ngModelChange)="onProfile()"
               >
                 <tui-data-list *tuiDropdown>
-                  <tui-opt-group label="Profiles">
-                    @for (profile of profiles(); track $index) {
-                      <button tuiOption [value]="profile">
-                        {{ profile }}
-                      </button>
-                    }
-                  </tui-opt-group>
-                  <tui-opt-group>
-                    <a
-                      tuiOption
-                      tuiAppearance="action"
-                      iconEnd="@tui.user-lock"
-                      routerLink="/profiles"
-                    >
-                      Manage Profiles
-                    </a>
-                  </tui-opt-group>
+                  @for (profile of profiles(); track $index) {
+                    <button tuiOption [value]="profile">
+                      {{ profile }}
+                    </button>
+                  }
+                  <hr />
+                  <a
+                    tuiOption
+                    tuiAppearance="action"
+                    iconEnd="@tui.user-lock"
+                    routerLink="/profiles"
+                  >
+                    Manage Profiles
+                  </a>
                 </tui-data-list>
               </button>
             }
