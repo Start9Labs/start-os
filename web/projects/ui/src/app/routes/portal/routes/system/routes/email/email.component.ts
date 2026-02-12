@@ -28,7 +28,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
         {{ 'Back' | i18n }}
       </a>
-      {{ 'Email' | i18n }}
+      {{ 'SMTP' | i18n }}
     </ng-container>
     @if (form$ | async; as form) {
       <form [formGroup]="form">
