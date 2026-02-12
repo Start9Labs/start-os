@@ -5,11 +5,11 @@ export type DerivedAddressInfo = {
   /**
    * User-controlled: private addresses the user has disabled
    */
-  privateDisabled: Array<HostnameInfo>
+  enabled: Array<HostnameInfo>
   /**
    * User-controlled: public addresses the user has enabled
    */
-  publicEnabled: Array<HostnameInfo>
+  disabled: Array<HostnameInfo>
   /**
    * COMPUTED: NetServiceData::update — all possible addresses for this binding
    */

@@ -134,9 +134,12 @@ export default class ServiceInterfaceRoute {
       gateways:
         gateways.map(g => ({
           enabled:
-            (g.public
-              ? binding?.addresses.publicEnabled.some(a => a.gateway.id === g.id)
-              : !binding?.addresses.privateDisabled.some(a => a.gateway.id === g.id)) ?? false,
+            (binding?.addresses.enabled.some(a => a.gateway.id === g.id) ||
+              (!binding?.addresses.disabled.some(a => a.gateway.id === g.id) &&
+                binding?.addresses.possible.some(a =>
+                  a.gateway.id === g.id &&
+                  !(a.public && (a.hostname.kind === 'ipv4' || a.hostname.kind === 'ipv6'))
+                ))) ?? false,
           ...g,
         })) || [],
       publicDomains: getPublicDomains(host.publicDomains, gateways),

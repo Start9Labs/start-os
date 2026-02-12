@@ -58,12 +58,12 @@ pub async fn get_ssl_certificate(
                     Ok(m.as_public_domains()
                         .keys()?
                         .into_iter()
-                        .chain(m.as_private_domains().de()?)
+                        .chain(m.as_private_domains().keys()?)
                         .chain(
                             m.as_bindings()
                                 .de()?
                                 .values()
-                                .flat_map(|b| b.addresses.possible.iter().cloned())
+                                .flat_map(|b| b.addresses.available.iter().cloned())
                                 .map(|h| h.to_san_hostname()),
                         )
                         .collect::<Vec<InternedString>>())
@@ -182,12 +182,12 @@ pub async fn get_ssl_key(
                     Ok(m.as_public_domains()
                         .keys()?
                         .into_iter()
-                        .chain(m.as_private_domains().de()?)
+                        .chain(m.as_private_domains().keys()?)
                         .chain(
                             m.as_bindings()
                                 .de()?
                                 .values()
-                                .flat_map(|b| b.addresses.possible.iter().cloned())
+                                .flat_map(|b| b.addresses.available.iter().cloned())
                                 .map(|h| h.to_san_hostname()),
                         )
                         .collect::<Vec<InternedString>>())

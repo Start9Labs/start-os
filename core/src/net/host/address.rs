@@ -20,7 +20,7 @@ use crate::util::serde::{HandlerExtSerde, display_serializable};
 pub struct HostAddress {
     pub address: InternedString,
     pub public: Option<PublicDomainConfig>,
-    pub private: bool,
+    pub private: Option<BTreeSet<GatewayId>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
@@ -53,7 +53,7 @@ fn handle_duplicates(db: &mut DatabaseModel) -> Result<(), Error> {
         for domain in &public {
             check_domain(&mut domains, domain.clone())?;
         }
-        for domain in host.as_private_domains().de()? {
+        for domain in host.as_private_domains().keys()? {
             if !public.contains(&domain) {
                 check_domain(&mut domains, domain)?;
             }
@@ -63,13 +63,13 @@ fn handle_duplicates(db: &mut DatabaseModel) -> Result<(), Error> {
         host.as_public_domains_mut()
             .mutate(|d| Ok(d.retain(|d, _| !domains.contains(d))))?;
         host.as_private_domains_mut()
-            .mutate(|d| Ok(d.retain(|d| !domains.contains(d))))?;
+            .mutate(|d| Ok(d.retain(|d, _| !domains.contains(d))))?;
 
         let public = host.as_public_domains().keys()?;
         for domain in &public {
             check_domain(&mut domains, domain.clone())?;
         }
-        for domain in host.as_private_domains().de()? {
+        for domain in host.as_private_domains().keys()? {
             if !public.contains(&domain) {
                 check_domain(&mut domains, domain)?;
             }
@@ -146,21 +146,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
                     }
 
                     let mut table = Table::new();
-                    table.add_row(row![bc => "ADDRESS", "PUBLIC", "ACME PROVIDER"]);
-                    for entry in &res {
-                        if let Some(PublicDomainConfig { gateway, acme }) = &entry.public {
-                            table.add_row(row![
-                                entry.address,
-                                &format!(
-                                    "{} ({gateway})",
-                                    if entry.private { "YES" } else { "ONLY" }
-                                ),
-                                acme.as_ref().map(|a| a.0.as_str()).unwrap_or("NONE")
-                            ]);
-                        } else {
-                            table.add_row(row![entry.address, &format!("NO"), "N/A"]);
-                        }
-                    }
+                    todo!("find a good way to represent this");
 
                     table.print_tty(false)?;
 
@@ -248,18 +234,20 @@ pub async fn remove_public_domain<Kind: HostApiKind>(
 pub struct AddPrivateDomainParams {
     #[arg(help = "help.arg.fqdn")]
     pub fqdn: InternedString,
+    pub gateway: GatewayId,
 }
 
 pub async fn add_private_domain<Kind: HostApiKind>(
     ctx: RpcContext,
-    AddPrivateDomainParams { fqdn }: AddPrivateDomainParams,
+    AddPrivateDomainParams { fqdn, gateway }: AddPrivateDomainParams,
     inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
             Kind::host_for(&inheritance, db)?
                 .as_private_domains_mut()
-                .mutate(|d| Ok(d.insert(fqdn)))?;
+                .upsert(&fqdn, || Ok(BTreeSet::new()))?
+                .mutate(|d| Ok(d.insert(gateway)))?;
             handle_duplicates(db)
         })
         .await

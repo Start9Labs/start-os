@@ -23,7 +23,7 @@ use crate::net::gateway::NetworkInterfaceController;
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions};
 use crate::net::host::{Host, Hosts, host_for};
-use crate::net::service_interface::{GatewayInfo, HostnameInfo, IpHostname};
+use crate::net::service_interface::{HostnameInfo, HostnameMetadata};
 use crate::net::socks::SocksController;
 use crate::net::utils::ipv6_is_local;
 use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
@@ -261,10 +261,7 @@ impl NetServiceData {
         let mut private_dns: BTreeSet<InternedString> = BTreeSet::new();
         let binds = self.binds.entry(id.clone()).or_default();
 
-        let peek = ctrl.db.peek().await;
-        let server_info = peek.as_public().as_server_info();
         let net_ifaces = ctrl.net_iface.watcher.ip_info();
-        let hostname = server_info.as_hostname().de()?;
         let host_addresses: Vec<_> = host.addresses().collect();
 
         // Collect private DNS entries (domains without public config)
@@ -277,7 +274,7 @@ impl NetServiceData {
             }
         }
 
-        // ── Phase 1: Compute possible addresses ──
+        // ── Phase 1: Compute available addresses ──
         for (_port, bind) in host.bindings.iter_mut() {
             if !bind.enabled {
                 continue;
@@ -286,7 +283,83 @@ impl NetServiceData {
                 continue;
             }
 
-            bind.addresses.possible.clear();
+            bind.addresses.available.clear();
+
+            // Domain port: non-SSL port for domains (secure-filtered, gateway-independent)
+            let domain_base_port = bind.net.assigned_port.filter(|_| {
+                bind.options
+                    .secure
+                    .map_or(false, |s| !s.ssl || bind.options.add_ssl.is_none())
+            });
+            let (domain_port, domain_ssl_port) = if bind
+                .options
+                .add_ssl
+                .as_ref()
+                .map_or(false, |ssl| ssl.preferred_external_port == 443)
+            {
+                (None, Some(443))
+            } else {
+                (domain_base_port, bind.net.assigned_ssl_port)
+            };
+
+            // Domain addresses
+            for HostAddress {
+                address, public, ..
+            } in host_addresses.iter().cloned()
+            {
+                // Public domain entry
+                if let Some(pub_config) = &public {
+                    let metadata = HostnameMetadata::PublicDomain {
+                        gateway: pub_config.gateway.clone(),
+                    };
+                    if let Some(p) = domain_port {
+                        bind.addresses.available.insert(HostnameInfo {
+                            ssl: false,
+                            public: true,
+                            host: address.clone(),
+                            port: Some(p),
+                            metadata: metadata.clone(),
+                        });
+                    }
+                    if let Some(sp) = domain_ssl_port {
+                        bind.addresses.available.insert(HostnameInfo {
+                            ssl: true,
+                            public: true,
+                            host: address.clone(),
+                            port: Some(sp),
+                            metadata,
+                        });
+                    }
+                }
+                // Private domain entry
+                if let Some(gateways) = host.private_domains.get(&address) {
+                    if !gateways.is_empty() {
+                        let metadata = HostnameMetadata::PrivateDomain {
+                            gateways: gateways.clone(),
+                        };
+                        if let Some(p) = domain_port {
+                            bind.addresses.available.insert(HostnameInfo {
+                                ssl: false,
+                                public: false,
+                                host: address.clone(),
+                                port: Some(p),
+                                metadata: metadata.clone(),
+                            });
+                        }
+                        if let Some(sp) = domain_ssl_port {
+                            bind.addresses.available.insert(HostnameInfo {
+                                ssl: true,
+                                public: false,
+                                host: address.clone(),
+                                port: Some(sp),
+                                metadata,
+                            });
+                        }
+                    }
+                }
+            }
+
+            // IP addresses (per-gateway)
             for (gateway_id, info) in net_ifaces
                 .iter()
                 .filter(|(_, info)| {
@@ -296,111 +369,97 @@ impl NetServiceData {
                 })
                 .filter(|(_, info)| info.ip_info.is_some())
             {
-                let gateway = GatewayInfo {
-                    id: gateway_id.clone(),
-                    name: info
-                        .name
-                        .clone()
-                        .or_else(|| info.ip_info.as_ref().map(|i| i.name.clone()))
-                        .unwrap_or_else(|| gateway_id.clone().into()),
-                    public: info.public(),
-                };
                 let port = bind.net.assigned_port.filter(|_| {
                     bind.options.secure.map_or(false, |s| {
                         !(s.ssl && bind.options.add_ssl.is_some()) || info.secure()
                     })
                 });
-                // .local addresses (private only, non-public, non-wireguard gateways)
-                if !info.public()
-                    && info.ip_info.as_ref().map_or(false, |i| {
-                        i.device_type != Some(NetworkInterfaceType::Wireguard)
-                    })
-                {
-                    bind.addresses.possible.insert(HostnameInfo {
-                        gateway: gateway.clone(),
-                        public: false,
-                        hostname: IpHostname::Local {
-                            value: InternedString::from_display(&{
-                                let hostname = &hostname;
-                                lazy_format!("{hostname}.local")
-                            }),
-                            port,
-                            ssl_port: bind.net.assigned_ssl_port,
-                        },
-                    });
-                }
-                // Domain addresses
-                for HostAddress {
-                    address,
-                    public,
-                    private,
-                } in host_addresses.iter().cloned()
-                {
-                    let private = private && !info.public();
-                    let public =
-                        public.as_ref().map_or(false, |p| &p.gateway == gateway_id);
-                    if public || private {
-                        let (domain_port, domain_ssl_port) = if bind
-                            .options
-                            .add_ssl
-                            .as_ref()
-                            .map_or(false, |ssl| ssl.preferred_external_port == 443)
-                        {
-                            (None, Some(443))
-                        } else {
-                            (port, bind.net.assigned_ssl_port)
-                        };
-                        bind.addresses.possible.insert(HostnameInfo {
-                            gateway: gateway.clone(),
-                            public,
-                            hostname: IpHostname::Domain {
-                                value: address.clone(),
-                                port: domain_port,
-                                ssl_port: domain_ssl_port,
-                            },
-                        });
-                    }
-                }
-                // IP addresses
+
                 if let Some(ip_info) = &info.ip_info {
                     let public = info.public();
+                    // WAN IP (public)
                     if let Some(wan_ip) = ip_info.wan_ip {
-                        bind.addresses.possible.insert(HostnameInfo {
-                            gateway: gateway.clone(),
-                            public: true,
-                            hostname: IpHostname::Ipv4 {
-                                value: wan_ip,
-                                port,
-                                ssl_port: bind.net.assigned_ssl_port,
-                            },
-                        });
+                        let host_str = InternedString::from_display(&wan_ip);
+                        if let Some(p) = port {
+                            bind.addresses.available.insert(HostnameInfo {
+                                ssl: false,
+                                public: true,
+                                host: host_str.clone(),
+                                port: Some(p),
+                                metadata: HostnameMetadata::Ipv4 {
+                                    gateway: gateway_id.clone(),
+                                },
+                            });
+                        }
+                        if let Some(sp) = bind.net.assigned_ssl_port {
+                            bind.addresses.available.insert(HostnameInfo {
+                                ssl: true,
+                                public: true,
+                                host: host_str,
+                                port: Some(sp),
+                                metadata: HostnameMetadata::Ipv4 {
+                                    gateway: gateway_id.clone(),
+                                },
+                            });
+                        }
                     }
+                    // Subnet IPs
                     for ipnet in &ip_info.subnets {
                         match ipnet {
                             IpNet::V4(net) => {
                                 if !public {
-                                    bind.addresses.possible.insert(HostnameInfo {
-                                        gateway: gateway.clone(),
-                                        public,
-                                        hostname: IpHostname::Ipv4 {
-                                            value: net.addr(),
-                                            port,
-                                            ssl_port: bind.net.assigned_ssl_port,
-                                        },
-                                    });
+                                    let host_str = InternedString::from_display(&net.addr());
+                                    if let Some(p) = port {
+                                        bind.addresses.available.insert(HostnameInfo {
+                                            ssl: false,
+                                            public: false,
+                                            host: host_str.clone(),
+                                            port: Some(p),
+                                            metadata: HostnameMetadata::Ipv4 {
+                                                gateway: gateway_id.clone(),
+                                            },
+                                        });
+                                    }
+                                    if let Some(sp) = bind.net.assigned_ssl_port {
+                                        bind.addresses.available.insert(HostnameInfo {
+                                            ssl: true,
+                                            public: false,
+                                            host: host_str,
+                                            port: Some(sp),
+                                            metadata: HostnameMetadata::Ipv4 {
+                                                gateway: gateway_id.clone(),
+                                            },
+                                        });
+                                    }
                                 }
                             }
                             IpNet::V6(net) => {
-                                bind.addresses.possible.insert(HostnameInfo {
-                                    gateway: gateway.clone(),
-                                    public: public && !ipv6_is_local(net.addr()),
-                                    hostname: IpHostname::Ipv6 {
-                                        value: net.addr(),
-                                        scope_id: ip_info.scope_id,
-                                        port,
-                                        ssl_port: bind.net.assigned_ssl_port,
-                                    },
-                                });
+                                let is_public = public && !ipv6_is_local(net.addr());
+                                let host_str = InternedString::from_display(&net.addr());
+                                if let Some(p) = port {
+                                    bind.addresses.available.insert(HostnameInfo {
+                                        ssl: false,
+                                        public: is_public,
+                                        host: host_str.clone(),
+                                        port: Some(p),
+                                        metadata: HostnameMetadata::Ipv6 {
+                                            gateway: gateway_id.clone(),
+                                            scope_id: ip_info.scope_id,
+                                        },
+                                    });
+                                }
+                                if let Some(sp) = bind.net.assigned_ssl_port {
+                                    bind.addresses.available.insert(HostnameInfo {
+                                        ssl: true,
+                                        public: is_public,
+                                        host: host_str,
+                                        port: Some(sp),
+                                        metadata: HostnameMetadata::Ipv6 {
+                                            gateway: gateway_id.clone(),
+                                            scope_id: ip_info.scope_id,
+                                        },
+                                    });
+                                }
                             }
                         }
                     }
@@ -435,11 +494,8 @@ impl NetServiceData {
                     let server_private_ips: BTreeSet<IpAddr> = enabled_addresses
                         .iter()
                         .filter(|a| !a.public)
-                        .filter_map(|a| {
-                            net_ifaces
-                                .get(&a.gateway.id)
-                                .and_then(|info| info.ip_info.as_ref())
-                        })
+                        .flat_map(|a| a.metadata.gateways())
+                        .filter_map(|gw| net_ifaces.get(gw).and_then(|info| info.ip_info.as_ref()))
                         .flat_map(|ip_info| ip_info.subnets.iter().map(|s| s.addr()))
                         .collect();
 
@@ -465,32 +521,36 @@ impl NetServiceData {
 
                 // Domain vhosts: group by (domain, ssl_port), merge public/private sets
                 for addr_info in &enabled_addresses {
-                    if let IpHostname::Domain {
-                        value: domain,
-                        ssl_port: Some(domain_ssl_port),
-                        ..
-                    } = &addr_info.hostname
-                    {
-                        let key = (Some(domain.clone()), *domain_ssl_port);
-                        let target = vhosts.entry(key).or_insert_with(|| ProxyTarget {
-                            public: BTreeSet::new(),
-                            private: BTreeSet::new(),
-                            acme: host_addresses
-                                .iter()
-                                .find(|a| &a.address == domain)
-                                .and_then(|a| a.public.as_ref())
-                                .and_then(|p| p.acme.clone()),
-                            addr,
-                            add_x_forwarded_headers: ssl.add_x_forwarded_headers,
-                            connect_ssl: connect_ssl
-                                .clone()
-                                .map(|_| ctrl.tls_client_config.clone()),
-                        });
-                        if addr_info.public {
-                            target.public.insert(addr_info.gateway.id.clone());
-                        } else {
-                            // Add interface IPs for this gateway to private set
-                            if let Some(info) = net_ifaces.get(&addr_info.gateway.id) {
+                    if !addr_info.ssl {
+                        continue;
+                    }
+                    match &addr_info.metadata {
+                        HostnameMetadata::PublicDomain { .. }
+                        | HostnameMetadata::PrivateDomain { .. } => {}
+                        _ => continue,
+                    }
+                    let domain = &addr_info.host;
+                    let domain_ssl_port = addr_info.port.unwrap_or(443);
+                    let key = (Some(domain.clone()), domain_ssl_port);
+                    let target = vhosts.entry(key).or_insert_with(|| ProxyTarget {
+                        public: BTreeSet::new(),
+                        private: BTreeSet::new(),
+                        acme: host_addresses
+                            .iter()
+                            .find(|a| a.address == *domain)
+                            .and_then(|a| a.public.as_ref())
+                            .and_then(|p| p.acme.clone()),
+                        addr,
+                        add_x_forwarded_headers: ssl.add_x_forwarded_headers,
+                        connect_ssl: connect_ssl.clone().map(|_| ctrl.tls_client_config.clone()),
+                    });
+                    if addr_info.public {
+                        for gw in addr_info.metadata.gateways() {
+                            target.public.insert(gw.clone());
+                        }
+                    } else {
+                        for gw in addr_info.metadata.gateways() {
+                            if let Some(info) = net_ifaces.get(gw) {
                                 if let Some(ip_info) = &info.ip_info {
                                     for subnet in &ip_info.subnets {
                                         target.private.insert(subnet.addr());
@@ -512,16 +572,14 @@ impl NetServiceData {
                 let fwd_public: BTreeSet<GatewayId> = enabled_addresses
                     .iter()
                     .filter(|a| a.public)
-                    .map(|a| a.gateway.id.clone())
+                    .flat_map(|a| a.metadata.gateways())
+                    .cloned()
                     .collect();
                 let fwd_private: BTreeSet<IpAddr> = enabled_addresses
                     .iter()
                     .filter(|a| !a.public)
-                    .filter_map(|a| {
-                        net_ifaces
-                            .get(&a.gateway.id)
-                            .and_then(|i| i.ip_info.as_ref())
-                    })
+                    .flat_map(|a| a.metadata.gateways())
+                    .filter_map(|gw| net_ifaces.get(gw).and_then(|i| i.ip_info.as_ref()))
                     .flat_map(|ip| ip.subnets.iter().map(|s| s.addr()))
                     .collect();
                 forwards.insert(
@@ -634,8 +692,8 @@ impl NetServiceData {
                 for (port, bind) in host.bindings.0 {
                     if let Some(b) = bindings.as_idx_mut(&port) {
                         b.as_addresses_mut()
-                            .as_possible_mut()
-                            .ser(&bind.addresses.possible)?;
+                            .as_available_mut()
+                            .ser(&bind.addresses.available)?;
                     }
                 }
                 Ok(())

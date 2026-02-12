@@ -10,7 +10,7 @@ use color_eyre::eyre::eyre;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use hickory_server::authority::{AuthorityObject, Catalog, MessageResponseBuilder};
 use hickory_server::proto::op::{Header, ResponseCode};
-use hickory_server::proto::rr::{LowerName, Name, Record, RecordType};
+use hickory_server::proto::rr::{Name, Record, RecordType};
 use hickory_server::resolver::config::{ResolverConfig, ResolverOpts};
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use hickory_server::store::forwarder::{ForwardAuthority, ForwardConfig};

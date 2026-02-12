@@ -40,8 +40,8 @@ export const mockPatchData: DataModel = {
               assignedSslPort: 443,
             },
             addresses: {
-              privateDisabled: [],
-              publicEnabled: [],
+              enabled: [],
+              disabled: [],
               possible: [
                 {
                   gateway: { id: 'eth0', name: 'Ethernet', public: false },
@@ -516,8 +516,8 @@ export const mockPatchData: DataModel = {
                 assignedSslPort: 443,
               },
               addresses: {
-                privateDisabled: [],
-                publicEnabled: [],
+                enabled: [],
+                disabled: [],
                 possible: [
                   {
                     gateway: { id: 'eth0', name: 'Ethernet', public: false },
@@ -602,8 +602,8 @@ export const mockPatchData: DataModel = {
                 assignedSslPort: null,
               },
               addresses: {
-                privateDisabled: [],
-                publicEnabled: [],
+                enabled: [],
+                disabled: [],
                 possible: [],
               },
               options: {
@@ -625,8 +625,8 @@ export const mockPatchData: DataModel = {
                 assignedSslPort: null,
               },
               addresses: {
-                privateDisabled: [],
-                publicEnabled: [],
+                enabled: [],
+                disabled: [],
                 possible: [],
               },
               options: {

@@ -226,12 +226,16 @@ function filterRec(
   return hostnames
 }
 
+function isDefaultEnabled(h: HostnameInfo): boolean {
+  return !(h.public && (h.hostname.kind === 'ipv4' || h.hostname.kind === 'ipv6'))
+}
+
 function enabledAddresses(addr: DerivedAddressInfo): HostnameInfo[] {
-  return addr.possible.filter((h) =>
-    h.public
-      ? addr.publicEnabled.some((e) => deepEqual(e, h))
-      : !addr.privateDisabled.some((d) => deepEqual(d, h)),
-  )
+  return addr.possible.filter((h) => {
+    if (addr.enabled.some((e) => deepEqual(e, h))) return true
+    if (addr.disabled.some((d) => deepEqual(d, h))) return false
+    return isDefaultEnabled(h)
+  })
 }
 
 export const filledAddress = (

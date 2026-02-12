@@ -257,9 +257,9 @@ export class InterfaceService {
     if (!binding) return []
     const addr = binding.addresses
     const enabled = addr.possible.filter(h =>
-      h.public
-        ? addr.publicEnabled.some(e => utils.deepEqual(e, h))
-        : !addr.privateDisabled.some(d => utils.deepEqual(d, h)),
+      addr.enabled.some(e => utils.deepEqual(e, h)) ||
+      (!addr.disabled.some(d => utils.deepEqual(d, h)) &&
+        !(h.public && (h.hostname.kind === 'ipv4' || h.hostname.kind === 'ipv6'))),
     )
     return enabled.filter(
       h =>

@@ -20,8 +20,9 @@ use crate::db::model::Database;
 use crate::db::model::package::AllPackageData;
 use crate::net::acme::AcmeProvider;
 use crate::net::host::Host;
-use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, Bindings, DerivedAddressInfo, NetInfo};
-use crate::net::utils::ipv6_is_local;
+use crate::net::host::binding::{
+    AddSslOptions, BindInfo, BindOptions, Bindings, DerivedAddressInfo, NetInfo,
+};
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::progress::FullProgress;
@@ -91,7 +92,7 @@ impl Public {
                             .collect(),
                         ),
                         public_domains: BTreeMap::new(),
-                        private_domains: BTreeSet::new(),
+                        private_domains: BTreeMap::new(),
                     },
                     wifi: WifiInfo {
                         enabled: true,
@@ -242,44 +243,12 @@ pub struct DnsSettings {
 #[ts(export)]
 pub struct NetworkInterfaceInfo {
     pub name: Option<InternedString>,
-    #[ts(skip)]
-    pub public: Option<bool>,
     pub secure: Option<bool>,
     pub ip_info: Option<Arc<IpInfo>>,
     #[serde(default, rename = "type")]
     pub gateway_type: Option<GatewayType>,
 }
 impl NetworkInterfaceInfo {
-    pub fn public(&self) -> bool {
-        self.public.unwrap_or_else(|| {
-            !self.ip_info.as_ref().map_or(true, |ip_info| {
-            let ip4s = ip_info
-                .subnets
-                .iter()
-                .filter_map(|ipnet| {
-                    if let IpAddr::V4(ip4) = ipnet.addr() {
-                        Some(ip4)
-                    } else {
-                        None
-                    }
-                })
-                .collect::<BTreeSet<_>>();
-            if !ip4s.is_empty() {
-                return ip4s
-                    .iter()
-                    .all(|ip4| ip4.is_loopback() || ip4.is_private() || ip4.is_link_local());
-            }
-            ip_info.subnets.iter().all(|ipnet| {
-                if let IpAddr::V6(ip6) = ipnet.addr() {
-                    ipv6_is_local(ip6)
-                } else {
-                    true
-                }
-            })
-        })
-        })
-    }
-
     pub fn secure(&self) -> bool {
         self.secure.unwrap_or(false)
     }
@@ -316,7 +285,20 @@ pub enum NetworkInterfaceType {
     Loopback,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS, clap::ValueEnum)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Deserialize,
+    Serialize,
+    TS,
+    clap::ValueEnum,
+)]
 #[ts(export)]
 #[serde(rename_all = "kebab-case")]
 pub enum GatewayType {

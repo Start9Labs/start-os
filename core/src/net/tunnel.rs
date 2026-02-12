@@ -82,7 +82,6 @@ pub async fn add_tunnel(
                     iface.clone(),
                     NetworkInterfaceInfo {
                         name: Some(name),
-                        public: None,
                         secure: None,
                         ip_info: None,
                         gateway_type,
@@ -193,15 +192,12 @@ pub async fn remove_tunnel(
         .mutate(|db| {
             for host in all_hosts(db) {
                 let host = host?;
-                host.as_bindings_mut().mutate(|b| {
-                    Ok(b.values_mut().for_each(|v| {
-                        v.addresses
-                            .private_disabled
-                            .retain(|h| h.gateway.id != id);
-                        v.addresses
-                            .public_enabled
-                            .retain(|h| h.gateway.id != id);
-                    }))
+                host.as_private_domains_mut().mutate(|d| {
+                    for gateways in d.values_mut() {
+                        gateways.remove(&id);
+                    }
+                    d.retain(|_, gateways| !gateways.is_empty());
+                    Ok(())
                 })?;
             }
 

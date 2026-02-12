@@ -2128,8 +2128,8 @@ export namespace Mock {
               assignedSslPort: 443,
             },
             addresses: {
-              privateDisabled: [],
-              publicEnabled: [],
+              enabled: [],
+              disabled: [],
               possible: [
                 {
                   gateway: { id: 'eth0', name: 'Ethernet', public: false },
@@ -2214,8 +2214,8 @@ export namespace Mock {
               assignedSslPort: null,
             },
             addresses: {
-              privateDisabled: [],
-              publicEnabled: [],
+              enabled: [],
+              disabled: [],
               possible: [],
             },
             options: {
@@ -2237,8 +2237,8 @@ export namespace Mock {
               assignedSslPort: null,
             },
             addresses: {
-              privateDisabled: [],
-              publicEnabled: [],
+              enabled: [],
+              disabled: [],
               possible: [],
             },
             options: {

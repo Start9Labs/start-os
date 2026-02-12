@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::net::SocketAddr;
 use std::str::FromStr;
 
 use clap::Parser;
@@ -7,6 +8,7 @@ use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_f
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::HostId;
 use crate::context::{CliContext, RpcContext};
 use crate::db::prelude::Map;
 use crate::net::forward::AvailablePorts;
@@ -16,7 +18,6 @@ use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::util::FromStrParser;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
-use crate::HostId;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -49,31 +50,36 @@ impl FromStr for BindId {
 #[ts(export)]
 #[model = "Model<Self>"]
 pub struct DerivedAddressInfo {
-    /// User-controlled: private addresses the user has disabled
-    pub private_disabled: BTreeSet<HostnameInfo>,
-    /// User-controlled: public addresses the user has enabled
-    pub public_enabled: BTreeSet<HostnameInfo>,
+    /// User override: enable these addresses (only for public IP & port)
+    pub enabled: BTreeSet<SocketAddr>,
+    /// User override: disable these addresses (only for domains and private IP & port)
+    pub disabled: BTreeSet<(InternedString, u16)>,
     /// COMPUTED: NetServiceData::update — all possible addresses for this binding
-    pub possible: BTreeSet<HostnameInfo>,
+    pub available: BTreeSet<HostnameInfo>,
 }
 
 impl DerivedAddressInfo {
-    /// Returns addresses that are currently enabled.
-    /// Private addresses are enabled by default (disabled if in private_disabled).
-    /// Public addresses are disabled by default (enabled if in public_enabled).
+    /// Returns addresses that are currently enabled after applying overrides.
+    /// Default: public IPs are disabled, everything else is enabled.
+    /// Explicit `enabled`/`disabled` overrides take precedence.
     pub fn enabled(&self) -> BTreeSet<&HostnameInfo> {
-        self.possible
+        self.available
             .iter()
             .filter(|h| {
-                if h.public {
-                    self.public_enabled.contains(h)
+                if h.public && h.metadata.is_ip() {
+                    // Public IPs: disabled by default, explicitly enabled via SocketAddr
+                    h.to_socket_addr().map_or(
+                        true, // should never happen, but would rather see them if it does
+                        |sa| self.enabled.contains(&sa),
+                    )
                 } else {
-                    !self.private_disabled.contains(h)
+                    !self
+                        .disabled
+                        .contains(&(h.host.clone(), h.port.unwrap_or_default())) // disablable addresses will always have a port
                 }
             })
             .collect()
     }
-
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -199,9 +205,9 @@ impl BindInfo {
             options,
             net: lan,
             addresses: DerivedAddressInfo {
-                private_disabled: addresses.private_disabled,
-                public_enabled: addresses.public_enabled,
-                possible: BTreeSet::new(),
+                enabled: addresses.enabled,
+                disabled: addresses.disabled,
+                available: BTreeSet::new(),
             },
         })
     }
@@ -328,17 +334,27 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
                 .as_bindings_mut()
                 .mutate(|b| {
                     let bind = b.get_mut(&internal_port).or_not_found(internal_port)?;
-                    if address.public {
+                    if address.public && address.metadata.is_ip() {
+                        // Public IPs: toggle via SocketAddr in `enabled` set
+                        let sa = address.to_socket_addr().ok_or_else(|| {
+                            Error::new(
+                                eyre!("cannot convert address to socket addr"),
+                                ErrorKind::InvalidRequest,
+                            )
+                        })?;
                         if enabled {
-                            bind.addresses.public_enabled.insert(address.clone());
+                            bind.addresses.enabled.insert(sa);
                         } else {
-                            bind.addresses.public_enabled.remove(&address);
+                            bind.addresses.enabled.remove(&sa);
                         }
                     } else {
+                        // Domains and private IPs: toggle via (host, port) in `disabled` set
+                        let port = address.port.unwrap_or(if address.ssl { 443 } else { 80 });
+                        let key = (address.host.clone(), port);
                         if enabled {
-                            bind.addresses.private_disabled.remove(&address);
+                            bind.addresses.disabled.remove(&key);
                         } else {
-                            bind.addresses.private_disabled.insert(address.clone());
+                            bind.addresses.disabled.insert(key);
                         }
                     }
                     Ok(())

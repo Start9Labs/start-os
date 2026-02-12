@@ -164,6 +164,19 @@ fn migrate_host(host: Option<&mut Value>) {
     // Remove hostnameInfo from host
     host.remove("hostnameInfo");
 
+    // Migrate privateDomains from array to object (BTreeSet -> BTreeMap<_, BTreeSet<GatewayId>>)
+    if let Some(private_domains) = host.get("privateDomains").and_then(|v| v.as_array()).cloned() {
+        let mut new_pd: Value = serde_json::json!({}).into();
+        for domain in private_domains {
+            if let Some(d) = domain.as_str() {
+                if let Some(obj) = new_pd.as_object_mut() {
+                    obj.insert(d.into(), serde_json::json!([]).into());
+                }
+            }
+        }
+        host.insert("privateDomains".into(), new_pd);
+    }
+
     // For each binding: add "addresses" field, remove gateway-level fields from "net"
     if let Some(bindings) = host.get_mut("bindings").and_then(|b| b.as_object_mut()) {
         for (_, binding) in bindings.iter_mut() {
@@ -173,9 +186,9 @@ fn migrate_host(host: Option<&mut Value>) {
                     binding_obj.insert(
                         "addresses".into(),
                         serde_json::json!({
-                            "privateDisabled": [],
-                            "publicEnabled": [],
-                            "possible": []
+                            "enabled": [],
+                            "disabled": [],
+                            "available": []
                         })
                         .into(),
                     );

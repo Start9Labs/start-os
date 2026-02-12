@@ -56,7 +56,7 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
                     }
 
                     let mut table = Table::new();
-                    table.add_row(row![bc => "INTERFACE", "TYPE", "PUBLIC", "ADDRESSES", "WAN IP"]);
+                    table.add_row(row![bc => "INTERFACE", "TYPE", "ADDRESSES", "WAN IP"]);
                     for (iface, info) in res {
                         table.add_row(row![
                             iface,
@@ -64,7 +64,6 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
                                 .as_ref()
                                 .and_then(|ip_info| ip_info.device_type)
                                 .map_or_else(|| "UNKNOWN".to_owned(), |ty| format!("{ty:?}")),
-                            info.public(),
                             info.ip_info.as_ref().map_or_else(
                                 || "<DISCONNECTED>".to_owned(),
                                 |ip_info| ip_info
@@ -95,22 +94,6 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "set-public",
-            from_fn_async(set_public)
-                .with_metadata("sync_db", Value::Bool(true))
-                .no_display()
-                .with_about("about.indicate-gateway-inbound-access-from-wan")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "unset-public",
-            from_fn_async(unset_public)
-                .with_metadata("sync_db", Value::Bool(true))
-                .no_display()
-                .with_about("about.allow-gateway-infer-inbound-access-from-wan")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
             "forget",
             from_fn_async(forget_iface)
                 .with_metadata("sync_db", Value::Bool(true))
@@ -132,40 +115,6 @@ async fn list_interfaces(
     ctx: RpcContext,
 ) -> Result<OrdMap<GatewayId, NetworkInterfaceInfo>, Error> {
     Ok(ctx.net_controller.net_iface.watcher.ip_info())
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
-struct NetworkInterfaceSetPublicParams {
-    #[arg(help = "help.arg.gateway-id")]
-    gateway: GatewayId,
-    #[arg(help = "help.arg.is-public")]
-    public: Option<bool>,
-}
-
-async fn set_public(
-    ctx: RpcContext,
-    NetworkInterfaceSetPublicParams { gateway, public }: NetworkInterfaceSetPublicParams,
-) -> Result<(), Error> {
-    ctx.net_controller
-        .net_iface
-        .set_public(&gateway, Some(public.unwrap_or(true)))
-        .await
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
-struct UnsetPublicParams {
-    #[arg(help = "help.arg.gateway-id")]
-    gateway: GatewayId,
-}
-
-async fn unset_public(
-    ctx: RpcContext,
-    UnsetPublicParams { gateway }: UnsetPublicParams,
-) -> Result<(), Error> {
-    ctx.net_controller
-        .net_iface
-        .set_public(&gateway, None)
-        .await
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
@@ -910,12 +859,11 @@ async fn watch_ip(
 
                                         write_to.send_if_modified(
                                             |m: &mut OrdMap<GatewayId, NetworkInterfaceInfo>| {
-                                                let (name, public, secure, gateway_type, prev_wan_ip) = m
+                                                let (name, secure, gateway_type, prev_wan_ip) = m
                                                     .get(&iface)
-                                                    .map_or((None, None, None, None, None), |i| {
+                                                    .map_or((None, None, None, None), |i| {
                                                         (
                                                             i.name.clone(),
-                                                            i.public,
                                                             i.secure,
                                                             i.gateway_type,
                                                             i.ip_info
@@ -929,7 +877,6 @@ async fn watch_ip(
                                                     iface.clone(),
                                                     NetworkInterfaceInfo {
                                                         name,
-                                                        public,
                                                         secure,
                                                         ip_info: Some(ip_info.clone()),
                                                         gateway_type,
@@ -1190,43 +1137,6 @@ impl NetworkInterfaceController {
             })
             .into(),
         }
-    }
-
-    pub async fn set_public(
-        &self,
-        interface: &GatewayId,
-        public: Option<bool>,
-    ) -> Result<(), Error> {
-        let mut sub = self
-            .db
-            .subscribe(
-                "/public/serverInfo/network/gateways"
-                    .parse::<JsonPointer<_, _>>()
-                    .with_kind(ErrorKind::Database)?,
-            )
-            .await;
-        let mut err = None;
-        let changed = self.watcher.ip_info.send_if_modified(|ip_info| {
-            let prev = std::mem::replace(
-                &mut match ip_info.get_mut(interface).or_not_found(interface) {
-                    Ok(a) => a,
-                    Err(e) => {
-                        err = Some(e);
-                        return false;
-                    }
-                }
-                .public,
-                public,
-            );
-            prev != public
-        });
-        if let Some(e) = err {
-            return Err(e);
-        }
-        if changed {
-            sub.recv().await;
-        }
-        Ok(())
     }
 
     pub async fn forget(&self, interface: &GatewayId) -> Result<(), Error> {
