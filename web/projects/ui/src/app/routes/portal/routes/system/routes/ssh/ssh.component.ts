@@ -160,7 +160,11 @@ export default class SystemSSHComponent {
         const loader = this.loader.open('Deleting').subscribe()
 
         try {
-          await this.api.deleteSshKey({ fingerprint: '' })
+          await Promise.all(
+            fingerprints.map(fingerprint =>
+              this.api.deleteSshKey({ fingerprint }),
+            ),
+          )
           this.local$.next(
             all.filter(s => !fingerprints.includes(s.fingerprint)),
           )

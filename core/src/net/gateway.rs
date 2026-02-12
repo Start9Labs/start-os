@@ -910,13 +910,14 @@ async fn watch_ip(
 
                                         write_to.send_if_modified(
                                             |m: &mut OrdMap<GatewayId, NetworkInterfaceInfo>| {
-                                                let (name, public, secure, prev_wan_ip) = m
+                                                let (name, public, secure, gateway_type, prev_wan_ip) = m
                                                     .get(&iface)
-                                                    .map_or((None, None, None, None), |i| {
+                                                    .map_or((None, None, None, None, None), |i| {
                                                         (
                                                             i.name.clone(),
                                                             i.public,
                                                             i.secure,
+                                                            i.gateway_type,
                                                             i.ip_info
                                                                 .as_ref()
                                                                 .and_then(|i| i.wan_ip),
@@ -931,6 +932,7 @@ async fn watch_ip(
                                                         public,
                                                         secure,
                                                         ip_info: Some(ip_info.clone()),
+                                                        gateway_type,
                                                     },
                                                 )
                                                 .filter(|old| &old.ip_info == &Some(ip_info))

@@ -566,13 +566,12 @@ export class MockApiService extends ApiService {
 
     const id = `wg${this.proxyId++}`
 
-    const patch: AddOperation<T.NetworkInterfaceInfo>[] = [
+    const patch: AddOperation<any>[] = [
       {
         op: PatchOp.ADD,
         path: `/serverInfo/network/gateways/${id}`,
         value: {
           name: params.name,
-          public: params.public,
           secure: false,
           ipInfo: {
             name: id,
@@ -584,9 +583,19 @@ export class MockApiService extends ApiService {
             lanIp: ['192.168.1.10'],
             dnsServers: [],
           },
+          type: params.type,
         },
       },
     ]
+
+    if (params.setAsDefaultOutbound) {
+      ;(patch as any[]).push({
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/network/defaultOutbound',
+        value: id,
+      })
+    }
+
     this.mockRevision(patch)
 
     return { id }
@@ -613,6 +622,38 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.REMOVE,
         path: `/serverInfo/network/gateways/${params.id}`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setDefaultOutbound(
+    params: RR.SetDefaultOutboundReq,
+  ): Promise<RR.SetDefaultOutboundRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/network/defaultOutbound',
+        value: params.gateway,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setServiceOutbound(
+    params: RR.SetServiceOutboundReq,
+  ): Promise<RR.SetServiceOutboundRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/packageData/${params.packageId}/outboundGateway`,
+        value: params.gateway,
       },
     ]
     this.mockRevision(patch)

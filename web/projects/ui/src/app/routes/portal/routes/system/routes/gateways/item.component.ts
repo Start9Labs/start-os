@@ -15,6 +15,7 @@ import {
   TuiButton,
   TuiDataList,
   TuiDropdown,
+  TuiIcon,
   TuiOptGroup,
   TuiTextfield,
 } from '@taiga-ui/core'
@@ -24,32 +25,55 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { GatewayPlus } from 'src/app/services/gateway.service'
+import { TuiBadge } from '@taiga-ui/kit'
 
 @Component({
   selector: 'tr[gateway]',
   template: `
     @if (gateway(); as gateway) {
-      <td class="name">
+      <td>
         {{ gateway.name }}
-      </td>
-      <td class="type">
-        @if (gateway.ipInfo.deviceType; as type) {
-          {{ type }} ({{
-            gateway.public ? ('public' | i18n) : ('private' | i18n)
-          }})
-        } @else {
-          -
+        @if (gateway.isDefaultOutbound) {
+          <span tuiBadge tuiStatus appearance="positive">Default outbound</span>
         }
       </td>
-      <td class="lan">{{ gateway.lanIpv4.join(', ') }}</td>
+      <td>
+        @switch (gateway.ipInfo.deviceType) {
+          @case ('ethernet') {
+            <tui-icon icon="@tui.cable" />
+            {{ 'Ethernet' | i18n }}
+          }
+          @case ('wireless') {
+            <tui-icon icon="@tui.wifi" />
+            {{ 'WiFi' | i18n }}
+          }
+          @case ('wireguard') {
+            <tui-icon icon="@tui.shield" />
+            {{ 'WireGuard' | i18n }}
+          }
+          @default {
+            {{ gateway.ipInfo.deviceType }}
+          }
+        }
+      </td>
+      <td>
+        @if (gateway.type === 'outbound-only') {
+          <tui-icon icon="@tui.arrow-up-right" />
+          {{ 'Outbound Only' | i18n }}
+        } @else {
+          <tui-icon icon="@tui.arrow-left-right" />
+          {{ 'Inbound/Outbound' | i18n }}
+        }
+      </td>
       <td
         class="wan"
         [style.color]="
-          gateway.ipInfo.wanIp ? 'var(--tui-text-warning)' : undefined
+          gateway.ipInfo.wanIp ? undefined : 'var(--tui-text-warning)'
         "
       >
         {{ gateway.ipInfo.wanIp || ('Error' | i18n) }}
       </td>
+      <td class="lan">{{ gateway.lanIpv4.join(', ') || '-' }}</td>
       <td>
         <button
           tuiIconButton
@@ -67,6 +91,18 @@ import { GatewayPlus } from 'src/app/services/gateway.service'
                 {{ 'Rename' | i18n }}
               </button>
             </tui-opt-group>
+            @if (!gateway.isDefaultOutbound) {
+              <tui-opt-group>
+                <button
+                  tuiOption
+                  new
+                  iconStart="@tui.arrow-up-right"
+                  (click)="setDefaultOutbound()"
+                >
+                  {{ 'Set as Default Outbound' | i18n }}
+                </button>
+              </tui-opt-group>
+            }
             @if (gateway.ipInfo.deviceType === 'wireguard') {
               <tui-opt-group>
                 <button
@@ -87,17 +123,9 @@ import { GatewayPlus } from 'src/app/services/gateway.service'
   `,
   styles: `
     td:last-child {
-      grid-area: 1 / 3 / 5;
+      grid-area: 1 / 3 / 7;
       align-self: center;
       text-align: right;
-    }
-
-    .name {
-      width: 14rem;
-    }
-
-    .type {
-      width: 14rem;
     }
 
     :host-context(tui-root._mobile) {
@@ -107,9 +135,13 @@ import { GatewayPlus } from 'src/app/services/gateway.service'
         grid-column: span 2;
       }
 
-      .type {
+      .connection {
         grid-column: span 2;
         order: -1;
+      }
+
+      .type {
+        grid-column: span 2;
       }
 
       .lan,
@@ -132,9 +164,11 @@ import { GatewayPlus } from 'src/app/services/gateway.service'
     TuiButton,
     TuiDropdown,
     TuiDataList,
+    TuiIcon,
     TuiOptGroup,
     TuiTextfield,
     i18nPipe,
+    TuiBadge,
   ],
 })
 export class GatewaysItemComponent {
@@ -164,6 +198,18 @@ export class GatewaysItemComponent {
           loader.unsubscribe()
         }
       })
+  }
+
+  async setDefaultOutbound() {
+    const loader = this.loader.open().subscribe()
+
+    try {
+      await this.api.setDefaultOutbound({ gateway: this.gateway().id })
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
   }
 
   async rename() {

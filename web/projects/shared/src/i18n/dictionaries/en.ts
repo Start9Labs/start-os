@@ -4,7 +4,7 @@ export const ENGLISH: Record<string, number> = {
   'Update': 2, // verb
   'System': 4, // as in, system preferences
   'General': 5, // as in, general settings
-  'Email': 6,
+  'SMTP': 6,
   'Create Backup': 7, // create a backup
   'Restore Backup': 8, // restore from backup
   'Go to login': 9,
@@ -99,6 +99,7 @@ export const ENGLISH: Record<string, number> = {
   'Leave': 102,
   'Are you sure?': 103,
   'New gateway': 104, // as in, a network gateway
+  'Tor Domains': 107,
   'public': 108,
   'private': 109,
   'No Tor domains': 111,
@@ -383,8 +384,8 @@ export const ENGLISH: Record<string, number> = {
   'Connected': 405,
   'Forget': 406, // as in, delete or remove
   'WiFi Credentials': 407,
-  'Deprecated': 408,
-  'WiFi support will be removed in StartOS v0.4.1. If you do not have access to Ethernet, you can use a WiFi extender to connect to the local network, then connect your server to the extender via Ethernet. Please contact Start9 support with any questions or concerns.': 409,
+  'Connect to hidden network': 408,
+  'Connect to': 409, // followed by a network name, e.g. "Connect to MyWiFi?"
   'Known Networks': 410,
   'Other Networks': 411,
   'WiFi is disabled': 412,
@@ -639,13 +640,11 @@ export const ENGLISH: Record<string, number> = {
   'Starting setup': 667,
   'Wait 1-2 minutes and refresh the page': 670,
   'Setup Complete!': 672,
-  'You can unplug your backup drive': 673,
-  'You can unplug your transfer drive': 674,
   'http://start.local was for setup only. It will no longer work.': 675,
   'Download Address Info': 676,
   "Contains your server's permanent local address and Root CA": 677,
-  'USB Removed': 678,
-  'Remove the USB installation media from your server': 679,
+  'Remove Installation Media': 678,
+  'Remove USB stick or other installation media from your server': 679,
   'Restart Server': 680,
   'Waiting for server to come back online': 681,
   'Server is back online': 682,
@@ -680,4 +679,16 @@ export const ENGLISH: Record<string, number> = {
   'Installation Complete!': 714,
   'StartOS has been installed successfully.': 715,
   'Continue to Setup': 716,
+  'Set Outbound Gateway': 717,
+  'Current': 718,
+  'System default)': 719,
+  'Outbound Gateway': 720,
+  'Select the gateway for outbound traffic': 721,
+  'The type of gateway': 722,
+  'Outbound Only': 723,
+  'Set as default outbound': 724,
+  'Route all outbound traffic through this gateway': 725,
+  'Wireguard Config File': 726,
+  'Inbound/Outbound': 727,
+  'StartTunnel (Inbound/Outbound)': 728,
 }

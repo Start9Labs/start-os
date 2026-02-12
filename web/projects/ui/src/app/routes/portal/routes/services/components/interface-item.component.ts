@@ -15,7 +15,6 @@ import { TuiBadge } from '@taiga-ui/kit'
   `,
   styles: `
     :host {
-      clip-path: inset(0 round 0.75rem);
       cursor: pointer;
 
       &:hover {

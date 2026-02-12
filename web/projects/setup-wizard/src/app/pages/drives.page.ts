@@ -1,4 +1,9 @@
-import { ChangeDetectorRef, Component, inject } from '@angular/core'
+import {
+  ChangeDetectorRef,
+  Component,
+  HostListener,
+  inject,
+} from '@angular/core'
 import { Router } from '@angular/router'
 import { FormsModule } from '@angular/forms'
 import {
@@ -21,13 +26,14 @@ import {
 import { TuiDataListWrapper, TuiSelect, TuiTooltip } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { filter } from 'rxjs'
+import { filter, Subscription } from 'rxjs'
 import { ApiService } from '../services/api.service'
 import { StateService } from '../services/state.service'
 import { PreserveOverwriteDialog } from '../components/preserve-overwrite.dialog'
 
 @Component({
   template: `
+    @if (!shuttingDown) {
     <section tuiCardLarge="compact">
       <header tuiHeader>
         <h2 tuiTitle>{{ 'Select Drives' | i18n }}</h2>
@@ -132,6 +138,7 @@ import { PreserveOverwriteDialog } from '../components/preserve-overwrite.dialog
         }
       </footer>
     </section>
+    }
   `,
   styles: `
     .no-drives {
@@ -176,6 +183,14 @@ export default class DrivesPage {
 
   protected readonly mobile = inject(TUI_IS_MOBILE)
 
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(event: KeyboardEvent) {
+    if (event.ctrlKey && event.shiftKey && event.key === 'X') {
+      event.preventDefault()
+      this.shutdownServer()
+    }
+  }
+
   readonly osDriveTooltip = this.i18n.transform(
     'The drive where the StartOS operating system will be installed.',
   )
@@ -185,6 +200,8 @@ export default class DrivesPage {
 
   drives: DiskInfo[] = []
   loading = true
+  shuttingDown = false
+  private dialogSub?: Subscription
   selectedOsDrive: DiskInfo | null = null
   selectedDataDrive: DiskInfo | null = null
   preserveData: boolean | null = null
@@ -339,22 +356,18 @@ export default class DrivesPage {
       loader.unsubscribe()
 
       // Show success dialog
-      this.dialogs
-        .openConfirm({
+      this.dialogSub = this.dialogs
+        .openAlert('StartOS has been installed successfully.', {
           label: 'Installation Complete!',
           size: 's',
-          data: {
-            content: 'StartOS has been installed successfully.',
-            yes: 'Continue to Setup',
-            no: 'Shutdown',
-          },
+          dismissible: false,
+          closeable: true,
+          data: { button: this.i18n.transform('Continue to Setup') },
         })
-        .subscribe(continueSetup => {
-          if (continueSetup) {
+        .subscribe({
+          complete: () => {
             this.navigateToNextStep(result.attach)
-          } else {
-            this.shutdownServer()
-          }
+          },
         })
     } catch (e: any) {
       loader.unsubscribe()
@@ -372,10 +385,12 @@ export default class DrivesPage {
   }
 
   private async shutdownServer() {
+    this.dialogSub?.unsubscribe()
     const loader = this.loader.open('Beginning shutdown').subscribe()
 
     try {
       await this.api.shutdown()
+      this.shuttingDown = true
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

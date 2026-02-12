@@ -6,7 +6,7 @@ import {
   output,
 } from '@angular/core'
 import { MarketplacePkgBase } from '../../types'
-import { CopyService, i18nPipe } from '@start9labs/shared'
+import { CopyService, i18nPipe, LocalizePipe } from '@start9labs/shared'
 import { DatePipe } from '@angular/common'
 import { MarketplaceItemComponent } from './item.component'
 
@@ -71,7 +71,7 @@ import { MarketplaceItemComponent } from './item.component'
     <div class="background-border box-shadow-lg shadow-color-light">
       <div class="box-container">
         <h2 class="additional-detail-title">{{ 'Description' | i18n }}</h2>
-        <p [innerHTML]="pkg().description.long"></p>
+        <p [innerHTML]="pkg().description.long | localize"></p>
       </div>
     </div>
   `,
@@ -129,7 +129,7 @@ import { MarketplaceItemComponent } from './item.component'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MarketplaceItemComponent, DatePipe, i18nPipe],
+  imports: [MarketplaceItemComponent, DatePipe, i18nPipe, LocalizePipe],
 })
 export class MarketplaceAboutComponent {
   readonly copyService = inject(CopyService)

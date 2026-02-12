@@ -2253,6 +2253,7 @@ export namespace Mock {
       },
     },
     storeExposedDependents: [],
+    outboundGateway: null,
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
     tasks: {
@@ -2321,6 +2322,7 @@ export namespace Mock {
     },
     hosts: {},
     storeExposedDependents: [],
+    outboundGateway: null,
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
     tasks: {},
@@ -2427,6 +2429,7 @@ export namespace Mock {
     },
     hosts: {},
     storeExposedDependents: [],
+    outboundGateway: null,
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
     tasks: {
