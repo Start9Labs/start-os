@@ -17,6 +17,7 @@ import {
   TuiIcon,
   TuiLabel,
   TuiNotification,
+  TuiRadio,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
   TuiTitle,
@@ -26,7 +27,6 @@ import {
   TuiAccordion,
   TuiChevron,
   TuiDataListWrapper,
-  TuiRadio,
   TuiSelect,
 } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
@@ -82,9 +82,9 @@ const THEMES: Record<string, Theme> = {
       </tui-accordion>
     }
     <form [formGroup]="form" [formLoading]="false" (ngSubmit)="onSubmit()">
-      <header tuiHeader="body-l"><h2 tuiTitle>Preferences</h2></header>
-      <section>
-        <div>
+      <fieldset>
+        <legend>Preferences</legend>
+        <section>
           <tui-textfield tuiChevron>
             <label tuiLabel>Theme</label>
             <input
@@ -97,34 +97,24 @@ const THEMES: Record<string, Theme> = {
               [items]="['System', 'Dark', 'Light']"
             />
           </tui-textfield>
-        </div>
-        <div>
           <tui-textfield tuiChevron [stringify]="stringifyLanguage">
             <label tuiLabel>Language</label>
             <input tuiSelect formControlName="language" />
             <tui-data-list *tuiDropdown>
               @for (lang of languages; track lang.posix) {
                 <button tuiOption [value]="lang.posix">
-                  <div class="language-option">
-                    <span class="native">{{ lang.nativeName }}</span>
-                    <span class="translated">
-                      {{ getTranslatedName(lang.posix) }}
-                    </span>
-                  </div>
+                  <span tuiTitle>
+                    {{ lang.nativeName }}
+                    <span tuiSubtitle>{{ getTranslatedName(lang.posix) }}</span>
+                  </span>
                 </button>
               }
             </tui-data-list>
           </tui-textfield>
-        </div>
-      </section>
-      <header tuiHeader="body-l"><h2 tuiTitle>Remote Access</h2></header>
-      @if (form.value.remote === 'always') {
-        <div tuiNotification appearance="warning">
-          This setting is not recommended as your router will be exposed to the
-          internet
-        </div>
-      }
-      <div class="remote-options">
+        </section>
+      </fieldset>
+      <fieldset>
+        <legend>Remote Access</legend>
         @for (value of ['default', 'never', 'always']; track $index) {
           <label tuiLabel>
             <input
@@ -136,11 +126,21 @@ const THEMES: Record<string, Theme> = {
             {{ $index ? value : 'When behind NAT (Default)' }}
           </label>
         }
-      </div>
+      </fieldset>
+      @if (form.value.remote === 'always') {
+        <div tuiNotification appearance="warning">
+          This setting is not recommended as your router will be exposed to the
+          internet
+        </div>
+      }
       <footer appFooter></footer>
     </form>
   `,
   styles: `
+    :host {
+      max-width: 50rem;
+    }
+
     .update-banner {
       .release-notes {
         color: var(--tui-text-secondary);
@@ -181,32 +181,13 @@ const THEMES: Record<string, Theme> = {
       }
     }
 
-    form > header:not(:first-of-type) {
-      margin-top: 1rem;
-    }
-
-    .remote-options {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
+    :host {
+      fieldset {
+        display: flex;
+      }
 
       label {
         text-transform: capitalize;
-      }
-    }
-
-    .language-option {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.3;
-
-      .native {
-        font-weight: 500;
-      }
-
-      .translated {
-        font: var(--tui-font-text-s);
-        color: var(--tui-text-secondary);
       }
     }
   `,
@@ -263,14 +244,11 @@ export default class General {
     remote: 'default',
   })
 
-  protected readonly stringifyLanguage = (posix: Language): string => {
-    const lang = LANGUAGES.find(l => l.posix === posix)
-    return lang?.nativeName || posix
-  }
+  protected readonly stringifyLanguage = (posix: Language): string =>
+    LANGUAGES.find(l => l.posix === posix)?.nativeName || posix
 
   protected getTranslatedName(posix: Language): string {
-    const currentLang = this.form.value.language as Language
-    return getTranslatedName(posix, currentLang)
+    return getTranslatedName(posix, this.form.getRawValue().language)
   }
 
   protected onTheme(theme: string): void {

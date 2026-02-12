@@ -7,101 +7,79 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ReactiveFormsModule } from '@angular/forms'
 import {
+  TuiDropdown,
   TuiError,
+  TuiGroup,
   TuiInput,
   TuiTextfield,
-  TuiTitle,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import {
-  TuiChevron,
-  TuiDataListWrapper,
-  TuiInputNumber,
-  TuiSelect,
-} from '@taiga-ui/kit'
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { TuiDataListWrapper, TuiInputNumber, TuiSelect } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiForm } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { FORM } from 'src/app/directives/form'
+import LanIpv4 from '../'
 import {
   FIRST_OCTETS,
   FirstOctet,
   getSecondOctet,
   LAN_IPV4_VALIDATION_ERRORS,
 } from '../utils'
-import LanIpv4 from '../'
 
 @Component({
   selector: 'lan-ipv4-ip',
   template: `
-    <header tuiHeader="body-l"><h2 tuiTitle>Network</h2></header>
-    <section [tuiTextfieldCleaner]="false">
-      <div>
-        <label tuiLabel>Network Block</label>
-        <div class="ip-group">
-          <tui-textfield tuiChevron>
-            <input tuiSelect formControlName="firstOctet" />
-            <tui-data-list-wrapper *tuiDropdown [items]="firstOctets" />
-          </tui-textfield>
-          <tui-textfield>
-            <input tuiInput [value]="secondOctet()" disabled />
-          </tui-textfield>
-          <tui-textfield>
-            <input tuiInput value="x" disabled />
-          </tui-textfield>
-          <tui-textfield>
-            <input tuiInput value="x" disabled />
-          </tui-textfield>
-          <span class="cidr">/16</span>
-        </div>
+    <fieldset [tuiTextfieldCleaner]="false">
+      <legend>Network Block</legend>
+      <div tuiGroup>
+        <tui-textfield tuiDropdownLimitWidth="min">
+          <input tuiSelect formControlName="firstOctet" />
+          <tui-data-list-wrapper *tuiDropdown [items]="firstOctets" />
+        </tui-textfield>
+        <tui-textfield>
+          <input tuiInput [value]="secondOctet()" disabled />
+        </tui-textfield>
+        <tui-textfield>
+          <input tuiInput value="x" disabled />
+        </tui-textfield>
+        <tui-textfield>
+          <input tuiInput value="x" disabled />
+        </tui-textfield>
+        /16
       </div>
-      <div>
-        <label tuiLabel>Router IP</label>
-        <div class="ip-group">
-          <tui-textfield>
-            <input tuiInput [value]="firstOctet$()" disabled />
-          </tui-textfield>
-          <tui-textfield>
-            <input tuiInput [value]="secondOctet()" disabled />
-          </tui-textfield>
-          <tui-textfield>
-            <input tuiInput value="0" disabled />
-          </tui-textfield>
-          <tui-textfield>
-            <input
-              tuiInputNumber
-              formControlName="routerOctet"
-              [min]="1"
-              [max]="254"
-            />
-          </tui-textfield>
-        </div>
-        <tui-error formControlName="routerOctet" />
+    </fieldset>
+    <fieldset [tuiTextfieldCleaner]="false">
+      <legend>Router IP</legend>
+      <div tuiGroup>
+        <tui-textfield>
+          <input tuiInput [value]="firstOctet$()" disabled />
+        </tui-textfield>
+        <tui-textfield>
+          <input tuiInput [value]="secondOctet()" disabled />
+        </tui-textfield>
+        <tui-textfield>
+          <input tuiInput value="0" disabled />
+        </tui-textfield>
+        <tui-textfield>
+          <input
+            tuiInputNumber
+            formControlName="routerOctet"
+            [min]="1"
+            [max]="254"
+          />
+        </tui-textfield>
       </div>
-    </section>
+    </fieldset>
+    <tui-error formControlName="routerOctet" />
   `,
   styles: `
-    .ip-group {
-      display: flex;
-      gap: 0.25rem;
+    tui-textfield {
+      max-inline-size: 3.25rem;
+    }
+
+    div {
       align-items: center;
-
-      tui-textfield {
-        width: 4.5rem;
-      }
-
-      .cidr {
-        font-weight: 500;
-        color: var(--tui-text-secondary);
-        margin-left: 0.25rem;
-      }
-    }
-
-    section > div {
-      min-width: 25rem;
-    }
-
-    tui-data-list-wrapper {
-      white-space: nowrap;
+      text-indent: 0.5rem;
     }
   `,
   viewProviders: [FORM],
@@ -110,15 +88,14 @@ import LanIpv4 from '../'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
-    TuiHeader,
-    TuiTitle,
     TuiTextfield,
     TuiError,
     TuiInputNumber,
     TuiSelect,
-    TuiChevron,
     TuiDataListWrapper,
     TuiInput,
+    TuiGroup,
+    TuiDropdown,
   ],
 })
 export class LanIpv4Ip {

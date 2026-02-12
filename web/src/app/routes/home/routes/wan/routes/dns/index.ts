@@ -11,11 +11,12 @@ import {
   TuiError,
   TuiInput,
   TuiLabel,
+  TuiRadio,
   TuiTextfield,
   TuiTitle,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TuiRadio, TuiSwitch } from '@taiga-ui/kit'
+import { TuiSwitch } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
@@ -61,33 +62,28 @@ import {
         }
       </section>
       @if (mode() === 'custom') {
-        <hr />
         <section>
-          <div>
-            <tui-textfield class="field-narrow">
-              <label tuiLabel>Primary*</label>
-              <input tuiInput formControlName="custom1" />
-            </tui-textfield>
-            <tui-error formControlName="custom1" />
-          </div>
+          <tui-textfield>
+            <label tuiLabel>Primary*</label>
+            <input tuiInput formControlName="custom1" />
+          </tui-textfield>
           <label tuiLabel>
             <input type="checkbox" tuiSwitch formControlName="custom1Tls" />
             TLS
           </label>
         </section>
+        <tui-error formControlName="custom1" />
         <section>
-          <div>
-            <tui-textfield class="field-narrow">
-              <label tuiLabel>Secondary</label>
-              <input tuiInput formControlName="custom2" />
-            </tui-textfield>
-            <tui-error formControlName="custom2" />
-          </div>
+          <tui-textfield>
+            <label tuiLabel>Secondary</label>
+            <input tuiInput formControlName="custom2" />
+          </tui-textfield>
           <label tuiLabel>
             <input type="checkbox" tuiSwitch formControlName="custom2Tls" />
             TLS
           </label>
         </section>
+        <tui-error formControlName="custom2" />
       }
       @if (service.data()) {
         <footer appFooter></footer>

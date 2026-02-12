@@ -5,46 +5,52 @@ import {
   ReactiveFormsModule,
   ValidationErrors,
 } from '@angular/forms'
+import { TuiTime } from '@taiga-ui/cdk'
 import {
   TuiButton,
+  TuiCheckbox,
   TuiDialogContext,
   TuiError,
+  TuiGroup,
   TuiLabel,
-  TuiTitle,
+  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TuiCheckbox } from '@taiga-ui/kit'
-import { TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { TuiBlock, TuiInputTime } from '@taiga-ui/kit'
+import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { BlackoutWindow } from './service'
 
 @Component({
   template: `
-    <form tuiForm="m" [formGroup]="form" (submit.prevent)="save()">
-      <header tuiHeader="h6"><h2 tuiTitle>Time Window</h2></header>
-      <div class="time-row">
-        <div class="time-field">
+    <form
+      tuiForm="m"
+      class="g-form"
+      [formGroup]="form"
+      (submit.prevent)="save()"
+    >
+      <fieldset>
+        <legend>Time Window</legend>
+        <tui-textfield>
           <label tuiLabel>Start Time</label>
-          <input type="time" formControlName="startTime" />
-        </div>
-        <div class="time-field">
+          <input tuiInputTime formControlName="startTime" />
+        </tui-textfield>
+        <tui-textfield>
           <label tuiLabel>End Time</label>
-          <input type="time" formControlName="endTime" />
+          <input tuiInputTime formControlName="endTime" />
+        </tui-textfield>
+      </fieldset>
+      <tui-error [formGroup]="form" />
+      <fieldset formGroupName="days" [style.display]="'flex'">
+        <legend>Days</legend>
+        <div tuiGroup [collapsed]="true">
+          @for (day of displayDays; track day.key) {
+            <label tuiBlock="s" appearance="">
+              <input type="checkbox" tuiBlock="s" [formControlName]="day.key" />
+              {{ day.label }}
+            </label>
+          }
         </div>
-      </div>
-      @if (form.errors?.['endBeforeStart']) {
-        <tui-error>
-          <span class="t-message">End time must be later than start time</span>
-        </tui-error>
-      }
-      <header tuiHeader="h6"><h2 tuiTitle>Days</h2></header>
-      <div class="days" formGroupName="days">
-        @for (day of displayDays; track day.key) {
-          <label tuiLabel>
-            <input type="checkbox" tuiCheckbox [formControlName]="day.key" />
-            {{ day.label }}
-          </label>
-        }
-      </div>
+      </fieldset>
       <footer>
         <button
           tuiButton
@@ -59,37 +65,26 @@ import { BlackoutWindow } from './service'
     </form>
   `,
   styles: `
-    .time-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .time-field {
-      flex: 1;
-      min-width: 10rem;
-    }
-
-    .time-field input {
+    [tuiGroup] {
       width: 100%;
-    }
-
-    .days {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
+      height: var(--tui-height-m);
     }
   `,
+  providers: [
+    tuiValidationErrorsProvider({
+      endBeforeStart: 'End time must be later than start time',
+    }),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
     TuiForm,
-    TuiHeader,
-    TuiTitle,
     TuiLabel,
-    TuiCheckbox,
     TuiButton,
     TuiError,
+    TuiInputTime,
+    TuiGroup,
+    TuiBlock,
   ],
 })
 class AddBlackoutWindow {
@@ -108,8 +103,8 @@ class AddBlackoutWindow {
 
   protected readonly form = inject(NonNullableFormBuilder).group(
     {
-      startTime: ['22:00'],
-      endTime: ['23:00'],
+      startTime: [new TuiTime(22, 0)],
+      endTime: [new TuiTime(23, 0)],
       days: inject(NonNullableFormBuilder).group({
         0: [false],
         1: [true],
@@ -124,6 +119,7 @@ class AddBlackoutWindow {
       validators: (control: AbstractControl): ValidationErrors | null => {
         const start = control.get('startTime')?.value
         const end = control.get('endTime')?.value
+
         return start && end && end <= start ? { endBeforeStart: true } : null
       },
     },
@@ -144,8 +140,8 @@ class AddBlackoutWindow {
     ]
 
     this.context.completeWith({
-      startTime: val.startTime,
-      endTime: val.endTime,
+      startTime: val.startTime.toString('HH:MM'),
+      endTime: val.endTime.toString('HH:MM'),
       days,
     })
   }

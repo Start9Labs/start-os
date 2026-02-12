@@ -13,13 +13,12 @@ import {
   tuiDropdownOptionsProvider,
   tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
-import { tuiDialogOptionsProvider } from '@taiga-ui/core'
 import {
-  tuiBadgeOptionsProvider,
   tuiCheckboxOptionsProvider,
+  tuiDialogOptionsProvider,
   tuiRadioOptionsProvider,
-  tuiTabsOptionsProvider,
-} from '@taiga-ui/kit'
+} from '@taiga-ui/core'
+import { tuiBadgeOptionsProvider, tuiTabsOptionsProvider } from '@taiga-ui/kit'
 import {
   tuiCardOptionsProvider,
   tuiFormOptionsProvider,
