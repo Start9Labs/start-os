@@ -691,4 +691,5 @@ export default {
   726: '',
   727: '',
   728: '',
+  729: '',
 } satisfies i18n

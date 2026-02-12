@@ -3,11 +3,11 @@ import type { HostnameInfo } from './HostnameInfo'
 
 export type DerivedAddressInfo = {
   /**
-   * User-controlled: private-gateway addresses the user has disabled
+   * User-controlled: private addresses the user has disabled
    */
   privateDisabled: Array<HostnameInfo>
   /**
-   * User-controlled: public-gateway addresses the user has enabled
+   * User-controlled: public addresses the user has enabled
    */
   publicEnabled: Array<HostnameInfo>
   /**

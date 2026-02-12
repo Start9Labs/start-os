@@ -563,7 +563,7 @@ export const ENGLISH: Record<string, number> = {
   'Requires setting a static IP address for': 591, // this is a partial sentence. An IP address will be added after "for" to complete the sentence.
   'Ideal for VPN access via': 592, // this is a partial sentence. A connection medium will be added after "via" to complete the sentence.
   'in your gateway': 593, // this is a partial sentence. It is preceded by an instruction: e.g. "do something" in your gateway. Gateway refers to a router or VPN server.
-  "your router's Wireguard server": 594, // this is a partial sentence. It is preceded by "ideal for access via"
+  "your router's WireGuard server": 594, // this is a partial sentence. It is preceded by "ideal for access via"
   'Requires port forwarding in gateway': 595,
   'Requires a DNS record for': 596, // this is a partial sentence. A domain name will be added after "for" to complete the sentence.
   'that resolves to': 597, // this is a partial sentence. It is preceded by "requires a DNS record for [domain] "
@@ -681,14 +681,15 @@ export const ENGLISH: Record<string, number> = {
   'Continue to Setup': 716,
   'Set Outbound Gateway': 717,
   'Current': 718,
-  'System default)': 719,
+  'System default': 719,
   'Outbound Gateway': 720,
   'Select the gateway for outbound traffic': 721,
   'The type of gateway': 722,
   'Outbound Only': 723,
   'Set as default outbound': 724,
   'Route all outbound traffic through this gateway': 725,
-  'Wireguard Config File': 726,
+  'WireGuard Config File': 726,
   'Inbound/Outbound': 727,
   'StartTunnel (Inbound/Outbound)': 728,
+  'Ethernet': 729
 }

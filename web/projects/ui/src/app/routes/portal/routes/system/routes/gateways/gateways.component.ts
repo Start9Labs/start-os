@@ -93,7 +93,7 @@ export default class GatewaysComponent {
         },
       }),
       config: ISB.Value.union({
-        name: this.i18n.transform('Wireguard Config File'),
+        name: this.i18n.transform('WireGuard Config File'),
         default: 'paste',
         variants: ISB.Variants.of({
           paste: {

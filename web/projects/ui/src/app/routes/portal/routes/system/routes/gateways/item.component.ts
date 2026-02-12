@@ -49,7 +49,7 @@ import { TuiBadge } from '@taiga-ui/kit'
           }
           @case ('wireguard') {
             <tui-icon icon="@tui.shield" />
-            {{ 'WireGuard' | i18n }}
+            WireGuard'
           }
           @default {
             {{ gateway.ipInfo.deviceType }}
@@ -99,7 +99,7 @@ import { TuiBadge } from '@taiga-ui/kit'
                   iconStart="@tui.arrow-up-right"
                   (click)="setDefaultOutbound()"
                 >
-                  {{ 'Set as Default Outbound' | i18n }}
+                  {{ 'Set as default outbound' | i18n }}
                 </button>
               </tui-opt-group>
             }

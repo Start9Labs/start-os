@@ -217,6 +217,39 @@ Pending tasks for AI agents. Remove items when completed.
   | `sdk/base/lib/interfaces/Host.ts` | SDK `MultiHost.bindPort()` — no changes needed |
   | `core/src/db/model/public.rs` | Public DB model — port forward mapping |
 
+- [ ] Extract TS-exported types into a lightweight sub-crate for fast binding generation
+
+  **Problem**: `make ts-bindings` compiles the entire `start-os` crate (with all dependencies: tokio,
+  axum, openssl, etc.) just to run test functions that serialize type definitions to `.ts` files.
+  Even in debug mode, this takes minutes. The generated output is pure type info — no runtime code
+  is needed.
+
+  **Goal**: Generate TS bindings in seconds by isolating exported types in a small crate with minimal
+  dependencies.
+
+  **Approach**: Create a `core/bindings-types/` sub-crate containing (or re-exporting) all 168
+  `#[ts(export)]` types. This crate depends only on `serde`, `ts-rs`, `exver`, and other type-only
+  crates — not on tokio, axum, openssl, etc. Then `build-ts.sh` runs `cargo test -p bindings-types`
+  instead of `cargo test -p start-os`.
+
+  **Challenge**: The exported types are scattered across `core/src/` and reference each other and
+  other crate types. Extracting them requires either moving the type definitions into the sub-crate
+  (and importing them back into `start-os`) or restructuring to share a common types crate.
+
+- [ ] Use auto-generated RPC types in the frontend instead of manual duplicates
+
+  **Problem**: The web frontend manually defines ~755 lines of API request/response types in
+  `web/projects/ui/src/app/services/api/api.types.ts` that can drift from the actual Rust types.
+
+  **Current state**: The Rust backend already has `#[ts(export)]` on RPC param types (e.g.
+  `AddTunnelParams`, `SetWifiEnabledParams`, `LoginParams`), and they are generated into
+  `core/bindings/`. However, commit `71b83245b` ("Chore/unexport api ts #2585", April 2024)
+  deliberately stopped building them into the SDK and had the frontend maintain its own types.
+
+  **Goal**: Reverse that decision — pipe the generated RPC types through the SDK into the frontend
+  so `api.types.ts` can import them instead of duplicating them. This eliminates drift between
+  backend and frontend API contracts.
+
 - [ ] Auto-configure port forwards via UPnP/NAT-PMP/PCP - @dr-bonez
 
   **Blocked by**: "Support preferred external ports besides 443" (must be implemented and tested
