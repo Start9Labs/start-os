@@ -4,6 +4,7 @@ import {
   ErrorService,
   i18nKey,
   i18nPipe,
+  i18nService,
   LoadingService,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -24,6 +25,7 @@ export class ControlsService {
   private readonly api = inject(ApiService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly i18n = inject(i18nPipe)
+  private readonly i18nService = inject(i18nService)
 
   async start({ title, alerts, id }: T.Manifest, unmet: boolean) {
     const deps =
@@ -31,7 +33,7 @@ export class ControlsService {
 
     if (
       (unmet && !(await this.alert(deps))) ||
-      (alerts.start && !(await this.alert(alerts.start as i18nKey)))
+      (alerts.start && !(await this.alert(alerts.start)))
     ) {
       return
     }
@@ -49,7 +51,7 @@ export class ControlsService {
 
   async stop({ id, title, alerts }: T.Manifest) {
     const depMessage = `${this.i18n.transform('Services that depend on')} ${title} ${this.i18n.transform('will no longer work properly and may crash.')}`
-    let content = alerts.stop || ''
+    let content = alerts.stop ? this.i18nService.localize(alerts.stop) : ''
 
     if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
       content = content ? `${content}.\n\n${depMessage}` : depMessage
@@ -113,14 +115,14 @@ export class ControlsService {
     })
   }
 
-  private alert(content: i18nKey): Promise<boolean> {
+  private alert(content: T.LocaleString): Promise<boolean> {
     return firstValueFrom(
       this.dialog
         .openConfirm({
           label: 'Warning',
           size: 's',
           data: {
-            content,
+            content: this.i18nService.localize(content),
             yes: 'Continue',
             no: 'Cancel',
           },

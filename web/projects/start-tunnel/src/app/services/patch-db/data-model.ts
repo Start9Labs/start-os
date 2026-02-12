@@ -45,8 +45,8 @@ export const mockTunnelData: TunnelData = {
   gateways: {
     eth0: {
       name: null,
-      public: null,
       secure: null,
+      type: null,
       ipInfo: {
         name: 'Wired Connection 1',
         scopeId: 1,

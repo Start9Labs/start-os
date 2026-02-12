@@ -124,8 +124,8 @@ export const mockPatchData: DataModel = {
       gateways: {
         eth0: {
           name: null,
-          public: null,
           secure: null,
+          type: null,
           ipInfo: {
             name: 'Wired Connection 1',
             scopeId: 1,
@@ -139,8 +139,8 @@ export const mockPatchData: DataModel = {
         },
         wlan0: {
           name: null,
-          public: null,
           secure: null,
+          type: null,
           ipInfo: {
             name: 'Wireless Connection 1',
             scopeId: 2,
@@ -157,8 +157,8 @@ export const mockPatchData: DataModel = {
         },
         wireguard1: {
           name: 'StartTunnel',
-          public: null,
           secure: null,
+          type: 'inbound-outbound',
           ipInfo: {
             name: 'wireguard1',
             scopeId: 2,
@@ -173,7 +173,23 @@ export const mockPatchData: DataModel = {
             dnsServers: ['1.1.1.1'],
           },
         },
+        wireguard2: {
+          name: 'Mullvad VPN',
+          secure: null,
+          type: 'outbound-only',
+          ipInfo: {
+            name: 'wireguard2',
+            scopeId: 4,
+            deviceType: 'wireguard',
+            subnets: [],
+            wanIp: '198.51.100.77',
+            ntpServers: [],
+            lanIp: [],
+            dnsServers: ['10.64.0.1'],
+          },
+        },
       },
+      defaultOutbound: 'eth0',
       dns: {
         dhcpServers: ['1.1.1.1', '8.8.8.8'],
         staticServers: null,
@@ -320,6 +336,7 @@ export const mockPatchData: DataModel = {
       },
       hosts: {},
       storeExposedDependents: [],
+      outboundGateway: null,
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
       tasks: {
@@ -624,6 +641,7 @@ export const mockPatchData: DataModel = {
         },
       },
       storeExposedDependents: [],
+      outboundGateway: null,
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
       tasks: {

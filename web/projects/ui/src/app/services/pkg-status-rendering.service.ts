@@ -31,7 +31,7 @@ export function getInstalledBaseStatus(statusInfo: T.StatusInfo): BaseStatus {
     (!statusInfo.started ||
       Object.values(statusInfo.health)
         .filter(h => !!h)
-        .some(h => h.result === 'starting'))
+        .some(h => h.result === 'starting' || h.result === 'waiting'))
   ) {
     return 'starting'
   }

@@ -116,6 +116,7 @@ impl Public {
                         acme
                     },
                     dns: Default::default(),
+                    default_outbound: None,
                 },
                 status_info: ServerStatus {
                     backup_progress: None,
@@ -219,6 +220,9 @@ pub struct NetworkInfo {
     pub acme: BTreeMap<AcmeProvider, AcmeSettings>,
     #[serde(default)]
     pub dns: DnsSettings,
+    #[serde(default)]
+    #[ts(type = "string | null")]
+    pub default_outbound: Option<GatewayId>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -238,38 +242,41 @@ pub struct DnsSettings {
 #[ts(export)]
 pub struct NetworkInterfaceInfo {
     pub name: Option<InternedString>,
+    #[ts(skip)]
     pub public: Option<bool>,
     pub secure: Option<bool>,
     pub ip_info: Option<Arc<IpInfo>>,
+    #[serde(default, rename = "type")]
+    pub gateway_type: Option<GatewayType>,
 }
 impl NetworkInterfaceInfo {
     pub fn public(&self) -> bool {
         self.public.unwrap_or_else(|| {
             !self.ip_info.as_ref().map_or(true, |ip_info| {
-                let ip4s = ip_info
-                    .subnets
-                    .iter()
-                    .filter_map(|ipnet| {
-                        if let IpAddr::V4(ip4) = ipnet.addr() {
-                            Some(ip4)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<BTreeSet<_>>();
-                if !ip4s.is_empty() {
-                    return ip4s
-                        .iter()
-                        .all(|ip4| ip4.is_loopback() || ip4.is_private() || ip4.is_link_local());
-                }
-                ip_info.subnets.iter().all(|ipnet| {
-                    if let IpAddr::V6(ip6) = ipnet.addr() {
-                        ipv6_is_local(ip6)
+            let ip4s = ip_info
+                .subnets
+                .iter()
+                .filter_map(|ipnet| {
+                    if let IpAddr::V4(ip4) = ipnet.addr() {
+                        Some(ip4)
                     } else {
-                        true
+                        None
                     }
                 })
+                .collect::<BTreeSet<_>>();
+            if !ip4s.is_empty() {
+                return ip4s
+                    .iter()
+                    .all(|ip4| ip4.is_loopback() || ip4.is_private() || ip4.is_link_local());
+            }
+            ip_info.subnets.iter().all(|ipnet| {
+                if let IpAddr::V6(ip6) = ipnet.addr() {
+                    ipv6_is_local(ip6)
+                } else {
+                    true
+                }
             })
+        })
         })
     }
 
@@ -307,6 +314,15 @@ pub enum NetworkInterfaceType {
     Bridge,
     Wireguard,
     Loopback,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS, clap::ValueEnum)]
+#[ts(export)]
+#[serde(rename_all = "kebab-case")]
+pub enum GatewayType {
+    #[default]
+    InboundOutbound,
+    OutboundOnly,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

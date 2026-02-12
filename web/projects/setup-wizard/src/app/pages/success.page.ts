@@ -6,7 +6,12 @@ import {
   ViewChild,
   DOCUMENT,
 } from '@angular/core'
-import { DownloadHTMLService, ErrorService, i18nPipe } from '@start9labs/shared'
+import {
+  DialogService,
+  DownloadHTMLService,
+  ErrorService,
+  i18nPipe,
+} from '@start9labs/shared'
 import { TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiCell, TuiHeader } from '@taiga-ui/layout'
@@ -14,7 +19,9 @@ import { ApiService } from '../services/api.service'
 import { StateService } from '../services/state.service'
 import { DocumentationComponent } from '../components/documentation.component'
 import { MatrixComponent } from '../components/matrix.component'
+import { RemoveMediaDialog } from '../components/remove-media.dialog'
 import { SetupCompleteRes } from '../types'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 
 @Component({
   template: `
@@ -29,12 +36,8 @@ import { SetupCompleteRes } from '../types'
           @if (!stateService.kiosk) {
             <span tuiSubtitle>
               {{
-                stateService.setupType === 'restore'
-                  ? ('You can unplug your backup drive' | i18n)
-                  : stateService.setupType === 'transfer'
-                    ? ('You can unplug your transfer drive' | i18n)
-                    : ('http://start.local was for setup only. It will no longer work.'
-                      | i18n)
+                'http://start.local was for setup only. It will no longer work.'
+                  | i18n
               }}
             </span>
           }
@@ -69,14 +72,15 @@ import { SetupCompleteRes } from '../types'
             tuiCell="l"
             [class.disabled]="!stateService.kiosk && !downloaded"
             [disabled]="(!stateService.kiosk && !downloaded) || usbRemoved"
-            (click)="usbRemoved = true"
+            (click)="removeMedia()"
           >
             <tui-avatar appearance="secondary" src="@tui.usb" />
             <div tuiTitle>
-              {{ 'USB Removed' | i18n }}
+              {{ 'Remove Installation Media' | i18n }}
               <div tuiSubtitle>
                 {{
-                  'Remove the USB installation media from your server' | i18n
+                  'Remove USB stick or other installation media from your server'
+                    | i18n
                 }}
               </div>
             </div>
@@ -184,6 +188,7 @@ export default class SuccessPage implements AfterViewInit {
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly downloadHtml = inject(DownloadHTMLService)
+  private readonly dialogs = inject(DialogService)
   private readonly i18n = inject(i18nPipe)
 
   readonly stateService = inject(StateService)
@@ -223,6 +228,21 @@ export default class SuccessPage implements AfterViewInit {
     this.downloadHtml.download('StartOS-info.html', html).then(() => {
       this.downloaded = true
     })
+  }
+
+  removeMedia() {
+    this.dialogs
+      .openComponent<boolean>(
+        new PolymorpheusComponent(RemoveMediaDialog),
+        {
+          size: 's',
+          dismissible: false,
+          closeable: false,
+        },
+      )
+      .subscribe(() => {
+        this.usbRemoved = true
+      })
   }
 
   exitKiosk() {
