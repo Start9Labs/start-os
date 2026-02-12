@@ -37,10 +37,6 @@ pub enum WanAccess {
     All,
     #[serde(rename = "NONE")]
     None,
-    #[serde(rename = "whitelist")]
-    Whitelist(Vec<String>), // List of allowed destination IPs/CIDRs
-    #[serde(rename = "blacklist")]
-    Blacklist(Vec<String>), // List of blocked destination IPs/CIDRs
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -48,7 +44,6 @@ pub struct Profile<Id: Ord = ProfileId> {
     #[serde(flatten)]
     pub id: Id,
     pub gateway_ip: Ipv4Addr,
-    pub outbound: String,             // 'wan' for default WAN, or VPN interface name. TODO: Implement routing logic
     pub lan_access: LanAccess<Id>,    // TODO
     pub wan_access: WanAccess,        // TODO
     pub access_to_new_profiles: bool, // TODO
@@ -116,7 +111,6 @@ struct UciProfile {
     pub fullname: String,
     pub interface: String,
     pub vlan_tag: u16,
-    pub outbound: Option<String>,
     #[uci(default_value = "false")]
     pub access_to_new_profiles: bool,
 }
@@ -154,13 +148,9 @@ fn get_config(
         id: id.clone(),
         owns_lan: id.interface == "lan",
         gateway_ip: Ipv4Addr::new(0, 0, 0, 0),
-        outbound: match &uciprofile {
-            Some(p) => p.outbound.clone().unwrap_or_else(|| "wan".to_string()),
-            None => "wan".to_string(),
-        },
         lan_access: LanAccess::SameProfile,
         wan_access: WanAccess::None,
-        access_to_new_profiles: match &uciprofile {
+        access_to_new_profiles: match uciprofile {
             Some(p) => p.access_to_new_profiles,
             None => false,
         },
@@ -330,7 +320,6 @@ fn set_config<C: CtrlContext>(
     let profile = Profile {
         id: lookup.resolve(&profile.id)?.clone(),
         gateway_ip: profile.gateway_ip,
-        outbound: profile.outbound.clone(),
         lan_access: match &profile.lan_access {
             LanAccess::All => LanAccess::All,
             LanAccess::SameProfile => LanAccess::SameProfile,
@@ -573,7 +562,6 @@ fn create_config(
             fullname: fullname.clone(),
             interface: interface.clone(),
             vlan_tag,
-            outbound: Some(profile.outbound.clone()),
             access_to_new_profiles: profile.access_to_new_profiles,
         },
         Some(&interface),
@@ -586,7 +574,6 @@ fn create_config(
             vlan_tag,
         },
         gateway_ip: profile.gateway_ip,
-        outbound: profile.outbound.clone(),
         lan_access: match &profile.lan_access {
             LanAccess::All => LanAccess::All,
             LanAccess::SameProfile => LanAccess::SameProfile,
@@ -756,28 +743,6 @@ fn rewrite_firewall(
             None,
         )?,
         WanAccess::None => (),
-        WanAccess::Whitelist(_destinations) => {
-            // TODO: Implement proper whitelist firewall rules
-            // For now, add basic WAN forwarding (behaves like All)
-            cfgs["firewall"].append(
-                &FirewallForwarding {
-                    src: this_zone_name.clone(),
-                    dest: DEFAULT_WAN_ZONE.into(),
-                },
-                None,
-            )?;
-        }
-        WanAccess::Blacklist(_destinations) => {
-            // TODO: Implement proper blacklist firewall rules
-            // For now, add basic WAN forwarding (behaves like All)
-            cfgs["firewall"].append(
-                &FirewallForwarding {
-                    src: this_zone_name.clone(),
-                    dest: DEFAULT_WAN_ZONE.into(),
-                },
-                None,
-            )?;
-        }
     }
 
     Ok(())
@@ -950,7 +915,6 @@ pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> 
         let template = Profile {
             id: args.get.clone(),
             gateway_ip: std::net::Ipv4Addr::new(192, 168, 1, 1),
-            outbound: "wan".to_string(),
             lan_access: LanAccess::All,
             wan_access: WanAccess::All,
             access_to_new_profiles: true,
@@ -964,7 +928,6 @@ pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> 
         let current_profile = Profile {
             id: current_profile.id.into(),
             gateway_ip: current_profile.gateway_ip,
-            outbound: current_profile.outbound,
             lan_access: match current_profile.lan_access {
                 LanAccess::All => LanAccess::All,
                 LanAccess::SameProfile => LanAccess::SameProfile,
