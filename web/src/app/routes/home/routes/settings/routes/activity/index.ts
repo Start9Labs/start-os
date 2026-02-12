@@ -57,6 +57,14 @@ import { ActivityAside } from './aside'
     />
   `,
   styles: `
+    :host {
+      max-width: 50rem;
+    }
+
+    td:last-child {
+      text-align: end;
+    }
+
     tui-table-pagination {
       margin-top: 0.5rem;
     }

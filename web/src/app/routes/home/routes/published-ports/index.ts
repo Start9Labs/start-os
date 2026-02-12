@@ -30,7 +30,7 @@ import { PublishedPortDialogResult, PublishedPortDisplay } from './types'
       <hgroup tuiTitle><h2>Published Ports</h2></hgroup>
       <aside tuiAccessories>
         @if (!loading()) {
-          <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
+          <button tuiButton iconStart="@tui.plus" (click)="edit()">Add</button>
         }
       </aside>
     </header>
@@ -87,50 +87,18 @@ export default class PublishedPorts {
     this.ipv4EndpointHost.set(ddnsHostname || wanIp)
   }
 
-  add() {
+  edit(existing?: PublishedPortDisplay) {
     const devices = this.service.getDevices()
+    const data = this.service.data() || []
 
     this.dialogs
       .open<PublishedPortDialogResult>(
         new PolymorpheusComponent(PublishPortDialog),
         {
-          label: 'Publish Ports',
-          data: { devices, ipv6Available: this.ipv6Available() },
-        },
-      )
-      .subscribe(result => {
-        const { port: value, reserveIpv4 } = result
-
-        // Handle IPv4 reservation if needed
-        if (reserveIpv4) {
-          this.service.reserveDeviceIps(value.deviceMac, true, false)
-        }
-
-        // Enrich the new port with display data
-        const device = this.service.getDevice(value.deviceMac)
-        const newPort: PublishedPortDisplay = {
-          ...value,
-          status: 'active',
-          deviceName: device?.name || device?.hostname,
-          deviceIpv4: device?.ipv4,
-          deviceIpv6: device?.ipv6,
-        }
-
-        this.service.save([...(this.service.data() || []), newPort])
-      })
-  }
-
-  edit(item: PublishedPortDisplay) {
-    const devices = this.service.getDevices()
-
-    this.dialogs
-      .open<PublishedPortDialogResult>(
-        new PolymorpheusComponent(PublishPortDialog),
-        {
-          label: 'Edit Published Port',
+          label: existing ? 'Edit Published Port' : 'Publish Ports',
           data: {
             devices,
-            existing: item,
+            existing,
             ipv6Available: this.ipv6Available(),
           },
         },
@@ -143,9 +111,9 @@ export default class PublishedPorts {
           this.service.reserveDeviceIps(value.deviceMac, true, false)
         }
 
-        // Update the port with new values
+        // Update/enrich the port
         const device = this.service.getDevice(value.deviceMac)
-        const updatedPort: PublishedPortDisplay = {
+        const port: PublishedPortDisplay = {
           ...value,
           status: value.enabled ? 'active' : 'disabled',
           deviceName: device?.name || device?.hostname,
@@ -153,10 +121,11 @@ export default class PublishedPorts {
           deviceIpv6: device?.ipv6,
         }
 
-        // Replace the existing item
-        const items = (this.service.data() || []).map(p =>
-          p.id === value.id ? updatedPort : p,
-        )
+        // Update array
+        const items = existing
+          ? data.map(p => (p.id === value.id ? port : p))
+          : data.concat(port)
+
         this.service.save(items)
       })
   }

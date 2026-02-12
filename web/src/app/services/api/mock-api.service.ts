@@ -24,6 +24,11 @@ import {
   VpnServers,
   WifiConfig,
   BlackoutWindow,
+  ProfileId,
+  ProfileIdOpt,
+  SecurityProfile,
+  ProfileCreateInput,
+  ProfileUpdateInput,
 } from './api.service'
 import {
   DhcpSection,
@@ -512,6 +517,147 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
   async wifiBlackoutSet(params: BlackoutWindow[]): Promise<null> {
     await pauseFor(250)
     this.mockBlackoutWindows = structuredClone(params)
+    return null
+  }
+
+  private mockProfiles: SecurityProfile[] = [
+    {
+      fullname: 'Admin',
+      interface: 'lan',
+      vlan_tag: 1,
+      gateway_ip: '192.168.1.1',
+      outbound: 'wan',
+      lan_access: 'ALL',
+      wan_access: 'ALL',
+      access_to_new_profiles: true,
+      owns_lan: true,
+    },
+    {
+      fullname: 'Guest',
+      interface: 'guest',
+      vlan_tag: 100,
+      gateway_ip: '192.168.2.1',
+      outbound: 'wan',
+      lan_access: 'SAME_PROFILE',
+      wan_access: { whitelist: ['1.1.1.1', '8.8.8.8', '9.9.9.9'] },
+      access_to_new_profiles: false,
+      owns_lan: false,
+      dns_override: ['1.1.1.1', '8.8.8.8'],
+    },
+    {
+      fullname: 'IoT',
+      interface: 'iot',
+      vlan_tag: 101,
+      gateway_ip: '192.168.3.1',
+      outbound: 'wan',
+      lan_access: 'SAME_PROFILE',
+      wan_access: { blacklist: ['192.0.2.0/24', '198.51.100.0/24'] },
+      access_to_new_profiles: false,
+      owns_lan: false,
+    },
+  ]
+
+  async profilesList(): Promise<ProfileId[]> {
+    await pauseFor(250)
+    return this.mockProfiles.map(p => ({
+      fullname: p.fullname,
+      interface: p.interface,
+      vlan_tag: p.vlan_tag,
+    }))
+  }
+
+  async profileGet(params: ProfileIdOpt): Promise<SecurityProfile> {
+    await pauseFor(250)
+    const profile = this.mockProfiles.find(
+      p =>
+        (!params.fullname || p.fullname === params.fullname) &&
+        (!params.interface || p.interface === params.interface) &&
+        (params.vlan_tag === undefined || p.vlan_tag === params.vlan_tag),
+    )
+    if (!profile) {
+      throw new Error('Profile not found')
+    }
+    return structuredClone(profile)
+  }
+
+  async profileCreate(params: ProfileCreateInput): Promise<ProfileId> {
+    await pauseFor(250)
+
+    // Generate interface name from fullname (first 5 chars, lowercase)
+    const interface_name =
+      params.interface ||
+      params.fullname
+        ?.toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .slice(0, 5) ||
+      'prof'
+
+    // Auto-assign vlan_tag if not provided
+    const existing_tags = this.mockProfiles.map(p => p.vlan_tag)
+    const vlan_tag =
+      params.vlan_tag ||
+      Array.from({ length: 3995 }, (_, i) => i + 101).find(
+        t => !existing_tags.includes(t),
+      ) ||
+      101
+
+    const newProfile: SecurityProfile = {
+      fullname: params.fullname || 'Untitled',
+      interface: interface_name,
+      vlan_tag,
+      gateway_ip: params.gateway_ip,
+      outbound: params.outbound,
+      lan_access: params.lan_access as any, // Cast needed for ProfileIdOpt -> ProfileId
+      wan_access: params.wan_access,
+      access_to_new_profiles: params.access_to_new_profiles,
+      owns_lan: params.owns_lan,
+    }
+
+    this.mockProfiles = [...this.mockProfiles, newProfile]
+
+    return {
+      fullname: newProfile.fullname,
+      interface: newProfile.interface,
+      vlan_tag: newProfile.vlan_tag,
+    }
+  }
+
+  async profileUpdate(params: ProfileUpdateInput): Promise<ProfileId> {
+    await pauseFor(250)
+
+    this.mockProfiles = this.mockProfiles.map(p =>
+      p.interface === params.interface && p.vlan_tag === params.vlan_tag
+        ? {
+            ...p,
+            fullname: params.fullname || p.fullname,
+            gateway_ip: params.gateway_ip,
+            outbound: params.outbound,
+            lan_access: params.lan_access as any,
+            wan_access: params.wan_access,
+            access_to_new_profiles: params.access_to_new_profiles,
+          }
+        : p,
+    )
+
+    return {
+      fullname: params.fullname || '',
+      interface: params.interface,
+      vlan_tag: params.vlan_tag,
+    }
+  }
+
+  async profileDelete(params: ProfileIdOpt): Promise<null> {
+    await pauseFor(250)
+
+    this.mockProfiles = this.mockProfiles.filter(
+      p =>
+        !(
+          (!params.fullname || p.fullname === params.fullname) &&
+          (!params.interface || p.interface === params.interface) &&
+          (params.vlan_tag === undefined || p.vlan_tag === params.vlan_tag)
+        ),
+    )
+
     return null
   }
 

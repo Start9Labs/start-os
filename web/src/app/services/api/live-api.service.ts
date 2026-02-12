@@ -22,6 +22,11 @@ import {
   VpnServers,
   WifiConfig,
   BlackoutWindow,
+  ProfileId,
+  ProfileIdOpt,
+  SecurityProfile,
+  ProfileCreateInput,
+  ProfileUpdateInput,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -122,5 +127,25 @@ export class LiveApiService extends ApiService {
       method: 'wifi.blackout-set',
       params: { windows: params },
     })
+  }
+
+  async profilesList(): Promise<ProfileId[]> {
+    return this.rpc.request({ method: 'profiles.list', params: {} })
+  }
+
+  async profileGet(params: ProfileIdOpt): Promise<SecurityProfile> {
+    return this.rpc.request({ method: 'profiles.get', params })
+  }
+
+  async profileCreate(params: ProfileCreateInput): Promise<ProfileId> {
+    return this.rpc.request({ method: 'profiles.create', params })
+  }
+
+  async profileUpdate(params: ProfileUpdateInput): Promise<ProfileId> {
+    return this.rpc.request({ method: 'profiles.set', params })
+  }
+
+  async profileDelete(params: ProfileIdOpt): Promise<null> {
+    return this.rpc.request({ method: 'profiles.delete', params })
   }
 }

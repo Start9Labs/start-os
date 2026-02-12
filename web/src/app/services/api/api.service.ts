@@ -30,6 +30,11 @@ export abstract class ApiService {
   abstract wifiSet(params: WifiConfig): Promise<null>
   abstract wifiBlackoutGet(): Promise<BlackoutWindow[]>
   abstract wifiBlackoutSet(params: BlackoutWindow[]): Promise<null>
+  abstract profilesList(): Promise<ProfileId[]>
+  abstract profileGet(params: ProfileIdOpt): Promise<SecurityProfile>
+  abstract profileCreate(params: ProfileCreateInput): Promise<ProfileId>
+  abstract profileUpdate(params: ProfileUpdateInput): Promise<ProfileId>
+  abstract profileDelete(params: ProfileIdOpt): Promise<null>
 }
 
 export type LoginReq = { password: string }
@@ -180,4 +185,67 @@ export interface BlackoutWindow {
   startTime: string
   endTime: string
   days: [boolean, boolean, boolean, boolean, boolean, boolean, boolean]
+}
+
+// Security Profile types
+export interface ProfileId {
+  fullname: string
+  interface: string
+  vlan_tag: number
+}
+
+export interface ProfileIdOpt {
+  fullname?: string
+  interface?: string
+  vlan_tag?: number
+}
+
+export interface SecurityProfile {
+  fullname: string
+  interface: string
+  vlan_tag: number
+  gateway_ip: string
+  outbound: string // 'wan' for default WAN, or VPN interface name
+  lan_access: LanAccess<ProfileId>
+  wan_access: WanAccess
+  access_to_new_profiles: boolean
+  owns_lan: boolean
+  dns_override?: string[] // Not yet supported by backend
+}
+
+export type LanAccess<Id = ProfileId> =
+  | 'ALL'
+  | 'SAME_PROFILE'
+  | { other_profiles: Id[] }
+
+export type WanAccess =
+  | 'ALL'
+  | 'NONE'
+  | { whitelist: string[] }
+  | { blacklist: string[] }
+
+export interface ProfileCreateInput {
+  fullname?: string
+  interface?: string
+  vlan_tag?: number
+  gateway_ip: string
+  outbound: string
+  lan_access: LanAccess<ProfileIdOpt>
+  wan_access: WanAccess
+  access_to_new_profiles: boolean
+  owns_lan: boolean
+  dns_override?: string[]
+}
+
+export interface ProfileUpdateInput {
+  fullname?: string
+  interface: string
+  vlan_tag: number
+  gateway_ip: string
+  outbound: string
+  lan_access: LanAccess<ProfileIdOpt>
+  wan_access: WanAccess
+  access_to_new_profiles: boolean
+  owns_lan: boolean
+  dns_override?: string[]
 }

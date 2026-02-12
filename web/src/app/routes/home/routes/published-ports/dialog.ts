@@ -30,8 +30,11 @@ import {
 } from '@taiga-ui/kit'
 import { TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { injectContext } from '@taiga-ui/polymorpheus'
+import { ModalHelp } from 'src/app/directives/modal-help'
 import { Device } from 'src/app/routes/home/routes/devices/utils'
 import { Protocol, PublishedPort, PublishedPortDialogResult } from './types'
+
+import { PublishedPortsDialogAside } from './dialog-aside'
 
 export interface PublishPortDialogData {
   devices: Device[]
@@ -41,6 +44,7 @@ export interface PublishPortDialogData {
 
 @Component({
   template: `
+    <published-ports-dialog-aside *modalHelp />
     <form tuiForm="m" [formGroup]="form" (submit.prevent)="save()">
       <tui-textfield class="field-narrow">
         <label tuiLabel>Label</label>
@@ -255,6 +259,8 @@ export interface PublishPortDialogData {
     TuiRadioList,
     TuiHeader,
     TuiNotification,
+    ModalHelp,
+    PublishedPortsDialogAside,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

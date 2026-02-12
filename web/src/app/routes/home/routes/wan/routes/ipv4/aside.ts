@@ -21,18 +21,6 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
         you a static IP.
       </li>
     </ul>
-    <h3>DNS</h3>
-    <p>DNS (Domain Name System) translates domain names to IP addresses.</p>
-    <ul>
-      <li>
-        <b>Get from ISP:</b>
-        Use DNS servers provided automatically by your ISP.
-      </li>
-      <li>
-        <b>Custom:</b>
-        Specify your own DNS servers (e.g., 1.1.1.1, 8.8.8.8).
-      </li>
-    </ul>
   `,
   host: { class: 'g-aside' },
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -4,19 +4,16 @@ import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
 import {
   TuiButton,
-  TuiDataListComponent,
-  TuiDropdownContent,
-  TuiDropdownDirective,
-  TuiDropdownOpen,
+  TuiDataList,
+  TuiDropdown,
   TuiLink,
-  TuiOption,
   TuiTitle,
 } from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
+import { Placeholder } from 'src/app/components/placeholder'
 import { Help } from 'src/app/directives/help'
-import { Placeholder } from 'src/app/routes/home/components/placeholder'
 import {
   ADD_SERVER,
   ServerDialogResult,
@@ -53,14 +50,14 @@ import { InboundAside } from './aside'
           <tr>
             <td tuiTd>{{ item.enabled ? '🟢' : '⚪' }}</td>
             <td tuiTd>
-              <a tuiLink [routerLink]="item.listen_port">
+              <a tuiLink [routerLink]="item.listen_port.toString()">
                 <b>{{ item.label }}</b>
               </a>
             </td>
             <td tuiTd>{{ item.endpoint }}</td>
             <td tuiTd>{{ item.listen_port }}</td>
             <td tuiTd>
-              <a tuiLink>{{ item.profile }}</a>
+              <a tuiLink routerLink="/profiles">{{ item.profile }}</a>
             </td>
             <td tuiTd>
               <button
@@ -68,6 +65,7 @@ import { InboundAside } from './aside'
                 size="xs"
                 iconStart="@tui.ellipsis-vertical"
                 appearance="icon"
+                tuiDropdownAlign="end"
                 tuiDropdownAuto
                 tuiDropdown
               >
@@ -89,7 +87,7 @@ import { InboundAside } from './aside'
                   <a
                     tuiOption
                     iconStart="@tui.monitor-smartphone"
-                    [routerLink]="item.listen_port"
+                    [routerLink]="item.listen_port.toString()"
                   >
                     Manage clients
                   </a>
@@ -150,11 +148,8 @@ import { InboundAside } from './aside'
     Placeholder,
     TuiLink,
     RouterLink,
-    TuiDataListComponent,
-    TuiDropdownContent,
-    TuiDropdownDirective,
-    TuiDropdownOpen,
-    TuiOption,
+    TuiDataList,
+    TuiDropdown,
   ],
 })
 export default class InboundTable {

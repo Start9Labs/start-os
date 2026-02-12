@@ -46,17 +46,6 @@ li {
   margin-block-end: 0.5rem;
 }
 
-header[tuiHeader] {
-  position: sticky;
-  left: 1.5rem;
-  max-width: calc(100vw - 3rem);
-
-  + tui-tabs {
-    flex-shrink: 0;
-    margin-block: 1rem;
-  }
-}
-
 .g-page {
   display: flex;
   flex-direction: column;
@@ -89,9 +78,20 @@ header[tuiHeader] {
 }
 
 .g-form {
+  max-width: 50rem;
+
   hr {
     margin: 0;
     border: 0;
+  }
+
+  // TODO: Remove after Taiga UI 5.0
+  fieldset {
+    flex-wrap: wrap;
+
+    &:first-child > legend {
+      padding-top: 0 !important;
+    }
   }
 
   section {
@@ -121,11 +121,7 @@ header[tuiHeader] {
     align-items: center;
   }
 
-  [tuiHeader] {
-    left: unset;
-  }
-
-  [tuiCardLarge][data-space] {
+  [tuiCardLarge][tuiSurface][tuiAppearance][data-appearance='neutral'] {
     background: none;
     padding: 0;
     border-radius: 0;
@@ -261,6 +257,18 @@ tui-dropdown[data-appearance='start-9'] {
   }
 }
 
-tui-data-list input {
-  --tui-text-action: var(--tui-text-primary);
+[tuiCardLarge][tuiSurface][tuiAppearance][data-appearance='neutral'] {
+  background: var(--tui-background-neutral-1);
+}
+
+tui-data-list {
+  [tuiOption]:disabled {
+    // For tooltips
+    pointer-events: auto;
+  }
+
+  input {
+    // Checkmark
+    --tui-text-action: var(--tui-text-primary);
+  }
 }

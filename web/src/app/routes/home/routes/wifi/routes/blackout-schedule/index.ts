@@ -6,11 +6,13 @@ import {
 } from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
-import { TuiButton, TuiTitle } from '@taiga-ui/core'
-import { TuiHeader } from '@taiga-ui/layout'
-import { Placeholder } from 'src/app/routes/home/components/placeholder'
-import { BlackoutService, BlackoutWindow } from './service'
+import { TuiButton } from '@taiga-ui/core'
+import { TuiSkeleton } from '@taiga-ui/kit'
+import { Placeholder } from 'src/app/components/placeholder'
+import { Help } from 'src/app/directives/help'
+import { WifiBlackoutAside } from './aside'
 import { ADD_BLACKOUT_WINDOW } from './dialog'
+import { BlackoutService, BlackoutWindow } from './service'
 
 // Display order: Mon–Sun; data order: Sun(0)–Sat(6)
 const DISPLAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
@@ -25,30 +27,25 @@ function formatTime(time: string): string {
 
 @Component({
   template: `
-    <header tuiHeader>
-      <hgroup tuiTitle><h2>Blackout Schedule</h2></hgroup>
-      <aside tuiAccessories>
-        <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
-      </aside>
-    </header>
-    <table tuiTable class="g-table">
+    <wifi-blackout-aside *help />
+    <table tuiTable class="g-table" [tuiSkeleton]="!service.data()">
       <thead>
         <tr>
           <th tuiTh>Start Time</th>
           <th tuiTh>End Time</th>
           <th tuiTh>Days</th>
-          <th tuiTh></th>
+          <th tuiTh>
+            <button tuiButton size="xs" iconStart="@tui.plus" (click)="add()">
+              Add
+            </button>
+          </th>
         </tr>
       </thead>
       <tbody>
         @for (item of windows(); track $index) {
           <tr>
-            <td tuiTd>
-              <b>{{ item.startTime }}</b>
-            </td>
-            <td tuiTd>
-              <b>{{ item.endTime }}</b>
-            </td>
+            <td tuiTd>{{ item.startTime }}</td>
+            <td tuiTd>{{ item.endTime }}</td>
             <td tuiTd>{{ item.daysLabel }}</td>
             <td tuiTd>
               <button
@@ -80,35 +77,46 @@ function formatTime(time: string): string {
       max-width: 50rem;
     }
 
+    td:nth-child(1),
+    td:nth-child(2) {
+      font-weight: bold;
+    }
+
+    th:last-child,
     td:last-child {
       text-align: end;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
-  imports: [TuiHeader, TuiTitle, TuiButton, TuiTable, Placeholder],
+  imports: [
+    TuiButton,
+    TuiTable,
+    Placeholder,
+    TuiSkeleton,
+    WifiBlackoutAside,
+    Help,
+  ],
 })
 export default class BlackoutScheduleComponent {
-  private readonly service = inject(BlackoutService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
 
-  protected readonly windows = computed(() => {
-    const data = this.service.data()
-    if (!data) return []
-    return data.map(w => ({
-      startTime: formatTime(w.startTime),
-      endTime: formatTime(w.endTime),
-      daysLabel: DISPLAY_ORDER.filter(i => w.days[i])
-        .map(i => DAY_LABELS[i])
-        .join(', '),
-    }))
-  })
+  protected readonly service = inject(BlackoutService)
+  protected readonly windows = computed(
+    () =>
+      this.service.data()?.map(w => ({
+        startTime: formatTime(w.startTime),
+        endTime: formatTime(w.endTime),
+        daysLabel: DISPLAY_ORDER.filter(i => w.days[i])
+          .map(i => DAY_LABELS[i])
+          .join(', '),
+      })) || [],
+  )
 
   add() {
     this.dialogs
       .open<BlackoutWindow>(ADD_BLACKOUT_WINDOW, {
         label: 'Add Blackout Window',
-        size: 'm',
       })
       .subscribe(result => {
         this.service.addWindow(result)

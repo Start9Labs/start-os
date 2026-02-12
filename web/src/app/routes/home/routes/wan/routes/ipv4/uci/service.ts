@@ -5,7 +5,6 @@ import {
   WanIpv4Form,
 } from 'src/app/routes/home/routes/wan/routes/ipv4/utils'
 import { ApiService } from 'src/app/services/api/api.service'
-import { applyDnsToInterface, parseDnsFromInterface } from '../../../dns/utils'
 import {
   NetworkInterfaceSection,
   UciFile,
@@ -89,13 +88,12 @@ export class WanIpv4UciService {
 
     this._cachedData = {
       ip,
-      dns: parseDnsFromInterface(wanInterface),
     }
 
     return this._cachedData
   }
 
-  async set({ ip, dns }: WanIpv4Form) {
+  async set({ ip }: WanIpv4Form) {
     const uciFiles = JSON.parse(JSON.stringify(this._uciFiles)) as UciFiles
 
     const wan = uciFiles.network.sections.find(
@@ -138,8 +136,6 @@ export class WanIpv4UciService {
       delete wan.options.netmask
       delete wan.options.gateway
     }
-
-    applyDnsToInterface(dns, wan)
 
     await this.api.setUci<(keyof typeof uciFiles)[]>(uciFiles)
 

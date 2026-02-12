@@ -11,11 +11,11 @@ import {
   TuiError,
   TuiHint,
   TuiInput,
+  TuiRadio,
   TuiTextfield,
   TuiTitle,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TuiRadio } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { FORM } from 'src/app/directives/form'
 import {

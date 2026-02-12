@@ -3,23 +3,15 @@ import {
   Component,
   computed,
   inject,
-  signal,
 } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
-import {
-  TuiButton,
-  TuiDataListComponent,
-  TuiDropdownContent,
-  TuiDropdownDirective,
-  TuiDropdownOpen,
-  TuiLink,
-  TuiOption,
-  TuiTitle,
-} from '@taiga-ui/core'
-import { TuiHeader } from '@taiga-ui/layout'
+import { TuiButton, TuiDataList, TuiDropdown, TuiLink } from '@taiga-ui/core'
+import { TuiSkeleton } from '@taiga-ui/kit'
+import { Masked } from 'src/app/components/masked'
+import { Placeholder } from 'src/app/components/placeholder'
 import { Help } from 'src/app/directives/help'
-import { Placeholder } from 'src/app/routes/home/components/placeholder'
 import { WifiService } from '../../service'
 
 import { WifiPasswordsAside } from './aside'
@@ -32,58 +24,28 @@ import {
 @Component({
   template: `
     <wifi-passwords-aside *help />
-    <header tuiHeader>
-      <hgroup tuiTitle><h2>Passwords</h2></hgroup>
-      <aside tuiAccessories>
-        <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
-      </aside>
-    </header>
-    <table tuiTable class="g-table">
+    <table tuiTable class="g-table" [tuiSkeleton]="!service.data()">
       <thead>
         <tr>
           <th tuiTh [sorter]="'label' | tuiSorter">Label</th>
           <th tuiTh [sorter]="'password' | tuiSorter">Password</th>
           <th tuiTh [sorter]="'profile' | tuiSorter">Security Profile</th>
-          <th tuiTh></th>
+          <th tuiTh>
+            <button tuiButton size="xs" iconStart="@tui.plus" (click)="add()">
+              Add
+            </button>
+          </th>
         </tr>
       </thead>
       <tbody>
-        @for (item of passwords(); track $index) {
+        @for (item of passwords() | tuiTableSort; track $index) {
           <tr>
+            <td tuiTd>{{ item.label }}</td>
             <td tuiTd>
-              <b>{{ item.label }}</b>
+              <span [appMasked]="item.password"></span>
             </td>
             <td tuiTd>
-              <div class="password-cell">
-                <span>
-                  {{
-                    revealed().has($index) ? item.password : '••••••••••••••••'
-                  }}
-                </span>
-                <button
-                  tuiIconButton
-                  size="xs"
-                  appearance="icon"
-                  [iconStart]="
-                    revealed().has($index) ? '@tui.eye-off' : '@tui.eye'
-                  "
-                  (click)="toggleReveal($index)"
-                >
-                  Toggle visibility
-                </button>
-                <button
-                  tuiIconButton
-                  size="xs"
-                  appearance="icon"
-                  iconStart="@tui.copy"
-                  (click)="copyPassword(item.password)"
-                >
-                  Copy
-                </button>
-              </div>
-            </td>
-            <td tuiTd>
-              <a tuiLink>{{ item.profile }}</a>
+              <a tuiLink routerLink="/profiles">{{ item.profile }}</a>
             </td>
             <td tuiTd>
               <button
@@ -91,6 +53,7 @@ import {
                 size="xs"
                 iconStart="@tui.ellipsis-vertical"
                 appearance="icon"
+                tuiDropdownAlign="end"
                 tuiDropdownAuto
                 tuiDropdown
               >
@@ -137,49 +100,42 @@ import {
       max-width: 50rem;
     }
 
-    td:last-child {
-      text-align: end;
+    td:first-child {
+      font-weight: bold;
     }
 
-    .password-cell {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
+    th:last-child,
+    td:last-child {
+      text-align: end;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
   imports: [
-    TuiHeader,
-    TuiTitle,
+    RouterLink,
     TuiButton,
     TuiTable,
     TuiLink,
-    TuiDataListComponent,
-    TuiDropdownContent,
-    TuiDropdownDirective,
-    TuiDropdownOpen,
-    TuiOption,
+    TuiDataList,
+    TuiDropdown,
+    TuiSkeleton,
+    Masked,
     Help,
     Placeholder,
     WifiPasswordsAside,
   ],
 })
 export default class WifiPasswords {
-  private readonly service = inject(WifiService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
 
-  protected readonly revealed = signal(new Set<number>())
-
-  protected readonly passwords = computed(() => {
-    const config = this.service.data()
-    if (!config) return []
-    return config.passwords.map(p => ({
-      label: p.label,
-      password: p.password,
-      profile: p.profile?.fullname ?? 'Admin',
-    }))
-  })
+  protected readonly service = inject(WifiService)
+  protected readonly passwords = computed(
+    () =>
+      this.service.data()?.passwords.map(p => ({
+        ...p,
+        profile: p.profile?.fullname ?? 'Admin',
+      })) || [],
+  )
 
   add() {
     this.dialogs
@@ -234,20 +190,6 @@ export default class WifiPasswords {
           .store({ ...current, passwords })
           .then(() => this.service.refresh())
       })
-  }
-
-  toggleReveal(index: number) {
-    const next = new Set(this.revealed())
-    if (next.has(index)) {
-      next.delete(index)
-    } else {
-      next.add(index)
-    }
-    this.revealed.set(next)
-  }
-
-  copyPassword(password: string) {
-    navigator.clipboard.writeText(password)
   }
 
   delete(index: number) {

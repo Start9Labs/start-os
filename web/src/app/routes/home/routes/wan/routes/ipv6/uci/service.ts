@@ -1,7 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { ApiService } from 'src/app/services/api/api.service'
 import { WanIpv6Form } from '../utils'
-import { applyDnsToInterface, parseDnsFromInterface } from '../../../dns/utils'
 import {
   NetworkInterfaceSection,
   UciFile,
@@ -50,7 +49,6 @@ export class WanIpv6UciService {
     if (!wan6Interface) {
       this._cachedData = {
         ip: { mode: 'disabled' },
-        dns: { mode: 'isp' },
       } as WanIpv6Form
       return this._cachedData
     }
@@ -93,13 +91,12 @@ export class WanIpv6UciService {
 
     this._cachedData = {
       ip,
-      dns: parseDnsFromInterface(wan6Interface),
     }
 
     return this._cachedData
   }
 
-  async set({ ip, dns }: WanIpv6Form) {
+  async set({ ip }: WanIpv6Form) {
     if (!this._uciFiles) {
       throw new Error('Configuration not loaded yet')
     }
@@ -186,9 +183,6 @@ export class WanIpv6UciService {
         delete wan6.options.reqaddress
         delete wan6.options.reqprefix
       }
-
-      // Apply DNS configuration
-      applyDnsToInterface(dns, wan6)
     }
 
     await this.api.setUci<(keyof typeof uciFiles)[]>(uciFiles)

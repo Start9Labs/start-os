@@ -70,4 +70,40 @@ export class CustomValidators {
       return macRegex.test(control.value) ? null : { mac: true }
     }
   }
+
+  static ipv4List(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null
+
+      const items = control.value
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter(Boolean)
+
+      for (const item of items) {
+        // Check if it's a CIDR (IP/prefix)
+        if (item.includes('/')) {
+          const [ip, prefix] = item.split('/')
+          if (!isValidIpv4(ip)) return { ipv4List: true }
+          const prefixNum = parseInt(prefix, 10)
+          if (isNaN(prefixNum) || prefixNum < 0 || prefixNum > 32)
+            return { ipv4List: true }
+        } else {
+          // Plain IP
+          if (!isValidIpv4(item)) return { ipv4List: true }
+        }
+      }
+      return null
+    }
+  }
+}
+
+function isValidIpv4(ip: string): boolean {
+  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
+  const match = ip.match(ipv4Regex)
+  if (!match) return false
+  return [match[1], match[2], match[3], match[4]].every(octet => {
+    const num = parseInt(octet, 10)
+    return num >= 0 && num <= 255
+  })
 }

@@ -17,10 +17,7 @@ import {
   injectFormService,
   provideFormService,
 } from 'src/app/services/form.service'
-import { CustomValidators } from 'src/app/utils/validators'
 import { WanIpv4Aside } from './aside'
-import { Dns } from '../../dns/dns'
-import { updateDnsValidators } from '../../dns/utils'
 import { WanIpv4Ip } from './form/ip'
 import { WanIpv4Service } from './service'
 import { WanIpv4Summary } from './summary'
@@ -39,8 +36,6 @@ import { getWanIpv4Form, updateIpv4Validators, WanIpv4Form } from './utils'
       (ngSubmit)="onSave()"
     >
       <wan-ipv4-ip formGroupName="ip" />
-      <hr />
-      <wan-dns [mode]="dnsMode()" formGroupName="dns" />
       @if (service.data()) {
         <footer appFooter></footer>
       }
@@ -55,7 +50,6 @@ import { getWanIpv4Form, updateIpv4Validators, WanIpv4Form } from './utils'
     Help,
     WanIpv4Summary,
     WanIpv4Ip,
-    Dns,
     WanIpv4Aside,
   ],
   host: { class: 'g-page' },
@@ -75,13 +69,6 @@ export default class WanIpv4 {
     { requireSync: true },
   )
 
-  readonly dnsMode = toSignal(
-    this.form.controls.dns.controls.mode.valueChanges.pipe(
-      startWith(this.form.controls.dns.controls.mode.value),
-    ),
-    { requireSync: true },
-  )
-
   constructor() {
     // Reset form when data loads
     effect(() => {
@@ -89,9 +76,6 @@ export default class WanIpv4 {
       if (data && this.form.pristine) {
         this.form.reset(data)
         updateIpv4Validators(this.form, data.ip.mode)
-        updateDnsValidators(this.form.controls.dns, data.dns.mode, [
-          CustomValidators.ipv4(),
-        ])
       }
     })
 
@@ -100,16 +84,6 @@ export default class WanIpv4 {
       const mode = this.ipMode()
       if (mode) {
         updateIpv4Validators(this.form, mode)
-      }
-    })
-
-    // Update validators when DNS mode changes
-    effect(() => {
-      const mode = this.dnsMode()
-      if (mode) {
-        updateDnsValidators(this.form.controls.dns, mode, [
-          CustomValidators.ipv4(),
-        ])
       }
     })
   }
