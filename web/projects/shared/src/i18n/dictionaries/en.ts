@@ -4,7 +4,7 @@ export const ENGLISH: Record<string, number> = {
   'Update': 2, // verb
   'System': 4, // as in, system preferences
   'General': 5, // as in, general settings
-  'Email': 6,
+  'SMTP': 6,
   'Create Backup': 7, // create a backup
   'Restore Backup': 8, // restore from backup
   'Go to login': 9,
@@ -384,8 +384,8 @@ export const ENGLISH: Record<string, number> = {
   'Connected': 405,
   'Forget': 406, // as in, delete or remove
   'WiFi Credentials': 407,
-  'Deprecated': 408,
-  'WiFi support will be removed in StartOS v0.4.1. If you do not have access to Ethernet, you can use a WiFi extender to connect to the local network, then connect your server to the extender via Ethernet. Please contact Start9 support with any questions or concerns.': 409,
+  'Connect to hidden network': 408,
+  'Connect to': 409, // followed by a network name, e.g. "Connect to MyWiFi?"
   'Known Networks': 410,
   'Other Networks': 411,
   'WiFi is disabled': 412,
