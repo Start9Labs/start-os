@@ -49,7 +49,7 @@ export class LiveApiService extends ApiService {
     urls: string[],
     params: Record<string, string | number>,
   ): Promise<string> {
-    for (let url in urls) {
+    for (const url of urls) {
       try {
         const res = await this.httpRequest<string>({
           method: 'GET',
