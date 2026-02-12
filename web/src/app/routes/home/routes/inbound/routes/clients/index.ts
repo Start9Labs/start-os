@@ -10,26 +10,23 @@ import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
 import {
   TuiButton,
-  TuiDataListComponent,
-  TuiDropdownContent,
-  TuiDropdownDirective,
-  TuiDropdownOpen,
+  TuiDataList,
+  TuiDropdown,
   TuiLink,
-  TuiOption,
   TuiTitle,
 } from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
+import { Placeholder } from 'src/app/components/placeholder'
 import { Help } from 'src/app/directives/help'
-import { Placeholder } from 'src/app/routes/home/components/placeholder'
 import { DevicesUciService } from 'src/app/routes/home/routes/devices/uci/service'
+import { InboundService, VpnServerPeer } from '../../service'
+import { InboundClientsAside } from './aside'
 
 import { CLIENT_CONFIG } from './config-dialog'
 import { ADD_CLIENT, ClientDialogData } from './dialog'
 import { RENAME_CLIENT } from './rename-dialog'
-import { InboundService, VpnServerPeer } from '../../service'
-import { InboundClientsAside } from './aside'
 
 @Component({
   template: `
@@ -80,6 +77,7 @@ import { InboundClientsAside } from './aside'
                 size="xs"
                 iconStart="@tui.ellipsis-vertical"
                 appearance="icon"
+                tuiDropdownAlign="end"
                 tuiDropdownAuto
                 tuiDropdown
               >
@@ -152,11 +150,8 @@ import { InboundClientsAside } from './aside'
     TuiButton,
     TuiTable,
     TuiSkeleton,
-    TuiDataListComponent,
-    TuiDropdownContent,
-    TuiDropdownDirective,
-    TuiDropdownOpen,
-    TuiOption,
+    TuiDataList,
+    TuiDropdown,
     Help,
     Placeholder,
     InboundClientsAside,

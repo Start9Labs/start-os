@@ -31,6 +31,10 @@ export default [
         loadChildren: () => import('./routes/inbound'),
       },
       {
+        path: 'profiles',
+        loadComponent: () => import('./routes/profiles'),
+      },
+      {
         path: 'lan',
         loadChildren: () => import('./routes/lan'),
       },

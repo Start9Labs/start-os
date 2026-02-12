@@ -11,27 +11,27 @@ import {
   TuiDataList,
   TuiInput,
   TuiLabel,
+  TuiRadio,
   TuiTextfield,
-  TuiTitle,
+  tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
-import { tuiTextfieldOptionsProvider } from '@taiga-ui/core'
-import { TuiChevron, TuiRadio, TuiSelect, TuiSwitch } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { TuiChevron, TuiSelect, TuiSwitch } from '@taiga-ui/kit'
 import { startWith } from 'rxjs'
+import { Footer } from 'src/app/components/footer'
+import { Form } from 'src/app/directives/form'
+import { Help } from 'src/app/directives/help'
 import { WifiService } from '../../service'
+import { WifiSettingsAside } from './aside'
 
 @Component({
   template: `
-    <header tuiHeader><h2 tuiTitle>Settings</h2></header>
-    <form tuiForm="m" tuiCardLarge class="g-form" [formGroup]="form">
-      <header tuiHeader="h6"><h2 tuiTitle>Enable/Disable</h2></header>
+    <wifi-settings-aside *help />
+    <form [formGroup]="form" [formLoading]="!service.data()">
       <label tuiLabel>
         <input type="checkbox" tuiSwitch formControlName="enabled" />
         Enable Wi-Fi
       </label>
-      <hr />
-      <header tuiHeader="h6"><h2 tuiTitle>SSID</h2></header>
-      <tui-textfield class="input">
+      <tui-textfield>
         <label tuiLabel>SSID</label>
         <input tuiInput formControlName="ssid" />
       </tui-textfield>
@@ -39,9 +39,8 @@ import { WifiService } from '../../service'
         <input type="checkbox" tuiSwitch formControlName="broadcast" />
         Broadcast
       </label>
-      <hr />
-      <header tuiHeader="h6"><h2 tuiTitle>Frequency Band</h2></header>
-      <div class="options">
+      <fieldset>
+        <legend>Frequency Band</legend>
         @for (value of bands; track $index) {
           <label tuiLabel>
             <input
@@ -53,7 +52,7 @@ import { WifiService } from '../../service'
             {{ value }}
           </label>
         }
-      </div>
+      </fieldset>
       @if (band() === 'Both') {
         <label tuiLabel>
           <input
@@ -64,38 +63,41 @@ import { WifiService } from '../../service'
           Broadcast Separately
         </label>
       }
-      <hr />
-      <header tuiHeader="h6"><h2 tuiTitle>Frequency Range</h2></header>
-      <!-- @TODO: Implement channel optimization (requires backend channel scan endpoint) -->
-      <tui-textfield tuiChevron class="input">
-        <label tuiLabel>2.4 GHz Channel</label>
-        <input tuiSelect formControlName="channel24" />
-        <tui-data-list *tuiDropdown>
-          @for (ch of channels24; track ch) {
-            <button tuiOption [value]="ch">{{ ch }}</button>
-          }
-        </tui-data-list>
-      </tui-textfield>
-      <tui-textfield tuiChevron class="input">
-        <label tuiLabel>5 GHz Channel</label>
-        <input tuiSelect formControlName="channel5" />
-        <tui-data-list *tuiDropdown>
-          @for (ch of channels5; track ch) {
-            <button tuiOption [value]="ch">{{ ch }}</button>
-          }
-        </tui-data-list>
-      </tui-textfield>
+      <fieldset>
+        <legend>Frequency Range</legend>
+        <!-- @TODO: Implement channel optimization (requires backend channel scan endpoint) -->
+        <tui-textfield tuiChevron>
+          <label tuiLabel>2.4 GHz Channel</label>
+          <input tuiSelect formControlName="channel24" />
+          <tui-data-list *tuiDropdown>
+            @for (ch of channels24; track ch) {
+              <button tuiOption [value]="ch">{{ ch }}</button>
+            }
+          </tui-data-list>
+        </tui-textfield>
+        <tui-textfield tuiChevron>
+          <label tuiLabel>5 GHz Channel</label>
+          <input tuiSelect formControlName="channel5" />
+          <tui-data-list *tuiDropdown>
+            @for (ch of channels5; track ch) {
+              <button tuiOption [value]="ch">{{ ch }}</button>
+            }
+          </tui-data-list>
+        </tui-textfield>
+      </fieldset>
+      @if (service.data()) {
+        <footer appFooter></footer>
+      }
     </form>
   `,
   styles: `
-    .input {
-      max-width: 16rem;
+    fieldset {
+      display: flex !important;
     }
 
-    .options {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
+    tui-textfield {
+      flex: 1;
+      max-width: 16rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -103,10 +105,6 @@ import { WifiService } from '../../service'
   host: { class: 'g-page' },
   imports: [
     ReactiveFormsModule,
-    TuiHeader,
-    TuiTitle,
-    TuiForm,
-    TuiCardLarge,
     TuiLabel,
     TuiSwitch,
     TuiRadio,
@@ -115,11 +113,14 @@ import { WifiService } from '../../service'
     TuiSelect,
     TuiChevron,
     TuiDataList,
+    WifiSettingsAside,
+    Help,
+    Footer,
+    Form,
   ],
 })
 export default class WifiSettings {
-  private readonly service = inject(WifiService)
-
+  protected readonly service = inject(WifiService)
   protected readonly form = inject(NonNullableFormBuilder).group({
     enabled: [true],
     ssid: ['StartOS'],
@@ -138,7 +139,6 @@ export default class WifiSettings {
   )
 
   protected readonly bands = ['2.4 GHz', '5 GHz', 'Both']
-
   protected readonly channels24 = [
     'Auto',
     '1',
@@ -186,14 +186,14 @@ export default class WifiSettings {
   constructor() {
     effect(() => {
       const config = this.service.data()
-      if (!config) return
+
+      if (!config || !this.form.pristine) return
 
       const radios = Object.entries(config.radios)
       const radio2g = radios.find(([, r]) => r.band === '2g')
       const radio5g = radios.find(([, r]) => r.band === '5g')
       const anyEnabled = radios.some(([, r]) => r.enabled)
       const anyBroadcast = radios.some(([, r]) => r.broadcast)
-
       const channelToOption = (ch: string) => (ch === 'auto' ? 'Auto' : ch)
 
       this.form.patchValue(

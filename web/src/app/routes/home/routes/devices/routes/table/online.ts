@@ -8,7 +8,7 @@ import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiButton, TuiFormatNumberPipe, TuiLink } from '@taiga-ui/core'
 import { TuiChip } from '@taiga-ui/kit'
-import { Placeholder } from 'src/app/routes/home/components/placeholder'
+import { Placeholder } from 'src/app/components/placeholder'
 import { DevicesService } from 'src/app/routes/home/routes/devices/service'
 import { DeviceTableItem } from 'src/app/routes/home/routes/devices/utils'
 
@@ -48,7 +48,9 @@ import { DeviceTableItem } from 'src/app/routes/home/routes/devices/utils'
             </div>
           </td>
           <td tuiTd>
-            <a tuiLink>{{ item.securityProfile || 'Default' }}</a>
+            <a tuiLink routerLink="/profiles">
+              {{ item.securityProfile || 'Default' }}
+            </a>
           </td>
           <td tuiTd>{{ item.mac }}</td>
           <td tuiTd>

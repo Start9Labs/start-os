@@ -132,13 +132,10 @@ export default class OutboundVPN {
 
   readonly service = inject(OutboundService)
   readonly vpnId = this.route.snapshot.params['label']
-
   readonly form = getOutboundVpnForm(inject(NonNullableFormBuilder))
-
-  readonly data = computed(() => {
-    const allVpns = this.service.data()
-    return allVpns?.find(v => v.id === this.vpnId) ?? null
-  })
+  readonly data = computed(
+    () => this.service.data()?.find(v => v.id === this.vpnId) ?? null,
+  )
 
   readonly targetOptions = computed(() => {
     const currentLabel = this.data()?.label
@@ -153,10 +150,7 @@ export default class OutboundVPN {
     effect(() => {
       const data = this.data()
       if (data && this.form.pristine) {
-        this.form.reset({
-          label: data.label,
-          target: data.target,
-        })
+        this.form.reset({ ...data })
       }
     })
   }
@@ -177,10 +171,7 @@ export default class OutboundVPN {
   onCancel() {
     const data = this.data()
     if (data) {
-      this.form.reset({
-        label: data.label,
-        target: data.target,
-      })
+      this.form.reset({ ...data })
     }
   }
 

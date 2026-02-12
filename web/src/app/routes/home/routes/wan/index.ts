@@ -36,7 +36,13 @@ import { ToCamelPipe } from 'src/app/pipes/to-camel.pipe'
   ],
 })
 class Wan {
-  protected readonly tabs = ['IPv4', 'IPv6', 'MAC Address', 'Dynamic DNS']
+  protected readonly tabs = [
+    'IPv4',
+    'IPv6',
+    'DNS',
+    'MAC Address',
+    'Dynamic DNS',
+  ]
 }
 
 export default [
@@ -51,6 +57,10 @@ export default [
       {
         path: 'ipv6',
         loadComponent: () => import('./routes/ipv6'),
+      },
+      {
+        path: 'dns',
+        loadComponent: () => import('./routes/dns'),
       },
       {
         path: 'mac-address',

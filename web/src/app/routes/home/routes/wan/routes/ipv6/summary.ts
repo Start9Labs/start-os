@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed } from '@angular/core'
 import { Summary } from 'src/app/components/summary'
 import { injectFormService } from 'src/app/services/form.service'
 import { WanIpv6Form, IPV6_LABELS } from './utils'
-import { DnsSummary } from '../../dns/summary'
 
 const SUMMARY_FIELDS = [
   'wan',
@@ -22,11 +21,10 @@ const SUMMARY_FIELDS = [
           <div [appSummary]="val">{{ item.label }}</div>
         }
       }
-      <div [dnsSummary]="service.data()?.dns"></div>
     </section>
   `,
   host: { '[style.background]': '"var(--tui-status-info-pale)"' },
-  imports: [Summary, DnsSummary],
+  imports: [Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WanIpv6Summary {

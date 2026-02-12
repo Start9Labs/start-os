@@ -8,19 +8,15 @@ import { AdvancedAside } from './aside'
 @Component({
   template: `
     <advanced-aside *help />
-    <section tuiCardLarge>
-      <footer>
-        <button tuiButton>Launch LuCI Interface</button>
-        <button tuiButton>Download Support Diagnostics</button>
-        <button tuiButton>Factory Reset</button>
-      </footer>
+    <section tuiCardLarge [style.align-items]="'start'">
+      <button tuiButton>Launch LuCI Interface</button>
+      <button tuiButton>Download Support Diagnostics</button>
+      <button tuiButton>Factory Reset</button>
     </section>
   `,
   styles: `
-    footer {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
+    :host {
+      max-width: 50rem;
     }
   `,
   host: { class: 'g-page' },

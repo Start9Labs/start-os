@@ -1,5 +1,4 @@
 import { NonNullableFormBuilder, Validators } from '@angular/forms'
-import { getDnsForm } from '../../dns/utils'
 import { CustomValidators } from 'src/app/utils/validators'
 import { FormRawValue } from 'src/app/services/form.service'
 
@@ -58,7 +57,6 @@ export function getWanIpv6Form(builder: NonNullableFormBuilder) {
       mask: builder.control('', [CustomValidators.prefix(0, 32)]),
       border: builder.control('', [CustomValidators.ipv4()]),
     }),
-    dns: getDnsForm(builder, [CustomValidators.ipv4OrIpv6()]),
   })
 }
 

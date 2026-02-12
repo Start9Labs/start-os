@@ -1,4 +1,9 @@
-import { Component, inject, signal } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
@@ -98,6 +103,7 @@ import { getAddOutboundVpnForm, OUTBOUND_VALIDATION_ERRORS } from './utils'
     ModalHelp,
     OutboundDialogAside,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 class AddClient {
   protected readonly context = injectContext<TuiDialogContext<any, string[]>>()

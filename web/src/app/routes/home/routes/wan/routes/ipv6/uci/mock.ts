@@ -9,14 +9,11 @@ export const wanIpv6Slaac: UciSection = {
     reqaddress: 'try',
     reqprefix: 'auto',
     device: '@wan',
-    peerdns: '1', // Using ISP DNS
     // Dynamically assigned values
     ip6addr: '2001:db8:1234:5678::2/64',
     ip6gw: '2001:db8:1234:5678::1',
   },
-  lists: {
-    dns: [],
-  },
+  lists: {},
 }
 
 // Mock 2: DHCPv6 (stateful)
@@ -28,13 +25,10 @@ export const wanIpv6Dhcpv6: UciSection = {
     reqaddress: 'force',
     reqprefix: 'auto',
     device: '@wan',
-    peerdns: '0', // Using custom DNS
     // Dynamically assigned values
     ip6addr: '2001:db8:abcd:ef01::100/128',
   },
-  lists: {
-    dns: ['2001:4860:4860::8888', '2001:4860:4860::8844'], // Google IPv6 DNS
-  },
+  lists: {},
 }
 
 // Mock 3: Static IPv6
@@ -46,11 +40,8 @@ export const wanIpv6Static: UciSection = {
     ip6addr: '2001:db8:cafe:babe::10/64',
     ip6gw: '2001:db8:cafe:babe::1',
     device: '@wan',
-    peerdns: '0',
   },
-  lists: {
-    dns: ['2620:fe::fe@853', '2620:fe::9@853'], // Quad9 IPv6 DNS over TLS
-  },
+  lists: {},
 }
 
 // Mock 4: 6RD (IPv6 Rapid Deployment tunnel)
@@ -63,11 +54,8 @@ export const wanIpv6_6rd: UciSection = {
     ip6prefix: '2001:db8::/32', // 6RD prefix from ISP
     ip6prefixlen: '32', // Prefix length
     device: '@wan',
-    peerdns: '1',
   },
-  lists: {
-    dns: [],
-  },
+  lists: {},
 }
 
 // Mock 5: Disabled IPv6

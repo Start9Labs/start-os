@@ -3,7 +3,7 @@ import { FormService } from 'src/app/services/form.service'
 import { OutboundUciService } from './uci/service'
 import { OutboundVpnTableItem } from './utils'
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class OutboundService extends FormService<OutboundVpnTableItem[]> {
   private readonly uci = inject(OutboundUciService)
 

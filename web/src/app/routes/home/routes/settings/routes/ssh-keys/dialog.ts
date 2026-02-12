@@ -19,6 +19,9 @@ import {
 import { TuiTextarea } from '@taiga-ui/kit'
 import { TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent, injectContext } from '@taiga-ui/polymorpheus'
+import { ModalHelp } from 'src/app/directives/modal-help'
+
+import { SshKeysDialogAside } from './dialog-aside'
 
 function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
   const value = control.value?.trim()
@@ -39,6 +42,7 @@ function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
 
 @Component({
   template: `
+    <ssh-keys-dialog-aside *modalHelp />
     <form tuiForm="m" [formGroup]="form">
       <tui-textfield>
         <label tuiLabel>Public Key</label>
@@ -77,6 +81,8 @@ function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
     TuiInput,
     TuiButton,
     TuiTextarea,
+    ModalHelp,
+    SshKeysDialogAside,
   ],
 })
 export class AddSshKey {
