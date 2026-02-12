@@ -8,17 +8,15 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::public::NetworkInterfaceInfo;
 use crate::db::prelude::Map;
 use crate::net::forward::AvailablePorts;
-use crate::net::gateway::InterfaceFilter;
 use crate::net::host::HostApiKind;
 use crate::net::service_interface::HostnameInfo;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::util::FromStrParser;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
-use crate::{GatewayId, HostId};
+use crate::HostId;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -51,9 +49,9 @@ impl FromStr for BindId {
 #[ts(export)]
 #[model = "Model<Self>"]
 pub struct DerivedAddressInfo {
-    /// User-controlled: private-gateway addresses the user has disabled
+    /// User-controlled: private addresses the user has disabled
     pub private_disabled: BTreeSet<HostnameInfo>,
-    /// User-controlled: public-gateway addresses the user has enabled
+    /// User-controlled: public addresses the user has enabled
     pub public_enabled: BTreeSet<HostnameInfo>,
     /// COMPUTED: NetServiceData::update — all possible addresses for this binding
     pub possible: BTreeSet<HostnameInfo>,
@@ -76,26 +74,6 @@ impl DerivedAddressInfo {
             .collect()
     }
 
-    /// Derive a gateway-level InterfaceFilter from the enabled addresses.
-    /// A gateway passes the filter if it has any enabled address for this binding.
-    pub fn gateway_filter(&self) -> AddressFilter {
-        let enabled_gateways: BTreeSet<GatewayId> = self
-            .enabled()
-            .into_iter()
-            .map(|h| h.gateway.id.clone())
-            .collect();
-        AddressFilter(enabled_gateways)
-    }
-}
-
-/// Gateway-level filter derived from DerivedAddressInfo.
-/// Passes if the gateway has at least one enabled address.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct AddressFilter(pub BTreeSet<GatewayId>);
-impl InterfaceFilter for AddressFilter {
-    fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        info.ip_info.is_some() && self.0.contains(id)
-    }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -145,12 +123,6 @@ pub struct NetInfo {
     pub assigned_port: Option<u16>,
     pub assigned_ssl_port: Option<u16>,
 }
-impl InterfaceFilter for NetInfo {
-    fn filter(&self, _id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        info.ip_info.is_some()
-    }
-}
-
 impl BindInfo {
     pub fn new(available_ports: &mut AvailablePorts, options: BindOptions) -> Result<Self, Error> {
         let mut assigned_port = None;

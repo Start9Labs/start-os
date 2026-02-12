@@ -366,28 +366,6 @@ where
 pub struct WebServerAcceptorSetter<A: Accept> {
     acceptor: Watch<A>,
 }
-impl<A, B> WebServerAcceptorSetter<Option<Either<A, B>>>
-where
-    A: Accept,
-    B: Accept<Metadata = A::Metadata>,
-{
-    pub fn try_upgrade<F: FnOnce(A) -> Result<B, Error>>(&self, f: F) -> Result<(), Error> {
-        let mut res = Ok(());
-        self.acceptor.send_modify(|a| {
-            *a = match a.take() {
-                Some(Either::Left(a)) => match f(a) {
-                    Ok(b) => Some(Either::Right(b)),
-                    Err(e) => {
-                        res = Err(e);
-                        None
-                    }
-                },
-                x => x,
-            }
-        });
-        res
-    }
-}
 impl<A: Accept> Deref for WebServerAcceptorSetter<A> {
     type Target = Watch<A>;
     fn deref(&self) -> &Self::Target {

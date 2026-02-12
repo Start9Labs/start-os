@@ -20,7 +20,7 @@ use crate::db::model::public::ServerStatus;
 use crate::developer::OS_DEVELOPER_KEY_PATH;
 use crate::hostname::Hostname;
 use crate::middleware::auth::local::LocalAuthContext;
-use crate::net::gateway::UpgradableListener;
+use crate::net::gateway::WildcardListener;
 use crate::net::net_controller::{NetController, NetService};
 use crate::net::socks::DEFAULT_SOCKS_LISTEN;
 use crate::net::utils::find_wifi_iface;
@@ -144,7 +144,7 @@ pub async fn run_script<P: AsRef<Path>>(path: P, mut progress: PhaseProgressTrac
 
 #[instrument(skip_all)]
 pub async fn init(
-    webserver: &WebServerAcceptorSetter<UpgradableListener>,
+    webserver: &WebServerAcceptorSetter<WildcardListener>,
     cfg: &ServerConfig,
     InitPhases {
         preinit,
@@ -218,7 +218,7 @@ pub async fn init(
         )
         .await?,
     );
-    webserver.try_upgrade(|a| net_ctrl.net_iface.watcher.upgrade_listener(a))?;
+    webserver.send_modify(|wl| wl.set_ip_info(net_ctrl.net_iface.watcher.subscribe()));
     let os_net_service = net_ctrl.os_bindings().await?;
     start_net.complete();
 

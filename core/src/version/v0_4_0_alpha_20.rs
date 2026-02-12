@@ -89,10 +89,70 @@ impl VersionT for Version {
             }
         }
 
+        // Migrate availablePorts from IdPool format to BTreeMap<u16, bool>
+        // Rebuild from actual assigned ports in all bindings
+        migrate_available_ports(db);
+
         Ok(Value::Null)
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {
         Ok(())
+    }
+}
+
+fn collect_ports_from_host(host: Option<&Value>, ports: &mut Value) {
+    let Some(bindings) = host
+        .and_then(|h| h.get("bindings"))
+        .and_then(|b| b.as_object())
+    else {
+        return;
+    };
+    for (_, binding) in bindings.iter() {
+        if let Some(net) = binding.get("net") {
+            if let Some(port) = net.get("assignedPort").and_then(|p| p.as_u64()) {
+                if let Some(obj) = ports.as_object_mut() {
+                    obj.insert(port.to_string().into(), Value::from(false));
+                }
+            }
+            if let Some(port) = net.get("assignedSslPort").and_then(|p| p.as_u64()) {
+                if let Some(obj) = ports.as_object_mut() {
+                    obj.insert(port.to_string().into(), Value::from(true));
+                }
+            }
+        }
+    }
+}
+
+fn migrate_available_ports(db: &mut Value) {
+    let mut new_ports: Value = serde_json::json!({}).into();
+
+    // Collect from server host
+    let server_host = db
+        .get("public")
+        .and_then(|p| p.get("serverInfo"))
+        .and_then(|s| s.get("network"))
+        .and_then(|n| n.get("host"))
+        .cloned();
+    collect_ports_from_host(server_host.as_ref(), &mut new_ports);
+
+    // Collect from all package hosts
+    if let Some(packages) = db
+        .get("public")
+        .and_then(|p| p.get("packageData"))
+        .and_then(|p| p.as_object())
+    {
+        for (_, package) in packages.iter() {
+            if let Some(hosts) = package.get("hosts").and_then(|h| h.as_object()) {
+                for (_, host) in hosts.iter() {
+                    collect_ports_from_host(Some(host), &mut new_ports);
+                }
+            }
+        }
+    }
+
+    // Replace private.availablePorts
+    if let Some(private) = db.get_mut("private").and_then(|p| p.as_object_mut()) {
+        private.insert("availablePorts".into(), new_ports);
     }
 }
 

@@ -15,7 +15,6 @@ use tokio::sync::mpsc;
 use crate::GatewayId;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::NetworkInterfaceInfo;
-use crate::net::gateway::{DynInterfaceFilter, InterfaceFilter};
 use crate::prelude::*;
 use crate::util::Invoke;
 use crate::util::future::NonDetachingJoinHandle;
@@ -29,6 +28,33 @@ const RESTRICTED_PORTS: &[u16] = &[5353, 5355, 5432, 6010, 9050, 9051];
 
 fn is_restricted(port: u16) -> bool {
     port <= 1024 || RESTRICTED_PORTS.contains(&port)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ForwardRequirements {
+    pub public_gateways: BTreeSet<GatewayId>,
+    pub private_ips: BTreeSet<IpAddr>,
+    pub secure: bool,
+}
+
+impl std::fmt::Display for ForwardRequirements {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "ForwardRequirements {{ public: {:?}, private: {:?}, secure: {} }}",
+            self.public_gateways, self.private_ips, self.secure
+        )
+    }
+}
+
+/// Source-IP filter for private forwards: restricts traffic to a subnet
+/// while excluding gateway/router IPs that may masquerade internet traffic.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct SourceFilter {
+    /// Network CIDR to allow (e.g. "192.168.1.0/24")
+    subnet: String,
+    /// Comma-separated gateway IPs to exclude (they may masquerade internet traffic)
+    excluded: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -85,10 +111,10 @@ pub fn forward_api<C: Context>() -> ParentHandler<C> {
             }
 
             let mut table = Table::new();
-            table.add_row(row![bc => "FROM", "TO", "FILTER"]);
+            table.add_row(row![bc => "FROM", "TO", "REQS"]);
 
             for (external, target) in res.0 {
-                table.add_row(row![external, target.target, target.filter]);
+                table.add_row(row![external, target.target, target.reqs]);
             }
 
             table.print_tty(false)?;
@@ -103,6 +129,7 @@ struct ForwardMapping {
     source: SocketAddrV4,
     target: SocketAddrV4,
     target_prefix: u8,
+    src_filter: Option<SourceFilter>,
     rc: Weak<()>,
 }
 
@@ -117,9 +144,10 @@ impl PortForwardState {
         source: SocketAddrV4,
         target: SocketAddrV4,
         target_prefix: u8,
+        src_filter: Option<SourceFilter>,
     ) -> Result<Arc<()>, Error> {
         if let Some(existing) = self.mappings.get_mut(&source) {
-            if existing.target == target {
+            if existing.target == target && existing.src_filter == src_filter {
                 if let Some(existing_rc) = existing.rc.upgrade() {
                     return Ok(existing_rc);
                 } else {
@@ -128,21 +156,28 @@ impl PortForwardState {
                     return Ok(rc);
                 }
             } else {
-                // Different target, need to remove old and add new
+                // Different target or src_filter, need to remove old and add new
                 if let Some(mapping) = self.mappings.remove(&source) {
-                    unforward(mapping.source, mapping.target, mapping.target_prefix).await?;
+                    unforward(
+                        mapping.source,
+                        mapping.target,
+                        mapping.target_prefix,
+                        mapping.src_filter.as_ref(),
+                    )
+                    .await?;
                 }
             }
         }
 
         let rc = Arc::new(());
-        forward(source, target, target_prefix).await?;
+        forward(source, target, target_prefix, src_filter.as_ref()).await?;
         self.mappings.insert(
             source,
             ForwardMapping {
                 source,
                 target,
                 target_prefix,
+                src_filter,
                 rc: Arc::downgrade(&rc),
             },
         );
@@ -160,7 +195,13 @@ impl PortForwardState {
 
         for source in to_remove {
             if let Some(mapping) = self.mappings.remove(&source) {
-                unforward(mapping.source, mapping.target, mapping.target_prefix).await?;
+                unforward(
+                    mapping.source,
+                    mapping.target,
+                    mapping.target_prefix,
+                    mapping.src_filter.as_ref(),
+                )
+                .await?;
             }
         }
         Ok(())
@@ -181,9 +222,14 @@ impl Drop for PortForwardState {
             let mappings = std::mem::take(&mut self.mappings);
             tokio::spawn(async move {
                 for (_, mapping) in mappings {
-                    unforward(mapping.source, mapping.target, mapping.target_prefix)
-                        .await
-                        .log_err();
+                    unforward(
+                        mapping.source,
+                        mapping.target,
+                        mapping.target_prefix,
+                        mapping.src_filter.as_ref(),
+                    )
+                    .await
+                    .log_err();
                 }
             });
         }
@@ -195,6 +241,7 @@ enum PortForwardCommand {
         source: SocketAddrV4,
         target: SocketAddrV4,
         target_prefix: u8,
+        src_filter: Option<SourceFilter>,
         respond: oneshot::Sender<Result<Arc<()>, Error>>,
     },
     Gc {
@@ -281,9 +328,12 @@ impl PortForwardController {
                         source,
                         target,
                         target_prefix,
+                        src_filter,
                         respond,
                     } => {
-                        let result = state.add_forward(source, target, target_prefix).await;
+                        let result = state
+                            .add_forward(source, target, target_prefix, src_filter)
+                            .await;
                         respond.send(result).ok();
                     }
                     PortForwardCommand::Gc { respond } => {
@@ -308,6 +358,7 @@ impl PortForwardController {
         source: SocketAddrV4,
         target: SocketAddrV4,
         target_prefix: u8,
+        src_filter: Option<SourceFilter>,
     ) -> Result<Arc<()>, Error> {
         let (send, recv) = oneshot::channel();
         self.req
@@ -315,6 +366,7 @@ impl PortForwardController {
                 source,
                 target,
                 target_prefix,
+                src_filter,
                 respond: send,
             })
             .map_err(err_has_exited)?;
@@ -345,14 +397,14 @@ struct InterfaceForwardRequest {
     external: u16,
     target: SocketAddrV4,
     target_prefix: u8,
-    filter: DynInterfaceFilter,
+    reqs: ForwardRequirements,
     rc: Arc<()>,
 }
 
 #[derive(Clone)]
 struct InterfaceForwardEntry {
     external: u16,
-    filter: BTreeMap<DynInterfaceFilter, (SocketAddrV4, u8, Weak<()>)>,
+    targets: BTreeMap<ForwardRequirements, (SocketAddrV4, u8, Weak<()>)>,
     // Maps source SocketAddr -> strong reference for the forward created in PortForwardController
     forwards: BTreeMap<SocketAddrV4, Arc<()>>,
 }
@@ -370,7 +422,7 @@ impl InterfaceForwardEntry {
     fn new(external: u16) -> Self {
         Self {
             external,
-            filter: BTreeMap::new(),
+            targets: BTreeMap::new(),
             forwards: BTreeMap::new(),
         }
     }
@@ -382,28 +434,50 @@ impl InterfaceForwardEntry {
     ) -> Result<(), Error> {
         let mut keep = BTreeSet::<SocketAddrV4>::new();
 
-        for (iface, info) in ip_info.iter() {
-            if let Some((target, target_prefix)) = self
-                .filter
-                .iter()
-                .filter(|(_, (_, _, rc))| rc.strong_count() > 0)
-                .find(|(filter, _)| filter.filter(iface, info))
-                .map(|(_, (target, target_prefix, _))| (*target, *target_prefix))
-            {
-                if let Some(ip_info) = &info.ip_info {
-                    for addr in ip_info.subnets.iter().filter_map(|net| {
-                        if let IpAddr::V4(ip) = net.addr() {
-                            Some(SocketAddrV4::new(ip, self.external))
-                        } else {
-                            None
+        for (gw_id, info) in ip_info.iter() {
+            if let Some(ip_info) = &info.ip_info {
+                for subnet in ip_info.subnets.iter() {
+                    if let IpAddr::V4(ip) = subnet.addr() {
+                        let addr = SocketAddrV4::new(ip, self.external);
+                        if keep.contains(&addr) {
+                            continue;
                         }
-                    }) {
-                        keep.insert(addr);
-                        if !self.forwards.contains_key(&addr) {
-                            let rc = port_forward
-                                .add_forward(addr, target, target_prefix)
+
+                        for (reqs, (target, target_prefix, rc)) in self.targets.iter() {
+                            if rc.strong_count() == 0 {
+                                continue;
+                            }
+                            if !reqs.secure && !info.secure() {
+                                continue;
+                            }
+
+                            let src_filter =
+                                if reqs.public_gateways.contains(gw_id) {
+                                    None
+                                } else if reqs.private_ips.contains(&IpAddr::V4(ip)) {
+                                    let excluded = ip_info
+                                        .lan_ip
+                                        .iter()
+                                        .filter_map(|ip| match ip {
+                                            IpAddr::V4(v4) => Some(v4.to_string()),
+                                            _ => None,
+                                        })
+                                        .collect::<Vec<_>>()
+                                        .join(",");
+                                    Some(SourceFilter {
+                                        subnet: subnet.trunc().to_string(),
+                                        excluded,
+                                    })
+                                } else {
+                                    continue;
+                                };
+
+                            keep.insert(addr);
+                            let fwd_rc = port_forward
+                                .add_forward(addr, *target, *target_prefix, src_filter)
                                 .await?;
-                            self.forwards.insert(addr, rc);
+                            self.forwards.insert(addr, fwd_rc);
+                            break;
                         }
                     }
                 }
@@ -422,7 +496,7 @@ impl InterfaceForwardEntry {
             external,
             target,
             target_prefix,
-            filter,
+            reqs,
             mut rc,
         }: InterfaceForwardRequest,
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
@@ -436,8 +510,8 @@ impl InterfaceForwardEntry {
         }
 
         let entry = self
-            .filter
-            .entry(filter)
+            .targets
+            .entry(reqs)
             .or_insert_with(|| (target, target_prefix, Arc::downgrade(&rc)));
         if entry.0 != target {
             entry.0 = target;
@@ -460,7 +534,7 @@ impl InterfaceForwardEntry {
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
         port_forward: &PortForwardController,
     ) -> Result<(), Error> {
-        self.filter.retain(|_, (_, _, rc)| rc.strong_count() > 0);
+        self.targets.retain(|_, (_, _, rc)| rc.strong_count() > 0);
 
         self.update(ip_info, port_forward).await
     }
@@ -519,7 +593,7 @@ pub struct ForwardTable(pub BTreeMap<u16, ForwardTarget>);
 pub struct ForwardTarget {
     pub target: SocketAddrV4,
     pub target_prefix: u8,
-    pub filter: String,
+    pub reqs: String,
 }
 
 impl From<&InterfaceForwardState> for ForwardTable {
@@ -530,16 +604,16 @@ impl From<&InterfaceForwardState> for ForwardTable {
                 .iter()
                 .flat_map(|entry| {
                     entry
-                        .filter
+                        .targets
                         .iter()
                         .filter(|(_, (_, _, rc))| rc.strong_count() > 0)
-                        .map(|(filter, (target, target_prefix, _))| {
+                        .map(|(reqs, (target, target_prefix, _))| {
                             (
                                 entry.external,
                                 ForwardTarget {
                                     target: *target,
                                     target_prefix: *target_prefix,
-                                    filter: format!("{:#?}", filter),
+                                    reqs: format!("{reqs}"),
                                 },
                             )
                         })
@@ -556,16 +630,6 @@ enum InterfaceForwardCommand {
     ),
     Sync(oneshot::Sender<Result<(), Error>>),
     DumpTable(oneshot::Sender<ForwardTable>),
-}
-
-#[test]
-fn test() {
-    use crate::net::gateway::SecureFilter;
-
-    assert_ne!(
-        false.into_dyn(),
-        SecureFilter { secure: false }.into_dyn().into_dyn()
-    );
 }
 
 pub struct InterfacePortForwardController {
@@ -617,7 +681,7 @@ impl InterfacePortForwardController {
     pub async fn add(
         &self,
         external: u16,
-        filter: DynInterfaceFilter,
+        reqs: ForwardRequirements,
         target: SocketAddrV4,
         target_prefix: u8,
     ) -> Result<Arc<()>, Error> {
@@ -629,7 +693,7 @@ impl InterfacePortForwardController {
                     external,
                     target,
                     target_prefix,
-                    filter,
+                    reqs,
                     rc,
                 },
                 send,
@@ -661,15 +725,21 @@ async fn forward(
     source: SocketAddrV4,
     target: SocketAddrV4,
     target_prefix: u8,
+    src_filter: Option<&SourceFilter>,
 ) -> Result<(), Error> {
-    Command::new("/usr/lib/startos/scripts/forward-port")
-        .env("sip", source.ip().to_string())
+    let mut cmd = Command::new("/usr/lib/startos/scripts/forward-port");
+    cmd.env("sip", source.ip().to_string())
         .env("dip", target.ip().to_string())
         .env("dprefix", target_prefix.to_string())
         .env("sport", source.port().to_string())
-        .env("dport", target.port().to_string())
-        .invoke(ErrorKind::Network)
-        .await?;
+        .env("dport", target.port().to_string());
+    if let Some(filter) = src_filter {
+        cmd.env("src_subnet", &filter.subnet);
+        if !filter.excluded.is_empty() {
+            cmd.env("excluded_src", &filter.excluded);
+        }
+    }
+    cmd.invoke(ErrorKind::Network).await?;
     Ok(())
 }
 
@@ -677,15 +747,21 @@ async fn unforward(
     source: SocketAddrV4,
     target: SocketAddrV4,
     target_prefix: u8,
+    src_filter: Option<&SourceFilter>,
 ) -> Result<(), Error> {
-    Command::new("/usr/lib/startos/scripts/forward-port")
-        .env("UNDO", "1")
+    let mut cmd = Command::new("/usr/lib/startos/scripts/forward-port");
+    cmd.env("UNDO", "1")
         .env("sip", source.ip().to_string())
         .env("dip", target.ip().to_string())
         .env("dprefix", target_prefix.to_string())
         .env("sport", source.port().to_string())
-        .env("dport", target.port().to_string())
-        .invoke(ErrorKind::Network)
-        .await?;
+        .env("dport", target.port().to_string());
+    if let Some(filter) = src_filter {
+        cmd.env("src_subnet", &filter.subnet);
+        if !filter.excluded.is_empty() {
+            cmd.env("excluded_src", &filter.excluded);
+        }
+    }
+    cmd.invoke(ErrorKind::Network).await?;
     Ok(())
 }
