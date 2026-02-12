@@ -1,11 +1,10 @@
 # Contributing to StartOS
 
-This guide is for contributing to the StartOS. If you are interested in packaging a service for StartOS, visit the [service packaging guide](https://docs.start9.com/latest/packaging-guide/). If you are interested in promoting, providing technical support, creating tutorials, or helping in other ways, please visit the [Start9 website](https://start9.com/contribute).
+This guide is for contributing to the StartOS. If you are interested in packaging a service for StartOS, visit the [service packaging guide](https://github.com/Start9Labs/ai-service-packaging). If you are interested in promoting, providing technical support, creating tutorials, or helping in other ways, please visit the [Start9 website](https://start9.com/contribute).
 
 ## Collaboration
 
-- [Matrix](https://matrix.to/#/#community-dev:matrix.start9labs.com)
-- [Telegram](https://t.me/start9_labs/47471)
+- [Matrix](https://matrix.to/#/#dev-startos:matrix.start9labs.com)
 
 ## Project Structure
 
@@ -23,6 +22,7 @@ This guide is for contributing to the StartOS. If you are interested in packagin
 ```
 
 See component READMEs for details:
+
 - [`core`](core/README.md)
 - [`web`](web/README.md)
 - [`build`](build/README.md)
@@ -30,8 +30,36 @@ See component READMEs for details:
 
 ## Environment Setup
 
+### Installing Dependencies (Debian/Ubuntu)
+
+> Debian/Ubuntu is the only officially supported build environment.
+> MacOS has limited build capabilities and Windows requires [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install).
+
 ```sh
-git clone https://github.com/Start9Labs/start-os.git --recurse-submodules
+sudo apt update
+sudo apt install -y ca-certificates curl gpg build-essential
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo "deb [arch=$(dpkg-architecture -q DEB_HOST_ARCH) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bookworm stable" | sudo tee /etc/apt/sources.list.d/docker.list
+sudo apt update
+sudo apt install -y sed grep gawk jq gzip brotli containerd.io docker-ce docker-ce-cli docker-compose-plugin qemu-user-static binfmt-support squashfs-tools git debspawn rsync b3sum
+sudo mkdir -p /etc/debspawn/
+echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
+sudo usermod -aG docker $USER
+sudo su $USER
+docker run --privileged --rm tonistiigi/binfmt --install all
+docker buildx create --use
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh # proceed with default installation
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
+source ~/.bashrc
+nvm install 24
+nvm use 24
+nvm alias default 24 # this prevents your machine from reverting back to another version
+```
+
+### Cloning the Repository
+
+```sh
+git clone --recursive https://github.com/Start9Labs/start-os.git --branch next/major
 cd start-os
 ```
 
@@ -63,19 +91,21 @@ This project uses [GNU Make](https://www.gnu.org/software/make/) to build its co
 
 ### Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `PLATFORM` | Target platform: `x86_64`, `x86_64-nonfree`, `aarch64`, `aarch64-nonfree`, `riscv64`, `raspberrypi` |
-| `ENVIRONMENT` | Hyphen-separated feature flags (see below) |
-| `PROFILE` | Build profile: `release` (default) or `dev` |
-| `GIT_BRANCH_AS_HASH` | Set to `1` to use git branch name as version hash (avoids rebuilds) |
+| Variable             | Description                                                                                         |
+| -------------------- | --------------------------------------------------------------------------------------------------- |
+| `PLATFORM`           | Target platform: `x86_64`, `x86_64-nonfree`, `aarch64`, `aarch64-nonfree`, `riscv64`, `raspberrypi` |
+| `ENVIRONMENT`        | Hyphen-separated feature flags (see below)                                                          |
+| `PROFILE`            | Build profile: `release` (default) or `dev`                                                         |
+| `GIT_BRANCH_AS_HASH` | Set to `1` to use git branch name as version hash (avoids rebuilds)                                 |
 
 **ENVIRONMENT flags:**
+
 - `dev` - Enables password SSH before setup, skips frontend compression
 - `unstable` - Enables assertions and debugging with performance penalty
 - `console` - Enables tokio-console for async debugging
 
 **Platform notes:**
+
 - `-nonfree` variants include proprietary firmware and drivers
 - `raspberrypi` includes non-free components by necessity
 - Platform is remembered between builds if not specified
@@ -84,46 +114,72 @@ This project uses [GNU Make](https://www.gnu.org/software/make/) to build its co
 
 #### Building
 
-| Target | Description |
-|--------|-------------|
-| `iso` | Create full `.iso` image (not for raspberrypi) |
-| `img` | Create full `.img` image (raspberrypi only) |
-| `deb` | Build Debian package |
-| `all` | Build all Rust binaries |
-| `uis` | Build all web UIs |
-| `ui` | Build main UI only |
-| `ts-bindings` | Generate TypeScript bindings from Rust types |
+| Target        | Description                                    |
+| ------------- | ---------------------------------------------- |
+| `iso`         | Create full `.iso` image (not for raspberrypi) |
+| `img`         | Create full `.img` image (raspberrypi only)    |
+| `deb`         | Build Debian package                           |
+| `all`         | Build all Rust binaries                        |
+| `uis`         | Build all web UIs                              |
+| `ui`          | Build main UI only                             |
+| `ts-bindings` | Generate TypeScript bindings from Rust types   |
 
 #### Deploying to Device
 
 For devices on the same network:
 
-| Target | Description |
-|--------|-------------|
-| `update-startbox REMOTE=start9@<ip>` | Deploy binary + UI only (fastest) |
-| `update-deb REMOTE=start9@<ip>` | Deploy full Debian package |
-| `update REMOTE=start9@<ip>` | OTA-style update |
-| `reflash REMOTE=start9@<ip>` | Reflash as if using live ISO |
-| `update-overlay REMOTE=start9@<ip>` | Deploy to in-memory overlay (reverts on reboot) |
+| Target                               | Description                                     |
+| ------------------------------------ | ----------------------------------------------- |
+| `update-startbox REMOTE=start9@<ip>` | Deploy binary + UI only (fastest)               |
+| `update-deb REMOTE=start9@<ip>`      | Deploy full Debian package                      |
+| `update REMOTE=start9@<ip>`          | OTA-style update                                |
+| `reflash REMOTE=start9@<ip>`         | Reflash as if using live ISO                    |
+| `update-overlay REMOTE=start9@<ip>`  | Deploy to in-memory overlay (reverts on reboot) |
 
 For devices on different networks (uses [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole)):
 
-| Target | Description |
-|--------|-------------|
-| `wormhole` | Send startbox binary |
-| `wormhole-deb` | Send Debian package |
-| `wormhole-squashfs` | Send squashfs image |
+| Target              | Description          |
+| ------------------- | -------------------- |
+| `wormhole`          | Send startbox binary |
+| `wormhole-deb`      | Send Debian package  |
+| `wormhole-squashfs` | Send squashfs image  |
+
+### Creating a VM
+
+Install virt-manager:
+
+```sh
+sudo apt update
+sudo apt install -y virt-manager
+sudo usermod -aG libvirt $USER
+sudo su $USER
+virt-manager
+```
+
+Follow the screenshot walkthrough in [`assets/create-vm/`](assets/create-vm/) to create a new virtual machine. Key steps:
+
+1. Create a new virtual machine
+2. Browse for the ISO — create a storage pool pointing to your `results/` directory
+3. Select "Generic or unknown OS"
+4. Set memory and CPUs
+5. Create a disk and name the VM
+
+Build an ISO first:
+
+```sh
+PLATFORM=$(uname -m) ENVIRONMENT=dev make iso
+```
 
 #### Other
 
-| Target | Description |
-|--------|-------------|
-| `format` | Run code formatting (Rust nightly required) |
-| `test` | Run all automated tests |
-| `test-core` | Run Rust tests |
-| `test-sdk` | Run SDK tests |
-| `test-container-runtime` | Run container runtime tests |
-| `clean` | Delete all compiled artifacts |
+| Target                   | Description                                 |
+| ------------------------ | ------------------------------------------- |
+| `format`                 | Run code formatting (Rust nightly required) |
+| `test`                   | Run all automated tests                     |
+| `test-core`              | Run Rust tests                              |
+| `test-sdk`               | Run SDK tests                               |
+| `test-container-runtime` | Run container runtime tests                 |
+| `clean`                  | Delete all compiled artifacts               |
 
 ## Testing
 
@@ -156,15 +212,18 @@ Run the formatters before committing. Configuration is handled by `rustfmt.toml`
 ### Documentation & Comments
 
 **Rust:**
+
 - Add doc comments (`///`) to public APIs, structs, and non-obvious functions
 - Use `//` comments sparingly for complex logic that isn't self-evident
 - Prefer self-documenting code (clear naming, small functions) over comments
 
 **TypeScript:**
+
 - Document exported functions and complex types with JSDoc
 - Keep comments focused on "why" rather than "what"
 
 **General:**
+
 - Don't add comments that just restate the code
 - Update or remove comments when code changes
 - TODOs should include context: `// TODO(username): reason`
@@ -182,6 +241,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 
 **Types:**
+
 - `feat` - New feature
 - `fix` - Bug fix
 - `docs` - Documentation only
@@ -191,10 +251,10 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 - `chore` - Build process, dependencies, etc.
 
 **Examples:**
+
 ```
 feat(web): add dark mode toggle
 fix(core): resolve race condition in service startup
 docs: update CONTRIBUTING.md with style guidelines
 refactor(sdk): simplify package validation logic
 ```
-
