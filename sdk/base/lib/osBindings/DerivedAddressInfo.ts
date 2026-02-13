@@ -3,15 +3,15 @@ import type { HostnameInfo } from './HostnameInfo'
 
 export type DerivedAddressInfo = {
   /**
-   * User-controlled: private addresses the user has disabled
+   * User override: enable these addresses (only for public IP & port)
    */
-  enabled: Array<HostnameInfo>
+  enabled: Array<string>
   /**
-   * User-controlled: public addresses the user has enabled
+   * User override: disable these addresses (only for domains and private IP & port)
    */
-  disabled: Array<HostnameInfo>
+  disabled: Array<[string, number]>
   /**
    * COMPUTED: NetServiceData::update — all possible addresses for this binding
    */
-  possible: Array<HostnameInfo>
+  available: Array<HostnameInfo>
 }
