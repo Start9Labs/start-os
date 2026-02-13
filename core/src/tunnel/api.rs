@@ -414,14 +414,11 @@ pub async fn show_config(
                 i.iter().find_map(|(_, info)| {
                     info.ip_info
                         .as_ref()
-                        .filter(|_| info.public())
-                        .iter()
-                        .find_map(|info| info.subnets.iter().next())
-                        .copied()
+                        .and_then(|ip_info| ip_info.wan_ip)
+                        .map(IpAddr::from)
                 })
             })
             .or_not_found("a public IP address")?
-            .addr()
     };
     Ok(client
         .client_config(

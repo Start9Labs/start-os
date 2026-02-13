@@ -7,4 +7,4 @@ export type HostnameMetadata =
   | { kind: 'ipv6'; gateway: GatewayId; scopeId: number }
   | { kind: 'private-domain'; gateways: Array<GatewayId> }
   | { kind: 'public-domain'; gateway: GatewayId }
-  | ({ kind: 'plugin'; package: PackageId } & { [key in string]?: unknown })
+  | { kind: 'plugin'; package: PackageId }

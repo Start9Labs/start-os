@@ -193,7 +193,10 @@ pub async fn add_public_domain<Kind: HostApiKind>(
             Kind::host_for(&inheritance, db)?
                 .as_public_domains_mut()
                 .insert(&fqdn, &PublicDomainConfig { acme, gateway })?;
-            handle_duplicates(db)
+            handle_duplicates(db)?;
+            let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
+            let ports = db.as_private().as_available_ports().de()?;
+            Kind::host_for(&inheritance, db)?.update_addresses(&gateways, &ports)
         })
         .await
         .result?;
@@ -221,7 +224,10 @@ pub async fn remove_public_domain<Kind: HostApiKind>(
         .mutate(|db| {
             Kind::host_for(&inheritance, db)?
                 .as_public_domains_mut()
-                .remove(&fqdn)
+                .remove(&fqdn)?;
+            let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
+            let ports = db.as_private().as_available_ports().de()?;
+            Kind::host_for(&inheritance, db)?.update_addresses(&gateways, &ports)
         })
         .await
         .result?;
@@ -248,7 +254,10 @@ pub async fn add_private_domain<Kind: HostApiKind>(
                 .as_private_domains_mut()
                 .upsert(&fqdn, || Ok(BTreeSet::new()))?
                 .mutate(|d| Ok(d.insert(gateway)))?;
-            handle_duplicates(db)
+            handle_duplicates(db)?;
+            let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
+            let ports = db.as_private().as_available_ports().de()?;
+            Kind::host_for(&inheritance, db)?.update_addresses(&gateways, &ports)
         })
         .await
         .result?;
@@ -266,7 +275,10 @@ pub async fn remove_private_domain<Kind: HostApiKind>(
         .mutate(|db| {
             Kind::host_for(&inheritance, db)?
                 .as_private_domains_mut()
-                .mutate(|d| Ok(d.remove(&domain)))
+                .mutate(|d| Ok(d.remove(&domain)))?;
+            let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
+            let ports = db.as_private().as_available_ports().de()?;
+            Kind::host_for(&inheritance, db)?.update_addresses(&gateways, &ports)
         })
         .await
         .result?;

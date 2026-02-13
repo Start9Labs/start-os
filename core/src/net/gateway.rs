@@ -32,6 +32,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::net::forward::START9_BRIDGE_IFACE;
+use crate::net::host::all_hosts;
 use crate::net::gateway::device::DeviceProxy;
 use crate::net::web_server::{Accept, AcceptStream, MetadataVisitor, TcpMetadata};
 use crate::prelude::*;
@@ -1003,7 +1004,12 @@ impl NetworkInterfaceController {
                 .as_server_info_mut()
                 .as_network_mut()
                 .as_gateways_mut()
-                .ser(info)
+                .ser(info)?;
+            let ports = db.as_private().as_available_ports().de()?;
+            for host in all_hosts(db) {
+                host?.update_addresses(info, &ports)?;
+            }
+            Ok(())
         })
         .await
         .result?;

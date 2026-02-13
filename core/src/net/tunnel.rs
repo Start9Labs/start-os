@@ -175,10 +175,13 @@ pub async fn remove_tunnel(
 
     ctx.db
         .mutate(|db| {
+            let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
+            let ports = db.as_private().as_available_ports().de()?;
             for host in all_hosts(db) {
                 let host = host?;
                 host.as_public_domains_mut()
                     .mutate(|p| Ok(p.retain(|_, v| v.gateway != id)))?;
+                host.update_addresses(&gateways, &ports)?;
             }
 
             Ok(())
@@ -190,6 +193,8 @@ pub async fn remove_tunnel(
 
     ctx.db
         .mutate(|db| {
+            let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
+            let ports = db.as_private().as_available_ports().de()?;
             for host in all_hosts(db) {
                 let host = host?;
                 host.as_private_domains_mut().mutate(|d| {
@@ -199,6 +204,7 @@ pub async fn remove_tunnel(
                     d.retain(|_, gateways| !gateways.is_empty());
                     Ok(())
                 })?;
+                host.update_addresses(&gateways, &ports)?;
             }
 
             Ok(())

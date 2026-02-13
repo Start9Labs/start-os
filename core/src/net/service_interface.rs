@@ -41,6 +41,7 @@ pub enum HostnameMetadata {
     Plugin {
         package: PackageId,
         #[serde(flatten)]
+        #[ts(skip)]
         extra: InOMap<InternedString, Value>,
     },
 }

@@ -3,17 +3,15 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
-use imbl::vector;
 use imbl_value::InternedString;
-use ipnet::IpNet;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_rustls::rustls::ClientConfig as TlsClientConfig;
 use tracing::instrument;
 
+use patch_db::json_ptr::JsonPointer;
+
 use crate::db::model::Database;
-use crate::db::model::public::NetworkInterfaceType;
-use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
 use crate::net::forward::{
@@ -23,13 +21,13 @@ use crate::net::gateway::NetworkInterfaceController;
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions};
 use crate::net::host::{Host, Hosts, host_for};
-use crate::net::service_interface::{HostnameInfo, HostnameMetadata};
+use crate::net::service_interface::HostnameMetadata;
 use crate::net::socks::SocksController;
-use crate::net::utils::ipv6_is_local;
 use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
 use crate::prelude::*;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::util::serde::MaybeUtf8String;
+use crate::util::sync::Watch;
 use crate::{GatewayId, HOST_IP, HostId, OptionExt, PackageId};
 
 pub struct NetController {
@@ -182,79 +180,11 @@ impl NetServiceData {
         })
     }
 
-    async fn clear_bindings(
-        &mut self,
-        ctrl: &NetController,
-        except: BTreeSet<BindId>,
-    ) -> Result<(), Error> {
-        if let Some(pkg_id) = &self.id {
-            let hosts = ctrl
-                .db
-                .mutate(|db| {
-                    let mut res = Hosts::default();
-                    for (host_id, host) in db
-                        .as_public_mut()
-                        .as_package_data_mut()
-                        .as_idx_mut(pkg_id)
-                        .or_not_found(pkg_id)?
-                        .as_hosts_mut()
-                        .as_entries_mut()?
-                    {
-                        host.as_bindings_mut().mutate(|b| {
-                            for (internal_port, info) in b.iter_mut() {
-                                if !except.contains(&BindId {
-                                    id: host_id.clone(),
-                                    internal_port: *internal_port,
-                                }) {
-                                    info.disable();
-                                }
-                            }
-                            Ok(())
-                        })?;
-                        res.0.insert(host_id, host.de()?);
-                    }
-                    Ok(res)
-                })
-                .await
-                .result?;
-            let mut errors = ErrorCollection::new();
-            for (id, host) in hosts.0 {
-                errors.handle(self.update(ctrl, id, host).await);
-            }
-            errors.into_result()
-        } else {
-            let host = ctrl
-                .db
-                .mutate(|db| {
-                    let host = db
-                        .as_public_mut()
-                        .as_server_info_mut()
-                        .as_network_mut()
-                        .as_host_mut();
-                    host.as_bindings_mut().mutate(|b| {
-                        for (internal_port, info) in b.iter_mut() {
-                            if !except.contains(&BindId {
-                                id: HostId::default(),
-                                internal_port: *internal_port,
-                            }) {
-                                info.disable();
-                            }
-                        }
-                        Ok(())
-                    })?;
-                    host.de()
-                })
-                .await
-                .result?;
-            self.update(ctrl, HostId::default(), host).await
-        }
-    }
-
     async fn update(
         &mut self,
         ctrl: &NetController,
         id: HostId,
-        mut host: Host,
+        host: Host,
     ) -> Result<(), Error> {
         let mut forwards: BTreeMap<u16, (SocketAddrV4, ForwardRequirements)> = BTreeMap::new();
         let mut vhosts: BTreeMap<(Option<InternedString>, u16), ProxyTarget> = BTreeMap::new();
@@ -274,200 +204,7 @@ impl NetServiceData {
             }
         }
 
-        // ── Phase 1: Compute available addresses ──
-        for (_port, bind) in host.bindings.iter_mut() {
-            if !bind.enabled {
-                continue;
-            }
-            if bind.net.assigned_port.is_none() && bind.net.assigned_ssl_port.is_none() {
-                continue;
-            }
-
-            bind.addresses.available.clear();
-
-            // Domain port: non-SSL port for domains (secure-filtered, gateway-independent)
-            let domain_base_port = bind.net.assigned_port.filter(|_| {
-                bind.options
-                    .secure
-                    .map_or(false, |s| !s.ssl || bind.options.add_ssl.is_none())
-            });
-            let (domain_port, domain_ssl_port) = if bind
-                .options
-                .add_ssl
-                .as_ref()
-                .map_or(false, |ssl| ssl.preferred_external_port == 443)
-            {
-                (None, Some(443))
-            } else {
-                (domain_base_port, bind.net.assigned_ssl_port)
-            };
-
-            // Domain addresses
-            for HostAddress {
-                address, public, ..
-            } in host_addresses.iter().cloned()
-            {
-                // Public domain entry
-                if let Some(pub_config) = &public {
-                    let metadata = HostnameMetadata::PublicDomain {
-                        gateway: pub_config.gateway.clone(),
-                    };
-                    if let Some(p) = domain_port {
-                        bind.addresses.available.insert(HostnameInfo {
-                            ssl: false,
-                            public: true,
-                            host: address.clone(),
-                            port: Some(p),
-                            metadata: metadata.clone(),
-                        });
-                    }
-                    if let Some(sp) = domain_ssl_port {
-                        bind.addresses.available.insert(HostnameInfo {
-                            ssl: true,
-                            public: true,
-                            host: address.clone(),
-                            port: Some(sp),
-                            metadata,
-                        });
-                    }
-                }
-                // Private domain entry
-                if let Some(gateways) = host.private_domains.get(&address) {
-                    if !gateways.is_empty() {
-                        let metadata = HostnameMetadata::PrivateDomain {
-                            gateways: gateways.clone(),
-                        };
-                        if let Some(p) = domain_port {
-                            bind.addresses.available.insert(HostnameInfo {
-                                ssl: false,
-                                public: false,
-                                host: address.clone(),
-                                port: Some(p),
-                                metadata: metadata.clone(),
-                            });
-                        }
-                        if let Some(sp) = domain_ssl_port {
-                            bind.addresses.available.insert(HostnameInfo {
-                                ssl: true,
-                                public: false,
-                                host: address.clone(),
-                                port: Some(sp),
-                                metadata,
-                            });
-                        }
-                    }
-                }
-            }
-
-            // IP addresses (per-gateway)
-            for (gateway_id, info) in net_ifaces
-                .iter()
-                .filter(|(_, info)| {
-                    info.ip_info.as_ref().map_or(false, |i| {
-                        !matches!(i.device_type, Some(NetworkInterfaceType::Bridge))
-                    })
-                })
-                .filter(|(_, info)| info.ip_info.is_some())
-            {
-                let port = bind.net.assigned_port.filter(|_| {
-                    bind.options.secure.map_or(false, |s| {
-                        !(s.ssl && bind.options.add_ssl.is_some()) || info.secure()
-                    })
-                });
-
-                if let Some(ip_info) = &info.ip_info {
-                    let public = info.public();
-                    // WAN IP (public)
-                    if let Some(wan_ip) = ip_info.wan_ip {
-                        let host_str = InternedString::from_display(&wan_ip);
-                        if let Some(p) = port {
-                            bind.addresses.available.insert(HostnameInfo {
-                                ssl: false,
-                                public: true,
-                                host: host_str.clone(),
-                                port: Some(p),
-                                metadata: HostnameMetadata::Ipv4 {
-                                    gateway: gateway_id.clone(),
-                                },
-                            });
-                        }
-                        if let Some(sp) = bind.net.assigned_ssl_port {
-                            bind.addresses.available.insert(HostnameInfo {
-                                ssl: true,
-                                public: true,
-                                host: host_str,
-                                port: Some(sp),
-                                metadata: HostnameMetadata::Ipv4 {
-                                    gateway: gateway_id.clone(),
-                                },
-                            });
-                        }
-                    }
-                    // Subnet IPs
-                    for ipnet in &ip_info.subnets {
-                        match ipnet {
-                            IpNet::V4(net) => {
-                                if !public {
-                                    let host_str = InternedString::from_display(&net.addr());
-                                    if let Some(p) = port {
-                                        bind.addresses.available.insert(HostnameInfo {
-                                            ssl: false,
-                                            public: false,
-                                            host: host_str.clone(),
-                                            port: Some(p),
-                                            metadata: HostnameMetadata::Ipv4 {
-                                                gateway: gateway_id.clone(),
-                                            },
-                                        });
-                                    }
-                                    if let Some(sp) = bind.net.assigned_ssl_port {
-                                        bind.addresses.available.insert(HostnameInfo {
-                                            ssl: true,
-                                            public: false,
-                                            host: host_str,
-                                            port: Some(sp),
-                                            metadata: HostnameMetadata::Ipv4 {
-                                                gateway: gateway_id.clone(),
-                                            },
-                                        });
-                                    }
-                                }
-                            }
-                            IpNet::V6(net) => {
-                                let is_public = public && !ipv6_is_local(net.addr());
-                                let host_str = InternedString::from_display(&net.addr());
-                                if let Some(p) = port {
-                                    bind.addresses.available.insert(HostnameInfo {
-                                        ssl: false,
-                                        public: is_public,
-                                        host: host_str.clone(),
-                                        port: Some(p),
-                                        metadata: HostnameMetadata::Ipv6 {
-                                            gateway: gateway_id.clone(),
-                                            scope_id: ip_info.scope_id,
-                                        },
-                                    });
-                                }
-                                if let Some(sp) = bind.net.assigned_ssl_port {
-                                    bind.addresses.available.insert(HostnameInfo {
-                                        ssl: true,
-                                        public: is_public,
-                                        host: host_str,
-                                        port: Some(sp),
-                                        metadata: HostnameMetadata::Ipv6 {
-                                            gateway: gateway_id.clone(),
-                                            scope_id: ip_info.scope_id,
-                                        },
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ── Phase 2: Build controller entries from enabled addresses ──
+        // ── Build controller entries from enabled addresses ──
         for (port, bind) in host.bindings.iter() {
             if !bind.enabled {
                 continue;
@@ -685,74 +422,16 @@ impl NetServiceData {
         }
         ctrl.dns.gc_private_domains(&rm)?;
 
-        let res = ctrl
-            .db
-            .mutate(|db| {
-                let bindings = host_for(db, self.id.as_ref(), &id)?.as_bindings_mut();
-                for (port, bind) in host.bindings.0 {
-                    if let Some(b) = bindings.as_idx_mut(&port) {
-                        b.as_addresses_mut()
-                            .as_available_mut()
-                            .ser(&bind.addresses.available)?;
-                    }
-                }
-                Ok(())
-            })
-            .await;
-        res.result?;
-        if let Some(pkg_id) = self.id.as_ref() {
-            if res.revision.is_some() {
-                if let Some(cbs) = ctrl.callbacks.get_host_info(&(pkg_id.clone(), id)) {
-                    cbs.call(vector![]).await?;
-                }
-            }
-        }
         Ok(())
     }
 
-    async fn update_all(&mut self) -> Result<(), Error> {
-        let ctrl = self.net_controller()?;
-        if let Some(id) = self.id.clone() {
-            for (host_id, host) in ctrl
-                .db
-                .peek()
-                .await
-                .as_public()
-                .as_package_data()
-                .as_idx(&id)
-                .or_not_found(&id)?
-                .as_hosts()
-                .as_entries()?
-            {
-                tracing::info!("Updating host {host_id} for {id}");
-                self.update(&*ctrl, host_id.clone(), host.de()?).await?;
-                tracing::info!("Updated host {host_id} for {id}");
-            }
-        } else {
-            tracing::info!("Updating host for Main UI");
-            self.update(
-                &*ctrl,
-                HostId::default(),
-                ctrl.db
-                    .peek()
-                    .await
-                    .as_public()
-                    .as_server_info()
-                    .as_network()
-                    .as_host()
-                    .de()?,
-            )
-            .await?;
-            tracing::info!("Updated host for Main UI");
-        }
-        Ok(())
-    }
 }
 
 pub struct NetService {
     shutdown: bool,
     data: Arc<Mutex<NetServiceData>>,
     sync_task: JoinHandle<()>,
+    synced: Watch<u64>,
 }
 impl NetService {
     fn dummy() -> Self {
@@ -766,26 +445,79 @@ impl NetService {
                 binds: BTreeMap::new(),
             })),
             sync_task: tokio::spawn(futures::future::ready(())),
+            synced: Watch::new(0u64),
         }
     }
 
     fn new(data: NetServiceData) -> Result<Self, Error> {
-        let mut ip_info = data.net_controller()?.net_iface.watcher.subscribe();
+        let ctrl = data.net_controller()?;
+        let pkg_id = data.id.clone();
+        let db = ctrl.db.clone();
+        drop(ctrl);
+
+        let synced = Watch::new(0u64);
+        let synced_writer = synced.clone();
+
         let data = Arc::new(Mutex::new(data));
         let thread_data = data.clone();
+
         let sync_task = tokio::spawn(async move {
-            loop {
-                if let Err(e) = thread_data.lock().await.update_all().await {
-                    tracing::error!("Failed to update network info: {e}");
-                    tracing::debug!("{e:?}");
+            if let Some(ref id) = pkg_id {
+                let ptr: JsonPointer = format!("/public/packageData/{}/hosts", id)
+                    .parse()
+                    .unwrap();
+                let mut watch = db.watch(ptr).await.typed::<Hosts>();
+                loop {
+                    if let Err(e) = watch.changed().await {
+                        tracing::error!("DB watch disconnected for {id}: {e}");
+                        break;
+                    }
+                    if let Err(e) = async {
+                        let hosts = watch.peek()?.de()?;
+                        let mut data = thread_data.lock().await;
+                        let ctrl = data.net_controller()?;
+                        for (host_id, host) in hosts.0 {
+                            data.update(&*ctrl, host_id, host).await?;
+                        }
+                        Ok::<_, Error>(())
+                    }
+                    .await
+                    {
+                        tracing::error!("Failed to update network info for {id}: {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                    synced_writer.send_modify(|v| *v += 1);
                 }
-                ip_info.changed().await;
+            } else {
+                let ptr: JsonPointer = "/public/serverInfo/network/host".parse().unwrap();
+                let mut watch = db.watch(ptr).await.typed::<Host>();
+                loop {
+                    if let Err(e) = watch.changed().await {
+                        tracing::error!("DB watch disconnected for Main UI: {e}");
+                        break;
+                    }
+                    if let Err(e) = async {
+                        let host = watch.peek()?.de()?;
+                        let mut data = thread_data.lock().await;
+                        let ctrl = data.net_controller()?;
+                        data.update(&*ctrl, HostId::default(), host).await?;
+                        Ok::<_, Error>(())
+                    }
+                    .await
+                    {
+                        tracing::error!("Failed to update network info for Main UI: {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                    synced_writer.send_modify(|v| *v += 1);
+                }
             }
         });
+
         Ok(Self {
             shutdown: false,
             data,
             sync_task,
+            synced,
         })
     }
 
@@ -795,60 +527,113 @@ impl NetService {
         internal_port: u16,
         options: BindOptions,
     ) -> Result<(), Error> {
-        let mut data = self.data.lock().await;
-        let pkg_id = &data.id;
-        let ctrl = data.net_controller()?;
-        let host = ctrl
-            .db
+        let (ctrl, pkg_id) = {
+            let data = self.data.lock().await;
+            (data.net_controller()?, data.id.clone())
+        };
+        ctrl.db
             .mutate(|db| {
+                let gateways = db
+                    .as_public()
+                    .as_server_info()
+                    .as_network()
+                    .as_gateways()
+                    .de()?;
                 let mut ports = db.as_private().as_available_ports().de()?;
                 let host = host_for(db, pkg_id.as_ref(), &id)?;
                 host.add_binding(&mut ports, internal_port, options)?;
-                let host = host.de()?;
+                host.update_addresses(&gateways, &ports)?;
                 db.as_private_mut().as_available_ports_mut().ser(&ports)?;
-                Ok(host)
+                Ok(())
             })
             .await
-            .result?;
-        data.update(&*ctrl, id, host).await
+            .result
     }
 
     pub async fn clear_bindings(&self, except: BTreeSet<BindId>) -> Result<(), Error> {
-        let mut data = self.data.lock().await;
-        let ctrl = data.net_controller()?;
-        data.clear_bindings(&*ctrl, except).await
+        let (ctrl, pkg_id) = {
+            let data = self.data.lock().await;
+            (data.net_controller()?, data.id.clone())
+        };
+        ctrl.db
+            .mutate(|db| {
+                let gateways = db
+                    .as_public()
+                    .as_server_info()
+                    .as_network()
+                    .as_gateways()
+                    .de()?;
+                let ports = db.as_private().as_available_ports().de()?;
+                if let Some(ref pkg_id) = pkg_id {
+                    for (host_id, host) in db
+                        .as_public_mut()
+                        .as_package_data_mut()
+                        .as_idx_mut(pkg_id)
+                        .or_not_found(pkg_id)?
+                        .as_hosts_mut()
+                        .as_entries_mut()?
+                    {
+                        host.as_bindings_mut().mutate(|b| {
+                            for (internal_port, info) in b.iter_mut() {
+                                if !except.contains(&BindId {
+                                    id: host_id.clone(),
+                                    internal_port: *internal_port,
+                                }) {
+                                    info.disable();
+                                }
+                            }
+                            Ok(())
+                        })?;
+                        host.update_addresses(&gateways, &ports)?;
+                    }
+                } else {
+                    let host = db
+                        .as_public_mut()
+                        .as_server_info_mut()
+                        .as_network_mut()
+                        .as_host_mut();
+                    host.as_bindings_mut().mutate(|b| {
+                        for (internal_port, info) in b.iter_mut() {
+                            if !except.contains(&BindId {
+                                id: HostId::default(),
+                                internal_port: *internal_port,
+                            }) {
+                                info.disable();
+                            }
+                        }
+                        Ok(())
+                    })?;
+                    host.update_addresses(&gateways, &ports)?;
+                }
+                Ok(())
+            })
+            .await
+            .result
     }
 
-    pub async fn update(&self, id: HostId, host: Host) -> Result<(), Error> {
-        let mut data = self.data.lock().await;
-        let ctrl = data.net_controller()?;
-        data.update(&*ctrl, id, host).await
-    }
-
-    pub async fn sync_host(&self, id: HostId) -> Result<(), Error> {
-        let mut data = self.data.lock().await;
-        let ctrl = data.net_controller()?;
-        let host = host_for(&mut ctrl.db.peek().await, data.id.as_ref(), &id)?.de()?;
-        data.update(&*ctrl, id, host).await
+    pub async fn sync_host(&self, _id: HostId) -> Result<(), Error> {
+        let current = self.synced.peek(|v| *v);
+        let mut w = self.synced.clone();
+        w.wait_for(|v| *v > current).await;
+        Ok(())
     }
 
     pub async fn remove_all(mut self) -> Result<(), Error> {
-        self.sync_task.abort();
-        let mut data = self.data.lock().await;
-        if let Some(ctrl) = Weak::upgrade(&data.controller) {
-            self.shutdown = true;
-            data.clear_bindings(&*ctrl, Default::default()).await?;
-
-            drop(ctrl);
-            Ok(())
-        } else {
+        if Weak::upgrade(&self.data.lock().await.controller).is_none() {
             self.shutdown = true;
             tracing::warn!("NetService dropped after NetController is shutdown");
-            Err(Error::new(
+            return Err(Error::new(
                 eyre!("NetController is shutdown"),
                 crate::ErrorKind::Network,
-            ))
+            ));
         }
+        let current = self.synced.peek(|v| *v);
+        self.clear_bindings(Default::default()).await?;
+        let mut w = self.synced.clone();
+        w.wait_for(|v| *v > current).await;
+        self.sync_task.abort();
+        self.shutdown = true;
+        Ok(())
     }
 
     pub async fn get_ip(&self) -> Ipv4Addr {
