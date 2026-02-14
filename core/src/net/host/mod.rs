@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
+use std::net::{IpAddr, SocketAddrV4};
 use std::panic::RefUnwindSafe;
 
 use clap::Parser;
@@ -33,6 +34,20 @@ pub struct Host {
     pub bindings: Bindings,
     pub public_domains: BTreeMap<InternedString, PublicDomainConfig>,
     pub private_domains: BTreeMap<InternedString, BTreeSet<GatewayId>>,
+    /// COMPUTED: port forwarding rules needed on gateways for public addresses to work.
+    #[serde(default)]
+    pub port_forwards: BTreeSet<PortForward>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct PortForward {
+    #[ts(type = "string")]
+    pub src: SocketAddrV4,
+    #[ts(type = "string")]
+    pub dst: SocketAddrV4,
+    pub gateway: GatewayId,
 }
 
 impl AsRef<Host> for Host {
@@ -174,7 +189,7 @@ impl Model<Host> {
                     },
                 });
             }
-            if let Some(mut port) = net.assigned_ssl_port {
+            if let Some(port) = net.assigned_ssl_port {
                 available.insert(HostnameInfo {
                     ssl: true,
                     public: false,
@@ -269,6 +284,46 @@ impl Model<Host> {
             }
             bind.as_addresses_mut().as_available_mut().ser(&available)?;
         }
+
+        // compute port forwards from available public addresses
+        let bindings: Bindings = this.bindings.de()?;
+        let mut port_forwards = BTreeSet::new();
+        for bind in bindings.values() {
+            for addr in &bind.addresses.available {
+                if !addr.public {
+                    continue;
+                }
+                let Some(port) = addr.port else {
+                    continue;
+                };
+                let gw_id = match &addr.metadata {
+                    HostnameMetadata::Ipv4 { gateway }
+                    | HostnameMetadata::PublicDomain { gateway } => gateway,
+                    _ => continue,
+                };
+                let Some(gw_info) = gateways.get(gw_id) else {
+                    continue;
+                };
+                let Some(ip_info) = &gw_info.ip_info else {
+                    continue;
+                };
+                let Some(wan_ip) = ip_info.wan_ip else {
+                    continue;
+                };
+                for subnet in &ip_info.subnets {
+                    let IpAddr::V4(addr) = subnet.addr() else {
+                        continue;
+                    };
+                    port_forwards.insert(PortForward {
+                        src: SocketAddrV4::new(wan_ip, port),
+                        dst: SocketAddrV4::new(addr, port),
+                        gateway: gw_id.clone(),
+                    });
+                }
+            }
+        }
+        this.port_forwards.ser(&port_forwards)?;
+
         Ok(())
     }
 }
