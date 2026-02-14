@@ -16,8 +16,13 @@ import {
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { T } from '@start9labs/start-sdk'
 import { parse } from 'tldts'
-import { GatewayWithId } from './pd.service'
+
+export type DnsGateway = T.NetworkInterfaceInfo & {
+  id: string
+  ipInfo: T.IpInfo
+}
 
 @Component({
   selector: 'dns',
@@ -104,7 +109,7 @@ export class DnsComponent {
     injectContext<
       TuiDialogContext<
         void,
-        { fqdn: string; gateway: GatewayWithId; message: string }
+        { fqdn: string; gateway: DnsGateway; message: string }
       >
     >()
 

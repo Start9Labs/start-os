@@ -13,8 +13,8 @@ import { GatewayService } from 'src/app/services/gateway.service'
         'Name',
         'Connection',
         'Type',
-        $any('WAN IP'),
         $any('LAN IP'),
+        $any('WAN IP'),
         null,
       ]"
     >

@@ -1,117 +1,323 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
-import { i18nPipe } from '@start9labs/shared'
-import { TuiButton } from '@taiga-ui/core'
-import { TuiAccordion } from '@taiga-ui/experimental'
-import { TuiElasticContainer, TuiSkeleton } from '@taiga-ui/kit'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+  signal,
+} from '@angular/core'
+import {
+  DialogService,
+  ErrorService,
+  i18nKey,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
+import { ISB, utils } from '@start9labs/start-sdk'
+import {
+  TuiButton,
+  TuiDataList,
+  TuiDropdown,
+  TuiTextfield,
+} from '@taiga-ui/core'
+import { PatchDB } from 'patch-db-client'
+import { firstValueFrom } from 'rxjs'
+import {
+  FormComponent,
+  FormContext,
+} from 'src/app/routes/portal/components/form.component'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
-
-import { MappedServiceInterface } from '../interface.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { toAuthorityName } from 'src/app/utils/acme'
+import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
+import {
+  GatewayAddressGroup,
+  MappedServiceInterface,
+} from '../interface.service'
+import { DNS, DnsGateway } from '../public-domains/dns.component'
 import { InterfaceAddressItemComponent } from './item.component'
 
 @Component({
-  selector: 'section[addresses]',
+  selector: 'section[gatewayGroup]',
   template: `
-    <header>{{ 'Addresses' | i18n }}</header>
-    <tui-elastic-container>
-      <table [appTable]="['Type', 'Access', 'Gateway', 'URL', null]">
-        <th [style.width.rem]="2"></th>
-        @for (address of addresses()?.common; track $index) {
-          <tr [address]="address" [isRunning]="isRunning()"></tr>
-        } @empty {
-          @if (addresses()) {
-            <tr>
-              <td colspan="6">
-                <app-placeholder icon="@tui.list-x">
-                  {{ 'No addresses' | i18n }}
-                </app-placeholder>
-              </td>
-            </tr>
-          } @else {
-            @for (_ of [0, 1]; track $index) {
-              <tr>
-                <td colspan="6">
-                  <div [tuiSkeleton]="true">{{ 'Loading' | i18n }}</div>
-                </td>
-              </tr>
-            }
-          }
-        }
-        <tbody [class.uncommon-hidden]="!uncommon">
-          @if (addresses()?.uncommon?.length && uncommon) {
-            <tr [style.background]="'var(--tui-background-neutral-1)'">
-              <td colspan="6"></td>
-            </tr>
-          }
-          @for (address of addresses()?.uncommon; track $index) {
-            <tr [address]="address" [isRunning]="isRunning()"></tr>
-          }
-        </tbody>
-        @if (addresses()?.uncommon?.length) {
-          <caption [style.caption-side]="'bottom'">
-            <button
-              tuiButton
-              size="m"
-              appearance="secondary-grayscale"
-              (click)="uncommon = !uncommon"
-            >
-              @if (uncommon) {
-                Hide uncommon
-              } @else {
-                Show uncommon
-              }
-            </button>
-          </caption>
-        }
-      </table>
-    </tui-elastic-container>
+    <header>
+      {{ gatewayGroup().gatewayName }}
+      <button
+        tuiDropdown
+        tuiButton
+        iconStart="@tui.plus"
+        [style.margin-inline-start]="'auto'"
+        [(tuiDropdownOpen)]="addOpen"
+      >
+        {{ 'Add Domain' | i18n }}
+        <tui-data-list *tuiTextfieldDropdown (click)="addOpen.set(false)">
+          <button tuiOption new (click)="addPublicDomain()">
+            {{ 'Public Domain' | i18n }}
+          </button>
+          <button tuiOption new (click)="addPrivateDomain()">
+            {{ 'Private Domain' | i18n }}
+          </button>
+        </tui-data-list>
+      </button>
+    </header>
+    <table [appTable]="['Enabled', 'Type', 'Access', 'URL', null]">
+      @for (address of gatewayGroup().addresses; track $index) {
+        <tr
+          [address]="address"
+          [packageId]="packageId()"
+          [value]="value()"
+          [isRunning]="isRunning()"
+        ></tr>
+      } @empty {
+        <tr>
+          <td colspan="5">
+            <app-placeholder icon="@tui.list-x">
+              {{ 'No addresses' | i18n }}
+            </app-placeholder>
+          </td>
+        </tr>
+      }
+    </table>
   `,
   styles: `
     :host ::ng-deep {
-      th:nth-child(2) {
+      th:first-child {
         width: 5rem;
-      }
-
-      th:nth-child(3) {
-        width: 4rem;
-      }
-    }
-
-    .g-table:has(caption) {
-      border-bottom-left-radius: 0;
-      border-bottom-right-radius: 0;
-    }
-
-    [tuiButton] {
-      width: 100%;
-      border-top-left-radius: 0;
-      border-top-right-radius: 0;
-    }
-
-    :host-context(tui-root._mobile) {
-      [tuiButton] {
-        border-radius: var(--tui-radius-xs);
-        margin-block-end: 0.75rem;
       }
     }
   `,
   host: { class: 'g-card' },
   imports: [
-    TuiSkeleton,
     TuiButton,
+    TuiDropdown,
+    TuiDataList,
+    TuiTextfield,
     TableComponent,
     PlaceholderComponent,
     i18nPipe,
     InterfaceAddressItemComponent,
-    TuiElasticContainer,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceAddressesComponent {
-  readonly addresses = input.required<
-    MappedServiceInterface['addresses'] | undefined
-  >()
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly formDialog = inject(FormDialogService)
+  private readonly dialog = inject(DialogService)
+  private readonly loader = inject(LoadingService)
+  private readonly errorService = inject(ErrorService)
+  private readonly api = inject(ApiService)
+  private readonly i18n = inject(i18nPipe)
+
+  readonly gatewayGroup = input.required<GatewayAddressGroup>()
+  readonly packageId = input('')
+  readonly value = input<MappedServiceInterface | undefined>()
   readonly isRunning = input.required<boolean>()
 
-  uncommon = false
+  readonly addOpen = signal(false)
+
+  async addPrivateDomain() {
+    this.formDialog.open<FormContext<{ fqdn: string }>>(FormComponent, {
+      label: 'New private domain',
+      data: {
+        spec: await configBuilderToSpec(
+          ISB.InputSpec.of({
+            fqdn: ISB.Value.text({
+              name: this.i18n.transform('Domain'),
+              description: this.i18n.transform(
+                'Enter a fully qualified domain name. Since the domain is for private use, it can be any domain you want, even one you do not control.',
+              ),
+              required: true,
+              default: null,
+              patterns: [utils.Patterns.domain],
+            }),
+          }),
+        ),
+        buttons: [
+          {
+            text: this.i18n.transform('Save')!,
+            handler: async (value: { fqdn: string }) =>
+              this.savePrivateDomain(value.fqdn),
+          },
+        ],
+      },
+    })
+  }
+
+  async addPublicDomain() {
+    const iface = this.value()
+    if (!iface) return
+
+    const network = await firstValueFrom(
+      this.patch.watch$('serverInfo', 'network'),
+    )
+
+    const authorities = Object.keys(network.acme).reduce<
+      Record<string, string>
+    >(
+      (obj, url) => ({
+        ...obj,
+        [url]: toAuthorityName(url),
+      }),
+      { local: toAuthorityName(null) },
+    )
+
+    const addSpec = ISB.InputSpec.of({
+      fqdn: ISB.Value.text({
+        name: this.i18n.transform('Domain'),
+        description: this.i18n.transform(
+          'Enter a fully qualified domain name. For example, if you control domain.com, you could enter domain.com or subdomain.domain.com or another.subdomain.domain.com.',
+        ),
+        required: true,
+        default: null,
+        patterns: [utils.Patterns.domain],
+      }).map(f => f.toLocaleLowerCase()),
+      ...(iface.addSsl
+        ? {
+            authority: ISB.Value.select({
+              name: this.i18n.transform('Certificate Authority'),
+              description: this.i18n.transform(
+                'Select a Certificate Authority to issue SSL/TLS certificates for this domain',
+              ),
+              values: authorities,
+              default: '',
+            }),
+          }
+        : ({} as { authority: ReturnType<typeof ISB.Value.select> })),
+    })
+
+    this.formDialog.open(FormComponent, {
+      label: 'Add public domain',
+      data: {
+        spec: await configBuilderToSpec(addSpec),
+        buttons: [
+          {
+            text: this.i18n.transform('Save')!,
+            handler: (input: typeof addSpec._TYPE) =>
+              this.savePublicDomain(input.fqdn, input.authority),
+          },
+        ],
+      },
+    })
+  }
+
+  private async savePrivateDomain(fqdn: string): Promise<boolean> {
+    const iface = this.value()
+    const loader = this.loader.open('Saving').subscribe()
+
+    try {
+      if (this.packageId()) {
+        await this.api.pkgAddPrivateDomain({
+          fqdn,
+          package: this.packageId(),
+          host: iface?.addressInfo.hostId || '',
+        })
+      } else {
+        await this.api.osUiAddPrivateDomain({ fqdn })
+      }
+      return true
+    } catch (e: any) {
+      this.errorService.handleError(e)
+      return false
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  private async savePublicDomain(
+    fqdn: string,
+    authority?: 'local' | string,
+  ): Promise<boolean> {
+    const iface = this.value()
+    const gatewayId = this.gatewayGroup().gatewayId
+    const loader = this.loader.open('Saving').subscribe()
+
+    const params = {
+      fqdn,
+      gateway: gatewayId,
+      acme: !authority || authority === 'local' ? null : authority,
+    }
+
+    try {
+      let ip: string | null
+      if (this.packageId()) {
+        ip = await this.api.pkgAddPublicDomain({
+          ...params,
+          package: this.packageId(),
+          host: iface?.addressInfo.hostId || '',
+        })
+      } else {
+        ip = await this.api.osUiAddPublicDomain(params)
+      }
+
+      const network = await this.patch
+        .watch$('serverInfo', 'network')
+        .pipe()
+        .toPromise()
+      const gateway = network?.gateways[gatewayId]
+
+      if (gateway?.ipInfo) {
+        const wanIp = gateway.ipInfo.wanIp
+        const message = this.i18n.transform(
+          'Create one of the DNS records below.',
+        ) as i18nKey
+        const gatewayData = {
+          id: gatewayId,
+          ...gateway,
+          ipInfo: gateway.ipInfo,
+        }
+
+        if (!ip) {
+          setTimeout(
+            () =>
+              this.showDns(
+                fqdn,
+                gatewayData,
+                `${this.i18n.transform('No DNS record detected for')} ${fqdn}. ${message}` as i18nKey,
+              ),
+            250,
+          )
+        } else if (ip !== wanIp) {
+          setTimeout(
+            () =>
+              this.showDns(
+                fqdn,
+                gatewayData,
+                `${this.i18n.transform('Invalid DNS record')}. ${fqdn} ${this.i18n.transform('resolves to')} ${ip}. ${message}` as i18nKey,
+              ),
+            250,
+          )
+        } else {
+          setTimeout(
+            () =>
+              this.dialog
+                .openAlert(
+                  `${fqdn} ${this.i18n.transform('resolves to')} ${wanIp}` as i18nKey,
+                  { label: 'DNS record detected!', appearance: 'positive' },
+                )
+                .subscribe(),
+            250,
+          )
+        }
+      }
+
+      return true
+    } catch (e: any) {
+      this.errorService.handleError(e)
+      return false
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  private showDns(fqdn: string, gateway: DnsGateway, message: i18nKey) {
+    this.dialog
+      .openComponent(DNS, {
+        label: 'DNS Records',
+        size: 'l',
+        data: { fqdn, gateway, message },
+      })
+      .subscribe()
+  }
 }

@@ -15,7 +15,6 @@ import { GatewaysTableComponent } from './table.component'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { TitleDirective } from 'src/app/services/title.service'
 import { ISB } from '@start9labs/start-sdk'
-import { RR } from 'src/app/services/api/api.types'
 
 @Component({
   template: `
@@ -81,17 +80,6 @@ export default class GatewaysComponent {
         default: null,
         placeholder: 'StartTunnel 1',
       }),
-      type: ISB.Value.select({
-        name: this.i18n.transform('Type'),
-        description: this.i18n.transform('The type of gateway'),
-        default: 'inbound-outbound',
-        values: {
-          'inbound-outbound': this.i18n.transform(
-            'StartTunnel (Inbound/Outbound)',
-          ),
-          'outbound-only': this.i18n.transform('Outbound Only'),
-        },
-      }),
       config: ISB.Value.union({
         name: this.i18n.transform('WireGuard Config File'),
         default: 'paste',
@@ -103,8 +91,8 @@ export default class GatewaysComponent {
                 name: this.i18n.transform('File Contents'),
                 default: null,
                 required: true,
-                minRows: 16,
-                maxRows: 16,
+                minRows: 8,
+                maxRows: 8,
               }),
             }),
           },
@@ -146,7 +134,6 @@ export default class GatewaysComponent {
                     input.config.selection === 'paste'
                       ? input.config.value.file
                       : await (input.config.value.file as any as File).text(),
-                  type: input.type as RR.GatewayType,
                   setAsDefaultOutbound: input.setAsDefaultOutbound,
                 })
                 return true

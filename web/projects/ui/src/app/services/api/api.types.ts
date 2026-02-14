@@ -257,7 +257,6 @@ export namespace RR {
   export type AddTunnelReq = {
     name: string
     config: string // file contents
-    type: GatewayType
     setAsDefaultOutbound?: boolean
   } // net.tunnel.add
   export type AddTunnelRes = {

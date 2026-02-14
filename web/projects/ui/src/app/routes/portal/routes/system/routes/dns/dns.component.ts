@@ -184,7 +184,7 @@ export default class SystemDnsComponent {
 
         if (
           Object.values(pkgs).some(p =>
-            Object.values(p.hosts).some(h => h?.privateDomains.length),
+            Object.values(p.hosts).some(h => Object.keys(h?.privateDomains || {}).length),
           )
         ) {
           Object.values(gateways)

@@ -5,7 +5,13 @@ import {
   input,
   signal,
 } from '@angular/core'
-import { CopyService, DialogService, i18nPipe } from '@start9labs/shared'
+import {
+  CopyService,
+  DialogService,
+  ErrorService,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import {
   TuiButton,
@@ -16,37 +22,13 @@ import {
 } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { QRModal } from 'src/app/routes/portal/modals/qr.component'
-
-import { InterfaceAddressItemComponent } from './item.component'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { GatewayAddress, MappedServiceInterface } from '../interface.service'
 
 @Component({
   selector: 'td[actions]',
   template: `
     <div class="desktop">
-      @if (interface.address().masked) {
-        <button
-          tuiIconButton
-          appearance="flat-grayscale"
-          [iconStart]="
-            interface.currentlyMasked() ? '@tui.eye' : '@tui.eye-off'
-          "
-          (click)="interface.currentlyMasked.set(!interface.currentlyMasked())"
-        >
-          {{ 'Reveal/Hide' | i18n }}
-        </button>
-      }
-      @if (interface.address().ui) {
-        <a
-          tuiIconButton
-          appearance="flat-grayscale"
-          iconStart="@tui.external-link"
-          target="_blank"
-          rel="noopener noreferrer"
-          [href]="href()"
-        >
-          {{ 'Open' | i18n }}
-        </a>
-      }
       <button
         tuiIconButton
         appearance="flat-grayscale"
@@ -59,10 +41,20 @@ import { InterfaceAddressItemComponent } from './item.component'
         tuiIconButton
         appearance="flat-grayscale"
         iconStart="@tui.copy"
-        (click)="copyService.copy(href())"
+        (click)="copyService.copy(address().url)"
       >
         {{ 'Copy URL' | i18n }}
       </button>
+      @if (address().deletable) {
+        <button
+          tuiIconButton
+          appearance="flat-destructive"
+          iconStart="@tui.trash"
+          (click)="deleteDomain()"
+        >
+          {{ 'Delete' | i18n }}
+        </button>
+      }
     </div>
     <div class="mobile">
       <button
@@ -75,41 +67,40 @@ import { InterfaceAddressItemComponent } from './item.component'
       >
         {{ 'Actions' | i18n }}
         <tui-data-list *tuiTextfieldDropdown (click)="open.set(false)">
-          @if (interface.address().ui) {
-            <a
-              tuiOption
-              new
-              iconStart="@tui.external-link"
-              target="_blank"
-              rel="noopener noreferrer"
-              [href]="href()"
-            >
-              {{ 'Open' | i18n }}
-            </a>
-          }
-          @if (interface.address().masked) {
-            <button
-              tuiOption
-              new
-              iconStart="@tui.eye"
-              (click)="
-                interface.currentlyMasked.set(!interface.currentlyMasked())
-              "
-            >
-              {{ 'Reveal/Hide' | i18n }}
-            </button>
-          }
-          <button tuiOption new iconStart="@tui.qr-code" (click)="showQR()">
+          <button
+            tuiOption
+            new
+            [iconStart]="address().enabled ? '@tui.toggle-right' : '@tui.toggle-left'"
+            (click)="toggleEnabled()"
+          >
+            {{ (address().enabled ? 'Disable' : 'Enable') | i18n }}
+          </button>
+          <button
+            tuiOption
+            new
+            iconStart="@tui.qr-code"
+            (click)="showQR()"
+          >
             {{ 'Show QR' | i18n }}
           </button>
           <button
             tuiOption
             new
             iconStart="@tui.copy"
-            (click)="copyService.copy(href())"
+            (click)="copyService.copy(address().url)"
           >
             {{ 'Copy URL' | i18n }}
           </button>
+          @if (address().deletable) {
+            <button
+              tuiOption
+              new
+              iconStart="@tui.trash"
+              (click)="deleteDomain()"
+            >
+              {{ 'Delete' | i18n }}
+            </button>
+          }
         </tui-data-list>
       </button>
     </div>
@@ -136,31 +127,23 @@ import { InterfaceAddressItemComponent } from './item.component'
         display: block;
       }
     }
-
-    :host-context(tbody.uncommon-hidden) {
-      .desktop {
-        height: 0;
-        visibility: hidden;
-      }
-
-      .mobile {
-        display: none;
-      }
-    }
   `,
   imports: [TuiButton, TuiDropdown, TuiDataList, i18nPipe, TuiTextfield],
   providers: [tuiButtonOptionsProvider({ appearance: 'icon' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AddressActionsComponent {
-  readonly isMobile = inject(TUI_IS_MOBILE)
-  readonly dialog = inject(DialogService)
+  private readonly isMobile = inject(TUI_IS_MOBILE)
+  private readonly dialog = inject(DialogService)
+  private readonly api = inject(ApiService)
+  private readonly loader = inject(LoadingService)
+  private readonly errorService = inject(ErrorService)
   readonly copyService = inject(CopyService)
-  readonly interface = inject(InterfaceAddressItemComponent)
   readonly open = signal(false)
 
-  readonly href = input.required<string>()
-  readonly bullets = input.required<string[]>()
+  readonly address = input.required<GatewayAddress>()
+  readonly packageId = input('')
+  readonly value = input<MappedServiceInterface | undefined>()
   readonly disabled = input.required<boolean>()
 
   showQR() {
@@ -168,8 +151,84 @@ export class AddressActionsComponent {
       .openComponent(new PolymorpheusComponent(QRModal), {
         size: 'auto',
         closeable: this.isMobile,
-        data: this.href(),
+        data: this.address().url,
       })
       .subscribe()
+  }
+
+  async toggleEnabled() {
+    const addr = this.address()
+    const iface = this.value()
+    if (!iface) return
+
+    const enabled = !addr.enabled
+    const addressJson = JSON.stringify(addr.hostnameInfo)
+    const loader = this.loader.open('Saving').subscribe()
+
+    try {
+      if (this.packageId()) {
+        await this.api.pkgBindingSetAddressEnabled({
+          internalPort: iface.addressInfo.internalPort,
+          address: addressJson,
+          enabled,
+          package: this.packageId(),
+          host: iface.addressInfo.hostId,
+        })
+      } else {
+        await this.api.serverBindingSetAddressEnabled({
+          internalPort: 80,
+          address: addressJson,
+          enabled,
+        })
+      }
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  async deleteDomain() {
+    const addr = this.address()
+    const iface = this.value()
+    if (!iface) return
+
+    const confirmed = await this.dialog
+      .openConfirm({ label: 'Are you sure?', size: 's' })
+      .toPromise()
+
+    if (!confirmed) return
+
+    const loader = this.loader.open('Removing').subscribe()
+
+    try {
+      const host = addr.hostnameInfo.host
+
+      if (addr.hostnameInfo.metadata.kind === 'public-domain') {
+        if (this.packageId()) {
+          await this.api.pkgRemovePublicDomain({
+            fqdn: host,
+            package: this.packageId(),
+            host: iface.addressInfo.hostId,
+          })
+        } else {
+          await this.api.osUiRemovePublicDomain({ fqdn: host })
+        }
+      } else if (addr.hostnameInfo.metadata.kind === 'private-domain') {
+        if (this.packageId()) {
+          await this.api.pkgRemovePrivateDomain({
+            fqdn: host,
+            package: this.packageId(),
+            host: iface.addressInfo.hostId,
+          })
+        } else {
+          await this.api.osUiRemovePrivateDomain({ fqdn: host })
+        }
+      }
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
   }
 }

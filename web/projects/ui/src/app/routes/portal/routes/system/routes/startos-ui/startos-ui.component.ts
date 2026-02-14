@@ -12,10 +12,7 @@ import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
-import {
-  getPublicDomains,
-  InterfaceService,
-} from 'src/app/routes/portal/components/interfaces/interface.service'
+import { InterfaceService } from 'src/app/routes/portal/components/interfaces/interface.service'
 import { GatewayService } from 'src/app/services/gateway.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
@@ -84,27 +81,17 @@ export default class StartOsUiComponent {
 
     if (!network || !gateways) return
 
-    const binding = network.host.bindings['80']
-
     return {
       ...this.iface,
-      addresses: this.interfaceService.getAddresses(
+      gatewayGroups: this.interfaceService.getGatewayGroups(
         this.iface,
         network.host,
         gateways,
       ),
-      gateways: gateways.map(g => ({
-        enabled:
-          (binding?.addresses.enabled.some(a => a.gateway.id === g.id) ||
-            (!binding?.addresses.disabled.some(a => a.gateway.id === g.id) &&
-              binding?.addresses.possible.some(a =>
-                a.gateway.id === g.id &&
-                !(a.public && (a.hostname.kind === 'ipv4' || a.hostname.kind === 'ipv6'))
-              ))) ?? false,
-        ...g,
-      })),
-      publicDomains: getPublicDomains(network.host.publicDomains, gateways),
-      privateDomains: network.host.privateDomains,
+      pluginGroups: this.interfaceService.getPluginGroups(
+        this.iface,
+        network.host,
+      ),
       addSsl: true,
     }
   })

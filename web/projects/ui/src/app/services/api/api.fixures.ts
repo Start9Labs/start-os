@@ -2130,68 +2130,44 @@ export namespace Mock {
             addresses: {
               enabled: [],
               disabled: [],
-              possible: [
+              available: [
                 {
-                  gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                  ssl: true,
                   public: false,
-                  hostname: {
-                    kind: 'local',
-                    value: 'adjective-noun.local',
-                    port: null,
-                    sslPort: 1234,
+                  host: 'adjective-noun.local',
+                  port: 1234,
+                  metadata: {
+                    kind: 'private-domain',
+                    gateways: ['eth0', 'wlan0'],
                   },
                 },
                 {
-                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  ssl: true,
                   public: false,
-                  hostname: {
-                    kind: 'local',
-                    value: 'adjective-noun.local',
-                    port: null,
-                    sslPort: 1234,
-                  },
+                  host: '192.168.10.11',
+                  port: 1234,
+                  metadata: { kind: 'ipv4', gateway: 'wlan0' },
                 },
                 {
-                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  ssl: true,
                   public: false,
-                  hostname: {
-                    kind: 'ipv4',
-                    value: '192.168.10.11',
-                    port: null,
-                    sslPort: 1234,
-                  },
+                  host: '10.0.0.2',
+                  port: 1234,
+                  metadata: { kind: 'ipv4', gateway: 'wlan0' },
                 },
                 {
-                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  ssl: true,
                   public: false,
-                  hostname: {
-                    kind: 'ipv4',
-                    value: '10.0.0.2',
-                    port: null,
-                    sslPort: 1234,
-                  },
+                  host: 'fe80:cd00:0000:0cde:1257:0000:211e:72cd',
+                  port: 1234,
+                  metadata: { kind: 'ipv6', gateway: 'eth0', scopeId: 2 },
                 },
                 {
-                  gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                  ssl: true,
                   public: false,
-                  hostname: {
-                    kind: 'ipv6',
-                    value: '[fe80:cd00:0000:0cde:1257:0000:211e:72cd]',
-                    scopeId: 2,
-                    port: null,
-                    sslPort: 1234,
-                  },
-                },
-                {
-                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
-                  public: false,
-                  hostname: {
-                    kind: 'ipv6',
-                    value: '[fe80:cd00:0000:0cde:1257:0000:211e:1234]',
-                    scopeId: 3,
-                    port: null,
-                    sslPort: 1234,
-                  },
+                  host: 'fe80:cd00:0000:0cde:1257:0000:211e:1234',
+                  port: 1234,
+                  metadata: { kind: 'ipv6', gateway: 'wlan0', scopeId: 3 },
                 },
               ],
             },
@@ -2203,7 +2179,7 @@ export namespace Mock {
           },
         },
         publicDomains: {},
-        privateDomains: [],
+        privateDomains: {},
       },
       bcdefgh: {
         bindings: {
@@ -2216,7 +2192,7 @@ export namespace Mock {
             addresses: {
               enabled: [],
               disabled: [],
-              possible: [],
+              available: [],
             },
             options: {
               addSsl: null,
@@ -2226,7 +2202,7 @@ export namespace Mock {
           },
         },
         publicDomains: {},
-        privateDomains: [],
+        privateDomains: {},
       },
       cdefghi: {
         bindings: {
@@ -2239,7 +2215,7 @@ export namespace Mock {
             addresses: {
               enabled: [],
               disabled: [],
-              possible: [],
+              available: [],
             },
             options: {
               addSsl: null,
@@ -2249,7 +2225,7 @@ export namespace Mock {
           },
         },
         publicDomains: {},
-        privateDomains: [],
+        privateDomains: {},
       },
     },
     storeExposedDependents: [],

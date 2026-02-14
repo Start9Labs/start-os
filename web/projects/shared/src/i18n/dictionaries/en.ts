@@ -691,5 +691,10 @@ export const ENGLISH: Record<string, number> = {
   'WireGuard Config File': 726,
   'Inbound/Outbound': 727,
   'StartTunnel (Inbound/Outbound)': 728,
-  'Ethernet': 729
+  'Ethernet': 729,
+  'Add Domain': 730,
+  'Public Domain': 731,
+  'Private Domain': 732,
+  'Hide': 733,
+  'default outbound': 734
 }

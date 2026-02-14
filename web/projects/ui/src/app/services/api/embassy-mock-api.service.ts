@@ -583,7 +583,7 @@ export class MockApiService extends ApiService {
             lanIp: ['192.168.1.10'],
             dnsServers: [],
           },
-          type: params.type,
+          type: 'inbound-outbound',
         },
       },
     ]
@@ -1406,24 +1406,20 @@ export class MockApiService extends ApiService {
     const patch: Operation<any>[] = [
       {
         op: PatchOp.ADD,
-        path: `/serverInfo/host/publicDomains`,
+        path: `/serverInfo/network/host/publicDomains`,
         value: {
           [params.fqdn]: { gateway: params.gateway, acme: params.acme },
         },
       },
       {
         op: PatchOp.ADD,
-        path: `/serverInfo/network/host/bindings/80/addresses/possible/0`,
+        path: `/serverInfo/network/host/bindings/80/addresses/available/-`,
         value: {
-          gateway: { id: 'eth0', name: 'Ethernet', public: false },
+          ssl: true,
           public: true,
-          hostname: {
-            kind: 'domain',
-            domain: params.fqdn,
-            subdomain: null,
-            port: null,
-            sslPort: 443,
-          },
+          host: params.fqdn,
+          port: 443,
+          metadata: { kind: 'public-domain', gateway: params.gateway },
         },
       },
     ]
@@ -1440,11 +1436,7 @@ export class MockApiService extends ApiService {
     const patch: RemoveOperation[] = [
       {
         op: PatchOp.REMOVE,
-        path: `/serverInfo/host/publicDomains/${params.fqdn}`,
-      },
-      {
-        op: PatchOp.REMOVE,
-        path: `/serverInfo/network/host/bindings/80/addresses/possible/0`,
+        path: `/serverInfo/network/host/publicDomains/${params.fqdn}`,
       },
     ]
     this.mockRevision(patch)
@@ -1459,23 +1451,19 @@ export class MockApiService extends ApiService {
 
     const patch: Operation<any>[] = [
       {
-        op: PatchOp.REPLACE,
-        path: `/serverInfo/host/privateDomains`,
-        value: [params.fqdn],
+        op: PatchOp.ADD,
+        path: `/serverInfo/network/host/privateDomains/${params.fqdn}`,
+        value: ['eth0'],
       },
       {
         op: PatchOp.ADD,
-        path: `/serverInfo/network/host/bindings/80/addresses/possible/0`,
+        path: `/serverInfo/network/host/bindings/80/addresses/available/-`,
         value: {
-          gateway: { id: 'eth0', name: 'Ethernet', public: false },
+          ssl: true,
           public: false,
-          hostname: {
-            kind: 'domain',
-            domain: params.fqdn,
-            subdomain: null,
-            port: null,
-            sslPort: 443,
-          },
+          host: params.fqdn,
+          port: 443,
+          metadata: { kind: 'private-domain', gateways: ['eth0'] },
         },
       },
     ]
@@ -1489,15 +1477,10 @@ export class MockApiService extends ApiService {
   ): Promise<RR.OsUiRemovePrivateDomainRes> {
     await pauseFor(2000)
 
-    const patch: Operation<any>[] = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/serverInfo/host/privateDomains`,
-        value: [],
-      },
+    const patch: RemoveOperation[] = [
       {
         op: PatchOp.REMOVE,
-        path: `/serverInfo/network/host/bindings/80/addresses/possible/0`,
+        path: `/serverInfo/network/host/privateDomains/${params.fqdn}`,
       },
     ]
     this.mockRevision(patch)
@@ -1529,17 +1512,13 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.ADD,
-        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/possible/0`,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/available/-`,
         value: {
-          gateway: { id: 'eth0', name: 'Ethernet', public: false },
+          ssl: true,
           public: true,
-          hostname: {
-            kind: 'domain',
-            domain: params.fqdn,
-            subdomain: null,
-            port: null,
-            sslPort: 443,
-          },
+          host: params.fqdn,
+          port: 443,
+          metadata: { kind: 'public-domain', gateway: params.gateway },
         },
       },
     ]
@@ -1558,10 +1537,6 @@ export class MockApiService extends ApiService {
         op: PatchOp.REMOVE,
         path: `/packageData/${params.package}/hosts/${params.host}/publicDomains/${params.fqdn}`,
       },
-      {
-        op: PatchOp.REMOVE,
-        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/possible/0`,
-      },
     ]
     this.mockRevision(patch)
 
@@ -1575,23 +1550,19 @@ export class MockApiService extends ApiService {
 
     const patch: Operation<any>[] = [
       {
-        op: PatchOp.REPLACE,
-        path: `/packageData/${params.package}/hosts/${params.host}/privateDomains`,
-        value: [params.fqdn],
+        op: PatchOp.ADD,
+        path: `/packageData/${params.package}/hosts/${params.host}/privateDomains/${params.fqdn}`,
+        value: ['eth0'],
       },
       {
         op: PatchOp.ADD,
-        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/possible/0`,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/available/-`,
         value: {
-          gateway: { id: 'eth0', name: 'Ethernet', public: false },
+          ssl: true,
           public: false,
-          hostname: {
-            kind: 'domain',
-            domain: params.fqdn,
-            subdomain: null,
-            port: null,
-            sslPort: 443,
-          },
+          host: params.fqdn,
+          port: 443,
+          metadata: { kind: 'private-domain', gateways: ['eth0'] },
         },
       },
     ]
@@ -1605,15 +1576,10 @@ export class MockApiService extends ApiService {
   ): Promise<RR.PkgRemovePrivateDomainRes> {
     await pauseFor(2000)
 
-    const patch: Operation<any>[] = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/packageData/${params.package}/hosts/${params.host}/privateDomains`,
-        value: [],
-      },
+    const patch: RemoveOperation[] = [
       {
         op: PatchOp.REMOVE,
-        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/possible/0`,
+        path: `/packageData/${params.package}/hosts/${params.host}/privateDomains/${params.fqdn}`,
       },
     ]
     this.mockRevision(patch)

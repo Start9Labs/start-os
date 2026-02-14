@@ -34,7 +34,9 @@ import { TuiBadge } from '@taiga-ui/kit'
       <td>
         {{ gateway.name }}
         @if (gateway.isDefaultOutbound) {
-          <span tuiBadge tuiStatus appearance="positive">Default outbound</span>
+          <tui-badge appearance="primary-success">
+            {{ 'default outbound' | i18n }}
+          </tui-badge>
         }
       </td>
       <td>
@@ -49,7 +51,7 @@ import { TuiBadge } from '@taiga-ui/kit'
           }
           @case ('wireguard') {
             <tui-icon icon="@tui.shield" />
-            WireGuard'
+            WireGuard
           }
           @default {
             {{ gateway.ipInfo.deviceType }}
@@ -58,13 +60,14 @@ import { TuiBadge } from '@taiga-ui/kit'
       </td>
       <td>
         @if (gateway.type === 'outbound-only') {
-          <tui-icon icon="@tui.arrow-up-right" />
+          <tui-icon icon="@tui.arrow-up" />
           {{ 'Outbound Only' | i18n }}
         } @else {
-          <tui-icon icon="@tui.arrow-left-right" />
+          <tui-icon icon="@tui.arrow-up-down" />
           {{ 'Inbound/Outbound' | i18n }}
         }
       </td>
+      <td class="lan">{{ gateway.lanIpv4.join(', ') || '-' }}</td>
       <td
         class="wan"
         [style.color]="
@@ -73,7 +76,6 @@ import { TuiBadge } from '@taiga-ui/kit'
       >
         {{ gateway.ipInfo.wanIp || ('Error' | i18n) }}
       </td>
-      <td class="lan">{{ gateway.lanIpv4.join(', ') || '-' }}</td>
       <td>
         <button
           tuiIconButton
@@ -87,7 +89,7 @@ import { TuiBadge } from '@taiga-ui/kit'
           {{ 'More' | i18n }}
           <tui-data-list *tuiTextfieldDropdown>
             <tui-opt-group>
-              <button tuiOption new iconStart="@tui.pencil" (click)="rename()">
+              <button tuiOption new (click)="rename()">
                 {{ 'Rename' | i18n }}
               </button>
             </tui-opt-group>
@@ -96,7 +98,6 @@ import { TuiBadge } from '@taiga-ui/kit'
                 <button
                   tuiOption
                   new
-                  iconStart="@tui.arrow-up-right"
                   (click)="setDefaultOutbound()"
                 >
                   {{ 'Set as default outbound' | i18n }}
@@ -108,7 +109,6 @@ import { TuiBadge } from '@taiga-ui/kit'
                 <button
                   tuiOption
                   new
-                  iconStart="@tui.trash"
                   class="g-negative"
                   (click)="remove()"
                 >

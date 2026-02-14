@@ -21,7 +21,6 @@ Pending tasks for AI agents. Remove items when completed.
   ### Design
 
   **Key distinction**: There are two separate concepts for SSL port usage:
-
   1. **Port ownership** (`assigned_ssl_port`) — A port exclusively owned by a binding, allocated from
      `AvailablePorts`. Used for server hostnames (`.local`, mDNS, etc.) and iptables forwards.
   2. **Domain SSL port** — The port used for domain-based vhost entries. A binding does NOT need to own
@@ -62,7 +61,6 @@ Pending tasks for AI agents. Remove items when completed.
   `server.host.binding` and `package.host.binding`).
 
   **How disabling works per address type** (enforcement deferred to Section 3):
-
   - **WAN/LAN IP:port**: Will be enforced via **source-IP gating** in the vhost layer (Section 3).
   - **Hostname-based addresses** (`.local`, domains): Disabled by **not creating the vhost/SNI
     entry** for that hostname.
@@ -73,7 +71,7 @@ Pending tasks for AI agents. Remove items when completed.
   `net_controller.rs`) creates a bespoke dual-vhost setup: port 5443 for private-only access and port
   443 for public (or public+private). This exists because both public and private traffic arrive on the
   same port 443 listener, and the current `InterfaceFilter`/`PublicFilter` model distinguishes
-  public/private by which *network interface* the connection arrived on — which doesn't work when both
+  public/private by which _network interface_ the connection arrived on — which doesn't work when both
   traffic types share a listener.
 
   **Solution**: Determine public vs private based on **source IP** at the vhost level. Traffic arriving
@@ -81,7 +79,6 @@ Pending tasks for AI agents. Remove items when completed.
   anything from the gateway is potentially public). Traffic from LAN IPs is private.
 
   This applies to **all** vhost targets, not just port 443:
-
   - **Add a `public` field to `ProxyTarget`** (or an enum: `Public`, `Private`, `Both`) indicating
     what traffic this target accepts, derived from the binding's user-controlled `public` field.
   - **Modify `VHostTarget::filter()`** (`vhost.rs:342`): Instead of (or in addition to) checking the
@@ -109,7 +106,6 @@ Pending tasks for AI agents. Remove items when completed.
   #### 5. Simplify `update()` Domain Vhost Logic (`net_controller.rs`)
 
   With source-IP gating in the vhost controller:
-
   - **Remove the `== 443` special case** and the 5443 secondary vhost.
   - For **server hostnames** (`.local`, mDNS, embassy, startos, localhost): use `assigned_ssl_port`
     (the port the binding owns).
@@ -122,60 +118,18 @@ Pending tasks for AI agents. Remove items when completed.
     `ssl_port: assigned_ssl_port`. For domains, report `ssl_port: preferred_external_port` if it was
     successfully used for the domain vhost, otherwise report `ssl_port: assigned_ssl_port`.
 
-  #### 6. Frontend: Interfaces Page Overhaul (View/Manage Split)
-
-  The current interfaces page is a single page showing gateways (with toggle), addresses, public
-  domains, and private domains. It gets split into two pages: **View** and **Manage**.
-
-  **SDK**: `preferredExternalPort` is already exposed. No additional SDK changes needed.
-
-  ##### View Page
-
-  Displays all computed addresses for the interface (from `BindInfo.addresses`) as a flat list. For each
-  address, show: URL, type (IPv4, IPv6, .local, domain), access level (public/private),
-  gateway name, SSL indicator, enable/disable state, port forward info for public addresses, and a test button
-  for reachability (see Section 7).
-
-  No gateway-level toggles. The old `gateways.component.ts` toggle UI is removed.
-
-  **Note**: Exact UI element placement (where toggles, buttons, info badges go) is sensitive.
-  Prompt the user for specific placement decisions during implementation.
-
-  ##### Manage Page
-
-  Simple CRUD interface for configuring which addresses exist. Two sections:
-
-  - **Public domains**: Add/remove. Uses existing RPC endpoints:
-    - `{server,package}.host.address.domain.public.add`
-    - `{server,package}.host.address.domain.public.remove`
-  - **Private domains**: Add/remove. Uses existing RPC endpoints:
-    - `{server,package}.host.address.domain.private.add`
-    - `{server,package}.host.address.domain.private.remove`
-
-  ##### Key Frontend Files to Modify
-
-  | File | Change |
-  |------|--------|
-  | `web/projects/ui/src/app/routes/portal/components/interfaces/` | Overhaul: split into view/manage |
-  | `web/projects/ui/src/app/routes/portal/components/interfaces/gateways.component.ts` | Remove (replaced by per-address toggles on View page) |
-  | `web/projects/ui/src/app/routes/portal/components/interfaces/interface.service.ts` | Update `MappedServiceInterface` to compute enabled addresses from `DerivedAddressInfo` |
-  | `web/projects/ui/src/app/routes/portal/components/interfaces/addresses/` | Refactor for View page with overflow menu (enable/disable) and test buttons |
-  | `web/projects/ui/src/app/routes/portal/routes/services/services.routes.ts` | Add routes for view/manage sub-pages |
-  | `web/projects/ui/src/app/routes/portal/routes/system/system.routes.ts` | Add routes for view/manage sub-pages |
-
-  #### 7. Reachability Test Endpoint
+  #### 6. Reachability Test Endpoint
 
   New RPC endpoint that tests whether an address is actually reachable, with diagnostic info on
   failure.
 
   **RPC endpoint** (`binding.rs` or new file):
-
   - **`test-address`** — Test reachability of a specific address.
 
     ```ts
     interface BindingTestAddressParams {
-      internalPort: number
-      address: HostnameInfo
+      internalPort: number;
+      address: HostnameInfo;
     }
     ```
 
@@ -185,8 +139,8 @@ Pending tasks for AI agents. Remove items when completed.
 
     ```ts
     interface TestAddressResult {
-      dns: string[] | null      // resolved IPs, null if not a domain address or lookup failed
-      portOpen: boolean | null  // TCP connect result, null if not applicable
+      dns: string[] | null; // resolved IPs, null if not a domain address or lookup failed
+      portOpen: boolean | null; // TCP connect result, null if not applicable
     }
     ```
 
@@ -205,17 +159,17 @@ Pending tasks for AI agents. Remove items when completed.
 
   ### Key Files
 
-  | File | Role |
-  |------|------|
-  | `core/src/net/forward.rs` | `AvailablePorts` — port pool allocation, `try_alloc()` for preferred ports |
-  | `core/src/net/host/binding.rs` | `Bindings` (Map wrapper for patchdb), `BindInfo`/`NetInfo`/`DerivedAddressInfo`/`AddressFilter` — per-address enable/disable, `set-address-enabled` RPC |
-  | `core/src/net/net_controller.rs:259` | `NetServiceData::update()` — computes `DerivedAddressInfo.possible`, vhost/forward/DNS reconciliation, 5443 hack removal |
-  | `core/src/net/vhost.rs` | `VHostController` / `ProxyTarget` — source-IP gating for public/private |
-  | `core/src/net/gateway.rs` | `InterfaceFilter` trait and filter types (`AddressFilter`, `PublicFilter`, etc.) |
-  | `core/src/net/service_interface.rs` | `HostnameInfo` — derives `Ord` for `BTreeSet` usage |
-  | `core/src/net/host/address.rs` | `HostAddress` (flattened struct), domain CRUD endpoints |
-  | `sdk/base/lib/interfaces/Host.ts` | SDK `MultiHost.bindPort()` — no changes needed |
-  | `core/src/db/model/public.rs` | Public DB model — port forward mapping |
+  | File                                 | Role                                                                                                                                                    |
+  | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `core/src/net/forward.rs`            | `AvailablePorts` — port pool allocation, `try_alloc()` for preferred ports                                                                              |
+  | `core/src/net/host/binding.rs`       | `Bindings` (Map wrapper for patchdb), `BindInfo`/`NetInfo`/`DerivedAddressInfo`/`AddressFilter` — per-address enable/disable, `set-address-enabled` RPC |
+  | `core/src/net/net_controller.rs:259` | `NetServiceData::update()` — computes `DerivedAddressInfo.possible`, vhost/forward/DNS reconciliation, 5443 hack removal                                |
+  | `core/src/net/vhost.rs`              | `VHostController` / `ProxyTarget` — source-IP gating for public/private                                                                                 |
+  | `core/src/net/gateway.rs`            | `InterfaceFilter` trait and filter types (`AddressFilter`, `PublicFilter`, etc.)                                                                        |
+  | `core/src/net/service_interface.rs`  | `HostnameInfo` — derives `Ord` for `BTreeSet` usage                                                                                                     |
+  | `core/src/net/host/address.rs`       | `HostAddress` (flattened struct), domain CRUD endpoints                                                                                                 |
+  | `sdk/base/lib/interfaces/Host.ts`    | SDK `MultiHost.bindPort()` — no changes needed                                                                                                          |
+  | `core/src/db/model/public.rs`        | Public DB model — port forward mapping                                                                                                                  |
 
 - [ ] Extract TS-exported types into a lightweight sub-crate for fast binding generation
 

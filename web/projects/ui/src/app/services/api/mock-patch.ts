@@ -42,68 +42,58 @@ export const mockPatchData: DataModel = {
             addresses: {
               enabled: [],
               disabled: [],
-              possible: [
+              available: [
                 {
-                  gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                  ssl: true,
                   public: false,
-                  hostname: {
-                    kind: 'local',
-                    value: 'adjective-noun.local',
-                    port: null,
-                    sslPort: 443,
+                  host: 'adjective-noun.local',
+                  port: 443,
+                  metadata: {
+                    kind: 'private-domain',
+                    gateways: ['eth0', 'wlan0'],
                   },
                 },
                 {
-                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  ssl: true,
                   public: false,
-                  hostname: {
-                    kind: 'local',
-                    value: 'adjective-noun.local',
-                    port: null,
-                    sslPort: 443,
-                  },
+                  host: '10.0.0.1',
+                  port: 443,
+                  metadata: { kind: 'ipv4', gateway: 'eth0' },
                 },
                 {
-                  gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                  ssl: true,
                   public: false,
-                  hostname: {
-                    kind: 'ipv4',
-                    value: '10.0.0.1',
-                    port: null,
-                    sslPort: 443,
-                  },
+                  host: '10.0.0.2',
+                  port: 443,
+                  metadata: { kind: 'ipv4', gateway: 'wlan0' },
                 },
                 {
-                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  ssl: true,
                   public: false,
-                  hostname: {
-                    kind: 'ipv4',
-                    value: '10.0.0.2',
-                    port: null,
-                    sslPort: 443,
-                  },
+                  host: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
+                  port: 443,
+                  metadata: { kind: 'ipv6', gateway: 'eth0', scopeId: 2 },
                 },
                 {
-                  gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                  ssl: true,
                   public: false,
-                  hostname: {
-                    kind: 'ipv6',
-                    value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
-                    scopeId: 2,
-                    port: null,
-                    sslPort: 443,
-                  },
+                  host: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
+                  port: 443,
+                  metadata: { kind: 'ipv6', gateway: 'wlan0', scopeId: 3 },
                 },
                 {
-                  gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                  ssl: false,
                   public: false,
-                  hostname: {
-                    kind: 'ipv6',
-                    value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
-                    scopeId: 3,
-                    port: null,
-                    sslPort: 443,
-                  },
+                  host: 'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
+                  port: 80,
+                  metadata: { kind: 'plugin', package: 'tor' },
+                },
+                {
+                  ssl: true,
+                  public: false,
+                  host: 'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
+                  port: 443,
+                  metadata: { kind: 'plugin', package: 'tor' },
                 },
               ],
             },
@@ -119,7 +109,7 @@ export const mockPatchData: DataModel = {
           },
         },
         publicDomains: {},
-        privateDomains: [],
+        privateDomains: {},
       },
       gateways: {
         eth0: {
@@ -474,13 +464,13 @@ export const mockPatchData: DataModel = {
         },
         rpc: {
           id: 'rpc',
-          masked: false,
+          masked: true,
           name: 'RPC',
           description:
             'Used by dependent services and client wallets for connecting to your node',
           type: 'api',
           addressInfo: {
-            username: null,
+            username: 'rpcuser',
             hostId: 'bcdefgh',
             internalPort: 8332,
             scheme: 'http',
@@ -516,70 +506,84 @@ export const mockPatchData: DataModel = {
                 assignedSslPort: 443,
               },
               addresses: {
-                enabled: [],
+                enabled: ['203.0.113.45:443'],
                 disabled: [],
-                possible: [
+                available: [
                   {
-                    gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                    ssl: true,
                     public: false,
-                    hostname: {
-                      kind: 'local',
-                      value: 'adjective-noun.local',
-                      port: null,
-                      sslPort: 1234,
+                    host: 'adjective-noun.local',
+                    port: 443,
+                    metadata: {
+                      kind: 'private-domain',
+                      gateways: ['eth0'],
                     },
                   },
                   {
-                    gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                    ssl: true,
                     public: false,
-                    hostname: {
-                      kind: 'local',
-                      value: 'adjective-noun.local',
-                      port: null,
-                      sslPort: 1234,
+                    host: '10.0.0.1',
+                    port: 443,
+                    metadata: { kind: 'ipv4', gateway: 'eth0' },
+                  },
+                  {
+                    ssl: true,
+                    public: false,
+                    host: 'fe80::cd00:0cde:1257:211e:72cd',
+                    port: 443,
+                    metadata: { kind: 'ipv6', gateway: 'eth0', scopeId: 2 },
+                  },
+                  {
+                    ssl: true,
+                    public: true,
+                    host: '203.0.113.45',
+                    port: 443,
+                    metadata: { kind: 'ipv4', gateway: 'eth0' },
+                  },
+                  {
+                    ssl: true,
+                    public: true,
+                    host: 'bitcoin.example.com',
+                    port: 443,
+                    metadata: { kind: 'public-domain', gateway: 'eth0' },
+                  },
+                  {
+                    ssl: true,
+                    public: false,
+                    host: '192.168.10.11',
+                    port: 443,
+                    metadata: { kind: 'ipv4', gateway: 'wlan0' },
+                  },
+                  {
+                    ssl: true,
+                    public: false,
+                    host: 'fe80::cd00:0cde:1257:211e:1234',
+                    port: 443,
+                    metadata: { kind: 'ipv6', gateway: 'wlan0', scopeId: 3 },
+                  },
+                  {
+                    ssl: true,
+                    public: false,
+                    host: 'my-bitcoin.home',
+                    port: 443,
+                    metadata: {
+                      kind: 'private-domain',
+                      gateways: ['wlan0'],
                     },
                   },
                   {
-                    gateway: { id: 'eth0', name: 'Ethernet', public: false },
+                    ssl: false,
                     public: false,
-                    hostname: {
-                      kind: 'ipv4',
-                      value: '10.0.0.1',
-                      port: null,
-                      sslPort: 1234,
-                    },
+                    host: 'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
+                    port: 80,
+                    metadata: { kind: 'plugin', package: 'tor' },
                   },
                   {
-                    gateway: { id: 'wlan0', name: 'Wireless', public: false },
+                    ssl: true,
                     public: false,
-                    hostname: {
-                      kind: 'ipv4',
-                      value: '10.0.0.2',
-                      port: null,
-                      sslPort: 1234,
-                    },
-                  },
-                  {
-                    gateway: { id: 'eth0', name: 'Ethernet', public: false },
-                    public: false,
-                    hostname: {
-                      kind: 'ipv6',
-                      value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
-                      scopeId: 2,
-                      port: null,
-                      sslPort: 1234,
-                    },
-                  },
-                  {
-                    gateway: { id: 'wlan0', name: 'Wireless', public: false },
-                    public: false,
-                    hostname: {
-                      kind: 'ipv6',
-                      value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
-                      scopeId: 3,
-                      port: null,
-                      sslPort: 1234,
-                    },
+                    host: 'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
+                    port: 443,
+                    metadata: { kind: 'plugin', package: 'tor' },
                   },
                 ],
               },
@@ -590,8 +594,15 @@ export const mockPatchData: DataModel = {
               },
             },
           },
-          publicDomains: {},
-          privateDomains: [],
+          publicDomains: {
+            'bitcoin.example.com': {
+              gateway: 'eth0',
+              acme: null,
+            },
+          },
+          privateDomains: {
+            'my-bitcoin.home': ['wlan0'],
+          },
         },
         bcdefgh: {
           bindings: {
@@ -604,7 +615,25 @@ export const mockPatchData: DataModel = {
               addresses: {
                 enabled: [],
                 disabled: [],
-                possible: [],
+                available: [
+                  {
+                    ssl: false,
+                    public: false,
+                    host: 'adjective-noun.local',
+                    port: 8332,
+                    metadata: {
+                      kind: 'private-domain',
+                      gateways: ['eth0'],
+                    },
+                  },
+                  {
+                    ssl: false,
+                    public: false,
+                    host: '10.0.0.1',
+                    port: 8332,
+                    metadata: { kind: 'ipv4', gateway: 'eth0' },
+                  },
+                ],
               },
               options: {
                 addSsl: null,
@@ -614,7 +643,7 @@ export const mockPatchData: DataModel = {
             },
           },
           publicDomains: {},
-          privateDomains: [],
+          privateDomains: {},
         },
         cdefghi: {
           bindings: {
@@ -627,7 +656,7 @@ export const mockPatchData: DataModel = {
               addresses: {
                 enabled: [],
                 disabled: [],
-                possible: [],
+                available: [],
               },
               options: {
                 addSsl: null,
@@ -637,7 +666,7 @@ export const mockPatchData: DataModel = {
             },
           },
           publicDomains: {},
-          privateDomains: [],
+          privateDomains: {},
         },
       },
       storeExposedDependents: [],

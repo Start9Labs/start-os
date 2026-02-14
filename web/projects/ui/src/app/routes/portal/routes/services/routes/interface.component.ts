@@ -17,10 +17,7 @@ import { PatchDB } from 'patch-db-client'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
-import {
-  getPublicDomains,
-  InterfaceService,
-} from '../../../components/interfaces/interface.service'
+import { InterfaceService } from '../../../components/interfaces/interface.service'
 import { GatewayService } from 'src/app/services/gateway.service'
 import { getInstalledBaseStatus } from 'src/app/services/pkg-status-rendering.service'
 
@@ -125,25 +122,16 @@ export default class ServiceInterfaceRoute {
     }
 
     const binding = host.bindings[port]
-
     const gateways = this.gatewayService.gateways() || []
 
     return {
       ...iFace,
-      addresses: this.interfaceService.getAddresses(iFace, host, gateways),
-      gateways:
-        gateways.map(g => ({
-          enabled:
-            (binding?.addresses.enabled.some(a => a.gateway.id === g.id) ||
-              (!binding?.addresses.disabled.some(a => a.gateway.id === g.id) &&
-                binding?.addresses.possible.some(a =>
-                  a.gateway.id === g.id &&
-                  !(a.public && (a.hostname.kind === 'ipv4' || a.hostname.kind === 'ipv6'))
-                ))) ?? false,
-          ...g,
-        })) || [],
-      publicDomains: getPublicDomains(host.publicDomains, gateways),
-      privateDomains: host.privateDomains,
+      gatewayGroups: this.interfaceService.getGatewayGroups(
+        iFace,
+        host,
+        gateways,
+      ),
+      pluginGroups: this.interfaceService.getPluginGroups(iFace, host),
       addSsl: !!binding?.options.addSsl,
     }
   })
