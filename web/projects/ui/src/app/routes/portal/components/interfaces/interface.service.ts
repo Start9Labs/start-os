@@ -2,11 +2,10 @@ import { inject, Injectable } from '@angular/core'
 import { T, utils } from '@start9labs/start-sdk'
 import { ConfigService } from 'src/app/services/config.service'
 import { GatewayPlus } from 'src/app/services/gateway.service'
+import { toAuthorityName } from 'src/app/utils/acme'
 
 function isPublicIp(h: T.HostnameInfo): boolean {
-  return (
-    h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
-  )
+  return h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
 }
 
 function isEnabled(addr: T.DerivedAddressInfo, h: T.HostnameInfo): boolean {
@@ -38,6 +37,33 @@ function getGatewayIds(h: T.HostnameInfo): string[] {
   }
 }
 
+function getCertificate(
+  h: T.HostnameInfo,
+  host: T.Host,
+  addSsl: T.AddSslOptions | null,
+  secure: T.Security | null,
+): string {
+  if (!h.ssl) return '-'
+
+  if (h.metadata.kind === 'public-domain') {
+    const config = host.publicDomains[h.host]
+    return config ? toAuthorityName(config.acme) : toAuthorityName(null)
+  }
+
+  if (addSsl) return toAuthorityName(null)
+  if (secure?.ssl) return 'Self signed'
+
+  return '-'
+}
+
+function sortDomainsFirst(a: GatewayAddress, b: GatewayAddress): number {
+  const isDomain = (addr: GatewayAddress) =>
+    addr.hostnameInfo.metadata.kind === 'public-domain' ||
+    (addr.hostnameInfo.metadata.kind === 'private-domain' &&
+      !addr.hostnameInfo.host.endsWith('.local'))
+  return Number(isDomain(b)) - Number(isDomain(a))
+}
+
 function getAddressType(h: T.HostnameInfo): string {
   switch (h.metadata.kind) {
     case 'ipv4':
@@ -66,46 +92,40 @@ export class InterfaceService {
     host: T.Host,
     gateways: GatewayPlus[],
   ): GatewayAddressGroup[] {
-    const binding =
-      host.bindings[serviceInterface.addressInfo.internalPort]
+    const binding = host.bindings[serviceInterface.addressInfo.internalPort]
     if (!binding) return []
 
     const addr = binding.addresses
     const masked = serviceInterface.masked
     const ui = serviceInterface.type === 'ui'
+    const { addSsl, secure } = binding.options
 
     const groupMap = new Map<string, GatewayAddress[]>()
+    const gatewayMap = new Map<string, GatewayPlus>()
 
     for (const gateway of gateways) {
       groupMap.set(gateway.id, [])
+      gatewayMap.set(gateway.id, gateway)
     }
 
     for (const h of addr.available) {
-      const enabled = isEnabled(addr, h)
-      const url = utils.addressHostToUrl(serviceInterface.addressInfo, h)
-      const type = getAddressType(h)
-      const isDomain =
-        h.metadata.kind === 'private-domain' ||
-        h.metadata.kind === 'public-domain'
-      const isMdns = h.metadata.kind === 'mdns'
-
-      const address: GatewayAddress = {
-        enabled,
-        type,
-        access: h.public ? 'public' : 'private',
-        url,
-        hostnameInfo: h,
-        masked,
-        ui,
-        deletable: isDomain && !isMdns,
-      }
-
       const gatewayIds = getGatewayIds(h)
       for (const gid of gatewayIds) {
         const list = groupMap.get(gid)
-        if (list) {
-          list.push(address)
-        }
+        if (!list) continue
+        list.push({
+          enabled: isEnabled(addr, h),
+          type: getAddressType(h),
+          access: h.public ? 'public' : 'private',
+          url: utils.addressHostToUrl(serviceInterface.addressInfo, h),
+          hostnameInfo: h,
+          masked,
+          ui,
+          deletable:
+            h.metadata.kind === 'private-domain' ||
+            h.metadata.kind === 'public-domain',
+          certificate: getCertificate(h, host, addSsl, secure),
+        })
       }
     }
 
@@ -114,7 +134,7 @@ export class InterfaceService {
       .map(g => ({
         gatewayId: g.id,
         gatewayName: g.name,
-        addresses: groupMap.get(g.id)!,
+        addresses: groupMap.get(g.id)!.sort(sortDomainsFirst),
       }))
   }
 
@@ -122,8 +142,7 @@ export class InterfaceService {
     serviceInterface: T.ServiceInterface,
     host: T.Host,
   ): PluginAddressGroup[] {
-    const binding =
-      host.bindings[serviceInterface.addressInfo.internalPort]
+    const binding = host.bindings[serviceInterface.addressInfo.internalPort]
     if (!binding) return []
 
     const addr = binding.addresses
@@ -224,6 +243,7 @@ export type GatewayAddress = {
   masked: boolean
   ui: boolean
   deletable: boolean
+  certificate: string
 }
 
 export type GatewayAddressGroup = {

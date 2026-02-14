@@ -120,6 +120,12 @@ export namespace RR {
   } // net.dns.query
   export type QueryDnsRes = string | null
 
+  export type TestPortForwardReq = {
+    gateway: string
+    port: number
+  } // net.port-forward.test
+  export type TestPortForwardRes = boolean
+
   export type SetKeyboardReq = FullKeyboard // server.set-keyboard
   export type SetKeyboardRes = null
 

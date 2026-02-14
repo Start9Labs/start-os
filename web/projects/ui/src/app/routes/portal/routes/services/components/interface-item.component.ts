@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { T } from '@start9labs/start-sdk'
+import { TuiButton } from '@taiga-ui/core'
 import { TuiBadge } from '@taiga-ui/kit'
 
 @Component({
@@ -7,21 +9,26 @@ import { TuiBadge } from '@taiga-ui/kit'
   template: `
     <td><ng-content /></td>
     <td>
-      <tui-badge size="m" [appearance]="appearance">{{ info.type }}</tui-badge>
+      <tui-badge size="m" [appearance]="appearance">
+        {{ info().type }}
+      </tui-badge>
     </td>
     <td class="g-secondary" [style.grid-area]="'2 / 1 / 2 / 3'">
-      {{ info.description }}
+      {{ info().description }}
+    </td>
+    <td class="actions">
+      <a
+        tuiIconButton
+        appearance="flat-grayscale"
+        iconStart="@tui.settings"
+        size="s"
+        [routerLink]="link()"
+      >
+        Settings
+      </a>
     </td>
   `,
   styles: `
-    :host {
-      cursor: pointer;
-
-      &:hover {
-        background: var(--tui-background-neutral-1);
-      }
-    }
-
     td:first-child {
       white-space: nowrap;
     }
@@ -35,9 +42,13 @@ import { TuiBadge } from '@taiga-ui/kit'
       font-size: 1rem;
     }
 
+    .actions {
+      text-align: end;
+    }
+
     :host-context(tui-root._mobile) {
       display: grid;
-      grid-template-columns: min-content;
+      grid-template-columns: 1fr auto;
       align-items: center;
       padding: 1rem 0.5rem;
       gap: 0.5rem;
@@ -45,17 +56,21 @@ import { TuiBadge } from '@taiga-ui/kit'
       td {
         padding: 0;
       }
+
+      .actions {
+        grid-area: 1 / 2 / 3 / 3;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiBadge],
+  imports: [TuiBadge, TuiButton, RouterLink],
 })
 export class ServiceInterfaceItemComponent {
-  @Input({ required: true })
-  info!: T.ServiceInterface
+  readonly info = input.required<T.ServiceInterface>()
+  readonly link = input.required<string>()
 
   get appearance(): string {
-    switch (this.info.type) {
+    switch (this.info().type) {
       case 'ui':
         return 'positive'
       case 'api':

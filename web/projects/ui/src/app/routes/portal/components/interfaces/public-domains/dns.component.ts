@@ -24,47 +24,115 @@ export type DnsGateway = T.NetworkInterfaceInfo & {
   ipInfo: T.IpInfo
 }
 
-@Component({
-  selector: 'dns',
-  template: `
-    <p>{{ context.data.message }}</p>
+export type DomainValidationData = {
+  fqdn: string
+  gateway: DnsGateway
+  port: number
+  dnsPass: boolean
+  portPass: boolean
+}
 
+@Component({
+  selector: 'domain-validation',
+  template: `
     @let wanIp = context.data.gateway.ipInfo.wanIp || ('Error' | i18n);
+    @let gatewayName =
+      context.data.gateway.name || context.data.gateway.ipInfo.name;
+    @let internalIp = context.data.gateway.ipInfo.lanIp[0] || ('Error' | i18n);
+
+    <h3>{{ 'DNS' | i18n }}</h3>
+    <p>
+      {{ 'In your domain registrar for' | i18n }} {{ domain }},
+      {{ 'create this DNS record' | i18n }}
+    </p>
 
     @if (context.data.gateway.ipInfo.deviceType !== 'wireguard') {
       <label>
         IP
         <input
           type="checkbox"
+          appearance="flat"
           tuiSwitch
           [(ngModel)]="ddns"
-          (ngModelChange)="pass.set(undefined)"
+          (ngModelChange)="dnsPass.set(undefined)"
         />
         {{ 'Dynamic DNS' | i18n }}
       </label>
     }
 
-    <table [appTable]="['Type', 'Host', 'Value', 'Purpose']">
-      @for (row of rows(); track $index) {
-        <tr>
-          <td>
-            @if (pass() === true) {
-              <tui-icon class="g-positive" icon="@tui.check" />
-            } @else if (pass() === false) {
-              <tui-icon class="g-negative" icon="@tui.x" />
-            }
-            {{ ddns ? 'ALIAS' : 'A' }}
-          </td>
-          <td>{{ row.host }}</td>
-          <td>{{ ddns ? '[DDNS Address]' : wanIp }}</td>
-          <td>{{ row.purpose }}</td>
-        </tr>
-      }
+    <table [appTable]="[null, 'Type', 'Host', 'Value', null]">
+      <tr>
+        <td class="status">
+          @if (dnsPass() === true) {
+            <tui-icon class="g-positive" icon="@tui.check" />
+          } @else if (dnsPass() === false) {
+            <tui-icon class="g-negative" icon="@tui.x" />
+          }
+        </td>
+        <td>{{ ddns ? 'ALIAS' : 'A' }}</td>
+        <td>*</td>
+        <td>{{ ddns ? '[DDNS Address]' : wanIp }}</td>
+        <td>
+          <button
+            tuiButton
+            size="s"
+            [loading]="dnsLoading()"
+            (click)="testDns()"
+          >
+            {{ 'Test' | i18n }}
+          </button>
+        </td>
+      </tr>
+    </table>
+
+    <h3>{{ 'Port Forwarding' | i18n }}</h3>
+    <p>
+      {{ 'In your gateway' | i18n }} "{{ gatewayName }}",
+      {{ 'create this port forwarding rule' | i18n }}
+    </p>
+
+    <table
+      [appTable]="[null, 'External Port', 'Internal IP', 'Internal Port', null]"
+    >
+      <tr>
+        <td class="status">
+          @if (portPass() === true) {
+            <tui-icon class="g-positive" icon="@tui.check" />
+          } @else if (portPass() === false) {
+            <tui-icon class="g-negative" icon="@tui.x" />
+          }
+        </td>
+        <td>{{ context.data.port }}</td>
+        <td>{{ internalIp }}</td>
+        <td>{{ context.data.port }}</td>
+        <td>
+          <button
+            tuiButton
+            size="s"
+            [loading]="portLoading()"
+            (click)="testPort()"
+          >
+            {{ 'Test' | i18n }}
+          </button>
+        </td>
+      </tr>
     </table>
 
     <footer class="g-buttons">
-      <button tuiButton [loading]="loading()" (click)="testDns()">
-        {{ 'Test' | i18n }}
+      <button
+        tuiButton
+        appearance="flat"
+        [disabled]="allPass()"
+        (click)="context.completeWith()"
+      >
+        {{ 'Later' | i18n }}
+      </button>
+      <button
+        tuiButton
+        [disabled]="!allPass()"
+        (click)="context.completeWith()"
+      >
+        {{ 'Done' | i18n }}
       </button>
     </footer>
   `,
@@ -76,14 +144,57 @@ export type DnsGateway = T.NetworkInterfaceInfo & {
       margin: 1rem 0;
     }
 
+    h3 {
+      margin: 1.5rem 0 0.5rem;
+
+      &:first-child {
+        margin-top: 0;
+      }
+    }
+
     tui-icon {
       font-size: 1rem;
       vertical-align: text-bottom;
     }
+
+    .status {
+      width: 1.5rem;
+    }
+
+    td:last-child {
+      text-align: end;
+    }
+
+    footer {
+      margin-top: 1.5rem;
+    }
+
+    :host-context(tui-root._mobile) table {
+      thead {
+        display: table-header-group !important;
+      }
+
+      tr {
+        display: table-row !important;
+        box-shadow: none !important;
+      }
+
+      td,
+      th {
+        padding: 0.5rem 0.5rem !important;
+        font: var(--tui-font-text-s) !important;
+        color: var(--tui-text-primary) !important;
+        font-weight: normal !important;
+      }
+
+      th {
+        font-weight: bold !important;
+      }
+    }
   `,
   providers: [
     tuiSwitchOptionsProvider({
-      appearance: () => 'primary',
+      appearance: () => 'glass',
       icon: () => '',
     }),
   ],
@@ -98,75 +209,61 @@ export type DnsGateway = T.NetworkInterfaceInfo & {
     TuiIcon,
   ],
 })
-export class DnsComponent {
+export class DomainValidationComponent {
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
-  private readonly i18n = inject(i18nPipe)
 
   readonly ddns = false
 
   readonly context =
-    injectContext<
-      TuiDialogContext<
-        void,
-        { fqdn: string; gateway: DnsGateway; message: string }
-      >
-    >()
+    injectContext<TuiDialogContext<void, DomainValidationData>>()
 
-  readonly loading = signal(false)
-  readonly pass = signal<boolean | undefined>(undefined)
+  readonly domain =
+    parse(this.context.data.fqdn).domain || this.context.data.fqdn
 
-  readonly rows = computed<{ host: string; purpose: string }[]>(() => {
-    const { domain, subdomain } = parse(this.context.data.fqdn)
+  readonly dnsLoading = signal(false)
+  readonly portLoading = signal(false)
+  readonly dnsPass = signal<boolean | undefined>(this.context.data.dnsPass)
+  readonly portPass = signal<boolean | undefined>(this.context.data.portPass)
 
-    if (!subdomain) {
-      return [
-        {
-          host: '@',
-          purpose: domain!,
-        },
-      ]
-    }
-
-    const segments = subdomain.split('.').slice(1)
-
-    const subdomains = this.i18n.transform('all subdomains of')
-
-    return [
-      {
-        host: subdomain,
-        purpose: `only ${subdomain}`,
-      },
-      ...segments.map((_, i) => {
-        const parent = segments.slice(i).join('.')
-        return {
-          host: `*.${parent}`,
-          purpose: `${subdomains} ${parent}`,
-        }
-      }),
-      {
-        host: '*',
-        purpose: `${subdomains} ${domain}`,
-      },
-    ]
-  })
+  readonly allPass = computed(
+    () => this.dnsPass() === true && this.portPass() === true,
+  )
 
   async testDns() {
-    this.pass.set(undefined)
-    this.loading.set(true)
+    this.dnsLoading.set(true)
 
     try {
       const ip = await this.api.queryDns({
         fqdn: this.context.data.fqdn,
       })
 
-      this.pass.set(ip === this.context.data.gateway.ipInfo.wanIp)
+      this.dnsPass.set(ip === this.context.data.gateway.ipInfo.wanIp)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
-      this.loading.set(false)
+      this.dnsLoading.set(false)
+    }
+  }
+
+  async testPort() {
+    this.portLoading.set(true)
+
+    try {
+      const result = await this.api.testPortForward({
+        gateway: this.context.data.gateway.id,
+        port: this.context.data.port,
+      })
+
+      this.portPass.set(result)
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      this.portLoading.set(false)
     }
   }
 }
 
-export const DNS = new PolymorpheusComponent(DnsComponent)
+export const DOMAIN_VALIDATION = new PolymorpheusComponent(
+  DomainValidationComponent,
+)

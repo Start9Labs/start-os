@@ -8,7 +8,6 @@ import {
 import {
   DialogService,
   ErrorService,
-  i18nKey,
   i18nPipe,
   LoadingService,
 } from '@start9labs/shared'
@@ -36,7 +35,7 @@ import {
   GatewayAddressGroup,
   MappedServiceInterface,
 } from '../interface.service'
-import { DNS, DnsGateway } from '../public-domains/dns.component'
+import { DOMAIN_VALIDATION, DnsGateway } from '../public-domains/dns.component'
 import { InterfaceAddressItemComponent } from './item.component'
 
 @Component({
@@ -62,7 +61,16 @@ import { InterfaceAddressItemComponent } from './item.component'
         </tui-data-list>
       </button>
     </header>
-    <table [appTable]="['Enabled', 'Type', 'Access', 'URL', null]">
+    <table
+      [appTable]="[
+        'Enabled',
+        'Type',
+        'Access',
+        'Certificate Authority',
+        'URL',
+        null,
+      ]"
+    >
       @for (address of gatewayGroup().addresses; track $index) {
         <tr
           [address]="address"
@@ -72,7 +80,7 @@ import { InterfaceAddressItemComponent } from './item.component'
         ></tr>
       } @empty {
         <tr>
-          <td colspan="5">
+          <td colspan="6">
             <app-placeholder icon="@tui.list-x">
               {{ 'No addresses' | i18n }}
             </app-placeholder>
@@ -85,6 +93,12 @@ import { InterfaceAddressItemComponent } from './item.component'
     :host ::ng-deep {
       th:first-child {
         width: 5rem;
+      }
+
+      th:nth-child(2),
+      th:nth-child(3),
+      th:nth-child(4) {
+        width: 11rem;
       }
     }
   `,
@@ -120,6 +134,7 @@ export class InterfaceAddressesComponent {
   async addPrivateDomain() {
     this.formDialog.open<FormContext<{ fqdn: string }>>(FormComponent, {
       label: 'New private domain',
+      size: 's',
       data: {
         spec: await configBuilderToSpec(
           ISB.InputSpec.of({
@@ -173,22 +188,19 @@ export class InterfaceAddressesComponent {
         default: null,
         patterns: [utils.Patterns.domain],
       }).map(f => f.toLocaleLowerCase()),
-      ...(iface.addSsl
-        ? {
-            authority: ISB.Value.select({
-              name: this.i18n.transform('Certificate Authority'),
-              description: this.i18n.transform(
-                'Select a Certificate Authority to issue SSL/TLS certificates for this domain',
-              ),
-              values: authorities,
-              default: '',
-            }),
-          }
-        : ({} as { authority: ReturnType<typeof ISB.Value.select> })),
+      authority: ISB.Value.select({
+        name: this.i18n.transform('Certificate Authority'),
+        description: this.i18n.transform(
+          'Select a Certificate Authority to issue SSL/TLS certificates for this domain',
+        ),
+        values: authorities,
+        default: Object.keys(network.acme)[0] || 'local',
+      }),
     })
 
     this.formDialog.open(FormComponent, {
       label: 'Add public domain',
+      size: 's',
       data: {
         spec: await configBuilderToSpec(addSpec),
         buttons: [
@@ -251,55 +263,33 @@ export class InterfaceAddressesComponent {
         ip = await this.api.osUiAddPublicDomain(params)
       }
 
-      const network = await this.patch
-        .watch$('serverInfo', 'network')
-        .pipe()
-        .toPromise()
-      const gateway = network?.gateways[gatewayId]
+      const [network, portPass] = await Promise.all([
+        firstValueFrom(this.patch.watch$('serverInfo', 'network')),
+        this.api
+          .testPortForward({ gateway: gatewayId, port: 443 })
+          .catch(() => false),
+      ])
+      const gateway = network.gateways[gatewayId]
 
       if (gateway?.ipInfo) {
-        const wanIp = gateway.ipInfo.wanIp
-        const message = this.i18n.transform(
-          'Create one of the DNS records below.',
-        ) as i18nKey
         const gatewayData = {
           id: gatewayId,
           ...gateway,
           ipInfo: gateway.ipInfo,
         }
+        const dnsPass = ip === gateway.ipInfo.wanIp
 
-        if (!ip) {
-          setTimeout(
-            () =>
-              this.showDns(
-                fqdn,
-                gatewayData,
-                `${this.i18n.transform('No DNS record detected for')} ${fqdn}. ${message}` as i18nKey,
-              ),
-            250,
-          )
-        } else if (ip !== wanIp) {
-          setTimeout(
-            () =>
-              this.showDns(
-                fqdn,
-                gatewayData,
-                `${this.i18n.transform('Invalid DNS record')}. ${fqdn} ${this.i18n.transform('resolves to')} ${ip}. ${message}` as i18nKey,
-              ),
-            250,
-          )
-        } else {
-          setTimeout(
-            () =>
-              this.dialog
-                .openAlert(
-                  `${fqdn} ${this.i18n.transform('resolves to')} ${wanIp}` as i18nKey,
-                  { label: 'DNS record detected!', appearance: 'positive' },
-                )
-                .subscribe(),
-            250,
-          )
-        }
+        setTimeout(
+          () =>
+            this.showDomainValidation(
+              fqdn,
+              gatewayData,
+              443,
+              dnsPass,
+              portPass,
+            ),
+          250,
+        )
       }
 
       return true
@@ -311,12 +301,18 @@ export class InterfaceAddressesComponent {
     }
   }
 
-  private showDns(fqdn: string, gateway: DnsGateway, message: i18nKey) {
+  private showDomainValidation(
+    fqdn: string,
+    gateway: DnsGateway,
+    port: number,
+    dnsPass: boolean,
+    portPass: boolean,
+  ) {
     this.dialog
-      .openComponent(DNS, {
-        label: 'DNS Records',
-        size: 'l',
-        data: { fqdn, gateway, message },
+      .openComponent(DOMAIN_VALIDATION, {
+        label: 'Domain Setup',
+        size: 'm',
+        data: { fqdn, gateway, port, dnsPass, portPass },
       })
       .subscribe()
   }

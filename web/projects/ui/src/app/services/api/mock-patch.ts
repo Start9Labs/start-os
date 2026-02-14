@@ -588,9 +588,13 @@ export const mockPatchData: DataModel = {
                 ],
               },
               options: {
-                addSsl: null,
                 preferredExternalPort: 443,
-                secure: { ssl: true },
+                addSsl: {
+                  preferredExternalPort: 443,
+                  alpn: { specified: ['http/1.1', 'h2'] },
+                  addXForwardedHeaders: false,
+                },
+                secure: null,
               },
             },
           },

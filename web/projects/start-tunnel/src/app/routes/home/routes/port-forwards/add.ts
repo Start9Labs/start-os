@@ -118,7 +118,7 @@ import { MappedDevice, PortForwardsData } from './utils'
         @if (show80) {
           <label tuiLabel>
             <input tuiCheckbox type="checkbox" formControlName="also80" />
-            Also forward port 80 to port 5443? This is needed for HTTP to HTTPS
+            Also forward port 80 to port 443? This is needed for HTTP to HTTPS
             redirects (recommended)
           </label>
         }
@@ -173,7 +173,7 @@ export class PortForwardsAdd {
 
   protected checkShow80() {
     const { externalport, internalport } = this.form.getRawValue()
-    this.show80 = externalport === 443 && internalport === 5443
+    this.show80 = externalport === 443 && internalport === 443
   }
 
   protected async onSave() {
@@ -194,10 +194,10 @@ export class PortForwardsAdd {
         target: `${device!.ip}:${internalport}`,
       })
 
-      if (externalport === 443 && internalport === 5443 && also80) {
+      if (externalport === 443 && internalport === 443 && also80) {
         await this.api.addForward({
           source: `${externalip}:80`,
-          target: `${device!.ip}:5443`,
+          target: `${device!.ip}:443`,
         })
       }
     } catch (e: any) {

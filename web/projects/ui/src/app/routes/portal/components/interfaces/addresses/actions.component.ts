@@ -29,6 +29,16 @@ import { GatewayAddress, MappedServiceInterface } from '../interface.service'
   selector: 'td[actions]',
   template: `
     <div class="desktop">
+      @if (address().deletable) {
+        <button
+          tuiIconButton
+          appearance="flat-grayscale"
+          iconStart="@tui.trash"
+          (click)="deleteDomain()"
+        >
+          {{ 'Delete' | i18n }}
+        </button>
+      }
       <button
         tuiIconButton
         appearance="flat-grayscale"
@@ -45,16 +55,6 @@ import { GatewayAddress, MappedServiceInterface } from '../interface.service'
       >
         {{ 'Copy URL' | i18n }}
       </button>
-      @if (address().deletable) {
-        <button
-          tuiIconButton
-          appearance="flat-destructive"
-          iconStart="@tui.trash"
-          (click)="deleteDomain()"
-        >
-          {{ 'Delete' | i18n }}
-        </button>
-      }
     </div>
     <div class="mobile">
       <button
@@ -70,17 +70,14 @@ import { GatewayAddress, MappedServiceInterface } from '../interface.service'
           <button
             tuiOption
             new
-            [iconStart]="address().enabled ? '@tui.toggle-right' : '@tui.toggle-left'"
+            [iconStart]="
+              address().enabled ? '@tui.toggle-right' : '@tui.toggle-left'
+            "
             (click)="toggleEnabled()"
           >
             {{ (address().enabled ? 'Disable' : 'Enable') | i18n }}
           </button>
-          <button
-            tuiOption
-            new
-            iconStart="@tui.qr-code"
-            (click)="showQR()"
-          >
+          <button tuiOption new iconStart="@tui.qr-code" (click)="showQR()">
             {{ 'Show QR' | i18n }}
           </button>
           <button

@@ -552,33 +552,8 @@ export const ENGLISH: Record<string, number> = {
   'Refresh Needed': 580,
   'Your user interface is cached and out of date. Attempt to reload the PWA using the button below. If you continue to see this message, uninstall and reinstall the PWA.': 581,
   'Your user interface is cached and out of date. Hard refresh the page to get the latest UI.': 582,
-  "Requires trusting your server's Root CA": 583,
-  'Connections can be slow or unreliable at times': 584,
-  'Public if you share the address publicly, otherwise private': 585,
-  'Requires using a Tor-enabled device or browser': 586,
-  'Should only needed for apps that enforce SSL': 587,
-  'Ideal for anonymous, censorship-resistant hosting and remote access': 588,
-  'Ideal for local access': 589,
-  'Requires being connected to the same Local Area Network (LAN) as your server, either physically or via VPN': 590,
-  'Requires setting a static IP address for': 591, // this is a partial sentence. An IP address will be added after "for" to complete the sentence.
-  'Ideal for VPN access via': 592, // this is a partial sentence. A connection medium will be added after "via" to complete the sentence.
-  'in your gateway': 593, // this is a partial sentence. It is preceded by an instruction: e.g. "do something" in your gateway. Gateway refers to a router or VPN server.
-  "your router's WireGuard server": 594, // this is a partial sentence. It is preceded by "ideal for access via"
-  'Requires port forwarding in gateway': 595,
-  'Requires a DNS record for': 596, // this is a partial sentence. A domain name will be added after "for" to complete the sentence.
-  'that resolves to': 597, // this is a partial sentence. It is preceded by "requires a DNS record for [domain] "
-  'Not recommended for VPN access. VPNs do not support ".local" domains without advanced configuration': 598,
-  'Can be used for clearnet access': 599,
-  'Not recommended in most cases. Using a public domain is more common and preferred': 600,
-  'Local': 601, // as in, not remote
-  'Can be used for local access': 602,
-  'Ideal for public access via the Internet': 603,
-  'Can be used for personal access via the public Internet, but a VPN is more private and secure': 604,
-  'when using IP addresses and ports is undesirable': 605, // this is a partial sentence. It is preceded by "Good for connections "
   'Host': 606, // as in, a network host
   'Value': 607, // as in, the value in a column of a table
-  'Purpose': 608, // as in, the reason for a thing to exist
-  'all subdomains of': 609, // this is a partial sentence. A domain name will be added after "of" to complete the sentence.
   'Dynamic DNS': 610,
   'No service interfaces': 611, // as in, there are no available interfaces (API, UI, etc) for this software application
   'Reason': 612, // as in, an explanation for something
@@ -696,5 +671,18 @@ export const ENGLISH: Record<string, number> = {
   'Public Domain': 731,
   'Private Domain': 732,
   'Hide': 733,
-  'default outbound': 734
+  'default outbound': 734,
+  'Certificate': 735,
+  'Self signed': 736,
+  'Port Forwarding': 737,
+  'Domain Setup': 738,
+  'DNS': 739,
+  'Instructions': 740,
+  'In your domain registrar for': 741, // partial sentence, followed by a domain name
+  'create this DNS record': 742,
+  'In your gateway': 743, // partial sentence, followed by a gateway name
+  'create this port forwarding rule': 744,
+  'External Port': 745,
+  'Internal IP': 746,
+  'Internal Port': 747,
 }

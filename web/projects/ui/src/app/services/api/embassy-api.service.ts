@@ -1,5 +1,3 @@
-import { MarketplacePkg } from '@start9labs/marketplace'
-import { T } from '@start9labs/start-sdk'
 import { RR } from './api.types'
 import { WebSocketSubject } from 'rxjs/webSocket'
 
@@ -118,6 +116,10 @@ export abstract class ApiService {
   abstract setDns(params: RR.SetDnsReq): Promise<RR.SetDnsRes>
 
   abstract queryDns(params: RR.QueryDnsReq): Promise<RR.QueryDnsRes>
+
+  abstract testPortForward(
+    params: RR.TestPortForwardReq,
+  ): Promise<RR.TestPortForwardRes>
 
   // smtp
 

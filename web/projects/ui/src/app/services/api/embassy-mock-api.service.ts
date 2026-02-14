@@ -483,6 +483,14 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async testPortForward(
+    params: RR.TestPortForwardReq,
+  ): Promise<RR.TestPortForwardRes> {
+    await pauseFor(2000)
+
+    return false
+  }
+
   // marketplace URLs
 
   async checkOSUpdate(
@@ -589,7 +597,7 @@ export class MockApiService extends ApiService {
     ]
 
     if (params.setAsDefaultOutbound) {
-      ;(patch as any[]).push({
+      (patch as any[]).push({
         op: PatchOp.REPLACE,
         path: '/serverInfo/network/defaultOutbound',
         value: id,
@@ -1394,7 +1402,9 @@ export class MockApiService extends ApiService {
   ): Promise<RR.ServerBindingSetAddressEnabledRes> {
     await pauseFor(2000)
 
-    // Mock: no-op since address enable/disable modifies DerivedAddressInfo sets
+    const basePath = `/serverInfo/network/host/bindings/${params.internalPort}/addresses`
+    this.mockSetAddressEnabled(basePath, params.address, params.enabled)
+
     return null
   }
 
@@ -1493,7 +1503,9 @@ export class MockApiService extends ApiService {
   ): Promise<RR.PkgBindingSetAddressEnabledRes> {
     await pauseFor(2000)
 
-    // Mock: no-op since address enable/disable modifies DerivedAddressInfo sets
+    const basePath = `/packageData/${params.package}/hosts/${params.host}/bindings/${params.internalPort}/addresses`
+    this.mockSetAddressEnabled(basePath, params.address, params.enabled)
+
     return null
   }
 
@@ -1811,6 +1823,63 @@ export class MockApiService extends ApiService {
       ]
       this.mockRevision(patch6)
     }, 1000)
+  }
+
+  private mockSetAddressEnabled(
+    basePath: string,
+    addressJson: string,
+    enabled: boolean | null,
+  ): void {
+    const h: T.HostnameInfo = JSON.parse(addressJson)
+    const isPublicIp =
+      h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
+
+    const current = this.mockData(basePath) as T.DerivedAddressInfo
+
+    if (isPublicIp) {
+      if (h.port === null) return
+      const sa =
+        h.metadata.kind === 'ipv6'
+          ? `[${h.host}]:${h.port}`
+          : `${h.host}:${h.port}`
+
+      const arr = [...current.enabled]
+
+      if (enabled) {
+        if (!arr.includes(sa)) arr.push(sa)
+      } else {
+        const idx = arr.indexOf(sa)
+        if (idx >= 0) arr.splice(idx, 1)
+      }
+
+      current.enabled = arr
+      this.mockRevision([
+        { op: PatchOp.REPLACE, path: `${basePath}/enabled`, value: arr },
+      ])
+    } else {
+      const port = h.port ?? 0
+      const arr = current.disabled.filter(
+        ([dHost, dPort]) => !(dHost === h.host && dPort === port),
+      )
+
+      if (!enabled) {
+        arr.push([h.host, port])
+      }
+
+      current.disabled = arr
+      this.mockRevision([
+        { op: PatchOp.REPLACE, path: `${basePath}/disabled`, value: arr },
+      ])
+    }
+  }
+
+  private mockData(path: string): any {
+    const parts = path.split('/').filter(Boolean)
+    let obj: any = mockPatchData
+    for (const part of parts) {
+      obj = obj[part]
+    }
+    return obj
   }
 
   private async mockRevision<T>(patch: Operation<T>[]): Promise<void> {

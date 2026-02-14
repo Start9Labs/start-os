@@ -1,6 +1,5 @@
 import { DOCUMENT, Inject, Injectable } from '@angular/core'
 import { blake3 } from '@noble/hashes/blake3'
-import { MarketplacePkg } from '@start9labs/marketplace'
 import {
   HttpOptions,
   HttpService,
@@ -8,7 +7,6 @@ import {
   RpcError,
   RPCOptions,
 } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
 import { Dump, pathFromArray } from 'patch-db-client'
 import { filter, firstValueFrom, Observable } from 'rxjs'
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket'
@@ -268,6 +266,15 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async testPortForward(
+    params: RR.TestPortForwardReq,
+  ): Promise<RR.TestPortForwardRes> {
+    return this.rpcRequest({
+      method: 'net.port-forward.test',
+      params,
+    })
+  }
+
   // marketplace URLs
 
   async checkOSUpdate(
@@ -358,7 +365,10 @@ export class LiveApiService extends ApiService {
   async setDefaultOutbound(
     params: RR.SetDefaultOutboundReq,
   ): Promise<RR.SetDefaultOutboundRes> {
-    return this.rpcRequest({ method: 'net.gateway.set-default-outbound', params })
+    return this.rpcRequest({
+      method: 'net.gateway.set-default-outbound',
+      params,
+    })
   }
 
   async setServiceOutbound(

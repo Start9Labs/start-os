@@ -8,8 +8,7 @@ import {
 } from '@angular/core'
 import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
 import { TuiObfuscatePipe } from '@taiga-ui/cdk'
-import { TuiButton } from '@taiga-ui/core'
-import { TuiBadge } from '@taiga-ui/kit'
+import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { FormsModule } from '@angular/forms'
 import { TuiSwitch } from '@taiga-ui/kit'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -18,6 +17,9 @@ import { AddressActionsComponent } from './actions.component'
 
 @Component({
   selector: 'tr[address]',
+  host: {
+    '[class._disabled]': '!address().enabled',
+  },
   template: `
     @if (address(); as address) {
       <td>
@@ -26,6 +28,7 @@ import { AddressActionsComponent } from './actions.component'
           tuiSwitch
           size="s"
           [showIcons]="false"
+          [disabled]="toggling()"
           [ngModel]="address.enabled"
           (ngModelChange)="onToggleEnabled()"
         />
@@ -33,18 +36,16 @@ import { AddressActionsComponent } from './actions.component'
       <td>
         {{ address.type }}
       </td>
-      <td>
-        @if (address.access === 'public') {
-          <tui-badge size="s" appearance="primary-success">
-            {{ 'public' | i18n }}
-          </tui-badge>
-        } @else {
-          <tui-badge size="s" appearance="primary-destructive">
-            {{ 'private' | i18n }}
-          </tui-badge>
-        }
+      <td class="access">
+        <tui-icon
+          [icon]="address.access === 'public' ? '@tui.globe' : '@tui.house'"
+        />
+        {{ address.access | i18n }}
       </td>
-      <td [style.grid-area]="'2 / 1 / 2 / 3'">
+      <td>
+        {{ address.certificate }}
+      </td>
+      <td>
         <div class="url">
           <span
             [title]="address.masked && currentlyMasked() ? '' : address.url"
@@ -79,6 +80,11 @@ import { AddressActionsComponent } from './actions.component'
       grid-template-columns: fit-content(10rem) 1fr 2rem 2rem;
     }
 
+    .access tui-icon {
+      font-size: 1rem;
+      vertical-align: middle;
+    }
+
     .url {
       display: flex;
       align-items: center;
@@ -95,6 +101,23 @@ import { AddressActionsComponent } from './actions.component'
     }
 
     :host-context(tui-root._mobile) {
+      padding-inline-start: 0.75rem !important;
+
+      &::before {
+        content: '';
+        position: absolute;
+        inset-inline-start: 0;
+        top: 0.25rem;
+        bottom: 0.25rem;
+        width: 4px;
+        background: var(--tui-status-positive);
+        border-radius: 2px;
+      }
+
+      &._disabled::before {
+        background: var(--tui-background-neutral-1-hover);
+      }
+
       td {
         width: auto !important;
         align-content: center;
@@ -110,13 +133,27 @@ import { AddressActionsComponent } from './actions.component'
         color: var(--tui-text-primary);
         padding-inline-end: 0.5rem;
       }
+
+      td:nth-child(4) {
+        grid-area: 2 / 1 / 2 / 3;
+      }
+
+      td:nth-child(5) {
+        grid-area: 3 / 1 / 3 / 3;
+      }
+
+      td:last-child {
+        grid-area: 1 / 3 / 4 / 5;
+        align-self: center;
+        justify-self: end;
+      }
     }
   `,
   imports: [
     i18nPipe,
     AddressActionsComponent,
-    TuiBadge,
     TuiButton,
+    TuiIcon,
     TuiObfuscatePipe,
     TuiSwitch,
     FormsModule,
@@ -125,14 +162,15 @@ import { AddressActionsComponent } from './actions.component'
 })
 export class InterfaceAddressItemComponent {
   private readonly api = inject(ApiService)
-  private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
+  private readonly loader = inject(LoadingService)
 
   readonly address = input.required<GatewayAddress>()
   readonly packageId = input('')
   readonly value = input<MappedServiceInterface | undefined>()
   readonly isRunning = input.required<boolean>()
 
+  readonly toggling = signal(false)
   readonly currentlyMasked = signal(true)
   readonly recipe = computed(() =>
     this.address()?.masked && this.currentlyMasked() ? 'mask' : 'none',
@@ -143,6 +181,7 @@ export class InterfaceAddressItemComponent {
     const iface = this.value()
     if (!iface) return
 
+    this.toggling.set(true)
     const enabled = !addr.enabled
     const addressJson = JSON.stringify(addr.hostnameInfo)
     const loader = this.loader.open('Saving').subscribe()
@@ -167,6 +206,7 @@ export class InterfaceAddressItemComponent {
       this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
+      this.toggling.set(false)
     }
   }
 }
