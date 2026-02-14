@@ -49,7 +49,7 @@ type VisibilityFilter<V extends 'public' | 'private'> = V extends 'public'
     : never
 type KindFilter<K extends FilterKinds> = K extends 'mdns'
   ?
-      | (HostnameInfo & { metadata: { kind: 'private-domain' } })
+      | (HostnameInfo & { metadata: { kind: 'mdns' } })
       | KindFilter<Exclude<K, 'mdns'>>
   : K extends 'domain'
     ?
@@ -199,9 +199,7 @@ function filterRec(
     hostnames = hostnames.filter(
       (h) =>
         invert !==
-        ((kind.has('mdns') &&
-          h.metadata.kind === 'private-domain' &&
-          h.host.endsWith('.local')) ||
+        ((kind.has('mdns') && h.metadata.kind === 'mdns') ||
           (kind.has('domain') &&
             (h.metadata.kind === 'private-domain' ||
               h.metadata.kind === 'public-domain')) ||

@@ -278,8 +278,7 @@ impl Accept for VHostBindListener {
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
         // Update listeners when ip_info or bind_reqs change
-        while self.ip_info.poll_changed(cx).is_ready()
-            || self.bind_reqs.poll_changed(cx).is_ready()
+        while self.ip_info.poll_changed(cx).is_ready() || self.bind_reqs.poll_changed(cx).is_ready()
         {
             let reqs = self.bind_reqs.read_and_mark_seen();
             let listeners = &mut self.listeners;
@@ -506,10 +505,8 @@ where
         };
 
         let src = tcp.peer_addr.ip();
-        // Public if: source is a gateway/router IP (NAT'd internet),
-        // or source is outside all known subnets (direct internet)
-        let is_public = ip_info.lan_ip.contains(&src)
-            || !ip_info.subnets.iter().any(|s| s.contains(&src));
+        // Public: source is outside all known subnets (direct internet)
+        let is_public = !ip_info.subnets.iter().any(|s| s.contains(&src));
 
         if is_public {
             self.public.contains(&gw.id)
@@ -695,6 +692,7 @@ where
 
         let (target, rc) = self.0.peek(|m| {
             m.get(&hello.server_name().map(InternedString::from))
+                .or_else(|| m.get(&None))
                 .into_iter()
                 .flatten()
                 .filter(|(_, rc)| rc.strong_count() > 0)

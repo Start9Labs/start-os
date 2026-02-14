@@ -2137,7 +2137,7 @@ export namespace Mock {
                   host: 'adjective-noun.local',
                   port: 1234,
                   metadata: {
-                    kind: 'private-domain',
+                    kind: 'mdns',
                     gateways: ['eth0', 'wlan0'],
                   },
                 },

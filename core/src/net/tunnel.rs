@@ -175,13 +175,14 @@ pub async fn remove_tunnel(
 
     ctx.db
         .mutate(|db| {
+            let hostname = crate::hostname::Hostname(db.as_public().as_server_info().as_hostname().de()?);
             let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
             let ports = db.as_private().as_available_ports().de()?;
             for host in all_hosts(db) {
                 let host = host?;
                 host.as_public_domains_mut()
                     .mutate(|p| Ok(p.retain(|_, v| v.gateway != id)))?;
-                host.update_addresses(&gateways, &ports)?;
+                host.update_addresses(&hostname, &gateways, &ports)?;
             }
 
             Ok(())
@@ -193,6 +194,7 @@ pub async fn remove_tunnel(
 
     ctx.db
         .mutate(|db| {
+            let hostname = crate::hostname::Hostname(db.as_public().as_server_info().as_hostname().de()?);
             let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
             let ports = db.as_private().as_available_ports().de()?;
             for host in all_hosts(db) {
@@ -204,7 +206,7 @@ pub async fn remove_tunnel(
                     d.retain(|_, gateways| !gateways.is_empty());
                     Ok(())
                 })?;
-                host.update_addresses(&gateways, &ports)?;
+                host.update_addresses(&hostname, &gateways, &ports)?;
             }
 
             Ok(())

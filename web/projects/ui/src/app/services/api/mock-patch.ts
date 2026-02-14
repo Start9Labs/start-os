@@ -49,7 +49,7 @@ export const mockPatchData: DataModel = {
                   host: 'adjective-noun.local',
                   port: 443,
                   metadata: {
-                    kind: 'private-domain',
+                    kind: 'mdns',
                     gateways: ['eth0', 'wlan0'],
                   },
                 },
@@ -515,7 +515,7 @@ export const mockPatchData: DataModel = {
                     host: 'adjective-noun.local',
                     port: 443,
                     metadata: {
-                      kind: 'private-domain',
+                      kind: 'mdns',
                       gateways: ['eth0'],
                     },
                   },
@@ -622,7 +622,7 @@ export const mockPatchData: DataModel = {
                     host: 'adjective-noun.local',
                     port: 8332,
                     metadata: {
-                      kind: 'private-domain',
+                      kind: 'mdns',
                       gateways: ['eth0'],
                     },
                   },

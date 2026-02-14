@@ -5,6 +5,7 @@ import type { PackageId } from './PackageId'
 export type HostnameMetadata =
   | { kind: 'ipv4'; gateway: GatewayId }
   | { kind: 'ipv6'; gateway: GatewayId; scopeId: number }
+  | { kind: 'mdns'; gateways: Array<GatewayId> }
   | { kind: 'private-domain'; gateways: Array<GatewayId> }
   | { kind: 'public-domain'; gateway: GatewayId }
   | { kind: 'plugin'; package: PackageId }

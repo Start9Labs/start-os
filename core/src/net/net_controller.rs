@@ -539,10 +539,11 @@ impl NetService {
                     .as_network()
                     .as_gateways()
                     .de()?;
+                let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
                 let mut ports = db.as_private().as_available_ports().de()?;
                 let host = host_for(db, pkg_id.as_ref(), &id)?;
                 host.add_binding(&mut ports, internal_port, options)?;
-                host.update_addresses(&gateways, &ports)?;
+                host.update_addresses(&hostname, &gateways, &ports)?;
                 db.as_private_mut().as_available_ports_mut().ser(&ports)?;
                 Ok(())
             })
@@ -563,6 +564,7 @@ impl NetService {
                     .as_network()
                     .as_gateways()
                     .de()?;
+                let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
                 let ports = db.as_private().as_available_ports().de()?;
                 if let Some(ref pkg_id) = pkg_id {
                     for (host_id, host) in db
@@ -584,7 +586,7 @@ impl NetService {
                             }
                             Ok(())
                         })?;
-                        host.update_addresses(&gateways, &ports)?;
+                        host.update_addresses(&hostname, &gateways, &ports)?;
                     }
                 } else {
                     let host = db
@@ -603,7 +605,7 @@ impl NetService {
                         }
                         Ok(())
                     })?;
-                    host.update_addresses(&gateways, &ports)?;
+                    host.update_addresses(&hostname, &gateways, &ports)?;
                 }
                 Ok(())
             })

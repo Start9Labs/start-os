@@ -1245,7 +1245,7 @@ async function updateConfig(
             : catchFn(
                 () =>
                   filled.addressInfo!.filter({ kind: "mdns" })!.hostnames[0]
-                    .hostname.value,
+                    .host,
               ) || ""
         mutConfigValue[key] = url
       }

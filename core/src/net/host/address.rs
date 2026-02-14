@@ -10,6 +10,7 @@ use ts_rs::TS;
 use crate::GatewayId;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::DatabaseModel;
+use crate::hostname::Hostname;
 use crate::net::acme::AcmeProvider;
 use crate::net::host::{HostApiKind, all_hosts};
 use crate::prelude::*;
@@ -194,9 +195,10 @@ pub async fn add_public_domain<Kind: HostApiKind>(
                 .as_public_domains_mut()
                 .insert(&fqdn, &PublicDomainConfig { acme, gateway })?;
             handle_duplicates(db)?;
+            let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
             let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
             let ports = db.as_private().as_available_ports().de()?;
-            Kind::host_for(&inheritance, db)?.update_addresses(&gateways, &ports)
+            Kind::host_for(&inheritance, db)?.update_addresses(&hostname, &gateways, &ports)
         })
         .await
         .result?;
@@ -225,9 +227,10 @@ pub async fn remove_public_domain<Kind: HostApiKind>(
             Kind::host_for(&inheritance, db)?
                 .as_public_domains_mut()
                 .remove(&fqdn)?;
+            let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
             let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
             let ports = db.as_private().as_available_ports().de()?;
-            Kind::host_for(&inheritance, db)?.update_addresses(&gateways, &ports)
+            Kind::host_for(&inheritance, db)?.update_addresses(&hostname, &gateways, &ports)
         })
         .await
         .result?;
@@ -255,9 +258,10 @@ pub async fn add_private_domain<Kind: HostApiKind>(
                 .upsert(&fqdn, || Ok(BTreeSet::new()))?
                 .mutate(|d| Ok(d.insert(gateway)))?;
             handle_duplicates(db)?;
+            let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
             let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
             let ports = db.as_private().as_available_ports().de()?;
-            Kind::host_for(&inheritance, db)?.update_addresses(&gateways, &ports)
+            Kind::host_for(&inheritance, db)?.update_addresses(&hostname, &gateways, &ports)
         })
         .await
         .result?;
@@ -276,9 +280,10 @@ pub async fn remove_private_domain<Kind: HostApiKind>(
             Kind::host_for(&inheritance, db)?
                 .as_private_domains_mut()
                 .mutate(|d| Ok(d.remove(&domain)))?;
+            let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
             let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
             let ports = db.as_private().as_available_ports().de()?;
-            Kind::host_for(&inheritance, db)?.update_addresses(&gateways, &ports)
+            Kind::host_for(&inheritance, db)?.update_addresses(&hostname, &gateways, &ports)
         })
         .await
         .result?;

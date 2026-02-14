@@ -240,7 +240,7 @@ impl LocaleString {
     pub fn localize(&mut self) {
         self.localize_for(&*rust_i18n::locale());
     }
-    pub fn localized(mut self) -> String {
+    pub fn localized(self) -> String {
         self.localized_for(&*rust_i18n::locale())
     }
 }

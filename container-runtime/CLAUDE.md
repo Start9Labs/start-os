@@ -16,16 +16,16 @@ The container runtime communicates with the host via JSON-RPC over Unix socket. 
 
 ## `/media/startos/` Directory (mounted by host into container)
 
-| Path | Description |
-|------|-------------|
-| `volumes/<name>/` | Package data volumes (id-mapped, persistent) |
-| `assets/` | Read-only assets from s9pk `assets.squashfs` |
-| `images/<name>/` | Container images (squashfs, used for subcontainers) |
-| `images/<name>.env` | Environment variables for image |
-| `images/<name>.json` | Image metadata |
-| `backup/` | Backup mount point (mounted during backup operations) |
-| `rpc/service.sock` | RPC socket (container runtime listens here) |
-| `rpc/host.sock` | Host RPC socket (for effects callbacks to host) |
+| Path                 | Description                                           |
+| -------------------- | ----------------------------------------------------- |
+| `volumes/<name>/`    | Package data volumes (id-mapped, persistent)          |
+| `assets/`            | Read-only assets from s9pk `assets.squashfs`          |
+| `images/<name>/`     | Container images (squashfs, used for subcontainers)   |
+| `images/<name>.env`  | Environment variables for image                       |
+| `images/<name>.json` | Image metadata                                        |
+| `backup/`            | Backup mount point (mounted during backup operations) |
+| `rpc/service.sock`   | RPC socket (container runtime listens here)           |
+| `rpc/host.sock`      | Host RPC socket (for effects callbacks to host)       |
 
 ## S9PK Structure
 

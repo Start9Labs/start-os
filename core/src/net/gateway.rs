@@ -1005,9 +1005,10 @@ impl NetworkInterfaceController {
                 .as_network_mut()
                 .as_gateways_mut()
                 .ser(info)?;
+            let hostname = crate::hostname::Hostname(db.as_public().as_server_info().as_hostname().de()?);
             let ports = db.as_private().as_available_ports().de()?;
             for host in all_hosts(db) {
-                host?.update_addresses(info, &ports)?;
+                host?.update_addresses(&hostname, info, &ports)?;
             }
             Ok(())
         })

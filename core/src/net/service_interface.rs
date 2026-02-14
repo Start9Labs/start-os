@@ -32,6 +32,9 @@ pub enum HostnameMetadata {
         gateway: GatewayId,
         scope_id: u32,
     },
+    Mdns {
+        gateways: BTreeSet<GatewayId>,
+    },
     PrivateDomain {
         gateways: BTreeSet<GatewayId>,
     },
@@ -67,7 +70,9 @@ impl HostnameMetadata {
             Self::Ipv4 { gateway }
             | Self::Ipv6 { gateway, .. }
             | Self::PublicDomain { gateway } => Box::new(std::iter::once(gateway)),
-            Self::PrivateDomain { gateways } => Box::new(gateways.iter()),
+            Self::PrivateDomain { gateways } | Self::Mdns { gateways } => {
+                Box::new(gateways.iter())
+            }
             Self::Plugin { .. } => Box::new(std::iter::empty()),
         }
     }

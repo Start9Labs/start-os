@@ -13,7 +13,8 @@ use ts_rs::TS;
 
 use crate::context::RpcContext;
 use crate::db::model::DatabaseModel;
-use crate::db::model::public::NetworkInterfaceInfo;
+use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::hostname::Hostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::{HostAddress, PublicDomainConfig, address_api};
 use crate::net::host::binding::{BindInfo, BindOptions, Bindings, binding};
@@ -66,10 +67,13 @@ impl Host {
 impl Model<Host> {
     pub fn update_addresses(
         &mut self,
+        mdns: &Hostname,
         gateways: &OrdMap<GatewayId, NetworkInterfaceInfo>,
         available_ports: &AvailablePorts,
     ) -> Result<(), Error> {
         let this = self.destructure_mut();
+
+        // ips
         for (_, bind) in this.bindings.as_entries_mut()? {
             let net = bind.as_net().de()?;
             let opt = bind.as_options().de()?;
@@ -143,6 +147,46 @@ impl Model<Host> {
                     }
                 }
             }
+
+            // mdns
+            let mdns_host = mdns.local_domain_name();
+            let mdns_gateways: BTreeSet<GatewayId> = gateways
+                .iter()
+                .filter(|(_, g)| {
+                    matches!(
+                        g.ip_info.as_ref().and_then(|i| i.device_type),
+                        Some(NetworkInterfaceType::Ethernet | NetworkInterfaceType::Wireless)
+                    )
+                })
+                .map(|(id, _)| id.clone())
+                .collect();
+            if let Some(port) = net.assigned_port.filter(|_| {
+                opt.secure
+                    .map_or(true, |s| !(s.ssl && opt.add_ssl.is_some()))
+            }) {
+                available.insert(HostnameInfo {
+                    ssl: opt.secure.map_or(false, |s| s.ssl),
+                    public: false,
+                    host: mdns_host.clone(),
+                    port: Some(port),
+                    metadata: HostnameMetadata::Mdns {
+                        gateways: mdns_gateways.clone(),
+                    },
+                });
+            }
+            if let Some(mut port) = net.assigned_ssl_port {
+                available.insert(HostnameInfo {
+                    ssl: true,
+                    public: false,
+                    host: mdns_host,
+                    port: Some(port),
+                    metadata: HostnameMetadata::Mdns {
+                        gateways: mdns_gateways,
+                    },
+                });
+            }
+
+            // public domains
             for (domain, info) in this.public_domains.de()? {
                 let metadata = HostnameMetadata::PublicDomain {
                     gateway: info.gateway.clone(),
@@ -173,12 +217,14 @@ impl Model<Host> {
                     available.insert(HostnameInfo {
                         ssl: true,
                         public: true,
-                        host: domain.clone(),
+                        host: domain,
                         port: Some(port),
                         metadata,
                     });
                 }
             }
+
+            // private domains
             for (domain, domain_gateways) in this.private_domains.de()? {
                 if let Some(port) = net.assigned_port.filter(|_| {
                     opt.secure
@@ -213,7 +259,7 @@ impl Model<Host> {
                     available.insert(HostnameInfo {
                         ssl: true,
                         public: true,
-                        host: domain.clone(),
+                        host: domain,
                         port: Some(port),
                         metadata: HostnameMetadata::PrivateDomain {
                             gateways: domain_gateways,

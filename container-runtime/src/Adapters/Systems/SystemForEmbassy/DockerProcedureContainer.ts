@@ -89,8 +89,8 @@ export class DockerProcedureContainer extends Drop {
             `${packageId}.embassy`,
             ...new Set(
               Object.values(hostInfo?.bindings || {})
-                .flatMap((b) => b.addresses.possible)
-                .map((h) => h.hostname.value),
+                .flatMap((b) => b.addresses.available)
+                .map((h) => h.host),
             ).values(),
           ]
           const certChain = await effects.getSslCertificate({

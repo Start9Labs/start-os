@@ -30,6 +30,7 @@ function getGatewayIds(h: T.HostnameInfo): string[] {
     case 'ipv6':
     case 'public-domain':
       return [h.metadata.gateway]
+    case 'mdns':
     case 'private-domain':
       return h.metadata.gateways
     case 'plugin':
@@ -45,8 +46,10 @@ function getAddressType(h: T.HostnameInfo): string {
       return 'IPv6'
     case 'public-domain':
       return 'Public Domain'
+    case 'mdns':
+      return 'mDNS'
     case 'private-domain':
-      return h.host.endsWith('.local') ? 'mDNS' : 'Private Domain'
+      return 'Private Domain'
     case 'plugin':
       return 'Plugin'
   }
@@ -84,8 +87,7 @@ export class InterfaceService {
       const isDomain =
         h.metadata.kind === 'private-domain' ||
         h.metadata.kind === 'public-domain'
-      const isMdns =
-        h.metadata.kind === 'private-domain' && h.host.endsWith('.local')
+      const isMdns = h.metadata.kind === 'mdns'
 
       const address: GatewayAddress = {
         enabled,
