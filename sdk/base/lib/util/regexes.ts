@@ -39,10 +39,6 @@ export const localHostname = new ComposableRegex(
   /[-a-zA-Z0-9@:%._\+~#=]{1,256}\.local/,
 )
 
-export const torHostname = new ComposableRegex(
-  /[-a-zA-Z0-9@:%._\+~#=]{1,256}\.onion/,
-)
-
 // https://ihateregex.io/expr/url/
 export const url = new ComposableRegex(
   /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*)/,
@@ -50,10 +46,6 @@ export const url = new ComposableRegex(
 
 export const localUrl = new ComposableRegex(
   /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.local\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*)/,
-)
-
-export const torUrl = new ComposableRegex(
-  /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.onion\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*)/,
 )
 
 // https://ihateregex.io/expr/ascii/

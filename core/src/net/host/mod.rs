@@ -3,21 +3,23 @@ use std::future::Future;
 use std::panic::RefUnwindSafe;
 
 use clap::Parser;
+use imbl::OrdMap;
 use imbl_value::InternedString;
 use itertools::Itertools;
+use patch_db::DestructureMut;
 use rpc_toolkit::{Context, Empty, HandlerExt, OrEmpty, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::RpcContext;
 use crate::db::model::DatabaseModel;
+use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::{HostAddress, PublicDomainConfig, address_api};
-use crate::net::host::binding::{BindInfo, BindOptions, binding};
-use crate::net::service_interface::HostnameInfo;
-use crate::net::tor::OnionAddress;
+use crate::net::host::binding::{BindInfo, BindOptions, Bindings, binding};
+use crate::net::service_interface::{HostnameInfo, HostnameMetadata};
 use crate::prelude::*;
-use crate::{HostId, PackageId};
+use crate::{GatewayId, HostId, PackageId};
 
 pub mod address;
 pub mod binding;
@@ -27,13 +29,9 @@ pub mod binding;
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct Host {
-    pub bindings: BTreeMap<u16, BindInfo>,
-    #[ts(type = "string[]")]
-    pub onions: BTreeSet<OnionAddress>,
+    pub bindings: Bindings,
     pub public_domains: BTreeMap<InternedString, PublicDomainConfig>,
-    pub private_domains: BTreeSet<InternedString>,
-    /// COMPUTED: NetService::update
-    pub hostname_info: BTreeMap<u16, Vec<HostnameInfo>>, // internal port -> Hostnames
+    pub private_domains: BTreeMap<InternedString, BTreeSet<GatewayId>>,
 }
 
 impl AsRef<Host> for Host {
@@ -46,29 +44,186 @@ impl Host {
         Self::default()
     }
     pub fn addresses<'a>(&'a self) -> impl Iterator<Item = HostAddress> + 'a {
-        self.onions
+        self.public_domains
             .iter()
-            .cloned()
-            .map(|address| HostAddress::Onion { address })
-            .chain(
-                self.public_domains
-                    .iter()
-                    .map(|(address, config)| HostAddress::Domain {
-                        address: address.clone(),
-                        public: Some(config.clone()),
-                        private: self.private_domains.contains(address),
-                    }),
-            )
+            .map(|(address, config)| HostAddress {
+                address: address.clone(),
+                public: Some(config.clone()),
+                private: self.private_domains.get(address).cloned(),
+            })
             .chain(
                 self.private_domains
                     .iter()
-                    .filter(|a| !self.public_domains.contains_key(*a))
-                    .map(|address| HostAddress::Domain {
-                        address: address.clone(),
+                    .filter(|(domain, _)| !self.public_domains.contains_key(*domain))
+                    .map(|(domain, gateways)| HostAddress {
+                        address: domain.clone(),
                         public: None,
-                        private: true,
+                        private: Some(gateways.clone()),
                     }),
             )
+    }
+}
+impl Model<Host> {
+    pub fn update_addresses(
+        &mut self,
+        gateways: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+        available_ports: &AvailablePorts,
+    ) -> Result<(), Error> {
+        let this = self.destructure_mut();
+        for (_, bind) in this.bindings.as_entries_mut()? {
+            let net = bind.as_net().de()?;
+            let opt = bind.as_options().de()?;
+            let mut available = BTreeSet::new();
+            for (gid, g) in gateways {
+                let Some(ip_info) = &g.ip_info else {
+                    continue;
+                };
+                let gateway_secure = g.secure();
+                for subnet in &ip_info.subnets {
+                    let host = InternedString::from_display(&subnet.addr());
+                    let metadata = if subnet.addr().is_ipv4() {
+                        HostnameMetadata::Ipv4 {
+                            gateway: gid.clone(),
+                        }
+                    } else {
+                        HostnameMetadata::Ipv6 {
+                            gateway: gid.clone(),
+                            scope_id: ip_info.scope_id,
+                        }
+                    };
+                    if let Some(port) = net.assigned_port.filter(|_| {
+                        opt.secure
+                            .map_or(gateway_secure, |s| !(s.ssl && opt.add_ssl.is_some()))
+                    }) {
+                        available.insert(HostnameInfo {
+                            ssl: opt.secure.map_or(false, |s| s.ssl),
+                            public: false,
+                            host: host.clone(),
+                            port: Some(port),
+                            metadata: metadata.clone(),
+                        });
+                    }
+                    if let Some(port) = net.assigned_ssl_port {
+                        available.insert(HostnameInfo {
+                            ssl: true,
+                            public: false,
+                            host: host.clone(),
+                            port: Some(port),
+                            metadata,
+                        });
+                    }
+                }
+                if let Some(wan_ip) = &ip_info.wan_ip {
+                    let host = InternedString::from_display(&wan_ip);
+                    let metadata = HostnameMetadata::Ipv4 {
+                        gateway: gid.clone(),
+                    };
+                    if let Some(port) = net.assigned_port.filter(|_| {
+                        opt.secure.map_or(
+                            false, // the public internet is never secure
+                            |s| !(s.ssl && opt.add_ssl.is_some()),
+                        )
+                    }) {
+                        available.insert(HostnameInfo {
+                            ssl: opt.secure.map_or(false, |s| s.ssl),
+                            public: true,
+                            host: host.clone(),
+                            port: Some(port),
+                            metadata: metadata.clone(),
+                        });
+                    }
+                    if let Some(port) = net.assigned_ssl_port {
+                        available.insert(HostnameInfo {
+                            ssl: true,
+                            public: true,
+                            host: host.clone(),
+                            port: Some(port),
+                            metadata,
+                        });
+                    }
+                }
+            }
+            for (domain, info) in this.public_domains.de()? {
+                let metadata = HostnameMetadata::PublicDomain {
+                    gateway: info.gateway.clone(),
+                };
+                if let Some(port) = net.assigned_port.filter(|_| {
+                    opt.secure.map_or(
+                        false, // the public internet is never secure
+                        |s| !(s.ssl && opt.add_ssl.is_some()),
+                    )
+                }) {
+                    available.insert(HostnameInfo {
+                        ssl: opt.secure.map_or(false, |s| s.ssl),
+                        public: true,
+                        host: domain.clone(),
+                        port: Some(port),
+                        metadata: metadata.clone(),
+                    });
+                }
+                if let Some(mut port) = net.assigned_ssl_port {
+                    if let Some(preferred) = opt
+                        .add_ssl
+                        .as_ref()
+                        .map(|s| s.preferred_external_port)
+                        .filter(|p| available_ports.is_ssl(*p))
+                    {
+                        port = preferred;
+                    }
+                    available.insert(HostnameInfo {
+                        ssl: true,
+                        public: true,
+                        host: domain.clone(),
+                        port: Some(port),
+                        metadata,
+                    });
+                }
+            }
+            for (domain, domain_gateways) in this.private_domains.de()? {
+                if let Some(port) = net.assigned_port.filter(|_| {
+                    opt.secure
+                        .map_or(true, |s| !(s.ssl && opt.add_ssl.is_some()))
+                }) {
+                    let gateways = if opt.secure.is_some() {
+                        domain_gateways.clone()
+                    } else {
+                        domain_gateways
+                            .iter()
+                            .cloned()
+                            .filter(|g| gateways.get(g).map_or(false, |g| g.secure()))
+                            .collect()
+                    };
+                    available.insert(HostnameInfo {
+                        ssl: opt.secure.map_or(false, |s| s.ssl),
+                        public: true,
+                        host: domain.clone(),
+                        port: Some(port),
+                        metadata: HostnameMetadata::PrivateDomain { gateways },
+                    });
+                }
+                if let Some(mut port) = net.assigned_ssl_port {
+                    if let Some(preferred) = opt
+                        .add_ssl
+                        .as_ref()
+                        .map(|s| s.preferred_external_port)
+                        .filter(|p| available_ports.is_ssl(*p))
+                    {
+                        port = preferred;
+                    }
+                    available.insert(HostnameInfo {
+                        ssl: true,
+                        public: true,
+                        host: domain.clone(),
+                        port: Some(port),
+                        metadata: HostnameMetadata::PrivateDomain {
+                            gateways: domain_gateways,
+                        },
+                    });
+                }
+            }
+            bind.as_addresses_mut().as_available_mut().ser(&available)?;
+        }
+        Ok(())
     }
 }
 
@@ -112,22 +267,7 @@ pub fn host_for<'a>(
                 .as_hosts_mut(),
         )
     }
-    let tor_key = if host_info(db, package_id)?.as_idx(host_id).is_none() {
-        Some(
-            db.as_private_mut()
-                .as_key_store_mut()
-                .as_onion_mut()
-                .new_key()?,
-        )
-    } else {
-        None
-    };
-    host_info(db, package_id)?.upsert(host_id, || {
-        let mut h = Host::new();
-        h.onions
-            .insert(tor_key.or_not_found("generated tor key")?.onion_address());
-        Ok(h)
-    })
+    host_info(db, package_id)?.upsert(host_id, || Ok(Host::new()))
 }
 
 pub fn all_hosts(db: &mut DatabaseModel) -> impl Iterator<Item = Result<&mut Model<Host>, Error>> {

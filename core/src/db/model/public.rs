@@ -20,8 +20,9 @@ use crate::db::model::Database;
 use crate::db::model::package::AllPackageData;
 use crate::net::acme::AcmeProvider;
 use crate::net::host::Host;
-use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, NetInfo};
-use crate::net::utils::ipv6_is_local;
+use crate::net::host::binding::{
+    AddSslOptions, BindInfo, BindOptions, Bindings, DerivedAddressInfo, NetInfo,
+};
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::progress::FullProgress;
@@ -63,36 +64,35 @@ impl Public {
                 post_init_migration_todos: BTreeMap::new(),
                 network: NetworkInfo {
                     host: Host {
-                        bindings: [(
-                            80,
-                            BindInfo {
-                                enabled: false,
-                                options: BindOptions {
-                                    preferred_external_port: 80,
-                                    add_ssl: Some(AddSslOptions {
-                                        preferred_external_port: 443,
-                                        add_x_forwarded_headers: false,
-                                        alpn: Some(AlpnInfo::Specified(vec![
-                                            MaybeUtf8String("h2".into()),
-                                            MaybeUtf8String("http/1.1".into()),
-                                        ])),
-                                    }),
-                                    secure: None,
+                        bindings: Bindings(
+                            [(
+                                80,
+                                BindInfo {
+                                    enabled: false,
+                                    options: BindOptions {
+                                        preferred_external_port: 80,
+                                        add_ssl: Some(AddSslOptions {
+                                            preferred_external_port: 443,
+                                            add_x_forwarded_headers: false,
+                                            alpn: Some(AlpnInfo::Specified(vec![
+                                                MaybeUtf8String("h2".into()),
+                                                MaybeUtf8String("http/1.1".into()),
+                                            ])),
+                                        }),
+                                        secure: None,
+                                    },
+                                    net: NetInfo {
+                                        assigned_port: None,
+                                        assigned_ssl_port: Some(443),
+                                    },
+                                    addresses: DerivedAddressInfo::default(),
                                 },
-                                net: NetInfo {
-                                    assigned_port: None,
-                                    assigned_ssl_port: Some(443),
-                                    private_disabled: OrdSet::new(),
-                                    public_enabled: OrdSet::new(),
-                                },
-                            },
-                        )]
-                        .into_iter()
-                        .collect(),
-                        onions: account.tor_keys.iter().map(|k| k.onion_address()).collect(),
+                            )]
+                            .into_iter()
+                            .collect(),
+                        ),
                         public_domains: BTreeMap::new(),
-                        private_domains: BTreeSet::new(),
-                        hostname_info: BTreeMap::new(),
+                        private_domains: BTreeMap::new(),
                     },
                     wifi: WifiInfo {
                         enabled: true,
@@ -117,6 +117,7 @@ impl Public {
                         acme
                     },
                     dns: Default::default(),
+                    default_outbound: None,
                 },
                 status_info: ServerStatus {
                     backup_progress: None,
@@ -220,6 +221,9 @@ pub struct NetworkInfo {
     pub acme: BTreeMap<AcmeProvider, AcmeSettings>,
     #[serde(default)]
     pub dns: DnsSettings,
+    #[serde(default)]
+    #[ts(type = "string | null")]
+    pub default_outbound: Option<GatewayId>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -239,41 +243,12 @@ pub struct DnsSettings {
 #[ts(export)]
 pub struct NetworkInterfaceInfo {
     pub name: Option<InternedString>,
-    pub public: Option<bool>,
     pub secure: Option<bool>,
     pub ip_info: Option<Arc<IpInfo>>,
+    #[serde(default, rename = "type")]
+    pub gateway_type: Option<GatewayType>,
 }
 impl NetworkInterfaceInfo {
-    pub fn public(&self) -> bool {
-        self.public.unwrap_or_else(|| {
-            !self.ip_info.as_ref().map_or(true, |ip_info| {
-                let ip4s = ip_info
-                    .subnets
-                    .iter()
-                    .filter_map(|ipnet| {
-                        if let IpAddr::V4(ip4) = ipnet.addr() {
-                            Some(ip4)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<BTreeSet<_>>();
-                if !ip4s.is_empty() {
-                    return ip4s
-                        .iter()
-                        .all(|ip4| ip4.is_loopback() || ip4.is_private() || ip4.is_link_local());
-                }
-                ip_info.subnets.iter().all(|ipnet| {
-                    if let IpAddr::V6(ip6) = ipnet.addr() {
-                        ipv6_is_local(ip6)
-                    } else {
-                        true
-                    }
-                })
-            })
-        })
-    }
-
     pub fn secure(&self) -> bool {
         self.secure.unwrap_or(false)
     }
@@ -308,6 +283,28 @@ pub enum NetworkInterfaceType {
     Bridge,
     Wireguard,
     Loopback,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Deserialize,
+    Serialize,
+    TS,
+    clap::ValueEnum,
+)]
+#[ts(export)]
+#[serde(rename_all = "kebab-case")]
+pub enum GatewayType {
+    #[default]
+    InboundOutbound,
+    OutboundOnly,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

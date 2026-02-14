@@ -80,12 +80,6 @@ export default class SystemLogsComponent {
       icon: '@tui.square-dashed-bottom-code',
     },
     {
-      link: 'tor',
-      title: 'Tor Logs',
-      subtitle: 'Diagnostics for the Tor daemon on this server',
-      icon: '@tui.target',
-    },
-    {
       link: 'kernel',
       title: 'Kernel Logs',
       subtitle: 'Diagnostics for drivers and other kernel processes',

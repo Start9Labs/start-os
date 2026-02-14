@@ -13,4 +13,5 @@ export type NetworkInfo = {
   gateways: { [key: GatewayId]: NetworkInterfaceInfo }
   acme: { [key: AcmeProvider]: AcmeSettings }
   dns: DnsSettings
+  defaultOutbound: string | null
 }

@@ -67,7 +67,7 @@ import {
 import { getOwnServiceInterfaces } from '../../base/lib/util/getServiceInterfaces'
 import { Volumes, createVolumes } from './util/Volume'
 
-export const OSVersion = testTypeVersion('0.4.0-alpha.19')
+export const OSVersion = testTypeVersion('0.4.0-alpha.20')
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 

@@ -82,18 +82,15 @@ export class DockerProcedureContainer extends Drop {
             }),
           )
         } else if (volumeMount.type === "certificate") {
+          const hostInfo = await effects.getHostInfo({
+            hostId: volumeMount["interface-id"],
+          })
           const hostnames = [
             `${packageId}.embassy`,
             ...new Set(
-              Object.values(
-                (
-                  await effects.getHostInfo({
-                    hostId: volumeMount["interface-id"],
-                  })
-                )?.hostnameInfo || {},
-              )
-                .flatMap((h) => h)
-                .flatMap((h) => (h.kind === "onion" ? [h.hostname.value] : [])),
+              Object.values(hostInfo?.bindings || {})
+                .flatMap((b) => b.addresses.possible)
+                .map((h) => h.hostname.value),
             ).values(),
           ]
           const certChain = await effects.getSslCertificate({

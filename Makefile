@@ -236,9 +236,9 @@ update-startbox: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox
 update-deb: results/$(BASENAME).deb # better than update, but only available from debian
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
-	$(call mkdir,/media/startos/next/tmp/startos-deb)
-	$(call cp,results/$(BASENAME).deb,/media/startos/next/tmp/startos-deb/$(BASENAME).deb)
-	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y --reinstall /tmp/startos-deb/$(BASENAME).deb"')
+	$(call mkdir,/media/startos/next/var/tmp/startos-deb)
+	$(call cp,results/$(BASENAME).deb,/media/startos/next/var/tmp/startos-deb/$(BASENAME).deb)
+	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y --reinstall /var/tmp/startos-deb/$(BASENAME).deb"')
 
 update-squashfs: results/$(BASENAME).squashfs
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi

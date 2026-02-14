@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 use ts_rs::TS;
 
+use patch_db::json_ptr::JsonPointer;
+
+use crate::db::model::Database;
 use crate::net::ssl::FullchainCertData;
 use crate::prelude::*;
 use crate::service::effects::context::EffectContext;
@@ -29,7 +32,7 @@ struct ServiceCallbackMap {
     get_service_interface: BTreeMap<(PackageId, ServiceInterfaceId), Vec<CallbackHandler>>,
     list_service_interfaces: BTreeMap<PackageId, Vec<CallbackHandler>>,
     get_system_smtp: Vec<CallbackHandler>,
-    get_host_info: BTreeMap<(PackageId, HostId), Vec<CallbackHandler>>,
+    get_host_info: BTreeMap<(PackageId, HostId), (NonDetachingJoinHandle<()>, Vec<CallbackHandler>)>,
     get_ssl_certificate: EqMap<
         (BTreeSet<InternedString>, FullchainCertData, Algorithm),
         (NonDetachingJoinHandle<()>, Vec<CallbackHandler>),
@@ -57,7 +60,7 @@ impl ServiceCallbacks {
             });
             this.get_system_smtp
                 .retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-            this.get_host_info.retain(|_, v| {
+            this.get_host_info.retain(|_, (_, v)| {
                 v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
                 !v.is_empty()
             });
@@ -141,26 +144,54 @@ impl ServiceCallbacks {
     }
 
     pub(super) fn add_get_host_info(
-        &self,
+        self: &Arc<Self>,
+        db: &TypedPatchDb<Database>,
         package_id: PackageId,
         host_id: HostId,
         handler: CallbackHandler,
     ) {
         self.mutate(|this| {
             this.get_host_info
-                .entry((package_id, host_id))
-                .or_default()
+                .entry((package_id.clone(), host_id.clone()))
+                .or_insert_with(|| {
+                    let ptr: JsonPointer = format!(
+                        "/public/packageData/{}/hosts/{}",
+                        package_id, host_id
+                    )
+                    .parse()
+                    .expect("valid json pointer");
+                    let db = db.clone();
+                    let callbacks = Arc::clone(self);
+                    let key = (package_id, host_id);
+                    (
+                        tokio::spawn(async move {
+                            let mut sub = db.subscribe(ptr).await;
+                            while sub.recv().await.is_some() {
+                                if let Some(cbs) = callbacks.mutate(|this| {
+                                    this.get_host_info
+                                        .remove(&key)
+                                        .map(|(_, handlers)| CallbackHandlers(handlers))
+                                        .filter(|cb| !cb.0.is_empty())
+                                }) {
+                                    if let Err(e) = cbs.call(vector![]).await {
+                                        tracing::error!(
+                                            "Error in host info callback: {e}"
+                                        );
+                                        tracing::debug!("{e:?}");
+                                    }
+                                }
+                                // entry was removed when we consumed handlers,
+                                // so stop watching — a new subscription will be
+                                // created if the service re-registers
+                                break;
+                            }
+                        })
+                        .into(),
+                        Vec::new(),
+                    )
+                })
+                .1
                 .push(handler);
-        })
-    }
-
-    #[must_use]
-    pub fn get_host_info(&self, id: &(PackageId, HostId)) -> Option<CallbackHandlers> {
-        self.mutate(|this| {
-            Some(CallbackHandlers(
-                this.get_host_info.remove(id).unwrap_or_default(),
-            ))
-            .filter(|cb| !cb.0.is_empty())
         })
     }
 

@@ -95,12 +95,14 @@ export default class StartOsUiComponent {
       ),
       gateways: gateways.map(g => ({
         enabled:
-          (g.public
-            ? binding?.net.publicEnabled.includes(g.id)
-            : !binding?.net.privateDisabled.includes(g.id)) ?? false,
+          (binding?.addresses.enabled.some(a => a.gateway.id === g.id) ||
+            (!binding?.addresses.disabled.some(a => a.gateway.id === g.id) &&
+              binding?.addresses.possible.some(a =>
+                a.gateway.id === g.id &&
+                !(a.public && (a.hostname.kind === 'ipv4' || a.hostname.kind === 'ipv6'))
+              ))) ?? false,
         ...g,
       })),
-      torDomains: network.host.onions,
       publicDomains: getPublicDomains(network.host.publicDomains, gateways),
       privateDomains: network.host.privateDomains,
       addSsl: true,

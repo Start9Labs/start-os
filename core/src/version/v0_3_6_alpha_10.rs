@@ -8,7 +8,6 @@ use super::v0_3_5::V0_3_0_COMPAT;
 use super::{VersionT, v0_3_6_alpha_9};
 use crate::GatewayId;
 use crate::net::host::address::PublicDomainConfig;
-use crate::net::tor::OnionAddress;
 use crate::prelude::*;
 
 lazy_static::lazy_static! {
@@ -22,7 +21,7 @@ lazy_static::lazy_static! {
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "kind")]
 enum HostAddress {
-    Onion { address: OnionAddress },
+    Onion { address: String },
     Domain { address: InternedString },
 }
 

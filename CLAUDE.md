@@ -29,6 +29,24 @@ make update-startbox REMOTE=start9@<ip>   # Fastest iteration (binary + UI)
 make test-core                            # Run Rust tests
 ```
 
+### Verifying code changes
+
+When making changes across multiple layers (Rust, SDK, web, container-runtime), verify in this order:
+
+1. **Rust**: `cargo check -p start-os` — verifies core compiles
+2. **TS bindings**: `make ts-bindings` — regenerates TypeScript types from Rust `#[ts(export)]` structs
+   - Runs `./core/build/build-ts.sh` to export ts-rs types to `core/bindings/`
+   - Syncs `core/bindings/` → `sdk/base/lib/osBindings/` via rsync
+   - If you manually edit files in `sdk/base/lib/osBindings/`, you must still rebuild the SDK (step 3)
+3. **SDK bundle**: `cd sdk && make baseDist dist` — compiles SDK source into packages
+   - `baseDist/` is consumed by `/web` (via `@start9labs/start-sdk-base`)
+   - `dist/` is consumed by `/container-runtime` (via `@start9labs/start-sdk`)
+   - Web and container-runtime reference the **built** SDK, not source files
+4. **Web type check**: `cd web && npm run check` — type-checks all Angular projects
+5. **Container runtime type check**: `cd container-runtime && npm run check` — type-checks the runtime
+
+**Important**: Editing `sdk/base/lib/osBindings/*.ts` alone is NOT sufficient — you must rebuild the SDK bundle (step 3) before web/container-runtime can see the changes.
+
 ## Architecture
 
 Each major component has its own `CLAUDE.md` with detailed guidance.

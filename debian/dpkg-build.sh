@@ -23,7 +23,7 @@ if [ "${PROJECT}" = "startos" ]; then
 else
     INSTALL_TARGET="install-${PROJECT#start-}"
 fi
-make "${INSTALL_TARGET}" DESTDIR=dpkg-workdir/$BASENAME
+make "${INSTALL_TARGET}" DESTDIR=dpkg-workdir/$BASENAME REMOTE=
 
 if [ -f dpkg-workdir/$BASENAME/usr/lib/$PROJECT/depends ]; then
     if [ -n "$DEPENDS" ]; then

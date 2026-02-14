@@ -25,4 +25,5 @@ export type PackageDataEntry = {
   serviceInterfaces: { [key: ServiceInterfaceId]: ServiceInterface }
   hosts: Hosts
   storeExposedDependents: string[]
+  outboundGateway: string | null
 }

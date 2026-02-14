@@ -281,17 +281,6 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async getTorLogs(params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {
-    await pauseFor(2000)
-    const entries = this.randomLogs(params.limit)
-
-    return {
-      entries,
-      startCursor: 'start-cursor',
-      endCursor: 'end-cursor',
-    }
-  }
-
   async getKernelLogs(
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes> {
@@ -306,16 +295,6 @@ export class MockApiService extends ApiService {
   }
 
   async followServerLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
-    await pauseFor(2000)
-    return {
-      startCursor: 'start-cursor',
-      guid: 'logs-guid',
-    }
-  }
-
-  async followTorLogs(
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes> {
     await pauseFor(2000)
@@ -504,11 +483,6 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes> {
-    await pauseFor(2000)
-    return null
-  }
-
   // marketplace URLs
 
   async checkOSUpdate(
@@ -592,13 +566,12 @@ export class MockApiService extends ApiService {
 
     const id = `wg${this.proxyId++}`
 
-    const patch: AddOperation<T.NetworkInterfaceInfo>[] = [
+    const patch: AddOperation<any>[] = [
       {
         op: PatchOp.ADD,
         path: `/serverInfo/network/gateways/${id}`,
         value: {
           name: params.name,
-          public: params.public,
           secure: false,
           ipInfo: {
             name: id,
@@ -610,9 +583,19 @@ export class MockApiService extends ApiService {
             lanIp: ['192.168.1.10'],
             dnsServers: [],
           },
+          type: params.type,
         },
       },
     ]
+
+    if (params.setAsDefaultOutbound) {
+      ;(patch as any[]).push({
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/network/defaultOutbound',
+        value: id,
+      })
+    }
+
     this.mockRevision(patch)
 
     return { id }
@@ -639,6 +622,38 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.REMOVE,
         path: `/serverInfo/network/gateways/${params.id}`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setDefaultOutbound(
+    params: RR.SetDefaultOutboundReq,
+  ): Promise<RR.SetDefaultOutboundRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/network/defaultOutbound',
+        value: params.gateway,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setServiceOutbound(
+    params: RR.SetServiceOutboundReq,
+  ): Promise<RR.SetServiceOutboundRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/packageData/${params.packageId}/outboundGateway`,
+        value: params.gateway,
       },
     ]
     this.mockRevision(patch)
@@ -1374,77 +1389,12 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async addTorKey(params: RR.AddTorKeyReq): Promise<RR.AddTorKeyRes> {
-    await pauseFor(2000)
-    return 'vanityabcdefghijklmnop.onion'
-  }
-
-  async generateTorKey(params: RR.GenerateTorKeyReq): Promise<RR.AddTorKeyRes> {
-    await pauseFor(2000)
-    return 'abcdefghijklmnopqrstuv.onion'
-  }
-
-  async serverBindingToggleGateway(
-    params: RR.ServerBindingToggleGatewayReq,
-  ): Promise<RR.ServerBindingToggleGatewayRes> {
+  async serverBindingSetAddressEnabled(
+    params: RR.ServerBindingSetAddressEnabledReq,
+  ): Promise<RR.ServerBindingSetAddressEnabledRes> {
     await pauseFor(2000)
 
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/serverInfo/network/host/bindings/${params.internalPort}/net/publicEnabled`,
-        value: params.enabled ? [params.gateway] : [],
-      },
-    ]
-    this.mockRevision(patch)
-
-    return null
-  }
-
-  async serverAddOnion(params: RR.ServerAddOnionReq): Promise<RR.AddOnionRes> {
-    await pauseFor(2000)
-
-    const patch: Operation<any>[] = [
-      {
-        op: PatchOp.ADD,
-        path: `/serverInfo/host/onions/0`,
-        value: params.onion,
-      },
-      {
-        op: PatchOp.ADD,
-        path: `/serverInfo/host/hostnameInfo/80/0`,
-        value: {
-          kind: 'onion',
-          hostname: {
-            port: 80,
-            sslPort: 443,
-            value: params.onion,
-          },
-        },
-      },
-    ]
-    this.mockRevision(patch)
-
-    return null
-  }
-
-  async serverRemoveOnion(
-    params: RR.ServerRemoveOnionReq,
-  ): Promise<RR.RemoveOnionRes> {
-    await pauseFor(2000)
-
-    const patch: RemoveOperation[] = [
-      {
-        op: PatchOp.REMOVE,
-        path: `/serverInfo/host/onions/0`,
-      },
-      {
-        op: PatchOp.REMOVE,
-        path: `/serverInfo/host/hostnameInfo/80/-1`,
-      },
-    ]
-    this.mockRevision(patch)
-
+    // Mock: no-op since address enable/disable modifies DerivedAddressInfo sets
     return null
   }
 
@@ -1463,10 +1413,9 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.ADD,
-        path: `/serverInfo/host/hostnameInfo/80/0`,
+        path: `/serverInfo/network/host/bindings/80/addresses/possible/0`,
         value: {
-          kind: 'ip',
-          gatewayId: 'eth0',
+          gateway: { id: 'eth0', name: 'Ethernet', public: false },
           public: true,
           hostname: {
             kind: 'domain',
@@ -1495,7 +1444,7 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.REMOVE,
-        path: `/serverInfo/host/hostnameInfo/80/0`,
+        path: `/serverInfo/network/host/bindings/80/addresses/possible/0`,
       },
     ]
     this.mockRevision(patch)
@@ -1516,10 +1465,9 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.ADD,
-        path: `/serverInfo/host/hostnameInfo/80/0`,
+        path: `/serverInfo/network/host/bindings/80/addresses/possible/0`,
         value: {
-          kind: 'ip',
-          gatewayId: 'eth0',
+          gateway: { id: 'eth0', name: 'Ethernet', public: false },
           public: false,
           hostname: {
             kind: 'domain',
@@ -1549,7 +1497,7 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.REMOVE,
-        path: `/serverInfo/host/hostnameInfo/80/0`,
+        path: `/serverInfo/network/host/bindings/80/addresses/possible/0`,
       },
     ]
     this.mockRevision(patch)
@@ -1557,67 +1505,12 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async pkgBindingToggleGateway(
-    params: RR.PkgBindingToggleGatewayReq,
-  ): Promise<RR.PkgBindingToggleGatewayRes> {
+  async pkgBindingSetAddressEnabled(
+    params: RR.PkgBindingSetAddressEnabledReq,
+  ): Promise<RR.PkgBindingSetAddressEnabledRes> {
     await pauseFor(2000)
 
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/packageData/${params.package}/hosts/${params.host}/bindings/${params.internalPort}/net/privateDisabled`,
-        value: params.enabled ? [] : [params.gateway],
-      },
-    ]
-    this.mockRevision(patch)
-
-    return null
-  }
-
-  async pkgAddOnion(params: RR.PkgAddOnionReq): Promise<RR.AddOnionRes> {
-    await pauseFor(2000)
-
-    const patch: Operation<any>[] = [
-      {
-        op: PatchOp.ADD,
-        path: `/packageData/${params.package}/hosts/${params.host}/onions/0`,
-        value: params.onion,
-      },
-      {
-        op: PatchOp.ADD,
-        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
-        value: {
-          kind: 'onion',
-          hostname: {
-            port: 80,
-            sslPort: 443,
-            value: params.onion,
-          },
-        },
-      },
-    ]
-    this.mockRevision(patch)
-
-    return null
-  }
-
-  async pkgRemoveOnion(
-    params: RR.PkgRemoveOnionReq,
-  ): Promise<RR.RemoveOnionRes> {
-    await pauseFor(2000)
-
-    const patch: RemoveOperation[] = [
-      {
-        op: PatchOp.REMOVE,
-        path: `/packageData/${params.package}/hosts/${params.host}/onions/0`,
-      },
-      {
-        op: PatchOp.REMOVE,
-        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
-      },
-    ]
-    this.mockRevision(patch)
-
+    // Mock: no-op since address enable/disable modifies DerivedAddressInfo sets
     return null
   }
 
@@ -1636,10 +1529,9 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.ADD,
-        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/possible/0`,
         value: {
-          kind: 'ip',
-          gatewayId: 'eth0',
+          gateway: { id: 'eth0', name: 'Ethernet', public: false },
           public: true,
           hostname: {
             kind: 'domain',
@@ -1668,7 +1560,7 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.REMOVE,
-        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/possible/0`,
       },
     ]
     this.mockRevision(patch)
@@ -1689,10 +1581,9 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.ADD,
-        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/possible/0`,
         value: {
-          kind: 'ip',
-          gatewayId: 'eth0',
+          gateway: { id: 'eth0', name: 'Ethernet', public: false },
           public: false,
           hostname: {
             kind: 'domain',
@@ -1722,7 +1613,7 @@ export class MockApiService extends ApiService {
       },
       {
         op: PatchOp.REMOVE,
-        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/80/addresses/possible/0`,
       },
     ]
     this.mockRevision(patch)

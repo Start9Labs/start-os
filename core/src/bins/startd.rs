@@ -12,7 +12,7 @@ use tracing::instrument;
 use crate::context::config::ServerConfig;
 use crate::context::rpc::InitRpcContextPhases;
 use crate::context::{DiagnosticContext, InitContext, RpcContext};
-use crate::net::gateway::{BindTcp, SelfContainedNetworkInterfaceListener, UpgradableListener};
+use crate::net::gateway::WildcardListener;
 use crate::net::static_server::refresher;
 use crate::net::web_server::{Acceptor, WebServer};
 use crate::prelude::*;
@@ -23,7 +23,7 @@ use crate::util::logger::LOGGER;
 
 #[instrument(skip_all)]
 async fn inner_main(
-    server: &mut WebServer<UpgradableListener>,
+    server: &mut WebServer<WildcardListener>,
     config: &ServerConfig,
 ) -> Result<Option<Shutdown>, Error> {
     let rpc_ctx = if !tokio::fs::metadata("/run/startos/initialized")
@@ -148,7 +148,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
             .expect(&t!("bins.startd.failed-to-initialize-runtime"));
         let res = rt.block_on(async {
             let mut server = WebServer::new(
-                Acceptor::bind_upgradable(SelfContainedNetworkInterfaceListener::bind(BindTcp, 80)),
+                Acceptor::new(WildcardListener::new(80)?),
                 refresher(),
             );
             match inner_main(&mut server, &config).await {

@@ -29,6 +29,7 @@ pub async fn get_host_info(
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
         context.seed.ctx.callbacks.add_get_host_info(
+            &context.seed.ctx.db,
             package_id.clone(),
             host_id.clone(),
             CallbackHandler::new(&context, callback),

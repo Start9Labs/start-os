@@ -9,7 +9,7 @@ use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::firmware::{check_for_firmware_update, update_firmware};
 use crate::init::{InitPhases, STANDBY_MODE_PATH};
-use crate::net::gateway::UpgradableListener;
+use crate::net::gateway::WildcardListener;
 use crate::net::web_server::WebServer;
 use crate::prelude::*;
 use crate::progress::FullProgressTracker;
@@ -19,7 +19,7 @@ use crate::{DATA_DIR, PLATFORM};
 
 #[instrument(skip_all)]
 async fn setup_or_init(
-    server: &mut WebServer<UpgradableListener>,
+    server: &mut WebServer<WildcardListener>,
     config: &ServerConfig,
 ) -> Result<Result<(RpcContext, FullProgressTracker), Shutdown>, Error> {
     if let Some(firmware) = check_for_firmware_update()
@@ -204,7 +204,7 @@ async fn setup_or_init(
 
 #[instrument(skip_all)]
 pub async fn main(
-    server: &mut WebServer<UpgradableListener>,
+    server: &mut WebServer<WildcardListener>,
     config: &ServerConfig,
 ) -> Result<Result<(RpcContext, FullProgressTracker), Shutdown>, Error> {
     if &*PLATFORM == "raspberrypi" && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {

@@ -1,99 +1,85 @@
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::collections::BTreeSet;
+use std::net::SocketAddr;
 
-use imbl_value::InternedString;
+use imbl_value::{InOMap, InternedString};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{GatewayId, HostId, ServiceInterfaceId};
+use crate::prelude::*;
+use crate::{GatewayId, HostId, PackageId, ServiceInterfaceId};
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
+pub struct HostnameInfo {
+    pub ssl: bool,
+    pub public: bool,
+    pub host: InternedString,
+    pub port: Option<u16>,
+    pub metadata: HostnameMetadata,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "kebab-case")]
 #[serde(rename_all_fields = "camelCase")]
 #[serde(tag = "kind")]
-pub enum HostnameInfo {
-    Ip {
-        gateway: GatewayInfo,
-        public: bool,
-        hostname: IpHostname,
+pub enum HostnameMetadata {
+    Ipv4 {
+        gateway: GatewayId,
     },
-    Onion {
-        hostname: OnionHostname,
+    Ipv6 {
+        gateway: GatewayId,
+        scope_id: u32,
+    },
+    PrivateDomain {
+        gateways: BTreeSet<GatewayId>,
+    },
+    PublicDomain {
+        gateway: GatewayId,
+    },
+    Plugin {
+        package: PackageId,
+        #[serde(flatten)]
+        #[ts(skip)]
+        extra: InOMap<InternedString, Value>,
     },
 }
+
 impl HostnameInfo {
+    pub fn to_socket_addr(&self) -> Option<SocketAddr> {
+        let ip = self.host.parse().ok()?;
+        Some(SocketAddr::new(ip, self.port?))
+    }
+
     pub fn to_san_hostname(&self) -> InternedString {
+        self.host.clone()
+    }
+}
+
+impl HostnameMetadata {
+    pub fn is_ip(&self) -> bool {
+        matches!(self, Self::Ipv4 { .. } | Self::Ipv6 { .. })
+    }
+
+    pub fn gateways(&self) -> Box<dyn Iterator<Item = &GatewayId> + '_> {
         match self {
-            Self::Ip { hostname, .. } => hostname.to_san_hostname(),
-            Self::Onion { hostname } => hostname.to_san_hostname(),
+            Self::Ipv4 { gateway }
+            | Self::Ipv6 { gateway, .. }
+            | Self::PublicDomain { gateway } => Box::new(std::iter::once(gateway)),
+            Self::PrivateDomain { gateways } => Box::new(gateways.iter()),
+            Self::Plugin { .. } => Box::new(std::iter::empty()),
         }
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayInfo {
     pub id: GatewayId,
     pub name: InternedString,
     pub public: bool,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct OnionHostname {
-    #[ts(type = "string")]
-    pub value: InternedString,
-    pub port: Option<u16>,
-    pub ssl_port: Option<u16>,
-}
-impl OnionHostname {
-    pub fn to_san_hostname(&self) -> InternedString {
-        self.value.clone()
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-#[serde(rename_all_fields = "camelCase")]
-#[serde(tag = "kind")]
-pub enum IpHostname {
-    Ipv4 {
-        value: Ipv4Addr,
-        port: Option<u16>,
-        ssl_port: Option<u16>,
-    },
-    Ipv6 {
-        value: Ipv6Addr,
-        #[serde(default)]
-        scope_id: u32,
-        port: Option<u16>,
-        ssl_port: Option<u16>,
-    },
-    Local {
-        #[ts(type = "string")]
-        value: InternedString,
-        port: Option<u16>,
-        ssl_port: Option<u16>,
-    },
-    Domain {
-        #[ts(type = "string")]
-        value: InternedString,
-        port: Option<u16>,
-        ssl_port: Option<u16>,
-    },
-}
-impl IpHostname {
-    pub fn to_san_hostname(&self) -> InternedString {
-        match self {
-            Self::Ipv4 { value, .. } => InternedString::from_display(value),
-            Self::Ipv6 { value, .. } => InternedString::from_display(value),
-            Self::Local { value, .. } => value.clone(),
-            Self::Domain { value, .. } => value.clone(),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

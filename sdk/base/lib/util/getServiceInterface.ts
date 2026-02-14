@@ -1,6 +1,12 @@
 import { PackageId, ServiceInterfaceId, ServiceInterfaceType } from '../types'
 import { knownProtocols } from '../interfaces/Host'
-import { AddressInfo, Host, Hostname, HostnameInfo } from '../types'
+import {
+  AddressInfo,
+  DerivedAddressInfo,
+  Host,
+  Hostname,
+  HostnameInfo,
+} from '../types'
 import { Effects } from '../Effects'
 import { DropGenerator, DropPromise } from './Drop'
 import { IpAddress, IPV6_LINK_LOCAL } from './ip'
@@ -20,7 +26,6 @@ export const getHostname = (url: string): Hostname | null => {
 }
 
 type FilterKinds =
-  | 'onion'
   | 'mdns'
   | 'domain'
   | 'ip'
@@ -42,27 +47,26 @@ type VisibilityFilter<V extends 'public' | 'private'> = V extends 'public'
         | (HostnameInfo & { public: false })
         | VisibilityFilter<Exclude<V, 'private'>>
     : never
-type KindFilter<K extends FilterKinds> = K extends 'onion'
-  ? (HostnameInfo & { kind: 'onion' }) | KindFilter<Exclude<K, 'onion'>>
-  : K extends 'mdns'
+type KindFilter<K extends FilterKinds> = K extends 'mdns'
+  ?
+      | (HostnameInfo & { metadata: { kind: 'private-domain' } })
+      | KindFilter<Exclude<K, 'mdns'>>
+  : K extends 'domain'
     ?
-        | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'local' } })
-        | KindFilter<Exclude<K, 'mdns'>>
-    : K extends 'domain'
+        | (HostnameInfo & { metadata: { kind: 'private-domain' } })
+        | (HostnameInfo & { metadata: { kind: 'public-domain' } })
+        | KindFilter<Exclude<K, 'domain'>>
+    : K extends 'ipv4'
       ?
-          | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'domain' } })
-          | KindFilter<Exclude<K, 'domain'>>
-      : K extends 'ipv4'
+          | (HostnameInfo & { metadata: { kind: 'ipv4' } })
+          | KindFilter<Exclude<K, 'ipv4'>>
+      : K extends 'ipv6'
         ?
-            | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'ipv4' } })
-            | KindFilter<Exclude<K, 'ipv4'>>
-        : K extends 'ipv6'
-          ?
-              | (HostnameInfo & { kind: 'ip'; hostname: { kind: 'ipv6' } })
-              | KindFilter<Exclude<K, 'ipv6'>>
-          : K extends 'ip'
-            ? KindFilter<Exclude<K, 'ip'> | 'ipv4' | 'ipv6'>
-            : never
+            | (HostnameInfo & { metadata: { kind: 'ipv6' } })
+            | KindFilter<Exclude<K, 'ipv6'>>
+        : K extends 'ip'
+          ? KindFilter<Exclude<K, 'ip'> | 'ipv4' | 'ipv6'>
+          : never
 
 type FilterReturnTy<F extends Filter> = F extends {
   visibility: infer V extends 'public' | 'private'
@@ -90,10 +94,6 @@ const nonLocalFilter = {
 const publicFilter = {
   visibility: 'public',
 } as const
-const onionFilter = {
-  kind: 'onion',
-} as const
-
 type Formats = 'hostname-info' | 'urlstring' | 'url'
 type FormatReturnTy<
   F extends Filter,
@@ -109,10 +109,7 @@ type FormatReturnTy<
 export type Filled<F extends Filter = {}> = {
   hostnames: HostnameInfo[]
 
-  toUrls: (h: HostnameInfo) => {
-    url: UrlString | null
-    sslUrl: UrlString | null
-  }
+  toUrl: (h: HostnameInfo) => UrlString
 
   format: <Format extends Formats = 'urlstring'>(
     format?: Format,
@@ -124,7 +121,6 @@ export type Filled<F extends Filter = {}> = {
 
   nonLocal: Filled<typeof nonLocalFilter & Filter>
   public: Filled<typeof publicFilter & Filter>
-  onion: Filled<typeof onionFilter & Filter>
 }
 export type FilledAddressInfo = AddressInfo & Filled
 export type ServiceInterfaceFilled = {
@@ -154,41 +150,29 @@ const unique = <A>(values: A[]) => Array.from(new Set(values))
 export const addressHostToUrl = (
   { scheme, sslScheme, username, suffix }: AddressInfo,
   hostname: HostnameInfo,
-): { url: UrlString | null; sslUrl: UrlString | null } => {
-  const res = []
-  const fmt = (scheme: string | null, host: HostnameInfo, port: number) => {
+): UrlString => {
+  const effectiveScheme = hostname.ssl ? sslScheme : scheme
+  let host: string
+  if (hostname.metadata.kind === 'ipv6') {
+    host = IPV6_LINK_LOCAL.contains(hostname.host)
+      ? `[${hostname.host}%${hostname.metadata.scopeId}]`
+      : `[${hostname.host}]`
+  } else {
+    host = hostname.host
+  }
+  let portStr = ''
+  if (hostname.port !== null) {
     const excludePort =
-      scheme &&
-      scheme in knownProtocols &&
-      port === knownProtocols[scheme as keyof typeof knownProtocols].defaultPort
-    let hostname
-    if (host.kind === 'onion') {
-      hostname = host.hostname.value
-    } else if (host.kind === 'ip') {
-      if (host.hostname.kind === 'domain') {
-        hostname = host.hostname.value
-      } else if (host.hostname.kind === 'ipv6') {
-        hostname = IPV6_LINK_LOCAL.contains(host.hostname.value)
-          ? `[${host.hostname.value}%${host.hostname.scopeId}]`
-          : `[${host.hostname.value}]`
-      } else {
-        hostname = host.hostname.value
-      }
-    }
-    return `${scheme ? `${scheme}://` : ''}${
-      username ? `${username}@` : ''
-    }${hostname}${excludePort ? '' : `:${port}`}${suffix}`
+      effectiveScheme &&
+      effectiveScheme in knownProtocols &&
+      hostname.port ===
+        knownProtocols[effectiveScheme as keyof typeof knownProtocols]
+          .defaultPort
+    if (!excludePort) portStr = `:${hostname.port}`
   }
-  let url = null
-  if (hostname.hostname.port !== null) {
-    url = fmt(scheme, hostname, hostname.hostname.port)
-  }
-  let sslUrl = null
-  if (hostname.hostname.sslPort !== null) {
-    sslUrl = fmt(sslScheme, hostname, hostname.hostname.sslPort)
-  }
-
-  return { url, sslUrl }
+  return `${effectiveScheme ? `${effectiveScheme}://` : ''}${
+    username ? `${username}@` : ''
+  }${host}${portStr}${suffix}`
 }
 
 function filterRec(
@@ -201,13 +185,9 @@ function filterRec(
     hostnames = hostnames.filter((h) => invert !== pred(h))
   }
   if (filter.visibility === 'public')
-    hostnames = hostnames.filter(
-      (h) => invert !== (h.kind === 'onion' || h.public),
-    )
+    hostnames = hostnames.filter((h) => invert !== h.public)
   if (filter.visibility === 'private')
-    hostnames = hostnames.filter(
-      (h) => invert !== (h.kind !== 'onion' && !h.public),
-    )
+    hostnames = hostnames.filter((h) => invert !== !h.public)
   if (filter.kind) {
     const kind = new Set(
       Array.isArray(filter.kind) ? filter.kind : [filter.kind],
@@ -219,21 +199,19 @@ function filterRec(
     hostnames = hostnames.filter(
       (h) =>
         invert !==
-        ((kind.has('onion') && h.kind === 'onion') ||
-          (kind.has('mdns') &&
-            h.kind === 'ip' &&
-            h.hostname.kind === 'local') ||
+        ((kind.has('mdns') &&
+          h.metadata.kind === 'private-domain' &&
+          h.host.endsWith('.local')) ||
           (kind.has('domain') &&
-            h.kind === 'ip' &&
-            h.hostname.kind === 'domain') ||
-          (kind.has('ipv4') && h.kind === 'ip' && h.hostname.kind === 'ipv4') ||
-          (kind.has('ipv6') && h.kind === 'ip' && h.hostname.kind === 'ipv6') ||
+            (h.metadata.kind === 'private-domain' ||
+              h.metadata.kind === 'public-domain')) ||
+          (kind.has('ipv4') && h.metadata.kind === 'ipv4') ||
+          (kind.has('ipv6') && h.metadata.kind === 'ipv6') ||
           (kind.has('localhost') &&
-            ['localhost', '127.0.0.1', '::1'].includes(h.hostname.value)) ||
+            ['localhost', '127.0.0.1', '::1'].includes(h.host)) ||
           (kind.has('link-local') &&
-            h.kind === 'ip' &&
-            h.hostname.kind === 'ipv6' &&
-            IPV6_LINK_LOCAL.contains(IpAddress.parse(h.hostname.value)))),
+            h.metadata.kind === 'ipv6' &&
+            IPV6_LINK_LOCAL.contains(IpAddress.parse(h.host)))),
     )
   }
 
@@ -242,16 +220,36 @@ function filterRec(
   return hostnames
 }
 
+function isPublicIp(h: HostnameInfo): boolean {
+  return h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
+}
+
+function enabledAddresses(addr: DerivedAddressInfo): HostnameInfo[] {
+  return addr.available.filter((h) => {
+    if (isPublicIp(h)) {
+      // Public IPs: disabled by default, explicitly enabled via SocketAddr string
+      if (h.port === null) return true
+      const sa =
+        h.metadata.kind === 'ipv6'
+          ? `[${h.host}]:${h.port}`
+          : `${h.host}:${h.port}`
+      return addr.enabled.includes(sa)
+    } else {
+      // Everything else: enabled by default, explicitly disabled via [host, port] tuple
+      return !addr.disabled.some(
+        ([host, port]) => host === h.host && port === (h.port ?? 0),
+      )
+    }
+  })
+}
+
 export const filledAddress = (
   host: Host,
   addressInfo: AddressInfo,
 ): FilledAddressInfo => {
-  const toUrls = addressHostToUrl.bind(null, addressInfo)
-  const toUrlArray = (h: HostnameInfo) => {
-    const u = toUrls(h)
-    return [u.url, u.sslUrl].filter((u) => u !== null)
-  }
-  const hostnames = host.hostnameInfo[addressInfo.internalPort] ?? []
+  const toUrl = addressHostToUrl.bind(null, addressInfo)
+  const binding = host.bindings[addressInfo.internalPort]
+  const hostnames = binding ? enabledAddresses(binding.addresses) : []
 
   function filledAddressFromHostnames<F extends Filter>(
     hostnames: HostnameInfo[],
@@ -266,19 +264,14 @@ export const filledAddress = (
         filterRec(hostnames, publicFilter, false),
       ),
     )
-    const getOnion = once(() =>
-      filledAddressFromHostnames<typeof onionFilter & F>(
-        filterRec(hostnames, onionFilter, false),
-      ),
-    )
     return {
       ...addressInfo,
       hostnames,
-      toUrls,
+      toUrl,
       format: <Format extends Formats = 'urlstring'>(format?: Format) => {
         let res: FormatReturnTy<{}, Format>[] = hostnames as any
         if (format === 'hostname-info') return res
-        const urls = hostnames.flatMap(toUrlArray)
+        const urls = hostnames.map(toUrl)
         if (format === 'url') res = urls.map((u) => new URL(u)) as any
         else res = urls as any
         return res
@@ -293,9 +286,6 @@ export const filledAddress = (
       },
       get public(): Filled<typeof publicFilter & F> {
         return getPublic()
-      },
-      get onion(): Filled<typeof onionFilter & F> {
-        return getOnion()
       },
     }
   }

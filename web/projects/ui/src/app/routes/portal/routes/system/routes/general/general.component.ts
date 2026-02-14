@@ -47,13 +47,11 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ConfigService } from 'src/app/services/config.service'
 import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SnekDirective } from './snek.directive'
 import { UPDATE } from './update.component'
-import { SystemWipeComponent } from './wipe.component'
 import { KeyboardSelectComponent } from './keyboard-select.component'
 
 @Component({
@@ -66,7 +64,7 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
     </ng-container>
     @if (server(); as server) {
       <div tuiCell tuiAppearance="outline-grayscale">
-        <tui-icon icon="@tui.zap" />
+        <tui-icon icon="@tui.zap" (click)="count = count + 1" />
         <span tuiTitle>
           <strong>{{ 'Software Update' | i18n }}</strong>
           <span tuiSubtitle [style.flex-wrap]="'wrap'">
@@ -178,18 +176,6 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
           </button>
         }
       </div>
-      <div tuiCell tuiAppearance="outline-grayscale">
-        <tui-icon icon="@tui.rotate-cw" (click)="count = count + 1" />
-        <span tuiTitle>
-          <strong>{{ 'Restart Tor' | i18n }}</strong>
-          <span tuiSubtitle>
-            {{ 'Restart the Tor daemon on your server' | i18n }}
-          </span>
-        </span>
-        <button tuiButton appearance="glass" (click)="onTorRestart()">
-          {{ 'Restart' | i18n }}
-        </button>
-      </div>
       @if (count > 4) {
         <div tuiCell tuiAppearance="outline-grayscale" tuiAnimated>
           <tui-icon icon="@tui.briefcase-medical" />
@@ -283,12 +269,10 @@ export default class SystemGeneralComponent {
   private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
-  private readonly isTor = inject(ConfigService).accessType === 'tor'
   private readonly dialog = inject(DialogService)
   private readonly i18n = inject(i18nPipe)
   private readonly injector = inject(INJECTOR)
 
-  wipe = false
   count = 0
 
   readonly server = toSignal(this.patch.watch$('serverInfo'))
@@ -390,24 +374,6 @@ export default class SystemGeneralComponent {
           sub.unsubscribe()
         }
       })
-  }
-
-  onTorRestart() {
-    this.wipe = false
-    this.dialog
-      .openConfirm({
-        label: this.isTor ? 'Warning' : 'Confirm',
-        data: {
-          content: new PolymorpheusComponent(
-            SystemWipeComponent,
-            this.injector,
-          ),
-          yes: 'Restart',
-          no: 'Cancel',
-        },
-      })
-      .pipe(filter(Boolean))
-      .subscribe(() => this.resetTor(this.wipe))
   }
 
   async onRepair() {
@@ -530,19 +496,6 @@ export default class SystemGeneralComponent {
       })
       .pipe(filter(Boolean))
       .subscribe(() => this.restart())
-  }
-
-  private async resetTor(wipeState: boolean) {
-    const loader = this.loader.open().subscribe()
-
-    try {
-      await this.api.resetTor({ wipeState, reason: 'User triggered' })
-      this.dialog.openAlert('Tor restart in progress').subscribe()
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
   }
 
   private update() {

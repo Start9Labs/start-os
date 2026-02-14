@@ -15,6 +15,7 @@ import { GatewaysTableComponent } from './table.component'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { TitleDirective } from 'src/app/services/title.service'
 import { ISB } from '@start9labs/start-sdk'
+import { RR } from 'src/app/services/api/api.types'
 
 @Component({
   template: `
@@ -51,11 +52,6 @@ import { ISB } from '@start9labs/start-sdk'
       <gateways-table />
     </section>
   `,
-  styles: `
-    :host {
-      max-width: 64rem;
-    }
-  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
@@ -85,8 +81,19 @@ export default class GatewaysComponent {
         default: null,
         placeholder: 'StartTunnel 1',
       }),
+      type: ISB.Value.select({
+        name: this.i18n.transform('Type'),
+        description: this.i18n.transform('The type of gateway'),
+        default: 'inbound-outbound',
+        values: {
+          'inbound-outbound': this.i18n.transform(
+            'StartTunnel (Inbound/Outbound)',
+          ),
+          'outbound-only': this.i18n.transform('Outbound Only'),
+        },
+      }),
       config: ISB.Value.union({
-        name: this.i18n.transform('StartTunnel Config File'),
+        name: this.i18n.transform('WireGuard Config File'),
         default: 'paste',
         variants: ISB.Variants.of({
           paste: {
@@ -113,10 +120,17 @@ export default class GatewaysComponent {
           },
         }),
       }),
+      setAsDefaultOutbound: ISB.Value.toggle({
+        name: this.i18n.transform('Set as default outbound'),
+        description: this.i18n.transform(
+          'Route all outbound traffic through this gateway',
+        ),
+        default: false,
+      }),
     })
 
     this.formDialog.open(FormComponent, {
-      label: 'Add StartTunnel Gateway',
+      label: 'Add Wireguard Gateway',
       data: {
         spec: await configBuilderToSpec(spec),
         buttons: [
@@ -132,7 +146,8 @@ export default class GatewaysComponent {
                     input.config.selection === 'paste'
                       ? input.config.value.file
                       : await (input.config.value.file as any as File).text(),
-                  public: false,
+                  type: input.type as RR.GatewayType,
+                  setAsDefaultOutbound: input.setAsDefaultOutbound,
                 })
                 return true
               } catch (e: any) {

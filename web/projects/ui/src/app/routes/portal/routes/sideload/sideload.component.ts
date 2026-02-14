@@ -13,7 +13,6 @@ import {
   TuiFiles,
   tuiInputFilesOptionsProvider,
 } from '@taiga-ui/kit'
-import { ConfigService } from 'src/app/services/config.service'
 import { TitleDirective } from 'src/app/services/title.service'
 
 import { SideloadPackageComponent } from './package.component'
@@ -55,11 +54,6 @@ import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
             <div>
               <tui-avatar appearance="secondary" src="@tui.upload" />
               <p>{{ 'Upload .s9pk package file' | i18n }}</p>
-              @if (isTor) {
-                <p class="g-warning">
-                  {{ 'Warning: package upload will be slow over Tor.' | i18n }}
-                </p>
-              }
               <button tuiButton>{{ 'Select' | i18n }}</button>
             </div>
           }
@@ -92,8 +86,6 @@ import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
   ],
 })
 export default class SideloadComponent {
-  readonly isTor = inject(ConfigService).accessType === 'tor'
-
   file: File | null = null
   readonly package = signal<MarketplacePkgSideload | null>(null)
   readonly error = signal<i18nKey | null>(null)
