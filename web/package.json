@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "check": "tsc --project tsconfig.app.json --noEmit --skipLibCheck"
+    "check": "tsc --project tsconfig.app.json --noEmit --skipLibCheck",
+    "prepare": "cd .. && husky web/.husky"
   },
   "dependencies": {
     "@angular/cdk": "^21.1.0",
@@ -36,16 +37,11 @@
     "@angular/cli": "^21.1.0",
     "@angular/compiler-cli": "^21.1.0",
     "@types/node": "^24.10.1",
-    "husky": "^4.3.8",
+    "husky": "^9.1.7",
     "less-loader": "^12.3.0",
     "lint-staged": "^16.1.6",
     "prettier": "^3.6.2",
     "typescript": "~5.9.2"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged --concurrent false && npm run check"
-    }
   },
   "lint-staged": {
     "**/*.{js,ts,html,md,json}": "prettier --write",

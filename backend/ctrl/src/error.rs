@@ -54,6 +54,10 @@ pub enum ErrorKind {
     MissingFirewallZone { interface: String },
     #[error("the wan port {port} can not have a profile")]
     WanPortWithProfile { port: String },
+    #[error("duplicate wifi password")]
+    DuplicatePassword,
+    #[error("duplicate wifi password label")]
+    DuplicatePasswordLabel,
     #[error(transparent)]
     Other(
         #[serde(serialize_with = "serialize_eyre_err")]
