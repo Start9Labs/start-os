@@ -17,11 +17,8 @@ import {
 import { TuiButton } from '@taiga-ui/core'
 import { filter } from 'rxjs'
 import { distinctUntilChanged, skip } from 'rxjs/operators'
-import {
-  RR,
-  ServerNotification,
-  ServerNotifications,
-} from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
+import { ServerNotification } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { BadgeService } from 'src/app/services/badge.service'
 import { NotificationService } from 'src/app/services/notification.service'
@@ -66,7 +63,7 @@ export default class NotificationsComponent implements OnInit {
   readonly service = inject(NotificationService)
   readonly api = inject(ApiService)
   readonly errorService = inject(ErrorService)
-  readonly notifications = signal<ServerNotifications | null>(null)
+  readonly notifications = signal<T.NotificationWithId[] | null>(null)
 
   protected readonly table = viewChild<
     NotificationsTableComponent<ServerNotification<number>>
@@ -92,7 +89,7 @@ export default class NotificationsComponent implements OnInit {
     })
   }
 
-  async getMore(params: RR.GetNotificationsReq) {
+  async getMore(params: T.ListNotificationParams) {
     try {
       this.notifications.set(null)
       this.notifications.set(await this.api.getNotifications(params))
@@ -101,7 +98,7 @@ export default class NotificationsComponent implements OnInit {
     }
   }
 
-  async remove(all: ServerNotifications) {
+  async remove(all: T.NotificationWithId[]) {
     const ids =
       this.table()
         ?.selected()
@@ -119,7 +116,7 @@ export default class NotificationsComponent implements OnInit {
   }
 
   private init() {
-    this.getMore({}).then(() => {
+    this.getMore({ before: null, limit: null }).then(() => {
       const latest = this.notifications()?.at(0)
       if (latest) {
         this.service.markSeenAll(latest.id)

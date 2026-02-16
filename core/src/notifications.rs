@@ -75,6 +75,7 @@ pub fn notification<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ListNotificationParams {
@@ -140,6 +141,7 @@ pub async fn list(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ModifyNotificationParams {
@@ -175,6 +177,7 @@ pub async fn remove(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ModifyNotificationBeforeParams {
@@ -326,6 +329,7 @@ pub async fn create(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub enum NotificationLevel {
     Success,
@@ -396,26 +400,31 @@ impl Map for Notifications {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, HasModel)]
+#[derive(Debug, Serialize, Deserialize, HasModel, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct Notification {
     pub package_id: Option<PackageId>,
+    #[ts(type = "string")]
     pub created_at: DateTime<Utc>,
     pub code: u32,
     pub level: NotificationLevel,
     pub title: String,
     pub message: String,
+    #[ts(type = "any")]
     pub data: Value,
     #[serde(default = "const_true")]
     pub seen: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct NotificationWithId {
     id: u32,
     #[serde(flatten)]
+    #[ts(flatten)]
     notification: Notification,
 }
 

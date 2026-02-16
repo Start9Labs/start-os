@@ -11,14 +11,14 @@ import {
   i18nPipe,
   LoadingService,
 } from '@start9labs/shared'
-import { ISB } from '@start9labs/start-sdk'
+import { ISB, T } from '@start9labs/start-sdk'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiTooltip } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
-import { CifsBackupTarget, RR } from 'src/app/services/api/api.types'
+import { CifsBackupTarget } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
@@ -211,7 +211,7 @@ export class BackupNetworkComponent {
         buttons: [
           {
             text: this.i18n.transform('Connect'),
-            handler: (value: RR.AddBackupTargetReq) => this.addTarget(value),
+            handler: (value: T.CifsAddParams) => this.addTarget(value),
           },
         ],
       },
@@ -226,7 +226,7 @@ export class BackupNetworkComponent {
         buttons: [
           {
             text: this.i18n.transform('Connect'),
-            handler: async (value: RR.AddBackupTargetReq) => {
+            handler: async (value: T.CifsAddParams) => {
               const loader = this.loader
                 .open('Testing connectivity to shared folder')
                 .subscribe()
@@ -272,7 +272,7 @@ export class BackupNetworkComponent {
       })
   }
 
-  private async addTarget(v: RR.AddBackupTargetReq): Promise<boolean> {
+  private async addTarget(v: T.CifsAddParams): Promise<boolean> {
     const loader = this.loader
       .open('Testing connectivity to shared folder')
       .subscribe()

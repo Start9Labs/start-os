@@ -11,7 +11,7 @@ import { FormsModule } from '@angular/forms'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiCheckbox, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
-import { SSHKey } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: '[keys]',
@@ -151,10 +151,12 @@ import { SSHKey } from 'src/app/services/api/api.types'
     i18nPipe,
   ],
 })
-export class SSHTableComponent<T extends SSHKey> implements OnChanges {
-  readonly keys = input<readonly T[] | null>(null)
+export class SSHTableComponent<
+  K extends T.SshKeyResponse,
+> implements OnChanges {
+  readonly keys = input<readonly K[] | null>(null)
 
-  readonly selected = signal<readonly T[]>([])
+  readonly selected = signal<readonly K[]>([])
   readonly all = computed(
     () =>
       !!this.selected()?.length &&
@@ -165,7 +167,7 @@ export class SSHTableComponent<T extends SSHKey> implements OnChanges {
     this.selected.set([])
   }
 
-  onToggle(key: T) {
+  onToggle(key: K) {
     if (this.selected().includes(key)) {
       this.selected.update(selected => selected.filter(s => s !== key))
     } else {

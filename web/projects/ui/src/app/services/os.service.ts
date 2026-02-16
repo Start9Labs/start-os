@@ -10,8 +10,7 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { getServerInfo } from 'src/app/utils/get-server-info'
 import { DataModel } from './patch-db/data-model'
-import { Version } from '@start9labs/start-sdk'
-import { RR } from './api/api.types'
+import { T, Version } from '@start9labs/start-sdk'
 
 @Injectable({
   providedIn: 'root',
@@ -20,7 +19,7 @@ export class OSService {
   private readonly api = inject(ApiService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
-  osUpdate?: RR.CheckOsUpdateRes
+  osUpdate?: T.OsVersionInfoMap
   readonly updateAvailable$ = new BehaviorSubject<boolean>(false)
 
   readonly updating$ = this.patch.watch$('serverInfo', 'statusInfo').pipe(

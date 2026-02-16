@@ -216,17 +216,19 @@ export class InterfaceAddressesComponent {
 
   private async savePrivateDomain(fqdn: string): Promise<boolean> {
     const iface = this.value()
+    const gatewayId = this.gatewayGroup().gatewayId
     const loader = this.loader.open('Saving').subscribe()
 
     try {
       if (this.packageId()) {
         await this.api.pkgAddPrivateDomain({
           fqdn,
+          gateway: gatewayId,
           package: this.packageId(),
           host: iface?.addressInfo.hostId || '',
         })
       } else {
-        await this.api.osUiAddPrivateDomain({ fqdn })
+        await this.api.osUiAddPrivateDomain({ fqdn, gateway: gatewayId })
       }
       return true
     } catch (e: any) {

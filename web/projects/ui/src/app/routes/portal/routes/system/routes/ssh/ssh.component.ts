@@ -13,11 +13,10 @@ import {
   i18nPipe,
   LoadingService,
 } from '@start9labs/shared'
-import { ISB } from '@start9labs/start-sdk'
+import { ISB, T } from '@start9labs/start-sdk'
 import { TuiButton, TuiHint } from '@taiga-ui/core'
 import { filter, from, merge, Subject } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
-import { SSHKey } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { TitleDirective } from 'src/app/services/title.service'
@@ -101,13 +100,13 @@ export default class SystemSSHComponent {
   private readonly i18n = inject(i18nPipe)
   private readonly dialogs = inject(DialogService)
 
-  private readonly local$ = new Subject<readonly SSHKey[]>()
+  private readonly local$ = new Subject<readonly T.SshKeyResponse[]>()
 
   readonly keys$ = merge(from(this.api.getSshKeys({})), this.local$)
 
-  protected tableKeys = viewChild<SSHTableComponent<SSHKey>>('table')
+  protected tableKeys = viewChild<SSHTableComponent<T.SshKeyResponse>>('table')
 
-  async add(all: readonly SSHKey[]) {
+  async add(all: readonly T.SshKeyResponse[]) {
     const spec = ISB.InputSpec.of({
       key: ISB.Value.text({
         name: this.i18n.transform('Public Key'),
@@ -150,7 +149,7 @@ export default class SystemSSHComponent {
     })
   }
 
-  remove(all: readonly SSHKey[]) {
+  remove(all: readonly T.SshKeyResponse[]) {
     this.dialogs
       .openConfirm({ label: 'Are you sure?', size: 's' })
       .pipe(filter(Boolean))

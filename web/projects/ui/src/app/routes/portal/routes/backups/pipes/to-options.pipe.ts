@@ -1,10 +1,9 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
 import { map, Observable } from 'rxjs'
-import { PackageBackupInfo } from 'src/app/services/api/api.types'
+import { T, Version } from '@start9labs/start-sdk'
 import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { RecoverOption } from '../types/recover-option'
-import { Version } from '@start9labs/start-sdk'
 
 @Pipe({
   name: 'toOptions',
@@ -14,7 +13,7 @@ export class ToOptionsPipe implements PipeTransform {
 
   transform(
     packageData$: Observable<Record<string, PackageDataEntry>>,
-    packageBackups: Record<string, PackageBackupInfo> = {},
+    packageBackups: Record<string, T.PackageBackupInfo> = {},
   ): Observable<RecoverOption[]> {
     return packageData$.pipe(
       map(packageData =>

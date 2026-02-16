@@ -3,8 +3,8 @@ import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiButton, TuiLink, TuiNotification } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
+import { T } from '@start9labs/start-sdk'
 import {
-  BackupTarget,
   BackupTargetType,
   RR,
   UnknownDisk,
@@ -188,7 +188,7 @@ export class BackupsTargetsModal implements OnInit {
   }
 
   private async add(
-    type: BackupTargetType,
+    type: T.BackupTargetType,
     value:
       | RR.AddCifsBackupTargetReq
       | RR.AddCloudBackupTargetReq
@@ -204,7 +204,7 @@ export class BackupsTargetsModal implements OnInit {
   }
 
   private async update(
-    type: BackupTargetType,
+    type: T.BackupTargetType,
     value:
       | RR.UpdateCifsBackupTargetReq
       | RR.UpdateCloudBackupTargetReq
@@ -220,13 +220,13 @@ export class BackupsTargetsModal implements OnInit {
   }
 
   private setTargets(
-    saved: Record<string, BackupTarget> = this.targets()?.saved || {},
+    saved: Record<string, T.BackupTarget> = this.targets()?.saved || {},
     unknownDisks: UnknownDisk[] = this.targets()?.unknownDisks || [],
   ) {
     this.targets.set({ unknownDisks, saved })
   }
 
-  private async getSpec(target: BackupTarget) {
+  private async getSpec(target: T.BackupTarget) {
     switch (target.type) {
       case 'cifs':
         return await configBuilderToSpec(cifsSpec)

@@ -7,9 +7,9 @@ import {
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
 import { from, map, merge, Observable, Subject } from 'rxjs'
-import { Session } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SessionsTableComponent } from './table.component'
@@ -72,7 +72,7 @@ export default class SystemSessionsComponent {
 
   readonly current$ = this.sessions$.pipe(
     map(s => {
-      const current = s.sessions[s.current]
+      const current = s.current ? s.sessions[s.current] : undefined
 
       return current ? [current] : []
     }),
@@ -115,6 +115,6 @@ export default class SystemSessionsComponent {
   }
 }
 
-interface SessionWithId extends Session {
+interface SessionWithId extends T.Session {
   id: string
 }

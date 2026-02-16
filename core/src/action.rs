@@ -271,6 +271,7 @@ pub fn display_action_result<T: Serialize>(
 }
 
 #[derive(Deserialize, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct RunActionParams {
     pub package_id: PackageId,
@@ -362,6 +363,7 @@ pub async fn run_action(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ClearTaskParams {

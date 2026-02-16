@@ -5,11 +5,12 @@ import {
   WaIntersectionObserver,
 } from '@ng-web-apis/intersection-observer'
 import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
-import { FetchLogsReq, FetchLogsRes, i18nPipe } from '@start9labs/shared'
+import { i18nPipe } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiButton, TuiLoader, TuiScrollbar } from '@taiga-ui/core'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { BehaviorSubject } from 'rxjs'
-import { RR } from 'src/app/services/api/api.types'
+import { FollowServerLogsReq } from 'src/app/services/api/api.types'
 import { LogsDownloadDirective } from './logs-download.directive'
 import { LogsFetchDirective } from './logs-fetch.directive'
 import { LogsPipe } from './logs.pipe'
@@ -41,17 +42,17 @@ export class LogsComponent {
   private readonly scrollbar?: ElementRef<HTMLElement>
 
   @Input({ required: true }) followLogs!: (
-    params: RR.FollowServerLogsReq,
-  ) => Promise<RR.FollowServerLogsRes>
+    params: FollowServerLogsReq,
+  ) => Promise<T.LogFollowResponse>
 
   @Input({ required: true }) fetchLogs!: (
-    params: FetchLogsReq,
-  ) => Promise<FetchLogsRes>
+    params: T.LogsParams,
+  ) => Promise<T.LogResponse>
 
   @Input({ required: true }) context!: string
 
   scrollTop = 0
-  startCursor?: string
+  startCursor?: string | null
   scroll = true
   loading = false
   previous: readonly string[] = []

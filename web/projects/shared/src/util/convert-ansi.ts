@@ -1,4 +1,4 @@
-import { Log } from '../types/api'
+import { T } from '@start9labs/start-sdk'
 import { toLocalIsoString } from './to-local-iso-string'
 import Convert from 'ansi-to-html'
 
@@ -8,7 +8,7 @@ const CONVERT = new Convert({
   escapeXML: true,
 })
 
-export function convertAnsi(entries: readonly Log[]): string {
+export function convertAnsi(entries: readonly T.LogEntry[]): string {
   return entries
     .map(
       ({ timestamp, message }) =>

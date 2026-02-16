@@ -1,8 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core'
 import { ErrorService, getErrorMessage } from '@start9labs/shared'
-import { Version } from '@start9labs/start-sdk'
+import { T, Version } from '@start9labs/start-sdk'
 import {
-  BackupTarget,
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
@@ -61,13 +60,13 @@ export class BackupService {
     }
   }
 
-  hasAnyBackup({ startOs }: BackupTarget): boolean {
+  hasAnyBackup({ startOs }: T.BackupTarget): boolean {
     return Object.values(startOs).some(
       s => Version.parse(s.version).compare(Version.parse('0.3.6')) !== 'less',
     )
   }
 
-  hasThisBackup({ startOs }: BackupTarget, id: string): boolean {
+  hasThisBackup({ startOs }: T.BackupTarget, id: string): boolean {
     const item = startOs[id]
 
     return (

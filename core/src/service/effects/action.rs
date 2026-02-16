@@ -151,7 +151,7 @@ async fn get_action_input(
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
+#[ts(export, rename = "EffectsRunActionParams")]
 pub struct RunActionParams {
     #[serde(default)]
     #[ts(skip)]
