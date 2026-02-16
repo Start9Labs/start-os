@@ -144,7 +144,7 @@ export class ServiceTaskComponent {
       .subscribe(async () => {
         const loader = this.loader.open().subscribe()
         try {
-          await this.api.clearTask({ packageId, replayId })
+          await this.api.clearTask({ packageId, replayId, force: false })
         } catch (e: any) {
           this.errorService.handleError(e)
         } finally {

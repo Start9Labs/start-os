@@ -181,7 +181,11 @@ export default class SystemEmailComponent {
       `${this.i18n.transform('A test email has been sent to')} ${this.testAddress}. <i>${this.i18n.transform('Check your spam folder and mark as not spam.')}</i>` as i18nKey
 
     try {
-      await this.api.testSmtp({ to: this.testAddress, ...value })
+      await this.api.testSmtp({
+        ...value,
+        password: value.password || '',
+        to: this.testAddress,
+      })
       this.dialog
         .openAlert(success, { label: 'Success', size: 's' })
         .subscribe()

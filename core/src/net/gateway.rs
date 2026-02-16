@@ -119,6 +119,7 @@ async fn list_interfaces(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 struct ForgetGatewayParams {
     #[arg(help = "help.arg.gateway-id")]
     gateway: GatewayId,
@@ -132,6 +133,7 @@ async fn forget_iface(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 struct RenameGatewayParams {
     #[arg(help = "help.arg.gateway-id")]
     id: GatewayId,

@@ -1,19 +1,41 @@
 import { DOCUMENT, Inject, Injectable } from '@angular/core'
 import { blake3 } from '@noble/hashes/blake3'
 import {
+  FullKeyboard,
   HttpOptions,
   HttpService,
   isRpcError,
   RpcError,
   RPCOptions,
+  SetLanguageParams,
 } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { GetPackageRes, GetPackagesRes } from '@start9labs/marketplace'
 import { Dump, pathFromArray } from 'patch-db-client'
 import { filter, firstValueFrom, Observable } from 'rxjs'
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket'
 import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { AuthService } from '../auth.service'
 import { DataModel } from '../patch-db/data-model'
-import { RR } from './api.types'
+import {
+  ActionRes,
+  CifsBackupTarget,
+  DiagnosticErrorRes,
+  FollowPackageLogsReq,
+  FollowServerLogsReq,
+  GetActionInputRes,
+  GetPackageLogsReq,
+  GetRegistryPackageReq,
+  GetRegistryPackagesReq,
+  PkgAddPrivateDomainReq,
+  PkgAddPublicDomainReq,
+  PkgBindingSetAddressEnabledReq,
+  PkgRemovePrivateDomainReq,
+  PkgRemovePublicDomainReq,
+  ServerBindingSetAddressEnabledReq,
+  ServerState,
+  WebsocketConfig,
+} from './api.types'
 import { ApiService } from './embassy-api.service'
 
 @Injectable()
@@ -65,7 +87,7 @@ export class LiveApiService extends ApiService {
 
   openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T> = {},
+    config: WebsocketConfig<T> = {},
   ): WebSocketSubject<T> {
     const { location } = this.document.defaultView!
     const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
@@ -79,59 +101,58 @@ export class LiveApiService extends ApiService {
 
   // state
 
-  async echo(params: RR.EchoReq, url: string): Promise<RR.EchoRes> {
+  async echo(params: T.EchoParams, url: string): Promise<string> {
     return this.rpcRequest({ method: 'echo', params }, url)
   }
 
-  async getState(): Promise<RR.ServerState> {
+  async getState(): Promise<ServerState> {
     return this.rpcRequest({ method: 'state', params: {}, timeout: 10000 })
   }
 
   // db
 
-  async subscribeToPatchDB(
-    params: RR.SubscribePatchReq,
-  ): Promise<RR.SubscribePatchRes> {
+  async subscribeToPatchDB(params: {}): Promise<{
+    dump: Dump<DataModel>
+    guid: string
+  }> {
     return this.rpcRequest({ method: 'db.subscribe', params })
   }
 
   async setDbValue<T>(
     pathArr: Array<string | number>,
     value: T,
-  ): Promise<RR.SetDBValueRes> {
+  ): Promise<null> {
     const pointer = pathFromArray(pathArr)
-    const params: RR.SetDBValueReq<T> = { pointer, value }
+    const params = { pointer, value }
     return this.rpcRequest({ method: 'db.put.ui', params })
   }
 
   // auth
 
-  async login(params: RR.LoginReq): Promise<RR.loginRes> {
+  async login(params: T.LoginParams): Promise<null> {
     return this.rpcRequest({ method: 'auth.login', params })
   }
 
-  async logout(params: RR.LogoutReq): Promise<RR.LogoutRes> {
+  async logout(params: {}): Promise<null> {
     return this.rpcRequest({ method: 'auth.logout', params })
   }
 
-  async getSessions(params: RR.GetSessionsReq): Promise<RR.GetSessionsRes> {
+  async getSessions(params: {}): Promise<T.SessionList> {
     return this.rpcRequest({ method: 'auth.session.list', params })
   }
 
-  async killSessions(params: RR.KillSessionsReq): Promise<RR.KillSessionsRes> {
+  async killSessions(params: T.KillParams): Promise<null> {
     return this.rpcRequest({ method: 'auth.session.kill', params })
   }
 
-  async resetPassword(
-    params: RR.ResetPasswordReq,
-  ): Promise<RR.ResetPasswordRes> {
+  async resetPassword(params: T.ResetPasswordParams): Promise<null> {
     return this.rpcRequest({ method: 'auth.reset-password', params })
   }
 
   // diagnostic
 
-  async diagnosticGetError(): Promise<RR.DiagnosticErrorRes> {
-    return this.rpcRequest<RR.DiagnosticErrorRes>({
+  async diagnosticGetError(): Promise<DiagnosticErrorRes> {
+    return this.rpcRequest<DiagnosticErrorRes>({
       method: 'diagnostic.error',
       params: {},
     })
@@ -158,10 +179,8 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async diagnosticGetLogs(
-    params: RR.GetServerLogsReq,
-  ): Promise<RR.GetServerLogsRes> {
-    return this.rpcRequest<RR.GetServerLogsRes>({
+  async diagnosticGetLogs(params: T.LogsParams): Promise<T.LogResponse> {
+    return this.rpcRequest<T.LogResponse>({
       method: 'diagnostic.logs',
       params,
     })
@@ -169,71 +188,62 @@ export class LiveApiService extends ApiService {
 
   // init
 
-  async initFollowProgress(): Promise<RR.InitFollowProgressRes> {
+  async initFollowProgress(): Promise<T.SetupProgress> {
     return this.rpcRequest({ method: 'init.subscribe', params: {} })
   }
 
   async initFollowLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
+    params: FollowServerLogsReq,
+  ): Promise<T.LogFollowResponse> {
     return this.rpcRequest({ method: 'init.logs.follow', params })
   }
 
   // server
 
-  async getSystemTime(
-    params: RR.GetSystemTimeReq,
-  ): Promise<RR.GetSystemTimeRes> {
+  async getSystemTime(params: {}): Promise<T.TimeInfo> {
     return this.rpcRequest({ method: 'server.time', params })
   }
 
-  async getServerLogs(
-    params: RR.GetServerLogsReq,
-  ): Promise<RR.GetServerLogsRes> {
+  async getServerLogs(params: T.LogsParams): Promise<T.LogResponse> {
     return this.rpcRequest({ method: 'server.logs', params })
   }
 
-  async getKernelLogs(
-    params: RR.GetServerLogsReq,
-  ): Promise<RR.GetServerLogsRes> {
+  async getKernelLogs(params: T.LogsParams): Promise<T.LogResponse> {
     return this.rpcRequest({ method: 'server.kernel-logs', params })
   }
 
   async followServerLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
+    params: FollowServerLogsReq,
+  ): Promise<T.LogFollowResponse> {
     return this.rpcRequest({ method: 'server.logs.follow', params })
   }
 
   async followKernelLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
+    params: FollowServerLogsReq,
+  ): Promise<T.LogFollowResponse> {
     return this.rpcRequest({ method: 'server.kernel-logs.follow', params })
   }
 
-  async followServerMetrics(
-    params: RR.FollowServerMetricsReq,
-  ): Promise<RR.FollowServerMetricsRes> {
+  async followServerMetrics(params: {}): Promise<T.MetricsFollowResponse> {
     return this.rpcRequest({ method: 'server.metrics.follow', params })
   }
 
-  async updateServer(params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
+  async updateServer(params: {
+    registry: string
+    targetVersion: string
+  }): Promise<'updating' | 'no-updates'> {
     return this.rpcRequest({ method: 'server.update', params })
   }
 
-  async restartServer(
-    params: RR.RestartServerReq,
-  ): Promise<RR.RestartServerRes> {
+  async restartServer(params: {}): Promise<null> {
     return this.rpcRequest({ method: 'server.restart', params })
   }
 
-  async shutdownServer(
-    params: RR.ShutdownServerReq,
-  ): Promise<RR.ShutdownServerRes> {
+  async shutdownServer(params: {}): Promise<null> {
     return this.rpcRequest({ method: 'server.shutdown', params })
   }
 
-  async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
+  async repairDisk(params: {}): Promise<null> {
     return this.rpcRequest({ method: 'disk.repair', params })
   }
 
@@ -244,51 +254,51 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async setKeyboard(params: RR.SetKeyboardReq): Promise<RR.SetKeyboardRes> {
+  async setKeyboard(params: FullKeyboard): Promise<null> {
     return this.rpcRequest({ method: 'server.set-keyboard', params })
   }
 
-  async setLanguage(params: RR.SetLanguageReq): Promise<RR.SetLanguageRes> {
+  async setLanguage(params: SetLanguageParams): Promise<null> {
     return this.rpcRequest({ method: 'server.set-language', params })
   }
 
-  async setDns(params: RR.SetDnsReq): Promise<RR.SetDnsRes> {
+  async setDns(params: T.SetStaticDnsParams): Promise<null> {
     return this.rpcRequest({
       method: 'net.dns.set-static',
       params,
     })
   }
 
-  async queryDns(params: RR.QueryDnsReq): Promise<RR.QueryDnsRes> {
+  async queryDns(params: T.QueryDnsParams): Promise<string | null> {
     return this.rpcRequest({
       method: 'net.dns.query',
       params,
     })
   }
 
-  async testPortForward(
-    params: RR.TestPortForwardReq,
-  ): Promise<RR.TestPortForwardRes> {
+  async testPortForward(params: {
+    gateway: string
+    port: number
+  }): Promise<boolean> {
     return this.rpcRequest({
-      method: 'net.port-forward.test',
+      method: 'net.gateway.check-port',
       params,
     })
   }
 
   // marketplace URLs
 
-  async checkOSUpdate(
-    params: RR.CheckOsUpdateReq,
-  ): Promise<RR.CheckOsUpdateRes> {
+  async checkOSUpdate(params: {
+    registry: string
+    serverId: string
+  }): Promise<T.OsVersionInfoMap> {
     return this.rpcRequest({
       method: 'registry.os.version.get',
       params,
     })
   }
 
-  async getRegistryInfo(
-    params: RR.GetRegistryInfoReq,
-  ): Promise<RR.GetRegistryInfoRes> {
+  async getRegistryInfo(params: { registry: string }): Promise<T.RegistryInfo> {
     return this.rpcRequest({
       method: 'registry.info',
       params,
@@ -296,8 +306,8 @@ export class LiveApiService extends ApiService {
   }
 
   async getRegistryPackage(
-    params: RR.GetRegistryPackageReq,
-  ): Promise<RR.GetRegistryPackageRes> {
+    params: GetRegistryPackageReq,
+  ): Promise<GetPackageRes> {
     return this.rpcRequest({
       method: 'registry.package.get',
       params,
@@ -305,8 +315,8 @@ export class LiveApiService extends ApiService {
   }
 
   async getRegistryPackages(
-    params: RR.GetRegistryPackagesReq,
-  ): Promise<RR.GetRegistryPackagesRes> {
+    params: GetRegistryPackagesReq,
+  ): Promise<GetPackagesRes> {
     return this.rpcRequest({
       method: 'registry.package.get',
       params,
@@ -316,26 +326,24 @@ export class LiveApiService extends ApiService {
   // notification
 
   async getNotifications(
-    params: RR.GetNotificationsReq,
-  ): Promise<RR.GetNotificationsRes> {
+    params: T.ListNotificationParams,
+  ): Promise<T.NotificationWithId[]> {
     return this.rpcRequest({ method: 'notification.list', params })
   }
 
-  async deleteNotifications(
-    params: RR.DeleteNotificationsReq,
-  ): Promise<RR.DeleteNotificationsRes> {
+  async deleteNotifications(params: T.ModifyNotificationParams): Promise<null> {
     return this.rpcRequest({ method: 'notification.remove', params })
   }
 
   async markSeenNotifications(
-    params: RR.MarkSeenNotificationReq,
-  ): Promise<RR.MarkSeenNotificationRes> {
+    params: T.ModifyNotificationParams,
+  ): Promise<null> {
     return this.rpcRequest({ method: 'notification.mark-seen', params })
   }
 
   async markSeenAllNotifications(
-    params: RR.MarkSeenAllNotificationsReq,
-  ): Promise<RR.MarkSeenAllNotificationsRes> {
+    params: T.ModifyNotificationBeforeParams,
+  ): Promise<null> {
     return this.rpcRequest({
       method: 'notification.mark-seen-before',
       params,
@@ -343,133 +351,123 @@ export class LiveApiService extends ApiService {
   }
 
   async markUnseenNotifications(
-    params: RR.MarkUnseenNotificationReq,
-  ): Promise<RR.MarkUnseenNotificationRes> {
+    params: T.ModifyNotificationParams,
+  ): Promise<null> {
     return this.rpcRequest({ method: 'notification.mark-unseen', params })
   }
 
   // proxies
 
-  async addTunnel(params: RR.AddTunnelReq): Promise<RR.AddTunnelRes> {
+  async addTunnel(params: T.AddTunnelParams): Promise<{ id: string }> {
     return this.rpcRequest({ method: 'net.tunnel.add', params })
   }
 
-  async updateTunnel(params: RR.UpdateTunnelReq): Promise<RR.UpdateTunnelRes> {
+  async updateTunnel(params: T.RenameGatewayParams): Promise<null> {
     return this.rpcRequest({ method: 'net.gateway.set-name', params })
   }
 
-  async removeTunnel(params: RR.RemoveTunnelReq): Promise<RR.RemoveTunnelRes> {
+  async removeTunnel(params: T.RemoveTunnelParams): Promise<null> {
     return this.rpcRequest({ method: 'net.tunnel.remove', params })
   }
 
-  async setDefaultOutbound(
-    params: RR.SetDefaultOutboundReq,
-  ): Promise<RR.SetDefaultOutboundRes> {
+  async setDefaultOutbound(params: { gateway: string | null }): Promise<null> {
     return this.rpcRequest({
       method: 'net.gateway.set-default-outbound',
       params,
     })
   }
 
-  async setServiceOutbound(
-    params: RR.SetServiceOutboundReq,
-  ): Promise<RR.SetServiceOutboundRes> {
+  async setServiceOutbound(params: {
+    packageId: string
+    gateway: string | null
+  }): Promise<null> {
     return this.rpcRequest({ method: 'package.set-outbound-gateway', params })
   }
 
   // wifi
 
-  async enableWifi(params: RR.EnabledWifiReq): Promise<RR.EnabledWifiRes> {
+  async enableWifi(params: T.SetWifiEnabledParams): Promise<null> {
     return this.rpcRequest({ method: 'wifi.enable', params })
   }
 
-  async getWifi(
-    params: RR.GetWifiReq,
-    timeout?: number,
-  ): Promise<RR.GetWifiRes> {
+  async getWifi(params: {}, timeout?: number): Promise<T.WifiListInfo> {
     return this.rpcRequest({ method: 'wifi.get', params, timeout })
   }
 
-  async setWifiCountry(
-    params: RR.SetWifiCountryReq,
-  ): Promise<RR.SetWifiCountryRes> {
+  async setWifiCountry(params: T.SetCountryParams): Promise<null> {
     return this.rpcRequest({ method: 'wifi.country.set', params })
   }
 
-  async addWifi(params: RR.AddWifiReq): Promise<RR.AddWifiRes> {
+  async addWifi(params: T.WifiAddParams): Promise<null> {
     return this.rpcRequest({ method: 'wifi.add', params })
   }
 
-  async connectWifi(params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes> {
+  async connectWifi(params: T.WifiSsidParams): Promise<null> {
     return this.rpcRequest({ method: 'wifi.connect', params })
   }
 
-  async deleteWifi(params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes> {
+  async deleteWifi(params: T.WifiSsidParams): Promise<null> {
     return this.rpcRequest({ method: 'wifi.remove', params })
   }
 
   // smtp
 
-  async setSmtp(params: RR.SetSMTPReq): Promise<RR.SetSMTPRes> {
+  async setSmtp(params: T.SmtpValue): Promise<null> {
     return this.rpcRequest({ method: 'server.set-smtp', params })
   }
 
-  async clearSmtp(params: RR.ClearSMTPReq): Promise<RR.ClearSMTPRes> {
+  async clearSmtp(params: {}): Promise<null> {
     return this.rpcRequest({ method: 'server.clear-smtp', params })
   }
 
-  async testSmtp(params: RR.TestSMTPReq): Promise<RR.TestSMTPRes> {
+  async testSmtp(params: T.TestSmtpParams): Promise<null> {
     return this.rpcRequest({ method: 'server.test-smtp', params })
   }
 
   // ssh
 
-  async getSshKeys(params: RR.GetSSHKeysReq): Promise<RR.GetSSHKeysRes> {
+  async getSshKeys(params: {}): Promise<T.SshKeyResponse[]> {
     return this.rpcRequest({ method: 'ssh.list', params })
   }
 
-  async addSshKey(params: RR.AddSSHKeyReq): Promise<RR.AddSSHKeyRes> {
+  async addSshKey(params: T.SshAddParams): Promise<T.SshKeyResponse> {
     return this.rpcRequest({ method: 'ssh.add', params })
   }
 
-  async deleteSshKey(params: RR.DeleteSSHKeyReq): Promise<RR.DeleteSSHKeyRes> {
+  async deleteSshKey(params: T.SshDeleteParams): Promise<null> {
     return this.rpcRequest({ method: 'ssh.remove', params })
   }
 
   // backup
 
-  async getBackupTargets(
-    params: RR.GetBackupTargetsReq,
-  ): Promise<RR.GetBackupTargetsRes> {
+  async getBackupTargets(params: {}): Promise<{
+    [id: string]: T.BackupTarget
+  }> {
     return this.rpcRequest({ method: 'backup.target.list', params })
   }
 
   async addBackupTarget(
-    params: RR.AddBackupTargetReq,
-  ): Promise<RR.AddBackupTargetRes> {
+    params: T.CifsAddParams,
+  ): Promise<{ [id: string]: CifsBackupTarget }> {
     params.path = params.path.replace('/\\/g', '/')
     return this.rpcRequest({ method: 'backup.target.cifs.add', params })
   }
 
   async updateBackupTarget(
-    params: RR.UpdateBackupTargetReq,
-  ): Promise<RR.UpdateBackupTargetRes> {
+    params: T.CifsUpdateParams,
+  ): Promise<{ [id: string]: CifsBackupTarget }> {
     return this.rpcRequest({ method: 'backup.target.cifs.update', params })
   }
 
-  async removeBackupTarget(
-    params: RR.RemoveBackupTargetReq,
-  ): Promise<RR.RemoveBackupTargetRes> {
+  async removeBackupTarget(params: T.CifsRemoveParams): Promise<null> {
     return this.rpcRequest({ method: 'backup.target.cifs.remove', params })
   }
 
-  async getBackupInfo(
-    params: RR.GetBackupInfoReq,
-  ): Promise<RR.GetBackupInfoRes> {
+  async getBackupInfo(params: T.InfoParams): Promise<T.BackupInfo> {
     return this.rpcRequest({ method: 'backup.target.info', params })
   }
 
-  async createBackup(params: RR.CreateBackupReq): Promise<RR.CreateBackupRes> {
+  async createBackup(params: T.BackupParams): Promise<null> {
     return this.rpcRequest({ method: 'backup.create', params })
   }
 
@@ -532,77 +530,63 @@ export class LiveApiService extends ApiService {
 
   // package
 
-  async getPackageLogs(
-    params: RR.GetPackageLogsReq,
-  ): Promise<RR.GetPackageLogsRes> {
+  async getPackageLogs(params: GetPackageLogsReq): Promise<T.LogResponse> {
     return this.rpcRequest({ method: 'package.logs', params })
   }
 
   async followPackageLogs(
-    params: RR.FollowPackageLogsReq,
-  ): Promise<RR.FollowPackageLogsRes> {
+    params: FollowPackageLogsReq,
+  ): Promise<T.LogFollowResponse> {
     return this.rpcRequest({ method: 'package.logs.follow', params })
   }
 
-  async installPackage(
-    params: RR.InstallPackageReq,
-  ): Promise<RR.InstallPackageRes> {
+  async installPackage(params: T.InstallParams): Promise<null> {
     return this.rpcRequest({ method: 'package.install', params })
   }
 
-  async cancelInstallPackage(
-    params: RR.CancelInstallPackageReq,
-  ): Promise<RR.CancelInstallPackageRes> {
+  async cancelInstallPackage(params: T.CancelInstallParams): Promise<null> {
     return this.rpcRequest({ method: 'package.cancel-install', params })
   }
 
   async getActionInput(
-    params: RR.GetActionInputReq,
-  ): Promise<RR.GetActionInputRes> {
+    params: T.GetActionInputParams,
+  ): Promise<GetActionInputRes> {
     return this.rpcRequest({ method: 'package.action.get-input', params })
   }
 
-  async runAction(params: RR.ActionReq): Promise<RR.ActionRes> {
+  async runAction(params: T.RunActionParams): Promise<ActionRes> {
     return this.rpcRequest({ method: 'package.action.run', params })
   }
 
-  async clearTask(params: RR.ClearTaskReq): Promise<RR.ClearTaskRes> {
+  async clearTask(params: T.ClearTaskParams): Promise<null> {
     return this.rpcRequest({ method: 'package.action.clear-task', params })
   }
 
-  async restorePackages(
-    params: RR.RestorePackagesReq,
-  ): Promise<RR.RestorePackagesRes> {
+  async restorePackages(params: T.RestorePackageParams): Promise<null> {
     return this.rpcRequest({ method: 'package.backup.restore', params })
   }
 
-  async startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
+  async startPackage(params: T.ControlParams): Promise<null> {
     return this.rpcRequest({ method: 'package.start', params })
   }
 
-  async restartPackage(
-    params: RR.RestartPackageReq,
-  ): Promise<RR.RestartPackageRes> {
+  async restartPackage(params: T.ControlParams): Promise<null> {
     return this.rpcRequest({ method: 'package.restart', params })
   }
 
-  async stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
+  async stopPackage(params: T.ControlParams): Promise<null> {
     return this.rpcRequest({ method: 'package.stop', params })
   }
 
-  async rebuildPackage(
-    params: RR.RebuildPackageReq,
-  ): Promise<RR.RebuildPackageRes> {
+  async rebuildPackage(params: T.RebuildParams): Promise<null> {
     return this.rpcRequest({ method: 'package.rebuild', params })
   }
 
-  async uninstallPackage(
-    params: RR.UninstallPackageReq,
-  ): Promise<RR.UninstallPackageRes> {
+  async uninstallPackage(params: T.UninstallParams): Promise<null> {
     return this.rpcRequest({ method: 'package.uninstall', params })
   }
 
-  async sideloadPackage(): Promise<RR.SideloadPackageRes> {
+  async sideloadPackage(): Promise<T.SideloadResponse> {
     return this.rpcRequest({
       method: 'package.sideload',
       params: {},
@@ -615,14 +599,14 @@ export class LiveApiService extends ApiService {
   //   return this.rpcRequest({ method: 'package.proxy.set-outbound', params })
   // }
 
-  async removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes> {
+  async removeAcme(params: T.RemoveAcmeParams): Promise<null> {
     return this.rpcRequest({
       method: 'net.acme.remove',
       params,
     })
   }
 
-  async initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes> {
+  async initAcme(params: T.InitAcmeParams): Promise<null> {
     return this.rpcRequest({
       method: 'net.acme.init',
       params,
@@ -630,8 +614,8 @@ export class LiveApiService extends ApiService {
   }
 
   async serverBindingSetAddressEnabled(
-    params: RR.ServerBindingSetAddressEnabledReq,
-  ): Promise<RR.ServerBindingSetAddressEnabledRes> {
+    params: ServerBindingSetAddressEnabledReq,
+  ): Promise<null> {
     return this.rpcRequest({
       method: 'server.host.binding.set-address-enabled',
       params,
@@ -639,35 +623,29 @@ export class LiveApiService extends ApiService {
   }
 
   async osUiAddPublicDomain(
-    params: RR.OsUiAddPublicDomainReq,
-  ): Promise<RR.OsUiAddPublicDomainRes> {
+    params: T.AddPublicDomainParams,
+  ): Promise<string | null> {
     return this.rpcRequest({
       method: 'server.host.address.domain.public.add',
       params,
     })
   }
 
-  async osUiRemovePublicDomain(
-    params: RR.OsUiRemovePublicDomainReq,
-  ): Promise<RR.OsUiRemovePublicDomainRes> {
+  async osUiRemovePublicDomain(params: T.RemoveDomainParams): Promise<null> {
     return this.rpcRequest({
       method: 'server.host.address.domain.public.remove',
       params,
     })
   }
 
-  async osUiAddPrivateDomain(
-    params: RR.OsUiAddPrivateDomainReq,
-  ): Promise<RR.OsUiAddPrivateDomainRes> {
+  async osUiAddPrivateDomain(params: T.AddPrivateDomainParams): Promise<null> {
     return this.rpcRequest({
       method: 'server.host.address.domain.private.add',
       params,
     })
   }
 
-  async osUiRemovePrivateDomain(
-    params: RR.OsUiRemovePrivateDomainReq,
-  ): Promise<RR.OsUiRemovePrivateDomainRes> {
+  async osUiRemovePrivateDomain(params: T.RemoveDomainParams): Promise<null> {
     return this.rpcRequest({
       method: 'server.host.address.domain.private.remove',
       params,
@@ -675,8 +653,8 @@ export class LiveApiService extends ApiService {
   }
 
   async pkgBindingSetAddressEnabled(
-    params: RR.PkgBindingSetAddressEnabledReq,
-  ): Promise<RR.PkgBindingSetAddressEnabledRes> {
+    params: PkgBindingSetAddressEnabledReq,
+  ): Promise<null> {
     return this.rpcRequest({
       method: 'package.host.binding.set-address-enabled',
       params,
@@ -684,26 +662,22 @@ export class LiveApiService extends ApiService {
   }
 
   async pkgAddPublicDomain(
-    params: RR.PkgAddPublicDomainReq,
-  ): Promise<RR.PkgAddPublicDomainRes> {
+    params: PkgAddPublicDomainReq,
+  ): Promise<string | null> {
     return this.rpcRequest({
       method: 'package.host.address.domain.public.add',
       params,
     })
   }
 
-  async pkgRemovePublicDomain(
-    params: RR.PkgRemovePublicDomainReq,
-  ): Promise<RR.PkgRemovePublicDomainRes> {
+  async pkgRemovePublicDomain(params: PkgRemovePublicDomainReq): Promise<null> {
     return this.rpcRequest({
       method: 'package.host.address.domain.public.remove',
       params,
     })
   }
 
-  async pkgAddPrivateDomain(
-    params: RR.PkgAddPrivateDomainReq,
-  ): Promise<RR.PkgAddPrivateDomainRes> {
+  async pkgAddPrivateDomain(params: PkgAddPrivateDomainReq): Promise<null> {
     return this.rpcRequest({
       method: 'package.host.address.domain.private.add',
       params,
@@ -711,8 +685,8 @@ export class LiveApiService extends ApiService {
   }
 
   async pkgRemovePrivateDomain(
-    params: RR.PkgRemovePrivateDomainReq,
-  ): Promise<RR.PkgRemovePrivateDomainRes> {
+    params: PkgRemovePrivateDomainReq,
+  ): Promise<null> {
     return this.rpcRequest({
       method: 'package.host.address.domain.private.remove',
       params,

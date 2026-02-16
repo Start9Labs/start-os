@@ -2,9 +2,8 @@ import {
   InstalledState,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { RR, ServerMetrics, ServerNotifications } from './api.types'
+import { ActionRes } from './api.types'
 import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
-import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { T, ISB, IST } from '@start9labs/start-sdk'
 import { GetPackagesRes } from '@start9labs/marketplace'
@@ -30,7 +29,7 @@ export namespace Mock {
     shuttingDown: false,
   }
 
-  export const RegistryOSUpdate: RR.CheckOsUpdateRes = {
+  export const RegistryOSUpdate: T.OsVersionInfoMap = {
     '0.4.1': {
       headline: 'v0.4.1',
       releaseNotes: 'Testing some release notes',
@@ -899,7 +898,7 @@ export namespace Mock {
     },
   }
 
-  export const Notifications: ServerNotifications = [
+  export const Notifications: T.NotificationWithId[] = [
     {
       id: 1,
       packageId: null,
@@ -974,7 +973,7 @@ export namespace Mock {
     },
   ]
 
-  export function getMetrics(): ServerMetrics {
+  export function getMetrics(): T.Metrics {
     return {
       general: {
         temperature: {
@@ -1055,7 +1054,7 @@ export namespace Mock {
     }
   }
 
-  export const ServerLogs: Log[] = [
+  export const ServerLogs: T.LogEntry[] = [
     {
       timestamp: '2022-07-28T03:52:54.808769Z',
       message: '****** START *****',
@@ -1079,7 +1078,7 @@ export namespace Mock {
     },
   ]
 
-  export const Sessions: RR.GetSessionsRes = {
+  export const Sessions: T.SessionList = {
     current: 'b7b1a9cef4284f00af9e9dda6e676177',
     sessions: {
       '9513226517c54ddd8107d6d7b9d8aed7': {
@@ -1101,7 +1100,7 @@ export namespace Mock {
     },
   }
 
-  export const SshKeys: RR.GetSSHKeysRes = [
+  export const SshKeys: T.SshKeyResponse[] = [
     {
       createdAt: new Date().toISOString(),
       alg: 'ed25519',
@@ -1116,14 +1115,14 @@ export namespace Mock {
     },
   ]
 
-  export const SshKey: RR.AddSSHKeyRes = {
+  export const SshKey: T.SshKeyResponse = {
     createdAt: new Date().toISOString(),
     alg: 'ed25519',
     hostname: 'Lucy Key',
     fingerprint: '44:44:7e:78:61:b4:bf:g2:de:24:15:96:4e:d4:15:53',
   }
 
-  export const Wifi: RR.GetWifiRes = {
+  export const Wifi: T.WifiListInfo = {
     ethernet: true,
     ssids: {
       Goosers: 50,
@@ -1150,7 +1149,7 @@ export namespace Mock {
     ],
   }
 
-  export const BackupTargets: RR.GetBackupTargetsRes = {
+  export const BackupTargets: { [id: string]: T.BackupTarget } = {
     hsbdjhasbasda: {
       type: 'cifs',
       hostname: 'smb://192.169.10.0',
@@ -1195,6 +1194,7 @@ export namespace Mock {
       used: 100000000000,
       model: null,
       vendor: 'SSK',
+      guid: null,
       startOs: {
         '1234-5678-9876-5432': {
           hostname: 'adjective-noun',
@@ -1338,7 +1338,7 @@ export namespace Mock {
   //   },
   // ]
 
-  export const BackupInfo: RR.GetBackupInfoRes = {
+  export const BackupInfo: T.BackupInfo = {
     version: '0.3.6',
     timestamp: new Date().toISOString(),
     packageBackups: {
@@ -1357,7 +1357,7 @@ export namespace Mock {
     },
   }
 
-  export const ActionResMessage: RR.ActionRes = {
+  export const ActionResMessage: ActionRes = {
     version: '1',
     title: 'New Password',
     message:
@@ -1365,7 +1365,7 @@ export namespace Mock {
     result: null,
   }
 
-  export const ActionResSingle: RR.ActionRes = {
+  export const ActionResSingle: ActionRes = {
     version: '1',
     title: 'New Password',
     message:
@@ -1379,7 +1379,7 @@ export namespace Mock {
     },
   }
 
-  export const ActionResGroup: RR.ActionRes = {
+  export const ActionResGroup: ActionRes = {
     version: '1',
     title: 'Properties',
     message:
@@ -2180,6 +2180,7 @@ export namespace Mock {
         },
         publicDomains: {},
         privateDomains: {},
+        portForwards: [],
       },
       bcdefgh: {
         bindings: {
@@ -2203,6 +2204,7 @@ export namespace Mock {
         },
         publicDomains: {},
         privateDomains: {},
+        portForwards: [],
       },
       cdefghi: {
         bindings: {
@@ -2226,6 +2228,7 @@ export namespace Mock {
         },
         publicDomains: {},
         privateDomains: {},
+        portForwards: [],
       },
     },
     storeExposedDependents: [],

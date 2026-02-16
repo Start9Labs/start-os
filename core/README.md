@@ -22,9 +22,7 @@ several different names for different behavior:
 - `start-sdk`: This is a CLI tool that aids in building and packaging services
   you wish to deploy to StartOS
 
-## Questions
+## Documentation
 
-If you have questions about how various pieces of the backend system work. Open
-an issue and tag the following people
-
-- dr-bonez
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Backend architecture, modules, and patterns
+- [CONTRIBUTING.md](CONTRIBUTING.md) — How to contribute to core

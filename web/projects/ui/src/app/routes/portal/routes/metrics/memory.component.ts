@@ -5,7 +5,7 @@ import {
   input,
 } from '@angular/core'
 import { TuiProgress } from '@taiga-ui/kit'
-import { ServerMetrics } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 import { DataComponent } from './data.component'
 import { ValuePipe } from './value.pipe'
 import { i18nKey } from '@start9labs/shared'
@@ -40,7 +40,7 @@ const LABELS: Record<string, i18nKey> = {
   imports: [DataComponent, TuiProgress, ValuePipe],
 })
 export class MemoryComponent {
-  readonly value = input<ServerMetrics['memory']>()
+  readonly value = input<T.Metrics['memory']>()
 
   readonly used = computed(
     (value = this.value()?.percentageUsed.value || '0') =>

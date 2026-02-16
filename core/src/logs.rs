@@ -24,6 +24,7 @@ use tokio::process::{Child, Command};
 use tokio_stream::wrappers::LinesStream;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::PackageId;
 use crate::context::{CliContext, RpcContext};
@@ -109,23 +110,28 @@ async fn ws_handler(
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct LogResponse {
+    #[ts(as = "Vec<LogEntry>")]
     pub entries: Reversible<LogEntry>,
     start_cursor: Option<String>,
     end_cursor: Option<String>,
 }
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct LogFollowResponse {
     start_cursor: Option<String>,
     guid: Guid,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct LogEntry {
+    #[ts(type = "string")]
     timestamp: DateTime<Utc>,
     message: String,
     boot_id: String,
@@ -321,14 +327,17 @@ impl From<BootIdentifier> for String {
     }
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export, concrete(Extra = Empty), bound = "")]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct LogsParams<Extra: FromArgMatches + Args = Empty> {
     #[command(flatten)]
     #[serde(flatten)]
+    #[ts(skip)]
     extra: Extra,
     #[arg(short = 'l', long = "limit", help = "help.arg.log-limit")]
+    #[ts(optional)]
     limit: Option<usize>,
     #[arg(
         short = 'c',
@@ -336,9 +345,11 @@ pub struct LogsParams<Extra: FromArgMatches + Args = Empty> {
         conflicts_with = "follow",
         help = "help.arg.log-cursor"
     )]
+    #[ts(optional)]
     cursor: Option<String>,
     #[arg(short = 'b', long = "boot", help = "help.arg.log-boot")]
     #[serde(default)]
+    #[ts(optional, type = "number | string")]
     boot: Option<BootIdentifier>,
     #[arg(
         short = 'B',

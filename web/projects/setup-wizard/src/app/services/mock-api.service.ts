@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core'
 import {
   DiskInfo,
   encodeBase64,
-  FollowLogsRes,
   FullKeyboard,
   pauseFor,
   SetLanguageParams,
@@ -166,7 +165,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async initFollowLogs(): Promise<FollowLogsRes> {
+  async initFollowLogs(): Promise<T.LogFollowResponse> {
     await pauseFor(500)
     return {
       startCursor: 'fakestartcursor',

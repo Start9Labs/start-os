@@ -30,6 +30,7 @@ use crate::{PLATFORM, PackageId};
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct RestorePackageParams {
     #[arg(help = "help.arg.package-ids")]
     pub ids: Vec<PackageId>,

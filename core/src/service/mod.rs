@@ -701,6 +701,7 @@ struct ServiceActorSeed {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct RebuildParams {
     #[arg(help = "help.arg.package-id")]
     pub id: PackageId,

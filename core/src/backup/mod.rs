@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::PackageId;
 use crate::context::CliContext;
@@ -13,19 +14,22 @@ pub mod os;
 pub mod restore;
 pub mod target;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[ts(export)]
 pub struct BackupReport {
     server: ServerBackupReport,
     packages: BTreeMap<PackageId, PackageBackupReport>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[ts(export)]
 pub struct ServerBackupReport {
     attempted: bool,
     error: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[ts(export)]
 pub struct PackageBackupReport {
     pub error: Option<String>,
 }

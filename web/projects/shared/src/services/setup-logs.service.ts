@@ -12,13 +12,13 @@ import {
   switchMap,
   timer,
 } from 'rxjs'
-import { FollowLogsReq, FollowLogsRes, Log } from '../types/api'
+import { T } from '@start9labs/start-sdk'
 import { Constructor } from '../types/constructor'
 import { convertAnsi } from '../util/convert-ansi'
 
 interface Api {
-  initFollowLogs: (params: FollowLogsReq) => Promise<FollowLogsRes>
-  openWebsocket$: (guid: string) => Observable<Log>
+  initFollowLogs: (params: {}) => Promise<T.LogFollowResponse>
+  openWebsocket$: (guid: string) => Observable<T.LogEntry>
 }
 
 export function provideSetupLogsService(

@@ -2,7 +2,6 @@ import { Inject, Injectable, DOCUMENT } from '@angular/core'
 import {
   DiskInfo,
   encodeBase64,
-  FollowLogsRes,
   FullKeyboard,
   HttpService,
   isRpcError,
@@ -124,7 +123,7 @@ export class LiveApiService extends ApiService {
   }
 
   async initFollowLogs() {
-    return this.rpcRequest<FollowLogsRes>({
+    return this.rpcRequest<T.LogFollowResponse>({
       method: 'setup.logs.follow',
       params: {},
     })

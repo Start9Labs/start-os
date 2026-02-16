@@ -15,7 +15,6 @@ import { getAllPackages } from '../utils/get-package-data'
 import { hasCurrentDeps } from '../utils/has-deps'
 import { ApiService } from './api/embassy-api.service'
 import { DataModel } from './patch-db/data-model'
-import { RR } from './api/api.types'
 
 @Injectable({
   providedIn: 'root',
@@ -78,7 +77,7 @@ export class StandardActionsService {
       .subscribe(() => this.doUninstall({ id, force, soft }))
   }
 
-  private async doUninstall(options: RR.UninstallPackageReq) {
+  private async doUninstall(options: T.UninstallParams) {
     const loader = this.loader.open('Beginning uninstall').subscribe()
 
     try {

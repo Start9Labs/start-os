@@ -18,7 +18,7 @@ export class LogsFetchDirective {
     switchMap(() =>
       from(
         this.component.fetchLogs({
-          cursor: this.component.startCursor,
+          cursor: this.component.startCursor ?? undefined,
           before: true,
           limit: 400,
         }),

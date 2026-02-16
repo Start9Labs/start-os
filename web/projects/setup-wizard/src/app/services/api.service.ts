@@ -1,7 +1,6 @@
 import * as jose from 'node-jose'
 import {
   DiskInfo,
-  FollowLogsRes,
   FullKeyboard,
   SetLanguageParams,
   StartOSDiskInfo,
@@ -49,7 +48,7 @@ export abstract class ApiService {
   abstract shutdown(): Promise<void> // setup.shutdown
 
   // Logs & Progress
-  abstract initFollowLogs(): Promise<FollowLogsRes> // setup.logs.follow
+  abstract initFollowLogs(): Promise<T.LogFollowResponse> // setup.logs.follow
   abstract openWebsocket$<T>(guid: string): Observable<T>
 
   // Restart (for error recovery)

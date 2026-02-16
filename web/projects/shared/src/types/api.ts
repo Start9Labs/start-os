@@ -1,27 +1,3 @@
-export type FollowLogsReq = {}
-export type FollowLogsRes = {
-  startCursor: string
-  guid: string
-}
-
-export type FetchLogsReq = {
-  before: boolean
-  cursor?: string
-  limit?: number
-}
-
-export type FetchLogsRes = {
-  entries: Log[]
-  startCursor?: string
-  endCursor?: string
-}
-
-export interface Log {
-  timestamp: string
-  message: string
-  bootId: string
-}
-
 export type DiskListResponse = DiskInfo[]
 
 export interface DiskInfo {

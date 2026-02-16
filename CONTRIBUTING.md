@@ -6,27 +6,7 @@ This guide is for contributing to the StartOS. If you are interested in packagin
 
 - [Matrix](https://matrix.to/#/#dev-startos:matrix.start9labs.com)
 
-## Project Structure
-
-```bash
-/
-├── assets/              # Screenshots for README
-├── build/               # Auxiliary files and scripts for deployed images
-├── container-runtime/   # Node.js program managing package containers
-├── core/                # Rust backend: API, daemon (startd), CLI (start-cli)
-├── debian/              # Debian package maintainer scripts
-├── image-recipe/        # Scripts for building StartOS images
-├── patch-db/            # (submodule) Diff-based data store for frontend sync
-├── sdk/                 # TypeScript SDK for building StartOS packages
-└── web/                 # Web UIs (Angular)
-```
-
-See component READMEs for details:
-
-- [`core`](core/README.md)
-- [`web`](web/README.md)
-- [`build`](build/README.md)
-- [`patch-db`](https://github.com/Start9Labs/patch-db)
+For project structure and system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Environment Setup
 

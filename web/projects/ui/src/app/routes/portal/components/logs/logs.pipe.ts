@@ -1,10 +1,6 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
-import {
-  convertAnsi,
-  i18nPipe,
-  Log,
-  toLocalIsoString,
-} from '@start9labs/shared'
+import { convertAnsi, i18nPipe, toLocalIsoString } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import {
   bufferTime,
   catchError,
@@ -25,7 +21,7 @@ import {
   take,
   tap,
 } from 'rxjs'
-import { RR } from 'src/app/services/api/api.types'
+import { FollowServerLogsReq } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { LogsComponent } from './logs.component'
@@ -40,9 +36,7 @@ export class LogsPipe implements PipeTransform {
   private readonly i18n = inject(i18nPipe)
 
   transform(
-    followLogs: (
-      params: RR.FollowServerLogsReq,
-    ) => Promise<RR.FollowServerLogsRes>,
+    followLogs: (params: FollowServerLogsReq) => Promise<T.LogFollowResponse>,
   ): Observable<readonly string[]> {
     return merge(
       this.logs.status$.pipe(
@@ -53,7 +47,7 @@ export class LogsPipe implements PipeTransform {
       defer(() => followLogs(this.options)).pipe(
         tap(r => this.logs.setCursor(r.startCursor)),
         switchMap(r =>
-          this.api.openWebsocket$<Log>(r.guid, {
+          this.api.openWebsocket$<T.LogEntry>(r.guid, {
             openObserver: {
               next: () => this.logs.status$.next('connected'),
             },

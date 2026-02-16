@@ -11,7 +11,8 @@ import {
 import { TuiBadge, TuiSwitch } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { from, map } from 'rxjs'
-import { BackupJob, BackupTarget } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
+import { BackupJob } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
 import { BackupJobBuilder } from '../utils/job-builder'
@@ -149,7 +150,7 @@ export class BackupsEditModal {
 
   selectTarget() {
     this.dialogs
-      .open<BackupTarget & { id: string }>(TARGET, TARGET_CREATE)
+      .open<T.BackupTarget & { id: string }>(TARGET, TARGET_CREATE)
       .subscribe(({ id }) => {
         this.job.targetId = id
       })

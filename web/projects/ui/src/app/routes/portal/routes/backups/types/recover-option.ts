@@ -1,6 +1,6 @@
-import { PackageBackupInfo } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 
-export interface RecoverOption extends PackageBackupInfo {
+export interface RecoverOption extends T.PackageBackupInfo {
   id: string
   checked: boolean
   installed: boolean

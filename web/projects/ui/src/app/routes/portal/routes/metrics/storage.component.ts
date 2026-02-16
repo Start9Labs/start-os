@@ -5,7 +5,7 @@ import {
   input,
 } from '@angular/core'
 import { TuiProgress } from '@taiga-ui/kit'
-import { ServerMetrics } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 import { DataComponent } from './data.component'
 import { i18nKey } from '@start9labs/shared'
 
@@ -41,7 +41,7 @@ const LABELS: Record<string, i18nKey> = {
   imports: [TuiProgress, DataComponent],
 })
 export class StorageComponent {
-  readonly value = input<ServerMetrics['disk']>()
+  readonly value = input<T.Metrics['disk']>()
 
   readonly used = computed(
     (

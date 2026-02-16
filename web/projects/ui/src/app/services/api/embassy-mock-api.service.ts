@@ -1,8 +1,14 @@
 import { Injectable } from '@angular/core'
-import { pauseFor, Log, RPCErrorDetails } from '@start9labs/shared'
+import {
+  FullKeyboard,
+  pauseFor,
+  RPCErrorDetails,
+  SetLanguageParams,
+} from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import {
   AddOperation,
+  Dump,
   Operation,
   PatchOp,
   pathFromArray,
@@ -11,12 +17,32 @@ import {
   Revision,
 } from 'patch-db-client'
 import {
+  DataModel,
   InstallingState,
   PackageDataEntry,
   StateInfo,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
-import { CifsBackupTarget, RR } from './api.types'
+import { GetPackageRes, GetPackagesRes } from '@start9labs/marketplace'
+import {
+  ActionRes,
+  CifsBackupTarget,
+  DiagnosticErrorRes,
+  FollowPackageLogsReq,
+  FollowServerLogsReq,
+  GetActionInputRes,
+  GetPackageLogsReq,
+  GetRegistryPackageReq,
+  GetRegistryPackagesReq,
+  PkgAddPrivateDomainReq,
+  PkgAddPublicDomainReq,
+  PkgBindingSetAddressEnabledReq,
+  PkgRemovePrivateDomainReq,
+  PkgRemovePublicDomainReq,
+  ServerBindingSetAddressEnabledReq,
+  ServerState,
+  WebsocketConfig,
+} from './api.types'
 import { Mock } from './api.fixures'
 import { from, interval, map, shareReplay, startWith, Subject, tap } from 'rxjs'
 import { mockPatchData } from './mock-patch'
@@ -86,7 +112,7 @@ export class MockApiService extends ApiService {
 
   openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T> = {},
+    config: WebsocketConfig<T> = {},
   ): WebSocketSubject<T> {
     if (guid === 'db-guid') {
       return this.mockWsSource$.pipe<any>(
@@ -121,7 +147,7 @@ export class MockApiService extends ApiService {
 
   // state
 
-  async echo(params: RR.EchoReq, url: string): Promise<RR.EchoRes> {
+  async echo(params: T.EchoParams, url: string): Promise<string> {
     if (url) {
       const num = Math.floor(Math.random() * 10) + 1
       if (num > 8) return params.message
@@ -132,7 +158,7 @@ export class MockApiService extends ApiService {
   }
 
   private stateIndex = 0
-  async getState(): Promise<RR.ServerState> {
+  async getState(): Promise<ServerState> {
     await pauseFor(1000)
 
     this.stateIndex++
@@ -142,9 +168,10 @@ export class MockApiService extends ApiService {
 
   // db
 
-  async subscribeToPatchDB(
-    params: RR.SubscribePatchReq,
-  ): Promise<RR.SubscribePatchRes> {
+  async subscribeToPatchDB(params: {}): Promise<{
+    dump: Dump<DataModel>
+    guid: string
+  }> {
     await pauseFor(2000)
     return {
       dump: { id: 1, value: mockPatchData },
@@ -155,9 +182,9 @@ export class MockApiService extends ApiService {
   async setDbValue<T>(
     pathArr: Array<string | number>,
     value: T,
-  ): Promise<RR.SetDBValueRes> {
+  ): Promise<null> {
     const pointer = pathFromArray(pathArr)
-    const params: RR.SetDBValueReq<T> = { pointer, value }
+    const params = { pointer, value }
     await pauseFor(2000)
     const patch = [
       {
@@ -173,29 +200,27 @@ export class MockApiService extends ApiService {
 
   // auth
 
-  async login(params: RR.LoginReq): Promise<RR.loginRes> {
+  async login(params: T.LoginParams): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
-  async logout(params: RR.LogoutReq): Promise<RR.LogoutRes> {
+  async logout(params: {}): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
-  async getSessions(params: RR.GetSessionsReq): Promise<RR.GetSessionsRes> {
+  async getSessions(params: {}): Promise<T.SessionList> {
     await pauseFor(2000)
     return Mock.Sessions
   }
 
-  async killSessions(params: RR.KillSessionsReq): Promise<RR.KillSessionsRes> {
+  async killSessions(params: T.KillParams): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
-  async resetPassword(
-    params: RR.ResetPasswordReq,
-  ): Promise<RR.ResetPasswordRes> {
+  async resetPassword(params: T.ResetPasswordParams): Promise<null> {
     await pauseFor(2000)
     return null
   }
@@ -211,7 +236,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async diagnosticGetError(): Promise<RR.DiagnosticErrorRes> {
+  async diagnosticGetError(): Promise<DiagnosticErrorRes> {
     await pauseFor(1000)
     return {
       code: 15,
@@ -232,15 +257,13 @@ export class MockApiService extends ApiService {
     await pauseFor(1000)
   }
 
-  async diagnosticGetLogs(
-    params: RR.GetServerLogsReq,
-  ): Promise<RR.GetServerLogsRes> {
+  async diagnosticGetLogs(params: T.LogsParams): Promise<T.LogResponse> {
     return this.getServerLogs(params)
   }
 
   // init
 
-  async initFollowProgress(): Promise<RR.InitFollowProgressRes> {
+  async initFollowProgress(): Promise<T.SetupProgress> {
     await pauseFor(250)
     return {
       progress: PROGRESS,
@@ -248,7 +271,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async initFollowLogs(): Promise<RR.FollowServerLogsRes> {
+  async initFollowLogs(): Promise<T.LogFollowResponse> {
     await pauseFor(2000)
     return {
       startCursor: 'start-cursor',
@@ -258,19 +281,15 @@ export class MockApiService extends ApiService {
 
   // server
 
-  async getSystemTime(
-    params: RR.GetSystemTimeReq,
-  ): Promise<RR.GetSystemTimeRes> {
+  async getSystemTime(params: {}): Promise<T.TimeInfo> {
     await pauseFor(2000)
     return {
       now: new Date().toUTCString(),
-      uptime: 1234567,
+      uptime: 1234567n,
     }
   }
 
-  async getServerLogs(
-    params: RR.GetServerLogsReq,
-  ): Promise<RR.GetServerLogsRes> {
+  async getServerLogs(params: T.LogsParams): Promise<T.LogResponse> {
     await pauseFor(2000)
     const entries = this.randomLogs(params.limit)
 
@@ -281,9 +300,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async getKernelLogs(
-    params: RR.GetServerLogsReq,
-  ): Promise<RR.GetServerLogsRes> {
+  async getKernelLogs(params: T.LogsParams): Promise<T.LogResponse> {
     await pauseFor(2000)
     const entries = this.randomLogs(params.limit)
 
@@ -295,8 +312,8 @@ export class MockApiService extends ApiService {
   }
 
   async followServerLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
+    params: FollowServerLogsReq,
+  ): Promise<T.LogFollowResponse> {
     await pauseFor(2000)
     return {
       startCursor: 'start-cursor',
@@ -305,8 +322,8 @@ export class MockApiService extends ApiService {
   }
 
   async followKernelLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
+    params: FollowServerLogsReq,
+  ): Promise<T.LogFollowResponse> {
     await pauseFor(2000)
     return {
       startCursor: 'start-cursor',
@@ -314,7 +331,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  private randomLogs(limit = 1): Log[] {
+  private randomLogs(limit = 1): T.LogEntry[] {
     const arrLength = Math.ceil(limit / Mock.ServerLogs.length)
     const logs = new Array(arrLength)
       .fill(Mock.ServerLogs)
@@ -323,9 +340,7 @@ export class MockApiService extends ApiService {
     return logs
   }
 
-  async followServerMetrics(
-    params: RR.FollowServerMetricsReq,
-  ): Promise<RR.FollowServerMetricsRes> {
+  async followServerMetrics(params: {}): Promise<T.MetricsFollowResponse> {
     await pauseFor(2000)
     return {
       guid: 'metrics-guid',
@@ -333,7 +348,10 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async updateServer(params?: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
+  async updateServer(params?: {
+    registry: string
+    targetVersion: string
+  }): Promise<'updating' | 'no-updates'> {
     await pauseFor(2000)
     const initialProgress = {
       size: null,
@@ -356,9 +374,7 @@ export class MockApiService extends ApiService {
     return 'updating'
   }
 
-  async restartServer(
-    params: RR.RestartServerReq,
-  ): Promise<RR.RestartServerRes> {
+  async restartServer(params: {}): Promise<null> {
     await pauseFor(2000)
 
     const patch = [
@@ -384,9 +400,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async shutdownServer(
-    params: RR.ShutdownServerReq,
-  ): Promise<RR.ShutdownServerRes> {
+  async shutdownServer(params: {}): Promise<null> {
     await pauseFor(2000)
 
     const patch = [
@@ -412,7 +426,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
+  async repairDisk(params: {}): Promise<null> {
     await pauseFor(2000)
     return null
   }
@@ -432,7 +446,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setKeyboard(params: RR.SetKeyboardReq): Promise<RR.SetKeyboardRes> {
+  async setKeyboard(params: FullKeyboard): Promise<null> {
     await pauseFor(1000)
 
     const patch = [
@@ -447,7 +461,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setLanguage(params: RR.SetLanguageReq): Promise<RR.SetLanguageRes> {
+  async setLanguage(params: SetLanguageParams): Promise<null> {
     await pauseFor(1000)
 
     const patch = [
@@ -462,7 +476,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setDns(params: RR.SetDnsReq): Promise<RR.SetDnsRes> {
+  async setDns(params: T.SetStaticDnsParams): Promise<null> {
     await pauseFor(2000)
 
     const patch: ReplaceOperation<T.DnsSettings['staticServers']>[] = [
@@ -477,15 +491,16 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async queryDns(params: RR.QueryDnsReq): Promise<RR.QueryDnsRes> {
+  async queryDns(params: T.QueryDnsParams): Promise<string | null> {
     await pauseFor(2000)
 
     return null
   }
 
-  async testPortForward(
-    params: RR.TestPortForwardReq,
-  ): Promise<RR.TestPortForwardRes> {
+  async testPortForward(params: {
+    gateway: string
+    port: number
+  }): Promise<boolean> {
     await pauseFor(2000)
 
     return false
@@ -493,23 +508,22 @@ export class MockApiService extends ApiService {
 
   // marketplace URLs
 
-  async checkOSUpdate(
-    params: RR.CheckOsUpdateReq,
-  ): Promise<RR.CheckOsUpdateRes> {
+  async checkOSUpdate(params: {
+    registry: string
+    serverId: string
+  }): Promise<T.OsVersionInfoMap> {
     await pauseFor(2000)
     return Mock.RegistryOSUpdate
   }
 
-  async getRegistryInfo(
-    params: RR.GetRegistryInfoReq,
-  ): Promise<RR.GetRegistryInfoRes> {
+  async getRegistryInfo(params: { registry: string }): Promise<T.RegistryInfo> {
     await pauseFor(2000)
     return Mock.RegistryInfo
   }
 
   async getRegistryPackage(
-    params: RR.GetRegistryPackageReq,
-  ): Promise<RR.GetRegistryPackageRes> {
+    params: GetRegistryPackageReq,
+  ): Promise<GetPackageRes> {
     await pauseFor(2000)
 
     const { targetVersion, id } = params
@@ -522,8 +536,8 @@ export class MockApiService extends ApiService {
   }
 
   async getRegistryPackages(
-    params: RR.GetRegistryPackagesReq,
-  ): Promise<RR.GetRegistryPackagesRes> {
+    params: GetRegistryPackagesReq,
+  ): Promise<GetPackagesRes> {
     await pauseFor(2000)
     return Mock.RegistryPackages
   }
@@ -531,37 +545,35 @@ export class MockApiService extends ApiService {
   // notification
 
   async getNotifications(
-    params: RR.GetNotificationsReq,
-  ): Promise<RR.GetNotificationsRes> {
+    params: T.ListNotificationParams,
+  ): Promise<T.NotificationWithId[]> {
     await pauseFor(2000)
 
     return Mock.Notifications
   }
 
-  async deleteNotifications(
-    params: RR.DeleteNotificationsReq,
-  ): Promise<RR.DeleteNotificationsRes> {
+  async deleteNotifications(params: T.ModifyNotificationParams): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
   async markSeenNotifications(
-    params: RR.MarkSeenNotificationReq,
-  ): Promise<RR.MarkSeenNotificationRes> {
+    params: T.ModifyNotificationParams,
+  ): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
   async markSeenAllNotifications(
-    params: RR.MarkSeenAllNotificationsReq,
-  ): Promise<RR.MarkSeenAllNotificationsRes> {
+    params: T.ModifyNotificationBeforeParams,
+  ): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
   async markUnseenNotifications(
-    params: RR.MarkUnseenNotificationReq,
-  ): Promise<RR.MarkUnseenNotificationRes> {
+    params: T.ModifyNotificationParams,
+  ): Promise<null> {
     await pauseFor(2000)
     return null
   }
@@ -569,7 +581,7 @@ export class MockApiService extends ApiService {
   // proxies
 
   private proxyId = 0
-  async addTunnel(params: RR.AddTunnelReq): Promise<RR.AddTunnelRes> {
+  async addTunnel(params: T.AddTunnelParams): Promise<{ id: string }> {
     await pauseFor(2000)
 
     const id = `wg${this.proxyId++}`
@@ -609,7 +621,7 @@ export class MockApiService extends ApiService {
     return { id }
   }
 
-  async updateTunnel(params: RR.UpdateTunnelReq): Promise<RR.UpdateTunnelRes> {
+  async updateTunnel(params: T.RenameGatewayParams): Promise<null> {
     await pauseFor(2000)
 
     const patch: ReplaceOperation<string>[] = [
@@ -624,7 +636,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async removeTunnel(params: RR.RemoveTunnelReq): Promise<RR.RemoveTunnelRes> {
+  async removeTunnel(params: T.RemoveTunnelParams): Promise<null> {
     await pauseFor(2000)
     const patch: RemoveOperation[] = [
       {
@@ -637,9 +649,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setDefaultOutbound(
-    params: RR.SetDefaultOutboundReq,
-  ): Promise<RR.SetDefaultOutboundRes> {
+  async setDefaultOutbound(params: { gateway: string | null }): Promise<null> {
     await pauseFor(2000)
     const patch = [
       {
@@ -653,9 +663,10 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setServiceOutbound(
-    params: RR.SetServiceOutboundReq,
-  ): Promise<RR.SetServiceOutboundRes> {
+  async setServiceOutbound(params: {
+    packageId: string
+    gateway: string | null
+  }): Promise<null> {
     await pauseFor(2000)
     const patch = [
       {
@@ -671,13 +682,13 @@ export class MockApiService extends ApiService {
 
   // wifi
 
-  async enableWifi(params: RR.EnabledWifiReq): Promise<RR.EnabledWifiRes> {
+  async enableWifi(params: T.SetWifiEnabledParams): Promise<null> {
     await pauseFor(2000)
     const patch = [
       {
         op: PatchOp.REPLACE,
         path: '/serverInfo/network/wifi/enabled',
-        value: params.enable,
+        value: params.enabled,
       },
     ]
     this.mockRevision(patch)
@@ -685,36 +696,34 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setWifiCountry(
-    params: RR.SetWifiCountryReq,
-  ): Promise<RR.SetWifiCountryRes> {
+  async setWifiCountry(params: T.SetCountryParams): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
-  async getWifi(params: RR.GetWifiReq): Promise<RR.GetWifiRes> {
+  async getWifi(params: {}, timeout: number): Promise<T.WifiListInfo> {
     await pauseFor(2000)
     return Mock.Wifi
   }
 
-  async addWifi(params: RR.AddWifiReq): Promise<RR.AddWifiRes> {
+  async addWifi(params: T.WifiAddParams): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
-  async connectWifi(params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes> {
+  async connectWifi(params: T.WifiSsidParams): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
-  async deleteWifi(params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes> {
+  async deleteWifi(params: T.WifiSsidParams): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
   // smtp
 
-  async setSmtp(params: RR.SetSMTPReq): Promise<RR.SetSMTPRes> {
+  async setSmtp(params: T.SmtpValue): Promise<null> {
     await pauseFor(2000)
     const patch = [
       {
@@ -728,7 +737,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async clearSmtp(params: RR.ClearSMTPReq): Promise<RR.ClearSMTPRes> {
+  async clearSmtp(params: {}): Promise<null> {
     await pauseFor(2000)
     const patch = [
       {
@@ -742,40 +751,40 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async testSmtp(params: RR.TestSMTPReq): Promise<RR.TestSMTPRes> {
+  async testSmtp(params: T.TestSmtpParams): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
   // ssh
 
-  async getSshKeys(params: RR.GetSSHKeysReq): Promise<RR.GetSSHKeysRes> {
+  async getSshKeys(params: {}): Promise<T.SshKeyResponse[]> {
     await pauseFor(2000)
     return Mock.SshKeys
   }
 
-  async addSshKey(params: RR.AddSSHKeyReq): Promise<RR.AddSSHKeyRes> {
+  async addSshKey(params: T.SshAddParams): Promise<T.SshKeyResponse> {
     await pauseFor(2000)
     return Mock.SshKey
   }
 
-  async deleteSshKey(params: RR.DeleteSSHKeyReq): Promise<RR.DeleteSSHKeyRes> {
+  async deleteSshKey(params: T.SshDeleteParams): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
   // backup
 
-  async getBackupTargets(
-    params: RR.GetBackupTargetsReq,
-  ): Promise<RR.GetBackupTargetsRes> {
+  async getBackupTargets(params: {}): Promise<{
+    [id: string]: T.BackupTarget
+  }> {
     await pauseFor(2000)
     return Mock.BackupTargets
   }
 
   async addBackupTarget(
-    params: RR.AddBackupTargetReq,
-  ): Promise<RR.AddBackupTargetRes> {
+    params: T.CifsAddParams,
+  ): Promise<{ [id: string]: CifsBackupTarget }> {
     await pauseFor(2000)
     const { hostname, path, username } = params
     return {
@@ -791,8 +800,8 @@ export class MockApiService extends ApiService {
   }
 
   async updateBackupTarget(
-    params: RR.UpdateBackupTargetReq,
-  ): Promise<RR.UpdateBackupTargetRes> {
+    params: T.CifsUpdateParams,
+  ): Promise<{ [id: string]: CifsBackupTarget }> {
     await pauseFor(2000)
     const { id, hostname, path, username } = params
     return {
@@ -805,24 +814,20 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async removeBackupTarget(
-    params: RR.RemoveBackupTargetReq,
-  ): Promise<RR.RemoveBackupTargetRes> {
+  async removeBackupTarget(params: T.CifsRemoveParams): Promise<null> {
     await pauseFor(2000)
     return null
   }
 
-  async getBackupInfo(
-    params: RR.GetBackupInfoReq,
-  ): Promise<RR.GetBackupInfoRes> {
+  async getBackupInfo(params: T.InfoParams): Promise<T.BackupInfo> {
     await pauseFor(2000)
     return Mock.BackupInfo
   }
 
-  async createBackup(params: RR.CreateBackupReq): Promise<RR.CreateBackupRes> {
+  async createBackup(params: T.BackupParams): Promise<null> {
     await pauseFor(2000)
     const serverPath = '/serverInfo/statusInfo/backupProgress'
-    const ids = params.packageIds
+    const ids = params.packageIds || []
 
     setTimeout(async () => {
       for (let i = 0; i < ids.length; i++) {
@@ -978,9 +983,7 @@ export class MockApiService extends ApiService {
 
   // package
 
-  async getPackageLogs(
-    params: RR.GetPackageLogsReq,
-  ): Promise<RR.GetPackageLogsRes> {
+  async getPackageLogs(params: GetPackageLogsReq): Promise<T.LogResponse> {
     await pauseFor(2000)
     let entries
     if (Math.random() < 0.2) {
@@ -1001,8 +1004,8 @@ export class MockApiService extends ApiService {
   }
 
   async followPackageLogs(
-    params: RR.FollowPackageLogsReq,
-  ): Promise<RR.FollowPackageLogsRes> {
+    params: FollowPackageLogsReq,
+  ): Promise<T.LogFollowResponse> {
     await pauseFor(2000)
     return {
       startCursor: 'start-cursor',
@@ -1010,9 +1013,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async installPackage(
-    params: RR.InstallPackageReq,
-  ): Promise<RR.InstallPackageRes> {
+  async installPackage(params: T.InstallParams): Promise<null> {
     await pauseFor(2000)
 
     setTimeout(async () => {
@@ -1049,9 +1050,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async cancelInstallPackage(
-    params: RR.CancelInstallPackageReq,
-  ): Promise<RR.CancelInstallPackageRes> {
+  async cancelInstallPackage(params: T.CancelInstallParams): Promise<null> {
     await pauseFor(500)
 
     const patch: RemoveOperation[] = [
@@ -1066,8 +1065,8 @@ export class MockApiService extends ApiService {
   }
 
   async getActionInput(
-    params: RR.GetActionInputReq,
-  ): Promise<RR.GetActionInputRes> {
+    params: T.GetActionInputParams,
+  ): Promise<GetActionInputRes> {
     await pauseFor(2000)
     return {
       eventId: 'ANZXNWIFRTTBZ6T52KQPZILIQQODDHXQ',
@@ -1076,7 +1075,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async runAction(params: RR.ActionReq): Promise<RR.ActionRes> {
+  async runAction(params: T.RunActionParams): Promise<ActionRes> {
     await pauseFor(2000)
 
     const patch: ReplaceOperation<{ [key: string]: T.TaskEntry }>[] = [
@@ -1093,7 +1092,7 @@ export class MockApiService extends ApiService {
     // return Mock.ActionResSingle
   }
 
-  async clearTask(params: RR.ClearTaskReq): Promise<RR.ClearTaskRes> {
+  async clearTask(params: T.ClearTaskParams): Promise<null> {
     await pauseFor(2000)
 
     const patch: RemoveOperation[] = [
@@ -1107,9 +1106,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async restorePackages(
-    params: RR.RestorePackagesReq,
-  ): Promise<RR.RestorePackagesRes> {
+  async restorePackages(params: T.RestorePackageParams): Promise<null> {
     await pauseFor(2000)
     const patch: AddOperation<PackageDataEntry>[] = params.ids.map(id => {
       setTimeout(async () => {
@@ -1137,7 +1134,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
+  async startPackage(params: T.ControlParams): Promise<null> {
     const path = `/packageData/${params.id}/statusInfo`
 
     await pauseFor(2000)
@@ -1202,9 +1199,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async restartPackage(
-    params: RR.RestartPackageReq,
-  ): Promise<RR.RestartPackageRes> {
+  async restartPackage(params: T.ControlParams): Promise<null> {
     await pauseFor(2000)
     const path = `/packageData/${params.id}/statusInfo`
 
@@ -1268,7 +1263,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
+  async stopPackage(params: T.ControlParams): Promise<null> {
     await pauseFor(2000)
     const path = `/packageData/${params.id}/statusInfo`
 
@@ -1306,15 +1301,11 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async rebuildPackage(
-    params: RR.RebuildPackageReq,
-  ): Promise<RR.RebuildPackageRes> {
+  async rebuildPackage(params: T.RebuildParams): Promise<null> {
     return this.restartPackage(params)
   }
 
-  async uninstallPackage(
-    params: RR.UninstallPackageReq,
-  ): Promise<RR.UninstallPackageRes> {
+  async uninstallPackage(params: T.UninstallParams): Promise<null> {
     await pauseFor(2000)
 
     setTimeout(async () => {
@@ -1340,7 +1331,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async sideloadPackage(): Promise<RR.SideloadPackageRes> {
+  async sideloadPackage(): Promise<T.SideloadResponse> {
     await pauseFor(2000)
     return {
       upload: 'sideload-upload-guid', // no significance, randomly generated
@@ -1364,7 +1355,7 @@ export class MockApiService extends ApiService {
   //   return null
   // }
 
-  async initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes> {
+  async initAcme(params: T.InitAcmeParams): Promise<null> {
     await pauseFor(2000)
 
     const patch = [
@@ -1381,7 +1372,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes> {
+  async removeAcme(params: T.RemoveAcmeParams): Promise<null> {
     await pauseFor(2000)
 
     const regex = new RegExp('/', 'g')
@@ -1398,8 +1389,8 @@ export class MockApiService extends ApiService {
   }
 
   async serverBindingSetAddressEnabled(
-    params: RR.ServerBindingSetAddressEnabledReq,
-  ): Promise<RR.ServerBindingSetAddressEnabledRes> {
+    params: ServerBindingSetAddressEnabledReq,
+  ): Promise<null> {
     await pauseFor(2000)
 
     const basePath = `/serverInfo/network/host/bindings/${params.internalPort}/addresses`
@@ -1409,8 +1400,8 @@ export class MockApiService extends ApiService {
   }
 
   async osUiAddPublicDomain(
-    params: RR.OsUiAddPublicDomainReq,
-  ): Promise<RR.OsUiAddPublicDomainRes> {
+    params: T.AddPublicDomainParams,
+  ): Promise<string | null> {
     await pauseFor(2000)
 
     const patch: Operation<any>[] = [
@@ -1438,9 +1429,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async osUiRemovePublicDomain(
-    params: RR.OsUiRemovePublicDomainReq,
-  ): Promise<RR.OsUiRemovePublicDomainRes> {
+  async osUiRemovePublicDomain(params: T.RemoveDomainParams): Promise<null> {
     await pauseFor(2000)
 
     const patch: RemoveOperation[] = [
@@ -1454,9 +1443,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async osUiAddPrivateDomain(
-    params: RR.OsUiAddPrivateDomainReq,
-  ): Promise<RR.OsUiAddPrivateDomainRes> {
+  async osUiAddPrivateDomain(params: T.AddPrivateDomainParams): Promise<null> {
     await pauseFor(2000)
 
     const patch: Operation<any>[] = [
@@ -1482,9 +1469,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async osUiRemovePrivateDomain(
-    params: RR.OsUiRemovePrivateDomainReq,
-  ): Promise<RR.OsUiRemovePrivateDomainRes> {
+  async osUiRemovePrivateDomain(params: T.RemoveDomainParams): Promise<null> {
     await pauseFor(2000)
 
     const patch: RemoveOperation[] = [
@@ -1499,8 +1484,8 @@ export class MockApiService extends ApiService {
   }
 
   async pkgBindingSetAddressEnabled(
-    params: RR.PkgBindingSetAddressEnabledReq,
-  ): Promise<RR.PkgBindingSetAddressEnabledRes> {
+    params: PkgBindingSetAddressEnabledReq,
+  ): Promise<null> {
     await pauseFor(2000)
 
     const basePath = `/packageData/${params.package}/hosts/${params.host}/bindings/${params.internalPort}/addresses`
@@ -1510,8 +1495,8 @@ export class MockApiService extends ApiService {
   }
 
   async pkgAddPublicDomain(
-    params: RR.PkgAddPublicDomainReq,
-  ): Promise<RR.PkgAddPublicDomainRes> {
+    params: PkgAddPublicDomainReq,
+  ): Promise<string | null> {
     await pauseFor(2000)
 
     const patch: Operation<any>[] = [
@@ -1539,9 +1524,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async pkgRemovePublicDomain(
-    params: RR.PkgRemovePublicDomainReq,
-  ): Promise<RR.PkgRemovePublicDomainRes> {
+  async pkgRemovePublicDomain(params: PkgRemovePublicDomainReq): Promise<null> {
     await pauseFor(2000)
 
     const patch: RemoveOperation[] = [
@@ -1555,9 +1538,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async pkgAddPrivateDomain(
-    params: RR.PkgAddPrivateDomainReq,
-  ): Promise<RR.PkgAddPrivateDomainRes> {
+  async pkgAddPrivateDomain(params: PkgAddPrivateDomainReq): Promise<null> {
     await pauseFor(2000)
 
     const patch: Operation<any>[] = [
@@ -1584,8 +1565,8 @@ export class MockApiService extends ApiService {
   }
 
   async pkgRemovePrivateDomain(
-    params: RR.PkgRemovePrivateDomainReq,
-  ): Promise<RR.PkgRemovePrivateDomainRes> {
+    params: PkgRemovePrivateDomainReq,
+  ): Promise<null> {
     await pauseFor(2000)
 
     const patch: RemoveOperation[] = [

@@ -418,6 +418,7 @@ impl AsLogoutSessionId for KillSessionId {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct KillParams {
@@ -435,6 +436,7 @@ pub async fn kill<C: SessionAuthContext>(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ResetPasswordParams {

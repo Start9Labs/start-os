@@ -2,17 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Architecture
 
-StartOS is an open-source Linux distribution for running personal servers. It manages discovery, installation, network configuration, backups, and health monitoring of self-hosted services.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system architecture, component map, build pipeline, and cross-layer verification order.
 
-**Tech Stack:**
-- Backend: Rust (async/Tokio, Axum web framework)
-- Frontend: Angular 20 + TypeScript + TaigaUI
-- Container runtime: Node.js/TypeScript with LXC
-- Database/State: Patch-DB (git submodule) - storage layer with reactive frontend sync
-- API: JSON-RPC via rpc-toolkit (see `core/rpc-toolkit.md`)
-- Auth: Password + session cookie, public/private key signatures, local authcookie (see `core/src/middleware/auth/`)
+Each major component has its own `CLAUDE.md` with detailed guidance: `core/`, `web/`, `container-runtime/`, `sdk/`.
 
 ## Build & Development
 
@@ -29,33 +23,11 @@ make update-startbox REMOTE=start9@<ip>   # Fastest iteration (binary + UI)
 make test-core                            # Run Rust tests
 ```
 
-### Verifying code changes
+## Operating Rules
 
-When making changes across multiple layers (Rust, SDK, web, container-runtime), verify in this order:
-
-1. **Rust**: `cargo check -p start-os` — verifies core compiles
-2. **TS bindings**: `make ts-bindings` — regenerates TypeScript types from Rust `#[ts(export)]` structs
-   - Runs `./core/build/build-ts.sh` to export ts-rs types to `core/bindings/`
-   - Syncs `core/bindings/` → `sdk/base/lib/osBindings/` via rsync
-   - If you manually edit files in `sdk/base/lib/osBindings/`, you must still rebuild the SDK (step 3)
-3. **SDK bundle**: `cd sdk && make baseDist dist` — compiles SDK source into packages
-   - `baseDist/` is consumed by `/web` (via `@start9labs/start-sdk-base`)
-   - `dist/` is consumed by `/container-runtime` (via `@start9labs/start-sdk`)
-   - Web and container-runtime reference the **built** SDK, not source files
-4. **Web type check**: `cd web && npm run check` — type-checks all Angular projects
-5. **Container runtime type check**: `cd container-runtime && npm run check` — type-checks the runtime
-
-**Important**: Editing `sdk/base/lib/osBindings/*.ts` alone is NOT sufficient — you must rebuild the SDK bundle (step 3) before web/container-runtime can see the changes.
-
-## Architecture
-
-Each major component has its own `CLAUDE.md` with detailed guidance.
-
-- **`core/`** — Rust backend daemon (startbox, start-cli, start-container, registrybox, tunnelbox)
-- **`web/`** — Angular frontend workspace (admin UI, setup wizard, marketplace, shared library)
-- **`container-runtime/`** — Node.js runtime managing service containers via JSON-RPC
-- **`sdk/`** — TypeScript SDK for packaging services (`@start9labs/start-sdk`)
-- **`patch-db/`** — Git submodule providing diff-based state synchronization
+- Always verify cross-layer changes using the order described in [ARCHITECTURE.md](ARCHITECTURE.md#cross-layer-verification)
+- Check component-level CLAUDE.md files for component-specific conventions
+- Follow existing patterns before inventing new ones
 
 ## Supplementary Documentation
 

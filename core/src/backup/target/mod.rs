@@ -34,7 +34,8 @@ use crate::util::{FromStrParser, VersionString};
 
 pub mod cifs;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[ts(export)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
 pub enum BackupTarget {
@@ -49,7 +50,7 @@ pub enum BackupTarget {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, TS)]
-#[ts(type = "string")]
+#[ts(export, type = "string")]
 pub enum BackupTargetId {
     Disk { logicalname: PathBuf },
     Cifs { id: u32 },
@@ -111,6 +112,7 @@ impl Serialize for BackupTargetId {
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
+#[ts(export)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
 pub enum BackupTargetFS {
@@ -210,20 +212,26 @@ pub async fn list(ctx: RpcContext) -> Result<BTreeMap<BackupTargetId, BackupTarg
         .collect())
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct BackupInfo {
+    #[ts(type = "string")]
     pub version: Version,
+    #[ts(type = "string | null")]
     pub timestamp: Option<DateTime<Utc>>,
     pub package_backups: BTreeMap<PackageId, PackageBackupInfo>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageBackupInfo {
     pub title: InternedString,
     pub version: VersionString,
+    #[ts(type = "string")]
     pub os_version: Version,
+    #[ts(type = "string")]
     pub timestamp: DateTime<Utc>,
 }
 
@@ -265,6 +273,7 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) -> Re
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct InfoParams {
@@ -387,6 +396,7 @@ pub async fn mount(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UmountParams {

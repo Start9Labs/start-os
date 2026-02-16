@@ -8,7 +8,7 @@ import { TuiBlock, TuiCheckbox } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { take } from 'rxjs'
-import { PackageBackupInfo } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ToOptionsPipe } from '../pipes/to-options.pipe'
@@ -98,7 +98,7 @@ export class BackupsRecoverModal {
     }
   }
 
-  get backups(): Record<string, PackageBackupInfo> {
+  get backups(): Record<string, T.PackageBackupInfo> {
     return this.context.data.backupInfo.packageBackups
   }
 
@@ -110,13 +110,12 @@ export class BackupsRecoverModal {
     const ids = options.filter(({ checked }) => !!checked).map(({ id }) => id)
     const loader = this.loader.open('Initializing').subscribe()
 
-    const { targetId, serverId, password } = this.context.data
+    const { targetId, password } = this.context.data
 
     try {
       await this.api.restorePackages({
         ids,
         targetId,
-        serverId,
         password,
       })
 

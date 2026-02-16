@@ -64,9 +64,9 @@ export class ActionService {
     try {
       const res = await this.api.runAction({
         packageId,
-        eventId,
         actionId,
         input: input ?? null,
+        eventId,
       })
 
       if (!res) return

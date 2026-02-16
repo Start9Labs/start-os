@@ -25,6 +25,7 @@ pub struct HostAddress {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[ts(export)]
 pub struct PublicDomainConfig {
     pub gateway: GatewayId,
     pub acme: Option<AcmeProvider>,
@@ -158,7 +159,8 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct AddPublicDomainParams {
     #[arg(help = "help.arg.fqdn")]
     pub fqdn: InternedString,
@@ -211,7 +213,8 @@ pub async fn add_public_domain<Kind: HostApiKind>(
     .with_kind(ErrorKind::Unknown)?
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct RemoveDomainParams {
     #[arg(help = "help.arg.fqdn")]
     pub fqdn: InternedString,
@@ -239,7 +242,8 @@ pub async fn remove_public_domain<Kind: HostApiKind>(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct AddPrivateDomainParams {
     #[arg(help = "help.arg.fqdn")]
     pub fqdn: InternedString,

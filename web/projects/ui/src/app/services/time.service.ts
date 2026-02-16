@@ -12,14 +12,15 @@ export class TimeService {
   private readonly time$ = defer(() =>
     inject(ApiService).getSystemTime({}),
   ).pipe(
-    switchMap(({ now, uptime }) =>
-      timer(0, 1000).pipe(
+    switchMap(({ now, uptime }) => {
+      const uptimeSecs = Number(uptime)
+      return timer(0, 1000).pipe(
         map(index => ({
           now: new Date(now).valueOf() + 1000 * index,
-          uptime: uptime + index,
+          uptime: uptimeSecs + index,
         })),
-      ),
-    ),
+      )
+    }),
     shareReplay(1),
   )
 

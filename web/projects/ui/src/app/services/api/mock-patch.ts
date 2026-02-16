@@ -110,6 +110,7 @@ export const mockPatchData: DataModel = {
         },
         publicDomains: {},
         privateDomains: {},
+        portForwards: [],
       },
       gateways: {
         eth0: {
@@ -607,6 +608,7 @@ export const mockPatchData: DataModel = {
           privateDomains: {
             'my-bitcoin.home': ['wlan0'],
           },
+          portForwards: [],
         },
         bcdefgh: {
           bindings: {
@@ -648,6 +650,7 @@ export const mockPatchData: DataModel = {
           },
           publicDomains: {},
           privateDomains: {},
+          portForwards: [],
         },
         cdefghi: {
           bindings: {
@@ -671,6 +674,7 @@ export const mockPatchData: DataModel = {
           },
           publicDomains: {},
           privateDomains: {},
+          portForwards: [],
         },
       },
       storeExposedDependents: [],

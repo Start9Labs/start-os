@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, UdpSocket};
 use tokio::sync::RwLock;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
@@ -93,7 +94,8 @@ pub fn dns_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct QueryDnsParams {
     #[arg(help = "help.arg.fqdn")]
     pub fqdn: InternedString,
@@ -133,7 +135,8 @@ pub fn query_dns<C: Context>(
         .map_err(Error::from)
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct SetStaticDnsParams {
     #[arg(help = "help.arg.dns-servers")]
     pub servers: Option<Vec<String>>,

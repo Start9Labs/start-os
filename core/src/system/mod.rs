@@ -191,7 +191,9 @@ pub async fn governor(
     Ok(GovernorInfo { current, available })
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
 pub struct TimeInfo {
     now: String,
     uptime: u64,
@@ -331,6 +333,7 @@ pub struct MetricLeaf<T> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, TS)]
+#[ts(type = "{ value: string, unit: string }")]
 pub struct Celsius(f64);
 impl fmt::Display for Celsius {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -359,6 +362,7 @@ impl<'de> Deserialize<'de> for Celsius {
     }
 }
 #[derive(Clone, Debug, PartialEq, PartialOrd, TS)]
+#[ts(type = "{ value: string, unit: string }")]
 pub struct Percentage(f64);
 impl Serialize for Percentage {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -385,6 +389,7 @@ impl<'de> Deserialize<'de> for Percentage {
 }
 
 #[derive(Clone, Debug, TS)]
+#[ts(type = "{ value: string, unit: string }")]
 pub struct MebiBytes(pub f64);
 impl Serialize for MebiBytes {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -411,6 +416,7 @@ impl<'de> Deserialize<'de> for MebiBytes {
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, TS)]
+#[ts(type = "{ value: string, unit: string }")]
 pub struct GigaBytes(f64);
 impl Serialize for GigaBytes {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -490,6 +496,7 @@ pub async fn metrics(ctx: RpcContext) -> Result<Metrics, Error> {
 
 #[derive(Deserialize, Serialize, Clone, Debug, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct MetricsFollowResponse {
     pub guid: Guid,
     pub metrics: Metrics,
@@ -1211,6 +1218,7 @@ pub async fn set_keyboard(ctx: RpcContext, options: KeyboardOptions) -> Result<(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, Parser)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SetLanguageParams {
     #[arg(help = "help.arg.language-code")]
