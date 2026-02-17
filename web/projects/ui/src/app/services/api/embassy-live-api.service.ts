@@ -276,9 +276,7 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async checkPort(
-    params: T.CheckPortParams,
-  ): Promise<T.CheckPortRes> {
+  async checkPort(params: T.CheckPortParams): Promise<T.CheckPortRes> {
     return this.rpcRequest({
       method: 'net.gateway.check-port',
       params,
@@ -369,17 +367,14 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'net.tunnel.remove', params })
   }
 
-  async setDefaultOutbound(params: { gateway: string | null }): Promise<null> {
+  async setDefaultOutbound(params: T.SetDefaultOutboundParams): Promise<null> {
     return this.rpcRequest({
       method: 'net.gateway.set-default-outbound',
       params,
     })
   }
 
-  async setServiceOutbound(params: {
-    packageId: string
-    gateway: string | null
-  }): Promise<null> {
+  async setServiceOutbound(params: T.SetOutboundGatewayParams): Promise<null> {
     return this.rpcRequest({ method: 'package.set-outbound-gateway', params })
   }
 

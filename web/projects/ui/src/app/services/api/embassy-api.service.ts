@@ -191,10 +191,9 @@ export abstract class ApiService {
 
   abstract setDefaultOutbound(params: { gateway: string | null }): Promise<null>
 
-  abstract setServiceOutbound(params: {
-    packageId: string
-    gateway: string | null
-  }): Promise<null>
+  abstract setServiceOutbound(
+    params: T.SetOutboundGatewayParams,
+  ): Promise<null>
 
   // ** domains **
 

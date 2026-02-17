@@ -662,15 +662,14 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setServiceOutbound(params: {
-    packageId: string
-    gateway: string | null
-  }): Promise<null> {
+  async setServiceOutbound(
+    params: T.SetOutboundGatewayParams,
+  ): Promise<null> {
     await pauseFor(2000)
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/packageData/${params.packageId}/outboundGateway`,
+        path: `/packageData/${params.package}/outboundGateway`,
         value: params.gateway,
       },
     ]

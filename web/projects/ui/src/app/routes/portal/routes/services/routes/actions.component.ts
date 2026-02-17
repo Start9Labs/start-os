@@ -119,6 +119,10 @@ export default class ServiceActionsRoute {
   ungrouped: 'General' | 'Other' = 'General'
 
   readonly service = inject(StandardActionsService)
+  private readonly gateways = toSignal(
+    this.patch.watch$('serverInfo', 'network', 'gateways'),
+  )
+
   readonly package = toSignal(
     this.patch.watch$('packageData', getPkgId()).pipe(
       map(pkg => {
@@ -173,11 +177,18 @@ export default class ServiceActionsRoute {
 
   readonly outboundGatewayAction = computed(() => {
     const pkg = this.package()
-    const gateway = pkg?.outboundGateway
+    const gatewayId = pkg?.outboundGateway
+    const gateways = this.gateways()
+    const gatewayName =
+      gatewayId && gateways?.[gatewayId]
+        ? (gateways[gatewayId].name ??
+          gateways[gatewayId].ipInfo?.name ??
+          gatewayId)
+        : null
     return {
       name: this.i18n.transform('Set Outbound Gateway')!,
-      description: gateway
-        ? `${this.i18n.transform('Current')}: ${gateway}`
+      description: gatewayName
+        ? `${this.i18n.transform('Current')}: ${gatewayName}`
         : `${this.i18n.transform('Current')}: ${this.i18n.transform('System')}`,
     }
   })
@@ -256,7 +267,7 @@ export default class ServiceActionsRoute {
 
               try {
                 await this.api.setServiceOutbound({
-                  packageId: pkg.manifest.id,
+                  package: pkg.manifest.id,
                   gateway: input.gateway === SYSTEM_KEY ? null : input.gateway,
                 })
                 return true
