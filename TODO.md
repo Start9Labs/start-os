@@ -171,6 +171,17 @@ Pending tasks for AI agents. Remove items when completed.
   | `sdk/base/lib/interfaces/Host.ts`    | SDK `MultiHost.bindPort()` — no changes needed                                                                                                          |
   | `core/src/db/model/public.rs`        | Public DB model — port forward mapping                                                                                                                  |
 
+- [ ] Switch `BackgroundJobRunner` from `Vec<BoxFuture>` to `FuturesUnordered` - @dr-bonez
+
+  **Problem**: `BackgroundJobRunner` (in `core/src/util/actor/background.rs`) stores active jobs in a
+  `Vec<BoxFuture>` and polls ALL of them on every wakeup — O(n) per poll. This runs inside the same
+  `tokio::select!` as the WebServer accept loop (`core/src/net/web_server.rs:502`), so polling overhead
+  from active connections directly delays acceptance of new connections.
+
+  **Fix**: Replace `jobs: Vec<BoxFuture<'static, ()>>` with `jobs: FuturesUnordered<BoxFuture<'static, ()>>`.
+  `FuturesUnordered` only polls woken futures — O(woken) per poll instead of O(n). The poll loop changes
+  from `iter_mut().filter_map(poll_unpin)` + `swap_remove` to `while poll_next_unpin().is_ready() {}`.
+
 - [ ] Extract TS-exported types into a lightweight sub-crate for fast binding generation
 
   **Problem**: `make ts-bindings` compiles the entire `start-os` crate (with all dependencies: tokio,
