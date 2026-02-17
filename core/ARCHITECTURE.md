@@ -53,6 +53,8 @@ Patch-DB provides diff-based state synchronization. Changes to `db/model/public.
 - `.mutate(|v| ...)` — Deserialize, mutate, reserialize
 - For maps: `.keys()`, `.as_idx(&key)`, `.as_idx_mut(&key)`, `.insert()`, `.remove()`, `.contains_key()`
 
+See [patchdb.md](patchdb.md) for `TypedDbWatch<T>` construction, API, and usage patterns.
+
 ## i18n
 
 See [i18n-patterns.md](i18n-patterns.md) for internationalization key conventions and the `t!()` macro.
@@ -64,6 +66,7 @@ See [core-rust-patterns.md](core-rust-patterns.md) for common utilities (Invoke 
 ## Related Documentation
 
 - [rpc-toolkit.md](rpc-toolkit.md) — JSON-RPC handler patterns
+- [patchdb.md](patchdb.md) — Patch-DB watch patterns and TypedDbWatch
 - [i18n-patterns.md](i18n-patterns.md) — Internationalization conventions
 - [core-rust-patterns.md](core-rust-patterns.md) — Common Rust utilities
 - [s9pk-structure.md](s9pk-structure.md) — S9PK package format

@@ -23,3 +23,4 @@ cd sdk && make baseDist dist               # Rebuild SDK after ts-bindings
 - When adding RPC endpoints, follow the patterns in [rpc-toolkit.md](rpc-toolkit.md)
 - When modifying `#[ts(export)]` types, regenerate bindings and rebuild the SDK (see [ARCHITECTURE.md](../ARCHITECTURE.md#build-pipeline))
 - When adding i18n keys, add all 5 locales in `core/locales/i18n.yaml` (see [i18n-patterns.md](i18n-patterns.md))
+- When using DB watches, follow the `TypedDbWatch<T>` patterns in [patchdb.md](patchdb.md)

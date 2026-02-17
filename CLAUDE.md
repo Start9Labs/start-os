@@ -26,7 +26,7 @@ make test-core                            # Run Rust tests
 ## Operating Rules
 
 - Always verify cross-layer changes using the order described in [ARCHITECTURE.md](ARCHITECTURE.md#cross-layer-verification)
-- Check component-level CLAUDE.md files for component-specific conventions
+- Check component-level CLAUDE.md files for component-specific conventions. ALWAYS read it before operating on that component.
 - Follow existing patterns before inventing new ones
 
 ## Supplementary Documentation

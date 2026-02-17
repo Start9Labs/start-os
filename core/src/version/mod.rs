@@ -90,7 +90,13 @@ impl Current {
                 .await
                 .result?;
             }
-            Ordering::Equal => (),
+            Ordering::Equal => {
+                db.apply_function(|db| {
+                    Ok::<_, Error>((to_value(&from_value::<Database>(db.clone())?)?, ()))
+                })
+                .await
+                .result?;
+            }
         }
         Ok(())
     }

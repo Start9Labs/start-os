@@ -25,6 +25,7 @@ export type ServerInfo = {
   zram: boolean
   governor: Governor | null
   smtp: SmtpValue | null
+  ifconfigUrl: string
   ram: number
   devices: Array<LshwDevice>
   kiosk: boolean | null
