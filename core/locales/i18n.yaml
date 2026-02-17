@@ -3971,6 +3971,13 @@ about.cancel-install-package:
   fr_FR: "Annuler l'installation d'un paquet"
   pl_PL: "Anuluj instalację pakietu"
 
+about.check-dns-configuration:
+  en_US: "Check DNS configuration for a gateway"
+  de_DE: "DNS-Konfiguration für ein Gateway prüfen"
+  es_ES: "Verificar la configuración DNS de un gateway"
+  fr_FR: "Vérifier la configuration DNS d'une passerelle"
+  pl_PL: "Sprawdź konfigurację DNS bramy"
+
 about.check-update-startos:
   en_US: "Check a given registry for StartOS updates and update if available"
   de_DE: "Ein bestimmtes Registry auf StartOS-Updates prüfen und bei Verfügbarkeit aktualisieren"

@@ -206,6 +206,7 @@ pub async fn dump_table(
 struct ResolveMap {
     private_domains: BTreeMap<InternedString, Weak<()>>,
     services: BTreeMap<Option<PackageId>, BTreeMap<Ipv4Addr, Weak<()>>>,
+    challenges: BTreeMap<InternedString, (InternedString, Weak<()>)>,
 }
 
 pub struct DnsController {
@@ -402,7 +403,41 @@ impl RequestHandler for Resolver {
         match async {
             let req = request.request_info()?;
             let query = req.query;
-            if let Some(ip) = self.resolve(query.name().borrow(), req.src.ip()) {
+            let name = query.name();
+
+            if STARTOS.zone_of(name) && query.query_type() == RecordType::TXT {
+                let name_str =
+                    InternedString::intern(name.to_lowercase().to_utf8().trim_end_matches('.'));
+                if let Some(txt_value) = self.resolve.mutate(|r| {
+                    r.challenges.retain(|_, (_, weak)| weak.strong_count() > 0);
+                    r.challenges.remove(&name_str).map(|(val, _)| val)
+                }) {
+                    let mut header = Header::response_from_request(request.header());
+                    header.set_recursion_available(true);
+                    return response_handle
+                        .send_response(
+                            MessageResponseBuilder::from_message_request(&*request).build(
+                                header,
+                                &[Record::from_rdata(
+                                    query.name().to_owned().into(),
+                                    0,
+                                    hickory_server::proto::rr::RData::TXT(
+                                        hickory_server::proto::rr::rdata::TXT::new(vec![
+                                            txt_value.to_string(),
+                                        ]),
+                                    ),
+                                )],
+                                [],
+                                [],
+                                [],
+                            ),
+                        )
+                        .await
+                        .map(Some);
+                }
+            }
+
+            if let Some(ip) = self.resolve(name, req.src.ip()) {
                 match query.query_type() {
                     RecordType::A => {
                         let mut header = Header::response_from_request(request.header());
@@ -606,6 +641,34 @@ impl DnsController {
                 } else {
                     let new = Arc::new(());
                     *weak = Arc::downgrade(&new);
+                    new
+                };
+                Ok(rc)
+            })
+        } else {
+            Err(Error::new(
+                eyre!("{}", t!("net.dns.server-thread-exited")),
+                crate::ErrorKind::Network,
+            ))
+        }
+    }
+
+    pub fn add_challenge(
+        &self,
+        domain: InternedString,
+        value: InternedString,
+    ) -> Result<Arc<()>, Error> {
+        if let Some(resolve) = Weak::upgrade(&self.resolve) {
+            resolve.mutate(|writable| {
+                let entry = writable
+                    .challenges
+                    .entry(domain)
+                    .or_insert_with(|| (value.clone(), Weak::new()));
+                let rc = if let Some(rc) = Weak::upgrade(&entry.1) {
+                    rc
+                } else {
+                    let new = Arc::new(());
+                    *entry = (value, Arc::downgrade(&new));
                     new
                 };
                 Ok(rc)

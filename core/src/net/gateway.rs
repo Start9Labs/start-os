@@ -119,6 +119,13 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
+            "check-dns",
+            from_fn_async(check_dns)
+                .with_display_serializable()
+                .with_about("about.check-dns-configuration")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
             "set-default-outbound",
             from_fn_async(set_default_outbound)
                 .with_metadata("sync_db", Value::Bool(true))
@@ -222,6 +229,85 @@ async fn check_port(
         .json()
         .await?;
     Ok(res)
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+struct CheckDnsParams {
+    #[arg(help = "help.arg.gateway-id")]
+    gateway: GatewayId,
+}
+
+async fn check_dns(
+    ctx: RpcContext,
+    CheckDnsParams { gateway }: CheckDnsParams,
+) -> Result<bool, Error> {
+    use hickory_server::proto::xfer::Protocol;
+    use hickory_server::resolver::Resolver;
+    use hickory_server::resolver::config::{NameServerConfig, ResolverConfig, ResolverOpts};
+    use hickory_server::resolver::name_server::TokioConnectionProvider;
+
+    let ip_info = ctx.net_controller.net_iface.watcher.ip_info();
+    let gw_info = ip_info
+        .get(&gateway)
+        .ok_or_else(|| Error::new(eyre!("unknown gateway: {gateway}"), ErrorKind::NotFound))?;
+    let gw_ip_info = gw_info.ip_info.as_ref().ok_or_else(|| {
+        Error::new(
+            eyre!("gateway {gateway} has no IP info"),
+            ErrorKind::NotFound,
+        )
+    })?;
+
+    for dns_ip in &gw_ip_info.dns_servers {
+        // Case 1: DHCP DNS == server IP → immediate success
+        if gw_ip_info.subnets.iter().any(|s| s.addr() == *dns_ip) {
+            return Ok(true);
+        }
+
+        // Case 2: DHCP DNS is on LAN but not the server → TXT challenge check
+        if gw_ip_info.subnets.iter().any(|s| s.contains(dns_ip)) {
+            let nonce = rand::random::<u64>();
+            let challenge_domain = InternedString::intern(format!("_dns-check-{nonce}.startos"));
+            let challenge_value =
+                InternedString::intern(crate::rpc_continuations::Guid::new().as_ref());
+
+            let _guard = ctx
+                .net_controller
+                .dns
+                .add_challenge(challenge_domain.clone(), challenge_value.clone())?;
+
+            let mut config = ResolverConfig::new();
+            config.add_name_server(NameServerConfig::new(
+                SocketAddr::new(*dns_ip, 53),
+                Protocol::Udp,
+            ));
+            config.add_name_server(NameServerConfig::new(
+                SocketAddr::new(*dns_ip, 53),
+                Protocol::Tcp,
+            ));
+            let mut opts = ResolverOpts::default();
+            opts.timeout = Duration::from_secs(5);
+            opts.attempts = 1;
+
+            let resolver =
+                Resolver::builder_with_config(config, TokioConnectionProvider::default())
+                    .with_options(opts)
+                    .build();
+            let txt_lookup = resolver.txt_lookup(&*challenge_domain).await;
+
+            return Ok(match txt_lookup {
+                Ok(lookup) => lookup.iter().any(|txt| {
+                    txt.iter()
+                        .any(|data| data.as_ref() == challenge_value.as_bytes())
+                }),
+                Err(_) => false,
+            });
+        }
+    }
+
+    // Case 3: No DNS servers in subnet → failure
+    Ok(false)
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
@@ -875,38 +961,48 @@ async fn watch_ip(
                                                     IpAddr::V4(v4) => Some(v4),
                                                     _ => None,
                                                 }).copied();
-                                            let ipv4_subnets: Vec<IpNet> = subnets
-                                                .iter()
-                                                .filter(|s| s.addr().is_ipv4())
-                                                .cloned()
-                                                .collect();
 
-                                            // Flush and rebuild per-interface routing table
+                                            // Flush and rebuild per-interface routing table.
+                                            // Clone all non-default routes from the main table so
+                                            // that LAN IPs on other subnets remain reachable when
+                                            // the priority-75 catch-all overrides default routing,
+                                            // then replace the default route with this interface's.
                                             Command::new("ip")
                                                 .arg("route").arg("flush")
                                                 .arg("table").arg(&table_str)
                                                 .invoke(ErrorKind::Network)
                                                 .await
                                                 .log_err();
-                                            for subnet in &ipv4_subnets {
-                                                let subnet_str = subnet.trunc().to_string();
-                                                Command::new("ip")
-                                                    .arg("route").arg("add").arg(&subnet_str)
-                                                    .arg("dev").arg(iface.as_str())
-                                                    .arg("table").arg(&table_str)
-                                                    .invoke(ErrorKind::Network)
-                                                    .await
-                                                    .log_err();
-                                            }
-                                            // Add bridge subnet so per-service outbound routing
-                                            // doesn't break local container traffic
-                                            Command::new("ip")
-                                                .arg("route").arg("add").arg("10.0.3.0/24")
-                                                .arg("dev").arg(START9_BRIDGE_IFACE)
-                                                .arg("table").arg(&table_str)
+                                            if let Ok(main_routes) = Command::new("ip")
+                                                .arg("route").arg("show")
+                                                .arg("table").arg("main")
                                                 .invoke(ErrorKind::Network)
                                                 .await
-                                                .log_err();
+                                                .and_then(|b| String::from_utf8(b).with_kind(ErrorKind::Utf8))
+                                            {
+                                                for line in main_routes.lines() {
+                                                    let line = line.trim();
+                                                    if line.is_empty() || line.starts_with("default") {
+                                                        continue;
+                                                    }
+                                                    let mut cmd = Command::new("ip");
+                                                    cmd.arg("route").arg("add");
+                                                    for part in line.split_whitespace() {
+                                                        // Skip status flags that appear in
+                                                        // route output but are not valid for
+                                                        // `ip route add`.
+                                                        if part == "linkdown" || part == "dead" {
+                                                            continue;
+                                                        }
+                                                        cmd.arg(part);
+                                                    }
+                                                    cmd.arg("table").arg(&table_str);
+                                                    cmd.invoke(ErrorKind::Network)
+                                                        .await
+                                                        .log_err();
+                                                }
+                                            }
+                                            // Add default route via this interface's gateway
                                             {
                                                 let mut cmd = Command::new("ip");
                                                 cmd.arg("route").arg("add").arg("default");
