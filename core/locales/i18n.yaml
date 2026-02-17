@@ -1790,6 +1790,28 @@ registry.package.remove-mirror.unauthorized:
   fr_FR: "Non autorisé"
   pl_PL: "Brak autoryzacji"
 
+# registry/package/index.rs
+registry.package.index.metadata-mismatch:
+  en_US: "package metadata mismatch: remove the existing version first, then re-add"
+  de_DE: "Paketmetadaten stimmen nicht überein: vorhandene Version zuerst entfernen, dann erneut hinzufügen"
+  es_ES: "discrepancia de metadatos del paquete: elimine la versión existente primero, luego vuelva a agregarla"
+  fr_FR: "discordance des métadonnées du paquet : supprimez d'abord la version existante, puis ajoutez-la à nouveau"
+  pl_PL: "niezgodność metadanych pakietu: najpierw usuń istniejącą wersję, a następnie dodaj ponownie"
+
+registry.package.index.icon-mismatch:
+  en_US: "package icon mismatch: remove the existing version first, then re-add"
+  de_DE: "Paketsymbol stimmt nicht überein: vorhandene Version zuerst entfernen, dann erneut hinzufügen"
+  es_ES: "discrepancia del icono del paquete: elimine la versión existente primero, luego vuelva a agregarla"
+  fr_FR: "discordance de l'icône du paquet : supprimez d'abord la version existante, puis ajoutez-la à nouveau"
+  pl_PL: "niezgodność ikony pakietu: najpierw usuń istniejącą wersję, a następnie dodaj ponownie"
+
+registry.package.index.dependency-metadata-mismatch:
+  en_US: "dependency metadata mismatch: remove the existing version first, then re-add"
+  de_DE: "Abhängigkeitsmetadaten stimmen nicht überein: vorhandene Version zuerst entfernen, dann erneut hinzufügen"
+  es_ES: "discrepancia de metadatos de dependencia: elimine la versión existente primero, luego vuelva a agregarla"
+  fr_FR: "discordance des métadonnées de dépendance : supprimez d'abord la version existante, puis ajoutez-la à nouveau"
+  pl_PL: "niezgodność metadanych zależności: najpierw usuń istniejącą wersję, a następnie dodaj ponownie"
+
 # registry/package/get.rs
 registry.package.get.version-not-found:
   en_US: "Could not find a version of %{id} that satisfies %{version}"

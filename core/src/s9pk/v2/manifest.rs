@@ -7,12 +7,11 @@ use exver::{Version, VersionRange};
 use imbl_value::{InOMap, InternedString};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
-use url::Url;
 
 pub use crate::PackageId;
 use crate::dependencies::Dependencies;
 use crate::prelude::*;
-use crate::s9pk::git_hash::GitHash;
+use crate::registry::package::index::PackageMetadata;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::expected::{Expected, Filter};
 use crate::s9pk::v2::pack::ImageConfig;
@@ -22,7 +21,7 @@ use crate::util::{FromStrParser, VersionString, mime};
 use crate::version::{Current, VersionT};
 use crate::{ImageId, VolumeId};
 
-fn current_version() -> Version {
+pub(crate) fn current_version() -> Version {
     Current::default().semver()
 }
 
@@ -32,46 +31,20 @@ fn current_version() -> Version {
 #[ts(export)]
 pub struct Manifest {
     pub id: PackageId,
-    #[ts(type = "string")]
-    pub title: InternedString,
     pub version: VersionString,
     pub satisfies: BTreeSet<VersionString>,
-    pub release_notes: LocaleString,
     #[ts(type = "string")]
     pub can_migrate_to: VersionRange,
     #[ts(type = "string")]
     pub can_migrate_from: VersionRange,
-    #[ts(type = "string")]
-    pub license: InternedString, // type of license
-    #[ts(type = "string")]
-    pub wrapper_repo: Url,
-    #[ts(type = "string")]
-    pub upstream_repo: Url,
-    #[ts(type = "string")]
-    pub support_site: Url,
-    #[ts(type = "string")]
-    pub marketing_site: Url,
-    #[ts(type = "string | null")]
-    pub donation_url: Option<Url>,
-    #[ts(type = "string | null")]
-    pub docs_url: Option<Url>,
-    pub description: Description,
+    #[serde(flatten)]
+    pub metadata: PackageMetadata,
     pub images: BTreeMap<ImageId, ImageConfig>,
     pub volumes: BTreeSet<VolumeId>,
-    #[serde(default)]
-    pub alerts: Alerts,
     #[serde(default)]
     pub dependencies: Dependencies,
     #[serde(default)]
     pub hardware_requirements: HardwareRequirements,
-    #[serde(default)]
-    pub hardware_acceleration: bool,
-    pub git_hash: Option<GitHash>,
-    #[serde(default = "current_version")]
-    #[ts(type = "string")]
-    pub os_version: Version,
-    #[ts(type = "string | null")]
-    pub sdk_version: Option<Version>,
 }
 impl Manifest {
     pub fn validate_for<'a, T: Clone>(

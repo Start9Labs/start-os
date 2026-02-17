@@ -271,9 +271,9 @@ async fn perform_backup(
                 package_backups.insert(
                     id.clone(),
                     PackageBackupInfo {
-                        os_version: manifest.as_os_version().de()?,
+                        os_version: manifest.as_metadata().as_os_version().de()?,
                         version: manifest.as_version().de()?,
-                        title: manifest.as_title().de()?,
+                        title: manifest.as_metadata().as_title().de()?,
                         timestamp: Utc::now(),
                     },
                 );
