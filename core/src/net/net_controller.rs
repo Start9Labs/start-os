@@ -483,13 +483,13 @@ impl NetService {
                 let service_ip = ip.to_string();
                 // Purge any stale rules from a previous instance
                 loop {
-                    if !Command::new("ip")
+                    if Command::new("ip")
                         .arg("rule").arg("del")
                         .arg("from").arg(&service_ip)
                         .arg("priority").arg("100")
-                        .status()
+                        .invoke(ErrorKind::Network)
                         .await
-                        .map_or(false, |s| s.success())
+                        .is_err()
                     {
                         break;
                     }
@@ -559,7 +559,7 @@ impl NetService {
                                     .arg("from").arg(&service_ip)
                                     .arg("lookup").arg(&old_table_str)
                                     .arg("priority").arg("100")
-                                    .status()
+                                    .invoke(ErrorKind::Network)
                                     .await;
                             }
                             // Read current outbound gateway from DB
@@ -610,7 +610,7 @@ impl NetService {
                         .arg("from").arg(&service_ip)
                         .arg("lookup").arg(&table_str)
                         .arg("priority").arg("100")
-                        .status()
+                        .invoke(ErrorKind::Network)
                         .await;
                 }
             } else {
@@ -762,13 +762,13 @@ impl NetService {
         // Clean up any outbound gateway ip rules for this service
         let service_ip = self.data.lock().await.ip.to_string();
         loop {
-            if !Command::new("ip")
+            if Command::new("ip")
                 .arg("rule").arg("del")
                 .arg("from").arg(&service_ip)
                 .arg("priority").arg("100")
-                .status()
+                .invoke(ErrorKind::Network)
                 .await
-                .map_or(false, |s| s.success())
+                .is_err()
             {
                 break;
             }

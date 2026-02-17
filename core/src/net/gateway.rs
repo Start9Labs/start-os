@@ -931,14 +931,14 @@ async fn watch_ip(
                                             // when the packet has no existing fwmark, preserving marks
                                             // set by WireGuard on encapsulation packets.
                                             for chain in ["PREROUTING", "OUTPUT"] {
-                                                if !Command::new("iptables")
+                                                if Command::new("iptables")
                                                     .arg("-t").arg("mangle")
                                                     .arg("-C").arg(chain)
                                                     .arg("-m").arg("mark").arg("--mark").arg("0")
                                                     .arg("-j").arg("CONNMARK")
                                                     .arg("--restore-mark")
-                                                    .status().await
-                                                    .map_or(false, |s| s.success())
+                                                    .invoke(ErrorKind::Network).await
+                                                    .is_err()
                                                 {
                                                     Command::new("iptables")
                                                         .arg("-t").arg("mangle")
@@ -954,7 +954,7 @@ async fn watch_ip(
 
                                             // Mark NEW connections arriving on this interface
                                             // with its routing table ID via conntrack mark
-                                            if !Command::new("iptables")
+                                            if Command::new("iptables")
                                                 .arg("-t").arg("mangle")
                                                 .arg("-C").arg("PREROUTING")
                                                 .arg("-i").arg(iface.as_str())
@@ -962,8 +962,8 @@ async fn watch_ip(
                                                 .arg("--ctstate").arg("NEW")
                                                 .arg("-j").arg("CONNMARK")
                                                 .arg("--set-mark").arg(&table_str)
-                                                .status().await
-                                                .map_or(false, |s| s.success())
+                                                .invoke(ErrorKind::Network).await
+                                                .is_err()
                                             {
                                                 Command::new("iptables")
                                                     .arg("-t").arg("mangle")
@@ -1257,99 +1257,180 @@ impl NetworkInterfaceController {
         default_outbound: &Option<GatewayId>,
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
     ) {
-        // Clean up all our policy routing rules (loop because multiple may exist
-        // at the same priority, and `ip rule del` only removes one at a time)
-        for prio in ["74", "75"] {
-            loop {
-                let ok = Command::new("ip")
-                    .arg("rule").arg("del")
-                    .arg("priority").arg(prio)
-                    .status()
-                    .await
-                    .map_or(false, |s| s.success());
-                if !ok {
-                    break;
+        // 1. Snapshot existing rules at priorities 74 and 75.
+        //    Priority 74: fwmark-based exemptions (WireGuard encap packets)
+        //    Priority 75: catch-all routing to the chosen gateway's table
+        let (existing_74, existing_75) = match async {
+            let output = String::from_utf8(
+                Command::new("ip")
+                    .arg("rule")
+                    .arg("show")
+                    .invoke(ErrorKind::Network)
+                    .await?,
+            )?;
+            let mut fwmarks_74 = BTreeSet::<u32>::new();
+            let mut tables_75 = BTreeSet::<u32>::new();
+            for line in output.lines() {
+                let line = line.trim();
+                if let Some(rest) = line.strip_prefix("74:") {
+                    if let Some(pos) = rest.find("fwmark ") {
+                        let after = &rest[pos + 7..];
+                        let token = after.split_whitespace().next().unwrap_or("");
+                        if let Ok(v) =
+                            u32::from_str_radix(token.strip_prefix("0x").unwrap_or(token), 16)
+                        {
+                            fwmarks_74.insert(v);
+                        }
+                    }
+                } else if let Some(rest) = line.strip_prefix("75:") {
+                    if let Some(pos) = rest.find("lookup ") {
+                        let after = &rest[pos + 7..];
+                        let token = after.split_whitespace().next().unwrap_or("");
+                        if let Ok(v) = token.parse::<u32>() {
+                            tables_75.insert(v);
+                        }
+                    }
+                }
+            }
+            Ok::<_, Error>((fwmarks_74, tables_75))
+        }
+        .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!("failed to snapshot outbound rules: {e}");
+                (BTreeSet::new(), BTreeSet::new())
+            }
+        };
+
+        // 2. Compute desired rules
+        let mut desired_74 = BTreeSet::<u32>::new();
+        let mut desired_75 = BTreeSet::<u32>::new();
+
+        if let Some(gw_id) = default_outbound {
+            let connected = ip_info
+                .get(gw_id)
+                .map_or(false, |info| info.ip_info.is_some());
+            if !connected {
+                if ip_info.contains_key(gw_id) {
+                    tracing::warn!("default outbound gateway {gw_id} is not connected");
+                } else {
+                    tracing::warn!("default outbound gateway {gw_id} not found in ip_info");
+                }
+            } else {
+                match if_nametoindex(gw_id.as_str()) {
+                    Ok(idx) => {
+                        let table_id = 1000 + idx;
+                        desired_75.insert(table_id);
+
+                        // Exempt ALL active WireGuard interfaces' encapsulation packets.
+                        // Our priority-75 catch-all would otherwise swallow their encap
+                        // traffic before NM's fwmark rules at priority 31610 can route
+                        // it correctly.
+                        for (iface_id, iface_info) in ip_info {
+                            let Some(ref ip) = iface_info.ip_info else {
+                                continue;
+                            };
+                            if ip.device_type != Some(NetworkInterfaceType::Wireguard) {
+                                continue;
+                            }
+                            match Command::new("wg")
+                                .arg("show")
+                                .arg(iface_id.as_str())
+                                .arg("fwmark")
+                                .invoke(ErrorKind::Network)
+                                .await
+                            {
+                                Ok(output) => {
+                                    let fwmark_hex =
+                                        String::from_utf8_lossy(&output).trim().to_owned();
+                                    if fwmark_hex.is_empty() || fwmark_hex == "off" {
+                                        continue;
+                                    }
+                                    match u32::from_str_radix(
+                                        fwmark_hex.strip_prefix("0x").unwrap_or(&fwmark_hex),
+                                        16,
+                                    ) {
+                                        Ok(v) => {
+                                            desired_74.insert(v);
+                                        }
+                                        Err(e) => {
+                                            tracing::error!(
+                                                "failed to parse WireGuard fwmark '{fwmark_hex}' for {iface_id}: {e}"
+                                            );
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::error!(
+                                        "failed to read WireGuard fwmark for {iface_id}: {e}"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("failed to get ifindex for {gw_id}: {e}");
+                    }
                 }
             }
         }
 
-        // Nothing more to do if no default outbound is selected
-        let Some(gw_id) = default_outbound else {
-            return;
-        };
-        let Some(info) = ip_info.get(gw_id) else {
-            tracing::warn!("default outbound gateway {gw_id} not found in ip_info");
-            return;
-        };
-        if info.ip_info.is_none() {
-            tracing::warn!("default outbound gateway {gw_id} is not connected");
-            return;
-        }
-
-        let table_id = match if_nametoindex(gw_id.as_str()) {
-            Ok(idx) => 1000 + idx,
-            Err(e) => {
-                tracing::error!("failed to get ifindex for {gw_id}: {e}");
-                return;
-            }
-        };
-        let table_str = table_id.to_string();
-
-        // Exempt ALL active WireGuard interfaces' encapsulation packets.
-        // Our priority-75 catch-all would otherwise swallow their encap traffic
-        // before NM's fwmark rules at priority 31610 can route it correctly.
-        for (iface_id, iface_info) in ip_info {
-            let Some(ref ip) = iface_info.ip_info else {
-                continue;
-            };
-            if ip.device_type != Some(NetworkInterfaceType::Wireguard) {
-                continue;
-            }
-            match Command::new("wg")
-                .arg("show").arg(iface_id.as_str()).arg("fwmark")
+        // 3. Add rules in desired set but not in existing set
+        for fwmark in desired_74.difference(&existing_74) {
+            Command::new("ip")
+                .arg("rule")
+                .arg("add")
+                .arg("fwmark")
+                .arg(fwmark.to_string())
+                .arg("lookup")
+                .arg("main")
+                .arg("priority")
+                .arg("74")
                 .invoke(ErrorKind::Network)
                 .await
-            {
-                Ok(output) => {
-                    let fwmark_hex = String::from_utf8_lossy(&output).trim().to_owned();
-                    if fwmark_hex.is_empty() || fwmark_hex == "off" {
-                        continue;
-                    }
-                    let fwmark = match u32::from_str_radix(
-                        fwmark_hex.strip_prefix("0x").unwrap_or(&fwmark_hex),
-                        16,
-                    ) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            tracing::error!(
-                                "failed to parse WireGuard fwmark '{fwmark_hex}' for {iface_id}: {e}"
-                            );
-                            continue;
-                        }
-                    };
-                    Command::new("ip")
-                        .arg("rule").arg("add")
-                        .arg("fwmark").arg(fwmark.to_string())
-                        .arg("lookup").arg("main")
-                        .arg("priority").arg("74")
-                        .invoke(ErrorKind::Network)
-                        .await
-                        .log_err();
-                }
-                Err(e) => {
-                    tracing::error!("failed to read WireGuard fwmark for {iface_id}: {e}");
-                }
-            }
+                .log_err();
+        }
+        for table in desired_75.difference(&existing_75) {
+            Command::new("ip")
+                .arg("rule")
+                .arg("add")
+                .arg("table")
+                .arg(table.to_string())
+                .arg("priority")
+                .arg("75")
+                .invoke(ErrorKind::Network)
+                .await
+                .log_err();
         }
 
-        // Route all other traffic through the gateway's per-interface table
-        Command::new("ip")
-            .arg("rule").arg("add")
-            .arg("table").arg(&table_str)
-            .arg("priority").arg("75")
-            .invoke(ErrorKind::Network)
-            .await
-            .log_err();
+        // 4. Delete rules in existing set but not in desired set
+        for fwmark in existing_74.difference(&desired_74) {
+            Command::new("ip")
+                .arg("rule")
+                .arg("del")
+                .arg("fwmark")
+                .arg(fwmark.to_string())
+                .arg("lookup")
+                .arg("main")
+                .arg("priority")
+                .arg("74")
+                .invoke(ErrorKind::Network)
+                .await
+                .log_err();
+        }
+        for table in existing_75.difference(&desired_75) {
+            Command::new("ip")
+                .arg("rule")
+                .arg("del")
+                .arg("table")
+                .arg(table.to_string())
+                .arg("priority")
+                .arg("75")
+                .invoke(ErrorKind::Network)
+                .await
+                .log_err();
+        }
     }
 
     pub fn new(db: TypedPatchDb<Database>) -> Self {

@@ -24,3 +24,4 @@ cd sdk && make baseDist dist               # Rebuild SDK after ts-bindings
 - When modifying `#[ts(export)]` types, regenerate bindings and rebuild the SDK (see [ARCHITECTURE.md](../ARCHITECTURE.md#build-pipeline))
 - When adding i18n keys, add all 5 locales in `core/locales/i18n.yaml` (see [i18n-patterns.md](i18n-patterns.md))
 - When using DB watches, follow the `TypedDbWatch<T>` patterns in [patchdb.md](patchdb.md)
+- **Always use `.invoke(ErrorKind::...)` instead of `.status()` when running CLI commands** via `tokio::process::Command`. The `Invoke` trait (from `crate::util::Invoke`) captures stdout/stderr and checks exit codes properly. Using `.status()` leaks stderr directly to system logs, creating noise. For check-then-act patterns (e.g. `iptables -C`), use `.invoke(...).await.is_ok()` / `.is_err()` instead of `.status().await.map_or(false, |s| s.success())`.

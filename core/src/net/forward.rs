@@ -254,7 +254,8 @@ pub async fn add_iptables_rule(nat: bool, undo: bool, args: &[&str]) -> Result<(
     if nat {
         cmd.arg("-t").arg("nat");
     }
-    if undo != !cmd.arg("-C").args(args).status().await?.success() {
+    let exists = cmd.arg("-C").args(args).invoke(ErrorKind::Network).await.is_ok();
+    if undo != !exists {
         let mut cmd = Command::new("iptables");
         if nat {
             cmd.arg("-t").arg("nat");
