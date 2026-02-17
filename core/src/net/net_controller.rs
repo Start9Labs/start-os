@@ -236,13 +236,21 @@ impl NetServiceData {
                         .flat_map(|ip_info| ip_info.subnets.iter().map(|s| s.addr()))
                         .collect();
 
-                    // Server hostname vhosts (on assigned_ssl_port) — private only
-                    if !server_private_ips.is_empty() {
+                    // Collect public gateways from enabled public IP addresses
+                    let server_public_gateways: BTreeSet<GatewayId> = enabled_addresses
+                        .iter()
+                        .filter(|a| a.public && a.metadata.is_ip())
+                        .flat_map(|a| a.metadata.gateways())
+                        .cloned()
+                        .collect();
+
+                    // Server hostname vhosts (on assigned_ssl_port)
+                    if !server_private_ips.is_empty() || !server_public_gateways.is_empty() {
                         for hostname in ctrl.server_hostnames.iter().cloned() {
                             vhosts.insert(
                                 (hostname, assigned_ssl_port),
                                 ProxyTarget {
-                                    public: BTreeSet::new(),
+                                    public: server_public_gateways.clone(),
                                     private: server_private_ips.clone(),
                                     acme: None,
                                     addr,
