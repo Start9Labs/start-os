@@ -555,4 +555,12 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             "host",
             net::host::host_api::<C>().with_about("about.manage-network-hosts-package"),
         )
+        .subcommand(
+            "set-outbound-gateway",
+            from_fn_async(net::gateway::set_outbound_gateway)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.set-outbound-gateway-package")
+                .with_call_remote::<CliContext>(),
+        )
 }

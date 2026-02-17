@@ -381,7 +381,6 @@ pub struct PackageDataEntry {
     pub hosts: Hosts,
     #[ts(type = "string[]")]
     pub store_exposed_dependents: Vec<JsonPointer>,
-    #[serde(default)]
     #[ts(type = "string | null")]
     pub outbound_gateway: Option<GatewayId>,
 }

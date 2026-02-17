@@ -1198,6 +1198,7 @@ pub async fn cli_attach(
                 let prompt = e.to_string();
                 let options: Vec<SubcontainerInfo> = from_value(e.info)?;
                 let choice = choose(&prompt, &options).await?;
+                println!();
                 params["subcontainer"] = to_value(&choice.id)?;
                 context
                     .call_remote::<RpcContext>(&method, params.clone())

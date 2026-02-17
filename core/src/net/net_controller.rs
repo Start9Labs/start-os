@@ -4,6 +4,8 @@ use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
+use nix::net::if_::if_nametoindex;
+use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_rustls::rustls::ClientConfig as TlsClientConfig;
@@ -26,6 +28,7 @@ use crate::net::socks::SocksController;
 use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
 use crate::prelude::*;
 use crate::service::effects::callbacks::ServiceCallbacks;
+use crate::util::Invoke;
 use crate::util::serde::MaybeUtf8String;
 use crate::util::sync::Watch;
 use crate::{GatewayId, HOST_IP, HostId, OptionExt, PackageId};
@@ -466,35 +469,149 @@ impl NetService {
         let synced = Watch::new(0u64);
         let synced_writer = synced.clone();
 
+        let ip = data.ip;
         let data = Arc::new(Mutex::new(data));
         let thread_data = data.clone();
-
         let sync_task = tokio::spawn(async move {
             if let Some(ref id) = pkg_id {
                 let ptr: JsonPointer = format!("/public/packageData/{}/hosts", id)
                     .parse()
                     .unwrap();
                 let mut watch = db.watch(ptr).await.typed::<Hosts>();
+
+                // Outbound gateway enforcement
+                let service_ip = ip.to_string();
+                // Purge any stale rules from a previous instance
                 loop {
-                    if let Err(e) = watch.changed().await {
-                        tracing::error!("DB watch disconnected for {id}: {e}");
+                    if !Command::new("ip")
+                        .arg("rule").arg("del")
+                        .arg("from").arg(&service_ip)
+                        .arg("priority").arg("100")
+                        .status()
+                        .await
+                        .map_or(false, |s| s.success())
+                    {
                         break;
                     }
-                    if let Err(e) = async {
-                        let hosts = watch.peek()?.de()?;
-                        let mut data = thread_data.lock().await;
-                        let ctrl = data.net_controller()?;
-                        for (host_id, host) in hosts.0 {
-                            data.update(&*ctrl, host_id, host).await?;
+                }
+                let mut outbound_sub = db
+                    .subscribe(
+                        format!("/public/packageData/{}/outboundGateway", id)
+                            .parse::<JsonPointer<_, _>>()
+                            .unwrap(),
+                    )
+                    .await;
+                let ctrl_for_ip = thread_data.lock().await.net_controller().ok();
+                let mut ip_info_watch = ctrl_for_ip
+                    .as_ref()
+                    .map(|c| c.net_iface.watcher.subscribe());
+                if let Some(ref mut w) = ip_info_watch {
+                    w.mark_seen();
+                }
+                drop(ctrl_for_ip);
+                let mut current_outbound_table: Option<u32> = None;
+
+                loop {
+                    let (hosts_changed, outbound_changed) = tokio::select! {
+                        res = watch.changed() => {
+                            if let Err(e) = res {
+                                tracing::error!("DB watch disconnected for {id}: {e}");
+                                break;
+                            }
+                            (true, false)
                         }
-                        Ok::<_, Error>(())
+                        _ = outbound_sub.recv() => (false, true),
+                        _ = async {
+                            if let Some(ref mut w) = ip_info_watch {
+                                w.changed().await;
+                            } else {
+                                std::future::pending::<()>().await;
+                            }
+                        } => (false, true),
+                    };
+
+                    // Handle host updates
+                    if hosts_changed {
+                        if let Err(e) = async {
+                            let hosts = watch.peek()?.de()?;
+                            let mut data = thread_data.lock().await;
+                            let ctrl = data.net_controller()?;
+                            for (host_id, host) in hosts.0 {
+                                data.update(&*ctrl, host_id, host).await?;
+                            }
+                            Ok::<_, Error>(())
+                        }
+                        .await
+                        {
+                            tracing::error!("Failed to update network info for {id}: {e}");
+                            tracing::debug!("{e:?}");
+                        }
                     }
-                    .await
-                    {
-                        tracing::error!("Failed to update network info for {id}: {e}");
-                        tracing::debug!("{e:?}");
+
+                    // Handle outbound gateway changes
+                    if outbound_changed {
+                        if let Err(e) = async {
+                            // Remove old rule if any
+                            if let Some(old_table) = current_outbound_table.take() {
+                                let old_table_str = old_table.to_string();
+                                let _ = Command::new("ip")
+                                    .arg("rule").arg("del")
+                                    .arg("from").arg(&service_ip)
+                                    .arg("lookup").arg(&old_table_str)
+                                    .arg("priority").arg("100")
+                                    .status()
+                                    .await;
+                            }
+                            // Read current outbound gateway from DB
+                            let outbound_gw: Option<GatewayId> = db
+                                .peek()
+                                .await
+                                .as_public()
+                                .as_package_data()
+                                .as_idx(id)
+                                .map(|p| p.as_outbound_gateway().de().ok())
+                                .flatten()
+                                .flatten();
+                            if let Some(gw_id) = outbound_gw {
+                                // Look up table ID for this gateway
+                                if let Some(table_id) = if_nametoindex(gw_id.as_str())
+                                    .map(|idx| 1000 + idx)
+                                    .log_err()
+                                {
+                                    let table_str = table_id.to_string();
+                                    Command::new("ip")
+                                        .arg("rule").arg("add")
+                                        .arg("from").arg(&service_ip)
+                                        .arg("lookup").arg(&table_str)
+                                        .arg("priority").arg("100")
+                                        .invoke(ErrorKind::Network)
+                                        .await
+                                        .log_err();
+                                    current_outbound_table = Some(table_id);
+                                }
+                            }
+                            Ok::<_, Error>(())
+                        }
+                        .await
+                        {
+                            tracing::error!("Failed to update outbound gateway for {id}: {e}");
+                            tracing::debug!("{e:?}");
+                        }
                     }
+
                     synced_writer.send_modify(|v| *v += 1);
+                }
+
+                // Cleanup outbound rule on task exit
+                if let Some(table_id) = current_outbound_table {
+                    let table_str = table_id.to_string();
+                    let _ = Command::new("ip")
+                        .arg("rule").arg("del")
+                        .arg("from").arg(&service_ip)
+                        .arg("lookup").arg(&table_str)
+                        .arg("priority").arg("100")
+                        .status()
+                        .await;
                 }
             } else {
                 let ptr: JsonPointer = "/public/serverInfo/network/host".parse().unwrap();
@@ -642,6 +759,20 @@ impl NetService {
         let mut w = self.synced.clone();
         w.wait_for(|v| *v > current).await;
         self.sync_task.abort();
+        // Clean up any outbound gateway ip rules for this service
+        let service_ip = self.data.lock().await.ip.to_string();
+        loop {
+            if !Command::new("ip")
+                .arg("rule").arg("del")
+                .arg("from").arg(&service_ip)
+                .arg("priority").arg("100")
+                .status()
+                .await
+                .map_or(false, |s| s.success())
+            {
+                break;
+            }
+        }
         self.shutdown = true;
         Ok(())
     }
