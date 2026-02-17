@@ -378,6 +378,13 @@ pub fn server<C: Context>() -> ParentHandler<C> {
             net::host::server_host_api::<C>().with_about("about.commands-host-system-ui"),
         )
         .subcommand(
+            "set-ifconfig-url",
+            from_fn_async(system::set_ifconfig_url)
+                .no_display()
+                .with_about("about.set-ifconfig-url")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
             "set-keyboard",
             from_fn_async(system::set_keyboard)
                 .no_display()

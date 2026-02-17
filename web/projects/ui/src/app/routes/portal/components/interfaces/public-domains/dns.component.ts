@@ -250,12 +250,12 @@ export class DomainValidationComponent {
     this.portLoading.set(true)
 
     try {
-      const result = await this.api.testPortForward({
+      const result = await this.api.checkPort({
         gateway: this.context.data.gateway.id,
         port: this.context.data.port,
       })
 
-      this.portPass.set(result)
+      this.portPass.set(result.reachable)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

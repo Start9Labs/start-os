@@ -20,6 +20,7 @@ use tokio::net::TcpListener;
 use tokio::process::Command;
 use tokio::sync::oneshot;
 use ts_rs::TS;
+use url::Url;
 use visit_rs::{Visit, VisitFields};
 use zbus::proxy::{PropertyChanged, PropertyStream, SignalStream};
 use zbus::zvariant::{
@@ -110,6 +111,13 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
                 .with_about("about.rename-gateway")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "check-port",
+            from_fn_async(check_port)
+                .with_display_serializable()
+                .with_about("about.check-port-reachability")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 async fn list_interfaces(
@@ -146,6 +154,73 @@ async fn set_name(
     RenameGatewayParams { id, name }: RenameGatewayParams,
 ) -> Result<(), Error> {
     ctx.net_controller.net_iface.set_name(&id, name).await
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+struct CheckPortParams {
+    #[arg(help = "help.arg.port")]
+    port: u16,
+    #[arg(help = "help.arg.gateway-id")]
+    gateway: GatewayId,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct CheckPortRes {
+    pub ip: Ipv4Addr,
+    pub port: u16,
+    pub reachable: bool,
+}
+
+async fn check_port(
+    ctx: RpcContext,
+    CheckPortParams { port, gateway }: CheckPortParams,
+) -> Result<CheckPortRes, Error> {
+    let db = ctx.db.peek().await;
+    let base_url = db
+        .as_public()
+        .as_server_info()
+        .as_ifconfig_url()
+        .de()?;
+    let gateways = db
+        .as_public()
+        .as_server_info()
+        .as_network()
+        .as_gateways()
+        .de()?;
+    let gw_info = gateways.get(&gateway).ok_or_else(|| {
+        Error::new(
+            eyre!("unknown gateway: {gateway}"),
+            ErrorKind::NotFound,
+        )
+    })?;
+    let ip_info = gw_info.ip_info.as_ref().ok_or_else(|| {
+        Error::new(
+            eyre!("gateway {gateway} has no IP info"),
+            ErrorKind::NotFound,
+        )
+    })?;
+    let iface = &*ip_info.name;
+
+    let client = reqwest::Client::builder();
+    #[cfg(target_os = "linux")]
+    let client = client.interface(iface);
+    let url = base_url
+        .join(&format!("/port/{port}"))
+        .with_kind(ErrorKind::ParseUrl)?;
+    let res: CheckPortRes = client
+        .build()?
+        .get(url)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    Ok(res)
 }
 
 #[proxy(
@@ -371,6 +446,7 @@ impl<'a> StubStream<'a> for SignalStream<'a> {
 async fn watcher(
     watch_ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     watch_activation: Watch<BTreeMap<GatewayId, bool>>,
+    db: Option<TypedPatchDb<Database>>,
 ) {
     loop {
         let res: Result<(), Error> = async {
@@ -444,6 +520,7 @@ async fn watcher(
                                 device_proxy.clone(),
                                 iface.clone(),
                                 &watch_ip_info,
+                                db.as_ref(),
                             )));
                             ifaces.insert(iface);
                         }
@@ -474,33 +551,34 @@ async fn watcher(
     }
 }
 
-async fn get_wan_ipv4(iface: &str) -> Result<Option<Ipv4Addr>, Error> {
+async fn get_wan_ipv4(iface: &str, base_url: &Url) -> Result<Option<Ipv4Addr>, Error> {
     let client = reqwest::Client::builder();
     #[cfg(target_os = "linux")]
     let client = client.interface(iface);
-    Ok(client
+    let url = base_url.join("/ip").with_kind(ErrorKind::ParseUrl)?;
+    let text = client
         .build()?
-        .get("https://ip4only.me/api/")
+        .get(url)
         .timeout(Duration::from_secs(10))
         .send()
         .await?
         .error_for_status()?
         .text()
-        .await?
-        .split(",")
-        .skip(1)
-        .next()
-        .filter(|s| !s.is_empty())
-        .map(|s| s.parse())
-        .transpose()?)
+        .await?;
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(trimmed.parse()?))
 }
 
-#[instrument(skip(connection, device_proxy, write_to))]
+#[instrument(skip(connection, device_proxy, write_to, db))]
 async fn watch_ip(
     connection: &Connection,
     device_proxy: device::DeviceProxy<'_>,
     iface: GatewayId,
     write_to: &Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
+    db: Option<&TypedPatchDb<Database>>,
 ) -> Result<(), Error> {
     let mut until = Until::new()
         .with_stream(
@@ -761,24 +839,28 @@ async fn watch_ip(
                                                     .log_err();
                                             }
 
-                                            // Ensure global CONNMARK restore rule in mangle PREROUTING
-                                            // (restores fwmark from conntrack mark on reply packets)
-                                            if !Command::new("iptables")
-                                                .arg("-t").arg("mangle")
-                                                .arg("-C").arg("PREROUTING")
-                                                .arg("-j").arg("CONNMARK")
-                                                .arg("--restore-mark")
-                                                .status().await
-                                                .map_or(false, |s| s.success())
-                                            {
-                                                Command::new("iptables")
+                                            // Ensure global CONNMARK restore rules in mangle
+                                            // PREROUTING (forwarded packets) and OUTPUT (locally-generated replies).
+                                            // Both are needed: PREROUTING handles DNAT-forwarded traffic,
+                                            // OUTPUT handles replies from locally-bound listeners (e.g. vhost).
+                                            for chain in ["PREROUTING", "OUTPUT"] {
+                                                if !Command::new("iptables")
                                                     .arg("-t").arg("mangle")
-                                                    .arg("-I").arg("PREROUTING").arg("1")
+                                                    .arg("-C").arg(chain)
                                                     .arg("-j").arg("CONNMARK")
                                                     .arg("--restore-mark")
-                                                    .invoke(ErrorKind::Network)
-                                                    .await
-                                                    .log_err();
+                                                    .status().await
+                                                    .map_or(false, |s| s.success())
+                                                {
+                                                    Command::new("iptables")
+                                                        .arg("-t").arg("mangle")
+                                                        .arg("-I").arg(chain).arg("1")
+                                                        .arg("-j").arg("CONNMARK")
+                                                        .arg("--restore-mark")
+                                                        .invoke(ErrorKind::Network)
+                                                        .await
+                                                        .log_err();
+                                                }
                                             }
 
                                             // Mark NEW connections arriving on this interface
@@ -827,6 +909,17 @@ async fn watch_ip(
                                                     .log_err();
                                             }
                                         }
+                                        let ifconfig_url = if let Some(db) = db {
+                                            db.peek()
+                                                .await
+                                                .as_public()
+                                                .as_server_info()
+                                                .as_ifconfig_url()
+                                                .de()
+                                                .unwrap_or_else(|_| crate::db::model::public::default_ifconfig_url())
+                                        } else {
+                                            crate::db::model::public::default_ifconfig_url()
+                                        };
                                         let wan_ip = if !subnets.is_empty()
                                             && !matches!(
                                                 device_type,
@@ -835,7 +928,7 @@ async fn watch_ip(
                                                         | NetworkInterfaceType::Loopback
                                                 )
                                             ) {
-                                            match get_wan_ipv4(iface.as_str()).await {
+                                            match get_wan_ipv4(iface.as_str(), &ifconfig_url).await {
                                                 Ok(a) => a,
                                                 Err(e) => {
                                                     tracing::error!(
@@ -947,6 +1040,7 @@ impl NetworkInterfaceWatcher {
     pub fn new(
         seed: impl Future<Output = OrdMap<GatewayId, NetworkInterfaceInfo>> + Send + Sync + 'static,
         watch_activated: impl IntoIterator<Item = GatewayId>,
+        db: TypedPatchDb<Database>,
     ) -> Self {
         let ip_info = Watch::new(OrdMap::new());
         let activated = Watch::new(watch_activated.into_iter().map(|k| (k, false)).collect());
@@ -958,7 +1052,7 @@ impl NetworkInterfaceWatcher {
                 if !seed.is_empty() {
                     ip_info.send_replace(seed);
                 }
-                watcher(ip_info, activated).await
+                watcher(ip_info, activated, Some(db)).await
             })
             .into(),
         }
@@ -1105,6 +1199,7 @@ impl NetworkInterfaceController {
                 }
             },
             [InternedString::from_static(START9_BRIDGE_IFACE).into()],
+            db.clone(),
         );
         let mut ip_info_watch = watcher.subscribe();
         ip_info_watch.mark_seen();
@@ -1316,7 +1411,7 @@ impl WildcardListener {
         .with_kind(ErrorKind::Network)?;
         let ip_info = Watch::new(OrdMap::new());
         let watcher_handle =
-            tokio::spawn(watcher(ip_info.clone(), Watch::new(BTreeMap::new()))).into();
+            tokio::spawn(watcher(ip_info.clone(), Watch::new(BTreeMap::new()), None)).into();
         Ok(Self {
             listener,
             ip_info,

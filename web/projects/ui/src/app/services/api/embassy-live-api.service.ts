@@ -276,10 +276,9 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async testPortForward(params: {
-    gateway: string
-    port: number
-  }): Promise<boolean> {
+  async checkPort(
+    params: T.CheckPortParams,
+  ): Promise<T.CheckPortRes> {
     return this.rpcRequest({
       method: 'net.gateway.check-port',
       params,

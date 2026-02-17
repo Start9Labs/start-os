@@ -268,7 +268,8 @@ export class InterfaceAddressesComponent {
       const [network, portPass] = await Promise.all([
         firstValueFrom(this.patch.watch$('serverInfo', 'network')),
         this.api
-          .testPortForward({ gateway: gatewayId, port: 443 })
+          .checkPort({ gateway: gatewayId, port: 443 })
+          .then(r => r.reachable)
           .catch(() => false),
       ])
       const gateway = network.gateways[gatewayId]

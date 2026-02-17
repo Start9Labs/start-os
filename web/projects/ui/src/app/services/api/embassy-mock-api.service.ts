@@ -497,13 +497,12 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async testPortForward(params: {
-    gateway: string
-    port: number
-  }): Promise<boolean> {
+  async checkPort(
+    params: T.CheckPortParams,
+  ): Promise<T.CheckPortRes> {
     await pauseFor(2000)
 
-    return false
+    return { ip: '0.0.0.0', port: params.port, reachable: false }
   }
 
   // marketplace URLs

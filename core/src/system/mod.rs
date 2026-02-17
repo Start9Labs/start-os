@@ -1095,6 +1095,28 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+pub struct SetIfconfigUrlParams {
+    #[arg(help = "help.arg.ifconfig-url")]
+    pub url: url::Url,
+}
+
+pub async fn set_ifconfig_url(
+    ctx: RpcContext,
+    SetIfconfigUrlParams { url }: SetIfconfigUrlParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_ifconfig_url_mut()
+                .ser(&url)
+        })
+        .await
+        .result
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]

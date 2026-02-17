@@ -13,6 +13,7 @@ use openssl::hash::MessageDigest;
 use patch_db::{HasModel, Value};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+use url::Url;
 
 use crate::account::AccountInfo;
 use crate::db::DbAccessByKey;
@@ -143,6 +144,7 @@ impl Public {
                 zram: true,
                 governor: None,
                 smtp: None,
+                ifconfig_url: default_ifconfig_url(),
                 ram: 0,
                 devices: Vec::new(),
                 kiosk,
@@ -162,6 +164,10 @@ fn get_arch() -> InternedString {
 
 fn get_platform() -> InternedString {
     (&*PLATFORM).into()
+}
+
+pub fn default_ifconfig_url() -> Url {
+    "https://ifconfig.co".parse().unwrap()
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
@@ -200,6 +206,9 @@ pub struct ServerInfo {
     pub zram: bool,
     pub governor: Option<Governor>,
     pub smtp: Option<SmtpValue>,
+    #[serde(default = "default_ifconfig_url")]
+    #[ts(type = "string")]
+    pub ifconfig_url: Url,
     #[ts(type = "number")]
     pub ram: u64,
     pub devices: Vec<LshwDevice>,

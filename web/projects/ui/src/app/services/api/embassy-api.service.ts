@@ -128,10 +128,9 @@ export abstract class ApiService {
 
   abstract queryDns(params: T.QueryDnsParams): Promise<string | null>
 
-  abstract testPortForward(params: {
-    gateway: string
-    port: number
-  }): Promise<boolean>
+  abstract checkPort(
+    params: T.CheckPortParams,
+  ): Promise<T.CheckPortRes>
 
   // smtp
 
