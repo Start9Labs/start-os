@@ -87,7 +87,7 @@ pub async fn add_package_signer(
                 .as_idx_mut(&id)
                 .or_not_found(&id)?
                 .as_authorized_mut()
-                .upsert(&signer, || Ok(VersionRange::default()))?
+                .upsert(&signer, || Ok(VersionRange::None))?
                 .mutate(|existing| {
                     *existing = if merge.unwrap_or(false) {
                         VersionRange::or(existing.clone(), versions)
