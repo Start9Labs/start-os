@@ -213,3 +213,11 @@ Pending tasks for AI agents. Remove items when completed.
   using UPnP, NAT-PMP, or PCP, instead of requiring manual router configuration. Fall back to
   displaying manual instructions (the port forward mapping from patch-db) when auto-configuration is
   unavailable or fails.
+
+- [ ] Decouple createTask from service running state - @dr-bonez
+
+  **Problem**: `createTask` currently depends on the service being in a running state.
+
+  **Goal**: The `input-not-matches` handler in StartOS should queue the task, check it once the
+  service is ready, then clear it if it matches. This allows tasks to be created regardless of
+  whether the service is currently running.
