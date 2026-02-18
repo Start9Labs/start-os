@@ -225,3 +225,23 @@ Pending tasks for AI agents. Remove items when completed.
 - [ ] Clear service error state on fresh install/update - @dr-bonez
 
   Fresh installs and updates should clear any existing service error state.
+
+- [ ] Implement URL plugins - @dr-bonez
+
+  **Goal**: Add a plugin system that allows services to register URL scheme plugins, providing
+  additional ways for other services to connect to them (e.g. alternative protocols or transports).
+
+- [ ] Fix NAT hairpinning for LAN port forwarding - @dr-bonez
+
+  **Problem**: When a container accesses a service via a forwarded port on the host, the return
+  traffic doesn't route correctly due to missing NAT hairpin rules. This causes container-to-host
+  port forward connections to fail.
+
+  **Goal**: Add masquerade/SNAT rules so containers can reach services through the host's forwarded
+  ports.
+
+- [ ] OTA updates for start-tunnel - @dr-bonez
+
+  **Goal**: Add an OTA update mechanism for the start-tunnel server so it can be updated in place
+  without redeploying. start-tunnel is built from the same codebase as StartOS but runs as a
+  separate service.
