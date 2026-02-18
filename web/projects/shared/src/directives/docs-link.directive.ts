@@ -29,7 +29,7 @@ export class DocsLinkDirective {
     const path = this.path()
     const relative = path.startsWith('/') ? path : `/${path}`
 
-    return `https://docs.start9.com${relative}?os=${this.version}${this.fragment()}`
+    return `https://docs.start9.com${relative}?version=${this.version}${this.fragment()}`
   })
 
   constructor() {
