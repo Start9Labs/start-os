@@ -26,12 +26,24 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { GatewayPlus } from 'src/app/services/gateway.service'
 import { TuiBadge } from '@taiga-ui/kit'
+import { PORT_FORWARDS_MODAL } from './port-forwards.component'
 
 @Component({
   selector: 'tr[gateway]',
   template: `
     @if (gateway(); as gateway) {
       <td>
+        @switch (gateway.ipInfo.deviceType) {
+          @case ('ethernet') {
+            <tui-icon icon="@tui.ethernet-port" />
+          }
+          @case ('wireless') {
+            <tui-icon icon="@tui.wifi" />
+          }
+          @case ('wireguard') {
+            <tui-icon icon="@tui.shield" />
+          }
+        }
         {{ gateway.name }}
         @if (gateway.isDefaultOutbound) {
           <tui-badge appearance="primary-success">
@@ -40,30 +52,9 @@ import { TuiBadge } from '@taiga-ui/kit'
         }
       </td>
       <td>
-        @switch (gateway.ipInfo.deviceType) {
-          @case ('ethernet') {
-            <tui-icon icon="@tui.cable" />
-            {{ 'Ethernet' | i18n }}
-          }
-          @case ('wireless') {
-            <tui-icon icon="@tui.wifi" />
-            {{ 'WiFi' | i18n }}
-          }
-          @case ('wireguard') {
-            <tui-icon icon="@tui.shield" />
-            WireGuard
-          }
-          @default {
-            {{ gateway.ipInfo.deviceType }}
-          }
-        }
-      </td>
-      <td>
         @if (gateway.type === 'outbound-only') {
-          <tui-icon icon="@tui.arrow-up" />
           {{ 'Outbound Only' | i18n }}
         } @else {
-          <tui-icon icon="@tui.arrow-up-down" />
           {{ 'Inbound/Outbound' | i18n }}
         }
       </td>
@@ -93,25 +84,23 @@ import { TuiBadge } from '@taiga-ui/kit'
                 {{ 'Rename' | i18n }}
               </button>
             </tui-opt-group>
+            @if (gateway.type !== 'outbound-only') {
+              <tui-opt-group>
+                <button tuiOption new (click)="viewPortForwards()">
+                  {{ 'View port forwards' | i18n }}
+                </button>
+              </tui-opt-group>
+            }
             @if (!gateway.isDefaultOutbound) {
               <tui-opt-group>
-                <button
-                  tuiOption
-                  new
-                  (click)="setDefaultOutbound()"
-                >
+                <button tuiOption new (click)="setDefaultOutbound()">
                   {{ 'Set as default outbound' | i18n }}
                 </button>
               </tui-opt-group>
             }
             @if (gateway.ipInfo.deviceType === 'wireguard') {
               <tui-opt-group>
-                <button
-                  tuiOption
-                  new
-                  class="g-negative"
-                  (click)="remove()"
-                >
+                <button tuiOption new class="g-negative" (click)="remove()">
                   {{ 'Delete' | i18n }}
                 </button>
               </tui-opt-group>
@@ -122,40 +111,54 @@ import { TuiBadge } from '@taiga-ui/kit'
     }
   `,
   styles: `
+    tui-icon {
+      font-size: 1.3rem;
+      margin-right: 0.7rem;
+    }
+
+    tui-badge {
+      margin-left: 1rem;
+    }
+
     td:last-child {
-      grid-area: 1 / 3 / 7;
-      align-self: center;
       text-align: right;
     }
 
     :host-context(tui-root._mobile) {
-      grid-template-columns: min-content 1fr min-content;
-
-      .name {
-        grid-column: span 2;
+      td {
+        width: auto !important;
+        align-content: center;
       }
 
-      .connection {
-        grid-column: span 2;
-        order: -1;
+      td:first-child {
+        font: var(--tui-font-text-m);
+        font-weight: bold;
+        color: var(--tui-text-primary);
       }
 
-      .type {
-        grid-column: span 2;
+      td:nth-child(2) {
+        grid-area: 2 / 1 / 2 / 3;
       }
 
-      .lan,
-      .wan {
-        grid-column: span 2;
+      td:nth-child(3),
+      td:nth-child(4) {
+        grid-area: auto / 1 / auto / 3;
 
         &::before {
-          content: 'LAN IP: ';
           color: var(--tui-text-primary);
         }
       }
 
-      .wan::before {
+      td:nth-child(3)::before {
+        content: 'LAN IP: ';
+      }
+
+      td:nth-child(4)::before {
         content: 'WAN IP: ';
+      }
+
+      td:last-child {
+        grid-area: 1 / 3 / 6;
       }
     }
   `,
@@ -182,6 +185,17 @@ export class GatewaysItemComponent {
   readonly gateway = input.required<GatewayPlus>()
 
   open = false
+
+  viewPortForwards() {
+    const { id, name } = this.gateway()
+    this.dialog
+      .openComponent(PORT_FORWARDS_MODAL, {
+        label: 'Port Forwards',
+        size: 'l',
+        data: { gatewayId: id, gatewayName: name },
+      })
+      .subscribe()
+  }
 
   remove() {
     this.dialog

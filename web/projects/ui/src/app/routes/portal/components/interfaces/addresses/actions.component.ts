@@ -24,6 +24,7 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { QRModal } from 'src/app/routes/portal/modals/qr.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { GatewayAddress, MappedServiceInterface } from '../interface.service'
+import { DomainHealthService } from './domain-health.service'
 
 @Component({
   selector: 'td[actions]',
@@ -37,6 +38,40 @@ import { GatewayAddress, MappedServiceInterface } from '../interface.service'
           (click)="deleteDomain()"
         >
           {{ 'Delete' | i18n }}
+        </button>
+      }
+      @if (address().hostnameInfo.metadata.kind === 'public-domain') {
+        <button
+          tuiIconButton
+          appearance="flat-grayscale"
+          iconStart="@tui.globe"
+          (click)="showDnsValidation()"
+        >
+          {{ 'Domain Setup' | i18n }}
+        </button>
+      }
+      @if (address().hostnameInfo.metadata.kind === 'private-domain') {
+        <button
+          tuiIconButton
+          appearance="flat-grayscale"
+          iconStart="@tui.globe"
+          (click)="showPrivateDnsValidation()"
+        >
+          {{ 'Domain Setup' | i18n }}
+        </button>
+      }
+      @if (
+        address().hostnameInfo.metadata.kind === 'ipv4' &&
+        address().access === 'public' &&
+        address().hostnameInfo.port !== null
+      ) {
+        <button
+          tuiIconButton
+          appearance="flat-grayscale"
+          iconStart="@tui.globe"
+          (click)="showPortForwardValidation()"
+        >
+          {{ 'Port Forwarding' | i18n }}
         </button>
       }
       <button
@@ -88,6 +123,39 @@ import { GatewayAddress, MappedServiceInterface } from '../interface.service'
           >
             {{ 'Copy URL' | i18n }}
           </button>
+          @if (address().hostnameInfo.metadata.kind === 'public-domain') {
+            <button
+              tuiOption
+              new
+              iconStart="@tui.heart-pulse"
+              (click)="showDnsValidation()"
+            >
+              {{ 'Domain Setup' | i18n }}
+            </button>
+          }
+          @if (address().hostnameInfo.metadata.kind === 'private-domain') {
+            <button
+              tuiOption
+              new
+              iconStart="@tui.heart-pulse"
+              (click)="showPrivateDnsValidation()"
+            >
+              {{ 'Domain Setup' | i18n }}
+            </button>
+          }
+          @if (
+            address().hostnameInfo.metadata.kind === 'ipv4' &&
+            address().hostnameInfo.port !== null
+          ) {
+            <button
+              tuiOption
+              new
+              iconStart="@tui.heart-pulse"
+              (click)="showPortForwardValidation()"
+            >
+              {{ 'Port Forwarding' | i18n }}
+            </button>
+          }
           @if (address().deletable) {
             <button
               tuiOption
@@ -135,6 +203,7 @@ export class AddressActionsComponent {
   private readonly api = inject(ApiService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
+  private readonly domainHealth = inject(DomainHealthService)
   readonly copyService = inject(CopyService)
   readonly open = signal(false)
 
@@ -142,6 +211,7 @@ export class AddressActionsComponent {
   readonly packageId = input('')
   readonly value = input<MappedServiceInterface | undefined>()
   readonly disabled = input.required<boolean>()
+  readonly gatewayId = input('')
 
   showQR() {
     this.dialog
@@ -183,6 +253,23 @@ export class AddressActionsComponent {
     } finally {
       loader.unsubscribe()
     }
+  }
+
+  showDnsValidation() {
+    this.domainHealth.showPublicDomainSetup(
+      this.address().hostnameInfo.host,
+      this.gatewayId(),
+    )
+  }
+
+  showPrivateDnsValidation() {
+    this.domainHealth.showPrivateDomainSetup(this.gatewayId())
+  }
+
+  showPortForwardValidation() {
+    const port = this.address().hostnameInfo.port
+    if (port === null) return
+    this.domainHealth.showPortForwardSetup(this.gatewayId(), port)
   }
 
   async deleteDomain() {

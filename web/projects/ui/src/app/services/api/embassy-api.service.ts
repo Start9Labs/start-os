@@ -6,6 +6,7 @@ import { WebSocketSubject } from 'rxjs/webSocket'
 import { DataModel } from '../patch-db/data-model'
 import {
   ActionRes,
+  CheckDnsRes,
   CifsBackupTarget,
   DiagnosticErrorRes,
   FollowPackageLogsReq,
@@ -128,9 +129,9 @@ export abstract class ApiService {
 
   abstract queryDns(params: T.QueryDnsParams): Promise<string | null>
 
-  abstract checkPort(
-    params: T.CheckPortParams,
-  ): Promise<T.CheckPortRes>
+  abstract checkPort(params: T.CheckPortParams): Promise<T.CheckPortRes>
+
+  abstract checkDns(params: T.CheckDnsParams): Promise<CheckDnsRes>
 
   // smtp
 
@@ -191,9 +192,7 @@ export abstract class ApiService {
 
   abstract setDefaultOutbound(params: { gateway: string | null }): Promise<null>
 
-  abstract setServiceOutbound(
-    params: T.SetOutboundGatewayParams,
-  ): Promise<null>
+  abstract setServiceOutbound(params: T.SetOutboundGatewayParams): Promise<null>
 
   // ** domains **
 

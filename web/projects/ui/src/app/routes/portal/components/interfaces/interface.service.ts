@@ -71,11 +71,10 @@ function getAddressType(h: T.HostnameInfo): string {
     case 'ipv6':
       return 'IPv6'
     case 'public-domain':
-      return 'Public Domain'
+    case 'private-domain':
+      return h.host
     case 'mdns':
       return 'mDNS'
-    case 'private-domain':
-      return 'Private Domain'
     case 'plugin':
       return 'Plugin'
   }

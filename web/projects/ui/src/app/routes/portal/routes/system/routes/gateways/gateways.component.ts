@@ -32,7 +32,7 @@ import { ISB } from '@start9labs/start-sdk'
           tuiIconButton
           size="xs"
           docsLink
-          path="/user-manual/gateways.html"
+          path="/start-os/user-manual/gateways.html"
           appearance="icon"
           iconStart="@tui.external-link"
         >

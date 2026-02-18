@@ -683,6 +683,14 @@ export const ENGLISH: Record<string, number> = {
   'In your gateway': 743, // partial sentence, followed by a gateway name
   'create this port forwarding rule': 744,
   'External Port': 745,
-  'Internal IP': 746,
   'Internal Port': 747,
+  'DNS Server Config': 749,
+  'must be configured to use': 750,
+  'the LAN IP address of this server': 751,
+  'as its DNS server': 752,
+  'DNS Server': 753,
+  'View port forwards': 754,
+  'Interface(s)': 755,
+  'No port forwarding rules': 756,
+  'Port forwarding rules required on gateway': 757,
 }

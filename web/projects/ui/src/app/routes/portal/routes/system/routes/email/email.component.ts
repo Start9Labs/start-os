@@ -40,7 +40,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
                 tuiIconButton
                 size="xs"
                 docsLink
-                path="/user-manual/smtp.html"
+                path="/start-os/user-manual/smtp.html"
                 appearance="icon"
                 iconStart="@tui.external-link"
               >

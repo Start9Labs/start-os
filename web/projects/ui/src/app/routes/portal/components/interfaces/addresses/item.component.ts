@@ -14,6 +14,7 @@ import { TuiSwitch } from '@taiga-ui/kit'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { GatewayAddress, MappedServiceInterface } from '../interface.service'
 import { AddressActionsComponent } from './actions.component'
+import { DomainHealthService } from './domain-health.service'
 
 @Component({
   selector: 'tr[address]',
@@ -33,14 +34,11 @@ import { AddressActionsComponent } from './actions.component'
           (ngModelChange)="onToggleEnabled()"
         />
       </td>
-      <td>
-        {{ address.type }}
-      </td>
-      <td class="access">
+      <td class="type">
         <tui-icon
           [icon]="address.access === 'public' ? '@tui.globe' : '@tui.house'"
         />
-        {{ address.access | i18n }}
+        {{ address.type }}
       </td>
       <td>
         {{ address.certificate }}
@@ -71,6 +69,7 @@ import { AddressActionsComponent } from './actions.component'
         [packageId]="packageId()"
         [value]="value()"
         [disabled]="!isRunning()"
+        [gatewayId]="gatewayId()"
         [style.width.rem]="5"
       ></td>
     }
@@ -80,8 +79,9 @@ import { AddressActionsComponent } from './actions.component'
       grid-template-columns: fit-content(10rem) 1fr 2rem 2rem;
     }
 
-    .access tui-icon {
-      font-size: 1rem;
+    .type tui-icon {
+      font-size: 1.3rem;
+      margin-right: 0.7rem;
       vertical-align: middle;
     }
 
@@ -134,11 +134,11 @@ import { AddressActionsComponent } from './actions.component'
         padding-inline-end: 0.5rem;
       }
 
-      td:nth-child(4) {
+      td:nth-child(3) {
         grid-area: 2 / 1 / 2 / 3;
       }
 
-      td:nth-child(5) {
+      td:nth-child(4) {
         grid-area: 3 / 1 / 3 / 3;
       }
 
@@ -164,11 +164,13 @@ export class InterfaceAddressItemComponent {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
+  private readonly domainHealth = inject(DomainHealthService)
 
   readonly address = input.required<GatewayAddress>()
   readonly packageId = input('')
   readonly value = input<MappedServiceInterface | undefined>()
   readonly isRunning = input.required<boolean>()
+  readonly gatewayId = input('')
 
   readonly toggling = signal(false)
   readonly currentlyMasked = signal(true)
@@ -201,6 +203,27 @@ export class InterfaceAddressItemComponent {
           address: addressJson,
           enabled,
         })
+      }
+
+      if (enabled) {
+        const kind = addr.hostnameInfo.metadata.kind
+        if (kind === 'public-domain') {
+          await this.domainHealth.checkPublicDomain(
+            addr.hostnameInfo.host,
+            this.gatewayId(),
+          )
+        } else if (kind === 'private-domain') {
+          await this.domainHealth.checkPrivateDomain(this.gatewayId())
+        } else if (
+          kind === 'ipv4' &&
+          addr.access === 'public' &&
+          addr.hostnameInfo.port !== null
+        ) {
+          await this.domainHealth.checkPortForward(
+            this.gatewayId(),
+            addr.hostnameInfo.port,
+          )
+        }
       }
     } catch (e: any) {
       this.errorService.handleError(e)

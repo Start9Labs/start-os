@@ -5,12 +5,7 @@ import {
   input,
   signal,
 } from '@angular/core'
-import {
-  DialogService,
-  ErrorService,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
+import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
 import {
   TuiButton,
@@ -35,7 +30,7 @@ import {
   GatewayAddressGroup,
   MappedServiceInterface,
 } from '../interface.service'
-import { DOMAIN_VALIDATION, DnsGateway } from '../public-domains/dns.component'
+import { DomainHealthService } from './domain-health.service'
 import { InterfaceAddressItemComponent } from './item.component'
 
 @Component({
@@ -62,14 +57,7 @@ import { InterfaceAddressItemComponent } from './item.component'
       </button>
     </header>
     <table
-      [appTable]="[
-        'Enabled',
-        'Type',
-        'Access',
-        'Certificate Authority',
-        'URL',
-        null,
-      ]"
+      [appTable]="['Enabled', 'Type', 'Certificate Authority', 'URL', null]"
     >
       @for (address of gatewayGroup().addresses; track $index) {
         <tr
@@ -77,10 +65,11 @@ import { InterfaceAddressItemComponent } from './item.component'
           [packageId]="packageId()"
           [value]="value()"
           [isRunning]="isRunning()"
+          [gatewayId]="gatewayGroup().gatewayId"
         ></tr>
       } @empty {
         <tr>
-          <td colspan="6">
+          <td colspan="5">
             <app-placeholder icon="@tui.list-x">
               {{ 'No addresses' | i18n }}
             </app-placeholder>
@@ -93,12 +82,6 @@ import { InterfaceAddressItemComponent } from './item.component'
     :host ::ng-deep {
       th:first-child {
         width: 5rem;
-      }
-
-      th:nth-child(2),
-      th:nth-child(3),
-      th:nth-child(4) {
-        width: 11rem;
       }
     }
   `,
@@ -118,11 +101,11 @@ import { InterfaceAddressItemComponent } from './item.component'
 export class InterfaceAddressesComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly formDialog = inject(FormDialogService)
-  private readonly dialog = inject(DialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly i18n = inject(i18nPipe)
+  private readonly domainHealth = inject(DomainHealthService)
 
   readonly gatewayGroup = input.required<GatewayAddressGroup>()
   readonly packageId = input('')
@@ -230,6 +213,9 @@ export class InterfaceAddressesComponent {
       } else {
         await this.api.osUiAddPrivateDomain({ fqdn, gateway: gatewayId })
       }
+
+      await this.domainHealth.checkPrivateDomain(gatewayId)
+
       return true
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -254,46 +240,17 @@ export class InterfaceAddressesComponent {
     }
 
     try {
-      let ip: string | null
       if (this.packageId()) {
-        ip = await this.api.pkgAddPublicDomain({
+        await this.api.pkgAddPublicDomain({
           ...params,
           package: this.packageId(),
           host: iface?.addressInfo.hostId || '',
         })
       } else {
-        ip = await this.api.osUiAddPublicDomain(params)
+        await this.api.osUiAddPublicDomain(params)
       }
 
-      const [network, portPass] = await Promise.all([
-        firstValueFrom(this.patch.watch$('serverInfo', 'network')),
-        this.api
-          .checkPort({ gateway: gatewayId, port: 443 })
-          .then(r => r.reachable)
-          .catch(() => false),
-      ])
-      const gateway = network.gateways[gatewayId]
-
-      if (gateway?.ipInfo) {
-        const gatewayData = {
-          id: gatewayId,
-          ...gateway,
-          ipInfo: gateway.ipInfo,
-        }
-        const dnsPass = ip === gateway.ipInfo.wanIp
-
-        setTimeout(
-          () =>
-            this.showDomainValidation(
-              fqdn,
-              gatewayData,
-              443,
-              dnsPass,
-              portPass,
-            ),
-          250,
-        )
-      }
+      await this.domainHealth.checkPublicDomain(fqdn, gatewayId)
 
       return true
     } catch (e: any) {
@@ -302,21 +259,5 @@ export class InterfaceAddressesComponent {
     } finally {
       loader.unsubscribe()
     }
-  }
-
-  private showDomainValidation(
-    fqdn: string,
-    gateway: DnsGateway,
-    port: number,
-    dnsPass: boolean,
-    portPass: boolean,
-  ) {
-    this.dialog
-      .openComponent(DOMAIN_VALIDATION, {
-        label: 'Domain Setup',
-        size: 'm',
-        data: { fqdn, gateway, port, dnsPass, portPass },
-      })
-      .subscribe()
   }
 }

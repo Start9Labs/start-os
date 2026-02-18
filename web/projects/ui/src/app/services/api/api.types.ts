@@ -89,6 +89,10 @@ export type GetRegistryPackageReq = GetPackageReq & { registry: string }
 
 export type GetRegistryPackagesReq = GetPackagesReq & { registry: string }
 
+// dns
+// TODO: Replace with T.CheckDnsRes when SDK types are generated
+export type CheckDnsRes = boolean
+
 // backup
 
 export type DiskBackupTarget = Extract<T.BackupTarget, { type: 'disk' }>

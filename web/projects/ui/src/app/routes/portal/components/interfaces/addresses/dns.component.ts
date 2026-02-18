@@ -7,7 +7,7 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
-import { TuiButton, TuiDialogContext, TuiIcon } from '@taiga-ui/core'
+import { TuiButton, TuiDialogContext, TuiIcon, TuiLoader } from '@taiga-ui/core'
 import {
   TuiButtonLoading,
   TuiSwitch,
@@ -28,8 +28,7 @@ export type DomainValidationData = {
   fqdn: string
   gateway: DnsGateway
   port: number
-  dnsPass: boolean
-  portPass: boolean
+  initialResults?: { dnsPass: boolean; portPass: boolean }
 }
 
 @Component({
@@ -38,9 +37,8 @@ export type DomainValidationData = {
     @let wanIp = context.data.gateway.ipInfo.wanIp || ('Error' | i18n);
     @let gatewayName =
       context.data.gateway.name || context.data.gateway.ipInfo.name;
-    @let internalIp = context.data.gateway.ipInfo.lanIp[0] || ('Error' | i18n);
 
-    <h3>{{ 'DNS' | i18n }}</h3>
+    <h2>{{ 'DNS' | i18n }}</h2>
     <p>
       {{ 'In your domain registrar for' | i18n }} {{ domain }},
       {{ 'create this DNS record' | i18n }}
@@ -63,10 +61,14 @@ export type DomainValidationData = {
     <table [appTable]="[null, 'Type', 'Host', 'Value', null]">
       <tr>
         <td class="status">
-          @if (dnsPass() === true) {
+          @if (dnsLoading()) {
+            <tui-loader size="s" />
+          } @else if (dnsPass() === true) {
             <tui-icon class="g-positive" icon="@tui.check" />
           } @else if (dnsPass() === false) {
             <tui-icon class="g-negative" icon="@tui.x" />
+          } @else {
+            <tui-icon class="g-secondary" icon="@tui.minus" />
           }
         </td>
         <td>{{ ddns ? 'ALIAS' : 'A' }}</td>
@@ -85,25 +87,26 @@ export type DomainValidationData = {
       </tr>
     </table>
 
-    <h3>{{ 'Port Forwarding' | i18n }}</h3>
+    <h2>{{ 'Port Forwarding' | i18n }}</h2>
     <p>
       {{ 'In your gateway' | i18n }} "{{ gatewayName }}",
       {{ 'create this port forwarding rule' | i18n }}
     </p>
 
-    <table
-      [appTable]="[null, 'External Port', 'Internal IP', 'Internal Port', null]"
-    >
+    <table [appTable]="[null, 'External Port', 'Internal Port', null]">
       <tr>
         <td class="status">
-          @if (portPass() === true) {
+          @if (portLoading()) {
+            <tui-loader size="s" />
+          } @else if (portPass() === true) {
             <tui-icon class="g-positive" icon="@tui.check" />
           } @else if (portPass() === false) {
             <tui-icon class="g-negative" icon="@tui.x" />
+          } @else {
+            <tui-icon class="g-secondary" icon="@tui.minus" />
           }
         </td>
         <td>{{ context.data.port }}</td>
-        <td>{{ internalIp }}</td>
         <td>{{ context.data.port }}</td>
         <td>
           <button
@@ -118,23 +121,25 @@ export type DomainValidationData = {
       </tr>
     </table>
 
-    <footer class="g-buttons">
-      <button
-        tuiButton
-        appearance="flat"
-        [disabled]="allPass()"
-        (click)="context.completeWith()"
-      >
-        {{ 'Later' | i18n }}
-      </button>
-      <button
-        tuiButton
-        [disabled]="!allPass()"
-        (click)="context.completeWith()"
-      >
-        {{ 'Done' | i18n }}
-      </button>
-    </footer>
+    @if (!isManualMode) {
+      <footer class="g-buttons padding-top">
+        <button
+          tuiButton
+          appearance="flat"
+          [disabled]="allPass()"
+          (click)="context.completeWith()"
+        >
+          {{ 'Later' | i18n }}
+        </button>
+        <button
+          tuiButton
+          [disabled]="!allPass()"
+          (click)="context.completeWith()"
+        >
+          {{ 'Done' | i18n }}
+        </button>
+      </footer>
+    }
   `,
   styles: `
     label {
@@ -144,21 +149,25 @@ export type DomainValidationData = {
       margin: 1rem 0;
     }
 
-    h3 {
-      margin: 1.5rem 0 0.5rem;
+    h2 {
+      margin: 2rem 0 0 0;
+    }
 
-      &:first-child {
-        margin-top: 0;
-      }
+    p {
+      margin-top: 0.5rem;
     }
 
     tui-icon {
-      font-size: 1rem;
+      font-size: 1.3rem;
       vertical-align: text-bottom;
     }
 
     .status {
-      width: 1.5rem;
+      width: 3.2rem;
+    }
+
+    .padding-top {
+      padding-top: 2rem;
     }
 
     td:last-child {
@@ -207,6 +216,7 @@ export type DomainValidationData = {
     FormsModule,
     TuiButtonLoading,
     TuiIcon,
+    TuiLoader,
   ],
 })
 export class DomainValidationComponent {
@@ -223,12 +233,22 @@ export class DomainValidationComponent {
 
   readonly dnsLoading = signal(false)
   readonly portLoading = signal(false)
-  readonly dnsPass = signal<boolean | undefined>(this.context.data.dnsPass)
-  readonly portPass = signal<boolean | undefined>(this.context.data.portPass)
+  readonly dnsPass = signal<boolean | undefined>(undefined)
+  readonly portPass = signal<boolean | undefined>(undefined)
 
   readonly allPass = computed(
     () => this.dnsPass() === true && this.portPass() === true,
   )
+
+  readonly isManualMode = !this.context.data.initialResults
+
+  constructor() {
+    const initial = this.context.data.initialResults
+    if (initial) {
+      this.dnsPass.set(initial.dnsPass)
+      this.portPass.set(initial.portPass)
+    }
+  }
 
   async testDns() {
     this.dnsLoading.set(true)

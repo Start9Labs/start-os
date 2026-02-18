@@ -54,7 +54,7 @@ import { wifiSpec } from './wifi.const'
             tuiIconButton
             size="xs"
             docsLink
-            path="/user-manual/wifi.html"
+            path="/start-os/user-manual/wifi.html"
             appearance="icon"
             iconStart="@tui.external-link"
           >

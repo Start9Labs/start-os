@@ -78,6 +78,15 @@ Form controls live in `ui/src/app/routes/portal/components/form/controls/` — e
 - **Dictionaries** live in `shared/src/i18n/dictionaries/` (en, es, de, fr, pl).
 - Usage in templates: `{{ 'Some English Text' | i18n }}`
 
+### How dictionaries work
+
+- **`en.ts`** is the source of truth. Keys are English strings; values are numeric IDs (e.g. `'Domain Health': 748`).
+- **Other language files** (`de.ts`, `es.ts`, `fr.ts`, `pl.ts`) use those same numeric IDs as keys, mapping to translated strings (e.g. `748: 'Santé du domaine'`).
+- When adding a new i18n key:
+  1. Add the English string and next available numeric ID to `en.ts`.
+  2. Add the same numeric ID with a proper translation to every other language file.
+  3. Always provide real translations, not empty strings.
+
 ## Services & State
 
 Services often extend `Observable` and expose reactive streams via DI:

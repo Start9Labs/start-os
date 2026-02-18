@@ -54,32 +54,42 @@ export const mockPatchData: DataModel = {
                   },
                 },
                 {
-                  ssl: true,
+                  ssl: false,
                   public: false,
                   host: '10.0.0.1',
-                  port: 443,
+                  port: 80,
                   metadata: { kind: 'ipv4', gateway: 'eth0' },
                 },
                 {
-                  ssl: true,
+                  ssl: false,
                   public: false,
                   host: '10.0.0.2',
-                  port: 443,
+                  port: 80,
                   metadata: { kind: 'ipv4', gateway: 'wlan0' },
                 },
                 {
-                  ssl: true,
+                  ssl: false,
                   public: false,
                   host: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
-                  port: 443,
+                  port: 80,
                   metadata: { kind: 'ipv6', gateway: 'eth0', scopeId: 2 },
+                },
+                {
+                  ssl: false,
+                  public: false,
+                  host: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
+                  port: 80,
+                  metadata: { kind: 'ipv6', gateway: 'wlan0', scopeId: 3 },
                 },
                 {
                   ssl: true,
                   public: false,
-                  host: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
+                  host: 'my-server.home',
                   port: 443,
-                  metadata: { kind: 'ipv6', gateway: 'wlan0', scopeId: 3 },
+                  metadata: {
+                    kind: 'private-domain',
+                    gateways: ['eth0'],
+                  },
                 },
                 {
                   ssl: false,
@@ -109,8 +119,16 @@ export const mockPatchData: DataModel = {
           },
         },
         publicDomains: {},
-        privateDomains: {},
-        portForwards: [],
+        privateDomains: {
+          'my-server.home': ['eth0'],
+        },
+        portForwards: [
+          {
+            src: '203.0.113.45:443',
+            dst: '10.0.0.1:443',
+            gateway: 'eth0',
+          },
+        ],
       },
       gateways: {
         eth0: {
@@ -504,70 +522,70 @@ export const mockPatchData: DataModel = {
             80: {
               enabled: true,
               net: {
-                assignedPort: 80,
-                assignedSslPort: 443,
+                assignedPort: 42080,
+                assignedSslPort: 42443,
               },
               addresses: {
-                enabled: ['203.0.113.45:443'],
+                enabled: ['203.0.113.45:42443'],
                 disabled: [],
                 available: [
                   {
                     ssl: true,
                     public: false,
                     host: 'adjective-noun.local',
-                    port: 443,
+                    port: 42443,
                     metadata: {
                       kind: 'mdns',
                       gateways: ['eth0'],
                     },
                   },
                   {
-                    ssl: true,
+                    ssl: false,
                     public: false,
                     host: '10.0.0.1',
-                    port: 443,
+                    port: 42080,
                     metadata: { kind: 'ipv4', gateway: 'eth0' },
                   },
                   {
-                    ssl: true,
+                    ssl: false,
                     public: false,
                     host: 'fe80::cd00:0cde:1257:211e:72cd',
-                    port: 443,
+                    port: 42080,
                     metadata: { kind: 'ipv6', gateway: 'eth0', scopeId: 2 },
                   },
                   {
                     ssl: true,
                     public: true,
                     host: '203.0.113.45',
-                    port: 443,
+                    port: 42443,
                     metadata: { kind: 'ipv4', gateway: 'eth0' },
                   },
                   {
                     ssl: true,
                     public: true,
                     host: 'bitcoin.example.com',
-                    port: 443,
+                    port: 42443,
                     metadata: { kind: 'public-domain', gateway: 'eth0' },
                   },
                   {
-                    ssl: true,
+                    ssl: false,
                     public: false,
                     host: '192.168.10.11',
-                    port: 443,
+                    port: 42080,
                     metadata: { kind: 'ipv4', gateway: 'wlan0' },
                   },
                   {
-                    ssl: true,
+                    ssl: false,
                     public: false,
                     host: 'fe80::cd00:0cde:1257:211e:1234',
-                    port: 443,
+                    port: 42080,
                     metadata: { kind: 'ipv6', gateway: 'wlan0', scopeId: 3 },
                   },
                   {
                     ssl: true,
                     public: false,
                     host: 'my-bitcoin.home',
-                    port: 443,
+                    port: 42443,
                     metadata: {
                       kind: 'private-domain',
                       gateways: ['wlan0'],
@@ -577,22 +595,22 @@ export const mockPatchData: DataModel = {
                     ssl: false,
                     public: false,
                     host: 'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
-                    port: 80,
+                    port: 42080,
                     metadata: { kind: 'plugin', package: 'tor' },
                   },
                   {
                     ssl: true,
                     public: false,
                     host: 'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
-                    port: 443,
+                    port: 42443,
                     metadata: { kind: 'plugin', package: 'tor' },
                   },
                 ],
               },
               options: {
-                preferredExternalPort: 443,
+                preferredExternalPort: 42443,
                 addSsl: {
-                  preferredExternalPort: 443,
+                  preferredExternalPort: 42443,
                   alpn: { specified: ['http/1.1', 'h2'] },
                   addXForwardedHeaders: false,
                 },
@@ -609,14 +627,25 @@ export const mockPatchData: DataModel = {
           privateDomains: {
             'my-bitcoin.home': ['wlan0'],
           },
-          portForwards: [],
+          portForwards: [
+            {
+              src: '203.0.113.45:443',
+              dst: '10.0.0.1:443',
+              gateway: 'eth0',
+            },
+            {
+              src: '203.0.113.45:42443',
+              dst: '10.0.0.1:42443',
+              gateway: 'eth0',
+            },
+          ],
         },
         bcdefgh: {
           bindings: {
             8332: {
               enabled: true,
               net: {
-                assignedPort: 8332,
+                assignedPort: 48332,
                 assignedSslPort: null,
               },
               addresses: {
@@ -627,7 +656,7 @@ export const mockPatchData: DataModel = {
                     ssl: false,
                     public: false,
                     host: 'adjective-noun.local',
-                    port: 8332,
+                    port: 48332,
                     metadata: {
                       kind: 'mdns',
                       gateways: ['eth0'],
@@ -637,14 +666,14 @@ export const mockPatchData: DataModel = {
                     ssl: false,
                     public: false,
                     host: '10.0.0.1',
-                    port: 8332,
+                    port: 48332,
                     metadata: { kind: 'ipv4', gateway: 'eth0' },
                   },
                 ],
               },
               options: {
                 addSsl: null,
-                preferredExternalPort: 8332,
+                preferredExternalPort: 48332,
                 secure: { ssl: false },
               },
             },
@@ -658,7 +687,7 @@ export const mockPatchData: DataModel = {
             8333: {
               enabled: true,
               net: {
-                assignedPort: 8333,
+                assignedPort: 48333,
                 assignedSslPort: null,
               },
               addresses: {
@@ -668,7 +697,7 @@ export const mockPatchData: DataModel = {
               },
               options: {
                 addSsl: null,
-                preferredExternalPort: 8333,
+                preferredExternalPort: 48333,
                 secure: { ssl: false },
               },
             },

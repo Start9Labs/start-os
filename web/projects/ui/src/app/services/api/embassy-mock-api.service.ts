@@ -26,6 +26,7 @@ import {
 import { GetPackageRes, GetPackagesRes } from '@start9labs/marketplace'
 import {
   ActionRes,
+  CheckDnsRes,
   CifsBackupTarget,
   DiagnosticErrorRes,
   FollowPackageLogsReq,
@@ -497,12 +498,16 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async checkPort(
-    params: T.CheckPortParams,
-  ): Promise<T.CheckPortRes> {
+  async checkPort(params: T.CheckPortParams): Promise<T.CheckPortRes> {
     await pauseFor(2000)
 
     return { ip: '0.0.0.0', port: params.port, reachable: false }
+  }
+
+  async checkDns(params: T.CheckDnsParams): Promise<CheckDnsRes> {
+    await pauseFor(2000)
+
+    return false
   }
 
   // marketplace URLs
@@ -662,9 +667,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setServiceOutbound(
-    params: T.SetOutboundGatewayParams,
-  ): Promise<null> {
+  async setServiceOutbound(params: T.SetOutboundGatewayParams): Promise<null> {
     await pauseFor(2000)
     const patch = [
       {

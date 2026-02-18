@@ -19,6 +19,7 @@ import { AuthService } from '../auth.service'
 import { DataModel } from '../patch-db/data-model'
 import {
   ActionRes,
+  CheckDnsRes,
   CifsBackupTarget,
   DiagnosticErrorRes,
   FollowPackageLogsReq,
@@ -279,6 +280,13 @@ export class LiveApiService extends ApiService {
   async checkPort(params: T.CheckPortParams): Promise<T.CheckPortRes> {
     return this.rpcRequest({
       method: 'net.gateway.check-port',
+      params,
+    })
+  }
+
+  async checkDns(params: T.CheckDnsParams): Promise<CheckDnsRes> {
+    return this.rpcRequest({
+      method: 'net.gateway.check-dns',
       params,
     })
   }

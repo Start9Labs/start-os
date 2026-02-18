@@ -47,7 +47,7 @@ const ipv6 =
                 tuiIconButton
                 size="xs"
                 docsLink
-                path="/user-manual/dns.html"
+                path="/start-os/user-manual/dns.html"
                 appearance="icon"
                 iconStart="@tui.external-link"
               >
@@ -184,7 +184,9 @@ export default class SystemDnsComponent {
 
         if (
           Object.values(pkgs).some(p =>
-            Object.values(p.hosts).some(h => Object.keys(h?.privateDomains || {}).length),
+            Object.values(p.hosts).some(
+              h => Object.keys(h?.privateDomains || {}).length,
+            ),
           )
         ) {
           Object.values(gateways)
