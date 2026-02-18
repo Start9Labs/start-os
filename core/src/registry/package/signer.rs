@@ -59,9 +59,8 @@ pub struct AddPackageSignerParams {
     #[ts(type = "string | null")]
     pub versions: Option<VersionRange>,
     #[arg(long, help = "help.arg.merge")]
-    #[serde(default)]
     #[ts(optional)]
-    pub merge: bool,
+    pub merge: Option<bool>,
 }
 
 pub async fn add_package_signer(
@@ -82,7 +81,7 @@ pub async fn add_package_signer(
             );
 
             let mut versions = versions.unwrap_or_default();
-            if merge {
+            if merge.unwrap_or(false) {
                 let existing = db
                     .as_index_mut()
                     .as_package_mut()
