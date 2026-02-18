@@ -58,6 +58,10 @@ pub struct AddPackageSignerParams {
     #[arg(long, help = "help.arg.version-range")]
     #[ts(type = "string | null")]
     pub versions: Option<VersionRange>,
+    #[arg(long, help = "help.arg.merge")]
+    #[serde(default)]
+    #[ts(optional)]
+    pub merge: bool,
 }
 
 pub async fn add_package_signer(
@@ -66,6 +70,7 @@ pub async fn add_package_signer(
         id,
         signer,
         versions,
+        merge,
     }: AddPackageSignerParams,
 ) -> Result<(), Error> {
     ctx.db
@@ -76,20 +81,28 @@ pub async fn add_package_signer(
                 "unknown signer {signer}"
             );
 
-            let versions = versions.unwrap_or_default();
-            let authorized = db
-                .as_index_mut()
+            let mut versions = versions.unwrap_or_default();
+            if merge {
+                let existing = db
+                    .as_index_mut()
+                    .as_package_mut()
+                    .as_packages_mut()
+                    .as_idx_mut(&id)
+                    .or_not_found(&id)?
+                    .as_authorized_mut()
+                    .as_idx(&signer)
+                    .map(|v| v.de())
+                    .transpose()?
+                    .unwrap_or_default();
+                versions = VersionRange::or(existing, versions);
+            }
+            db.as_index_mut()
                 .as_package_mut()
                 .as_packages_mut()
                 .as_idx_mut(&id)
                 .or_not_found(&id)?
-                .as_authorized_mut();
-            let existing = authorized
-                .as_idx(&signer)
-                .map(|v| v.de())
-                .transpose()?
-                .unwrap_or_default();
-            authorized.insert(&signer, &VersionRange::or(existing, versions))?;
+                .as_authorized_mut()
+                .insert(&signer, &versions)?;
 
             Ok(())
         })
