@@ -221,3 +221,7 @@ Pending tasks for AI agents. Remove items when completed.
   **Goal**: The `input-not-matches` handler in StartOS should queue the task, check it once the
   service is ready, then clear it if it matches. This allows tasks to be created regardless of
   whether the service is currently running.
+
+- [ ] Clear service error state on fresh install/update - @dr-bonez
+
+  Fresh installs and updates should clear any existing service error state.
