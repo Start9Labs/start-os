@@ -206,9 +206,7 @@ impl TryFrom<ManifestV1> for Manifest {
                 license: value.license.into(),
                 package_repo: value.wrapper_repo,
                 upstream_repo: value.upstream_repo,
-                marketing_url: Some(
-                    value.marketing_site.unwrap_or_else(|| default_url.clone()),
-                ),
+                marketing_url: Some(value.marketing_site.unwrap_or_else(|| default_url.clone())),
                 donation_url: value.donation_url,
                 docs_urls: Vec::new(),
                 description: value.description,

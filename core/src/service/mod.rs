@@ -16,7 +16,7 @@ use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
 use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use nix::sys::signal::Signal;
-use persistent_container::{PersistentContainer, Subcontainer};
+use persistent_container::PersistentContainer;
 use rpc_toolkit::HandlerArgs;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
@@ -1195,10 +1195,12 @@ pub async fn cli_attach(
         {
             Ok(a) => a,
             Err(e) => {
+                if e.kind != ErrorKind::InvalidRequest {
+                    return Err(e);
+                }
                 let prompt = e.to_string();
                 let options: Vec<SubcontainerInfo> = from_value(e.info)?;
                 let choice = choose(&prompt, &options).await?;
-                println!();
                 params["subcontainer"] = to_value(&choice.id)?;
                 context
                     .call_remote::<RpcContext>(&method, params.clone())
@@ -1208,6 +1210,7 @@ pub async fn cli_attach(
     )?;
     let mut ws = context.ws_continuation(guid).await?;
 
+    print!("\r");
     let (kill, thread_kill) = tokio::sync::oneshot::channel();
     let (thread_send, recv) = tokio::sync::mpsc::channel(4 * CAP_1_KiB);
     let stdin_thread: NonDetachingJoinHandle<()> = tokio::task::spawn_blocking(move || {
@@ -1236,18 +1239,6 @@ pub async fn cli_attach(
     let mut stderr = Some(stderr);
     loop {
         futures::select_biased! {
-            // signal = tokio:: => {
-            //     let exit = exit?;
-            //     if current_out != "exit" {
-            //         ws.send(Message::Text("exit".into()))
-            //             .await
-            //             .with_kind(ErrorKind::Network)?;
-            //         current_out = "exit";
-            //     }
-            //     ws.send(Message::Binary(
-            //         i32::to_be_bytes(exit.into_raw()).to_vec()
-            //     )).await.with_kind(ErrorKind::Network)?;
-            // }
             input = stdin.as_mut().map_or(
                 futures::future::Either::Left(futures::future::pending()),
                 |s| futures::future::Either::Right(s.recv())

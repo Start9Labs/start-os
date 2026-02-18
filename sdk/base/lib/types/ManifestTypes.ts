@@ -21,22 +21,17 @@ export type SDKManifest = {
    * URL of the StartOS package repository
    * @example `https://github.com/Start9Labs/nextcloud-startos`
    */
-  readonly wrapperRepo: string
+  readonly packageRepo: string
   /**
    * URL of the upstream service repository
    * @example `https://github.com/nextcloud/docker`
    */
   readonly upstreamRepo: string
   /**
-   * URL where users can get help using the upstream service
-   * @example `https://github.com/nextcloud/docker/issues`
-   */
-  readonly supportSite: string
-  /**
    * URL where users can learn more about the upstream service
    * @example `https://nextcloud.com`
    */
-  readonly marketingSite: string
+  readonly marketingUrl: string
   /**
    * (optional) URL where users can donate to the upstream project
    * @example `https://nextcloud.com/contribute/`
@@ -45,7 +40,7 @@ export type SDKManifest = {
   /**
    * URL where users can find instructions on how to use the service
    */
-  readonly docsUrl: string
+  readonly docsUrls: string[]
   readonly description: {
     /** Short description to display on the marketplace list page. Max length 80 chars. */
     readonly short: T.LocaleString

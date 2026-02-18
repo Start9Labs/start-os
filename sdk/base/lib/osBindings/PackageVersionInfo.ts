@@ -11,22 +11,21 @@ import type { PackageId } from './PackageId'
 import type { RegistryAsset } from './RegistryAsset'
 
 export type PackageVersionInfo = {
+  icon: DataUrl
+  dependencyMetadata: { [key: PackageId]: DependencyMetadata }
   sourceVersion: string | null
   s9pks: Array<[HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>]>
   title: string
-  icon: DataUrl
   description: Description
   releaseNotes: LocaleString
   gitHash: GitHash | null
   license: string
-  wrapperRepo: string
+  packageRepo: string
   upstreamRepo: string
-  supportSite: string
-  marketingSite: string
+  marketingUrl: string
   donationUrl: string | null
-  docsUrl: string | null
+  docsUrls: string[]
   alerts: Alerts
-  dependencyMetadata: { [key: PackageId]: DependencyMetadata }
   osVersion: string
   sdkVersion: string | null
   hardwareAcceleration: boolean

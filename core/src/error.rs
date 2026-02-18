@@ -3,6 +3,7 @@ use std::fmt::{Debug, Display};
 use axum::http::StatusCode;
 use axum::http::uri::InvalidUri;
 use color_eyre::eyre::eyre;
+use imbl_value::InternedString;
 use num_enum::TryFromPrimitive;
 use patch_db::Value;
 use rpc_toolkit::reqwest;
@@ -204,17 +205,12 @@ pub struct Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {:#}", &self.kind.as_str(), self.source)
+        write!(f, "{}: {}", &self.kind.as_str(), self.display_src())
     }
 }
 impl Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}: {:?}",
-            &self.kind.as_str(),
-            self.debug.as_ref().unwrap_or(&self.source)
-        )
+        write!(f, "{}: {}", &self.kind.as_str(), self.display_dbg())
     }
 }
 impl Error {
@@ -235,8 +231,13 @@ impl Error {
     }
     pub fn clone_output(&self) -> Self {
         Error {
-            source: eyre!("{}", self.source),
-            debug: self.debug.as_ref().map(|e| eyre!("{e}")),
+            source: eyre!("{:#}", self.source),
+            debug: Some(
+                self.debug
+                    .as_ref()
+                    .map(|e| eyre!("{e}"))
+                    .unwrap_or_else(|| eyre!("{:?}", self.source)),
+            ),
             kind: self.kind,
             info: self.info.clone(),
             task: None,
@@ -256,6 +257,30 @@ impl Error {
         }
         self.task.take();
         self
+    }
+
+    pub fn display_src(&self) -> impl Display {
+        struct D<'a>(&'a Error);
+        impl<'a> Display for D<'a> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{:#}", self.0.source)
+            }
+        }
+        D(self)
+    }
+
+    pub fn display_dbg(&self) -> impl Display {
+        struct D<'a>(&'a Error);
+        impl<'a> Display for D<'a> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                if let Some(debug) = &self.0.debug {
+                    write!(f, "{}", debug)
+                } else {
+                    write!(f, "{:?}", self.0.source)
+                }
+            }
+        }
+        D(self)
     }
 }
 impl axum::response::IntoResponse for Error {
@@ -433,9 +458,11 @@ impl Debug for ErrorData {
 impl std::error::Error for ErrorData {}
 impl From<Error> for ErrorData {
     fn from(value: Error) -> Self {
+        let details = value.display_src().to_string();
+        let debug = value.display_dbg().to_string();
         Self {
-            details: value.to_string(),
-            debug: format!("{:?}", value),
+            details,
+            debug,
             info: value.info,
         }
     }
@@ -623,13 +650,10 @@ impl<T> ResultExt<T, Error> for Result<T, Error> {
     fn with_ctx<F: FnOnce(&Error) -> (ErrorKind, D), D: Display>(self, f: F) -> Result<T, Error> {
         self.map_err(|e| {
             let (kind, ctx) = f(&e);
+            let ctx = InternedString::from_display(&ctx);
             let source = e.source;
-            let with_ctx = format!("{ctx}: {source}");
-            let source = source.wrap_err(with_ctx);
-            let debug = e.debug.map(|e| {
-                let with_ctx = format!("{ctx}: {e}");
-                e.wrap_err(with_ctx)
-            });
+            let source = source.wrap_err(ctx.clone());
+            let debug = e.debug.map(|e| e.wrap_err(ctx));
             Error {
                 kind,
                 source,

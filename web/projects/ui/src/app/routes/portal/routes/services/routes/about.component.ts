@@ -125,24 +125,20 @@ export default class ServiceAboutRoute {
                 },
                 {
                   name: 'StartOS package',
-                  value: manifest.wrapperRepo,
+                  value: manifest.packageRepo,
                 },
               ],
             },
             {
               header: 'Links',
               items: [
-                {
+                ...manifest.docsUrls.map(docsUrl => ({
                   name: 'Documentation',
-                  value: manifest.docsUrl || NOT_PROVIDED,
-                },
-                {
-                  name: 'Support',
-                  value: manifest.supportSite || NOT_PROVIDED,
-                },
+                  value: docsUrl,
+                })),
                 {
                   name: 'Marketing',
-                  value: manifest.marketingSite || NOT_PROVIDED,
+                  value: manifest.marketingUrl || NOT_PROVIDED,
                 },
                 {
                   name: 'Donations',
