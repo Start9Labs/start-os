@@ -58,6 +58,9 @@ pub struct AddPackageSignerParams {
     #[arg(long, help = "help.arg.version-range")]
     #[ts(type = "string | null")]
     pub versions: Option<VersionRange>,
+    #[arg(long, help = "help.arg.merge")]
+    #[ts(optional)]
+    pub merge: Option<bool>,
 }
 
 pub async fn add_package_signer(
@@ -66,6 +69,7 @@ pub async fn add_package_signer(
         id,
         signer,
         versions,
+        merge,
     }: AddPackageSignerParams,
 ) -> Result<(), Error> {
     ctx.db
@@ -76,13 +80,22 @@ pub async fn add_package_signer(
                 "unknown signer {signer}"
             );
 
+            let versions = versions.unwrap_or_default();
             db.as_index_mut()
                 .as_package_mut()
                 .as_packages_mut()
                 .as_idx_mut(&id)
                 .or_not_found(&id)?
                 .as_authorized_mut()
-                .insert(&signer, &versions.unwrap_or_default())?;
+                .upsert(&signer, || Ok(VersionRange::None))?
+                .mutate(|existing| {
+                    *existing = if merge.unwrap_or(false) {
+                        VersionRange::or(existing.clone(), versions)
+                    } else {
+                        versions
+                    };
+                    Ok(())
+                })?;
 
             Ok(())
         })
