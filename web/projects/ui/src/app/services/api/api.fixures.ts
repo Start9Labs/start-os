@@ -262,7 +262,7 @@ export namespace Mock {
       ram: null,
     },
     hardwareAcceleration: false,
-          plugins: [],
+    plugins: [],
   }
 
   export const MockManifestLnd: T.Manifest = {
@@ -322,7 +322,54 @@ export namespace Mock {
       ram: null,
     },
     hardwareAcceleration: false,
-          plugins: [],
+    plugins: [],
+  }
+
+  export const MockManifestTor: T.Manifest = {
+    id: 'tor',
+    title: 'Tor',
+    version: '0.4.8:0',
+    satisfies: [],
+    canMigrateTo: '!',
+    canMigrateFrom: '*',
+    gitHash: 'torhash1',
+    description: {
+      short: 'An anonymous overlay network.',
+      long: 'Tor provides anonymous communication by directing traffic through a free, worldwide overlay network.',
+    },
+    releaseNotes: 'Bug fixes and stability improvements.',
+    license: 'BSD-3-Clause',
+    packageRepo: 'https://github.com/start9labs/tor-wrapper',
+    upstreamRepo: 'https://gitlab.torproject.org/tpo/core/tor',
+    marketingUrl: 'https://www.torproject.org',
+    donationUrl: null,
+    docsUrls: ['https://docs.start9.com'],
+    alerts: {
+      install: null,
+      uninstall: null,
+      restore: null,
+      start: null,
+      stop: null,
+    },
+    osVersion: '0.2.12',
+    sdkVersion: '0.4.0',
+    dependencies: {},
+    images: {
+      main: {
+        source: 'packed',
+        arch: ['x86_64', 'aarch64'],
+        emulateMissingAs: 'aarch64',
+        nvidiaContainer: false,
+      },
+    },
+    volumes: ['main'],
+    hardwareRequirements: {
+      device: [],
+      arch: null,
+      ram: null,
+    },
+    hardwareAcceleration: false,
+    plugins: ['url-v0'],
   }
 
   export const MockManifestBitcoinProxy: T.Manifest = {
@@ -375,7 +422,7 @@ export namespace Mock {
       ram: null,
     },
     hardwareAcceleration: false,
-          plugins: [],
+    plugins: [],
   }
 
   export const BitcoinDep: T.DependencyMetadata = {
@@ -435,7 +482,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
-          plugins: [],
+            plugins: [],
           },
           '#knots:26.1.20240325:0': {
             title: 'Bitcoin Knots',
@@ -477,7 +524,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
-          plugins: [],
+            plugins: [],
           },
         },
         categories: ['bitcoin', 'featured'],
@@ -529,7 +576,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
-          plugins: [],
+            plugins: [],
           },
           '#knots:26.1.20240325:0': {
             title: 'Bitcoin Knots',
@@ -571,7 +618,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
-          plugins: [],
+            plugins: [],
           },
         },
         categories: ['bitcoin', 'featured'],
@@ -628,7 +675,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
-          plugins: [],
+            plugins: [],
           },
         },
         categories: ['lightning'],
@@ -683,7 +730,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
-          plugins: [],
+            plugins: [],
           },
         },
         categories: ['lightning'],
@@ -1443,6 +1490,31 @@ export namespace Mock {
       ],
     },
   }
+
+  export const getCreateOnionServiceSpec = async (): Promise<IST.InputSpec> =>
+    configBuilderToSpec(
+      ISB.InputSpec.of({
+        ssl: ISB.Value.toggle({
+          name: 'SSL',
+          description: 'Enable HTTPS for this onion service',
+          default: true,
+        }),
+        privateKey: ISB.Value.text({
+          name: 'Private Key',
+          description:
+            'Optionally provide an existing ed25519 private key to reuse a .onion address. Leave blank to generate a new one.',
+          required: false,
+          default: null,
+          masked: true,
+        }),
+        urlPluginMetadata: ISB.Value.hidden<{
+          packageId: string
+          interfaceId: string
+          hostId: string
+          internalPort: number
+        }>(),
+      }),
+    )
 
   export const getActionInputSpec = async (): Promise<IST.InputSpec> =>
     configBuilderToSpec(

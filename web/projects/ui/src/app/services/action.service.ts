@@ -7,6 +7,7 @@ import {
 } from '@start9labs/shared'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
+import { ACTION_CONFIRM_MODAL } from 'src/app/routes/portal/routes/services/modals/action-confirm.component'
 import {
   ActionInputModal,
   PackageActionData,
@@ -36,17 +37,15 @@ export class ActionService {
     } else {
       if (actionInfo.metadata.warning) {
         this.dialog
-          .openConfirm({
-            label: 'Warning',
+          .openComponent<boolean>(ACTION_CONFIRM_MODAL, {
+            label: actionInfo.metadata.name as i18nKey,
             size: 's',
-            data: {
-              no: 'Cancel',
-              yes: 'Run',
-              content: actionInfo.metadata.warning as i18nKey,
-            },
+            data,
           })
           .pipe(filter(Boolean))
-          .subscribe(() => this.execute(pkgInfo.id, null, actionInfo.id, data.prefill))
+          .subscribe(() =>
+            this.execute(pkgInfo.id, null, actionInfo.id, data.prefill),
+          )
       } else {
         this.execute(pkgInfo.id, null, actionInfo.id, data.prefill)
       }

@@ -10,7 +10,6 @@ import { T } from '@start9labs/start-sdk'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import {
   TuiButton,
-  tuiButtonOptionsProvider,
   TuiDataList,
   TuiDropdown,
   TuiTextfield,
@@ -30,6 +29,9 @@ import {
   selector: 'section[pluginGroup]',
   template: `
     <header>
+      @if (pluginGroup().pluginPkgInfo; as pkgInfo) {
+        <img [src]="pkgInfo.icon" alt="" class="plugin-icon" />
+      }
       {{ pluginGroup().pluginName }}
       @if (pluginGroup().tableAction; as action) {
         <button
@@ -43,7 +45,7 @@ import {
       }
     </header>
     <table [appTable]="['Protocol', 'URL', null]">
-      @for (address of pluginGroup().addresses; track $index) {
+      @for (address of pluginGroup().addresses; track $index; let i = $index) {
         <tr>
           <td>{{ address.hostnameInfo.ssl ? 'HTTPS' : 'HTTP' }}</td>
           <td [style.grid-area]="'2 / 1 / 2 / 2'">
@@ -51,22 +53,6 @@ import {
           </td>
           <td [style.width.rem]="5">
             <div class="desktop">
-              <button
-                tuiIconButton
-                appearance="flat-grayscale"
-                iconStart="@tui.qr-code"
-                (click)="showQR(address.url)"
-              >
-                {{ 'Show QR' | i18n }}
-              </button>
-              <button
-                tuiIconButton
-                appearance="flat-grayscale"
-                iconStart="@tui.copy"
-                (click)="copyService.copy(address.url)"
-              >
-                {{ 'Copy URL' | i18n }}
-              </button>
               @if (address.hostnameInfo.metadata.kind === 'plugin') {
                 @if (address.hostnameInfo.metadata.removeAction) {
                   @if (
@@ -91,7 +77,59 @@ import {
                     </button>
                   }
                 }
-                <!-- TODO @MattHill: overflow -->
+              }
+              <button
+                tuiIconButton
+                appearance="flat-grayscale"
+                iconStart="@tui.qr-code"
+                (click)="showQR(address.url)"
+              >
+                {{ 'Show QR' | i18n }}
+              </button>
+              <button
+                tuiIconButton
+                appearance="flat-grayscale"
+                iconStart="@tui.copy"
+                (click)="copyService.copy(address.url)"
+              >
+                {{ 'Copy URL' | i18n }}
+              </button>
+              @if (address.hostnameInfo.metadata.kind === 'plugin') {
+                @if (address.hostnameInfo.metadata.overflowActions.length) {
+                  <button
+                    tuiIconButton
+                    tuiDropdown
+                    appearance="flat-grayscale"
+                    iconStart="@tui.ellipsis-vertical"
+                    [tuiAppearanceState]="overflowOpen() === i ? 'hover' : null"
+                    [tuiDropdownOpen]="overflowOpen() === i"
+                    (tuiDropdownOpenChange)="
+                      overflowOpen.set($event ? i : null)
+                    "
+                  >
+                    {{ 'More' | i18n }}
+                    <tui-data-list
+                      *tuiTextfieldDropdown
+                      (click)="overflowOpen.set(null)"
+                    >
+                      @for (
+                        actionId of address.hostnameInfo.metadata
+                          .overflowActions;
+                        track actionId
+                      ) {
+                        @if (pluginGroup().pluginActions[actionId]; as meta) {
+                          <button
+                            tuiOption
+                            new
+                            (click)="runRowAction(actionId, meta, address)"
+                          >
+                            {{ meta.name }}
+                          </button>
+                        }
+                      }
+                    </tui-data-list>
+                  </button>
+                }
               }
             </div>
             <div class="mobile">
@@ -105,22 +143,6 @@ import {
               >
                 {{ 'Actions' | i18n }}
                 <tui-data-list *tuiTextfieldDropdown (click)="open.set(false)">
-                  <button
-                    tuiOption
-                    new
-                    iconStart="@tui.qr-code"
-                    (click)="showQR(address.url)"
-                  >
-                    {{ 'Show QR' | i18n }}
-                  </button>
-                  <button
-                    tuiOption
-                    new
-                    iconStart="@tui.copy"
-                    (click)="copyService.copy(address.url)"
-                  >
-                    {{ 'Copy URL' | i18n }}
-                  </button>
                   @if (address.hostnameInfo.metadata.kind === 'plugin') {
                     @if (address.hostnameInfo.metadata.removeAction) {
                       @if (
@@ -145,7 +167,38 @@ import {
                         </button>
                       }
                     }
-                    <!-- TODO @MattHill: overflow -->
+                  }
+                  <button
+                    tuiOption
+                    new
+                    iconStart="@tui.qr-code"
+                    (click)="showQR(address.url)"
+                  >
+                    {{ 'Show QR' | i18n }}
+                  </button>
+                  <button
+                    tuiOption
+                    new
+                    iconStart="@tui.copy"
+                    (click)="copyService.copy(address.url)"
+                  >
+                    {{ 'Copy URL' | i18n }}
+                  </button>
+                  @if (address.hostnameInfo.metadata.kind === 'plugin') {
+                    @for (
+                      actionId of address.hostnameInfo.metadata.overflowActions;
+                      track actionId
+                    ) {
+                      @if (pluginGroup().pluginActions[actionId]; as meta) {
+                        <button
+                          tuiOption
+                          new
+                          (click)="runRowAction(actionId, meta, address)"
+                        >
+                          {{ meta.name }}
+                        </button>
+                      }
+                    }
                   }
                 </tui-data-list>
               </button>
@@ -164,6 +217,12 @@ import {
     </table>
   `,
   styles: `
+    .plugin-icon {
+      height: 1.25rem;
+      margin-right: 0.25rem;
+      border-radius: 100%;
+    }
+
     :host ::ng-deep {
       th:first-child {
         width: 5rem;
@@ -217,7 +276,6 @@ import {
     PlaceholderComponent,
     i18nPipe,
   ],
-  providers: [tuiButtonOptionsProvider({ appearance: 'icon' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PluginAddressesComponent {
@@ -226,6 +284,7 @@ export class PluginAddressesComponent {
   private readonly actionService = inject(ActionService)
   readonly copyService = inject(CopyService)
   readonly open = signal(false)
+  readonly overflowOpen = signal<number | null>(null)
 
   readonly pluginGroup = input.required<PluginAddressGroup>()
   readonly packageId = input('')

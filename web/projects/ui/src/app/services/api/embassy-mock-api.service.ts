@@ -1069,6 +1069,18 @@ export class MockApiService extends ApiService {
     params: T.GetActionInputParams,
   ): Promise<GetActionInputRes> {
     await pauseFor(2000)
+
+    if (
+      params.packageId === 'tor' &&
+      params.actionId === 'create-onion-service'
+    ) {
+      return {
+        eventId: 'ANZXNWIFRTTBZ6T52KQPZILIQQODDHXQ',
+        value: null,
+        spec: await Mock.getCreateOnionServiceSpec(),
+      }
+    }
+
     return {
       eventId: 'ANZXNWIFRTTBZ6T52KQPZILIQQODDHXQ',
       value: Mock.MockConfig,
