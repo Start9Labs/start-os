@@ -103,12 +103,16 @@ export class Variants<
       spec: InputSpec<any, any>
     }
   },
+  OuterType = unknown,
 > {
   private constructor(
-    public build: LazyBuild<{
-      spec: ValueSpecUnion['variants']
-      validator: Parser<unknown, UnionRes<VariantValues>>
-    }>,
+    public build: LazyBuild<
+      {
+        spec: ValueSpecUnion['variants']
+        validator: Parser<unknown, UnionRes<VariantValues>>
+      },
+      OuterType
+    >,
     public readonly validator: Parser<
       unknown,
       UnionResStaticValidatedAs<VariantValues>

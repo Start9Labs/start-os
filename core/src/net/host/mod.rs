@@ -298,7 +298,7 @@ impl Model<Host> {
         let bindings: Bindings = this.bindings.de()?;
         let mut port_forwards = BTreeSet::new();
         for bind in bindings.values() {
-            for addr in &bind.addresses.available {
+            for addr in bind.addresses.enabled() {
                 if !addr.public {
                     continue;
                 }

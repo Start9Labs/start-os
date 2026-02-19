@@ -534,7 +534,7 @@ impl Service {
                 .contains_key(&action_id)?
             {
                 if let Some(input) = service
-                    .get_action_input(procedure_id.clone(), action_id.clone())
+                    .get_action_input(procedure_id.clone(), action_id.clone(), Value::Null)
                     .await
                     .log_err()
                     .flatten()

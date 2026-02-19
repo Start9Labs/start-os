@@ -533,7 +533,7 @@ impl RpcContext {
         for (package_id, action_id) in tasks {
             if let Some(service) = self.services.get(&package_id).await.as_ref() {
                 if let Some(input) = service
-                    .get_action_input(procedure_id.clone(), action_id.clone())
+                    .get_action_input(procedure_id.clone(), action_id.clone(), Value::Null)
                     .await
                     .log_err()
                     .flatten()

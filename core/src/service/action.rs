@@ -17,6 +17,7 @@ use crate::{ActionId, PackageId, ReplayId};
 
 pub(super) struct GetActionInput {
     id: ActionId,
+    prefill: Value,
 }
 impl Handler<GetActionInput> for ServiceActor {
     type Response = Result<Option<ActionInput>, Error>;
@@ -26,7 +27,10 @@ impl Handler<GetActionInput> for ServiceActor {
     async fn handle(
         &mut self,
         id: Guid,
-        GetActionInput { id: action_id }: GetActionInput,
+        GetActionInput {
+            id: action_id,
+            prefill,
+        }: GetActionInput,
         _: &BackgroundJobQueue,
     ) -> Self::Response {
         let container = &self.0.persistent_container;
@@ -34,7 +38,7 @@ impl Handler<GetActionInput> for ServiceActor {
             .execute::<Option<ActionInput>>(
                 id,
                 ProcedureName::GetActionInput(action_id),
-                Value::Null,
+                json!({ "prefill": prefill }),
                 Some(Duration::from_secs(30)),
             )
             .await
@@ -47,6 +51,7 @@ impl Service {
         &self,
         id: Guid,
         action_id: ActionId,
+        prefill: Value,
     ) -> Result<Option<ActionInput>, Error> {
         if !self
             .seed
@@ -67,7 +72,7 @@ impl Service {
             return Ok(None);
         }
         self.actor
-            .send(id, GetActionInput { id: action_id })
+            .send(id, GetActionInput { id: action_id, prefill })
             .await?
     }
 }

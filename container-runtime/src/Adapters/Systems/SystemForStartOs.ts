@@ -47,11 +47,12 @@ export class SystemForStartOs implements System {
   getActionInput(
     effects: Effects,
     id: string,
+    prefill: Record<string, unknown> | null,
     timeoutMs: number | null,
   ): Promise<T.ActionInput | null> {
     const action = this.abi.actions.get(id)
     if (!action) throw new Error(`Action ${id} not found`)
-    return action.getInput({ effects })
+    return action.getInput({ effects, prefill })
   }
   runAction(
     effects: Effects,

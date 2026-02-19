@@ -2,4 +2,8 @@
 import type { ActionId } from './ActionId'
 import type { PackageId } from './PackageId'
 
-export type GetActionInputParams = { packageId?: PackageId; actionId: ActionId }
+export type GetActionInputParams = {
+  packageId?: PackageId
+  actionId: ActionId
+  prefill: Record<string, unknown> | null
+}

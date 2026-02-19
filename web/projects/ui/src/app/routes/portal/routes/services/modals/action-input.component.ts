@@ -148,6 +148,7 @@ export class ActionInputModal {
       this.api.getActionInput({
         packageId: this.pkgInfo.id,
         actionId: this.actionId,
+        prefill: this.context.data.prefill ?? null,
       }),
     ).pipe(
       map(res => {

@@ -9,12 +9,19 @@ import {
 } from '../inputSpecTypes'
 import { Parser, arrayOf, string } from 'ts-matches'
 
-export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
+export class List<
+  Type extends StaticValidatedAs,
+  StaticValidatedAs = Type,
+  OuterType = unknown,
+> {
   private constructor(
-    public build: LazyBuild<{
-      spec: ValueSpecList
-      validator: Parser<unknown, Type>
-    }>,
+    public build: LazyBuild<
+      {
+        spec: ValueSpecList
+        validator: Parser<unknown, Type>
+      },
+      OuterType
+    >,
     public readonly validator: Parser<unknown, StaticValidatedAs>,
   ) {}
   readonly _TYPE: Type = null as any
@@ -90,28 +97,31 @@ export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     }, validator)
   }
 
-  static dynamicText(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      default?: string[]
-      minLength?: number | null
-      maxLength?: number | null
-      disabled?: false | string
-      generate?: null | RandomString
-      spec: {
-        masked?: boolean
-        placeholder?: string | null
+  static dynamicText<OuterType = unknown>(
+    getA: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        default?: string[]
         minLength?: number | null
         maxLength?: number | null
-        patterns?: Pattern[]
-        inputmode?: ListValueSpecText['inputmode']
-      }
-    }>,
+        disabled?: false | string
+        generate?: null | RandomString
+        spec: {
+          masked?: boolean
+          placeholder?: string | null
+          minLength?: number | null
+          maxLength?: number | null
+          patterns?: Pattern[]
+          inputmode?: ListValueSpecText['inputmode']
+        }
+      },
+      OuterType
+    >,
   ) {
     const validator = arrayOf(string)
-    return new List<string[]>(async (options) => {
+    return new List<string[], string[], OuterType>(async (options) => {
       const { spec: aSpec, ...a } = await getA(options)
       const spec = {
         type: 'text' as const,

@@ -437,6 +437,7 @@ export class RpcListener {
               return system.getActionInput(
                 effects,
                 procedures[2],
+                input?.prefill ?? null,
                 timeout || null,
               )
             case procedures[1] === "actions" && procedures[3] === "run":

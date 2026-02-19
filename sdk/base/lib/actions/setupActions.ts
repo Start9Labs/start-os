@@ -13,6 +13,7 @@ export type Run<A extends Record<string, any>> = (options: {
 }) => Promise<(T.ActionResult & { version: '1' }) | null | void | undefined>
 export type GetInput<A extends Record<string, any>> = (options: {
   effects: T.Effects
+  prefill: T.DeepPartial<A> | null
 }) => Promise<null | void | undefined | T.DeepPartial<A>>
 
 export type MaybeFn<T> = T | ((options: { effects: T.Effects }) => Promise<T>)
@@ -104,7 +105,10 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
     await options.effects.action.export({ id: this.id, metadata })
     return metadata
   }
-  async getInput(options: { effects: T.Effects }): Promise<T.ActionInput> {
+  async getInput(options: {
+    effects: T.Effects
+    prefill: T.DeepPartial<Type> | null
+  }): Promise<T.ActionInput> {
     let spec = {}
     if (this.inputSpec) {
       const built = await this.inputSpec.build(options)

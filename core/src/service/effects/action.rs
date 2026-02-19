@@ -122,6 +122,10 @@ pub struct GetActionInputParams {
     package_id: Option<PackageId>,
     #[arg(help = "help.arg.action-id")]
     action_id: ActionId,
+    #[ts(type = "Record<string, unknown> | null")]
+    #[serde(default)]
+    #[arg(skip)]
+    prefill: Option<Value>,
 }
 async fn get_action_input(
     context: EffectContext,
@@ -129,9 +133,11 @@ async fn get_action_input(
         procedure_id,
         package_id,
         action_id,
+        prefill,
     }: GetActionInputParams,
 ) -> Result<Option<ActionInput>, Error> {
     let context = context.deref()?;
+    let prefill = prefill.unwrap_or(Value::Null);
 
     if let Some(package_id) = package_id {
         context
@@ -142,10 +148,10 @@ async fn get_action_input(
             .await
             .as_ref()
             .or_not_found(&package_id)?
-            .get_action_input(procedure_id, action_id)
+            .get_action_input(procedure_id, action_id, prefill)
             .await
     } else {
-        context.get_action_input(procedure_id, action_id).await
+        context.get_action_input(procedure_id, action_id, prefill).await
     }
 }
 
@@ -245,7 +251,7 @@ async fn create_task(
                     .as_ref()
                 {
                     let Some(prev) = service
-                        .get_action_input(procedure_id.clone(), task.action_id.clone())
+                        .get_action_input(procedure_id.clone(), task.action_id.clone(), Value::Null)
                         .await?
                     else {
                         return Err(Error::new(

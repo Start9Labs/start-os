@@ -510,6 +510,7 @@ export class SystemForEmbassy implements System {
   async getActionInput(
     effects: Effects,
     actionId: string,
+    _prefill: Record<string, unknown> | null,
     timeoutMs: number | null,
   ): Promise<T.ActionInput | null> {
     if (actionId === "config") {

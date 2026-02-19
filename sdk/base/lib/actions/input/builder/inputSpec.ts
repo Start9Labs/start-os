@@ -4,12 +4,14 @@ import { _ } from '../../../util'
 import { Effects } from '../../../Effects'
 import { Parser, object } from 'ts-matches'
 import { DeepPartial } from '../../../types'
+import { InputSpecTools, createInputSpecTools } from './inputSpecTools'
 
-export type LazyBuildOptions = {
+export type LazyBuildOptions<Type> = {
   effects: Effects
+  prefill: DeepPartial<Type> | null
 }
-export type LazyBuild<ExpectedOut> = (
-  options: LazyBuildOptions,
+export type LazyBuild<ExpectedOut, Type> = (
+  options: LazyBuildOptions<Type>,
 ) => Promise<ExpectedOut> | ExpectedOut
 
 // prettier-ignore
@@ -29,7 +31,7 @@ export type InputSpecOf<A extends Record<string, any>> = {
   [K in keyof A]: Value<A[K]>
 }
 
-export type MaybeLazyValues<A> = LazyBuild<A> | A
+export type MaybeLazyValues<A, T> = LazyBuild<A, T> | A
 /**
  * InputSpecs are the specs that are used by the os input specification form for this service.
  * Here is an example of a simple input specification
@@ -98,7 +100,7 @@ export class InputSpec<
   ) {}
   public _TYPE: Type = null as any as Type
   public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
-  async build(options: LazyBuildOptions): Promise<{
+  async build<OuterType>(options: LazyBuildOptions<OuterType>): Promise<{
     spec: {
       [K in keyof Type]: ValueSpec
     }
@@ -121,6 +123,57 @@ export class InputSpec<
     }
   }
 
+  addKey<Key extends string, V extends Value<any, any, any>>(
+    key: Key,
+    build: V | ((tools: InputSpecTools<Type>) => V),
+  ): InputSpec<
+    Type & { [K in Key]: V extends Value<infer T, any, any> ? T : never },
+    StaticValidatedAs & {
+      [K in Key]: V extends Value<any, infer S, any> ? S : never
+    }
+  > {
+    const value =
+      build instanceof Function ? build(createInputSpecTools<Type>()) : build
+    const newSpec = { ...this.spec, [key]: value } as any
+    const newValidator = object(
+      Object.fromEntries(
+        Object.entries(newSpec).map(([k, v]) => [
+          k,
+          (v as Value<any>).validator,
+        ]),
+      ),
+    )
+    return new InputSpec(newSpec, newValidator as any)
+  }
+
+  add<AddSpec extends Record<string, Value<any, any, any>>>(
+    build: AddSpec | ((tools: InputSpecTools<Type>) => AddSpec),
+  ): InputSpec<
+    Type & {
+      [K in keyof AddSpec]: AddSpec[K] extends Value<infer T, any, any>
+        ? T
+        : never
+    },
+    StaticValidatedAs & {
+      [K in keyof AddSpec]: AddSpec[K] extends Value<any, infer S, any>
+        ? S
+        : never
+    }
+  > {
+    const addedValues =
+      build instanceof Function ? build(createInputSpecTools<Type>()) : build
+    const newSpec = { ...this.spec, ...addedValues } as any
+    const newValidator = object(
+      Object.fromEntries(
+        Object.entries(newSpec).map(([k, v]) => [
+          k,
+          (v as Value<any>).validator,
+        ]),
+      ),
+    )
+    return new InputSpec(newSpec, newValidator as any)
+  }
+
   static of<Spec extends Record<string, Value<any, any>>>(spec: Spec) {
     const validator = object(
       Object.fromEntries(
@@ -129,10 +182,14 @@ export class InputSpec<
     )
     return new InputSpec<
       {
-        [K in keyof Spec]: Spec[K] extends Value<infer T, any> ? T : never
+        [K in keyof Spec]: Spec[K] extends Value<infer T, any, unknown>
+          ? T
+          : never
       },
       {
-        [K in keyof Spec]: Spec[K] extends Value<any, infer T> ? T : never
+        [K in keyof Spec]: Spec[K] extends Value<any, infer T, unknown>
+          ? T
+          : never
       }
     >(spec, validator as any)
   }
