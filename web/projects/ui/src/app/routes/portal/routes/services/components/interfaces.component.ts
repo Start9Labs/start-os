@@ -4,6 +4,7 @@ import {
   computed,
   input,
 } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { tuiDefaultSort } from '@taiga-ui/cdk'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -26,8 +27,16 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
       </thead>
       <tbody>
         @for (info of interfaces(); track $index) {
-          <tr serviceInterface [info]="info" [link]="info.routerLink">
-            <strong>{{ info.name }}</strong>
+          <tr
+            tabindex="-1"
+            serviceInterface
+            [info]="info"
+            [link]="info.routerLink"
+            [routerLink]="info.routerLink"
+          >
+            <a [routerLink]="info.routerLink">
+              <strong>{{ info.name }}</strong>
+            </a>
           </tr>
         } @empty {
           <app-placeholder icon="@tui.monitor-x">
@@ -46,6 +55,7 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ServiceInterfaceItemComponent,
+    RouterLink,
     TuiTable,
     i18nPipe,
     PlaceholderComponent,

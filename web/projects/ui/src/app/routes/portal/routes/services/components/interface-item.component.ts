@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core'
-import { RouterLink } from '@angular/router'
 import { T } from '@start9labs/start-sdk'
-import { TuiButton } from '@taiga-ui/core'
+import { TuiIcon } from '@taiga-ui/core'
 import { TuiBadge } from '@taiga-ui/kit'
 
 @Component({
@@ -16,19 +15,19 @@ import { TuiBadge } from '@taiga-ui/kit'
     <td class="g-secondary" [style.grid-area]="'2 / 1 / 2 / 3'">
       {{ info().description }}
     </td>
-    <td class="actions">
-      <a
-        tuiIconButton
-        appearance="flat-grayscale"
-        iconStart="@tui.settings"
-        size="s"
-        [routerLink]="link()"
-      >
-        Settings
-      </a>
+    <td class="chevron">
+      <tui-icon icon="@tui.chevron-right" />
     </td>
   `,
   styles: `
+    :host {
+      cursor: pointer;
+
+      &:hover {
+        background: var(--tui-background-neutral-1);
+      }
+    }
+
     td:first-child {
       white-space: nowrap;
     }
@@ -38,12 +37,13 @@ import { TuiBadge } from '@taiga-ui/kit'
       font-weight: bold;
     }
 
-    tui-icon {
-      font-size: 1rem;
+    .chevron {
+      text-align: end;
     }
 
-    .actions {
-      text-align: end;
+    .chevron tui-icon {
+      font-size: 1rem;
+      color: var(--tui-text-tertiary);
     }
 
     :host-context(tui-root._mobile) {
@@ -57,13 +57,13 @@ import { TuiBadge } from '@taiga-ui/kit'
         padding: 0;
       }
 
-      .actions {
+      .chevron {
         grid-area: 1 / 2 / 3 / 3;
       }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiBadge, TuiButton, RouterLink],
+  imports: [TuiBadge, TuiIcon],
 })
 export class ServiceInterfaceItemComponent {
   readonly info = input.required<T.ServiceInterface>()
