@@ -11,7 +11,8 @@ use futures::{FutureExt, StreamExt, TryStreamExt};
 use hickory_server::authority::{AuthorityObject, Catalog, MessageResponseBuilder};
 use hickory_server::proto::op::{Header, ResponseCode};
 use hickory_server::proto::rr::{Name, Record, RecordType};
-use hickory_server::resolver::config::{ResolverConfig, ResolverOpts};
+use hickory_server::proto::xfer::Protocol;
+use hickory_server::resolver::config::{NameServerConfig, ResolverConfig, ResolverOpts};
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use hickory_server::store::forwarder::{ForwardAuthority, ForwardConfig};
 use hickory_server::{ServerFuture, resolver as hickory_resolver};
@@ -241,22 +242,65 @@ impl Resolver {
                 let mut prev = crate::util::serde::hash_serializable::<sha2::Sha256, _>(&(
                     ResolverConfig::new(),
                     ResolverOpts::default(),
+                    Option::<std::collections::VecDeque<SocketAddr>>::None,
                 ))
                 .unwrap_or_default();
                 loop {
-                    if let Err(e) = async {
-                        let mut stream = file_string_stream("/run/systemd/resolve/resolv.conf")
-                            .filter_map(|a| futures::future::ready(a.transpose()))
-                            .boxed();
-                        while let Some(conf) = stream.try_next().await? {
-                            let (config, mut opts) =
-                                hickory_resolver::system_conf::parse_resolv_conf(conf)
-                                    .with_kind(ErrorKind::ParseSysInfo)?;
-                            opts.timeout = Duration::from_secs(30);
-                            let hash = crate::util::serde::hash_serializable::<sha2::Sha256, _>(
-                                &(&config, &opts),
-                            )?;
-                            if hash != prev {
+                    let res: Result<(), Error> = async {
+                        let mut file_stream =
+                            file_string_stream("/run/systemd/resolve/resolv.conf")
+                                .filter_map(|a| futures::future::ready(a.transpose()))
+                                .boxed();
+                        let mut static_sub = db
+                            .subscribe(
+                                "/public/serverInfo/network/dns/staticServers"
+                                    .parse()
+                                    .unwrap(),
+                            )
+                            .await;
+                        let mut last_config: Option<(ResolverConfig, ResolverOpts)> = None;
+                        loop {
+                            let got_file = tokio::select! {
+                                res = file_stream.try_next() => {
+                                    let conf = res?
+                                        .ok_or_else(|| Error::new(
+                                            eyre!("resolv.conf stream ended"),
+                                            ErrorKind::Network,
+                                        ))?;
+                                    let (config, mut opts) =
+                                        hickory_resolver::system_conf::parse_resolv_conf(conf)
+                                            .with_kind(ErrorKind::ParseSysInfo)?;
+                                    opts.timeout = Duration::from_secs(30);
+                                    last_config = Some((config, opts));
+                                    true
+                                }
+                                _ = static_sub.recv() => false,
+                            };
+                            let Some((ref config, ref opts)) = last_config else {
+                                continue;
+                            };
+                            let static_servers: Option<
+                                std::collections::VecDeque<SocketAddr>,
+                            > = db
+                                .peek()
+                                .await
+                                .as_public()
+                                .as_server_info()
+                                .as_network()
+                                .as_dns()
+                                .as_static_servers()
+                                .de()?;
+                            let hash =
+                                crate::util::serde::hash_serializable::<sha2::Sha256, _>(&(
+                                    config,
+                                    opts,
+                                    &static_servers,
+                                ))?;
+                            if hash == prev {
+                                prev = hash;
+                                continue;
+                            }
+                            if got_file {
                                 db.mutate(|db| {
                                     db.as_public_mut()
                                         .as_server_info_mut()
@@ -275,44 +319,55 @@ impl Resolver {
                                 })
                                 .await
                                 .result?;
-                                let auth: Vec<Arc<dyn AuthorityObject>> = vec![Arc::new(
-                                    ForwardAuthority::builder_tokio(ForwardConfig {
-                                        name_servers: from_value(Value::Array(
-                                            config
-                                                .name_servers()
-                                                .into_iter()
-                                                .skip(4)
-                                                .map(to_value)
-                                                .collect::<Result<_, Error>>()?,
-                                        ))?,
-                                        options: Some(opts),
-                                    })
-                                    .build()
-                                    .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))?,
-                                )];
-                                {
-                                    let mut guard = tokio::time::timeout(
-                                        Duration::from_secs(10),
-                                        catalog.write(),
+                            }
+                            let forward_servers =
+                                if let Some(servers) = &static_servers {
+                                    servers
+                                        .iter()
+                                        .flat_map(|addr| {
+                                            [
+                                                NameServerConfig::new(*addr, Protocol::Udp),
+                                                NameServerConfig::new(*addr, Protocol::Tcp),
+                                            ]
+                                        })
+                                        .map(|n| to_value(&n))
+                                        .collect::<Result<_, Error>>()?
+                                } else {
+                                    config
+                                        .name_servers()
+                                        .into_iter()
+                                        .skip(4)
+                                        .map(to_value)
+                                        .collect::<Result<_, Error>>()?
+                                };
+                            let auth: Vec<Arc<dyn AuthorityObject>> = vec![Arc::new(
+                                ForwardAuthority::builder_tokio(ForwardConfig {
+                                    name_servers: from_value(Value::Array(forward_servers))?,
+                                    options: Some(opts.clone()),
+                                })
+                                .build()
+                                .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))?,
+                            )];
+                            {
+                                let mut guard = tokio::time::timeout(
+                                    Duration::from_secs(10),
+                                    catalog.write(),
+                                )
+                                .await
+                                .map_err(|_| {
+                                    Error::new(
+                                        eyre!("{}", t!("net.dns.timeout-updating-catalog")),
+                                        ErrorKind::Timeout,
                                     )
-                                    .await
-                                    .map_err(|_| {
-                                        Error::new(
-                                            eyre!("{}", t!("net.dns.timeout-updating-catalog")),
-                                            ErrorKind::Timeout,
-                                        )
-                                    })?;
-                                    guard.upsert(Name::root().into(), auth);
-                                    drop(guard);
-                                }
+                                })?;
+                                guard.upsert(Name::root().into(), auth);
+                                drop(guard);
                             }
                             prev = hash;
                         }
-
-                        Ok::<_, Error>(())
                     }
-                    .await
-                    {
+                    .await;
+                    if let Err(e) = res {
                         tracing::error!("{e}");
                         tracing::debug!("{e:?}");
                         tokio::time::sleep(Duration::from_secs(1)).await;

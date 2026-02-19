@@ -587,6 +587,7 @@ impl Service {
                 entry.as_developer_key_mut().ser(&Pem::new(developer_key))?;
                 entry.as_icon_mut().ser(&icon)?;
                 entry.as_registry_mut().ser(registry)?;
+                entry.as_status_info_mut().as_error_mut().ser(&None)?;
 
                 Ok(())
             })
