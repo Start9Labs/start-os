@@ -1822,8 +1822,8 @@ export class MockApiService extends ApiService {
       if (h.port === null) return
       const sa =
         h.metadata.kind === 'ipv6'
-          ? `[${h.host}]:${h.port}`
-          : `${h.host}:${h.port}`
+          ? `[${h.hostname}]:${h.port}`
+          : `${h.hostname}:${h.port}`
 
       const arr = [...current.enabled]
 
@@ -1841,11 +1841,11 @@ export class MockApiService extends ApiService {
     } else {
       const port = h.port ?? 0
       const arr = current.disabled.filter(
-        ([dHost, dPort]) => !(dHost === h.host && dPort === port),
+        ([dHost, dPort]) => !(dHost === h.hostname && dPort === port),
       )
 
       if (!enabled) {
-        arr.push([h.host, port])
+        arr.push([h.hostname, port])
       }
 
       current.disabled = arr

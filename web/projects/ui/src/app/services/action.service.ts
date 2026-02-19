@@ -46,9 +46,9 @@ export class ActionService {
             },
           })
           .pipe(filter(Boolean))
-          .subscribe(() => this.execute(pkgInfo.id, null, actionInfo.id))
+          .subscribe(() => this.execute(pkgInfo.id, null, actionInfo.id, data.prefill))
       } else {
-        this.execute(pkgInfo.id, null, actionInfo.id)
+        this.execute(pkgInfo.id, null, actionInfo.id, data.prefill)
       }
     }
   }

@@ -14,6 +14,7 @@ mod control;
 mod dependency;
 mod health;
 mod net;
+pub mod plugin;
 mod prelude;
 pub mod subcontainer;
 mod system;
@@ -167,6 +168,26 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
             from_fn_async(net::ssl::get_ssl_certificate).no_cli(),
         )
         .subcommand("get-ssl-key", from_fn_async(net::ssl::get_ssl_key).no_cli())
+        // plugin
+        .subcommand(
+            "plugin",
+            ParentHandler::<C>::new().subcommand(
+                "url",
+                ParentHandler::<C>::new()
+                    .subcommand(
+                        "register",
+                        from_fn_async(net::plugin::register).no_cli(),
+                    )
+                    .subcommand(
+                        "export-url",
+                        from_fn_async(net::plugin::export_url).no_cli(),
+                    )
+                    .subcommand(
+                        "clear-urls",
+                        from_fn_async(net::plugin::clear_urls).no_cli(),
+                    ),
+            ),
+        )
         .subcommand(
             "set-data-version",
             from_fn_async(version::set_data_version)

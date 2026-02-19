@@ -16,7 +16,11 @@ import { PluginAddressesComponent } from './addresses/plugin.component'
       ></section>
     }
     @for (group of value()?.pluginGroups; track group.pluginId) {
-      <section [pluginGroup]="group"></section>
+      <section
+        [pluginGroup]="group"
+        [packageId]="packageId()"
+        [value]="value()"
+      ></section>
     }
   `,
   styles: `

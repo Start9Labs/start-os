@@ -89,5 +89,6 @@ export function buildManifest<
       ),
     },
     hardwareAcceleration: manifest.hardwareAcceleration ?? false,
+    plugins: manifest.plugins ?? [],
   }
 }

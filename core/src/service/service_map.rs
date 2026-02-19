@@ -260,6 +260,7 @@ impl ServiceMap {
                                         hosts: Default::default(),
                                         store_exposed_dependents: Default::default(),
                                         outbound_gateway: None,
+                                        plugin: Default::default(),
                                     },
                                 )?;
                             };

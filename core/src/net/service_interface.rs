@@ -1,12 +1,12 @@
 use std::collections::BTreeSet;
 use std::net::SocketAddr;
 
-use imbl_value::{InOMap, InternedString};
+use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::prelude::*;
-use crate::{GatewayId, HostId, PackageId, ServiceInterfaceId};
+use crate::{ActionId, GatewayId, HostId, PackageId, ServiceInterfaceId};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
 #[ts(export)]
@@ -14,7 +14,7 @@ use crate::{GatewayId, HostId, PackageId, ServiceInterfaceId};
 pub struct HostnameInfo {
     pub ssl: bool,
     pub public: bool,
-    pub host: InternedString,
+    pub hostname: InternedString,
     pub port: Option<u16>,
     pub metadata: HostnameMetadata,
 }
@@ -42,21 +42,22 @@ pub enum HostnameMetadata {
         gateway: GatewayId,
     },
     Plugin {
-        package: PackageId,
-        #[serde(flatten)]
-        #[ts(skip)]
-        extra: InOMap<InternedString, Value>,
+        package_id: PackageId,
+        row_actions: Vec<ActionId>,
+        #[ts(type = "unknown")]
+        #[serde(default)]
+        info: Value,
     },
 }
 
 impl HostnameInfo {
     pub fn to_socket_addr(&self) -> Option<SocketAddr> {
-        let ip = self.host.parse().ok()?;
+        let ip = self.hostname.parse().ok()?;
         Some(SocketAddr::new(ip, self.port?))
     }
 
     pub fn to_san_hostname(&self) -> InternedString {
-        self.host.clone()
+        self.hostname.clone()
     }
 }
 
@@ -70,10 +71,62 @@ impl HostnameMetadata {
             Self::Ipv4 { gateway }
             | Self::Ipv6 { gateway, .. }
             | Self::PublicDomain { gateway } => Box::new(std::iter::once(gateway)),
-            Self::PrivateDomain { gateways } | Self::Mdns { gateways } => {
-                Box::new(gateways.iter())
-            }
+            Self::PrivateDomain { gateways } | Self::Mdns { gateways } => Box::new(gateways.iter()),
             Self::Plugin { .. } => Box::new(std::iter::empty()),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginHostnameInfo {
+    pub package_id: Option<PackageId>,
+    pub host_id: HostId,
+    pub internal_port: u16,
+    pub ssl: bool,
+    pub public: bool,
+    #[ts(type = "string")]
+    pub hostname: InternedString,
+    pub port: Option<u16>,
+    #[ts(type = "unknown")]
+    #[serde(default)]
+    pub info: Value,
+}
+
+impl PluginHostnameInfo {
+    /// Convert to a `HostnameInfo` with `Plugin` metadata, using the given plugin package ID.
+    pub fn to_hostname_info(
+        &self,
+        plugin_package: &PackageId,
+        row_actions: Vec<ActionId>,
+    ) -> HostnameInfo {
+        HostnameInfo {
+            ssl: self.ssl,
+            public: self.public,
+            hostname: self.hostname.clone(),
+            port: self.port,
+            metadata: HostnameMetadata::Plugin {
+                package_id: plugin_package.clone(),
+                info: self.info.clone(),
+                row_actions,
+            },
+        }
+    }
+
+    /// Check if a `HostnameInfo` with Plugin metadata matches this `PluginHostnameInfo`
+    /// (comparing address fields only, not row_actions).
+    pub fn matches_hostname_info(&self, h: &HostnameInfo, plugin_package: &PackageId) -> bool {
+        match &h.metadata {
+            HostnameMetadata::Plugin { package_id, info, .. } => {
+                package_id == plugin_package
+                    && h.ssl == self.ssl
+                    && h.public == self.public
+                    && h.hostname == self.hostname
+                    && h.port == self.port
+                    && *info == self.info
+            }
+            _ => false,
         }
     }
 }

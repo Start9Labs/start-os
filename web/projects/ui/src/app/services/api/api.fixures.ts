@@ -262,6 +262,7 @@ export namespace Mock {
       ram: null,
     },
     hardwareAcceleration: false,
+          plugins: [],
   }
 
   export const MockManifestLnd: T.Manifest = {
@@ -321,6 +322,7 @@ export namespace Mock {
       ram: null,
     },
     hardwareAcceleration: false,
+          plugins: [],
   }
 
   export const MockManifestBitcoinProxy: T.Manifest = {
@@ -373,6 +375,7 @@ export namespace Mock {
       ram: null,
     },
     hardwareAcceleration: false,
+          plugins: [],
   }
 
   export const BitcoinDep: T.DependencyMetadata = {
@@ -432,6 +435,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+          plugins: [],
           },
           '#knots:26.1.20240325:0': {
             title: 'Bitcoin Knots',
@@ -473,6 +477,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+          plugins: [],
           },
         },
         categories: ['bitcoin', 'featured'],
@@ -524,6 +529,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+          plugins: [],
           },
           '#knots:26.1.20240325:0': {
             title: 'Bitcoin Knots',
@@ -565,6 +571,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+          plugins: [],
           },
         },
         categories: ['bitcoin', 'featured'],
@@ -621,6 +628,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+          plugins: [],
           },
         },
         categories: ['lightning'],
@@ -675,6 +683,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+          plugins: [],
           },
         },
         categories: ['lightning'],
@@ -730,6 +739,7 @@ export namespace Mock {
             ],
           ],
           hardwareAcceleration: false,
+          plugins: [],
         },
         '#knots:27.1.0:0': {
           title: 'Bitcoin Knots',
@@ -771,6 +781,7 @@ export namespace Mock {
             ],
           ],
           hardwareAcceleration: false,
+          plugins: [],
         },
       },
       categories: ['bitcoin', 'featured'],
@@ -825,6 +836,7 @@ export namespace Mock {
             ],
           ],
           hardwareAcceleration: false,
+          plugins: [],
         },
       },
       categories: ['lightning'],
@@ -878,6 +890,7 @@ export namespace Mock {
             ],
           ],
           hardwareAcceleration: false,
+          plugins: [],
         },
       },
       categories: ['bitcoin'],
@@ -2121,7 +2134,7 @@ export namespace Mock {
                 {
                   ssl: true,
                   public: false,
-                  host: 'adjective-noun.local',
+                  hostname: 'adjective-noun.local',
                   port: 1234,
                   metadata: {
                     kind: 'mdns',
@@ -2131,28 +2144,28 @@ export namespace Mock {
                 {
                   ssl: true,
                   public: false,
-                  host: '192.168.10.11',
+                  hostname: '192.168.10.11',
                   port: 1234,
                   metadata: { kind: 'ipv4', gateway: 'wlan0' },
                 },
                 {
                   ssl: true,
                   public: false,
-                  host: '10.0.0.2',
+                  hostname: '10.0.0.2',
                   port: 1234,
                   metadata: { kind: 'ipv4', gateway: 'wlan0' },
                 },
                 {
                   ssl: true,
                   public: false,
-                  host: 'fe80:cd00:0000:0cde:1257:0000:211e:72cd',
+                  hostname: 'fe80:cd00:0000:0cde:1257:0000:211e:72cd',
                   port: 1234,
                   metadata: { kind: 'ipv6', gateway: 'eth0', scopeId: 2 },
                 },
                 {
                   ssl: true,
                   public: false,
-                  host: 'fe80:cd00:0000:0cde:1257:0000:211e:1234',
+                  hostname: 'fe80:cd00:0000:0cde:1257:0000:211e:1234',
                   port: 1234,
                   metadata: { kind: 'ipv6', gateway: 'wlan0', scopeId: 3 },
                 },
@@ -2222,6 +2235,7 @@ export namespace Mock {
     outboundGateway: null,
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
+    plugin: { url: null },
     tasks: {
       'bitcoind-config': {
         task: {
@@ -2291,6 +2305,7 @@ export namespace Mock {
     outboundGateway: null,
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
+    plugin: { url: null },
     tasks: {},
   }
 
@@ -2398,6 +2413,7 @@ export namespace Mock {
     outboundGateway: null,
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
+    plugin: { url: null },
     tasks: {
       config: {
         active: true,

@@ -277,7 +277,7 @@ impl NetServiceData {
                         | HostnameMetadata::PrivateDomain { .. } => {}
                         _ => continue,
                     }
-                    let domain = &addr_info.host;
+                    let domain = &addr_info.hostname;
                     let domain_ssl_port = addr_info.port.unwrap_or(443);
                     let key = (Some(domain.clone()), domain_ssl_port);
                     let target = vhosts.entry(key).or_insert_with(|| ProxyTarget {

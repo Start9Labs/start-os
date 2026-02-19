@@ -2,7 +2,12 @@ import { inject, Injectable } from '@angular/core'
 import { T, utils } from '@start9labs/start-sdk'
 import { ConfigService } from 'src/app/services/config.service'
 import { GatewayPlus } from 'src/app/services/gateway.service'
+import {
+  PrimaryStatus,
+  renderPkgStatus,
+} from 'src/app/services/pkg-status-rendering.service'
 import { toAuthorityName } from 'src/app/utils/acme'
+import { getManifest } from 'src/app/utils/get-package-data'
 
 function isPublicIp(h: T.HostnameInfo): boolean {
   return h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
@@ -13,12 +18,12 @@ function isEnabled(addr: T.DerivedAddressInfo, h: T.HostnameInfo): boolean {
     if (h.port === null) return true
     const sa =
       h.metadata.kind === 'ipv6'
-        ? `[${h.host}]:${h.port}`
-        : `${h.host}:${h.port}`
+        ? `[${h.hostname}]:${h.port}`
+        : `${h.hostname}:${h.port}`
     return addr.enabled.includes(sa)
   } else {
     return !addr.disabled.some(
-      ([host, port]) => host === h.host && port === (h.port ?? 0),
+      ([hostname, port]) => hostname === h.hostname && port === (h.port ?? 0),
     )
   }
 }
@@ -46,7 +51,7 @@ function getCertificate(
   if (!h.ssl) return '-'
 
   if (h.metadata.kind === 'public-domain') {
-    const config = host.publicDomains[h.host]
+    const config = host.publicDomains[h.hostname]
     return config ? toAuthorityName(config.acme) : toAuthorityName(null)
   }
 
@@ -60,7 +65,7 @@ function sortDomainsFirst(a: GatewayAddress, b: GatewayAddress): number {
   const isDomain = (addr: GatewayAddress) =>
     addr.hostnameInfo.metadata.kind === 'public-domain' ||
     (addr.hostnameInfo.metadata.kind === 'private-domain' &&
-      !addr.hostnameInfo.host.endsWith('.local'))
+      !addr.hostnameInfo.hostname.endsWith('.local'))
   return Number(isDomain(b)) - Number(isDomain(a))
 }
 
@@ -72,7 +77,7 @@ function getAddressType(h: T.HostnameInfo): string {
       return 'IPv6'
     case 'public-domain':
     case 'private-domain':
-      return h.host
+      return h.hostname
     case 'mdns':
       return 'mDNS'
     case 'plugin':
@@ -140,6 +145,7 @@ export class InterfaceService {
   getPluginGroups(
     serviceInterface: T.ServiceInterface,
     host: T.Host,
+    allPackageData?: Record<string, T.PackageDataEntry>,
   ): PluginAddressGroup[] {
     const binding = host.bindings[serviceInterface.addressInfo.internalPort]
     if (!binding) return []
@@ -152,7 +158,7 @@ export class InterfaceService {
       if (h.metadata.kind !== 'plugin') continue
 
       const url = utils.addressHostToUrl(serviceInterface.addressInfo, h)
-      const pluginId = h.metadata.package
+      const pluginId = h.metadata.packageId
 
       if (!groupMap.has(pluginId)) {
         groupMap.set(pluginId, [])
@@ -165,11 +171,35 @@ export class InterfaceService {
       })
     }
 
-    return Array.from(groupMap.entries()).map(([pluginId, addresses]) => ({
-      pluginId,
-      pluginName: pluginId.charAt(0).toUpperCase() + pluginId.slice(1),
-      addresses,
-    }))
+    return Array.from(groupMap.entries()).map(([pluginId, addresses]) => {
+      const pluginPkg = allPackageData?.[pluginId]
+      const pluginActions = pluginPkg?.actions ?? {}
+      const tableActionId = pluginPkg?.plugin?.url?.tableAction ?? null
+      const tableActionMeta = tableActionId ? pluginActions[tableActionId] : undefined
+      const tableAction = tableActionId && tableActionMeta
+        ? { id: tableActionId, metadata: tableActionMeta }
+        : null
+
+      let pluginPkgInfo: PluginPkgInfo | null = null
+      if (pluginPkg) {
+        const manifest = getManifest(pluginPkg)
+        pluginPkgInfo = {
+          id: manifest.id,
+          title: manifest.title,
+          icon: pluginPkg.icon,
+          status: renderPkgStatus(pluginPkg).primary,
+        }
+      }
+
+      return {
+        pluginId,
+        pluginName: pluginPkgInfo?.title ?? pluginId.charAt(0).toUpperCase() + pluginId.slice(1),
+        addresses,
+        tableAction,
+        pluginPkgInfo,
+        pluginActions,
+      }
+    })
   }
 
   launchableAddress(ui: T.ServiceInterface, host: T.Host): string {
@@ -201,7 +231,7 @@ export class InterfaceService {
         matching = addresses.nonLocal
           .filter({
             kind: 'ipv4',
-            predicate: h => h.host === this.config.hostname,
+            predicate: h => h.hostname === this.config.hostname,
           })
           .format('urlstring')[0]
         onLan = true
@@ -210,7 +240,7 @@ export class InterfaceService {
         matching = addresses.nonLocal
           .filter({
             kind: 'ipv6',
-            predicate: h => h.host === this.config.hostname,
+            predicate: h => h.hostname === this.config.hostname,
           })
           .format('urlstring')[0]
         break
@@ -257,10 +287,20 @@ export type PluginAddress = {
   masked: boolean
 }
 
+export type PluginPkgInfo = {
+  id: string
+  title: string
+  icon: string
+  status: PrimaryStatus
+}
+
 export type PluginAddressGroup = {
   pluginId: string
   pluginName: string
   addresses: PluginAddress[]
+  tableAction: { id: string; metadata: T.ActionMetadata } | null
+  pluginPkgInfo: PluginPkgInfo | null
+  pluginActions: Record<string, T.ActionMetadata>
 }
 
 export type MappedServiceInterface = T.ServiceInterface & {

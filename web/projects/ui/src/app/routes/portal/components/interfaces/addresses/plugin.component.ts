@@ -10,6 +10,7 @@ import {
   DialogService,
   i18nPipe,
 } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import {
   TuiButton,
@@ -22,13 +23,28 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { QRModal } from 'src/app/routes/portal/modals/qr.component'
-import { PluginAddressGroup } from '../interface.service'
+import { ActionService } from 'src/app/services/action.service'
+import {
+  MappedServiceInterface,
+  PluginAddress,
+  PluginAddressGroup,
+} from '../interface.service'
 
 @Component({
   selector: 'section[pluginGroup]',
   template: `
     <header>
       {{ pluginGroup().pluginName }}
+      @if (pluginGroup().tableAction; as action) {
+        <button
+          tuiButton
+          iconStart="@tui.plus"
+          [style.margin-inline-start]="'auto'"
+          (click)="runTableAction()"
+        >
+          {{ action.metadata.name }}
+        </button>
+      }
     </header>
     <table [appTable]="['Protocol', 'URL', null]">
       @for (address of pluginGroup().addresses; track $index) {
@@ -55,6 +71,23 @@ import { PluginAddressGroup } from '../interface.service'
               >
                 {{ 'Copy URL' | i18n }}
               </button>
+              @if (address.hostnameInfo.metadata.kind === 'plugin') {
+                @for (
+                  actionId of address.hostnameInfo.metadata.rowActions;
+                  track actionId
+                ) {
+                  @if (pluginGroup().pluginActions[actionId]; as meta) {
+                    <button
+                      tuiIconButton
+                      appearance="flat-grayscale"
+                      iconStart="@tui.play"
+                      (click)="runRowAction(actionId, meta, address)"
+                    >
+                      {{ meta.name }}
+                    </button>
+                  }
+                }
+              }
             </div>
             <div class="mobile">
               <button
@@ -83,6 +116,23 @@ import { PluginAddressGroup } from '../interface.service'
                   >
                     {{ 'Copy URL' | i18n }}
                   </button>
+                  @if (address.hostnameInfo.metadata.kind === 'plugin') {
+                    @for (
+                      actionId of address.hostnameInfo.metadata.rowActions;
+                      track actionId
+                    ) {
+                      @if (pluginGroup().pluginActions[actionId]; as meta) {
+                        <button
+                          tuiOption
+                          new
+                          iconStart="@tui.play"
+                          (click)="runRowAction(actionId, meta, address)"
+                        >
+                          {{ meta.name }}
+                        </button>
+                      }
+                    }
+                  }
                 </tui-data-list>
               </button>
             </div>
@@ -159,10 +209,13 @@ import { PluginAddressGroup } from '../interface.service'
 export class PluginAddressesComponent {
   private readonly isMobile = inject(TUI_IS_MOBILE)
   private readonly dialog = inject(DialogService)
+  private readonly actionService = inject(ActionService)
   readonly copyService = inject(CopyService)
   readonly open = signal(false)
 
   readonly pluginGroup = input.required<PluginAddressGroup>()
+  readonly packageId = input('')
+  readonly value = input<MappedServiceInterface | undefined>()
 
   showQR(url: string) {
     this.dialog
@@ -172,5 +225,60 @@ export class PluginAddressesComponent {
         data: url,
       })
       .subscribe()
+  }
+
+  runTableAction() {
+    const group = this.pluginGroup()
+    if (!group.tableAction || !group.pluginPkgInfo) return
+
+    const iface = this.value()
+    const prefill: Record<string, unknown> = {}
+
+    if (iface) {
+      prefill['urlPluginMetadata'] = {
+        packageId: this.packageId() || null,
+        hostId: iface.addressInfo.hostId,
+        interfaceId: iface.id,
+        internalPort: iface.addressInfo.internalPort,
+      }
+    }
+
+    this.actionService.present({
+      pkgInfo: group.pluginPkgInfo,
+      actionInfo: group.tableAction,
+      prefill,
+    })
+  }
+
+  runRowAction(
+    actionId: string,
+    metadata: T.ActionMetadata,
+    address: PluginAddress,
+  ) {
+    const group = this.pluginGroup()
+    if (!group.pluginPkgInfo) return
+
+    const iface = this.value()
+    const prefill: Record<string, unknown> = {}
+
+    if (iface && address.hostnameInfo.metadata.kind === 'plugin') {
+      prefill['urlPluginMetadata'] = {
+        packageId: this.packageId() || null,
+        hostId: iface.addressInfo.hostId,
+        interfaceId: iface.id,
+        internalPort: iface.addressInfo.internalPort,
+        hostname: address.hostnameInfo.hostname,
+        port: address.hostnameInfo.port,
+        ssl: address.hostnameInfo.ssl,
+        public: address.hostnameInfo.public,
+        info: address.hostnameInfo.metadata.info,
+      }
+    }
+
+    this.actionService.present({
+      pkgInfo: group.pluginPkgInfo,
+      actionInfo: { id: actionId, metadata },
+      prefill,
+    })
   }
 }

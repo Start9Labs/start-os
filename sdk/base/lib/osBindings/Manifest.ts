@@ -8,6 +8,7 @@ import type { ImageConfig } from './ImageConfig'
 import type { ImageId } from './ImageId'
 import type { LocaleString } from './LocaleString'
 import type { PackageId } from './PackageId'
+import type { PluginId } from './PluginId'
 import type { Version } from './Version'
 import type { VolumeId } from './VolumeId'
 
@@ -35,4 +36,5 @@ export type Manifest = {
   osVersion: string
   sdkVersion: string | null
   hardwareAcceleration: boolean
+  plugins: Array<PluginId>
 }

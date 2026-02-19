@@ -257,7 +257,7 @@ export class AddressActionsComponent {
 
   showDnsValidation() {
     this.domainHealth.showPublicDomainSetup(
-      this.address().hostnameInfo.host,
+      this.address().hostnameInfo.hostname,
       this.gatewayId(),
     )
   }
@@ -286,7 +286,7 @@ export class AddressActionsComponent {
     const loader = this.loader.open('Removing').subscribe()
 
     try {
-      const host = addr.hostnameInfo.host
+      const host = addr.hostnameInfo.hostname
 
       if (addr.hostnameInfo.metadata.kind === 'public-domain') {
         if (this.packageId()) {

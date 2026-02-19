@@ -90,7 +90,7 @@ export class DockerProcedureContainer extends Drop {
             ...new Set(
               Object.values(hostInfo?.bindings || {})
                 .flatMap((b) => b.addresses.available)
-                .map((h) => h.host),
+                .map((h) => h.hostname),
             ).values(),
           ]
           const certChain = await effects.getSslCertificate({

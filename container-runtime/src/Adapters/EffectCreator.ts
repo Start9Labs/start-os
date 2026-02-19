@@ -316,6 +316,31 @@ export function makeEffects(context: EffectContext): Effects {
         T.Effects["setDataVersion"]
       >
     },
+    plugin: {
+      url: {
+        register(
+          ...[options]: Parameters<T.Effects["plugin"]["url"]["register"]>
+        ) {
+          return rpcRound("plugin.url.register", options) as ReturnType<
+            T.Effects["plugin"]["url"]["register"]
+          >
+        },
+        exportUrl(
+          ...[options]: Parameters<T.Effects["plugin"]["url"]["exportUrl"]>
+        ) {
+          return rpcRound("plugin.url.export-url", options) as ReturnType<
+            T.Effects["plugin"]["url"]["exportUrl"]
+          >
+        },
+        clearUrls(
+          ...[options]: Parameters<T.Effects["plugin"]["url"]["clearUrls"]>
+        ) {
+          return rpcRound("plugin.url.clear-urls", options) as ReturnType<
+            T.Effects["plugin"]["url"]["clearUrls"]
+          >
+        },
+      },
+    },
   }
   if (context.callbacks?.onLeaveContext)
     self.onLeaveContext(() => {

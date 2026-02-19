@@ -4,7 +4,7 @@ import type { HostnameMetadata } from './HostnameMetadata'
 export type HostnameInfo = {
   ssl: boolean
   public: boolean
-  host: string
+  hostname: string
   port: number | null
   metadata: HostnameMetadata
 }

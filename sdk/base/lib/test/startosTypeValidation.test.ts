@@ -30,6 +30,9 @@ import { ExportServiceInterfaceParams } from '.././osBindings'
 import { ListServiceInterfacesParams } from '.././osBindings'
 import { ExportActionParams } from '.././osBindings'
 import { MountParams } from '.././osBindings'
+import { UrlPluginRegisterParams } from '.././osBindings'
+import { UrlPluginExportUrlParams } from '.././osBindings'
+import { UrlPluginClearUrlsParams } from '.././osBindings'
 import { StringObject } from '../util'
 import { ExtendedVersion, VersionRange } from '../exver'
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
@@ -90,6 +93,13 @@ describe('startosTypeValidation ', () => {
       getDependencies: undefined,
       getStatus: {} as WithCallback<GetStatusParams>,
       setMainStatus: {} as SetMainStatus,
+      plugin: {
+        url: {
+          register: {} as UrlPluginRegisterParams,
+          exportUrl: {} as UrlPluginExportUrlParams,
+          clearUrls: {} as UrlPluginClearUrlsParams,
+        },
+      },
     })
   })
 })

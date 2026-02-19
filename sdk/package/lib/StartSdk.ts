@@ -6,15 +6,9 @@ import {
   ActionInfo,
   Actions,
 } from '../../base/lib/actions/setupActions'
-import {
-  SyncOptions,
-  ServiceInterfaceId,
-  PackageId,
-  ServiceInterfaceType,
-  Effects,
-} from '../../base/lib/types'
+import { ServiceInterfaceType, Effects } from '../../base/lib/types'
 import * as patterns from '../../base/lib/util/patterns'
-import { BackupSync, Backups } from './backup/Backups'
+import { Backups } from './backup/Backups'
 import { smtpInputSpec } from '../../base/lib/actions/input/inputSpecConstants'
 import { Daemon, Daemons } from './mainFn/Daemons'
 import { checkPortListening } from './health/checkFns/checkPortListening'
@@ -25,6 +19,7 @@ import { setupMain } from './mainFn'
 import { defaultTrigger } from './trigger/defaultTrigger'
 import { changeOnFirstSuccess, cooldownTrigger } from './trigger'
 import { setupServiceInterfaces } from '../../base/lib/interfaces/setupInterfaces'
+import { setupExportedUrls } from '../../base/lib/interfaces/setupExportedUrls'
 import { successFailure } from './trigger/successFailure'
 import { MultiHost, Scheme } from '../../base/lib/interfaces/Host'
 import { ServiceInterfaceBuilder } from '../../base/lib/interfaces/ServiceInterfaceBuilder'
@@ -85,8 +80,16 @@ export class StartSdk<Manifest extends T.SDKManifest> {
     return new StartSdk<Manifest>(manifest)
   }
 
+  private ifPluginEnabled<P extends T.PluginId, T>(
+    plugin: P,
+    value: T,
+  ): Manifest extends { plugins: P[] } ? T : null {
+    if (this.manifest.plugins?.includes(plugin)) return value as any
+    return null as any
+  }
+
   build(isReady: AnyNeverCond<[Manifest], 'Build not ready', true>) {
-    type NestedEffects = 'subcontainer' | 'store' | 'action'
+    type NestedEffects = 'subcontainer' | 'store' | 'action' | 'plugin'
     type InterfaceEffects =
       | 'getServiceInterface'
       | 'listServiceInterfaces'
@@ -172,7 +175,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       },
       checkDependencies: checkDependencies as <
         DependencyId extends keyof Manifest['dependencies'] &
-          PackageId = keyof Manifest['dependencies'] & PackageId,
+          T.PackageId = keyof Manifest['dependencies'] & T.PackageId,
       >(
         effects: Effects,
         packageIds?: DependencyId[],
@@ -737,6 +740,48 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       List,
       Value,
       Variants,
+      plugin: {
+        url: this.ifPluginEnabled('url-v0' as const, {
+          register: (
+            effects: T.Effects,
+            options: {
+              tableAction: ActionInfo<
+                T.ActionId,
+                {
+                  urlPluginMetadata: {
+                    packageId: T.PackageId
+                    interfaceId: T.ServiceInterfaceId
+                    hostId: T.HostId
+                    internalPort: number
+                  }
+                }
+              >
+            },
+          ) =>
+            effects.plugin.url.register({
+              tableAction: options.tableAction.id,
+            }),
+          exportUrl: (
+            effects: T.Effects,
+            options: {
+              hostnameInfo: T.PluginHostnameInfo
+              rowActions: ActionInfo<
+                T.ActionId,
+                {
+                  urlPluginMetadata: T.PluginHostnameInfo & {
+                    interfaceId: T.ServiceInterfaceId
+                  }
+                }
+              >[]
+            },
+          ) =>
+            effects.plugin.url.exportUrl({
+              hostnameInfo: options.hostnameInfo,
+              rowActions: options.rowActions.map((a) => a.id),
+            }),
+          setupExportedUrls, // similar to setupInterfaces
+        }),
+      },
     }
   }
 }

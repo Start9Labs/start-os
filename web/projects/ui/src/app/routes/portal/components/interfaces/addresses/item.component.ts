@@ -209,7 +209,7 @@ export class InterfaceAddressItemComponent {
         const kind = addr.hostnameInfo.metadata.kind
         if (kind === 'public-domain') {
           await this.domainHealth.checkPublicDomain(
-            addr.hostnameInfo.host,
+            addr.hostnameInfo.hostname,
             this.gatewayId(),
           )
         } else if (kind === 'private-domain') {

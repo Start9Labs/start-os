@@ -75,7 +75,7 @@ impl DerivedAddressInfo {
                 } else {
                     !self
                         .disabled
-                        .contains(&(h.host.clone(), h.port.unwrap_or_default())) // disablable addresses will always have a port
+                        .contains(&(h.hostname.clone(), h.port.unwrap_or_default())) // disablable addresses will always have a port
                 }
             })
             .collect()
@@ -350,7 +350,7 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
                     } else {
                         // Domains and private IPs: toggle via (host, port) in `disabled` set
                         let port = address.port.unwrap_or(if address.ssl { 443 } else { 80 });
-                        let key = (address.host.clone(), port);
+                        let key = (address.hostname.clone(), port);
                         if enabled {
                             bind.addresses.disabled.remove(&key);
                         } else {

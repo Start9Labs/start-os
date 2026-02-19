@@ -147,6 +147,11 @@ export type SDKManifest = {
    * @description Enable access to hardware acceleration devices (such as /dev/dri, or /dev/nvidia*)
    */
   readonly hardwareAcceleration?: boolean
+
+  /**
+   * @description Enable OS plugins
+   */
+  readonly plugins?: T.PluginId[]
 }
 
 // this is hacky but idk a more elegant way

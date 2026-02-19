@@ -97,6 +97,7 @@ export default class ServiceInterfaceRoute {
   readonly interfaceId = input('')
 
   readonly pkg = toSignal(this.patch.watch$('packageData', this.pkgId))
+  readonly allPackageData = toSignal(this.patch.watch$('packageData'))
 
   readonly isRunning = computed(() => {
     const pkg = this.pkg()
@@ -131,7 +132,7 @@ export default class ServiceInterfaceRoute {
         host,
         gateways,
       ),
-      pluginGroups: this.interfaceService.getPluginGroups(iFace, host),
+      pluginGroups: this.interfaceService.getPluginGroups(iFace, host, this.allPackageData()),
       addSsl: !!binding?.options.addSsl,
     }
   })

@@ -154,11 +154,11 @@ export const addressHostToUrl = (
   const effectiveScheme = hostname.ssl ? sslScheme : scheme
   let host: string
   if (hostname.metadata.kind === 'ipv6') {
-    host = IPV6_LINK_LOCAL.contains(hostname.host)
-      ? `[${hostname.host}%${hostname.metadata.scopeId}]`
-      : `[${hostname.host}]`
+    host = IPV6_LINK_LOCAL.contains(hostname.hostname)
+      ? `[${hostname.hostname}%${hostname.metadata.scopeId}]`
+      : `[${hostname.hostname}]`
   } else {
-    host = hostname.host
+    host = hostname.hostname
   }
   let portStr = ''
   if (hostname.port !== null) {
@@ -206,10 +206,10 @@ function filterRec(
           (kind.has('ipv4') && h.metadata.kind === 'ipv4') ||
           (kind.has('ipv6') && h.metadata.kind === 'ipv6') ||
           (kind.has('localhost') &&
-            ['localhost', '127.0.0.1', '::1'].includes(h.host)) ||
+            ['localhost', '127.0.0.1', '::1'].includes(h.hostname)) ||
           (kind.has('link-local') &&
             h.metadata.kind === 'ipv6' &&
-            IPV6_LINK_LOCAL.contains(IpAddress.parse(h.host)))),
+            IPV6_LINK_LOCAL.contains(IpAddress.parse(h.hostname)))),
     )
   }
 
@@ -229,13 +229,13 @@ function enabledAddresses(addr: DerivedAddressInfo): HostnameInfo[] {
       if (h.port === null) return true
       const sa =
         h.metadata.kind === 'ipv6'
-          ? `[${h.host}]:${h.port}`
-          : `${h.host}:${h.port}`
+          ? `[${h.hostname}]:${h.port}`
+          : `${h.hostname}:${h.port}`
       return addr.enabled.includes(sa)
     } else {
-      // Everything else: enabled by default, explicitly disabled via [host, port] tuple
+      // Everything else: enabled by default, explicitly disabled via [hostname, port] tuple
       return !addr.disabled.some(
-        ([host, port]) => host === h.host && port === (h.port ?? 0),
+        ([hostname, port]) => hostname === h.hostname && port === (h.port ?? 0),
       )
     }
   })

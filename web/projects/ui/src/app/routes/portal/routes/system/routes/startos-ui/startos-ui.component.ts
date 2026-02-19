@@ -71,9 +71,13 @@ export default class StartOsUiComponent {
     },
   }
 
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+
   readonly network = toSignal(
-    inject<PatchDB<DataModel>>(PatchDB).watch$('serverInfo', 'network'),
+    this.patch.watch$('serverInfo', 'network'),
   )
+
+  readonly allPackageData = toSignal(this.patch.watch$('packageData'))
 
   readonly ui = computed(() => {
     const network = this.network()
@@ -91,6 +95,7 @@ export default class StartOsUiComponent {
       pluginGroups: this.interfaceService.getPluginGroups(
         this.iface,
         network.host,
+        this.allPackageData(),
       ),
       addSsl: true,
     }

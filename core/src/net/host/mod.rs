@@ -92,6 +92,14 @@ impl Model<Host> {
         for (_, bind) in this.bindings.as_entries_mut()? {
             let net = bind.as_net().de()?;
             let opt = bind.as_options().de()?;
+            // Preserve existing plugin-provided addresses across recomputation
+            let plugin_addrs: BTreeSet<HostnameInfo> = bind
+                .as_addresses()
+                .as_available()
+                .de()?
+                .into_iter()
+                .filter(|h| matches!(h.metadata, HostnameMetadata::Plugin { .. }))
+                .collect();
             let mut available = BTreeSet::new();
             for (gid, g) in gateways {
                 let Some(ip_info) = &g.ip_info else {
@@ -117,7 +125,7 @@ impl Model<Host> {
                         available.insert(HostnameInfo {
                             ssl: opt.secure.map_or(false, |s| s.ssl),
                             public: false,
-                            host: host.clone(),
+                            hostname: host.clone(),
                             port: Some(port),
                             metadata: metadata.clone(),
                         });
@@ -126,7 +134,7 @@ impl Model<Host> {
                         available.insert(HostnameInfo {
                             ssl: true,
                             public: false,
-                            host: host.clone(),
+                            hostname: host.clone(),
                             port: Some(port),
                             metadata,
                         });
@@ -146,7 +154,7 @@ impl Model<Host> {
                         available.insert(HostnameInfo {
                             ssl: opt.secure.map_or(false, |s| s.ssl),
                             public: true,
-                            host: host.clone(),
+                            hostname: host.clone(),
                             port: Some(port),
                             metadata: metadata.clone(),
                         });
@@ -155,7 +163,7 @@ impl Model<Host> {
                         available.insert(HostnameInfo {
                             ssl: true,
                             public: true,
-                            host: host.clone(),
+                            hostname: host.clone(),
                             port: Some(port),
                             metadata,
                         });
@@ -182,7 +190,7 @@ impl Model<Host> {
                 available.insert(HostnameInfo {
                     ssl: opt.secure.map_or(false, |s| s.ssl),
                     public: false,
-                    host: mdns_host.clone(),
+                    hostname: mdns_host.clone(),
                     port: Some(port),
                     metadata: HostnameMetadata::Mdns {
                         gateways: mdns_gateways.clone(),
@@ -193,7 +201,7 @@ impl Model<Host> {
                 available.insert(HostnameInfo {
                     ssl: true,
                     public: false,
-                    host: mdns_host,
+                    hostname: mdns_host,
                     port: Some(port),
                     metadata: HostnameMetadata::Mdns {
                         gateways: mdns_gateways,
@@ -215,7 +223,7 @@ impl Model<Host> {
                     available.insert(HostnameInfo {
                         ssl: opt.secure.map_or(false, |s| s.ssl),
                         public: true,
-                        host: domain.clone(),
+                        hostname: domain.clone(),
                         port: Some(port),
                         metadata: metadata.clone(),
                     });
@@ -232,7 +240,7 @@ impl Model<Host> {
                     available.insert(HostnameInfo {
                         ssl: true,
                         public: true,
-                        host: domain,
+                        hostname: domain,
                         port: Some(port),
                         metadata,
                     });
@@ -257,7 +265,7 @@ impl Model<Host> {
                     available.insert(HostnameInfo {
                         ssl: opt.secure.map_or(false, |s| s.ssl),
                         public: true,
-                        host: domain.clone(),
+                        hostname: domain.clone(),
                         port: Some(port),
                         metadata: HostnameMetadata::PrivateDomain { gateways },
                     });
@@ -274,7 +282,7 @@ impl Model<Host> {
                     available.insert(HostnameInfo {
                         ssl: true,
                         public: true,
-                        host: domain,
+                        hostname: domain,
                         port: Some(port),
                         metadata: HostnameMetadata::PrivateDomain {
                             gateways: domain_gateways,
@@ -282,6 +290,7 @@ impl Model<Host> {
                     });
                 }
             }
+            available.extend(plugin_addrs);
             bind.as_addresses_mut().as_available_mut().ser(&available)?;
         }
 

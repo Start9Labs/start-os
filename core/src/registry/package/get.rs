@@ -602,6 +602,7 @@ fn check_matching_info_short() {
             os_version: exver::Version::new([0, 3, 6], []),
             sdk_version: None,
             hardware_acceleration: false,
+            plugins: BTreeSet::new(),
         },
         icon: DataUrl::from_vec("image/png", vec![]),
         dependency_metadata: BTreeMap::new(),

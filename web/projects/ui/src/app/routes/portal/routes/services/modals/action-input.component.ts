@@ -42,6 +42,7 @@ export type PackageActionData = {
     metadata: T.ActionMetadata
   }
   requestInfo?: T.Task
+  prefill?: Record<string, unknown>
 }
 
 @Component({
@@ -178,11 +179,14 @@ export class ActionInputModal {
 
   async execute(input: object) {
     if (await this.checkConflicts(input)) {
+      const merged = this.context.data.prefill
+        ? { ...input, ...this.context.data.prefill }
+        : input
       await this.actionService.execute(
         this.pkgInfo.id,
         this.eventId,
         this.actionId,
-        input,
+        merged,
       )
       this.context.$implicit.complete()
     }

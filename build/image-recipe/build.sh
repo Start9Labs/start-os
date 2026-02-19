@@ -41,7 +41,7 @@ if [ "$IB_TARGET_PLATFORM" = "x86_64" ] || [ "$IB_TARGET_PLATFORM" = "x86_64-non
 elif [ "$IB_TARGET_PLATFORM" = "aarch64" ] || [ "$IB_TARGET_PLATFORM" = "aarch64-nonfree" ] || [ "$IB_TARGET_PLATFORM" = "raspberrypi" ]  || [ "$IB_TARGET_PLATFORM" = "rockchip64" ]; then
 	IB_TARGET_ARCH=arm64
 	QEMU_ARCH=aarch64
-elif [ "$IB_TARGET_PLATFORM" = "riscv64" ]; then
+elif [ "$IB_TARGET_PLATFORM" = "riscv64" ] || [ "$IB_TARGET_PLATFORM" = "riscv64-nonfree" ]; then
 	IB_TARGET_ARCH=riscv64
 	QEMU_ARCH=riscv64
 else
@@ -205,7 +205,7 @@ cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
 
 set -e
 
-if [ "${NON_FREE}" = "1" ] && [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ]; then
+if [ "${NON_FREE}" = "1" ] && [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ] && [ "${IB_TARGET_PLATFORM}" != "riscv64-nonfree" ]; then
     # install a specific NVIDIA driver version
 
     # ---------------- configuration ----------------

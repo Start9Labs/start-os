@@ -46,7 +46,7 @@ export const mockPatchData: DataModel = {
                 {
                   ssl: true,
                   public: false,
-                  host: 'adjective-noun.local',
+                  hostname: 'adjective-noun.local',
                   port: 443,
                   metadata: {
                     kind: 'mdns',
@@ -56,35 +56,35 @@ export const mockPatchData: DataModel = {
                 {
                   ssl: false,
                   public: false,
-                  host: '10.0.0.1',
+                  hostname: '10.0.0.1',
                   port: 80,
                   metadata: { kind: 'ipv4', gateway: 'eth0' },
                 },
                 {
                   ssl: false,
                   public: false,
-                  host: '10.0.0.2',
+                  hostname: '10.0.0.2',
                   port: 80,
                   metadata: { kind: 'ipv4', gateway: 'wlan0' },
                 },
                 {
                   ssl: false,
                   public: false,
-                  host: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
+                  hostname: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
                   port: 80,
                   metadata: { kind: 'ipv6', gateway: 'eth0', scopeId: 2 },
                 },
                 {
                   ssl: false,
                   public: false,
-                  host: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
+                  hostname: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
                   port: 80,
                   metadata: { kind: 'ipv6', gateway: 'wlan0', scopeId: 3 },
                 },
                 {
                   ssl: true,
                   public: false,
-                  host: 'my-server.home',
+                  hostname: 'my-server.home',
                   port: 443,
                   metadata: {
                     kind: 'private-domain',
@@ -94,16 +94,16 @@ export const mockPatchData: DataModel = {
                 {
                   ssl: false,
                   public: false,
-                  host: 'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
+                  hostname: 'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
                   port: 80,
-                  metadata: { kind: 'plugin', package: 'tor' },
+                  metadata: { kind: 'plugin', packageId: 'tor', rowActions: [], info: null },
                 },
                 {
                   ssl: true,
                   public: false,
-                  host: 'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
+                  hostname: 'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
                   port: 443,
-                  metadata: { kind: 'plugin', package: 'tor' },
+                  metadata: { kind: 'plugin', packageId: 'tor', rowActions: [], info: null },
                 },
               ],
             },
@@ -349,6 +349,7 @@ export const mockPatchData: DataModel = {
       outboundGateway: null,
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
+      plugin: { url: null },
       tasks: {
         config: {
           active: true,
@@ -532,7 +533,7 @@ export const mockPatchData: DataModel = {
                   {
                     ssl: true,
                     public: false,
-                    host: 'adjective-noun.local',
+                    hostname: 'adjective-noun.local',
                     port: 42443,
                     metadata: {
                       kind: 'mdns',
@@ -542,49 +543,49 @@ export const mockPatchData: DataModel = {
                   {
                     ssl: false,
                     public: false,
-                    host: '10.0.0.1',
+                    hostname: '10.0.0.1',
                     port: 42080,
                     metadata: { kind: 'ipv4', gateway: 'eth0' },
                   },
                   {
                     ssl: false,
                     public: false,
-                    host: 'fe80::cd00:0cde:1257:211e:72cd',
+                    hostname: 'fe80::cd00:0cde:1257:211e:72cd',
                     port: 42080,
                     metadata: { kind: 'ipv6', gateway: 'eth0', scopeId: 2 },
                   },
                   {
                     ssl: true,
                     public: true,
-                    host: '203.0.113.45',
+                    hostname: '203.0.113.45',
                     port: 42443,
                     metadata: { kind: 'ipv4', gateway: 'eth0' },
                   },
                   {
                     ssl: true,
                     public: true,
-                    host: 'bitcoin.example.com',
+                    hostname: 'bitcoin.example.com',
                     port: 42443,
                     metadata: { kind: 'public-domain', gateway: 'eth0' },
                   },
                   {
                     ssl: false,
                     public: false,
-                    host: '192.168.10.11',
+                    hostname: '192.168.10.11',
                     port: 42080,
                     metadata: { kind: 'ipv4', gateway: 'wlan0' },
                   },
                   {
                     ssl: false,
                     public: false,
-                    host: 'fe80::cd00:0cde:1257:211e:1234',
+                    hostname: 'fe80::cd00:0cde:1257:211e:1234',
                     port: 42080,
                     metadata: { kind: 'ipv6', gateway: 'wlan0', scopeId: 3 },
                   },
                   {
                     ssl: true,
                     public: false,
-                    host: 'my-bitcoin.home',
+                    hostname: 'my-bitcoin.home',
                     port: 42443,
                     metadata: {
                       kind: 'private-domain',
@@ -594,16 +595,16 @@ export const mockPatchData: DataModel = {
                   {
                     ssl: false,
                     public: false,
-                    host: 'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
+                    hostname: 'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
                     port: 42080,
-                    metadata: { kind: 'plugin', package: 'tor' },
+                    metadata: { kind: 'plugin', packageId: 'tor', rowActions: [], info: null },
                   },
                   {
                     ssl: true,
                     public: false,
-                    host: 'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
+                    hostname: 'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
                     port: 42443,
-                    metadata: { kind: 'plugin', package: 'tor' },
+                    metadata: { kind: 'plugin', packageId: 'tor', rowActions: [], info: null },
                   },
                 ],
               },
@@ -655,7 +656,7 @@ export const mockPatchData: DataModel = {
                   {
                     ssl: false,
                     public: false,
-                    host: 'adjective-noun.local',
+                    hostname: 'adjective-noun.local',
                     port: 48332,
                     metadata: {
                       kind: 'mdns',
@@ -665,7 +666,7 @@ export const mockPatchData: DataModel = {
                   {
                     ssl: false,
                     public: false,
-                    host: '10.0.0.1',
+                    hostname: '10.0.0.1',
                     port: 48332,
                     metadata: { kind: 'ipv4', gateway: 'eth0' },
                   },
@@ -711,6 +712,7 @@ export const mockPatchData: DataModel = {
       outboundGateway: null,
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
+      plugin: { url: null },
       tasks: {
         // 'bitcoind-config': {
         //   task: {

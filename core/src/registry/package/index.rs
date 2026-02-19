@@ -10,6 +10,7 @@ use ts_rs::TS;
 use url::Url;
 
 use crate::PackageId;
+use crate::service::effects::plugin::PluginId;
 use crate::prelude::*;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
@@ -107,6 +108,8 @@ pub struct PackageMetadata {
     pub sdk_version: Option<Version>,
     #[serde(default)]
     pub hardware_acceleration: bool,
+    #[serde(default)]
+    pub plugins: BTreeSet<PluginId>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

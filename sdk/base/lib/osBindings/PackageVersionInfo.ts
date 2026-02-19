@@ -8,6 +8,7 @@ import type { HardwareRequirements } from './HardwareRequirements'
 import type { LocaleString } from './LocaleString'
 import type { MerkleArchiveCommitment } from './MerkleArchiveCommitment'
 import type { PackageId } from './PackageId'
+import type { PluginId } from './PluginId'
 import type { RegistryAsset } from './RegistryAsset'
 
 export type PackageVersionInfo = {
@@ -29,4 +30,5 @@ export type PackageVersionInfo = {
   osVersion: string
   sdkVersion: string | null
   hardwareAcceleration: boolean
+  plugins: Array<PluginId>
 }

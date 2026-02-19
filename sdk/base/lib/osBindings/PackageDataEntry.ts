@@ -4,6 +4,7 @@ import type { ActionMetadata } from './ActionMetadata'
 import type { CurrentDependencies } from './CurrentDependencies'
 import type { DataUrl } from './DataUrl'
 import type { Hosts } from './Hosts'
+import type { PackagePlugin } from './PackagePlugin'
 import type { PackageState } from './PackageState'
 import type { ReplayId } from './ReplayId'
 import type { ServiceInterface } from './ServiceInterface'
@@ -26,4 +27,5 @@ export type PackageDataEntry = {
   hosts: Hosts
   storeExposedDependents: string[]
   outboundGateway: string | null
+  plugin: PackagePlugin
 }

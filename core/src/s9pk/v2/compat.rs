@@ -218,6 +218,7 @@ impl TryFrom<ManifestV1> for Manifest {
                     PackageProcedure::Docker(d) => d.gpu_acceleration,
                     PackageProcedure::Script(_) => false,
                 },
+                plugins: BTreeSet::new(),
             },
             images: BTreeMap::new(),
             volumes: value

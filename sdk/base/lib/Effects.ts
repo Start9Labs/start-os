@@ -16,6 +16,7 @@ import {
   MountParams,
   StatusInfo,
   Manifest,
+  HostnameInfo,
 } from './osBindings'
 import {
   PackageId,
@@ -23,6 +24,7 @@ import {
   ServiceInterfaceId,
   SmtpValue,
   ActionResult,
+  PluginHostnameInfo,
 } from './types'
 
 /** Used to reach out from the pure js runtime */
@@ -151,6 +153,17 @@ export type Effects = {
   clearServiceInterfaces(options: {
     except: ServiceInterfaceId[]
   }): Promise<null>
+
+  plugin: {
+    url: {
+      register(options: { tableAction: ActionId }): Promise<null>
+      exportUrl(options: {
+        hostnameInfo: PluginHostnameInfo
+        rowActions: ActionId[]
+      }): Promise<null>
+      clearUrls(options: { except: PluginHostnameInfo[] }): Promise<null>
+    }
+  }
   // ssl
   /** Returns a PEM encoded fullchain for the hostnames specified */
   getSslCertificate: (options: {
