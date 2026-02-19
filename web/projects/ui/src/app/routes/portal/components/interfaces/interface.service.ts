@@ -171,14 +171,26 @@ export class InterfaceService {
       })
     }
 
+    // Also include URL plugins that have no addresses yet
+    if (allPackageData) {
+      for (const [pkgId, pkg] of Object.entries(allPackageData)) {
+        if (pkg.plugin?.url && !groupMap.has(pkgId)) {
+          groupMap.set(pkgId, [])
+        }
+      }
+    }
+
     return Array.from(groupMap.entries()).map(([pluginId, addresses]) => {
       const pluginPkg = allPackageData?.[pluginId]
       const pluginActions = pluginPkg?.actions ?? {}
       const tableActionId = pluginPkg?.plugin?.url?.tableAction ?? null
-      const tableActionMeta = tableActionId ? pluginActions[tableActionId] : undefined
-      const tableAction = tableActionId && tableActionMeta
-        ? { id: tableActionId, metadata: tableActionMeta }
-        : null
+      const tableActionMeta = tableActionId
+        ? pluginActions[tableActionId]
+        : undefined
+      const tableAction =
+        tableActionId && tableActionMeta
+          ? { id: tableActionId, metadata: tableActionMeta }
+          : null
 
       let pluginPkgInfo: PluginPkgInfo | null = null
       if (pluginPkg) {
@@ -193,7 +205,9 @@ export class InterfaceService {
 
       return {
         pluginId,
-        pluginName: pluginPkgInfo?.title ?? pluginId.charAt(0).toUpperCase() + pluginId.slice(1),
+        pluginName:
+          pluginPkgInfo?.title ??
+          pluginId.charAt(0).toUpperCase() + pluginId.slice(1),
         addresses,
         tableAction,
         pluginPkgInfo,
