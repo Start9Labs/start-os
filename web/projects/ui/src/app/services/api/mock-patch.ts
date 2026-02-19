@@ -94,16 +94,30 @@ export const mockPatchData: DataModel = {
                 {
                   ssl: false,
                   public: false,
-                  hostname: 'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
+                  hostname:
+                    'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
                   port: 80,
-                  metadata: { kind: 'plugin', packageId: 'tor', rowActions: [], info: null },
+                  metadata: {
+                    kind: 'plugin',
+                    packageId: 'tor',
+                    removeAction: 'delete-onion-service',
+                    overflowActions: [],
+                    info: null,
+                  },
                 },
                 {
                   ssl: true,
                   public: false,
-                  hostname: 'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
+                  hostname:
+                    'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
                   port: 443,
-                  metadata: { kind: 'plugin', packageId: 'tor', rowActions: [], info: null },
+                  metadata: {
+                    kind: 'plugin',
+                    packageId: 'tor',
+                    removeAction: 'delete-onion-service',
+                    overflowActions: [],
+                    info: null,
+                  },
                 },
               ],
             },
@@ -595,16 +609,30 @@ export const mockPatchData: DataModel = {
                   {
                     ssl: false,
                     public: false,
-                    hostname: 'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
+                    hostname:
+                      'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
                     port: 42080,
-                    metadata: { kind: 'plugin', packageId: 'tor', rowActions: [], info: null },
+                    metadata: {
+                      kind: 'plugin',
+                      packageId: 'tor',
+                      removeAction: 'delete-onion-service',
+                      overflowActions: [],
+                      info: null,
+                    },
                   },
                   {
                     ssl: true,
                     public: false,
-                    hostname: 'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
+                    hostname:
+                      'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
                     port: 42443,
-                    metadata: { kind: 'plugin', packageId: 'tor', rowActions: [], info: null },
+                    metadata: {
+                      kind: 'plugin',
+                      packageId: 'tor',
+                      removeAction: 'delete-onion-service',
+                      overflowActions: [],
+                      info: null,
+                    },
                   },
                 ],
               },

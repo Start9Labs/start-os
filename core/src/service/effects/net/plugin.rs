@@ -19,7 +19,10 @@ fn require_url_plugin(context: &Arc<Service>) -> Result<(), Error> {
         .contains(&PluginId::UrlV0)
     {
         return Err(Error::new(
-            eyre!("{}", t!("net.plugin.manifest-missing-plugin", plugin = "url-v0")),
+            eyre!(
+                "{}",
+                t!("net.plugin.manifest-missing-plugin", plugin = "url-v0")
+            ),
             ErrorKind::InvalidRequest,
         ));
     }
@@ -68,36 +71,45 @@ pub async fn register(
 #[ts(export)]
 pub struct UrlPluginExportUrlParams {
     pub hostname_info: PluginHostnameInfo,
-    pub row_actions: Vec<ActionId>,
+    pub remove_action: Option<ActionId>,
+    pub overflow_actions: Vec<ActionId>,
 }
 
 pub async fn export_url(
     context: EffectContext,
     UrlPluginExportUrlParams {
         hostname_info,
-        row_actions,
+        remove_action,
+        overflow_actions,
     }: UrlPluginExportUrlParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     require_url_plugin(&context)?;
     let plugin_id = context.seed.id.clone();
 
-    let entry = hostname_info.to_hostname_info(&plugin_id, row_actions);
+    let entry = hostname_info.to_hostname_info(&plugin_id, remove_action, overflow_actions);
 
     context
         .seed
         .ctx
         .db
         .mutate(|db| {
-            let host = host_for(db, hostname_info.package_id.as_ref(), &hostname_info.host_id)?;
+            let host = host_for(
+                db,
+                hostname_info.package_id.as_ref(),
+                &hostname_info.host_id,
+            )?;
             host.as_bindings_mut()
                 .as_idx_mut(&hostname_info.internal_port)
-                .or_not_found(t!("net.plugin.binding-not-found", binding = format!(
-                    "{}:{}:{}",
-                    hostname_info.package_id.as_deref().unwrap_or("STARTOS"),
-                    hostname_info.host_id,
-                    hostname_info.internal_port
-                )))?
+                .or_not_found(t!(
+                    "net.plugin.binding-not-found",
+                    binding = format!(
+                        "{}:{}:{}",
+                        hostname_info.package_id.as_deref().unwrap_or("STARTOS"),
+                        hostname_info.host_id,
+                        hostname_info.internal_port
+                    )
+                ))?
                 .as_addresses_mut()
                 .as_available_mut()
                 .mutate(|available: &mut BTreeSet<_>| {

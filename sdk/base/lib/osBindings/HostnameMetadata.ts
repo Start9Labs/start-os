@@ -12,6 +12,7 @@ export type HostnameMetadata =
   | {
       kind: 'plugin'
       packageId: PackageId
-      rowActions: Array<ActionId>
+      removeAction: ActionId | null
+      overflowActions: Array<ActionId>
       info: unknown
     }

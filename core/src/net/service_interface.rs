@@ -43,7 +43,8 @@ pub enum HostnameMetadata {
     },
     Plugin {
         package_id: PackageId,
-        row_actions: Vec<ActionId>,
+        remove_action: Option<ActionId>,
+        overflow_actions: Vec<ActionId>,
         #[ts(type = "unknown")]
         #[serde(default)]
         info: Value,
@@ -99,7 +100,8 @@ impl PluginHostnameInfo {
     pub fn to_hostname_info(
         &self,
         plugin_package: &PackageId,
-        row_actions: Vec<ActionId>,
+        remove_action: Option<ActionId>,
+        overflow_actions: Vec<ActionId>,
     ) -> HostnameInfo {
         HostnameInfo {
             ssl: self.ssl,
@@ -109,7 +111,8 @@ impl PluginHostnameInfo {
             metadata: HostnameMetadata::Plugin {
                 package_id: plugin_package.clone(),
                 info: self.info.clone(),
-                row_actions,
+                remove_action,
+                overflow_actions,
             },
         }
     }
@@ -118,7 +121,9 @@ impl PluginHostnameInfo {
     /// (comparing address fields only, not row_actions).
     pub fn matches_hostname_info(&self, h: &HostnameInfo, plugin_package: &PackageId) -> bool {
         match &h.metadata {
-            HostnameMetadata::Plugin { package_id, info, .. } => {
+            HostnameMetadata::Plugin {
+                package_id, info, ..
+            } => {
                 package_id == plugin_package
                     && h.ssl == self.ssl
                     && h.public == self.public

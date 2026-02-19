@@ -765,7 +765,15 @@ export class StartSdk<Manifest extends T.SDKManifest> {
             effects: T.Effects,
             options: {
               hostnameInfo: T.PluginHostnameInfo
-              rowActions: ActionInfo<
+              removeAction: ActionInfo<
+                T.ActionId,
+                {
+                  urlPluginMetadata: T.PluginHostnameInfo & {
+                    interfaceId: T.ServiceInterfaceId
+                  }
+                }
+              > | null
+              overflowActions: ActionInfo<
                 T.ActionId,
                 {
                   urlPluginMetadata: T.PluginHostnameInfo & {
@@ -777,7 +785,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           ) =>
             effects.plugin.url.exportUrl({
               hostnameInfo: options.hostnameInfo,
-              rowActions: options.rowActions.map((a) => a.id),
+              removeAction: options.removeAction?.id ?? null,
+              overflowActions: options.overflowActions.map((a) => a.id),
             }),
           setupExportedUrls, // similar to setupInterfaces
         }),

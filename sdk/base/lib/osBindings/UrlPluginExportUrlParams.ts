@@ -4,5 +4,6 @@ import type { PluginHostnameInfo } from './PluginHostnameInfo'
 
 export type UrlPluginExportUrlParams = {
   hostnameInfo: PluginHostnameInfo
-  rowActions: Array<ActionId>
+  removeAction: ActionId | null
+  overflowActions: Array<ActionId>
 }

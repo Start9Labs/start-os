@@ -159,7 +159,8 @@ export type Effects = {
       register(options: { tableAction: ActionId }): Promise<null>
       exportUrl(options: {
         hostnameInfo: PluginHostnameInfo
-        rowActions: ActionId[]
+        removeAction: ActionId | null
+        overflowActions: ActionId[]
       }): Promise<null>
       clearUrls(options: { except: PluginHostnameInfo[] }): Promise<null>
     }

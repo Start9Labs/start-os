@@ -5,11 +5,7 @@ import {
   input,
   signal,
 } from '@angular/core'
-import {
-  CopyService,
-  DialogService,
-  i18nPipe,
-} from '@start9labs/shared'
+import { CopyService, DialogService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import {
@@ -72,21 +68,30 @@ import {
                 {{ 'Copy URL' | i18n }}
               </button>
               @if (address.hostnameInfo.metadata.kind === 'plugin') {
-                @for (
-                  actionId of address.hostnameInfo.metadata.rowActions;
-                  track actionId
-                ) {
-                  @if (pluginGroup().pluginActions[actionId]; as meta) {
+                @if (address.hostnameInfo.metadata.removeAction) {
+                  @if (
+                    pluginGroup().pluginActions[
+                      address.hostnameInfo.metadata.removeAction
+                    ];
+                    as meta
+                  ) {
                     <button
                       tuiIconButton
                       appearance="flat-grayscale"
-                      iconStart="@tui.play"
-                      (click)="runRowAction(actionId, meta, address)"
+                      iconStart="@tui.trash"
+                      (click)="
+                        runRowAction(
+                          address.hostnameInfo.metadata.removeAction,
+                          meta,
+                          address
+                        )
+                      "
                     >
                       {{ meta.name }}
                     </button>
                   }
                 }
+                <!-- TODO @MattHill: overflow -->
               }
             </div>
             <div class="mobile">
@@ -117,21 +122,30 @@ import {
                     {{ 'Copy URL' | i18n }}
                   </button>
                   @if (address.hostnameInfo.metadata.kind === 'plugin') {
-                    @for (
-                      actionId of address.hostnameInfo.metadata.rowActions;
-                      track actionId
-                    ) {
-                      @if (pluginGroup().pluginActions[actionId]; as meta) {
+                    @if (address.hostnameInfo.metadata.removeAction) {
+                      @if (
+                        pluginGroup().pluginActions[
+                          address.hostnameInfo.metadata.removeAction
+                        ];
+                        as meta
+                      ) {
                         <button
                           tuiOption
                           new
-                          iconStart="@tui.play"
-                          (click)="runRowAction(actionId, meta, address)"
+                          iconStart="@tui.trash"
+                          (click)="
+                            runRowAction(
+                              address.hostnameInfo.metadata.removeAction,
+                              meta,
+                              address
+                            )
+                          "
                         >
                           {{ meta.name }}
                         </button>
                       }
                     }
+                    <!-- TODO @MattHill: overflow -->
                   }
                 </tui-data-list>
               </button>
