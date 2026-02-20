@@ -1261,9 +1261,15 @@ pub async fn save_language(language: &str) -> Result<(), Error> {
         "/media/startos/config/overlay/usr/lib/locale/locale-archive",
     )
     .await?;
+    let locale_content = format!("LANG={language}.UTF-8\n");
     write_file_atomic(
         "/media/startos/config/overlay/etc/default/locale",
-        format!("LANG={language}.UTF-8\n").as_bytes(),
+        locale_content.as_bytes(),
+    )
+    .await?;
+    write_file_atomic(
+        "/media/startos/config/overlay/etc/locale.conf",
+        locale_content.as_bytes(),
     )
     .await?;
     Ok(())

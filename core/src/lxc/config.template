@@ -17,3 +17,6 @@ lxc.net.0.link = lxcbr0
 lxc.net.0.flags = up
 
 lxc.rootfs.options = rshared
+
+# Environment
+lxc.environment = LANG={lang}
