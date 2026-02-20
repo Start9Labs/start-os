@@ -1,7 +1,11 @@
+use std::path::Path;
+
 use exver::{PreReleaseSegment, VersionRange};
+use imbl_value::json;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{VersionT, v0_4_0_alpha_19};
+use crate::context::RpcContext;
 use crate::prelude::*;
 
 lazy_static::lazy_static! {
@@ -29,6 +33,75 @@ impl VersionT for Version {
     }
     #[instrument(skip_all)]
     fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
+        // Extract onion migration data before removing it
+        let onion_store = db
+            .get("private")
+            .and_then(|p| p.get("keyStore"))
+            .and_then(|k| k.get("onion"))
+            .cloned()
+            .unwrap_or(Value::Object(Default::default()));
+
+        let mut addresses = imbl::Vector::<Value>::new();
+
+        // Extract OS host onion addresses
+        if let Some(onions) = db
+            .get("public")
+            .and_then(|p| p.get("serverInfo"))
+            .and_then(|s| s.get("network"))
+            .and_then(|n| n.get("host"))
+            .and_then(|h| h.get("onions"))
+            .and_then(|o| o.as_array())
+        {
+            for onion in onions {
+                if let Some(hostname) = onion.as_str() {
+                    let key = onion_store
+                        .get(hostname)
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default();
+                    addresses.push_back(json!({
+                        "hostname": hostname,
+                        "packageId": "STARTOS",
+                        "hostId": "STARTOS",
+                        "key": key,
+                    }));
+                }
+            }
+        }
+
+        // Extract package host onion addresses
+        if let Some(packages) = db
+            .get("public")
+            .and_then(|p| p.get("packageData"))
+            .and_then(|p| p.as_object())
+        {
+            for (package_id, package) in packages.iter() {
+                if let Some(hosts) = package.get("hosts").and_then(|h| h.as_object()) {
+                    for (host_id, host) in hosts.iter() {
+                        if let Some(onions) = host.get("onions").and_then(|o| o.as_array()) {
+                            for onion in onions {
+                                if let Some(hostname) = onion.as_str() {
+                                    let key = onion_store
+                                        .get(hostname)
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or_default();
+                                    addresses.push_back(json!({
+                                        "hostname": hostname,
+                                        "packageId": &**package_id,
+                                        "hostId": &**host_id,
+                                        "key": key,
+                                    }));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let migration_data = json!({
+            "addresses": addresses,
+        });
+
         // Remove onions and tor-related fields from server host
         if let Some(host) = db
             .get_mut("public")
@@ -93,7 +166,20 @@ impl VersionT for Version {
         // Rebuild from actual assigned ports in all bindings
         migrate_available_ports(db);
 
-        Ok(Value::Null)
+        Ok(migration_data)
+    }
+
+    #[instrument(skip_all)]
+    async fn post_up(self, _ctx: &RpcContext, input: Value) -> Result<(), Error> {
+        let path = Path::new(
+            "/media/startos/data/package-data/volumes/tor/data/startos/onion-migration.json",
+        );
+
+        let json = serde_json::to_string(&input).with_kind(ErrorKind::Serialization)?;
+
+        crate::util::io::write_file_atomic(path, json).await?;
+
+        Ok(())
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {
         Ok(())
@@ -165,7 +251,11 @@ fn migrate_host(host: Option<&mut Value>) {
     host.remove("hostnameInfo");
 
     // Migrate privateDomains from array to object (BTreeSet -> BTreeMap<_, BTreeSet<GatewayId>>)
-    if let Some(private_domains) = host.get("privateDomains").and_then(|v| v.as_array()).cloned() {
+    if let Some(private_domains) = host
+        .get("privateDomains")
+        .and_then(|v| v.as_array())
+        .cloned()
+    {
         let mut new_pd: Value = serde_json::json!({}).into();
         for domain in private_domains {
             if let Some(d) = domain.as_str() {
