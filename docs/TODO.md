@@ -51,15 +51,3 @@ Pending tasks for AI agents. Remove items when completed.
   **Goal**: The `input-not-matches` handler in StartOS should queue the task, check it once the
   service is ready, then clear it if it matches. This allows tasks to be created regardless of
   whether the service is currently running.
-
-- [ ] Build start-tunnel update UI - @MattDHill
-
-  **Goal**: Add a UI in the start-tunnel web frontend for checking and applying OTA updates.
-  The backend RPC endpoints (`tunnel.update.check` and `tunnel.update.apply`) and frontend
-  API service methods (`checkUpdate()` / `applyUpdate()`) are already implemented. The UI
-  needs a settings or admin page that calls `checkUpdate()` to display the current/candidate
-  versions and status, and an "Apply Update" button that calls `applyUpdate()`.
-
-  **Types**: `TunnelUpdateResult` has `status` ("up-to-date" | "update-available" | "updating"),
-  `installed` (current version string), and `candidate` (available version string).
-
