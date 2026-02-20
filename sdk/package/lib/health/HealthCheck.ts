@@ -4,7 +4,6 @@ import { Trigger } from '../trigger'
 import { TriggerInput } from '../trigger/TriggerInput'
 import { defaultTrigger } from '../trigger/defaultTrigger'
 import { once, asError, Drop } from '../util'
-import { object, unknown } from 'ts-matches'
 
 export type HealthCheckParams = {
   id: HealthCheckId
@@ -109,7 +108,8 @@ export class HealthCheck extends Drop {
 }
 
 function asMessage(e: unknown) {
-  if (object({ message: unknown }).test(e)) return String(e.message)
+  if (typeof e === 'object' && e !== null && 'message' in e)
+    return String((e as any).message)
   const value = String(e)
   if (value.length == null) return null
   return value

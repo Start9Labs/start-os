@@ -1,7 +1,7 @@
-import { object } from 'ts-matches'
-
 export function deepEqual(...args: unknown[]) {
-  const objects = args.filter(object.test)
+  const objects = args.filter(
+    (x): x is object => typeof x === 'object' && x !== null,
+  )
   if (objects.length === 0) {
     for (const x of args) if (x !== args[0]) return false
     return true

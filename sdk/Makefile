@@ -1,12 +1,12 @@
-PACKAGE_TS_FILES := $(shell git ls-files package/lib) package/lib/test/output.ts
-BASE_TS_FILES := $(shell git ls-files base/lib) package/lib/test/output.ts
+PACKAGE_TS_FILES := $(shell git ls-files package/lib)
+BASE_TS_FILES := $(shell git ls-files base/lib)
 version = $(shell git tag --sort=committerdate | tail -1)
 
 .PHONY: test base/test package/test clean bundle fmt buildOutput check
 
 all: bundle
 
-package/test: $(PACKAGE_TS_FILES) package/lib/test/output.ts package/node_modules base/node_modules
+package/test: $(PACKAGE_TS_FILES) package/node_modules base/node_modules
 	cd package && npm test
 
 base/test: $(BASE_TS_FILES) base/node_modules
@@ -21,9 +21,6 @@ clean:
 	rm -f package/lib/test/output.ts
 	rm -rf package/node_modules
 	
-package/lib/test/output.ts: package/node_modules package/lib/test/makeOutput.ts package/scripts/oldSpecToBuilder.ts
-	cd package && npm run buildOutput
-
 bundle: baseDist dist | test fmt
 	touch dist
 

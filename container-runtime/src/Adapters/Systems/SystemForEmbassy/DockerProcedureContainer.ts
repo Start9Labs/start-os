@@ -2,7 +2,7 @@ import * as fs from "fs/promises"
 import * as cp from "child_process"
 import { SubContainer, types as T } from "@start9labs/start-sdk"
 import { promisify } from "util"
-import { DockerProcedure, VolumeId } from "../../../Models/DockerProcedure"
+import { DockerProcedure } from "../../../Models/DockerProcedure"
 import { Volume } from "./matchVolume"
 import {
   CommandOptions,
@@ -28,7 +28,7 @@ export class DockerProcedureContainer extends Drop {
     effects: T.Effects,
     packageId: string,
     data: DockerProcedure,
-    volumes: { [id: VolumeId]: Volume },
+    volumes: { [id: string]: Volume },
     name: string,
     options: { subcontainer?: SubContainer<SDKManifest> } = {},
   ) {
@@ -47,7 +47,7 @@ export class DockerProcedureContainer extends Drop {
     effects: T.Effects,
     packageId: string,
     data: DockerProcedure,
-    volumes: { [id: VolumeId]: Volume },
+    volumes: { [id: string]: Volume },
     name: string,
   ) {
     const subcontainer = await SubContainerOwned.of(
@@ -64,7 +64,7 @@ export class DockerProcedureContainer extends Drop {
           ? `${subcontainer.rootfs}${mounts[mount]}`
           : `${subcontainer.rootfs}/${mounts[mount]}`
         await fs.mkdir(path, { recursive: true })
-        const volumeMount = volumes[mount]
+        const volumeMount: Volume = volumes[mount]
         if (volumeMount.type === "data") {
           await subcontainer.mount(
             Mounts.of().mountVolume({

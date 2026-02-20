@@ -1,4 +1,3 @@
-import { boolean } from 'ts-matches'
 import { ExtendedVersion } from '../exver'
 
 export type Vertex<VMetadata = null, EMetadata = null> = {

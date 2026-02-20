@@ -9,7 +9,7 @@ import {
   ValueSpecText,
 } from '../inputSpecTypes'
 import { DefaultString } from '../inputSpecTypes'
-import { Parser } from 'ts-matches'
+import { z } from 'zod'
 import { ListValueSpecText } from '../inputSpecTypes'
 
 export interface InputSpecTools<OuterType> {
@@ -224,7 +224,7 @@ export interface BoundValue<OuterType> {
       },
       OuterType
     >,
-    validator: Parser<unknown, UnionResStaticValidatedAs<StaticVariantValues>>,
+    validator: z.ZodType<UnionResStaticValidatedAs<StaticVariantValues>>,
   ): Value<
     UnionRes<VariantValues>,
     UnionResStaticValidatedAs<StaticVariantValues>,
@@ -232,7 +232,7 @@ export interface BoundValue<OuterType> {
   >
 
   dynamicHidden<T>(
-    getParser: LazyBuild<Parser<unknown, T>, OuterType>,
+    getParser: LazyBuild<z.ZodType<T>, OuterType>,
   ): Value<T, T, OuterType>
 }
 

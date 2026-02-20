@@ -7,7 +7,7 @@ import {
   ValueSpecList,
   ValueSpecListOf,
 } from '../inputSpecTypes'
-import { Parser, arrayOf, string } from 'ts-matches'
+import { z } from 'zod'
 
 export class List<
   Type extends StaticValidatedAs,
@@ -18,11 +18,11 @@ export class List<
     public build: LazyBuild<
       {
         spec: ValueSpecList
-        validator: Parser<unknown, Type>
+        validator: z.ZodType<Type>
       },
       OuterType
     >,
-    public readonly validator: Parser<unknown, StaticValidatedAs>,
+    public readonly validator: z.ZodType<StaticValidatedAs>,
   ) {}
   readonly _TYPE: Type = null as any
 
@@ -69,7 +69,7 @@ export class List<
       generate?: null | RandomString
     },
   ) {
-    const validator = arrayOf(string)
+    const validator = z.array(z.string())
     return new List<string[]>(() => {
       const spec = {
         type: 'text' as const,
@@ -120,7 +120,7 @@ export class List<
       OuterType
     >,
   ) {
-    const validator = arrayOf(string)
+    const validator = z.array(z.string())
     return new List<string[], string[], OuterType>(async (options) => {
       const { spec: aSpec, ...a } = await getA(options)
       const spec = {
@@ -193,8 +193,8 @@ export class List<
           disabled: false,
           ...value,
         },
-        validator: arrayOf(built.validator),
+        validator: z.array(built.validator),
       }
-    }, arrayOf(aSpec.spec.validator))
+    }, z.array(aSpec.spec.validator))
   }
 }

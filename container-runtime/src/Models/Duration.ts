@@ -1,11 +1,11 @@
-import { string } from "ts-matches"
+import { z } from "@start9labs/start-sdk"
 
 export type TimeUnit = "d" | "h" | "s" | "ms" | "m" | "µs" | "ns"
 export type Duration = `${number}${TimeUnit}`
 
 const durationRegex = /^([0-9]*(\.[0-9]+)?)(ns|µs|ms|s|m|d)$/
 
-export const matchDuration = string.refine(isDuration)
+export const matchDuration = z.string().refine(isDuration)
 export function isDuration(value: string): value is Duration {
   return durationRegex.test(value)
 }

@@ -2,7 +2,7 @@ import { ValueSpec } from '../inputSpecTypes'
 import { Value } from './value'
 import { _ } from '../../../util'
 import { Effects } from '../../../Effects'
-import { Parser, object } from 'ts-matches'
+import { z } from 'zod'
 import { DeepPartial } from '../../../types'
 import { InputSpecTools, createInputSpecTools } from './inputSpecTools'
 
@@ -96,7 +96,7 @@ export class InputSpec<
     private readonly spec: {
       [K in keyof Type]: Value<Type[K]>
     },
-    public readonly validator: Parser<unknown, StaticValidatedAs>,
+    public readonly validator: z.ZodType<StaticValidatedAs>,
   ) {}
   public _TYPE: Type = null as any as Type
   public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
@@ -104,13 +104,13 @@ export class InputSpec<
     spec: {
       [K in keyof Type]: ValueSpec
     }
-    validator: Parser<unknown, Type>
+    validator: z.ZodType<Type>
   }> {
     const answer = {} as {
       [K in keyof Type]: ValueSpec
     }
     const validator = {} as {
-      [K in keyof Type]: Parser<unknown, any>
+      [K in keyof Type]: z.ZodType<any>
     }
     for (const k in this.spec) {
       const built = await this.spec[k].build(options as any)
@@ -119,7 +119,7 @@ export class InputSpec<
     }
     return {
       spec: answer,
-      validator: object(validator) as any,
+      validator: z.object(validator) as any,
     }
   }
 
@@ -135,7 +135,7 @@ export class InputSpec<
     const value =
       build instanceof Function ? build(createInputSpecTools<Type>()) : build
     const newSpec = { ...this.spec, [key]: value } as any
-    const newValidator = object(
+    const newValidator = z.object(
       Object.fromEntries(
         Object.entries(newSpec).map(([k, v]) => [
           k,
@@ -163,7 +163,7 @@ export class InputSpec<
     const addedValues =
       build instanceof Function ? build(createInputSpecTools<Type>()) : build
     const newSpec = { ...this.spec, ...addedValues } as any
-    const newValidator = object(
+    const newValidator = z.object(
       Object.fromEntries(
         Object.entries(newSpec).map(([k, v]) => [
           k,
@@ -175,7 +175,7 @@ export class InputSpec<
   }
 
   static of<Spec extends Record<string, Value<any, any>>>(spec: Spec) {
-    const validator = object(
+    const validator = z.object(
       Object.fromEntries(
         Object.entries(spec).map(([k, v]) => [k, v.validator]),
       ),

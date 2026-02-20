@@ -1,41 +1,19 @@
-import {
-  object,
-  literal,
-  string,
-  boolean,
-  array,
-  dictionary,
-  literals,
-  number,
-  Parser,
-  some,
-} from "ts-matches"
+import { z } from "@start9labs/start-sdk"
 import { matchDuration } from "./Duration"
 
-const VolumeId = string
-const Path = string
-
-export type VolumeId = string
-export type Path = string
-export const matchDockerProcedure = object({
-  type: literal("docker"),
-  image: string,
-  system: boolean.optional(),
-  entrypoint: string,
-  args: array(string).defaultTo([]),
-  mounts: dictionary([VolumeId, Path]).optional(),
-  "io-format": literals(
-    "json",
-    "json-pretty",
-    "yaml",
-    "cbor",
-    "toml",
-    "toml-pretty",
-  )
+export const matchDockerProcedure = z.object({
+  type: z.literal("docker"),
+  image: z.string(),
+  system: z.boolean().optional(),
+  entrypoint: z.string(),
+  args: z.array(z.string()).default([]),
+  mounts: z.record(z.string(), z.string()).optional(),
+  "io-format": z
+    .enum(["json", "json-pretty", "yaml", "cbor", "toml", "toml-pretty"])
     .nullable()
     .optional(),
-  "sigterm-timeout": some(number, matchDuration).onMismatch(30),
-  inject: boolean.defaultTo(false),
+  "sigterm-timeout": z.union([z.number(), matchDuration]).catch(30),
+  inject: z.boolean().default(false),
 })
 
-export type DockerProcedure = typeof matchDockerProcedure._TYPE
+export type DockerProcedure = z.infer<typeof matchDockerProcedure>

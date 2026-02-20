@@ -12,37 +12,27 @@ import {
 } from '../inputSpecTypes'
 import { DefaultString } from '../inputSpecTypes'
 import { _, once } from '../../../util'
-import {
-  Parser,
-  any,
-  anyOf,
-  arrayOf,
-  boolean,
-  literal,
-  literals,
-  number,
-  object,
-  string,
-} from 'ts-matches'
+import { z } from 'zod'
 import { DeepPartial } from '../../../types'
 
-export const fileInfoParser = object({
-  path: string,
-  commitment: object({ hash: string, size: number }),
+export const fileInfoParser = z.object({
+  path: z.string(),
+  commitment: z.object({ hash: z.string(), size: z.number() }),
 })
-export type FileInfo = typeof fileInfoParser._TYPE
+export type FileInfo = z.infer<typeof fileInfoParser>
 
 export type AsRequired<T, Required extends boolean> = Required extends true
   ? T
   : T | null
 
 const testForAsRequiredParser = once(
-  () => object({ required: literal(true) }).test,
+  () => (v: unknown) =>
+    z.object({ required: z.literal(true) }).safeParse(v).success,
 )
 function asRequiredParser<Type, Input extends { required: boolean }>(
-  parser: Parser<unknown, Type>,
+  parser: z.ZodType<Type>,
   input: Input,
-): Parser<unknown, AsRequired<Type, Input['required']>> {
+): z.ZodType<AsRequired<Type, Input['required']>> {
   if (testForAsRequiredParser()(input)) return parser as any
   return parser.nullable() as any
 }
@@ -56,11 +46,11 @@ export class Value<
     public build: LazyBuild<
       {
         spec: ValueSpec
-        validator: Parser<unknown, Type>
+        validator: z.ZodType<Type>
       },
       OuterType
     >,
-    public readonly validator: Parser<unknown, StaticValidatedAs>,
+    public readonly validator: z.ZodType<StaticValidatedAs>,
   ) {}
   public _TYPE: Type = null as any as Type
   public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
@@ -93,7 +83,7 @@ export class Value<
      */
     immutable?: boolean
   }) {
-    const validator = boolean
+    const validator = z.boolean()
     return new Value<boolean>(
       async () => ({
         spec: {
@@ -121,7 +111,7 @@ export class Value<
       OuterType
     >,
   ) {
-    const validator = boolean
+    const validator = z.boolean()
     return new Value<boolean, boolean, OuterType>(
       async (options) => ({
         spec: {
@@ -212,7 +202,7 @@ export class Value<
      */
     generate?: RandomString | null
   }) {
-    const validator = asRequiredParser(string, a)
+    const validator = asRequiredParser(z.string(), a)
     return new Value<AsRequired<string, Required>>(
       async () => ({
         spec: {
@@ -274,10 +264,10 @@ export class Value<
             generate: a.generate ?? null,
             ...a,
           },
-          validator: asRequiredParser(string, a),
+          validator: asRequiredParser(z.string(), a),
         }
       },
-      string.nullable(),
+      z.string().nullable(),
     )
   }
   /**
@@ -336,7 +326,7 @@ export class Value<
      */
     immutable?: boolean
   }) {
-    const validator = asRequiredParser(string, a)
+    const validator = asRequiredParser(z.string(), a)
     return new Value<AsRequired<string, Required>>(async () => {
       const built: ValueSpecTextarea = {
         description: null,
@@ -392,10 +382,10 @@ export class Value<
             immutable: false,
             ...a,
           },
-          validator: asRequiredParser(string, a),
+          validator: asRequiredParser(z.string(), a),
         }
       },
-      string.nullable(),
+      z.string().nullable(),
     )
   }
   /**
@@ -456,7 +446,7 @@ export class Value<
      */
     immutable?: boolean
   }) {
-    const validator = asRequiredParser(number, a)
+    const validator = asRequiredParser(z.number(), a)
     return new Value<AsRequired<number, Required>>(
       () => ({
         spec: {
@@ -513,10 +503,10 @@ export class Value<
             immutable: false,
             ...a,
           },
-          validator: asRequiredParser(number, a),
+          validator: asRequiredParser(z.number(), a),
         }
       },
-      number.nullable(),
+      z.number().nullable(),
     )
   }
   /**
@@ -555,7 +545,7 @@ export class Value<
      */
     immutable?: boolean
   }) {
-    const validator = asRequiredParser(string, a)
+    const validator = asRequiredParser(z.string(), a)
     return new Value<AsRequired<string, Required>>(
       () => ({
         spec: {
@@ -597,10 +587,10 @@ export class Value<
             immutable: false,
             ...a,
           },
-          validator: asRequiredParser(string, a),
+          validator: asRequiredParser(z.string(), a),
         }
       },
-      string.nullable(),
+      z.string().nullable(),
     )
   }
   /**
@@ -649,7 +639,7 @@ export class Value<
      */
     immutable?: boolean
   }) {
-    const validator = asRequiredParser(string, a)
+    const validator = asRequiredParser(z.string(), a)
     return new Value<AsRequired<string, Required>>(
       () => ({
         spec: {
@@ -700,10 +690,10 @@ export class Value<
             immutable: false,
             ...a,
           },
-          validator: asRequiredParser(string, a),
+          validator: asRequiredParser(z.string(), a),
         }
       },
-      string.nullable(),
+      z.string().nullable(),
     )
   }
   /**
@@ -757,8 +747,12 @@ export class Value<
      */
     immutable?: boolean
   }) {
-    const validator = anyOf(
-      ...Object.keys(a.values).map((x: keyof Values & string) => literal(x)),
+    const validator = z.union(
+      Object.keys(a.values).map((x: keyof Values & string) => z.literal(x)) as [
+        z.ZodLiteral<string>,
+        z.ZodLiteral<string>,
+        ...z.ZodLiteral<string>[],
+      ],
     )
     return new Value<keyof Values & string>(
       () => ({
@@ -803,14 +797,18 @@ export class Value<
             immutable: false,
             ...a,
           },
-          validator: anyOf(
-            ...Object.keys(a.values).map((x: keyof Values & string) =>
-              literal(x),
-            ),
+          validator: z.union(
+            Object.keys(a.values).map((x: keyof Values & string) =>
+              z.literal(x),
+            ) as [
+              z.ZodLiteral<string>,
+              z.ZodLiteral<string>,
+              ...z.ZodLiteral<string>[],
+            ],
           ),
         }
       },
-      string,
+      z.string(),
     )
   }
   /**
@@ -865,8 +863,14 @@ export class Value<
      */
     immutable?: boolean
   }) {
-    const validator = arrayOf(
-      literals(...(Object.keys(a.values) as any as [keyof Values & string])),
+    const validator = z.array(
+      z.union(
+        Object.keys(a.values).map((x) => z.literal(x)) as [
+          z.ZodLiteral<string>,
+          z.ZodLiteral<string>,
+          ...z.ZodLiteral<string>[],
+        ],
+      ),
     )
     return new Value<(keyof Values & string)[]>(
       () => ({
@@ -920,13 +924,17 @@ export class Value<
           immutable: false,
           ...a,
         },
-        validator: arrayOf(
-          literals(
-            ...(Object.keys(a.values) as any as [keyof Values & string]),
+        validator: z.array(
+          z.union(
+            Object.keys(a.values).map((x) => z.literal(x)) as [
+              z.ZodLiteral<string>,
+              z.ZodLiteral<string>,
+              ...z.ZodLiteral<string>[],
+            ],
           ),
         ),
       }
-    }, arrayOf(string))
+    }, z.array(z.string()))
   }
   /**
    * @description Display a collapsable grouping of additional fields, a "sub form". The second value is the inputSpec spec for the sub form.
@@ -1077,7 +1085,7 @@ export class Value<
   }) {
     return new Value<
       typeof a.variants._TYPE,
-      typeof a.variants.validator._TYPE
+      typeof a.variants.validator._output
     >(async (options) => {
       const built = await a.variants.build(options as any)
       return {
@@ -1136,7 +1144,7 @@ export class Value<
       },
       OuterType
     >,
-    validator: Parser<unknown, UnionResStaticValidatedAs<StaticVariantValues>>,
+    validator: z.ZodType<UnionResStaticValidatedAs<StaticVariantValues>>,
   ): Value<
     UnionRes<VariantValues>,
     UnionResStaticValidatedAs<StaticVariantValues>,
@@ -1162,11 +1170,11 @@ export class Value<
       },
       OuterType
     >,
-    validator: Parser<unknown, unknown> = any,
+    validator: z.ZodType<unknown> = z.any(),
   ) {
     return new Value<
       UnionRes<VariantValues>,
-      typeof validator._TYPE,
+      z.infer<typeof validator>,
       OuterType
     >(async (options) => {
       const newValues = await getA(options)
@@ -1259,9 +1267,9 @@ export class Value<
    * ```
    */
   static hidden<T>(): Value<T>
-  static hidden<T>(parser: Parser<unknown, T>): Value<T>
-  static hidden<T>(parser: Parser<unknown, T> = any) {
-    return new Value<T, typeof parser._TYPE>(async () => {
+  static hidden<T>(parser: z.ZodType<T>): Value<T>
+  static hidden<T>(parser: z.ZodType<T> = z.any()) {
+    return new Value<T, z.infer<typeof parser>>(async () => {
       return {
         spec: {
           type: 'hidden' as const,
@@ -1279,7 +1287,7 @@ export class Value<
    * ```
    */
   static dynamicHidden<T, OuterType = unknown>(
-    getParser: LazyBuild<Parser<unknown, T>, OuterType>,
+    getParser: LazyBuild<z.ZodType<T>, OuterType>,
   ) {
     return new Value<T, T, OuterType>(async (options) => {
       const validator = await getParser(options)
@@ -1289,7 +1297,7 @@ export class Value<
         } as ValueSpecHidden,
         validator,
       }
-    }, any)
+    }, z.any())
   }
 
   map<U>(fn: (value: StaticValidatedAs) => U): Value<U, U, OuterType> {
@@ -1297,8 +1305,8 @@ export class Value<
       const built = await this.build(options)
       return {
         spec: built.spec,
-        validator: built.validator.map(fn),
+        validator: built.validator.transform(fn),
       }
-    }, this.validator.map(fn))
+    }, this.validator.transform(fn))
   }
 }

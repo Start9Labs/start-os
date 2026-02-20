@@ -6,7 +6,7 @@ import {
   ExtractInputSpecType,
   ExtractInputSpecStaticValidatedAs,
 } from './inputSpec'
-import { Parser, any, anyOf, literal, object } from 'ts-matches'
+import { z } from 'zod'
 
 export type UnionRes<
   VariantValues extends {
@@ -109,12 +109,11 @@ export class Variants<
     public build: LazyBuild<
       {
         spec: ValueSpecUnion['variants']
-        validator: Parser<unknown, UnionRes<VariantValues>>
+        validator: z.ZodType<UnionRes<VariantValues>>
       },
       OuterType
     >,
-    public readonly validator: Parser<
-      unknown,
+    public readonly validator: z.ZodType<
       UnionResStaticValidatedAs<VariantValues>
     >,
   ) {}
@@ -128,8 +127,7 @@ export class Variants<
     },
   >(a: VariantValues) {
     const staticValidators = {} as {
-      [K in keyof VariantValues]: Parser<
-        unknown,
+      [K in keyof VariantValues]: z.ZodType<
         ExtractInputSpecStaticValidatedAs<VariantValues[K]['spec']>
       >
     }
@@ -137,16 +135,20 @@ export class Variants<
       const value = a[key]
       staticValidators[key] = value.spec.validator
     }
-    const other = object(
-      Object.fromEntries(
-        Object.entries(staticValidators).map(([k, v]) => [k, any.optional()]),
-      ),
-    ).optional()
+    const other = z
+      .object(
+        Object.fromEntries(
+          Object.entries(staticValidators).map(([k, v]) => [
+            k,
+            z.any().optional(),
+          ]),
+        ),
+      )
+      .optional()
     return new Variants<VariantValues>(
       async (options) => {
         const validators = {} as {
-          [K in keyof VariantValues]: Parser<
-            unknown,
+          [K in keyof VariantValues]: z.ZodType<
             ExtractInputSpecType<VariantValues[K]['spec']>
           >
         }
@@ -165,32 +167,37 @@ export class Variants<
           }
           validators[key] = built.validator
         }
-        const other = object(
-          Object.fromEntries(
-            Object.entries(validators).map(([k, v]) => [k, any.optional()]),
-          ),
-        ).optional()
+        const other = z
+          .object(
+            Object.fromEntries(
+              Object.entries(validators).map(([k, v]) => [
+                k,
+                z.any().optional(),
+              ]),
+            ),
+          )
+          .optional()
         return {
           spec: variants,
-          validator: anyOf(
-            ...Object.entries(validators).map(([k, v]) =>
-              object({
-                selection: literal(k),
+          validator: z.union(
+            Object.entries(validators).map(([k, v]) =>
+              z.object({
+                selection: z.literal(k),
                 value: v,
                 other,
               }),
-            ),
+            ) as [z.ZodObject<any>, z.ZodObject<any>, ...z.ZodObject<any>[]],
           ) as any,
         }
       },
-      anyOf(
-        ...Object.entries(staticValidators).map(([k, v]) =>
-          object({
-            selection: literal(k),
+      z.union(
+        Object.entries(staticValidators).map(([k, v]) =>
+          z.object({
+            selection: z.literal(k),
             value: v,
             other,
           }),
-        ),
+        ) as [z.ZodObject<any>, z.ZodObject<any>, ...z.ZodObject<any>[]],
       ) as any,
     )
   }

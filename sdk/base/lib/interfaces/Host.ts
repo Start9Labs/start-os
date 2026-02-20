@@ -1,4 +1,4 @@
-import { object, string } from 'ts-matches'
+import { z } from 'zod'
 import { Effects } from '../Effects'
 import { Origin } from './Origin'
 import { AddSslOptions, BindParams } from '../osBindings'
@@ -69,9 +69,8 @@ export type BindOptionsByProtocol =
   | BindOptionsByKnownProtocol
   | (BindOptions & { protocol: null })
 
-const hasStringProtocol = object({
-  protocol: string,
-}).test
+const hasStringProtocol = (v: unknown): v is { protocol: string } =>
+  z.object({ protocol: z.string() }).safeParse(v).success
 
 export class MultiHost {
   constructor(

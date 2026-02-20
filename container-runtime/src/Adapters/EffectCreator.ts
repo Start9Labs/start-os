@@ -3,33 +3,39 @@ import {
   types as T,
   utils,
   VersionRange,
+  z,
 } from "@start9labs/start-sdk"
 import * as net from "net"
-import { object, string, number, literals, some, unknown } from "ts-matches"
 import { Effects } from "../Models/Effects"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
 import { asError } from "@start9labs/start-sdk/base/lib/util"
-const matchRpcError = object({
-  error: object({
-    code: number,
-    message: string,
-    data: some(
-      string,
-      object({
-        details: string,
-        debug: string.nullable().optional(),
-      }),
-    )
+const matchRpcError = z.object({
+  error: z.object({
+    code: z.number(),
+    message: z.string(),
+    data: z
+      .union([
+        z.string(),
+        z.object({
+          details: z.string(),
+          debug: z.string().nullable().optional(),
+        }),
+      ])
       .nullable()
       .optional(),
   }),
 })
-const testRpcError = matchRpcError.test
-const testRpcResult = object({
-  result: unknown,
-}).test
-type RpcError = typeof matchRpcError._TYPE
+function testRpcError(v: unknown): v is RpcError {
+  return matchRpcError.safeParse(v).success
+}
+const matchRpcResult = z.object({
+  result: z.unknown(),
+})
+function testRpcResult(v: unknown): v is z.infer<typeof matchRpcResult> {
+  return matchRpcResult.safeParse(v).success
+}
+type RpcError = z.infer<typeof matchRpcError>
 
 const SOCKET_PATH = "/media/startos/rpc/host.sock"
 let hostSystemId = 0
@@ -71,7 +77,7 @@ const rpcRoundFor =
                 "Error in host RPC:",
                 utils.asError({ method, params, error: res.error }),
               )
-              if (string.test(res.error.data)) {
+              if (typeof res.error.data === "string") {
                 message += ": " + res.error.data
                 console.error(`Details: ${res.error.data}`)
               } else {

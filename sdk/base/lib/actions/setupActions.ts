@@ -3,7 +3,7 @@ import { ExtractInputSpecType } from './input/builder/inputSpec'
 import * as T from '../types'
 import { once } from '../util'
 import { InitScript } from '../inits'
-import { Parser } from 'ts-matches'
+import { z } from 'zod'
 
 type MaybeInputSpec<Type> = {} extends Type ? null : InputSpec<Type>
 export type Run<A extends Record<string, any>> = (options: {
@@ -52,7 +52,7 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
   readonly _INPUT: Type = null as any as Type
   private prevInputSpec: Record<
     string,
-    { spec: T.inputSpecTypes.InputSpec; validator: Parser<unknown, Type> }
+    { spec: T.inputSpecTypes.InputSpec; validator: z.ZodType<Type> }
   > = {}
   private constructor(
     readonly id: Id,
@@ -137,7 +137,7 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
           `getActionInput has not been called for EventID ${options.effects.eventId}`,
         )
       }
-      options.input = prevInputSpec.validator.unsafeCast(options.input)
+      options.input = prevInputSpec.validator.parse(options.input)
       spec = prevInputSpec.spec
     }
     return (

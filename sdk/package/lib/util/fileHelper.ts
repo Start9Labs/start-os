@@ -1,4 +1,4 @@
-import * as matches from 'ts-matches'
+import { z } from 'zod'
 import * as YAML from 'yaml'
 import * as TOML from '@iarna/toml'
 import * as INI from 'ini'
@@ -97,7 +97,7 @@ function toPath(path: ToPath): string {
   return path.base.subpath(path.subpath)
 }
 
-type Validator<T, U> = matches.Validator<T, U> | matches.Validator<unknown, U>
+type Validator<_T, U> = z.ZodType<U>
 
 type ReadType<A> = {
   once: () => Promise<A | null>
@@ -499,7 +499,7 @@ export class FileHelper<A> {
       (inData) => inData,
       (inString) => inString,
       (data) =>
-        (shape || (matches.string as Validator<Transformed, A>)).unsafeCast(
+        (shape || (z.string() as unknown as Validator<Transformed, A>)).parse(
           data,
         ),
       transformers,
@@ -518,7 +518,7 @@ export class FileHelper<A> {
       path,
       (inData) => JSON.stringify(inData, null, 2),
       (inString) => JSON.parse(inString),
-      (data) => shape.unsafeCast(data),
+      (data) => shape.parse(data),
       transformers,
     )
   }
@@ -544,7 +544,7 @@ export class FileHelper<A> {
       path,
       (inData) => YAML.stringify(inData, null, 2),
       (inString) => YAML.parse(inString),
-      (data) => shape.unsafeCast(data),
+      (data) => shape.parse(data),
       transformers,
     )
   }
@@ -570,7 +570,7 @@ export class FileHelper<A> {
       path,
       (inData) => TOML.stringify(inData as TOML.JsonMap),
       (inString) => TOML.parse(inString),
-      (data) => shape.unsafeCast(data),
+      (data) => shape.parse(data),
       transformers,
     )
   }
@@ -596,7 +596,7 @@ export class FileHelper<A> {
       path,
       (inData) => INI.stringify(filterUndefined(inData), options),
       (inString) => INI.parse(inString, options),
-      (data) => shape.unsafeCast(data),
+      (data) => shape.parse(data),
       transformers,
     )
   }
@@ -632,7 +632,7 @@ export class FileHelper<A> {
               return [line.slice(0, pos), line.slice(pos + 1)]
             }),
         ),
-      (data) => shape.unsafeCast(data),
+      (data) => shape.parse(data),
       transformers,
     )
   }
