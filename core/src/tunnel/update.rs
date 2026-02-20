@@ -63,23 +63,16 @@ pub async fn apply_update(_ctx: TunnelContext, _: Empty) -> Result<TunnelUpdateR
     let installed = parse_version_field(&policy_str, "Installed:");
     let candidate = parse_version_field(&policy_str, "Candidate:");
 
-    if installed == candidate {
-        return Ok(TunnelUpdateResult {
-            status: "up-to-date".to_string(),
-            installed: installed.unwrap_or_default(),
-            candidate: candidate.unwrap_or_default(),
-        });
-    }
-
     // Spawn in a separate cgroup via systemd-run so the process survives
     // when the postinst script restarts start-tunneld.service.
     // After the install completes, reboot the system.
+    // Uses --reinstall so the update applies even when versions match.
     Command::new("systemd-run")
         .arg("--scope")
         .arg("--")
         .arg("sh")
         .arg("-c")
-        .arg("apt-get install --only-upgrade -y start-tunnel && reboot")
+        .arg("apt-get install --reinstall -y start-tunnel && reboot")
         .env("DEBIAN_FRONTEND", "noninteractive")
         .stdin(Stdio::null())
         .stdout(Stdio::null())

@@ -38,8 +38,9 @@ if [ -n "$GPG_PRIVATE_KEY" ]; then
 fi
 
 # Configure s3cmd
-S3CMD_CONFIG="$(mktemp)"
-cat > "$S3CMD_CONFIG" <<EOF
+if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ]; then
+    S3CMD_CONFIG="$(mktemp)"
+    cat > "$S3CMD_CONFIG" <<EOF
 [default]
 access_key = ${S3_ACCESS_KEY}
 secret_key = ${S3_SECRET_KEY}
@@ -47,10 +48,16 @@ host_base = $(echo "$ENDPOINT" | sed 's|https://||')
 host_bucket = %(bucket)s.$(echo "$ENDPOINT" | sed 's|https://||')
 use_https = True
 EOF
-
-s3() {
-    s3cmd -c "$S3CMD_CONFIG" "$@"
-}
+    s3() {
+        s3cmd -c "$S3CMD_CONFIG" "$@"
+    }
+else
+    # Fall back to default ~/.s3cfg
+    S3CMD_CONFIG=""
+    s3() {
+        s3cmd "$@"
+    }
+fi
 
 # Sync existing repo from S3
 echo "Syncing existing repo from s3://${BUCKET}/ ..."
@@ -75,12 +82,13 @@ if [ ${#DEB_FILES[@]} -eq 0 ]; then
     exit 1
 fi
 
-# Copy each deb to the pool
+# Copy each deb to the pool, renaming to standard format
 for deb in "${DEB_FILES[@]}"; do
     PKG_NAME="$(dpkg-deb --field "$deb" Package)"
     POOL_DIR="$REPO_DIR/pool/${COMPONENT}/${PKG_NAME:0:1}/${PKG_NAME}"
     mkdir -p "$POOL_DIR"
     cp "$deb" "$POOL_DIR/"
+    dpkg-name -o "$POOL_DIR/$(basename "$deb")" 2>/dev/null || true
     echo "Added: $(basename "$deb") -> pool/${COMPONENT}/${PKG_NAME:0:1}/${PKG_NAME}/"
 done
 
@@ -126,5 +134,5 @@ fi
 echo "Uploading to s3://${BUCKET}/ ..."
 s3 sync --acl-public --no-mime-magic "$REPO_DIR/" "s3://${BUCKET}/"
 
-rm -f "$S3CMD_CONFIG"
+[ -n "$S3CMD_CONFIG" ] && rm -f "$S3CMD_CONFIG"
 echo "Done."
