@@ -5,15 +5,16 @@ use std::time::{Duration, SystemTime};
 
 use clap::Parser;
 use futures::future::join_all;
-use imbl::{Vector, vector};
+use imbl::{OrdMap, Vector, vector};
 use imbl_value::InternedString;
+use patch_db::TypedDbWatch;
+use patch_db::json_ptr::JsonPointer;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use ts_rs::TS;
 
-use patch_db::json_ptr::JsonPointer;
-
 use crate::db::model::Database;
+use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::ssl::FullchainCertData;
 use crate::prelude::*;
 use crate::service::effects::context::EffectContext;
@@ -22,7 +23,7 @@ use crate::service::rpc::{CallbackHandle, CallbackId};
 use crate::service::{Service, ServiceActorSeed};
 use crate::util::collections::EqMap;
 use crate::util::future::NonDetachingJoinHandle;
-use crate::{HostId, PackageId, ServiceInterfaceId};
+use crate::{GatewayId, HostId, PackageId, ServiceInterfaceId};
 
 #[derive(Default)]
 pub struct ServiceCallbacks(Mutex<ServiceCallbackMap>);
@@ -32,7 +33,8 @@ struct ServiceCallbackMap {
     get_service_interface: BTreeMap<(PackageId, ServiceInterfaceId), Vec<CallbackHandler>>,
     list_service_interfaces: BTreeMap<PackageId, Vec<CallbackHandler>>,
     get_system_smtp: Vec<CallbackHandler>,
-    get_host_info: BTreeMap<(PackageId, HostId), (NonDetachingJoinHandle<()>, Vec<CallbackHandler>)>,
+    get_host_info:
+        BTreeMap<(PackageId, HostId), (NonDetachingJoinHandle<()>, Vec<CallbackHandler>)>,
     get_ssl_certificate: EqMap<
         (BTreeSet<InternedString>, FullchainCertData, Algorithm),
         (NonDetachingJoinHandle<()>, Vec<CallbackHandler>),
@@ -40,6 +42,7 @@ struct ServiceCallbackMap {
     get_status: BTreeMap<PackageId, Vec<CallbackHandler>>,
     get_container_ip: BTreeMap<PackageId, Vec<CallbackHandler>>,
     get_service_manifest: BTreeMap<PackageId, Vec<CallbackHandler>>,
+    get_outbound_gateway: BTreeMap<PackageId, (NonDetachingJoinHandle<()>, Vec<CallbackHandler>)>,
 }
 
 impl ServiceCallbacks {
@@ -73,6 +76,10 @@ impl ServiceCallbacks {
                 !v.is_empty()
             });
             this.get_service_manifest.retain(|_, v| {
+                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+                !v.is_empty()
+            });
+            this.get_outbound_gateway.retain(|_, (_, v)| {
                 v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
                 !v.is_empty()
             });
@@ -154,12 +161,10 @@ impl ServiceCallbacks {
             this.get_host_info
                 .entry((package_id.clone(), host_id.clone()))
                 .or_insert_with(|| {
-                    let ptr: JsonPointer = format!(
-                        "/public/packageData/{}/hosts/{}",
-                        package_id, host_id
-                    )
-                    .parse()
-                    .expect("valid json pointer");
+                    let ptr: JsonPointer =
+                        format!("/public/packageData/{}/hosts/{}", package_id, host_id)
+                            .parse()
+                            .expect("valid json pointer");
                     let db = db.clone();
                     let callbacks = Arc::clone(self);
                     let key = (package_id, host_id);
@@ -174,9 +179,7 @@ impl ServiceCallbacks {
                                         .filter(|cb| !cb.0.is_empty())
                                 }) {
                                     if let Err(e) = cbs.call(vector![]).await {
-                                        tracing::error!(
-                                            "Error in host info callback: {e}"
-                                        );
+                                        tracing::error!("Error in host info callback: {e}");
                                         tracing::debug!("{e:?}");
                                     }
                                 }
@@ -284,6 +287,61 @@ impl ServiceCallbacks {
                 .remove(package_id)
                 .map(CallbackHandlers)
                 .filter(|cb| !cb.0.is_empty())
+        })
+    }
+
+    /// Register a callback for outbound gateway changes.
+    pub(super) fn add_get_outbound_gateway(
+        self: &Arc<Self>,
+        package_id: PackageId,
+        mut outbound_gateway: TypedDbWatch<Option<GatewayId>>,
+        mut default_outbound: Option<TypedDbWatch<Option<GatewayId>>>,
+        mut fallback: Option<TypedDbWatch<OrdMap<GatewayId, NetworkInterfaceInfo>>>,
+        handler: CallbackHandler,
+    ) {
+        self.mutate(|this| {
+            this.get_outbound_gateway
+                .entry(package_id.clone())
+                .or_insert_with(|| {
+                    let callbacks = Arc::clone(self);
+                    let key = package_id;
+                    (
+                        tokio::spawn(async move {
+                            tokio::select! {
+                                _ = outbound_gateway.changed() => {}
+                                _ = async {
+                                    if let Some(ref mut w) = default_outbound {
+                                        let _ = w.changed().await;
+                                    } else {
+                                        std::future::pending::<()>().await;
+                                    }
+                                } => {}
+                                _ = async {
+                                    if let Some(ref mut w) = fallback {
+                                        let _ = w.changed().await;
+                                    } else {
+                                        std::future::pending::<()>().await;
+                                    }
+                                } => {}
+                            }
+                            if let Some(cbs) = callbacks.mutate(|this| {
+                                this.get_outbound_gateway
+                                    .remove(&key)
+                                    .map(|(_, handlers)| CallbackHandlers(handlers))
+                                    .filter(|cb| !cb.0.is_empty())
+                            }) {
+                                if let Err(e) = cbs.call(vector![]).await {
+                                    tracing::error!("Error in outbound gateway callback: {e}");
+                                    tracing::debug!("{e:?}");
+                                }
+                            }
+                        })
+                        .into(),
+                        Vec::new(),
+                    )
+                })
+                .1
+                .push(handler);
         })
     }
 

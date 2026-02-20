@@ -253,6 +253,14 @@ export function makeEffects(context: EffectContext): Effects {
         callback: context.callbacks?.addCallback(options.callback) || null,
       }) as ReturnType<T.Effects["getSystemSmtp"]>
     },
+    getOutboundGateway(
+      ...[options]: Parameters<T.Effects["getOutboundGateway"]>
+    ) {
+      return rpcRound("get-outbound-gateway", {
+        ...options,
+        callback: context.callbacks?.addCallback(options.callback) || null,
+      }) as ReturnType<T.Effects["getOutboundGateway"]>
+    },
     listServiceInterfaces(
       ...[options]: Parameters<T.Effects["listServiceInterfaces"]>
     ) {

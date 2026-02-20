@@ -23,7 +23,7 @@ import { setupExportedUrls } from '../../base/lib/interfaces/setupExportedUrls'
 import { successFailure } from './trigger/successFailure'
 import { MultiHost, Scheme } from '../../base/lib/interfaces/Host'
 import { ServiceInterfaceBuilder } from '../../base/lib/interfaces/ServiceInterfaceBuilder'
-import { GetSystemSmtp } from './util'
+import { GetOutboundGateway, GetSystemSmtp } from './util'
 import { nullIfEmpty } from './util'
 import { getServiceInterface, getServiceInterfaces } from './util'
 import {
@@ -107,6 +107,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
     type AlreadyExposed =
       | 'getSslCertificate'
       | 'getSystemSmtp'
+      | 'getOutboundGateway'
       | 'getContainerIp'
       | 'getDataVersion'
       | 'setDataVersion'
@@ -445,6 +446,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       ) => new ServiceInterfaceBuilder({ ...options, effects }),
       getSystemSmtp: <E extends Effects>(effects: E) =>
         new GetSystemSmtp(effects),
+      getOutboundGateway: <E extends Effects>(effects: E) =>
+        new GetOutboundGateway(effects),
       getSslCertificate: <E extends Effects>(
         effects: E,
         hostnames: string[],

@@ -64,8 +64,6 @@ export class VersionGraph<CurrentVersion extends string>
   private constructor(
     readonly current: VersionInfo<CurrentVersion>,
     versions: Array<VersionInfo<any>>,
-    private readonly preInstall?: InitScriptOrFn<'install'>,
-    private readonly uninstall?: UninitScript | UninitFn,
   ) {
     this.graph = once(() => {
       const graph = new Graph<
@@ -167,24 +165,8 @@ export class VersionGraph<CurrentVersion extends string>
   static of<
     CurrentVersion extends string,
     OtherVersions extends Array<VersionInfo<any>>,
-  >(options: {
-    current: VersionInfo<CurrentVersion>
-    other: OtherVersions
-    /**
-     * A script to run only on fresh install
-     */
-    preInstall?: InitScriptOrFn<'install'>
-    /**
-     * A script to run only on uninstall
-     */
-    uninstall?: UninitScriptOrFn
-  }) {
-    return new VersionGraph(
-      options.current,
-      options.other,
-      options.preInstall,
-      options.uninstall,
-    )
+  >(options: { current: VersionInfo<CurrentVersion>; other: OtherVersions }) {
+    return new VersionGraph(options.current, options.other)
   }
   async migrate({
     effects,
@@ -270,7 +252,7 @@ export class VersionGraph<CurrentVersion extends string>
       .normalize(),
   )
 
-  async init(effects: T.Effects, kind: InitKind): Promise<void> {
+  async init(effects: T.Effects): Promise<void> {
     const from = await getDataVersion(effects)
     if (from) {
       await this.migrate({
@@ -279,10 +261,6 @@ export class VersionGraph<CurrentVersion extends string>
         to: this.currentVersion(),
       })
     } else {
-      kind = 'install' // implied by !dataVersion
-      if (this.preInstall)
-        if ('init' in this.preInstall) await this.preInstall.init(effects, kind)
-        else await this.preInstall(effects, kind)
       await effects.setDataVersion({ version: this.current.options.version })
     }
   }
@@ -300,11 +278,6 @@ export class VersionGraph<CurrentVersion extends string>
           to: target,
         })
       }
-    } else {
-      if (this.uninstall)
-        if ('uninit' in this.uninstall)
-          await this.uninstall.uninit(effects, target)
-        else await this.uninstall(effects, target)
     }
     await setDataVersion(effects, target)
   }

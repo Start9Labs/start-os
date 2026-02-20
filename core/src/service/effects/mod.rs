@@ -144,6 +144,10 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
             from_fn_async(net::info::get_container_ip).no_cli(),
         )
         .subcommand(
+            "get-outbound-gateway",
+            from_fn_async(net::info::get_outbound_gateway).no_cli(),
+        )
+        .subcommand(
             "get-os-ip",
             from_fn(|_: C| Ok::<_, Error>(Ipv4Addr::from(HOST_IP))),
         )

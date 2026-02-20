@@ -25,6 +25,7 @@ import { GetSslKeyParams } from '.././osBindings'
 import { GetServiceInterfaceParams } from '.././osBindings'
 import { SetDependenciesParams } from '.././osBindings'
 import { GetSystemSmtpParams } from '.././osBindings'
+import { GetOutboundGatewayParams } from '.././osBindings'
 import { GetServicePortForwardParams } from '.././osBindings'
 import { ExportServiceInterfaceParams } from '.././osBindings'
 import { ListServiceInterfacesParams } from '.././osBindings'
@@ -83,6 +84,7 @@ describe('startosTypeValidation ', () => {
       getServiceManifest: {} as WithCallback<GetServiceManifestParams>,
       getSystemSmtp: {} as WithCallback<GetSystemSmtpParams>,
       getContainerIp: {} as WithCallback<GetContainerIpParams>,
+      getOutboundGateway: {} as WithCallback<GetOutboundGatewayParams>,
       getOsIp: undefined,
       getServicePortForward: {} as GetServicePortForwardParams,
       clearServiceInterfaces: {} as ClearServiceInterfacesParams,

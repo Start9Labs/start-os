@@ -135,6 +135,8 @@ export type Effects = {
   }): Promise<string>
   /** Returns the IP address of StartOS */
   getOsIp(): Promise<string>
+  /** Returns the effective outbound gateway for this service */
+  getOutboundGateway(options: { callback?: () => void }): Promise<string>
   // interface
   /** Creates an interface bound to a specific host and port to show to the user */
   exportServiceInterface(options: ExportServiceInterfaceParams): Promise<null>
