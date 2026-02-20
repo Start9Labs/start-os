@@ -52,11 +52,6 @@ Pending tasks for AI agents. Remove items when completed.
   service is ready, then clear it if it matches. This allows tasks to be created regardless of
   whether the service is currently running.
 
-- [ ] Implement URL plugins - @dr-bonez
-
-  **Goal**: Add a plugin system that allows services to register URL scheme plugins, providing
-  additional ways for other services to connect to them (e.g. alternative protocols or transports).
-
 - [ ] OTA updates for start-tunnel - @dr-bonez
 
   **Goal**: Add an OTA update mechanism for the start-tunnel server so it can be updated in place
