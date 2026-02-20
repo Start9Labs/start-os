@@ -3,6 +3,7 @@ import { Component, inject } from '@angular/core'
 import { RouterOutlet } from '@angular/router'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { PatchService } from './services/patch.service'
+import { UpdateService } from './services/update.service'
 
 @Component({
   selector: 'app-root',
@@ -24,4 +25,6 @@ export class App {
   readonly subscription = inject(PatchService)
     .pipe(takeUntilDestroyed())
     .subscribe()
+
+  readonly updates = inject(UpdateService)
 }

@@ -1,142 +1,101 @@
-import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   inject,
   signal,
 } from '@angular/core'
-import { toSignal } from '@angular/core/rxjs-interop'
-import {
-  NonNullableFormBuilder,
-  ReactiveFormsModule,
-  ValidatorFn,
-  Validators,
-} from '@angular/forms'
 import { ErrorService } from '@start9labs/shared'
-import { tuiMarkControlAsTouchedAndValidate, TuiValidator } from '@taiga-ui/cdk'
-import {
-  TuiAlertService,
-  TuiAppearance,
-  TuiButton,
-  TuiError,
-  TuiTextfield,
-  TuiTitle,
-} from '@taiga-ui/core'
-import {
-  TuiButtonLoading,
-  TuiFieldErrorPipe,
-  tuiValidationErrorsProvider,
-} from '@taiga-ui/kit'
-import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
-import { map } from 'rxjs'
-import { ApiService } from 'src/app/services/api/api.service'
+import { TuiAppearance, TuiButton, TuiTitle } from '@taiga-ui/core'
+import { TuiDialogService } from '@taiga-ui/experimental'
+import { TuiBadge, TuiButtonLoading } from '@taiga-ui/kit'
+import { TuiCard, TuiCell } from '@taiga-ui/layout'
+import { UpdateService } from 'src/app/services/update.service'
+
+import { CHANGE_PASSWORD } from './change-password'
 
 @Component({
   template: `
-    <form tuiCardLarge tuiAppearance="neutral" tuiForm [formGroup]="form">
-      <header tuiHeader>
-        <h2 tuiTitle>
-          Settings
-          <span tuiSubtitle>Change password</span>
-        </h2>
-      </header>
-      <tui-textfield>
-        <label tuiLabel>New password</label>
-        <input formControlName="password" tuiTextfield />
-      </tui-textfield>
-      <tui-error
-        formControlName="password"
-        [error]="[] | tuiFieldError | async"
-      />
-      <tui-textfield>
-        <label tuiLabel>Confirm new password</label>
-        <input
-          formControlName="confirm"
-          tuiTextfield
-          [tuiValidator]="matchValidator()"
-        />
-      </tui-textfield>
-      <tui-error
-        formControlName="confirm"
-        [error]="[] | tuiFieldError | async"
-      />
-      <footer>
-        <button tuiButton (click)="onSave()" [loading]="loading()">Save</button>
-      </footer>
-    </form>
+    <div tuiCardLarge tuiAppearance="neutral">
+      <div tuiCell>
+        <span tuiTitle>
+          <strong>
+            Version
+            @if (update.hasUpdate()) {
+              <tui-badge appearance="positive" size="s">
+                Update Available
+              </tui-badge>
+            }
+          </strong>
+          <span tuiSubtitle>Current: {{ update.installed() ?? '—' }}</span>
+        </span>
+        @if (update.hasUpdate()) {
+          <button tuiButton size="s" [loading]="applying()" (click)="onApply()">
+            Update to {{ update.candidate() }}
+          </button>
+        } @else {
+          <button
+            tuiButton
+            size="s"
+            appearance="secondary"
+            [loading]="checking()"
+            (click)="onCheckUpdate()"
+          >
+            Check for updates
+          </button>
+        }
+      </div>
+      <div tuiCell>
+        <span tuiTitle>
+          <strong>Change password</strong>
+        </span>
+        <button tuiButton size="s" (click)="onChangePassword()">Change</button>
+      </div>
+    </div>
   `,
-  providers: [
-    tuiValidationErrorsProvider({
-      required: 'This field is required',
-      minlength: 'Password must be at least 8 characters',
-      maxlength: 'Password cannot exceed 64 characters',
-      match: 'Passwords do not match',
-    }),
-  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ReactiveFormsModule,
-    AsyncPipe,
     TuiCard,
-    TuiForm,
-    TuiHeader,
+    TuiCell,
     TuiTitle,
-    TuiTextfield,
-    TuiError,
-    TuiFieldErrorPipe,
     TuiButton,
     TuiButtonLoading,
-    TuiValidator,
+    TuiBadge,
     TuiAppearance,
   ],
 })
 export default class Settings {
-  private readonly api = inject(ApiService)
-  private readonly alerts = inject(TuiAlertService)
+  private readonly dialogs = inject(TuiDialogService)
   private readonly errorService = inject(ErrorService)
 
-  protected readonly loading = signal(false)
-  protected readonly form = inject(NonNullableFormBuilder).group({
-    password: [
-      '',
-      [Validators.required, Validators.minLength(8), Validators.maxLength(64)],
-    ],
-    confirm: [
-      '',
-      [Validators.required, Validators.minLength(8), Validators.maxLength(64)],
-    ],
-  })
+  protected readonly update = inject(UpdateService)
+  protected readonly checking = signal(false)
+  protected readonly applying = signal(false)
 
-  protected readonly matchValidator = toSignal(
-    this.form.controls.password.valueChanges.pipe(
-      map(
-        (password): ValidatorFn =>
-          ({ value }) =>
-            value === password ? null : { match: true },
-      ),
-    ),
-    { initialValue: Validators.nullValidator },
-  )
+  protected onChangePassword(): void {
+    this.dialogs.open(CHANGE_PASSWORD, { label: 'Change Password' }).subscribe()
+  }
 
-  protected async onSave() {
-    if (this.form.invalid) {
-      tuiMarkControlAsTouchedAndValidate(this.form)
-
-      return
-    }
-
-    this.loading.set(true)
+  protected async onCheckUpdate() {
+    this.checking.set(true)
 
     try {
-      await this.api.setPassword({ password: this.form.getRawValue().password })
-      this.alerts
-        .open('Password changed', { label: 'Success', appearance: 'positive' })
-        .subscribe()
-      this.form.reset()
+      await this.update.checkUpdate()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
-      this.loading.set(false)
+      this.checking.set(false)
+    }
+  }
+
+  protected async onApply() {
+    this.applying.set(true)
+
+    try {
+      await this.update.applyUpdate()
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      this.applying.set(false)
     }
   }
 }
