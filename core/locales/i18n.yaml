@@ -3972,6 +3972,13 @@ about.allow-gateway-infer-inbound-access-from-wan:
   fr_FR: "Permettre à cette passerelle de déduire si elle a un accès entrant depuis le WAN en fonction de son adresse IPv4"
   pl_PL: "Pozwól tej bramce wywnioskować, czy ma dostęp przychodzący z WAN na podstawie adresu IPv4"
 
+about.apply-available-update:
+  en_US: "Apply available update"
+  de_DE: "Verfügbares Update anwenden"
+  es_ES: "Aplicar actualización disponible"
+  fr_FR: "Appliquer la mise à jour disponible"
+  pl_PL: "Zastosuj dostępną aktualizację"
+
 about.calculate-blake3-hash-for-file:
   en_US: "Calculate blake3 hash for a file"
   de_DE: "Blake3-Hash für eine Datei berechnen"
@@ -3992,6 +3999,13 @@ about.check-dns-configuration:
   es_ES: "Verificar la configuración DNS de un gateway"
   fr_FR: "Vérifier la configuration DNS d'une passerelle"
   pl_PL: "Sprawdź konfigurację DNS bramy"
+
+about.check-for-updates:
+  en_US: "Check for available updates"
+  de_DE: "Nach verfügbaren Updates suchen"
+  es_ES: "Buscar actualizaciones disponibles"
+  fr_FR: "Vérifier les mises à jour disponibles"
+  pl_PL: "Sprawdź dostępne aktualizacje"
 
 about.check-update-startos:
   en_US: "Check a given registry for StartOS updates and update if available"

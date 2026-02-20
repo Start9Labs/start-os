@@ -25,6 +25,9 @@ export abstract class ApiService {
   // forwards
   abstract addForward(params: AddForwardReq): Promise<null> // port-forward.add
   abstract deleteForward(params: DeleteForwardReq): Promise<null> // port-forward.remove
+  // update
+  abstract checkUpdate(): Promise<TunnelUpdateResult> // update.check
+  abstract applyUpdate(): Promise<TunnelUpdateResult> // update.apply
 }
 
 export type SubscribeRes = {
@@ -61,4 +64,10 @@ export type AddForwardReq = {
 
 export type DeleteForwardReq = {
   source: string
+}
+
+export type TunnelUpdateResult = {
+  status: string
+  installed: string
+  candidate: string
 }

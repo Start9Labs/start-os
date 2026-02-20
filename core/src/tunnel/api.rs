@@ -53,6 +53,24 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
                         .with_call_remote::<CliContext>(),
                 ),
         )
+        .subcommand(
+            "update",
+            ParentHandler::<C>::new()
+                .subcommand(
+                    "check",
+                    from_fn_async(super::update::check_update)
+                        .with_display_serializable()
+                        .with_about("about.check-for-updates")
+                        .with_call_remote::<CliContext>(),
+                )
+                .subcommand(
+                    "apply",
+                    from_fn_async(super::update::apply_update)
+                        .with_display_serializable()
+                        .with_about("about.apply-available-update")
+                        .with_call_remote::<CliContext>(),
+                ),
+        )
 }
 
 #[derive(Deserialize, Serialize, Parser)]

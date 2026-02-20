@@ -139,6 +139,11 @@ install-tunnel: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox
 	$(call mkdir,$(DESTDIR)/usr/lib/startos/scripts)
 	$(call cp,build/lib/scripts/forward-port,$(DESTDIR)/usr/lib/startos/scripts/forward-port)
 
+	$(call mkdir,$(DESTDIR)/etc/apt/sources.list.d)
+	$(call cp,apt/start9.list,$(DESTDIR)/etc/apt/sources.list.d/start9.list)
+	$(call mkdir,$(DESTDIR)/usr/share/keyrings)
+	$(call cp,apt/start9.gpg,$(DESTDIR)/usr/share/keyrings/start9.gpg)
+
 core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) web/dist/static/start-tunnel/index.html
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build/build-tunnelbox.sh
 
