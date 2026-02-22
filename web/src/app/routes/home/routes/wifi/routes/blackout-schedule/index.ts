@@ -3,127 +3,169 @@ import {
   Component,
   computed,
   inject,
+  linkedSignal,
 } from '@angular/core'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiTable } from '@taiga-ui/addon-table'
-import { TuiButton } from '@taiga-ui/core'
-import { TuiSkeleton } from '@taiga-ui/kit'
-import { Placeholder } from 'src/app/components/placeholder'
+import { TuiIcon } from '@taiga-ui/core'
+import { TuiAutoColorPipe } from '@taiga-ui/kit'
+import { TuiTimeline } from 'src/app/components/timeline'
 import { Help } from 'src/app/directives/help'
 import { WifiBlackoutAside } from './aside'
-import { ADD_BLACKOUT_WINDOW } from './dialog'
-import { BlackoutService, BlackoutWindow } from './service'
-
-// Display order: Mon–Sun; data order: Sun(0)–Sat(6)
-const DISPLAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-function formatTime(time: string): string {
-  const [h, m] = time.split(':').map(Number)
-  const period = h >= 12 ? 'PM' : 'AM'
-  const hour = h % 12 || 12
-  return `${hour}:${m.toString().padStart(2, '0')} ${period}`
-}
+import { BlackoutService } from './service'
 
 @Component({
   template: `
     <wifi-blackout-aside *help />
-    <table tuiTable class="g-table" [tuiSkeleton]="!service.data()">
-      <thead>
-        <tr>
-          <th tuiTh>Start Time</th>
-          <th tuiTh>End Time</th>
-          <th tuiTh>Days</th>
-          <th tuiTh>
-            <button tuiButton size="xs" iconStart="@tui.plus" (click)="add()">
-              Add
-            </button>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (item of windows(); track $index) {
-          <tr>
-            <td tuiTd>{{ item.startTime }}</td>
-            <td tuiTd>{{ item.endTime }}</td>
-            <td tuiTd>{{ item.daysLabel }}</td>
-            <td tuiTd>
-              <button
-                tuiIconButton
-                size="xs"
-                appearance="icon"
-                class="g-negative"
-                iconStart="@tui.trash"
-                (click)="delete($index)"
+    <section>
+      @for (day of order; track $index) {
+        <tui-timeline orientation="vertical" [total]="96">
+          <label>{{ labels[day] }}</label>
+          @for (window of windows(); track $index) {
+            @if (window.days[day]) {
+              <tui-timeline-item
+                [style.--color]="($index * 12345).toString() | tuiAutoColor"
+                [(value)]="window.range"
               >
-                Delete
-              </button>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td tuiTd colspan="4">
-              <app-placeholder icon="@tui.moon">
-                No blackout windows configured
-              </app-placeholder>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+                <tui-icon icon="@tui.ellipsis" />
+                <span [innerHTML]="getTime(window.range)"></span>
+                <tui-icon icon="@tui.ellipsis" />
+              </tui-timeline-item>
+            }
+          }
+        </tui-timeline>
+      }
+    </section>
   `,
   styles: `
     :host {
       max-width: 50rem;
+      margin-bottom: -5rem;
+
+      &::after {
+        display: none;
+      }
     }
 
-    td:nth-child(1),
-    td:nth-child(2) {
-      font-weight: bold;
+    section {
+      display: grid;
+      grid-auto-flow: column;
+      height: 36rem;
+      max-height: calc(100svh - 12rem);
+      gap: 0.125rem;
+      border-radius: var(--tui-radius-s);
+      overflow: hidden;
     }
 
-    th:last-child,
-    td:last-child {
-      text-align: end;
+    tui-timeline {
+      background: var(--tui-background-neutral-1);
+      border-radius: var(--tui-radius-xs);
+      border-inline-start: 2rem solid transparent;
+    }
+
+    tui-timeline-item {
+      background: var(--tui-background-neutral-1);
+      box-shadow: inset 0 0 0 0.875rem var(--tui-background-neutral-1-hover);
+      clip-path: inset(1px 2px round 0.125rem);
+
+      &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: var(--color);
+        opacity: 0.25;
+      }
+    }
+
+    label {
+      writing-mode: horizontal-tb;
+      position: absolute;
+      top: -2rem;
+      width: 100%;
+      text-align: center;
+      line-height: calc(2rem - 1px);
+      border-radius: inherit;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      background: var(--tui-border-normal);
+    }
+
+    tui-icon {
+      position: absolute;
+      width: 100%;
+
+      &:first-of-type {
+        top: -0.25rem;
+      }
+
+      &:last-of-type {
+        bottom: -0.25rem;
+      }
+    }
+
+    span {
+      position: absolute;
+      writing-mode: horizontal-tb;
+      display: flex;
+      align-items: center;
+      inset: 0;
+      justify-content: center;
+      text-align: center;
+      line-height: 1;
+      clip-path: inset(1rem);
+
+      @media screen and (max-width: 620px) {
+        opacity: 0;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
-  imports: [
-    TuiButton,
-    TuiTable,
-    Placeholder,
-    TuiSkeleton,
-    WifiBlackoutAside,
-    Help,
-  ],
+  imports: [WifiBlackoutAside, Help, TuiTimeline, TuiIcon, TuiAutoColorPipe],
 })
 export default class BlackoutScheduleComponent {
-  private readonly dialogs = inject(TuiResponsiveDialogService)
+  // Display order: Mon–Sun; data order: Sun(0)–Sat(6)
+  protected readonly order = [1, 2, 3, 4, 5, 6, 0]
+  protected readonly labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+  protected getTime(range: readonly [number, number]): string {
+    return `${format(to(range[0]))}<br />-<br />${format(to(range[1]))}`
+  }
 
   protected readonly service = inject(BlackoutService)
-  protected readonly windows = computed(
+  protected readonly source = computed(
     () =>
-      this.service.data()?.map(w => ({
-        startTime: formatTime(w.startTime),
-        endTime: formatTime(w.endTime),
-        daysLabel: DISPLAY_ORDER.filter(i => w.days[i])
-          .map(i => DAY_LABELS[i])
-          .join(', '),
+      this.service.data()?.map(({ startTime, endTime, days }) => ({
+        range: [from(startTime), from(endTime)] as const,
+        days,
       })) || [],
   )
 
-  add() {
-    this.dialogs
-      .open<BlackoutWindow>(ADD_BLACKOUT_WINDOW, {
-        label: 'Add Blackout Window',
-      })
-      .subscribe(result => {
-        this.service.addWindow(result)
-      })
-  }
+  protected readonly windows = linkedSignal({
+    source: this.source,
+    computation: (source, current: any) =>
+      current?.value.length ? current.value : source,
+  })
 
   delete(index: number) {
     this.service.deleteWindow(index)
   }
+}
+
+function to(quarterHours: number): string {
+  return `${Math.floor(quarterHours / 4)}:${(quarterHours % 4) * 15}`
+}
+
+function from(formatted: string): number {
+  const [h, m] = formatted.split(':').map(Number)
+
+  return h * 4 + Math.round(m / 4)
+}
+
+function format(time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  const period = h >= 12 ? 'pm' : 'am'
+  const hour = h % 12 || 12
+
+  return h === 24
+    ? `11:59pm`
+    : `${hour}:${m.toString().padStart(2, '0')}${period}`
 }

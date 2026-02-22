@@ -503,9 +503,14 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
 
   private mockBlackoutWindows: BlackoutWindow[] = [
     {
-      startTime: '22:00',
+      startTime: '20:00',
       endTime: '23:00',
       days: [false, true, true, true, true, true, false],
+    },
+    {
+      startTime: '6:00',
+      endTime: '10:00',
+      days: [true, false, false, false, false, true, true],
     },
   ]
 
