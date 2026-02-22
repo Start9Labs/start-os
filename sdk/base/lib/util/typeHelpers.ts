@@ -1,21 +1,47 @@
 import * as T from '../types'
 
+/**
+ * Flattens an intersection type into a single object type for improved readability in IDE tooltips.
+ * Arrays pass through unchanged; objects are remapped to a single flat type.
+ *
+ * @example
+ * ```ts
+ * type Merged = FlattenIntersection<{ a: 1 } & { b: 2 }>
+ * // Result: { a: 1; b: 2 }
+ * ```
+ */
 // prettier-ignore
-export type FlattenIntersection<T> = 
+export type FlattenIntersection<T> =
 T extends ArrayLike<any> ? T :
 T extends object ? {} & {[P in keyof T]: T[P]} :
  T;
 
+/** Shorthand alias for {@link FlattenIntersection}. */
 export type _<T> = FlattenIntersection<T>
 
+/**
+ * Type guard that checks whether a value is a {@link T.KnownError}.
+ * Returns true if the value is an object containing an `error` or `error-code` property.
+ *
+ * @param e - The value to check
+ * @returns True if `e` is a KnownError
+ */
 export const isKnownError = (e: unknown): e is T.KnownError =>
   e instanceof Object && ('error' in e || 'error-code' in e)
 
 declare const affine: unique symbol
 
+/**
+ * A branded/nominal type wrapper using a unique symbol to make structurally identical types incompatible.
+ * Useful for creating distinct type identities at the type level.
+ */
 export type Affine<A> = { [affine]: A }
 
 type NeverPossible = { [affine]: string }
+/**
+ * Evaluates to `never` if `A` is `any`, otherwise resolves to `A`.
+ * Useful for preventing `any` from silently propagating through generic constraints.
+ */
 export type NoAny<A> = NeverPossible extends A
   ? keyof NeverPossible extends keyof A
     ? never
@@ -54,6 +80,14 @@ type Numbers = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
 
 type CapitalChars = CapitalLetters | Numbers
 
+/**
+ * Converts a PascalCase or camelCase string type to kebab-case at the type level.
+ *
+ * @example
+ * ```ts
+ * type Result = ToKebab<"FooBar"> // "foo-bar"
+ * ```
+ */
 export type ToKebab<S extends string> = S extends string
   ? S extends `${infer Head}${CapitalChars}${infer Tail}` // string has a capital char somewhere
     ? Head extends '' // there is a capital char in the first position
@@ -101,6 +135,7 @@ export type ToKebab<S extends string> = S extends string
     : S /* 'abc'  */
   : never
 
+/** A generic object type with string keys and unknown values. */
 export type StringObject = Record<string, unknown>
 
 function test() {

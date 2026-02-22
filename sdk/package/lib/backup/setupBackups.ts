@@ -3,6 +3,11 @@ import * as T from '../../../base/lib/types'
 import { _ } from '../util'
 import { InitScript } from '../../../base/lib/inits'
 
+/**
+ * Parameters for `setupBackups`. Either:
+ * - An array of volume IDs to back up entirely, or
+ * - An async factory function that returns a fully configured {@link Backups} instance
+ */
 export type SetupBackupsParams<M extends T.SDKManifest> =
   | M['volumes'][number][]
   | ((_: { effects: T.Effects }) => Promise<Backups<M>>)
@@ -12,6 +17,15 @@ type SetupBackupsRes = {
   restoreInit: InitScript
 }
 
+/**
+ * Set up backup and restore exports for the service.
+ *
+ * Returns `{ createBackup, restoreInit }` which should be exported and wired into
+ * the service's init and backup entry points.
+ *
+ * @param options - Either an array of volume IDs or an async factory returning a Backups instance
+ * @returns An object with `createBackup` (the backup export) and `restoreInit` (an InitScript for restore)
+ */
 export function setupBackups<M extends T.SDKManifest>(
   options: SetupBackupsParams<M>,
 ) {

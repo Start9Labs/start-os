@@ -1,8 +1,17 @@
 import { ValidateExVer } from '../../../base/lib/exver'
 import * as T from '../../../base/lib/types'
 
+/**
+ * Sentinel value indicating that a migration in a given direction is not possible.
+ * Use this for `migrations.up` or `migrations.down` to prevent migration.
+ */
 export const IMPOSSIBLE: unique symbol = Symbol('IMPOSSIBLE')
 
+/**
+ * Configuration options for a single service version definition.
+ *
+ * @typeParam Version - The string literal exver version number
+ */
 export type VersionOptions<Version extends string> = {
   /** The exver-compliant version number */
   version: Version & ValidateExVer<Version>
@@ -33,6 +42,14 @@ export type VersionOptions<Version extends string> = {
   }
 }
 
+/**
+ * Represents a single version of the service, including its release notes,
+ * migration scripts, and backwards-compatibility declarations.
+ *
+ * By convention, each version gets its own file (e.g. `versions/v1_0_0.ts`).
+ *
+ * @typeParam Version - The string literal exver version number
+ */
 export class VersionInfo<Version extends string> {
   private _version: null | Version = null
   private constructor(

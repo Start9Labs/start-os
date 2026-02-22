@@ -1,6 +1,17 @@
 import { DeepMap } from 'deep-equality-data-structures'
 import * as P from './exver'
 
+/**
+ * Compile-time utility type that validates a version string literal conforms to semver format.
+ *
+ * Resolves to `unknown` if valid, `never` if invalid. Used with {@link testTypeVersion}.
+ *
+ * @example
+ * ```ts
+ * type Valid = ValidateVersion<"1.2.3">     // unknown (valid)
+ * type Invalid = ValidateVersion<"-3">      // never (invalid)
+ * ```
+ */
 // prettier-ignore
 export type ValidateVersion<T extends String> =
 T extends `-${infer A}` ? never  :
@@ -9,12 +20,32 @@ T extends `${infer A}-${string}` ? ValidateVersion<A> :
   T extends `${bigint}.${infer A}` ? ValidateVersion<A> :
   never
 
+/**
+ * Compile-time utility type that validates an extended version string literal.
+ *
+ * Extended versions have the format `upstream:downstream` or `#flavor:upstream:downstream`.
+ *
+ * @example
+ * ```ts
+ * type Valid = ValidateExVer<"1.2.3:0">           // valid
+ * type Flavored = ValidateExVer<"#bitcoin:1.0:0">  // valid
+ * type Bad = ValidateExVer<"1.2-3">                // never (invalid)
+ * ```
+ */
 // prettier-ignore
 export type ValidateExVer<T extends string> =
   T extends `#${string}:${infer A}:${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :
   T extends `${infer A}:${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :
   never
 
+/**
+ * Validates a tuple of extended version string literals at compile time.
+ *
+ * @example
+ * ```ts
+ * type Valid = ValidateExVers<["1.0:0", "2.0:0"]>  // valid
+ * ```
+ */
 // prettier-ignore
 export type ValidateExVers<T> =
   T extends [] ? unknown[] :
@@ -460,6 +491,28 @@ class VersionRangeTable {
   }
 }
 
+/**
+ * Represents a parsed version range expression used to match against {@link Version} or {@link ExtendedVersion} values.
+ *
+ * Version ranges support standard comparison operators (`=`, `>`, `<`, `>=`, `<=`, `!=`),
+ * caret (`^`) and tilde (`~`) ranges, boolean logic (`&&`, `||`, `!`), and flavor matching (`#flavor`).
+ *
+ * @example
+ * ```ts
+ * const range = VersionRange.parse(">=1.0.0:0 && <2.0.0:0")
+ * const version = ExtendedVersion.parse("1.5.0:0")
+ * console.log(range.satisfiedBy(version)) // true
+ *
+ * // Combine ranges with boolean logic
+ * const combined = VersionRange.and(
+ *   VersionRange.parse(">=1.0:0"),
+ *   VersionRange.parse("<3.0:0"),
+ * )
+ *
+ * // Match a specific flavor
+ * const flavored = VersionRange.parse("#bitcoin")
+ * ```
+ */
 export class VersionRange {
   constructor(public atom: Anchor | And | Or | Not | P.Any | P.None | Flavor) {}
 
@@ -488,6 +541,7 @@ export class VersionRange {
     }
   }
 
+  /** Serializes this version range back to its canonical string representation. */
   toString(): string {
     switch (this.atom.type) {
       case 'Anchor':
@@ -563,38 +617,69 @@ export class VersionRange {
     return result
   }
 
+  /**
+   * Parses a version range string into a `VersionRange`.
+   *
+   * @param range - A version range expression, e.g. `">=1.0.0:0 && <2.0.0:0"`, `"^1.2:0"`, `"*"`
+   * @returns The parsed `VersionRange`
+   * @throws If the string is not a valid version range expression
+   */
   static parse(range: string): VersionRange {
     return VersionRange.parseRange(
       P.parse(range, { startRule: 'VersionRange' }),
     )
   }
 
+  /**
+   * Creates a version range from a comparison operator and an {@link ExtendedVersion}.
+   *
+   * @param operator - One of `"="`, `">"`, `"<"`, `">="`, `"<="`, `"!="`, `"^"`, `"~"`
+   * @param version - The version to compare against
+   */
   static anchor(operator: P.CmpOp, version: ExtendedVersion) {
     return new VersionRange({ type: 'Anchor', operator, version })
   }
 
+  /**
+   * Creates a version range that matches only versions with the specified flavor.
+   *
+   * @param flavor - The flavor string to match, or `null` for the default (unflavored) variant
+   */
   static flavor(flavor: string | null) {
     return new VersionRange({ type: 'Flavor', flavor })
   }
 
+  /**
+   * Parses a legacy "emver" format version range string.
+   *
+   * @param range - A version range in the legacy emver format
+   * @returns The parsed `VersionRange`
+   */
   static parseEmver(range: string): VersionRange {
     return VersionRange.parseRange(
       P.parse(range, { startRule: 'EmverVersionRange' }),
     )
   }
 
+  /** Returns the intersection of this range with another (logical AND). */
   and(right: VersionRange) {
     return new VersionRange({ type: 'And', left: this, right })
   }
 
+  /** Returns the union of this range with another (logical OR). */
   or(right: VersionRange) {
     return new VersionRange({ type: 'Or', left: this, right })
   }
 
+  /** Returns the negation of this range (logical NOT). */
   not() {
     return new VersionRange({ type: 'Not', value: this })
   }
 
+  /**
+   * Returns the logical AND (intersection) of multiple version ranges.
+   * Short-circuits on `none()` and skips `any()`.
+   */
   static and(...xs: Array<VersionRange>) {
     let y = VersionRange.any()
     for (let x of xs) {
@@ -613,6 +698,10 @@ export class VersionRange {
     return y
   }
 
+  /**
+   * Returns the logical OR (union) of multiple version ranges.
+   * Short-circuits on `any()` and skips `none()`.
+   */
   static or(...xs: Array<VersionRange>) {
     let y = VersionRange.none()
     for (let x of xs) {
@@ -631,14 +720,21 @@ export class VersionRange {
     return y
   }
 
+  /** Returns a version range that matches all versions (wildcard `*`). */
   static any() {
     return new VersionRange({ type: 'Any' })
   }
 
+  /** Returns a version range that matches no versions (`!`). */
   static none() {
     return new VersionRange({ type: 'None' })
   }
 
+  /**
+   * Returns `true` if the given version satisfies this range.
+   *
+   * @param version - A {@link Version} or {@link ExtendedVersion} to test
+   */
   satisfiedBy(version: Version | ExtendedVersion) {
     return version.satisfies(this)
   }
@@ -714,29 +810,60 @@ export class VersionRange {
     }
   }
 
+  /** Returns `true` if any version exists that could satisfy this range. */
   satisfiable(): boolean {
     return VersionRangeTable.collapse(this.tables()) !== false
   }
 
+  /** Returns `true` if this range and `other` share at least one satisfying version. */
   intersects(other: VersionRange): boolean {
     return VersionRange.and(this, other).satisfiable()
   }
 
+  /**
+   * Returns a canonical (simplified) form of this range using minterm expansion.
+   * Useful for normalizing complex boolean expressions into a minimal representation.
+   */
   normalize(): VersionRange {
     return VersionRangeTable.minterms(this.tables())
   }
 }
 
+/**
+ * Represents a semantic version number with numeric segments and optional prerelease identifiers.
+ *
+ * Follows semver precedence rules: numeric segments are compared left-to-right,
+ * and a version with prerelease identifiers has lower precedence than the same version without.
+ *
+ * @example
+ * ```ts
+ * const v = Version.parse("1.2.3")
+ * console.log(v.toString())             // "1.2.3"
+ * console.log(v.compare(Version.parse("1.3.0"))) // "less"
+ *
+ * const pre = Version.parse("2.0.0-beta.1")
+ * console.log(pre.compare(Version.parse("2.0.0"))) // "less" (prerelease < release)
+ * ```
+ */
 export class Version {
   constructor(
+    /** The numeric version segments (e.g. `[1, 2, 3]` for `"1.2.3"`). */
     public number: number[],
+    /** Optional prerelease identifiers (e.g. `["beta", 1]` for `"-beta.1"`). */
     public prerelease: (string | number)[],
   ) {}
 
+  /** Serializes this version to its string form (e.g. `"1.2.3"` or `"1.0.0-beta.1"`). */
   toString(): string {
     return `${this.number.join('.')}${this.prerelease.length > 0 ? `-${this.prerelease.join('.')}` : ''}`
   }
 
+  /**
+   * Compares this version against another using semver precedence rules.
+   *
+   * @param other - The version to compare against
+   * @returns `'greater'`, `'equal'`, or `'less'`
+   */
   compare(other: Version): 'greater' | 'equal' | 'less' {
     const numLen = Math.max(this.number.length, other.number.length)
     for (let i = 0; i < numLen; i++) {
@@ -783,6 +910,11 @@ export class Version {
     return 'equal'
   }
 
+  /**
+   * Compares two versions, returning a numeric value suitable for use with `Array.sort()`.
+   *
+   * @returns `-1` if less, `0` if equal, `1` if greater
+   */
   compareForSort(other: Version): -1 | 0 | 1 {
     switch (this.compare(other)) {
       case 'greater':
@@ -794,11 +926,21 @@ export class Version {
     }
   }
 
+  /**
+   * Parses a version string into a `Version` instance.
+   *
+   * @param version - A semver-compatible string, e.g. `"1.2.3"` or `"1.0.0-beta.1"`
+   * @throws If the string is not a valid version
+   */
   static parse(version: string): Version {
     const parsed = P.parse(version, { startRule: 'Version' })
     return new Version(parsed.number, parsed.prerelease)
   }
 
+  /**
+   * Returns `true` if this version satisfies the given {@link VersionRange}.
+   * Internally treats this as an unflavored {@link ExtendedVersion} with downstream `0`.
+   */
   satisfies(versionRange: VersionRange): boolean {
     return new ExtendedVersion(null, this, new Version([0], [])).satisfies(
       versionRange,
@@ -806,18 +948,50 @@ export class Version {
   }
 }
 
-// #flavor:0.1.2-beta.1:0
+/**
+ * Represents an extended version with an optional flavor, an upstream version, and a downstream version.
+ *
+ * The format is `#flavor:upstream:downstream` (e.g. `#bitcoin:1.2.3:0`) or `upstream:downstream`
+ * for unflavored versions. Flavors allow multiple variants of a package to coexist.
+ *
+ * - **flavor**: An optional string identifier for the variant (e.g. `"bitcoin"`, `"litecoin"`)
+ * - **upstream**: The version of the upstream software being packaged
+ * - **downstream**: The version of the StartOS packaging itself
+ *
+ * Versions with different flavors are incomparable (comparison returns `null`).
+ *
+ * @example
+ * ```ts
+ * const v = ExtendedVersion.parse("#bitcoin:1.2.3:0")
+ * console.log(v.flavor)      // "bitcoin"
+ * console.log(v.upstream)    // Version { number: [1, 2, 3] }
+ * console.log(v.downstream)  // Version { number: [0] }
+ * console.log(v.toString())  // "#bitcoin:1.2.3:0"
+ *
+ * const range = VersionRange.parse(">=1.0.0:0")
+ * console.log(v.satisfies(range)) // true
+ * ```
+ */
 export class ExtendedVersion {
   constructor(
+    /** The flavor identifier (e.g. `"bitcoin"`), or `null` for unflavored versions. */
     public flavor: string | null,
+    /** The upstream software version. */
     public upstream: Version,
+    /** The downstream packaging version. */
     public downstream: Version,
   ) {}
 
+  /** Serializes this extended version to its string form (e.g. `"#bitcoin:1.2.3:0"` or `"1.0.0:1"`). */
   toString(): string {
     return `${this.flavor ? `#${this.flavor}:` : ''}${this.upstream.toString()}:${this.downstream.toString()}`
   }
 
+  /**
+   * Compares this extended version against another.
+   *
+   * @returns `'greater'`, `'equal'`, `'less'`, or `null` if the flavors differ (incomparable)
+   */
   compare(other: ExtendedVersion): 'greater' | 'equal' | 'less' | null {
     if (this.flavor !== other.flavor) {
       return null
@@ -829,6 +1003,10 @@ export class ExtendedVersion {
     return this.downstream.compare(other.downstream)
   }
 
+  /**
+   * Lexicographic comparison — compares flavors alphabetically first, then versions.
+   * Unlike {@link compare}, this never returns `null`: different flavors are ordered alphabetically.
+   */
   compareLexicographic(other: ExtendedVersion): 'greater' | 'equal' | 'less' {
     if ((this.flavor || '') > (other.flavor || '')) {
       return 'greater'
@@ -839,6 +1017,10 @@ export class ExtendedVersion {
     }
   }
 
+  /**
+   * Returns a numeric comparison result suitable for use with `Array.sort()`.
+   * Uses lexicographic ordering (flavors sorted alphabetically, then by version).
+   */
   compareForSort(other: ExtendedVersion): 1 | 0 | -1 {
     switch (this.compareLexicographic(other)) {
       case 'greater':
@@ -850,26 +1032,37 @@ export class ExtendedVersion {
     }
   }
 
+  /** Returns `true` if this version is strictly greater than `other`. Returns `false` if flavors differ. */
   greaterThan(other: ExtendedVersion): boolean {
     return this.compare(other) === 'greater'
   }
 
+  /** Returns `true` if this version is greater than or equal to `other`. Returns `false` if flavors differ. */
   greaterThanOrEqual(other: ExtendedVersion): boolean {
     return ['greater', 'equal'].includes(this.compare(other) as string)
   }
 
+  /** Returns `true` if this version equals `other` (same flavor, upstream, and downstream). */
   equals(other: ExtendedVersion): boolean {
     return this.compare(other) === 'equal'
   }
 
+  /** Returns `true` if this version is strictly less than `other`. Returns `false` if flavors differ. */
   lessThan(other: ExtendedVersion): boolean {
     return this.compare(other) === 'less'
   }
 
+  /** Returns `true` if this version is less than or equal to `other`. Returns `false` if flavors differ. */
   lessThanOrEqual(other: ExtendedVersion): boolean {
     return ['less', 'equal'].includes(this.compare(other) as string)
   }
 
+  /**
+   * Parses an extended version string into an `ExtendedVersion`.
+   *
+   * @param extendedVersion - A string like `"1.2.3:0"` or `"#bitcoin:1.0.0:0"`
+   * @throws If the string is not a valid extended version
+   */
   static parse(extendedVersion: string): ExtendedVersion {
     const parsed = P.parse(extendedVersion, { startRule: 'ExtendedVersion' })
     return new ExtendedVersion(
@@ -879,6 +1072,12 @@ export class ExtendedVersion {
     )
   }
 
+  /**
+   * Parses a legacy "emver" format extended version string.
+   *
+   * @param extendedVersion - A version string in the legacy emver format
+   * @throws If the string is not a valid emver version (error message includes the input string)
+   */
   static parseEmver(extendedVersion: string): ExtendedVersion {
     try {
       const parsed = P.parse(extendedVersion, { startRule: 'Emver' })
@@ -1014,8 +1213,29 @@ export class ExtendedVersion {
   }
 }
 
+/**
+ * Compile-time type-checking helper that validates an extended version string literal.
+ * If the string is invalid, TypeScript will report a type error at the call site.
+ *
+ * @example
+ * ```ts
+ * testTypeExVer("1.2.3:0")         // compiles
+ * testTypeExVer("#bitcoin:1.0:0")  // compiles
+ * testTypeExVer("invalid")         // type error
+ * ```
+ */
 export const testTypeExVer = <T extends string>(t: T & ValidateExVer<T>) => t
 
+/**
+ * Compile-time type-checking helper that validates a version string literal.
+ * If the string is invalid, TypeScript will report a type error at the call site.
+ *
+ * @example
+ * ```ts
+ * testTypeVersion("1.2.3")  // compiles
+ * testTypeVersion("-3")     // type error
+ * ```
+ */
 export const testTypeVersion = <T extends string>(t: T & ValidateVersion<T>) =>
   t
 

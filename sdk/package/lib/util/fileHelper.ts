@@ -84,8 +84,17 @@ function filterUndefined<A>(a: A): A {
   return a
 }
 
+/**
+ * Bidirectional transformers for converting between the raw file format and
+ * the application-level data type. Used with FileHelper factory methods.
+ *
+ * @typeParam Raw - The native type the file format parses to (e.g. `Record<string, unknown>` for JSON)
+ * @typeParam Transformed - The application-level type after transformation
+ */
 export type Transformers<Raw = unknown, Transformed = unknown> = {
+  /** Transform raw parsed data into the application type */
   onRead: (value: Raw) => Transformed
+  /** Transform application data back into the raw format for writing */
   onWrite: (value: Transformed) => Raw
 }
 
@@ -343,6 +352,19 @@ export class FileHelper<A> {
     )
   }
 
+  /**
+   * Create a reactive reader for this file.
+   *
+   * Returns an object with multiple read strategies:
+   * - `once()` - Read the file once and return the parsed value
+   * - `const(effects)` - Read once but re-read when the file changes (for use with constRetry)
+   * - `watch(effects)` - Async generator yielding new values on each file change
+   * - `onChange(effects, callback)` - Fire a callback on each file change
+   * - `waitFor(effects, predicate)` - Block until the file value satisfies a predicate
+   *
+   * @param map - Optional transform function applied after validation
+   * @param eq - Optional equality function to deduplicate watch emissions
+   */
   read(): ReadType<A>
   read<B>(
     map: (value: A) => B,
@@ -575,6 +597,11 @@ export class FileHelper<A> {
     )
   }
 
+  /**
+   * Create a File Helper for a .ini file.
+   *
+   * Supports optional encode/decode options and custom transformers.
+   */
   static ini<A extends Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Record<string, unknown>, A>,
@@ -601,6 +628,11 @@ export class FileHelper<A> {
     )
   }
 
+  /**
+   * Create a File Helper for a .env file (KEY=VALUE format, one per line).
+   *
+   * Lines starting with `#` are treated as comments and ignored on read.
+   */
   static env<A extends Record<string, string>>(
     path: ToPath,
     shape: Validator<Record<string, string>, A>,

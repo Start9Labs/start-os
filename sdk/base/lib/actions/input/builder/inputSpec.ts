@@ -6,19 +6,28 @@ import { z } from 'zod'
 import { DeepPartial } from '../../../types'
 import { InputSpecTools, createInputSpecTools } from './inputSpecTools'
 
+/** Options passed to a lazy builder function when resolving dynamic form field values. */
 export type LazyBuildOptions<Type> = {
+  /** The effects interface for runtime operations (e.g. reading files, querying state). */
   effects: Effects
+  /** Previously saved form data to pre-fill the form with, or `null` for fresh creation. */
   prefill: DeepPartial<Type> | null
 }
+/**
+ * A function that lazily produces a value, potentially using effects and prefill data.
+ * Used by `dynamic*` variants of {@link Value} to compute form field options at runtime.
+ */
 export type LazyBuild<ExpectedOut, Type> = (
   options: LazyBuildOptions<Type>,
 ) => Promise<ExpectedOut> | ExpectedOut
 
+/** Extracts the runtime type from an {@link InputSpec}. */
 // prettier-ignore
-export type ExtractInputSpecType<A extends InputSpec<Record<string, any>, any>> = 
+export type ExtractInputSpecType<A extends InputSpec<Record<string, any>, any>> =
   A extends InputSpec<infer B, any> ? B :
   never
 
+/** Extracts the static validation type from an {@link InputSpec}. */
 export type ExtractInputSpecStaticValidatedAs<
   A extends InputSpec<any, Record<string, any>>,
 > = A extends InputSpec<any, infer B> ? B : never
@@ -27,10 +36,12 @@ export type ExtractInputSpecStaticValidatedAs<
 //   A extends Record<string, any> | InputSpec<Record<string, any>>,
 // > = A extends InputSpec<infer B> ? DeepPartial<B> : DeepPartial<A>
 
+/** Maps an object type to a record of {@link Value} entries for use with `InputSpec.of`. */
 export type InputSpecOf<A extends Record<string, any>> = {
   [K in keyof A]: Value<A[K]>
 }
 
+/** A value that is either directly provided or lazily computed via a {@link LazyBuild} function. */
 export type MaybeLazyValues<A, T> = LazyBuild<A, T> | A
 /**
  * InputSpecs are the specs that are used by the os input specification form for this service.
@@ -100,6 +111,11 @@ export class InputSpec<
   ) {}
   public _TYPE: Type = null as any as Type
   public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
+  /**
+   * Builds the runtime form specification and combined Zod validator from this InputSpec's fields.
+   *
+   * @returns An object containing the resolved `spec` (field specs keyed by name) and a combined `validator`
+   */
   async build<OuterType>(options: LazyBuildOptions<OuterType>): Promise<{
     spec: {
       [K in keyof Type]: ValueSpec
@@ -123,6 +139,12 @@ export class InputSpec<
     }
   }
 
+  /**
+   * Adds a single named field to this spec, returning a new `InputSpec` with the extended type.
+   *
+   * @param key - The field key name
+   * @param build - A {@link Value} instance, or a function receiving typed tools that returns one
+   */
   addKey<Key extends string, V extends Value<any, any, any>>(
     key: Key,
     build: V | ((tools: InputSpecTools<Type>) => V),
@@ -146,6 +168,11 @@ export class InputSpec<
     return new InputSpec(newSpec, newValidator as any)
   }
 
+  /**
+   * Adds multiple fields to this spec at once, returning a new `InputSpec` with extended types.
+   *
+   * @param build - A record of {@link Value} entries, or a function receiving typed tools that returns one
+   */
   add<AddSpec extends Record<string, Value<any, any, any>>>(
     build: AddSpec | ((tools: InputSpecTools<Type>) => AddSpec),
   ): InputSpec<
@@ -174,6 +201,17 @@ export class InputSpec<
     return new InputSpec(newSpec, newValidator as any)
   }
 
+  /**
+   * Creates an `InputSpec` from a plain record of {@link Value} entries.
+   *
+   * @example
+   * ```ts
+   * const spec = InputSpec.of({
+   *   username: Value.text({ name: 'Username', required: true, default: null }),
+   *   verbose: Value.toggle({ name: 'Verbose Logging', default: false }),
+   * })
+   * ```
+   */
   static of<Spec extends Record<string, Value<any, any>>>(spec: Spec) {
     const validator = z.object(
       Object.fromEntries(
