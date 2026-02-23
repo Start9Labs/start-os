@@ -4,26 +4,30 @@ import {
   computed,
   inject,
   linkedSignal,
+  WritableSignal,
 } from '@angular/core'
-import { TuiIcon } from '@taiga-ui/core'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiAutoColorPipe } from '@taiga-ui/kit'
 import { TuiTimeline } from 'src/app/components/timeline'
 import { Help } from 'src/app/directives/help'
+import { ADD_BLACKOUT_WINDOW } from 'src/app/routes/home/routes/wifi/routes/blackout-schedule/dialog'
 import { WifiBlackoutAside } from './aside'
-import { BlackoutService } from './service'
+import { BlackoutService, BlackoutWindow } from './service'
 
 @Component({
   template: `
     <wifi-blackout-aside *help />
-    <section>
+    <section (change)="save()">
       @for (day of order; track $index) {
-        <tui-timeline orientation="vertical" [total]="96">
+        <tui-timeline #timeline [total]="96" [template]="gap">
           <label>{{ labels[day] }}</label>
           @for (window of windows(); track $index) {
             @if (window.days[day]) {
               <tui-timeline-item
-                [style.--color]="($index * 12345).toString() | tuiAutoColor"
+                [style.--color]="(($index + 1) * 123).toString() | tuiAutoColor"
                 [(value)]="window.range"
+                (dblclick)="edit($index)"
               >
                 <tui-icon icon="@tui.ellipsis" />
                 <span [innerHTML]="getTime(window.range)"></span>
@@ -31,6 +35,19 @@ import { BlackoutService } from './service'
               </tui-timeline-item>
             }
           }
+          <ng-template #gap let-index>
+            <div [style.width.%]="100" [style.overflow]="'hidden'">
+              <button
+                tuiIconButton
+                iconStart="@tui.plus"
+                size="s"
+                appearance="secondary-grayscale"
+                (click)="add(day, index, timeline.value())"
+              >
+                Add
+              </button>
+            </div>
+          </ng-template>
         </tui-timeline>
       }
     </section>
@@ -111,25 +128,68 @@ import { BlackoutService } from './service'
       text-align: center;
       line-height: 1;
       clip-path: inset(1rem);
+    }
 
-      @media screen and (max-width: 620px) {
-        opacity: 0;
+    button {
+      inset: 50%;
+      border-radius: 100%;
+      transform: translate(-50%, -50%);
+      visibility: hidden;
+    }
+
+    tui-timeline:hover button {
+      visibility: visible;
+    }
+
+    :host-context(tui-root._mobile) {
+      section {
+        width: fit-content;
+        grid-auto-columns: max-content;
+      }
+
+      tui-timeline {
+        width: 1.75rem;
+      }
+
+      section:hover {
+        tui-timeline:hover {
+          width: 6rem;
+        }
+
+        tui-timeline:not(:hover) label {
+          font-size: 0;
+        }
+      }
+
+      section:not(:hover) {
+        tui-timeline:first-child {
+          width: 6rem;
+        }
+
+        tui-timeline:not(:first-child) {
+          label {
+            font-size: 0;
+          }
+        }
       }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
-  imports: [WifiBlackoutAside, Help, TuiTimeline, TuiIcon, TuiAutoColorPipe],
+  imports: [
+    WifiBlackoutAside,
+    Help,
+    TuiTimeline,
+    TuiIcon,
+    TuiAutoColorPipe,
+    TuiButton,
+  ],
 })
 export default class BlackoutScheduleComponent {
   // Display order: Mon–Sun; data order: Sun(0)–Sat(6)
-  protected readonly order = [1, 2, 3, 4, 5, 6, 0]
+  protected readonly order = [1, 2, 3, 4, 5, 6, 0] as const
   protected readonly labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-  protected getTime(range: readonly [number, number]): string {
-    return `${format(to(range[0]))}<br />-<br />${format(to(range[1]))}`
-  }
-
+  protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(BlackoutService)
   protected readonly source = computed(
     () =>
@@ -139,25 +199,91 @@ export default class BlackoutScheduleComponent {
       })) || [],
   )
 
-  protected readonly windows = linkedSignal({
-    source: this.source,
-    computation: (source, current: any) =>
-      current?.value.length ? current.value : source,
-  })
+  protected readonly windows: WritableSignal<ReturnType<typeof this.source>> =
+    linkedSignal({
+      source: this.source,
+      computation: (source, current) =>
+        current?.value.length ? current.value : source,
+    })
 
-  delete(index: number) {
-    this.service.deleteWindow(index)
+  protected getTime(range: readonly [number, number]): string {
+    return `${format(to(range[0]))}<br />-<br />${format(to(range[1]))}`
+  }
+
+  protected edit(index: number) {
+    this.dialogs
+      .open<BlackoutWindow | null>(ADD_BLACKOUT_WINDOW, {
+        label: 'Edit Blackout Window',
+        data: {
+          startTime: to(this.windows()[index].range[0]),
+          endTime: to(this.windows()[index].range[1]),
+          days: this.windows()[index].days,
+        },
+      })
+      .subscribe(value => {
+        this.windows.update(windows =>
+          windows
+            .map<any>((item, i) =>
+              i === index
+                ? value && {
+                    range: [from(value.startTime), from(value.endTime)],
+                    days: value.days,
+                  }
+                : item,
+            )
+            .filter(Boolean),
+        )
+        this.save()
+      })
+  }
+
+  protected add(
+    day: number,
+    index: number,
+    ranges: (readonly [number, number])[],
+  ) {
+    const days = this.order.map(() => false)
+    const start = ranges.map(([_, end]) => end).sort()[index - 1] || 0
+
+    days[day] = true
+    this.dialogs
+      .open<BlackoutWindow>(ADD_BLACKOUT_WINDOW, {
+        label: 'Add Blackout Window',
+        data: {
+          startTime: to(start),
+          endTime: to(start + 4),
+          days,
+        },
+      })
+      .subscribe(({ days, startTime, endTime }) => {
+        this.windows.update(windows =>
+          windows.concat({ range: [from(startTime), from(endTime)], days }),
+        )
+        this.save()
+      })
+  }
+
+  protected save() {
+    this.service.store(
+      this.windows().map(({ range, days }) => ({
+        startTime: to(range[0]),
+        endTime: to(range[1]),
+        days,
+      })),
+    )
   }
 }
 
 function to(quarterHours: number): string {
-  return `${Math.floor(quarterHours / 4)}:${(quarterHours % 4) * 15}`
+  return `${Math.floor(quarterHours / 4)
+    .toString()
+    .padStart(2, '0')}:${(quarterHours % 4) * 15}`
 }
 
 function from(formatted: string): number {
   const [h, m] = formatted.split(':').map(Number)
 
-  return h * 4 + Math.round(m / 4)
+  return h * 4 + Math.round(m / 15)
 }
 
 function format(time: string): string {

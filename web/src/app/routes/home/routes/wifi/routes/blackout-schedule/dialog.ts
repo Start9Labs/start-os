@@ -5,6 +5,7 @@ import {
   ReactiveFormsModule,
   ValidationErrors,
 } from '@angular/forms'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTime } from '@taiga-ui/cdk'
 import {
   TuiButton,
@@ -15,9 +16,10 @@ import {
   TuiLabel,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TuiBlock, TuiInputTime } from '@taiga-ui/kit'
+import { TUI_CONFIRM, TuiBlock, TuiInputTime } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { filter } from 'rxjs'
 import { ModalHelp } from 'src/app/directives/modal-help'
 import { BlackoutWindow } from './service'
 
@@ -56,6 +58,17 @@ import { BlackoutDialogAside } from './dialog-aside'
         </div>
       </fieldset>
       <footer>
+        @if (context.label === 'Edit Blackout Window') {
+          <button
+            tuiButton
+            type="button"
+            appearance="secondary-destructive"
+            [style.margin-inline-end]="'auto'"
+            (click)="remove()"
+          >
+            Remove
+          </button>
+        }
         <button
           tuiButton
           type="button"
@@ -94,7 +107,10 @@ import { BlackoutDialogAside } from './dialog-aside'
   ],
 })
 class AddBlackoutWindow {
-  protected readonly context = injectContext<TuiDialogContext<BlackoutWindow>>()
+  protected readonly dialogs = inject(TuiResponsiveDialogService)
+  protected readonly builder = inject(NonNullableFormBuilder)
+  protected readonly context =
+    injectContext<TuiDialogContext<BlackoutWindow | null, BlackoutWindow>>()
 
   // Display Mon–Sun; data keys map to Sun(0)–Sat(6)
   protected readonly displayDays = [
@@ -107,18 +123,18 @@ class AddBlackoutWindow {
     { label: 'Sun', key: 0 },
   ]
 
-  protected readonly form = inject(NonNullableFormBuilder).group(
+  protected readonly form = this.builder.group(
     {
-      startTime: [new TuiTime(22, 0)],
-      endTime: [new TuiTime(23, 0)],
-      days: inject(NonNullableFormBuilder).group({
-        0: [false],
-        1: [true],
-        2: [true],
-        3: [true],
-        4: [true],
-        5: [true],
-        6: [false],
+      startTime: [TuiTime.fromString(this.context.data.startTime)],
+      endTime: [TuiTime.fromString(this.context.data.endTime)],
+      days: this.builder.group({
+        0: [this.context.data.days[0]],
+        1: [this.context.data.days[1]],
+        2: [this.context.data.days[2]],
+        3: [this.context.data.days[3]],
+        4: [this.context.data.days[4]],
+        5: [this.context.data.days[5]],
+        6: [this.context.data.days[6]],
       }),
     },
     {
@@ -150,6 +166,15 @@ class AddBlackoutWindow {
       endTime: val.endTime.toString('HH:MM'),
       days,
     })
+  }
+
+  protected remove(): void {
+    this.dialogs
+      .open(TUI_CONFIRM, { label: 'Are you sure?' })
+      .pipe(filter(Boolean))
+      .subscribe(() => {
+        this.context.completeWith(null)
+      })
   }
 }
 

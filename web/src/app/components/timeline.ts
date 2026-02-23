@@ -12,6 +12,7 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiContext } from '@taiga-ui/cdk'
+import { TuiOrientation } from '@taiga-ui/core'
 
 // TODO: Remove after Taiga UI 5.0
 @Component({
@@ -23,7 +24,7 @@ import { TuiContext } from '@taiga-ui/cdk'
         type="range"
         class="t-input"
         [max]="host.total() + value()[0] - value()[1]"
-        [style.--drag.%]="host.d() * (value()[1] - value()[0])"
+        [style.--drag.%]="d() * (value()[1] - value()[0])"
         [(ngModel)]="offset"
         (ngModelChange)="update(drag)"
         (click)="drag.focus()"
@@ -33,8 +34,8 @@ import { TuiContext } from '@taiga-ui/cdk'
       <input
         type="range"
         class="t-input"
-        [style.inset-inline-start.%]="host.d() * min()"
-        [style.inset-inline-end.%]="host.d() * (host.total() - value()[1])"
+        [style.inset-inline-start.%]="d() * min()"
+        [style.inset-inline-end.%]="d() * (host.total() - value()[1])"
         [min]="min()"
         [max]="value()[1] - 1"
         [(ngModel)]="value()[0]"
@@ -43,8 +44,8 @@ import { TuiContext } from '@taiga-ui/cdk'
       <input
         type="range"
         class="t-input"
-        [style.inset-inline-start.%]="host.d() * value()[0]"
-        [style.inset-inline-end.%]="host.d() * (host.total() - max())"
+        [style.inset-inline-start.%]="d() * value()[0]"
+        [style.inset-inline-end.%]="d() * (host.total() - max())"
         [min]="value()[0] + 1"
         [max]="max()"
         [(ngModel)]="value()[1]"
@@ -109,6 +110,7 @@ import { TuiContext } from '@taiga-ui/cdk'
 })
 export class TuiTimelineItem {
   protected readonly host = inject(TuiTimelineComponent)
+  protected readonly d = computed(() => 100 / this.host.total())
   protected readonly offset = linkedSignal(() => this.value()[0])
   protected readonly min = computed((array = this.host.value()) =>
     array.reduce(
@@ -145,12 +147,12 @@ export class TuiTimelineItem {
   template: `
     @for (_ of '-'.repeat(value().length + 1); track value()[$index]) {
       @let gap = gaps()[$index] ?? [0, 0];
-      @if (gap[0] !== gap[1]) {
+      @if (gap[0] < gap[1]) {
         <span
           [style.position]="'absolute'"
           [style.block-size.%]="100"
-          [style.inline-size.%]="d() * (gap[1] - gap[0])"
-          [style.inset-inline-start.%]="d() * gap[0]"
+          [style.inline-size.%]="gap[1] - gap[0]"
+          [style.inset-inline-start.%]="gap[0]"
         >
           <ng-container
             [ngTemplateOutlet]="template()"
@@ -179,11 +181,14 @@ export class TuiTimelineComponent {
   protected readonly items = contentChildren(TuiTimelineItem)
   protected readonly gaps = computed(() =>
     [[0, this.total()], ...[...this.value()].sort(([a], [b]) => a - b)].map(
-      ([_, end], i, a) => [i ? end : 0, a[i + 1]?.[0] ?? this.total()],
+      ([_, end], i, a) => [
+        i ? (end * 100) / this.total() : 0,
+        ((a[i + 1]?.[0] ?? this.total()) * 100) / this.total(),
+      ],
     ),
   )
 
-  readonly orientation = input('horizontal')
+  readonly orientation = input<TuiOrientation>('vertical')
   readonly template = input<TemplateRef<TuiContext<number>>>()
   readonly total = input(100)
   readonly d = computed(() => 100 / this.total())
