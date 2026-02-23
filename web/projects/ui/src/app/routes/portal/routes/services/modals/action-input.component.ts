@@ -66,7 +66,7 @@ export type PackageActionData = {
       @if (requestInfo) {
         <task-info
           [originalValue]="res.originalValue || {}"
-          [operations]="res.operations || []"
+          [operations]="res.visibleOperations || []"
         />
       }
 
@@ -156,18 +156,25 @@ export class ActionInputModal {
         const originalValue = res.value || {}
         this.eventId = res.eventId
 
+        const operations = this.requestInfo?.input
+          ? compare(
+              JSON.parse(JSON.stringify(originalValue)),
+              utils.deepMerge(
+                JSON.parse(JSON.stringify(originalValue)),
+                this.requestInfo.input.value,
+              ) as object,
+            )
+          : null
+
         return {
           spec: res.spec,
           originalValue,
-          operations: this.requestInfo?.input
-            ? compare(
-                JSON.parse(JSON.stringify(originalValue)),
-                utils.deepMerge(
-                  JSON.parse(JSON.stringify(originalValue)),
-                  this.requestInfo.input.value,
-                ) as object,
-              )
-            : null,
+          operations,
+          visibleOperations:
+            operations?.filter(op => {
+              const key = op.path.split('/')[1]
+              return (res.spec[key!] as any)?.type !== 'hidden'
+            }) ?? null,
         }
       }),
       catchError(e => {
@@ -180,14 +187,11 @@ export class ActionInputModal {
 
   async execute(input: object) {
     if (await this.checkConflicts(input)) {
-      const merged = this.context.data.prefill
-        ? { ...input, ...this.context.data.prefill }
-        : input
       await this.actionService.execute(
         this.pkgInfo.id,
         this.eventId,
         this.actionId,
-        merged,
+        input,
       )
       this.context.$implicit.complete()
     }
