@@ -76,6 +76,11 @@ impl AvailablePorts {
         self.0.insert(port, ssl);
         Some(port)
     }
+
+    pub fn set_ssl(&mut self, port: u16, ssl: bool) {
+        self.0.insert(port, ssl);
+    }
+
     /// Returns whether a given allocated port is SSL.
     pub fn is_ssl(&self, port: u16) -> bool {
         self.0.get(&port).copied().unwrap_or(false)

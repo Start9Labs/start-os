@@ -31,9 +31,17 @@ pub struct AccountInfo {
     pub developer_key: ed25519_dalek::SigningKey,
 }
 impl AccountInfo {
-    pub fn new(password: &str, start_time: SystemTime) -> Result<Self, Error> {
+    pub fn new(
+        password: &str,
+        start_time: SystemTime,
+        hostname: Option<InternedString>,
+    ) -> Result<Self, Error> {
         let server_id = generate_id();
-        let hostname = generate_hostname();
+        let hostname = if let Some(h) = hostname {
+            Hostname::validate(h)?
+        } else {
+            generate_hostname()
+        };
         let root_ca_key = gen_nistp256()?;
         let root_ca_cert = make_root_cert(&root_ca_key, &hostname, start_time)?;
         let ssh_key = ssh_key::PrivateKey::from(ssh_key::private::Ed25519Keypair::random(

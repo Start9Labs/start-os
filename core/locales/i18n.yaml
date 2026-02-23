@@ -994,6 +994,20 @@ disk.mount.binding:
   fr_FR: "Liaison de %{src} à %{dst}"
   pl_PL: "Wiązanie %{src} do %{dst}"
 
+hostname.empty:
+  en_US: "Hostname cannot be empty"
+  de_DE: "Der Hostname darf nicht leer sein"
+  es_ES: "El nombre de host no puede estar vacío"
+  fr_FR: "Le nom d'hôte ne peut pas être vide"
+  pl_PL: "Nazwa hosta nie może być pusta"
+
+hostname.invalid-character:
+  en_US: "Invalid character in hostname: %{char}"
+  de_DE: "Ungültiges Zeichen im Hostnamen: %{char}"
+  es_ES: "Carácter no válido en el nombre de host: %{char}"
+  fr_FR: "Caractère invalide dans le nom d'hôte : %{char}"
+  pl_PL: "Nieprawidłowy znak w nazwie hosta: %{char}"
+
 # init.rs
 init.running-preinit:
   en_US: "Running preinit.sh"
@@ -5196,6 +5210,13 @@ about.set-country:
   es_ES: "Establecer el país"
   fr_FR: "Définir le pays"
   pl_PL: "Ustaw kraj"
+
+about.set-hostname:
+  en_US: "Set the server hostname"
+  de_DE: "Den Server-Hostnamen festlegen"
+  es_ES: "Establecer el nombre de host del servidor"
+  fr_FR: "Définir le nom d'hôte du serveur"
+  pl_PL: "Ustaw nazwę hosta serwera"
 
 about.set-gateway-enabled-for-binding:
   en_US: "Set gateway enabled for binding"
