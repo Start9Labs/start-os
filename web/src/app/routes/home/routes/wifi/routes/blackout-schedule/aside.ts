@@ -10,6 +10,10 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
       reducing distractions, enforcing bedtime routines, or enhancing network
       security during off-hours.
     </p>
+    <p>
+      <strong>Double click existing intervals to edit or delete them</strong>
+    </p>
+    <p>Drag existing intervals to edit them in place.</p>
   `,
   host: { class: 'g-aside' },
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -15,22 +15,4 @@ export class BlackoutService extends FormService<BlackoutWindow[]> {
   async store(data: BlackoutWindow[]) {
     await this.api.wifiBlackoutSet(data)
   }
-
-  async addWindow(window: BlackoutWindow) {
-    await this.actions.run(async () => {
-      const current = this.data()
-      if (!current) return
-      await this.api.wifiBlackoutSet([...current, window])
-      this.refresh()
-    })
-  }
-
-  async deleteWindow(index: number) {
-    await this.actions.run(async () => {
-      const current = this.data()
-      if (!current) return
-      await this.api.wifiBlackoutSet(current.filter((_, i) => i !== index))
-      this.refresh()
-    })
-  }
 }
