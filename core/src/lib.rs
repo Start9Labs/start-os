@@ -378,6 +378,13 @@ pub fn server<C: Context>() -> ParentHandler<C> {
             net::host::server_host_api::<C>().with_about("about.commands-host-system-ui"),
         )
         .subcommand(
+            "set-hostname",
+            from_fn_async(hostname::set_hostname_rpc)
+                .no_display()
+                .with_about("about.set-hostname")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
             "set-ifconfig-url",
             from_fn_async(system::set_ifconfig_url)
                 .no_display()

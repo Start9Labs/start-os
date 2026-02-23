@@ -1,11 +1,16 @@
+use clap::Parser;
 use imbl_value::InternedString;
 use lazy_format::lazy_format;
 use rand::{Rng, rng};
+use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tracing::instrument;
+use ts_rs::TS;
 
+use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::{Error, ErrorKind};
+
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, ts_rs::TS)]
 #[ts(type = "string")]
 pub struct Hostname(pub InternedString);
@@ -21,6 +26,25 @@ impl AsRef<str> for Hostname {
 }
 
 impl Hostname {
+    pub fn validate(h: InternedString) -> Result<Self, Error> {
+        if h.is_empty() {
+            return Err(Error::new(
+                eyre!("{}", t!("hostname.empty")),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        if let Some(c) = h
+            .chars()
+            .find(|c| !(c.is_ascii_alphanumeric() || c == &'-') || c.is_ascii_uppercase())
+        {
+            return Err(Error::new(
+                eyre!("{}", t!("hostname.invalid-character", char = c)),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        Ok(Self(h))
+    }
+
     pub fn lan_address(&self) -> InternedString {
         InternedString::from_display(&lazy_format!("https://{}.local", self.0))
     }
@@ -85,5 +109,33 @@ pub async fn sync_hostname(hostname: &Hostname) -> Result<(), Error> {
         .arg("avahi-daemon")
         .invoke(crate::ErrorKind::Network)
         .await?;
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+#[ts(export)]
+pub struct SetServerHostnameParams {
+    hostname: InternedString,
+}
+
+pub async fn set_hostname_rpc(
+    ctx: RpcContext,
+    SetServerHostnameParams { hostname }: SetServerHostnameParams,
+) -> Result<(), Error> {
+    let hostname = Hostname::validate(hostname)?;
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_hostname_mut()
+                .ser(&hostname.0)
+        })
+        .await
+        .result?;
+    ctx.account.mutate(|a| a.hostname = hostname.clone());
+    sync_hostname(&hostname).await?;
+
     Ok(())
 }

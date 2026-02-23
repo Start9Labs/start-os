@@ -5,13 +5,12 @@ use std::sync::{Arc, Weak};
 use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
 use nix::net::if_::if_nametoindex;
+use patch_db::json_ptr::JsonPointer;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_rustls::rustls::ClientConfig as TlsClientConfig;
 use tracing::instrument;
-
-use patch_db::json_ptr::JsonPointer;
 
 use crate::db::model::Database;
 use crate::hostname::Hostname;
@@ -41,16 +40,11 @@ pub struct NetController {
     pub(super) dns: DnsController,
     pub(super) forward: InterfacePortForwardController,
     pub(super) socks: SocksController,
-    pub(super) server_hostnames: Vec<Option<InternedString>>,
     pub(crate) callbacks: Arc<ServiceCallbacks>,
 }
 
 impl NetController {
-    pub async fn init(
-        db: TypedPatchDb<Database>,
-        hostname: &Hostname,
-        socks_listen: SocketAddr,
-    ) -> Result<Self, Error> {
+    pub async fn init(db: TypedPatchDb<Database>, socks_listen: SocketAddr) -> Result<Self, Error> {
         let net_iface = Arc::new(NetworkInterfaceController::new(db.clone()));
         let socks = SocksController::new(socks_listen)?;
         let crypto_provider = Arc::new(tokio_rustls::rustls::crypto::ring::default_provider());
@@ -90,18 +84,6 @@ impl NetController {
             forward: InterfacePortForwardController::new(net_iface.watcher.subscribe()),
             net_iface,
             socks,
-            server_hostnames: vec![
-                // LAN IP
-                None,
-                // Internal DNS
-                Some("embassy".into()),
-                Some("startos".into()),
-                // localhost
-                Some("localhost".into()),
-                Some(hostname.no_dot_host_name()),
-                // LAN mDNS
-                Some(hostname.local_domain_name()),
-            ],
             callbacks: Arc::new(ServiceCallbacks::default()),
         })
     }
@@ -183,12 +165,7 @@ impl NetServiceData {
         })
     }
 
-    async fn update(
-        &mut self,
-        ctrl: &NetController,
-        id: HostId,
-        host: Host,
-    ) -> Result<(), Error> {
+    async fn update(&mut self, ctrl: &NetController, id: HostId, host: Host) -> Result<(), Error> {
         let mut forwards: BTreeMap<u16, (SocketAddrV4, ForwardRequirements)> = BTreeMap::new();
         let mut vhosts: BTreeMap<(Option<InternedString>, u16), ProxyTarget> = BTreeMap::new();
         let mut private_dns: BTreeSet<InternedString> = BTreeSet::new();
@@ -247,23 +224,21 @@ impl NetServiceData {
                         .cloned()
                         .collect();
 
-                    // Server hostname vhosts (on assigned_ssl_port)
+                    // * vhost (on assigned_ssl_port)
                     if !server_private_ips.is_empty() || !server_public_gateways.is_empty() {
-                        for hostname in ctrl.server_hostnames.iter().cloned() {
-                            vhosts.insert(
-                                (hostname, assigned_ssl_port),
-                                ProxyTarget {
-                                    public: server_public_gateways.clone(),
-                                    private: server_private_ips.clone(),
-                                    acme: None,
-                                    addr,
-                                    add_x_forwarded_headers: ssl.add_x_forwarded_headers,
-                                    connect_ssl: connect_ssl
-                                        .clone()
-                                        .map(|_| ctrl.tls_client_config.clone()),
-                                },
-                            );
-                        }
+                        vhosts.insert(
+                            (None, assigned_ssl_port),
+                            ProxyTarget {
+                                public: server_public_gateways.clone(),
+                                private: server_private_ips.clone(),
+                                acme: None,
+                                addr,
+                                add_x_forwarded_headers: ssl.add_x_forwarded_headers,
+                                connect_ssl: connect_ssl
+                                    .clone()
+                                    .map(|_| ctrl.tls_client_config.clone()),
+                            },
+                        );
                     }
                 }
 
@@ -435,7 +410,6 @@ impl NetServiceData {
 
         Ok(())
     }
-
 }
 
 pub struct NetService {
@@ -474,9 +448,7 @@ impl NetService {
         let thread_data = data.clone();
         let sync_task = tokio::spawn(async move {
             if let Some(ref id) = pkg_id {
-                let ptr: JsonPointer = format!("/public/packageData/{}/hosts", id)
-                    .parse()
-                    .unwrap();
+                let ptr: JsonPointer = format!("/public/packageData/{}/hosts", id).parse().unwrap();
                 let mut watch = db.watch(ptr).await.typed::<Hosts>();
 
                 // Outbound gateway enforcement
@@ -484,9 +456,12 @@ impl NetService {
                 // Purge any stale rules from a previous instance
                 loop {
                     if Command::new("ip")
-                        .arg("rule").arg("del")
-                        .arg("from").arg(&service_ip)
-                        .arg("priority").arg("100")
+                        .arg("rule")
+                        .arg("del")
+                        .arg("from")
+                        .arg(&service_ip)
+                        .arg("priority")
+                        .arg("100")
                         .invoke(ErrorKind::Network)
                         .await
                         .is_err()
@@ -555,10 +530,14 @@ impl NetService {
                             if let Some(old_table) = current_outbound_table.take() {
                                 let old_table_str = old_table.to_string();
                                 let _ = Command::new("ip")
-                                    .arg("rule").arg("del")
-                                    .arg("from").arg(&service_ip)
-                                    .arg("lookup").arg(&old_table_str)
-                                    .arg("priority").arg("100")
+                                    .arg("rule")
+                                    .arg("del")
+                                    .arg("from")
+                                    .arg(&service_ip)
+                                    .arg("lookup")
+                                    .arg(&old_table_str)
+                                    .arg("priority")
+                                    .arg("100")
                                     .invoke(ErrorKind::Network)
                                     .await;
                             }
@@ -580,10 +559,14 @@ impl NetService {
                                 {
                                     let table_str = table_id.to_string();
                                     Command::new("ip")
-                                        .arg("rule").arg("add")
-                                        .arg("from").arg(&service_ip)
-                                        .arg("lookup").arg(&table_str)
-                                        .arg("priority").arg("100")
+                                        .arg("rule")
+                                        .arg("add")
+                                        .arg("from")
+                                        .arg(&service_ip)
+                                        .arg("lookup")
+                                        .arg(&table_str)
+                                        .arg("priority")
+                                        .arg("100")
                                         .invoke(ErrorKind::Network)
                                         .await
                                         .log_err();
@@ -606,10 +589,14 @@ impl NetService {
                 if let Some(table_id) = current_outbound_table {
                     let table_str = table_id.to_string();
                     let _ = Command::new("ip")
-                        .arg("rule").arg("del")
-                        .arg("from").arg(&service_ip)
-                        .arg("lookup").arg(&table_str)
-                        .arg("priority").arg("100")
+                        .arg("rule")
+                        .arg("del")
+                        .arg("from")
+                        .arg(&service_ip)
+                        .arg("lookup")
+                        .arg(&table_str)
+                        .arg("priority")
+                        .arg("100")
                         .invoke(ErrorKind::Network)
                         .await;
                 }
@@ -763,9 +750,12 @@ impl NetService {
         let service_ip = self.data.lock().await.ip.to_string();
         loop {
             if Command::new("ip")
-                .arg("rule").arg("del")
-                .arg("from").arg(&service_ip)
-                .arg("priority").arg("100")
+                .arg("rule")
+                .arg("del")
+                .arg("from")
+                .arg(&service_ip)
+                .arg("priority")
+                .arg("100")
                 .invoke(ErrorKind::Network)
                 .await
                 .is_err()
