@@ -3124,7 +3124,7 @@ help.arg.smtp-from:
   fr_FR: "Adresse de l'expéditeur"
   pl_PL: "Adres nadawcy e-mail"
 
-help.arg.smtp-login:
+help.arg.smtp-username:
   en_US: "SMTP authentication username"
   de_DE: "SMTP-Authentifizierungsbenutzername"
   es_ES: "Nombre de usuario de autenticación SMTP"
@@ -3145,12 +3145,19 @@ help.arg.smtp-port:
   fr_FR: "Port du serveur SMTP"
   pl_PL: "Port serwera SMTP"
 
-help.arg.smtp-server:
+help.arg.smtp-host:
   en_US: "SMTP server hostname"
   de_DE: "SMTP-Server-Hostname"
   es_ES: "Nombre de host del servidor SMTP"
   fr_FR: "Nom d'hôte du serveur SMTP"
   pl_PL: "Nazwa hosta serwera SMTP"
+
+help.arg.smtp-security:
+  en_US: "Connection security mode (starttls or tls)"
+  de_DE: "Verbindungssicherheitsmodus (starttls oder tls)"
+  es_ES: "Modo de seguridad de conexión (starttls o tls)"
+  fr_FR: "Mode de sécurité de connexion (starttls ou tls)"
+  pl_PL: "Tryb zabezpieczeń połączenia (starttls lub tls)"
 
 help.arg.smtp-to:
   en_US: "Email recipient address"

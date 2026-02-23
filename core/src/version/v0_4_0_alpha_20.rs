@@ -166,6 +166,9 @@ impl VersionT for Version {
         // Rebuild from actual assigned ports in all bindings
         migrate_available_ports(db);
 
+        // Migrate SMTP: rename server->host, login->username, add security field
+        migrate_smtp(db);
+
         Ok(migration_data)
     }
 
@@ -239,6 +242,25 @@ fn migrate_available_ports(db: &mut Value) {
     // Replace private.availablePorts
     if let Some(private) = db.get_mut("private").and_then(|p| p.as_object_mut()) {
         private.insert("availablePorts".into(), new_ports);
+    }
+}
+
+fn migrate_smtp(db: &mut Value) {
+    if let Some(smtp) = db
+        .get_mut("public")
+        .and_then(|p| p.get_mut("serverInfo"))
+        .and_then(|s| s.get_mut("smtp"))
+        .and_then(|s| s.as_object_mut())
+    {
+        if let Some(server) = smtp.remove("server") {
+            smtp.insert("host".into(), server);
+        }
+        if let Some(login) = smtp.remove("login") {
+            smtp.insert("username".into(), login);
+        }
+        if !smtp.contains_key("security") {
+            smtp.insert("security".into(), json!("starttls"));
+        }
     }
 }
 

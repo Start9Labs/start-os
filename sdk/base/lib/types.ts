@@ -115,11 +115,12 @@ export type Daemon = {
 export type HealthStatus = NamedHealthCheckResult['result']
 /** SMTP mail server configuration values. */
 export type SmtpValue = {
-  server: string
+  host: string
   port: number
   from: string
-  login: string
+  username: string
   password: string | null | undefined
+  security: 'starttls' | 'tls'
 }
 
 /**

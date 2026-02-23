@@ -117,19 +117,6 @@ export default class ServiceAboutRoute {
               ],
             },
             {
-              header: 'Source Code',
-              items: [
-                {
-                  name: 'Upstream service',
-                  value: manifest.upstreamRepo,
-                },
-                {
-                  name: 'StartOS package',
-                  value: manifest.packageRepo,
-                },
-              ],
-            },
-            {
               header: 'Links',
               items: [
                 ...manifest.docsUrls.map(docsUrl => ({
@@ -143,6 +130,19 @@ export default class ServiceAboutRoute {
                 {
                   name: 'Donations',
                   value: manifest.donationUrl || NOT_PROVIDED,
+                },
+              ],
+            },
+            {
+              header: 'Source Code',
+              items: [
+                {
+                  name: 'Upstream service',
+                  value: manifest.upstreamRepo,
+                },
+                {
+                  name: 'StartOS package',
+                  value: manifest.packageRepo,
                 },
               ],
             },

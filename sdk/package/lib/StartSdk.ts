@@ -9,7 +9,12 @@ import {
 import { ServiceInterfaceType, Effects } from '../../base/lib/types'
 import * as patterns from '../../base/lib/util/patterns'
 import { Backups } from './backup/Backups'
-import { smtpInputSpec } from '../../base/lib/actions/input/inputSpecConstants'
+import {
+  smtpInputSpec,
+  systemSmtpSpec,
+  customSmtp,
+  smtpProviderVariants,
+} from '../../base/lib/actions/input/inputSpecConstants'
 import { Daemon, Daemons } from './mainFn/Daemons'
 import { checkPortListening } from './health/checkFns/checkPortListening'
 import { checkWebUrl, runHealthScript } from './health/checkFns'
@@ -468,7 +473,12 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           run: Run<{}>,
         ) => Action.withoutInput(id, metadata, run),
       },
-      inputSpecConstants: { smtpInputSpec },
+      inputSpecConstants: {
+        smtpInputSpec,
+        systemSmtpSpec,
+        customSmtp,
+        smtpProviderVariants,
+      },
       /**
        * @description Use this function to create a service interface.
        * @param effects
