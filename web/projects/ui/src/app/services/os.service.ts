@@ -2,10 +2,11 @@ import { inject, Injectable } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
 import {
   BehaviorSubject,
-  distinctUntilChanged,
-  map,
   combineLatest,
+  distinctUntilChanged,
   firstValueFrom,
+  map,
+  shareReplay,
 } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { getServerInfo } from 'src/app/utils/get-server-info'
@@ -22,17 +23,19 @@ export class OSService {
   osUpdate?: T.OsVersionInfoMap
   readonly updateAvailable$ = new BehaviorSubject<boolean>(false)
 
-  readonly updating$ = this.patch.watch$('serverInfo', 'statusInfo').pipe(
+  private readonly statusInfo$ = this.patch
+    .watch$('serverInfo', 'statusInfo')
+    .pipe(shareReplay({ bufferSize: 1, refCount: true }))
+
+  readonly updating$ = this.statusInfo$.pipe(
     map(status => status.updateProgress ?? status.updated),
     distinctUntilChanged(),
   )
 
-  readonly backingUp$ = this.patch
-    .watch$('serverInfo', 'statusInfo', 'backupProgress')
-    .pipe(
-      map(obj => !!obj),
-      distinctUntilChanged(),
-    )
+  readonly backingUp$ = this.statusInfo$.pipe(
+    map(status => !!status.backupProgress),
+    distinctUntilChanged(),
+  )
 
   readonly updatingOrBackingUp$ = combineLatest([
     this.updating$,
