@@ -70,7 +70,8 @@ async fn inner_main(
     };
 
     let (rpc_ctx, shutdown) = async {
-        crate::hostname::sync_hostname(&rpc_ctx.account.peek(|a| a.hostname.clone())).await?;
+        crate::hostname::sync_hostname(&rpc_ctx.account.peek(|a| a.hostname.hostname.clone()))
+            .await?;
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
@@ -147,10 +148,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
             .build()
             .expect(&t!("bins.startd.failed-to-initialize-runtime"));
         let res = rt.block_on(async {
-            let mut server = WebServer::new(
-                Acceptor::new(WildcardListener::new(80)?),
-                refresher(),
-            );
+            let mut server = WebServer::new(Acceptor::new(WildcardListener::new(80)?), refresher());
             match inner_main(&mut server, &config).await {
                 Ok(a) => {
                     server.shutdown().await;

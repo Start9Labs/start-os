@@ -10,7 +10,6 @@ use ts_rs::TS;
 use url::Url;
 
 use crate::PackageId;
-use crate::service::effects::plugin::PluginId;
 use crate::prelude::*;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
@@ -22,6 +21,7 @@ use crate::s9pk::manifest::{
     Alerts, Description, HardwareRequirements, LocaleString, current_version,
 };
 use crate::s9pk::merkle_archive::source::FileSource;
+use crate::service::effects::plugin::PluginId;
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::sign::{AnySignature, AnyVerifyingKey};
 use crate::util::{DataUrl, VersionString};

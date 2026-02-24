@@ -13,7 +13,7 @@ use tokio_rustls::rustls::ClientConfig as TlsClientConfig;
 use tracing::instrument;
 
 use crate::db::model::Database;
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostname;
 use crate::net::dns::DnsController;
 use crate::net::forward::{
     ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, add_iptables_rule,
@@ -651,7 +651,7 @@ impl NetService {
                     .as_network()
                     .as_gateways()
                     .de()?;
-                let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
+                let hostname = ServerHostname::load(db.as_public().as_server_info())?;
                 let mut ports = db.as_private().as_available_ports().de()?;
                 let host = host_for(db, pkg_id.as_ref(), &id)?;
                 host.add_binding(&mut ports, internal_port, options)?;
@@ -676,7 +676,7 @@ impl NetService {
                     .as_network()
                     .as_gateways()
                     .de()?;
-                let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
+                let hostname = ServerHostname::load(db.as_public().as_server_info())?;
                 let ports = db.as_private().as_available_ports().de()?;
                 if let Some(ref pkg_id) = pkg_id {
                     for (host_id, host) in db

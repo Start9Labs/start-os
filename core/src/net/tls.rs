@@ -171,20 +171,14 @@ where
             let (metadata, stream) = ready!(self.accept.poll_accept(cx)?);
             let mut tls_handler = self.tls_handler.clone();
             let mut fut = async move {
-                let res = match tokio::time::timeout(
-                    Duration::from_secs(15),
-                    async {
-                        let mut acceptor = LazyConfigAcceptor::new(
-                            Acceptor::default(),
-                            BackTrackingIO::new(stream),
-                        );
-                        let mut mid: tokio_rustls::StartHandshake<
-                            BackTrackingIO<AcceptStream>,
-                        > = match (&mut acceptor).await {
+                let res = match tokio::time::timeout(Duration::from_secs(15), async {
+                    let mut acceptor =
+                        LazyConfigAcceptor::new(Acceptor::default(), BackTrackingIO::new(stream));
+                    let mut mid: tokio_rustls::StartHandshake<BackTrackingIO<AcceptStream>> =
+                        match (&mut acceptor).await {
                             Ok(a) => a,
                             Err(e) => {
-                                let mut stream =
-                                    acceptor.take_io().or_not_found("acceptor io")?;
+                                let mut stream = acceptor.take_io().or_not_found("acceptor io")?;
                                 let (_, buf) = stream.rewind();
                                 if std::str::from_utf8(buf)
                                     .ok()
@@ -208,42 +202,39 @@ where
                                 }
                             }
                         };
-                        let hello = mid.client_hello();
-                        if let Some(cfg) = tls_handler.get_config(&hello, &metadata).await {
-                            let buffered = mid.io.stop_buffering();
-                            mid.io
-                                .write_all(&buffered)
-                                .await
-                                .with_kind(ErrorKind::Network)?;
-                            return Ok(match mid.into_stream(Arc::new(cfg)).await {
-                                Ok(stream) => {
-                                    let s = stream.get_ref().1;
-                                    Some((
-                                        TlsMetadata {
-                                            inner: metadata,
-                                            tls_info: TlsHandshakeInfo {
-                                                sni: s
-                                                    .server_name()
-                                                    .map(InternedString::intern),
-                                                alpn: s
-                                                    .alpn_protocol()
-                                                    .map(|a| MaybeUtf8String(a.to_vec())),
-                                            },
+                    let hello = mid.client_hello();
+                    if let Some(cfg) = tls_handler.get_config(&hello, &metadata).await {
+                        let buffered = mid.io.stop_buffering();
+                        mid.io
+                            .write_all(&buffered)
+                            .await
+                            .with_kind(ErrorKind::Network)?;
+                        return Ok(match mid.into_stream(Arc::new(cfg)).await {
+                            Ok(stream) => {
+                                let s = stream.get_ref().1;
+                                Some((
+                                    TlsMetadata {
+                                        inner: metadata,
+                                        tls_info: TlsHandshakeInfo {
+                                            sni: s.server_name().map(InternedString::intern),
+                                            alpn: s
+                                                .alpn_protocol()
+                                                .map(|a| MaybeUtf8String(a.to_vec())),
                                         },
-                                        Box::pin(stream) as AcceptStream,
-                                    ))
-                                }
-                                Err(e) => {
-                                    tracing::trace!("Error completing TLS handshake: {e}");
-                                    tracing::trace!("{e:?}");
-                                    None
-                                }
-                            });
-                        }
+                                    },
+                                    Box::pin(stream) as AcceptStream,
+                                ))
+                            }
+                            Err(e) => {
+                                tracing::trace!("Error completing TLS handshake: {e}");
+                                tracing::trace!("{e:?}");
+                                None
+                            }
+                        });
+                    }
 
-                        Ok(None)
-                    },
-                )
+                    Ok(None)
+                })
                 .await
                 {
                     Ok(res) => res,

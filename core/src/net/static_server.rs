@@ -31,7 +31,7 @@ use tokio_util::io::ReaderStream;
 use url::Url;
 
 use crate::context::{DiagnosticContext, InitContext, RpcContext, SetupContext};
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostname;
 use crate::middleware::auth::Auth;
 use crate::middleware::auth::session::ValidSessionToken;
 use crate::middleware::cors::Cors;
@@ -105,8 +105,9 @@ impl UiContext for RpcContext {
                 get(move || {
                     let ctx = self.clone();
                     async move {
-                        ctx.account
-                            .peek(|account| cert_send(&account.root_ca_cert, &account.hostname))
+                        ctx.account.peek(|account| {
+                            cert_send(&account.root_ca_cert, &account.hostname.hostname)
+                        })
                     }
                 }),
             )
@@ -419,7 +420,7 @@ pub fn bad_request() -> Response {
         .unwrap()
 }
 
-fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response, Error> {
+fn cert_send(cert: &X509, hostname: &ServerHostname) -> Result<Response, Error> {
     let pem = cert.to_pem()?;
     Response::builder()
         .status(StatusCode::OK)
@@ -435,7 +436,7 @@ fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response, Error> {
         .header(http::header::CONTENT_LENGTH, pem.len())
         .header(
             http::header::CONTENT_DISPOSITION,
-            format!("attachment; filename={}.crt", &hostname.0),
+            format!("attachment; filename={}.crt", hostname.as_ref()),
         )
         .body(Body::from(pem))
         .with_kind(ErrorKind::Network)

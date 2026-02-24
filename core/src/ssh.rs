@@ -12,7 +12,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostname;
 use crate::prelude::*;
 use crate::util::io::create_file;
 use crate::util::serde::{HandlerExtSerde, Pem, WithIoFormat, display_serializable};
@@ -125,7 +125,10 @@ pub struct SshAddParams {
 }
 
 #[instrument(skip_all)]
-pub async fn add(ctx: RpcContext, SshAddParams { key }: SshAddParams) -> Result<SshKeyResponse, Error> {
+pub async fn add(
+    ctx: RpcContext,
+    SshAddParams { key }: SshAddParams,
+) -> Result<SshKeyResponse, Error> {
     let mut key = WithTimeData::new(key);
     let fingerprint = InternedString::intern(key.0.fingerprint_md5());
     let (keys, res) = ctx
@@ -238,7 +241,7 @@ pub async fn list(ctx: RpcContext) -> Result<Vec<SshKeyResponse>, Error> {
 
 #[instrument(skip_all)]
 pub async fn sync_keys<P: AsRef<Path>>(
-    hostname: &Hostname,
+    hostname: &ServerHostname,
     privkey: &Pem<ssh_key::PrivateKey>,
     pubkeys: &SshKeys,
     ssh_dir: P,
@@ -284,8 +287,8 @@ pub async fn sync_keys<P: AsRef<Path>>(
             .to_openssh()
             .with_kind(ErrorKind::OpenSsh)?
             + " start9@"
-            + &*hostname.0)
-            .as_bytes(),
+            + hostname.as_ref())
+        .as_bytes(),
     )
     .await?;
     f.write_all(b"\n").await?;

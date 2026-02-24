@@ -279,9 +279,7 @@ impl Resolver {
                             let Some((ref config, ref opts)) = last_config else {
                                 continue;
                             };
-                            let static_servers: Option<
-                                std::collections::VecDeque<SocketAddr>,
-                            > = db
+                            let static_servers: Option<std::collections::VecDeque<SocketAddr>> = db
                                 .peek()
                                 .await
                                 .as_public()
@@ -290,12 +288,9 @@ impl Resolver {
                                 .as_dns()
                                 .as_static_servers()
                                 .de()?;
-                            let hash =
-                                crate::util::serde::hash_serializable::<sha2::Sha256, _>(&(
-                                    config,
-                                    opts,
-                                    &static_servers,
-                                ))?;
+                            let hash = crate::util::serde::hash_serializable::<sha2::Sha256, _>(
+                                &(config, opts, &static_servers),
+                            )?;
                             if hash == prev {
                                 prev = hash;
                                 continue;
@@ -320,26 +315,25 @@ impl Resolver {
                                 .await
                                 .result?;
                             }
-                            let forward_servers =
-                                if let Some(servers) = &static_servers {
-                                    servers
-                                        .iter()
-                                        .flat_map(|addr| {
-                                            [
-                                                NameServerConfig::new(*addr, Protocol::Udp),
-                                                NameServerConfig::new(*addr, Protocol::Tcp),
-                                            ]
-                                        })
-                                        .map(|n| to_value(&n))
-                                        .collect::<Result<_, Error>>()?
-                                } else {
-                                    config
-                                        .name_servers()
-                                        .into_iter()
-                                        .skip(4)
-                                        .map(to_value)
-                                        .collect::<Result<_, Error>>()?
-                                };
+                            let forward_servers = if let Some(servers) = &static_servers {
+                                servers
+                                    .iter()
+                                    .flat_map(|addr| {
+                                        [
+                                            NameServerConfig::new(*addr, Protocol::Udp),
+                                            NameServerConfig::new(*addr, Protocol::Tcp),
+                                        ]
+                                    })
+                                    .map(|n| to_value(&n))
+                                    .collect::<Result<_, Error>>()?
+                            } else {
+                                config
+                                    .name_servers()
+                                    .into_iter()
+                                    .skip(4)
+                                    .map(to_value)
+                                    .collect::<Result<_, Error>>()?
+                            };
                             let auth: Vec<Arc<dyn AuthorityObject>> = vec![Arc::new(
                                 ForwardAuthority::builder_tokio(ForwardConfig {
                                     name_servers: from_value(Value::Array(forward_servers))?,
@@ -349,17 +343,15 @@ impl Resolver {
                                 .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))?,
                             )];
                             {
-                                let mut guard = tokio::time::timeout(
-                                    Duration::from_secs(10),
-                                    catalog.write(),
-                                )
-                                .await
-                                .map_err(|_| {
-                                    Error::new(
-                                        eyre!("{}", t!("net.dns.timeout-updating-catalog")),
-                                        ErrorKind::Timeout,
-                                    )
-                                })?;
+                                let mut guard =
+                                    tokio::time::timeout(Duration::from_secs(10), catalog.write())
+                                        .await
+                                        .map_err(|_| {
+                                            Error::new(
+                                                eyre!("{}", t!("net.dns.timeout-updating-catalog")),
+                                                ErrorKind::Timeout,
+                                            )
+                                        })?;
                                 guard.upsert(Name::root().into(), auth);
                                 drop(guard);
                             }

@@ -59,7 +59,8 @@ impl Public {
                 platform: get_platform(),
                 id: account.server_id.clone(),
                 version: Current::default().semver(),
-                hostname: account.hostname.no_dot_host_name(),
+                name: account.hostname.name.clone(),
+                hostname: (*account.hostname.hostname).clone(),
                 last_backup: None,
                 package_version_compat: Current::default().compat().clone(),
                 post_init_migration_todos: BTreeMap::new(),
@@ -176,13 +177,11 @@ pub fn default_ifconfig_url() -> Url {
 #[ts(export)]
 pub struct ServerInfo {
     #[serde(default = "get_arch")]
-    #[ts(type = "string")]
     pub arch: InternedString,
     #[serde(default = "get_platform")]
-    #[ts(type = "string")]
     pub platform: InternedString,
     pub id: String,
-    #[ts(type = "string")]
+    pub name: InternedString,
     pub hostname: InternedString,
     #[ts(type = "string")]
     pub version: Version,

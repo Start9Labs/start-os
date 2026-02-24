@@ -161,7 +161,10 @@ pub struct WifiAddParams {
     password: String,
 }
 #[instrument(skip_all)]
-pub async fn add(ctx: RpcContext, WifiAddParams { ssid, password }: WifiAddParams) -> Result<(), Error> {
+pub async fn add(
+    ctx: RpcContext,
+    WifiAddParams { ssid, password }: WifiAddParams,
+) -> Result<(), Error> {
     let wifi_manager = ctx.wifi_manager.clone();
     if !ssid.is_ascii() {
         return Err(Error::new(
@@ -240,7 +243,10 @@ pub struct WifiSsidParams {
 }
 
 #[instrument(skip_all)]
-pub async fn connect(ctx: RpcContext, WifiSsidParams { ssid }: WifiSsidParams) -> Result<(), Error> {
+pub async fn connect(
+    ctx: RpcContext,
+    WifiSsidParams { ssid }: WifiSsidParams,
+) -> Result<(), Error> {
     let wifi_manager = ctx.wifi_manager.clone();
     if !ssid.is_ascii() {
         return Err(Error::new(

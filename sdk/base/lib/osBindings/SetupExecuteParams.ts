@@ -7,5 +7,6 @@ export type SetupExecuteParams = {
   password: EncryptedWire
   recoverySource: RecoverySource<EncryptedWire> | null
   kiosk?: boolean
+  name: string | null
   hostname: string | null
 }
