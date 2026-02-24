@@ -92,15 +92,10 @@ impl Model<Host> {
         for (_, bind) in this.bindings.as_entries_mut()? {
             let net = bind.as_net().de()?;
             let opt = bind.as_options().de()?;
+
             // Preserve existing plugin-provided addresses across recomputation
-            let plugin_addrs: BTreeSet<HostnameInfo> = bind
-                .as_addresses()
-                .as_available()
-                .de()?
-                .into_iter()
-                .filter(|h| matches!(h.metadata, HostnameMetadata::Plugin { .. }))
-                .collect();
-            let mut available = BTreeSet::new();
+            let mut available = bind.as_addresses().as_available().de()?;
+            available.retain(|h| matches!(h.metadata, HostnameMetadata::Plugin { .. }));
             for (gid, g) in gateways {
                 let Some(ip_info) = &g.ip_info else {
                     continue;
@@ -290,7 +285,6 @@ impl Model<Host> {
                     });
                 }
             }
-            available.extend(plugin_addrs);
             bind.as_addresses_mut().as_available_mut().ser(&available)?;
         }
 

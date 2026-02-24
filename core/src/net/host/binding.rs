@@ -204,11 +204,7 @@ impl BindInfo {
             enabled: true,
             options,
             net: lan,
-            addresses: DerivedAddressInfo {
-                enabled: addresses.enabled,
-                disabled: addresses.disabled,
-                available: BTreeSet::new(),
-            },
+            addresses,
         })
     }
     pub fn disable(&mut self) {
