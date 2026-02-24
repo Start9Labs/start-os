@@ -447,6 +447,21 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async setHostname(params: { hostname: string }): Promise<null> {
+    await pauseFor(1000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/hostname',
+        value: params.hostname,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
   async setKeyboard(params: FullKeyboard): Promise<null> {
     await pauseFor(1000)
 

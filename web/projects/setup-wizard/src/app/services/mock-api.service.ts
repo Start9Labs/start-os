@@ -11,15 +11,7 @@ import { T } from '@start9labs/start-sdk'
 import * as jose from 'node-jose'
 import { interval, map, Observable } from 'rxjs'
 import { ApiService } from './api.service'
-import {
-  SetupStatusRes,
-  InstallOsParams,
-  InstallOsRes,
-  AttachParams,
-  SetupExecuteParams,
-  SetupCompleteRes,
-  EchoReq,
-} from '../types'
+import { InstallOsParams, InstallOsRes } from '../types'
 
 @Injectable({
   providedIn: 'root',
@@ -53,7 +45,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async echo(params: EchoReq, url: string): Promise<string> {
+  async echo(params: T.EchoParams, url: string): Promise<string> {
     if (url) {
       const num = Math.floor(Math.random() * 10) + 1
       if (num > 8) return params.message
@@ -63,23 +55,27 @@ export class MockApiService extends ApiService {
     return params.message
   }
 
-  async getStatus(): Promise<SetupStatusRes> {
+  async getStatus(): Promise<T.SetupStatusRes> {
     await pauseFor(500)
 
     this.statusIndex++
 
     if (this.statusIndex === 1) {
-      return { status: 'needs-install', keyboard: null }
+      return { status: 'needs-install' }
       // return {
       //   status: 'incomplete',
       //   attach: false,
       //   guid: 'mock-data-guid',
-      //   keyboard: null,
       // }
     }
 
     if (this.statusIndex > 3) {
-      return { status: 'complete' }
+      return {
+        status: 'complete',
+        hostname: 'adjective-noun',
+        rootCa: encodeBase64(ROOT_CA),
+        needsRestart: this.installCompleted,
+      }
     }
 
     return {
@@ -147,7 +143,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async attach(params: AttachParams): Promise<T.SetupProgress> {
+  async attach(params: T.AttachParams): Promise<T.SetupProgress> {
     await pauseFor(1000)
     this.statusIndex = 1 // Jump to running state
     return {
@@ -156,7 +152,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async execute(params: SetupExecuteParams): Promise<T.SetupProgress> {
+  async execute(params: T.SetupExecuteParams): Promise<T.SetupProgress> {
     await pauseFor(1000)
     this.statusIndex = 1 // Jump to running state
     return {
@@ -173,7 +169,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async complete(): Promise<SetupCompleteRes> {
+  async complete(): Promise<T.SetupResult> {
     await pauseFor(500)
     return {
       hostname: 'adjective-noun',

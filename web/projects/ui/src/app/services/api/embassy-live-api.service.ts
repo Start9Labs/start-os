@@ -255,6 +255,10 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async setHostname(params: { hostname: string }): Promise<null> {
+    return this.rpcRequest({ method: 'server.set-hostname', params })
+  }
+
   async setKeyboard(params: FullKeyboard): Promise<null> {
     return this.rpcRequest({ method: 'server.set-keyboard', params })
   }

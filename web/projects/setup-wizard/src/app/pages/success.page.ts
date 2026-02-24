@@ -20,7 +20,7 @@ import { StateService } from '../services/state.service'
 import { DocumentationComponent } from '../components/documentation.component'
 import { MatrixComponent } from '../components/matrix.component'
 import { RemoveMediaDialog } from '../components/remove-media.dialog'
-import { SetupCompleteRes } from '../types'
+import { T } from '@start9labs/start-sdk'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 
 @Component({
@@ -193,7 +193,7 @@ export default class SuccessPage implements AfterViewInit {
 
   readonly stateService = inject(StateService)
 
-  result?: SetupCompleteRes
+  result?: T.SetupResult
   lanAddress = ''
   downloaded = false
   usbRemoved = false
@@ -232,14 +232,11 @@ export default class SuccessPage implements AfterViewInit {
 
   removeMedia() {
     this.dialogs
-      .openComponent<boolean>(
-        new PolymorpheusComponent(RemoveMediaDialog),
-        {
-          size: 's',
-          dismissible: false,
-          closeable: false,
-        },
-      )
+      .openComponent<boolean>(new PolymorpheusComponent(RemoveMediaDialog), {
+        size: 's',
+        dismissible: false,
+        closeable: false,
+      })
       .subscribe(() => {
         this.usbRemoved = true
       })

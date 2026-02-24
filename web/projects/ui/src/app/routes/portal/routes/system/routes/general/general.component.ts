@@ -24,6 +24,7 @@ import {
   LANGUAGE_TO_CODE,
   LoadingService,
 } from '@start9labs/shared'
+import { WA_WINDOW } from '@ng-web-apis/common'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiAnimated } from '@taiga-ui/cdk'
 import {
@@ -45,7 +46,7 @@ import {
 import { TuiCell, tuiCellOptionsProvider } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
-import { filter } from 'rxjs'
+import { filter, Subscription } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -92,6 +93,18 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
               {{ 'Check for updates' | i18n }}
             }
           }
+        </button>
+      </div>
+      <div tuiCell tuiAppearance="outline-grayscale">
+        <tui-icon icon="@tui.server" />
+        <span tuiTitle>
+          <strong>{{ 'Server Hostname' | i18n }}</strong>
+          <span tuiSubtitle>
+            {{ server.hostname }}
+          </span>
+        </span>
+        <button tuiButton (click)="onHostname()">
+          {{ 'Change' | i18n }}
         </button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
@@ -272,6 +285,7 @@ export default class SystemGeneralComponent {
   private readonly dialog = inject(DialogService)
   private readonly i18n = inject(i18nPipe)
   private readonly injector = inject(INJECTOR)
+  private readonly win = inject(WA_WINDOW)
 
   count = 0
 
@@ -343,6 +357,82 @@ export default class SystemGeneralComponent {
       this.update()
     } else {
       this.check()
+    }
+  }
+
+  onHostname() {
+    const sub = this.dialog
+      .openPrompt<string>({
+        label: 'Server Hostname',
+        data: {
+          label: 'Hostname' as i18nKey,
+          message:
+            'This value will be used as your server hostname and mDNS address on the LAN. Only lowercase letters, numbers, and hyphens are allowed.',
+          placeholder: 'start9' as i18nKey,
+          required: true,
+          buttonText: 'Save',
+          initialValue: this.server()?.hostname || '',
+          pattern: '^[a-z0-9][a-z0-9-]*$',
+          patternError:
+            'Hostname must contain only lowercase letters, numbers, and hyphens, and cannot start with a hyphen.',
+        },
+      })
+      .subscribe(hostname => {
+        if (this.win.location.hostname.endsWith('.local')) {
+          this.confirmHostnameChange(hostname, sub)
+        } else {
+          this.saveHostname(hostname, sub)
+        }
+      })
+  }
+
+  private confirmHostnameChange(hostname: string, promptSub: Subscription) {
+    this.dialog
+      .openConfirm({
+        label: 'Warning',
+        data: {
+          content:
+            'You are currently connected via your .local address. Changing the hostname will require you to switch to the new .local address.',
+          yes: 'Save',
+          no: 'Cancel',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.saveHostname(hostname, promptSub, true))
+  }
+
+  private async saveHostname(
+    hostname: string,
+    promptSub: Subscription,
+    wasLocal = false,
+  ) {
+    const loader = this.loader.open('Saving').subscribe()
+
+    try {
+      await this.api.setHostname({ hostname })
+
+      if (wasLocal) {
+        const { protocol, port } = this.win.location
+        const newUrl = `${protocol}//${hostname}.local${port ? ':' + port : ''}`
+
+        this.dialog
+          .openConfirm({
+            label: 'Hostname Changed',
+            data: {
+              content:
+                `${this.i18n.transform('Your server is now reachable at')} ${hostname}.local` as i18nKey,
+              yes: 'Open new address',
+              no: 'Dismiss',
+            },
+          })
+          .pipe(filter(Boolean))
+          .subscribe(() => this.win.open(newUrl, '_blank'))
+      }
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+      promptSub.unsubscribe()
     }
   }
 

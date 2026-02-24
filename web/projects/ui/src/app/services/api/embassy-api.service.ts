@@ -121,6 +121,8 @@ export abstract class ApiService {
 
   abstract toggleKiosk(enable: boolean): Promise<null>
 
+  abstract setHostname(params: { hostname: string }): Promise<null>
+
   abstract setKeyboard(params: FullKeyboard): Promise<null>
 
   abstract setLanguage(params: SetLanguageParams): Promise<null>

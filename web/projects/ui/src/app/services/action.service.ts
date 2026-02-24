@@ -27,7 +27,6 @@ export class ActionService {
   private readonly formDialog = inject(FormDialogService)
 
   async present(data: PackageActionData) {
-    data.prefill = data.prefill ?? data.requestInfo?.input?.value
     const { pkgInfo, actionInfo } = data
 
     if (actionInfo.metadata.hasInput) {

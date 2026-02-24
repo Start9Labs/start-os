@@ -23,19 +23,14 @@ Pending tasks for AI agents. Remove items when completed.
   other crate types. Extracting them requires either moving the type definitions into the sub-crate
   (and importing them back into `start-os`) or restructuring to share a common types crate.
 
-- [ ] Use auto-generated RPC types in the frontend instead of manual duplicates
+- [ ] Make `SetupExecuteParams.password` optional in the backend - @dr-bonez
 
-  **Problem**: The web frontend manually defines ~755 lines of API request/response types in
-  `web/projects/ui/src/app/services/api/api.types.ts` that can drift from the actual Rust types.
+  **Problem**: In `core/src/setup.rs`, `SetupExecuteParams` has `password: EncryptedWire` (non-nullable),
+  but the frontend needs to send `null` for restore/transfer flows where the user keeps their existing
+  password. The `AttachParams` type correctly uses `Option<EncryptedWire>` for this purpose.
 
-  **Current state**: The Rust backend already has `#[ts(export)]` on RPC param types (e.g.
-  `AddTunnelParams`, `SetWifiEnabledParams`, `LoginParams`), and they are generated into
-  `core/bindings/`. However, commit `71b83245b` ("Chore/unexport api ts #2585", April 2024)
-  deliberately stopped building them into the SDK and had the frontend maintain its own types.
-
-  **Goal**: Reverse that decision — pipe the generated RPC types through the SDK into the frontend
-  so `api.types.ts` can import them instead of duplicating them. This eliminates drift between
-  backend and frontend API contracts.
+  **Fix**: Change `password: EncryptedWire` to `password: Option<EncryptedWire>` in `SetupExecuteParams`
+  and handle the `None` case in the `execute` handler (similar to how `attach` handles it).
 
 - [ ] Auto-configure port forwards via UPnP/NAT-PMP/PCP - @dr-bonez
 

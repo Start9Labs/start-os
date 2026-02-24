@@ -154,20 +154,21 @@ export class ServiceTaskComponent {
   }
 
   async handle() {
+    const task = this.task()
     const title = this.title()
     const pkg = this.pkg()
-    const metadata = pkg?.actions[this.task().actionId]
+    const metadata = pkg?.actions[task.actionId]
 
     if (title && pkg && metadata) {
       this.actionService.present({
         pkgInfo: {
-          id: this.task().packageId,
+          id: task.packageId,
           title,
           status: getInstalledBaseStatus(pkg.statusInfo),
           icon: pkg.icon,
         },
-        actionInfo: { id: this.task().actionId, metadata },
-        requestInfo: this.task(),
+        actionInfo: { id: task.actionId, metadata },
+        prefill: task.input?.value,
       })
     }
   }

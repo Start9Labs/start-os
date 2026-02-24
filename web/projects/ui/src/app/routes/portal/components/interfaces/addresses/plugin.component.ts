@@ -305,21 +305,21 @@ export class PluginAddressesComponent {
     if (!group.tableAction || !group.pluginPkgInfo) return
 
     const iface = this.value()
-    const prefill: Record<string, unknown> = {}
+    if (!iface) return
 
-    if (iface) {
-      prefill['urlPluginMetadata'] = {
-        packageId: this.packageId() || null,
-        hostId: iface.addressInfo.hostId,
-        interfaceId: iface.id,
-        internalPort: iface.addressInfo.internalPort,
-      }
-    }
+    const { addressInfo } = iface
 
     this.actionService.present({
       pkgInfo: group.pluginPkgInfo,
       actionInfo: group.tableAction,
-      prefill,
+      prefill: {
+        urlPluginMetadata: {
+          packageId: this.packageId() || null,
+          hostId: addressInfo.hostId,
+          interfaceId: iface.id,
+          internalPort: addressInfo.internalPort,
+        },
+      },
     })
   }
 
@@ -332,26 +332,30 @@ export class PluginAddressesComponent {
     if (!group.pluginPkgInfo) return
 
     const iface = this.value()
-    const prefill: Record<string, unknown> = {}
+    if (!iface) return
 
-    if (iface && address.hostnameInfo.metadata.kind === 'plugin') {
-      prefill['urlPluginMetadata'] = {
-        packageId: this.packageId() || null,
-        hostId: iface.addressInfo.hostId,
-        interfaceId: iface.id,
-        internalPort: iface.addressInfo.internalPort,
-        hostname: address.hostnameInfo.hostname,
-        port: address.hostnameInfo.port,
-        ssl: address.hostnameInfo.ssl,
-        public: address.hostnameInfo.public,
-        info: address.hostnameInfo.metadata.info,
-      }
-    }
+    const { hostnameInfo } = address
+    const { addressInfo } = iface
+    const hostMeta = hostnameInfo.metadata
+
+    if (hostMeta.kind !== 'plugin') return
 
     this.actionService.present({
       pkgInfo: group.pluginPkgInfo,
       actionInfo: { id: actionId, metadata },
-      prefill,
+      prefill: {
+        urlPluginMetadata: {
+          packageId: this.packageId() || null,
+          hostId: addressInfo.hostId,
+          interfaceId: iface.id,
+          internalPort: addressInfo.internalPort,
+          hostname: hostnameInfo.hostname,
+          port: hostnameInfo.port,
+          ssl: hostnameInfo.ssl,
+          public: hostnameInfo.public,
+          info: hostMeta.info,
+        },
+      },
     })
   }
 }
