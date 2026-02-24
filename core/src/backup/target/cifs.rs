@@ -218,7 +218,10 @@ pub struct CifsRemoveParams {
     pub id: BackupTargetId,
 }
 
-pub async fn remove(ctx: RpcContext, CifsRemoveParams { id }: CifsRemoveParams) -> Result<(), Error> {
+pub async fn remove(
+    ctx: RpcContext,
+    CifsRemoveParams { id }: CifsRemoveParams,
+) -> Result<(), Error> {
     let id = if let BackupTargetId::Cifs { id } = id {
         id
     } else {

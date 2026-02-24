@@ -1,39 +1,41 @@
 use clap::Parser;
 use imbl_value::InternedString;
 use lazy_format::lazy_format;
-use rand::{Rng, rng};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::RpcContext;
+use crate::db::model::public::ServerInfo;
 use crate::prelude::*;
 use crate::util::Invoke;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, ts_rs::TS)]
 #[ts(type = "string")]
-pub struct Hostname(pub InternedString);
-
-lazy_static::lazy_static! {
-    static ref ADJECTIVES: Vec<String> = include_str!("./assets/adjectives.txt").lines().map(|x| x.to_string()).collect();
-    static ref NOUNS: Vec<String> = include_str!("./assets/nouns.txt").lines().map(|x| x.to_string()).collect();
-}
-impl AsRef<str> for Hostname {
-    fn as_ref(&self) -> &str {
+pub struct ServerHostname(InternedString);
+impl std::ops::Deref for ServerHostname {
+    type Target = InternedString;
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
+impl AsRef<str> for ServerHostname {
+    fn as_ref(&self) -> &str {
+        &***self
+    }
+}
 
-impl Hostname {
-    pub fn validate(h: InternedString) -> Result<Self, Error> {
-        if h.is_empty() {
+impl ServerHostname {
+    fn validate(&self) -> Result<(), Error> {
+        if self.0.is_empty() {
             return Err(Error::new(
                 eyre!("{}", t!("hostname.empty")),
                 ErrorKind::InvalidRequest,
             ));
         }
-        if let Some(c) = h
+        if let Some(c) = self
+            .0
             .chars()
             .find(|c| !(c.is_ascii_alphanumeric() || c == &'-') || c.is_ascii_uppercase())
         {
@@ -42,7 +44,13 @@ impl Hostname {
                 ErrorKind::InvalidRequest,
             ));
         }
-        Ok(Self(h))
+        Ok(())
+    }
+
+    pub fn new(hostname: InternedString) -> Result<Self, Error> {
+        let res = Self(hostname);
+        res.validate()?;
+        Ok(res)
     }
 
     pub fn lan_address(&self) -> InternedString {
@@ -53,17 +61,135 @@ impl Hostname {
         InternedString::from_display(&lazy_format!("{}.local", self.0))
     }
 
-    pub fn no_dot_host_name(&self) -> InternedString {
-        self.0.clone()
+    pub fn load(server_info: &Model<ServerInfo>) -> Result<Self, Error> {
+        Ok(Self(server_info.as_hostname().de()?))
+    }
+
+    pub fn save(&self, server_info: &mut Model<ServerInfo>) -> Result<(), Error> {
+        server_info.as_hostname_mut().ser(&**self)
     }
 }
 
-pub fn generate_hostname() -> Hostname {
-    let mut rng = rng();
-    let adjective = &ADJECTIVES[rng.random_range(0..ADJECTIVES.len())];
-    let noun = &NOUNS[rng.random_range(0..NOUNS.len())];
-    Hostname(InternedString::from_display(&lazy_format!(
-        "{adjective}-{noun}"
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, ts_rs::TS)]
+#[ts(type = "string")]
+pub struct ServerHostnameInfo {
+    pub name: InternedString,
+    pub hostname: ServerHostname,
+}
+
+lazy_static::lazy_static! {
+    static ref ADJECTIVES: Vec<String> = include_str!("./assets/adjectives.txt").lines().map(|x| x.to_string()).collect();
+    static ref NOUNS: Vec<String> = include_str!("./assets/nouns.txt").lines().map(|x| x.to_string()).collect();
+}
+impl AsRef<str> for ServerHostnameInfo {
+    fn as_ref(&self) -> &str {
+        &self.hostname
+    }
+}
+
+fn normalize(s: &str) -> InternedString {
+    let mut prev_was_dash = true;
+    let mut normalized = s
+        .chars()
+        .filter_map(|c| {
+            if c.is_alphanumeric() {
+                prev_was_dash = false;
+                Some(c.to_ascii_lowercase())
+            } else if (c == '-' || c.is_whitespace()) && !prev_was_dash {
+                prev_was_dash = true;
+                Some('-')
+            } else {
+                None
+            }
+        })
+        .collect::<String>();
+    while normalized.ends_with('-') {
+        normalized.pop();
+    }
+    if normalized.len() < 4 {
+        generate_hostname().0
+    } else {
+        normalized.into()
+    }
+}
+
+fn denormalize(s: &str) -> InternedString {
+    let mut cap = true;
+    s.chars()
+        .map(|c| {
+            if c == '-' {
+                cap = true;
+                ' '
+            } else if cap {
+                cap = false;
+                c.to_ascii_uppercase()
+            } else {
+                c
+            }
+        })
+        .collect::<String>()
+        .into()
+}
+
+impl ServerHostnameInfo {
+    pub fn new(
+        name: Option<InternedString>,
+        hostname: Option<InternedString>,
+    ) -> Result<Self, Error> {
+        Self::new_opt(name, hostname)
+            .map(|h| h.unwrap_or_else(|| ServerHostnameInfo::from_hostname(generate_hostname())))
+    }
+
+    pub fn new_opt(
+        name: Option<InternedString>,
+        hostname: Option<InternedString>,
+    ) -> Result<Option<Self>, Error> {
+        let name = name.filter(|n| !n.is_empty());
+        let hostname = hostname.filter(|h| !h.is_empty());
+        Ok(match (name, hostname) {
+            (Some(name), Some(hostname)) => Some(ServerHostnameInfo {
+                name,
+                hostname: ServerHostname::new(hostname)?,
+            }),
+            (Some(name), None) => Some(ServerHostnameInfo::from_name(name)),
+            (None, Some(hostname)) => Some(ServerHostnameInfo::from_hostname(ServerHostname::new(
+                hostname,
+            )?)),
+            (None, None) => None,
+        })
+    }
+
+    pub fn from_hostname(hostname: ServerHostname) -> Self {
+        Self {
+            name: denormalize(&**hostname),
+            hostname,
+        }
+    }
+
+    pub fn from_name(name: InternedString) -> Self {
+        Self {
+            hostname: ServerHostname(normalize(&*name)),
+            name,
+        }
+    }
+
+    pub fn load(server_info: &Model<ServerInfo>) -> Result<Self, Error> {
+        Ok(Self {
+            name: server_info.as_name().de()?,
+            hostname: ServerHostname::load(server_info)?,
+        })
+    }
+
+    pub fn save(&self, server_info: &mut Model<ServerInfo>) -> Result<(), Error> {
+        server_info.as_name_mut().ser(&self.name)?;
+        self.hostname.save(server_info)
+    }
+}
+
+pub fn generate_hostname() -> ServerHostname {
+    let num = rand::random::<u16>();
+    ServerHostname(InternedString::from_display(&lazy_format!(
+        "startos-{num:04x}"
     )))
 }
 
@@ -73,17 +199,17 @@ pub fn generate_id() -> String {
 }
 
 #[instrument(skip_all)]
-pub async fn get_current_hostname() -> Result<Hostname, Error> {
+pub async fn get_current_hostname() -> Result<InternedString, Error> {
     let out = Command::new("hostname")
         .invoke(ErrorKind::ParseSysInfo)
         .await?;
     let out_string = String::from_utf8(out)?;
-    Ok(Hostname(out_string.trim().into()))
+    Ok(out_string.trim().into())
 }
 
 #[instrument(skip_all)]
-pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
-    let hostname = &*hostname.0;
+pub async fn set_hostname(hostname: &ServerHostname) -> Result<(), Error> {
+    let hostname = &***hostname;
     Command::new("hostnamectl")
         .arg("--static")
         .arg("set-hostname")
@@ -102,7 +228,7 @@ pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
 }
 
 #[instrument(skip_all)]
-pub async fn sync_hostname(hostname: &Hostname) -> Result<(), Error> {
+pub async fn sync_hostname(hostname: &ServerHostname) -> Result<(), Error> {
     set_hostname(hostname).await?;
     Command::new("systemctl")
         .arg("restart")
@@ -117,25 +243,31 @@ pub async fn sync_hostname(hostname: &Hostname) -> Result<(), Error> {
 #[command(rename_all = "kebab-case")]
 #[ts(export)]
 pub struct SetServerHostnameParams {
-    hostname: InternedString,
+    name: Option<InternedString>,
+    hostname: Option<InternedString>,
 }
 
 pub async fn set_hostname_rpc(
     ctx: RpcContext,
-    SetServerHostnameParams { hostname }: SetServerHostnameParams,
+    SetServerHostnameParams { name, hostname }: SetServerHostnameParams,
 ) -> Result<(), Error> {
-    let hostname = Hostname::validate(hostname)?;
+    let Some(hostname) = ServerHostnameInfo::new_opt(name, hostname)? else {
+        return Err(Error::new(
+            eyre!("{}", t!("hostname.must-provide-name-or-hostname")),
+            ErrorKind::InvalidRequest,
+        ));
+    };
     ctx.db
-        .mutate(|db| {
-            db.as_public_mut()
-                .as_server_info_mut()
-                .as_hostname_mut()
-                .ser(&hostname.0)
-        })
+        .mutate(|db| hostname.save(db.as_public_mut().as_server_info_mut()))
         .await
         .result?;
     ctx.account.mutate(|a| a.hostname = hostname.clone());
-    sync_hostname(&hostname).await?;
+    sync_hostname(&hostname.hostname).await?;
 
     Ok(())
+}
+
+#[test]
+fn test_generate_hostname() {
+    assert_eq!(dbg!(generate_hostname().0).len(), 12);
 }

@@ -175,8 +175,13 @@ pub async fn remove_tunnel(
 
     ctx.db
         .mutate(|db| {
-            let hostname = crate::hostname::Hostname(db.as_public().as_server_info().as_hostname().de()?);
-            let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
+            let hostname = crate::hostname::ServerHostname::load(db.as_public().as_server_info())?;
+            let gateways = db
+                .as_public()
+                .as_server_info()
+                .as_network()
+                .as_gateways()
+                .de()?;
             let ports = db.as_private().as_available_ports().de()?;
             for host in all_hosts(db) {
                 let host = host?;
@@ -194,8 +199,13 @@ pub async fn remove_tunnel(
 
     ctx.db
         .mutate(|db| {
-            let hostname = crate::hostname::Hostname(db.as_public().as_server_info().as_hostname().de()?);
-            let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
+            let hostname = crate::hostname::ServerHostname::load(db.as_public().as_server_info())?;
+            let gateways = db
+                .as_public()
+                .as_server_info()
+                .as_network()
+                .as_gateways()
+                .de()?;
             let ports = db.as_private().as_available_ports().de()?;
             for host in all_hosts(db) {
                 let host = host?;

@@ -178,10 +178,7 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
             ParentHandler::<C>::new().subcommand(
                 "url",
                 ParentHandler::<C>::new()
-                    .subcommand(
-                        "register",
-                        from_fn_async(net::plugin::register).no_cli(),
-                    )
+                    .subcommand("register", from_fn_async(net::plugin::register).no_cli())
                     .subcommand(
                         "export-url",
                         from_fn_async(net::plugin::export_url).no_cli(),

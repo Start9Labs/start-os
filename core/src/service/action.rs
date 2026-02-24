@@ -72,7 +72,13 @@ impl Service {
             return Ok(None);
         }
         self.actor
-            .send(id, GetActionInput { id: action_id, prefill })
+            .send(
+                id,
+                GetActionInput {
+                    id: action_id,
+                    prefill,
+                },
+            )
             .await?
     }
 }

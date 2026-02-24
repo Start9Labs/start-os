@@ -166,6 +166,33 @@ impl VersionT for Version {
         // Rebuild from actual assigned ports in all bindings
         migrate_available_ports(db);
 
+        // Delete ui.name (moved to serverInfo.name)
+        if let Some(ui) = db
+            .get_mut("public")
+            .and_then(|p| p.get_mut("ui"))
+            .and_then(|u| u.as_object_mut())
+        {
+            ui.remove("name");
+        }
+
+        // Generate serverInfo.name from serverInfo.hostname
+        if let Some(hostname) = db
+            .get("public")
+            .and_then(|p| p.get("serverInfo"))
+            .and_then(|s| s.get("hostname"))
+            .and_then(|h| h.as_str())
+            .map(|s| s.to_owned())
+        {
+            let name = denormalize_hostname(&hostname);
+            if let Some(server_info) = db
+                .get_mut("public")
+                .and_then(|p| p.get_mut("serverInfo"))
+                .and_then(|s| s.as_object_mut())
+            {
+                server_info.insert("name".into(), Value::String(name.into()));
+            }
+        }
+
         Ok(migration_data)
     }
 
@@ -240,6 +267,23 @@ fn migrate_available_ports(db: &mut Value) {
     if let Some(private) = db.get_mut("private").and_then(|p| p.as_object_mut()) {
         private.insert("availablePorts".into(), new_ports);
     }
+}
+
+fn denormalize_hostname(s: &str) -> String {
+    let mut cap = true;
+    s.chars()
+        .map(|c| {
+            if c == '-' {
+                cap = true;
+                ' '
+            } else if cap {
+                cap = false;
+                c.to_ascii_uppercase()
+            } else {
+                c
+            }
+        })
+        .collect()
 }
 
 fn migrate_host(host: Option<&mut Value>) {

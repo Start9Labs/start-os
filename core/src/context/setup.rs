@@ -19,7 +19,7 @@ use crate::MAIN_DATA;
 use crate::context::RpcContext;
 use crate::context::config::ServerConfig;
 use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostname;
 use crate::net::gateway::WildcardListener;
 use crate::net::web_server::{WebServer, WebServerAcceptorSetter};
 use crate::prelude::*;
@@ -45,7 +45,7 @@ lazy_static::lazy_static! {
 #[ts(export)]
 pub struct SetupResult {
     #[ts(type = "string")]
-    pub hostname: Hostname,
+    pub hostname: ServerHostname,
     pub root_ca: Pem<X509>,
     pub needs_restart: bool,
 }

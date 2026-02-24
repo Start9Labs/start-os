@@ -33,7 +33,7 @@ use crate::SOURCE_DATE;
 use crate::account::AccountInfo;
 use crate::db::model::Database;
 use crate::db::{DbAccess, DbAccessMut};
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostname;
 use crate::init::check_time_is_synchronized;
 use crate::net::gateway::GatewayInfo;
 use crate::net::tls::TlsHandler;
@@ -283,7 +283,7 @@ pub fn gen_nistp256() -> Result<PKey<Private>, Error> {
 #[instrument(skip_all)]
 pub fn make_root_cert(
     root_key: &PKey<Private>,
-    hostname: &Hostname,
+    hostname: &ServerHostname,
     start_time: SystemTime,
 ) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
@@ -300,7 +300,8 @@ pub fn make_root_cert(
     builder.set_serial_number(&*rand_serial()?)?;
 
     let mut subject_name_builder = X509NameBuilder::new()?;
-    subject_name_builder.append_entry_by_text("CN", &format!("{} Local Root CA", &*hostname.0))?;
+    subject_name_builder
+        .append_entry_by_text("CN", &format!("{} Local Root CA", hostname.as_ref()))?;
     subject_name_builder.append_entry_by_text("O", "Start9")?;
     subject_name_builder.append_entry_by_text("OU", "StartOS")?;
     let subject_name = subject_name_builder.build();

@@ -151,7 +151,9 @@ async fn get_action_input(
             .get_action_input(procedure_id, action_id, prefill)
             .await
     } else {
-        context.get_action_input(procedure_id, action_id, prefill).await
+        context
+            .get_action_input(procedure_id, action_id, prefill)
+            .await
     }
 }
 

@@ -10,6 +10,7 @@ export type ServerInfo = {
   arch: string
   platform: string
   id: string
+  name: string
   hostname: string
   version: string
   packageVersionCompat: string

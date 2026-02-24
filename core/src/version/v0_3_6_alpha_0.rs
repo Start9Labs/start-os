@@ -21,7 +21,7 @@ use crate::backup::target::cifs::CifsTargets;
 use crate::context::RpcContext;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::util::unmount;
-use crate::hostname::Hostname;
+use crate::hostname::{ServerHostname, ServerHostnameInfo};
 use crate::net::forward::AvailablePorts;
 use crate::net::keys::KeyStore;
 use crate::notifications::Notifications;
@@ -166,11 +166,7 @@ impl VersionT for Version {
 
         Ok((account, ssh_keys, cifs))
     }
-    fn up(
-        self,
-        db: &mut Value,
-        (account, ssh_keys, cifs): Self::PreUpRes,
-    ) -> Result<Value, Error> {
+    fn up(self, db: &mut Value, (account, ssh_keys, cifs): Self::PreUpRes) -> Result<Value, Error> {
         let prev_package_data = db["package-data"].clone();
 
         let wifi = json!({
@@ -435,12 +431,12 @@ async fn previous_account_info(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<Accoun
             server_id: account_query
                 .try_get("server_id")
                 .with_ctx(|_| (ErrorKind::Database, "server_id"))?,
-            hostname: Hostname(
+            hostname: ServerHostnameInfo::from_hostname(ServerHostname::new(
                 account_query
                     .try_get::<String, _>("hostname")
                     .with_ctx(|_| (ErrorKind::Database, "hostname"))?
                     .into(),
-            ),
+            )?),
             root_ca_key: PKey::private_key_from_pem(
                 &account_query
                     .try_get::<String, _>("root_ca_key_pem")
@@ -502,4 +498,3 @@ async fn previous_ssh_keys(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<SshKeys, E
     };
     Ok(ssh_keys)
 }
-

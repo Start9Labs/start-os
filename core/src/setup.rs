@@ -31,7 +31,7 @@ use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::{DiskInfo, StartOsRecoveryInfo, pvscan, recovery_info};
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostnameInfo;
 use crate::init::{InitPhases, InitResult, init};
 use crate::net::ssl::root_ca_start_time;
 use crate::prelude::*;
@@ -116,7 +116,7 @@ async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
     kiosk: Option<bool>,
-    hostname: Option<InternedString>,
+    hostname: Option<ServerHostnameInfo>,
     init_phases: InitPhases,
 ) -> Result<(AccountInfo, InitResult), Error> {
     let init_result = init(&ctx.webserver, &ctx.config.peek(|c| c.clone()), init_phases).await?;
@@ -132,7 +132,7 @@ async fn setup_init(
                 account.set_password(password)?;
             }
             if let Some(hostname) = hostname {
-                account.hostname = Hostname::validate(hostname)?;
+                account.hostname = hostname;
             }
             account.save(m)?;
             let info = m.as_public_mut().as_server_info_mut();
@@ -176,6 +176,7 @@ pub struct AttachParams {
     pub guid: InternedString,
     #[ts(optional)]
     pub kiosk: Option<bool>,
+    pub name: Option<InternedString>,
     pub hostname: Option<InternedString>,
 }
 
@@ -186,6 +187,7 @@ pub async fn attach(
         password,
         guid: disk_guid,
         kiosk,
+        name,
         hostname,
     }: AttachParams,
 ) -> Result<SetupProgress, Error> {
@@ -240,14 +242,10 @@ pub async fn attach(
         }
         disk_phase.complete();
 
-        let (account, net_ctrl) = setup_init(
-            &setup_ctx,
-            password,
-            kiosk,
-            hostname.filter(|h| !h.is_empty()),
-            init_phases,
-        )
-        .await?;
+        let hostname = ServerHostnameInfo::new_opt(name, hostname)?;
+
+        let (account, net_ctrl) =
+            setup_init(&setup_ctx, password, kiosk, hostname, init_phases).await?;
 
         let rpc_ctx = RpcContext::init(
             &setup_ctx.webserver,
@@ -260,7 +258,7 @@ pub async fn attach(
 
         Ok((
             SetupResult {
-                hostname: account.hostname,
+                hostname: account.hostname.hostname,
                 root_ca: Pem(account.root_ca_cert),
                 needs_restart: setup_ctx.install_rootfs.peek(|a| a.is_some()),
             },
@@ -420,6 +418,7 @@ pub struct SetupExecuteParams {
     recovery_source: Option<RecoverySource<EncryptedWire>>,
     #[ts(optional)]
     kiosk: Option<bool>,
+    name: Option<InternedString>,
     hostname: Option<InternedString>,
 }
 
@@ -431,6 +430,7 @@ pub async fn execute(
         password,
         recovery_source,
         kiosk,
+        name,
         hostname,
     }: SetupExecuteParams,
 ) -> Result<SetupProgress, Error> {
@@ -462,17 +462,10 @@ pub async fn execute(
         None => None,
     };
 
+    let hostname = ServerHostnameInfo::new_opt(name, hostname)?;
+
     let setup_ctx = ctx.clone();
-    ctx.run_setup(move || {
-        execute_inner(
-            setup_ctx,
-            guid,
-            password,
-            recovery,
-            kiosk,
-            hostname.filter(|h| !h.is_empty()),
-        )
-    })?;
+    ctx.run_setup(move || execute_inner(setup_ctx, guid, password, recovery, kiosk, hostname))?;
 
     Ok(ctx.progress().await)
 }
@@ -487,7 +480,7 @@ pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
             guid_file.sync_all().await?;
             Command::new("systemd-firstboot")
                 .arg("--root=/media/startos/config/overlay/")
-                .arg(format!("--hostname={}", res.hostname.0))
+                .arg(format!("--hostname={}", res.hostname.as_ref()))
                 .invoke(ErrorKind::ParseSysInfo)
                 .await?;
             Command::new("sync").invoke(ErrorKind::Filesystem).await?;
@@ -561,7 +554,7 @@ pub async fn execute_inner(
     password: String,
     recovery_source: Option<RecoverySource<String>>,
     kiosk: Option<bool>,
-    hostname: Option<InternedString>,
+    hostname: Option<ServerHostnameInfo>,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let progress = &ctx.progress;
     let restore_phase = match recovery_source.as_ref() {
@@ -619,7 +612,7 @@ async fn fresh_setup(
     guid: InternedString,
     password: &str,
     kiosk: Option<bool>,
-    hostname: Option<InternedString>,
+    hostname: Option<ServerHostnameInfo>,
     SetupExecuteProgress {
         init_phases,
         rpc_ctx_phases,
@@ -663,7 +656,7 @@ async fn fresh_setup(
 
     Ok((
         SetupResult {
-            hostname: account.hostname,
+            hostname: account.hostname.hostname,
             root_ca: Pem(account.root_ca_cert),
             needs_restart: ctx.install_rootfs.peek(|a| a.is_some()),
         },
@@ -680,7 +673,7 @@ async fn recover(
     server_id: String,
     recovery_password: String,
     kiosk: Option<bool>,
-    hostname: Option<InternedString>,
+    hostname: Option<ServerHostnameInfo>,
     progress: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let recovery_source = TmpMountGuard::mount(&recovery_source, ReadWrite).await?;
@@ -705,7 +698,7 @@ async fn migrate(
     old_guid: &str,
     password: String,
     kiosk: Option<bool>,
-    hostname: Option<InternedString>,
+    hostname: Option<ServerHostnameInfo>,
     SetupExecuteProgress {
         init_phases,
         restore_phase,
@@ -798,7 +791,7 @@ async fn migrate(
 
     Ok((
         SetupResult {
-            hostname: account.hostname,
+            hostname: account.hostname.hostname,
             root_ca: Pem(account.root_ca_cert),
             needs_restart: ctx.install_rootfs.peek(|a| a.is_some()),
         },

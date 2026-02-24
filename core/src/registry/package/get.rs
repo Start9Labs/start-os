@@ -579,9 +579,8 @@ fn check_matching_info_short() {
     use crate::s9pk::manifest::{Alerts, Description};
     use crate::util::DataUrl;
 
-    let lang_map = |s: &str| {
-        LocaleString::LanguageMap([("en".into(), s.into())].into_iter().collect())
-    };
+    let lang_map =
+        |s: &str| LocaleString::LanguageMap([("en".into(), s.into())].into_iter().collect());
 
     let info = PackageVersionInfo {
         metadata: PackageMetadata {

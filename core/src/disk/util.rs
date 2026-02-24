@@ -19,7 +19,7 @@ use super::mount::filesystem::block_dev::BlockDev;
 use super::mount::guard::TmpMountGuard;
 use crate::disk::OsPartitionInfo;
 use crate::disk::mount::guard::GenericMountGuard;
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostname;
 use crate::prelude::*;
 use crate::util::Invoke;
 use crate::util::serde::IoFormat;
@@ -61,7 +61,7 @@ pub struct PartitionInfo {
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct StartOsRecoveryInfo {
-    pub hostname: Hostname,
+    pub hostname: ServerHostname,
     #[ts(type = "string")]
     pub version: exver::Version,
     #[ts(type = "string")]

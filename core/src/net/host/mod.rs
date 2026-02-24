@@ -15,7 +15,7 @@ use ts_rs::TS;
 use crate::context::RpcContext;
 use crate::db::model::DatabaseModel;
 use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::{HostAddress, PublicDomainConfig, address_api};
 use crate::net::host::binding::{BindInfo, BindOptions, Bindings, binding};
@@ -82,7 +82,7 @@ impl Host {
 impl Model<Host> {
     pub fn update_addresses(
         &mut self,
-        mdns: &Hostname,
+        mdns: &ServerHostname,
         gateways: &OrdMap<GatewayId, NetworkInterfaceInfo>,
         available_ports: &AvailablePorts,
     ) -> Result<(), Error> {
