@@ -7,7 +7,6 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
-import { Title } from '@angular/platform-browser'
 import { RouterLink } from '@angular/router'
 import {
   DialogService,
@@ -30,9 +29,7 @@ import { TuiAnimated } from '@taiga-ui/cdk'
 import {
   TuiAppearance,
   TuiButton,
-  tuiFadeIn,
   TuiIcon,
-  tuiScaleIn,
   TuiTextfield,
   TuiTitle,
 } from '@taiga-ui/core'
@@ -46,7 +43,7 @@ import {
 import { TuiCell, tuiCellOptionsProvider } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
-import { filter, Subscription } from 'rxjs'
+import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -54,6 +51,7 @@ import { TitleDirective } from 'src/app/services/title.service'
 import { SnekDirective } from './snek.directive'
 import { UPDATE } from './update.component'
 import { KeyboardSelectComponent } from './keyboard-select.component'
+import { ServerNameDialog } from './server-name.dialog'
 
 @Component({
   template: `
@@ -98,24 +96,15 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.server" />
         <span tuiTitle>
-          <strong>{{ 'Server Hostname' | i18n }}</strong>
+          <strong>{{ 'Server Name' | i18n }}</strong>
           <span tuiSubtitle>
-            {{ server.hostname }}
+            {{ server.name }}
           </span>
+          <span tuiSubtitle>{{ server.hostname }}.local</span>
         </span>
-        <button tuiButton (click)="onHostname()">
+        <button tuiButton (click)="onName()">
           {{ 'Change' | i18n }}
         </button>
-      </div>
-      <div tuiCell tuiAppearance="outline-grayscale">
-        <tui-icon icon="@tui.app-window" />
-        <span tuiTitle>
-          <strong>{{ 'Browser tab title' | i18n }}</strong>
-          <span tuiSubtitle>
-            {{ 'Customize the name appearing in your browser tab' | i18n }}
-          </span>
-        </span>
-        <button tuiButton (click)="onTitle()">{{ 'Change' | i18n }}</button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.languages" />
@@ -276,7 +265,6 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
   ],
 })
 export default class SystemGeneralComponent {
-  private readonly title = inject(Title)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
@@ -290,7 +278,6 @@ export default class SystemGeneralComponent {
   count = 0
 
   readonly server = toSignal(this.patch.watch$('serverInfo'))
-  readonly name = toSignal(this.patch.watch$('ui', 'name'))
   readonly score = toSignal(this.patch.watch$('ui', 'snakeHighScore'))
   readonly os = inject(OSService)
   readonly i18nService = inject(i18nService)
@@ -360,33 +347,35 @@ export default class SystemGeneralComponent {
     }
   }
 
-  onHostname() {
-    const sub = this.dialog
-      .openPrompt<string>({
-        label: 'Server Hostname',
-        data: {
-          label: 'Hostname' as i18nKey,
-          message:
-            'This value will be used as your server hostname and mDNS address on the LAN. Only lowercase letters, numbers, and hyphens are allowed.',
-          placeholder: 'start9' as i18nKey,
-          required: true,
-          buttonText: 'Save',
-          initialValue: this.server()?.hostname || '',
-          pattern: '^[a-z0-9][a-z0-9-]*$',
-          patternError:
-            'Hostname must contain only lowercase letters, numbers, and hyphens, and cannot start with a hyphen.',
+  onName() {
+    const server = this.server()
+    if (!server) return
+
+    this.dialog
+      .openComponent<{ name: string; hostname: string } | null>(
+        new PolymorpheusComponent(ServerNameDialog, this.injector),
+        {
+          label: 'Server Name',
+          size: 's',
+          data: { initialName: server.name },
         },
-      })
-      .subscribe(hostname => {
+      )
+      .pipe(
+        filter(
+          (result): result is { name: string; hostname: string } =>
+            result !== null,
+        ),
+      )
+      .subscribe(result => {
         if (this.win.location.hostname.endsWith('.local')) {
-          this.confirmHostnameChange(hostname, sub)
+          this.confirmNameChange(result)
         } else {
-          this.saveHostname(hostname, sub)
+          this.saveName(result)
         }
       })
   }
 
-  private confirmHostnameChange(hostname: string, promptSub: Subscription) {
+  private confirmNameChange(result: { name: string; hostname: string }) {
     this.dialog
       .openConfirm({
         label: 'Warning',
@@ -398,18 +387,17 @@ export default class SystemGeneralComponent {
         },
       })
       .pipe(filter(Boolean))
-      .subscribe(() => this.saveHostname(hostname, promptSub, true))
+      .subscribe(() => this.saveName(result, true))
   }
 
-  private async saveHostname(
-    hostname: string,
-    promptSub: Subscription,
+  private async saveName(
+    { name, hostname }: { name: string; hostname: string },
     wasLocal = false,
   ) {
     const loader = this.loader.open('Saving').subscribe()
 
     try {
-      await this.api.setHostname({ hostname })
+      await this.api.setHostname({ name, hostname })
 
       if (wasLocal) {
         const { protocol, port } = this.win.location
@@ -432,38 +420,7 @@ export default class SystemGeneralComponent {
       this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
-      promptSub.unsubscribe()
     }
-  }
-
-  onTitle() {
-    const sub = this.dialog
-      .openPrompt<string>({
-        label: 'Browser tab title',
-        data: {
-          label: 'Device Name',
-          message:
-            'This value will be displayed as the title of your browser tab.',
-          placeholder: 'StartOS' as i18nKey,
-          required: false,
-          buttonText: 'Save',
-          initialValue: this.name(),
-        },
-      })
-      .subscribe(async name => {
-        const loader = this.loader.open('Saving').subscribe()
-        const title = `${name || 'StartOS'} — ${this.i18n.transform('System')}`
-
-        try {
-          await this.api.setDbValue(['name'], name || null)
-          this.title.setTitle(title)
-        } catch (e: any) {
-          this.errorService.handleError(e)
-        } finally {
-          loader.unsubscribe()
-          sub.unsubscribe()
-        }
-      })
   }
 
   async onRepair() {

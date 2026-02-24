@@ -48,11 +48,10 @@ export class StateService {
   /**
    * Called for attach flow (existing data drive)
    */
-  async attachDrive(password: string | null, hostname: string): Promise<void> {
+  async attachDrive(password: string | null): Promise<void> {
     await this.api.attach({
       guid: this.dataDriveGuid,
       password: password ? await this.api.encrypt(password) : null,
-      hostname,
     })
   }
 
@@ -60,7 +59,11 @@ export class StateService {
    * Called for fresh, restore, and transfer flows
    * Password is required for fresh, optional for restore/transfer
    */
-  async executeSetup(password: string | null, hostname: string): Promise<void> {
+  async executeSetup(
+    password: string | null,
+    name: string,
+    hostname: string,
+  ): Promise<void> {
     let recoverySource: T.RecoverySource<T.EncryptedWire> | null = null
 
     if (this.recoverySource) {
@@ -81,6 +84,7 @@ export class StateService {
       guid: this.dataDriveGuid,
       // @ts-expect-error TODO: backend should make password optional for restore/transfer
       password: password ? await this.api.encrypt(password) : null,
+      name,
       hostname,
       recoverySource,
     })

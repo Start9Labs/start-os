@@ -691,12 +691,9 @@ export default {
   755: 'Interfejs(y)',
   756: 'Brak reguł przekierowania portów',
   757: 'Reguły przekierowania portów wymagane na bramce',
-  758: 'Nazwa hosta serwera',
-  760: 'Ta wartość będzie używana jako nazwa hosta serwera i adres mDNS w sieci LAN. Dozwolone są tylko małe litery, cyfry i myślniki.',
-  761: 'Losuj',
-  762: 'Dozwolone są tylko małe litery, cyfry i myślniki',
   763: 'Jesteś obecnie połączony przez adres .local. Zmiana nazwy hosta będzie wymagać przełączenia na nowy adres .local.',
   764: 'Nazwa hosta zmieniona',
   765: 'Otwórz nowy adres',
   766: 'Twój serwer jest teraz dostępny pod adresem',
+  767: 'Nazwa serwera',
 } satisfies i18n

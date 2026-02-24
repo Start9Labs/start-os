@@ -691,12 +691,9 @@ export default {
   755: 'Schnittstelle(n)',
   756: 'Keine Portweiterleitungsregeln',
   757: 'Portweiterleitungsregeln am Gateway erforderlich',
-  758: 'Server-Hostname',
-  760: 'Dieser Wert wird als Hostname Ihres Servers und mDNS-Adresse im LAN verwendet. Nur Kleinbuchstaben, Zahlen und Bindestriche sind erlaubt.',
-  761: 'Zufällig generieren',
-  762: 'Nur Kleinbuchstaben, Zahlen und Bindestriche erlaubt',
   763: 'Sie sind derzeit über Ihre .local-Adresse verbunden. Das Ändern des Hostnamens erfordert einen Wechsel zur neuen .local-Adresse.',
   764: 'Hostname geändert',
   765: 'Neue Adresse öffnen',
   766: 'Ihr Server ist jetzt erreichbar unter',
+  767: 'Servername',
 } satisfies i18n

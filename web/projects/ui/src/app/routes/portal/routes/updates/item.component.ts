@@ -183,6 +183,7 @@ import UpdatesComponent from './updates.component'
 
       &:last-child {
         white-space: nowrap;
+        text-align: right;
       }
 
       &[colspan]:only-child {

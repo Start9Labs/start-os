@@ -10,15 +10,14 @@ import {
 } from '@angular/forms'
 import {
   ErrorService,
-  generateHostname,
   i18nPipe,
   LoadingService,
+  normalizeHostname,
 } from '@start9labs/shared'
 import { TuiAutoFocus, TuiMapperPipe, TuiValidator } from '@taiga-ui/cdk'
 import {
   TuiButton,
   TuiError,
-  TuiHint,
   TuiIcon,
   TuiTextfield,
   TuiTitle,
@@ -26,7 +25,6 @@ import {
 import {
   TuiFieldErrorPipe,
   TuiPassword,
-  TuiTooltip,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
@@ -48,29 +46,16 @@ import { StateService } from '../services/state.service'
       <form [formGroup]="form" (ngSubmit)="submit()">
         @if (isFresh) {
           <tui-textfield>
-            <label tuiLabel>{{ 'Server Hostname' | i18n }}</label>
-            <input tuiTextfield tuiAutoFocus formControlName="hostname" />
-            <span class="local-suffix">.local</span>
-            <button
-              tuiIconButton
-              type="button"
-              appearance="icon"
-              iconStart="@tui.refresh-cw"
-              size="xs"
-              [tuiHint]="'Randomize' | i18n"
-              (click)="randomizeHostname()"
-            ></button>
-            <tui-icon
-              [tuiTooltip]="
-                'This value will be used as your server hostname and mDNS address on the LAN. Only lowercase letters, numbers, and hyphens are allowed.'
-                  | i18n
-              "
-            />
+            <label tuiLabel>{{ 'Server Name' | i18n }}</label>
+            <input tuiTextfield tuiAutoFocus formControlName="name" />
           </tui-textfield>
           <tui-error
-            formControlName="hostname"
+            formControlName="name"
             [error]="[] | tuiFieldError | async"
           />
+          @if (form.controls.name.value?.trim()) {
+            <p class="hostname-preview">{{ derivedHostname }}.local</p>
+          }
         }
 
         <tui-textfield [style.margin-top.rem]="isFresh ? 1 : 0">
@@ -134,8 +119,10 @@ import { StateService } from '../services/state.service'
     </section>
   `,
   styles: `
-    .local-suffix {
+    .hostname-preview {
       color: var(--tui-text-secondary);
+      font: var(--tui-font-text-s);
+      margin-top: 0.25rem;
     }
 
     footer {
@@ -160,8 +147,6 @@ import { StateService } from '../services/state.service'
     TuiMapperPipe,
     TuiHeader,
     TuiTitle,
-    TuiHint,
-    TuiTooltip,
     i18nPipe,
   ],
   providers: [
@@ -170,7 +155,6 @@ import { StateService } from '../services/state.service'
       minlength: 'Must be 12 characters or greater',
       maxlength: 'Must be 64 character or less',
       match: 'Passwords do not match',
-      pattern: 'Only lowercase letters, numbers, and hyphens allowed',
     }),
   ],
 })
@@ -181,7 +165,7 @@ export default class PasswordPage {
   private readonly stateService = inject(StateService)
   private readonly i18n = inject(i18nPipe)
 
-  // Fresh install requires password and hostname
+  // Fresh install requires password and name
   readonly isFresh = this.stateService.setupType === 'fresh'
 
   readonly form = new FormGroup({
@@ -191,10 +175,7 @@ export default class PasswordPage {
       Validators.maxLength(64),
     ]),
     confirm: new FormControl(''),
-    hostname: new FormControl(generateHostname(), [
-      Validators.required,
-      Validators.pattern(/^[a-z0-9][a-z0-9-]*$/),
-    ]),
+    name: new FormControl('', [Validators.required]),
   })
 
   readonly validator = (value: string) => (control: AbstractControl) =>
@@ -202,8 +183,8 @@ export default class PasswordPage {
       ? null
       : { match: this.i18n.transform('Passwords do not match') }
 
-  randomizeHostname() {
-    this.form.controls.hostname.setValue(generateHostname())
+  get derivedHostname(): string {
+    return normalizeHostname(this.form.controls.name.value || '')
   }
 
   async skip() {
@@ -217,14 +198,15 @@ export default class PasswordPage {
 
   private async executeSetup(password: string | null) {
     const loader = this.loader.open('Starting setup').subscribe()
-    const hostname = this.form.controls.hostname.value || generateHostname()
+    const name = this.form.controls.name.value || ''
+    const hostname = normalizeHostname(name)
 
     try {
       if (this.stateService.setupType === 'attach') {
-        await this.stateService.attachDrive(password, hostname)
+        await this.stateService.attachDrive(password)
       } else {
         // fresh, restore, or transfer - all use execute
-        await this.stateService.executeSetup(password, hostname)
+        await this.stateService.executeSetup(password, name, hostname)
       }
 
       await this.router.navigate(['/loading'])

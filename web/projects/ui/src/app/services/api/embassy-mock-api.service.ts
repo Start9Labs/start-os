@@ -447,10 +447,15 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setHostname(params: { hostname: string }): Promise<null> {
+  async setHostname(params: T.SetServerHostnameParams): Promise<null> {
     await pauseFor(1000)
 
     const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/name',
+        value: params.name,
+      },
       {
         op: PatchOp.REPLACE,
         path: '/serverInfo/hostname',

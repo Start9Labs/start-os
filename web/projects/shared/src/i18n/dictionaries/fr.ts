@@ -691,12 +691,9 @@ export default {
   755: 'Interface(s)',
   756: 'Aucune règle de redirection de port',
   757: 'Règles de redirection de ports requises sur la passerelle',
-  758: "Nom d'hôte du serveur",
-  760: "Cette valeur sera utilisée comme nom d'hôte de votre serveur et adresse mDNS sur le LAN. Seules les lettres minuscules, les chiffres et les tirets sont autorisés.",
-  761: 'Générer aléatoirement',
-  762: 'Seules les lettres minuscules, les chiffres et les tirets sont autorisés',
   763: "Vous êtes actuellement connecté via votre adresse .local. Changer le nom d'hôte nécessitera de passer à la nouvelle adresse .local.",
   764: "Nom d'hôte modifié",
   765: 'Ouvrir la nouvelle adresse',
   766: 'Votre serveur est maintenant accessible à',
+  767: 'Nom du serveur',
 } satisfies i18n
