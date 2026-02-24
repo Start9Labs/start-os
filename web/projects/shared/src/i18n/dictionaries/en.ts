@@ -691,12 +691,9 @@ export const ENGLISH: Record<string, number> = {
   'Interface(s)': 755,
   'No port forwarding rules': 756,
   'Port forwarding rules required on gateway': 757,
-  'Server Hostname': 758,
-  'This value will be used as your server hostname and mDNS address on the LAN. Only lowercase letters, numbers, and hyphens are allowed.': 760,
-  'Randomize': 761,
-  'Only lowercase letters, numbers, and hyphens allowed': 762,
   'You are currently connected via your .local address. Changing the hostname will require you to switch to the new .local address.': 763,
   'Hostname Changed': 764,
   'Open new address': 765,
   'Your server is now reachable at': 766,
+  'Server Name': 767,
 }

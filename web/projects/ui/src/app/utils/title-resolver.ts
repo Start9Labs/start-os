@@ -13,7 +13,7 @@ export async function titleResolver({
   let route = inject(i18nPipe).transform(data['title'])
 
   const patch = inject<PatchDB<DataModel>>(PatchDB)
-  const title = await firstValueFrom(patch.watch$('ui', 'name'))
+  const title = await firstValueFrom(patch.watch$('serverInfo', 'name'))
   const id = params['pkgId']
 
   if (id) {

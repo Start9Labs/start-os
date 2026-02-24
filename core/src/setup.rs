@@ -176,8 +176,6 @@ pub struct AttachParams {
     pub guid: InternedString,
     #[ts(optional)]
     pub kiosk: Option<bool>,
-    pub name: Option<InternedString>,
-    pub hostname: Option<InternedString>,
 }
 
 #[instrument(skip_all)]
@@ -187,8 +185,6 @@ pub async fn attach(
         password,
         guid: disk_guid,
         kiosk,
-        name,
-        hostname,
     }: AttachParams,
 ) -> Result<SetupProgress, Error> {
     let setup_ctx = ctx.clone();
@@ -242,10 +238,8 @@ pub async fn attach(
         }
         disk_phase.complete();
 
-        let hostname = ServerHostnameInfo::new_opt(name, hostname)?;
-
         let (account, net_ctrl) =
-            setup_init(&setup_ctx, password, kiosk, hostname, init_phases).await?;
+            setup_init(&setup_ctx, password, kiosk, None, init_phases).await?;
 
         let rpc_ctx = RpcContext::init(
             &setup_ctx.webserver,

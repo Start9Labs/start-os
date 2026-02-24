@@ -255,7 +255,7 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async setHostname(params: { hostname: string }): Promise<null> {
+  async setHostname(params: T.SetServerHostnameParams): Promise<null> {
     return this.rpcRequest({ method: 'server.set-hostname', params })
   }
 
