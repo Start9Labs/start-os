@@ -69,6 +69,14 @@ async function bind(
   await execFile('mount', [...args, from, to])
 }
 
+/**
+ * Interface representing an isolated container environment for running service processes.
+ *
+ * Provides methods for executing commands, spawning processes, mounting filesystems,
+ * and writing files within the container's rootfs. Comes in two flavors:
+ * {@link SubContainerOwned} (owns the underlying filesystem) and
+ * {@link SubContainerRc} (reference-counted handle to a shared container).
+ */
 export interface SubContainer<
   Manifest extends T.SDKManifest,
   Effects extends T.Effects = T.Effects,
@@ -84,6 +92,11 @@ export interface SubContainer<
    */
   subpath(path: string): string
 
+  /**
+   * Apply filesystem mounts (volumes, assets, dependencies, backups) to this subcontainer.
+   * @param mounts - The Mounts configuration to apply
+   * @returns This subcontainer instance for chaining
+   */
   mount(
     mounts: Effects extends BackupEffects
       ? Mounts<
@@ -96,6 +109,7 @@ export interface SubContainer<
       : Mounts<Manifest, never>,
   ): Promise<this>
 
+  /** Destroy this subcontainer and clean up its filesystem */
   destroy: () => Promise<null>
 
   /**
@@ -136,11 +150,22 @@ export interface SubContainer<
     stderr: string | Buffer
   }>
 
+  /**
+   * Launch a command as the init (PID 1) process of the subcontainer.
+   * Replaces the current leader process.
+   * @param command - The command and arguments to execute
+   * @param options - Optional environment, working directory, and user overrides
+   */
   launch(
     command: string[],
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams>
 
+  /**
+   * Spawn a command inside the subcontainer as a non-init process.
+   * @param command - The command and arguments to execute
+   * @param options - Optional environment, working directory, user, and stdio overrides
+   */
   spawn(
     command: string[],
     options?: CommandOptions & StdioOptions,
@@ -162,8 +187,13 @@ export interface SubContainer<
     options?: Parameters<typeof fs.writeFile>[2],
   ): Promise<void>
 
+  /**
+   * Create a reference-counted handle to this subcontainer.
+   * The underlying container is only destroyed when all handles are released.
+   */
   rc(): SubContainerRc<Manifest, Effects>
 
+  /** Returns true if this is an owned subcontainer (not a reference-counted handle) */
   isOwned(): this is SubContainerOwned<Manifest, Effects>
 }
 
@@ -679,6 +709,12 @@ export class SubContainerOwned<
   }
 }
 
+/**
+ * A reference-counted handle to a {@link SubContainerOwned}.
+ *
+ * Multiple `SubContainerRc` instances can share one underlying subcontainer.
+ * The subcontainer is destroyed only when the last reference is released via `destroy()`.
+ */
 export class SubContainerRc<
     Manifest extends T.SDKManifest,
     Effects extends T.Effects = T.Effects,
@@ -901,14 +937,17 @@ export type StdioOptions = {
   stdio?: cp.IOType
 }
 
+/** UID/GID mapping for mount id-remapping (see kernel idmappings docs) */
 export type IdMap = { fromId: number; toId: number; range: number }
 
+/** Union of all mount option types supported by the subcontainer runtime */
 export type MountOptions =
   | MountOptionsVolume
   | MountOptionsAssets
   | MountOptionsPointer
   | MountOptionsBackup
 
+/** Mount options for binding a service volume into a subcontainer */
 export type MountOptionsVolume = {
   type: 'volume'
   volumeId: string
@@ -918,6 +957,7 @@ export type MountOptionsVolume = {
   idmap: IdMap[]
 }
 
+/** Mount options for binding packaged static assets into a subcontainer */
 export type MountOptionsAssets = {
   type: 'assets'
   subpath: string | null
@@ -925,6 +965,7 @@ export type MountOptionsAssets = {
   idmap: { fromId: number; toId: number; range: number }[]
 }
 
+/** Mount options for binding a dependency package's volume into a subcontainer */
 export type MountOptionsPointer = {
   type: 'pointer'
   packageId: string
@@ -934,6 +975,7 @@ export type MountOptionsPointer = {
   idmap: { fromId: number; toId: number; range: number }[]
 }
 
+/** Mount options for binding the backup directory into a subcontainer */
 export type MountOptionsBackup = {
   type: 'backup'
   subpath: string | null
@@ -944,6 +986,10 @@ function wait(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time))
 }
 
+/**
+ * Error thrown when a subcontainer command exits with a non-zero code or signal.
+ * Contains the full result including stdout, stderr, exit code, and exit signal.
+ */
 export class ExitError extends Error {
   constructor(
     readonly command: string,

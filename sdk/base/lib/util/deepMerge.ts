@@ -1,3 +1,13 @@
+/**
+ * Computes the partial difference between two values.
+ * Returns `undefined` if the values are equal, or `{ diff }` containing only the changed parts.
+ * For arrays, the diff contains only items in `next` that have no deep-equal counterpart in `prev`.
+ * For objects, the diff contains only keys whose values changed.
+ *
+ * @param prev - The original value
+ * @param next - The updated value
+ * @returns An object containing the diff, or `undefined` if the values are equal
+ */
 export function partialDiff<T>(
   prev: T,
   next: T,
@@ -46,6 +56,14 @@ export function partialDiff<T>(
   }
 }
 
+/**
+ * Deeply merges multiple values together. Objects are merged key-by-key recursively.
+ * Arrays are merged by appending items that are not already present (by deep equality).
+ * Primitives are resolved by taking the last argument.
+ *
+ * @param args - The values to merge, applied left to right
+ * @returns The merged result
+ */
 export function deepMerge(...args: unknown[]): unknown {
   const lastItem = (args as any)[args.length - 1]
   if (typeof lastItem !== 'object' || !lastItem) return lastItem

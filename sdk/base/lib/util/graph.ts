@@ -1,19 +1,41 @@
 import { ExtendedVersion } from '../exver'
 
+/**
+ * A vertex (node) in a directed graph, holding metadata and a list of connected edges.
+ * @typeParam VMetadata - The type of metadata stored on vertices
+ * @typeParam EMetadata - The type of metadata stored on edges
+ */
 export type Vertex<VMetadata = null, EMetadata = null> = {
   metadata: VMetadata
   edges: Array<Edge<EMetadata, VMetadata>>
 }
 
+/**
+ * A directed edge connecting two vertices, with its own metadata.
+ * @typeParam EMetadata - The type of metadata stored on edges
+ * @typeParam VMetadata - The type of metadata stored on the connected vertices
+ */
 export type Edge<EMetadata = null, VMetadata = null> = {
   metadata: EMetadata
   from: Vertex<VMetadata, EMetadata>
   to: Vertex<VMetadata, EMetadata>
 }
 
+/**
+ * A directed graph data structure supporting vertex/edge management and graph traversal algorithms
+ * including breadth-first search, reverse BFS, and shortest path computation.
+ *
+ * @typeParam VMetadata - The type of metadata stored on vertices
+ * @typeParam EMetadata - The type of metadata stored on edges
+ */
 export class Graph<VMetadata = null, EMetadata = null> {
   private readonly vertices: Array<Vertex<VMetadata, EMetadata>> = []
   constructor() {}
+  /**
+   * Serializes the graph to a JSON string for debugging.
+   * @param metadataRepr - Optional function to transform metadata values before serialization
+   * @returns A pretty-printed JSON string of the graph structure
+   */
   dump(
     metadataRepr: (metadata: VMetadata | EMetadata) => any = (a) => a,
   ): string {
@@ -30,6 +52,13 @@ export class Graph<VMetadata = null, EMetadata = null> {
       2,
     )
   }
+  /**
+   * Adds a new vertex to the graph, optionally connecting it to existing vertices via edges.
+   * @param metadata - The metadata to attach to the new vertex
+   * @param fromEdges - Edges pointing from existing vertices to this new vertex
+   * @param toEdges - Edges pointing from this new vertex to existing vertices
+   * @returns The newly created vertex
+   */
   addVertex(
     metadata: VMetadata,
     fromEdges: Array<Omit<Edge<EMetadata, VMetadata>, 'to'>>,
@@ -60,6 +89,11 @@ export class Graph<VMetadata = null, EMetadata = null> {
     this.vertices.push(vertex)
     return vertex
   }
+  /**
+   * Returns a generator that yields all vertices matching the predicate.
+   * @param predicate - A function to test each vertex
+   * @returns A generator of matching vertices
+   */
   findVertex(
     predicate: (vertex: Vertex<VMetadata, EMetadata>) => boolean,
   ): Generator<Vertex<VMetadata, EMetadata>, null> {
@@ -74,6 +108,13 @@ export class Graph<VMetadata = null, EMetadata = null> {
     }
     return gen()
   }
+  /**
+   * Adds a directed edge between two existing vertices.
+   * @param metadata - The metadata to attach to the edge
+   * @param from - The source vertex
+   * @param to - The destination vertex
+   * @returns The newly created edge
+   */
   addEdge(
     metadata: EMetadata,
     from: Vertex<VMetadata, EMetadata>,
@@ -88,6 +129,11 @@ export class Graph<VMetadata = null, EMetadata = null> {
     edge.to.edges.push(edge)
     return edge
   }
+  /**
+   * Performs a breadth-first traversal following outgoing edges from the starting vertex or vertices.
+   * @param from - A starting vertex, or a predicate to select multiple starting vertices
+   * @returns A generator yielding vertices in BFS order
+   */
   breadthFirstSearch(
     from:
       | Vertex<VMetadata, EMetadata>
@@ -139,6 +185,11 @@ export class Graph<VMetadata = null, EMetadata = null> {
       return rec(from)
     }
   }
+  /**
+   * Performs a reverse breadth-first traversal following incoming edges from the starting vertex or vertices.
+   * @param to - A starting vertex, or a predicate to select multiple starting vertices
+   * @returns A generator yielding vertices in reverse BFS order
+   */
   reverseBreadthFirstSearch(
     to:
       | Vertex<VMetadata, EMetadata>
@@ -190,6 +241,12 @@ export class Graph<VMetadata = null, EMetadata = null> {
       return rec(to)
     }
   }
+  /**
+   * Finds the shortest path (by edge count) between two vertices using BFS.
+   * @param from - The starting vertex, or a predicate to select starting vertices
+   * @param to - The target vertex, or a predicate to identify target vertices
+   * @returns An array of edges forming the shortest path, or `null` if no path exists
+   */
   shortestPath(
     from:
       | Vertex<VMetadata, EMetadata>

@@ -12,6 +12,11 @@ import {
 import { Graph, Vertex, once } from '../util'
 import { IMPOSSIBLE, VersionInfo } from './VersionInfo'
 
+/**
+ * Read the current data version from the effects system.
+ * @param effects - The effects context
+ * @returns The parsed ExtendedVersion or VersionRange, or null if no version is set
+ */
 export async function getDataVersion(effects: T.Effects) {
   const versionStr = await effects.getDataVersion()
   if (!versionStr) return null
@@ -22,6 +27,11 @@ export async function getDataVersion(effects: T.Effects) {
   }
 }
 
+/**
+ * Persist a data version to the effects system.
+ * @param effects - The effects context
+ * @param version - The version to set, or null to clear it
+ */
 export async function setDataVersion(
   effects: T.Effects,
   version: ExtendedVersion | VersionRange | null,
@@ -37,6 +47,14 @@ function isRange(v: ExtendedVersion | VersionRange): v is VersionRange {
   return 'satisfiedBy' in v
 }
 
+/**
+ * Check whether two version specifiers overlap (i.e. share at least one common version).
+ * Works with any combination of ExtendedVersion and VersionRange.
+ *
+ * @param a - First version or range
+ * @param b - Second version or range
+ * @returns True if the two specifiers overlap
+ */
 export function overlaps(
   a: ExtendedVersion | VersionRange,
   b: ExtendedVersion | VersionRange,
@@ -49,6 +67,16 @@ export function overlaps(
   )
 }
 
+/**
+ * A directed graph of service versions and their migration paths.
+ *
+ * Builds a graph from {@link VersionInfo} definitions, then uses shortest-path
+ * search to find and execute migration sequences between any two versions.
+ * Implements both {@link InitScript} (for install/update migrations) and
+ * {@link UninitScript} (for uninstall/downgrade migrations).
+ *
+ * @typeParam CurrentVersion - The string literal type of the current service version
+ */
 export class VersionGraph<CurrentVersion extends string>
   implements InitScript, UninitScript
 {
@@ -58,6 +86,7 @@ export class VersionGraph<CurrentVersion extends string>
     ExtendedVersion | VersionRange,
     ((opts: { effects: T.Effects }) => Promise<void>) | undefined
   >
+  /** Dump the version graph as a human-readable string for debugging */
   dump(): string {
     return this.graph().dump((metadata) => metadata?.toString())
   }
@@ -168,6 +197,18 @@ export class VersionGraph<CurrentVersion extends string>
   >(options: { current: VersionInfo<CurrentVersion>; other: OtherVersions }) {
     return new VersionGraph(options.current, options.other)
   }
+  /**
+   * Execute the shortest migration path between two versions.
+   *
+   * Finds the shortest path in the version graph from `from` to `to`,
+   * executes each migration step in order, and updates the data version after each step.
+   *
+   * @param options.effects - The effects context
+   * @param options.from - The source version or range
+   * @param options.to - The target version or range
+   * @returns The final data version after migration
+   * @throws If no migration path exists between the two versions
+   */
   async migrate({
     effects,
     from,
@@ -217,6 +258,10 @@ export class VersionGraph<CurrentVersion extends string>
       `cannot migrate from ${from.toString()} to ${to.toString()}`,
     )
   }
+  /**
+   * Compute the version range from which the current version can be reached via migration.
+   * Uses reverse breadth-first search from the current version vertex.
+   */
   canMigrateFrom = once(() =>
     Array.from(
       this.graph().reverseBreadthFirstSearch((v) =>
@@ -234,6 +279,10 @@ export class VersionGraph<CurrentVersion extends string>
       )
       .normalize(),
   )
+  /**
+   * Compute the version range that the current version can migrate to.
+   * Uses forward breadth-first search from the current version vertex.
+   */
   canMigrateTo = once(() =>
     Array.from(
       this.graph().breadthFirstSearch((v) =>
@@ -252,6 +301,11 @@ export class VersionGraph<CurrentVersion extends string>
       .normalize(),
   )
 
+  /**
+   * InitScript implementation: migrate from the stored data version to the current version.
+   * If no data version exists (fresh install), sets it to the current version.
+   * @param effects - The effects context
+   */
   async init(effects: T.Effects): Promise<void> {
     const from = await getDataVersion(effects)
     if (from) {
@@ -265,6 +319,13 @@ export class VersionGraph<CurrentVersion extends string>
     }
   }
 
+  /**
+   * UninitScript implementation: migrate from the current data version to the target version.
+   * Used during uninstall or downgrade to prepare data for the target version.
+   *
+   * @param effects - The effects context
+   * @param target - The target version to migrate to, or null to clear the data version
+   */
   async uninit(
     effects: T.Effects,
     target: VersionRange | ExtendedVersion | null,

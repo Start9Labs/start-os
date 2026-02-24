@@ -8,6 +8,11 @@ import {
 } from './inputSpec'
 import { z } from 'zod'
 
+/**
+ * The runtime result type of a discriminated union form field.
+ * Contains `selection` (the chosen variant key), `value` (the variant's form data),
+ * and optionally `other` (partial data from previously selected variants).
+ */
 export type UnionRes<
   VariantValues extends {
     [K in string]: {
@@ -28,6 +33,7 @@ export type UnionRes<
   }
 }[K]
 
+/** Like {@link UnionRes} but using the static (Zod-inferred) validated types. */
 export type UnionResStaticValidatedAs<
   VariantValues extends {
     [K in string]: {
@@ -118,6 +124,11 @@ export class Variants<
     >,
   ) {}
   readonly _TYPE: UnionRes<VariantValues> = null as any
+  /**
+   * Creates a `Variants` instance from a record mapping variant keys to their display name and form spec.
+   *
+   * @param a - A record of `{ name: string, spec: InputSpec }` entries, one per variant
+   */
   static of<
     VariantValues extends {
       [K in string]: {

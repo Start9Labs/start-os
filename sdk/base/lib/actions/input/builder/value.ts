@@ -15,12 +15,15 @@ import { _, once } from '../../../util'
 import { z } from 'zod'
 import { DeepPartial } from '../../../types'
 
+/** Zod schema for a file upload result — validates `{ path, commitment: { hash, size } }`. */
 export const fileInfoParser = z.object({
   path: z.string(),
   commitment: z.object({ hash: z.string(), size: z.number() }),
 })
+/** The parsed result of a file upload, containing the file path and its content commitment (hash + size). */
 export type FileInfo = z.infer<typeof fileInfoParser>
 
+/** Conditional type: returns `T` if `Required` is `true`, otherwise `T | null`. */
 export type AsRequired<T, Required extends boolean> = Required extends true
   ? T
   : T | null
@@ -37,6 +40,19 @@ function asRequiredParser<Type, Input extends { required: boolean }>(
   return parser.nullable() as any
 }
 
+/**
+ * Core builder class for defining a single form field in a service configuration spec.
+ *
+ * Each static factory method (e.g. `Value.text()`, `Value.toggle()`, `Value.select()`) creates
+ * a typed `Value` instance representing a specific field type. Dynamic variants (e.g. `Value.dynamicText()`)
+ * allow the field options to be computed lazily at runtime.
+ *
+ * Use with {@link InputSpec} to compose complete form specifications.
+ *
+ * @typeParam Type - The runtime type this field produces when filled in
+ * @typeParam StaticValidatedAs - The compile-time validated type (usually same as Type)
+ * @typeParam OuterType - The parent form's type context (used by dynamic variants)
+ */
 export class Value<
   Type extends StaticValidatedAs,
   StaticValidatedAs = Type,
@@ -99,6 +115,7 @@ export class Value<
       validator,
     )
   }
+  /** Like {@link Value.toggle} but options are resolved lazily at runtime via a builder function. */
   static dynamicToggle<OuterType = unknown>(
     a: LazyBuild<
       {
@@ -225,6 +242,7 @@ export class Value<
       validator,
     )
   }
+  /** Like {@link Value.text} but options are resolved lazily at runtime via a builder function. */
   static dynamicText<Required extends boolean, OuterType = unknown>(
     getA: LazyBuild<
       {
@@ -345,6 +363,7 @@ export class Value<
       return { spec: built, validator }
     }, validator)
   }
+  /** Like {@link Value.textarea} but options are resolved lazily at runtime via a builder function. */
   static dynamicTextarea<Required extends boolean, OuterType = unknown>(
     getA: LazyBuild<
       {
@@ -467,6 +486,7 @@ export class Value<
       validator,
     )
   }
+  /** Like {@link Value.number} but options are resolved lazily at runtime via a builder function. */
   static dynamicNumber<Required extends boolean, OuterType = unknown>(
     getA: LazyBuild<
       {
@@ -562,6 +582,7 @@ export class Value<
     )
   }
 
+  /** Like {@link Value.color} but options are resolved lazily at runtime via a builder function. */
   static dynamicColor<Required extends boolean, OuterType = unknown>(
     getA: LazyBuild<
       {
@@ -659,6 +680,7 @@ export class Value<
       validator,
     )
   }
+  /** Like {@link Value.datetime} but options are resolved lazily at runtime via a builder function. */
   static dynamicDatetime<Required extends boolean, OuterType = unknown>(
     getA: LazyBuild<
       {
@@ -769,6 +791,7 @@ export class Value<
       validator,
     )
   }
+  /** Like {@link Value.select} but options are resolved lazily at runtime via a builder function. */
   static dynamicSelect<
     Values extends Record<string, string>,
     OuterType = unknown,
@@ -889,6 +912,7 @@ export class Value<
       validator,
     )
   }
+  /** Like {@link Value.multiselect} but options are resolved lazily at runtime via a builder function. */
   static dynamicMultiselect<
     Values extends Record<string, string>,
     OuterType = unknown,
@@ -977,6 +1001,12 @@ export class Value<
       }
     }, spec.validator)
   }
+  /**
+   * Displays a file upload input field.
+   *
+   * @param a.extensions - Allowed file extensions (e.g. `[".pem", ".crt"]`)
+   * @param a.required - Whether a file must be selected
+   */
   static file<Required extends boolean>(a: {
     name: string
     description?: string | null
@@ -1000,6 +1030,7 @@ export class Value<
       asRequiredParser(fileInfoParser, a),
     )
   }
+  /** Like {@link Value.file} but options are resolved lazily at runtime via a builder function. */
   static dynamicFile<Required extends boolean, OuterType = unknown>(
     a: LazyBuild<
       {
@@ -1102,6 +1133,7 @@ export class Value<
       }
     }, a.variants.validator)
   }
+  /** Like {@link Value.union} but options (including which variants are available) are resolved lazily at runtime. */
   static dynamicUnion<
     VariantValues extends {
       [K in string]: {
@@ -1123,6 +1155,7 @@ export class Value<
       OuterType
     >,
   ): Value<UnionRes<VariantValues>, UnionRes<VariantValues>, OuterType>
+  /** Like {@link Value.union} but options are resolved lazily, with an explicit static validator type. */
   static dynamicUnion<
     StaticVariantValues extends {
       [K in string]: {
@@ -1300,6 +1333,12 @@ export class Value<
     }, z.any())
   }
 
+  /**
+   * Transforms the validated output value using a mapping function.
+   * The form field itself remains unchanged, but the value is transformed after validation.
+   *
+   * @param fn - A function to transform the validated value
+   */
   map<U>(fn: (value: StaticValidatedAs) => U): Value<U, U, OuterType> {
     return new Value<U, U, OuterType>(async (options) => {
       const built = await this.build(options)

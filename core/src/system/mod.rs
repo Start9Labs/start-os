@@ -1049,20 +1049,36 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
     })
 }
 
+#[derive(
+    Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize, TS, clap::ValueEnum,
+)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum SmtpSecurity {
+    #[default]
+    Starttls,
+    Tls,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SmtpValue {
-    #[arg(long, help = "help.arg.smtp-server")]
-    pub server: String,
+    #[arg(long, help = "help.arg.smtp-host")]
+    #[serde(alias = "server")]
+    pub host: String,
     #[arg(long, help = "help.arg.smtp-port")]
     pub port: u16,
     #[arg(long, help = "help.arg.smtp-from")]
     pub from: String,
-    #[arg(long, help = "help.arg.smtp-login")]
-    pub login: String,
+    #[arg(long, help = "help.arg.smtp-username")]
+    #[serde(alias = "login")]
+    pub username: String,
     #[arg(long, help = "help.arg.smtp-password")]
     pub password: Option<String>,
+    #[arg(long, help = "help.arg.smtp-security")]
+    #[serde(default)]
+    pub security: SmtpSecurity,
 }
 pub async fn set_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Error> {
     let smtp = Some(smtp);
@@ -1121,47 +1137,63 @@ pub async fn set_ifconfig_url(
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct TestSmtpParams {
-    #[arg(long, help = "help.arg.smtp-server")]
-    pub server: String,
+    #[arg(long, help = "help.arg.smtp-host")]
+    pub host: String,
     #[arg(long, help = "help.arg.smtp-port")]
     pub port: u16,
     #[arg(long, help = "help.arg.smtp-from")]
     pub from: String,
     #[arg(long, help = "help.arg.smtp-to")]
     pub to: String,
-    #[arg(long, help = "help.arg.smtp-login")]
-    pub login: String,
+    #[arg(long, help = "help.arg.smtp-username")]
+    pub username: String,
     #[arg(long, help = "help.arg.smtp-password")]
     pub password: String,
+    #[arg(long, help = "help.arg.smtp-security")]
+    #[serde(default)]
+    pub security: SmtpSecurity,
 }
 pub async fn test_smtp(
     _: RpcContext,
     TestSmtpParams {
-        server,
+        host,
         port,
         from,
         to,
-        login,
+        username,
         password,
+        security,
     }: TestSmtpParams,
 ) -> Result<(), Error> {
     use lettre::message::header::ContentType;
     use lettre::transport::smtp::authentication::Credentials;
+    use lettre::transport::smtp::client::{Tls, TlsParameters};
     use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 
-    AsyncSmtpTransport::<Tokio1Executor>::relay(&server)?
-        .port(port)
-        .credentials(Credentials::new(login, password))
-        .build()
-        .send(
-            Message::builder()
-                .from(from.parse()?)
-                .to(to.parse()?)
-                .subject("StartOS Test Email")
-                .header(ContentType::TEXT_PLAIN)
-                .body("This is a test email sent from your StartOS Server".to_owned())?,
-        )
-        .await?;
+    let creds = Credentials::new(username, password);
+    let message = Message::builder()
+        .from(from.parse()?)
+        .to(to.parse()?)
+        .subject("StartOS Test Email")
+        .header(ContentType::TEXT_PLAIN)
+        .body("This is a test email sent from your StartOS Server".to_owned())?;
+
+    let transport = match security {
+        SmtpSecurity::Starttls => AsyncSmtpTransport::<Tokio1Executor>::relay(&host)?
+            .port(port)
+            .credentials(creds)
+            .build(),
+        SmtpSecurity::Tls => {
+            let tls = TlsParameters::new(host.clone())?;
+            AsyncSmtpTransport::<Tokio1Executor>::relay(&host)?
+                .port(port)
+                .tls(Tls::Wrapper(tls))
+                .credentials(creds)
+                .build()
+        }
+    };
+
+    transport.send(message).await?;
     Ok(())
 }
 

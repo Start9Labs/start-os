@@ -8,6 +8,15 @@ import * as cp from 'child_process'
 import * as fs from 'node:fs/promises'
 import { DaemonCommandType, ExecCommandOptions, ExecFnOptions } from './Daemons'
 
+/**
+ * Low-level controller for a single running process inside a subcontainer (or as a JS function).
+ *
+ * Manages the child process lifecycle: spawning, waiting, and signal-based termination.
+ * Used internally by {@link Daemon} to manage individual command executions.
+ *
+ * @typeParam Manifest - The service manifest type
+ * @typeParam C - The subcontainer type, or `null` for JS-only commands
+ */
 export class CommandController<
   Manifest extends T.SDKManifest,
   C extends SubContainer<Manifest> | null,
@@ -21,6 +30,13 @@ export class CommandController<
   ) {
     super()
   }
+  /**
+   * Factory method to create a new CommandController.
+   *
+   * Returns a curried async function: `(effects, subcontainer, exec) => CommandController`.
+   * If the exec spec has an `fn` property, runs the function; otherwise spawns a shell command
+   * in the subcontainer.
+   */
   static of<
     Manifest extends T.SDKManifest,
     C extends SubContainer<Manifest> | null,
@@ -130,6 +146,10 @@ export class CommandController<
       }
     }
   }
+  /**
+   * Wait for the command to finish. Optionally terminate after a timeout.
+   * @param options.timeout - Milliseconds to wait before terminating. Defaults to no timeout.
+   */
   async wait({ timeout = NO_TIMEOUT } = {}) {
     if (timeout > 0)
       setTimeout(() => {
@@ -156,6 +176,15 @@ export class CommandController<
       await this.subcontainer?.destroy()
     }
   }
+  /**
+   * Terminate the running command by sending a signal.
+   *
+   * Sends the specified signal (default: SIGTERM), then escalates to SIGKILL
+   * after the timeout expires. Destroys the subcontainer after the process exits.
+   *
+   * @param options.signal - The signal to send (default: SIGTERM)
+   * @param options.timeout - Milliseconds before escalating to SIGKILL
+   */
   async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
     try {
       if (!this.state.exited) {

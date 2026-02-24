@@ -9,6 +9,14 @@ import {
 } from '../inputSpecTypes'
 import { z } from 'zod'
 
+/**
+ * Builder class for defining list-type form fields.
+ *
+ * A list presents an interface to add, remove, and reorder items. Items can be
+ * either text strings ({@link List.text}) or structured objects ({@link List.obj}).
+ *
+ * Used with {@link Value.list} to include a list field in an {@link InputSpec}.
+ */
 export class List<
   Type extends StaticValidatedAs,
   StaticValidatedAs = Type,
@@ -26,6 +34,12 @@ export class List<
   ) {}
   readonly _TYPE: Type = null as any
 
+  /**
+   * Creates a list of text input items.
+   *
+   * @param a - List-level options (name, description, min/max length, defaults)
+   * @param aSpec - Item-level options (patterns, input mode, masking, generation)
+   */
   static text(
     a: {
       name: string
@@ -97,6 +111,7 @@ export class List<
     }, validator)
   }
 
+  /** Like {@link List.text} but options are resolved lazily at runtime via a builder function. */
   static dynamicText<OuterType = unknown>(
     getA: LazyBuild<
       {
@@ -150,6 +165,12 @@ export class List<
     }, validator)
   }
 
+  /**
+   * Creates a list of structured object items, each defined by a nested {@link InputSpec}.
+   *
+   * @param a - List-level options (name, description, min/max length)
+   * @param aSpec - Item-level options (the nested spec, display expression, uniqueness constraint)
+   */
   static obj<
     Type extends StaticValidatedAs,
     StaticValidatedAs extends Record<string, any>,
