@@ -86,7 +86,7 @@ pub async fn restore_packages_rpc(
 pub async fn recover_full_server(
     ctx: &SetupContext,
     disk_guid: InternedString,
-    password: String,
+    password: Option<String>,
     recovery_source: TmpMountGuard,
     server_id: &str,
     recovery_password: &str,
@@ -110,12 +110,14 @@ pub async fn recover_full_server(
             .with_ctx(|_| (ErrorKind::Filesystem, os_backup_path.display().to_string()))?,
     )?;
 
-    os_backup.account.password = argon2::hash_encoded(
-        password.as_bytes(),
-        &rand::random::<[u8; 16]>()[..],
-        &argon2::Config::rfc9106_low_mem(),
-    )
-    .with_kind(ErrorKind::PasswordHashGeneration)?;
+    if let Some(password) = password {
+        os_backup.account.password = argon2::hash_encoded(
+            password.as_bytes(),
+            &rand::random::<[u8; 16]>()[..],
+            &argon2::Config::rfc9106_low_mem(),
+        )
+        .with_kind(ErrorKind::PasswordHashGeneration)?;
+    }
 
     if let Some(h) = hostname {
         os_backup.account.hostname = h;

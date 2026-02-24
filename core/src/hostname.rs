@@ -251,18 +251,35 @@ pub async fn set_hostname_rpc(
     ctx: RpcContext,
     SetServerHostnameParams { name, hostname }: SetServerHostnameParams,
 ) -> Result<(), Error> {
-    let Some(hostname) = ServerHostnameInfo::new_opt(name, hostname)? else {
+    let name = name.filter(|n| !n.is_empty());
+    let hostname = hostname
+        .filter(|h| !h.is_empty())
+        .map(ServerHostname::new)
+        .transpose()?;
+    if name.is_none() && hostname.is_none() {
         return Err(Error::new(
             eyre!("{}", t!("hostname.must-provide-name-or-hostname")),
             ErrorKind::InvalidRequest,
         ));
     };
-    ctx.db
-        .mutate(|db| hostname.save(db.as_public_mut().as_server_info_mut()))
+    let info = ctx
+        .db
+        .mutate(|db| {
+            let server_info = db.as_public_mut().as_server_info_mut();
+            if let Some(name) = name {
+                server_info.as_name_mut().ser(&name)?;
+            }
+            if let Some(hostname) = &hostname {
+                hostname.save(server_info)?;
+            }
+            ServerHostnameInfo::load(server_info)
+        })
         .await
         .result?;
-    ctx.account.mutate(|a| a.hostname = hostname.clone());
-    sync_hostname(&hostname.hostname).await?;
+    ctx.account.mutate(|a| a.hostname = info.clone());
+    if let Some(h) = hostname {
+        sync_hostname(&h).await?;
+    }
 
     Ok(())
 }

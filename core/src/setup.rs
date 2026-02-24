@@ -414,7 +414,7 @@ pub async fn setup_data_drive(
 #[ts(export)]
 pub struct SetupExecuteParams {
     guid: InternedString,
-    password: EncryptedWire,
+    password: Option<EncryptedWire>,
     recovery_source: Option<RecoverySource<EncryptedWire>>,
     #[ts(optional)]
     kiosk: Option<bool>,
@@ -434,15 +434,16 @@ pub async fn execute(
         hostname,
     }: SetupExecuteParams,
 ) -> Result<SetupProgress, Error> {
-    let password = match password.decrypt(&ctx) {
-        Some(a) => a,
-        None => {
-            return Err(Error::new(
-                color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-startos-password")),
-                crate::ErrorKind::Unknown,
-            ));
-        }
-    };
+    let password = password
+        .map(|p| {
+            p.decrypt(&ctx).ok_or_else(|| {
+                Error::new(
+                    color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-startos-password")),
+                    crate::ErrorKind::Unknown,
+                )
+            })
+        })
+        .transpose()?;
     let recovery = match recovery_source {
         Some(RecoverySource::Backup {
             target,
@@ -551,7 +552,7 @@ pub async fn shutdown(ctx: SetupContext) -> Result<(), Error> {
 pub async fn execute_inner(
     ctx: SetupContext,
     guid: InternedString,
-    password: String,
+    password: Option<String>,
     recovery_source: Option<RecoverySource<String>>,
     kiosk: Option<bool>,
     hostname: Option<ServerHostnameInfo>,
@@ -597,7 +598,22 @@ pub async fn execute_inner(
         Some(RecoverySource::Migrate { guid: old_guid }) => {
             migrate(&ctx, guid, &old_guid, password, kiosk, hostname, progress).await
         }
-        None => fresh_setup(&ctx, guid, &password, kiosk, hostname, progress).await,
+        None => {
+            fresh_setup(
+                &ctx,
+                guid,
+                &password.ok_or_else(|| {
+                    Error::new(
+                        eyre!("{}", t!("setup.password-required")),
+                        ErrorKind::InvalidRequest,
+                    )
+                })?,
+                kiosk,
+                hostname,
+                progress,
+            )
+            .await
+        }
     }
 }
 
@@ -668,7 +684,7 @@ async fn fresh_setup(
 async fn recover(
     ctx: &SetupContext,
     guid: InternedString,
-    password: String,
+    password: Option<String>,
     recovery_source: BackupTargetFS,
     server_id: String,
     recovery_password: String,
@@ -696,7 +712,7 @@ async fn migrate(
     ctx: &SetupContext,
     guid: InternedString,
     old_guid: &str,
-    password: String,
+    password: Option<String>,
     kiosk: Option<bool>,
     hostname: Option<ServerHostnameInfo>,
     SetupExecuteProgress {
@@ -777,8 +793,7 @@ async fn migrate(
     crate::disk::main::export(&old_guid, "/media/startos/migrate").await?;
     restore_phase.complete();
 
-    let (account, net_ctrl) =
-        setup_init(&ctx, Some(password), kiosk, hostname, init_phases).await?;
+    let (account, net_ctrl) = setup_init(&ctx, password, kiosk, hostname, init_phases).await?;
 
     let rpc_ctx = RpcContext::init(
         &ctx.webserver,

@@ -4,7 +4,7 @@ import type { RecoverySource } from './RecoverySource'
 
 export type SetupExecuteParams = {
   guid: string
-  password: EncryptedWire
+  password: EncryptedWire | null
   recoverySource: RecoverySource<EncryptedWire> | null
   kiosk?: boolean
   name: string | null

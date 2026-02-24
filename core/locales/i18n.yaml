@@ -197,6 +197,13 @@ setup.transferring-data:
   fr_FR: "Transfert de données"
   pl_PL: "Przesyłanie danych"
 
+setup.password-required:
+  en_US: "Password is required for fresh setup"
+  de_DE: "Passwort ist für die Ersteinrichtung erforderlich"
+  es_ES: "Se requiere contraseña para la configuración inicial"
+  fr_FR: "Le mot de passe est requis pour la première configuration"
+  pl_PL: "Hasło jest wymagane do nowej konfiguracji"
+
 # system.rs
 system.governor-not-available:
   en_US: "Governor %{governor} not available"
