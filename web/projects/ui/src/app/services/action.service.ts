@@ -27,6 +27,7 @@ export class ActionService {
   private readonly formDialog = inject(FormDialogService)
 
   async present(data: PackageActionData) {
+    data.prefill = data.prefill ?? data.requestInfo?.input?.value
     const { pkgInfo, actionInfo } = data
 
     if (actionInfo.metadata.hasInput) {
@@ -43,11 +44,9 @@ export class ActionService {
             data,
           })
           .pipe(filter(Boolean))
-          .subscribe(() =>
-            this.execute(pkgInfo.id, null, actionInfo.id, data.prefill),
-          )
+          .subscribe(() => this.execute(pkgInfo.id, null, actionInfo.id))
       } else {
-        this.execute(pkgInfo.id, null, actionInfo.id, data.prefill)
+        this.execute(pkgInfo.id, null, actionInfo.id)
       }
     }
   }
