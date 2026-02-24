@@ -5,4 +5,5 @@ export type AttachParams = {
   password: EncryptedWire | null
   guid: string
   kiosk?: boolean
+  hostname: string | null
 }
