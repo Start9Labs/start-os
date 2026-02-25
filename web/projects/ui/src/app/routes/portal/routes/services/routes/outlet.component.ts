@@ -118,9 +118,10 @@ import { getManifest } from 'src/app/utils/get-package-data'
     .title::before {
       content: '';
       position: absolute;
-      inset: 0;
+      inset: -0.5rem -1rem 0;
       background: var(--background);
       background-size: 1px;
+      filter: blur(0.5rem);
       mask: linear-gradient(to bottom, black, transparent);
       opacity: 0.2;
     }
