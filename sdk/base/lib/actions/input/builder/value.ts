@@ -70,6 +70,11 @@ export class Value<
   ) {}
   public _TYPE: Type = null as any as Type
   public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
+  /** @internal Used by {@link InputSpec.filter} to support nested filtering of object-typed fields. */
+  _objectSpec?: {
+    inputSpec: InputSpec<any, any>
+    params: { name: string; description?: string | null }
+  }
 
   /**
    * @description Displays a boolean toggle to enable/disable
@@ -987,7 +992,7 @@ export class Value<
     },
     spec: InputSpec<Type, StaticValidatedAs>,
   ) {
-    return new Value<Type, StaticValidatedAs>(async (options) => {
+    const value = new Value<Type, StaticValidatedAs>(async (options) => {
       const built = await spec.build(options as any)
       return {
         spec: {
@@ -1000,6 +1005,8 @@ export class Value<
         validator: built.validator,
       }
     }, spec.validator)
+    value._objectSpec = { inputSpec: spec, params: a }
+    return value
   }
   /**
    * Displays a file upload input field.
@@ -1331,6 +1338,25 @@ export class Value<
         validator,
       }
     }, z.any())
+  }
+
+  /**
+   * Returns a new Value that produces the same field spec but with `disabled` set to the given message.
+   * The field remains in the form but cannot be edited by the user.
+   *
+   * @param message - The reason the field is disabled, displayed to the user
+   */
+  withDisabled(message: string): Value<Type, StaticValidatedAs, OuterType> {
+    const original = this
+    const v = new Value<Type, StaticValidatedAs, OuterType>(async (options) => {
+      const built = await original.build(options)
+      return {
+        spec: { ...built.spec, disabled: message } as ValueSpec,
+        validator: built.validator,
+      }
+    }, this.validator)
+    v._objectSpec = this._objectSpec
+    return v
   }
 
   /**

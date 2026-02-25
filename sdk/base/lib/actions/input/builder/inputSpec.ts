@@ -3,6 +3,7 @@ import { Value } from './value'
 import { _ } from '../../../util'
 import { Effects } from '../../../Effects'
 import { z } from 'zod'
+import { zodDeepPartial } from 'zod-deep-partial'
 import { DeepPartial } from '../../../types'
 import { InputSpecTools, createInputSpecTools } from './inputSpecTools'
 
@@ -20,6 +21,41 @@ export type LazyBuildOptions<Type> = {
 export type LazyBuild<ExpectedOut, Type> = (
   options: LazyBuildOptions<Type>,
 ) => Promise<ExpectedOut> | ExpectedOut
+
+/**
+ * Defines which keys to keep when filtering an InputSpec.
+ * Use `true` to keep a field as-is, or a nested object to filter sub-fields of an object-typed field.
+ */
+export type FilterKeys<T> = {
+  [K in keyof T]?: T[K] extends Record<string, any>
+    ? true | FilterKeys<T[K]>
+    : true
+}
+
+/**
+ * Computes the resulting type after applying a {@link FilterKeys} shape to a type.
+ */
+export type ApplyFilter<T, F> = {
+  [K in Extract<keyof F, keyof T>]: F[K] extends true
+    ? T[K]
+    : T[K] extends Record<string, any>
+      ? F[K] extends FilterKeys<T[K]>
+        ? ApplyFilter<T[K], F[K]>
+        : T[K]
+      : T[K]
+}
+
+/**
+ * Computes the union of all valid key-path tuples through a nested type.
+ * Each tuple represents a path from root to a field, recursing into object-typed sub-fields.
+ */
+export type KeyPaths<T> = {
+  [K in keyof T & string]: T[K] extends any[]
+    ? [K]
+    : T[K] extends Record<string, any>
+      ? [K] | [K, ...KeyPaths<T[K]>]
+      : [K]
+}[keyof T & string]
 
 /** Extracts the runtime type from an {@link InputSpec}. */
 // prettier-ignore
@@ -111,6 +147,8 @@ export class InputSpec<
   ) {}
   public _TYPE: Type = null as any as Type
   public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
+  public readonly partialValidator: z.ZodType<DeepPartial<StaticValidatedAs>> =
+    zodDeepPartial(this.validator) as any
   /**
    * Builds the runtime form specification and combined Zod validator from this InputSpec's fields.
    *
@@ -137,35 +175,6 @@ export class InputSpec<
       spec: answer,
       validator: z.object(validator) as any,
     }
-  }
-
-  /**
-   * Adds a single named field to this spec, returning a new `InputSpec` with the extended type.
-   *
-   * @param key - The field key name
-   * @param build - A {@link Value} instance, or a function receiving typed tools that returns one
-   */
-  addKey<Key extends string, V extends Value<any, any, any>>(
-    key: Key,
-    build: V | ((tools: InputSpecTools<Type>) => V),
-  ): InputSpec<
-    Type & { [K in Key]: V extends Value<infer T, any, any> ? T : never },
-    StaticValidatedAs & {
-      [K in Key]: V extends Value<any, infer S, any> ? S : never
-    }
-  > {
-    const value =
-      build instanceof Function ? build(createInputSpecTools<Type>()) : build
-    const newSpec = { ...this.spec, [key]: value } as any
-    const newValidator = z.object(
-      Object.fromEntries(
-        Object.entries(newSpec).map(([k, v]) => [
-          k,
-          (v as Value<any>).validator,
-        ]),
-      ),
-    )
-    return new InputSpec(newSpec, newValidator as any)
   }
 
   /**
@@ -199,6 +208,241 @@ export class InputSpec<
       ),
     )
     return new InputSpec(newSpec, newValidator as any)
+  }
+
+  /**
+   * Returns a new InputSpec containing only the specified keys.
+   * Use `true` to keep a field as-is, or a nested object to filter sub-fields of object-typed fields.
+   *
+   * @example
+   * ```ts
+   * const full = InputSpec.of({
+   *   name: Value.text({ name: 'Name', required: true, default: null }),
+   *   settings: Value.object({ name: 'Settings' }, InputSpec.of({
+   *     debug: Value.toggle({ name: 'Debug', default: false }),
+   *     port: Value.number({ name: 'Port', required: true, default: 8080, integer: true }),
+   *   })),
+   * })
+   * const filtered = full.filter({ name: true, settings: { debug: true } })
+   * ```
+   */
+  filter<F extends FilterKeys<Type>>(
+    keys: F,
+  ): InputSpec<
+    ApplyFilter<Type, F> & ApplyFilter<StaticValidatedAs, F>,
+    ApplyFilter<StaticValidatedAs, F>
+  > {
+    const newSpec: Record<string, Value<any>> = {}
+    for (const k of Object.keys(keys)) {
+      const filterVal = (keys as any)[k]
+      const value = (this.spec as any)[k] as Value<any> | undefined
+      if (!value) continue
+      if (filterVal === true) {
+        newSpec[k] = value
+      } else if (typeof filterVal === 'object' && filterVal !== null) {
+        const objectMeta = value._objectSpec
+        if (objectMeta) {
+          const filteredInner = objectMeta.inputSpec.filter(filterVal)
+          newSpec[k] = Value.object(objectMeta.params, filteredInner)
+        } else {
+          newSpec[k] = value
+        }
+      }
+    }
+    const newValidator = z.object(
+      Object.fromEntries(
+        Object.entries(newSpec).map(([k, v]) => [k, v.validator]),
+      ),
+    )
+    return new InputSpec(newSpec as any, newValidator as any) as any
+  }
+
+  /**
+   * Returns a new InputSpec with the specified keys disabled.
+   * Use `true` to disable a field, or a nested object to disable sub-fields of object-typed fields.
+   * All fields remain in the spec — disabled fields simply cannot be edited by the user.
+   *
+   * @param keys - Which fields to disable, using the same shape as {@link FilterKeys}
+   * @param message - The reason the fields are disabled, displayed to the user
+   *
+   * @example
+   * ```ts
+   * const spec = InputSpec.of({
+   *   name: Value.text({ name: 'Name', required: true, default: null }),
+   *   settings: Value.object({ name: 'Settings' }, InputSpec.of({
+   *     debug: Value.toggle({ name: 'Debug', default: false }),
+   *     port: Value.number({ name: 'Port', required: true, default: 8080, integer: true }),
+   *   })),
+   * })
+   * const disabled = spec.disable({ name: true, settings: { debug: true } }, 'Managed by the system')
+   * ```
+   */
+  disable(
+    keys: FilterKeys<Type>,
+    message: string,
+  ): InputSpec<Type, StaticValidatedAs> {
+    const newSpec: Record<string, Value<any>> = {}
+    for (const k in this.spec) {
+      const filterVal = (keys as any)[k]
+      const value = (this.spec as any)[k] as Value<any>
+      if (!filterVal) {
+        newSpec[k] = value
+      } else if (filterVal === true) {
+        newSpec[k] = value.withDisabled(message)
+      } else if (typeof filterVal === 'object' && filterVal !== null) {
+        const objectMeta = value._objectSpec
+        if (objectMeta) {
+          const disabledInner = objectMeta.inputSpec.disable(filterVal, message)
+          newSpec[k] = Value.object(objectMeta.params, disabledInner)
+        } else {
+          newSpec[k] = value.withDisabled(message)
+        }
+      }
+    }
+    const newValidator = z.object(
+      Object.fromEntries(
+        Object.entries(newSpec).map(([k, v]) => [k, v.validator]),
+      ),
+    )
+    return new InputSpec(newSpec as any, newValidator as any) as any
+  }
+
+  /**
+   * Resolves a key path to its corresponding display name path.
+   * Each key is mapped to the `name` property of its built {@link ValueSpec}.
+   * Recurses into `Value.object` sub-specs for nested paths.
+   *
+   * @param path - Typed tuple of field keys (e.g. `["settings", "debug"]`)
+   * @param options - Build options providing effects and prefill data
+   * @returns Array of display names (e.g. `["Settings", "Debug"]`)
+   */
+  async namePath<OuterType>(
+    path: KeyPaths<Type>,
+    options: LazyBuildOptions<OuterType>,
+  ): Promise<string[]> {
+    if (path.length === 0) return []
+    const [key, ...rest] = path as [string, ...string[]]
+    const value = (this.spec as any)[key] as Value<any> | undefined
+    if (!value) return []
+    const built = await value.build(options as any)
+    const name =
+      'name' in built.spec ? (built.spec as { name: string }).name : key
+    if (rest.length === 0) return [name]
+    const objectMeta = value._objectSpec
+    if (objectMeta) {
+      const innerNames = await objectMeta.inputSpec.namePath(
+        rest as any,
+        options,
+      )
+      return [name, ...innerNames]
+    }
+    return [name]
+  }
+
+  /**
+   * Resolves a key path to the description of the target field.
+   * Recurses into `Value.object` sub-specs for nested paths.
+   *
+   * @param path - Typed tuple of field keys (e.g. `["settings", "debug"]`)
+   * @param options - Build options providing effects and prefill data
+   * @returns The description string, or `null` if the field has no description or was not found
+   */
+  async description<OuterType>(
+    path: KeyPaths<Type>,
+    options: LazyBuildOptions<OuterType>,
+  ): Promise<string | null> {
+    if (path.length === 0) return null
+    const [key, ...rest] = path as [string, ...string[]]
+    const value = (this.spec as any)[key] as Value<any> | undefined
+    if (!value) return null
+    if (rest.length === 0) {
+      const built = await value.build(options as any)
+      return 'description' in built.spec
+        ? (built.spec as { description: string | null }).description
+        : null
+    }
+    const objectMeta = value._objectSpec
+    if (objectMeta) {
+      return objectMeta.inputSpec.description(rest as any, options)
+    }
+    return null
+  }
+
+  /**
+   * Returns a new InputSpec filtered to only include keys present in the given partial object.
+   * For nested `Value.object` fields, recurses into the partial value to filter sub-fields.
+   *
+   * @param partial - A deep-partial object whose defined keys determine which fields to keep
+   */
+  filterFromPartial(
+    partial: DeepPartial<Type>,
+  ): InputSpec<
+    DeepPartial<Type> & DeepPartial<StaticValidatedAs>,
+    DeepPartial<StaticValidatedAs>
+  > {
+    const newSpec: Record<string, Value<any>> = {}
+    for (const k of Object.keys(partial)) {
+      const value = (this.spec as any)[k] as Value<any> | undefined
+      if (!value) continue
+      const objectMeta = value._objectSpec
+      if (objectMeta) {
+        const partialVal = (partial as any)[k]
+        if (typeof partialVal === 'object' && partialVal !== null) {
+          const filteredInner =
+            objectMeta.inputSpec.filterFromPartial(partialVal)
+          newSpec[k] = Value.object(objectMeta.params, filteredInner)
+          continue
+        }
+      }
+      newSpec[k] = value
+    }
+    const newValidator = z.object(
+      Object.fromEntries(
+        Object.entries(newSpec).map(([k, v]) => [k, v.validator]),
+      ),
+    )
+    return new InputSpec(newSpec as any, newValidator as any) as any
+  }
+
+  /**
+   * Returns a new InputSpec with fields disabled based on which keys are present in the given partial object.
+   * For nested `Value.object` fields, recurses into the partial value to disable sub-fields.
+   * All fields remain in the spec — disabled fields simply cannot be edited by the user.
+   *
+   * @param partial - A deep-partial object whose defined keys determine which fields to disable
+   * @param message - The reason the fields are disabled, displayed to the user
+   */
+  disableFromPartial(
+    partial: DeepPartial<Type>,
+    message: string,
+  ): InputSpec<Type, StaticValidatedAs> {
+    const newSpec: Record<string, Value<any>> = {}
+    for (const k in this.spec) {
+      const value = (this.spec as any)[k] as Value<any>
+      if (!(k in (partial as any))) {
+        newSpec[k] = value
+        continue
+      }
+      const objectMeta = value._objectSpec
+      if (objectMeta) {
+        const partialVal = (partial as any)[k]
+        if (typeof partialVal === 'object' && partialVal !== null) {
+          const disabledInner = objectMeta.inputSpec.disableFromPartial(
+            partialVal,
+            message,
+          )
+          newSpec[k] = Value.object(objectMeta.params, disabledInner)
+          continue
+        }
+      }
+      newSpec[k] = value.withDisabled(message)
+    }
+    const newValidator = z.object(
+      Object.fromEntries(
+        Object.entries(newSpec).map(([k, v]) => [k, v.validator]),
+      ),
+    )
+    return new InputSpec(newSpec as any, newValidator as any) as any
   }
 
   /**

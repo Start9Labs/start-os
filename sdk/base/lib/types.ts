@@ -1,4 +1,5 @@
 export * as inputSpecTypes from './actions/input/inputSpecTypes'
+import { InputSpec as InputSpecClass } from './actions/input/builder/inputSpec'
 
 import {
   DependencyRequirement,
@@ -267,3 +268,8 @@ export type AllowReadonly<T> =
   | {
       readonly [P in keyof T]: AllowReadonly<T[P]>
     }
+
+export type InputSpec<
+  Type extends StaticValidatedAs,
+  StaticValidatedAs extends Record<string, unknown> = Type,
+> = InputSpecClass<Type, StaticValidatedAs>

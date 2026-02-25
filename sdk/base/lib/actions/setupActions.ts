@@ -16,10 +16,12 @@ export type GetInput<A extends Record<string, any>> = (options: {
   prefill: T.DeepPartial<A> | null
 }) => Promise<null | void | undefined | T.DeepPartial<A>>
 
-export type MaybeFn<T> = T | ((options: { effects: T.Effects }) => Promise<T>)
-function callMaybeFn<T>(
-  maybeFn: MaybeFn<T>,
-  options: { effects: T.Effects },
+export type MaybeFn<T, Opts = { effects: T.Effects }> =
+  | T
+  | ((options: Opts) => Promise<T>)
+function callMaybeFn<T, Opts = { effects: T.Effects }>(
+  maybeFn: MaybeFn<T, Opts>,
+  options: Opts,
 ): Promise<T> {
   if (maybeFn instanceof Function) {
     return maybeFn(options)
@@ -57,7 +59,13 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
   private constructor(
     readonly id: Id,
     private readonly metadataFn: MaybeFn<T.ActionMetadata>,
-    private readonly inputSpec: MaybeInputSpec<Type>,
+    private readonly inputSpec: MaybeFn<
+      MaybeInputSpec<Type>,
+      {
+        effects: T.Effects
+        prefill: unknown | null
+      }
+    >,
     private readonly getInputFn: GetInput<Type>,
     private readonly runFn: Run<Type>,
   ) {}
@@ -67,7 +75,13 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
   >(
     id: Id,
     metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput'>>,
-    inputSpec: InputSpecType,
+    inputSpec: MaybeFn<
+      InputSpecType,
+      {
+        effects: T.Effects
+        prefill: unknown | null
+      }
+    >,
     getInput: GetInput<ExtractInputSpecType<InputSpecType>>,
     run: Run<ExtractInputSpecType<InputSpecType>>,
   ): Action<Id, ExtractInputSpecType<InputSpecType>> {
@@ -111,9 +125,12 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
   }): Promise<T.ActionInput> {
     let spec = {}
     if (this.inputSpec) {
-      const built = await this.inputSpec.build(options)
-      this.prevInputSpec[options.effects.eventId!] = built
-      spec = built.spec
+      const inputSpec = await callMaybeFn(this.inputSpec, options)
+      const built = await inputSpec?.build(options)
+      if (built) {
+        this.prevInputSpec[options.effects.eventId!] = built
+        spec = built.spec
+      }
     }
     return {
       eventId: options.effects.eventId!,

@@ -82,7 +82,6 @@ export class StateService {
 
     await this.api.execute({
       guid: this.dataDriveGuid,
-      // @ts-expect-error TODO: backend should make password optional for restore/transfer
       password: password ? await this.api.encrypt(password) : null,
       name,
       hostname,
