@@ -44,20 +44,20 @@ import { DomainHealthService } from './domain-health.service'
         <button
           tuiIconButton
           appearance="flat-grayscale"
-          iconStart="@tui.globe"
+          iconStart="@tui.settings"
           (click)="showDnsValidation()"
         >
-          {{ 'Domain Setup' | i18n }}
+          {{ 'Address Requirements' | i18n }}
         </button>
       }
       @if (address().hostnameInfo.metadata.kind === 'private-domain') {
         <button
           tuiIconButton
           appearance="flat-grayscale"
-          iconStart="@tui.globe"
+          iconStart="@tui.settings"
           (click)="showPrivateDnsValidation()"
         >
-          {{ 'Domain Setup' | i18n }}
+          {{ 'Address Requirements' | i18n }}
         </button>
       }
       @if (
@@ -68,10 +68,10 @@ import { DomainHealthService } from './domain-health.service'
         <button
           tuiIconButton
           appearance="flat-grayscale"
-          iconStart="@tui.globe"
+          iconStart="@tui.settings"
           (click)="showPortForwardValidation()"
         >
-          {{ 'Port Forwarding' | i18n }}
+          {{ 'Address Requirements' | i18n }}
         </button>
       }
       <button
@@ -127,20 +127,20 @@ import { DomainHealthService } from './domain-health.service'
             <button
               tuiOption
               new
-              iconStart="@tui.heart-pulse"
+              iconStart="@tui.settings"
               (click)="showDnsValidation()"
             >
-              {{ 'Domain Setup' | i18n }}
+              {{ 'Address Requirements' | i18n }}
             </button>
           }
           @if (address().hostnameInfo.metadata.kind === 'private-domain') {
             <button
               tuiOption
               new
-              iconStart="@tui.heart-pulse"
+              iconStart="@tui.settings"
               (click)="showPrivateDnsValidation()"
             >
-              {{ 'Domain Setup' | i18n }}
+              {{ 'Address Requirements' | i18n }}
             </button>
           }
           @if (
@@ -150,10 +150,10 @@ import { DomainHealthService } from './domain-health.service'
             <button
               tuiOption
               new
-              iconStart="@tui.heart-pulse"
+              iconStart="@tui.settings"
               (click)="showPortForwardValidation()"
             >
-              {{ 'Port Forwarding' | i18n }}
+              {{ 'Address Requirements' | i18n }}
             </button>
           }
           @if (address().deletable) {

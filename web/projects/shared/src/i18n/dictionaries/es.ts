@@ -673,7 +673,6 @@ export default {
   735: 'Certificado',
   736: 'Autofirmado',
   737: 'Reenvío de puertos',
-  738: 'Configuración de dominio',
   739: 'DNS',
   740: 'Instrucciones',
   741: 'En su registrador de dominios para',
@@ -696,4 +695,5 @@ export default {
   765: 'Abrir nueva dirección',
   766: 'Su servidor ahora es accesible en',
   767: 'Nombre del servidor',
+  768: 'Requisitos de dirección',
 } satisfies i18n

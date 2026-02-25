@@ -673,7 +673,6 @@ export const ENGLISH: Record<string, number> = {
   'Certificate': 735,
   'Self signed': 736,
   'Port Forwarding': 737,
-  'Domain Setup': 738,
   'DNS': 739,
   'Instructions': 740,
   'In your domain registrar for': 741, // partial sentence, followed by a domain name
@@ -696,4 +695,5 @@ export const ENGLISH: Record<string, number> = {
   'Open new address': 765,
   'Your server is now reachable at': 766,
   'Server Name': 767,
+  'Address Requirements': 768,
 }

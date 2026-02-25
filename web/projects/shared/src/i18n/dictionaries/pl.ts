@@ -673,7 +673,6 @@ export default {
   735: 'Certyfikat',
   736: 'Samopodpisany',
   737: 'Przekierowanie portów',
-  738: 'Konfiguracja domeny',
   739: 'DNS',
   740: 'Instrukcje',
   741: 'W rejestratorze domeny dla',
@@ -696,4 +695,5 @@ export default {
   765: 'Otwórz nowy adres',
   766: 'Twój serwer jest teraz dostępny pod adresem',
   767: 'Nazwa serwera',
+  768: 'Wymagania adresu',
 } satisfies i18n

@@ -137,7 +137,7 @@ export class DomainHealthService {
   ) {
     this.dialog
       .openComponent(DOMAIN_VALIDATION, {
-        label: 'Domain Setup',
+        label: 'Address Requirements',
         size: 'm',
         data: { fqdn, gateway, port, initialResults },
       })
@@ -151,7 +151,7 @@ export class DomainHealthService {
   ) {
     this.dialog
       .openComponent(PORT_FORWARD_VALIDATION, {
-        label: 'Port Forwarding',
+        label: 'Address Requirements',
         size: 'm',
         data: { gateway, port, initialResults },
       })
@@ -164,7 +164,7 @@ export class DomainHealthService {
   ) {
     this.dialog
       .openComponent(PRIVATE_DNS_VALIDATION, {
-        label: 'Domain Setup',
+        label: 'Address Requirements',
         size: 'm',
         data: { gateway, initialResults },
       })
