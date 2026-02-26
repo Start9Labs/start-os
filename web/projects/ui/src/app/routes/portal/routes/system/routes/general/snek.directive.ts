@@ -27,6 +27,7 @@ export class SnekDirective {
     this.dialog
       .openComponent<number>(new PolymorpheusComponent(SnekComponent), {
         label: 'Snake!' as i18nKey,
+        size: 'l',
         closeable: false,
         dismissible: false,
         data: this.snek,

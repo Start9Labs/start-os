@@ -696,4 +696,9 @@ export default {
   766: 'Ihr Server ist jetzt erreichbar unter',
   767: 'Servername',
   768: 'Adressanforderungen',
+  769: 'Version, Root-CA und mehr',
+  770: 'Details',
+  771: 'Spiel vorbei',
+  772: 'Beliebige Taste drücken oder tippen zum Starten',
+  773: 'Beliebige Taste drücken oder tippen zum Neustarten',
 } satisfies i18n

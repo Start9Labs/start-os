@@ -696,4 +696,9 @@ export default {
   766: 'Votre serveur est maintenant accessible à',
   767: 'Nom du serveur',
   768: "Exigences de l'adresse",
+  769: 'Version, CA racine et plus',
+  770: 'Détails',
+  771: 'Partie terminée',
+  772: "Appuyez sur une touche ou touchez l'écran pour commencer",
+  773: "Appuyez sur une touche ou touchez l'écran pour rejouer",
 } satisfies i18n

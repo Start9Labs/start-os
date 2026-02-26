@@ -48,6 +48,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
+import { ABOUT } from 'src/app/routes/portal/components/header/about.component'
 import { SnekDirective } from './snek.directive'
 import { UPDATE } from './update.component'
 import { KeyboardSelectComponent } from './keyboard-select.component'
@@ -63,17 +64,28 @@ import { ServerNameDialog } from './server-name.dialog'
     </ng-container>
     @if (server(); as server) {
       <div tuiCell tuiAppearance="outline-grayscale">
+        <tui-icon icon="@tui.info" />
+        <span tuiTitle>
+          <strong>{{ 'About this server' | i18n }}</strong>
+          <span tuiSubtitle>
+            {{ 'Version, Root CA, and more' | i18n }}
+          </span>
+        </span>
+        <button tuiButton (click)="about()">
+          {{ 'Details' | i18n }}
+        </button>
+      </div>
+      <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.zap" (click)="count = count + 1" />
         <span tuiTitle>
-          <strong>{{ 'Software Update' | i18n }}</strong>
-          <span tuiSubtitle [style.flex-wrap]="'wrap'">
-            {{ server.version }}
+          <strong>
+            {{ 'Software Update' | i18n }}
             @if (os.showUpdate$ | async) {
               <tui-badge-notification>
                 {{ 'Update available' | i18n }}
               </tui-badge-notification>
             }
-          </span>
+          </strong>
         </span>
         <button
           tuiButton
@@ -276,6 +288,10 @@ export default class SystemGeneralComponent {
   private readonly win = inject(WA_WINDOW)
 
   count = 0
+
+  about() {
+    this.dialog.openComponent(ABOUT, { label: 'About this server' }).subscribe()
+  }
 
   readonly server = toSignal(this.patch.watch$('serverInfo'))
   readonly score = toSignal(this.patch.watch$('ui', 'snakeHighScore'))

@@ -1,21 +1,69 @@
 import {
-  AfterViewInit,
+  afterNextRender,
+  ChangeDetectionStrategy,
   Component,
+  DestroyRef,
+  ElementRef,
   HostListener,
   inject,
-  OnDestroy,
-  DOCUMENT,
+  signal,
+  viewChild,
 } from '@angular/core'
-import { i18nPipe, pauseFor } from '@start9labs/shared'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { injectContext } from '@taiga-ui/polymorpheus'
 
+type GameState = 'ready' | 'playing' | 'dead'
+
+interface Point {
+  x: number
+  y: number
+}
+
+interface Snake {
+  cells: Point[]
+  dx: number
+  dy: number
+  maxCells: number
+}
+
+type RGB = [number, number, number]
+
+const HEAD_COLOR: RGB = [47, 223, 117] // #2fdf75
+const TAIL_COLOR: RGB = [20, 90, 48] // #145a30
+const GRID_W = 40
+const GRID_H = 26
+const SPEED = 45
+const STARTING_LENGTH = 4
+
+function lerpColor(from: RGB, to: RGB, t: number): string {
+  const r = Math.round(from[0] + (to[0] - from[0]) * t)
+  const g = Math.round(from[1] + (to[1] - from[1]) * t)
+  const b = Math.round(from[2] + (to[2] - from[2]) * t)
+  return `rgb(${r},${g},${b})`
+}
+
 @Component({
   template: `
-    <div class="canvas-center">
-      <canvas id="game"></canvas>
+    <div class="game-container">
+      <canvas #game></canvas>
+      @if (state() === 'ready') {
+        <div class="overlay">
+          <strong>{{ 'Press any key or tap to start' | i18n }}</strong>
+          <span class="arrows">← ↑ ↓ →</span>
+        </div>
+      }
+      @if (state() === 'dead') {
+        <div class="overlay">
+          <strong class="game-over">{{ 'Game Over' | i18n }}</strong>
+          <span>{{ 'Score' | i18n }}: {{ score }}</span>
+          <span class="hint">
+            {{ 'Press any key or tap to play again' | i18n }}
+          </span>
+        </div>
+      }
     </div>
-    <footer class="footer">
+    <footer>
       <strong>{{ 'Score' | i18n }}: {{ score }}</strong>
       <span>{{ 'High score' | i18n }}: {{ highScore }}</span>
       <button tuiButton (click)="dismiss()">
@@ -24,272 +72,380 @@ import { injectContext } from '@taiga-ui/polymorpheus'
     </footer>
   `,
   styles: `
-    .canvas-center {
-      min-height: 50vh;
-      padding-top: 20px;
+    :host {
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .game-container {
+      position: relative;
+      background: #111;
+      border-radius: 0.5rem;
+      display: flex;
       justify-content: center;
     }
 
-    .footer {
+    canvas {
+      display: block;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 0.5rem;
+      font-size: 1.125rem;
+      color: #fff;
+    }
+
+    .game-over {
+      font-size: 1.5rem;
+    }
+
+    .arrows {
+      font-size: 1.5rem;
+      letter-spacing: 0.5rem;
+      opacity: 0.5;
+    }
+
+    .hint {
+      opacity: 0.6;
+      font-size: 0.875rem;
+    }
+
+    footer {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding-top: 32px;
     }
   `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, i18nPipe],
 })
-export class SnekComponent implements AfterViewInit, OnDestroy {
-  private readonly document = inject(DOCUMENT)
+export class SnekComponent {
+  private readonly destroyRef = inject(DestroyRef)
   private readonly dialog = injectContext<TuiDialogContext<number, number>>()
+  private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('game')
+
+  readonly state = signal<GameState>('ready')
 
   highScore: number = this.dialog.data
   score = 0
 
-  private readonly speed = 45
-  private readonly width = 40
-  private readonly height = 26
   private grid = NaN
+  private ctx!: CanvasRenderingContext2D
+  private image = new Image()
+  private imageLoaded = false
+  private animationId = 0
+  private lastTime = 0
+  private dead = false
 
-  private readonly startingLength = 4
+  private snake!: Snake
+  private bitcoin: Point = { x: NaN, y: NaN }
+  private moveQueue: string[] = []
 
-  private xDown?: number
-  private yDown?: number
-  private canvas!: HTMLCanvasElement
-  private image!: HTMLImageElement
-  private context!: CanvasRenderingContext2D
+  constructor() {
+    this.image.onload = () => {
+      this.imageLoaded = true
+    }
+    this.image.src = 'assets/img/icons/bitcoin.svg'
 
-  private snake: any
-  private bitcoin: { x: number; y: number } = { x: NaN, y: NaN }
+    afterNextRender(() => {
+      this.initCanvas()
+      this.snake = this.createSnake()
+      this.spawnBitcoin()
+      this.drawFrame()
+      this.animationId = requestAnimationFrame(t => this.loop(t))
+    })
 
-  private moveQueue: String[] = []
-  private destroyed = false
+    this.destroyRef.onDestroy(() => {
+      cancelAnimationFrame(this.animationId)
+    })
+  }
 
   dismiss() {
     this.dialog.completeWith(this.highScore)
   }
 
   @HostListener('document:keydown', ['$event'])
-  keyEvent(e: KeyboardEvent) {
-    this.moveQueue.push(e.key)
-  }
-
-  @HostListener('touchstart', ['$event'])
-  touchStart(e: TouchEvent) {
-    this.handleTouchStart(e)
-  }
-
-  @HostListener('touchmove', ['$event'])
-  touchMove(e: TouchEvent) {
-    this.handleTouchMove(e)
-  }
-
-  @HostListener('window:resize')
-  sizeChange() {
-    this.init()
-  }
-
-  ngOnDestroy() {
-    this.destroyed = true
-  }
-
-  ngAfterViewInit() {
-    this.init()
-
-    this.image = new Image()
-    this.image.onload = () => {
-      requestAnimationFrame(async () => await this.loop())
-    }
-    this.image.src = '../../../../../../assets/img/icons/bitcoin.svg'
-  }
-
-  init() {
-    this.canvas = this.document.querySelector('canvas#game')!
-    this.canvas.style.border = '1px solid #e0e0e0'
-    this.context = this.canvas.getContext('2d')!
-    const container = this.document.querySelector('.canvas-center')!
-    this.grid = Math.min(
-      Math.floor(container.clientWidth / this.width),
-      Math.floor(container.clientHeight / this.height),
-    )
-    this.snake = {
-      x: this.grid * (Math.floor(this.width / 2) - this.startingLength),
-      y: this.grid * Math.floor(this.height / 2),
-      // snake velocity. moves one grid length every frame in either the x or y direction
-      dx: this.grid,
-      dy: 0,
-      // keep track of all grids the snake body occupies
-      cells: [],
-      // length of the snake. grows when eating an bitcoin
-      maxCells: this.startingLength,
-    }
-    this.bitcoin = {
-      x: this.getRandomInt(0, this.width) * this.grid,
-      y: this.getRandomInt(0, this.height) * this.grid,
+  onKeydown(e: KeyboardEvent) {
+    if (
+      e.key === 'ArrowUp' ||
+      e.key === 'ArrowDown' ||
+      e.key === 'ArrowLeft' ||
+      e.key === 'ArrowRight'
+    ) {
+      e.preventDefault()
     }
 
-    this.canvas.width = this.grid * this.width
-    this.canvas.height = this.grid * this.height
-    this.context.imageSmoothingEnabled = false
-  }
+    const current = this.state()
 
-  getTouches(evt: TouchEvent) {
-    return evt.touches
-  }
-
-  handleTouchStart(evt: TouchEvent) {
-    const firstTouch = this.getTouches(evt)[0]
-    this.xDown = firstTouch?.clientX
-    this.yDown = firstTouch?.clientY
-  }
-
-  handleTouchMove(evt: TouchEvent) {
-    if (!this.xDown || !this.yDown) {
+    if (current === 'ready') {
+      this.state.set('playing')
+      this.lastTime = 0
+      // Queue directional input so first keypress sets direction
+      if (e.key.startsWith('Arrow')) {
+        this.moveQueue.push(e.key)
+      }
       return
     }
 
-    var xUp = evt.touches[0]?.clientX || 0
-    var yUp = evt.touches[0]?.clientY || 0
-
-    var xDiff = this.xDown - xUp
-    var yDiff = this.yDown - yUp
-
-    if (Math.abs(xDiff) > Math.abs(yDiff)) {
-      /*most significant*/
-      if (xDiff > 0) {
-        this.moveQueue.push('ArrowLeft')
-      } else {
-        this.moveQueue.push('ArrowRight')
-      }
-    } else {
-      if (yDiff > 0) {
-        this.moveQueue.push('ArrowUp')
-      } else {
-        this.moveQueue.push('ArrowDown')
-      }
+    if (current === 'dead' && !this.dead) {
+      this.restart()
+      return
     }
-    /* reset values */
-    this.xDown = undefined
-    this.yDown = undefined
+
+    if (current === 'playing') {
+      this.moveQueue.push(e.key)
+    }
   }
 
-  // game loop
-  async loop() {
-    if (this.destroyed) return
+  @HostListener('touchstart', ['$event'])
+  onTouchStart(e: TouchEvent) {
+    const current = this.state()
 
-    await pauseFor(this.speed)
+    if (current === 'ready') {
+      this.state.set('playing')
+      this.lastTime = 0
+      return
+    }
 
-    requestAnimationFrame(async () => await this.loop())
+    if (current === 'dead' && !this.dead) {
+      this.restart()
+      return
+    }
 
-    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height)
+    this.touchStart = {
+      x: e.touches[0]?.clientX ?? 0,
+      y: e.touches[0]?.clientY ?? 0,
+    }
+  }
 
-    // move snake by its velocity
-    this.snake.x += this.snake.dx
-    this.snake.y += this.snake.dy
+  @HostListener('touchmove', ['$event'])
+  onTouchMove(e: TouchEvent) {
+    if (!this.touchStart || this.state() !== 'playing') return
 
+    const xUp = e.touches[0]?.clientX ?? 0
+    const yUp = e.touches[0]?.clientY ?? 0
+    const xDiff = this.touchStart.x - xUp
+    const yDiff = this.touchStart.y - yUp
+
+    if (Math.abs(xDiff) > Math.abs(yDiff)) {
+      this.moveQueue.push(xDiff > 0 ? 'ArrowLeft' : 'ArrowRight')
+    } else {
+      this.moveQueue.push(yDiff > 0 ? 'ArrowUp' : 'ArrowDown')
+    }
+
+    this.touchStart = null
+  }
+
+  @HostListener('window:resize')
+  onResize() {
+    this.initCanvas()
+    this.drawFrame()
+  }
+
+  private touchStart: Point | null = null
+
+  private initCanvas() {
+    const canvas = this.canvasRef()?.nativeElement
+    if (!canvas) return
+
+    this.ctx = canvas.getContext('2d')!
+    const container = canvas.parentElement!
+
+    // Size grid based on available width, cap so canvas height stays reasonable
+    const maxHeight = window.innerHeight * 0.55
+    this.grid = Math.min(
+      Math.floor(container.clientWidth / GRID_W),
+      Math.floor(maxHeight / GRID_H),
+    )
+
+    canvas.width = this.grid * GRID_W
+    canvas.height = this.grid * GRID_H
+  }
+
+  private createSnake(): Snake {
+    return {
+      cells: [],
+      dx: this.grid,
+      dy: 0,
+      maxCells: STARTING_LENGTH,
+    }
+  }
+
+  private getStartX(): number {
+    return this.grid * (Math.floor(GRID_W / 2) - STARTING_LENGTH)
+  }
+
+  private getStartY(): number {
+    return this.grid * Math.floor(GRID_H / 2)
+  }
+
+  private spawnBitcoin() {
+    this.bitcoin = {
+      x: this.randomInt(0, GRID_W) * this.grid,
+      y: this.randomInt(0, GRID_H) * this.grid,
+    }
+  }
+
+  private restart() {
+    this.score = 0
+    this.snake = this.createSnake()
+    this.moveQueue = []
+    this.spawnBitcoin()
+    this.lastTime = 0
+    this.state.set('playing')
+  }
+
+  private loop(timestamp: number) {
+    this.animationId = requestAnimationFrame(t => this.loop(t))
+
+    if (this.state() !== 'playing') return
+
+    if (this.lastTime && timestamp - this.lastTime < SPEED) return
+    this.lastTime = timestamp
+
+    this.update()
+    this.drawFrame()
+  }
+
+  private update() {
+    // Process next queued move
     if (this.moveQueue.length) {
-      const move = this.moveQueue.shift()
-      // left arrow key
+      const move = this.moveQueue.shift()!
       if (move === 'ArrowLeft' && this.snake.dx === 0) {
         this.snake.dx = -this.grid
         this.snake.dy = 0
-      }
-      // up arrow key
-      else if (move === 'ArrowUp' && this.snake.dy === 0) {
+      } else if (move === 'ArrowUp' && this.snake.dy === 0) {
         this.snake.dy = -this.grid
         this.snake.dx = 0
-      }
-      // right arrow key
-      else if (move === 'ArrowRight' && this.snake.dx === 0) {
+      } else if (move === 'ArrowRight' && this.snake.dx === 0) {
         this.snake.dx = this.grid
         this.snake.dy = 0
-      }
-      // down arrow key
-      else if (move === 'ArrowDown' && this.snake.dy === 0) {
+      } else if (move === 'ArrowDown' && this.snake.dy === 0) {
         this.snake.dy = this.grid
         this.snake.dx = 0
       }
     }
 
-    // edge death
-    if (
-      this.snake.x < 0 ||
-      this.snake.y < 0 ||
-      this.snake.x >= this.canvas.width ||
-      this.snake.y >= this.canvas.height
-    ) {
-      this.death()
-    }
+    // Determine new head position
+    const prev = this.snake.cells[0]
+    const newHead: Point = prev
+      ? { x: prev.x + this.snake.dx, y: prev.y + this.snake.dy }
+      : {
+          x: this.getStartX() + this.snake.dx,
+          y: this.getStartY() + this.snake.dy,
+        }
 
-    // keep track of where snake has been. front of the array is always the head
-    this.snake.cells.unshift({ x: this.snake.x, y: this.snake.y })
+    this.snake.cells.unshift(newHead)
 
-    // remove cells as we move away from them
-    if (this.snake.cells.length > this.snake.maxCells) {
+    // Trim tail
+    while (this.snake.cells.length > this.snake.maxCells) {
       this.snake.cells.pop()
     }
 
-    // draw bitcoin
-    this.context.fillStyle = '#ff4961'
-    this.context.drawImage(
-      this.image,
-      this.bitcoin.x - 1,
-      this.bitcoin.y - 1,
-      this.grid + 2,
-      this.grid + 2,
-    )
+    const canvas = this.canvasRef()?.nativeElement
+    if (!canvas) return
 
-    // draw snake one cell at a time
-    this.context.fillStyle = '#2fdf75'
+    // Wall collision
+    if (
+      newHead.x < 0 ||
+      newHead.y < 0 ||
+      newHead.x >= canvas.width ||
+      newHead.y >= canvas.height
+    ) {
+      this.onDeath()
+      return
+    }
 
-    const firstCell = this.snake.cells[0]
-
-    for (let index = 0; index < this.snake.cells.length; index++) {
-      const cell = this.snake.cells[index]
-
-      // drawing 1 px smaller than the grid creates a grid effect in the snake body so you can see how long it is
-      this.context.fillRect(cell.x, cell.y, this.grid - 1, this.grid - 1)
-
-      // snake ate bitcoin
-      if (cell.x === this.bitcoin.x && cell.y === this.bitcoin.y) {
-        this.score++
-        this.highScore = Math.max(this.score, this.highScore)
-        this.snake.maxCells++
-
-        this.bitcoin.x = this.getRandomInt(0, this.width) * this.grid
-        this.bitcoin.y = this.getRandomInt(0, this.height) * this.grid
+    // Self collision
+    for (let i = 1; i < this.snake.cells.length; i++) {
+      const cell = this.snake.cells[i]
+      if (cell && newHead.x === cell.x && newHead.y === cell.y) {
+        this.onDeath()
+        return
       }
+    }
 
-      if (index > 0) {
-        // check collision with all cells after this one (modified bubble sort)
-        // snake occupies same space as a body part. reset game
-        if (
-          firstCell.x === this.snake.cells[index].x &&
-          firstCell.y === this.snake.cells[index].y
-        ) {
-          this.death()
-        }
-      }
+    // Eat bitcoin
+    if (newHead.x === this.bitcoin.x && newHead.y === this.bitcoin.y) {
+      this.score++
+      this.highScore = Math.max(this.score, this.highScore)
+      this.snake.maxCells++
+      this.spawnBitcoin()
     }
   }
 
-  death() {
-    this.snake.x =
-      this.grid * (Math.floor(this.width / 2) - this.startingLength)
-    this.snake.y = this.grid * Math.floor(this.height / 2)
-    this.snake.cells = []
-    this.snake.maxCells = this.startingLength
-    this.snake.dx = this.grid
-    this.snake.dy = 0
-
-    this.bitcoin.x = this.getRandomInt(0, 25) * this.grid
-    this.bitcoin.y = this.getRandomInt(0, 25) * this.grid
-    this.score = 0
+  private onDeath() {
+    this.dead = true
+    this.state.set('dead')
+    // Brief delay before accepting restart input
+    setTimeout(() => {
+      this.dead = false
+    }, 300)
   }
 
-  getRandomInt(min: number, max: number) {
+  private drawFrame() {
+    const canvas = this.canvasRef()?.nativeElement
+    if (!canvas || !this.ctx) return
+
+    this.ctx.clearRect(0, 0, canvas.width, canvas.height)
+    this.drawBitcoin()
+    this.drawSnake()
+  }
+
+  private drawBitcoin() {
+    if (!this.imageLoaded) return
+    this.ctx.drawImage(
+      this.image,
+      this.bitcoin.x,
+      this.bitcoin.y,
+      this.grid,
+      this.grid,
+    )
+  }
+
+  private drawSnake() {
+    const { cells } = this.snake
+    if (cells.length === 0) {
+      // Draw initial position in bottom-left corner (out of overlay text)
+      const x = STARTING_LENGTH * this.grid
+      const canvas = this.canvasRef()?.nativeElement
+      const y = canvas ? canvas.height - this.grid * 2 : this.getStartY()
+      for (let i = 0; i < STARTING_LENGTH; i++) {
+        const t = STARTING_LENGTH > 1 ? i / (STARTING_LENGTH - 1) : 0
+        this.ctx.fillStyle = lerpColor(HEAD_COLOR, TAIL_COLOR, t)
+        const r = i === 0 ? this.grid * 0.35 : this.grid * 0.2
+        const size = this.grid - 1
+        this.ctx.beginPath()
+        this.ctx.roundRect(x - i * this.grid + 0.5, y + 0.5, size, size, r)
+        this.ctx.fill()
+      }
+      return
+    }
+
+    // Draw tail-first so head renders on top
+    for (let i = cells.length - 1; i >= 0; i--) {
+      const cell = cells[i]
+      if (!cell) continue
+      const t = cells.length > 1 ? i / (cells.length - 1) : 0
+      this.ctx.fillStyle = lerpColor(HEAD_COLOR, TAIL_COLOR, t)
+      const r = i === 0 ? this.grid * 0.35 : this.grid * 0.2
+      const size = this.grid - 1
+      this.ctx.beginPath()
+      this.ctx.roundRect(cell.x + 0.5, cell.y + 0.5, size, size, r)
+      this.ctx.fill()
+    }
+  }
+
+  private randomInt(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min)) + min
   }
 }

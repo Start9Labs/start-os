@@ -696,4 +696,9 @@ export default {
   766: 'Su servidor ahora es accesible en',
   767: 'Nombre del servidor',
   768: 'Requisitos de dirección',
+  769: 'Versión, CA raíz y más',
+  770: 'Detalles',
+  771: 'Fin del juego',
+  772: 'Pulsa cualquier tecla o toca para empezar',
+  773: 'Pulsa cualquier tecla o toca para jugar de nuevo',
 } satisfies i18n

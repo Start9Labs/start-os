@@ -696,4 +696,9 @@ export const ENGLISH: Record<string, number> = {
   'Your server is now reachable at': 766,
   'Server Name': 767,
   'Address Requirements': 768,
+  'Version, Root CA, and more': 769,
+  'Details': 770,
+  'Game Over': 771,
+  'Press any key or tap to start': 772,
+  'Press any key or tap to play again': 773,
 }
