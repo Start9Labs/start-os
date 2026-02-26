@@ -62,7 +62,7 @@ fi
 chroot /media/startos/next bash -e << "EOF"
 
 if [ -f /boot/grub/grub.cfg ]; then
-    grub-install /dev/$(eval $(lsblk -o MOUNTPOINT,PKNAME -P | grep 'MOUNTPOINT="/media/startos/root"') && echo $PKNAME)
+    grub-install --no-nvram /dev/$(eval $(lsblk -o MOUNTPOINT,PKNAME -P | grep 'MOUNTPOINT="/media/startos/root"') && echo $PKNAME)
     update-grub
 fi
 
