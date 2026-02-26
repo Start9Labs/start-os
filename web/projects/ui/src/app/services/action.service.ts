@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core'
 import {
   DialogService,
-  ErrorService,
+  getErrorMessage,
   i18nKey,
   LoadingService,
 } from '@start9labs/shared'
@@ -22,7 +22,6 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 export class ActionService {
   private readonly api = inject(ApiService)
   private readonly dialog = inject(DialogService)
-  private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
   private readonly formDialog = inject(FormDialogService)
 
@@ -81,7 +80,9 @@ export class ActionService {
           .subscribe()
       }
     } catch (e: any) {
-      this.errorService.handleError(e)
+      this.dialog
+        .openAlert(getErrorMessage(e) as i18nKey, { label: 'Error' })
+        .subscribe()
     } finally {
       loader.unsubscribe()
     }
