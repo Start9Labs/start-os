@@ -251,7 +251,7 @@ export default {
   260: 'Afficher/Masquer',
   261: 'Afficher',
   262: 'Scannez ce QR',
-  263: 'Réinitialiser aux paramètres d’usine',
+  263: 'Réinitialiser',
   264: 'Suite à ce changement, les services suivants ne fonctionneront plus correctement et pourraient planter',
   265: 'Erreur de lancement du service',
   266: 'Problème',

@@ -251,7 +251,7 @@ export default {
   260: 'Anzeigen/Verbergen',
   261: 'Anzeigen',
   262: 'Diesen QR-Code scannen',
-  263: 'Auf Standard zurücksetzen',
+  263: 'Zurücksetzen',
   264: 'Durch diese Änderung funktionieren die folgenden Dienste möglicherweise nicht mehr richtig und könnten abstürzen',
   265: 'Fehler beim Starten des Dienstes',
   266: 'Problem',

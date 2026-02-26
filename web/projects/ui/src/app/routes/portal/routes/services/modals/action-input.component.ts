@@ -73,7 +73,7 @@ export type PackageActionData = {
           type="reset"
           [style.margin-right]="'auto'"
         >
-          {{ 'Reset defaults' | i18n }}
+          {{ 'Reset' | i18n }}
         </button>
       </app-form>
     } @else if (!error()) {

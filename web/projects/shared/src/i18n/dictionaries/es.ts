@@ -251,7 +251,7 @@ export default {
   260: 'Mostrar/Ocultar',
   261: 'Mostrar',
   262: 'Escanea este QR',
-  263: 'Restablecer valores predeterminados',
+  263: 'Restablecer',
   264: 'Como resultado de este cambio, los siguientes servicios dejarán de funcionar correctamente y pueden fallar',
   265: 'Error al iniciar el servicio',
   266: 'Problema',

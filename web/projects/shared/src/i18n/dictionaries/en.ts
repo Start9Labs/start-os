@@ -250,7 +250,7 @@ export const ENGLISH: Record<string, number> = {
   'Reveal/Hide': 260,
   'Reveal': 261,
   'Scan this QR': 262,
-  'Reset defaults': 263,
+  'Reset': 263,
   'As a result of this change, the following services will no longer work properly and may crash': 264,
   'Service Launch Error': 265,
   'Issue': 266,

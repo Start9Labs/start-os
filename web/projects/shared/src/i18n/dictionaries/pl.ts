@@ -251,7 +251,7 @@ export default {
   260: 'Pokaż/Ukryj',
   261: 'Pokaż',
   262: 'Zeskanuj ten kod QR',
-  263: 'Przywróć ustawienia domyślne',
+  263: 'Resetuj',
   264: 'W wyniku tej zmiany następujące serwisy mogą przestać działać poprawnie lub ulec awarii',
   265: 'Błąd uruchomienia serwisu',
   266: 'Problem',
