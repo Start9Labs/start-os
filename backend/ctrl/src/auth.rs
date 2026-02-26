@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::LazyLock;
 
 use tokio::io::AsyncWriteExt;
@@ -157,89 +157,94 @@ pub async fn check_password(password: &str) -> Result<(), Error> {
 /// Map of session token hashes to session data
 type Sessions = BTreeMap<String, Session>;
 
-async fn load_sessions() -> Result<Sessions, Error> {
-    let path = Path::new(&*SESSION_FILE_PATH);
+/// In-memory session store, lazy-initialized from disk on first access.
+/// Authoritative after startup — disk is only written on login/logout for durability.
+static SESSION_STORE: LazyLock<tokio::sync::RwLock<Sessions>> = LazyLock::new(|| {
+    let sessions = std::fs::read_to_string(&*SESSION_FILE_PATH)
+        .ok()
+        .and_then(|c| serde_json::from_str(&c).ok())
+        .unwrap_or_default();
+    tokio::sync::RwLock::new(sessions)
+});
 
-    match tokio::fs::read_to_string(path).await {
-        Ok(content) => {
-            let sessions: Sessions = serde_json::from_str(&content)
-                .map_err(|e| Error::other(format!("Failed to parse sessions file: {}", e)))?;
-            Ok(sessions)
+/// Persist the in-memory session store to disk (atomic temp + rename).
+/// Fire-and-forget — called from login/logout only.
+async fn persist_sessions() {
+    let sessions = SESSION_STORE.read().await;
+    let content = match serde_json::to_string_pretty(&*sessions) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("Failed to serialize sessions: {e}");
+            return;
         }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Sessions::new()),
-        Err(e) => Err(Error::other(format!("Failed to read sessions file: {}", e))),
+    };
+    drop(sessions);
+
+    let path = Path::new(&*SESSION_FILE_PATH);
+    let parent = match path.parent() {
+        Some(p) => p,
+        None => {
+            tracing::warn!("Invalid session file path");
+            return;
+        }
+    };
+    let file_name = match path.file_name().and_then(|f| f.to_str()) {
+        Some(f) => f,
+        None => {
+            tracing::warn!("Invalid session file name");
+            return;
+        }
+    };
+    let tmp_path = parent.join(format!(".{file_name}.tmp"));
+
+    if let Err(e) = tokio::fs::create_dir_all(parent).await {
+        tracing::warn!("Failed to create session directory: {e}");
+        return;
+    }
+
+    let write_result: Result<(), std::io::Error> = async {
+        let mut file = tokio::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(&tmp_path)
+            .await?;
+        file.write_all(content.as_bytes()).await?;
+        file.flush().await?;
+        file.sync_all().await?;
+        tokio::fs::rename(&tmp_path, path).await?;
+        Ok(())
+    }
+    .await;
+
+    if let Err(e) = write_result {
+        tracing::warn!("Failed to persist sessions to disk: {e}");
     }
 }
 
-fn to_tmp_path(path: &Path) -> Result<PathBuf, Error> {
-    let parent = path.parent();
-    let file_name = path
-        .file_name()
-        .and_then(|f| f.to_str())
-        .ok_or_else(|| Error::other("Invalid session file path"))?;
-    Ok(parent.unwrap_or(Path::new(".")).join(format!(".{file_name}.tmp")))
-}
-
-async fn save_sessions(sessions: &Sessions) -> Result<(), Error> {
-    let path = Path::new(&*SESSION_FILE_PATH);
-    let tmp_path = to_tmp_path(path)?;
-
-    let parent = path
-        .parent()
-        .ok_or_else(|| Error::other("Invalid session file path"))?;
-
-    tokio::fs::create_dir_all(parent)
-        .await
-        .map_err(|e| Error::other(format!("Failed to create session directory: {e}")))?;
-
-    let content = serde_json::to_string_pretty(sessions)
-        .map_err(|e| Error::other(format!("Failed to serialize sessions: {e}")))?;
-
-    // Create temp file with restricted permissions from the start
-    let mut file = tokio::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(&tmp_path)
-        .await
-        .map_err(|e| Error::other(format!("Failed to create temp file: {e}")))?;
-
-    file.write_all(content.as_bytes())
-        .await
-        .map_err(|e| Error::other(format!("Failed to write sessions file: {e}")))?;
-
-    file.flush()
-        .await
-        .map_err(|e| Error::other(format!("Failed to flush sessions file: {e}")))?;
-
-    file.sync_all()
-        .await
-        .map_err(|e| Error::other(format!("Failed to sync sessions file: {e}")))?;
-
-    // Atomic rename from temp to final path
-    tokio::fs::rename(&tmp_path, path)
-        .await
-        .map_err(|e| Error::other(format!("Failed to persist sessions file: {e}")))?;
-
+async fn add_session(token_hash: &str, session: Session) -> Result<(), Error> {
+    {
+        let mut sessions = SESSION_STORE.write().await;
+        sessions.insert(token_hash.to_string(), session);
+    }
+    tokio::spawn(persist_sessions());
     Ok(())
 }
 
-async fn add_session(token_hash: &str, session: Session) -> Result<(), Error> {
-    let mut sessions = load_sessions().await?;
-    sessions.insert(token_hash.to_string(), session);
-    save_sessions(&sessions).await
-}
-
 async fn remove_session(token_hash: &str) -> Result<(), Error> {
-    let mut sessions = load_sessions().await?;
-    sessions.remove(token_hash);
-    save_sessions(&sessions).await
+    {
+        let mut sessions = SESSION_STORE.write().await;
+        sessions.remove(token_hash);
+    }
+    tokio::spawn(persist_sessions());
+    Ok(())
 }
 
-/// Validate a session token hash, check expiration, and update last_active timestamp
+/// Validate a session token hash, check expiration, and update last_active timestamp.
+/// Operates entirely in-memory — no disk I/O.
 pub async fn validate_session(token_hash: &str) -> Result<(), Error> {
-    let mut sessions = load_sessions().await?;
+    let mut sessions = SESSION_STORE.write().await;
 
     let session = sessions
         .get(token_hash)
@@ -248,20 +253,24 @@ pub async fn validate_session(token_hash: &str) -> Result<(), Error> {
     // Check if session has expired
     if let Some(expiry) = TimeDelta::try_days(SESSION_EXPIRY_DAYS) {
         if Utc::now() - session.last_active > expiry {
-            // Remove expired session
             sessions.remove(token_hash);
-            save_sessions(&sessions).await?;
+            // Fire-and-forget persist for expired session cleanup
+            let sessions_clone = sessions.clone();
+            drop(sessions);
+            tokio::spawn(async move {
+                let _ = sessions_clone; // ensure removal is reflected if we persist later
+                persist_sessions().await;
+            });
             return Err(Error::other("Session expired"));
         }
     }
 
-    // Update last_active timestamp
+    // Update last_active timestamp — in-memory only, no disk write
     let updated_session = Session {
         last_active: Utc::now(),
         ..session.clone()
     };
     sessions.insert(token_hash.to_string(), updated_session);
-    save_sessions(&sessions).await?;
 
     Ok(())
 }

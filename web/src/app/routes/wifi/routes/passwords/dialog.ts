@@ -27,6 +27,7 @@ import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
+import type { ProfileId } from 'src/app/services/api/api.service'
 
 export interface WifiPasswordEntry {
   label: string
@@ -34,15 +35,17 @@ export interface WifiPasswordEntry {
   profile: string
 }
 
+// @TODO matt review
 export interface WifiPasswordDialogData {
-  profiles: string[]
+  profiles: ProfileId[]
   entry?: WifiPasswordEntry
 }
 
+// @TODO matt review
 export interface WifiPasswordDialogResult {
   label: string
   password?: string
-  profile: string
+  profile: ProfileId | null
 }
 
 @Component({
@@ -79,8 +82,11 @@ export interface WifiPasswordDialogResult {
         <input tuiSelect formControlName="profile" />
         <tui-data-list *tuiDropdown>
           <tui-opt-group>
-            @for (item of profiles; track $index) {
-              <button tuiOption [value]="item">{{ item }}</button>
+            <button tuiOption value="Admin">Admin</button>
+            @for (item of profiles; track item.vlan_tag) {
+              <button tuiOption [value]="item.fullname">
+                {{ item.fullname }}
+              </button>
             }
           </tui-opt-group>
           <tui-opt-group>
@@ -168,9 +174,11 @@ class AddWifiPassword {
 
     if (this.form.valid) {
       const { label, password, profile } = this.form.getRawValue()
+      // @TODO matt review
+      const resolved = this.profiles.find(p => p.fullname === profile) ?? null
       this.context.completeWith({
         label,
-        profile,
+        profile: resolved,
         password: this.editing ? undefined : password,
       })
     }

@@ -11,6 +11,7 @@ import { TuiButton, TuiDataList, TuiDropdown, TuiLink } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
 import { Masked } from 'src/app/components/masked'
 import { Placeholder } from 'src/app/components/placeholder'
+import { ApiService } from 'src/app/services/api/api.service'
 import { WifiService } from '../../service'
 import {
   ADD_WIFI_PASSWORD,
@@ -121,6 +122,8 @@ import {
 })
 export default class WifiPasswords {
   private readonly dialogs = inject(TuiResponsiveDialogService)
+  // @TODO matt review
+  private readonly api = inject(ApiService)
 
   protected readonly service = inject(WifiService)
   protected readonly passwords = computed(
@@ -131,38 +134,34 @@ export default class WifiPasswords {
       })) || [],
   )
 
-  add() {
+  // @TODO matt review
+  async add() {
+    const profiles = (await this.api.profilesList()).filter(
+      p => p.interface !== 'lan',
+    )
     this.dialogs
       .open<WifiPasswordDialogResult>(ADD_WIFI_PASSWORD, {
         label: 'Add Wi-Fi Password',
-        data: {
-          profiles: ['Admin', 'Guest'],
-        },
+        data: { profiles },
       })
       .subscribe(result => {
         this.service.addPassword({
           label: result.label,
-          profile:
-            result.profile === 'Admin'
-              ? null
-              : {
-                  fullname: result.profile,
-                  interface: result.profile.toLowerCase(),
-                  vlan_tag: 100,
-                },
+          profile: result.profile,
           password: result.password!,
         })
       })
   }
 
-  edit(entry: WifiPasswordEntry, index: number) {
+  // @TODO matt review
+  async edit(entry: WifiPasswordEntry, index: number) {
+    const profiles = (await this.api.profilesList()).filter(
+      p => p.interface !== 'lan',
+    )
     this.dialogs
       .open<WifiPasswordDialogResult>(ADD_WIFI_PASSWORD, {
         label: 'Edit Wi-Fi Password',
-        data: {
-          profiles: ['Admin', 'Guest'],
-          entry,
-        },
+        data: { profiles, entry },
       })
       .subscribe(result => {
         const current = this.service.data()
@@ -171,14 +170,7 @@ export default class WifiPasswords {
         passwords[index] = {
           ...passwords[index],
           label: result.label,
-          profile:
-            result.profile === 'Admin'
-              ? null
-              : {
-                  fullname: result.profile,
-                  interface: result.profile.toLowerCase(),
-                  vlan_tag: 100,
-                },
+          profile: result.profile,
         }
         this.service
           .store({ ...current, passwords })

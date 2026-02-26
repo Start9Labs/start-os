@@ -189,7 +189,7 @@ impl CtrlContext for CliContext {
     }
 
     fn effectful(&self) -> bool {
-        self.configs_only
+        !self.configs_only
     }
 }
 
@@ -214,7 +214,7 @@ impl CtrlContext for ServerContext {
     }
 
     fn effectful(&self) -> bool {
-        false
+        true
     }
 }
 

@@ -32,21 +32,13 @@ export class WifiService extends FormService<WifiConfig> {
     })
   }
 
-  async updatePassword(
-    index: number,
-    update: { label?: string; profile: string | null },
-  ) {
+  // @TODO matt review
+  async updatePassword(index: number, update: Partial<WifiPassword>) {
     await this.actions.run(async () => {
       const current = this.data()
       if (!current) return
       const passwords = current.passwords.map((p, i) =>
-        i === index
-          ? {
-              ...p,
-              ...update,
-              profile: update.profile ? current.passwords[i].profile : null,
-            }
-          : p,
+        i === index ? { ...p, ...update } : p,
       )
       await this.api.wifiSet({ ...current, passwords })
       this.refresh()

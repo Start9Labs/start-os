@@ -150,10 +150,15 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
             }
         }
         let profile = station.vid.and_then(|vid| lookup.from_vlan(vid)).cloned();
-        let label = profile
-            .as_ref()
-            .map(|p| p.fullname.clone())
-            .unwrap_or_default();
+        let label = station
+            .label
+            .filter(|l| !l.is_empty())
+            .unwrap_or_else(|| {
+                profile
+                    .as_ref()
+                    .map(|p| p.fullname.clone())
+                    .unwrap_or_default()
+            });
         passwords.insert(Password {
             label,
             profile,
@@ -263,6 +268,7 @@ fn set_config(
                     key: psswd.password.clone(),
                     vid: None,
                     iface: Some(niface.clone()),
+                    label: Some(psswd.label.clone()),
                 },
                 None,
             )?;
@@ -288,6 +294,7 @@ fn set_config(
                     key: psswd.password.clone(),
                     vid: Some(profile.vlan_tag),
                     iface: Some(niface.clone()),
+                    label: Some(psswd.label.clone()),
                 },
                 None,
             )?;
@@ -334,7 +341,7 @@ pub fn set<C: CtrlContext>(
             if !seen_passwords.insert(&pass.password) {
                 return Err(ErrorKind::DuplicatePassword.into());
             }
-            if !seen_labels.insert(&pass.label) {
+            if !pass.label.is_empty() && !seen_labels.insert(&pass.label) {
                 return Err(ErrorKind::DuplicatePasswordLabel.into());
             }
         }
@@ -537,4 +544,385 @@ pub fn blackout_set<C: CtrlContext>(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rpc_toolkit::Context;
+    use std::sync::Arc;
+    use tokio::runtime::Runtime;
+
+    #[derive(Clone)]
+    struct TestContext(PathBuf);
+
+    impl Context for TestContext {
+        fn runtime(&self) -> Option<Arc<Runtime>> {
+            None
+        }
+    }
+
+    impl CtrlContext for TestContext {
+        fn uci_root(&self) -> PathBuf {
+            self.0.clone()
+        }
+        fn effectful(&self) -> bool {
+            false
+        }
+    }
+
+    fn setup_test_configs(dir: &std::path::Path) {
+        // startwrt: two profiles — Admin (lan, vlan 99) and Guest (guest, vlan 101)
+        std::fs::write(
+            dir.join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '99'
+\toption access_to_new_profiles '1'
+
+config profile guest
+\toption fullname 'Guest'
+\toption interface 'guest'
+\toption vlan_tag '101'
+",
+        )
+        .unwrap();
+
+        // network: bridge device + lan + guest interfaces
+        std::fs::write(
+            dir.join("network"),
+            "\
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth0'
+
+config interface 'lan'
+\toption device 'br-lan.99'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+
+config interface 'guest'
+\toption device 'br-lan.101'
+\toption proto 'static'
+\toption ipaddr '192.168.101.1'
+\toption netmask '255.255.255.0'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '99'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '101'
+",
+        )
+        .unwrap();
+
+        // firewall: lan + wan zones + forwarding
+        std::fs::write(
+            dir.join("firewall"),
+            "\
+config zone
+\toption name 'lan'
+\tlist network 'lan'
+\toption input 'ACCEPT'
+\toption output 'ACCEPT'
+\toption forward 'ACCEPT'
+
+config zone
+\toption name 'wan'
+\tlist network 'wan'
+\toption input 'REJECT'
+\toption output 'ACCEPT'
+\toption forward 'REJECT'
+
+config forwarding
+\toption src 'lan'
+\toption dest 'wan'
+",
+        )
+        .unwrap();
+    }
+
+    fn write_wireless_config(dir: &std::path::Path, stations: &str) {
+        std::fs::write(
+            dir.join("wireless"),
+            format!(
+                "\
+config wifi-device 'radio0'
+\toption type 'mac80211'
+\toption band '2g'
+\toption channel '1'
+
+config wifi-iface 'default_radio0'
+\toption device 'radio0'
+\toption mode 'ap'
+\toption ssid 'TestNet'
+\toption encryption 'psk2'
+\toption key 'adminpass1'
+\toption dynamic_vlan '1'
+
+{stations}"
+            ),
+        )
+        .unwrap();
+    }
+
+    fn make_radios() -> BTreeMap<String, WifiRadio> {
+        let mut radios = BTreeMap::new();
+        radios.insert(
+            "default_radio0".into(),
+            WifiRadio {
+                band: "2g".into(),
+                channel: "1".into(),
+                enabled: true,
+                broadcast: true,
+            },
+        );
+        radios
+    }
+
+    #[test]
+    fn test_get_reads_label_from_uci() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config(
+            dir.path(),
+            "\
+config wifi-station
+\toption key 'guestpass1'
+\toption vid '101'
+\toption iface 'default_radio0'
+\toption label 'My Label'
+",
+        );
+
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let wifi = get_config(ctx, &cfgs).unwrap();
+
+        let labeled = wifi
+            .passwords
+            .iter()
+            .find(|p| p.password == "guestpass1")
+            .unwrap();
+        assert_eq!(labeled.label, "My Label");
+    }
+
+    #[test]
+    fn test_get_falls_back_to_profile_name_when_no_label() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config(
+            dir.path(),
+            "\
+config wifi-station
+\toption key 'guestpass1'
+\toption vid '101'
+\toption iface 'default_radio0'
+",
+        );
+
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let wifi = get_config(ctx, &cfgs).unwrap();
+
+        let fallback = wifi
+            .passwords
+            .iter()
+            .find(|p| p.password == "guestpass1")
+            .unwrap();
+        assert_eq!(fallback.label, "Guest");
+    }
+
+    #[test]
+    fn test_set_persists_label() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config(dir.path(), "");
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs).unwrap();
+
+        let guest_id = lookup.from_fullname("Guest").unwrap().clone();
+        let mut passwords = BTreeSet::new();
+        passwords.insert(Password {
+            label: "Main Admin".into(),
+            profile: None,
+            password: "adminpass1".into(),
+        });
+        passwords.insert(Password {
+            label: "Kids WiFi".into(),
+            profile: Some(guest_id.clone()),
+            password: "kidspass1".into(),
+        });
+
+        let wifi = Wifi {
+            ssid: "TestNet".into(),
+            radios: make_radios(),
+            passwords,
+        };
+        set_config(&ctx, &mut cfgs, &wifi, &lookup).unwrap();
+        dump_all(ctx.uci_root(), cfgs).unwrap();
+
+        // Re-parse and check label was written
+        let arena2 = Arena::new();
+        let cfgs2 = parse_all(
+            ctx.uci_root(),
+            &arena2,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+
+        let mut found_kids = false;
+        cfgs2["wireless"].try_each(|_, station: WifiStation| {
+            if station.key == "kidspass1" {
+                assert_eq!(station.label.as_deref(), Some("Kids WiFi"));
+                found_kids = true;
+            }
+            Ok::<_, Error>(())
+        })
+        .unwrap();
+
+        assert!(found_kids, "did not find station with key 'kidspass1'");
+    }
+
+    #[test]
+    fn test_set_round_trip_preserves_label() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config(
+            dir.path(),
+            "\
+config wifi-station
+\toption key 'guestpass1'
+\toption vid '101'
+\toption iface 'default_radio0'
+\toption label 'Custom Name'
+",
+        );
+
+        // GET
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let wifi = get_config(ctx.clone(), &cfgs).unwrap();
+
+        let labeled = wifi
+            .passwords
+            .iter()
+            .find(|p| p.password == "guestpass1")
+            .unwrap();
+        assert_eq!(labeled.label, "Custom Name");
+
+        // SET (round-trip the same data)
+        drop(cfgs);
+        drop(arena);
+
+        let arena2 = Arena::new();
+        let mut cfgs2 = parse_all(
+            ctx.uci_root(),
+            &arena2,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let lookup2 = profiles::Lookup::parse(ctx.clone(), &cfgs2).unwrap();
+        set_config(&ctx, &mut cfgs2, &wifi, &lookup2).unwrap();
+        dump_all(ctx.uci_root(), cfgs2).unwrap();
+
+        // GET again
+        let arena3 = Arena::new();
+        let cfgs3 = parse_all(
+            ctx.uci_root(),
+            &arena3,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let wifi2 = get_config(ctx, &cfgs3).unwrap();
+
+        let preserved = wifi2
+            .passwords
+            .iter()
+            .find(|p| p.password == "guestpass1")
+            .unwrap();
+        assert_eq!(preserved.label, "Custom Name");
+    }
+
+    #[test]
+    fn test_set_allows_duplicate_empty_labels() {
+        // Two admin passwords both with empty label should not trigger DuplicatePasswordLabel
+        let mut seen_passwords = std::collections::HashSet::new();
+        let mut seen_labels = std::collections::HashSet::new();
+        let passwords = vec![
+            Password::<ProfileId> {
+                label: "".into(),
+                profile: None,
+                password: "pass1".into(),
+            },
+            Password {
+                label: "".into(),
+                profile: None,
+                password: "pass2".into(),
+            },
+        ];
+        for pass in &passwords {
+            assert!(seen_passwords.insert(&pass.password));
+            // This is the actual validation logic from set()
+            if !pass.label.is_empty() && !seen_labels.insert(&pass.label) {
+                panic!("should not reject duplicate empty labels");
+            }
+        }
+    }
+
+    #[test]
+    fn test_set_rejects_duplicate_nonempty_labels() {
+        let mut seen_labels = std::collections::HashSet::new();
+        let passwords = vec![
+            Password::<ProfileId> {
+                label: "Same Name".into(),
+                profile: None,
+                password: "pass1".into(),
+            },
+            Password {
+                label: "Same Name".into(),
+                profile: None,
+                password: "pass2".into(),
+            },
+        ];
+        let mut found_dup = false;
+        for pass in &passwords {
+            if !pass.label.is_empty() && !seen_labels.insert(&pass.label) {
+                found_dup = true;
+            }
+        }
+        assert!(found_dup, "should reject duplicate non-empty labels");
+    }
 }

@@ -219,6 +219,8 @@ pub struct WifiStation {
     pub key: String,
     pub vid: Option<u16>,
     pub iface: Option<String>,
+    #[uci(default)]
+    pub label: Option<String>,
 }
 
 #[derive(Debug, TypedSection)]
