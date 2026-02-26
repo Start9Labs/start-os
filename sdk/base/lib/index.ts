@@ -10,18 +10,21 @@ export * as yaml from 'yaml'
 export * as inits from './inits'
 import { z as _z } from 'zod'
 import { zodDeepPartial } from 'zod-deep-partial'
-import { DeepPartial } from './types'
+import type { DeepPartial } from './types'
 
 type ZodDeepPartial = <T>(a: _z.ZodType<T>) => _z.ZodType<DeepPartial<T>>
 
-export const z: typeof _z & {
-  deepPartial: ZodDeepPartial
-} = Object.assign(_z, { deepPartial: zodDeepPartial as ZodDeepPartial })
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace z {
-  export type infer<T extends { _zod: { output: any } }> = T['_zod']['output']
-  export type input<T extends { _zod: { input: any } }> = T['_zod']['input']
-  export type output<T extends { _zod: { output: any } }> = T['_zod']['output']
+// Add deepPartial to z at runtime, wrapping with .passthrough() to allow extra keys
+;(_z as any).deepPartial = <T>(a: _z.ZodType<T>) =>
+  (zodDeepPartial(a) as any).passthrough()
+
+// Augment zod's z namespace so z.deepPartial is typed
+declare module 'zod' {
+  namespace z {
+    const deepPartial: ZodDeepPartial
+  }
 }
+
+export { _z as z }
 
 export * as utils from './util'

@@ -70,7 +70,7 @@ base/node_modules: base/package-lock.json
 node_modules: package/node_modules base/node_modules
 
 publish: bundle package/package.json package/README.md package/LICENSE
-	cd dist && npm publish --access=public
+	cd dist && npm publish --access=public --tag=latest
 
 link: bundle
 	cd dist && npm link
