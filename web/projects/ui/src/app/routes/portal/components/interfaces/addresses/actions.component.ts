@@ -30,6 +30,19 @@ import { DomainHealthService } from './domain-health.service'
   selector: 'td[actions]',
   template: `
     <div class="desktop">
+      @if (address().ui) {
+        <a
+          tuiIconButton
+          appearance="flat-grayscale"
+          iconStart="@tui.external-link"
+          target="_blank"
+          rel="noreferrer"
+          [attr.href]="address().enabled ? address().url : null"
+          [class.disabled]="!address().enabled"
+        >
+          {{ 'Open UI' | i18n }}
+        </a>
+      }
       @if (address().deletable) {
         <button
           tuiIconButton
@@ -102,6 +115,19 @@ import { DomainHealthService } from './domain-health.service'
       >
         {{ 'Actions' | i18n }}
         <tui-data-list *tuiTextfieldDropdown (click)="open.set(false)">
+          @if (address().ui) {
+            <a
+              tuiOption
+              new
+              iconStart="@tui.external-link"
+              target="_blank"
+              rel="noreferrer"
+              [attr.href]="address().enabled ? address().url : null"
+              [class.disabled]="!address().enabled"
+            >
+              {{ 'Open UI' | i18n }}
+            </a>
+          }
           <button
             tuiOption
             new
@@ -177,6 +203,11 @@ import { DomainHealthService } from './domain-health.service'
       width: fit-content;
       place-content: center;
       white-space: nowrap;
+    }
+
+    .disabled {
+      pointer-events: none;
+      opacity: var(--tui-disabled-opacity);
     }
 
     .mobile {

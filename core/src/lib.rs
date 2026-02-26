@@ -269,6 +269,18 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
+            "device-info",
+            ParentHandler::<C, WithIoFormat<Empty>>::new().root_handler(
+                from_fn_async(system::device_info)
+                    .with_display_serializable()
+                    .with_custom_display_fn(|handle, result| {
+                        system::display_device_info(handle.params, result)
+                    })
+                    .with_about("about.get-device-info")
+                    .with_call_remote::<CliContext>(),
+            ),
+        )
+        .subcommand(
             "experimental",
             system::experimental::<C>().with_about("about.commands-experimental"),
         )

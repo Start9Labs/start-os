@@ -20,6 +20,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::disk::util::{get_available, get_used};
 use crate::logs::{LogSource, LogsParams, SYSTEM_UNIT};
 use crate::prelude::*;
+use crate::registry::device_info::DeviceInfo;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::shutdown::Shutdown;
 use crate::util::Invoke;
@@ -247,6 +248,67 @@ pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {
         now: Utc::now().to_rfc3339(),
         uptime: ctx.start_time.elapsed().as_secs(),
     })
+}
+
+pub async fn device_info(ctx: RpcContext) -> Result<DeviceInfo, Error> {
+    DeviceInfo::load(&ctx).await
+}
+
+pub fn display_device_info(
+    params: WithIoFormat<Empty>,
+    info: DeviceInfo,
+) -> Result<(), Error> {
+    use prettytable::*;
+
+    if let Some(format) = params.format {
+        return display_serializable(format, info);
+    }
+
+    let mut table = Table::new();
+    table.add_row(row![br -> "PLATFORM", &*info.os.platform]);
+    table.add_row(row![br -> "OS VERSION", info.os.version.to_string()]);
+    table.add_row(row![br -> "OS COMPAT", info.os.compat.to_string()]);
+    if let Some(lang) = &info.os.language {
+        table.add_row(row![br -> "LANGUAGE", &**lang]);
+    }
+    if let Some(hw) = &info.hardware {
+        table.add_row(row![br -> "ARCH", &*hw.arch]);
+        table.add_row(row![br -> "RAM", format_ram(hw.ram)]);
+        if let Some(devices) = &hw.devices {
+            for dev in devices {
+                let (class, desc) = match dev {
+                    crate::util::lshw::LshwDevice::Processor(p) => (
+                        "PROCESSOR",
+                        p.product.as_deref().unwrap_or("unknown").to_string(),
+                    ),
+                    crate::util::lshw::LshwDevice::Display(d) => (
+                        "DISPLAY",
+                        format!(
+                            "{}{}",
+                            d.product.as_deref().unwrap_or("unknown"),
+                            d.driver
+                                .as_deref()
+                                .map(|drv| format!(" ({})", drv))
+                                .unwrap_or_default()
+                        ),
+                    ),
+                };
+                table.add_row(row![br -> class, desc]);
+            }
+        }
+    }
+    table.print_tty(false)?;
+    Ok(())
+}
+
+fn format_ram(bytes: u64) -> String {
+    const GIB: u64 = 1024 * 1024 * 1024;
+    const MIB: u64 = 1024 * 1024;
+    if bytes >= GIB {
+        format!("{:.1} GiB", bytes as f64 / GIB as f64)
+    } else {
+        format!("{:.1} MiB", bytes as f64 / MIB as f64)
+    }
 }
 
 pub fn logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, LogsParams> {

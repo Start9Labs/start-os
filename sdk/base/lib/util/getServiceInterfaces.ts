@@ -1,5 +1,6 @@
 import { Effects } from '../Effects'
 import { PackageId } from '../osBindings'
+import { AbortedError } from './AbortedError'
 import { deepEqual } from './deepEqual'
 import { DropGenerator, DropPromise } from './Drop'
 import { ServiceInterfaceFilled, filledAddress } from './getServiceInterface'
@@ -105,7 +106,7 @@ export class GetServiceInterfaces<Mapped = ServiceInterfaceFilled[]> {
       }
       await waitForNext
     }
-    return new Promise<never>((_, rej) => rej(new Error('aborted')))
+    return new Promise<never>((_, rej) => rej(new AbortedError()))
   }
 
   /**

@@ -8,6 +8,7 @@ import {
   HostnameInfo,
 } from '../types'
 import { Effects } from '../Effects'
+import { AbortedError } from './AbortedError'
 import { DropGenerator, DropPromise } from './Drop'
 import { IpAddress, IPV6_LINK_LOCAL } from './ip'
 import { deepEqual } from './deepEqual'
@@ -394,7 +395,7 @@ export class GetServiceInterface<Mapped = ServiceInterfaceFilled | null> {
       }
       await waitForNext
     }
-    return new Promise<never>((_, rej) => rej(new Error('aborted')))
+    return new Promise<never>((_, rej) => rej(new AbortedError()))
   }
 
   /**

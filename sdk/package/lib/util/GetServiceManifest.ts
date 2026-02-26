@@ -1,5 +1,6 @@
 import { Effects } from '../../../base/lib/Effects'
 import { Manifest, PackageId } from '../../../base/lib/osBindings'
+import { AbortedError } from '../../../base/lib/util/AbortedError'
 import { DropGenerator, DropPromise } from '../../../base/lib/util/Drop'
 import { deepEqual } from '../../../base/lib/util/deepEqual'
 
@@ -64,7 +65,7 @@ export class GetServiceManifest<Mapped = Manifest> {
       }
       await waitForNext
     }
-    return new Promise<never>((_, rej) => rej(new Error('aborted')))
+    return new Promise<never>((_, rej) => rej(new AbortedError()))
   }
 
   /**

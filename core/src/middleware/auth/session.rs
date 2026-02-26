@@ -20,9 +20,6 @@ use crate::context::RpcContext;
 use crate::middleware::auth::DbContext;
 use crate::prelude::*;
 use crate::rpc_continuations::OpenAuthedContinuations;
-use crate::util::Invoke;
-use crate::util::io::{create_file_mod, read_file_to_string};
-use crate::util::serde::{BASE64, const_true};
 use crate::util::sync::SyncMutex;
 
 pub trait SessionAuthContext: DbContext {

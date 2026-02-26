@@ -13,6 +13,10 @@ function isPublicIp(h: T.HostnameInfo): boolean {
   return h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
 }
 
+export function isLanIp(h: T.HostnameInfo): boolean {
+  return !h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
+}
+
 function isEnabled(addr: T.DerivedAddressInfo, h: T.HostnameInfo): boolean {
   if (isPublicIp(h)) {
     if (h.port === null) return true
@@ -135,11 +139,23 @@ export class InterfaceService {
 
     return gateways
       .filter(g => (groupMap.get(g.id)?.length ?? 0) > 0)
-      .map(g => ({
-        gatewayId: g.id,
-        gatewayName: g.name,
-        addresses: groupMap.get(g.id)!.sort(sortDomainsFirst),
-      }))
+      .map(g => {
+        const addresses = groupMap.get(g.id)!.sort(sortDomainsFirst)
+
+        // Derive mDNS enabled state from LAN IPs on this gateway
+        const lanIps = addresses.filter(a => isLanIp(a.hostnameInfo))
+        for (const a of addresses) {
+          if (a.hostnameInfo.metadata.kind === 'mdns') {
+            a.enabled = lanIps.some(ip => ip.enabled)
+          }
+        }
+
+        return {
+          gatewayId: g.id,
+          gatewayName: g.name,
+          addresses,
+        }
+      })
   }
 
   getPluginGroups(

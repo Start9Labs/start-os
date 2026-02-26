@@ -26,23 +26,39 @@ export type LazyBuild<ExpectedOut, Type> = (
  * Defines which keys to keep when filtering an InputSpec.
  * Use `true` to keep a field as-is, or a nested object to filter sub-fields of an object-typed field.
  */
-export type FilterKeys<T> = {
-  [K in keyof T]?: T[K] extends Record<string, any>
-    ? true | FilterKeys<T[K]>
-    : true
+export type FilterKeys<F> = {
+  [K in keyof F]?: F[K] extends Record<string, any>
+    ? boolean | FilterKeys<F[K]>
+    : boolean
 }
+
+type RetainKey<T, F, Default extends boolean> = {
+  [K in keyof T]: K extends keyof F
+    ? F[K] extends false
+      ? never
+      : K
+    : Default extends true
+      ? K
+      : never
+}[keyof T]
 
 /**
  * Computes the resulting type after applying a {@link FilterKeys} shape to a type.
  */
-export type ApplyFilter<T, F> = {
-  [K in Extract<keyof F, keyof T>]: F[K] extends true
-    ? T[K]
-    : T[K] extends Record<string, any>
-      ? F[K] extends FilterKeys<T[K]>
-        ? ApplyFilter<T[K], F[K]>
-        : T[K]
-      : T[K]
+export type ApplyFilter<T, F, Default extends boolean = false> = {
+  [K in RetainKey<T, F, Default>]: K extends keyof F
+    ? true extends F[K]
+      ? F[K] extends true
+        ? T[K]
+        : T[K] | undefined
+      : T[K] extends Record<string, any>
+        ? F[K] extends FilterKeys<T[K]>
+          ? ApplyFilter<T[K], F[K]>
+          : undefined
+        : undefined
+    : Default extends true
+      ? T[K]
+      : undefined
 }
 
 /**
@@ -226,14 +242,15 @@ export class InputSpec<
    * const filtered = full.filter({ name: true, settings: { debug: true } })
    * ```
    */
-  filter<F extends FilterKeys<Type>>(
+  filter<F extends FilterKeys<Type>, Default extends boolean = false>(
     keys: F,
+    keepByDefault?: Default,
   ): InputSpec<
-    ApplyFilter<Type, F> & ApplyFilter<StaticValidatedAs, F>,
-    ApplyFilter<StaticValidatedAs, F>
+    ApplyFilter<Type, F, Default> & ApplyFilter<StaticValidatedAs, F, Default>,
+    ApplyFilter<StaticValidatedAs, F, Default>
   > {
     const newSpec: Record<string, Value<any>> = {}
-    for (const k of Object.keys(keys)) {
+    for (const k of Object.keys(this.spec)) {
       const filterVal = (keys as any)[k]
       const value = (this.spec as any)[k] as Value<any> | undefined
       if (!value) continue
@@ -242,11 +259,16 @@ export class InputSpec<
       } else if (typeof filterVal === 'object' && filterVal !== null) {
         const objectMeta = value._objectSpec
         if (objectMeta) {
-          const filteredInner = objectMeta.inputSpec.filter(filterVal)
+          const filteredInner = objectMeta.inputSpec.filter(
+            filterVal,
+            keepByDefault,
+          )
           newSpec[k] = Value.object(objectMeta.params, filteredInner)
         } else {
           newSpec[k] = value
         }
+      } else if (keepByDefault && filterVal !== false) {
+        newSpec[k] = value
       }
     }
     const newValidator = z.object(

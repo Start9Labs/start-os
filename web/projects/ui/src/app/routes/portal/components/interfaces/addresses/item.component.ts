@@ -29,7 +29,7 @@ import { DomainHealthService } from './domain-health.service'
           tuiSwitch
           size="s"
           [showIcons]="false"
-          [disabled]="toggling()"
+          [disabled]="toggling() || address.hostnameInfo.metadata.kind === 'mdns'"
           [ngModel]="address.enabled"
           (ngModelChange)="onToggleEnabled()"
         />

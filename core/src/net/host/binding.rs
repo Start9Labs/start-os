@@ -358,5 +358,5 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
         })
         .await
         .result?;
-    Kind::sync_host(&ctx, inheritance).await
+    Ok(())
 }

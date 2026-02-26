@@ -4,7 +4,7 @@ import * as TOML from '@iarna/toml'
 import * as INI from 'ini'
 import * as T from '../../../base/lib/types'
 import * as fs from 'node:fs/promises'
-import { asError, deepEqual } from '../../../base/lib/util'
+import { AbortedError, asError, deepEqual } from '../../../base/lib/util'
 import { DropGenerator, DropPromise } from '../../../base/lib/util/Drop'
 import { PathBase } from './Volume'
 
@@ -289,7 +289,7 @@ export class FileHelper<A> {
         await onCreated(this.path).catch((e) => console.error(asError(e)))
       }
     }
-    return new Promise<never>((_, rej) => rej(new Error('aborted')))
+    return new Promise<never>((_, rej) => rej(new AbortedError()))
   }
 
   private readOnChange<B>(

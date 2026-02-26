@@ -16,7 +16,6 @@ import { getManifest } from 'src/app/utils/get-package-data'
   template: `
     <header>{{ 'Service Launch Error' | i18n }}</header>
     <p class="error-message">{{ error?.details }}</p>
-    <p>{{ error?.debug }}</p>
     <h4>
       {{ 'Actions' | i18n }}
       <tui-icon [tuiTooltip]="hint" />

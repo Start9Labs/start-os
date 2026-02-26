@@ -204,7 +204,6 @@ pub async fn add_public_domain<Kind: HostApiKind>(
         })
         .await
         .result?;
-    Kind::sync_host(&ctx, inheritance).await?;
 
     tokio::task::spawn_blocking(|| {
         crate::net::dns::query_dns(ctx, crate::net::dns::QueryDnsParams { fqdn })
@@ -242,7 +241,6 @@ pub async fn remove_public_domain<Kind: HostApiKind>(
         })
         .await
         .result?;
-    Kind::sync_host(&ctx, inheritance).await?;
 
     Ok(())
 }
@@ -279,7 +277,6 @@ pub async fn add_private_domain<Kind: HostApiKind>(
         })
         .await
         .result?;
-    Kind::sync_host(&ctx, inheritance).await?;
 
     Ok(())
 }
@@ -306,7 +303,6 @@ pub async fn remove_private_domain<Kind: HostApiKind>(
         })
         .await
         .result?;
-    Kind::sync_host(&ctx, inheritance).await?;
 
     Ok(())
 }

@@ -145,7 +145,11 @@ export function isUseEntrypoint(
  * - An explicit argv array
  * - A {@link UseEntrypoint} to use the container's built-in entrypoint
  */
-export type CommandType = string | [string, ...string[]] | UseEntrypoint
+export type CommandType =
+  | string
+  | [string, ...string[]]
+  | readonly [string, ...string[]]
+  | UseEntrypoint
 
 /** The return type from starting a daemon — provides `wait()` and `term()` controls. */
 export type DaemonReturned = {

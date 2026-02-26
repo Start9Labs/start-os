@@ -21,6 +21,14 @@ pub async fn my_handler(ctx: RpcContext, params: MyParams) -> Result<MyResponse,
 from_fn_async(my_handler)
 ```
 
+If a handler takes no params, simply omit the params argument entirely (no need for `_: Empty`):
+
+```rust
+pub async fn no_params_handler(ctx: RpcContext) -> Result<MyResponse, Error> {
+    // ...
+}
+```
+
 ### `from_fn_async_local` - Non-thread-safe async handlers
 For async functions that are not `Send` (cannot be safely moved between threads). Use when working with non-thread-safe types.
 
@@ -181,9 +189,9 @@ pub struct MyParams {
 
 ### Adding a New RPC Endpoint
 
-1. Define params struct with `Deserialize, Serialize, Parser, TS`
+1. Define params struct with `Deserialize, Serialize, Parser, TS` (skip if no params needed)
 2. Choose handler type based on sync/async and thread-safety
-3. Write handler function taking `(Context, Params) -> Result<Response, Error>`
+3. Write handler function taking `(Context, Params) -> Result<Response, Error>` (omit Params if none needed)
 4. Add to parent handler with appropriate extensions (display modifiers before `with_about`)
 5. TypeScript types auto-generated via `make ts-bindings`
 

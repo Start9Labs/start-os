@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::future::Future;
 use std::net::{IpAddr, SocketAddrV4};
 use std::panic::RefUnwindSafe;
 
@@ -182,15 +181,26 @@ impl Model<Host> {
                 opt.secure
                     .map_or(true, |s| !(s.ssl && opt.add_ssl.is_some()))
             }) {
-                available.insert(HostnameInfo {
-                    ssl: opt.secure.map_or(false, |s| s.ssl),
-                    public: false,
-                    hostname: mdns_host.clone(),
-                    port: Some(port),
-                    metadata: HostnameMetadata::Mdns {
-                        gateways: mdns_gateways.clone(),
-                    },
-                });
+                let mdns_gateways = if opt.secure.is_some() {
+                    mdns_gateways.clone()
+                } else {
+                    mdns_gateways
+                        .iter()
+                        .filter(|g| gateways.get(*g).map_or(false, |g| g.secure()))
+                        .cloned()
+                        .collect()
+                };
+                if !mdns_gateways.is_empty() {
+                    available.insert(HostnameInfo {
+                        ssl: opt.secure.map_or(false, |s| s.ssl),
+                        public: false,
+                        hostname: mdns_host.clone(),
+                        port: Some(port),
+                        metadata: HostnameMetadata::Mdns {
+                            gateways: mdns_gateways,
+                        },
+                    });
+                }
             }
             if let Some(port) = net.assigned_ssl_port {
                 available.insert(HostnameInfo {
@@ -429,10 +439,6 @@ pub trait HostApiKind: 'static {
         inheritance: &Self::Inheritance,
         db: &'a mut DatabaseModel,
     ) -> Result<&'a mut Model<Host>, Error>;
-    fn sync_host(
-        ctx: &RpcContext,
-        inheritance: Self::Inheritance,
-    ) -> impl Future<Output = Result<(), Error>> + Send;
 }
 pub struct ForPackage;
 impl HostApiKind for ForPackage {
@@ -451,12 +457,6 @@ impl HostApiKind for ForPackage {
     ) -> Result<&'a mut Model<Host>, Error> {
         host_for(db, Some(package), host)
     }
-    async fn sync_host(ctx: &RpcContext, (package, host): Self::Inheritance) -> Result<(), Error> {
-        let service = ctx.services.get(&package).await;
-        let service_ref = service.as_ref().or_not_found(&package)?;
-        service_ref.sync_host(host).await?;
-        Ok(())
-    }
 }
 pub struct ForServer;
 impl HostApiKind for ForServer {
@@ -471,9 +471,6 @@ impl HostApiKind for ForServer {
         db: &'a mut DatabaseModel,
     ) -> Result<&'a mut Model<Host>, Error> {
         host_for(db, None, &HostId::default())
-    }
-    async fn sync_host(ctx: &RpcContext, _: Self::Inheritance) -> Result<(), Error> {
-        ctx.os_net_service.sync_host(HostId::default()).await
     }
 }
 

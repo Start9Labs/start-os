@@ -1,5 +1,6 @@
 import { Effects } from '../Effects'
 import * as T from '../types'
+import { AbortedError } from './AbortedError'
 import { DropGenerator, DropPromise } from './Drop'
 
 export class GetSystemSmtp {
@@ -39,7 +40,7 @@ export class GetSystemSmtp {
       })
       await waitForNext
     }
-    return new Promise<never>((_, rej) => rej(new Error('aborted')))
+    return new Promise<never>((_, rej) => rej(new AbortedError()))
   }
 
   /**

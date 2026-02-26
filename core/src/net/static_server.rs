@@ -9,7 +9,7 @@ use async_compression::tokio::bufread::GzipEncoder;
 use axum::Router;
 use axum::body::Body;
 use axum::extract::{self as x, Request};
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use axum::routing::{any, get};
 use base64::display::Base64Display;
 use digest::Digest;

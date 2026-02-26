@@ -154,6 +154,32 @@ pub struct HardwareRequirements {
     pub arch: Option<BTreeSet<InternedString>>,
 }
 impl HardwareRequirements {
+    /// Returns true if this s9pk's hardware requirements are satisfied by the given hardware.
+    pub fn is_compatible(&self, hw: &crate::registry::device_info::HardwareInfo) -> bool {
+        if let Some(arch) = &self.arch {
+            if !arch.contains(&hw.arch) {
+                return false;
+            }
+        }
+        if let Some(ram) = self.ram {
+            if hw.ram < ram {
+                return false;
+            }
+        }
+        if let Some(devices) = &hw.devices {
+            for device_filter in &self.device {
+                if !devices
+                    .iter()
+                    .filter(|d| d.class() == &*device_filter.class)
+                    .any(|d| device_filter.matches(d))
+                {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
     /// returns a value that can be used as a sort key to get most specific requirements first
     pub fn specificity_desc(&self) -> (u32, u32, u64) {
         (

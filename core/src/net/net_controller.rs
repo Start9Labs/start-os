@@ -725,13 +725,6 @@ impl NetService {
             .result
     }
 
-    pub async fn sync_host(&self, _id: HostId) -> Result<(), Error> {
-        let current = self.synced.peek(|v| *v);
-        let mut w = self.synced.clone();
-        w.wait_for(|v| *v > current).await;
-        Ok(())
-    }
-
     pub async fn remove_all(mut self) -> Result<(), Error> {
         if Weak::upgrade(&self.data.lock().await.controller).is_none() {
             self.shutdown = true;

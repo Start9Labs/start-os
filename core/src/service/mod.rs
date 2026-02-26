@@ -52,7 +52,7 @@ use crate::util::serde::Pem;
 use crate::util::sync::SyncMutex;
 use crate::util::tui::choose;
 use crate::volume::data_dir;
-use crate::{ActionId, CAP_1_KiB, DATA_DIR, HostId, ImageId, PackageId};
+use crate::{ActionId, CAP_1_KiB, DATA_DIR, ImageId, PackageId};
 
 pub mod action;
 pub mod cli;
@@ -682,14 +682,6 @@ impl Service {
             memory_limit: MiB::from_MiB(total),
             memory_usage: MiB::from_MiB(used),
         })
-    }
-
-    pub async fn sync_host(&self, host_id: HostId) -> Result<(), Error> {
-        self.seed
-            .persistent_container
-            .net_service
-            .sync_host(host_id)
-            .await
     }
 }
 

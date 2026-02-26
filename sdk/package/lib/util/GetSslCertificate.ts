@@ -1,5 +1,6 @@
 import { T } from '..'
 import { Effects } from '../../../base/lib/Effects'
+import { AbortedError } from '../../../base/lib/util/AbortedError'
 import { DropGenerator, DropPromise } from '../../../base/lib/util/Drop'
 
 export class GetSslCertificate {
@@ -50,7 +51,7 @@ export class GetSslCertificate {
       })
       await waitForNext
     }
-    return new Promise<never>((_, rej) => rej(new Error('aborted')))
+    return new Promise<never>((_, rej) => rej(new AbortedError()))
   }
 
   /**

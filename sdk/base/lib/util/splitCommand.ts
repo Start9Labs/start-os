@@ -1,3 +1,5 @@
+import { AllowReadonly } from '../types'
+
 /**
  * Normalizes a command into an argv-style string array.
  * If given a string, wraps it as `["sh", "-c", command]`.
@@ -13,8 +15,8 @@
  * ```
  */
 export const splitCommand = (
-  command: string | [string, ...string[]],
+  command: string | AllowReadonly<[string, ...string[]]>,
 ): string[] => {
   if (Array.isArray(command)) return command
-  return ['sh', '-c', command]
+  return ['sh', '-c', command as string]
 }

@@ -255,30 +255,7 @@ impl Model<PackageVersionInfo> {
         }
         if let Some(hw) = &device_info.hardware {
             self.as_s9pks_mut().mutate(|s9pks| {
-                s9pks.retain(|(hw_req, _)| {
-                    if let Some(arch) = &hw_req.arch {
-                        if !arch.contains(&hw.arch) {
-                            return false;
-                        }
-                    }
-                    if let Some(ram) = hw_req.ram {
-                        if hw.ram < ram {
-                            return false;
-                        }
-                    }
-                    if let Some(dev) = &hw.devices {
-                        for device_filter in &hw_req.device {
-                            if !dev
-                                .iter()
-                                .filter(|d| d.class() == &*device_filter.class)
-                                .any(|d| device_filter.matches(d))
-                            {
-                                return false;
-                            }
-                        }
-                    }
-                    true
-                });
+                s9pks.retain(|(hw_req, _)| hw_req.is_compatible(hw));
                 if hw.devices.is_some() {
                     s9pks.sort_by_key(|(req, _)| req.specificity_desc());
                 } else {

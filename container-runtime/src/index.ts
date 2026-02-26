@@ -1,11 +1,22 @@
 import { RpcListener } from "./Adapters/RpcListener"
-import { SystemForEmbassy } from "./Adapters/Systems/SystemForEmbassy"
 import { AllGetDependencies } from "./Interfaces/AllGetDependencies"
 import { getSystem } from "./Adapters/Systems"
 
 const getDependencies: AllGetDependencies = {
   system: getSystem,
 }
+
+process.on("unhandledRejection", (reason) => {
+  if (
+    reason instanceof Error &&
+    "muteUnhandled" in reason &&
+    reason.muteUnhandled
+  ) {
+    // mute
+  } else {
+    console.error("Unhandled promise rejection", reason)
+  }
+})
 
 for (let s of ["SIGTERM", "SIGINT", "SIGHUP"]) {
   process.on(s, (s) => {
