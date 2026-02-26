@@ -8,31 +8,31 @@ import {
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { SnekComponent } from './snek.component'
+import { SnakeComponent } from './snake.component'
 
 @Directive({
-  selector: 'img[snek]',
+  selector: 'img[snake]',
 })
-export class SnekDirective {
+export class SnakeDirective {
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly dialog = inject(DialogService)
 
   @Input()
-  snek = 0
+  snake = 0
 
   @HostListener('click')
   async onClick() {
     this.dialog
-      .openComponent<number>(new PolymorpheusComponent(SnekComponent), {
+      .openComponent<number>(new PolymorpheusComponent(SnakeComponent), {
         label: 'Snake!' as i18nKey,
         size: 'l',
         closeable: false,
         dismissible: false,
-        data: this.snek,
+        data: this.snake,
       })
-      .pipe(filter(score => score > this.snek))
+      .pipe(filter(score => score > this.snake))
       .subscribe(async score => {
         const loader = this.loader.open('Saving high score').subscribe()
 

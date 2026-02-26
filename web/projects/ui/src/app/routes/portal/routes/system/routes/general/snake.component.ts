@@ -36,6 +36,44 @@ const GRID_H = 26
 const SPEED = 45
 const STARTING_LENGTH = 4
 
+const SAAS_ICONS = [
+  'adobe',
+  'amazon',
+  'anthropic',
+  'apple',
+  'atlassian',
+  'box',
+  'cloudflare',
+  'datadog',
+  'discord',
+  'dropbox',
+  'github',
+  'gitlab',
+  'godaddy',
+  'google',
+  'hubspot',
+  'icloud',
+  'lastpass',
+  'meta',
+  'microsoft',
+  'mongodb',
+  'netflix',
+  'notion',
+  'onepassword',
+  'openai',
+  'paypal',
+  'salesforce',
+  'shopify',
+  'slack',
+  'spotify',
+  'squarespace',
+  'square',
+  'stripe',
+  'twilio',
+  'wix',
+  'zoom',
+].map(name => `assets/img/icons/saas/${name}.svg`)
+
 function lerpColor(from: RGB, to: RGB, t: number): string {
   const r = Math.round(from[0] + (to[0] - from[0]) * t)
   const g = Math.round(from[1] + (to[1] - from[1]) * t)
@@ -128,7 +166,7 @@ function lerpColor(from: RGB, to: RGB, t: number): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, i18nPipe],
 })
-export class SnekComponent {
+export class SnakeComponent {
   private readonly destroyRef = inject(DestroyRef)
   private readonly dialog = injectContext<TuiDialogContext<number, number>>()
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('game')
@@ -139,27 +177,30 @@ export class SnekComponent {
   score = 0
 
   private grid = NaN
+  private canvasW = 0
+  private canvasH = 0
   private ctx!: CanvasRenderingContext2D
-  private image = new Image()
-  private imageLoaded = false
+  private images: HTMLImageElement[] = []
+  private currentImage: HTMLImageElement | null = null
   private animationId = 0
   private lastTime = 0
   private dead = false
 
   private snake!: Snake
-  private bitcoin: Point = { x: NaN, y: NaN }
+  private food: Point = { x: NaN, y: NaN }
   private moveQueue: string[] = []
 
   constructor() {
-    this.image.onload = () => {
-      this.imageLoaded = true
+    for (const src of SAAS_ICONS) {
+      const img = new Image()
+      img.src = src
+      this.images.push(img)
     }
-    this.image.src = 'assets/img/icons/bitcoin.svg'
 
     afterNextRender(() => {
       this.initCanvas()
       this.snake = this.createSnake()
-      this.spawnBitcoin()
+      this.spawnFood()
       this.drawFrame()
       this.animationId = requestAnimationFrame(t => this.loop(t))
     })
@@ -259,6 +300,7 @@ export class SnekComponent {
 
     this.ctx = canvas.getContext('2d')!
     const container = canvas.parentElement!
+    const dpr = window.devicePixelRatio || 1
 
     // Size grid based on available width, cap so canvas height stays reasonable
     const maxHeight = window.innerHeight * 0.55
@@ -267,8 +309,14 @@ export class SnekComponent {
       Math.floor(maxHeight / GRID_H),
     )
 
-    canvas.width = this.grid * GRID_W
-    canvas.height = this.grid * GRID_H
+    this.canvasW = this.grid * GRID_W
+    this.canvasH = this.grid * GRID_H
+
+    canvas.width = this.canvasW * dpr
+    canvas.height = this.canvasH * dpr
+    canvas.style.width = `${this.canvasW}px`
+    canvas.style.height = `${this.canvasH}px`
+    this.ctx.scale(dpr, dpr)
   }
 
   private createSnake(): Snake {
@@ -288,10 +336,20 @@ export class SnekComponent {
     return this.grid * Math.floor(GRID_H / 2)
   }
 
-  private spawnBitcoin() {
-    this.bitcoin = {
+  private spawnFood() {
+    this.food = {
       x: this.randomInt(0, GRID_W) * this.grid,
       y: this.randomInt(0, GRID_H) * this.grid,
+    }
+
+    const img = this.images[this.randomInt(0, this.images.length)]!
+    this.currentImage = img.complete && img.naturalWidth ? img : null
+
+    if (!this.currentImage) {
+      img.onload = () => {
+        this.currentImage = img
+        this.drawFrame()
+      }
     }
   }
 
@@ -299,7 +357,7 @@ export class SnekComponent {
     this.score = 0
     this.snake = this.createSnake()
     this.moveQueue = []
-    this.spawnBitcoin()
+    this.spawnFood()
     this.lastTime = 0
     this.state.set('playing')
   }
@@ -351,15 +409,12 @@ export class SnekComponent {
       this.snake.cells.pop()
     }
 
-    const canvas = this.canvasRef()?.nativeElement
-    if (!canvas) return
-
     // Wall collision
     if (
       newHead.x < 0 ||
       newHead.y < 0 ||
-      newHead.x >= canvas.width ||
-      newHead.y >= canvas.height
+      newHead.x >= this.canvasW ||
+      newHead.y >= this.canvasH
     ) {
       this.onDeath()
       return
@@ -374,12 +429,12 @@ export class SnekComponent {
       }
     }
 
-    // Eat bitcoin
-    if (newHead.x === this.bitcoin.x && newHead.y === this.bitcoin.y) {
+    // Eat food
+    if (newHead.x === this.food.x && newHead.y === this.food.y) {
       this.score++
       this.highScore = Math.max(this.score, this.highScore)
       this.snake.maxCells++
-      this.spawnBitcoin()
+      this.spawnFood()
     }
   }
 
@@ -393,20 +448,19 @@ export class SnekComponent {
   }
 
   private drawFrame() {
-    const canvas = this.canvasRef()?.nativeElement
-    if (!canvas || !this.ctx) return
+    if (!this.ctx) return
 
-    this.ctx.clearRect(0, 0, canvas.width, canvas.height)
-    this.drawBitcoin()
+    this.ctx.clearRect(0, 0, this.canvasW, this.canvasH)
+    this.drawFood()
     this.drawSnake()
   }
 
-  private drawBitcoin() {
-    if (!this.imageLoaded) return
+  private drawFood() {
+    if (!this.currentImage) return
     this.ctx.drawImage(
-      this.image,
-      this.bitcoin.x,
-      this.bitcoin.y,
+      this.currentImage,
+      this.food.x,
+      this.food.y,
       this.grid,
       this.grid,
     )
@@ -417,8 +471,7 @@ export class SnekComponent {
     if (cells.length === 0) {
       // Draw initial position in bottom-left corner (out of overlay text)
       const x = STARTING_LENGTH * this.grid
-      const canvas = this.canvasRef()?.nativeElement
-      const y = canvas ? canvas.height - this.grid * 2 : this.getStartY()
+      const y = this.canvasH ? this.canvasH - this.grid * 2 : this.getStartY()
       for (let i = 0; i < STARTING_LENGTH; i++) {
         const t = STARTING_LENGTH > 1 ? i / (STARTING_LENGTH - 1) : 0
         this.ctx.fillStyle = lerpColor(HEAD_COLOR, TAIL_COLOR, t)

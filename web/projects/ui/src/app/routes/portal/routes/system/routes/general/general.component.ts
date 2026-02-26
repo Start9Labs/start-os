@@ -49,7 +49,7 @@ import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { ABOUT } from 'src/app/routes/portal/components/header/about.component'
-import { SnekDirective } from './snek.directive'
+import { SnakeDirective } from './snake.directive'
 import { UPDATE } from './update.component'
 import { KeyboardSelectComponent } from './keyboard-select.component'
 import { ServerNameDialog } from './server-name.dialog'
@@ -203,10 +203,10 @@ import { ServerNameDialog } from './server-name.dialog'
         </div>
       }
       <img
-        [snek]="score() || 0"
-        class="snek"
+        [snake]="score() || 0"
+        class="snake"
         alt="Play Snake"
-        src="assets/img/icons/snek.png"
+        src="assets/img/icons/snake.png"
       />
     }
   `,
@@ -215,7 +215,7 @@ import { ServerNameDialog } from './server-name.dialog'
       max-inline-size: 40rem;
     }
 
-    .snek {
+    .snake {
       width: 1rem;
       opacity: 0.2;
       cursor: pointer;
@@ -270,7 +270,7 @@ import { ServerNameDialog } from './server-name.dialog'
     TuiDataListWrapper,
     TuiTextfield,
     FormsModule,
-    SnekDirective,
+    SnakeDirective,
     TuiBadge,
     TuiBadgeNotification,
     TuiAnimated,
