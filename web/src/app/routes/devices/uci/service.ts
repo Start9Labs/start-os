@@ -57,6 +57,12 @@ export class DevicesUciService {
     // Get DHCP leases (all known devices)
     const dhcpLeases = await this.getDhcpLeases()
 
+    // Get profiles to map VLAN tags to profile names
+    const profiles = await this.api.profilesList()
+    const profileMap = new Map<number, string>(
+      profiles.map(p => [p.vlan_tag, p.fullname]),
+    )
+
     // Get known hosts from DHCP config (custom names, static IPs)
     const dhcpHosts = this._uciFiles.dhcp.sections.filter(
       (s): s is DhcpHostSection => s.type === 'host',
@@ -71,6 +77,7 @@ export class DevicesUciService {
       dhcpLeases,
       dhcpHosts,
       blockedMacs,
+      profileMap,
     )
 
     return devices
@@ -350,6 +357,10 @@ export class DevicesUciService {
         /^(\S+)\s+dev\s+(\S+)\s+lladdr\s+([0-9a-fA-F:]+)\s+(\S+)/,
       )
       if (match) {
+        // Skip non-LAN interfaces (e.g. eth1 WAN, which picks up
+        // upstream router neighbors via IPv6 NDP)
+        if (!match[2].startsWith('br-lan')) continue
+
         entries.push({
           ip: match[1],
           interface: match[2],
@@ -412,6 +423,7 @@ export class DevicesUciService {
     dhcpLeases: DhcpLease[],
     dhcpHosts: DhcpHostSection[],
     blockedMacs: Set<string>,
+    profileMap: Map<number, string>,
   ): Device[] {
     const deviceMap = new Map<string, Device>()
 
@@ -480,9 +492,17 @@ export class DevicesUciService {
         ipv6 = `::${host.options.hostid}`
       }
 
+      // Determine security profile from VLAN tag on the ARP interface
+      const vlanTag = arpList[0]?.interface?.includes('.')
+        ? Number(arpList[0].interface.split('.')[1])
+        : 1 // plain "br-lan" = default VLAN 1
+      const securityProfile = profileMap.get(vlanTag) ?? 'Unknown'
+
       // Determine name (prefer host config, then lease hostname, then generate from MAC)
       const name =
-        host?.options.name || lease?.hostname || this.generateNameFromMac(mac)
+        host?.options.name ||
+        (lease?.hostname && lease.hostname !== '*' ? lease.hostname : null) ||
+        this.generateNameFromMac(mac)
 
       // Determine connection type from interface or mock
       const connection =
@@ -505,8 +525,7 @@ export class DevicesUciService {
         ipv6,
         ipv4Static: !!host?.options.ip,
         ipv6Static: !!host?.options.hostid,
-        // Placeholder values - will be populated later
-        securityProfile: 'Default',
+        securityProfile,
         speed,
         dataUsage,
       }
