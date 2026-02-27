@@ -145,6 +145,9 @@ async fn inner_main() -> Result<(), Error> {
             if let Err(e) = crate::init::restore_wifi_if_needed() {
                 tracing::error!("WiFi auto-restore failed: {e}");
             }
+            if let Err(e) = startwrt_ctrl::profiles::bootstrap_admin_profile("/etc/config") {
+                tracing::error!("Admin profile bootstrap failed: {e}");
+            }
         })
         .await?;
 

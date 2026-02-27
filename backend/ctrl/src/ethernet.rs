@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::process::Command;
 use uciedit::openwrt::{
     DeviceType, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface,
-    NetworkVlanPortTagging,
+    NetworkVlanPort, NetworkVlanPortTagging,
 };
 use uciedit::{dump_all, parse_all, Arena, Configs};
 
@@ -298,22 +298,30 @@ fn set_config(
         cfgs["network"].append(&bridge, None)?;
     }
 
+    let needs_vlan_filtering = lookup.list().iter().any(|p| p.vlan_tag != 1);
+
     for profile in lookup.list() {
         let mut ports = Vec::new();
         for (port_name, port) in &ethernet.ports {
-            let Some(port_profile) = &port.profile else {
+            if Some(port_name) == ethernet.wan_port.as_ref() {
                 continue;
-            };
-            if port_profile != profile {
-                continue;
-            };
-            ports.push(uciedit::openwrt::NetworkVlanPort {
-                port: port_name.clone(),
-                tagging: Some(NetworkVlanPortTagging::PRIMARY),
-            });
+            }
+            let assigned = port.profile.as_ref() == Some(profile);
+            let default_to_admin = needs_vlan_filtering
+                && port.profile.is_none()
+                && profile.vlan_tag == 1;
+            if assigned || default_to_admin {
+                ports.push(NetworkVlanPort {
+                    port: port_name.clone(),
+                    tagging: Some(NetworkVlanPortTagging::PRIMARY),
+                });
+            }
         }
 
         let vlan = profile.vlan_tag;
+        if ports.is_empty() && vlan == 1 {
+            continue;
+        }
         cfgs["network"].append(
             &NetworkBridgeVlan {
                 device: bridge.name.clone(),

@@ -44,6 +44,8 @@ pub enum ErrorKind {
     UnnamedWirelessDevice,
     #[error("multiple vlans with tag {tag}")]
     DuplicateVlanTag { tag: u16 },
+    #[error("cannot delete the LAN owner profile")]
+    CannotDeleteLanOwner,
     #[error("no lan bridge device found")]
     MissingLanBridge,
     #[error("no wan interface found")]

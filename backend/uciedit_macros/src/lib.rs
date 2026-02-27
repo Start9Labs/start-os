@@ -196,6 +196,9 @@ fn read_body(fields: &[UciField], struc: Ident, ty: String, crat: Path) -> Token
     let list_arm = fields.iter().map(UciField::read_list_arm);
     let init = fields.iter().map(UciField::read_init);
     quote! {
+        while matches!(lines.get(index), Some(#crat::Line::Comment { .. } | #crat::Line::Empty)) {
+            index += 1;
+        }
         let Some(#crat::Line::Section { ty, .. }) = lines.get(index) else {
             return Err(#crat::Error::ExpectedSection { src: index.into() })
         };

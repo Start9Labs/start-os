@@ -639,3 +639,24 @@ config item three
         normalize(expected_after_removal_then_reset.to_string())
     );
 }
+
+#[test]
+fn test_appended_section_readable_without_roundtrip() {
+    let arena = Arena::new();
+    let mut config = Config::parse_str(&arena, "").unwrap();
+
+    let section = Bar {
+        always: 42,
+        yes: Some(7),
+        no: None,
+        many: vec![1, 2],
+        num_default: 0,
+        opt_str_default_val: Some("hello".into()),
+        vec_str_default_val: vec!["x".into()],
+    };
+    config.append(&section, Some("test")).unwrap();
+
+    // Read directly from the appended section — no dump+parse round-trip.
+    let read_back: Bar = config.sections[0].get().unwrap();
+    assert_eq!(read_back, section);
+}

@@ -71,7 +71,7 @@ impl<'a> Config<'a> {
         let text = match fs::read_to_string(path) {
             Ok(text) => text,
             Err(err) if err.kind() == io::ErrorKind::NotFound => {
-                modified = Some(DateTime::<Utc>::MIN_UTC);
+                modified = None;
                 String::new()
             }
             Err(cause) => {

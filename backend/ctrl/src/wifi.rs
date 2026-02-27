@@ -8,11 +8,24 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
 use std::process::Command;
 use uciedit::openwrt::{
-    WifiChannel, WifiDevice, WifiDynamicVlan, WifiInterface, WifiMode, WifiStation, WifiVlan,
+    NetworkBridgeVlan, WifiChannel, WifiDevice, WifiDynamicVlan, WifiInterface, WifiMode,
+    WifiStation, WifiVlan,
 };
 use uciedit::{dump_all, parse_all, Arena, Configs};
 
 pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
+
+/// Returns the UCI section names of all wifi-iface sections in AP mode.
+pub fn find_ap_interface_names(cfgs: &Configs) -> Result<Vec<String>, Error> {
+    let mut names = Vec::new();
+    cfgs["wireless"].try_each(|name, iface: WifiInterface| {
+        if iface.mode == WifiMode::AP {
+            names.push(name.ok_or(ErrorKind::UnnamedWirelessInterface)?.to_string());
+        }
+        Ok::<_, Error>(())
+    })?;
+    Ok(names)
+}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Password<Id: Ord> {
@@ -179,11 +192,13 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
         );
         if iface.dynamic_vlan != WifiDynamicVlan::REQUIRED {
             if let Some(key) = &iface.key {
-                passwords.insert(Password {
-                    label: String::new(),
-                    profile: None,
-                    password: key.clone(),
-                });
+                if !passwords.iter().any(|p| p.profile.is_none()) {
+                    passwords.insert(Password {
+                        label: "Default".to_string(),
+                        profile: None,
+                        password: key.clone(),
+                    });
+                }
             }
         }
     }
@@ -194,14 +209,14 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
     })
 }
 
+/// Returns `true` if wifi-vlan sections were created (needs full restart).
 fn set_config(
     _ctx: &impl CtrlContext,
     cfgs: &mut Configs,
     wifi: &Wifi,
     _lookup: &profiles::Lookup,
-) -> Result<(), Error> {
-    let mut remaining_admin_passwords = wifi.passwords.iter().filter(|p| p.profile.is_none());
-    let first_admin_password = remaining_admin_passwords.next();
+) -> Result<bool, Error> {
+    let first_admin_password = wifi.passwords.iter().find(|p| p.profile.is_none());
 
     let relevant_interfaces = find_relevant_with_radios(cfgs, &wifi.radios)?;
     for s in &mut cfgs["wireless"].sections {
@@ -250,18 +265,11 @@ fn set_config(
             }
             return false;
         }
-        if let Ok(vlan) = s.get::<WifiVlan>() {
-            if let Some(iface) = &vlan.iface {
-                if !relevant_interfaces.iter().any(|(n, _, _, _)| n == iface) {
-                    return true;
-                }
-            }
-            return false;
-        }
+        // wifi-vlan sections are managed by profiles — don't remove them here
         true
     });
 
-    for psswd in remaining_admin_passwords {
+    for psswd in wifi.passwords.iter().filter(|p| p.profile.is_none()) {
         for (niface, _, _, _) in &relevant_interfaces {
             cfgs["wireless"].append(
                 &WifiStation {
@@ -276,19 +284,10 @@ fn set_config(
     }
     for psswd in &wifi.passwords {
         let Some(profile) = &psswd.profile else {
-            // admin passwords are handeled above
+            // admin passwords are handled above
             continue;
         };
         for (niface, _, _, _) in &relevant_interfaces {
-            cfgs["wireless"].append(
-                &WifiVlan {
-                    name: profile.interface.clone(),
-                    network: profile.interface.clone(),
-                    vid: profile.vlan_tag,
-                    iface: Some(niface.clone()),
-                },
-                None,
-            )?;
             cfgs["wireless"].append(
                 &WifiStation {
                     key: psswd.password.clone(),
@@ -301,7 +300,44 @@ fn set_config(
         }
     }
 
-    Ok(())
+    // Fallback: create missing wifi-vlans (e.g., profile created before this code existed)
+    let mut existing_wifi_vlans: BTreeSet<(u16, String)> = cfgs["wireless"]
+        .sections
+        .iter()
+        .filter_map(|s| {
+            let vlan = s.get::<WifiVlan>().ok()?;
+            Some((vlan.vid, vlan.iface?.clone()))
+        })
+        .collect();
+
+    let bridge_vlan_tags: BTreeSet<u16> = cfgs["network"]
+        .sections
+        .iter()
+        .filter_map(|s| s.get::<NetworkBridgeVlan>().ok().map(|v| v.vlan))
+        .collect();
+
+    let mut vlans_created = false;
+    for psswd in &wifi.passwords {
+        let Some(profile) = &psswd.profile else { continue; };
+        if !bridge_vlan_tags.contains(&profile.vlan_tag) { continue; }
+        for (niface, _, _, _) in &relevant_interfaces {
+            let key = (profile.vlan_tag, niface.clone());
+            if existing_wifi_vlans.insert(key) {
+                cfgs["wireless"].append(
+                    &WifiVlan {
+                        name: profile.interface.clone(),
+                        network: profile.interface.clone(),
+                        vid: profile.vlan_tag,
+                        iface: Some(niface.clone()),
+                    },
+                    None,
+                )?;
+                vlans_created = true;
+            }
+        }
+    }
+
+    Ok(vlans_created)
 }
 
 pub fn set<C: CtrlContext>(
@@ -345,8 +381,7 @@ pub fn set<C: CtrlContext>(
                 return Err(ErrorKind::DuplicatePasswordLabel.into());
             }
         }
-        let res = set_config(&ctx, &mut cfgs, &wifi, &lookup);
-        match res {
+        let vlans_created = match set_config(&ctx, &mut cfgs, &wifi, &lookup) {
             Err(Error {
                 kind: ErrorKind::CorruptedWifi,
                 ..
@@ -361,8 +396,8 @@ pub fn set<C: CtrlContext>(
                 continue;
             }
             Err(err) => return Err(err),
-            Ok(()) => (),
-        }
+            Ok(v) => v,
+        };
         match dump_all(ctx.uci_root(), cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
@@ -371,11 +406,20 @@ pub fn set<C: CtrlContext>(
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 if ctx.effectful() {
-                    let _ = Command::new("wifi")
-                        .arg("reload")
-                        .spawn()
-                        .context("executing `wifi reload`")?
-                        .wait();
+                    if vlans_created {
+                        // New VLAN topology — need full restart for hostapd to read vlan_file
+                        let _ = Command::new("wifi")
+                            .spawn()
+                            .context("executing `wifi`")?
+                            .wait();
+                    } else {
+                        // PSK-only change — fast path, no client disconnection
+                        let _ = Command::new("wifi")
+                            .arg("reload")
+                            .spawn()
+                            .context("executing `wifi reload`")?
+                            .wait();
+                    }
                 }
                 return Ok(());
             }

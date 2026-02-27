@@ -176,6 +176,9 @@ pub fn run_init() -> Result<(), Error> {
     println!("Configuring WiFi...");
     configure_wifi("/etc/config", &pmk_hex, None)?;
 
+    // 6b. Bootstrap Admin profile
+    crate::profiles::bootstrap_admin_profile("/etc/config")?;
+
     // 7. Reload WiFi
     let _ = Command::new("wifi").arg("reload").status();
 
