@@ -36,6 +36,7 @@ const INACTIVE: PrimaryStatus[] = [
   'removing',
   'restoring',
   'backing-up',
+  'error',
 ]
 
 const ALLOWED_STATUSES: Record<T.AllowedStatuses, Set<string>> = {
