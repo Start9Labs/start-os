@@ -1,0 +1,26 @@
+<h2>Published Ports</h2>
+<p>
+  Make selected ports on a device reachable from the internet. Traffic from the
+  internet on the specified port will be forwarded to the selected device.
+</p>
+<h3>Label</h3>
+A descriptive name to help you identify this rule, such as "Home Assistant" or
+"Minecraft Server".
+<h3>Device</h3>
+The device to forward traffic to. The selected device will be assigned a stable
+IPv4 address to ensure the rule always reaches the intended device.
+<h3>Port</h3>
+The port or port range on the device to expose. For example, "443" for a single
+port or "27015-27030" for a range.
+<h3>Protocol</h3>
+Choose TCP for most services (web, SSH, etc.), UDP for gaming or VoIP, or both
+if the service requires it.
+<h3>Source</h3>
+Limit who can connect by specifying an IP address or CIDR range. Use "Any" to
+allow connections from anywhere on the internet.
+<h3>IP Version</h3>
+Choose which IP versions to publish on. IPv4 uses NAT to forward traffic, while
+IPv6 opens the firewall directly to the device.
+<h3>External Port</h3>
+The port number visible to the outside world. Use "Same as device" to keep it
+identical, or specify a different port for external access.

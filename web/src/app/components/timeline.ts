@@ -146,7 +146,7 @@ export class TuiTimelineItem {
   selector: 'tui-timeline',
   template: `
     @for (_ of '-'.repeat(value().length + 1); track value()[$index]) {
-      @let gap = gaps()[$index] ?? [0, 0];
+      @let gap = gaps()[$index];
       @if (gap[0] < gap[1]) {
         <span
           [style.position]="'absolute'"
