@@ -36,25 +36,25 @@ import {
   UciFile,
   UciSection,
 } from './types'
-import { wanIpv4Dhcp } from 'src/app/routes/home/routes/wan/routes/ipv4/uci/mocks'
-import { wanIpv6Slaac } from 'src/app/routes/home/routes/wan/routes/ipv6/uci/mock'
-import { ddnsDyndns } from 'src/app/routes/home/routes/wan/routes/ddns/uci/mocks'
-import { macRouterDevice } from 'src/app/routes/home/routes/wan/routes/mac/uci/mocks'
-import { lanDefault } from 'src/app/routes/home/routes/lan/routes/ipv4/uci/mocks'
-import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/home/routes/lan/routes/ipv6/uci/mocks'
-import { mockWireGuardSections } from 'src/app/routes/home/routes/outbound/uci/mocks'
+import { wanIpv4Dhcp } from 'src/app/routes/wan/routes/ipv4/uci/mocks'
+import { wanIpv6Slaac } from 'src/app/routes/wan/routes/ipv6/uci/mock'
+import { ddnsDyndns } from 'src/app/routes/wan/routes/ddns/uci/mocks'
+import { macRouterDevice } from 'src/app/routes/wan/routes/mac/uci/mocks'
+import { lanDefault } from 'src/app/routes/lan/routes/ipv4/uci/mocks'
+import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/lan/routes/ipv6/uci/mocks'
+import { mockWireGuardSections } from 'src/app/routes/outbound/uci/mocks'
 import {
   generateMockDataUsage,
   getMockArpOutput,
   mockBlockedDevices,
   mockDhcpHosts,
   mockDhcpLeasesOutput,
-} from 'src/app/routes/home/routes/devices/uci/mocks'
-import { mockPublishedPorts } from 'src/app/routes/home/routes/published-ports/uci/mocks'
+} from 'src/app/routes/devices/uci/mocks'
+import { mockPublishedPorts } from 'src/app/routes/published-ports/uci/mocks'
 import {
   mockBrLan,
   mockWanDevice,
-} from 'src/app/routes/home/routes/ethernet/uci/mocks'
+} from 'src/app/routes/ethernet/uci/mocks'
 
 @Injectable({
   providedIn: 'root',

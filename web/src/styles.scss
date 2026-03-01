@@ -221,7 +221,7 @@ li {
   }
 }
 
-tui-dropdown[data-appearance='start-9'] {
+[tuiTheme='dark'] tui-dropdown[data-appearance='start-9'] {
   background: none;
   backdrop-filter: blur(1rem);
 }
@@ -270,5 +270,61 @@ tui-data-list {
   input {
     // Checkmark
     --tui-text-action: var(--tui-text-primary);
+  }
+}
+
+.g-help {
+  padding: 0 1rem 1rem;
+}
+
+.g-help h2 {
+  display: none;
+}
+
+.g-accordion,
+.g-help details {
+  display: grid;
+  grid-template-rows: var(--tui-height-m) 0fr;
+  transition: grid-template-rows 0.3s ease-in-out;
+
+  summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    font: var(--tui-font-body-m);
+    font-weight: bold;
+    list-style: none;
+
+    &::after {
+      content: '';
+      background: currentColor;
+      mask: url('/assets/taiga-ui/icons/chevron-down.svg') no-repeat center /
+        calc(min(1em, 100%) + 10 * var(--tui-stroke-width)) min(1em, 100%);
+      transition: transform 0.3s ease-in-out;
+      font-size: 1rem;
+      block-size: 1em;
+      inline-size: 1em;
+    }
+  }
+
+  &::details-content {
+    transition: all 0.3s ease-in-out;
+    transition-behavior: allow-discrete;
+    opacity: 0;
+    overflow: hidden;
+  }
+
+  &[open] {
+    grid-template-rows: var(--tui-height-m) 1fr;
+
+    summary::after {
+      transform: rotate(180deg);
+    }
+
+    &::details-content {
+      padding: 0.5rem 0;
+      opacity: 1;
+    }
   }
 }

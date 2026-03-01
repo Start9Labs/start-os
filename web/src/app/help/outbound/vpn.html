@@ -1,0 +1,29 @@
+<h2>Outbound VPNs</h2>
+<details>
+  <summary>Label</summary>
+  A friendly name to identify this VPN connection. Use something descriptive
+  like "Mullvad Sweden" or "Work VPN".
+</details>
+<details>
+  <summary>Connects to</summary>
+  Where traffic from this VPN should be routed:
+  <ul>
+    <li>
+      <b>Internet:</b>
+      Traffic exits directly to the internet through this VPN.
+    </li>
+    <li>
+      <b>Another VPN:</b>
+      Chain through another VPN first for extra privacy. Your traffic will be
+      encrypted multiple times and exit through multiple servers.
+    </li>
+  </ul>
+  <b>Note:</b>
+  Chaining VPNs increases latency and may reduce speeds.
+</details>
+<details>
+  <summary>Connection Path</summary>
+  Shows the full route your traffic takes from this VPN to the internet. For
+  example: Mullvad → Proton → Internet means traffic is encrypted by Mullvad,
+  sent through Proton, then exits to the internet.
+</details>
