@@ -41,10 +41,13 @@ import { SidebarService } from 'src/app/services/sidebar.service'
 export class Aside {
   protected readonly sidebars = inject(SidebarService)
   protected readonly data = inject(HELP)
+  private readonly router = inject(Router)
   protected readonly help = toSignal(
-    inject(Router).events.pipe(
+    this.router.events.pipe(
       filter(e => e instanceof NavigationEnd),
-      map(({ url }) => this.data[url.split('?')[0]]),
+      map(
+        ({ urlAfterRedirects }) => this.data[urlAfterRedirects.split('?')[0]],
+      ),
     ),
   )
 }
