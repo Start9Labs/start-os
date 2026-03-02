@@ -7,6 +7,16 @@ import { App } from './app'
 export const routes: Routes = [
   {
     path: '',
+    loadComponent: () => import('./routes/setup-wizard'),
+    canMatch: [() => inject(AuthService).setupMode()],
+  },
+  {
+    path: '',
+    loadComponent: () => import('./routes/setup'),
+    canMatch: [() => !inject(AuthService).initialized()],
+  },
+  {
+    path: '',
     canMatch: [() => inject(AuthService).authenticated()],
     children: [
       {

@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use axum::extract::Request;
+use axum::extract::{ConnectInfo, Request};
 use axum::response::Response;
 use basic_cookies::Cookie;
 use http::header::{COOKIE, USER_AGENT};
@@ -10,6 +10,7 @@ use http::HeaderValue;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{Context, Middleware, RpcRequest, RpcResponse};
 use serde::Deserialize;
+use std::net::SocketAddr;
 
 use crate::auth::{error_code, validate_session, HashSessionToken, LoginRes};
 use crate::error::Error;
@@ -33,12 +34,17 @@ pub struct Metadata {
     login: bool,
     #[serde(default)]
     get_session: bool,
+    /// Bypass session validation without triggering the login rate limiter.
+    /// Use for read-only status endpoints that need to be accessible without auth.
+    #[serde(default)]
+    no_auth: bool,
 }
 
 #[derive(Clone)]
 pub struct SessionAuth {
     rate_limiter: Arc<SyncMutex<(usize, Instant)>>,
     is_login: bool,
+    is_loopback: bool,
     cookie: Option<HeaderValue>,
     set_cookie: Option<HeaderValue>,
     user_agent: Option<HeaderValue>,
@@ -49,6 +55,7 @@ impl SessionAuth {
         Self {
             rate_limiter: Arc::new(SyncMutex::new((0, Instant::now()))),
             is_login: false,
+            is_loopback: false,
             cookie: None,
             set_cookie: None,
             user_agent: None,
@@ -76,6 +83,10 @@ impl<C: Context> Middleware<C> for SessionAuth {
     ) -> Result<(), Response> {
         self.cookie = request.headers().get(COOKIE).cloned();
         self.user_agent = request.headers().get(USER_AGENT).cloned();
+        self.is_loopback = request
+            .extensions()
+            .get::<ConnectInfo<SocketAddr>>()
+            .map_or(false, |ci| ci.0.ip().is_loopback());
         Ok(())
     }
 
@@ -86,7 +97,11 @@ impl<C: Context> Middleware<C> for SessionAuth {
         request: &mut RpcRequest,
     ) -> Result<(), RpcResponse> {
         let result: Result<(), Error> = async {
-            if metadata.login {
+            if metadata.no_auth || self.is_loopback {
+                // Bypass auth for read-only status endpoints and loopback
+                // requests (CLI via SSH is already authenticated)
+                return Ok(());
+            } else if metadata.login {
                 self.is_login = true;
                 // Rate limit login attempts: 3 per 20 seconds
                 self.rate_limiter.mutate(|(count, time)| {
@@ -140,7 +155,7 @@ impl<C: Context> Middleware<C> for SessionAuth {
             if let Ok(ref res) = response.result {
                 if let Ok(login_res) = imbl_value::from_value::<LoginRes>(res.clone()) {
                     if let Ok(header_value) = HeaderValue::from_str(&format!(
-                        "session={}; Path=/; SameSite=Strict; Expires=Fri, 31 Dec 9999 23:59:59 GMT;",
+                        "session={}; Path=/; SameSite=Strict; HttpOnly; Max-Age=86400",
                         login_res.session
                     )) {
                         self.set_cookie = Some(header_value);

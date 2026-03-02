@@ -6,6 +6,7 @@ use tokio::io::AsyncWriteExt;
 
 use chrono::{DateTime, TimeDelta, Utc};
 use clap::Parser;
+use imbl_value::imbl::OrdMap;
 use imbl_value::{json, Value};
 use itertools::Itertools;
 use rpc_toolkit::yajrc::RpcError;
@@ -16,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::instrument;
 
+use crate::captive;
 use crate::error::Error;
 use crate::{CliContext, ServerContext};
 
@@ -144,9 +146,9 @@ pub async fn check_password(password: &str) -> Result<(), Error> {
         }
         Some(hash) => {
             if pwhash::unix::verify(password, &hash) {
-                Err(Error::other("Incorrect password"))
-            } else {
                 Ok(())
+            } else {
+                Err(Error::other("Incorrect password"))
             }
         }
     }
@@ -433,6 +435,7 @@ async fn cli_login(
 
     ctx.call_remote(
         &parent_method.into_iter().chain(method).join("."),
+        OrdMap::new(),
         json!({
             "password": password,
         }),
@@ -456,7 +459,7 @@ async fn cli_reset_password(
     let old_password = rpassword::prompt_password("Current Password: ")?;
 
     // Verify old password before prompting for new one
-    ctx.call_remote("auth.verify-password", json!({ "password": old_password }), Empty {})
+    ctx.call_remote("auth.verify-password", OrdMap::new(), json!({ "password": old_password }), Empty {})
         .await?;
 
     // Old password verified, now prompt for new password
@@ -469,6 +472,7 @@ async fn cli_reset_password(
 
     ctx.call_remote(
         &parent_method.into_iter().chain(method).join("."),
+        OrdMap::new(),
         json!({
             "oldPassword": old_password,
             "newPassword": new_password,
@@ -479,6 +483,69 @@ async fn cli_reset_password(
 
     println!("Password changed successfully.");
     Ok(())
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckInitializedRes {
+    pub initialized: bool,
+}
+
+#[instrument(skip_all)]
+pub async fn check_initialized_impl(
+    _ctx: ServerContext,
+) -> Result<CheckInitializedRes, Error> {
+    let has_password = get_shadow_hash("root").await?.is_some();
+    Ok(CheckInitializedRes {
+        initialized: has_password,
+    })
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct SetInitialPasswordParams {
+    pub password: String,
+}
+
+#[instrument(skip_all)]
+pub async fn set_initial_password_impl(
+    _ctx: ServerContext,
+    SetInitialPasswordParams { password }: SetInitialPasswordParams,
+) -> Result<LoginRes, Error> {
+    // Reject if password already set
+    if get_shadow_hash("root").await?.is_some() {
+        return Err(Error::other("admin password is already set"));
+    }
+
+    // Validate minimum length
+    if password.len() < 12 {
+        return Err(Error::other("password must be at least 12 characters"));
+    }
+
+    // Hash and write to shadow
+    let new_hash = pwhash::sha512_crypt::hash(&password)
+        .map_err(|e| Error::other(format!("failed to hash password: {e}")))?;
+    update_shadow_hash("root", &new_hash).await?;
+
+    // Disable captive portal now that password is set
+    tokio::task::spawn_blocking(|| captive::disable_captive_portal())
+        .await
+        .map_err(|e| Error::other(format!("captive portal task panicked: {e}")))?
+        .map_err(|e| {
+            tracing::error!("failed to disable captive portal: {e}");
+            e
+        })?;
+
+    // Create login session so user is immediately authenticated
+    let hash_token = HashSessionToken::new();
+    let session = Session {
+        logged_in: Utc::now(),
+        last_active: Utc::now(),
+        user_agent: None,
+    };
+    add_session(hash_token.hashed(), session).await?;
+
+    Ok(hash_token.to_login_res())
 }
 
 pub fn auth<C: Context>() -> ParentHandler<C> {
@@ -511,16 +578,30 @@ pub fn auth<C: Context>() -> ParentHandler<C> {
             "verify-password",
             from_fn_async(verify_password_impl).no_cli(),
         )
-        // RPC/HTTP reset-password endpoint (hidden from CLI)
+        // RPC/HTTP set-password endpoint (hidden from CLI)
         .subcommand(
-            "reset-password",
+            "set-password",
             from_fn_async(reset_password_impl).no_cli(),
         )
-        // CLI reset-password endpoint (prompts for passwords, calls RPC)
+        // CLI set-password endpoint (prompts for passwords, calls RPC)
         .subcommand(
-            "reset-password",
+            "set-password",
             from_fn_async(cli_reset_password)
                 .no_display()
                 .with_about("Reset root password"),
+        )
+        // Check if device has been initialized (password set) — bypasses auth
+        .subcommand(
+            "check-initialized",
+            from_fn_async(check_initialized_impl)
+                .with_metadata("no_auth", Value::Bool(true))
+                .no_cli(),
+        )
+        // Set initial password (first-time setup) — bypasses auth
+        .subcommand(
+            "set-initial-password",
+            from_fn_async(set_initial_password_impl)
+                .with_metadata("login", Value::Bool(true))
+                .no_cli(),
         )
 }

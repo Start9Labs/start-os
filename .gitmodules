@@ -1,0 +1,4 @@
+[submodule "openwrt"]
+	path = openwrt
+	url = git@github.com:Start9Labs/openwrt.git
+	branch = bianbu

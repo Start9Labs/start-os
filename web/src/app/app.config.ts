@@ -1,5 +1,7 @@
 import {
   ApplicationConfig,
+  inject,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
   signal,
@@ -31,6 +33,7 @@ import {
   withInterceptorsFromDi,
 } from '@angular/common/http'
 import { ApiService } from './services/api/api.service'
+import { AuthService } from './services/auth.service'
 import { MockApiService } from './services/api/mock-api.service'
 import { LiveApiService } from './services/api/live-api.service'
 import { RELATIVE_URL } from './services/http.service'
@@ -72,5 +75,6 @@ export const appConfig: ApplicationConfig = {
       useValue: `/${api.url}/${api.version}`,
     },
     provideHttpClient(withInterceptorsFromDi(), withFetch()),
+    provideAppInitializer(() => inject(AuthService).whenReady()),
   ],
 }

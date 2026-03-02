@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core'
+import { Injectable, Injector, inject } from '@angular/core'
 import { HttpService } from './http.service'
 import { AuthService } from './auth.service'
 
@@ -7,7 +7,7 @@ import { AuthService } from './auth.service'
 })
 export class RpcService {
   private readonly http = inject(HttpService)
-  private readonly auth = inject(AuthService)
+  private readonly injector = inject(Injector)
 
   async request<T>(options: RPCOptions): Promise<T> {
     const { method, headers, params } = options
@@ -20,9 +20,12 @@ export class RpcService {
     const body = res.body as RPCResponse<T>
 
     if (isRpcError(body)) {
+      // TODO: Replace this with an HTTP interceptor to break the circular
+      // module import (auth.service → api.service → rpc.service → auth.service)
+      // which causes NG0200 on first load in the captive portal WebView.
       if (body.error.code === 34) {
         console.error('Unauthenticated, logging out')
-        this.auth.authenticated.set(false)
+        this.injector.get(AuthService).authenticated.set(false)
       }
       throw new RpcError(body.error)
     }

@@ -13,14 +13,8 @@ import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { Placeholder } from 'src/app/components/placeholder'
-import {
-  ADD_SERVER,
-  ServerDialogResult,
-} from 'src/app/routes/inbound/dialog'
-import {
-  InboundService,
-  VpnServer,
-} from 'src/app/routes/inbound/service'
+import { ADD_SERVER, ServerDialogResult } from 'src/app/routes/inbound/dialog'
+import { InboundService, VpnServer } from 'src/app/routes/inbound/service'
 
 @Component({
   template: `

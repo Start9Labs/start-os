@@ -35,6 +35,10 @@ export abstract class ApiService {
   abstract profileCreate(params: ProfileCreateInput): Promise<ProfileId>
   abstract profileUpdate(params: ProfileUpdateInput): Promise<ProfileId>
   abstract profileDelete(params: ProfileIdOpt): Promise<null>
+  abstract checkInitialized(): Promise<CheckInitializedRes>
+  abstract setInitialPassword(params: SetInitialPasswordReq): Promise<null>
+  abstract setupStatus(): Promise<SetupStatusRes>
+  abstract systemFactoryReset(): Promise<null>
 }
 
 export type LoginReq = { password: string }
@@ -248,4 +252,29 @@ export interface ProfileUpdateInput {
   access_to_new_profiles: boolean
   owns_lan: boolean
   dns_override?: string[]
+}
+export type CheckInitializedRes = { initialized: boolean }
+
+export type SetInitialPasswordReq = { password: string }
+
+export interface SetupStatusRes {
+  setupMode: boolean
+  disk: {
+    emmcFound: boolean
+    hasFirmware: boolean
+  }
+}
+
+export interface SetupFlashReq {
+  mode: 'update' | 'fresh-start'
+  password: string
+}
+
+export interface SetupFlashEvent {
+  phase: 'copying' | 'status' | 'complete' | 'error'
+  copied?: number
+  total?: number
+  message?: string
+  step?: number
+  totalSteps?: number
 }

@@ -1,13 +1,21 @@
 pub mod auth;
+pub mod captive;
+pub mod emmc;
 pub mod error;
 pub mod ethernet;
 pub mod exec;
 pub mod files;
+pub mod flash;
+pub mod init;
 pub mod middleware;
 pub mod profiles;
+pub mod setup;
+pub mod system;
 pub mod uci;
 pub mod utils;
 pub mod wifi;
+pub mod embedded_web;
+pub mod bins;
 
 use std::fs::{File, OpenOptions};
 use std::io::BufReader;
@@ -23,6 +31,7 @@ use tokio::runtime::Runtime;
 use tracing::subscriber::DefaultGuard;
 
 pub use error::{Error, ErrorKind};
+use imbl_value::imbl::OrdMap;
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
@@ -49,7 +58,7 @@ pub struct CliArgs {
     pub config_root: PathBuf,
     #[clap(long)]
     pub configs_only: bool,
-    #[clap(long, default_value = "http://127.0.0.1:3301")]
+    #[clap(long, default_value = "http://127.0.0.1/rpc/v1")]
     pub host: Url,
 }
 
@@ -188,6 +197,7 @@ impl CallRemote<ServerContext> for CliContext {
     async fn call_remote(
         &self,
         method: &str,
+        _metadata: OrdMap<&'static str, Value>,
         params: Value,
         _extra: Empty,
     ) -> Result<Value, RpcError> {
@@ -225,6 +235,8 @@ pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand("setup", setup::setup::<C>())
+        .subcommand("system", system::system::<C>())
 }
 
 pub fn init_logging(name: &str) -> DefaultGuard {

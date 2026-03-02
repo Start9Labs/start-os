@@ -31,10 +31,10 @@ The BPI-F3 eMMC is partitioned for both firmware and persistent data. SPI NOR ho
 |---------|----------|---------|
 | **SPI NOR** (4MB) | U-Boot | Bootloader — selects eMMC or microSD boot |
 | **eMMC — firmware partitions** | Kernel, SquashFS root, overlay | Main OS — factory reset wipes overlay only |
-| **eMMC — `/persistent` partition** | `wifi_pmk` (64 hex chars, PBKDF2-SHA1) | WPA2-PSK key — survives factory reset and reflash |
+| **eMMC — `/key_backup` partition** | `wifi_pmk` (64 hex chars, PBKDF2-SHA1) | WPA2-PSK key — survives factory reset and reflash |
 | **microSD** (removable) | Bootable reflash image | Recovery / reflash (Part 3) |
 
-The `/persistent` partition is excluded from factory reset wipes. It stores one file — the **WPA-PSK PMK** (no plaintext, no admin credentials).
+The `/key_backup` partition is excluded from factory reset wipes. It stores one file — the **WPA-PSK PMK** (no plaintext, no admin credentials).
 
 ---
 
@@ -50,7 +50,7 @@ U-Boot tries microSD first by default on the BPI-F3 (boot selection switch SW1).
 3. U-Boot boots from microSD
 4. Serial dispatcher → login shell
 5. Factory worker flashes firmware to eMMC partitions (e.g. startwrt-cli flash)
-6. Factory worker runs startwrt-cli init → enters sticker password → PMK written to eMMC /persistent
+6. Factory worker runs startwrt-cli init → enters sticker password → PMK written to eMMC /key_backup
 7. Factory worker removes microSD
 8. Device reboots from eMMC — WiFi works immediately, no admin password set
 ```
@@ -75,7 +75,7 @@ U-Boot tries microSD first by default on the BPI-F3 (boot selection switch SW1).
 #!/bin/sh
 if grep -q "mmcblk1" /proc/cmdline; then
     exec /bin/login                    # microSD boot → login (wizard on web)
-elif ! [ -f /persistent/wifi_pmk ]; then
+elif ! [ -f /key_backup/wifi_pmk ]; then
     exec startwrt-cli init             # no WiFi key → manufacturing init
 else
     exec /bin/login                    # normal → login for debugging
@@ -87,15 +87,15 @@ Inittab: `ttyS0::respawn:/sbin/agetty -L -l /usr/sbin/startwrt-serial ttyS0 1152
 ### Init Tool Flow
 
 ```
- 1. Check /persistent mounted → if not, attempt mount → fail = error + exit
- 2. /persistent/wifi_pmk exists? → "Device already initialized." + exit
+ 1. Check /key_backup mounted → if not, attempt mount → fail = error + exit
+ 2. /key_backup/wifi_pmk exists? → "Device already initialized." + exit
  3. Banner: "StartWRT Device Initialization"
  4. Prompt: "Enter device password: " (no echo)
  5. Validate: exactly 12 chars, unambiguous charset only
  6. Prompt: "Confirm device password: " (no echo)
  7. Mismatch → reprompt
  8. Compute PBKDF2-SHA1(password, "StartWRT", 4096, 32) → 64 hex chars
- 9. Write /persistent/wifi_pmk (atomic)
+ 9. Write /key_backup/wifi_pmk (atomic)
 10. Write PMK → /etc/config/wireless
 11. Enable WiFi: SSID "StartWRT", WPA2-PSK, dynamic_vlan = ALLOWED
 12. "Device initialized successfully." + exit
@@ -164,7 +164,7 @@ The microSD image resolves the WiFi PMK with baked-in taking priority over eMMC:
 ```
 Baked-in PMK in image (e.g. /image/wifi_pmk)?
 ├── Yes → Use baked-in PMK (custom image — user lost sticker)
-└── No  → Read /persistent/wifi_pmk from eMMC
+└── No  → Read /key_backup/wifi_pmk from eMMC
             ├── Found → Use eMMC PMK (standard image — sticker password)
             └── Not found → Cannot start AP — custom image required
 ```

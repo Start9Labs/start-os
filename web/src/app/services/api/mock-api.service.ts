@@ -29,6 +29,9 @@ import {
   SecurityProfile,
   ProfileCreateInput,
   ProfileUpdateInput,
+  CheckInitializedRes,
+  SetInitialPasswordReq,
+  SetupStatusRes,
 } from './api.service'
 import {
   DhcpSection,
@@ -51,10 +54,7 @@ import {
   mockDhcpLeasesOutput,
 } from 'src/app/routes/devices/uci/mocks'
 import { mockPublishedPorts } from 'src/app/routes/published-ports/uci/mocks'
-import {
-  mockBrLan,
-  mockWanDevice,
-} from 'src/app/routes/ethernet/uci/mocks'
+import { mockBrLan, mockWanDevice } from 'src/app/routes/ethernet/uci/mocks'
 
 @Injectable({
   providedIn: 'root',
@@ -662,7 +662,29 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
           (params.vlan_tag === undefined || p.vlan_tag === params.vlan_tag)
         ),
     )
+    return null
+  }
 
+  private mockInitialized = true
+
+  async checkInitialized(): Promise<CheckInitializedRes> {
+    await pauseFor(250)
+    return { initialized: this.mockInitialized }
+  }
+
+  async setInitialPassword(params: SetInitialPasswordReq): Promise<null> {
+    await pauseFor(250)
+    this.mockInitialized = true
+    return null
+  }
+
+  async setupStatus(): Promise<SetupStatusRes> {
+    await pauseFor(250)
+    return { setupMode: false, disk: { emmcFound: true, hasFirmware: true } }
+  }
+
+  async systemFactoryReset(): Promise<null> {
+    await pauseFor(2000)
     return null
   }
 

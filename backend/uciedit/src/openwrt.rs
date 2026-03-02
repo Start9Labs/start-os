@@ -201,6 +201,7 @@ pub struct WifiInterface {
     pub key: Option<String>,
     #[uci(default)]
     pub dynamic_vlan: WifiDynamicVlan,
+    pub maxassoc: Option<u32>,
 }
 
 #[derive(Debug, TypedSection)]
