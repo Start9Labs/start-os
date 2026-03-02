@@ -5,6 +5,3 @@
 + firmware-libertas
 + firmware-misc-nonfree
 + firmware-realtek
-+ nvidia-container-toolkit
-# + nvidia-driver
-# + nvidia-kernel-dkms

@@ -34,11 +34,11 @@ fi
 IMAGE_BASENAME=startos-${VERSION_FULL}_${IB_TARGET_PLATFORM}
 
 BOOTLOADERS=grub-efi
-if [ "$IB_TARGET_PLATFORM" = "x86_64" ] || [ "$IB_TARGET_PLATFORM" = "x86_64-nonfree" ]; then
+if [ "$IB_TARGET_PLATFORM" = "x86_64" ] || [ "$IB_TARGET_PLATFORM" = "x86_64-nonfree" ] || [ "$IB_TARGET_PLATFORM" = "x86_64-nvidia" ]; then
 	IB_TARGET_ARCH=amd64
 	QEMU_ARCH=x86_64
 	BOOTLOADERS=grub-efi,syslinux
-elif [ "$IB_TARGET_PLATFORM" = "aarch64" ] || [ "$IB_TARGET_PLATFORM" = "aarch64-nonfree" ] || [ "$IB_TARGET_PLATFORM" = "raspberrypi" ]  || [ "$IB_TARGET_PLATFORM" = "rockchip64" ]; then
+elif [ "$IB_TARGET_PLATFORM" = "aarch64" ] || [ "$IB_TARGET_PLATFORM" = "aarch64-nonfree" ] || [ "$IB_TARGET_PLATFORM" = "aarch64-nvidia" ] || [ "$IB_TARGET_PLATFORM" = "raspberrypi" ]  || [ "$IB_TARGET_PLATFORM" = "rockchip64" ]; then
 	IB_TARGET_ARCH=arm64
 	QEMU_ARCH=aarch64
 elif [ "$IB_TARGET_PLATFORM" = "riscv64" ] || [ "$IB_TARGET_PLATFORM" = "riscv64-nonfree" ]; then
@@ -60,8 +60,12 @@ mkdir -p $prep_results_dir
 cd $prep_results_dir
 
 NON_FREE=
-if [[ "${IB_TARGET_PLATFORM}" =~ -nonfree$ ]] || [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+if [[ "${IB_TARGET_PLATFORM}" =~ -nonfree$ ]] || [[ "${IB_TARGET_PLATFORM}" =~ -nvidia$ ]] || [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	NON_FREE=1
+fi
+NVIDIA=
+if [[ "${IB_TARGET_PLATFORM}" =~ -nvidia$ ]]; then
+	NVIDIA=1
 fi
 IMAGE_TYPE=iso
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ] || [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
@@ -177,7 +181,7 @@ if [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	echo "deb https://apt.armbian.com/ ${IB_SUITE} main" > config/archives/armbian.list
 fi
 
-if [ "$NON_FREE" = 1 ]; then
+if [ "$NVIDIA" = 1 ]; then
 	curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o config/archives/nvidia-container-toolkit.key
 	curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
 		| sed 's#deb https://#deb [signed-by=/etc/apt/trusted.gpg.d/nvidia-container-toolkit.key.gpg] https://#g' \
@@ -205,11 +209,11 @@ cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
 
 set -e
 
-if [ "${NON_FREE}" = "1" ] && [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ] && [ "${IB_TARGET_PLATFORM}" != "riscv64-nonfree" ]; then
+if [ "${NVIDIA}" = "1" ]; then
     # install a specific NVIDIA driver version
 
     # ---------------- configuration ----------------
-    NVIDIA_DRIVER_VERSION="\${NVIDIA_DRIVER_VERSION:-580.119.02}"
+    NVIDIA_DRIVER_VERSION="\${NVIDIA_DRIVER_VERSION:-580.126.09}"
 
     BASE_URL="https://download.nvidia.com/XFree86/Linux-${QEMU_ARCH}"
 
@@ -259,12 +263,15 @@ if [ "${NON_FREE}" = "1" ] && [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ] && [ 
 
     echo "[nvidia-hook] Running NVIDIA installer for kernel \${KVER}" >&2
 
-    sh "\${RUN_PATH}" \
+    if ! sh "\${RUN_PATH}" \
         --silent \
         --kernel-name="\${KVER}" \
         --no-x-check \
         --no-nouveau-check \
-        --no-runlevel-check
+        --no-runlevel-check; then
+		cat /var/log/nvidia-installer.log
+		exit 1
+	fi
 
     # Rebuild module metadata
     echo "[nvidia-hook] Running depmod for \${KVER}" >&2

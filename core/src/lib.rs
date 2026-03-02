@@ -25,6 +25,9 @@ pub fn platform_to_arch(platform: &str) -> &str {
     if let Some(arch) = platform.strip_suffix("-nonfree") {
         return arch;
     }
+    if let Some(arch) = platform.strip_suffix("-nvidia") {
+        return arch;
+    }
     match platform {
         "raspberrypi" | "rockchip64" => "aarch64",
         _ => platform,

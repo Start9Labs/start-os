@@ -5,4 +5,7 @@ module.exports = {
   testEnvironment: "node",
   rootDir: "./src/",
   modulePathIgnorePatterns: ["./dist/"],
+  moduleNameMapper: {
+    "^mime$": "<rootDir>/../__mocks__/mime.js",
+  },
 }

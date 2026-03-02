@@ -7,9 +7,9 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 PROJECT=${PROJECT:-"startos"}
 BASENAME=${BASENAME:-"$(./build/env/basename.sh)"}
 VERSION=${VERSION:-$(cat ./build/env/VERSION.txt)}
-if [ "$PLATFORM" = "x86_64" ] || [ "$PLATFORM" = "x86_64-nonfree" ]; then
+if [ "$PLATFORM" = "x86_64" ] || [ "$PLATFORM" = "x86_64-nonfree" ] || [ "$PLATFORM" = "x86_64-nvidia" ]; then
     DEB_ARCH=amd64
-elif [ "$PLATFORM" = "aarch64" ] || [ "$PLATFORM" = "aarch64-nonfree" ] || [ "$PLATFORM" = "raspberrypi" ]; then
+elif [ "$PLATFORM" = "aarch64" ] || [ "$PLATFORM" = "aarch64-nonfree" ] || [ "$PLATFORM" = "aarch64-nvidia" ] || [ "$PLATFORM" = "raspberrypi" ]; then
     DEB_ARCH=arm64
 else
     DEB_ARCH="$PLATFORM"
