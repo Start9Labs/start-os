@@ -12,9 +12,9 @@ use std::io::Read;
 use std::net::Ipv4Addr;
 use std::process::{Command, Stdio};
 use uciedit::openwrt::{
-    DeviceType, Dhcp, FirewallForwarding, FirewallRule, FirewallTarget, FirewallZone,
-    InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkVlanPort,
-    NetworkVlanPortTagging, WifiStation, WifiVlan,
+    DeviceType, Dhcp, FirewallForwarding, FirewallRedirect, FirewallRule, FirewallTarget,
+    FirewallZone, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkRoute,
+    NetworkRule, NetworkVlanPort, NetworkVlanPortTagging, WifiStation, WifiVlan,
 };
 use uciedit::{dump_all, parse_all, Arena, Configs, TypedSection};
 
@@ -48,10 +48,11 @@ pub struct Profile<Id: Ord = ProfileId> {
     #[serde(flatten)]
     pub id: Id,
     pub gateway_ip: Ipv4Addr,
-    pub outbound: String,             // 'wan' for default WAN, or VPN interface name. TODO: Implement routing logic
-    pub lan_access: LanAccess<Id>,    // TODO
-    pub wan_access: WanAccess,        // TODO
-    pub access_to_new_profiles: bool, // TODO
+    pub outbound: String,
+    pub lan_access: LanAccess<Id>,
+    pub wan_access: WanAccess,
+    pub dns_override: Vec<String>,
+    pub access_to_new_profiles: bool,
     pub owns_lan: bool,
 }
 
@@ -119,6 +120,12 @@ struct UciProfile {
     pub outbound: Option<String>,
     #[uci(default_value = "false")]
     pub access_to_new_profiles: bool,
+    #[uci(default)]
+    pub wan_access: Option<String>,
+    #[uci(default)]
+    pub wan_access_list: Vec<String>,
+    #[uci(default)]
+    pub dns_override: Vec<String>,
 }
 
 impl UciProfile {
@@ -128,6 +135,22 @@ impl UciProfile {
             interface: self.interface.clone(),
             vlan_tag: self.vlan_tag,
         }
+    }
+}
+
+fn wan_access_type_str(wa: &WanAccess) -> String {
+    match wa {
+        WanAccess::All => "all".into(),
+        WanAccess::None => "none".into(),
+        WanAccess::Whitelist(_) => "whitelist".into(),
+        WanAccess::Blacklist(_) => "blacklist".into(),
+    }
+}
+
+fn wan_access_destinations(wa: &WanAccess) -> Vec<String> {
+    match wa {
+        WanAccess::Whitelist(d) | WanAccess::Blacklist(d) => d.clone(),
+        _ => Vec::new(),
     }
 }
 
@@ -160,6 +183,10 @@ fn get_config(
         },
         lan_access: LanAccess::SameProfile,
         wan_access: WanAccess::None,
+        dns_override: uciprofile
+            .as_ref()
+            .map(|p| p.dns_override.clone())
+            .unwrap_or_default(),
         access_to_new_profiles: match &uciprofile {
             Some(p) => p.access_to_new_profiles,
             None => false,
@@ -194,17 +221,28 @@ fn get_config(
             }
         }
     })?;
+    wip_profile.wan_access = match uciprofile.as_ref().and_then(|p| p.wan_access.as_deref()) {
+        Some("whitelist") => WanAccess::Whitelist(
+            uciprofile
+                .as_ref()
+                .map(|p| p.wan_access_list.clone())
+                .unwrap_or_default(),
+        ),
+        Some("blacklist") => WanAccess::Blacklist(
+            uciprofile
+                .as_ref()
+                .map(|p| p.wan_access_list.clone())
+                .unwrap_or_default(),
+        ),
+        Some("none") => WanAccess::None,
+        _ => WanAccess::All,
+    };
     let mut forwarding = BTreeSet::new();
     cfgs["firewall"].each::<FirewallForwarding, Error>(|_, FirewallForwarding { src, dest }| {
         if src == this_zone_name && src != dest {
             forwarding.insert(dest);
         }
     })?;
-    if forwarding.contains(DEFAULT_WAN_ZONE) {
-        wip_profile.wan_access = WanAccess::All;
-    } else {
-        wip_profile.wan_access = WanAccess::None;
-    }
     let mut other_profiles = BTreeSet::new();
     cfgs["firewall"].each::<FirewallZone, Error>(|_, FirewallZone { name, network, .. }| {
         if forwarding.contains(&name) {
@@ -320,6 +358,11 @@ fn delete_config(
                     return false;
                 }
             }
+            if let Ok(redir) = section.get::<FirewallRedirect>() {
+                if &redir.src == zone_name {
+                    return false;
+                }
+            }
             true
         });
     }
@@ -346,6 +389,17 @@ fn delete_config(
         }
         true
     });
+
+    // Remove policy routing entries for this profile
+    let route_name = format!("prt_{}", id.interface);
+    let rule_name = format!("prr_{}", id.interface);
+    cfgs["network"].sections.retain(|s| {
+        s.name().as_deref() != Some(route_name.as_str())
+            && s.name().as_deref() != Some(rule_name.as_str())
+    });
+
+    // Clean up orphaned VPN interfaces from WAN zone
+    cleanup_orphaned_wan_vpns(cfgs);
 
     Ok(())
 }
@@ -511,6 +565,10 @@ fn set_config<C: CtrlContext>(
             }
             if profile.id.matches(&existing_profile.id().into()) {
                 existing_profile.access_to_new_profiles = profile.access_to_new_profiles;
+                existing_profile.outbound = Some(profile.outbound.clone());
+                existing_profile.wan_access = Some(wan_access_type_str(&profile.wan_access));
+                existing_profile.wan_access_list = wan_access_destinations(&profile.wan_access);
+                existing_profile.dns_override = profile.dns_override.clone();
                 section.set(&existing_profile)?;
             }
         }
@@ -531,6 +589,7 @@ fn set_config<C: CtrlContext>(
             ),
         },
         wan_access: profile.wan_access.clone(),
+        dns_override: profile.dns_override.clone(),
         access_to_new_profiles: profile.access_to_new_profiles,
         owns_lan: profile.owns_lan,
     };
@@ -604,6 +663,8 @@ fn set_config<C: CtrlContext>(
     }
     rewrite_firewall(&ctx, cfgs, &profile, &all_interfaces, &[], false)?;
     rewrite_dhcp(&ctx, cfgs, &profile)?;
+    rewrite_routing(&ctx, cfgs, &profile)?;
+    cleanup_orphaned_wan_vpns(cfgs);
     Ok(profile.id)
 }
 
@@ -800,6 +861,9 @@ fn create_config(
             vlan_tag,
             outbound: Some(profile.outbound.clone()),
             access_to_new_profiles: profile.access_to_new_profiles,
+            wan_access: Some(wan_access_type_str(&profile.wan_access)),
+            wan_access_list: wan_access_destinations(&profile.wan_access),
+            dns_override: profile.dns_override.clone(),
         },
         Some(&interface),
     )?;
@@ -822,11 +886,14 @@ fn create_config(
             ),
         },
         wan_access: profile.wan_access.clone(),
+        dns_override: profile.dns_override.clone(),
         access_to_new_profiles: profile.access_to_new_profiles,
         owns_lan: profile.owns_lan,
     };
     rewrite_firewall(&ctx, cfgs, &profile, &all_interfaces, &wants_access, true)?;
     rewrite_dhcp(&ctx, cfgs, &profile)?;
+    rewrite_routing(&ctx, cfgs, &profile)?;
+    cleanup_orphaned_wan_vpns(cfgs);
     Ok(profile.id)
 }
 
@@ -912,6 +979,49 @@ fn rewrite_firewall(
         )?;
     }
 
+    // Clean up old DNS override redirects for this profile
+    cfgs["firewall"].sections.retain(|section| {
+        let Ok(redir) = section.get::<FirewallRedirect>() else {
+            return true;
+        };
+        !(redir.src == this_zone_name && redir.name.contains("DNS-Override"))
+    });
+
+    // Add DNS override redirect rules (DNAT port 53 to specified servers)
+    // TODO: parse @853 suffix from dns_ip entries to support DNS-over-TLS.
+    // Plain entries (e.g. "1.1.1.1") use DNAT as below. TLS entries (e.g.
+    // "1.1.1.1@853") need a local DoT forwarder (stubby/unbound) that accepts
+    // plaintext on a per-profile loopback port and forwards upstream over TLS.
+    for dns_ip in &profile.dns_override {
+        cfgs["firewall"].append(
+            &FirewallRedirect {
+                name: format!(
+                    "DNS-Override-{}-{}",
+                    profile.id.fullname.replace(" ", "-"),
+                    dns_ip
+                ),
+                src: this_zone_name.clone(),
+                dest: Some(DEFAULT_WAN_ZONE.into()),
+                proto: vec!["tcp".into(), "udp".into()],
+                src_dport: Some("53".into()),
+                dest_ip: Some(dns_ip.clone()),
+                dest_port: Some("53".into()),
+                target: "DNAT".into(),
+            },
+            None,
+        )?;
+    }
+
+    // Clean up old WAN access rules for this profile
+    cfgs["firewall"].sections.retain(|section| {
+        let Ok(rule) = section.get::<FirewallRule>() else {
+            return true;
+        };
+        !(rule.src == this_zone_name
+            && rule.dest.as_deref() == Some(DEFAULT_WAN_ZONE)
+            && !rule.name.contains("DHCP"))
+    });
+
     // Setup forwarding for lan access
     cfgs["firewall"].sections.retain(|section| {
         let Ok(fwd) = section.get::<FirewallForwarding>() else {
@@ -982,20 +1092,52 @@ fn rewrite_firewall(
             None,
         )?,
         WanAccess::None => (),
-        WanAccess::Whitelist(_destinations) => {
-            // TODO: Implement proper whitelist firewall rules
-            // For now, add basic WAN forwarding (behaves like All)
+        WanAccess::Whitelist(destinations) => {
+            // Forwarding needed so rule matching works in the forward chain
             cfgs["firewall"].append(
                 &FirewallForwarding {
                     src: this_zone_name.clone(),
                     dest: DEFAULT_WAN_ZONE.into(),
+                },
+                None,
+            )?;
+            // ACCEPT rules for each allowed destination
+            for dest_ip in destinations {
+                cfgs["firewall"].append(
+                    &FirewallRule {
+                        name: format!(
+                            "WAN-WL-{}-{}",
+                            profile.id.fullname.replace(" ", "-"),
+                            dest_ip
+                        ),
+                        src: this_zone_name.clone(),
+                        dest: Some(DEFAULT_WAN_ZONE.into()),
+                        dest_ip: Some(dest_ip.clone()),
+                        proto: vec!["all".into()],
+                        target: FirewallTarget::ACCEPT,
+                        ..Default::default()
+                    },
+                    None,
+                )?;
+            }
+            // Catch-all REJECT for everything else
+            cfgs["firewall"].append(
+                &FirewallRule {
+                    name: format!(
+                        "WAN-WL-{}-reject",
+                        profile.id.fullname.replace(" ", "-")
+                    ),
+                    src: this_zone_name.clone(),
+                    dest: Some(DEFAULT_WAN_ZONE.into()),
+                    proto: vec!["all".into()],
+                    target: FirewallTarget::REJECT,
+                    ..Default::default()
                 },
                 None,
             )?;
         }
-        WanAccess::Blacklist(_destinations) => {
-            // TODO: Implement proper blacklist firewall rules
-            // For now, add basic WAN forwarding (behaves like All)
+        WanAccess::Blacklist(destinations) => {
+            // Default allow via forwarding
             cfgs["firewall"].append(
                 &FirewallForwarding {
                     src: this_zone_name.clone(),
@@ -1003,6 +1145,25 @@ fn rewrite_firewall(
                 },
                 None,
             )?;
+            // REJECT rules for each blocked destination
+            for dest_ip in destinations {
+                cfgs["firewall"].append(
+                    &FirewallRule {
+                        name: format!(
+                            "WAN-BL-{}-{}",
+                            profile.id.fullname.replace(" ", "-"),
+                            dest_ip
+                        ),
+                        src: this_zone_name.clone(),
+                        dest: Some(DEFAULT_WAN_ZONE.into()),
+                        dest_ip: Some(dest_ip.clone()),
+                        proto: vec!["all".into()],
+                        target: FirewallTarget::REJECT,
+                        ..Default::default()
+                    },
+                    None,
+                )?;
+            }
         }
     }
 
@@ -1035,6 +1196,106 @@ pub fn rewrite_dhcp(
         )?;
     }
     Ok(())
+}
+
+pub fn rewrite_routing(
+    _ctx: &impl CtrlContext,
+    cfgs: &mut Configs,
+    profile: &Profile,
+) -> Result<(), Error> {
+    let route_name = format!("prt_{}", profile.id.interface);
+    let rule_name = format!("prr_{}", profile.id.interface);
+
+    // 1. Remove old route/rule for this profile
+    cfgs["network"].sections.retain(|s| {
+        s.name().as_deref() != Some(route_name.as_str())
+            && s.name().as_deref() != Some(rule_name.as_str())
+    });
+
+    // 2. If outbound is "wan", main table suffices — no policy routing needed
+    if profile.outbound == "wan" {
+        return Ok(());
+    }
+
+    // 3. Create routing table entry:
+    //    config route 'prt_<interface>'
+    //      option interface '<outbound>'
+    //      option target '0.0.0.0/0'
+    //      option table '<vlan_tag>'
+    cfgs["network"].append(
+        &NetworkRoute {
+            interface: profile.outbound.clone(),
+            target: "0.0.0.0/0".to_string(),
+            gateway: None,
+            netmask: None,
+            table: Some(profile.id.vlan_tag as u32),
+        },
+        Some(&route_name),
+    )?;
+
+    // 4. Create ip rule:
+    //    config rule 'prr_<interface>'
+    //      option src '<network_addr>/24'
+    //      option lookup '<vlan_tag>'
+    let octets = profile.gateway_ip.octets();
+    let network_addr = format!("{}.{}.{}.0/24", octets[0], octets[1], octets[2]);
+    cfgs["network"].append(
+        &NetworkRule {
+            src: network_addr,
+            lookup: profile.id.vlan_tag as u32,
+        },
+        Some(&rule_name),
+    )?;
+
+    // 5. Ensure VPN interface is in WAN zone (for masquerading)
+    for section in &mut cfgs["firewall"].sections {
+        if let Ok(mut zone) = section.get::<FirewallZone>() {
+            if zone.name == DEFAULT_WAN_ZONE {
+                if !zone.network.contains(&profile.outbound) {
+                    zone.network.push(profile.outbound.clone());
+                    section.set(&zone)?;
+                }
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// After routing changes, remove VPN interfaces from the WAN zone that are no longer
+/// referenced by any profile's outbound field.
+fn cleanup_orphaned_wan_vpns(cfgs: &mut Configs) {
+    // Collect all VPN interface names referenced by any profile's outbound
+    let mut referenced_vpns = std::collections::HashSet::new();
+    for section in &cfgs["startwrt"].sections {
+        if section.ty() != "profile" {
+            continue;
+        }
+        if let Ok(profile) = section.get::<UciProfile>() {
+            let outbound = profile.outbound.unwrap_or_else(|| "wan".to_string());
+            if outbound != "wan" {
+                referenced_vpns.insert(outbound);
+            }
+        }
+    }
+
+    // Remove unreferenced VPN interfaces from WAN zone
+    for section in &mut cfgs["firewall"].sections {
+        if let Ok(mut zone) = section.get::<FirewallZone>() {
+            if zone.name == DEFAULT_WAN_ZONE {
+                let before_len = zone.network.len();
+                zone.network.retain(|n| {
+                    // Keep "wan" and any interface still referenced by a profile
+                    !n.starts_with("wg_") || referenced_vpns.contains(n)
+                });
+                if zone.network.len() != before_len {
+                    let _ = section.set(&zone);
+                }
+                break;
+            }
+        }
+    }
 }
 
 pub fn allocate_interface_name(
@@ -1192,6 +1453,9 @@ pub fn bootstrap_admin_profile(uci_root: &str) -> Result<(), Error> {
             vlan_tag: 1,
             outbound: Some("wan".into()),
             access_to_new_profiles: true,
+            wan_access: Some("all".into()),
+            wan_access_list: Vec::new(),
+            dns_override: Vec::new(),
         },
         Some("lan"),
     )?;
@@ -1215,6 +1479,7 @@ pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> 
             outbound: "wan".to_string(),
             lan_access: LanAccess::All,
             wan_access: WanAccess::All,
+            dns_override: Vec::new(),
             access_to_new_profiles: true,
             owns_lan: list(ctx.clone())?.is_empty(),
         };
@@ -1235,6 +1500,7 @@ pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> 
                 }
             },
             wan_access: current_profile.wan_access,
+            dns_override: current_profile.dns_override,
             access_to_new_profiles: current_profile.access_to_new_profiles,
             owns_lan: current_profile.owns_lan,
         };
@@ -1758,6 +2024,7 @@ config dhcp 'lan'
             outbound: "wan".into(),
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
+            dns_override: Vec::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -1775,6 +2042,698 @@ config dhcp 'lan'
             found_device.as_deref(),
             Some("br-lan.200"),
             "set_config should prefer br-lan even when br-guest appears first"
+        );
+    }
+
+    #[test]
+    fn test_whitelist_firewall_rules() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::Whitelist(vec!["1.1.1.1/32".into(), "8.8.8.8/32".into()]),
+            dns_override: Vec::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        // Should have a forwarding to wan (needed for rule matching)
+        let has_wan_fwd = cfgs["firewall"].sections.iter().any(|s| {
+            s.get::<FirewallForwarding>()
+                .map(|f| f.src == "vlan_guest" && f.dest == DEFAULT_WAN_ZONE)
+                .unwrap_or(false)
+        });
+        assert!(has_wan_fwd, "whitelist should create forwarding to wan");
+
+        // Should have ACCEPT rules for each destination
+        let accept_rules: Vec<_> = cfgs["firewall"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<FirewallRule>().ok())
+            .filter(|r| {
+                r.src == "vlan_guest"
+                    && r.dest.as_deref() == Some(DEFAULT_WAN_ZONE)
+                    && r.target == FirewallTarget::ACCEPT
+                    && r.dest_ip.is_some()
+            })
+            .collect();
+        assert_eq!(accept_rules.len(), 2, "should have 2 ACCEPT rules for whitelisted IPs");
+        assert_eq!(accept_rules[0].dest_ip.as_deref(), Some("1.1.1.1/32"));
+        assert_eq!(accept_rules[1].dest_ip.as_deref(), Some("8.8.8.8/32"));
+
+        // Should have a catch-all REJECT rule
+        let reject_rule = cfgs["firewall"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<FirewallRule>().ok())
+            .find(|r| {
+                r.src == "vlan_guest"
+                    && r.dest.as_deref() == Some(DEFAULT_WAN_ZONE)
+                    && r.target == FirewallTarget::REJECT
+                    && r.dest_ip.is_none()
+            });
+        assert!(reject_rule.is_some(), "whitelist should have a catch-all REJECT rule");
+    }
+
+    #[test]
+    fn test_blacklist_firewall_rules() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::Blacklist(vec!["10.0.0.0/8".into()]),
+            dns_override: Vec::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        // Should have forwarding to wan (default allow)
+        let has_wan_fwd = cfgs["firewall"].sections.iter().any(|s| {
+            s.get::<FirewallForwarding>()
+                .map(|f| f.src == "vlan_guest" && f.dest == DEFAULT_WAN_ZONE)
+                .unwrap_or(false)
+        });
+        assert!(has_wan_fwd, "blacklist should create forwarding to wan");
+
+        // Should have REJECT rules for blocked destinations
+        let reject_rules: Vec<_> = cfgs["firewall"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<FirewallRule>().ok())
+            .filter(|r| {
+                r.src == "vlan_guest"
+                    && r.dest.as_deref() == Some(DEFAULT_WAN_ZONE)
+                    && r.target == FirewallTarget::REJECT
+                    && r.dest_ip.is_some()
+            })
+            .collect();
+        assert_eq!(reject_rules.len(), 1, "should have 1 REJECT rule for blacklisted IP");
+        assert_eq!(reject_rules[0].dest_ip.as_deref(), Some("10.0.0.0/8"));
+
+        // Should NOT have a catch-all reject (blacklist allows everything else)
+        let catchall_reject = cfgs["firewall"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<FirewallRule>().ok())
+            .find(|r| {
+                r.src == "vlan_guest"
+                    && r.dest.as_deref() == Some(DEFAULT_WAN_ZONE)
+                    && r.target == FirewallTarget::REJECT
+                    && r.dest_ip.is_none()
+            });
+        assert!(catchall_reject.is_none(), "blacklist should NOT have a catch-all REJECT");
+    }
+
+    #[test]
+    fn test_wan_access_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .unwrap();
+
+        // Set guest profile with whitelist
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::Whitelist(vec!["1.1.1.1/32".into(), "8.8.8.8/32".into()]),
+            dns_override: Vec::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx.clone(), &mut cfgs, &profile).unwrap();
+
+        // Dump and re-parse to simulate a real round-trip
+        dump_all(ctx.uci_root(), cfgs).unwrap();
+        let arena2 = Arena::new();
+        let cfgs2 = parse_all(
+            ctx.uci_root(),
+            &arena2,
+            &["startwrt", "network", "firewall"],
+        )
+        .unwrap();
+
+        let result = get_config(
+            ctx,
+            &cfgs2,
+            ProfileIdOpt {
+                fullname: None,
+                interface: Some("guest".into()),
+                vlan_tag: None,
+            },
+        )
+        .unwrap();
+
+        match &result.wan_access {
+            WanAccess::Whitelist(dests) => {
+                assert_eq!(dests, &["1.1.1.1/32", "8.8.8.8/32"]);
+            }
+            other => panic!("expected Whitelist, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_set_persists_outbound() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .unwrap();
+
+        // Set guest profile with non-default outbound
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg0".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx.clone(), &mut cfgs, &profile).unwrap();
+
+        // Dump and re-parse
+        dump_all(ctx.uci_root(), cfgs).unwrap();
+        let arena2 = Arena::new();
+        let cfgs2 = parse_all(
+            ctx.uci_root(),
+            &arena2,
+            &["startwrt", "network", "firewall"],
+        )
+        .unwrap();
+
+        let result = get_config(
+            ctx,
+            &cfgs2,
+            ProfileIdOpt {
+                fullname: None,
+                interface: Some("guest".into()),
+                vlan_tag: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(result.outbound, "wg0", "outbound should persist through set_config");
+    }
+
+    #[test]
+    fn test_outbound_vpn_creates_routing() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .unwrap();
+
+        // Set guest profile with VPN outbound
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_test".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        // Verify route section was created
+        let route = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("prt_guest"))
+            .expect("route section prt_guest should exist");
+        let route_data = route.get::<NetworkRoute>().unwrap();
+        assert_eq!(route_data.interface, "wg_test");
+        assert_eq!(route_data.target, "0.0.0.0/0");
+        assert_eq!(route_data.table, Some(101));
+
+        // Verify rule section was created
+        let rule = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("prr_guest"))
+            .expect("rule section prr_guest should exist");
+        let rule_data = rule.get::<NetworkRule>().unwrap();
+        assert_eq!(rule_data.src, "192.168.101.0/24");
+        assert_eq!(rule_data.lookup, 101);
+    }
+
+    #[test]
+    fn test_outbound_wan_no_routing() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .unwrap();
+
+        // Set guest profile with WAN outbound
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        // No route or rule sections should exist
+        let has_route = cfgs["network"]
+            .sections
+            .iter()
+            .any(|s| s.name().as_deref() == Some("prt_guest"));
+        let has_rule = cfgs["network"]
+            .sections
+            .iter()
+            .any(|s| s.name().as_deref() == Some("prr_guest"));
+        assert!(!has_route, "WAN outbound should not create route");
+        assert!(!has_rule, "WAN outbound should not create rule");
+    }
+
+    #[test]
+    fn test_outbound_change_cleans_up() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .unwrap();
+
+        // First: set guest to VPN
+        let profile_vpn = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_test".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx.clone(), &mut cfgs, &profile_vpn).unwrap();
+
+        // Verify route exists
+        assert!(
+            cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("prt_guest")),
+            "route should exist after VPN assignment"
+        );
+
+        // Now switch back to WAN
+        let profile_wan = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx, &mut cfgs, &profile_wan).unwrap();
+
+        // Route and rule should be cleaned up
+        assert!(
+            !cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("prt_guest")),
+            "route should be removed after switching to WAN"
+        );
+        assert!(
+            !cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("prr_guest")),
+            "rule should be removed after switching to WAN"
+        );
+    }
+
+    #[test]
+    fn test_outbound_vpn_adds_to_wan_zone() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_mullvad".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        // WAN zone should contain the VPN interface
+        let wan_zone = cfgs["firewall"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<FirewallZone>().ok())
+            .find(|z| z.name == DEFAULT_WAN_ZONE)
+            .expect("WAN zone should exist");
+        assert!(
+            wan_zone.network.contains(&"wg_mullvad".to_string()),
+            "VPN interface should be added to WAN zone, got: {:?}",
+            wan_zone.network
+        );
+    }
+
+    #[test]
+    fn test_delete_profile_removes_routing() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        // Set guest outbound to VPN first
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_test".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx.clone(), &mut cfgs, &profile).unwrap();
+        dump_all(ctx.uci_root(), cfgs).unwrap();
+
+        // Now delete the guest profile
+        let arena2 = Arena::new();
+        let mut cfgs2 = parse_all(
+            ctx.uci_root(),
+            &arena2,
+            &["startwrt", "network", "firewall", "dhcp", "wireless"],
+        )
+        .unwrap();
+
+        delete_config(
+            ctx,
+            &mut cfgs2,
+            &ProfileIdOpt {
+                fullname: None,
+                interface: Some("guest".into()),
+                vlan_tag: None,
+            },
+        )
+        .unwrap();
+
+        // Route and rule should be gone
+        assert!(
+            !cfgs2["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("prt_guest")),
+            "route should be removed on profile delete"
+        );
+        assert!(
+            !cfgs2["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("prr_guest")),
+            "rule should be removed on profile delete"
+        );
+    }
+
+    #[test]
+    fn test_dns_override_creates_redirect() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: vec!["1.1.1.1".into()],
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        let redirects: Vec<_> = cfgs["firewall"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<FirewallRedirect>().ok())
+            .filter(|r| r.name.contains("DNS-Override") && r.src == "vlan_guest")
+            .collect();
+        assert_eq!(redirects.len(), 1, "should have 1 DNS override redirect");
+        assert_eq!(redirects[0].dest.as_deref(), Some(DEFAULT_WAN_ZONE));
+        assert_eq!(redirects[0].dest_ip.as_deref(), Some("1.1.1.1"));
+        assert_eq!(redirects[0].dest_port.as_deref(), Some("53"));
+        assert_eq!(redirects[0].src_dport.as_deref(), Some("53"));
+        assert_eq!(redirects[0].target, "DNAT");
+        assert_eq!(redirects[0].proto, vec!["tcp", "udp"]);
+    }
+
+    #[test]
+    fn test_dns_override_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: vec!["1.1.1.1".into(), "8.8.8.8".into()],
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx.clone(), &mut cfgs, &profile).unwrap();
+        dump_all(ctx.uci_root(), cfgs).unwrap();
+
+        // Re-parse and read back via get_config
+        let arena2 = Arena::new();
+        let cfgs2 = parse_all(
+            ctx.uci_root(),
+            &arena2,
+            &["startwrt", "network", "firewall"],
+        )
+        .unwrap();
+
+        let got = get_config(
+            ctx,
+            &cfgs2,
+            ProfileIdOpt {
+                fullname: None,
+                interface: Some("guest".into()),
+                vlan_tag: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            got.dns_override,
+            vec!["1.1.1.1".to_string(), "8.8.8.8".to_string()],
+            "dns_override should round-trip through UCI"
+        );
+    }
+
+    #[test]
+    fn test_dns_override_empty_no_redirect() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        let redirect_count = cfgs["firewall"]
+            .sections
+            .iter()
+            .filter(|s| {
+                s.get::<FirewallRedirect>()
+                    .map(|r| r.name.contains("DNS-Override"))
+                    .unwrap_or(false)
+            })
+            .count();
+        assert_eq!(
+            redirect_count, 0,
+            "empty dns_override should not create any redirect sections"
         );
     }
 }

@@ -50,6 +50,19 @@ pub struct FirewallRule {
     pub target: FirewallTarget,
 }
 
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "redirect")]
+pub struct FirewallRedirect {
+    pub name: String,
+    pub src: String,
+    pub dest: Option<String>,
+    pub proto: Vec<String>,
+    pub src_dport: Option<String>,
+    pub dest_ip: Option<String>,
+    pub dest_port: Option<String>,
+    pub target: String,
+}
+
 #[derive(Debug, TypedSection)]
 #[uci(ty = "forwarding")]
 pub struct FirewallForwarding {
@@ -221,6 +234,26 @@ pub struct WifiStation {
     pub iface: Option<String>,
     #[uci(default)]
     pub label: Option<String>,
+}
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "route")]
+pub struct NetworkRoute {
+    pub interface: String,
+    pub target: String,
+    #[uci(default)]
+    pub gateway: Option<String>,
+    #[uci(default)]
+    pub netmask: Option<String>,
+    #[uci(default)]
+    pub table: Option<u32>,
+}
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "rule")]
+pub struct NetworkRule {
+    pub src: String,
+    pub lookup: u32,
 }
 
 #[derive(Debug, TypedSection)]

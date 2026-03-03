@@ -209,6 +209,10 @@ fn mark_overlay_ready(overlay_mount: &str) -> Result<(), Error> {
 
 /// Try reading a PMK from an ext4 partition (mount, read file, unmount).
 fn read_ext4_pmk(dev: &str, mount_point: &str) -> Option<String> {
+    // If block mount already mounted the device (e.g., via fstab label match),
+    // unmount it first to avoid "Resource busy" when we mount at our own path.
+    let _ = flash::run_cmd("umount", &[dev]);
+
     if mount_ro(dev, mount_point).is_err() {
         return None;
     }

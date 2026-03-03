@@ -86,9 +86,7 @@ OPENWRT_IMAGE := out/$(OPENWRT_IMAGE_NAME)
 #         make update REMOTE=root@10.0.0.1   # override target device
 # ---------------------------------------------------------------------------
 REMOTE ?= root@192.168.1.1
-PV := $(shell command -v pv 2>/dev/null || \
-        (dd bs=1 count=0 status=progress </dev/null 2>/dev/null && echo 'dd bs=65536 status=progress') || \
-        echo 'dd bs=65536')
+PV := $(shell command -v pv 2>/dev/null || echo cat)
 
 .PHONY: all clean openwrt-setup stage image image-quick update
 
