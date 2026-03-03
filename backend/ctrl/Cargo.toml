@@ -11,7 +11,7 @@ path = "src/bin/startwrt.rs"
 async_cell = "0.2.2"
 color-eyre = "0.6.3"
 futures = "0.3.31"
-nix = { version="0.29.0", features = ["fs"] }
+nix = { version="0.29.0", features = ["fs", "signal"] }
 tokio = { version = "1.41.1", features = ["tracing", "process", "socket2", "time", "io-util", "macros", "rt", "sync", "net", "rt-multi-thread", "io-std", "signal"] }
 tracing = "0.1"
 tracing-rfc-5424 = "0.1"

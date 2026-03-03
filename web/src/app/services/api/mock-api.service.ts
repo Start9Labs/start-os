@@ -261,9 +261,10 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
 
     return {
       version: '1.0.0',
-      language: 'English',
+      language: 'en_US',
       date: new Date().toISOString(),
       theme: 'system',
+      remoteAccess: 'default',
     }
   }
 

@@ -60,6 +60,8 @@ pub enum ErrorKind {
     DuplicatePassword,
     #[error("duplicate wifi password label")]
     DuplicatePasswordLabel,
+    #[error("invalid value for {field}: {value:?}")]
+    InvalidValue { field: String, value: String },
     #[error(transparent)]
     Other(
         #[serde(serialize_with = "serialize_eyre_err")]

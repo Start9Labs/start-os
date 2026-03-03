@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core'
@@ -42,11 +43,7 @@ import {
 import { SystemService } from 'src/app/services/system.service'
 import { getTranslatedName, Language, LANGUAGES } from 'src/app/utils/languages'
 
-const THEMES: Record<string, Theme> = {
-  System: 'system',
-  Dark: 'dark',
-  Light: 'light',
-}
+const THEMES: Theme[] = ['system', 'dark', 'light']
 
 @Component({
   template: `
@@ -81,17 +78,14 @@ const THEMES: Record<string, Theme> = {
       <fieldset>
         <legend>Preferences</legend>
         <section>
-          <tui-textfield tuiChevron>
+          <tui-textfield tuiChevron [stringify]="stringifyTheme">
             <label tuiLabel>Theme</label>
             <input
               tuiSelect
               formControlName="theme"
               (tuiValueChanges)="onTheme($event)"
             />
-            <tui-data-list-wrapper
-              *tuiDropdown
-              [items]="['System', 'Dark', 'Light']"
-            />
+            <tui-data-list-wrapper *tuiDropdown [items]="themes" />
           </tui-textfield>
           <tui-textfield tuiChevron [stringify]="stringifyLanguage">
             <label tuiLabel>Language</label>
@@ -233,10 +227,32 @@ export default class General {
   })
 
   protected readonly form = inject(NonNullableFormBuilder).group({
-    theme: this.systemTheme() ? 'System' : this.mode() ? 'Dark' : 'Light',
+    theme: (this.systemTheme()
+      ? 'system'
+      : this.mode()
+        ? 'dark'
+        : 'light') as Theme,
     language: 'en_US' as Language,
     remote: 'default',
   })
+
+  constructor() {
+    effect(() => {
+      const info = this.system.info()
+      if (info && this.form.pristine) {
+        this.form.reset({
+          theme: info.theme,
+          language: info.language as Language,
+          remote: info.remoteAccess ?? 'default',
+        })
+      }
+    })
+  }
+
+  protected readonly themes = THEMES
+
+  protected readonly stringifyTheme = (t: Theme): string =>
+    t[0].toUpperCase() + t.slice(1)
 
   protected readonly stringifyLanguage = (posix: Language): string =>
     LANGUAGES.find(l => l.posix === posix)?.nativeName || posix
@@ -245,11 +261,11 @@ export default class General {
     return getTranslatedName(posix, this.form.getRawValue().language)
   }
 
-  protected onTheme(theme: string): void {
-    if (theme === 'System') {
+  protected onTheme(theme: Theme): void {
+    if (theme === 'system') {
       this.mode.reset()
     } else {
-      this.mode.set(theme === 'Dark')
+      this.mode.set(theme === 'dark')
     }
   }
 
@@ -257,7 +273,7 @@ export default class General {
     await this.actions.run(
       () =>
         this.api.setPreferences({
-          theme: THEMES[this.form.value.theme!],
+          theme: this.form.value.theme!,
           language: this.form.value.language,
           remoteAccess: this.form.value.remote as RemoteAccess,
         }),

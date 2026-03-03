@@ -148,6 +148,9 @@ async fn inner_main() -> Result<(), Error> {
             if let Err(e) = crate::profiles::bootstrap_admin_profile("/etc/config") {
                 tracing::error!("Admin profile bootstrap failed: {e}");
             }
+            if let Err(e) = crate::system::apply_remote_access(ServerContext) {
+                tracing::error!("Remote access rule apply failed: {e}");
+            }
         })
         .await?;
 

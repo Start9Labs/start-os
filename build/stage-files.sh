@@ -124,6 +124,11 @@ cat > "${FILES_DIR}/etc/inittab" << 'INITTABEOF'
 ::respawnlate:/usr/sbin/startwrt-serial
 INITTABEOF
 
+# Hotplug script for remote access re-evaluation on WAN IP change
+mkdir -p "${FILES_DIR}/etc/hotplug.d/iface"
+cp backend/hotplug/99-startwrt-remote-access "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-remote-access"
+chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-remote-access"
+
 # Key backup partition mount point
 mkdir -p "${FILES_DIR}/key_backup"
 

@@ -48,6 +48,7 @@ pub struct FirewallRule {
     pub dest_port: Option<String>,
     pub proto: Vec<String>,
     pub target: FirewallTarget,
+    pub family: Option<String>,
 }
 
 #[derive(Debug, TypedSection, Default)]

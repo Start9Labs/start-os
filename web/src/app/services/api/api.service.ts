@@ -83,6 +83,7 @@ export type SystemInfoRes = {
   language: string
   date: string
   theme: 'dark' | 'light' | 'system'
+  remoteAccess: RemoteAccess
 }
 
 export type VersionInfo = {
