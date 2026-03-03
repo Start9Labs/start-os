@@ -3684,6 +3684,13 @@ help.arg.s9pk-file-path:
   fr_FR: "Chemin vers le fichier de paquet s9pk"
   pl_PL: "Ścieżka do pliku pakietu s9pk"
 
+help.arg.s9pk-file-paths:
+  en_US: "Paths to s9pk package files"
+  de_DE: "Pfade zu s9pk-Paketdateien"
+  es_ES: "Rutas a los archivos de paquete s9pk"
+  fr_FR: "Chemins vers les fichiers de paquet s9pk"
+  pl_PL: "Ścieżki do plików pakietów s9pk"
+
 help.arg.session-ids:
   en_US: "Session identifiers"
   de_DE: "Sitzungskennungen"
@@ -4979,6 +4986,13 @@ about.publish-s9pk:
   es_ES: "Publicar s9pk en bucket S3 e indexar en el registro"
   fr_FR: "Publier s9pk dans le bucket S3 et indexer dans le registre"
   pl_PL: "Opublikuj s9pk do bucketu S3 i zindeksuj w rejestrze"
+
+about.select-s9pk-for-device:
+  en_US: "Select the best compatible s9pk for a target device"
+  de_DE: "Das beste kompatible s9pk für ein Zielgerät auswählen"
+  es_ES: "Seleccionar el s9pk más compatible para un dispositivo destino"
+  fr_FR: "Sélectionner le meilleur s9pk compatible pour un appareil cible"
+  pl_PL: "Wybierz najlepiej kompatybilny s9pk dla urządzenia docelowego"
 
 about.rebuild-service-container:
   en_US: "Rebuild service container"

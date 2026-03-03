@@ -251,11 +251,12 @@ async fn create_task(
                     .get(&task.package_id)
                     .await
                     .as_ref()
+                    .filter(|s| s.is_initialized())
                 {
-                    let Some(prev) = service
+                    let prev = service
                         .get_action_input(procedure_id.clone(), task.action_id.clone(), Value::Null)
-                        .await?
-                    else {
+                        .await?;
+                    let Some(prev) = prev else {
                         return Err(Error::new(
                             eyre!(
                                 "{}",
@@ -278,7 +279,9 @@ async fn create_task(
                         true
                     }
                 } else {
-                    true // update when service is installed
+                    // Service not installed or not yet initialized — assume active.
+                    // Will be retested when service init completes (Service::recheck_tasks).
+                    true
                 }
             }
         },

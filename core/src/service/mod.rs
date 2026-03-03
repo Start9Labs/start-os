@@ -215,6 +215,84 @@ pub struct Service {
     seed: Arc<ServiceActorSeed>,
 }
 impl Service {
+    pub fn is_initialized(&self) -> bool {
+        self.seed.persistent_container.state.borrow().rt_initialized
+    }
+
+    /// Re-evaluate all tasks that reference this service's actions.
+    /// Called after every service init to update task active state.
+    #[instrument(skip_all)]
+    async fn recheck_tasks(&self) -> Result<(), Error> {
+        let service_id = &self.seed.id;
+        let peek = self.seed.ctx.db.peek().await;
+        let mut action_input: BTreeMap<ActionId, Value> = BTreeMap::new();
+        let tasks: BTreeSet<_> = peek
+            .as_public()
+            .as_package_data()
+            .as_entries()?
+            .into_iter()
+            .map(|(_, pde)| {
+                Ok(pde
+                    .as_tasks()
+                    .as_entries()?
+                    .into_iter()
+                    .map(|(_, r)| {
+                        let t = r.as_task();
+                        Ok::<_, Error>(
+                            if t.as_package_id().de()? == *service_id
+                                && t.as_input().transpose_ref().is_some()
+                            {
+                                Some(t.as_action_id().de()?)
+                            } else {
+                                None
+                            },
+                        )
+                    })
+                    .filter_map_ok(|a| a))
+            })
+            .flatten_ok()
+            .map(|a| a.and_then(|a| a))
+            .try_collect()?;
+        let procedure_id = Guid::new();
+        for action_id in tasks {
+            if let Some(input) = self
+                .get_action_input(procedure_id.clone(), action_id.clone(), Value::Null)
+                .await
+                .log_err()
+                .flatten()
+                .and_then(|i| i.value)
+            {
+                action_input.insert(action_id, input);
+            }
+        }
+        self.seed
+            .ctx
+            .db
+            .mutate(|db| {
+                for (action_id, input) in &action_input {
+                    for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                        pde.as_tasks_mut().mutate(|tasks| {
+                            Ok(update_tasks(tasks, service_id, action_id, input, false))
+                        })?;
+                    }
+                }
+                for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                    if pde
+                        .as_tasks()
+                        .de()?
+                        .into_iter()
+                        .any(|(_, t)| t.active && t.task.severity == TaskSeverity::Critical)
+                    {
+                        pde.as_status_info_mut().stop()?;
+                    }
+                }
+                Ok(())
+            })
+            .await
+            .result?;
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     async fn new(
         ctx: RpcContext,
@@ -263,6 +341,7 @@ impl Service {
             .persistent_container
             .init(service.weak(), procedure_id, init_kind)
             .await?;
+        service.recheck_tasks().await?;
         if let Some(recovery_guard) = recovery_guard {
             recovery_guard.unmount(true).await?;
         }
@@ -489,70 +568,8 @@ impl Service {
         )
         .await?;
 
-        if let Some(mut progress) = progress {
-            progress.finalization_progress.complete();
-            progress.progress.complete();
-            tokio::task::yield_now().await;
-        }
-
-        let peek = ctx.db.peek().await;
-        let mut action_input: BTreeMap<ActionId, Value> = BTreeMap::new();
-        let tasks: BTreeSet<_> = peek
-            .as_public()
-            .as_package_data()
-            .as_entries()?
-            .into_iter()
-            .map(|(_, pde)| {
-                Ok(pde
-                    .as_tasks()
-                    .as_entries()?
-                    .into_iter()
-                    .map(|(_, r)| {
-                        let t = r.as_task();
-                        Ok::<_, Error>(
-                            if t.as_package_id().de()? == manifest.id
-                                && t.as_input().transpose_ref().is_some()
-                            {
-                                Some(t.as_action_id().de()?)
-                            } else {
-                                None
-                            },
-                        )
-                    })
-                    .filter_map_ok(|a| a))
-            })
-            .flatten_ok()
-            .map(|a| a.and_then(|a| a))
-            .try_collect()?;
-        for action_id in tasks {
-            if peek
-                .as_public()
-                .as_package_data()
-                .as_idx(&manifest.id)
-                .or_not_found(&manifest.id)?
-                .as_actions()
-                .contains_key(&action_id)?
-            {
-                if let Some(input) = service
-                    .get_action_input(procedure_id.clone(), action_id.clone(), Value::Null)
-                    .await
-                    .log_err()
-                    .flatten()
-                    .and_then(|i| i.value)
-                {
-                    action_input.insert(action_id, input);
-                }
-            }
-        }
         ctx.db
             .mutate(|db| {
-                for (action_id, input) in &action_input {
-                    for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                        pde.as_tasks_mut().mutate(|tasks| {
-                            Ok(update_tasks(tasks, &manifest.id, action_id, input, false))
-                        })?;
-                    }
-                }
                 let entry = db
                     .as_public_mut()
                     .as_package_data_mut()
@@ -593,6 +610,12 @@ impl Service {
             })
             .await
             .result?;
+
+        if let Some(mut progress) = progress {
+            progress.finalization_progress.complete();
+            progress.progress.complete();
+            tokio::task::yield_now().await;
+        }
 
         // Trigger manifest callbacks after successful installation
         let manifest = service.seed.persistent_container.s9pk.as_manifest();
