@@ -255,9 +255,7 @@ fn get_config(
     })?;
     if other_profiles.is_empty() {
         wip_profile.lan_access = LanAccess::SameProfile;
-    } else if (other_profiles.len() + 1) >= lookup.list().len()
-        && wip_profile.access_to_new_profiles
-    {
+    } else if (other_profiles.len() + 1) >= lookup.list().len() {
         wip_profile.lan_access = LanAccess::All;
     } else {
         wip_profile.lan_access = LanAccess::OtherProfiles(other_profiles);
