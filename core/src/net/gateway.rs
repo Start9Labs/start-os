@@ -187,6 +187,16 @@ struct CheckPortParams {
 pub struct CheckPortRes {
     pub ip: Ipv4Addr,
     pub port: u16,
+    pub open_externally: bool,
+    pub open_internally: bool,
+    pub hairpinning: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IfconfigPortRes {
+    pub ip: Ipv4Addr,
+    pub port: u16,
     pub reachable: bool,
 }
 
@@ -211,15 +221,33 @@ async fn check_port(
             ErrorKind::NotFound,
         )
     })?;
-    let iface = &*ip_info.name;
+
+    let internal_ips = ip_info
+        .subnets
+        .iter()
+        .map(|i| i.addr())
+        .filter(|a| a.is_ipv4())
+        .map(|a| SocketAddr::new(a, port))
+        .collect::<Vec<_>>();
+
+    let open_internally = tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::net::TcpStream::connect(&*internal_ips),
+    )
+    .await
+    .map_or(false, |r| r.is_ok());
 
     let client = reqwest::Client::builder();
     #[cfg(target_os = "linux")]
-    let client = client.interface(iface);
+    let client = client.interface(gateway.as_str());
     let url = base_url
         .join(&format!("/port/{port}"))
         .with_kind(ErrorKind::ParseUrl)?;
-    let res: CheckPortRes = client
+    let IfconfigPortRes {
+        ip,
+        port,
+        reachable: open_externally,
+    } = client
         .build()?
         .get(url)
         .timeout(Duration::from_secs(10))
@@ -228,7 +256,21 @@ async fn check_port(
         .error_for_status()?
         .json()
         .await?;
-    Ok(res)
+
+    let hairpinning = tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::net::TcpStream::connect(SocketAddr::new(ip.into(), port)),
+    )
+    .await
+    .map_or(false, |r| r.is_ok());
+
+    Ok(CheckPortRes {
+        ip,
+        port,
+        open_externally,
+        open_internally,
+        hairpinning,
+    })
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]

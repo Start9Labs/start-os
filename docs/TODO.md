@@ -23,15 +23,6 @@ Pending tasks for AI agents. Remove items when completed.
   other crate types. Extracting them requires either moving the type definitions into the sub-crate
   (and importing them back into `start-os`) or restructuring to share a common types crate.
 
-- [ ] Make `SetupExecuteParams.password` optional in the backend - @dr-bonez
-
-  **Problem**: In `core/src/setup.rs`, `SetupExecuteParams` has `password: EncryptedWire` (non-nullable),
-  but the frontend needs to send `null` for restore/transfer flows where the user keeps their existing
-  password. The `AttachParams` type correctly uses `Option<EncryptedWire>` for this purpose.
-
-  **Fix**: Change `password: EncryptedWire` to `password: Option<EncryptedWire>` in `SetupExecuteParams`
-  and handle the `None` case in the `execute` handler (similar to how `attach` handles it).
-
 - [ ] Auto-configure port forwards via UPnP/NAT-PMP/PCP - @dr-bonez
 
   **Goal**: When a binding is marked public, automatically configure port forwards on the user's router
@@ -39,10 +30,11 @@ Pending tasks for AI agents. Remove items when completed.
   displaying manual instructions (the port forward mapping from patch-db) when auto-configuration is
   unavailable or fails.
 
-- [ ] Decouple createTask from service running state - @dr-bonez
+- [ ] Use TLS-ALPN challenges for check-port when addSsl - @dr-bonez
 
-  **Problem**: `createTask` currently depends on the service being in a running state.
+  **Problem**: The `check_port` RPC in `core/src/net/gateway.rs` currently uses an external HTTP
+  service (`ifconfig_url`) to verify port reachability. This doesn't check whether the port is forwarded to the right place, just that it's open. there's nothing we can do about this if it's a raw forward, but if it goes through the ssl proxy we can do a better verification.
 
-  **Goal**: The `input-not-matches` handler in StartOS should queue the task, check it once the
-  service is ready, then clear it if it matches. This allows tasks to be created regardless of
-  whether the service is currently running.
+  **Goal**: When a binding has `addSsl` enabled, use TLS-ALPN-01 challenges to verify port
+  reachability instead of (or in addition to) the plain TCP check. This more accurately validates
+  that the SSL port is properly configured and reachable.
