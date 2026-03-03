@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton } from '@taiga-ui/core'
@@ -10,7 +11,7 @@ import { ApiService } from 'src/app/services/api/api.service'
 @Component({
   template: `
     <section class="g-form" tuiCardLarge [style.align-items]="'start'">
-      <button tuiButton>Launch LuCI Interface</button>
+      <a tuiButton [href]="luciUrl" target="_blank">Launch LuCI Interface</a>
       <button tuiButton>Download Support Diagnostics</button>
       <button tuiButton (click)="factoryReset()">Factory Reset</button>
     </section>
@@ -23,6 +24,7 @@ export default class Advanced {
   private readonly api = inject(ApiService)
   private readonly actions = inject(ActionService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
+  protected readonly luciUrl = `${inject(DOCUMENT).location.origin.replace(/:(\d+)$/, '')}:8080`
 
   protected factoryReset() {
     this.dialogs
