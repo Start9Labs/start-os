@@ -9,7 +9,6 @@ use std::fmt;
 use std::fs;
 use std::io;
 use std::io::Seek as _;
-use std::io::Write;
 use std::ops;
 use std::path::Path;
 use std::path::PathBuf;
@@ -252,21 +251,19 @@ impl LockedConfig {
     }
 
     pub fn dump(&mut self, config: &Config) -> Result<(), Error> {
-        let locked = &mut *self.locked;
-        locked.set_len(0).map_err(|cause| Error::Io {
+        let tmp_path = self.path.with_extension("tmp");
+        let tmp_file = fs::File::create(&tmp_path).map_err(|cause| Error::Io {
             cause,
             src: Source::Path(self.path.clone()),
         })?;
-        locked
-            .seek(std::io::SeekFrom::Start(0))
-            .map_err(|cause| Error::Io {
-                cause,
-                src: Source::Path(self.path.clone()),
-            })?;
         config
-            .dump_io(io::BufWriter::new(&mut *locked))
+            .dump_io(io::BufWriter::new(&tmp_file))
             .with_path(&self.path)?;
-        locked.flush().map_err(|cause| Error::Io {
+        tmp_file.sync_all().map_err(|cause| Error::Io {
+            cause,
+            src: Source::Path(self.path.clone()),
+        })?;
+        fs::rename(&tmp_path, &self.path).map_err(|cause| Error::Io {
             cause,
             src: Source::Path(self.path.clone()),
         })?;

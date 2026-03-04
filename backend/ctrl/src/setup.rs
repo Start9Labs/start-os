@@ -686,9 +686,6 @@ fn run_setup_flash_inner(
     write_admin_password(EMMC_MERGED_MOUNT, password)?;
 
     // Write WiFi config
-    // TODO: uciedit::dump_all() truncates files in-place (set_len(0) + write)
-    // rather than using write-to-tmp + rename. A crash here leaves a corrupted
-    // /etc/config/wireless on the eMMC. Fix in the uciedit crate.
     let _ = tx.blocking_send(SetupEvent::Status {
         message: "Configuring WiFi...".into(),
         step: 3,

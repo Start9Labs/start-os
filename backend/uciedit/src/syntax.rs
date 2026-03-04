@@ -256,7 +256,6 @@ impl<'a> Section<'a> {
 }
 
 #[derive(Debug, Inpt, Clone, Copy)]
-#[inpt(trim = "")] // TODO: trim isn't working?
 pub enum LineComment<'a> {
     #[inpt(regex = r"\s*")]
     None,
@@ -491,7 +490,6 @@ impl<'a> Token<'a> {
     }
 
     pub fn as_str(&self) -> Cow<'a, str> {
-        // TODO: inpt doesn't currently do unescaping
         match self {
             Token::Q(x) => unescape(x.inner),
             Token::Sq(x) => unescape(x.inner),
