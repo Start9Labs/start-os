@@ -168,7 +168,7 @@ impl VersionT for Version {
 
         // Migrate SMTP: rename server->host, login->username, add security field
         migrate_smtp(db);
-      
+
         // Delete ui.name (moved to serverInfo.name)
         if let Some(ui) = db
             .get_mut("public")

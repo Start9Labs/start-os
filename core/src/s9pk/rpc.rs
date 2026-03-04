@@ -388,7 +388,11 @@ async fn select(
         let manifest = s9pk.as_manifest();
 
         // OS version check: package's required OS version must be in server's compat range
-        if !manifest.metadata.os_version.satisfies(&device_info.os.compat) {
+        if !manifest
+            .metadata
+            .os_version
+            .satisfies(&device_info.os.compat)
+        {
             continue;
         }
 

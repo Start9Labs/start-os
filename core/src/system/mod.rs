@@ -254,10 +254,7 @@ pub async fn device_info(ctx: RpcContext) -> Result<DeviceInfo, Error> {
     DeviceInfo::load(&ctx).await
 }
 
-pub fn display_device_info(
-    params: WithIoFormat<Empty>,
-    info: DeviceInfo,
-) -> Result<(), Error> {
+pub fn display_device_info(params: WithIoFormat<Empty>, info: DeviceInfo) -> Result<(), Error> {
     use prettytable::*;
 
     if let Some(format) = params.format {
