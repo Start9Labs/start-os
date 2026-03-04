@@ -249,6 +249,20 @@ impl Model<Host> {
                         port: Some(port),
                         metadata,
                     });
+                } else if opt.secure.map_or(false, |s| s.ssl)
+                    && opt.add_ssl.is_none()
+                    && available_ports.is_ssl(opt.preferred_external_port)
+                    && net.assigned_port != Some(opt.preferred_external_port)
+                {
+                    // Service handles its own TLS and the preferred port is
+                    // allocated as SSL — add an address for passthrough vhost.
+                    available.insert(HostnameInfo {
+                        ssl: true,
+                        public: true,
+                        hostname: domain,
+                        port: Some(opt.preferred_external_port),
+                        metadata,
+                    });
                 }
             }
 
@@ -289,6 +303,20 @@ impl Model<Host> {
                         public: true,
                         hostname: domain,
                         port: Some(port),
+                        metadata: HostnameMetadata::PrivateDomain {
+                            gateways: domain_gateways,
+                        },
+                    });
+                } else if opt.secure.map_or(false, |s| s.ssl)
+                    && opt.add_ssl.is_none()
+                    && available_ports.is_ssl(opt.preferred_external_port)
+                    && net.assigned_port != Some(opt.preferred_external_port)
+                {
+                    available.insert(HostnameInfo {
+                        ssl: true,
+                        public: true,
+                        hostname: domain,
+                        port: Some(opt.preferred_external_port),
                         metadata: HostnameMetadata::PrivateDomain {
                             gateways: domain_gateways,
                         },

@@ -20,7 +20,7 @@ use ts_rs::TS;
 use crate::context::CliContext;
 use crate::hostname::ServerHostname;
 use crate::net::ssl::{SANInfo, root_ca_start_time};
-use crate::net::tls::TlsHandler;
+use crate::net::tls::{TlsHandler, TlsHandlerAction};
 use crate::net::web_server::Accept;
 use crate::prelude::*;
 use crate::tunnel::auth::SetPasswordParams;
@@ -59,7 +59,7 @@ where
         &'a mut self,
         _: &'a ClientHello<'a>,
         _: &'a <A as Accept>::Metadata,
-    ) -> Option<ServerConfig> {
+    ) -> Option<TlsHandlerAction> {
         let cert_info = self
             .db
             .peek()
@@ -88,7 +88,7 @@ where
             .log_err()?;
         cfg.alpn_protocols
             .extend([b"http/1.1".into(), b"h2".into()]);
-        Some(cfg)
+        Some(TlsHandlerAction::Tls(cfg))
     }
 }
 

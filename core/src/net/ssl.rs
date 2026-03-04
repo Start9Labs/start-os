@@ -36,7 +36,7 @@ use crate::db::{DbAccess, DbAccessMut};
 use crate::hostname::ServerHostname;
 use crate::init::check_time_is_synchronized;
 use crate::net::gateway::GatewayInfo;
-use crate::net::tls::TlsHandler;
+use crate::net::tls::{TlsHandler, TlsHandlerAction};
 use crate::net::web_server::{Accept, ExtractVisitor, TcpMetadata, extract};
 use crate::prelude::*;
 use crate::util::serde::Pem;
@@ -620,7 +620,7 @@ where
         &mut self,
         hello: &ClientHello<'_>,
         metadata: &<A as Accept>::Metadata,
-    ) -> Option<ServerConfig> {
+    ) -> Option<TlsHandlerAction> {
         let hostnames: BTreeSet<InternedString> = hello
             .server_name()
             .map(InternedString::from)
@@ -684,5 +684,6 @@ where
             )
         }
         .log_err()
+        .map(TlsHandlerAction::Tls)
     }
 }
