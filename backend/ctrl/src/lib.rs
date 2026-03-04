@@ -7,6 +7,7 @@ pub mod exec;
 pub mod files;
 pub mod flash;
 pub mod init;
+pub mod logs;
 pub mod middleware;
 pub mod profiles;
 pub mod setup;

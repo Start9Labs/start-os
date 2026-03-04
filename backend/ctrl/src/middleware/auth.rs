@@ -63,14 +63,18 @@ impl SessionAuth {
     }
 
     fn extract_session_from_cookie(&self) -> Option<HashSessionToken> {
-        let cookie_header = self.cookie.as_ref()?;
-        let cookie_str = cookie_header.to_str().ok()?;
-        let cookies = Cookie::parse(cookie_str).ok()?;
-        let session_cookie = cookies.iter().find(|c| c.get_name() == "session")?;
-        Some(HashSessionToken::from_token(
-            session_cookie.get_value().to_string(),
-        ))
+        extract_session_token(self.cookie.as_ref()?)
     }
+}
+
+/// Extract the session token from a Cookie header value.
+pub fn extract_session_token(cookie_header: &HeaderValue) -> Option<HashSessionToken> {
+    let cookie_str = cookie_header.to_str().ok()?;
+    let cookies = Cookie::parse(cookie_str).ok()?;
+    let session_cookie = cookies.iter().find(|c| c.get_name() == "session")?;
+    Some(HashSessionToken::from_token(
+        session_cookie.get_value().to_string(),
+    ))
 }
 
 impl<C: Context> Middleware<C> for SessionAuth {

@@ -575,6 +575,12 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
                 .with_about("Wipe overlay and reboot (factory reset)")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "logs",
+            from_fn_async(crate::logs::get_logs)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 #[cfg(test)]

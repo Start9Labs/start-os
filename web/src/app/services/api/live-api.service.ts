@@ -30,6 +30,7 @@ import {
   CheckInitializedRes,
   SetInitialPasswordReq,
   SetupStatusRes,
+  LogsResponse,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -151,7 +152,7 @@ export class LiveApiService extends ApiService {
   async profileDelete(params: ProfileIdOpt): Promise<null> {
     return this.rpc.request({ method: 'profiles.delete', params })
   }
-  
+
   async checkInitialized(): Promise<CheckInitializedRes> {
     return this.rpc.request({
       method: 'auth.check-initialized',
@@ -178,5 +179,9 @@ export class LiveApiService extends ApiService {
       method: 'system.factory-reset',
       params: {},
     })
+  }
+
+  async systemLogs(): Promise<LogsResponse> {
+    return this.rpc.request({ method: 'system.logs', params: {} })
   }
 }

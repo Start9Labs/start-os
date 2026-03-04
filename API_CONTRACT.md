@@ -134,6 +134,41 @@ struct SetPreferencesRequest {
 // Response: null
 ```
 
+### `system.logs`
+
+Non-streaming endpoint for CLI usage. Returns all current log entries.
+
+```rust
+// Request: {}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LogEntry {
+    timestamp: String,
+    message: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LogsResponse {
+    entries: Vec<LogEntry>,
+}
+// Response: LogsResponse
+// Backend: runs `logread`, parses syslog lines
+```
+
+### `/api/logs` (WebSocket)
+
+Live-streaming endpoint for the web UI.
+
+1. Client opens WebSocket to `/api/logs`
+2. Server spawns `logread -f` (dumps historical entries then follows new ones)
+3. Each line is parsed into `LogEntry` and sent as a JSON text frame
+4. Connection closes when either side disconnects; child process is killed on drop
+5. **Session auth required** — the session cookie is validated before the WebSocket upgrade (returns 401 if invalid)
+6. Each message is a single `LogEntry` JSON object (not wrapped in `LogsResponse`)
+7. Unparseable lines are silently dropped (same as the RPC endpoint)
+
 ---
 
 ## 3. WAN
@@ -1048,6 +1083,8 @@ struct SshKeyDeleteRequest {
 | `system.newer-versions` | Exists | System |
 | `system.restart` | Exists | System |
 | `system.set-preferences` | Exists | System |
+| `system.logs` | Exists | System |
+| `/api/logs` (WebSocket) | Exists | System |
 | `wan.ipv4-get` | **New** | WAN |
 | `wan.ipv4-set` | **New** | WAN |
 | `wan.ipv6-get` | **New** | WAN |
@@ -1095,7 +1132,7 @@ struct SshKeyDeleteRequest {
 | `ssh-keys.add` | **New** | SSH Keys |
 | `ssh-keys.delete` | **New** | SSH Keys |
 
-**Totals:** 51 endpoints (20 existing, 31 new)
+**Totals:** 53 endpoints (22 existing, 31 new)
 
 ---
 

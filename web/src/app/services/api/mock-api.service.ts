@@ -32,6 +32,8 @@ import {
   CheckInitializedRes,
   SetInitialPasswordReq,
   SetupStatusRes,
+  LogEntry,
+  LogsResponse,
 } from './api.service'
 import {
   DhcpSection,
@@ -687,6 +689,32 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
   async systemFactoryReset(): Promise<null> {
     await pauseFor(2000)
     return null
+  }
+
+  async systemLogs(): Promise<LogsResponse> {
+    await pauseFor(250)
+    const messages = [
+      'daemon.info dnsmasq[1]: read /etc/hosts - 3 names',
+      'kern.info kernel: [12345.678] br-lan: port 1(eth0) entered forwarding state',
+      'daemon.notice odhcpd[1]: Got a DHCPv6 request',
+      'daemon.info dnsmasq-dhcp[1]: DHCPACK(br-lan) 192.168.1.100 aa:bb:cc:dd:ee:ff laptop',
+      'daemon.info hostapd: wlan0: STA aa:bb:cc:dd:ee:ff IEEE 802.11: authenticated',
+      'daemon.info dnsmasq[1]: query[A] example.com from 192.168.1.100',
+      'daemon.info dnsmasq[1]: forwarded example.com to 1.1.1.1',
+      'daemon.info dnsmasq[1]: reply example.com is 93.184.216.34',
+      'kern.warn kernel: [12400.123] nf_conntrack: table full, dropping packet',
+      'daemon.notice netifd: Interface "wan" is now up',
+    ]
+    const entries: LogEntry[] = []
+    for (let i = 0; i < 50; i++) {
+      const hour = String(8 + Math.floor(i / 6)).padStart(2, '0')
+      const min = String((i * 10) % 60).padStart(2, '0')
+      entries.push({
+        timestamp: `Mon Mar  3 ${hour}:${min}:00 2026`,
+        message: messages[i % messages.length],
+      })
+    }
+    return { entries }
   }
 
   /**

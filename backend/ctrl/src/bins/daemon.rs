@@ -173,6 +173,8 @@ async fn inner_main() -> Result<(), Error> {
         .route("/rpc/v1", post(handler))
         // Streaming flash endpoint for setup wizard
         .route("/api/setup/flash", post(setup_flash_handler))
+        // WebSocket endpoint for live log streaming
+        .route("/api/logs", axum::routing::get(crate::logs::logs_ws_handler))
         // Everything else serves the embedded web UI
         .fallback(axum::routing::any(serve_embedded))
         .layer(Extension(app_state));

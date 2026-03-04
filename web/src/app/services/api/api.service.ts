@@ -39,7 +39,11 @@ export abstract class ApiService {
   abstract setInitialPassword(params: SetInitialPasswordReq): Promise<null>
   abstract setupStatus(): Promise<SetupStatusRes>
   abstract systemFactoryReset(): Promise<null>
+  abstract systemLogs(): Promise<LogsResponse>
 }
+
+export type LogEntry = { timestamp: string; message: string }
+export type LogsResponse = { entries: LogEntry[] }
 
 export type LoginReq = { password: string }
 

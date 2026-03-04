@@ -1,3 +1,3 @@
 mod auth;
 
-pub use auth::SessionAuth;
+pub use auth::{extract_session_token, SessionAuth};
