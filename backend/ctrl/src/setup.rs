@@ -178,10 +178,15 @@ fn umount_emmc_overlayfs() -> Result<(), Error> {
     if let Err(e) = flash::run_cmd("umount", &[EMMC_MERGED_MOUNT]) {
         errors.push(format!("{EMMC_MERGED_MOUNT}: {e}"));
     }
+
+    // Drop cached dentries/inodes so the kernel releases refcounts on the
+    // squashfs lowerdir that overlayfs was using.
+    let _ = fs::write("/proc/sys/vm/drop_caches", b"3");
+
     for mount in [EMMC_OVERLAY_MOUNT, EMMC_ROOTFS_MOUNT] {
         if flash::run_cmd("umount", &[mount]).is_err() {
-            if let Err(e) = flash::run_cmd("umount", &["-l", mount]) {
-                errors.push(format!("{mount}: {e}"));
+            if flash::run_cmd("umount", &["-l", mount]).is_err() && is_mounted(mount) {
+                errors.push(format!("{mount}: still mounted after umount -l"));
             }
         }
     }
@@ -190,6 +195,13 @@ fn umount_emmc_overlayfs() -> Result<(), Error> {
     } else {
         Err(Error::other(format!("umount errors: {}", errors.join("; "))))
     }
+}
+
+/// Check whether a path is currently a mount point.
+fn is_mounted(path: &str) -> bool {
+    fs::read_to_string("/proc/mounts")
+        .map(|m| m.lines().any(|l| l.split_whitespace().nth(1) == Some(path)))
+        .unwrap_or(false)
 }
 
 /// Mark the overlay as FS_STATE_READY by creating a `.fs_state` symlink.
@@ -617,7 +629,9 @@ fn run_setup_flash_inner(
         // Mount squashfs + overlay to get merged view of old config
         mount_emmc_overlayfs(&rootfs_dev, &rootfs_data_dev)?;
         let backup = backup_conffiles(EMMC_MERGED_MOUNT);
-        let _ = umount_emmc_overlayfs();
+        if let Err(e) = umount_emmc_overlayfs() {
+            eprintln!("WARNING: first umount_emmc_overlayfs failed: {e}");
+        }
 
         Some(backup)
     } else {
@@ -686,8 +700,10 @@ fn run_setup_flash_inner(
     // Mark overlay as FS_STATE_READY so mount_root doesn't wipe it on first boot
     mark_overlay_ready(EMMC_OVERLAY_MOUNT)?;
 
-    // Unmount the overlayfs stack
-    umount_emmc_overlayfs()?;
+    // Unmount the overlayfs stack (non-fatal — mounts are cleaned up on reboot)
+    if let Err(e) = umount_emmc_overlayfs() {
+        eprintln!("WARNING: umount_emmc_overlayfs failed (non-fatal, cleaned up on reboot): {e}");
+    }
 
     // Write PMK to eMMC key_backup partition.
     //
