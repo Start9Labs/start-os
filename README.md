@@ -52,7 +52,7 @@ The easiest path. [Buy a server](https://store.start9.com) from Start9 and plug 
 
 ### Build your own
 
-Install StartOS on your own hardware. Follow one of the [DIY guides](https://start9.com/latest/diy). Reasons to go this route:
+Follow the [install guide](https://docs.start9.com/start-os/installing.html) to install StartOS on your own hardware. . Reasons to go this route:
 
 1. You already have compatible hardware
 2. You want to save on shipping costs
