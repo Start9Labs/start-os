@@ -71,6 +71,17 @@ export class CustomValidators {
     }
   }
 
+  static hostname(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null
+
+      // RFC 1123: letters, digits, hyphens; no leading/trailing hyphen; max 63 chars
+      const hostnameRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/
+
+      return hostnameRegex.test(control.value) ? null : { hostname: true }
+    }
+  }
+
   static ipv4List(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       if (!control.value) return null

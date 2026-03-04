@@ -1,0 +1,7 @@
+config nlbwmon
+	option database_directory	'/var/lib/nlbwmon'
+	option database_interval	'2017-01-01/1'
+	option database_generations	100
+	option commit_interval		'24h'
+	option refresh_interval		'30s'
+	option protocol_database	'/usr/share/nlbwmon/protocols'

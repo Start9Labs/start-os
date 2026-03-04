@@ -40,6 +40,14 @@ export abstract class ApiService {
   abstract setupStatus(): Promise<SetupStatusRes>
   abstract systemFactoryReset(): Promise<null>
   abstract systemLogs(): Promise<LogsResponse>
+  abstract devicesList(): Promise<DeviceFromApi[]>
+  abstract devicesUpdate(params: DeviceUpdateReq): Promise<null>
+  abstract devicesBlock(params: { mac: string }): Promise<null>
+  abstract devicesUnblock(params: { mac: string }): Promise<null>
+  abstract devicesForget(params: { mac: string }): Promise<null>
+  abstract devicesDataUsage(
+    params: DeviceDataUsageReq,
+  ): Promise<DataUsagePointFromApi[]>
 }
 
 export type LogEntry = { timestamp: string; message: string }
@@ -282,4 +290,42 @@ export interface SetupFlashEvent {
   message?: string
   step?: number
   totalSteps?: number
+}
+
+// Device types (from backend smart endpoints)
+export interface DeviceFromApi {
+  mac: string
+  name: string | null
+  hostname: string | null
+  status: 'online' | 'offline' | 'blocked'
+  connection: string | null
+  ipv4: string | null
+  ipv6: string | null
+  ipv4_static: boolean
+  ipv6_static: boolean
+  security_profile: string | null
+  speed: { up: number; down: number } | null
+  data_usage: number | null
+}
+
+export interface DeviceUpdateReq {
+  mac: string
+  name: string
+  ipv4_static: boolean
+  ipv4: string
+  ipv6_static: boolean
+  ipv6: string
+}
+
+export type DeviceDataUsagePeriod = 'day' | 'week' | 'month' | '3months'
+
+export interface DeviceDataUsageReq {
+  mac: string
+  period: DeviceDataUsagePeriod
+}
+
+export interface DataUsagePointFromApi {
+  timestamp: number
+  upload: number
+  download: number
 }

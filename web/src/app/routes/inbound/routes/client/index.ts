@@ -19,7 +19,7 @@ import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { Placeholder } from 'src/app/components/placeholder'
-import { DevicesUciService } from 'src/app/routes/devices/uci/service'
+import { DevicesApiService } from 'src/app/routes/devices/service'
 import { InboundService, VpnServerPeer } from '../../service'
 
 import { CLIENT_CONFIG } from './dialog-config'
@@ -155,7 +155,7 @@ import { RENAME_CLIENT } from './dialog-rename'
 })
 export default class InboundClients {
   private readonly service = inject(InboundService)
-  private readonly devices = inject(DevicesUciService)
+  private readonly devices = inject(DevicesApiService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly listenPort = Number(
     inject(ActivatedRoute).snapshot.queryParams['port'],

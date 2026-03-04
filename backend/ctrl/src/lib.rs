@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod captive;
+pub mod devices;
 pub mod emmc;
 pub mod error;
 pub mod ethernet;
@@ -238,6 +239,7 @@ pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
         )
         .subcommand("setup", setup::setup::<C>())
         .subcommand("system", system::system::<C>())
+        .subcommand("devices", devices::devices::<C>())
 }
 
 pub fn init_logging(name: &str) -> DefaultGuard {

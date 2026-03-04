@@ -6,13 +6,13 @@ import {
   PublishedPortDisplay,
   PublishedPortStatus,
 } from './types'
-import { DevicesUciService } from 'src/app/routes/devices/uci/service'
+import { DevicesApiService } from 'src/app/routes/devices/service'
 import { Device, DeviceUpdateData } from 'src/app/routes/devices/utils'
 
 @Injectable()
 export class PublishedPortsService extends FormService<PublishedPortDisplay[]> {
   private readonly uci = inject(PublishedPortsUciService)
-  private readonly devicesUci = inject(DevicesUciService)
+  private readonly devicesUci = inject(DevicesApiService)
 
   private devices: Device[] = []
   private ports: PublishedPort[] = []

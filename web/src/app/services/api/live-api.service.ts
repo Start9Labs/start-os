@@ -31,6 +31,10 @@ import {
   SetInitialPasswordReq,
   SetupStatusRes,
   LogsResponse,
+  DeviceFromApi,
+  DeviceUpdateReq,
+  DeviceDataUsageReq,
+  DataUsagePointFromApi,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -183,5 +187,31 @@ export class LiveApiService extends ApiService {
 
   async systemLogs(): Promise<LogsResponse> {
     return this.rpc.request({ method: 'system.logs', params: {} })
+  }
+
+  async devicesList(): Promise<DeviceFromApi[]> {
+    return this.rpc.request({ method: 'devices.list', params: {} })
+  }
+
+  async devicesUpdate(params: DeviceUpdateReq): Promise<null> {
+    return this.rpc.request({ method: 'devices.update', params })
+  }
+
+  async devicesBlock(params: { mac: string }): Promise<null> {
+    return this.rpc.request({ method: 'devices.block', params })
+  }
+
+  async devicesUnblock(params: { mac: string }): Promise<null> {
+    return this.rpc.request({ method: 'devices.unblock', params })
+  }
+
+  async devicesForget(params: { mac: string }): Promise<null> {
+    return this.rpc.request({ method: 'devices.forget', params })
+  }
+
+  async devicesDataUsage(
+    params: DeviceDataUsageReq,
+  ): Promise<DataUsagePointFromApi[]> {
+    return this.rpc.request({ method: 'devices.data-usage', params })
   }
 }

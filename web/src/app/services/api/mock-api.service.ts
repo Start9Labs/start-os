@@ -34,6 +34,10 @@ import {
   SetupStatusRes,
   LogEntry,
   LogsResponse,
+  DeviceFromApi,
+  DeviceUpdateReq,
+  DeviceDataUsageReq,
+  DataUsagePointFromApi,
 } from './api.service'
 import {
   DhcpSection,
@@ -52,6 +56,9 @@ import {
   generateMockDataUsage,
   getMockArpOutput,
   mockBlockedDevices,
+  mockConnectionTypes,
+  mockDataUsageTotals,
+  mockDeviceSpeeds,
   mockDhcpHosts,
   mockDhcpLeasesOutput,
 } from 'src/app/routes/devices/uci/mocks'
@@ -715,6 +722,210 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
       })
     }
     return { entries }
+  }
+
+  // --- Device smart endpoint mocks ---
+
+  private mockDeviceHosts = structuredClone(mockDhcpHosts)
+  private mockDeviceBlocked = structuredClone(mockBlockedDevices)
+
+  async devicesList(): Promise<DeviceFromApi[]> {
+    await pauseFor(250)
+
+    const wanIpv6 = this.isWanIpv6Enabled()
+    const lanIpv6 = this.isLanIpv6Enabled()
+    const arpOutput = getMockArpOutput(wanIpv6, lanIpv6)
+
+    // Parse ARP entries
+    const arpByMac = new Map<
+      string,
+      { ip: string; iface: string; state: string }[]
+    >()
+    for (const line of arpOutput.split('\n')) {
+      const match = line.match(
+        /^(\S+)\s+dev\s+(\S+)\s+lladdr\s+([0-9a-fA-F:]+)\s+(\S+)/,
+      )
+      if (match && match[2].startsWith('br-lan')) {
+        const mac = match[3].toUpperCase()
+        if (!arpByMac.has(mac)) arpByMac.set(mac, [])
+        arpByMac
+          .get(mac)!
+          .push({ ip: match[1], iface: match[2], state: match[4] })
+      }
+    }
+
+    // Parse DHCP leases
+    const leaseByMac = new Map<string, { ip: string; hostname: string }>()
+    for (const line of mockDhcpLeasesOutput.split('\n')) {
+      const parts = line.split(/\s+/)
+      if (parts.length >= 4) {
+        leaseByMac.set(parts[1].toUpperCase(), {
+          ip: parts[2],
+          hostname: parts[3],
+        })
+      }
+    }
+
+    // Build host map
+    const hostByMac = new Map(
+      this.mockDeviceHosts.map(h => [h.options.mac!.toUpperCase(), h]),
+    )
+
+    // Blocked MACs
+    const blockedMacs = new Set(
+      this.mockDeviceBlocked
+        .filter(
+          r => r.options.target === 'REJECT' || r.options.target === 'DROP',
+        )
+        .map(r => r.options.src_mac!.toUpperCase()),
+    )
+
+    // All MACs
+    const allMacs = new Set([
+      ...arpByMac.keys(),
+      ...leaseByMac.keys(),
+      ...hostByMac.keys(),
+      ...blockedMacs,
+    ])
+
+    const devices: DeviceFromApi[] = []
+    for (const mac of allMacs) {
+      const arpList = arpByMac.get(mac) || []
+      const lease = leaseByMac.get(mac)
+      const host = hostByMac.get(mac)
+      const isBlocked = blockedMacs.has(mac)
+
+      const status: DeviceFromApi['status'] = isBlocked
+        ? 'blocked'
+        : arpList.some(e => e.state === 'REACHABLE' || e.state === 'STALE')
+          ? 'online'
+          : 'offline'
+
+      const ipv4 =
+        arpList.find(e => !e.ip.includes(':'))?.ip || lease?.ip || null
+      const ipv6 =
+        arpList.find(e => e.ip.includes(':') && !e.ip.startsWith('fe80:'))
+          ?.ip ||
+        arpList.find(e => e.ip.startsWith('fe80:'))?.ip ||
+        null
+
+      devices.push({
+        mac,
+        name: host?.options.name || null,
+        hostname: lease?.hostname || null,
+        status,
+        connection:
+          status === 'online' ? (mockConnectionTypes[mac] ?? 'Ethernet') : null,
+        ipv4,
+        ipv6,
+        ipv4_static: !!host?.options.ip,
+        ipv6_static: !!host?.options.hostid,
+        security_profile: 'Admin',
+        speed: status === 'online' ? (mockDeviceSpeeds[mac] ?? null) : null,
+        data_usage: mockDataUsageTotals[mac] ?? null,
+      })
+    }
+    return devices
+  }
+
+  async devicesUpdate(params: DeviceUpdateReq): Promise<null> {
+    await pauseFor(250)
+    const macUpper = params.mac.toUpperCase()
+    const existing = this.mockDeviceHosts.find(
+      h => h.options.mac?.toUpperCase() === macUpper,
+    )
+    if (existing) {
+      existing.options.name = params.name
+      existing.options.ip = params.ipv4_static ? params.ipv4 : undefined
+      existing.options.hostid = params.ipv6_static
+        ? params.ipv6.split(':').slice(-4).join(':')
+        : undefined
+    } else {
+      this.mockDeviceHosts.push({
+        type: 'host',
+        name: `host_${params.mac.replace(/:/g, '').toLowerCase()}`,
+        options: {
+          mac: params.mac,
+          name: params.name,
+          ip: params.ipv4_static ? params.ipv4 : undefined,
+          hostid: params.ipv6_static
+            ? params.ipv6.split(':').slice(-4).join(':')
+            : undefined,
+          dns: '1',
+        },
+        lists: {},
+      })
+    }
+    return null
+  }
+
+  async devicesBlock(params: { mac: string }): Promise<null> {
+    await pauseFor(250)
+    const macUpper = params.mac.toUpperCase()
+    if (
+      !this.mockDeviceBlocked.some(
+        r => r.options.src_mac?.toUpperCase() === macUpper,
+      )
+    ) {
+      this.mockDeviceBlocked.push({
+        type: 'rule',
+        name: `block_${params.mac.replace(/:/g, '').toLowerCase()}`,
+        options: {
+          src: 'lan',
+          dest: 'wan',
+          src_mac: params.mac,
+          target: 'REJECT',
+          enabled: '1',
+          name: `Block ${params.mac}`,
+        },
+        lists: {},
+      })
+    }
+    // Remove static IPs
+    const host = this.mockDeviceHosts.find(
+      h => h.options.mac?.toUpperCase() === macUpper,
+    )
+    if (host) {
+      delete host.options.ip
+      delete host.options.hostid
+    }
+    return null
+  }
+
+  async devicesUnblock(params: { mac: string }): Promise<null> {
+    await pauseFor(250)
+    const macUpper = params.mac.toUpperCase()
+    this.mockDeviceBlocked = this.mockDeviceBlocked.filter(
+      r =>
+        !(
+          (r.options.target === 'REJECT' || r.options.target === 'DROP') &&
+          r.options.src_mac?.toUpperCase() === macUpper
+        ),
+    )
+    return null
+  }
+
+  async devicesForget(params: { mac: string }): Promise<null> {
+    await pauseFor(250)
+    const macUpper = params.mac.toUpperCase()
+    this.mockDeviceHosts = this.mockDeviceHosts.filter(
+      h => h.options.mac?.toUpperCase() !== macUpper,
+    )
+    this.mockDeviceBlocked = this.mockDeviceBlocked.filter(
+      r =>
+        !(
+          (r.options.target === 'REJECT' || r.options.target === 'DROP') &&
+          r.options.src_mac?.toUpperCase() === macUpper
+        ),
+    )
+    return null
+  }
+
+  async devicesDataUsage(
+    params: DeviceDataUsageReq,
+  ): Promise<DataUsagePointFromApi[]> {
+    await pauseFor(250)
+    return generateMockDataUsage(params.mac, params.period)
   }
 
   /**

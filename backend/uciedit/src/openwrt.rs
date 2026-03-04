@@ -265,3 +265,18 @@ pub struct Dhcp {
     pub limit: u32,
     pub leasetime: String,
 }
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "host")]
+pub struct DhcpHost {
+    #[uci(default)]
+    pub mac: String,
+    #[uci(default)]
+    pub name: Option<String>,
+    #[uci(default)]
+    pub ip: Option<String>,
+    #[uci(default)]
+    pub hostid: Option<String>,
+    #[uci(default)]
+    pub dns: Option<String>,
+}
