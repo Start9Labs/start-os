@@ -4,7 +4,6 @@ import {
   computed,
   inject,
 } from '@angular/core'
-import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
@@ -18,11 +17,10 @@ import {
 } from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { filter, from } from 'rxjs'
+import { filter } from 'rxjs'
 import { Placeholder } from 'src/app/components/placeholder'
 import { OutboundService } from 'src/app/routes/outbound/service'
-import { ApiService, SecurityProfile } from 'src/app/services/api/api.service'
-import { NetworkInterfaceSection, UciFile } from 'src/app/services/api/types'
+import { SecurityProfile } from 'src/app/services/api/api.service'
 import { ADD_PROFILE, ProfileDialogResult } from './dialog'
 import { ProfilesService } from './service'
 
@@ -148,11 +146,14 @@ export default class Profiles {
   protected readonly service = inject(ProfilesService)
   protected readonly outboundService = inject(OutboundService)
 
-  private readonly api = inject(ApiService)
-
-  // Load LAN subnet configuration
-  private readonly lanSubnet = toSignal(from(this.loadLanSubnetBase()), {
-    initialValue: { firstOctet: 192, secondOctet: 168 },
+  private readonly lanSubnet = computed(() => {
+    const profiles = this.service.data()
+    const lan = profiles?.find(p => p.owns_lan)
+    if (lan) {
+      const [first, second] = lan.gateway_ip.split('.').map(Number)
+      return { firstOctet: first || 192, secondOctet: second || 168 }
+    }
+    return { firstOctet: 192, secondOctet: 168 }
   })
 
   protected readonly tableData = computed(() => {
@@ -168,31 +169,6 @@ export default class Profiles {
       wanAccessDisplay: this.getWanAccessDisplay(p.wan_access),
     }))
   })
-
-  private async loadLanSubnetBase(): Promise<{
-    firstOctet: number
-    secondOctet: number
-  }> {
-    try {
-      const uci = await this.api.getUci<{ network: UciFile<any> }>({
-        names: ['network'],
-      })
-
-      const lanSection = uci.network.sections.find(
-        (s): s is NetworkInterfaceSection =>
-          s.type === 'interface' && s.name === 'lan',
-      )
-
-      if (lanSection?.options?.ipaddr) {
-        const [first, second] = lanSection.options.ipaddr.split('.').map(Number)
-        return { firstOctet: first || 192, secondOctet: second || 168 }
-      }
-    } catch (error) {
-      console.error('Failed to load LAN subnet configuration:', error)
-    }
-
-    return { firstOctet: 192, secondOctet: 168 }
-  }
 
   private getDnsDisplay(profile: SecurityProfile): string {
     return profile.dns_override && profile.dns_override.length
