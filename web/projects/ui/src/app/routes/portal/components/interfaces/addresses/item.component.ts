@@ -29,7 +29,9 @@ import { DomainHealthService } from './domain-health.service'
           tuiSwitch
           size="s"
           [showIcons]="false"
-          [disabled]="toggling() || address.hostnameInfo.metadata.kind === 'mdns'"
+          [disabled]="
+            toggling() || address.hostnameInfo.metadata.kind === 'mdns'
+          "
           [ngModel]="address.enabled"
           (ngModelChange)="onToggleEnabled()"
         />
@@ -207,10 +209,11 @@ export class InterfaceAddressItemComponent {
 
       if (enabled) {
         const kind = addr.hostnameInfo.metadata.kind
-        if (kind === 'public-domain') {
+        if (kind === 'public-domain' && addr.hostnameInfo.port !== null) {
           await this.domainHealth.checkPublicDomain(
             addr.hostnameInfo.hostname,
             this.gatewayId(),
+            addr.hostnameInfo.port,
           )
         } else if (kind === 'private-domain') {
           await this.domainHealth.checkPrivateDomain(this.gatewayId())

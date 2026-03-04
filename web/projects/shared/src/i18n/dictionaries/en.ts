@@ -701,4 +701,7 @@ export const ENGLISH: Record<string, number> = {
   'Game Over': 771,
   'Press any key or tap to start': 772,
   'Press any key or tap to play again': 773,
+  'Port status cannot be determined while service is not running': 774,
+  'This address will not work from your local network due to a router hairpinning limitation': 775,
+  'Action not found': 776,
 }

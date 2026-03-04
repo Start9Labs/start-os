@@ -287,9 +287,12 @@ export class AddressActionsComponent {
   }
 
   showDnsValidation() {
+    const port = this.address().hostnameInfo.port
+    if (port === null) return
     this.domainHealth.showPublicDomainSetup(
       this.address().hostnameInfo.hostname,
       this.gatewayId(),
+      port,
     )
   }
 

@@ -6,12 +6,15 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
-import { TuiButton, TuiDialogContext, TuiIcon, TuiLoader } from '@taiga-ui/core'
+import { T } from '@start9labs/start-sdk'
+import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { TuiButtonLoading } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
+import { PortCheckIconComponent } from 'src/app/routes/portal/components/port-check-icon.component'
+import { PortCheckWarningsComponent } from 'src/app/routes/portal/components/port-check-warnings.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -58,17 +61,13 @@ function parseSocketAddr(s: string): { ip: string; port: number } {
             @for (iface of row.interfaces; track iface) {
               <div>{{ iface }}</div>
             }
+            <port-check-warnings [result]="results()[i]" />
           </td>
           <td class="status">
-            @if (loading()[i]) {
-              <tui-loader size="s" />
-            } @else if (results()[i] === true) {
-              <tui-icon class="g-positive" icon="@tui.check" />
-            } @else if (results()[i] === false) {
-              <tui-icon class="g-negative" icon="@tui.x" />
-            } @else {
-              <tui-icon class="g-secondary" icon="@tui.minus" />
-            }
+            <port-check-icon
+              [result]="results()[i]"
+              [loading]="!!loading()[i]"
+            />
           </td>
           <td>{{ row.externalPort }}</td>
           <td>{{ row.internalPort }}</td>
@@ -101,11 +100,6 @@ function parseSocketAddr(s: string): { ip: string; port: number } {
 
     .interfaces {
       white-space: nowrap;
-    }
-
-    tui-icon {
-      font-size: 1.3rem;
-      vertical-align: text-bottom;
     }
 
     .status {
@@ -145,8 +139,8 @@ function parseSocketAddr(s: string): { ip: string; port: number } {
     i18nPipe,
     TableComponent,
     PlaceholderComponent,
-    TuiIcon,
-    TuiLoader,
+    PortCheckIconComponent,
+    PortCheckWarningsComponent,
     TuiButtonLoading,
   ],
 })
@@ -159,7 +153,7 @@ export class PortForwardsModalComponent {
     injectContext<TuiDialogContext<void, PortForwardsModalData>>()
 
   readonly loading = signal<Record<number, boolean>>({})
-  readonly results = signal<Record<number, boolean>>({})
+  readonly results = signal<Record<number, T.CheckPortRes>>({})
 
   private readonly portForwards$ = combineLatest([
     this.patch.watch$('serverInfo', 'network', 'host', 'portForwards').pipe(
@@ -254,7 +248,7 @@ export class PortForwardsModalComponent {
         port,
       })
 
-      this.results.update(r => ({ ...r, [index]: result.reachable }))
+      this.results.update(r => ({ ...r, [index]: result }))
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

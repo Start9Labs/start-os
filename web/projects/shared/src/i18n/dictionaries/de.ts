@@ -701,4 +701,7 @@ export default {
   771: 'Spiel vorbei',
   772: 'Beliebige Taste drücken oder tippen zum Starten',
   773: 'Beliebige Taste drücken oder tippen zum Neustarten',
+  774: 'Der Portstatus kann nicht ermittelt werden, solange der Dienst nicht läuft',
+  775: 'Diese Adresse funktioniert nicht aus Ihrem lokalen Netzwerk aufgrund einer Router-Hairpinning-Einschränkung',
+  776: 'Aktion nicht gefunden',
 } satisfies i18n

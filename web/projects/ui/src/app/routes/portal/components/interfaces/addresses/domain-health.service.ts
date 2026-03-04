@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { DialogService, ErrorService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -15,28 +16,36 @@ export class DomainHealthService {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
 
-  async checkPublicDomain(fqdn: string, gatewayId: string): Promise<void> {
+  async checkPublicDomain(
+    fqdn: string,
+    gatewayId: string,
+    port: number,
+  ): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      const [dnsPass, portPass] = await Promise.all([
+      const [dnsPass, portResult] = await Promise.all([
         this.api
           .queryDns({ fqdn })
           .then(ip => ip === gateway.ipInfo.wanIp)
           .catch(() => false),
         this.api
-          .checkPort({ gateway: gatewayId, port: 443 })
-          .then(r => r.reachable)
-          .catch(() => false),
+          .checkPort({ gateway: gatewayId, port })
+          .catch((): null => null),
       ])
 
-      if (!dnsPass || !portPass) {
+      const portOk =
+        !!portResult?.openInternally &&
+        !!portResult?.openExternally &&
+        !!portResult?.hairpinning
+
+      if (!dnsPass || !portOk) {
         setTimeout(
           () =>
-            this.openPublicDomainModal(fqdn, gateway, 443, {
+            this.openPublicDomainModal(fqdn, gateway, port, {
               dnsPass,
-              portPass,
+              portResult,
             }),
           250,
         )
@@ -66,12 +75,16 @@ export class DomainHealthService {
     }
   }
 
-  async showPublicDomainSetup(fqdn: string, gatewayId: string): Promise<void> {
+  async showPublicDomainSetup(
+    fqdn: string,
+    gatewayId: string,
+    port: number,
+  ): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      this.openPublicDomainModal(fqdn, gateway, 443)
+      this.openPublicDomainModal(fqdn, gateway, port)
     } catch (e: any) {
       this.errorService.handleError(e)
     }
@@ -82,14 +95,18 @@ export class DomainHealthService {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      const portPass = await this.api
+      const portResult = await this.api
         .checkPort({ gateway: gatewayId, port })
-        .then(r => r.reachable)
-        .catch(() => false)
+        .catch((): null => null)
 
-      if (!portPass) {
+      const portOk =
+        !!portResult?.openInternally &&
+        !!portResult?.openExternally &&
+        !!portResult?.hairpinning
+
+      if (!portOk) {
         setTimeout(
-          () => this.openPortForwardModal(gateway, port, { portPass }),
+          () => this.openPortForwardModal(gateway, port, { portResult }),
           250,
         )
       }
@@ -133,7 +150,7 @@ export class DomainHealthService {
     fqdn: string,
     gateway: DnsGateway,
     port: number,
-    initialResults?: { dnsPass: boolean; portPass: boolean },
+    initialResults?: { dnsPass: boolean; portResult: T.CheckPortRes | null },
   ) {
     this.dialog
       .openComponent(DOMAIN_VALIDATION, {
@@ -147,7 +164,7 @@ export class DomainHealthService {
   private openPortForwardModal(
     gateway: DnsGateway,
     port: number,
-    initialResults?: { portPass: boolean },
+    initialResults?: { portResult: T.CheckPortRes | null },
   ) {
     this.dialog
       .openComponent(PORT_FORWARD_VALIDATION, {

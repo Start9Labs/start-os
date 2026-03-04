@@ -14,6 +14,8 @@ import {
   tuiSwitchOptionsProvider,
 } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { PortCheckIconComponent } from 'src/app/routes/portal/components/port-check-icon.component'
+import { PortCheckWarningsComponent } from 'src/app/routes/portal/components/port-check-warnings.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { T } from '@start9labs/start-sdk'
@@ -28,7 +30,7 @@ export type DomainValidationData = {
   fqdn: string
   gateway: DnsGateway
   port: number
-  initialResults?: { dnsPass: boolean; portPass: boolean }
+  initialResults?: { dnsPass: boolean; portResult: T.CheckPortRes | null }
 }
 
 @Component({
@@ -93,18 +95,12 @@ export type DomainValidationData = {
       {{ 'create this port forwarding rule' | i18n }}
     </p>
 
+    @let portRes = portResult();
+
     <table [appTable]="[null, 'External Port', 'Internal Port', null]">
       <tr>
         <td class="status">
-          @if (portLoading()) {
-            <tui-loader size="s" />
-          } @else if (portPass() === true) {
-            <tui-icon class="g-positive" icon="@tui.check" />
-          } @else if (portPass() === false) {
-            <tui-icon class="g-negative" icon="@tui.x" />
-          } @else {
-            <tui-icon class="g-secondary" icon="@tui.minus" />
-          }
+          <port-check-icon [result]="portRes" [loading]="portLoading()" />
         </td>
         <td>{{ context.data.port }}</td>
         <td>{{ context.data.port }}</td>
@@ -120,6 +116,8 @@ export type DomainValidationData = {
         </td>
       </tr>
     </table>
+
+    <port-check-warnings [result]="portRes" />
 
     @if (!isManualMode) {
       <footer class="g-buttons padding-top">
@@ -217,6 +215,8 @@ export type DomainValidationData = {
     TuiButtonLoading,
     TuiIcon,
     TuiLoader,
+    PortCheckIconComponent,
+    PortCheckWarningsComponent,
   ],
 })
 export class DomainValidationComponent {
@@ -234,11 +234,16 @@ export class DomainValidationComponent {
   readonly dnsLoading = signal(false)
   readonly portLoading = signal(false)
   readonly dnsPass = signal<boolean | undefined>(undefined)
-  readonly portPass = signal<boolean | undefined>(undefined)
+  readonly portResult = signal<T.CheckPortRes | undefined>(undefined)
 
-  readonly allPass = computed(
-    () => this.dnsPass() === true && this.portPass() === true,
-  )
+  readonly allPass = computed(() => {
+    const result = this.portResult()
+    return (
+      this.dnsPass() === true &&
+      !!result?.openInternally &&
+      !!result?.openExternally
+    )
+  })
 
   readonly isManualMode = !this.context.data.initialResults
 
@@ -246,7 +251,7 @@ export class DomainValidationComponent {
     const initial = this.context.data.initialResults
     if (initial) {
       this.dnsPass.set(initial.dnsPass)
-      this.portPass.set(initial.portPass)
+      if (initial.portResult) this.portResult.set(initial.portResult)
     }
   }
 
@@ -275,7 +280,7 @@ export class DomainValidationComponent {
         port: this.context.data.port,
       })
 
-      this.portPass.set(result.reachable)
+      this.portResult.set(result)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

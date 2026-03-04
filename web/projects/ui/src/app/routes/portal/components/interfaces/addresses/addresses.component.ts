@@ -171,14 +171,18 @@ export class InterfaceAddressesComponent {
         default: null,
         patterns: [utils.Patterns.domain],
       }).map(f => f.toLocaleLowerCase()),
-      authority: ISB.Value.select({
-        name: this.i18n.transform('Certificate Authority'),
-        description: this.i18n.transform(
-          'Select a Certificate Authority to issue SSL/TLS certificates for this domain',
-        ),
-        values: authorities,
-        default: Object.keys(network.acme)[0] || 'local',
-      }),
+      ...(iface.addSsl
+        ? {
+            authority: ISB.Value.select({
+              name: this.i18n.transform('Certificate Authority'),
+              description: this.i18n.transform(
+                'Select a Certificate Authority to issue SSL/TLS certificates for this domain',
+              ),
+              values: authorities,
+              default: Object.keys(network.acme)[0] || 'local',
+            }),
+          }
+        : {}),
     })
 
     this.formDialog.open(FormComponent, {
@@ -250,7 +254,13 @@ export class InterfaceAddressesComponent {
         await this.api.osUiAddPublicDomain(params)
       }
 
-      await this.domainHealth.checkPublicDomain(fqdn, gatewayId)
+      const port = this.gatewayGroup().addresses.find(
+        a => a.access === 'public' && a.hostnameInfo.port !== null,
+      )?.hostnameInfo.port
+
+      if (port !== undefined && port !== null) {
+        await this.domainHealth.checkPublicDomain(fqdn, gatewayId, port)
+      }
 
       return true
     } catch (e: any) {

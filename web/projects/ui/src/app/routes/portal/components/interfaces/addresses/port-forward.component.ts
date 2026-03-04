@@ -1,13 +1,17 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
 } from '@angular/core'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
-import { TuiButton, TuiDialogContext, TuiIcon, TuiLoader } from '@taiga-ui/core'
+import { T } from '@start9labs/start-sdk'
+import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { TuiButtonLoading } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { PortCheckIconComponent } from 'src/app/routes/portal/components/port-check-icon.component'
+import { PortCheckWarningsComponent } from 'src/app/routes/portal/components/port-check-warnings.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DnsGateway } from './dns.component'
@@ -15,7 +19,7 @@ import { DnsGateway } from './dns.component'
 export type PortForwardValidationData = {
   gateway: DnsGateway
   port: number
-  initialResults?: { portPass: boolean }
+  initialResults?: { portResult: T.CheckPortRes | null }
 }
 
 @Component({
@@ -30,18 +34,12 @@ export type PortForwardValidationData = {
       {{ 'create this port forwarding rule' | i18n }}
     </p>
 
+    @let portRes = portResult();
+
     <table [appTable]="[null, 'External Port', 'Internal Port', null]">
       <tr>
         <td class="status">
-          @if (loading()) {
-            <tui-loader size="s" />
-          } @else if (pass() === true) {
-            <tui-icon class="g-positive" icon="@tui.check" />
-          } @else if (pass() === false) {
-            <tui-icon class="g-negative" icon="@tui.x" />
-          } @else {
-            <tui-icon class="g-secondary" icon="@tui.minus" />
-          }
+          <port-check-icon [result]="portRes" [loading]="loading()" />
         </td>
         <td>{{ context.data.port }}</td>
         <td>{{ context.data.port }}</td>
@@ -53,19 +51,21 @@ export type PortForwardValidationData = {
       </tr>
     </table>
 
+    <port-check-warnings [result]="portRes" />
+
     @if (!isManualMode) {
       <footer class="g-buttons padding-top">
         <button
           tuiButton
           appearance="flat"
-          [disabled]="pass() === true"
+          [disabled]="portOk()"
           (click)="context.completeWith()"
         >
           {{ 'Later' | i18n }}
         </button>
         <button
           tuiButton
-          [disabled]="pass() !== true"
+          [disabled]="!portOk()"
           (click)="context.completeWith()"
         >
           {{ 'Done' | i18n }}
@@ -132,8 +132,8 @@ export type PortForwardValidationData = {
     i18nPipe,
     TableComponent,
     TuiButtonLoading,
-    TuiIcon,
-    TuiLoader,
+    PortCheckIconComponent,
+    PortCheckWarningsComponent,
   ],
 })
 export class PortForwardValidationComponent {
@@ -144,14 +144,23 @@ export class PortForwardValidationComponent {
     injectContext<TuiDialogContext<void, PortForwardValidationData>>()
 
   readonly loading = signal(false)
-  readonly pass = signal<boolean | undefined>(undefined)
+  readonly portResult = signal<T.CheckPortRes | undefined>(undefined)
+
+  readonly portOk = computed(() => {
+    const result = this.portResult()
+    return (
+      !!result?.openInternally &&
+      !!result?.openExternally &&
+      !!result?.hairpinning
+    )
+  })
 
   readonly isManualMode = !this.context.data.initialResults
 
   constructor() {
     const initial = this.context.data.initialResults
     if (initial) {
-      this.pass.set(initial.portPass)
+      if (initial.portResult) this.portResult.set(initial.portResult)
     }
   }
 
@@ -164,7 +173,7 @@ export class PortForwardValidationComponent {
         port: this.context.data.port,
       })
 
-      this.pass.set(result.reachable)
+      this.portResult.set(result)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

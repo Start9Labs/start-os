@@ -23,36 +23,14 @@ import { StandardActionsService } from 'src/app/services/standard-actions.servic
 import { getManifest } from 'src/app/utils/get-package-data'
 import { ServiceActionComponent } from '../components/action.component'
 import {
+  ALLOWED_STATUSES,
+  INACTIVE_STATUSES,
   PrimaryStatus,
   renderPkgStatus,
 } from 'src/app/services/pkg-status-rendering.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
-
-const INACTIVE: PrimaryStatus[] = [
-  'installing',
-  'updating',
-  'removing',
-  'restoring',
-  'backing-up',
-  'error',
-]
-
-const ALLOWED_STATUSES: Record<T.AllowedStatuses, Set<string>> = {
-  'only-running': new Set(['running']),
-  'only-stopped': new Set(['stopped']),
-  any: new Set([
-    'running',
-    'stopped',
-    'restarting',
-    'restoring',
-    'stopping',
-    'starting',
-    'backing-up',
-    'task-required',
-  ]),
-}
 
 @Component({
   template: `
@@ -286,6 +264,6 @@ export default class ServiceActionsRoute {
   }
 
   protected readonly isInactive = computed(
-    (pkg = this.package()) => !pkg || INACTIVE.includes(pkg.status),
+    (pkg = this.package()) => !pkg || INACTIVE_STATUSES.includes(pkg.status),
   )
 }

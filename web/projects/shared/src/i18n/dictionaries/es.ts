@@ -701,4 +701,7 @@ export default {
   771: 'Fin del juego',
   772: 'Pulsa cualquier tecla o toca para empezar',
   773: 'Pulsa cualquier tecla o toca para jugar de nuevo',
+  774: 'El estado del puerto no se puede determinar mientras el servicio no está en ejecución',
+  775: 'Esta dirección no funcionará desde tu red local debido a una limitación de hairpinning del router',
+  776: 'Acción no encontrada',
 } satisfies i18n

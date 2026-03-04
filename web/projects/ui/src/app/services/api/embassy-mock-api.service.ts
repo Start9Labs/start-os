@@ -1,11 +1,12 @@
 import { Injectable } from '@angular/core'
+import { GetPackageRes, GetPackagesRes } from '@start9labs/marketplace'
 import {
   FullKeyboard,
   pauseFor,
   RPCErrorDetails,
   SetLanguageParams,
 } from '@start9labs/shared'
-import { ApiService } from './embassy-api.service'
+import { T } from '@start9labs/start-sdk'
 import {
   AddOperation,
   Dump,
@@ -16,6 +17,8 @@ import {
   ReplaceOperation,
   Revision,
 } from 'patch-db-client'
+import { from, interval, map, shareReplay, startWith, Subject, tap } from 'rxjs'
+import { WebSocketSubject } from 'rxjs/webSocket'
 import {
   DataModel,
   InstallingState,
@@ -23,7 +26,9 @@ import {
   StateInfo,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
-import { GetPackageRes, GetPackagesRes } from '@start9labs/marketplace'
+import { toAuthorityUrl } from 'src/app/utils/acme'
+import { AuthService } from '../auth.service'
+import { Mock } from './api.fixures'
 import {
   ActionRes,
   CheckDnsRes,
@@ -44,13 +49,8 @@ import {
   ServerState,
   WebsocketConfig,
 } from './api.types'
-import { Mock } from './api.fixures'
-import { from, interval, map, shareReplay, startWith, Subject, tap } from 'rxjs'
+import { ApiService } from './embassy-api.service'
 import { mockPatchData } from './mock-patch'
-import { AuthService } from '../auth.service'
-import { T } from '@start9labs/start-sdk'
-import { WebSocketSubject } from 'rxjs/webSocket'
-import { toAuthorityUrl } from 'src/app/utils/acme'
 
 import markdown from './md-sample.md'
 
@@ -521,7 +521,13 @@ export class MockApiService extends ApiService {
   async checkPort(params: T.CheckPortParams): Promise<T.CheckPortRes> {
     await pauseFor(2000)
 
-    return { ip: '0.0.0.0', port: params.port, reachable: false }
+    return {
+      ip: '0.0.0.0',
+      port: params.port,
+      openExternally: true,
+      openInternally: false,
+      hairpinning: true,
+    }
   }
 
   async checkDns(params: T.CheckDnsParams): Promise<CheckDnsRes> {
