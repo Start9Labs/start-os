@@ -105,7 +105,7 @@ lb config \
 	--iso-preparer "START9 LABS; HTTPS://START9.COM" \
 	--iso-publisher "START9 LABS; HTTPS://START9.COM" \
 	--backports true \
-	--bootappend-live "boot=live noautologin" \
+	--bootappend-live "boot=live noautologin console=tty0" \
 	--bootloaders $BOOTLOADERS \
 	--cache false \
 	--mirror-bootstrap "https://deb.debian.org/debian/" \

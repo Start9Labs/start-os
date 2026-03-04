@@ -27,7 +27,7 @@ use crate::db::model::public::AcmeSettings;
 use crate::db::{DbAccess, DbAccessByKey, DbAccessMut};
 use crate::error::ErrorData;
 use crate::net::ssl::should_use_cert;
-use crate::net::tls::{SingleCertResolver, TlsHandler};
+use crate::net::tls::{SingleCertResolver, TlsHandler, TlsHandlerAction};
 use crate::net::web_server::Accept;
 use crate::prelude::*;
 use crate::util::FromStrParser;
@@ -173,7 +173,7 @@ where
         &'a mut self,
         hello: &'a ClientHello<'a>,
         _: &'a <A as Accept>::Metadata,
-    ) -> Option<ServerConfig> {
+    ) -> Option<TlsHandlerAction> {
         let domain = hello.server_name()?;
         if hello
             .alpn()
@@ -207,20 +207,20 @@ where
             cfg.alpn_protocols = vec![ACME_TLS_ALPN_NAME.to_vec()];
             tracing::info!("performing ACME auth challenge");
 
-            return Some(cfg);
+            return Some(TlsHandlerAction::Tls(cfg));
         }
 
         let domains: BTreeSet<InternedString> = [domain.into()].into_iter().collect();
 
         let crypto_provider = self.crypto_provider.clone();
         if let Some(cert) = self.get_cert(&domains).await {
-            return Some(
+            return Some(TlsHandlerAction::Tls(
                 ServerConfig::builder_with_provider(crypto_provider)
                     .with_safe_default_protocol_versions()
                     .log_err()?
                     .with_no_client_auth()
                     .with_cert_resolver(Arc::new(SingleCertResolver(Arc::new(cert)))),
-            );
+            ));
         }
 
         None

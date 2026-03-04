@@ -6,12 +6,13 @@ use std::sync::{Arc, Weak};
 use std::task::{Poll, ready};
 
 use async_acme::acme::ACME_TLS_ALPN_NAME;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use imbl::OrdMap;
 use imbl_value::{InOMap, InternedString};
-use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn};
+use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::TlsConnector;
@@ -35,7 +36,7 @@ use crate::net::gateway::{
 };
 use crate::net::ssl::{CertStore, RootCaTlsHandler};
 use crate::net::tls::{
-    ChainedHandler, TlsHandlerWrapper, TlsListener, TlsMetadata, WrapTlsHandler,
+    ChainedHandler, TlsHandlerAction, TlsHandlerWrapper, TlsListener, TlsMetadata, WrapTlsHandler,
 };
 use crate::net::utils::ipv6_is_link_local;
 use crate::net::web_server::{Accept, AcceptStream, ExtractVisitor, TcpMetadata, extract};
@@ -46,47 +47,192 @@ use crate::util::serde::{HandlerExtSerde, MaybeUtf8String, display_serializable}
 use crate::util::sync::{SyncMutex, Watch};
 use crate::{GatewayId, ResultExt};
 
+#[derive(Debug, Clone, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct PassthroughInfo {
+    #[ts(type = "string")]
+    pub hostname: InternedString,
+    pub listen_port: u16,
+    #[ts(type = "string")]
+    pub backend: SocketAddr,
+    #[ts(type = "string[]")]
+    pub public_gateways: BTreeSet<GatewayId>,
+    #[ts(type = "string[]")]
+    pub private_ips: BTreeSet<IpAddr>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+struct AddPassthroughParams {
+    #[arg(long)]
+    pub hostname: InternedString,
+    #[arg(long)]
+    pub listen_port: u16,
+    #[arg(long)]
+    pub backend: SocketAddr,
+    #[arg(long)]
+    pub public_gateway: Vec<GatewayId>,
+    #[arg(long)]
+    pub private_ip: Vec<IpAddr>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+struct RemovePassthroughParams {
+    #[arg(long)]
+    pub hostname: InternedString,
+    #[arg(long)]
+    pub listen_port: u16,
+}
+
 pub fn vhost_api<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new().subcommand(
-        "dump-table",
-        from_fn(|ctx: RpcContext| Ok(ctx.net_controller.vhost.dump_table()))
-            .with_display_serializable()
-            .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
-                use prettytable::*;
+    ParentHandler::new()
+        .subcommand(
+            "dump-table",
+            from_fn(dump_table)
+                .with_display_serializable()
+                .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
+                    use prettytable::*;
 
-                if let Some(format) = params.format {
-                    display_serializable(format, res)?;
-                    return Ok::<_, Error>(());
-                }
+                    if let Some(format) = params.format {
+                        display_serializable(format, res)?;
+                        return Ok::<_, Error>(());
+                    }
 
-                let mut table = Table::new();
-                table.add_row(row![bc => "FROM", "TO", "ACTIVE"]);
+                    let mut table = Table::new();
+                    table.add_row(row![bc => "FROM", "TO", "ACTIVE"]);
 
-                for (external, targets) in res {
-                    for (host, targets) in targets {
-                        for (idx, target) in targets.into_iter().enumerate() {
-                            table.add_row(row![
-                                format!(
-                                    "{}:{}",
-                                    host.as_ref().map(|s| &**s).unwrap_or("*"),
-                                    external.0
-                                ),
-                                target,
-                                idx == 0
-                            ]);
+                    for (external, targets) in res {
+                        for (host, targets) in targets {
+                            for (idx, target) in targets.into_iter().enumerate() {
+                                table.add_row(row![
+                                    format!(
+                                        "{}:{}",
+                                        host.as_ref().map(|s| &**s).unwrap_or("*"),
+                                        external.0
+                                    ),
+                                    target,
+                                    idx == 0
+                                ]);
+                            }
                         }
                     }
-                }
 
-                table.print_tty(false)?;
+                    table.print_tty(false)?;
 
-                Ok(())
-            })
-            .with_call_remote::<CliContext>(),
-    )
+                    Ok(())
+                })
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "add-passthrough",
+            from_fn_async(add_passthrough)
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "remove-passthrough",
+            from_fn_async(remove_passthrough)
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "list-passthrough",
+            from_fn(list_passthrough)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
+        )
+}
+
+fn dump_table(
+    ctx: RpcContext,
+) -> Result<BTreeMap<JsonKey<u16>, BTreeMap<JsonKey<Option<InternedString>>, EqSet<String>>>, Error>
+{
+    Ok(ctx.net_controller.vhost.dump_table())
+}
+
+async fn add_passthrough(
+    ctx: RpcContext,
+    AddPassthroughParams {
+        hostname,
+        listen_port,
+        backend,
+        public_gateway,
+        private_ip,
+    }: AddPassthroughParams,
+) -> Result<(), Error> {
+    let public_gateways: BTreeSet<GatewayId> = public_gateway.into_iter().collect();
+    let private_ips: BTreeSet<IpAddr> = private_ip.into_iter().collect();
+    ctx.net_controller.vhost.add_passthrough(
+        hostname.clone(),
+        listen_port,
+        backend,
+        public_gateways.clone(),
+        private_ips.clone(),
+    )?;
+    ctx.db
+        .mutate(|db| {
+            let pts = db
+                .as_public_mut()
+                .as_server_info_mut()
+                .as_network_mut()
+                .as_passthroughs_mut();
+            let mut vec: Vec<PassthroughInfo> = pts.de()?;
+            vec.retain(|p| !(p.hostname == hostname && p.listen_port == listen_port));
+            vec.push(PassthroughInfo {
+                hostname,
+                listen_port,
+                backend,
+                public_gateways,
+                private_ips,
+            });
+            pts.ser(&vec)
+        })
+        .await
+        .result?;
+    Ok(())
+}
+
+async fn remove_passthrough(
+    ctx: RpcContext,
+    RemovePassthroughParams {
+        hostname,
+        listen_port,
+    }: RemovePassthroughParams,
+) -> Result<(), Error> {
+    ctx.net_controller
+        .vhost
+        .remove_passthrough(&hostname, listen_port);
+    ctx.db
+        .mutate(|db| {
+            let pts = db
+                .as_public_mut()
+                .as_server_info_mut()
+                .as_network_mut()
+                .as_passthroughs_mut();
+            let mut vec: Vec<PassthroughInfo> = pts.de()?;
+            vec.retain(|p| !(p.hostname == hostname && p.listen_port == listen_port));
+            pts.ser(&vec)
+        })
+        .await
+        .result?;
+    Ok(())
+}
+
+fn list_passthrough(ctx: RpcContext) -> Result<Vec<PassthroughInfo>, Error> {
+    Ok(ctx.net_controller.vhost.list_passthrough())
 }
 
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
+
+struct PassthroughHandle {
+    _rc: Arc<()>,
+    backend: SocketAddr,
+    public: BTreeSet<GatewayId>,
+    private: BTreeSet<IpAddr>,
+}
 
 pub struct VHostController {
     db: TypedPatchDb<Database>,
@@ -94,20 +240,35 @@ pub struct VHostController {
     crypto_provider: Arc<CryptoProvider>,
     acme_cache: AcmeTlsAlpnCache,
     servers: SyncMutex<BTreeMap<u16, VHostServer<VHostBindListener>>>,
+    passthrough_handles: SyncMutex<BTreeMap<(InternedString, u16), PassthroughHandle>>,
 }
 impl VHostController {
     pub fn new(
         db: TypedPatchDb<Database>,
         interfaces: Arc<NetworkInterfaceController>,
         crypto_provider: Arc<CryptoProvider>,
+        passthroughs: Vec<PassthroughInfo>,
     ) -> Self {
-        Self {
+        let controller = Self {
             db,
             interfaces,
             crypto_provider,
             acme_cache: Arc::new(SyncMutex::new(BTreeMap::new())),
             servers: SyncMutex::new(BTreeMap::new()),
+            passthrough_handles: SyncMutex::new(BTreeMap::new()),
+        };
+        for pt in passthroughs {
+            if let Err(e) = controller.add_passthrough(
+                pt.hostname,
+                pt.listen_port,
+                pt.backend,
+                pt.public_gateways,
+                pt.private_ips,
+            ) {
+                tracing::warn!("failed to restore passthrough: {e}");
+            }
         }
+        controller
     }
     #[instrument(skip_all)]
     pub fn add(
@@ -120,24 +281,80 @@ impl VHostController {
             let server = if let Some(server) = writable.remove(&external) {
                 server
             } else {
-                let bind_reqs = Watch::new(VHostBindRequirements::default());
-                let listener = VHostBindListener {
-                    ip_info: self.interfaces.watcher.subscribe(),
-                    port: external,
-                    bind_reqs: bind_reqs.clone_unseen(),
-                    listeners: BTreeMap::new(),
-                };
-                VHostServer::new(
-                    listener,
-                    bind_reqs,
-                    self.db.clone(),
-                    self.crypto_provider.clone(),
-                    self.acme_cache.clone(),
-                )
+                self.create_server(external)
             };
             let rc = server.add(hostname, target);
             writable.insert(external, server);
             Ok(rc?)
+        })
+    }
+
+    fn create_server(&self, port: u16) -> VHostServer<VHostBindListener> {
+        let bind_reqs = Watch::new(VHostBindRequirements::default());
+        let listener = VHostBindListener {
+            ip_info: self.interfaces.watcher.subscribe(),
+            port,
+            bind_reqs: bind_reqs.clone_unseen(),
+            listeners: BTreeMap::new(),
+        };
+        VHostServer::new(
+            listener,
+            bind_reqs,
+            self.db.clone(),
+            self.crypto_provider.clone(),
+            self.acme_cache.clone(),
+        )
+    }
+
+    pub fn add_passthrough(
+        &self,
+        hostname: InternedString,
+        port: u16,
+        backend: SocketAddr,
+        public: BTreeSet<GatewayId>,
+        private: BTreeSet<IpAddr>,
+    ) -> Result<(), Error> {
+        let target = ProxyTarget {
+            public: public.clone(),
+            private: private.clone(),
+            acme: None,
+            addr: backend,
+            add_x_forwarded_headers: false,
+            connect_ssl: Err(AlpnInfo::Reflect),
+            passthrough: true,
+        };
+        let rc = self.add(Some(hostname.clone()), port, DynVHostTarget::new(target))?;
+        self.passthrough_handles.mutate(|h| {
+            h.insert(
+                (hostname, port),
+                PassthroughHandle {
+                    _rc: rc,
+                    backend,
+                    public,
+                    private,
+                },
+            );
+        });
+        Ok(())
+    }
+
+    pub fn remove_passthrough(&self, hostname: &InternedString, port: u16) {
+        self.passthrough_handles
+            .mutate(|h| h.remove(&(hostname.clone(), port)));
+        self.gc(Some(hostname.clone()), port);
+    }
+
+    pub fn list_passthrough(&self) -> Vec<PassthroughInfo> {
+        self.passthrough_handles.peek(|h| {
+            h.iter()
+                .map(|((hostname, port), handle)| PassthroughInfo {
+                    hostname: hostname.clone(),
+                    listen_port: *port,
+                    backend: handle.backend,
+                    public_gateways: handle.public.clone(),
+                    private_ips: handle.private.clone(),
+                })
+                .collect()
         })
     }
 
@@ -330,6 +547,9 @@ pub trait VHostTarget<A: Accept>: std::fmt::Debug + Eq {
     fn bind_requirements(&self) -> (BTreeSet<GatewayId>, BTreeSet<IpAddr>) {
         (BTreeSet::new(), BTreeSet::new())
     }
+    fn is_passthrough(&self) -> bool {
+        false
+    }
     fn preprocess<'a>(
         &'a self,
         prev: ServerConfig,
@@ -349,6 +569,7 @@ pub trait DynVHostTargetT<A: Accept>: std::fmt::Debug + Any {
     fn filter(&self, metadata: &<A as Accept>::Metadata) -> bool;
     fn acme(&self) -> Option<&AcmeProvider>;
     fn bind_requirements(&self) -> (BTreeSet<GatewayId>, BTreeSet<IpAddr>);
+    fn is_passthrough(&self) -> bool;
     fn preprocess<'a>(
         &'a self,
         prev: ServerConfig,
@@ -372,6 +593,9 @@ impl<A: Accept, T: VHostTarget<A> + 'static> DynVHostTargetT<A> for T {
     }
     fn acme(&self) -> Option<&AcmeProvider> {
         VHostTarget::acme(self)
+    }
+    fn is_passthrough(&self) -> bool {
+        VHostTarget::is_passthrough(self)
     }
     fn bind_requirements(&self) -> (BTreeSet<GatewayId>, BTreeSet<IpAddr>) {
         VHostTarget::bind_requirements(self)
@@ -459,6 +683,7 @@ pub struct ProxyTarget {
     pub addr: SocketAddr,
     pub add_x_forwarded_headers: bool,
     pub connect_ssl: Result<Arc<ClientConfig>, AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
+    pub passthrough: bool,
 }
 impl PartialEq for ProxyTarget {
     fn eq(&self, other: &Self) -> bool {
@@ -466,6 +691,7 @@ impl PartialEq for ProxyTarget {
             && self.private == other.private
             && self.acme == other.acme
             && self.addr == other.addr
+            && self.passthrough == other.passthrough
             && self.connect_ssl.as_ref().map(Arc::as_ptr)
                 == other.connect_ssl.as_ref().map(Arc::as_ptr)
     }
@@ -480,6 +706,7 @@ impl fmt::Debug for ProxyTarget {
             .field("addr", &self.addr)
             .field("add_x_forwarded_headers", &self.add_x_forwarded_headers)
             .field("connect_ssl", &self.connect_ssl.as_ref().map(|_| ()))
+            .field("passthrough", &self.passthrough)
             .finish()
     }
 }
@@ -523,6 +750,9 @@ where
     }
     fn bind_requirements(&self) -> (BTreeSet<GatewayId>, BTreeSet<IpAddr>) {
         (self.public.clone(), self.private.clone())
+    }
+    fn is_passthrough(&self) -> bool {
+        self.passthrough
     }
     async fn preprocess<'a>(
         &'a self,
@@ -677,7 +907,7 @@ where
         prev: ServerConfig,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> Option<ServerConfig>
+    ) -> Option<TlsHandlerAction>
     where
         Self: 'a,
     {
@@ -687,7 +917,7 @@ where
             .flatten()
             .any(|a| a == ACME_TLS_ALPN_NAME)
         {
-            return Some(prev);
+            return Some(TlsHandlerAction::Tls(prev));
         }
 
         let (target, rc) = self.0.peek(|m| {
@@ -700,11 +930,16 @@ where
                 .map(|(t, rc)| (t.clone(), rc.clone()))
         })?;
 
+        let is_pt = target.0.is_passthrough();
         let (prev, store) = target.into_preprocessed(rc, prev, hello, metadata).await?;
 
         self.1 = Some(store);
 
-        Some(prev)
+        if is_pt {
+            Some(TlsHandlerAction::Passthrough)
+        } else {
+            Some(TlsHandlerAction::Tls(prev))
+        }
     }
 }
 

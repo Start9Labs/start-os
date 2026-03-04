@@ -76,9 +76,22 @@ impl NetController {
             ],
         )
         .await?;
+        let passthroughs = db
+            .peek()
+            .await
+            .as_public()
+            .as_server_info()
+            .as_network()
+            .as_passthroughs()
+            .de()?;
         Ok(Self {
             db: db.clone(),
-            vhost: VHostController::new(db.clone(), net_iface.clone(), crypto_provider),
+            vhost: VHostController::new(
+                db.clone(),
+                net_iface.clone(),
+                crypto_provider,
+                passthroughs,
+            ),
             tls_client_config,
             dns: DnsController::init(db, &net_iface.watcher).await?,
             forward: InterfacePortForwardController::new(net_iface.watcher.subscribe()),
@@ -237,6 +250,7 @@ impl NetServiceData {
                                 connect_ssl: connect_ssl
                                     .clone()
                                     .map(|_| ctrl.tls_client_config.clone()),
+                                passthrough: false,
                             },
                         );
                     }
@@ -253,7 +267,9 @@ impl NetServiceData {
                         _ => continue,
                     }
                     let domain = &addr_info.hostname;
-                    let domain_ssl_port = addr_info.port.unwrap_or(443);
+                    let Some(domain_ssl_port) = addr_info.port else {
+                        continue;
+                    };
                     let key = (Some(domain.clone()), domain_ssl_port);
                     let target = vhosts.entry(key).or_insert_with(|| ProxyTarget {
                         public: BTreeSet::new(),
@@ -266,6 +282,7 @@ impl NetServiceData {
                         addr,
                         add_x_forwarded_headers: ssl.add_x_forwarded_headers,
                         connect_ssl: connect_ssl.clone().map(|_| ctrl.tls_client_config.clone()),
+                        passthrough: false,
                     });
                     if addr_info.public {
                         for gw in addr_info.metadata.gateways() {
@@ -316,6 +333,53 @@ impl NetServiceData {
                         },
                     ),
                 );
+            }
+
+            // Passthrough vhosts: if the service handles its own TLS
+            // (secure.ssl && no add_ssl) and a domain address is enabled on
+            // an SSL port different from assigned_port, add a passthrough
+            // vhost so the service's TLS endpoint is reachable on that port.
+            if bind.options.secure.map_or(false, |s| s.ssl) && bind.options.add_ssl.is_none() {
+                let assigned = bind.net.assigned_port;
+                for addr_info in &enabled_addresses {
+                    if !addr_info.ssl {
+                        continue;
+                    }
+                    let Some(pt_port) = addr_info.port.filter(|p| assigned != Some(*p)) else {
+                        continue;
+                    };
+                    match &addr_info.metadata {
+                        HostnameMetadata::PublicDomain { .. }
+                        | HostnameMetadata::PrivateDomain { .. } => {}
+                        _ => continue,
+                    }
+                    let domain = &addr_info.hostname;
+                    let key = (Some(domain.clone()), pt_port);
+                    let target = vhosts.entry(key).or_insert_with(|| ProxyTarget {
+                        public: BTreeSet::new(),
+                        private: BTreeSet::new(),
+                        acme: None,
+                        addr,
+                        add_x_forwarded_headers: false,
+                        connect_ssl: Err(AlpnInfo::Reflect),
+                        passthrough: true,
+                    });
+                    if addr_info.public {
+                        for gw in addr_info.metadata.gateways() {
+                            target.public.insert(gw.clone());
+                        }
+                    } else {
+                        for gw in addr_info.metadata.gateways() {
+                            if let Some(info) = net_ifaces.get(gw) {
+                                if let Some(ip_info) = &info.ip_info {
+                                    for subnet in &ip_info.subnets {
+                                        target.private.insert(subnet.addr());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
