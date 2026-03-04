@@ -1,25 +1,13 @@
 // @ts-check
 
 import * as net from "net"
-import {
-  object,
-  some,
-  string,
-  literal,
-  array,
-  number,
-  matches,
-  any,
-  shape,
-  anyOf,
-  literals,
-} from "ts-matches"
 
 import {
   ExtendedVersion,
   types as T,
   utils,
   VersionRange,
+  z,
 } from "@start9labs/start-sdk"
 import * as fs from "fs"
 
@@ -29,89 +17,92 @@ import { jsonPath, unNestPath } from "../Models/JsonPath"
 import { System } from "../Interfaces/System"
 import { makeEffects } from "./EffectCreator"
 type MaybePromise<T> = T | Promise<T>
-export const matchRpcResult = anyOf(
-  object({ result: any }),
-  object({
-    error: object({
-      code: number,
-      message: string,
-      data: object({
-        details: string.optional(),
-        debug: any.optional(),
-      })
+export const matchRpcResult = z.union([
+  z.object({ result: z.any() }),
+  z.object({
+    error: z.object({
+      code: z.number(),
+      message: z.string(),
+      data: z
+        .object({
+          details: z.string().optional(),
+          debug: z.any().optional(),
+        })
         .nullable()
         .optional(),
     }),
   }),
-)
+])
 
-export type RpcResult = typeof matchRpcResult._TYPE
+export type RpcResult = z.infer<typeof matchRpcResult>
 type SocketResponse = ({ jsonrpc: "2.0"; id: IdType } & RpcResult) | null
 
 const SOCKET_PARENT = "/media/startos/rpc"
 const SOCKET_PATH = "/media/startos/rpc/service.sock"
 const jsonrpc = "2.0" as const
 
-const isResult = object({ result: any }).test
+const isResultSchema = z.object({ result: z.any() })
+const isResult = (v: unknown): v is z.infer<typeof isResultSchema> =>
+  isResultSchema.safeParse(v).success
 
-const idType = some(string, number, literal(null))
+const idType = z.union([z.string(), z.number(), z.literal(null)])
 type IdType = null | string | number | undefined
-const runType = object({
+const runType = z.object({
   id: idType.optional(),
-  method: literal("execute"),
-  params: object({
-    id: string,
-    procedure: string,
-    input: any,
-    timeout: number.nullable().optional(),
+  method: z.literal("execute"),
+  params: z.object({
+    id: z.string(),
+    procedure: z.string(),
+    input: z.any(),
+    timeout: z.number().nullable().optional(),
   }),
 })
-const sandboxRunType = object({
+const sandboxRunType = z.object({
   id: idType.optional(),
-  method: literal("sandbox"),
-  params: object({
-    id: string,
-    procedure: string,
-    input: any,
-    timeout: number.nullable().optional(),
+  method: z.literal("sandbox"),
+  params: z.object({
+    id: z.string(),
+    procedure: z.string(),
+    input: z.any(),
+    timeout: z.number().nullable().optional(),
   }),
 })
-const callbackType = object({
-  method: literal("callback"),
-  params: object({
-    id: number,
-    args: array,
+const callbackType = z.object({
+  method: z.literal("callback"),
+  params: z.object({
+    id: z.number(),
+    args: z.array(z.unknown()),
   }),
 })
-const initType = object({
+const initType = z.object({
   id: idType.optional(),
-  method: literal("init"),
-  params: object({
-    id: string,
-    kind: literals("install", "update", "restore").nullable(),
+  method: z.literal("init"),
+  params: z.object({
+    id: z.string(),
+    kind: z.enum(["install", "update", "restore"]).nullable(),
   }),
 })
-const startType = object({
+const startType = z.object({
   id: idType.optional(),
-  method: literal("start"),
+  method: z.literal("start"),
 })
-const stopType = object({
+const stopType = z.object({
   id: idType.optional(),
-  method: literal("stop"),
+  method: z.literal("stop"),
 })
-const exitType = object({
+const exitType = z.object({
   id: idType.optional(),
-  method: literal("exit"),
-  params: object({
-    id: string,
-    target: string.nullable(),
+  method: z.literal("exit"),
+  params: z.object({
+    id: z.string(),
+    target: z.string().nullable(),
   }),
 })
-const evalType = object({
+const evalType = z.object({
   id: idType.optional(),
-  method: literal("eval"),
-  params: object({
-    script: string,
+  method: z.literal("eval"),
+  params: z.object({
+    script: z.string(),
   }),
 })
 
@@ -144,7 +135,9 @@ const handleRpc = (id: IdType, result: Promise<RpcResult>) =>
       },
     }))
 
-const hasId = object({ id: idType }).test
+const hasIdSchema = z.object({ id: idType })
+const hasId = (v: unknown): v is z.infer<typeof hasIdSchema> =>
+  hasIdSchema.safeParse(v).success
 export class RpcListener {
   shouldExit = false
   unixSocketServer = net.createServer(async (server) => {})
@@ -246,40 +239,52 @@ export class RpcListener {
   }
 
   private dealWithInput(input: unknown): MaybePromise<SocketResponse> {
-    return matches(input)
-      .when(runType, async ({ id, params }) => {
+    const parsed = z.object({ method: z.string() }).safeParse(input)
+    if (!parsed.success) {
+      console.warn(
+        `Couldn't parse the following input ${JSON.stringify(input)}`,
+      )
+      return {
+        jsonrpc,
+        id: (input as any)?.id,
+        error: {
+          code: -32602,
+          message: "invalid params",
+          data: {
+            details: JSON.stringify(input),
+          },
+        },
+      }
+    }
+
+    switch (parsed.data.method) {
+      case "execute": {
+        const { id, params } = runType.parse(input)
         const system = this.system
-        const procedure = jsonPath.unsafeCast(params.procedure)
-        const { input, timeout, id: eventId } = params
-        const result = this.getResult(
-          procedure,
-          system,
-          eventId,
-          timeout,
-          input,
-        )
+        const procedure = jsonPath.parse(params.procedure)
+        const { input: inp, timeout, id: eventId } = params
+        const result = this.getResult(procedure, system, eventId, timeout, inp)
 
         return handleRpc(id, result)
-      })
-      .when(sandboxRunType, async ({ id, params }) => {
+      }
+      case "sandbox": {
+        const { id, params } = sandboxRunType.parse(input)
         const system = this.system
-        const procedure = jsonPath.unsafeCast(params.procedure)
-        const { input, timeout, id: eventId } = params
-        const result = this.getResult(
-          procedure,
-          system,
-          eventId,
-          timeout,
-          input,
-        )
+        const procedure = jsonPath.parse(params.procedure)
+        const { input: inp, timeout, id: eventId } = params
+        const result = this.getResult(procedure, system, eventId, timeout, inp)
 
         return handleRpc(id, result)
-      })
-      .when(callbackType, async ({ params: { id, args } }) => {
+      }
+      case "callback": {
+        const {
+          params: { id, args },
+        } = callbackType.parse(input)
         this.callCallback(id, args)
         return null
-      })
-      .when(startType, async ({ id }) => {
+      }
+      case "start": {
+        const { id } = startType.parse(input)
         const callbacks =
           this.callbacks?.getChild("main") || this.callbacks?.child("main")
         const effects = makeEffects({
@@ -290,8 +295,9 @@ export class RpcListener {
           id,
           this.system.start(effects).then((result) => ({ result })),
         )
-      })
-      .when(stopType, async ({ id }) => {
+      }
+      case "stop": {
+        const { id } = stopType.parse(input)
         return handleRpc(
           id,
           this.system.stop().then((result) => {
@@ -300,8 +306,9 @@ export class RpcListener {
             return { result }
           }),
         )
-      })
-      .when(exitType, async ({ id, params }) => {
+      }
+      case "exit": {
+        const { id, params } = exitType.parse(input)
         return handleRpc(
           id,
           (async () => {
@@ -323,8 +330,9 @@ export class RpcListener {
             }
           })().then((result) => ({ result })),
         )
-      })
-      .when(initType, async ({ id, params }) => {
+      }
+      case "init": {
+        const { id, params } = initType.parse(input)
         return handleRpc(
           id,
           (async () => {
@@ -349,8 +357,9 @@ export class RpcListener {
             }
           })().then((result) => ({ result })),
         )
-      })
-      .when(evalType, async ({ id, params }) => {
+      }
+      case "eval": {
+        const { id, params } = evalType.parse(input)
         return handleRpc(
           id,
           (async () => {
@@ -375,41 +384,28 @@ export class RpcListener {
             }
           })(),
         )
-      })
-      .when(
-        shape({ id: idType.optional(), method: string }),
-        ({ id, method }) => ({
+      }
+      default: {
+        const { id, method } = z
+          .object({ id: idType.optional(), method: z.string() })
+          .passthrough()
+          .parse(input)
+        return {
           jsonrpc,
           id,
           error: {
             code: -32601,
-            message: `Method not found`,
+            message: "Method not found",
             data: {
               details: method,
             },
           },
-        }),
-      )
-
-      .defaultToLazy(() => {
-        console.warn(
-          `Couldn't parse the following input ${JSON.stringify(input)}`,
-        )
-        return {
-          jsonrpc,
-          id: (input as any)?.id,
-          error: {
-            code: -32602,
-            message: "invalid params",
-            data: {
-              details: JSON.stringify(input),
-            },
-          },
         }
-      })
+      }
+    }
   }
   private getResult(
-    procedure: typeof jsonPath._TYPE,
+    procedure: z.infer<typeof jsonPath>,
     system: System,
     eventId: string,
     timeout: number | null | undefined,
@@ -437,6 +433,7 @@ export class RpcListener {
               return system.getActionInput(
                 effects,
                 procedures[2],
+                input?.prefill ?? null,
                 timeout || null,
               )
             case procedures[1] === "actions" && procedures[3] === "run":
@@ -448,26 +445,18 @@ export class RpcListener {
               )
           }
       }
-    })().then(ensureResultTypeShape, (error) =>
-      matches(error)
-        .when(
-          object({
-            error: string,
-            code: number.defaultTo(0),
-          }),
-          (error) => ({
-            error: {
-              code: error.code,
-              message: error.error,
-            },
-          }),
-        )
-        .defaultToLazy(() => ({
-          error: {
-            code: 0,
-            message: String(error),
-          },
-        })),
-    )
+    })().then(ensureResultTypeShape, (error) => {
+      const errorSchema = z.object({
+        error: z.string(),
+        code: z.number().default(0),
+      })
+      const parsed = errorSchema.safeParse(error)
+      if (parsed.success) {
+        return {
+          error: { code: parsed.data.code, message: parsed.data.error },
+        }
+      }
+      return { error: { code: 0, message: String(error) } }
+    })
   }
 }

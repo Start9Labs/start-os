@@ -25,10 +25,13 @@ on:
           - ALL
           - x86_64
           - x86_64-nonfree
+          - x86_64-nvidia
           - aarch64
           - aarch64-nonfree
+          - aarch64-nvidia
           # - raspberrypi
           - riscv64
+          - riscv64-nonfree
       deploy:
         type: choice
         description: Deploy
@@ -65,10 +68,13 @@ jobs:
             fromJson('{
               "x86_64": ["x86_64"],
               "x86_64-nonfree": ["x86_64"],
+              "x86_64-nvidia": ["x86_64"],
               "aarch64": ["aarch64"],
               "aarch64-nonfree": ["aarch64"],
+              "aarch64-nvidia": ["aarch64"],
               "raspberrypi": ["aarch64"],
               "riscv64": ["riscv64"],
+              "riscv64-nonfree": ["riscv64"],
               "ALL": ["x86_64", "aarch64", "riscv64"]
             }')[github.event.inputs.platform || 'ALL']
           }}
@@ -125,7 +131,7 @@ jobs:
               format(
                 '[
                   ["{0}"],
-                  ["x86_64", "x86_64-nonfree", "aarch64", "aarch64-nonfree", "riscv64"]
+                  ["x86_64", "x86_64-nonfree", "x86_64-nvidia", "aarch64", "aarch64-nonfree", "aarch64-nvidia", "riscv64", "riscv64-nonfree"]
                 ]',
                 github.event.inputs.platform || 'ALL'
               )
@@ -139,18 +145,24 @@ jobs:
             fromJson('{
               "x86_64": "ubuntu-latest",
               "x86_64-nonfree": "ubuntu-latest",
+              "x86_64-nvidia": "ubuntu-latest",
               "aarch64": "ubuntu-24.04-arm",
               "aarch64-nonfree": "ubuntu-24.04-arm",
+              "aarch64-nvidia": "ubuntu-24.04-arm",
               "raspberrypi": "ubuntu-24.04-arm",
               "riscv64": "ubuntu-24.04-arm",
+              "riscv64-nonfree": "ubuntu-24.04-arm",
             }')[matrix.platform],
             fromJson('{
               "x86_64": "buildjet-8vcpu-ubuntu-2204",
               "x86_64-nonfree": "buildjet-8vcpu-ubuntu-2204",
+              "x86_64-nvidia": "buildjet-8vcpu-ubuntu-2204",
               "aarch64": "buildjet-8vcpu-ubuntu-2204-arm",
               "aarch64-nonfree": "buildjet-8vcpu-ubuntu-2204-arm",
+              "aarch64-nvidia": "buildjet-8vcpu-ubuntu-2204-arm",
               "raspberrypi": "buildjet-8vcpu-ubuntu-2204-arm",
               "riscv64": "buildjet-8vcpu-ubuntu-2204",
+              "riscv64-nonfree": "buildjet-8vcpu-ubuntu-2204",
             }')[matrix.platform]
           )
         )[github.event.inputs.runner == 'fast']
@@ -161,10 +173,13 @@ jobs:
           fromJson('{
             "x86_64": "x86_64",
             "x86_64-nonfree": "x86_64",
+            "x86_64-nvidia": "x86_64",
             "aarch64": "aarch64",
             "aarch64-nonfree": "aarch64",
+            "aarch64-nvidia": "aarch64",
             "raspberrypi": "aarch64",
             "riscv64": "riscv64",
+            "riscv64-nonfree": "riscv64",
           }')[matrix.platform]
         }}
     steps:

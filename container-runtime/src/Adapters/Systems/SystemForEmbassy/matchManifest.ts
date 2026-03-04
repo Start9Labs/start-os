@@ -1,126 +1,121 @@
-import {
-  object,
-  literal,
-  string,
-  array,
-  boolean,
-  dictionary,
-  literals,
-  number,
-  unknown,
-  some,
-  every,
-} from "ts-matches"
+import { z } from "@start9labs/start-sdk"
 import { matchVolume } from "./matchVolume"
 import { matchDockerProcedure } from "../../../Models/DockerProcedure"
 
-const matchJsProcedure = object({
-  type: literal("script"),
-  args: array(unknown).nullable().optional().defaultTo([]),
+const matchJsProcedure = z.object({
+  type: z.literal("script"),
+  args: z.array(z.unknown()).nullable().optional().default([]),
 })
 
-const matchProcedure = some(matchDockerProcedure, matchJsProcedure)
-export type Procedure = typeof matchProcedure._TYPE
+const matchProcedure = z.union([matchDockerProcedure, matchJsProcedure])
+export type Procedure = z.infer<typeof matchProcedure>
 
-const matchAction = object({
-  name: string,
-  description: string,
-  warning: string.nullable().optional(),
+const matchAction = z.object({
+  name: z.string(),
+  description: z.string(),
+  warning: z.string().nullable().optional(),
   implementation: matchProcedure,
-  "allowed-statuses": array(literals("running", "stopped")),
-  "input-spec": unknown.nullable().optional(),
+  "allowed-statuses": z.array(z.enum(["running", "stopped"])),
+  "input-spec": z.unknown().nullable().optional(),
 })
-export const matchManifest = object({
-  id: string,
-  title: string,
-  version: string,
+export const matchManifest = z.object({
+  id: z.string(),
+  title: z.string(),
+  version: z.string(),
   main: matchDockerProcedure,
-  assets: object({
-    assets: string.nullable().optional(),
-    scripts: string.nullable().optional(),
-  })
+  assets: z
+    .object({
+      assets: z.string().nullable().optional(),
+      scripts: z.string().nullable().optional(),
+    })
     .nullable()
     .optional(),
-  "health-checks": dictionary([
-    string,
-    every(
+  "health-checks": z.record(
+    z.string(),
+    z.intersection(
       matchProcedure,
-      object({
-        name: string,
-        ["success-message"]: string.nullable().optional(),
+      z.object({
+        name: z.string(),
+        "success-message": z.string().nullable().optional(),
       }),
     ),
-  ]),
-  config: object({
-    get: matchProcedure,
-    set: matchProcedure,
-  })
+  ),
+  config: z
+    .object({
+      get: matchProcedure,
+      set: matchProcedure,
+    })
     .nullable()
     .optional(),
   properties: matchProcedure.nullable().optional(),
-  volumes: dictionary([string, matchVolume]),
-  interfaces: dictionary([
-    string,
-    object({
-      name: string,
-      description: string,
-      "tor-config": object({
-        "port-mapping": dictionary([string, string]),
-      })
+  volumes: z.record(z.string(), matchVolume),
+  interfaces: z.record(
+    z.string(),
+    z.object({
+      name: z.string(),
+      description: z.string(),
+      "tor-config": z
+        .object({
+          "port-mapping": z.record(z.string(), z.string()),
+        })
         .nullable()
         .optional(),
-      "lan-config": dictionary([
-        string,
-        object({
-          ssl: boolean,
-          internal: number,
-        }),
-      ])
+      "lan-config": z
+        .record(
+          z.string(),
+          z.object({
+            ssl: z.boolean(),
+            internal: z.number(),
+          }),
+        )
         .nullable()
         .optional(),
-      ui: boolean,
-      protocols: array(string),
+      ui: z.boolean(),
+      protocols: z.array(z.string()),
     }),
-  ]),
-  backup: object({
+  ),
+  backup: z.object({
     create: matchProcedure,
     restore: matchProcedure,
   }),
-  migrations: object({
-    to: dictionary([string, matchProcedure]),
-    from: dictionary([string, matchProcedure]),
-  })
+  migrations: z
+    .object({
+      to: z.record(z.string(), matchProcedure),
+      from: z.record(z.string(), matchProcedure),
+    })
     .nullable()
     .optional(),
-  dependencies: dictionary([
-    string,
-    object({
-      version: string,
-      requirement: some(
-        object({
-          type: literal("opt-in"),
-          how: string,
-        }),
-        object({
-          type: literal("opt-out"),
-          how: string,
-        }),
-        object({
-          type: literal("required"),
-        }),
-      ),
-      description: string.nullable().optional(),
-      config: object({
-        check: matchProcedure,
-        "auto-configure": matchProcedure,
+  dependencies: z.record(
+    z.string(),
+    z
+      .object({
+        version: z.string(),
+        requirement: z.union([
+          z.object({
+            type: z.literal("opt-in"),
+            how: z.string(),
+          }),
+          z.object({
+            type: z.literal("opt-out"),
+            how: z.string(),
+          }),
+          z.object({
+            type: z.literal("required"),
+          }),
+        ]),
+        description: z.string().nullable().optional(),
+        config: z
+          .object({
+            check: matchProcedure,
+            "auto-configure": matchProcedure,
+          })
+          .nullable()
+          .optional(),
       })
-        .nullable()
-        .optional(),
-    })
       .nullable()
       .optional(),
-  ]),
+  ),
 
-  actions: dictionary([string, matchAction]),
+  actions: z.record(z.string(), matchAction),
 })
-export type Manifest = typeof matchManifest._TYPE
+export type Manifest = z.infer<typeof matchManifest>

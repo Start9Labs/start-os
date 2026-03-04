@@ -9,6 +9,7 @@ use tokio::process::Command;
 
 use crate::dependencies::{DepInfo, Dependencies};
 use crate::prelude::*;
+use crate::registry::package::index::PackageMetadata;
 use crate::s9pk::manifest::{DeviceFilter, LocaleString, Manifest};
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::TmpSource;
@@ -195,20 +196,30 @@ impl TryFrom<ManifestV1> for Manifest {
         }
         Ok(Self {
             id: value.id,
-            title: format!("{} (Legacy)", value.title).into(),
             version: version.into(),
             satisfies: BTreeSet::new(),
-            release_notes: LocaleString::Translated(value.release_notes),
             can_migrate_from: VersionRange::any(),
             can_migrate_to: VersionRange::none(),
-            license: value.license.into(),
-            wrapper_repo: value.wrapper_repo,
-            upstream_repo: value.upstream_repo,
-            support_site: value.support_site.unwrap_or_else(|| default_url.clone()),
-            marketing_site: value.marketing_site.unwrap_or_else(|| default_url.clone()),
-            donation_url: value.donation_url,
-            docs_url: None,
-            description: value.description,
+            metadata: PackageMetadata {
+                title: format!("{} (Legacy)", value.title).into(),
+                release_notes: LocaleString::Translated(value.release_notes),
+                license: value.license.into(),
+                package_repo: value.wrapper_repo,
+                upstream_repo: value.upstream_repo,
+                marketing_url: Some(value.marketing_site.unwrap_or_else(|| default_url.clone())),
+                donation_url: value.donation_url,
+                docs_urls: Vec::new(),
+                description: value.description,
+                alerts: value.alerts,
+                git_hash: value.git_hash,
+                os_version: value.eos_version,
+                sdk_version: None,
+                hardware_acceleration: match value.main {
+                    PackageProcedure::Docker(d) => d.gpu_acceleration,
+                    PackageProcedure::Script(_) => false,
+                },
+                plugins: BTreeSet::new(),
+            },
             images: BTreeMap::new(),
             volumes: value
                 .volumes
@@ -217,7 +228,6 @@ impl TryFrom<ManifestV1> for Manifest {
                 .map(|(id, _)| id.clone())
                 .chain([VolumeId::from_str("embassy").unwrap()])
                 .collect(),
-            alerts: value.alerts,
             dependencies: Dependencies(
                 value
                     .dependencies
@@ -251,13 +261,6 @@ impl TryFrom<ManifestV1> for Manifest {
                         ..Default::default()
                     })
                     .collect(),
-            },
-            git_hash: value.git_hash,
-            os_version: value.eos_version,
-            sdk_version: None,
-            hardware_acceleration: match value.main {
-                PackageProcedure::Docker(d) => d.gpu_acceleration,
-                PackageProcedure::Script(_) => false,
             },
         })
     }

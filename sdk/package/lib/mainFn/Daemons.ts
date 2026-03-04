@@ -16,8 +16,15 @@ import { Daemon } from './Daemon'
 import { CommandController } from './CommandController'
 import { Oneshot } from './Oneshot'
 
+/** Promisified version of `child_process.exec` */
 export const cpExec = promisify(CP.exec)
+/** Promisified version of `child_process.execFile` */
 export const cpExecFile = promisify(CP.execFile)
+/**
+ * Configuration for a daemon's health-check readiness probe.
+ *
+ * Determines how the system knows when a daemon is healthy and ready to serve.
+ */
 export type Ready = {
   /** A human-readable display name for the health check. If null, the health check itself will be from the UI */
   display: string | null
@@ -45,6 +52,10 @@ export type Ready = {
   trigger?: Trigger
 }
 
+/**
+ * Options for running a daemon as a shell command inside a subcontainer.
+ * Includes the command to run, optional signal/timeout, environment, user, and stdio callbacks.
+ */
 export type ExecCommandOptions = {
   command: T.CommandType
   // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
@@ -61,6 +72,11 @@ export type ExecCommandOptions = {
   onStderr?: (chunk: Buffer | string | any) => void
 }
 
+/**
+ * Options for running a daemon via an async function that may optionally return
+ * a command to execute in the subcontainer. The function receives an `AbortSignal`
+ * for cooperative cancellation.
+ */
 export type ExecFnOptions<
   Manifest extends T.SDKManifest,
   C extends SubContainer<Manifest> | null,
@@ -73,6 +89,10 @@ export type ExecFnOptions<
   sigtermTimeout?: number
 }
 
+/**
+ * The execution specification for a daemon: either an {@link ExecFnOptions} (async function)
+ * or an {@link ExecCommandOptions} (shell command, only valid when a subcontainer is provided).
+ */
 export type DaemonCommandType<
   Manifest extends T.SDKManifest,
   C extends SubContainer<Manifest> | null,
@@ -385,6 +405,13 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     return null
   }
 
+  /**
+   * Gracefully terminate all daemons in reverse dependency order.
+   *
+   * Daemons with no remaining dependents are shut down first, proceeding
+   * until all daemons have been terminated. Falls back to a bulk shutdown
+   * if a dependency cycle is detected.
+   */
   async term() {
     const remaining = new Set(this.healthDaemons)
 
@@ -427,6 +454,10 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     }
   }
 
+  /**
+   * Start all registered daemons and their health checks.
+   * @returns This `Daemons` instance, now running
+   */
   async build() {
     for (const daemon of this.healthDaemons) {
       await daemon.updateStatus()

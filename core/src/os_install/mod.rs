@@ -359,6 +359,7 @@ pub async fn install_os_to(
             "riscv64" => install.arg("--target=riscv64-efi"),
             _ => &mut install,
         };
+        install.arg("--no-nvram");
     }
     install
         .arg(disk_path)

@@ -17,8 +17,11 @@ use crate::registry::device_info::DeviceInfo;
 use crate::rpc_continuations::Guid;
 use crate::s9pk::S9pk;
 use crate::s9pk::git_hash::GitHash;
-use crate::s9pk::manifest::{Alerts, Description, HardwareRequirements, LocaleString};
+use crate::s9pk::manifest::{
+    Alerts, Description, HardwareRequirements, LocaleString, current_version,
+};
 use crate::s9pk::merkle_archive::source::FileSource;
+use crate::service::effects::plugin::PluginId;
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::sign::{AnySignature, AnyVerifyingKey};
 use crate::util::{DataUrl, VersionString};
@@ -69,75 +72,44 @@ impl DependencyMetadata {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS, PartialEq)]
+fn placeholder_url() -> Url {
+    "https://example.com".parse().unwrap()
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct PackageMetadata {
     #[ts(type = "string")]
     pub title: InternedString,
-    pub icon: DataUrl<'static>,
     pub description: Description,
     pub release_notes: LocaleString,
     pub git_hash: Option<GitHash>,
     #[ts(type = "string")]
     pub license: InternedString,
     #[ts(type = "string")]
-    pub wrapper_repo: Url,
+    #[serde(default = "placeholder_url")] // TODO: remove
+    pub package_repo: Url,
     #[ts(type = "string")]
     pub upstream_repo: Url,
     #[ts(type = "string")]
-    pub support_site: Url,
-    #[ts(type = "string")]
-    pub marketing_site: Url,
+    pub marketing_url: Option<Url>,
     #[ts(type = "string | null")]
     pub donation_url: Option<Url>,
-    #[ts(type = "string | null")]
-    pub docs_url: Option<Url>,
+    #[serde(default)]
+    #[ts(type = "string[]")]
+    pub docs_urls: Vec<Url>,
+    #[serde(default)]
     pub alerts: Alerts,
-    pub dependency_metadata: BTreeMap<PackageId, DependencyMetadata>,
+    #[serde(default = "current_version")]
     #[ts(type = "string")]
     pub os_version: Version,
     #[ts(type = "string | null")]
     pub sdk_version: Option<Version>,
     #[serde(default)]
     pub hardware_acceleration: bool,
-}
-impl PackageMetadata {
-    pub async fn load<S: FileSource + Clone>(s9pk: &S9pk<S>) -> Result<Self, Error> {
-        let manifest = s9pk.as_manifest();
-        let mut dependency_metadata = BTreeMap::new();
-        for (id, info) in &manifest.dependencies.0 {
-            let metadata = s9pk.dependency_metadata(id).await?;
-            dependency_metadata.insert(
-                id.clone(),
-                DependencyMetadata {
-                    title: metadata.map(|m| m.title),
-                    icon: s9pk.dependency_icon_data_url(id).await?,
-                    description: info.description.clone(),
-                    optional: info.optional,
-                },
-            );
-        }
-        Ok(Self {
-            title: manifest.title.clone(),
-            icon: s9pk.icon_data_url().await?,
-            description: manifest.description.clone(),
-            release_notes: manifest.release_notes.clone(),
-            git_hash: manifest.git_hash.clone(),
-            license: manifest.license.clone(),
-            wrapper_repo: manifest.wrapper_repo.clone(),
-            upstream_repo: manifest.upstream_repo.clone(),
-            support_site: manifest.support_site.clone(),
-            marketing_site: manifest.marketing_site.clone(),
-            donation_url: manifest.donation_url.clone(),
-            docs_url: manifest.docs_url.clone(),
-            alerts: manifest.alerts.clone(),
-            dependency_metadata,
-            os_version: manifest.os_version.clone(),
-            sdk_version: manifest.sdk_version.clone(),
-            hardware_acceleration: manifest.hardware_acceleration.clone(),
-        })
-    }
+    #[serde(default)]
+    pub plugins: BTreeSet<PluginId>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
@@ -147,6 +119,8 @@ impl PackageMetadata {
 pub struct PackageVersionInfo {
     #[serde(flatten)]
     pub metadata: PackageMetadata,
+    pub icon: DataUrl<'static>,
+    pub dependency_metadata: BTreeMap<PackageId, DependencyMetadata>,
     #[ts(type = "string | null")]
     pub source_version: Option<VersionRange>,
     pub s9pks: Vec<(HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>)>,
@@ -156,11 +130,28 @@ impl PackageVersionInfo {
         s9pk: &S9pk<S>,
         urls: Vec<Url>,
     ) -> Result<Self, Error> {
+        let manifest = s9pk.as_manifest();
+        let icon = s9pk.icon_data_url().await?;
+        let mut dependency_metadata = BTreeMap::new();
+        for (id, info) in &manifest.dependencies.0 {
+            let dep_meta = s9pk.dependency_metadata(id).await?;
+            dependency_metadata.insert(
+                id.clone(),
+                DependencyMetadata {
+                    title: dep_meta.map(|m| m.title),
+                    icon: s9pk.dependency_icon_data_url(id).await?,
+                    description: info.description.clone(),
+                    optional: info.optional,
+                },
+            );
+        }
         Ok(Self {
-            metadata: PackageMetadata::load(s9pk).await?,
+            metadata: manifest.metadata.clone(),
+            icon,
+            dependency_metadata,
             source_version: None, // TODO
             s9pks: vec![(
-                s9pk.as_manifest().hardware_requirements.clone(),
+                manifest.hardware_requirements.clone(),
                 RegistryAsset {
                     published_at: Utc::now(),
                     urls,
@@ -176,6 +167,27 @@ impl PackageVersionInfo {
         })
     }
     pub fn merge_with(&mut self, other: Self, replace_urls: bool) -> Result<(), Error> {
+        if self.metadata != other.metadata {
+            return Err(Error::new(
+                color_eyre::eyre::eyre!("{}", t!("registry.package.index.metadata-mismatch")),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        if self.icon != other.icon {
+            return Err(Error::new(
+                color_eyre::eyre::eyre!("{}", t!("registry.package.index.icon-mismatch")),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        if self.dependency_metadata != other.dependency_metadata {
+            return Err(Error::new(
+                color_eyre::eyre::eyre!(
+                    "{}",
+                    t!("registry.package.index.dependency-metadata-mismatch")
+                ),
+                ErrorKind::InvalidRequest,
+            ));
+        }
         for (hw_req, asset) in other.s9pks {
             if let Some((_, matching)) = self
                 .s9pks
@@ -221,10 +233,9 @@ impl PackageVersionInfo {
         ]);
         table.add_row(row![br -> "GIT HASH", self.metadata.git_hash.as_deref().unwrap_or("N/A")]);
         table.add_row(row![br -> "LICENSE", &self.metadata.license]);
-        table.add_row(row![br -> "PACKAGE REPO", &self.metadata.wrapper_repo.to_string()]);
+        table.add_row(row![br -> "PACKAGE REPO", &self.metadata.package_repo.to_string()]);
         table.add_row(row![br -> "SERVICE REPO", &self.metadata.upstream_repo.to_string()]);
-        table.add_row(row![br -> "WEBSITE", &self.metadata.marketing_site.to_string()]);
-        table.add_row(row![br -> "SUPPORT", &self.metadata.support_site.to_string()]);
+        table.add_row(row![br -> "WEBSITE", self.metadata.marketing_url.as_ref().map_or("N/A".to_owned(), |u| u.to_string())]);
 
         table
     }
@@ -244,30 +255,7 @@ impl Model<PackageVersionInfo> {
         }
         if let Some(hw) = &device_info.hardware {
             self.as_s9pks_mut().mutate(|s9pks| {
-                s9pks.retain(|(hw_req, _)| {
-                    if let Some(arch) = &hw_req.arch {
-                        if !arch.contains(&hw.arch) {
-                            return false;
-                        }
-                    }
-                    if let Some(ram) = hw_req.ram {
-                        if hw.ram < ram {
-                            return false;
-                        }
-                    }
-                    if let Some(dev) = &hw.devices {
-                        for device_filter in &hw_req.device {
-                            if !dev
-                                .iter()
-                                .filter(|d| d.class() == &*device_filter.class)
-                                .any(|d| device_filter.matches(d))
-                            {
-                                return false;
-                            }
-                        }
-                    }
-                    true
-                });
+                s9pks.retain(|(hw_req, _)| hw_req.is_compatible(hw));
                 if hw.devices.is_some() {
                     s9pks.sort_by_key(|(req, _)| req.specificity_desc());
                 } else {
@@ -287,19 +275,17 @@ impl Model<PackageVersionInfo> {
             }
 
             if let Some(locale) = device_info.os.language.as_deref() {
-                let metadata = self.as_metadata_mut();
-                metadata
+                self.as_metadata_mut()
                     .as_alerts_mut()
                     .mutate(|a| Ok(a.localize_for(locale)))?;
-                metadata
-                    .as_dependency_metadata_mut()
+                self.as_dependency_metadata_mut()
                     .as_entries_mut()?
                     .into_iter()
                     .try_for_each(|(_, d)| d.mutate(|d| Ok(d.localize_for(locale))))?;
-                metadata
+                self.as_metadata_mut()
                     .as_description_mut()
                     .mutate(|d| Ok(d.localize_for(locale)))?;
-                metadata
+                self.as_metadata_mut()
                     .as_release_notes_mut()
                     .mutate(|r| Ok(r.localize_for(locale)))?;
             }

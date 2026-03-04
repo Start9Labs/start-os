@@ -1,9 +1,12 @@
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use imbl::vector;
 
 use crate::context::RpcContext;
 use crate::db::model::package::{InstalledState, InstallingInfo, InstallingState, PackageState};
+use crate::net::host::all_hosts;
+use crate::net::service_interface::{HostnameInfo, HostnameMetadata};
 use crate::prelude::*;
 use crate::volume::PKG_VOLUME_DIR;
 use crate::{DATA_DIR, PACKAGE_DATA, PackageId};
@@ -36,6 +39,24 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, soft: bool) -> Result<(),
                         Ok(())
                     })?;
                     d.as_private_mut().as_package_stores_mut().remove(&id)?;
+                    // Remove plugin URLs exported by this package from all hosts
+                    for host in all_hosts(d) {
+                        let host = host?;
+                        for (_, bind) in host.as_bindings_mut().as_entries_mut()? {
+                            bind.as_addresses_mut().as_available_mut().mutate(
+                                |available: &mut BTreeSet<HostnameInfo>| {
+                                    available.retain(|h| {
+                                        !matches!(
+                                            &h.metadata,
+                                            HostnameMetadata::Plugin { package_id, .. }
+                                            if package_id == id
+                                        )
+                                    });
+                                    Ok(())
+                                },
+                            )?;
+                        }
+                    }
                     Ok(Some(pde))
                 } else {
                     Ok(None)

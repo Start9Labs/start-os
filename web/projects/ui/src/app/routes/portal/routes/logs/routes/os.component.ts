@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { LogsComponent } from 'src/app/routes/portal/components/logs/logs.component'
 import { LogsHeaderComponent } from 'src/app/routes/portal/routes/logs/components/header.component'
-import { RR } from 'src/app/services/api/api.types'
+import { FollowServerLogsReq } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
@@ -24,9 +25,9 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 export default class SystemOSComponent {
   private readonly api = inject(ApiService)
 
-  protected readonly follow = (params: RR.FollowServerLogsReq) =>
+  protected readonly follow = (params: FollowServerLogsReq) =>
     this.api.followServerLogs(params)
 
-  protected readonly fetch = (params: RR.GetServerLogsReq) =>
+  protected readonly fetch = (params: T.LogsParams) =>
     this.api.getServerLogs(params)
 }

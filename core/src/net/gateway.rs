@@ -1,17 +1,14 @@
-use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::fmt;
 use std::future::Future;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV6};
-use std::sync::{Arc, Weak};
-use std::task::{Poll, ready};
-use std::time::Duration;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::sync::Arc;
+use std::task::Poll;
+use std::time::{Duration, Instant};
 
 use clap::Parser;
-use futures::future::Either;
 use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
 use imbl::{OrdMap, OrdSet};
-use imbl_value::InternedString;
+use imbl_value::{InternedString, Value};
 use ipnet::IpNet;
 use itertools::Itertools;
 use nix::net::if_::if_nametoindex;
@@ -23,6 +20,7 @@ use tokio::net::TcpListener;
 use tokio::process::Command;
 use tokio::sync::oneshot;
 use ts_rs::TS;
+use url::Url;
 use visit_rs::{Visit, VisitFields};
 use zbus::proxy::{PropertyChanged, PropertyStream, SignalStream};
 use zbus::zvariant::{
@@ -30,21 +28,21 @@ use zbus::zvariant::{
 };
 use zbus::{Connection, proxy};
 
-use crate::GatewayId;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::net::gateway::device::DeviceProxy;
-use crate::net::utils::ipv6_is_link_local;
-use crate::net::web_server::{Accept, AcceptStream, Acceptor, MetadataVisitor};
+use crate::net::host::all_hosts;
+use crate::net::web_server::{Accept, AcceptStream, MetadataVisitor, TcpMetadata};
 use crate::prelude::*;
 use crate::util::Invoke;
 use crate::util::collections::OrdMapIterMut;
 use crate::util::future::{NonDetachingJoinHandle, Until};
 use crate::util::io::open_file;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
-use crate::util::sync::{SyncMutex, Watch};
+use crate::util::sync::Watch;
+use crate::{GatewayId, PackageId};
 
 pub fn gateway_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -60,7 +58,7 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
                     }
 
                     let mut table = Table::new();
-                    table.add_row(row![bc => "INTERFACE", "TYPE", "PUBLIC", "ADDRESSES", "WAN IP"]);
+                    table.add_row(row![bc => "INTERFACE", "TYPE", "ADDRESSES", "WAN IP"]);
                     for (iface, info) in res {
                         table.add_row(row![
                             iface,
@@ -68,7 +66,6 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
                                 .as_ref()
                                 .and_then(|ip_info| ip_info.device_type)
                                 .map_or_else(|| "UNKNOWN".to_owned(), |ty| format!("{ty:?}")),
-                            info.public(),
                             info.ip_info.as_ref().map_or_else(
                                 || "<DISCONNECTED>".to_owned(),
                                 |ip_info| ip_info
@@ -99,22 +96,6 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "set-public",
-            from_fn_async(set_public)
-                .with_metadata("sync_db", Value::Bool(true))
-                .no_display()
-                .with_about("about.indicate-gateway-inbound-access-from-wan")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "unset-public",
-            from_fn_async(unset_public)
-                .with_metadata("sync_db", Value::Bool(true))
-                .no_display()
-                .with_about("about.allow-gateway-infer-inbound-access-from-wan")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
             "forget",
             from_fn_async(forget_iface)
                 .with_metadata("sync_db", Value::Bool(true))
@@ -130,6 +111,28 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
                 .with_about("about.rename-gateway")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "check-port",
+            from_fn_async(check_port)
+                .with_display_serializable()
+                .with_about("about.check-port-reachability")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "check-dns",
+            from_fn_async(check_dns)
+                .with_display_serializable()
+                .with_about("about.check-dns-configuration")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set-default-outbound",
+            from_fn_async(set_default_outbound)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.set-default-outbound-gateway")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 async fn list_interfaces(
@@ -139,40 +142,7 @@ async fn list_interfaces(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
-struct NetworkInterfaceSetPublicParams {
-    #[arg(help = "help.arg.gateway-id")]
-    gateway: GatewayId,
-    #[arg(help = "help.arg.is-public")]
-    public: Option<bool>,
-}
-
-async fn set_public(
-    ctx: RpcContext,
-    NetworkInterfaceSetPublicParams { gateway, public }: NetworkInterfaceSetPublicParams,
-) -> Result<(), Error> {
-    ctx.net_controller
-        .net_iface
-        .set_public(&gateway, Some(public.unwrap_or(true)))
-        .await
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
-struct UnsetPublicParams {
-    #[arg(help = "help.arg.gateway-id")]
-    gateway: GatewayId,
-}
-
-async fn unset_public(
-    ctx: RpcContext,
-    UnsetPublicParams { gateway }: UnsetPublicParams,
-) -> Result<(), Error> {
-    ctx.net_controller
-        .net_iface
-        .set_public(&gateway, None)
-        .await
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 struct ForgetGatewayParams {
     #[arg(help = "help.arg.gateway-id")]
     gateway: GatewayId,
@@ -186,6 +156,7 @@ async fn forget_iface(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 struct RenameGatewayParams {
     #[arg(help = "help.arg.gateway-id")]
     id: GatewayId,
@@ -198,6 +169,260 @@ async fn set_name(
     RenameGatewayParams { id, name }: RenameGatewayParams,
 ) -> Result<(), Error> {
     ctx.net_controller.net_iface.set_name(&id, name).await
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+struct CheckPortParams {
+    #[arg(help = "help.arg.port")]
+    port: u16,
+    #[arg(help = "help.arg.gateway-id")]
+    gateway: GatewayId,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct CheckPortRes {
+    pub ip: Ipv4Addr,
+    pub port: u16,
+    pub open_externally: bool,
+    pub open_internally: bool,
+    pub hairpinning: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IfconfigPortRes {
+    pub ip: Ipv4Addr,
+    pub port: u16,
+    pub reachable: bool,
+}
+
+async fn check_port(
+    ctx: RpcContext,
+    CheckPortParams { port, gateway }: CheckPortParams,
+) -> Result<CheckPortRes, Error> {
+    let db = ctx.db.peek().await;
+    let base_url = db.as_public().as_server_info().as_ifconfig_url().de()?;
+    let gateways = db
+        .as_public()
+        .as_server_info()
+        .as_network()
+        .as_gateways()
+        .de()?;
+    let gw_info = gateways
+        .get(&gateway)
+        .ok_or_else(|| Error::new(eyre!("unknown gateway: {gateway}"), ErrorKind::NotFound))?;
+    let ip_info = gw_info.ip_info.as_ref().ok_or_else(|| {
+        Error::new(
+            eyre!("gateway {gateway} has no IP info"),
+            ErrorKind::NotFound,
+        )
+    })?;
+
+    let internal_ips = ip_info
+        .subnets
+        .iter()
+        .map(|i| i.addr())
+        .filter(|a| a.is_ipv4())
+        .map(|a| SocketAddr::new(a, port))
+        .collect::<Vec<_>>();
+
+    let open_internally = tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::net::TcpStream::connect(&*internal_ips),
+    )
+    .await
+    .map_or(false, |r| r.is_ok());
+
+    let client = reqwest::Client::builder();
+    #[cfg(target_os = "linux")]
+    let client = client.interface(gateway.as_str());
+    let url = base_url
+        .join(&format!("/port/{port}"))
+        .with_kind(ErrorKind::ParseUrl)?;
+    let IfconfigPortRes {
+        ip,
+        port,
+        reachable: open_externally,
+    } = client
+        .build()?
+        .get(url)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    let hairpinning = tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::net::TcpStream::connect(SocketAddr::new(ip.into(), port)),
+    )
+    .await
+    .map_or(false, |r| r.is_ok());
+
+    Ok(CheckPortRes {
+        ip,
+        port,
+        open_externally,
+        open_internally,
+        hairpinning,
+    })
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+struct CheckDnsParams {
+    #[arg(help = "help.arg.gateway-id")]
+    gateway: GatewayId,
+}
+
+async fn check_dns(
+    ctx: RpcContext,
+    CheckDnsParams { gateway }: CheckDnsParams,
+) -> Result<bool, Error> {
+    use hickory_server::proto::xfer::Protocol;
+    use hickory_server::resolver::Resolver;
+    use hickory_server::resolver::config::{NameServerConfig, ResolverConfig, ResolverOpts};
+    use hickory_server::resolver::name_server::TokioConnectionProvider;
+
+    let ip_info = ctx.net_controller.net_iface.watcher.ip_info();
+    let gw_info = ip_info
+        .get(&gateway)
+        .ok_or_else(|| Error::new(eyre!("unknown gateway: {gateway}"), ErrorKind::NotFound))?;
+    let gw_ip_info = gw_info.ip_info.as_ref().ok_or_else(|| {
+        Error::new(
+            eyre!("gateway {gateway} has no IP info"),
+            ErrorKind::NotFound,
+        )
+    })?;
+
+    for dns_ip in &gw_ip_info.dns_servers {
+        // Case 1: DHCP DNS == server IP → immediate success
+        if gw_ip_info.subnets.iter().any(|s| s.addr() == *dns_ip) {
+            return Ok(true);
+        }
+
+        // Case 2: DHCP DNS is on LAN but not the server → TXT challenge check
+        if gw_ip_info.subnets.iter().any(|s| s.contains(dns_ip)) {
+            let nonce = rand::random::<u64>();
+            let challenge_domain = InternedString::intern(format!("_dns-check-{nonce}.startos"));
+            let challenge_value =
+                InternedString::intern(crate::rpc_continuations::Guid::new().as_ref());
+
+            let _guard = ctx
+                .net_controller
+                .dns
+                .add_challenge(challenge_domain.clone(), challenge_value.clone())?;
+
+            let mut config = ResolverConfig::new();
+            config.add_name_server(NameServerConfig::new(
+                SocketAddr::new(*dns_ip, 53),
+                Protocol::Udp,
+            ));
+            config.add_name_server(NameServerConfig::new(
+                SocketAddr::new(*dns_ip, 53),
+                Protocol::Tcp,
+            ));
+            let mut opts = ResolverOpts::default();
+            opts.timeout = Duration::from_secs(5);
+            opts.attempts = 1;
+
+            let resolver =
+                Resolver::builder_with_config(config, TokioConnectionProvider::default())
+                    .with_options(opts)
+                    .build();
+            let txt_lookup = resolver.txt_lookup(&*challenge_domain).await;
+
+            return Ok(match txt_lookup {
+                Ok(lookup) => lookup.iter().any(|txt| {
+                    txt.iter()
+                        .any(|data| data.as_ref() == challenge_value.as_bytes())
+                }),
+                Err(_) => false,
+            });
+        }
+    }
+
+    // Case 3: No DNS servers in subnet → failure
+    Ok(false)
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+struct SetDefaultOutboundParams {
+    #[arg(help = "help.arg.gateway-id")]
+    gateway: Option<GatewayId>,
+}
+
+async fn set_default_outbound(
+    ctx: RpcContext,
+    SetDefaultOutboundParams { gateway }: SetDefaultOutboundParams,
+) -> Result<(), Error> {
+    if let Some(ref gw) = gateway {
+        let ip_info = ctx.net_controller.net_iface.watcher.ip_info();
+        let info = ip_info
+            .get(gw)
+            .ok_or_else(|| Error::new(eyre!("unknown gateway: {gw}"), ErrorKind::NotFound))?;
+        ensure_code!(
+            info.ip_info.is_some(),
+            ErrorKind::InvalidRequest,
+            "gateway {gw} is not connected"
+        );
+    }
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_network_mut()
+                .as_default_outbound_mut()
+                .ser(&gateway)
+        })
+        .await
+        .result
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SetOutboundGatewayParams {
+    #[arg(help = "help.arg.package-id")]
+    package: PackageId,
+    #[arg(help = "help.arg.gateway-id")]
+    gateway: Option<GatewayId>,
+}
+
+pub async fn set_outbound_gateway(
+    ctx: RpcContext,
+    SetOutboundGatewayParams { package, gateway }: SetOutboundGatewayParams,
+) -> Result<(), Error> {
+    if let Some(ref gw) = gateway {
+        let ip_info = ctx.net_controller.net_iface.watcher.ip_info();
+        let info = ip_info
+            .get(gw)
+            .ok_or_else(|| Error::new(eyre!("unknown gateway: {gw}"), ErrorKind::NotFound))?;
+        ensure_code!(
+            info.ip_info.is_some(),
+            ErrorKind::InvalidRequest,
+            "gateway {gw} is not connected"
+        );
+    }
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package)
+                .or_not_found(&package)?
+                .as_outbound_gateway_mut()
+                .ser(&gateway)
+        })
+        .await
+        .result
 }
 
 #[proxy(
@@ -423,6 +648,7 @@ impl<'a> StubStream<'a> for SignalStream<'a> {
 async fn watcher(
     watch_ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     watch_activation: Watch<BTreeMap<GatewayId, bool>>,
+    db: Option<TypedPatchDb<Database>>,
 ) {
     loop {
         let res: Result<(), Error> = async {
@@ -496,6 +722,7 @@ async fn watcher(
                                 device_proxy.clone(),
                                 iface.clone(),
                                 &watch_ip_info,
+                                db.as_ref(),
                             )));
                             ifaces.insert(iface);
                         }
@@ -526,33 +753,85 @@ async fn watcher(
     }
 }
 
-async fn get_wan_ipv4(iface: &str) -> Result<Option<Ipv4Addr>, Error> {
+async fn get_wan_ipv4(iface: &str, base_url: &Url) -> Result<Option<Ipv4Addr>, Error> {
     let client = reqwest::Client::builder();
     #[cfg(target_os = "linux")]
     let client = client.interface(iface);
-    Ok(client
+    let url = base_url.join("/ip").with_kind(ErrorKind::ParseUrl)?;
+    let text = client
         .build()?
-        .get("https://ip4only.me/api/")
+        .get(url)
         .timeout(Duration::from_secs(10))
         .send()
         .await?
         .error_for_status()?
         .text()
-        .await?
-        .split(",")
-        .skip(1)
-        .next()
-        .filter(|s| !s.is_empty())
-        .map(|s| s.parse())
-        .transpose()?)
+        .await?;
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(trimmed.parse()?))
 }
 
-#[instrument(skip(connection, device_proxy, write_to))]
+struct PolicyRoutingCleanup {
+    table_id: u32,
+    iface: String,
+}
+impl Drop for PolicyRoutingCleanup {
+    fn drop(&mut self) {
+        let table_str = self.table_id.to_string();
+        let iface = std::mem::take(&mut self.iface);
+        tokio::spawn(async move {
+            Command::new("ip")
+                .arg("rule")
+                .arg("del")
+                .arg("fwmark")
+                .arg(&table_str)
+                .arg("lookup")
+                .arg(&table_str)
+                .arg("priority")
+                .arg("50")
+                .invoke(ErrorKind::Network)
+                .await
+                .log_err();
+            Command::new("ip")
+                .arg("route")
+                .arg("flush")
+                .arg("table")
+                .arg(&table_str)
+                .invoke(ErrorKind::Network)
+                .await
+                .log_err();
+            Command::new("iptables")
+                .arg("-t")
+                .arg("mangle")
+                .arg("-D")
+                .arg("PREROUTING")
+                .arg("-i")
+                .arg(&iface)
+                .arg("-m")
+                .arg("conntrack")
+                .arg("--ctstate")
+                .arg("NEW")
+                .arg("-j")
+                .arg("CONNMARK")
+                .arg("--set-mark")
+                .arg(&table_str)
+                .invoke(ErrorKind::Network)
+                .await
+                .log_err();
+        });
+    }
+}
+
+#[instrument(skip(connection, device_proxy, write_to, db))]
 async fn watch_ip(
     connection: &Connection,
     device_proxy: device::DeviceProxy<'_>,
     iface: GatewayId,
     write_to: &Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
+    db: Option<&TypedPatchDb<Database>>,
 ) -> Result<(), Error> {
     let mut until = Until::new()
         .with_stream(
@@ -572,11 +851,13 @@ async fn watch_ip(
         .with_stream(device_proxy.receive_ip6_config_changed().await.stub())
         .with_async_fn(|| {
             async {
-                tokio::time::sleep(Duration::from_secs(300)).await;
+                tokio::time::sleep(Duration::from_secs(600)).await;
                 Ok(())
             }
             .fuse()
         });
+
+    let mut prev_attempt: Option<Instant> = None;
 
     loop {
         until
@@ -661,133 +942,37 @@ async fn watch_ip(
                                 None
                             };
 
+                            // Policy routing: track per-interface table for cleanup on scope exit
+                            let policy_table_id = if !matches!(
+                                device_type,
+                                Some(NetworkInterfaceType::Bridge | NetworkInterfaceType::Loopback)
+                            ) {
+                                if_nametoindex(iface.as_str())
+                                    .map(|idx| 1000 + idx)
+                                    .log_err()
+                            } else {
+                                None
+                            };
+                            let policy_guard: Option<PolicyRoutingCleanup> =
+                                policy_table_id.map(|t| PolicyRoutingCleanup {
+                                    table_id: t,
+                                    iface: iface.as_str().to_owned(),
+                                });
+
                             loop {
                                 until
-                                    .run(async {
-                                        let addresses = ip4_proxy
-                                            .address_data()
-                                            .await?
-                                            .into_iter()
-                                            .chain(ip6_proxy.address_data().await?)
-                                            .collect_vec();
-                                        let lan_ip = [
-                                            Some(ip4_proxy.gateway().await?)
-                                                .filter(|g| !g.is_empty())
-                                                .and_then(|g| g.parse::<IpAddr>().log_err()),
-                                            Some(ip6_proxy.gateway().await?)
-                                                .filter(|g| !g.is_empty())
-                                                .and_then(|g| g.parse::<IpAddr>().log_err()),
-                                        ]
-                                        .into_iter()
-                                        .filter_map(|a| a)
-                                        .collect();
-                                        let mut ntp_servers = OrdSet::new();
-                                        let mut dns_servers = OrdSet::new();
-                                        if let Some(dhcp4_proxy) = &dhcp4_proxy {
-                                            let dhcp = dhcp4_proxy.options().await?;
-                                            if let Some(ntp) = dhcp.ntp_servers {
-                                                ntp_servers.extend(
-                                                    ntp.split_whitespace()
-                                                        .map(InternedString::intern),
-                                                );
-                                            }
-                                            if let Some(dns) = dhcp.domain_name_servers {
-                                                dns_servers.extend(
-                                                    dns.split_ascii_whitespace()
-                                                        .filter_map(|s| {
-                                                            s.parse::<IpAddr>().log_err()
-                                                        })
-                                                        .collect::<Vec<_>>(),
-                                                );
-                                            }
-                                        }
-                                        let scope_id = if_nametoindex(iface.as_str())
-                                            .with_kind(ErrorKind::Network)?;
-                                        let subnets: OrdSet<IpNet> = addresses
-                                            .into_iter()
-                                            .map(IpNet::try_from)
-                                            .try_collect()?;
-                                        // let tables = ip4_proxy.route_data().await?.into_iter().filter_map(|d|d.table).collect::<Vec<_>>();
-                                        // if !tables.is_empty() {
-                                        //     let rules = String::from_utf8(Command::new("ip").arg("rule").arg("list").invoke(ErrorKind::Network).await?)?;
-                                        //     for table in tables {
-                                        //         for subnet in subnets.iter().filter(|s| s.addr().is_ipv4()) {
-                                        //             let subnet_string = subnet.trunc().to_string();
-                                        //             let rule = ["from", &subnet_string, "lookup", &table.to_string()];
-                                        //             if !rules.contains(&rule.join(" ")) {
-                                        //                 if rules.contains(&rule[..2].join(" ")) {
-                                        //                     Command::new("ip").arg("rule").arg("del").args(&rule[..2]).invoke(ErrorKind::Network).await?;
-                                        //                 }
-                                        //                 Command::new("ip").arg("rule").arg("add").args(rule).invoke(ErrorKind::Network).await?;
-                                        //             }
-                                        //         }
-                                        //     }
-                                        // }
-                                        let wan_ip = if !subnets.is_empty()
-                                            && !matches!(
-                                                device_type,
-                                                Some(
-                                                    NetworkInterfaceType::Bridge
-                                                        | NetworkInterfaceType::Loopback
-                                                )
-                                            ) {
-                                            match get_wan_ipv4(iface.as_str()).await {
-                                                Ok(a) => a,
-                                                Err(e) => {
-                                                    tracing::error!(
-                                                    "{}",
-                                                    t!("net.gateway.failed-to-determine-wan-ip", iface = iface.to_string(), error = e.to_string())
-                                                );
-                                                    tracing::debug!("{e:?}");
-                                                    None
-                                                }
-                                            }
-                                        } else {
-                                            None
-                                        };
-                                        let mut ip_info = IpInfo {
-                                            name: name.clone(),
-                                            scope_id,
-                                            device_type,
-                                            subnets,
-                                            lan_ip,
-                                            wan_ip,
-                                            ntp_servers,
-                                            dns_servers,
-                                        };
-
-                                        write_to.send_if_modified(
-                                            |m: &mut OrdMap<GatewayId, NetworkInterfaceInfo>| {
-                                                let (name, public, secure, prev_wan_ip) = m
-                                                    .get(&iface)
-                                                    .map_or((None, None, None, None), |i| {
-                                                        (
-                                                            i.name.clone(),
-                                                            i.public,
-                                                            i.secure,
-                                                            i.ip_info
-                                                                .as_ref()
-                                                                .and_then(|i| i.wan_ip),
-                                                        )
-                                                    });
-                                                ip_info.wan_ip = ip_info.wan_ip.or(prev_wan_ip);
-                                                let ip_info = Arc::new(ip_info);
-                                                m.insert(
-                                                    iface.clone(),
-                                                    NetworkInterfaceInfo {
-                                                        name,
-                                                        public,
-                                                        secure,
-                                                        ip_info: Some(ip_info.clone()),
-                                                    },
-                                                )
-                                                .filter(|old| &old.ip_info == &Some(ip_info))
-                                                .is_none()
-                                            },
-                                        );
-
-                                        Ok::<_, Error>(())
-                                    })
+                                    .run(poll_ip_info(
+                                        &ip4_proxy,
+                                        &ip6_proxy,
+                                        &dhcp4_proxy,
+                                        &policy_guard,
+                                        &iface,
+                                        &mut prev_attempt,
+                                        db,
+                                        write_to,
+                                        device_type,
+                                        &name,
+                                    ))
                                     .await?;
                             }
                         })
@@ -796,6 +981,319 @@ async fn watch_ip(
             })
             .await?;
     }
+}
+
+async fn apply_policy_routing(
+    guard: &PolicyRoutingCleanup,
+    iface: &GatewayId,
+    lan_ip: &OrdSet<IpAddr>,
+) -> Result<(), Error> {
+    let table_id = guard.table_id;
+    let table_str = table_id.to_string();
+
+    let ipv4_gateway: Option<Ipv4Addr> = lan_ip
+        .iter()
+        .find_map(|ip| match ip {
+            IpAddr::V4(v4) => Some(v4),
+            _ => None,
+        })
+        .copied();
+
+    // Flush and rebuild per-interface routing table.
+    // Clone all non-default routes from the main table so that LAN IPs on
+    // other subnets remain reachable when the priority-75 catch-all overrides
+    // default routing, then replace the default route with this interface's.
+    Command::new("ip")
+        .arg("route")
+        .arg("flush")
+        .arg("table")
+        .arg(&table_str)
+        .invoke(ErrorKind::Network)
+        .await
+        .log_err();
+    if let Ok(main_routes) = Command::new("ip")
+        .arg("route")
+        .arg("show")
+        .arg("table")
+        .arg("main")
+        .invoke(ErrorKind::Network)
+        .await
+        .and_then(|b| String::from_utf8(b).with_kind(ErrorKind::Utf8))
+    {
+        for line in main_routes.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with("default") {
+                continue;
+            }
+            let mut cmd = Command::new("ip");
+            cmd.arg("route").arg("add");
+            for part in line.split_whitespace() {
+                // Skip status flags that appear in route output but
+                // are not valid for `ip route add`.
+                if part == "linkdown" || part == "dead" {
+                    continue;
+                }
+                cmd.arg(part);
+            }
+            cmd.arg("table").arg(&table_str);
+            cmd.invoke(ErrorKind::Network).await.log_err();
+        }
+    }
+    // Add default route via this interface's gateway
+    {
+        let mut cmd = Command::new("ip");
+        cmd.arg("route").arg("add").arg("default");
+        if let Some(gw) = ipv4_gateway {
+            cmd.arg("via").arg(gw.to_string());
+        }
+        cmd.arg("dev")
+            .arg(iface.as_str())
+            .arg("table")
+            .arg(&table_str);
+        if ipv4_gateway.is_none() {
+            cmd.arg("scope").arg("link");
+        }
+        cmd.invoke(ErrorKind::Network).await.log_err();
+    }
+
+    // Ensure global CONNMARK restore rules in mangle PREROUTING (forwarded
+    // packets) and OUTPUT (locally-generated replies). Both are needed:
+    // PREROUTING handles DNAT-forwarded traffic, OUTPUT handles replies from
+    // locally-bound listeners (e.g. vhost). The `-m mark --mark 0` condition
+    // ensures we only restore when the packet has no existing fwmark,
+    // preserving marks set by WireGuard on encapsulation packets.
+    for chain in ["PREROUTING", "OUTPUT"] {
+        if Command::new("iptables")
+            .arg("-t")
+            .arg("mangle")
+            .arg("-C")
+            .arg(chain)
+            .arg("-m")
+            .arg("mark")
+            .arg("--mark")
+            .arg("0")
+            .arg("-j")
+            .arg("CONNMARK")
+            .arg("--restore-mark")
+            .invoke(ErrorKind::Network)
+            .await
+            .is_err()
+        {
+            Command::new("iptables")
+                .arg("-t")
+                .arg("mangle")
+                .arg("-I")
+                .arg(chain)
+                .arg("1")
+                .arg("-m")
+                .arg("mark")
+                .arg("--mark")
+                .arg("0")
+                .arg("-j")
+                .arg("CONNMARK")
+                .arg("--restore-mark")
+                .invoke(ErrorKind::Network)
+                .await
+                .log_err();
+        }
+    }
+
+    // Mark NEW connections arriving on this interface with its routing
+    // table ID via conntrack mark
+    if Command::new("iptables")
+        .arg("-t")
+        .arg("mangle")
+        .arg("-C")
+        .arg("PREROUTING")
+        .arg("-i")
+        .arg(iface.as_str())
+        .arg("-m")
+        .arg("conntrack")
+        .arg("--ctstate")
+        .arg("NEW")
+        .arg("-j")
+        .arg("CONNMARK")
+        .arg("--set-mark")
+        .arg(&table_str)
+        .invoke(ErrorKind::Network)
+        .await
+        .is_err()
+    {
+        Command::new("iptables")
+            .arg("-t")
+            .arg("mangle")
+            .arg("-A")
+            .arg("PREROUTING")
+            .arg("-i")
+            .arg(iface.as_str())
+            .arg("-m")
+            .arg("conntrack")
+            .arg("--ctstate")
+            .arg("NEW")
+            .arg("-j")
+            .arg("CONNMARK")
+            .arg("--set-mark")
+            .arg(&table_str)
+            .invoke(ErrorKind::Network)
+            .await
+            .log_err();
+    }
+
+    // Ensure fwmark-based ip rule for this interface's table
+    let rules_output = String::from_utf8(
+        Command::new("ip")
+            .arg("rule")
+            .arg("list")
+            .invoke(ErrorKind::Network)
+            .await?,
+    )?;
+    if !rules_output
+        .lines()
+        .any(|l| l.contains("fwmark") && l.contains(&format!("lookup {table_id}")))
+    {
+        Command::new("ip")
+            .arg("rule")
+            .arg("add")
+            .arg("fwmark")
+            .arg(&table_str)
+            .arg("lookup")
+            .arg(&table_str)
+            .arg("priority")
+            .arg("50")
+            .invoke(ErrorKind::Network)
+            .await
+            .log_err();
+    }
+
+    Ok(())
+}
+
+async fn poll_ip_info(
+    ip4_proxy: &Ip4ConfigProxy<'_>,
+    ip6_proxy: &Ip6ConfigProxy<'_>,
+    dhcp4_proxy: &Option<Dhcp4ConfigProxy<'_>>,
+    policy_guard: &Option<PolicyRoutingCleanup>,
+    iface: &GatewayId,
+    prev_attempt: &mut Option<Instant>,
+    db: Option<&TypedPatchDb<Database>>,
+    write_to: &Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
+    device_type: Option<NetworkInterfaceType>,
+    name: &InternedString,
+) -> Result<(), Error> {
+    let addresses = ip4_proxy
+        .address_data()
+        .await?
+        .into_iter()
+        .chain(ip6_proxy.address_data().await?)
+        .collect_vec();
+    let lan_ip: OrdSet<IpAddr> = [
+        Some(ip4_proxy.gateway().await?)
+            .filter(|g| !g.is_empty())
+            .and_then(|g| g.parse::<IpAddr>().log_err()),
+        Some(ip6_proxy.gateway().await?)
+            .filter(|g| !g.is_empty())
+            .and_then(|g| g.parse::<IpAddr>().log_err()),
+    ]
+    .into_iter()
+    .filter_map(|a| a)
+    .collect();
+    let mut ntp_servers = OrdSet::new();
+    let mut dns_servers = OrdSet::new();
+    if let Some(dhcp4_proxy) = dhcp4_proxy {
+        let dhcp = dhcp4_proxy.options().await?;
+        if let Some(ntp) = dhcp.ntp_servers {
+            ntp_servers.extend(ntp.split_whitespace().map(InternedString::intern));
+        }
+        if let Some(dns) = dhcp.domain_name_servers {
+            dns_servers.extend(
+                dns.split_ascii_whitespace()
+                    .filter_map(|s| s.parse::<IpAddr>().log_err())
+                    .collect::<Vec<_>>(),
+            );
+        }
+    }
+    let scope_id = if_nametoindex(iface.as_str()).with_kind(ErrorKind::Network)?;
+    let subnets: OrdSet<IpNet> = addresses.into_iter().map(IpNet::try_from).try_collect()?;
+
+    // Policy routing: ensure replies exit the same interface they arrived on,
+    // eliminating the need for MASQUERADE.
+    if let Some(guard) = policy_guard {
+        apply_policy_routing(guard, iface, &lan_ip).await?;
+    }
+
+    let ifconfig_url = if let Some(db) = db {
+        db.peek()
+            .await
+            .as_public()
+            .as_server_info()
+            .as_ifconfig_url()
+            .de()
+            .unwrap_or_else(|_| crate::db::model::public::default_ifconfig_url())
+    } else {
+        crate::db::model::public::default_ifconfig_url()
+    };
+    let wan_ip = if prev_attempt.map_or(true, |i| i.elapsed() > Duration::from_secs(300))
+        && !subnets.is_empty()
+        && !matches!(
+            device_type,
+            Some(NetworkInterfaceType::Bridge | NetworkInterfaceType::Loopback)
+        ) {
+        *prev_attempt = Some(Instant::now());
+        match get_wan_ipv4(iface.as_str(), &ifconfig_url).await {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::error!(
+                    "{}",
+                    t!(
+                        "net.gateway.failed-to-determine-wan-ip",
+                        iface = iface.to_string(),
+                        error = e.to_string()
+                    )
+                );
+                tracing::debug!("{e:?}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+    let mut ip_info = IpInfo {
+        name: name.clone(),
+        scope_id,
+        device_type,
+        subnets,
+        lan_ip,
+        wan_ip,
+        ntp_servers,
+        dns_servers,
+    };
+
+    write_to.send_if_modified(|m: &mut OrdMap<GatewayId, NetworkInterfaceInfo>| {
+        let (name, secure, gateway_type, prev_wan_ip) =
+            m.get(iface).map_or((None, None, None, None), |i| {
+                (
+                    i.name.clone(),
+                    i.secure,
+                    i.gateway_type,
+                    i.ip_info.as_ref().and_then(|i| i.wan_ip),
+                )
+            });
+        ip_info.wan_ip = ip_info.wan_ip.or(prev_wan_ip);
+        let ip_info = Arc::new(ip_info);
+        m.insert(
+            iface.clone(),
+            NetworkInterfaceInfo {
+                name,
+                secure,
+                ip_info: Some(ip_info.clone()),
+                gateway_type,
+            },
+        )
+        .filter(|old| &old.ip_info == &Some(ip_info))
+        .is_none()
+    });
+
+    Ok(())
 }
 
 #[instrument(skip(_connection, device_proxy, watch_activation))]
@@ -838,12 +1336,12 @@ pub struct NetworkInterfaceWatcher {
     activated: Watch<BTreeMap<GatewayId, bool>>,
     ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     _watcher: NonDetachingJoinHandle<()>,
-    listeners: SyncMutex<BTreeMap<u16, Weak<()>>>,
 }
 impl NetworkInterfaceWatcher {
     pub fn new(
         seed: impl Future<Output = OrdMap<GatewayId, NetworkInterfaceInfo>> + Send + Sync + 'static,
         watch_activated: impl IntoIterator<Item = GatewayId>,
+        db: TypedPatchDb<Database>,
     ) -> Self {
         let ip_info = Watch::new(OrdMap::new());
         let activated = Watch::new(watch_activated.into_iter().map(|k| (k, false)).collect());
@@ -855,10 +1353,9 @@ impl NetworkInterfaceWatcher {
                 if !seed.is_empty() {
                     ip_info.send_replace(seed);
                 }
-                watcher(ip_info, activated).await
+                watcher(ip_info, activated, Some(db)).await
             })
             .into(),
-            listeners: SyncMutex::new(BTreeMap::new()),
         }
     }
 
@@ -885,51 +1382,6 @@ impl NetworkInterfaceWatcher {
     pub fn ip_info(&self) -> OrdMap<GatewayId, NetworkInterfaceInfo> {
         self.ip_info.read()
     }
-
-    pub fn bind<B: Bind>(&self, bind: B, port: u16) -> Result<NetworkInterfaceListener<B>, Error> {
-        let arc = Arc::new(());
-        self.listeners.mutate(|l| {
-            if l.get(&port).filter(|w| w.strong_count() > 0).is_some() {
-                return Err(Error::new(
-                    std::io::Error::from_raw_os_error(libc::EADDRINUSE),
-                    ErrorKind::Network,
-                ));
-            }
-            l.insert(port, Arc::downgrade(&arc));
-            Ok(())
-        })?;
-        let ip_info = self.ip_info.clone_unseen();
-        Ok(NetworkInterfaceListener {
-            _arc: arc,
-            ip_info,
-            listeners: ListenerMap::new(bind, port),
-        })
-    }
-
-    pub fn upgrade_listener<B: Bind>(
-        &self,
-        SelfContainedNetworkInterfaceListener {
-            mut listener,
-            ..
-        }: SelfContainedNetworkInterfaceListener<B>,
-    ) -> Result<NetworkInterfaceListener<B>, Error> {
-        let port = listener.listeners.port;
-        let arc = &listener._arc;
-        self.listeners.mutate(|l| {
-            if l.get(&port).filter(|w| w.strong_count() > 0).is_some() {
-                return Err(Error::new(
-                    std::io::Error::from_raw_os_error(libc::EADDRINUSE),
-                    ErrorKind::Network,
-                ));
-            }
-            l.insert(port, Arc::downgrade(arc));
-            Ok(())
-        })?;
-        let ip_info = self.ip_info.clone_unseen();
-        ip_info.mark_changed();
-        listener.change_ip_info_source(ip_info);
-        Ok(listener)
-    }
 }
 
 pub struct NetworkInterfaceController {
@@ -949,7 +1401,13 @@ impl NetworkInterfaceController {
                 .as_server_info_mut()
                 .as_network_mut()
                 .as_gateways_mut()
-                .ser(info)
+                .ser(info)?;
+            let hostname = crate::hostname::ServerHostname::load(db.as_public().as_server_info())?;
+            let ports = db.as_private().as_available_ports().de()?;
+            for host in all_hosts(db) {
+                host?.update_addresses(&hostname, info, &ports)?;
+            }
+            Ok(())
         })
         .await
         .result?;
@@ -1004,6 +1462,187 @@ impl NetworkInterfaceController {
 
         Ok(())
     }
+
+    async fn apply_default_outbound(
+        default_outbound: &Option<GatewayId>,
+        ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+    ) {
+        // 1. Snapshot existing rules at priorities 74 and 75.
+        //    Priority 74: fwmark-based exemptions (WireGuard encap packets)
+        //    Priority 75: catch-all routing to the chosen gateway's table
+        let (existing_74, existing_75) = match async {
+            let output = String::from_utf8(
+                Command::new("ip")
+                    .arg("rule")
+                    .arg("show")
+                    .invoke(ErrorKind::Network)
+                    .await?,
+            )?;
+            let mut fwmarks_74 = BTreeSet::<u32>::new();
+            let mut tables_75 = BTreeSet::<u32>::new();
+            for line in output.lines() {
+                let line = line.trim();
+                if let Some(rest) = line.strip_prefix("74:") {
+                    if let Some(pos) = rest.find("fwmark ") {
+                        let after = &rest[pos + 7..];
+                        let token = after.split_whitespace().next().unwrap_or("");
+                        if let Ok(v) =
+                            u32::from_str_radix(token.strip_prefix("0x").unwrap_or(token), 16)
+                        {
+                            fwmarks_74.insert(v);
+                        }
+                    }
+                } else if let Some(rest) = line.strip_prefix("75:") {
+                    if let Some(pos) = rest.find("lookup ") {
+                        let after = &rest[pos + 7..];
+                        let token = after.split_whitespace().next().unwrap_or("");
+                        if let Ok(v) = token.parse::<u32>() {
+                            tables_75.insert(v);
+                        }
+                    }
+                }
+            }
+            Ok::<_, Error>((fwmarks_74, tables_75))
+        }
+        .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!("failed to snapshot outbound rules: {e}");
+                (BTreeSet::new(), BTreeSet::new())
+            }
+        };
+
+        // 2. Compute desired rules
+        let mut desired_74 = BTreeSet::<u32>::new();
+        let mut desired_75 = BTreeSet::<u32>::new();
+
+        if let Some(gw_id) = default_outbound {
+            let connected = ip_info
+                .get(gw_id)
+                .map_or(false, |info| info.ip_info.is_some());
+            if !connected {
+                if ip_info.contains_key(gw_id) {
+                    tracing::warn!("default outbound gateway {gw_id} is not connected");
+                } else {
+                    tracing::warn!("default outbound gateway {gw_id} not found in ip_info");
+                }
+            } else {
+                match if_nametoindex(gw_id.as_str()) {
+                    Ok(idx) => {
+                        let table_id = 1000 + idx;
+                        desired_75.insert(table_id);
+
+                        // Exempt ALL active WireGuard interfaces' encapsulation packets.
+                        // Our priority-75 catch-all would otherwise swallow their encap
+                        // traffic before NM's fwmark rules at priority 31610 can route
+                        // it correctly.
+                        for (iface_id, iface_info) in ip_info {
+                            let Some(ref ip) = iface_info.ip_info else {
+                                continue;
+                            };
+                            if ip.device_type != Some(NetworkInterfaceType::Wireguard) {
+                                continue;
+                            }
+                            match Command::new("wg")
+                                .arg("show")
+                                .arg(iface_id.as_str())
+                                .arg("fwmark")
+                                .invoke(ErrorKind::Network)
+                                .await
+                            {
+                                Ok(output) => {
+                                    let fwmark_hex =
+                                        String::from_utf8_lossy(&output).trim().to_owned();
+                                    if fwmark_hex.is_empty() || fwmark_hex == "off" {
+                                        continue;
+                                    }
+                                    match u32::from_str_radix(
+                                        fwmark_hex.strip_prefix("0x").unwrap_or(&fwmark_hex),
+                                        16,
+                                    ) {
+                                        Ok(v) => {
+                                            desired_74.insert(v);
+                                        }
+                                        Err(e) => {
+                                            tracing::error!(
+                                                "failed to parse WireGuard fwmark '{fwmark_hex}' for {iface_id}: {e}"
+                                            );
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::error!(
+                                        "failed to read WireGuard fwmark for {iface_id}: {e}"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("failed to get ifindex for {gw_id}: {e}");
+                    }
+                }
+            }
+        }
+
+        // 3. Add rules in desired set but not in existing set
+        for fwmark in desired_74.difference(&existing_74) {
+            Command::new("ip")
+                .arg("rule")
+                .arg("add")
+                .arg("fwmark")
+                .arg(fwmark.to_string())
+                .arg("lookup")
+                .arg("main")
+                .arg("priority")
+                .arg("74")
+                .invoke(ErrorKind::Network)
+                .await
+                .log_err();
+        }
+        for table in desired_75.difference(&existing_75) {
+            Command::new("ip")
+                .arg("rule")
+                .arg("add")
+                .arg("table")
+                .arg(table.to_string())
+                .arg("priority")
+                .arg("75")
+                .invoke(ErrorKind::Network)
+                .await
+                .log_err();
+        }
+
+        // 4. Delete rules in existing set but not in desired set
+        for fwmark in existing_74.difference(&desired_74) {
+            Command::new("ip")
+                .arg("rule")
+                .arg("del")
+                .arg("fwmark")
+                .arg(fwmark.to_string())
+                .arg("lookup")
+                .arg("main")
+                .arg("priority")
+                .arg("74")
+                .invoke(ErrorKind::Network)
+                .await
+                .log_err();
+        }
+        for table in existing_75.difference(&desired_75) {
+            Command::new("ip")
+                .arg("rule")
+                .arg("del")
+                .arg("table")
+                .arg(table.to_string())
+                .arg("priority")
+                .arg("75")
+                .invoke(ErrorKind::Network)
+                .await
+                .log_err();
+        }
+    }
+
     pub fn new(db: TypedPatchDb<Database>) -> Self {
         let (seeded_send, seeded) = oneshot::channel();
         let watcher = NetworkInterfaceWatcher::new(
@@ -1042,6 +1681,7 @@ impl NetworkInterfaceController {
                 }
             },
             [InternedString::from_static(START9_BRIDGE_IFACE).into()],
+            db.clone(),
         );
         let mut ip_info_watch = watcher.subscribe();
         ip_info_watch.mark_seen();
@@ -1051,10 +1691,28 @@ impl NetworkInterfaceController {
             _sync: tokio::spawn(async move {
                 let res: Result<(), Error> = async {
                     let mut ip_info = seeded.await.ok();
+                    let mut outbound_sub = db
+                        .subscribe(
+                            "/public/serverInfo/network/defaultOutbound"
+                                .parse::<JsonPointer<_, _>>()
+                                .unwrap(),
+                        )
+                        .await;
                     loop {
                         if let Err(e) = async {
-                            if let Some(ip_info) = ip_info {
-                                Self::sync(&db, &ip_info).boxed().await?;
+                            if let Some(ref ip_info) = ip_info {
+                                Self::sync(&db, ip_info).boxed().await?;
+                            }
+                            if let Some(ref ip_info) = ip_info {
+                                let default_outbound: Option<GatewayId> = db
+                                    .peek()
+                                    .await
+                                    .as_public()
+                                    .as_server_info()
+                                    .as_network()
+                                    .as_default_outbound()
+                                    .de()?;
+                                Self::apply_default_outbound(&default_outbound, ip_info).await;
                             }
 
                             Ok::<_, Error>(())
@@ -1068,8 +1726,12 @@ impl NetworkInterfaceController {
                             tracing::debug!("{e:?}");
                         }
 
-                        let _ = ip_info_watch.changed().await;
-                        ip_info = Some(ip_info_watch.read());
+                        tokio::select! {
+                            _ = ip_info_watch.changed() => {
+                                ip_info = Some(ip_info_watch.read());
+                            }
+                            _ = outbound_sub.recv() => {}
+                        }
                     }
                 }
                 .await;
@@ -1083,43 +1745,6 @@ impl NetworkInterfaceController {
             })
             .into(),
         }
-    }
-
-    pub async fn set_public(
-        &self,
-        interface: &GatewayId,
-        public: Option<bool>,
-    ) -> Result<(), Error> {
-        let mut sub = self
-            .db
-            .subscribe(
-                "/public/serverInfo/network/gateways"
-                    .parse::<JsonPointer<_, _>>()
-                    .with_kind(ErrorKind::Database)?,
-            )
-            .await;
-        let mut err = None;
-        let changed = self.watcher.ip_info.send_if_modified(|ip_info| {
-            let prev = std::mem::replace(
-                &mut match ip_info.get_mut(interface).or_not_found(interface) {
-                    Ok(a) => a,
-                    Err(e) => {
-                        err = Some(e);
-                        return false;
-                    }
-                }
-                .public,
-                public,
-            );
-            prev != public
-        });
-        if let Some(e) = err {
-            return Err(e);
-        }
-        if changed {
-            sub.recv().await;
-        }
-        Ok(())
     }
 
     pub async fn forget(&self, interface: &GatewayId) -> Result<(), Error> {
@@ -1237,235 +1862,6 @@ impl NetworkInterfaceController {
     }
 }
 
-pub trait InterfaceFilter: Any + Clone + std::fmt::Debug + Eq + Ord + Send + Sync {
-    fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool;
-    fn eq(&self, other: &dyn Any) -> bool {
-        Some(self) == other.downcast_ref::<Self>()
-    }
-    fn cmp(&self, other: &dyn Any) -> std::cmp::Ordering {
-        match (self as &dyn Any).type_id().cmp(&other.type_id()) {
-            std::cmp::Ordering::Equal => {
-                std::cmp::Ord::cmp(self, other.downcast_ref::<Self>().unwrap())
-            }
-            ord => ord,
-        }
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn into_dyn(self) -> DynInterfaceFilter {
-        DynInterfaceFilter::new(self)
-    }
-}
-
-impl InterfaceFilter for bool {
-    fn filter(&self, _: &GatewayId, _: &NetworkInterfaceInfo) -> bool {
-        *self
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TypeFilter(pub NetworkInterfaceType);
-impl InterfaceFilter for TypeFilter {
-    fn filter(&self, _: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        info.ip_info.as_ref().and_then(|i| i.device_type) == Some(self.0)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct IdFilter(pub GatewayId);
-impl InterfaceFilter for IdFilter {
-    fn filter(&self, id: &GatewayId, _: &NetworkInterfaceInfo) -> bool {
-        id == &self.0
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PublicFilter {
-    pub public: bool,
-}
-impl InterfaceFilter for PublicFilter {
-    fn filter(&self, _: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        self.public == info.public()
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SecureFilter {
-    pub secure: bool,
-}
-impl InterfaceFilter for SecureFilter {
-    fn filter(&self, _: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        self.secure || info.secure()
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct AndFilter<A, B>(pub A, pub B);
-impl<A: InterfaceFilter, B: InterfaceFilter> InterfaceFilter for AndFilter<A, B> {
-    fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        self.0.filter(id, info) && self.1.filter(id, info)
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct OrFilter<A, B>(pub A, pub B);
-impl<A: InterfaceFilter, B: InterfaceFilter> InterfaceFilter for OrFilter<A, B> {
-    fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        self.0.filter(id, info) || self.1.filter(id, info)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct AnyFilter(pub BTreeSet<DynInterfaceFilter>);
-impl InterfaceFilter for AnyFilter {
-    fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        self.0.iter().any(|f| InterfaceFilter::filter(f, id, info))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct AllFilter(pub BTreeSet<DynInterfaceFilter>);
-impl InterfaceFilter for AllFilter {
-    fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        self.0.iter().all(|f| InterfaceFilter::filter(f, id, info))
-    }
-}
-
-pub trait DynInterfaceFilterT: std::fmt::Debug + Any + Send + Sync {
-    fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool;
-    fn eq(&self, other: &dyn Any) -> bool;
-    fn cmp(&self, other: &dyn Any) -> std::cmp::Ordering;
-    fn as_any(&self) -> &dyn Any;
-}
-impl<T: InterfaceFilter> DynInterfaceFilterT for T {
-    fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        InterfaceFilter::filter(self, id, info)
-    }
-    fn eq(&self, other: &dyn Any) -> bool {
-        InterfaceFilter::eq(self, other)
-    }
-    fn cmp(&self, other: &dyn Any) -> std::cmp::Ordering {
-        InterfaceFilter::cmp(self, other)
-    }
-    fn as_any(&self) -> &dyn Any {
-        InterfaceFilter::as_any(self)
-    }
-}
-
-#[test]
-fn test_interface_filter_eq() {
-    let dyn_t = true.into_dyn();
-    assert!(DynInterfaceFilterT::eq(
-        &dyn_t,
-        DynInterfaceFilterT::as_any(&true),
-    ))
-}
-
-#[derive(Clone, Debug)]
-pub struct DynInterfaceFilter(Arc<dyn DynInterfaceFilterT>);
-impl InterfaceFilter for DynInterfaceFilter {
-    fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        self.0.filter(id, info)
-    }
-    fn eq(&self, other: &dyn Any) -> bool {
-        self.0.eq(other)
-    }
-    fn cmp(&self, other: &dyn Any) -> std::cmp::Ordering {
-        self.0.cmp(other)
-    }
-    fn as_any(&self) -> &dyn Any {
-        self.0.as_any()
-    }
-    fn into_dyn(self) -> DynInterfaceFilter {
-        self
-    }
-}
-impl DynInterfaceFilter {
-    fn new<T: InterfaceFilter>(value: T) -> Self {
-        Self(Arc::new(value))
-    }
-}
-impl PartialEq for DynInterfaceFilter {
-    fn eq(&self, other: &Self) -> bool {
-        DynInterfaceFilterT::eq(&*self.0, DynInterfaceFilterT::as_any(&*other.0))
-    }
-}
-impl Eq for DynInterfaceFilter {}
-impl PartialOrd for DynInterfaceFilter {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.0.cmp(other.0.as_any()))
-    }
-}
-impl Ord for DynInterfaceFilter {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.cmp(other.0.as_any())
-    }
-}
-
-struct ListenerMap<B: Bind> {
-    prev_filter: DynInterfaceFilter,
-    bind: B,
-    port: u16,
-    listeners: BTreeMap<SocketAddr, B::Accept>,
-}
-impl<B: Bind> ListenerMap<B> {
-    fn new(bind: B, port: u16) -> Self {
-        Self {
-            prev_filter: false.into_dyn(),
-            bind,
-            port,
-            listeners: BTreeMap::new(),
-        }
-    }
-
-    #[instrument(skip(self))]
-    fn update(
-        &mut self,
-        ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
-        filter: &impl InterfaceFilter,
-    ) -> Result<(), Error> {
-        let mut keep = BTreeSet::<SocketAddr>::new();
-        for (_, info) in ip_info
-            .iter()
-            .filter(|(id, info)| filter.filter(*id, *info))
-        {
-            if let Some(ip_info) = &info.ip_info {
-                for ipnet in &ip_info.subnets {
-                    let addr = match ipnet.addr() {
-                        IpAddr::V6(ip6) => SocketAddrV6::new(
-                            ip6,
-                            self.port,
-                            0,
-                            if ipv6_is_link_local(ip6) {
-                                ip_info.scope_id
-                            } else {
-                                0
-                            },
-                        )
-                        .into(),
-                        ip => SocketAddr::new(ip, self.port),
-                    };
-                    keep.insert(addr);
-                    if !self.listeners.contains_key(&addr) {
-                        self.listeners.insert(addr, self.bind.bind(addr)?);
-                    }
-                }
-            }
-        }
-        self.listeners.retain(|key, _| keep.contains(key));
-        self.prev_filter = filter.clone().into_dyn();
-        Ok(())
-    }
-    fn poll_accept(
-        &mut self,
-        cx: &mut std::task::Context<'_>,
-    ) -> Poll<Result<(SocketAddr, <B::Accept as Accept>::Metadata, AcceptStream), Error>> {
-        let (metadata, stream) = ready!(self.listeners.poll_accept(cx)?);
-        Poll::Ready(Ok((metadata.key, metadata.inner, stream)))
-    }
-}
-
 pub fn lookup_info_by_addr(
     ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
     addr: SocketAddr,
@@ -1477,28 +1873,6 @@ pub fn lookup_info_by_addr(
     })
 }
 
-pub trait Bind {
-    type Accept: Accept;
-    fn bind(&mut self, addr: SocketAddr) -> Result<Self::Accept, Error>;
-}
-
-#[derive(Clone, Copy, Default)]
-pub struct BindTcp;
-impl Bind for BindTcp {
-    type Accept = TcpListener;
-    fn bind(&mut self, addr: SocketAddr) -> Result<Self::Accept, Error> {
-        TcpListener::from_std(
-            mio::net::TcpListener::bind(addr)
-                .with_kind(ErrorKind::Network)?
-                .into(),
-        )
-        .with_kind(ErrorKind::Network)
-    }
-}
-
-pub trait FromGatewayInfo {
-    fn from_gateway_info(id: &GatewayId, info: &NetworkInterfaceInfo) -> Self;
-}
 #[derive(Clone, Debug)]
 pub struct GatewayInfo {
     pub id: GatewayId,
@@ -1509,212 +1883,88 @@ impl<V: MetadataVisitor> Visit<V> for GatewayInfo {
         visitor.visit(self)
     }
 }
-impl FromGatewayInfo for GatewayInfo {
-    fn from_gateway_info(id: &GatewayId, info: &NetworkInterfaceInfo) -> Self {
-        Self {
-            id: id.clone(),
-            info: info.clone(),
-        }
-    }
-}
 
-pub struct NetworkInterfaceListener<B: Bind = BindTcp> {
-    pub ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
-    listeners: ListenerMap<B>,
-    _arc: Arc<()>,
-}
-impl<B: Bind> NetworkInterfaceListener<B> {
-    pub(super) fn new(
-        mut ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
-        bind: B,
-        port: u16,
-    ) -> Self {
-        ip_info.mark_unseen();
-        Self {
-            ip_info,
-            listeners: ListenerMap::new(bind, port),
-            _arc: Arc::new(()),
-        }
-    }
-
-    pub fn port(&self) -> u16 {
-        self.listeners.port
-    }
-
-    #[cfg_attr(feature = "unstable", inline(never))]
-    pub fn poll_accept<M: FromGatewayInfo>(
-        &mut self,
-        cx: &mut std::task::Context<'_>,
-        filter: &impl InterfaceFilter,
-    ) -> Poll<Result<(M, <B::Accept as Accept>::Metadata, AcceptStream), Error>> {
-        while self.ip_info.poll_changed(cx).is_ready()
-            || !DynInterfaceFilterT::eq(&self.listeners.prev_filter, filter.as_any())
-        {
-            self.ip_info
-                .peek_and_mark_seen(|ip_info| self.listeners.update(ip_info, filter))?;
-        }
-        let (addr, inner, stream) = ready!(self.listeners.poll_accept(cx)?);
-        Poll::Ready(Ok((
-            self.ip_info
-                .peek(|ip_info| {
-                    lookup_info_by_addr(ip_info, addr)
-                        .map(|(id, info)| M::from_gateway_info(id, info))
-                })
-                .or_not_found(lazy_format!("gateway for {addr}"))?,
-            inner,
-            stream,
-        )))
-    }
-
-    pub fn change_ip_info_source(
-        &mut self,
-        mut ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
-    ) {
-        ip_info.mark_unseen();
-        self.ip_info = ip_info;
-    }
-
-    pub async fn accept<M: FromGatewayInfo>(
-        &mut self,
-        filter: &impl InterfaceFilter,
-    ) -> Result<(M, <B::Accept as Accept>::Metadata, AcceptStream), Error> {
-        futures::future::poll_fn(|cx| self.poll_accept(cx, filter)).await
-    }
-
-    pub fn check_filter(&self) -> impl FnOnce(SocketAddr, &DynInterfaceFilter) -> bool + 'static {
-        let ip_info = self.ip_info.clone();
-        move |addr, filter| {
-            ip_info.peek(|i| {
-                lookup_info_by_addr(i, addr).map_or(false, |(id, info)| {
-                    InterfaceFilter::filter(filter, id, info)
-                })
-            })
-        }
-    }
-}
-
-#[derive(VisitFields)]
-pub struct NetworkInterfaceListenerAcceptMetadata<B: Bind> {
-    pub inner: <B::Accept as Accept>::Metadata,
+/// Metadata for connections accepted by WildcardListener or VHostBindListener.
+#[derive(Clone, Debug, VisitFields)]
+pub struct NetworkInterfaceListenerAcceptMetadata {
+    pub inner: TcpMetadata,
     pub info: GatewayInfo,
 }
-impl<B: Bind> fmt::Debug for NetworkInterfaceListenerAcceptMetadata<B> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("NetworkInterfaceListenerAcceptMetadata")
-            .field("inner", &self.inner)
-            .field("info", &self.info)
-            .finish()
-    }
-}
-impl<B: Bind> Clone for NetworkInterfaceListenerAcceptMetadata<B>
-where
-    <B::Accept as Accept>::Metadata: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-            info: self.info.clone(),
-        }
-    }
-}
-impl<B, V> Visit<V> for NetworkInterfaceListenerAcceptMetadata<B>
-where
-    B: Bind,
-    <B::Accept as Accept>::Metadata: Visit<V> + Clone + Send + Sync + 'static,
-    V: MetadataVisitor,
-{
+impl<V: MetadataVisitor> Visit<V> for NetworkInterfaceListenerAcceptMetadata {
     fn visit(&self, visitor: &mut V) -> V::Result {
         self.visit_fields(visitor).collect()
     }
 }
 
-impl<B: Bind> Accept for NetworkInterfaceListener<B> {
-    type Metadata = NetworkInterfaceListenerAcceptMetadata<B>;
+/// A simple TCP listener on 0.0.0.0:port that looks up GatewayInfo from the
+/// connection's local address on each accepted connection.
+pub struct WildcardListener {
+    listener: TcpListener,
+    ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
+    /// Handle to the self-contained watcher task started in `new()`.
+    /// Dropped (and thus aborted) when `set_ip_info` replaces the ip_info source.
+    _watcher: Option<NonDetachingJoinHandle<()>>,
+}
+impl WildcardListener {
+    pub fn new(port: u16) -> Result<Self, Error> {
+        let listener = TcpListener::from_std(
+            mio::net::TcpListener::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port))
+                .with_kind(ErrorKind::Network)?
+                .into(),
+        )
+        .with_kind(ErrorKind::Network)?;
+        let ip_info = Watch::new(OrdMap::new());
+        let watcher_handle =
+            tokio::spawn(watcher(ip_info.clone(), Watch::new(BTreeMap::new()), None)).into();
+        Ok(Self {
+            listener,
+            ip_info,
+            _watcher: Some(watcher_handle),
+        })
+    }
+
+    /// Replace the ip_info source with the one from the NetworkInterfaceController.
+    /// Aborts the self-contained watcher task.
+    pub fn set_ip_info(&mut self, ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>) {
+        self.ip_info = ip_info;
+        self._watcher = None;
+    }
+}
+impl Accept for WildcardListener {
+    type Metadata = NetworkInterfaceListenerAcceptMetadata;
     fn poll_accept(
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
-        NetworkInterfaceListener::poll_accept(self, cx, &true).map(|res| {
-            res.map(|(info, inner, stream)| {
-                (
-                    NetworkInterfaceListenerAcceptMetadata { inner, info },
-                    stream,
-                )
-            })
-        })
-    }
-}
-
-pub struct SelfContainedNetworkInterfaceListener<B: Bind = BindTcp> {
-    _watch_thread: NonDetachingJoinHandle<()>,
-    listener: NetworkInterfaceListener<B>,
-}
-impl<B: Bind> SelfContainedNetworkInterfaceListener<B> {
-    pub fn bind(bind: B, port: u16) -> Self {
-        let ip_info = Watch::new(OrdMap::new());
-        let _watch_thread =
-            tokio::spawn(watcher(ip_info.clone(), Watch::new(BTreeMap::new()))).into();
-        Self {
-            _watch_thread,
-            listener: NetworkInterfaceListener::new(ip_info, bind, port),
+        if let Poll::Ready((stream, peer_addr)) = TcpListener::poll_accept(&self.listener, cx)? {
+            if let Err(e) = socket2::SockRef::from(&stream).set_keepalive(true) {
+                tracing::error!("Failed to set tcp keepalive: {e}");
+                tracing::debug!("{e:?}");
+            }
+            let local_addr = stream.local_addr()?;
+            let info = self
+                .ip_info
+                .peek(|ip_info| {
+                    lookup_info_by_addr(ip_info, local_addr).map(|(id, info)| GatewayInfo {
+                        id: id.clone(),
+                        info: info.clone(),
+                    })
+                })
+                .unwrap_or_else(|| GatewayInfo {
+                    id: InternedString::from_static("").into(),
+                    info: NetworkInterfaceInfo::default(),
+                });
+            return Poll::Ready(Ok((
+                NetworkInterfaceListenerAcceptMetadata {
+                    inner: TcpMetadata {
+                        local_addr,
+                        peer_addr,
+                    },
+                    info,
+                },
+                Box::pin(stream),
+            )));
         }
+        Poll::Pending
     }
-}
-impl<B: Bind> Accept for SelfContainedNetworkInterfaceListener<B> {
-    type Metadata = <NetworkInterfaceListener<B> as Accept>::Metadata;
-    fn poll_accept(
-        &mut self,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(Self::Metadata, AcceptStream), Error>> {
-        Accept::poll_accept(&mut self.listener, cx)
-    }
-}
-
-pub type UpgradableListener<B = BindTcp> =
-    Option<Either<SelfContainedNetworkInterfaceListener<B>, NetworkInterfaceListener<B>>>;
-
-impl<B> Acceptor<UpgradableListener<B>>
-where
-    B: Bind + Send + Sync + 'static,
-    B::Accept: Send + Sync,
-{
-    pub fn bind_upgradable(listener: SelfContainedNetworkInterfaceListener<B>) -> Self {
-        Self::new(Some(Either::Left(listener)))
-    }
-}
-
-#[test]
-fn test_filter() {
-    use crate::net::host::binding::NetInfo;
-    let wg1 = "wg1".parse::<GatewayId>().unwrap();
-    assert!(!InterfaceFilter::filter(
-        &AndFilter(
-            NetInfo {
-                private_disabled: [wg1.clone()].into_iter().collect(),
-                public_enabled: Default::default(),
-                assigned_port: None,
-                assigned_ssl_port: None,
-            },
-            AndFilter(IdFilter(wg1.clone()), PublicFilter { public: false }),
-        )
-        .into_dyn(),
-        &wg1,
-        &NetworkInterfaceInfo {
-            name: None,
-            public: None,
-            secure: None,
-            ip_info: Some(Arc::new(IpInfo {
-                name: "".into(),
-                scope_id: 3,
-                device_type: Some(NetworkInterfaceType::Wireguard),
-                subnets: ["10.59.0.2/24".parse::<IpNet>().unwrap()]
-                    .into_iter()
-                    .collect(),
-                lan_ip: Default::default(),
-                wan_ip: None,
-                ntp_servers: Default::default(),
-                dns_servers: Default::default(),
-            })),
-        },
-    ));
 }

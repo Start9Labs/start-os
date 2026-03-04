@@ -18,7 +18,7 @@ use crate::s9pk::manifest::{LocaleString, Manifest};
 use crate::status::StatusInfo;
 use crate::util::DataUrl;
 use crate::util::serde::{Pem, is_partial_of};
-use crate::{ActionId, HealthCheckId, HostId, PackageId, ReplayId, ServiceInterfaceId};
+use crate::{ActionId, GatewayId, HealthCheckId, HostId, PackageId, ReplayId, ServiceInterfaceId};
 
 #[derive(Debug, Default, Deserialize, Serialize, TS)]
 #[ts(export)]
@@ -381,11 +381,30 @@ pub struct PackageDataEntry {
     pub hosts: Hosts,
     #[ts(type = "string[]")]
     pub store_exposed_dependents: Vec<JsonPointer>,
+    #[ts(type = "string | null")]
+    pub outbound_gateway: Option<GatewayId>,
+    #[serde(default)]
+    pub plugin: PackagePlugin,
 }
 impl AsRef<PackageDataEntry> for PackageDataEntry {
     fn as_ref(&self) -> &PackageDataEntry {
         self
     }
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct PackagePlugin {
+    pub url: Option<UrlPluginRegistration>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct UrlPluginRegistration {
+    pub table_action: ActionId,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, TS)]

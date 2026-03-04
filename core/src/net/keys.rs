@@ -3,28 +3,21 @@ use serde::{Deserialize, Serialize};
 use crate::account::AccountInfo;
 use crate::net::acme::AcmeCertStore;
 use crate::net::ssl::CertStore;
-use crate::net::tor::OnionStore;
 use crate::prelude::*;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]
 #[serde(rename_all = "camelCase")]
 pub struct KeyStore {
-    pub onion: OnionStore,
     pub local_certs: CertStore,
     #[serde(default)]
     pub acme: AcmeCertStore,
 }
 impl KeyStore {
     pub fn new(account: &AccountInfo) -> Result<Self, Error> {
-        let mut res = Self {
-            onion: OnionStore::new(),
+        Ok(Self {
             local_certs: CertStore::new(account)?,
             acme: AcmeCertStore::new(),
-        };
-        for tor_key in account.tor_keys.iter().cloned() {
-            res.onion.insert(tor_key);
-        }
-        Ok(res)
+        })
     }
 }

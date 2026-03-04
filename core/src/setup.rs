@@ -31,6 +31,7 @@ use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::{DiskInfo, StartOsRecoveryInfo, pvscan, recovery_info};
+use crate::hostname::ServerHostnameInfo;
 use crate::init::{InitPhases, InitResult, init};
 use crate::net::ssl::root_ca_start_time;
 use crate::prelude::*;
@@ -115,6 +116,7 @@ async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
     kiosk: Option<bool>,
+    hostname: Option<ServerHostnameInfo>,
     init_phases: InitPhases,
 ) -> Result<(AccountInfo, InitResult), Error> {
     let init_result = init(&ctx.webserver, &ctx.config.peek(|c| c.clone()), init_phases).await?;
@@ -128,6 +130,9 @@ async fn setup_init(
             let mut account = AccountInfo::load(m)?;
             if let Some(password) = &password {
                 account.set_password(password)?;
+            }
+            if let Some(hostname) = hostname {
+                account.hostname = hostname;
             }
             account.save(m)?;
             let info = m.as_public_mut().as_server_info_mut();
@@ -233,7 +238,8 @@ pub async fn attach(
         }
         disk_phase.complete();
 
-        let (account, net_ctrl) = setup_init(&setup_ctx, password, kiosk, init_phases).await?;
+        let (account, net_ctrl) =
+            setup_init(&setup_ctx, password, kiosk, None, init_phases).await?;
 
         let rpc_ctx = RpcContext::init(
             &setup_ctx.webserver,
@@ -246,7 +252,7 @@ pub async fn attach(
 
         Ok((
             SetupResult {
-                hostname: account.hostname,
+                hostname: account.hostname.hostname,
                 root_ca: Pem(account.root_ca_cert),
                 needs_restart: setup_ctx.install_rootfs.peek(|a| a.is_some()),
             },
@@ -402,10 +408,12 @@ pub async fn setup_data_drive(
 #[ts(export)]
 pub struct SetupExecuteParams {
     guid: InternedString,
-    password: EncryptedWire,
+    password: Option<EncryptedWire>,
     recovery_source: Option<RecoverySource<EncryptedWire>>,
     #[ts(optional)]
     kiosk: Option<bool>,
+    name: Option<InternedString>,
+    hostname: Option<InternedString>,
 }
 
 // #[command(rpc_only)]
@@ -416,17 +424,20 @@ pub async fn execute(
         password,
         recovery_source,
         kiosk,
+        name,
+        hostname,
     }: SetupExecuteParams,
 ) -> Result<SetupProgress, Error> {
-    let password = match password.decrypt(&ctx) {
-        Some(a) => a,
-        None => {
-            return Err(Error::new(
-                color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-startos-password")),
-                crate::ErrorKind::Unknown,
-            ));
-        }
-    };
+    let password = password
+        .map(|p| {
+            p.decrypt(&ctx).ok_or_else(|| {
+                Error::new(
+                    color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-startos-password")),
+                    crate::ErrorKind::Unknown,
+                )
+            })
+        })
+        .transpose()?;
     let recovery = match recovery_source {
         Some(RecoverySource::Backup {
             target,
@@ -446,8 +457,10 @@ pub async fn execute(
         None => None,
     };
 
+    let hostname = ServerHostnameInfo::new_opt(name, hostname)?;
+
     let setup_ctx = ctx.clone();
-    ctx.run_setup(move || execute_inner(setup_ctx, guid, password, recovery, kiosk))?;
+    ctx.run_setup(move || execute_inner(setup_ctx, guid, password, recovery, kiosk, hostname))?;
 
     Ok(ctx.progress().await)
 }
@@ -462,7 +475,7 @@ pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
             guid_file.sync_all().await?;
             Command::new("systemd-firstboot")
                 .arg("--root=/media/startos/config/overlay/")
-                .arg(format!("--hostname={}", res.hostname.0))
+                .arg(format!("--hostname={}", res.hostname.as_ref()))
                 .invoke(ErrorKind::ParseSysInfo)
                 .await?;
             Command::new("sync").invoke(ErrorKind::Filesystem).await?;
@@ -533,9 +546,10 @@ pub async fn shutdown(ctx: SetupContext) -> Result<(), Error> {
 pub async fn execute_inner(
     ctx: SetupContext,
     guid: InternedString,
-    password: String,
+    password: Option<String>,
     recovery_source: Option<RecoverySource<String>>,
     kiosk: Option<bool>,
+    hostname: Option<ServerHostnameInfo>,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let progress = &ctx.progress;
     let restore_phase = match recovery_source.as_ref() {
@@ -570,14 +584,30 @@ pub async fn execute_inner(
                 server_id,
                 recovery_password,
                 kiosk,
+                hostname,
                 progress,
             )
             .await
         }
         Some(RecoverySource::Migrate { guid: old_guid }) => {
-            migrate(&ctx, guid, &old_guid, password, kiosk, progress).await
+            migrate(&ctx, guid, &old_guid, password, kiosk, hostname, progress).await
         }
-        None => fresh_setup(&ctx, guid, &password, kiosk, progress).await,
+        None => {
+            fresh_setup(
+                &ctx,
+                guid,
+                &password.ok_or_else(|| {
+                    Error::new(
+                        eyre!("{}", t!("setup.password-required")),
+                        ErrorKind::InvalidRequest,
+                    )
+                })?,
+                kiosk,
+                hostname,
+                progress,
+            )
+            .await
+        }
     }
 }
 
@@ -592,13 +622,14 @@ async fn fresh_setup(
     guid: InternedString,
     password: &str,
     kiosk: Option<bool>,
+    hostname: Option<ServerHostnameInfo>,
     SetupExecuteProgress {
         init_phases,
         rpc_ctx_phases,
         ..
     }: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
-    let account = AccountInfo::new(password, root_ca_start_time().await)?;
+    let account = AccountInfo::new(password, root_ca_start_time().await, hostname)?;
     let db = ctx.db().await?;
     let kiosk = Some(kiosk.unwrap_or(true)).filter(|_| &*PLATFORM != "raspberrypi");
     sync_kiosk(kiosk).await?;
@@ -635,7 +666,7 @@ async fn fresh_setup(
 
     Ok((
         SetupResult {
-            hostname: account.hostname,
+            hostname: account.hostname.hostname,
             root_ca: Pem(account.root_ca_cert),
             needs_restart: ctx.install_rootfs.peek(|a| a.is_some()),
         },
@@ -647,11 +678,12 @@ async fn fresh_setup(
 async fn recover(
     ctx: &SetupContext,
     guid: InternedString,
-    password: String,
+    password: Option<String>,
     recovery_source: BackupTargetFS,
     server_id: String,
     recovery_password: String,
     kiosk: Option<bool>,
+    hostname: Option<ServerHostnameInfo>,
     progress: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let recovery_source = TmpMountGuard::mount(&recovery_source, ReadWrite).await?;
@@ -663,6 +695,7 @@ async fn recover(
         &server_id,
         &recovery_password,
         kiosk,
+        hostname,
         progress,
     )
     .await
@@ -673,8 +706,9 @@ async fn migrate(
     ctx: &SetupContext,
     guid: InternedString,
     old_guid: &str,
-    password: String,
+    password: Option<String>,
     kiosk: Option<bool>,
+    hostname: Option<ServerHostnameInfo>,
     SetupExecuteProgress {
         init_phases,
         restore_phase,
@@ -753,7 +787,7 @@ async fn migrate(
     crate::disk::main::export(&old_guid, "/media/startos/migrate").await?;
     restore_phase.complete();
 
-    let (account, net_ctrl) = setup_init(&ctx, Some(password), kiosk, init_phases).await?;
+    let (account, net_ctrl) = setup_init(&ctx, password, kiosk, hostname, init_phases).await?;
 
     let rpc_ctx = RpcContext::init(
         &ctx.webserver,
@@ -766,7 +800,7 @@ async fn migrate(
 
     Ok((
         SetupResult {
-            hostname: account.hostname,
+            hostname: account.hostname.hostname,
             root_ca: Pem(account.root_ca_cert),
             needs_restart: ctx.install_rootfs.peek(|a| a.is_some()),
         },

@@ -1,8 +1,8 @@
-import { BackupInfo } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 
 export interface RecoverData {
   targetId: string
   serverId: string
-  backupInfo: BackupInfo
+  backupInfo: T.BackupInfo
   password: string
 }

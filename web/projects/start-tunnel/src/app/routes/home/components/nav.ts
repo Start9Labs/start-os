@@ -2,9 +2,11 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { Router, RouterLink, RouterLinkActive } from '@angular/router'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
+import { TuiBadgeNotification } from '@taiga-ui/kit'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { SidebarService } from 'src/app/services/sidebar.service'
+import { UpdateService } from 'src/app/services/update.service'
 
 @Component({
   selector: 'nav',
@@ -22,6 +24,19 @@ import { SidebarService } from 'src/app/services/sidebar.service'
           {{ route.name }}
         </a>
       }
+      <a
+        tuiButton
+        size="s"
+        appearance="flat-grayscale"
+        routerLinkActive="active"
+        iconStart="@tui.settings"
+        routerLink="settings"
+      >
+        Settings
+        @if (update.hasUpdate()) {
+          <tui-badge-notification size="s" appearance="positive" />
+        }
+      </a>
     </div>
     <button
       tuiButton
@@ -57,6 +72,11 @@ import { SidebarService } from 'src/app/services/sidebar.service'
       &.active {
         background: var(--tui-background-neutral-1);
       }
+
+      tui-badge-notification {
+        margin-inline-start: auto;
+        background: var(--tui-status-positive);
+      }
     }
 
     button {
@@ -78,7 +98,7 @@ import { SidebarService } from 'src/app/services/sidebar.service'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, RouterLink, RouterLinkActive],
+  imports: [TuiButton, TuiBadgeNotification, RouterLink, RouterLinkActive],
   host: {
     '[class._expanded]': 'sidebars.start()',
     '(document:click)': 'sidebars.start.set(false)',
@@ -92,6 +112,7 @@ export class Nav {
   protected readonly api = inject(ApiService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
+  protected readonly update = inject(UpdateService)
 
   protected readonly routes = [
     {
@@ -108,11 +129,6 @@ export class Nav {
       name: 'Port Forwards',
       icon: '@tui.globe',
       link: 'port-forwards',
-    },
-    {
-      name: 'Settings',
-      icon: '@tui.settings',
-      link: 'settings',
     },
   ] as const
 

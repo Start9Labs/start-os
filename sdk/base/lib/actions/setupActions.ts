@@ -3,7 +3,7 @@ import { ExtractInputSpecType } from './input/builder/inputSpec'
 import * as T from '../types'
 import { once } from '../util'
 import { InitScript } from '../inits'
-import { Parser } from 'ts-matches'
+import { z } from 'zod'
 
 type MaybeInputSpec<Type> = {} extends Type ? null : InputSpec<Type>
 export type Run<A extends Record<string, any>> = (options: {
@@ -13,12 +13,15 @@ export type Run<A extends Record<string, any>> = (options: {
 }) => Promise<(T.ActionResult & { version: '1' }) | null | void | undefined>
 export type GetInput<A extends Record<string, any>> = (options: {
   effects: T.Effects
+  prefill: T.DeepPartial<A> | null
 }) => Promise<null | void | undefined | T.DeepPartial<A>>
 
-export type MaybeFn<T> = T | ((options: { effects: T.Effects }) => Promise<T>)
-function callMaybeFn<T>(
-  maybeFn: MaybeFn<T>,
-  options: { effects: T.Effects },
+export type MaybeFn<T, Opts = { effects: T.Effects }> =
+  | T
+  | ((options: Opts) => Promise<T>)
+function callMaybeFn<T, Opts = { effects: T.Effects }>(
+  maybeFn: MaybeFn<T, Opts>,
+  options: Opts,
 ): Promise<T> {
   if (maybeFn instanceof Function) {
     return maybeFn(options)
@@ -51,12 +54,18 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
   readonly _INPUT: Type = null as any as Type
   private prevInputSpec: Record<
     string,
-    { spec: T.inputSpecTypes.InputSpec; validator: Parser<unknown, Type> }
+    { spec: T.inputSpecTypes.InputSpec; validator: z.ZodType<Type> }
   > = {}
   private constructor(
     readonly id: Id,
     private readonly metadataFn: MaybeFn<T.ActionMetadata>,
-    private readonly inputSpec: MaybeInputSpec<Type>,
+    private readonly inputSpec: MaybeFn<
+      MaybeInputSpec<Type>,
+      {
+        effects: T.Effects
+        prefill: unknown | null
+      }
+    >,
     private readonly getInputFn: GetInput<Type>,
     private readonly runFn: Run<Type>,
   ) {}
@@ -66,7 +75,13 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
   >(
     id: Id,
     metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput'>>,
-    inputSpec: InputSpecType,
+    inputSpec: MaybeFn<
+      InputSpecType,
+      {
+        effects: T.Effects
+        prefill: unknown | null
+      }
+    >,
     getInput: GetInput<ExtractInputSpecType<InputSpecType>>,
     run: Run<ExtractInputSpecType<InputSpecType>>,
   ): Action<Id, ExtractInputSpecType<InputSpecType>> {
@@ -104,12 +119,18 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
     await options.effects.action.export({ id: this.id, metadata })
     return metadata
   }
-  async getInput(options: { effects: T.Effects }): Promise<T.ActionInput> {
+  async getInput(options: {
+    effects: T.Effects
+    prefill: T.DeepPartial<Type> | null
+  }): Promise<T.ActionInput> {
     let spec = {}
     if (this.inputSpec) {
-      const built = await this.inputSpec.build(options)
-      this.prevInputSpec[options.effects.eventId!] = built
-      spec = built.spec
+      const inputSpec = await callMaybeFn(this.inputSpec, options)
+      const built = await inputSpec?.build(options)
+      if (built) {
+        this.prevInputSpec[options.effects.eventId!] = built
+        spec = built.spec
+      }
     }
     return {
       eventId: options.effects.eventId!,
@@ -133,7 +154,7 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
           `getActionInput has not been called for EventID ${options.effects.eventId}`,
         )
       }
-      options.input = prevInputSpec.validator.unsafeCast(options.input)
+      options.input = prevInputSpec.validator.parse(options.input)
       spec = prevInputSpec.spec
     }
     return (

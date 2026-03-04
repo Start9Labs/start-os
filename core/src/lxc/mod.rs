@@ -174,10 +174,15 @@ impl LxcContainer {
         config: LxcConfig,
     ) -> Result<Self, Error> {
         let guid = new_guid();
+        let lang = std::env::var("LANG").unwrap_or_else(|_| "C.UTF-8".into());
         let machine_id = hex::encode(rand::random::<[u8; 16]>());
         let container_dir = Path::new(LXC_CONTAINER_DIR).join(&*guid);
         tokio::fs::create_dir_all(&container_dir).await?;
-        let config_str = format!(include_str!("./config.template"), guid = &*guid);
+        let config_str = format!(
+            include_str!("./config.template"),
+            guid = &*guid,
+            lang = &lang,
+        );
         tokio::fs::write(container_dir.join("config"), config_str).await?;
         let rootfs_dir = container_dir.join("rootfs");
         let rootfs = OverlayGuard::mount(
@@ -211,6 +216,13 @@ impl LxcContainer {
         write_file_owned_atomic(
             rootfs_dir.join("etc/hostname"),
             format!("{guid}\n"),
+            100000,
+            100000,
+        )
+        .await?;
+        write_file_owned_atomic(
+            rootfs_dir.join("etc/default/locale"),
+            format!("LANG={lang}\n"),
             100000,
             100000,
         )

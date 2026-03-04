@@ -45,6 +45,9 @@ import { i18nKey } from '../i18n/i18n.providers'
           </button>
         }
       </tui-textfield>
+      @if (error) {
+        <p class="error">{{ error }}</p>
+      }
       <footer class="g-buttons">
         <button
           tuiButton
@@ -65,6 +68,10 @@ import { i18nKey } from '../i18n/i18n.providers'
       color: var(--tui-status-warning);
     }
 
+    .error {
+      color: var(--tui-status-negative);
+    }
+
     .button {
       pointer-events: auto;
       margin-left: 0.25rem;
@@ -83,6 +90,7 @@ export class PromptModal {
 
   masked = this.options.useMask
   value = this.options.initialValue || ''
+  error = ''
 
   get options(): PromptOptions {
     return this.context.data
@@ -94,6 +102,12 @@ export class PromptModal {
 
   submit(value: string) {
     if (value || !this.options.required) {
+      const { pattern, patternError } = this.options
+      if (pattern && !new RegExp(pattern).test(value)) {
+        this.error = patternError || 'Invalid input'
+        return
+      }
+      this.error = ''
       this.context.$implicit.next(value)
     }
   }
@@ -110,4 +124,6 @@ export interface PromptOptions {
   required?: boolean
   useMask?: boolean
   initialValue?: string | null
+  pattern?: string
+  patternError?: string
 }

@@ -45,7 +45,12 @@ impl Database {
                     .collect(),
                 ssh_privkey: Pem(account.ssh_key.clone()),
                 ssh_pubkeys: SshKeys::new(),
-                available_ports: AvailablePorts::new(),
+                available_ports: {
+                    let mut ports = AvailablePorts::new();
+                    ports.set_ssl(80, false);
+                    ports.set_ssl(443, true);
+                    ports
+                },
                 sessions: Sessions::new(),
                 notifications: Notifications::new(),
                 cifs: CifsTargets::new(),

@@ -3,10 +3,9 @@ import {
   convertAnsi,
   DownloadHTMLService,
   ErrorService,
-  FetchLogsReq,
-  FetchLogsRes,
   LoadingService,
 } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { LogsComponent } from './logs.component'
 
 @Directive({
@@ -19,7 +18,7 @@ export class LogsDownloadDirective {
   private readonly downloadHtml = inject(DownloadHTMLService)
 
   @Input({ required: true })
-  logsDownload!: (params: FetchLogsReq) => Promise<FetchLogsRes>
+  logsDownload!: (params: T.LogsParams) => Promise<T.LogResponse>
 
   @HostListener('click')
   async download() {

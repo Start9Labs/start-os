@@ -4,8 +4,8 @@ import { Trigger } from '../trigger'
 import { TriggerInput } from '../trigger/TriggerInput'
 import { defaultTrigger } from '../trigger/defaultTrigger'
 import { once, asError, Drop } from '../util'
-import { object, unknown } from 'ts-matches'
 
+/** Parameters for creating a health check */
 export type HealthCheckParams = {
   id: HealthCheckId
   name: string
@@ -14,6 +14,13 @@ export type HealthCheckParams = {
   fn(): Promise<HealthCheckResult> | HealthCheckResult
 }
 
+/**
+ * A periodic health check that reports daemon readiness to the StartOS UI.
+ *
+ * Polls at an interval controlled by a {@link Trigger}, reporting results as
+ * "starting" (during the grace period), "success", or "failure". Automatically
+ * pauses when the daemon is stopped and resumes when restarted.
+ */
 export class HealthCheck extends Drop {
   private started: number | null = null
   private setStarted = (started: number | null) => {
@@ -92,13 +99,21 @@ export class HealthCheck extends Drop {
       }
     })
   }
+  /**
+   * Create a new HealthCheck instance and begin its polling loop.
+   * @param effects - The effects context for reporting health status
+   * @param options - Health check configuration (ID, name, check function, trigger, grace period)
+   * @returns A new HealthCheck instance
+   */
   static of(effects: Effects, options: HealthCheckParams): HealthCheck {
     return new HealthCheck(effects, options)
   }
+  /** Signal that the daemon is running, enabling health check polling */
   start() {
     if (this.started) return
     this.setStarted(performance.now())
   }
+  /** Signal that the daemon has stopped, pausing health check polling */
   stop() {
     if (!this.started) return
     this.setStarted(null)
@@ -109,7 +124,8 @@ export class HealthCheck extends Drop {
 }
 
 function asMessage(e: unknown) {
-  if (object({ message: unknown }).test(e)) return String(e.message)
+  if (typeof e === 'object' && e !== null && 'message' in e)
+    return String((e as any).message)
   const value = String(e)
   if (value.length == null) return null
   return value

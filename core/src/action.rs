@@ -67,6 +67,10 @@ pub struct GetActionInputParams {
     pub package_id: PackageId,
     #[arg(help = "help.arg.action-id")]
     pub action_id: ActionId,
+    #[ts(type = "Record<string, unknown> | null")]
+    #[serde(default)]
+    #[arg(skip)]
+    pub prefill: Option<Value>,
 }
 
 #[instrument(skip_all)]
@@ -75,6 +79,7 @@ pub async fn get_action_input(
     GetActionInputParams {
         package_id,
         action_id,
+        prefill,
     }: GetActionInputParams,
 ) -> Result<Option<ActionInput>, Error> {
     ctx.services
@@ -82,7 +87,7 @@ pub async fn get_action_input(
         .await
         .as_ref()
         .or_not_found(lazy_format!("Manager for {}", package_id))?
-        .get_action_input(Guid::new(), action_id)
+        .get_action_input(Guid::new(), action_id, prefill.unwrap_or(Value::Null))
         .await
 }
 
@@ -271,6 +276,7 @@ pub fn display_action_result<T: Serialize>(
 }
 
 #[derive(Deserialize, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct RunActionParams {
     pub package_id: PackageId,
@@ -362,6 +368,7 @@ pub async fn run_action(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ClearTaskParams {

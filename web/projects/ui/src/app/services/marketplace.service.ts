@@ -28,7 +28,6 @@ import {
   switchMap,
   tap,
 } from 'rxjs'
-import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
@@ -247,7 +246,7 @@ export class MarketplaceService {
     version: string,
     url: string,
   ): Promise<void> {
-    const params: RR.InstallPackageReq = {
+    const params: T.InstallParams = {
       id,
       version,
       registry: url,

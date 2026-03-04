@@ -36,7 +36,8 @@ impl Map for CifsTargets {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CifsBackupTarget {
     hostname: String,
@@ -72,9 +73,10 @@ pub fn cifs<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct AddParams {
+pub struct CifsAddParams {
     #[arg(help = "help.arg.cifs-hostname")]
     pub hostname: String,
     #[arg(help = "help.arg.cifs-path")]
@@ -87,12 +89,12 @@ pub struct AddParams {
 
 pub async fn add(
     ctx: RpcContext,
-    AddParams {
+    CifsAddParams {
         hostname,
         path,
         username,
         password,
-    }: AddParams,
+    }: CifsAddParams,
 ) -> Result<KeyVal<BackupTargetId, BackupTarget>, Error> {
     let cifs = Cifs {
         hostname,
@@ -131,9 +133,10 @@ pub async fn add(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct UpdateParams {
+pub struct CifsUpdateParams {
     #[arg(help = "help.arg.backup-target-id")]
     pub id: BackupTargetId,
     #[arg(help = "help.arg.cifs-hostname")]
@@ -148,13 +151,13 @@ pub struct UpdateParams {
 
 pub async fn update(
     ctx: RpcContext,
-    UpdateParams {
+    CifsUpdateParams {
         id,
         hostname,
         path,
         username,
         password,
-    }: UpdateParams,
+    }: CifsUpdateParams,
 ) -> Result<KeyVal<BackupTargetId, BackupTarget>, Error> {
     let id = if let BackupTargetId::Cifs { id } = id {
         id
@@ -207,14 +210,18 @@ pub async fn update(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct RemoveParams {
+pub struct CifsRemoveParams {
     #[arg(help = "help.arg.backup-target-id")]
     pub id: BackupTargetId,
 }
 
-pub async fn remove(ctx: RpcContext, RemoveParams { id }: RemoveParams) -> Result<(), Error> {
+pub async fn remove(
+    ctx: RpcContext,
+    CifsRemoveParams { id }: CifsRemoveParams,
+) -> Result<(), Error> {
     let id = if let BackupTargetId::Cifs { id } = id {
         id
     } else {

@@ -7,13 +7,13 @@ use clap::Parser;
 use futures::FutureExt;
 use rpc_toolkit::CliApp;
 use rust_i18n::t;
+use tokio::net::TcpListener;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 use visit_rs::Visit;
 
 use crate::context::CliContext;
 use crate::context::config::ClientConfig;
-use crate::net::gateway::{Bind, BindTcp};
 use crate::net::tls::TlsListener;
 use crate::net::web_server::{Accept, Acceptor, MetadataVisitor, WebServer};
 use crate::prelude::*;
@@ -57,7 +57,12 @@ async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
                             if !a.contains_key(&key) {
                                 match (|| {
                                     Ok::<_, Error>(TlsListener::new(
-                                        BindTcp.bind(addr)?,
+                                        TcpListener::from_std(
+                                            mio::net::TcpListener::bind(addr)
+                                                .with_kind(ErrorKind::Network)?
+                                                .into(),
+                                        )
+                                        .with_kind(ErrorKind::Network)?,
                                         TunnelCertHandler {
                                             db: https_db.clone(),
                                             crypto_provider: Arc::new(tokio_rustls::rustls::crypto::ring::default_provider()),

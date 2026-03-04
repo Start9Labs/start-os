@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { getPkgId } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { LogsComponent } from 'src/app/routes/portal/components/logs/logs.component'
-import { RR } from 'src/app/services/api/api.types'
+import { FollowServerLogsReq } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
@@ -24,9 +25,9 @@ export default class ServiceLogsRoute {
 
   readonly id = getPkgId()
 
-  readonly follow = async (params: RR.FollowServerLogsReq) =>
+  readonly follow = async (params: FollowServerLogsReq) =>
     this.api.followPackageLogs({ id: this.id, ...params })
 
-  readonly fetch = async (params: RR.GetServerLogsReq) =>
+  readonly fetch = async (params: T.LogsParams) =>
     this.api.getPackageLogs({ id: this.id, ...params })
 }

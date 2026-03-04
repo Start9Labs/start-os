@@ -1,530 +1,102 @@
-import { Dump } from 'patch-db-client'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import {
-  FetchLogsReq,
-  FetchLogsRes,
-  FullKeyboard,
-  SetLanguageParams,
-  StartOSDiskInfo,
-} from '@start9labs/shared'
 import { IST, T } from '@start9labs/start-sdk'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
-import {
-  GetPackageReq,
-  GetPackageRes,
-  GetPackagesReq,
-  GetPackagesRes,
-} from '@start9labs/marketplace'
+import { GetPackageReq, GetPackagesReq } from '@start9labs/marketplace'
 
-export namespace RR {
-  // websocket
+// websocket
 
-  export type WebsocketConfig<T> = Omit<WebSocketSubjectConfig<T>, 'url'>
+export type WebsocketConfig<U> = Omit<WebSocketSubjectConfig<U>, 'url'>
 
-  // state
+// state
 
-  export type EchoReq = { message: string } // server.echo
-  export type EchoRes = string
+export type ServerState = 'initializing' | 'error' | 'running'
 
-  export type ServerState = 'initializing' | 'error' | 'running'
+// diagnostic
 
-  // DB
-
-  export type SubscribePatchReq = {}
-  export type SubscribePatchRes = {
-    dump: Dump<DataModel>
-    guid: string
-  }
-
-  export type SetDBValueReq<T> = { pointer: string; value: T } // db.put.ui
-  export type SetDBValueRes = null
-
-  // auth
-
-  export type LoginReq = {
-    password: string
-    ephemeral?: boolean
-  } // auth.login - unauthed
-  export type loginRes = null
-
-  export type LogoutReq = {} // auth.logout
-  export type LogoutRes = null
-
-  export type ResetPasswordReq = {
-    oldPassword: string
-    newPassword: string
-  } // auth.reset-password
-  export type ResetPasswordRes = null
-
-  // diagnostic
-
-  export type DiagnosticErrorRes = {
-    code: number
-    message: string
-    data: { details: string }
-  }
-
-  // init
-
-  export type InitFollowProgressRes = {
-    progress: T.FullProgress
-    guid: string
-  }
-
-  // server
-
-  export type GetSystemTimeReq = {} // server.time
-  export type GetSystemTimeRes = {
-    now: string
-    uptime: number // seconds
-  }
-
-  export type GetServerLogsReq = FetchLogsReq // server.logs & server.kernel-logs & net.tor.logs
-  export type GetServerLogsRes = FetchLogsRes
-
-  export type FollowServerLogsReq = {
-    limit?: number // (optional) default is 50. Ignored if cursor provided
-    boot?: number | string | null // (optional) number is offset (0: current, -1 prev, +1 first), string is a specific boot id, null is all. Default is undefined
-    cursor?: string // the last known log. Websocket will return all logs since this log
-  } // server.logs.follow & server.kernel-logs.follow & net.tor.follow-logs
-  export type FollowServerLogsRes = {
-    startCursor: string
-    guid: string
-  }
-
-  export type FollowServerMetricsReq = {} // server.metrics.follow
-  export type FollowServerMetricsRes = {
-    guid: string
-    metrics: ServerMetrics
-  }
-
-  export type UpdateServerReq = { registry: string; targetVersion: string } // server.update
-  export type UpdateServerRes = 'updating' | 'no-updates'
-
-  export type RestartServerReq = {} // server.restart
-  export type RestartServerRes = null
-
-  export type ShutdownServerReq = {} // server.shutdown
-  export type ShutdownServerRes = null
-
-  export type DiskRepairReq = {} // server.disk.repair
-  export type DiskRepairRes = null
-
-  export type SetDnsReq = {
-    servers: string[] | null
-  } // net.dns.set-static
-  export type SetDnsRes = null
-
-  export type QueryDnsReq = {
-    fqdn: string
-  } // net.dns.query
-  export type QueryDnsRes = string | null
-
-  export type ResetTorReq = {
-    wipeState: boolean
-    reason: string
-  } // net.tor.reset
-  export type ResetTorRes = null
-
-  export type SetKeyboardReq = FullKeyboard // server.set-keyboard
-  export type SetKeyboardRes = null
-
-  export type SetLanguageReq = SetLanguageParams // server.set-language
-  export type SetLanguageRes = null
-
-  // smtp
-
-  export type SetSMTPReq = T.SmtpValue // server.set-smtp
-  export type SetSMTPRes = null
-
-  export type ClearSMTPReq = {} // server.clear-smtp
-  export type ClearSMTPRes = null
-
-  export type TestSMTPReq = SetSMTPReq & { to: string } // server.test-smtp
-  export type TestSMTPRes = null
-
-  // sessions
-
-  export type GetSessionsReq = {} // sessions.list
-  export type GetSessionsRes = {
-    current: string
-    sessions: { [hash: string]: Session }
-  }
-
-  export type KillSessionsReq = { ids: string[] } // sessions.kill
-  export type KillSessionsRes = null
-
-  // notification
-
-  export type GetNotificationsReq = {
-    before?: number
-    limit?: number
-  } // notification.list
-  export type GetNotificationsRes = ServerNotification<number>[]
-
-  export type DeleteNotificationsReq = { ids: number[] } // notification.remove
-  export type DeleteNotificationsRes = null
-
-  export type MarkSeenNotificationReq = DeleteNotificationsReq // notification.mark-seen
-  export type MarkSeenNotificationRes = null
-
-  export type MarkSeenAllNotificationsReq = { before: number } // notification.mark-seen-before
-  export type MarkSeenAllNotificationsRes = null
-
-  export type MarkUnseenNotificationReq = DeleteNotificationsReq // notification.mark-unseen
-  export type MarkUnseenNotificationRes = null
-
-  // wifi
-
-  export type GetWifiReq = {}
-  export type GetWifiRes = {
-    ssids: {
-      [ssid: string]: number
-    }
-    connected: string | null
-    country: string | null
-    ethernet: boolean
-    availableWifi: AvailableWifi[]
-  }
-
-  export type AddWifiReq = {
-    // wifi.add
-    ssid: string
-    password: string
-    priority: number
-    connect: boolean
-  }
-  export type AddWifiRes = null
-
-  export type EnabledWifiReq = { enable: boolean } // wifi.set-enabled
-  export type EnabledWifiRes = null
-
-  export type SetWifiCountryReq = { country: string } // wifi.country.set
-  export type SetWifiCountryRes = null
-
-  export type ConnectWifiReq = { ssid: string } // wifi.connect
-  export type ConnectWifiRes = null
-
-  export type DeleteWifiReq = { ssid: string } // wifi.remove
-  export type DeleteWifiRes = null
-
-  // ssh
-
-  export type GetSSHKeysReq = {} // ssh.list
-  export type GetSSHKeysRes = SSHKey[]
-
-  export type AddSSHKeyReq = { key: string } // ssh.add
-  export type AddSSHKeyRes = SSHKey
-
-  export type DeleteSSHKeyReq = { fingerprint: string } // ssh.remove
-  export type DeleteSSHKeyRes = null
-
-  // backup
-
-  export type GetBackupTargetsReq = {} // backup.target.list
-  export type GetBackupTargetsRes = { [id: string]: BackupTarget }
-
-  export type AddBackupTargetReq = {
-    // backup.target.cifs.add
-    hostname: string
-    path: string
-    username: string
-    password: string | null
-  }
-  export type AddBackupTargetRes = { [id: string]: CifsBackupTarget }
-
-  export type UpdateBackupTargetReq = AddBackupTargetReq & { id: string } // backup.target.cifs.update
-  export type UpdateBackupTargetRes = AddBackupTargetRes
-
-  export type RemoveBackupTargetReq = { id: string } // backup.target.cifs.remove
-  export type RemoveBackupTargetRes = null
-
-  export type GetBackupInfoReq = {
-    // backup.target.info
-    targetId: string
-    serverId: string
-    password: string
-  }
-  export type GetBackupInfoRes = BackupInfo
-
-  export type CreateBackupReq = {
-    // backup.create
-    targetId: string
-    packageIds: string[]
-    oldPassword: string | null
-    password: string
-  }
-  export type CreateBackupRes = null
-
-  // network
-
-  export type AddTunnelReq = {
-    name: string
-    config: string // file contents
-    public: boolean
-  } // net.tunnel.add
-  export type AddTunnelRes = {
-    id: string
-  }
-
-  export type UpdateTunnelReq = {
-    id: string
-    name: string
-  } // net.gateway.set-name
-  export type UpdateTunnelRes = null
-
-  export type RemoveTunnelReq = { id: string } // net.tunnel.remove
-  export type RemoveTunnelRes = null
-
-  export type InitAcmeReq = {
-    provider: string
-    contact: string[]
-  }
-  export type InitAcmeRes = null
-
-  export type RemoveAcmeReq = {
-    provider: string
-  }
-  export type RemoveAcmeRes = null
-
-  export type AddTorKeyReq = {
-    // net.tor.key.add
-    key: string
-  }
-  export type GenerateTorKeyReq = {} // net.tor.key.generate
-  export type AddTorKeyRes = string // onion address *with* .onion suffix
-
-  export type ServerBindingToggleGatewayReq = {
-    // server.host.binding.set-gateway-enabled
-    gateway: T.GatewayId
-    internalPort: 80
-    enabled: boolean
-  }
-  export type ServerBindingToggleGatewayRes = null
-
-  export type ServerAddOnionReq = {
-    // server.host.address.onion.add
-    onion: string // address *with* .onion suffix
-  }
-  export type AddOnionRes = null
-
-  export type ServerRemoveOnionReq = ServerAddOnionReq // server.host.address.onion.remove
-  export type RemoveOnionRes = null
-
-  export type OsUiAddPublicDomainReq = {
-    // server.host.address.domain.public.add
-    fqdn: string // FQDN
-    gateway: T.GatewayId
-    acme: string | null // URL. null means local Root CA
-  }
-  export type OsUiAddPublicDomainRes = QueryDnsRes
-
-  export type OsUiRemovePublicDomainReq = {
-    // server.host.address.domain.public.remove
-    fqdn: string // FQDN
-  }
-  export type OsUiRemovePublicDomainRes = null
-
-  export type OsUiAddPrivateDomainReq = {
-    // server.host.address.domain.private.add
-    fqdn: string // FQDN
-  }
-  export type OsUiAddPrivateDomainRes = null
-
-  export type OsUiRemovePrivateDomainReq = {
-    // server.host.address.domain.private.remove
-    fqdn: string // FQDN
-  }
-  export type OsUiRemovePrivateDomainRes = null
-
-  export type PkgBindingToggleGatewayReq = Omit<
-    ServerBindingToggleGatewayReq,
-    'internalPort'
-  > & {
-    // package.host.binding.set-gateway-enabled
-    internalPort: number
-    package: T.PackageId // string
-    host: T.HostId // string
-  }
-  export type PkgBindingToggleGatewayRes = null
-
-  export type PkgAddOnionReq = ServerAddOnionReq & {
-    // package.host.address.onion.add
-    package: T.PackageId // string
-    host: T.HostId // string
-  }
-  export type PkgRemoveOnionReq = PkgAddOnionReq // package.host.address.onion.remove
-
-  export type PkgAddPublicDomainReq = OsUiAddPublicDomainReq & {
-    // package.host.address.domain.public.add
-    package: T.PackageId // string
-    host: T.HostId // string
-  }
-  export type PkgAddPublicDomainRes = OsUiAddPublicDomainRes
-
-  export type PkgRemovePublicDomainReq = OsUiRemovePublicDomainReq & {
-    // package.host.address.domain.public.remove
-    package: T.PackageId // string
-    host: T.HostId // string
-  }
-  export type PkgRemovePublicDomainRes = OsUiRemovePublicDomainRes
-
-  export type PkgAddPrivateDomainReq = OsUiAddPrivateDomainReq & {
-    // package.host.address.domain.private.add
-    package: T.PackageId // string
-    host: T.HostId // string
-  }
-  export type PkgAddPrivateDomainRes = OsUiAddPrivateDomainRes
-
-  export type PkgRemovePrivateDomainReq = PkgAddPrivateDomainReq
-  export type PkgRemovePrivateDomainRes = OsUiRemovePrivateDomainRes
-
-  export type GetPackageLogsReq = FetchLogsReq & { id: string } // package.logs
-  export type GetPackageLogsRes = FetchLogsRes
-
-  export type FollowPackageLogsReq = FollowServerLogsReq & { id: string } // package.logs.follow
-  export type FollowPackageLogsRes = FollowServerLogsRes
-
-  export type InstallPackageReq = T.InstallParams
-  export type InstallPackageRes = null
-
-  export type CancelInstallPackageReq = { id: string }
-  export type CancelInstallPackageRes = null
-
-  export type GetActionInputReq = { packageId: string; actionId: string } // package.action.get-input
-  export type GetActionInputRes = {
-    eventId: string
-    spec: IST.InputSpec
-    value: object | null
-  }
-
-  export type ActionReq = {
-    packageId: string
-    eventId: string | null
-    actionId: string
-    input: object | null
-  } // package.action.run
-  export type ActionRes = (T.ActionResult & { version: '1' }) | null
-
-  export type ClearTaskReq = {
-    packageId: string
-    replayId: string
-  } // package.action.clear-task
-  export type ClearTaskRes = null
-
-  export type RestorePackagesReq = {
-    // package.backup.restore
-    ids: string[]
-    targetId: string
-    serverId: string
-    password: string
-  }
-  export type RestorePackagesRes = null
-
-  export type StartPackageReq = { id: string } // package.start
-  export type StartPackageRes = null
-
-  export type RestartPackageReq = { id: string } // package.restart
-  export type RestartPackageRes = null
-
-  export type StopPackageReq = { id: string } // package.stop
-  export type StopPackageRes = null
-
-  export type RebuildPackageReq = { id: string } // package.rebuild
-  export type RebuildPackageRes = null
-
-  export type UninstallPackageReq = {
-    id: string
-    force: boolean
-    soft: boolean
-  } // package.uninstall
-  export type UninstallPackageRes = null
-
-  export type SideloadPackageReq = {
-    manifest: T.Manifest
-    icon: string // base64
-  }
-  export type SideloadPackageRes = {
-    upload: string
-    progress: string // guid
-  }
-
-  // registry
-
-  /** these are returned in ASCENDING order. the newest available version will be the LAST in the object */
-  export type CheckOsUpdateReq = { registry: string; serverId: string }
-  export type CheckOsUpdateRes = { [version: string]: T.OsVersionInfo }
-
-  export type GetRegistryInfoReq = { registry: string }
-  export type GetRegistryInfoRes = T.RegistryInfo
-
-  export type GetRegistryPackageReq = GetPackageReq & { registry: string }
-  export type GetRegistryPackageRes = GetPackageRes
-
-  export type GetRegistryPackagesReq = GetPackagesReq & { registry: string }
-  export type GetRegistryPackagesRes = GetPackagesRes
+export type DiagnosticErrorRes = {
+  code: number
+  message: string
+  data: { details: string }
 }
 
-interface MetricData {
-  value: string
-  unit: string
+// logs
+
+export type FollowServerLogsReq = Omit<T.LogsParams, 'before'>
+
+// bindings
+
+export type ServerBindingSetAddressEnabledReq = {
+  // server.host.binding.set-address-enabled
+  internalPort: 80
+  address: string // JSON-serialized HostnameInfo
+  enabled: boolean | null // null = reset to default
 }
 
-export type ServerMetrics = {
-  general: {
-    temperature: MetricData | null
-  }
-  memory: {
-    total: MetricData
-    percentageUsed: MetricData
-    used: MetricData
-    available: MetricData
-    zramTotal: MetricData
-    zramUsed: MetricData
-    zramAvailable: MetricData
-  }
-  cpu: {
-    percentageUsed: MetricData
-    idle: MetricData
-    userSpace: MetricData
-    kernelSpace: MetricData
-    wait: MetricData
-  }
-  disk: {
-    capacity: MetricData
-    percentageUsed: MetricData
-    used: MetricData
-    available: MetricData
-  }
+export type PkgBindingSetAddressEnabledReq = Omit<
+  ServerBindingSetAddressEnabledReq,
+  'internalPort'
+> & {
+  // package.host.binding.set-address-enabled
+  internalPort: number
+  package: T.PackageId // string
+  host: T.HostId // string
 }
 
-export type Session = {
-  loggedIn: string
-  lastActive: string
-  userAgent: string
+// package domains
+
+export type PkgAddPublicDomainReq = T.AddPublicDomainParams & {
+  // package.host.address.domain.public.add
+  package: T.PackageId // string
+  host: T.HostId // string
 }
 
-export type BackupTarget = DiskBackupTarget | CifsBackupTarget
-
-export interface DiskBackupTarget {
-  type: 'disk'
-  vendor: string | null
-  model: string | null
-  logicalname: string | null
-  label: string | null
-  capacity: number
-  used: number | null
-  startOs: Record<string, StartOSDiskInfo>
+export type PkgRemovePublicDomainReq = T.RemoveDomainParams & {
+  // package.host.address.domain.public.remove
+  package: T.PackageId // string
+  host: T.HostId // string
 }
 
-export interface CifsBackupTarget {
-  type: 'cifs'
-  hostname: string
-  path: string
-  username: string
-  mountable: boolean
-  startOs: Record<string, StartOSDiskInfo>
+export type PkgAddPrivateDomainReq = T.AddPrivateDomainParams & {
+  // package.host.address.domain.private.add
+  package: T.PackageId // string
+  host: T.HostId // string
 }
+
+export type PkgRemovePrivateDomainReq = T.RemoveDomainParams & {
+  // package.host.address.domain.private.remove
+  package: T.PackageId // string
+  host: T.HostId // string
+}
+
+// package logs
+
+export type GetPackageLogsReq = T.LogsParams & { id: string } // package.logs
+
+export type FollowPackageLogsReq = FollowServerLogsReq & { id: string } // package.logs.follow
+
+// actions
+
+export type GetActionInputRes = {
+  eventId: string
+  spec: IST.InputSpec
+  value: object | null
+}
+
+export type ActionRes = (T.ActionResult & { version: '1' }) | null
+
+// registry
+
+export type GetRegistryPackageReq = GetPackageReq & { registry: string }
+
+export type GetRegistryPackagesReq = GetPackagesReq & { registry: string }
+
+// dns
+// TODO: Replace with T.CheckDnsRes when SDK types are generated
+export type CheckDnsRes = boolean
+
+// backup
+
+export type DiskBackupTarget = Extract<T.BackupTarget, { type: 'disk' }>
+export type CifsBackupTarget = T.CifsBackupTarget & { type: 'cifs' }
 
 export type RecoverySource = DiskRecoverySource | CifsRecoverySource
 
@@ -541,73 +113,27 @@ export interface CifsRecoverySource {
   password: string
 }
 
-export type BackupInfo = {
-  version: string
-  timestamp: string
-  packageBackups: {
-    [id: string]: PackageBackupInfo
-  }
-}
+// notifications
 
-export type PackageBackupInfo = {
-  title: string
-  version: string
-  osVersion: string
-  timestamp: string
-}
-
-export type ServerSpecs = {
-  [key: string]: string | number
-}
-
-export type SSHKey = {
-  createdAt: string
-  alg: string
-  hostname: string
-  fingerprint: string
-}
-
-export type ServerNotifications = ServerNotification<number>[]
-
-export type ServerNotification<T extends number> = {
+export type ServerNotification<N extends number> = {
   id: number
   packageId: string | null
   createdAt: string
-  code: T
-  level: NotificationLevel
+  code: N
+  level: T.NotificationLevel
   title: string
   message: string
-  data: NotificationData<T>
+  data: NotificationData<N>
   seen: boolean
 }
 
-export type NotificationLevel = 'success' | 'info' | 'warning' | 'error'
-
-export type NotificationData<T> = T extends 0
+export type NotificationData<N> = N extends 0
   ? null
-  : T extends 1
-    ? BackupReport
-    : T extends 2
+  : N extends 1
+    ? T.BackupReport
+    : N extends 2
       ? string
       : any
-
-export type BackupReport = {
-  server: {
-    attempted: boolean
-    error: string | null
-  }
-  packages: {
-    [id: string]: {
-      error: string | null
-    }
-  }
-}
-
-export type AvailableWifi = {
-  ssid: string
-  strength: number
-  security: string[]
-}
 
 declare global {
   type Stringified<T> = string & {
@@ -622,10 +148,6 @@ declare global {
     ): string & Stringified<T>
     parse<T>(text: Stringified<T>, reviver?: (key: any, value: any) => any): T
   }
-}
-
-export type Encrypted = {
-  encrypted: string
 }
 
 // @TODO 041

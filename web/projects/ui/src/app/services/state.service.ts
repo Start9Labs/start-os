@@ -26,7 +26,7 @@ import {
   takeUntil,
   tap,
 } from 'rxjs/operators'
-import { RR } from 'src/app/services/api/api.types'
+import { ServerState } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { NetworkService } from 'src/app/services/network.service'
 
@@ -56,7 +56,7 @@ class DisconnectedToast {}
 @Injectable({
   providedIn: 'root',
 })
-export class StateService extends Observable<RR.ServerState | null> {
+export class StateService extends Observable<ServerState | null> {
   private readonly alerts = inject(TuiAlertService)
   private readonly i18n = inject(i18nPipe)
   private readonly api = inject(ApiService)
@@ -115,7 +115,7 @@ export class StateService extends Observable<RR.ServerState | null> {
     setTimeout(() => this.trigger$.next(gracefully), delay)
   }
 
-  private handleState(state: RR.ServerState): void {
+  private handleState(state: ServerState): void {
     switch (state) {
       case 'initializing':
         this.router.navigate(['initializing'], { replaceUrl: true })
@@ -136,7 +136,7 @@ export class StateService extends Observable<RR.ServerState | null> {
   }
 }
 
-export function stateNot(state: RR.ServerState[]): CanActivateFn {
+export function stateNot(state: ServerState[]): CanActivateFn {
   return () =>
     inject(StateService).pipe(
       filter(current => !current || !state.includes(current)),

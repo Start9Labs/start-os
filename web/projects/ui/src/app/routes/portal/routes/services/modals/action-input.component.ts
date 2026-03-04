@@ -23,7 +23,6 @@ import {
   FormComponent,
 } from 'src/app/routes/portal/components/form.component'
 import { InvalidService } from 'src/app/routes/portal/components/form/containers/control.directive'
-import { TaskInfoComponent } from 'src/app/routes/portal/modals/config-dep.component'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -41,7 +40,7 @@ export type PackageActionData = {
     id: string
     metadata: T.ActionMetadata
   }
-  requestInfo?: T.Task
+  prefill?: Record<string, unknown>
 }
 
 @Component({
@@ -62,13 +61,6 @@ export type PackageActionData = {
         </tui-notification>
       }
 
-      @if (requestInfo) {
-        <task-info
-          [originalValue]="res.originalValue || {}"
-          [operations]="res.operations || []"
-        />
-      }
-
       <app-form
         [spec]="res.spec"
         [value]="res.originalValue || {}"
@@ -81,7 +73,7 @@ export type PackageActionData = {
           type="reset"
           [style.margin-right]="'auto'"
         >
-          {{ 'Reset defaults' | i18n }}
+          {{ 'Reset' | i18n }}
         </button>
       </app-form>
     } @else if (!error()) {
@@ -109,14 +101,7 @@ export type PackageActionData = {
       }
     }
   `,
-  imports: [
-    TuiNotification,
-    TuiLoader,
-    TuiButton,
-    TaskInfoComponent,
-    FormComponent,
-    i18nPipe,
-  ],
+  imports: [TuiNotification, TuiLoader, TuiButton, FormComponent, i18nPipe],
   providers: [InvalidService],
 })
 export class ActionInputModal {
@@ -131,7 +116,7 @@ export class ActionInputModal {
   readonly actionId = this.context.data.actionInfo.id
   readonly warning = this.context.data.actionInfo.metadata.warning
   readonly pkgInfo = this.context.data.pkgInfo
-  readonly requestInfo = this.context.data.requestInfo
+  readonly prefill = this.context.data.prefill
   eventId: string | null = null
 
   buttons: ActionButton<any>[] = [
@@ -147,6 +132,7 @@ export class ActionInputModal {
       this.api.getActionInput({
         packageId: this.pkgInfo.id,
         actionId: this.actionId,
+        prefill: this.prefill ?? null,
       }),
     ).pipe(
       map(res => {
@@ -154,18 +140,20 @@ export class ActionInputModal {
         const originalValue = res.value || {}
         this.eventId = res.eventId
 
+        const operations = this.prefill
+          ? compare(
+              JSON.parse(JSON.stringify(originalValue)),
+              utils.deepMerge(
+                JSON.parse(JSON.stringify(originalValue)),
+                this.prefill,
+              ) as object,
+            )
+          : null
+
         return {
           spec: res.spec,
           originalValue,
-          operations: this.requestInfo?.input
-            ? compare(
-                JSON.parse(JSON.stringify(originalValue)),
-                utils.deepMerge(
-                  JSON.parse(JSON.stringify(originalValue)),
-                  this.requestInfo.input.value,
-                ) as object,
-              )
-            : null,
+          operations,
         }
       }),
       catchError(e => {

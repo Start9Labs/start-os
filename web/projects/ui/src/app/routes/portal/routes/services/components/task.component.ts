@@ -19,7 +19,12 @@ import { ServiceTasksComponent } from 'src/app/routes/portal/routes/services/com
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { getInstalledBaseStatus } from 'src/app/services/pkg-status-rendering.service'
+import {
+  ALLOWED_STATUSES,
+  getInstalledBaseStatus,
+  INACTIVE_STATUSES,
+  renderPkgStatus,
+} from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 
 @Component({
@@ -49,6 +54,9 @@ import { getManifest } from 'src/app/utils/get-package-data'
     </td>
     <td class="g-secondary" [style.grid-row]="3">
       {{ task().reason || ('No reason provided' | i18n) }}
+      @if (disabled()) {
+        <div class="g-warning">{{ disabled() }}</div>
+      }
     </td>
     <td>
       @if (task().severity !== 'critical') {
@@ -66,7 +74,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
         tuiIconButton
         iconStart="@tui.play"
         appearance="primary-success"
-        [disabled]="!pkg()"
+        [disabled]="!!disabled()"
         (click)="handle()"
       >
         {{ 'Run' | i18n }}
@@ -113,7 +121,9 @@ import { getManifest } from 'src/app/utils/get-package-data'
       }
     }
   `,
-  host: { '[style.opacity]': 'pkg() ? null : "var(--tui-disabled-opacity)"' },
+  host: {
+    '[style.opacity]': '!disabled() ? null : "var(--tui-disabled-opacity)"',
+  },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, TuiAvatar, i18nPipe, TuiFade],
 })
@@ -124,6 +134,7 @@ export class ServiceTaskComponent {
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
   private readonly tasks = inject(ServiceTasksComponent)
+  private readonly i18n = inject(i18nPipe)
 
   readonly task = input.required<T.Task & { replayId: string }>()
   readonly services = input.required<Record<string, PackageDataEntry>>()
@@ -135,6 +146,28 @@ export class ServiceTaskComponent {
     () => this.tasks.pkg().currentDependencies[this.task().packageId],
   )
 
+  readonly disabled = computed(() => {
+    const pkg = this.pkg()
+    if (!pkg) return this.i18n.transform('Not installed')!
+
+    const action = pkg.actions[this.task().actionId]
+    if (!action) return this.i18n.transform('Action not found')!
+
+    const status = renderPkgStatus(pkg).primary
+
+    if (INACTIVE_STATUSES.includes(status)) return status as string
+
+    if (!ALLOWED_STATUSES[action.allowedStatuses].has(status)) {
+      return `${this.i18n.transform('Action can only be executed when service is')} ${this.i18n.transform(action.allowedStatuses === 'only-running' ? 'Running' : 'Stopped')?.toLowerCase()}`
+    }
+
+    if (typeof action.visibility === 'object') {
+      return action.visibility.disabled
+    }
+
+    return false
+  })
+
   async dismiss() {
     const { packageId, replayId } = this.task()
 
@@ -144,7 +177,7 @@ export class ServiceTaskComponent {
       .subscribe(async () => {
         const loader = this.loader.open().subscribe()
         try {
-          await this.api.clearTask({ packageId, replayId })
+          await this.api.clearTask({ packageId, replayId, force: false })
         } catch (e: any) {
           this.errorService.handleError(e)
         } finally {
@@ -154,20 +187,21 @@ export class ServiceTaskComponent {
   }
 
   async handle() {
+    const task = this.task()
     const title = this.title()
     const pkg = this.pkg()
-    const metadata = pkg?.actions[this.task().actionId]
+    const metadata = pkg?.actions[task.actionId]
 
     if (title && pkg && metadata) {
       this.actionService.present({
         pkgInfo: {
-          id: this.task().packageId,
+          id: task.packageId,
           title,
           status: getInstalledBaseStatus(pkg.statusInfo),
           icon: pkg.icon,
         },
-        actionInfo: { id: this.task().actionId, metadata },
-        requestInfo: this.task(),
+        actionInfo: { id: task.actionId, metadata },
+        prefill: task.input?.value,
       })
     }
   }

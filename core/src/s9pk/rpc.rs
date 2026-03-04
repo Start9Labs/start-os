@@ -3,16 +3,17 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
-use rpc_toolkit::{Empty, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 use url::Url;
 
 use crate::ImageId;
-use crate::context::CliContext;
+use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
-use crate::s9pk::manifest::Manifest;
+use crate::registry::device_info::DeviceInfo;
+use crate::s9pk::manifest::{HardwareRequirements, Manifest};
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::v2::pack::ImageConfig;
@@ -69,6 +70,15 @@ pub fn s9pk() -> ParentHandler<CliContext> {
             from_fn_async(publish)
                 .no_display()
                 .with_about("about.publish-s9pk"),
+        )
+        .subcommand(
+            "select",
+            from_fn_async(select)
+                .with_custom_display_fn(|_, path: PathBuf| {
+                    println!("{}", path.display());
+                    Ok(())
+                })
+                .with_about("about.select-s9pk-for-device"),
         )
 }
 
@@ -322,4 +332,98 @@ async fn publish(ctx: CliContext, S9pkPath { s9pk: s9pk_path }: S9pkPath) -> Res
         .invoke(ErrorKind::Network)
         .await?;
     crate::registry::package::add::cli_add_package_impl(ctx, s9pk, vec![s3url], false).await
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+struct SelectParams {
+    #[arg(help = "help.arg.s9pk-file-paths")]
+    s9pks: Vec<PathBuf>,
+}
+
+async fn select(
+    HandlerArgs {
+        context,
+        params: SelectParams { s9pks },
+        ..
+    }: HandlerArgs<CliContext, SelectParams>,
+) -> Result<PathBuf, Error> {
+    // Resolve file list: use provided paths or scan cwd for *.s9pk
+    let paths = if s9pks.is_empty() {
+        let mut found = Vec::new();
+        let mut entries = tokio::fs::read_dir(".").await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("s9pk") {
+                found.push(path);
+            }
+        }
+        if found.is_empty() {
+            return Err(Error::new(
+                eyre!("no .s9pk files found in current directory"),
+                ErrorKind::NotFound,
+            ));
+        }
+        found
+    } else {
+        s9pks
+    };
+
+    // Fetch DeviceInfo from the target server
+    let device_info: DeviceInfo = from_value(
+        context
+            .call_remote::<RpcContext>("server.device-info", imbl_value::json!({}))
+            .await?,
+    )?;
+
+    // Filter and rank s9pk files by compatibility
+    let mut compatible: Vec<(PathBuf, HardwareRequirements)> = Vec::new();
+    for path in &paths {
+        let s9pk = match super::S9pk::open(path, None).await {
+            Ok(s9pk) => s9pk,
+            Err(e) => {
+                tracing::warn!("skipping {}: {e}", path.display());
+                continue;
+            }
+        };
+        let manifest = s9pk.as_manifest();
+
+        // OS version check: package's required OS version must be in server's compat range
+        if !manifest
+            .metadata
+            .os_version
+            .satisfies(&device_info.os.compat)
+        {
+            continue;
+        }
+
+        let hw_req = &manifest.hardware_requirements;
+
+        if let Some(hw) = &device_info.hardware {
+            if !hw_req.is_compatible(hw) {
+                continue;
+            }
+        }
+
+        compatible.push((path.clone(), hw_req.clone()));
+    }
+
+    if compatible.is_empty() {
+        return Err(Error::new(
+            eyre!(
+                "no compatible s9pk found for device (arch: {}, os: {})",
+                device_info
+                    .hardware
+                    .as_ref()
+                    .map(|h| h.arch.to_string())
+                    .unwrap_or_else(|| "unknown".into()),
+                device_info.os.version,
+            ),
+            ErrorKind::NotFound,
+        ));
+    }
+
+    // Sort by specificity (most specific first)
+    compatible.sort_by_key(|(_, req)| req.specificity_desc());
+
+    Ok(compatible.into_iter().next().unwrap().0)
 }

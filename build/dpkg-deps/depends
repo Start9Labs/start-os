@@ -55,6 +55,7 @@ socat
 sqlite3
 squashfs-tools
 squashfs-tools-ng
+ssl-cert
 sudo
 systemd
 systemd-resolved

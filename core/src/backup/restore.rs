@@ -17,6 +17,7 @@ use crate::db::model::Database;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
+use crate::hostname::ServerHostnameInfo;
 use crate::init::init;
 use crate::prelude::*;
 use crate::progress::ProgressUnits;
@@ -30,6 +31,7 @@ use crate::{PLATFORM, PackageId};
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct RestorePackageParams {
     #[arg(help = "help.arg.package-ids")]
     pub ids: Vec<PackageId>,
@@ -84,11 +86,12 @@ pub async fn restore_packages_rpc(
 pub async fn recover_full_server(
     ctx: &SetupContext,
     disk_guid: InternedString,
-    password: String,
+    password: Option<String>,
     recovery_source: TmpMountGuard,
     server_id: &str,
     recovery_password: &str,
     kiosk: Option<bool>,
+    hostname: Option<ServerHostnameInfo>,
     SetupExecuteProgress {
         init_phases,
         restore_phase,
@@ -107,12 +110,18 @@ pub async fn recover_full_server(
             .with_ctx(|_| (ErrorKind::Filesystem, os_backup_path.display().to_string()))?,
     )?;
 
-    os_backup.account.password = argon2::hash_encoded(
-        password.as_bytes(),
-        &rand::random::<[u8; 16]>()[..],
-        &argon2::Config::rfc9106_low_mem(),
-    )
-    .with_kind(ErrorKind::PasswordHashGeneration)?;
+    if let Some(password) = password {
+        os_backup.account.password = argon2::hash_encoded(
+            password.as_bytes(),
+            &rand::random::<[u8; 16]>()[..],
+            &argon2::Config::rfc9106_low_mem(),
+        )
+        .with_kind(ErrorKind::PasswordHashGeneration)?;
+    }
+
+    if let Some(h) = hostname {
+        os_backup.account.hostname = h;
+    }
 
     let kiosk = Some(kiosk.unwrap_or(true)).filter(|_| &*PLATFORM != "raspberrypi");
     sync_kiosk(kiosk).await?;
@@ -182,7 +191,7 @@ pub async fn recover_full_server(
 
     Ok((
         SetupResult {
-            hostname: os_backup.account.hostname,
+            hostname: os_backup.account.hostname.hostname,
             root_ca: Pem(os_backup.account.root_ca_cert),
             needs_restart: ctx.install_rootfs.peek(|a| a.is_some()),
         },

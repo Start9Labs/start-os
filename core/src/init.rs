@@ -18,9 +18,9 @@ use crate::context::{CliContext, InitContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::model::public::ServerStatus;
 use crate::developer::OS_DEVELOPER_KEY_PATH;
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostname;
 use crate::middleware::auth::local::LocalAuthContext;
-use crate::net::gateway::UpgradableListener;
+use crate::net::gateway::WildcardListener;
 use crate::net::net_controller::{NetController, NetService};
 use crate::net::socks::DEFAULT_SOCKS_LISTEN;
 use crate::net::utils::find_wifi_iface;
@@ -144,7 +144,7 @@ pub async fn run_script<P: AsRef<Path>>(path: P, mut progress: PhaseProgressTrac
 
 #[instrument(skip_all)]
 pub async fn init(
-    webserver: &WebServerAcceptorSetter<UpgradableListener>,
+    webserver: &WebServerAcceptorSetter<WildcardListener>,
     cfg: &ServerConfig,
     InitPhases {
         preinit,
@@ -191,15 +191,16 @@ pub async fn init(
         .arg(OS_DEVELOPER_KEY_PATH)
         .invoke(ErrorKind::Filesystem)
         .await?;
+    let hostname = ServerHostname::load(peek.as_public().as_server_info())?;
     crate::ssh::sync_keys(
-        &Hostname(peek.as_public().as_server_info().as_hostname().de()?),
+        &hostname,
         &peek.as_private().as_ssh_privkey().de()?,
         &peek.as_private().as_ssh_pubkeys().de()?,
         SSH_DIR,
     )
     .await?;
     crate::ssh::sync_keys(
-        &Hostname(peek.as_public().as_server_info().as_hostname().de()?),
+        &hostname,
         &peek.as_private().as_ssh_privkey().de()?,
         &Default::default(),
         "/root/.ssh",
@@ -211,14 +212,9 @@ pub async fn init(
 
     start_net.start();
     let net_ctrl = Arc::new(
-        NetController::init(
-            db.clone(),
-            &account.hostname,
-            cfg.socks_listen.unwrap_or(DEFAULT_SOCKS_LISTEN),
-        )
-        .await?,
+        NetController::init(db.clone(), cfg.socks_listen.unwrap_or(DEFAULT_SOCKS_LISTEN)).await?,
     );
-    webserver.try_upgrade(|a| net_ctrl.net_iface.watcher.upgrade_listener(a))?;
+    webserver.send_modify(|wl| wl.set_ip_info(net_ctrl.net_iface.watcher.subscribe()));
     let os_net_service = net_ctrl.os_bindings().await?;
     start_net.complete();
 

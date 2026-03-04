@@ -7,10 +7,12 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 PROJECT=${PROJECT:-"startos"}
 BASENAME=${BASENAME:-"$(./build/env/basename.sh)"}
 VERSION=${VERSION:-$(cat ./build/env/VERSION.txt)}
-if [ "$PLATFORM" = "x86_64" ] || [ "$PLATFORM" = "x86_64-nonfree" ]; then
+if [ "$PLATFORM" = "x86_64" ] || [ "$PLATFORM" = "x86_64-nonfree" ] || [ "$PLATFORM" = "x86_64-nvidia" ]; then
     DEB_ARCH=amd64
-elif [ "$PLATFORM" = "aarch64" ] || [ "$PLATFORM" = "aarch64-nonfree" ] || [ "$PLATFORM" = "raspberrypi" ]; then
+elif [ "$PLATFORM" = "aarch64" ] || [ "$PLATFORM" = "aarch64-nonfree" ] || [ "$PLATFORM" = "aarch64-nvidia" ] || [ "$PLATFORM" = "raspberrypi" ] || [ "$PLATFORM" = "rockchip64" ]; then
     DEB_ARCH=arm64
+elif [ "$PLATFORM" = "riscv64" ] || [ "$PLATFORM" = "riscv64-nonfree" ]; then
+    DEB_ARCH=riscv64
 else
     DEB_ARCH="$PLATFORM"
 fi
@@ -23,7 +25,7 @@ if [ "${PROJECT}" = "startos" ]; then
 else
     INSTALL_TARGET="install-${PROJECT#start-}"
 fi
-make "${INSTALL_TARGET}" DESTDIR=dpkg-workdir/$BASENAME
+make "${INSTALL_TARGET}" DESTDIR=dpkg-workdir/$BASENAME REMOTE=
 
 if [ -f dpkg-workdir/$BASENAME/usr/lib/$PROJECT/depends ]; then
     if [ -n "$DEPENDS" ]; then

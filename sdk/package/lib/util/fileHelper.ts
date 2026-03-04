@@ -1,10 +1,10 @@
-import * as matches from 'ts-matches'
+import { z } from 'zod'
 import * as YAML from 'yaml'
 import * as TOML from '@iarna/toml'
 import * as INI from 'ini'
 import * as T from '../../../base/lib/types'
 import * as fs from 'node:fs/promises'
-import { asError, deepEqual } from '../../../base/lib/util'
+import { AbortedError, asError, deepEqual } from '../../../base/lib/util'
 import { DropGenerator, DropPromise } from '../../../base/lib/util/Drop'
 import { PathBase } from './Volume'
 
@@ -84,9 +84,22 @@ function filterUndefined<A>(a: A): A {
   return a
 }
 
-export type Transformers<Raw = unknown, Transformed = unknown> = {
+/**
+ * Bidirectional transformers for converting between the raw file format and
+ * the application-level data type. Used with FileHelper factory methods.
+ *
+ * @typeParam Raw - The native type the file format parses to (e.g. `Record<string, unknown>` for JSON)
+ * @typeParam Transformed - The application-level type after transformation
+ */
+export type Transformers<
+  Raw = unknown,
+  Transformed = unknown,
+  Validated extends Transformed = Transformed,
+> = {
+  /** Transform raw parsed data into the application type */
   onRead: (value: Raw) => Transformed
-  onWrite: (value: Transformed) => Raw
+  /** Transform application data back into the raw format for writing */
+  onWrite: (value: Validated) => Raw
 }
 
 type ToPath = string | { base: PathBase; subpath: string }
@@ -97,7 +110,7 @@ function toPath(path: ToPath): string {
   return path.base.subpath(path.subpath)
 }
 
-type Validator<T, U> = matches.Validator<T, U> | matches.Validator<unknown, U>
+type Validator<_T, U> = z.ZodType<U>
 
 type ReadType<A> = {
   once: () => Promise<A | null>
@@ -276,7 +289,7 @@ export class FileHelper<A> {
         await onCreated(this.path).catch((e) => console.error(asError(e)))
       }
     }
-    return new Promise<never>((_, rej) => rej(new Error('aborted')))
+    return new Promise<never>((_, rej) => rej(new AbortedError()))
   }
 
   private readOnChange<B>(
@@ -343,6 +356,19 @@ export class FileHelper<A> {
     )
   }
 
+  /**
+   * Create a reactive reader for this file.
+   *
+   * Returns an object with multiple read strategies:
+   * - `once()` - Read the file once and return the parsed value
+   * - `const(effects)` - Read once but re-read when the file changes (for use with constRetry)
+   * - `watch(effects)` - Async generator yielding new values on each file change
+   * - `onChange(effects, callback)` - Fire a callback on each file change
+   * - `waitFor(effects, predicate)` - Block until the file value satisfies a predicate
+   *
+   * @param map - Optional transform function applied after validation
+   * @param eq - Optional equality function to deduplicate watch emissions
+   */
   read(): ReadType<A>
   read<B>(
     map: (value: A) => B,
@@ -461,7 +487,7 @@ export class FileHelper<A> {
     toFile: (dataIn: Raw) => string,
     fromFile: (rawData: string) => Raw,
     validate: (data: Transformed) => A,
-    transformers: Transformers<Raw, Transformed> | undefined,
+    transformers: Transformers<Raw, Transformed, A> | undefined,
   ) {
     return FileHelper.raw<A>(
       path,
@@ -471,7 +497,12 @@ export class FileHelper<A> {
         }
         return toFile(inData as any as Raw)
       },
-      fromFile,
+      (fileData) => {
+        if (transformers) {
+          return transformers.onRead(fromFile(fileData))
+        }
+        return fromFile(fileData)
+      },
       validate as (a: unknown) => A,
     )
   }
@@ -487,19 +518,19 @@ export class FileHelper<A> {
   static string<A extends Transformed, Transformed = string>(
     path: ToPath,
     shape: Validator<Transformed, A>,
-    transformers: Transformers<string, Transformed>,
+    transformers: Transformers<string, Transformed, A>,
   ): FileHelper<A>
   static string<A extends Transformed, Transformed = string>(
     path: ToPath,
     shape?: Validator<Transformed, A>,
-    transformers?: Transformers<string, Transformed>,
+    transformers?: Transformers<string, Transformed, A>,
   ) {
     return FileHelper.rawTransformed<A, string, Transformed>(
       path,
       (inData) => inData,
       (inString) => inString,
       (data) =>
-        (shape || (matches.string as Validator<Transformed, A>)).unsafeCast(
+        (shape || (z.string() as unknown as Validator<Transformed, A>)).parse(
           data,
         ),
       transformers,
@@ -509,16 +540,22 @@ export class FileHelper<A> {
   /**
    * Create a File Helper for a .json file.
    */
-  static json<A>(
+  static json<A>(path: ToPath, shape: Validator<unknown, A>): FileHelper<A>
+  static json<A extends Transformed, Transformed = unknown>(
     path: ToPath,
     shape: Validator<unknown, A>,
-    transformers?: Transformers,
+    transformers: Transformers<unknown, Transformed, A>,
+  ): FileHelper<A>
+  static json<A extends Transformed, Transformed = unknown>(
+    path: ToPath,
+    shape: Validator<unknown, A>,
+    transformers?: Transformers<unknown, Transformed, A>,
   ) {
     return FileHelper.rawTransformed(
       path,
       (inData) => JSON.stringify(inData, null, 2),
       (inString) => JSON.parse(inString),
-      (data) => shape.unsafeCast(data),
+      (data) => shape.parse(data),
       transformers,
     )
   }
@@ -533,18 +570,18 @@ export class FileHelper<A> {
   static yaml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
-    transformers: Transformers<Record<string, unknown>, Transformed>,
+    transformers: Transformers<Record<string, unknown>, Transformed, A>,
   ): FileHelper<A>
   static yaml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
-    transformers?: Transformers<Record<string, unknown>, Transformed>,
+    transformers?: Transformers<Record<string, unknown>, Transformed, A>,
   ) {
     return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
       (inData) => YAML.stringify(inData, null, 2),
       (inString) => YAML.parse(inString),
-      (data) => shape.unsafeCast(data),
+      (data) => shape.parse(data),
       transformers,
     )
   }
@@ -559,22 +596,27 @@ export class FileHelper<A> {
   static toml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
-    transformers: Transformers<Record<string, unknown>, Transformed>,
+    transformers: Transformers<Record<string, unknown>, Transformed, A>,
   ): FileHelper<A>
   static toml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
-    transformers?: Transformers<Record<string, unknown>, Transformed>,
+    transformers?: Transformers<Record<string, unknown>, Transformed, A>,
   ) {
     return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
       (inData) => TOML.stringify(inData as TOML.JsonMap),
       (inString) => TOML.parse(inString),
-      (data) => shape.unsafeCast(data),
+      (data) => shape.parse(data),
       transformers,
     )
   }
 
+  /**
+   * Create a File Helper for a .ini file.
+   *
+   * Supports optional encode/decode options and custom transformers.
+   */
   static ini<A extends Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Record<string, unknown>, A>,
@@ -584,23 +626,28 @@ export class FileHelper<A> {
     path: ToPath,
     shape: Validator<Transformed, A>,
     options: INI.EncodeOptions & INI.DecodeOptions,
-    transformers: Transformers<Record<string, unknown>, Transformed>,
+    transformers: Transformers<Record<string, unknown>, Transformed, A>,
   ): FileHelper<A>
   static ini<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
     options?: INI.EncodeOptions & INI.DecodeOptions,
-    transformers?: Transformers<Record<string, unknown>, Transformed>,
+    transformers?: Transformers<Record<string, unknown>, Transformed, A>,
   ): FileHelper<A> {
     return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
       (inData) => INI.stringify(filterUndefined(inData), options),
       (inString) => INI.parse(inString, options),
-      (data) => shape.unsafeCast(data),
+      (data) => shape.parse(data),
       transformers,
     )
   }
 
+  /**
+   * Create a File Helper for a .env file (KEY=VALUE format, one per line).
+   *
+   * Lines starting with `#` are treated as comments and ignored on read.
+   */
   static env<A extends Record<string, string>>(
     path: ToPath,
     shape: Validator<Record<string, string>, A>,
@@ -608,12 +655,12 @@ export class FileHelper<A> {
   static env<A extends Transformed, Transformed = Record<string, string>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
-    transformers: Transformers<Record<string, string>, Transformed>,
+    transformers: Transformers<Record<string, string>, Transformed, A>,
   ): FileHelper<A>
   static env<A extends Transformed, Transformed = Record<string, string>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
-    transformers?: Transformers<Record<string, string>, Transformed>,
+    transformers?: Transformers<Record<string, string>, Transformed, A>,
   ) {
     return FileHelper.rawTransformed<A, Record<string, string>, Transformed>(
       path,
@@ -632,7 +679,7 @@ export class FileHelper<A> {
               return [line.slice(0, pos), line.slice(pos + 1)]
             }),
         ),
-      (data) => shape.unsafeCast(data),
+      (data) => shape.parse(data),
       transformers,
     )
   }

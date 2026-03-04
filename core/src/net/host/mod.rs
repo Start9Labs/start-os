@@ -1,23 +1,26 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::future::Future;
+use std::net::{IpAddr, SocketAddrV4};
 use std::panic::RefUnwindSafe;
 
 use clap::Parser;
+use imbl::OrdMap;
 use imbl_value::InternedString;
 use itertools::Itertools;
+use patch_db::DestructureMut;
 use rpc_toolkit::{Context, Empty, HandlerExt, OrEmpty, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::RpcContext;
 use crate::db::model::DatabaseModel;
+use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::hostname::ServerHostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::{HostAddress, PublicDomainConfig, address_api};
-use crate::net::host::binding::{BindInfo, BindOptions, binding};
-use crate::net::service_interface::HostnameInfo;
-use crate::net::tor::OnionAddress;
+use crate::net::host::binding::{BindInfo, BindOptions, Bindings, binding};
+use crate::net::service_interface::{HostnameInfo, HostnameMetadata};
 use crate::prelude::*;
-use crate::{HostId, PackageId};
+use crate::{GatewayId, HostId, PackageId};
 
 pub mod address;
 pub mod binding;
@@ -27,13 +30,23 @@ pub mod binding;
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct Host {
-    pub bindings: BTreeMap<u16, BindInfo>,
-    #[ts(type = "string[]")]
-    pub onions: BTreeSet<OnionAddress>,
+    pub bindings: Bindings,
     pub public_domains: BTreeMap<InternedString, PublicDomainConfig>,
-    pub private_domains: BTreeSet<InternedString>,
-    /// COMPUTED: NetService::update
-    pub hostname_info: BTreeMap<u16, Vec<HostnameInfo>>, // internal port -> Hostnames
+    pub private_domains: BTreeMap<InternedString, BTreeSet<GatewayId>>,
+    /// COMPUTED: port forwarding rules needed on gateways for public addresses to work.
+    #[serde(default)]
+    pub port_forwards: BTreeSet<PortForward>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct PortForward {
+    #[ts(type = "string")]
+    pub src: SocketAddrV4,
+    #[ts(type = "string")]
+    pub dst: SocketAddrV4,
+    pub gateway: GatewayId,
 }
 
 impl AsRef<Host> for Host {
@@ -46,29 +59,285 @@ impl Host {
         Self::default()
     }
     pub fn addresses<'a>(&'a self) -> impl Iterator<Item = HostAddress> + 'a {
-        self.onions
+        self.public_domains
             .iter()
-            .cloned()
-            .map(|address| HostAddress::Onion { address })
-            .chain(
-                self.public_domains
-                    .iter()
-                    .map(|(address, config)| HostAddress::Domain {
-                        address: address.clone(),
-                        public: Some(config.clone()),
-                        private: self.private_domains.contains(address),
-                    }),
-            )
+            .map(|(address, config)| HostAddress {
+                address: address.clone(),
+                public: Some(config.clone()),
+                private: self.private_domains.get(address).cloned(),
+            })
             .chain(
                 self.private_domains
                     .iter()
-                    .filter(|a| !self.public_domains.contains_key(*a))
-                    .map(|address| HostAddress::Domain {
-                        address: address.clone(),
+                    .filter(|(domain, _)| !self.public_domains.contains_key(*domain))
+                    .map(|(domain, gateways)| HostAddress {
+                        address: domain.clone(),
                         public: None,
-                        private: true,
+                        private: Some(gateways.clone()),
                     }),
             )
+    }
+}
+impl Model<Host> {
+    pub fn update_addresses(
+        &mut self,
+        mdns: &ServerHostname,
+        gateways: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+        available_ports: &AvailablePorts,
+    ) -> Result<(), Error> {
+        let this = self.destructure_mut();
+
+        // ips
+        for (_, bind) in this.bindings.as_entries_mut()? {
+            let net = bind.as_net().de()?;
+            let opt = bind.as_options().de()?;
+
+            // Preserve existing plugin-provided addresses across recomputation
+            let mut available = bind.as_addresses().as_available().de()?;
+            available.retain(|h| matches!(h.metadata, HostnameMetadata::Plugin { .. }));
+            for (gid, g) in gateways {
+                let Some(ip_info) = &g.ip_info else {
+                    continue;
+                };
+                let gateway_secure = g.secure();
+                for subnet in &ip_info.subnets {
+                    let host = InternedString::from_display(&subnet.addr());
+                    let metadata = if subnet.addr().is_ipv4() {
+                        HostnameMetadata::Ipv4 {
+                            gateway: gid.clone(),
+                        }
+                    } else {
+                        HostnameMetadata::Ipv6 {
+                            gateway: gid.clone(),
+                            scope_id: ip_info.scope_id,
+                        }
+                    };
+                    if let Some(port) = net.assigned_port.filter(|_| {
+                        opt.secure
+                            .map_or(gateway_secure, |s| !(s.ssl && opt.add_ssl.is_some()))
+                    }) {
+                        available.insert(HostnameInfo {
+                            ssl: opt.secure.map_or(false, |s| s.ssl),
+                            public: false,
+                            hostname: host.clone(),
+                            port: Some(port),
+                            metadata: metadata.clone(),
+                        });
+                    }
+                    if let Some(port) = net.assigned_ssl_port {
+                        available.insert(HostnameInfo {
+                            ssl: true,
+                            public: false,
+                            hostname: host.clone(),
+                            port: Some(port),
+                            metadata,
+                        });
+                    }
+                }
+                if let Some(wan_ip) = &ip_info.wan_ip {
+                    let host = InternedString::from_display(&wan_ip);
+                    let metadata = HostnameMetadata::Ipv4 {
+                        gateway: gid.clone(),
+                    };
+                    if let Some(port) = net.assigned_port.filter(|_| {
+                        opt.secure.map_or(
+                            false, // the public internet is never secure
+                            |s| !(s.ssl && opt.add_ssl.is_some()),
+                        )
+                    }) {
+                        available.insert(HostnameInfo {
+                            ssl: opt.secure.map_or(false, |s| s.ssl),
+                            public: true,
+                            hostname: host.clone(),
+                            port: Some(port),
+                            metadata: metadata.clone(),
+                        });
+                    }
+                    if let Some(port) = net.assigned_ssl_port {
+                        available.insert(HostnameInfo {
+                            ssl: true,
+                            public: true,
+                            hostname: host.clone(),
+                            port: Some(port),
+                            metadata,
+                        });
+                    }
+                }
+            }
+
+            // mdns
+            let mdns_host = mdns.local_domain_name();
+            let mdns_gateways: BTreeSet<GatewayId> = gateways
+                .iter()
+                .filter(|(_, g)| {
+                    matches!(
+                        g.ip_info.as_ref().and_then(|i| i.device_type),
+                        Some(NetworkInterfaceType::Ethernet | NetworkInterfaceType::Wireless)
+                    )
+                })
+                .map(|(id, _)| id.clone())
+                .collect();
+            if let Some(port) = net.assigned_port.filter(|_| {
+                opt.secure
+                    .map_or(true, |s| !(s.ssl && opt.add_ssl.is_some()))
+            }) {
+                let mdns_gateways = if opt.secure.is_some() {
+                    mdns_gateways.clone()
+                } else {
+                    mdns_gateways
+                        .iter()
+                        .filter(|g| gateways.get(*g).map_or(false, |g| g.secure()))
+                        .cloned()
+                        .collect()
+                };
+                if !mdns_gateways.is_empty() {
+                    available.insert(HostnameInfo {
+                        ssl: opt.secure.map_or(false, |s| s.ssl),
+                        public: false,
+                        hostname: mdns_host.clone(),
+                        port: Some(port),
+                        metadata: HostnameMetadata::Mdns {
+                            gateways: mdns_gateways,
+                        },
+                    });
+                }
+            }
+            if let Some(port) = net.assigned_ssl_port {
+                available.insert(HostnameInfo {
+                    ssl: true,
+                    public: false,
+                    hostname: mdns_host,
+                    port: Some(port),
+                    metadata: HostnameMetadata::Mdns {
+                        gateways: mdns_gateways,
+                    },
+                });
+            }
+
+            // public domains
+            for (domain, info) in this.public_domains.de()? {
+                let metadata = HostnameMetadata::PublicDomain {
+                    gateway: info.gateway.clone(),
+                };
+                if let Some(port) = net.assigned_port.filter(|_| {
+                    opt.secure.map_or(
+                        false, // the public internet is never secure
+                        |s| !(s.ssl && opt.add_ssl.is_some()),
+                    )
+                }) {
+                    available.insert(HostnameInfo {
+                        ssl: opt.secure.map_or(false, |s| s.ssl),
+                        public: true,
+                        hostname: domain.clone(),
+                        port: Some(port),
+                        metadata: metadata.clone(),
+                    });
+                }
+                if let Some(mut port) = net.assigned_ssl_port {
+                    if let Some(preferred) = opt
+                        .add_ssl
+                        .as_ref()
+                        .map(|s| s.preferred_external_port)
+                        .filter(|p| available_ports.is_ssl(*p))
+                    {
+                        port = preferred;
+                    }
+                    available.insert(HostnameInfo {
+                        ssl: true,
+                        public: true,
+                        hostname: domain,
+                        port: Some(port),
+                        metadata,
+                    });
+                }
+            }
+
+            // private domains
+            for (domain, domain_gateways) in this.private_domains.de()? {
+                if let Some(port) = net.assigned_port.filter(|_| {
+                    opt.secure
+                        .map_or(true, |s| !(s.ssl && opt.add_ssl.is_some()))
+                }) {
+                    let gateways = if opt.secure.is_some() {
+                        domain_gateways.clone()
+                    } else {
+                        domain_gateways
+                            .iter()
+                            .cloned()
+                            .filter(|g| gateways.get(g).map_or(false, |g| g.secure()))
+                            .collect()
+                    };
+                    available.insert(HostnameInfo {
+                        ssl: opt.secure.map_or(false, |s| s.ssl),
+                        public: true,
+                        hostname: domain.clone(),
+                        port: Some(port),
+                        metadata: HostnameMetadata::PrivateDomain { gateways },
+                    });
+                }
+                if let Some(mut port) = net.assigned_ssl_port {
+                    if let Some(preferred) = opt
+                        .add_ssl
+                        .as_ref()
+                        .map(|s| s.preferred_external_port)
+                        .filter(|p| available_ports.is_ssl(*p))
+                    {
+                        port = preferred;
+                    }
+                    available.insert(HostnameInfo {
+                        ssl: true,
+                        public: true,
+                        hostname: domain,
+                        port: Some(port),
+                        metadata: HostnameMetadata::PrivateDomain {
+                            gateways: domain_gateways,
+                        },
+                    });
+                }
+            }
+            bind.as_addresses_mut().as_available_mut().ser(&available)?;
+        }
+
+        // compute port forwards from available public addresses
+        let bindings: Bindings = this.bindings.de()?;
+        let mut port_forwards = BTreeSet::new();
+        for bind in bindings.values() {
+            for addr in bind.addresses.enabled() {
+                if !addr.public {
+                    continue;
+                }
+                let Some(port) = addr.port else {
+                    continue;
+                };
+                let gw_id = match &addr.metadata {
+                    HostnameMetadata::Ipv4 { gateway }
+                    | HostnameMetadata::PublicDomain { gateway } => gateway,
+                    _ => continue,
+                };
+                let Some(gw_info) = gateways.get(gw_id) else {
+                    continue;
+                };
+                let Some(ip_info) = &gw_info.ip_info else {
+                    continue;
+                };
+                let Some(wan_ip) = ip_info.wan_ip else {
+                    continue;
+                };
+                for subnet in &ip_info.subnets {
+                    let IpAddr::V4(addr) = subnet.addr() else {
+                        continue;
+                    };
+                    port_forwards.insert(PortForward {
+                        src: SocketAddrV4::new(wan_ip, port),
+                        dst: SocketAddrV4::new(addr, port),
+                        gateway: gw_id.clone(),
+                    });
+                }
+            }
+        }
+        this.port_forwards.ser(&port_forwards)?;
+
+        Ok(())
     }
 }
 
@@ -112,22 +381,7 @@ pub fn host_for<'a>(
                 .as_hosts_mut(),
         )
     }
-    let tor_key = if host_info(db, package_id)?.as_idx(host_id).is_none() {
-        Some(
-            db.as_private_mut()
-                .as_key_store_mut()
-                .as_onion_mut()
-                .new_key()?,
-        )
-    } else {
-        None
-    };
-    host_info(db, package_id)?.upsert(host_id, || {
-        let mut h = Host::new();
-        h.onions
-            .insert(tor_key.or_not_found("generated tor key")?.onion_address());
-        Ok(h)
-    })
+    host_info(db, package_id)?.upsert(host_id, || Ok(Host::new()))
 }
 
 pub fn all_hosts(db: &mut DatabaseModel) -> impl Iterator<Item = Result<&mut Model<Host>, Error>> {
@@ -185,10 +439,6 @@ pub trait HostApiKind: 'static {
         inheritance: &Self::Inheritance,
         db: &'a mut DatabaseModel,
     ) -> Result<&'a mut Model<Host>, Error>;
-    fn sync_host(
-        ctx: &RpcContext,
-        inheritance: Self::Inheritance,
-    ) -> impl Future<Output = Result<(), Error>> + Send;
 }
 pub struct ForPackage;
 impl HostApiKind for ForPackage {
@@ -207,12 +457,6 @@ impl HostApiKind for ForPackage {
     ) -> Result<&'a mut Model<Host>, Error> {
         host_for(db, Some(package), host)
     }
-    async fn sync_host(ctx: &RpcContext, (package, host): Self::Inheritance) -> Result<(), Error> {
-        let service = ctx.services.get(&package).await;
-        let service_ref = service.as_ref().or_not_found(&package)?;
-        service_ref.sync_host(host).await?;
-        Ok(())
-    }
 }
 pub struct ForServer;
 impl HostApiKind for ForServer {
@@ -227,9 +471,6 @@ impl HostApiKind for ForServer {
         db: &'a mut DatabaseModel,
     ) -> Result<&'a mut Model<Host>, Error> {
         host_for(db, None, &HostId::default())
-    }
-    async fn sync_host(ctx: &RpcContext, _: Self::Inheritance) -> Result<(), Error> {
-        ctx.os_net_service.sync_host(HostId::default()).await
     }
 }
 

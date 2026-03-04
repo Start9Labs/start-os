@@ -69,7 +69,7 @@ export default class LogsPage implements OnInit {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
 
-  startCursor?: string
+  startCursor?: string | null
   loading = false
   logs: string[] = []
   scrollTop = 0
@@ -98,7 +98,7 @@ export default class LogsPage implements OnInit {
 
     try {
       const response = await this.api.diagnosticGetLogs({
-        cursor: this.startCursor,
+        cursor: this.startCursor ?? undefined,
         before: !!this.startCursor,
         limit: 200,
       })

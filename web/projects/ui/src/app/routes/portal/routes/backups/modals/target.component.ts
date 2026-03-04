@@ -6,7 +6,7 @@ import {
   signal,
 } from '@angular/core'
 import { ErrorService, Exver } from '@start9labs/shared'
-import { Version } from '@start9labs/start-sdk'
+import { T, Version } from '@start9labs/start-sdk'
 import {
   TuiButton,
   TuiDialogContext,
@@ -19,7 +19,6 @@ import {
 import { TuiCell } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
-import { BackupTarget } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getServerInfo } from 'src/app/utils/get-server-info'
@@ -81,7 +80,7 @@ export class BackupsTargetModal {
 
   readonly context =
     injectContext<
-      TuiDialogContext<BackupTarget & { id: string }, { type: BackupType }>
+      TuiDialogContext<T.BackupTarget & { id: string }, { type: BackupType }>
     >()
 
   readonly loading = signal(true)
@@ -91,7 +90,7 @@ export class BackupsTargetModal {
       : 'Loading Backup Sources'
 
   serverId = ''
-  targets: Record<string, BackupTarget> = {}
+  targets: Record<string, T.BackupTarget> = {}
 
   async ngOnInit() {
     try {
@@ -104,14 +103,14 @@ export class BackupsTargetModal {
     }
   }
 
-  isDisabled(target: BackupTarget): boolean {
+  isDisabled(target: T.BackupTarget): boolean {
     return (
       !target.mountable ||
       (this.context.data.type === 'restore' && !this.hasBackup(target))
     )
   }
 
-  hasBackup(target: BackupTarget): boolean {
+  hasBackup(target: T.BackupTarget): boolean {
     return (
       target.startOs?.[this.serverId] &&
       Version.parse(target.startOs[this.serverId].version).compare(
@@ -127,7 +126,7 @@ export class BackupsTargetModal {
       .subscribe()
   }
 
-  select(target: BackupTarget, id: string) {
+  select(target: T.BackupTarget, id: string) {
     this.context.completeWith({ ...target, id })
   }
 }

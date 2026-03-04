@@ -10,6 +10,7 @@ export type ServerInfo = {
   arch: string
   platform: string
   id: string
+  name: string
   hostname: string
   version: string
   packageVersionCompat: string
@@ -25,6 +26,7 @@ export type ServerInfo = {
   zram: boolean
   governor: Governor | null
   smtp: SmtpValue | null
+  ifconfigUrl: string
   ram: number
   devices: Array<LshwDevice>
   kiosk: boolean | null

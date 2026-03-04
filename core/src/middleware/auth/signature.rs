@@ -71,7 +71,7 @@ impl SignatureAuthContext for RpcContext {
                         .as_network()
                         .as_host()
                         .as_private_domains()
-                        .de()
+                        .keys()
                         .map(|k| k.into_iter())
                         .transpose(),
                 )

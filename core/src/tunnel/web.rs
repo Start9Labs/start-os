@@ -18,7 +18,7 @@ use tokio_rustls::rustls::server::ClientHello;
 use ts_rs::TS;
 
 use crate::context::CliContext;
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostname;
 use crate::net::ssl::{SANInfo, root_ca_start_time};
 use crate::net::tls::TlsHandler;
 use crate::net::web_server::Accept;
@@ -292,7 +292,7 @@ pub async fn generate_certificate(
     let root_key = crate::net::ssl::gen_nistp256()?;
     let root_cert = crate::net::ssl::make_root_cert(
         &root_key,
-        &Hostname("start-tunnel".into()),
+        &ServerHostname::new("start-tunnel".into())?,
         root_ca_start_time().await,
     )?;
     let int_key = crate::net::ssl::gen_nistp256()?;
@@ -527,23 +527,23 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                     "    2. Paste the following command (**DO NOT** click Return): pbcopy < ~/Desktop/ca.crt\n",
                     "    3. Copy your Root CA (including -----BEGIN CERTIFICATE----- and -----END CERTIFICATE-----)\n",
                     "    4. Back in Terminal, click Return. ca.crt is saved to your Desktop\n",
-                    "    5. Complete by trusting your Root CA: https://staging.docs.start9.com/device-guides/mac/ca.html\n",
+                    "    5. Complete by trusting your Root CA: https://docs.start9.com/device-guides/mac/ca.html\n",
                     "  - Linux\n",
                     "    1. Open gedit, nano, or any editor\n",
                     "    2. Copy/paste your Root CA (including -----BEGIN CERTIFICATE----- and -----END CERTIFICATE-----)\n",
                     "    3. Name the file ca.crt and save as plaintext\n",
-                    "    5. Complete by trusting your Root CA: https://staging.docs.start9.com/device-guides/linux/ca.html\n",
+                    "    4. Complete by trusting your Root CA: https://docs.start9.com/device-guides/linux/ca.html\n",
                     "  - Windows\n",
                     "    1. Open the Notepad app\n",
                     "    2. Copy/paste your Root CA (including -----BEGIN CERTIFICATE----- and -----END CERTIFICATE-----)\n",
                     "    3. Name the file ca.crt and save as plaintext\n",
-                    "    5. Complete by trusting your Root CA: https://staging.docs.start9.com/device-guides/windows/ca.html\n",
+                    "    4. Complete by trusting your Root CA: https://docs.start9.com/device-guides/windows/ca.html\n",
                     "  - Android/Graphene\n",
                     "    1. Send the ca.crt file (created above) to yourself\n",
-                    "    2. Complete by trusting your Root CA: https://staging.docs.start9.com/device-guides/android/ca.html\n",
+                    "    2. Complete by trusting your Root CA: https://docs.start9.com/device-guides/android/ca.html\n",
                     "  - iOS\n",
                     "    1. Send the ca.crt file (created above) to yourself\n",
-                    "    2. Complete by trusting your Root CA: https://staging.docs.start9.com/device-guides/ios/ca.html\n",
+                    "    2. Complete by trusting your Root CA: https://docs.start9.com/device-guides/ios/ca.html\n",
                 ));
 
                 return Ok(());

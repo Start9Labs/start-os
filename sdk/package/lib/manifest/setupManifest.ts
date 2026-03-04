@@ -24,6 +24,15 @@ export function setupManifest<
   return manifest
 }
 
+/**
+ * Build the final publishable manifest by combining the SDK manifest definition
+ * with version graph metadata, OS version, SDK version, and computed fields
+ * (migration ranges, hardware requirements, alerts, etc.).
+ *
+ * @param versions - The service's VersionGraph, used to extract the current version, release notes, and migration ranges
+ * @param manifest - The SDK manifest definition (from `setupManifest`)
+ * @returns A fully resolved Manifest ready for packaging
+ */
 export function buildManifest<
   Id extends string,
   Version extends string,
@@ -89,5 +98,6 @@ export function buildManifest<
       ),
     },
     hardwareAcceleration: manifest.hardwareAcceleration ?? false,
+    plugins: manifest.plugins ?? [],
   }
 }

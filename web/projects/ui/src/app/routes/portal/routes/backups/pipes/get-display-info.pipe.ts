@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { BackupTarget } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 import { DisplayInfo } from '../types/display-info'
 import { GetBackupIconPipe } from './get-backup-icon.pipe'
 
@@ -9,7 +9,7 @@ import { GetBackupIconPipe } from './get-backup-icon.pipe'
 export class GetDisplayInfoPipe implements PipeTransform {
   readonly icon = new GetBackupIconPipe()
 
-  transform(target: BackupTarget): DisplayInfo {
+  transform(target: T.BackupTarget): DisplayInfo {
     const result = {
       name: target.name,
       path: `Path: ${target.path}`,

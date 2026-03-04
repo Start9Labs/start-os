@@ -13,7 +13,7 @@ import { GatewayService } from 'src/app/services/gateway.service'
         <tr [gateway]="gateway"></tr>
       } @empty {
         <tr>
-          <td colspan="5">
+          <td colspan="6">
             <div [tuiSkeleton]="true">{{ 'Loading' | i18n }}</div>
           </td>
         </tr>

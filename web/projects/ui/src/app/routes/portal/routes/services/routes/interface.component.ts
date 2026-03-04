@@ -17,10 +17,7 @@ import { PatchDB } from 'patch-db-client'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
-import {
-  getPublicDomains,
-  InterfaceService,
-} from '../../../components/interfaces/interface.service'
+import { InterfaceService } from '../../../components/interfaces/interface.service'
 import { GatewayService } from 'src/app/services/gateway.service'
 import { getInstalledBaseStatus } from 'src/app/services/pkg-status-rendering.service'
 
@@ -100,6 +97,7 @@ export default class ServiceInterfaceRoute {
   readonly interfaceId = input('')
 
   readonly pkg = toSignal(this.patch.watch$('packageData', this.pkgId))
+  readonly allPackageData = toSignal(this.patch.watch$('packageData'))
 
   readonly isRunning = computed(() => {
     const pkg = this.pkg()
@@ -125,23 +123,16 @@ export default class ServiceInterfaceRoute {
     }
 
     const binding = host.bindings[port]
-
     const gateways = this.gatewayService.gateways() || []
 
     return {
       ...iFace,
-      addresses: this.interfaceService.getAddresses(iFace, host, gateways),
-      gateways:
-        gateways.map(g => ({
-          enabled:
-            (g.public
-              ? binding?.net.publicEnabled.includes(g.id)
-              : !binding?.net.privateDisabled.includes(g.id)) ?? false,
-          ...g,
-        })) || [],
-      torDomains: host.onions,
-      publicDomains: getPublicDomains(host.publicDomains, gateways),
-      privateDomains: host.privateDomains,
+      gatewayGroups: this.interfaceService.getGatewayGroups(
+        iFace,
+        host,
+        gateways,
+      ),
+      pluginGroups: this.interfaceService.getPluginGroups(iFace, host, this.allPackageData()),
       addSsl: !!binding?.options.addSsl,
     }
   })

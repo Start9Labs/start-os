@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
+import { TuiIcon } from '@taiga-ui/core'
 import { TuiBadge } from '@taiga-ui/kit'
 
 @Component({
@@ -7,15 +8,19 @@ import { TuiBadge } from '@taiga-ui/kit'
   template: `
     <td><ng-content /></td>
     <td>
-      <tui-badge size="m" [appearance]="appearance">{{ info.type }}</tui-badge>
+      <tui-badge size="m" [appearance]="appearance">
+        {{ info().type }}
+      </tui-badge>
     </td>
     <td class="g-secondary" [style.grid-area]="'2 / 1 / 2 / 3'">
-      {{ info.description }}
+      {{ info().description }}
+    </td>
+    <td class="chevron">
+      <tui-icon icon="@tui.chevron-right" />
     </td>
   `,
   styles: `
     :host {
-      clip-path: inset(0 round 0.75rem);
       cursor: pointer;
 
       &:hover {
@@ -32,13 +37,18 @@ import { TuiBadge } from '@taiga-ui/kit'
       font-weight: bold;
     }
 
-    tui-icon {
+    .chevron {
+      text-align: end;
+    }
+
+    .chevron tui-icon {
       font-size: 1rem;
+      color: var(--tui-text-tertiary);
     }
 
     :host-context(tui-root._mobile) {
       display: grid;
-      grid-template-columns: min-content;
+      grid-template-columns: 1fr auto;
       align-items: center;
       padding: 1rem 0.5rem;
       gap: 0.5rem;
@@ -46,17 +56,21 @@ import { TuiBadge } from '@taiga-ui/kit'
       td {
         padding: 0;
       }
+
+      .chevron {
+        grid-area: 1 / 2 / 3 / 3;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiBadge],
+  imports: [TuiBadge, TuiIcon],
 })
 export class ServiceInterfaceItemComponent {
-  @Input({ required: true })
-  info!: T.ServiceInterface
+  readonly info = input.required<T.ServiceInterface>()
+  readonly link = input.required<string>()
 
   get appearance(): string {
-    switch (this.info.type) {
+    switch (this.info().type) {
       case 'ui':
         return 'positive'
       case 'api':

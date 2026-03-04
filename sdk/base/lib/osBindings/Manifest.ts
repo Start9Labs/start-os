@@ -8,32 +8,33 @@ import type { ImageConfig } from './ImageConfig'
 import type { ImageId } from './ImageId'
 import type { LocaleString } from './LocaleString'
 import type { PackageId } from './PackageId'
+import type { PluginId } from './PluginId'
 import type { Version } from './Version'
 import type { VolumeId } from './VolumeId'
 
 export type Manifest = {
   id: PackageId
-  title: string
   version: Version
   satisfies: Array<Version>
-  releaseNotes: LocaleString
   canMigrateTo: string
   canMigrateFrom: string
-  license: string
-  wrapperRepo: string
-  upstreamRepo: string
-  supportSite: string
-  marketingSite: string
-  donationUrl: string | null
-  docsUrl: string | null
-  description: Description
   images: { [key: ImageId]: ImageConfig }
   volumes: Array<VolumeId>
-  alerts: Alerts
   dependencies: Dependencies
   hardwareRequirements: HardwareRequirements
-  hardwareAcceleration: boolean
+  title: string
+  description: Description
+  releaseNotes: LocaleString
   gitHash: GitHash | null
+  license: string
+  packageRepo: string
+  upstreamRepo: string
+  marketingUrl: string
+  donationUrl: string | null
+  docsUrls: string[]
+  alerts: Alerts
   osVersion: string
   sdkVersion: string | null
+  hardwareAcceleration: boolean
+  plugins: Array<PluginId>
 }

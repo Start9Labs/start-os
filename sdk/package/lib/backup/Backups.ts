@@ -5,10 +5,12 @@ import { Affine, asError } from '../util'
 import { ExtendedVersion, VersionRange } from '../../../base/lib'
 import { InitKind, InitScript } from '../../../base/lib/inits'
 
+/** Default rsync options used for backup and restore operations */
 export const DEFAULT_OPTIONS: T.SyncOptions = {
   delete: true,
   exclude: [],
 }
+/** A single source-to-destination sync pair for backup and restore */
 export type BackupSync<Volumes extends string> = {
   dataPath: `/media/startos/volumes/${Volumes}/${string}`
   backupPath: `/media/startos/backup/${string}`
@@ -17,8 +19,18 @@ export type BackupSync<Volumes extends string> = {
   restoreOptions?: Partial<T.SyncOptions>
 }
 
+/** Effects type narrowed for backup/restore contexts, preventing reuse outside that scope */
 export type BackupEffects = T.Effects & Affine<'Backups'>
 
+/**
+ * Configures backup and restore operations using rsync.
+ *
+ * Supports syncing entire volumes or custom path pairs, with optional pre/post hooks
+ * for both backup and restore phases. Implements {@link InitScript} so it can be used
+ * as a restore-init step in `setupInit`.
+ *
+ * @typeParam M - The service manifest type
+ */
 export class Backups<M extends T.SDKManifest> implements InitScript {
   private constructor(
     private options = DEFAULT_OPTIONS,
@@ -31,6 +43,11 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     private postRestore = async (effects: BackupEffects) => {},
   ) {}
 
+  /**
+   * Create a Backups configuration that backs up entire volumes by name.
+   * Each volume is synced to a corresponding directory under `/media/startos/backup/volumes/`.
+   * @param volumeNames - One or more volume IDs from the manifest
+   */
   static ofVolumes<M extends T.SDKManifest = never>(
     ...volumeNames: Array<M['volumes'][number]>
   ): Backups<M> {
@@ -42,18 +59,31 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     )
   }
 
+  /**
+   * Create a Backups configuration from explicit source/destination sync pairs.
+   * @param syncs - Array of `{ dataPath, backupPath }` objects with optional per-sync options
+   */
   static ofSyncs<M extends T.SDKManifest = never>(
     ...syncs: BackupSync<M['volumes'][number]>[]
   ) {
     return syncs.reduce((acc, x) => acc.addSync(x), new Backups<M>())
   }
 
+  /**
+   * Create an empty Backups configuration with custom default rsync options.
+   * Chain `.addVolume()` or `.addSync()` to add sync targets.
+   * @param options - Partial rsync options to override defaults (e.g. `{ exclude: ['cache'] }`)
+   */
   static withOptions<M extends T.SDKManifest = never>(
     options?: Partial<T.SyncOptions>,
   ) {
     return new Backups<M>({ ...DEFAULT_OPTIONS, ...options })
   }
 
+  /**
+   * Override the default rsync options for both backup and restore.
+   * @param options - Partial rsync options to merge with current defaults
+   */
   setOptions(options?: Partial<T.SyncOptions>) {
     this.options = {
       ...this.options,
@@ -62,6 +92,10 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     return this
   }
 
+  /**
+   * Override rsync options used only during backup (not restore).
+   * @param options - Partial rsync options for the backup phase
+   */
   setBackupOptions(options?: Partial<T.SyncOptions>) {
     this.backupOptions = {
       ...this.backupOptions,
@@ -70,6 +104,10 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     return this
   }
 
+  /**
+   * Override rsync options used only during restore (not backup).
+   * @param options - Partial rsync options for the restore phase
+   */
   setRestoreOptions(options?: Partial<T.SyncOptions>) {
     this.restoreOptions = {
       ...this.restoreOptions,
@@ -78,26 +116,47 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     return this
   }
 
+  /**
+   * Register a hook to run before backup rsync begins (e.g. dump a database).
+   * @param fn - Async function receiving backup-scoped effects
+   */
   setPreBackup(fn: (effects: BackupEffects) => Promise<void>) {
     this.preBackup = fn
     return this
   }
 
+  /**
+   * Register a hook to run after backup rsync completes.
+   * @param fn - Async function receiving backup-scoped effects
+   */
   setPostBackup(fn: (effects: BackupEffects) => Promise<void>) {
     this.postBackup = fn
     return this
   }
 
+  /**
+   * Register a hook to run before restore rsync begins.
+   * @param fn - Async function receiving backup-scoped effects
+   */
   setPreRestore(fn: (effects: BackupEffects) => Promise<void>) {
     this.preRestore = fn
     return this
   }
 
+  /**
+   * Register a hook to run after restore rsync completes.
+   * @param fn - Async function receiving backup-scoped effects
+   */
   setPostRestore(fn: (effects: BackupEffects) => Promise<void>) {
     this.postRestore = fn
     return this
   }
 
+  /**
+   * Add a volume to the backup set by its ID.
+   * @param volume - The volume ID from the manifest
+   * @param options - Optional per-volume rsync overrides
+   */
   addVolume(
     volume: M['volumes'][number],
     options?: Partial<{
@@ -113,11 +172,19 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     })
   }
 
+  /**
+   * Add a custom sync pair to the backup set.
+   * @param sync - A `{ dataPath, backupPath }` object with optional per-sync rsync options
+   */
   addSync(sync: BackupSync<M['volumes'][0]>) {
     this.backupSet.push(sync)
     return this
   }
 
+  /**
+   * Execute the backup: runs pre-hook, rsyncs all configured paths, saves the data version, then runs post-hook.
+   * @param effects - The effects context
+   */
   async createBackup(effects: T.Effects) {
     await this.preBackup(effects as BackupEffects)
     for (const item of this.backupSet) {
@@ -149,6 +216,10 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     }
   }
 
+  /**
+   * Execute the restore: runs pre-hook, rsyncs all configured paths from backup to data, restores the data version, then runs post-hook.
+   * @param effects - The effects context
+   */
   async restoreBackup(effects: T.Effects) {
     this.preRestore(effects as BackupEffects)
 

@@ -11,7 +11,7 @@ import { FormsModule } from '@angular/forms'
 import { TuiIcon } from '@taiga-ui/core'
 import { TuiCheckbox, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
-import { Session } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 import { PlatformInfoPipe } from './platform-info.pipe'
 import { i18nPipe } from '@start9labs/shared'
 
@@ -165,11 +165,11 @@ import { i18nPipe } from '@start9labs/shared'
     i18nPipe,
   ],
 })
-export class SessionsTableComponent<T extends Session> implements OnChanges {
-  readonly sessions = input<readonly T[] | null>(null)
+export class SessionsTableComponent<S extends T.Session> implements OnChanges {
+  readonly sessions = input<readonly S[] | null>(null)
   readonly single = input(false)
 
-  readonly selected = signal<readonly T[]>([])
+  readonly selected = signal<readonly S[]>([])
   readonly all = computed(
     () =>
       !!this.selected()?.length &&
@@ -180,7 +180,7 @@ export class SessionsTableComponent<T extends Session> implements OnChanges {
     this.selected.set([])
   }
 
-  onToggle(session: T) {
+  onToggle(session: S) {
     if (this.selected().includes(session)) {
       this.selected.update(selected => selected.filter(s => s !== session))
     } else {

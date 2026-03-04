@@ -1,4 +1,3 @@
-import { testOutput } from './output.test'
 import { InputSpec } from '../../../base/lib/actions/input/builder/inputSpec'
 import { List } from '../../../base/lib/actions/input/builder/list'
 import { Value } from '../../../base/lib/actions/input/builder/value'
@@ -6,6 +5,12 @@ import { Variants } from '../../../base/lib/actions/input/builder/variants'
 import { ValueSpec } from '../../../base/lib/actions/input/inputSpecTypes'
 import { setupManifest } from '../manifest/setupManifest'
 import { StartSdk } from '../StartSdk'
+
+export type IfEquals<T, U, Y = unknown, N = never> =
+  (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U ? 1 : 2 ? Y : N
+export function testOutput<A, B>(): (c: IfEquals<A, B>) => null {
+  return () => null
+}
 
 describe('builder tests', () => {
   test('text', async () => {
@@ -50,8 +55,8 @@ describe('values', () => {
       default: false,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast(false)
-    testOutput<typeof validator._TYPE, boolean>()(null)
+    validator.parse(false)
+    testOutput<typeof validator._output, boolean>()(null)
   })
   test('text', async () => {
     const value = await Value.text({
@@ -61,9 +66,9 @@ describe('values', () => {
     }).build({} as any)
     const validator = value.validator
     const rawIs = value.spec
-    validator.unsafeCast('test text')
-    expect(() => validator.unsafeCast(null)).toThrowError()
-    testOutput<typeof validator._TYPE, string>()(null)
+    validator.parse('test text')
+    expect(() => validator.parse(null)).toThrowError()
+    testOutput<typeof validator._output, string>()(null)
   })
   test('text with default', async () => {
     const value = await Value.text({
@@ -73,9 +78,9 @@ describe('values', () => {
     }).build({} as any)
     const validator = value.validator
     const rawIs = value.spec
-    validator.unsafeCast('test text')
-    expect(() => validator.unsafeCast(null)).toThrowError()
-    testOutput<typeof validator._TYPE, string>()(null)
+    validator.parse('test text')
+    expect(() => validator.parse(null)).toThrowError()
+    testOutput<typeof validator._output, string>()(null)
   })
   test('optional text', async () => {
     const value = await Value.text({
@@ -85,9 +90,9 @@ describe('values', () => {
     }).build({} as any)
     const validator = value.validator
     const rawIs = value.spec
-    validator.unsafeCast('test text')
-    validator.unsafeCast(null)
-    testOutput<typeof validator._TYPE, string | null>()(null)
+    validator.parse('test text')
+    validator.parse(null)
+    testOutput<typeof validator._output, string | null>()(null)
   })
   test('color', async () => {
     const value = await Value.color({
@@ -98,8 +103,8 @@ describe('values', () => {
       warning: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast('#000000')
-    testOutput<typeof validator._TYPE, string | null>()(null)
+    validator.parse('#000000')
+    testOutput<typeof validator._output, string | null>()(null)
   })
   test('datetime', async () => {
     const value = await Value.datetime({
@@ -113,8 +118,8 @@ describe('values', () => {
       max: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast('2021-01-01')
-    testOutput<typeof validator._TYPE, string>()(null)
+    validator.parse('2021-01-01')
+    testOutput<typeof validator._output, string>()(null)
   })
   test('optional datetime', async () => {
     const value = await Value.datetime({
@@ -128,8 +133,8 @@ describe('values', () => {
       max: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast('2021-01-01')
-    testOutput<typeof validator._TYPE, string | null>()(null)
+    validator.parse('2021-01-01')
+    testOutput<typeof validator._output, string | null>()(null)
   })
   test('textarea', async () => {
     const value = await Value.textarea({
@@ -145,8 +150,8 @@ describe('values', () => {
       placeholder: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast('test text')
-    testOutput<typeof validator._TYPE, string | null>()(null)
+    validator.parse('test text')
+    testOutput<typeof validator._output, string | null>()(null)
   })
   test('number', async () => {
     const value = await Value.number({
@@ -163,8 +168,8 @@ describe('values', () => {
       placeholder: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast(2)
-    testOutput<typeof validator._TYPE, number>()(null)
+    validator.parse(2)
+    testOutput<typeof validator._output, number>()(null)
   })
   test('optional number', async () => {
     const value = await Value.number({
@@ -181,8 +186,8 @@ describe('values', () => {
       placeholder: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast(2)
-    testOutput<typeof validator._TYPE, number | null>()(null)
+    validator.parse(2)
+    testOutput<typeof validator._output, number | null>()(null)
   })
   test('select', async () => {
     const value = await Value.select({
@@ -196,10 +201,10 @@ describe('values', () => {
       warning: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast('a')
-    validator.unsafeCast('b')
-    expect(() => validator.unsafeCast('c')).toThrowError()
-    testOutput<typeof validator._TYPE, 'a' | 'b'>()(null)
+    validator.parse('a')
+    validator.parse('b')
+    expect(() => validator.parse('c')).toThrowError()
+    testOutput<typeof validator._output, 'a' | 'b'>()(null)
   })
   test('nullable select', async () => {
     const value = await Value.select({
@@ -213,9 +218,9 @@ describe('values', () => {
       warning: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast('a')
-    validator.unsafeCast('b')
-    testOutput<typeof validator._TYPE, 'a' | 'b'>()(null)
+    validator.parse('a')
+    validator.parse('b')
+    testOutput<typeof validator._output, 'a' | 'b'>()(null)
   })
   test('multiselect', async () => {
     const value = await Value.multiselect({
@@ -231,12 +236,12 @@ describe('values', () => {
       maxLength: null,
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast([])
-    validator.unsafeCast(['a', 'b'])
+    validator.parse([])
+    validator.parse(['a', 'b'])
 
-    expect(() => validator.unsafeCast(['e'])).toThrowError()
-    expect(() => validator.unsafeCast([4])).toThrowError()
-    testOutput<typeof validator._TYPE, Array<'a' | 'b'>>()(null)
+    expect(() => validator.parse(['e'])).toThrowError()
+    expect(() => validator.parse([4])).toThrowError()
+    testOutput<typeof validator._output, Array<'a' | 'b'>>()(null)
   })
   test('object', async () => {
     const value = await Value.object(
@@ -254,8 +259,8 @@ describe('values', () => {
       }),
     ).build({} as any)
     const validator = value.validator
-    validator.unsafeCast({ a: true })
-    testOutput<typeof validator._TYPE, { a: boolean }>()(null)
+    validator.parse({ a: true })
+    testOutput<typeof validator._output, { a: boolean }>()(null)
   })
   test('union', async () => {
     const value = await Value.union({
@@ -278,8 +283,8 @@ describe('values', () => {
       }),
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast({ selection: 'a', value: { b: false } })
-    type Test = typeof validator._TYPE
+    validator.parse({ selection: 'a', value: { b: false } })
+    type Test = typeof validator._output
     testOutput<
       Test,
       {
@@ -306,9 +311,9 @@ describe('values', () => {
         default: false,
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast(false)
-      expect(() => validator.unsafeCast(null)).toThrowError()
-      testOutput<typeof validator._TYPE, boolean>()(null)
+      validator.parse(false)
+      expect(() => validator.parse(null)).toThrowError()
+      testOutput<typeof validator._output, boolean>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
         description: null,
@@ -324,9 +329,9 @@ describe('values', () => {
       })).build({} as any)
       const validator = value.validator
       const rawIs = value.spec
-      validator.unsafeCast('test text')
-      validator.unsafeCast(null)
-      testOutput<typeof validator._TYPE, string | null>()(null)
+      validator.parse('test text')
+      validator.parse(null)
+      testOutput<typeof validator._output, string | null>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
         required: false,
@@ -340,9 +345,9 @@ describe('values', () => {
         default: 'this is a default value',
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast('test text')
-      validator.unsafeCast(null)
-      testOutput<typeof validator._TYPE, string | null>()(null)
+      validator.parse('test text')
+      validator.parse(null)
+      testOutput<typeof validator._output, string | null>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
         required: false,
@@ -357,9 +362,9 @@ describe('values', () => {
       })).build({} as any)
       const validator = value.validator
       const rawIs = value.spec
-      validator.unsafeCast('test text')
-      validator.unsafeCast(null)
-      testOutput<typeof validator._TYPE, string | null>()(null)
+      validator.parse('test text')
+      validator.parse(null)
+      testOutput<typeof validator._output, string | null>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
         required: false,
@@ -375,9 +380,9 @@ describe('values', () => {
         warning: null,
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast('#000000')
-      validator.unsafeCast(null)
-      testOutput<typeof validator._TYPE, string | null>()(null)
+      validator.parse('#000000')
+      validator.parse(null)
+      testOutput<typeof validator._output, string | null>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
         required: false,
@@ -393,12 +398,11 @@ describe('values', () => {
             id: 'testOutput',
             title: '',
             license: '',
-            wrapperRepo: '',
+            packageRepo: '',
             upstreamRepo: '',
-            supportSite: '',
-            marketingSite: '',
+            marketingUrl: '',
             donationUrl: null,
-            docsUrl: '',
+            docsUrls: [],
             description: {
               short: '',
               long: '',
@@ -433,9 +437,9 @@ describe('values', () => {
         }
       }).build({} as any)
       const validator = value.validator
-      validator.unsafeCast('2021-01-01')
-      validator.unsafeCast(null)
-      testOutput<typeof validator._TYPE, string | null>()(null)
+      validator.parse('2021-01-01')
+      validator.parse(null)
+      testOutput<typeof validator._output, string | null>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
         required: false,
@@ -459,8 +463,8 @@ describe('values', () => {
         placeholder: null,
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast('test text')
-      testOutput<typeof validator._TYPE, string | null>()(null)
+      validator.parse('test text')
+      testOutput<typeof validator._output, string | null>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
         required: false,
@@ -481,10 +485,10 @@ describe('values', () => {
         placeholder: null,
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast(2)
-      validator.unsafeCast(null)
-      expect(() => validator.unsafeCast('null')).toThrowError()
-      testOutput<typeof validator._TYPE, number | null>()(null)
+      validator.parse(2)
+      validator.parse(null)
+      expect(() => validator.parse('null')).toThrowError()
+      testOutput<typeof validator._output, number | null>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
         required: false,
@@ -502,9 +506,9 @@ describe('values', () => {
         warning: null,
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast('a')
-      validator.unsafeCast('b')
-      testOutput<typeof validator._TYPE, 'a' | 'b'>()(null)
+      validator.parse('a')
+      validator.parse('b')
+      testOutput<typeof validator._output, 'a' | 'b'>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
       })
@@ -523,12 +527,12 @@ describe('values', () => {
         maxLength: null,
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast([])
-      validator.unsafeCast(['a', 'b'])
+      validator.parse([])
+      validator.parse(['a', 'b'])
 
-      expect(() => validator.unsafeCast([4])).toThrowError()
-      expect(() => validator.unsafeCast(null)).toThrowError()
-      testOutput<typeof validator._TYPE, Array<'a' | 'b'>>()(null)
+      expect(() => validator.parse([4])).toThrowError()
+      expect(() => validator.parse(null)).toThrowError()
+      testOutput<typeof validator._output, Array<'a' | 'b'>>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
         default: [],
@@ -569,8 +573,8 @@ describe('values', () => {
         }),
       })).build({} as any)
       const validator = value.validator
-      validator.unsafeCast({ selection: 'a', value: { b: false } })
-      type Test = typeof validator._TYPE
+      validator.parse({ selection: 'a', value: { b: false } })
+      type Test = typeof validator._output
       testOutput<
         Test,
         | {
@@ -654,8 +658,8 @@ describe('values', () => {
       }),
     })).build({} as any)
     const validator = value.validator
-    validator.unsafeCast({ selection: 'a', value: { b: false } })
-    type Test = typeof validator._TYPE
+    validator.parse({ selection: 'a', value: { b: false } })
+    type Test = typeof validator._output
     testOutput<
       Test,
       | {
@@ -727,8 +731,8 @@ describe('Builder List', () => {
       ),
     ).build({} as any)
     const validator = value.validator
-    validator.unsafeCast([{ test: true }])
-    testOutput<typeof validator._TYPE, { test: boolean }[]>()(null)
+    validator.parse([{ test: true }])
+    testOutput<typeof validator._output, { test: boolean }[]>()(null)
   })
   test('text', async () => {
     const value = await Value.list(
@@ -742,8 +746,8 @@ describe('Builder List', () => {
       ),
     ).build({} as any)
     const validator = value.validator
-    validator.unsafeCast(['test', 'text'])
-    testOutput<typeof validator._TYPE, string[]>()(null)
+    validator.parse(['test', 'text'])
+    testOutput<typeof validator._output, string[]>()(null)
   })
   describe('dynamic', () => {
     test('text', async () => {
@@ -754,10 +758,10 @@ describe('Builder List', () => {
         })),
       ).build({} as any)
       const validator = value.validator
-      validator.unsafeCast(['test', 'text'])
-      expect(() => validator.unsafeCast([3, 4])).toThrowError()
-      expect(() => validator.unsafeCast(null)).toThrowError()
-      testOutput<typeof validator._TYPE, string[]>()(null)
+      validator.parse(['test', 'text'])
+      expect(() => validator.parse([3, 4])).toThrowError()
+      expect(() => validator.parse(null)).toThrowError()
+      testOutput<typeof validator._output, string[]>()(null)
       expect(value.spec).toMatchObject({
         name: 'test',
         spec: { patterns: [] },
@@ -778,10 +782,10 @@ describe('Nested nullable values', () => {
       }),
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast({ a: null })
-    validator.unsafeCast({ a: 'test' })
-    expect(() => validator.unsafeCast({ a: 4 })).toThrowError()
-    testOutput<typeof validator._TYPE, { a: string | null }>()(null)
+    validator.parse({ a: null })
+    validator.parse({ a: 'test' })
+    expect(() => validator.parse({ a: 4 })).toThrowError()
+    testOutput<typeof validator._output, { a: string | null }>()(null)
   })
   test('Testing number', async () => {
     const value = await InputSpec.of({
@@ -801,10 +805,10 @@ describe('Nested nullable values', () => {
       }),
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast({ a: null })
-    validator.unsafeCast({ a: 5 })
-    expect(() => validator.unsafeCast({ a: '4' })).toThrowError()
-    testOutput<typeof validator._TYPE, { a: number | null }>()(null)
+    validator.parse({ a: null })
+    validator.parse({ a: 5 })
+    expect(() => validator.parse({ a: '4' })).toThrowError()
+    testOutput<typeof validator._output, { a: number | null }>()(null)
   })
   test('Testing color', async () => {
     const value = await InputSpec.of({
@@ -818,10 +822,10 @@ describe('Nested nullable values', () => {
       }),
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast({ a: null })
-    validator.unsafeCast({ a: '5' })
-    expect(() => validator.unsafeCast({ a: 4 })).toThrowError()
-    testOutput<typeof validator._TYPE, { a: string | null }>()(null)
+    validator.parse({ a: null })
+    validator.parse({ a: '5' })
+    expect(() => validator.parse({ a: 4 })).toThrowError()
+    testOutput<typeof validator._output, { a: string | null }>()(null)
   })
   test('Testing select', async () => {
     const value = await InputSpec.of({
@@ -848,9 +852,9 @@ describe('Nested nullable values', () => {
     }).build({} as any)
 
     const validator = value.validator
-    validator.unsafeCast({ a: 'a' })
-    expect(() => validator.unsafeCast({ a: '4' })).toThrowError()
-    testOutput<typeof validator._TYPE, { a: 'a' }>()(null)
+    validator.parse({ a: 'a' })
+    expect(() => validator.parse({ a: '4' })).toThrowError()
+    testOutput<typeof validator._output, { a: 'a' }>()(null)
   })
   test('Testing multiselect', async () => {
     const value = await InputSpec.of({
@@ -869,10 +873,10 @@ describe('Nested nullable values', () => {
       }),
     }).build({} as any)
     const validator = value.validator
-    validator.unsafeCast({ a: [] })
-    validator.unsafeCast({ a: ['a'] })
-    expect(() => validator.unsafeCast({ a: ['4'] })).toThrowError()
-    expect(() => validator.unsafeCast({ a: '4' })).toThrowError()
-    testOutput<typeof validator._TYPE, { a: 'a'[] }>()(null)
+    validator.parse({ a: [] })
+    validator.parse({ a: ['a'] })
+    expect(() => validator.parse({ a: ['4'] })).toThrowError()
+    expect(() => validator.parse({ a: '4' })).toThrowError()
+    testOutput<typeof validator._output, { a: 'a'[] }>()(null)
   })
 })

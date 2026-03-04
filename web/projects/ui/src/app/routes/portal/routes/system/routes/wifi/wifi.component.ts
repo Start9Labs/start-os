@@ -54,7 +54,7 @@ import { wifiSpec } from './wifi.const'
             tuiIconButton
             size="xs"
             docsLink
-            path="/user-manual/wifi.html"
+            path="/start-os/user-manual/wifi.html"
             appearance="icon"
             iconStart="@tui.external-link"
           >
@@ -148,7 +148,7 @@ export default class SystemWifiComponent {
       .subscribe()
 
     try {
-      await this.api.enableWifi({ enable })
+      await this.api.enableWifi({ enabled: enable })
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -187,9 +187,8 @@ export default class SystemWifiComponent {
         await this.api.addWifi({
           ssid,
           password,
-          priority: 0,
-          connect: true,
         })
+        await this.api.connectWifi({ ssid })
       } else {
         await this.api.connectWifi({ ssid })
       }
@@ -263,8 +262,6 @@ export default class SystemWifiComponent {
       await this.api.addWifi({
         ssid,
         password,
-        priority: 0,
-        connect: false,
       })
       wifi.known = wifi.known.concat({
         ssid,

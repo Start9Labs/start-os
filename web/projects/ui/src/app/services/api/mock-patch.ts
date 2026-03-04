@@ -38,8 +38,88 @@ export const mockPatchData: DataModel = {
             net: {
               assignedPort: null,
               assignedSslPort: 443,
-              publicEnabled: [],
-              privateDisabled: [],
+            },
+            addresses: {
+              enabled: [],
+              disabled: [],
+              available: [
+                {
+                  ssl: true,
+                  public: false,
+                  hostname: 'adjective-noun.local',
+                  port: 443,
+                  metadata: {
+                    kind: 'mdns',
+                    gateways: ['eth0', 'wlan0'],
+                  },
+                },
+                {
+                  ssl: false,
+                  public: false,
+                  hostname: '10.0.0.1',
+                  port: 80,
+                  metadata: { kind: 'ipv4', gateway: 'eth0' },
+                },
+                {
+                  ssl: false,
+                  public: false,
+                  hostname: '10.0.0.2',
+                  port: 80,
+                  metadata: { kind: 'ipv4', gateway: 'wlan0' },
+                },
+                {
+                  ssl: false,
+                  public: false,
+                  hostname: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
+                  port: 80,
+                  metadata: { kind: 'ipv6', gateway: 'eth0', scopeId: 2 },
+                },
+                {
+                  ssl: false,
+                  public: false,
+                  hostname: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
+                  port: 80,
+                  metadata: { kind: 'ipv6', gateway: 'wlan0', scopeId: 3 },
+                },
+                {
+                  ssl: true,
+                  public: false,
+                  hostname: 'my-server.home',
+                  port: 443,
+                  metadata: {
+                    kind: 'private-domain',
+                    gateways: ['eth0'],
+                  },
+                },
+                {
+                  ssl: false,
+                  public: false,
+                  hostname:
+                    'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
+                  port: 80,
+                  metadata: {
+                    kind: 'plugin',
+                    packageId: 'tor',
+                    removeAction: 'delete-onion-service',
+                    overflowActions: ['regenerate-key'],
+                    info: null,
+                  },
+                },
+                {
+                  ssl: true,
+                  public: false,
+                  hostname:
+                    'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
+                  port: 443,
+                  metadata: {
+                    kind: 'plugin',
+                    packageId: 'tor',
+                    removeAction: 'delete-onion-service',
+                    overflowActions: ['regenerate-key'],
+                    info: null,
+                  },
+                },
+              ],
             },
             options: {
               preferredExternalPort: 80,
@@ -53,94 +133,22 @@ export const mockPatchData: DataModel = {
           },
         },
         publicDomains: {},
-        privateDomains: [],
-        onions: ['myveryownspecialtoraddress'],
-        hostnameInfo: {
-          80: [
-            {
-              kind: 'ip',
-              gateway: { id: 'eth0', name: 'Ethernet', public: false },
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'eth0', name: 'Ethernet', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '10.0.0.1',
-                port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '10.0.0.2',
-                port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'eth0', name: 'Ethernet', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
-                scopeId: 2,
-                port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
-                scopeId: 3,
-                port: null,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'onion',
-              hostname: {
-                value: 'myveryownspecialtoraddress.onion',
-                port: 80,
-                sslPort: 443,
-              },
-            },
-          ],
+        privateDomains: {
+          'my-server.home': ['eth0'],
         },
+        portForwards: [
+          {
+            src: '203.0.113.45:443',
+            dst: '10.0.0.1:443',
+            gateway: 'eth0',
+          },
+        ],
       },
       gateways: {
         eth0: {
           name: null,
-          public: null,
           secure: null,
+          type: null,
           ipInfo: {
             name: 'Wired Connection 1',
             scopeId: 1,
@@ -154,8 +162,8 @@ export const mockPatchData: DataModel = {
         },
         wlan0: {
           name: null,
-          public: null,
           secure: null,
+          type: null,
           ipInfo: {
             name: 'Wireless Connection 1',
             scopeId: 2,
@@ -172,8 +180,8 @@ export const mockPatchData: DataModel = {
         },
         wireguard1: {
           name: 'StartTunnel',
-          public: null,
           secure: null,
+          type: 'inbound-outbound',
           ipInfo: {
             name: 'wireguard1',
             scopeId: 2,
@@ -188,7 +196,23 @@ export const mockPatchData: DataModel = {
             dnsServers: ['1.1.1.1'],
           },
         },
+        wireguard2: {
+          name: 'Mullvad VPN',
+          secure: null,
+          type: 'outbound-only',
+          ipInfo: {
+            name: 'wireguard2',
+            scopeId: 4,
+            deviceType: 'wireguard',
+            subnets: [],
+            wanIp: '198.51.100.77',
+            ntpServers: [],
+            lanIp: [],
+            dnsServers: ['10.64.0.1'],
+          },
+        },
       },
+      defaultOutbound: 'eth0',
       dns: {
         dhcpServers: ['1.1.1.1', '8.8.8.8'],
         staticServers: null,
@@ -208,11 +232,13 @@ export const mockPatchData: DataModel = {
       shuttingDown: false,
       backupProgress: null,
     },
+    name: 'Random Words',
     hostname: 'random-words',
     pubkey: 'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m',
     caFingerprint: '63:2B:11:99:44:40:17:DF:37:FC:C3:DF:0F:3D:15',
     ntpSynced: false,
     smtp: null,
+    ifconfigUrl: 'https://ifconfig.co',
     platform: 'x86_64-nonfree',
     zram: true,
     governor: 'performance',
@@ -335,8 +361,10 @@ export const mockPatchData: DataModel = {
       },
       hosts: {},
       storeExposedDependents: [],
+      outboundGateway: null,
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
+      plugin: { url: null },
       tasks: {
         config: {
           active: true,
@@ -472,13 +500,13 @@ export const mockPatchData: DataModel = {
         },
         rpc: {
           id: 'rpc',
-          masked: false,
+          masked: true,
           name: 'RPC',
           description:
             'Used by dependent services and client wallets for connecting to your node',
           type: 'api',
           addressInfo: {
-            username: null,
+            username: 'rpcuser',
             hostId: 'bcdefgh',
             internalPort: 8332,
             scheme: 'http',
@@ -510,154 +538,210 @@ export const mockPatchData: DataModel = {
             80: {
               enabled: true,
               net: {
-                assignedPort: 80,
-                assignedSslPort: 443,
-                publicEnabled: [],
-                privateDisabled: [],
+                assignedPort: 42080,
+                assignedSslPort: 42443,
+              },
+              addresses: {
+                enabled: ['203.0.113.45:42443'],
+                disabled: [],
+                available: [
+                  {
+                    ssl: true,
+                    public: false,
+                    hostname: 'adjective-noun.local',
+                    port: 42443,
+                    metadata: {
+                      kind: 'mdns',
+                      gateways: ['eth0'],
+                    },
+                  },
+                  {
+                    ssl: false,
+                    public: false,
+                    hostname: '10.0.0.1',
+                    port: 42080,
+                    metadata: { kind: 'ipv4', gateway: 'eth0' },
+                  },
+                  {
+                    ssl: false,
+                    public: false,
+                    hostname: 'fe80::cd00:0cde:1257:211e:72cd',
+                    port: 42080,
+                    metadata: { kind: 'ipv6', gateway: 'eth0', scopeId: 2 },
+                  },
+                  {
+                    ssl: true,
+                    public: true,
+                    hostname: '203.0.113.45',
+                    port: 42443,
+                    metadata: { kind: 'ipv4', gateway: 'eth0' },
+                  },
+                  {
+                    ssl: true,
+                    public: true,
+                    hostname: 'bitcoin.example.com',
+                    port: 42443,
+                    metadata: { kind: 'public-domain', gateway: 'eth0' },
+                  },
+                  {
+                    ssl: false,
+                    public: false,
+                    hostname: '192.168.10.11',
+                    port: 42080,
+                    metadata: { kind: 'ipv4', gateway: 'wlan0' },
+                  },
+                  {
+                    ssl: false,
+                    public: false,
+                    hostname: 'fe80::cd00:0cde:1257:211e:1234',
+                    port: 42080,
+                    metadata: { kind: 'ipv6', gateway: 'wlan0', scopeId: 3 },
+                  },
+                  {
+                    ssl: true,
+                    public: false,
+                    hostname: 'my-bitcoin.home',
+                    port: 42443,
+                    metadata: {
+                      kind: 'private-domain',
+                      gateways: ['wlan0'],
+                    },
+                  },
+                  {
+                    ssl: false,
+                    public: false,
+                    hostname:
+                      'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
+                    port: 42080,
+                    metadata: {
+                      kind: 'plugin',
+                      packageId: 'tor',
+                      removeAction: 'delete-onion-service',
+                      overflowActions: ['regenerate-key'],
+                      info: null,
+                    },
+                  },
+                  {
+                    ssl: true,
+                    public: false,
+                    hostname:
+                      'xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234.onion',
+                    port: 42443,
+                    metadata: {
+                      kind: 'plugin',
+                      packageId: 'tor',
+                      removeAction: 'delete-onion-service',
+                      overflowActions: ['regenerate-key'],
+                      info: null,
+                    },
+                  },
+                ],
               },
               options: {
-                addSsl: null,
-                preferredExternalPort: 443,
-                secure: { ssl: true },
+                preferredExternalPort: 42443,
+                addSsl: {
+                  preferredExternalPort: 42443,
+                  alpn: { specified: ['http/1.1', 'h2'] },
+                  addXForwardedHeaders: false,
+                },
+                secure: null,
               },
             },
           },
-          publicDomains: {},
-          privateDomains: [],
-          onions: [],
-          hostnameInfo: {
-            80: [
-              {
-                kind: 'ip',
-                gateway: { id: 'eth0', name: 'Ethernet', public: false },
-                public: false,
-                hostname: {
-                  kind: 'local',
-                  value: 'adjective-noun.local',
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'ip',
-                gateway: { id: 'wlan0', name: 'Wireless', public: false },
-                public: false,
-                hostname: {
-                  kind: 'local',
-                  value: 'adjective-noun.local',
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'ip',
-                gateway: { id: 'eth0', name: 'Ethernet', public: false },
-                public: false,
-                hostname: {
-                  kind: 'ipv4',
-                  value: '10.0.0.1',
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'ip',
-                gateway: { id: 'wlan0', name: 'Wireless', public: false },
-                public: false,
-                hostname: {
-                  kind: 'ipv4',
-                  value: '10.0.0.2',
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'ip',
-                gateway: { id: 'eth0', name: 'Ethernet', public: false },
-                public: false,
-                hostname: {
-                  kind: 'ipv6',
-                  value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
-                  scopeId: 2,
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'ip',
-                gateway: { id: 'wlan0', name: 'Wireless', public: false },
-                public: false,
-                hostname: {
-                  kind: 'ipv6',
-                  value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
-                  scopeId: 3,
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'onion',
-                hostname: {
-                  value: 'bitcoin-p2p.onion',
-                  port: 80,
-                  sslPort: 443,
-                },
-              },
-            ],
+          publicDomains: {
+            'bitcoin.example.com': {
+              gateway: 'eth0',
+              acme: null,
+            },
           },
+          privateDomains: {
+            'my-bitcoin.home': ['wlan0'],
+          },
+          portForwards: [
+            {
+              src: '203.0.113.45:443',
+              dst: '10.0.0.1:443',
+              gateway: 'eth0',
+            },
+            {
+              src: '203.0.113.45:42443',
+              dst: '10.0.0.1:42443',
+              gateway: 'eth0',
+            },
+          ],
         },
         bcdefgh: {
           bindings: {
             8332: {
               enabled: true,
               net: {
-                assignedPort: 8332,
+                assignedPort: 48332,
                 assignedSslPort: null,
-                publicEnabled: [],
-                privateDisabled: [],
+              },
+              addresses: {
+                enabled: [],
+                disabled: [],
+                available: [
+                  {
+                    ssl: false,
+                    public: false,
+                    hostname: 'adjective-noun.local',
+                    port: 48332,
+                    metadata: {
+                      kind: 'mdns',
+                      gateways: ['eth0'],
+                    },
+                  },
+                  {
+                    ssl: false,
+                    public: false,
+                    hostname: '10.0.0.1',
+                    port: 48332,
+                    metadata: { kind: 'ipv4', gateway: 'eth0' },
+                  },
+                ],
               },
               options: {
                 addSsl: null,
-                preferredExternalPort: 8332,
+                preferredExternalPort: 48332,
                 secure: { ssl: false },
               },
             },
           },
           publicDomains: {},
-          privateDomains: [],
-          onions: [],
-          hostnameInfo: {
-            8332: [],
-          },
+          privateDomains: {},
+          portForwards: [],
         },
         cdefghi: {
           bindings: {
             8333: {
               enabled: true,
               net: {
-                assignedPort: 8333,
+                assignedPort: 48333,
                 assignedSslPort: null,
-                publicEnabled: [],
-                privateDisabled: [],
+              },
+              addresses: {
+                enabled: [],
+                disabled: [],
+                available: [],
               },
               options: {
                 addSsl: null,
-                preferredExternalPort: 8333,
+                preferredExternalPort: 48333,
                 secure: { ssl: false },
               },
             },
           },
           publicDomains: {},
-          privateDomains: [],
-          onions: [],
-          hostnameInfo: {
-            8333: [],
-          },
+          privateDomains: {},
+          portForwards: [],
         },
       },
       storeExposedDependents: [],
+      outboundGateway: null,
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
+      plugin: { url: null },
       tasks: {
         // 'bitcoind-config': {
         //   task: {
@@ -679,6 +763,63 @@ export const mockPatchData: DataModel = {
           active: true,
         },
       },
+    },
+    tor: {
+      stateInfo: {
+        state: 'installed',
+        manifest: {
+          ...Mock.MockManifestTor,
+          version: '0.4.8:0',
+        },
+      },
+      s9pk: '/media/startos/data/package-data/archive/installed/tor.s9pk',
+      icon: '/assets/img/service-icons/fallback.png',
+      lastBackup: null,
+      statusInfo: {
+        desired: { main: 'running' },
+        error: null,
+        health: {},
+        started: new Date().toISOString(),
+      },
+      actions: {
+        'create-onion-service': {
+          name: 'Create Onion Service',
+          description: 'Register a new .onion address for a service interface',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'only-running',
+          hasInput: true,
+          group: null,
+        },
+        'delete-onion-service': {
+          name: 'Delete Onion Service',
+          description: 'Remove an existing .onion address',
+          warning: 'This will permanently remove the .onion address.',
+          visibility: 'enabled',
+          allowedStatuses: 'only-running',
+          hasInput: false,
+          group: null,
+        },
+        'regenerate-key': {
+          name: 'Regenerate Key',
+          description: 'Generate a new key pair and .onion address',
+          warning:
+            'This will change the .onion address. Any bookmarks or links to the old address will stop working.',
+          visibility: 'enabled',
+          allowedStatuses: 'only-running',
+          hasInput: false,
+          group: null,
+        },
+      },
+      serviceInterfaces: {},
+      currentDependencies: {},
+      hosts: {},
+      storeExposedDependents: [],
+      outboundGateway: null,
+      registry: 'https://registry.start9.com/',
+      developerKey: 'developer-key',
+      plugin: { url: { tableAction: 'create-onion-service' } },
+      tasks: {},
     },
   },
 }

@@ -7,18 +7,39 @@ import {
   ValueSpecList,
   ValueSpecListOf,
 } from '../inputSpecTypes'
-import { Parser, arrayOf, string } from 'ts-matches'
+import { z } from 'zod'
 
-export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
+/**
+ * Builder class for defining list-type form fields.
+ *
+ * A list presents an interface to add, remove, and reorder items. Items can be
+ * either text strings ({@link List.text}) or structured objects ({@link List.obj}).
+ *
+ * Used with {@link Value.list} to include a list field in an {@link InputSpec}.
+ */
+export class List<
+  Type extends StaticValidatedAs,
+  StaticValidatedAs = Type,
+  OuterType = unknown,
+> {
   private constructor(
-    public build: LazyBuild<{
-      spec: ValueSpecList
-      validator: Parser<unknown, Type>
-    }>,
-    public readonly validator: Parser<unknown, StaticValidatedAs>,
+    public build: LazyBuild<
+      {
+        spec: ValueSpecList
+        validator: z.ZodType<Type>
+      },
+      OuterType
+    >,
+    public readonly validator: z.ZodType<StaticValidatedAs>,
   ) {}
   readonly _TYPE: Type = null as any
 
+  /**
+   * Creates a list of text input items.
+   *
+   * @param a - List-level options (name, description, min/max length, defaults)
+   * @param aSpec - Item-level options (patterns, input mode, masking, generation)
+   */
   static text(
     a: {
       name: string
@@ -62,7 +83,7 @@ export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       generate?: null | RandomString
     },
   ) {
-    const validator = arrayOf(string)
+    const validator = z.array(z.string())
     return new List<string[]>(() => {
       const spec = {
         type: 'text' as const,
@@ -90,28 +111,32 @@ export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     }, validator)
   }
 
-  static dynamicText(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      default?: string[]
-      minLength?: number | null
-      maxLength?: number | null
-      disabled?: false | string
-      generate?: null | RandomString
-      spec: {
-        masked?: boolean
-        placeholder?: string | null
+  /** Like {@link List.text} but options are resolved lazily at runtime via a builder function. */
+  static dynamicText<OuterType = unknown>(
+    getA: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        default?: string[]
         minLength?: number | null
         maxLength?: number | null
-        patterns?: Pattern[]
-        inputmode?: ListValueSpecText['inputmode']
-      }
-    }>,
+        disabled?: false | string
+        generate?: null | RandomString
+        spec: {
+          masked?: boolean
+          placeholder?: string | null
+          minLength?: number | null
+          maxLength?: number | null
+          patterns?: Pattern[]
+          inputmode?: ListValueSpecText['inputmode']
+        }
+      },
+      OuterType
+    >,
   ) {
-    const validator = arrayOf(string)
-    return new List<string[]>(async (options) => {
+    const validator = z.array(z.string())
+    return new List<string[], string[], OuterType>(async (options) => {
       const { spec: aSpec, ...a } = await getA(options)
       const spec = {
         type: 'text' as const,
@@ -140,6 +165,12 @@ export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     }, validator)
   }
 
+  /**
+   * Creates a list of structured object items, each defined by a nested {@link InputSpec}.
+   *
+   * @param a - List-level options (name, description, min/max length)
+   * @param aSpec - Item-level options (the nested spec, display expression, uniqueness constraint)
+   */
   static obj<
     Type extends StaticValidatedAs,
     StaticValidatedAs extends Record<string, any>,
@@ -183,8 +214,8 @@ export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
           disabled: false,
           ...value,
         },
-        validator: arrayOf(built.validator),
+        validator: z.array(built.validator),
       }
-    }, arrayOf(aSpec.spec.validator))
+    }, z.array(aSpec.spec.validator))
   }
 }

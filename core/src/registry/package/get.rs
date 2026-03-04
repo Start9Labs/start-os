@@ -579,14 +579,12 @@ fn check_matching_info_short() {
     use crate::s9pk::manifest::{Alerts, Description};
     use crate::util::DataUrl;
 
-    let lang_map = |s: &str| {
-        LocaleString::LanguageMap([("en".into(), s.into())].into_iter().collect())
-    };
+    let lang_map =
+        |s: &str| LocaleString::LanguageMap([("en".into(), s.into())].into_iter().collect());
 
     let info = PackageVersionInfo {
         metadata: PackageMetadata {
             title: "Test Package".into(),
-            icon: DataUrl::from_vec("image/png", vec![]),
             description: Description {
                 short: lang_map("A short description"),
                 long: lang_map("A longer description of the test package"),
@@ -594,18 +592,19 @@ fn check_matching_info_short() {
             release_notes: lang_map("Initial release"),
             git_hash: None,
             license: "MIT".into(),
-            wrapper_repo: "https://github.com/example/wrapper".parse().unwrap(),
+            package_repo: "https://github.com/example/wrapper".parse().unwrap(),
             upstream_repo: "https://github.com/example/upstream".parse().unwrap(),
-            support_site: "https://example.com/support".parse().unwrap(),
-            marketing_site: "https://example.com".parse().unwrap(),
+            marketing_url: Some("https://example.com".parse().unwrap()),
             donation_url: None,
-            docs_url: None,
+            docs_urls: Vec::new(),
             alerts: Alerts::default(),
-            dependency_metadata: BTreeMap::new(),
             os_version: exver::Version::new([0, 3, 6], []),
             sdk_version: None,
             hardware_acceleration: false,
+            plugins: BTreeSet::new(),
         },
+        icon: DataUrl::from_vec("image/png", vec![]),
+        dependency_metadata: BTreeMap::new(),
         source_version: None,
         s9pks: Vec::new(),
     };

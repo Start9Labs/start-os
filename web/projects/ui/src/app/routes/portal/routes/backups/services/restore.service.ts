@@ -22,7 +22,7 @@ import {
   PROMPT,
   PromptOptions,
 } from 'src/app/routes/portal/modals/prompt.component'
-import { BackupTarget } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { RECOVER } from '../modals/recover.component'
 import { SERVERS } from '../modals/servers.component'
@@ -41,7 +41,7 @@ export class BackupsRestoreService {
 
   readonly handle = () => {
     this.dialogs
-      .open<BackupTarget & { id: string }>(TARGET, TARGET_RESTORE)
+      .open<T.BackupTarget & { id: string }>(TARGET, TARGET_RESTORE)
       .pipe(
         switchMap(target =>
           this.dialogs

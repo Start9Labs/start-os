@@ -1,19 +1,4 @@
-import { IST } from "@start9labs/start-sdk"
-import {
-  dictionary,
-  object,
-  anyOf,
-  string,
-  literals,
-  array,
-  number,
-  boolean,
-  Parser,
-  deferred,
-  every,
-  nill,
-  literal,
-} from "ts-matches"
+import { IST, z } from "@start9labs/start-sdk"
 
 export function transformConfigSpec(oldSpec: OldConfigSpec): IST.InputSpec {
   return Object.entries(oldSpec).reduce((inputSpec, [key, oldVal]) => {
@@ -82,7 +67,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): IST.InputSpec {
         name: oldVal.name,
         description: oldVal.description || null,
         warning: oldVal.warning || null,
-        spec: transformConfigSpec(matchOldConfigSpec.unsafeCast(oldVal.spec)),
+        spec: transformConfigSpec(matchOldConfigSpec.parse(oldVal.spec)),
       }
     } else if (oldVal.type === "string") {
       newVal = {
@@ -121,7 +106,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): IST.InputSpec {
             ...obj,
             [id]: {
               name: oldVal.tag["variant-names"][id] || id,
-              spec: transformConfigSpec(matchOldConfigSpec.unsafeCast(spec)),
+              spec: transformConfigSpec(matchOldConfigSpec.parse(spec)),
             },
           }),
           {} as Record<string, { name: string; spec: IST.InputSpec }>,
@@ -153,7 +138,7 @@ export function transformOldConfigToNew(
 
     if (isObject(val)) {
       newVal = transformOldConfigToNew(
-        matchOldConfigSpec.unsafeCast(val.spec),
+        matchOldConfigSpec.parse(val.spec),
         config[key],
       )
     }
@@ -172,7 +157,7 @@ export function transformOldConfigToNew(
       newVal = {
         selection,
         value: transformOldConfigToNew(
-          matchOldConfigSpec.unsafeCast(val.variants[selection]),
+          matchOldConfigSpec.parse(val.variants[selection]),
           config[key],
         ),
       }
@@ -183,10 +168,7 @@ export function transformOldConfigToNew(
 
       if (isObjectList(val)) {
         newVal = (config[key] as object[]).map((obj) =>
-          transformOldConfigToNew(
-            matchOldConfigSpec.unsafeCast(val.spec.spec),
-            obj,
-          ),
+          transformOldConfigToNew(matchOldConfigSpec.parse(val.spec.spec), obj),
         )
       } else if (isUnionList(val)) return obj
     }
@@ -212,7 +194,7 @@ export function transformNewConfigToOld(
 
     if (isObject(val)) {
       newVal = transformNewConfigToOld(
-        matchOldConfigSpec.unsafeCast(val.spec),
+        matchOldConfigSpec.parse(val.spec),
         config[key],
       )
     }
@@ -221,7 +203,7 @@ export function transformNewConfigToOld(
       newVal = {
         [val.tag.id]: config[key].selection,
         ...transformNewConfigToOld(
-          matchOldConfigSpec.unsafeCast(val.variants[config[key].selection]),
+          matchOldConfigSpec.parse(val.variants[config[key].selection]),
           config[key].value,
         ),
       }
@@ -230,10 +212,7 @@ export function transformNewConfigToOld(
     if (isList(val)) {
       if (isObjectList(val)) {
         newVal = (config[key] as object[]).map((obj) =>
-          transformNewConfigToOld(
-            matchOldConfigSpec.unsafeCast(val.spec.spec),
-            obj,
-          ),
+          transformNewConfigToOld(matchOldConfigSpec.parse(val.spec.spec), obj),
         )
       } else if (isUnionList(val)) return obj
     }
@@ -337,9 +316,7 @@ function getListSpec(
       default: oldVal.default as Record<string, unknown>[],
       spec: {
         type: "object",
-        spec: transformConfigSpec(
-          matchOldConfigSpec.unsafeCast(oldVal.spec.spec),
-        ),
+        spec: transformConfigSpec(matchOldConfigSpec.parse(oldVal.spec.spec)),
         uniqueBy: oldVal.spec["unique-by"] || null,
         displayAs: oldVal.spec["display-as"] || null,
       },
@@ -393,211 +370,281 @@ function isUnionList(
 }
 
 export type OldConfigSpec = Record<string, OldValueSpec>
-const [_matchOldConfigSpec, setMatchOldConfigSpec] = deferred<unknown>()
-export const matchOldConfigSpec = _matchOldConfigSpec as Parser<
-  unknown,
-  OldConfigSpec
->
-export const matchOldDefaultString = anyOf(
-  string,
-  object({ charset: string, len: number }),
+export const matchOldConfigSpec: z.ZodType<OldConfigSpec> = z.lazy(() =>
+  z.record(z.string(), matchOldValueSpec),
 )
-type OldDefaultString = typeof matchOldDefaultString._TYPE
+export const matchOldDefaultString = z.union([
+  z.string(),
+  z.object({ charset: z.string(), len: z.number() }),
+])
+type OldDefaultString = z.infer<typeof matchOldDefaultString>
 
-export const matchOldValueSpecString = object({
-  type: literals("string"),
-  name: string,
-  masked: boolean.nullable().optional(),
-  copyable: boolean.nullable().optional(),
-  nullable: boolean.nullable().optional(),
-  placeholder: string.nullable().optional(),
-  pattern: string.nullable().optional(),
-  "pattern-description": string.nullable().optional(),
+export const matchOldValueSpecString = z.object({
+  type: z.enum(["string"]),
+  name: z.string(),
+  masked: z.boolean().nullable().optional(),
+  copyable: z.boolean().nullable().optional(),
+  nullable: z.boolean().nullable().optional(),
+  placeholder: z.string().nullable().optional(),
+  pattern: z.string().nullable().optional(),
+  "pattern-description": z.string().nullable().optional(),
   default: matchOldDefaultString.nullable().optional(),
-  textarea: boolean.nullable().optional(),
-  description: string.nullable().optional(),
-  warning: string.nullable().optional(),
+  textarea: z.boolean().nullable().optional(),
+  description: z.string().nullable().optional(),
+  warning: z.string().nullable().optional(),
 })
 
-export const matchOldValueSpecNumber = object({
-  type: literals("number"),
-  nullable: boolean,
-  name: string,
-  range: string,
-  integral: boolean,
-  default: number.nullable().optional(),
-  description: string.nullable().optional(),
-  warning: string.nullable().optional(),
-  units: string.nullable().optional(),
-  placeholder: anyOf(number, string).nullable().optional(),
+export const matchOldValueSpecNumber = z.object({
+  type: z.enum(["number"]),
+  nullable: z.boolean(),
+  name: z.string(),
+  range: z.string(),
+  integral: z.boolean(),
+  default: z.number().nullable().optional(),
+  description: z.string().nullable().optional(),
+  warning: z.string().nullable().optional(),
+  units: z.string().nullable().optional(),
+  placeholder: z.union([z.number(), z.string()]).nullable().optional(),
 })
-type OldValueSpecNumber = typeof matchOldValueSpecNumber._TYPE
+type OldValueSpecNumber = z.infer<typeof matchOldValueSpecNumber>
 
-export const matchOldValueSpecBoolean = object({
-  type: literals("boolean"),
-  default: boolean,
-  name: string,
-  description: string.nullable().optional(),
-  warning: string.nullable().optional(),
+export const matchOldValueSpecBoolean = z.object({
+  type: z.enum(["boolean"]),
+  default: z.boolean(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  warning: z.string().nullable().optional(),
 })
-type OldValueSpecBoolean = typeof matchOldValueSpecBoolean._TYPE
+type OldValueSpecBoolean = z.infer<typeof matchOldValueSpecBoolean>
 
-const matchOldValueSpecObject = object({
-  type: literals("object"),
-  spec: _matchOldConfigSpec,
-  name: string,
-  description: string.nullable().optional(),
-  warning: string.nullable().optional(),
+type OldValueSpecObject = {
+  type: "object"
+  spec: OldConfigSpec
+  name: string
+  description?: string | null
+  warning?: string | null
+}
+const matchOldValueSpecObject: z.ZodType<OldValueSpecObject> = z.object({
+  type: z.enum(["object"]),
+  spec: z.lazy(() => matchOldConfigSpec),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  warning: z.string().nullable().optional(),
 })
-type OldValueSpecObject = typeof matchOldValueSpecObject._TYPE
 
-const matchOldValueSpecEnum = object({
-  values: array(string),
-  "value-names": dictionary([string, string]),
-  type: literals("enum"),
-  default: string,
-  name: string,
-  description: string.nullable().optional(),
-  warning: string.nullable().optional(),
+const matchOldValueSpecEnum = z.object({
+  values: z.array(z.string()),
+  "value-names": z.record(z.string(), z.string()),
+  type: z.enum(["enum"]),
+  default: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  warning: z.string().nullable().optional(),
 })
-type OldValueSpecEnum = typeof matchOldValueSpecEnum._TYPE
+type OldValueSpecEnum = z.infer<typeof matchOldValueSpecEnum>
 
-const matchOldUnionTagSpec = object({
-  id: string, // The name of the field containing one of the union variants
-  "variant-names": dictionary([string, string]), // The name of each variant
-  name: string,
-  description: string.nullable().optional(),
-  warning: string.nullable().optional(),
+const matchOldUnionTagSpec = z.object({
+  id: z.string(), // The name of the field containing one of the union variants
+  "variant-names": z.record(z.string(), z.string()), // The name of each variant
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  warning: z.string().nullable().optional(),
 })
-const matchOldValueSpecUnion = object({
-  type: literals("union"),
+type OldValueSpecUnion = {
+  type: "union"
+  tag: z.infer<typeof matchOldUnionTagSpec>
+  variants: Record<string, OldConfigSpec>
+  default: string
+}
+const matchOldValueSpecUnion: z.ZodType<OldValueSpecUnion> = z.object({
+  type: z.enum(["union"]),
   tag: matchOldUnionTagSpec,
-  variants: dictionary([string, _matchOldConfigSpec]),
-  default: string,
+  variants: z.record(
+    z.string(),
+    z.lazy(() => matchOldConfigSpec),
+  ),
+  default: z.string(),
 })
-type OldValueSpecUnion = typeof matchOldValueSpecUnion._TYPE
 
-const [matchOldUniqueBy, setOldUniqueBy] = deferred<OldUniqueBy>()
 type OldUniqueBy =
   | null
   | string
   | { any: OldUniqueBy[] }
   | { all: OldUniqueBy[] }
 
-setOldUniqueBy(
-  anyOf(
-    nill,
-    string,
-    object({ any: array(matchOldUniqueBy) }),
-    object({ all: array(matchOldUniqueBy) }),
-  ),
+const matchOldUniqueBy: z.ZodType<OldUniqueBy> = z.lazy(() =>
+  z.union([
+    z.null(),
+    z.string(),
+    z.object({ any: z.array(matchOldUniqueBy) }),
+    z.object({ all: z.array(matchOldUniqueBy) }),
+  ]),
 )
 
-const matchOldListValueSpecObject = object({
-  spec: _matchOldConfigSpec, // this is a mapped type of the config object at this level, replacing the object's values with specs on those values
-  "unique-by": matchOldUniqueBy.nullable().optional(), // indicates whether duplicates can be permitted in the list
-  "display-as": string.nullable().optional(), // this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
-})
-const matchOldListValueSpecUnion = object({
+type OldListValueSpecObject = {
+  spec: OldConfigSpec
+  "unique-by"?: OldUniqueBy | null
+  "display-as"?: string | null
+}
+const matchOldListValueSpecObject: z.ZodType<OldListValueSpecObject> = z.object(
+  {
+    spec: z.lazy(() => matchOldConfigSpec), // this is a mapped type of the config object at this level, replacing the object's values with specs on those values
+    "unique-by": matchOldUniqueBy.nullable().optional(), // indicates whether duplicates can be permitted in the list
+    "display-as": z.string().nullable().optional(), // this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
+  },
+)
+type OldListValueSpecUnion = {
+  "unique-by"?: OldUniqueBy | null
+  "display-as"?: string | null
+  tag: z.infer<typeof matchOldUnionTagSpec>
+  variants: Record<string, OldConfigSpec>
+}
+const matchOldListValueSpecUnion: z.ZodType<OldListValueSpecUnion> = z.object({
   "unique-by": matchOldUniqueBy.nullable().optional(),
-  "display-as": string.nullable().optional(),
+  "display-as": z.string().nullable().optional(),
   tag: matchOldUnionTagSpec,
-  variants: dictionary([string, _matchOldConfigSpec]),
+  variants: z.record(
+    z.string(),
+    z.lazy(() => matchOldConfigSpec),
+  ),
 })
-const matchOldListValueSpecString = object({
-  masked: boolean.nullable().optional(),
-  copyable: boolean.nullable().optional(),
-  pattern: string.nullable().optional(),
-  "pattern-description": string.nullable().optional(),
-  placeholder: string.nullable().optional(),
+const matchOldListValueSpecString = z.object({
+  masked: z.boolean().nullable().optional(),
+  copyable: z.boolean().nullable().optional(),
+  pattern: z.string().nullable().optional(),
+  "pattern-description": z.string().nullable().optional(),
+  placeholder: z.string().nullable().optional(),
 })
 
-const matchOldListValueSpecEnum = object({
-  values: array(string),
-  "value-names": dictionary([string, string]),
+const matchOldListValueSpecEnum = z.object({
+  values: z.array(z.string()),
+  "value-names": z.record(z.string(), z.string()),
 })
-const matchOldListValueSpecNumber = object({
-  range: string,
-  integral: boolean,
-  units: string.nullable().optional(),
-  placeholder: anyOf(number, string).nullable().optional(),
+const matchOldListValueSpecNumber = z.object({
+  range: z.string(),
+  integral: z.boolean(),
+  units: z.string().nullable().optional(),
+  placeholder: z.union([z.number(), z.string()]).nullable().optional(),
 })
+
+type OldValueSpecListBase = {
+  type: "list"
+  range: string
+  default: string[] | number[] | OldDefaultString[] | Record<string, unknown>[]
+  name: string
+  description?: string | null
+  warning?: string | null
+}
+
+type OldValueSpecList = OldValueSpecListBase &
+  (
+    | { subtype: "string"; spec: z.infer<typeof matchOldListValueSpecString> }
+    | { subtype: "enum"; spec: z.infer<typeof matchOldListValueSpecEnum> }
+    | { subtype: "object"; spec: OldListValueSpecObject }
+    | { subtype: "number"; spec: z.infer<typeof matchOldListValueSpecNumber> }
+    | { subtype: "union"; spec: OldListValueSpecUnion }
+  )
 
 // represents a spec for a list
-export const matchOldValueSpecList = every(
-  object({
-    type: literals("list"),
-    range: string, // '[0,1]' (inclusive) OR '[0,*)' (right unbounded), normal math rules
-    default: anyOf(
-      array(string),
-      array(number),
-      array(matchOldDefaultString),
-      array(object),
-    ),
-    name: string,
-    description: string.nullable().optional(),
-    warning: string.nullable().optional(),
-  }),
-  anyOf(
-    object({
-      subtype: literals("string"),
-      spec: matchOldListValueSpecString,
+export const matchOldValueSpecList: z.ZodType<OldValueSpecList> =
+  z.intersection(
+    z.object({
+      type: z.enum(["list"]),
+      range: z.string(), // '[0,1]' (inclusive) OR '[0,*)' (right unbounded), normal math rules
+      default: z.union([
+        z.array(z.string()),
+        z.array(z.number()),
+        z.array(matchOldDefaultString),
+        z.array(z.object({}).passthrough()),
+      ]),
+      name: z.string(),
+      description: z.string().nullable().optional(),
+      warning: z.string().nullable().optional(),
     }),
-    object({
-      subtype: literals("enum"),
-      spec: matchOldListValueSpecEnum,
-    }),
-    object({
-      subtype: literals("object"),
-      spec: matchOldListValueSpecObject,
-    }),
-    object({
-      subtype: literals("number"),
-      spec: matchOldListValueSpecNumber,
-    }),
-    object({
-      subtype: literals("union"),
-      spec: matchOldListValueSpecUnion,
-    }),
-  ),
-)
-type OldValueSpecList = typeof matchOldValueSpecList._TYPE
+    z.union([
+      z.object({
+        subtype: z.enum(["string"]),
+        spec: matchOldListValueSpecString,
+      }),
+      z.object({
+        subtype: z.enum(["enum"]),
+        spec: matchOldListValueSpecEnum,
+      }),
+      z.object({
+        subtype: z.enum(["object"]),
+        spec: matchOldListValueSpecObject,
+      }),
+      z.object({
+        subtype: z.enum(["number"]),
+        spec: matchOldListValueSpecNumber,
+      }),
+      z.object({
+        subtype: z.enum(["union"]),
+        spec: matchOldListValueSpecUnion,
+      }),
+    ]),
+  ) as unknown as z.ZodType<OldValueSpecList>
 
-const matchOldValueSpecPointer = every(
-  object({
-    type: literal("pointer"),
-  }),
-  anyOf(
-    object({
-      subtype: literal("package"),
-      target: literals("tor-key", "tor-address", "lan-address"),
-      "package-id": string,
-      interface: string,
-    }),
-    object({
-      subtype: literal("package"),
-      target: literals("config"),
-      "package-id": string,
-      selector: string,
-      multi: boolean,
-    }),
-  ),
+type OldValueSpecPointer = {
+  type: "pointer"
+} & (
+  | {
+      subtype: "package"
+      target: "tor-key" | "tor-address" | "lan-address"
+      "package-id": string
+      interface: string
+    }
+  | {
+      subtype: "package"
+      target: "config"
+      "package-id": string
+      selector: string
+      multi: boolean
+    }
 )
-type OldValueSpecPointer = typeof matchOldValueSpecPointer._TYPE
+const matchOldValueSpecPointer: z.ZodType<OldValueSpecPointer> = z.intersection(
+  z.object({
+    type: z.literal("pointer"),
+  }),
+  z.union([
+    z.object({
+      subtype: z.literal("package"),
+      target: z.enum(["tor-key", "tor-address", "lan-address"]),
+      "package-id": z.string(),
+      interface: z.string(),
+    }),
+    z.object({
+      subtype: z.literal("package"),
+      target: z.enum(["config"]),
+      "package-id": z.string(),
+      selector: z.string(),
+      multi: z.boolean(),
+    }),
+  ]),
+) as unknown as z.ZodType<OldValueSpecPointer>
 
-export const matchOldValueSpec = anyOf(
+type OldValueSpecString = z.infer<typeof matchOldValueSpecString>
+
+type OldValueSpec =
+  | OldValueSpecString
+  | OldValueSpecNumber
+  | OldValueSpecBoolean
+  | OldValueSpecObject
+  | OldValueSpecEnum
+  | OldValueSpecList
+  | OldValueSpecUnion
+  | OldValueSpecPointer
+
+export const matchOldValueSpec: z.ZodType<OldValueSpec> = z.union([
   matchOldValueSpecString,
   matchOldValueSpecNumber,
   matchOldValueSpecBoolean,
-  matchOldValueSpecObject,
+  matchOldValueSpecObject as z.ZodType<OldValueSpecObject>,
   matchOldValueSpecEnum,
-  matchOldValueSpecList,
-  matchOldValueSpecUnion,
-  matchOldValueSpecPointer,
-)
-type OldValueSpec = typeof matchOldValueSpec._TYPE
-
-setMatchOldConfigSpec(dictionary([string, matchOldValueSpec]))
+  matchOldValueSpecList as z.ZodType<OldValueSpecList>,
+  matchOldValueSpecUnion as z.ZodType<OldValueSpecUnion>,
+  matchOldValueSpecPointer as z.ZodType<OldValueSpecPointer>,
+])
 
 export class Range {
   min?: number

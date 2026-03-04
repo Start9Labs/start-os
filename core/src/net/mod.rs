@@ -14,7 +14,6 @@ pub mod socks;
 pub mod ssl;
 pub mod static_server;
 pub mod tls;
-pub mod tor;
 pub mod tunnel;
 pub mod utils;
 pub mod vhost;
@@ -23,7 +22,6 @@ pub mod wifi;
 
 pub fn net_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("tor", tor::tor_api::<C>().with_about("about.tor-commands"))
         .subcommand(
             "acme",
             acme::acme_api::<C>().with_about("about.setup-acme-certificate"),

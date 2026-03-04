@@ -1,32 +1,32 @@
-import { object, literal, string, boolean, some } from "ts-matches"
+import { z } from "@start9labs/start-sdk"
 
-const matchDataVolume = object({
-  type: literal("data"),
-  readonly: boolean.optional(),
+const matchDataVolume = z.object({
+  type: z.literal("data"),
+  readonly: z.boolean().optional(),
 })
-const matchAssetVolume = object({
-  type: literal("assets"),
+const matchAssetVolume = z.object({
+  type: z.literal("assets"),
 })
-const matchPointerVolume = object({
-  type: literal("pointer"),
-  "package-id": string,
-  "volume-id": string,
-  path: string,
-  readonly: boolean,
+const matchPointerVolume = z.object({
+  type: z.literal("pointer"),
+  "package-id": z.string(),
+  "volume-id": z.string(),
+  path: z.string(),
+  readonly: z.boolean(),
 })
-const matchCertificateVolume = object({
-  type: literal("certificate"),
-  "interface-id": string,
+const matchCertificateVolume = z.object({
+  type: z.literal("certificate"),
+  "interface-id": z.string(),
 })
-const matchBackupVolume = object({
-  type: literal("backup"),
-  readonly: boolean,
+const matchBackupVolume = z.object({
+  type: z.literal("backup"),
+  readonly: z.boolean(),
 })
-export const matchVolume = some(
+export const matchVolume = z.union([
   matchDataVolume,
   matchAssetVolume,
   matchPointerVolume,
   matchCertificateVolume,
   matchBackupVolume,
-)
-export type Volume = typeof matchVolume._TYPE
+])
+export type Volume = z.infer<typeof matchVolume>

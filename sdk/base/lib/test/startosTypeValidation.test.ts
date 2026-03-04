@@ -10,7 +10,7 @@ import {
   GetContainerIpParams,
   GetStatusParams,
   CreateTaskParams,
-  RunActionParams,
+  EffectsRunActionParams,
   SetDataVersionParams,
   SetMainStatus,
   GetServiceManifestParams,
@@ -25,11 +25,15 @@ import { GetSslKeyParams } from '.././osBindings'
 import { GetServiceInterfaceParams } from '.././osBindings'
 import { SetDependenciesParams } from '.././osBindings'
 import { GetSystemSmtpParams } from '.././osBindings'
+import { GetOutboundGatewayParams } from '.././osBindings'
 import { GetServicePortForwardParams } from '.././osBindings'
 import { ExportServiceInterfaceParams } from '.././osBindings'
 import { ListServiceInterfacesParams } from '.././osBindings'
 import { ExportActionParams } from '.././osBindings'
 import { MountParams } from '.././osBindings'
+import { UrlPluginRegisterParams } from '.././osBindings'
+import { UrlPluginExportUrlParams } from '.././osBindings'
+import { UrlPluginClearUrlsParams } from '.././osBindings'
 import { StringObject } from '../util'
 import { ExtendedVersion, VersionRange } from '../exver'
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
@@ -56,7 +60,7 @@ describe('startosTypeValidation ', () => {
         clear: {} as ClearActionsParams,
         export: {} as ExportActionParams,
         getInput: {} as GetActionInputParams,
-        run: {} as RunActionParams,
+        run: {} as EffectsRunActionParams,
         createTask: {} as CreateTaskParams,
         clearTasks: {} as ClearTasksParams,
       },
@@ -80,6 +84,7 @@ describe('startosTypeValidation ', () => {
       getServiceManifest: {} as WithCallback<GetServiceManifestParams>,
       getSystemSmtp: {} as WithCallback<GetSystemSmtpParams>,
       getContainerIp: {} as WithCallback<GetContainerIpParams>,
+      getOutboundGateway: {} as WithCallback<GetOutboundGatewayParams>,
       getOsIp: undefined,
       getServicePortForward: {} as GetServicePortForwardParams,
       clearServiceInterfaces: {} as ClearServiceInterfacesParams,
@@ -90,6 +95,13 @@ describe('startosTypeValidation ', () => {
       getDependencies: undefined,
       getStatus: {} as WithCallback<GetStatusParams>,
       setMainStatus: {} as SetMainStatus,
+      plugin: {
+        url: {
+          register: {} as UrlPluginRegisterParams,
+          exportUrl: {} as UrlPluginExportUrlParams,
+          clearUrls: {} as UrlPluginClearUrlsParams,
+        },
+      },
     })
   })
 })

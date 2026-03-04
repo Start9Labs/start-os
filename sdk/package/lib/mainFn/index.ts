@@ -3,6 +3,7 @@ import { Daemons } from './Daemons'
 import '../../../base/lib/interfaces/ServiceInterfaceBuilder'
 import '../../../base/lib/interfaces/Origin'
 
+/** Default time in milliseconds to wait for a process to exit after SIGTERM before escalating to SIGKILL */
 export const DEFAULT_SIGTERM_TIMEOUT = 60_000
 /**
  * Used to ensure that the main function is running with the valid proofs.

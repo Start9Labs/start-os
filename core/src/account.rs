@@ -6,9 +6,8 @@ use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 
 use crate::db::model::DatabaseModel;
-use crate::hostname::{Hostname, generate_hostname, generate_id};
+use crate::hostname::{ServerHostnameInfo, generate_hostname, generate_id};
 use crate::net::ssl::{gen_nistp256, make_root_cert};
-use crate::net::tor::TorSecretKey;
 use crate::prelude::*;
 use crate::util::serde::Pem;
 
@@ -24,21 +23,27 @@ fn hash_password(password: &str) -> Result<String, Error> {
 #[derive(Clone)]
 pub struct AccountInfo {
     pub server_id: String,
-    pub hostname: Hostname,
+    pub hostname: ServerHostnameInfo,
     pub password: String,
-    pub tor_keys: Vec<TorSecretKey>,
     pub root_ca_key: PKey<Private>,
     pub root_ca_cert: X509,
     pub ssh_key: ssh_key::PrivateKey,
     pub developer_key: ed25519_dalek::SigningKey,
 }
 impl AccountInfo {
-    pub fn new(password: &str, start_time: SystemTime) -> Result<Self, Error> {
+    pub fn new(
+        password: &str,
+        start_time: SystemTime,
+        hostname: Option<ServerHostnameInfo>,
+    ) -> Result<Self, Error> {
         let server_id = generate_id();
-        let hostname = generate_hostname();
-        let tor_key = vec![TorSecretKey::generate()];
+        let hostname = if let Some(h) = hostname {
+            h
+        } else {
+            ServerHostnameInfo::from_hostname(generate_hostname())
+        };
         let root_ca_key = gen_nistp256()?;
-        let root_ca_cert = make_root_cert(&root_ca_key, &hostname, start_time)?;
+        let root_ca_cert = make_root_cert(&root_ca_key, &hostname.hostname, start_time)?;
         let ssh_key = ssh_key::PrivateKey::from(ssh_key::private::Ed25519Keypair::random(
             &mut ssh_key::rand_core::OsRng::default(),
         ));
@@ -48,7 +53,6 @@ impl AccountInfo {
             server_id,
             hostname,
             password: hash_password(password)?,
-            tor_keys: tor_key,
             root_ca_key,
             root_ca_cert,
             ssh_key,
@@ -58,20 +62,9 @@ impl AccountInfo {
 
     pub fn load(db: &DatabaseModel) -> Result<Self, Error> {
         let server_id = db.as_public().as_server_info().as_id().de()?;
-        let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
+        let hostname = ServerHostnameInfo::load(db.as_public().as_server_info())?;
         let password = db.as_private().as_password().de()?;
         let key_store = db.as_private().as_key_store();
-        let tor_addrs = db
-            .as_public()
-            .as_server_info()
-            .as_network()
-            .as_host()
-            .as_onions()
-            .de()?;
-        let tor_keys = tor_addrs
-            .into_iter()
-            .map(|tor_addr| key_store.as_onion().get_key(&tor_addr))
-            .collect::<Result<_, _>>()?;
         let cert_store = key_store.as_local_certs();
         let root_ca_key = cert_store.as_root_key().de()?.0;
         let root_ca_cert = cert_store.as_root_cert().de()?.0;
@@ -82,7 +75,6 @@ impl AccountInfo {
             server_id,
             hostname,
             password,
-            tor_keys,
             root_ca_key,
             root_ca_cert,
             ssh_key,
@@ -93,21 +85,10 @@ impl AccountInfo {
     pub fn save(&self, db: &mut DatabaseModel) -> Result<(), Error> {
         let server_info = db.as_public_mut().as_server_info_mut();
         server_info.as_id_mut().ser(&self.server_id)?;
-        server_info.as_hostname_mut().ser(&self.hostname.0)?;
+        self.hostname.save(server_info)?;
         server_info
             .as_pubkey_mut()
             .ser(&self.ssh_key.public_key().to_openssh()?)?;
-        server_info
-            .as_network_mut()
-            .as_host_mut()
-            .as_onions_mut()
-            .ser(
-                &self
-                    .tor_keys
-                    .iter()
-                    .map(|tor_key| tor_key.onion_address())
-                    .collect(),
-            )?;
         server_info.as_password_hash_mut().ser(&self.password)?;
         db.as_private_mut().as_password_mut().ser(&self.password)?;
         db.as_private_mut()
@@ -117,9 +98,6 @@ impl AccountInfo {
             .as_developer_key_mut()
             .ser(Pem::new_ref(&self.developer_key))?;
         let key_store = db.as_private_mut().as_key_store_mut();
-        for tor_key in &self.tor_keys {
-            key_store.as_onion_mut().insert_key(tor_key)?;
-        }
         let cert_store = key_store.as_local_certs_mut();
         if cert_store.as_root_cert().de()?.0 != self.root_ca_cert {
             cert_store
@@ -145,14 +123,8 @@ impl AccountInfo {
 
     pub fn hostnames(&self) -> impl IntoIterator<Item = InternedString> + Send + '_ {
         [
-            self.hostname.no_dot_host_name(),
-            self.hostname.local_domain_name(),
+            (*self.hostname.hostname).clone(),
+            self.hostname.hostname.local_domain_name(),
         ]
-        .into_iter()
-        .chain(
-            self.tor_keys
-                .iter()
-                .map(|k| InternedString::from_display(&k.onion_address())),
-        )
     }
 }

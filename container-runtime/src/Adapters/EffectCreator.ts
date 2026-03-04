@@ -3,33 +3,39 @@ import {
   types as T,
   utils,
   VersionRange,
+  z,
 } from "@start9labs/start-sdk"
 import * as net from "net"
-import { object, string, number, literals, some, unknown } from "ts-matches"
 import { Effects } from "../Models/Effects"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
 import { asError } from "@start9labs/start-sdk/base/lib/util"
-const matchRpcError = object({
-  error: object({
-    code: number,
-    message: string,
-    data: some(
-      string,
-      object({
-        details: string,
-        debug: string.nullable().optional(),
-      }),
-    )
+const matchRpcError = z.object({
+  error: z.object({
+    code: z.number(),
+    message: z.string(),
+    data: z
+      .union([
+        z.string(),
+        z.object({
+          details: z.string(),
+          debug: z.string().nullable().optional(),
+        }),
+      ])
       .nullable()
       .optional(),
   }),
 })
-const testRpcError = matchRpcError.test
-const testRpcResult = object({
-  result: unknown,
-}).test
-type RpcError = typeof matchRpcError._TYPE
+function testRpcError(v: unknown): v is RpcError {
+  return matchRpcError.safeParse(v).success
+}
+const matchRpcResult = z.object({
+  result: z.unknown(),
+})
+function testRpcResult(v: unknown): v is z.infer<typeof matchRpcResult> {
+  return matchRpcResult.safeParse(v).success
+}
+type RpcError = z.infer<typeof matchRpcError>
 
 const SOCKET_PATH = "/media/startos/rpc/host.sock"
 let hostSystemId = 0
@@ -71,7 +77,7 @@ const rpcRoundFor =
                 "Error in host RPC:",
                 utils.asError({ method, params, error: res.error }),
               )
-              if (string.test(res.error.data)) {
+              if (typeof res.error.data === "string") {
                 message += ": " + res.error.data
                 console.error(`Details: ${res.error.data}`)
               } else {
@@ -253,6 +259,14 @@ export function makeEffects(context: EffectContext): Effects {
         callback: context.callbacks?.addCallback(options.callback) || null,
       }) as ReturnType<T.Effects["getSystemSmtp"]>
     },
+    getOutboundGateway(
+      ...[options]: Parameters<T.Effects["getOutboundGateway"]>
+    ) {
+      return rpcRound("get-outbound-gateway", {
+        ...options,
+        callback: context.callbacks?.addCallback(options.callback) || null,
+      }) as ReturnType<T.Effects["getOutboundGateway"]>
+    },
     listServiceInterfaces(
       ...[options]: Parameters<T.Effects["listServiceInterfaces"]>
     ) {
@@ -315,6 +329,31 @@ export function makeEffects(context: EffectContext): Effects {
       return rpcRound("set-data-version", options) as ReturnType<
         T.Effects["setDataVersion"]
       >
+    },
+    plugin: {
+      url: {
+        register(
+          ...[options]: Parameters<T.Effects["plugin"]["url"]["register"]>
+        ) {
+          return rpcRound("plugin.url.register", options) as ReturnType<
+            T.Effects["plugin"]["url"]["register"]
+          >
+        },
+        exportUrl(
+          ...[options]: Parameters<T.Effects["plugin"]["url"]["exportUrl"]>
+        ) {
+          return rpcRound("plugin.url.export-url", options) as ReturnType<
+            T.Effects["plugin"]["url"]["exportUrl"]
+          >
+        },
+        clearUrls(
+          ...[options]: Parameters<T.Effects["plugin"]["url"]["clearUrls"]>
+        ) {
+          return rpcRound("plugin.url.clear-urls", options) as ReturnType<
+            T.Effects["plugin"]["url"]["clearUrls"]
+          >
+        },
+      },
     },
   }
   if (context.callbacks?.onLeaveContext)

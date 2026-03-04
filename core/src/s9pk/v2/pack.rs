@@ -685,7 +685,7 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
     .await?;
 
     let manifest = s9pk.as_manifest_mut();
-    manifest.git_hash = Some(GitHash::from_path(params.path()).await?);
+    manifest.metadata.git_hash = Some(GitHash::from_path(params.path()).await?);
     if !params.arch.is_empty() {
         let arches: BTreeSet<InternedString> = match manifest.hardware_requirements.arch.take() {
             Some(a) => params
@@ -792,7 +792,7 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
                     }
                 };
                 Some((
-                    LocaleString::Translated(s9pk.as_manifest().title.to_string()),
+                    LocaleString::Translated(s9pk.as_manifest().metadata.title.to_string()),
                     s9pk.icon_data_url().await?,
                 ))
             }

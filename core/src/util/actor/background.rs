@@ -1,5 +1,6 @@
 use futures::future::BoxFuture;
-use futures::{Future, FutureExt};
+use futures::stream::FuturesUnordered;
+use futures::{Future, FutureExt, StreamExt};
 use tokio::sync::mpsc;
 
 #[derive(Clone)]
@@ -11,7 +12,7 @@ impl BackgroundJobQueue {
             Self(send),
             BackgroundJobRunner {
                 recv,
-                jobs: Vec::new(),
+                jobs: FuturesUnordered::new(),
             },
         )
     }
@@ -27,7 +28,7 @@ impl BackgroundJobQueue {
 
 pub struct BackgroundJobRunner {
     recv: mpsc::UnboundedReceiver<BoxFuture<'static, ()>>,
-    jobs: Vec<BoxFuture<'static, ()>>,
+    jobs: FuturesUnordered<BoxFuture<'static, ()>>,
 }
 impl BackgroundJobRunner {
     pub fn is_empty(&self) -> bool {
@@ -43,19 +44,7 @@ impl Future for BackgroundJobRunner {
         while let std::task::Poll::Ready(Some(job)) = self.recv.poll_recv(cx) {
             self.jobs.push(job);
         }
-        let complete = self
-            .jobs
-            .iter_mut()
-            .enumerate()
-            .filter_map(|(i, f)| match f.poll_unpin(cx) {
-                std::task::Poll::Pending => None,
-                std::task::Poll::Ready(_) => Some(i),
-            })
-            .collect::<Vec<_>>();
-        for idx in complete.into_iter().rev() {
-            #[allow(clippy::let_underscore_future)]
-            let _ = self.jobs.swap_remove(idx);
-        }
+        while let std::task::Poll::Ready(Some(())) = self.jobs.poll_next_unpin(cx) {}
         if self.jobs.is_empty() && self.recv.is_closed() {
             std::task::Poll::Ready(())
         } else {

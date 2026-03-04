@@ -39,14 +39,14 @@ export const mockTunnelData: TunnelData = {
     },
   },
   portForwards: {
-    '69.1.1.42:443': '10.59.0.2:5443',
+    '69.1.1.42:443': '10.59.0.2:443',
     '69.1.1.42:3000': '10.59.0.2:3000',
   },
   gateways: {
     eth0: {
       name: null,
-      public: null,
       secure: null,
+      type: null,
       ipInfo: {
         name: 'Wired Connection 1',
         scopeId: 1,

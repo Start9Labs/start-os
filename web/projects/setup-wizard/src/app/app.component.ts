@@ -31,23 +31,15 @@ export class AppComponent {
 
       switch (status.status) {
         case 'needs-install':
-          // Restore keyboard from status if it was previously set
-          if (status.keyboard) {
-            this.stateService.keyboard = status.keyboard.layout
-          }
-          // Start the install flow
           await this.router.navigate(['/language'])
           break
 
         case 'incomplete':
           // Store the data drive info from status
-          this.stateService.dataDriveGuid = status.guid
-          this.stateService.attach = status.attach
-          // Restore keyboard from status if it was previously set
-          if (status.keyboard) {
-            this.stateService.keyboard = status.keyboard.layout
+          if (status.guid) {
+            this.stateService.dataDriveGuid = status.guid
           }
-
+          this.stateService.attach = status.attach
           await this.router.navigate(['/language'])
           break
 

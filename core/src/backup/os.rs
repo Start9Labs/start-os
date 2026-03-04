@@ -6,10 +6,8 @@ use serde::{Deserialize, Serialize};
 use ssh_key::private::Ed25519Keypair;
 
 use crate::account::AccountInfo;
-use crate::hostname::{Hostname, generate_hostname, generate_id};
-use crate::net::tor::TorSecretKey;
+use crate::hostname::{ServerHostname, ServerHostnameInfo, generate_hostname, generate_id};
 use crate::prelude::*;
-use crate::util::crypto::ed25519_expand_key;
 use crate::util::serde::{Base32, Base64, Pem};
 
 pub struct OsBackup {
@@ -29,10 +27,12 @@ impl<'de> Deserialize<'de> for OsBackup {
                 .map_err(serde::de::Error::custom)?,
             1 => patch_db::value::from_value::<OsBackupV1>(tagged.rest)
                 .map_err(serde::de::Error::custom)?
-                .project(),
+                .project()
+                .map_err(serde::de::Error::custom)?,
             2 => patch_db::value::from_value::<OsBackupV2>(tagged.rest)
                 .map_err(serde::de::Error::custom)?
-                .project(),
+                .project()
+                .map_err(serde::de::Error::custom)?,
             v => {
                 return Err(serde::de::Error::custom(&format!(
                     "Unknown backup version {v}"
@@ -77,7 +77,7 @@ impl OsBackupV0 {
         Ok(OsBackup {
             account: AccountInfo {
                 server_id: generate_id(),
-                hostname: generate_hostname(),
+                hostname: ServerHostnameInfo::from_hostname(generate_hostname()),
                 password: Default::default(),
                 root_ca_key: self.root_ca_key.0,
                 root_ca_cert: self.root_ca_cert.0,
@@ -85,10 +85,6 @@ impl OsBackupV0 {
                     &mut ssh_key::rand_core::OsRng::default(),
                     ssh_key::Algorithm::Ed25519,
                 )?,
-                tor_keys: TorSecretKey::from_bytes(self.tor_key.0)
-                    .ok()
-                    .into_iter()
-                    .collect(),
                 developer_key: ed25519_dalek::SigningKey::generate(
                     &mut ssh_key::rand_core::OsRng::default(),
                 ),
@@ -110,23 +106,19 @@ struct OsBackupV1 {
     ui: Value,                       // JSON Value
 }
 impl OsBackupV1 {
-    fn project(self) -> OsBackup {
-        OsBackup {
+    fn project(self) -> Result<OsBackup, Error> {
+        Ok(OsBackup {
             account: AccountInfo {
                 server_id: self.server_id,
-                hostname: Hostname(self.hostname),
+                hostname: ServerHostnameInfo::from_hostname(ServerHostname::new(self.hostname)?),
                 password: Default::default(),
                 root_ca_key: self.root_ca_key.0,
                 root_ca_cert: self.root_ca_cert.0,
                 ssh_key: ssh_key::PrivateKey::from(Ed25519Keypair::from_seed(&self.net_key.0)),
-                tor_keys: TorSecretKey::from_bytes(ed25519_expand_key(&self.net_key.0))
-                    .ok()
-                    .into_iter()
-                    .collect(),
                 developer_key: ed25519_dalek::SigningKey::from_bytes(&self.net_key),
             },
             ui: self.ui,
-        }
+        })
     }
 }
 
@@ -140,34 +132,31 @@ struct OsBackupV2 {
     root_ca_key: Pem<PKey<Private>>,                 // PEM Encoded OpenSSL Key
     root_ca_cert: Pem<X509>,                         // PEM Encoded OpenSSL X509 Certificate
     ssh_key: Pem<ssh_key::PrivateKey>,               // PEM Encoded OpenSSH Key
-    tor_keys: Vec<TorSecretKey>,                     // Base64 Encoded Ed25519 Expanded Secret Key
     compat_s9pk_key: Pem<ed25519_dalek::SigningKey>, // PEM Encoded ED25519 Key
     ui: Value,                                       // JSON Value
 }
 impl OsBackupV2 {
-    fn project(self) -> OsBackup {
-        OsBackup {
+    fn project(self) -> Result<OsBackup, Error> {
+        Ok(OsBackup {
             account: AccountInfo {
                 server_id: self.server_id,
-                hostname: Hostname(self.hostname),
+                hostname: ServerHostnameInfo::from_hostname(ServerHostname::new(self.hostname)?),
                 password: Default::default(),
                 root_ca_key: self.root_ca_key.0,
                 root_ca_cert: self.root_ca_cert.0,
                 ssh_key: self.ssh_key.0,
-                tor_keys: self.tor_keys,
                 developer_key: self.compat_s9pk_key.0,
             },
             ui: self.ui,
-        }
+        })
     }
     fn unproject(backup: &OsBackup) -> Self {
         Self {
             server_id: backup.account.server_id.clone(),
-            hostname: backup.account.hostname.0.clone(),
+            hostname: (*backup.account.hostname.hostname).clone(),
             root_ca_key: Pem(backup.account.root_ca_key.clone()),
             root_ca_cert: Pem(backup.account.root_ca_cert.clone()),
             ssh_key: Pem(backup.account.ssh_key.clone()),
-            tor_keys: backup.account.tor_keys.clone(),
             compat_s9pk_key: Pem(backup.account.developer_key.clone()),
             ui: backup.ui.clone(),
         }

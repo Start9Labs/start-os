@@ -6,7 +6,7 @@ import {
 } from '@angular/core'
 import { TuiTitle } from '@taiga-ui/core'
 import { TuiCell } from '@taiga-ui/layout'
-import { ServerMetrics } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 import { ValuePipe } from './value.pipe'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 
@@ -43,8 +43,8 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiCell, TuiTitle, ValuePipe, i18nPipe],
 })
-export class DataComponent<T extends ServerMetrics[keyof ServerMetrics]> {
-  readonly labels = input.required<Record<keyof T, i18nKey>>()
-  readonly value = input<T>()
-  readonly keys = computed(() => Object.keys(this.labels()) as Array<keyof T>)
+export class DataComponent<M extends T.Metrics[keyof T.Metrics]> {
+  readonly labels = input.required<Record<keyof M, i18nKey>>()
+  readonly value = input<M>()
+  readonly keys = computed(() => Object.keys(this.labels()) as Array<keyof M>)
 }

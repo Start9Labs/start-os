@@ -32,7 +32,7 @@ import { ISB } from '@start9labs/start-sdk'
           tuiIconButton
           size="xs"
           docsLink
-          path="/user-manual/gateways.html"
+          path="/start-os/user-manual/gateways.html"
           appearance="icon"
           iconStart="@tui.external-link"
         >
@@ -50,11 +50,6 @@ import { ISB } from '@start9labs/start-sdk'
       </header>
       <gateways-table />
     </section>
-  `,
-  styles: `
-    :host {
-      max-width: 64rem;
-    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -86,7 +81,7 @@ export default class GatewaysComponent {
         placeholder: 'StartTunnel 1',
       }),
       config: ISB.Value.union({
-        name: this.i18n.transform('StartTunnel Config File'),
+        name: this.i18n.transform('WireGuard Config File'),
         default: 'paste',
         variants: ISB.Variants.of({
           paste: {
@@ -96,8 +91,8 @@ export default class GatewaysComponent {
                 name: this.i18n.transform('File Contents'),
                 default: null,
                 required: true,
-                minRows: 16,
-                maxRows: 16,
+                minRows: 8,
+                maxRows: 8,
               }),
             }),
           },
@@ -113,10 +108,17 @@ export default class GatewaysComponent {
           },
         }),
       }),
+      setAsDefaultOutbound: ISB.Value.toggle({
+        name: this.i18n.transform('Set as default outbound'),
+        description: this.i18n.transform(
+          'Route all outbound traffic through this gateway',
+        ),
+        default: false,
+      }),
     })
 
     this.formDialog.open(FormComponent, {
-      label: 'Add StartTunnel Gateway',
+      label: 'Add Wireguard Gateway',
       data: {
         spec: await configBuilderToSpec(spec),
         buttons: [
@@ -132,7 +134,8 @@ export default class GatewaysComponent {
                     input.config.selection === 'paste'
                       ? input.config.value.file
                       : await (input.config.value.file as any as File).text(),
-                  public: false,
+                  type: null, // @TODO Aiden why is attr here?
+                  setAsDefaultOutbound: input.setAsDefaultOutbound,
                 })
                 return true
               } catch (e: any) {

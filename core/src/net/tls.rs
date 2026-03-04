@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::task::{Poll, ready};
+use std::time::Duration;
 
 use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
@@ -170,7 +171,7 @@ where
             let (metadata, stream) = ready!(self.accept.poll_accept(cx)?);
             let mut tls_handler = self.tls_handler.clone();
             let mut fut = async move {
-                let res = async {
+                let res = match tokio::time::timeout(Duration::from_secs(15), async {
                     let mut acceptor =
                         LazyConfigAcceptor::new(Acceptor::default(), BackTrackingIO::new(stream));
                     let mut mid: tokio_rustls::StartHandshake<BackTrackingIO<AcceptStream>> =
@@ -233,14 +234,22 @@ where
                     }
 
                     Ok(None)
-                }
-                .await;
+                })
+                .await
+                {
+                    Ok(res) => res,
+                    Err(_) => {
+                        tracing::trace!("TLS handshake timed out");
+                        Ok(None)
+                    }
+                };
                 (tls_handler, res)
             }
             .boxed();
             match fut.poll_unpin(cx) {
                 Poll::Pending => {
                     in_progress.push(fut);
+                    cx.waker().wake_by_ref();
                     Poll::Pending
                 }
                 Poll::Ready((handler, res)) => {

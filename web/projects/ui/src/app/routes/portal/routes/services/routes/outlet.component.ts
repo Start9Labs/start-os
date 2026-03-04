@@ -45,37 +45,19 @@ import { getManifest } from 'src/app/utils/get-package-data'
         </header>
         <nav>
           @for (item of nav; track $index) {
-            @if (item.title === 'Documentation') {
-              <a
-                tuiCell
-                tuiAppearance="action-grayscale"
-                [href]="manifest()?.docsUrl"
-                target="_blank"
-                noreferrer
-              >
-                <tui-icon [icon]="item.icon" />
-                <span tuiTitle>
-                  <span>
-                    {{ item.title | i18n }}
-                  </span>
-                </span>
-                <tui-icon icon="@tui.external-link" [style.font-size.rem]="1" />
-              </a>
-            } @else {
-              <a
-                tuiCell
-                tuiAppearance="action-grayscale"
-                routerLinkActive="active"
-                [routerLinkActiveOptions]="{ exact: true }"
-                [routerLink]="item.title === 'dashboard' ? './' : item.title"
-              >
-                <tui-icon [icon]="item.icon" />
-                <span tuiTitle>{{ item.title | i18n }}</span>
-                @if (item.title === 'dashboard') {
-                  <a routerLink="interface" routerLinkActive="active"></a>
-                }
-              </a>
-            }
+            <a
+              tuiCell
+              tuiAppearance="action-grayscale"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: true }"
+              [routerLink]="item.title === 'dashboard' ? './' : item.title"
+            >
+              <tui-icon [icon]="item.icon" />
+              <span tuiTitle>{{ item.title | i18n }}</span>
+              @if (item.title === 'dashboard') {
+                <a routerLink="interface" routerLinkActive="active"></a>
+              }
+            </a>
           }
         </nav>
       </aside>
@@ -118,9 +100,10 @@ import { getManifest } from 'src/app/utils/get-package-data'
     .title::before {
       content: '';
       position: absolute;
-      inset: 0;
+      inset: -0.5rem -1rem 0;
       background: var(--background);
       background-size: 1px;
+      filter: blur(0.5rem);
       mask: linear-gradient(to bottom, black, transparent);
       opacity: 0.2;
     }
@@ -209,7 +192,6 @@ export class ServiceOutletComponent {
     { title: 'actions', icon: '@tui.file-terminal' },
     { title: 'logs', icon: '@tui.logs' },
     { title: 'about', icon: '@tui.info' },
-    { title: 'Documentation', icon: '@tui.book-open-text' },
   ]
 
   protected readonly service = toSignal(

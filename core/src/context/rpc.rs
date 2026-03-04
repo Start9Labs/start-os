@@ -10,7 +10,6 @@ use std::time::Duration;
 use chrono::{TimeDelta, Utc};
 use imbl::OrdMap;
 use imbl_value::InternedString;
-use itertools::Itertools;
 use josekit::jwk::Jwk;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
@@ -25,7 +24,6 @@ use crate::account::AccountInfo;
 use crate::auth::Sessions;
 use crate::context::config::ServerConfig;
 use crate::db::model::Database;
-use crate::db::model::package::TaskSeverity;
 use crate::disk::OsPartitionInfo;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
@@ -34,7 +32,7 @@ use crate::disk::mount::guard::MountGuard;
 use crate::init::{InitResult, check_time_is_synchronized};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::LxcManager;
-use crate::net::gateway::UpgradableListener;
+use crate::net::gateway::WildcardListener;
 use crate::net::net_controller::{NetController, NetService};
 use crate::net::socks::DEFAULT_SOCKS_LISTEN;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
@@ -44,7 +42,6 @@ use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
 use crate::rpc_continuations::{Guid, OpenAuthedContinuations, RpcContinuations};
 use crate::service::ServiceMap;
-use crate::service::action::update_tasks;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::service::effects::subcontainer::NVIDIA_OVERLAY_PATH;
 use crate::shutdown::Shutdown;
@@ -53,7 +50,7 @@ use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::{TmpDir, delete_file};
 use crate::util::lshw::LshwDevice;
 use crate::util::sync::{SyncMutex, SyncRwLock, Watch};
-use crate::{ActionId, DATA_DIR, PLATFORM, PackageId};
+use crate::{DATA_DIR, PLATFORM, PackageId};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -114,7 +111,6 @@ pub struct CleanupInitPhases {
     cleanup_sessions: PhaseProgressTrackerHandle,
     init_services: PhaseProgressTrackerHandle,
     prune_s9pks: PhaseProgressTrackerHandle,
-    check_tasks: PhaseProgressTrackerHandle,
 }
 impl CleanupInitPhases {
     pub fn new(handle: &FullProgressTracker) -> Self {
@@ -122,7 +118,6 @@ impl CleanupInitPhases {
             cleanup_sessions: handle.add_phase("Cleaning up sessions".into(), Some(1)),
             init_services: handle.add_phase("Initializing services".into(), Some(10)),
             prune_s9pks: handle.add_phase("Pruning S9PKs".into(), Some(1)),
-            check_tasks: handle.add_phase("Checking action requests".into(), Some(1)),
         }
     }
 }
@@ -132,7 +127,7 @@ pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip_all)]
     pub async fn init(
-        webserver: &WebServerAcceptorSetter<UpgradableListener>,
+        webserver: &WebServerAcceptorSetter<WildcardListener>,
         config: &ServerConfig,
         disk_guid: InternedString,
         init_result: Option<InitResult>,
@@ -165,16 +160,15 @@ impl RpcContext {
         {
             (net_ctrl, os_net_service)
         } else {
-            let net_ctrl =
-                Arc::new(NetController::init(db.clone(), &account.hostname, socks_proxy).await?);
-            webserver.try_upgrade(|a| net_ctrl.net_iface.watcher.upgrade_listener(a))?;
+            let net_ctrl = Arc::new(NetController::init(db.clone(), socks_proxy).await?);
+            webserver.send_modify(|wl| wl.set_ip_info(net_ctrl.net_iface.watcher.subscribe()));
             let os_net_service = net_ctrl.os_bindings().await?;
             (net_ctrl, os_net_service)
         };
         init_net_ctrl.complete();
         tracing::info!("{}", t!("context.rpc.initialized-net-controller"));
 
-        if PLATFORM.ends_with("-nonfree") {
+        if PLATFORM.ends_with("-nvidia") {
             if let Err(e) = Command::new("nvidia-smi")
                 .invoke(ErrorKind::ParseSysInfo)
                 .await
@@ -412,7 +406,6 @@ impl RpcContext {
             mut cleanup_sessions,
             mut init_services,
             mut prune_s9pks,
-            mut check_tasks,
         }: CleanupInitPhases,
     ) -> Result<(), Error> {
         cleanup_sessions.start();
@@ -503,76 +496,6 @@ impl RpcContext {
             }
         }
         prune_s9pks.complete();
-
-        check_tasks.start();
-        let mut action_input: OrdMap<PackageId, BTreeMap<ActionId, Value>> = OrdMap::new();
-        let tasks: BTreeSet<_> = peek
-            .as_public()
-            .as_package_data()
-            .as_entries()?
-            .into_iter()
-            .map(|(_, pde)| {
-                Ok(pde
-                    .as_tasks()
-                    .as_entries()?
-                    .into_iter()
-                    .map(|(_, r)| {
-                        let t = r.as_task();
-                        Ok::<_, Error>(if t.as_input().transpose_ref().is_some() {
-                            Some((t.as_package_id().de()?, t.as_action_id().de()?))
-                        } else {
-                            None
-                        })
-                    })
-                    .filter_map_ok(|a| a))
-            })
-            .flatten_ok()
-            .map(|a| a.and_then(|a| a))
-            .try_collect()?;
-        let procedure_id = Guid::new();
-        for (package_id, action_id) in tasks {
-            if let Some(service) = self.services.get(&package_id).await.as_ref() {
-                if let Some(input) = service
-                    .get_action_input(procedure_id.clone(), action_id.clone())
-                    .await
-                    .log_err()
-                    .flatten()
-                    .and_then(|i| i.value)
-                {
-                    action_input
-                        .entry(package_id)
-                        .or_default()
-                        .insert(action_id, input);
-                }
-            }
-        }
-
-        self.db
-            .mutate(|db| {
-                for (package_id, action_input) in &action_input {
-                    for (action_id, input) in action_input {
-                        for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                            pde.as_tasks_mut().mutate(|tasks| {
-                                Ok(update_tasks(tasks, package_id, action_id, input, false))
-                            })?;
-                        }
-                    }
-                }
-                for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                    if pde
-                        .as_tasks()
-                        .de()?
-                        .into_iter()
-                        .any(|(_, t)| t.active && t.task.severity == TaskSeverity::Critical)
-                    {
-                        pde.as_status_info_mut().stop()?;
-                    }
-                }
-                Ok(())
-            })
-            .await
-            .result?;
-        check_tasks.complete();
 
         Ok(())
     }

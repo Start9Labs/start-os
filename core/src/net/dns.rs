@@ -10,8 +10,9 @@ use color_eyre::eyre::eyre;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use hickory_server::authority::{AuthorityObject, Catalog, MessageResponseBuilder};
 use hickory_server::proto::op::{Header, ResponseCode};
-use hickory_server::proto::rr::{LowerName, Name, Record, RecordType};
-use hickory_server::resolver::config::{ResolverConfig, ResolverOpts};
+use hickory_server::proto::rr::{Name, Record, RecordType};
+use hickory_server::proto::xfer::Protocol;
+use hickory_server::resolver::config::{NameServerConfig, ResolverConfig, ResolverOpts};
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use hickory_server::store::forwarder::{ForwardAuthority, ForwardConfig};
 use hickory_server::{ServerFuture, resolver as hickory_resolver};
@@ -25,6 +26,7 @@ use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, UdpSocket};
 use tokio::sync::RwLock;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
@@ -93,7 +95,8 @@ pub fn dns_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct QueryDnsParams {
     #[arg(help = "help.arg.fqdn")]
     pub fqdn: InternedString,
@@ -133,7 +136,8 @@ pub fn query_dns<C: Context>(
         .map_err(Error::from)
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct SetStaticDnsParams {
     #[arg(help = "help.arg.dns-servers")]
     pub servers: Option<Vec<String>>,
@@ -203,6 +207,7 @@ pub async fn dump_table(
 struct ResolveMap {
     private_domains: BTreeMap<InternedString, Weak<()>>,
     services: BTreeMap<Option<PackageId>, BTreeMap<Ipv4Addr, Weak<()>>>,
+    challenges: BTreeMap<InternedString, (InternedString, Weak<()>)>,
 }
 
 pub struct DnsController {
@@ -237,22 +242,60 @@ impl Resolver {
                 let mut prev = crate::util::serde::hash_serializable::<sha2::Sha256, _>(&(
                     ResolverConfig::new(),
                     ResolverOpts::default(),
+                    Option::<std::collections::VecDeque<SocketAddr>>::None,
                 ))
                 .unwrap_or_default();
                 loop {
-                    if let Err(e) = async {
-                        let mut stream = file_string_stream("/run/systemd/resolve/resolv.conf")
-                            .filter_map(|a| futures::future::ready(a.transpose()))
-                            .boxed();
-                        while let Some(conf) = stream.try_next().await? {
-                            let (config, mut opts) =
-                                hickory_resolver::system_conf::parse_resolv_conf(conf)
-                                    .with_kind(ErrorKind::ParseSysInfo)?;
-                            opts.timeout = Duration::from_secs(30);
+                    let res: Result<(), Error> = async {
+                        let mut file_stream =
+                            file_string_stream("/run/systemd/resolve/resolv.conf")
+                                .filter_map(|a| futures::future::ready(a.transpose()))
+                                .boxed();
+                        let mut static_sub = db
+                            .subscribe(
+                                "/public/serverInfo/network/dns/staticServers"
+                                    .parse()
+                                    .unwrap(),
+                            )
+                            .await;
+                        let mut last_config: Option<(ResolverConfig, ResolverOpts)> = None;
+                        loop {
+                            let got_file = tokio::select! {
+                                res = file_stream.try_next() => {
+                                    let conf = res?
+                                        .ok_or_else(|| Error::new(
+                                            eyre!("resolv.conf stream ended"),
+                                            ErrorKind::Network,
+                                        ))?;
+                                    let (config, mut opts) =
+                                        hickory_resolver::system_conf::parse_resolv_conf(conf)
+                                            .with_kind(ErrorKind::ParseSysInfo)?;
+                                    opts.timeout = Duration::from_secs(30);
+                                    last_config = Some((config, opts));
+                                    true
+                                }
+                                _ = static_sub.recv() => false,
+                            };
+                            let Some((ref config, ref opts)) = last_config else {
+                                continue;
+                            };
+                            let static_servers: Option<std::collections::VecDeque<SocketAddr>> = db
+                                .peek()
+                                .await
+                                .as_public()
+                                .as_server_info()
+                                .as_network()
+                                .as_dns()
+                                .as_static_servers()
+                                .de()?;
                             let hash = crate::util::serde::hash_serializable::<sha2::Sha256, _>(
-                                &(&config, &opts),
+                                &(config, opts, &static_servers),
                             )?;
-                            if hash != prev {
+                            if hash == prev {
+                                prev = hash;
+                                continue;
+                            }
+                            if got_file {
                                 db.mutate(|db| {
                                     db.as_public_mut()
                                         .as_server_info_mut()
@@ -271,44 +314,52 @@ impl Resolver {
                                 })
                                 .await
                                 .result?;
-                                let auth: Vec<Arc<dyn AuthorityObject>> = vec![Arc::new(
-                                    ForwardAuthority::builder_tokio(ForwardConfig {
-                                        name_servers: from_value(Value::Array(
-                                            config
-                                                .name_servers()
-                                                .into_iter()
-                                                .skip(4)
-                                                .map(to_value)
-                                                .collect::<Result<_, Error>>()?,
-                                        ))?,
-                                        options: Some(opts),
+                            }
+                            let forward_servers = if let Some(servers) = &static_servers {
+                                servers
+                                    .iter()
+                                    .flat_map(|addr| {
+                                        [
+                                            NameServerConfig::new(*addr, Protocol::Udp),
+                                            NameServerConfig::new(*addr, Protocol::Tcp),
+                                        ]
                                     })
-                                    .build()
-                                    .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))?,
-                                )];
-                                {
-                                    let mut guard = tokio::time::timeout(
-                                        Duration::from_secs(10),
-                                        catalog.write(),
-                                    )
-                                    .await
-                                    .map_err(|_| {
-                                        Error::new(
-                                            eyre!("{}", t!("net.dns.timeout-updating-catalog")),
-                                            ErrorKind::Timeout,
-                                        )
-                                    })?;
-                                    guard.upsert(Name::root().into(), auth);
-                                    drop(guard);
-                                }
+                                    .map(|n| to_value(&n))
+                                    .collect::<Result<_, Error>>()?
+                            } else {
+                                config
+                                    .name_servers()
+                                    .into_iter()
+                                    .skip(4)
+                                    .map(to_value)
+                                    .collect::<Result<_, Error>>()?
+                            };
+                            let auth: Vec<Arc<dyn AuthorityObject>> = vec![Arc::new(
+                                ForwardAuthority::builder_tokio(ForwardConfig {
+                                    name_servers: from_value(Value::Array(forward_servers))?,
+                                    options: Some(opts.clone()),
+                                })
+                                .build()
+                                .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))?,
+                            )];
+                            {
+                                let mut guard =
+                                    tokio::time::timeout(Duration::from_secs(10), catalog.write())
+                                        .await
+                                        .map_err(|_| {
+                                            Error::new(
+                                                eyre!("{}", t!("net.dns.timeout-updating-catalog")),
+                                                ErrorKind::Timeout,
+                                            )
+                                        })?;
+                                guard.upsert(Name::root().into(), auth);
+                                drop(guard);
                             }
                             prev = hash;
                         }
-
-                        Ok::<_, Error>(())
                     }
-                    .await
-                    {
+                    .await;
+                    if let Err(e) = res {
                         tracing::error!("{e}");
                         tracing::debug!("{e:?}");
                         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -399,7 +450,41 @@ impl RequestHandler for Resolver {
         match async {
             let req = request.request_info()?;
             let query = req.query;
-            if let Some(ip) = self.resolve(query.name().borrow(), req.src.ip()) {
+            let name = query.name();
+
+            if STARTOS.zone_of(name) && query.query_type() == RecordType::TXT {
+                let name_str =
+                    InternedString::intern(name.to_lowercase().to_utf8().trim_end_matches('.'));
+                if let Some(txt_value) = self.resolve.mutate(|r| {
+                    r.challenges.retain(|_, (_, weak)| weak.strong_count() > 0);
+                    r.challenges.remove(&name_str).map(|(val, _)| val)
+                }) {
+                    let mut header = Header::response_from_request(request.header());
+                    header.set_recursion_available(true);
+                    return response_handle
+                        .send_response(
+                            MessageResponseBuilder::from_message_request(&*request).build(
+                                header,
+                                &[Record::from_rdata(
+                                    query.name().to_owned().into(),
+                                    0,
+                                    hickory_server::proto::rr::RData::TXT(
+                                        hickory_server::proto::rr::rdata::TXT::new(vec![
+                                            txt_value.to_string(),
+                                        ]),
+                                    ),
+                                )],
+                                [],
+                                [],
+                                [],
+                            ),
+                        )
+                        .await
+                        .map(Some);
+                }
+            }
+
+            if let Some(ip) = self.resolve(name, req.src.ip()) {
                 match query.query_type() {
                     RecordType::A => {
                         let mut header = Header::response_from_request(request.header());
@@ -603,6 +688,34 @@ impl DnsController {
                 } else {
                     let new = Arc::new(());
                     *weak = Arc::downgrade(&new);
+                    new
+                };
+                Ok(rc)
+            })
+        } else {
+            Err(Error::new(
+                eyre!("{}", t!("net.dns.server-thread-exited")),
+                crate::ErrorKind::Network,
+            ))
+        }
+    }
+
+    pub fn add_challenge(
+        &self,
+        domain: InternedString,
+        value: InternedString,
+    ) -> Result<Arc<()>, Error> {
+        if let Some(resolve) = Weak::upgrade(&self.resolve) {
+            resolve.mutate(|writable| {
+                let entry = writable
+                    .challenges
+                    .entry(domain)
+                    .or_insert_with(|| (value.clone(), Weak::new()));
+                let rc = if let Some(rc) = Weak::upgrade(&entry.1) {
+                    rc
+                } else {
+                    let new = Arc::new(());
+                    *entry = (value, Arc::downgrade(&new));
                     new
                 };
                 Ok(rc)

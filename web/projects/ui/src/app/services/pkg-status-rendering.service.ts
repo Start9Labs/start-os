@@ -2,6 +2,30 @@ import { i18nKey } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
+export const INACTIVE_STATUSES: PrimaryStatus[] = [
+  'installing',
+  'updating',
+  'removing',
+  'restoring',
+  'backing-up',
+  'error',
+]
+
+export const ALLOWED_STATUSES: Record<T.AllowedStatuses, Set<string>> = {
+  'only-running': new Set(['running']),
+  'only-stopped': new Set(['stopped']),
+  any: new Set([
+    'running',
+    'stopped',
+    'restarting',
+    'restoring',
+    'stopping',
+    'starting',
+    'backing-up',
+    'task-required',
+  ]),
+}
+
 export interface PackageStatus {
   primary: PrimaryStatus
   health: T.HealthStatus | null

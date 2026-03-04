@@ -16,6 +16,7 @@ import {
   MountParams,
   StatusInfo,
   Manifest,
+  HostnameInfo,
 } from './osBindings'
 import {
   PackageId,
@@ -23,6 +24,7 @@ import {
   ServiceInterfaceId,
   SmtpValue,
   ActionResult,
+  PluginHostnameInfo,
 } from './types'
 
 /** Used to reach out from the pure js runtime */
@@ -133,6 +135,8 @@ export type Effects = {
   }): Promise<string>
   /** Returns the IP address of StartOS */
   getOsIp(): Promise<string>
+  /** Returns the effective outbound gateway for this service */
+  getOutboundGateway(options: { callback?: () => void }): Promise<string>
   // interface
   /** Creates an interface bound to a specific host and port to show to the user */
   exportServiceInterface(options: ExportServiceInterfaceParams): Promise<null>
@@ -151,6 +155,18 @@ export type Effects = {
   clearServiceInterfaces(options: {
     except: ServiceInterfaceId[]
   }): Promise<null>
+
+  plugin: {
+    url: {
+      register(options: { tableAction: ActionId }): Promise<null>
+      exportUrl(options: {
+        hostnameInfo: PluginHostnameInfo
+        removeAction: ActionId | null
+        overflowActions: ActionId[]
+      }): Promise<null>
+      clearUrls(options: { except: PluginHostnameInfo[] }): Promise<null>
+    }
+  }
   // ssl
   /** Returns a PEM encoded fullchain for the hostnames specified */
   getSslCertificate: (options: {

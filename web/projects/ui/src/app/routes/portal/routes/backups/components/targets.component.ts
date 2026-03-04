@@ -15,7 +15,7 @@ import {
 } from '@taiga-ui/core'
 import { TuiConfirmData, TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { filter, map, Subject, switchMap } from 'rxjs'
-import { BackupTarget } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
 
 @Component({
@@ -140,7 +140,7 @@ export class BackupsTargetsComponent {
   readonly delete$ = new Subject<string>()
 
   @Input()
-  backupsTargets: Record<string, BackupTarget> | null = null
+  backupsTargets: Record<string, T.BackupTarget> | null = null
 
   @Output()
   readonly update = new EventEmitter<string>()

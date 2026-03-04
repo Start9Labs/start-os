@@ -101,7 +101,7 @@ export class PortalComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
 
-  readonly name = toSignal(this.patch.watch$('ui', 'name'))
+  readonly name = toSignal(this.patch.watch$('serverInfo', 'name'))
   readonly update = toSignal(inject(OSService).updating$)
   readonly bar = signal(true)
 

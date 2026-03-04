@@ -461,7 +461,8 @@ impl ValueParserFactory for AcmeProvider {
     }
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct InitAcmeParams {
     #[arg(long, help = "help.arg.acme-provider")]
     pub provider: AcmeProvider,
@@ -486,7 +487,8 @@ pub async fn init(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct RemoveAcmeParams {
     #[arg(long, help = "help.arg.acme-provider")]
     pub provider: AcmeProvider,

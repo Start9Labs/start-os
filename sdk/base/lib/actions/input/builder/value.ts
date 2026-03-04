@@ -12,51 +12,69 @@ import {
 } from '../inputSpecTypes'
 import { DefaultString } from '../inputSpecTypes'
 import { _, once } from '../../../util'
-import {
-  Parser,
-  any,
-  anyOf,
-  arrayOf,
-  boolean,
-  literal,
-  literals,
-  number,
-  object,
-  string,
-} from 'ts-matches'
+import { z } from 'zod'
 import { DeepPartial } from '../../../types'
 
-export const fileInfoParser = object({
-  path: string,
-  commitment: object({ hash: string, size: number }),
+/** Zod schema for a file upload result — validates `{ path, commitment: { hash, size } }`. */
+export const fileInfoParser = z.object({
+  path: z.string(),
+  commitment: z.object({ hash: z.string(), size: z.number() }),
 })
-export type FileInfo = typeof fileInfoParser._TYPE
+/** The parsed result of a file upload, containing the file path and its content commitment (hash + size). */
+export type FileInfo = z.infer<typeof fileInfoParser>
 
-type AsRequired<T, Required extends boolean> = Required extends true
+/** Conditional type: returns `T` if `Required` is `true`, otherwise `T | null`. */
+export type AsRequired<T, Required extends boolean> = Required extends true
   ? T
   : T | null
 
 const testForAsRequiredParser = once(
-  () => object({ required: literal(true) }).test,
+  () => (v: unknown) =>
+    z.object({ required: z.literal(true) }).safeParse(v).success,
 )
 function asRequiredParser<Type, Input extends { required: boolean }>(
-  parser: Parser<unknown, Type>,
+  parser: z.ZodType<Type>,
   input: Input,
-): Parser<unknown, AsRequired<Type, Input['required']>> {
+): z.ZodType<AsRequired<Type, Input['required']>> {
   if (testForAsRequiredParser()(input)) return parser as any
   return parser.nullable() as any
 }
 
-export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
+/**
+ * Core builder class for defining a single form field in a service configuration spec.
+ *
+ * Each static factory method (e.g. `Value.text()`, `Value.toggle()`, `Value.select()`) creates
+ * a typed `Value` instance representing a specific field type. Dynamic variants (e.g. `Value.dynamicText()`)
+ * allow the field options to be computed lazily at runtime.
+ *
+ * Use with {@link InputSpec} to compose complete form specifications.
+ *
+ * @typeParam Type - The runtime type this field produces when filled in
+ * @typeParam StaticValidatedAs - The compile-time validated type (usually same as Type)
+ * @typeParam OuterType - The parent form's type context (used by dynamic variants)
+ */
+export class Value<
+  Type extends StaticValidatedAs,
+  StaticValidatedAs = Type,
+  OuterType = unknown,
+> {
   protected constructor(
-    public build: LazyBuild<{
-      spec: ValueSpec
-      validator: Parser<unknown, Type>
-    }>,
-    public readonly validator: Parser<unknown, StaticValidatedAs>,
+    public build: LazyBuild<
+      {
+        spec: ValueSpec
+        validator: z.ZodType<Type>
+      },
+      OuterType
+    >,
+    public readonly validator: z.ZodType<StaticValidatedAs>,
   ) {}
   public _TYPE: Type = null as any as Type
   public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
+  /** @internal Used by {@link InputSpec.filter} to support nested filtering of object-typed fields. */
+  _objectSpec?: {
+    inputSpec: InputSpec<any, any>
+    params: { name: string; description?: string | null }
+  }
 
   /**
    * @description Displays a boolean toggle to enable/disable
@@ -86,7 +104,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
      */
     immutable?: boolean
   }) {
-    const validator = boolean
+    const validator = z.boolean()
     return new Value<boolean>(
       async () => ({
         spec: {
@@ -102,17 +120,21 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       validator,
     )
   }
-  static dynamicToggle(
-    a: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      default: boolean
-      disabled?: false | string
-    }>,
+  /** Like {@link Value.toggle} but options are resolved lazily at runtime via a builder function. */
+  static dynamicToggle<OuterType = unknown>(
+    a: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        default: boolean
+        disabled?: false | string
+      },
+      OuterType
+    >,
   ) {
-    const validator = boolean
-    return new Value<boolean>(
+    const validator = z.boolean()
+    return new Value<boolean, boolean, OuterType>(
       async (options) => ({
         spec: {
           description: null,
@@ -202,7 +224,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
      */
     generate?: RandomString | null
   }) {
-    const validator = asRequiredParser(string, a)
+    const validator = asRequiredParser(z.string(), a)
     return new Value<AsRequired<string, Required>>(
       async () => ({
         spec: {
@@ -225,24 +247,28 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       validator,
     )
   }
-  static dynamicText<Required extends boolean>(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      default: DefaultString | null
-      required: Required
-      masked?: boolean
-      placeholder?: string | null
-      minLength?: number | null
-      maxLength?: number | null
-      patterns?: Pattern[]
-      inputmode?: ValueSpecText['inputmode']
-      disabled?: string | false
-      generate?: null | RandomString
-    }>,
+  /** Like {@link Value.text} but options are resolved lazily at runtime via a builder function. */
+  static dynamicText<Required extends boolean, OuterType = unknown>(
+    getA: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        default: DefaultString | null
+        required: Required
+        masked?: boolean
+        placeholder?: string | null
+        minLength?: number | null
+        maxLength?: number | null
+        patterns?: Pattern[]
+        inputmode?: ValueSpecText['inputmode']
+        disabled?: string | false
+        generate?: null | RandomString
+      },
+      OuterType
+    >,
   ) {
-    return new Value<AsRequired<string, Required>, string | null>(
+    return new Value<AsRequired<string, Required>, string | null, OuterType>(
       async (options) => {
         const a = await getA(options)
         return {
@@ -261,10 +287,10 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
             generate: a.generate ?? null,
             ...a,
           },
-          validator: asRequiredParser(string, a),
+          validator: asRequiredParser(z.string(), a),
         }
       },
-      string.nullable(),
+      z.string().nullable(),
     )
   }
   /**
@@ -323,7 +349,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
      */
     immutable?: boolean
   }) {
-    const validator = asRequiredParser(string, a)
+    const validator = asRequiredParser(z.string(), a)
     return new Value<AsRequired<string, Required>>(async () => {
       const built: ValueSpecTextarea = {
         description: null,
@@ -342,23 +368,27 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       return { spec: built, validator }
     }, validator)
   }
-  static dynamicTextarea<Required extends boolean>(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      default: string | null
-      required: Required
-      minLength?: number | null
-      maxLength?: number | null
-      patterns?: Pattern[]
-      minRows?: number
-      maxRows?: number
-      placeholder?: string | null
-      disabled?: false | string
-    }>,
+  /** Like {@link Value.textarea} but options are resolved lazily at runtime via a builder function. */
+  static dynamicTextarea<Required extends boolean, OuterType = unknown>(
+    getA: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        default: string | null
+        required: Required
+        minLength?: number | null
+        maxLength?: number | null
+        patterns?: Pattern[]
+        minRows?: number
+        maxRows?: number
+        placeholder?: string | null
+        disabled?: false | string
+      },
+      OuterType
+    >,
   ) {
-    return new Value<AsRequired<string, Required>, string | null>(
+    return new Value<AsRequired<string, Required>, string | null, OuterType>(
       async (options) => {
         const a = await getA(options)
         return {
@@ -376,10 +406,10 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
             immutable: false,
             ...a,
           },
-          validator: asRequiredParser(string, a),
+          validator: asRequiredParser(z.string(), a),
         }
       },
-      string.nullable(),
+      z.string().nullable(),
     )
   }
   /**
@@ -440,7 +470,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
      */
     immutable?: boolean
   }) {
-    const validator = asRequiredParser(number, a)
+    const validator = asRequiredParser(z.number(), a)
     return new Value<AsRequired<number, Required>>(
       () => ({
         spec: {
@@ -461,23 +491,27 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       validator,
     )
   }
-  static dynamicNumber<Required extends boolean>(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      default: number | null
-      required: Required
-      min?: number | null
-      max?: number | null
-      step?: number | null
-      integer: boolean
-      units?: string | null
-      placeholder?: string | null
-      disabled?: false | string
-    }>,
+  /** Like {@link Value.number} but options are resolved lazily at runtime via a builder function. */
+  static dynamicNumber<Required extends boolean, OuterType = unknown>(
+    getA: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        default: number | null
+        required: Required
+        min?: number | null
+        max?: number | null
+        step?: number | null
+        integer: boolean
+        units?: string | null
+        placeholder?: string | null
+        disabled?: false | string
+      },
+      OuterType
+    >,
   ) {
-    return new Value<AsRequired<number, Required>, number | null>(
+    return new Value<AsRequired<number, Required>, number | null, OuterType>(
       async (options) => {
         const a = await getA(options)
         return {
@@ -494,10 +528,10 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
             immutable: false,
             ...a,
           },
-          validator: asRequiredParser(number, a),
+          validator: asRequiredParser(z.number(), a),
         }
       },
-      number.nullable(),
+      z.number().nullable(),
     )
   }
   /**
@@ -536,7 +570,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
      */
     immutable?: boolean
   }) {
-    const validator = asRequiredParser(string, a)
+    const validator = asRequiredParser(z.string(), a)
     return new Value<AsRequired<string, Required>>(
       () => ({
         spec: {
@@ -553,17 +587,21 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     )
   }
 
-  static dynamicColor<Required extends boolean>(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      default: string | null
-      required: Required
-      disabled?: false | string
-    }>,
+  /** Like {@link Value.color} but options are resolved lazily at runtime via a builder function. */
+  static dynamicColor<Required extends boolean, OuterType = unknown>(
+    getA: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        default: string | null
+        required: Required
+        disabled?: false | string
+      },
+      OuterType
+    >,
   ) {
-    return new Value<AsRequired<string, Required>, string | null>(
+    return new Value<AsRequired<string, Required>, string | null, OuterType>(
       async (options) => {
         const a = await getA(options)
         return {
@@ -575,10 +613,10 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
             immutable: false,
             ...a,
           },
-          validator: asRequiredParser(string, a),
+          validator: asRequiredParser(z.string(), a),
         }
       },
-      string.nullable(),
+      z.string().nullable(),
     )
   }
   /**
@@ -627,7 +665,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
      */
     immutable?: boolean
   }) {
-    const validator = asRequiredParser(string, a)
+    const validator = asRequiredParser(z.string(), a)
     return new Value<AsRequired<string, Required>>(
       () => ({
         spec: {
@@ -647,20 +685,24 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       validator,
     )
   }
-  static dynamicDatetime<Required extends boolean>(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      default: string | null
-      required: Required
-      inputmode?: ValueSpecDatetime['inputmode']
-      min?: string | null
-      max?: string | null
-      disabled?: false | string
-    }>,
+  /** Like {@link Value.datetime} but options are resolved lazily at runtime via a builder function. */
+  static dynamicDatetime<Required extends boolean, OuterType = unknown>(
+    getA: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        default: string | null
+        required: Required
+        inputmode?: ValueSpecDatetime['inputmode']
+        min?: string | null
+        max?: string | null
+        disabled?: false | string
+      },
+      OuterType
+    >,
   ) {
-    return new Value<AsRequired<string, Required>, string | null>(
+    return new Value<AsRequired<string, Required>, string | null, OuterType>(
       async (options) => {
         const a = await getA(options)
         return {
@@ -675,10 +717,10 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
             immutable: false,
             ...a,
           },
-          validator: asRequiredParser(string, a),
+          validator: asRequiredParser(z.string(), a),
         }
       },
-      string.nullable(),
+      z.string().nullable(),
     )
   }
   /**
@@ -732,8 +774,12 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
      */
     immutable?: boolean
   }) {
-    const validator = anyOf(
-      ...Object.keys(a.values).map((x: keyof Values & string) => literal(x)),
+    const validator = z.union(
+      Object.keys(a.values).map((x: keyof Values & string) => z.literal(x)) as [
+        z.ZodLiteral<string>,
+        z.ZodLiteral<string>,
+        ...z.ZodLiteral<string>[],
+      ],
     )
     return new Value<keyof Values & string>(
       () => ({
@@ -750,34 +796,48 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       validator,
     )
   }
-  static dynamicSelect<Values extends Record<string, string>>(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      default: string
-      values: Values
-      disabled?: false | string | string[]
-    }>,
+  /** Like {@link Value.select} but options are resolved lazily at runtime via a builder function. */
+  static dynamicSelect<
+    Values extends Record<string, string>,
+    OuterType = unknown,
+  >(
+    getA: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        default: string
+        values: Values
+        disabled?: false | string | string[]
+      },
+      OuterType
+    >,
   ) {
-    return new Value<keyof Values & string, string>(async (options) => {
-      const a = await getA(options)
-      return {
-        spec: {
-          description: null,
-          warning: null,
-          type: 'select' as const,
-          disabled: false,
-          immutable: false,
-          ...a,
-        },
-        validator: anyOf(
-          ...Object.keys(a.values).map((x: keyof Values & string) =>
-            literal(x),
+    return new Value<keyof Values & string, keyof Values & string, OuterType>(
+      async (options) => {
+        const a = await getA(options)
+        return {
+          spec: {
+            description: null,
+            warning: null,
+            type: 'select' as const,
+            disabled: false,
+            immutable: false,
+            ...a,
+          },
+          validator: z.union(
+            Object.keys(a.values).map((x: keyof Values & string) =>
+              z.literal(x),
+            ) as [
+              z.ZodLiteral<string>,
+              z.ZodLiteral<string>,
+              ...z.ZodLiteral<string>[],
+            ],
           ),
-        ),
-      }
-    }, string)
+        }
+      },
+      z.string(),
+    )
   }
   /**
    * @description Displays a select modal with checkboxes, allowing for multiple selections.
@@ -831,8 +891,14 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
      */
     immutable?: boolean
   }) {
-    const validator = arrayOf(
-      literals(...(Object.keys(a.values) as any as [keyof Values & string])),
+    const validator = z.array(
+      z.union(
+        Object.keys(a.values).map((x) => z.literal(x)) as [
+          z.ZodLiteral<string>,
+          z.ZodLiteral<string>,
+          ...z.ZodLiteral<string>[],
+        ],
+      ),
     )
     return new Value<(keyof Values & string)[]>(
       () => ({
@@ -851,19 +917,30 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       validator,
     )
   }
-  static dynamicMultiselect<Values extends Record<string, string>>(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      default: string[]
-      values: Values
-      minLength?: number | null
-      maxLength?: number | null
-      disabled?: false | string | string[]
-    }>,
+  /** Like {@link Value.multiselect} but options are resolved lazily at runtime via a builder function. */
+  static dynamicMultiselect<
+    Values extends Record<string, string>,
+    OuterType = unknown,
+  >(
+    getA: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        default: string[]
+        values: Values
+        minLength?: number | null
+        maxLength?: number | null
+        disabled?: false | string | string[]
+      },
+      OuterType
+    >,
   ) {
-    return new Value<(keyof Values & string)[], string[]>(async (options) => {
+    return new Value<
+      (keyof Values & string)[],
+      (keyof Values & string)[],
+      OuterType
+    >(async (options) => {
       const a = await getA(options)
       return {
         spec: {
@@ -876,13 +953,17 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
           immutable: false,
           ...a,
         },
-        validator: arrayOf(
-          literals(
-            ...(Object.keys(a.values) as any as [keyof Values & string]),
+        validator: z.array(
+          z.union(
+            Object.keys(a.values).map((x) => z.literal(x)) as [
+              z.ZodLiteral<string>,
+              z.ZodLiteral<string>,
+              ...z.ZodLiteral<string>[],
+            ],
           ),
         ),
       }
-    }, arrayOf(string))
+    }, z.array(z.string()))
   }
   /**
    * @description Display a collapsable grouping of additional fields, a "sub form". The second value is the inputSpec spec for the sub form.
@@ -911,7 +992,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     },
     spec: InputSpec<Type, StaticValidatedAs>,
   ) {
-    return new Value<Type, StaticValidatedAs>(async (options) => {
+    const value = new Value<Type, StaticValidatedAs>(async (options) => {
       const built = await spec.build(options as any)
       return {
         spec: {
@@ -924,7 +1005,15 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         validator: built.validator,
       }
     }, spec.validator)
+    value._objectSpec = { inputSpec: spec, params: a }
+    return value
   }
+  /**
+   * Displays a file upload input field.
+   *
+   * @param a.extensions - Allowed file extensions (e.g. `[".pem", ".crt"]`)
+   * @param a.required - Whether a file must be selected
+   */
   static file<Required extends boolean>(a: {
     name: string
     description?: string | null
@@ -948,30 +1037,35 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       asRequiredParser(fileInfoParser, a),
     )
   }
-  static dynamicFile<Required extends boolean>(
-    a: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      extensions: string[]
-      required: Required
-    }>,
-  ) {
-    return new Value<AsRequired<FileInfo, Required>, FileInfo | null>(
-      async (options) => {
-        const spec = {
-          type: 'file' as const,
-          description: null,
-          warning: null,
-          ...(await a(options)),
-        }
-        return {
-          spec,
-          validator: asRequiredParser(fileInfoParser, spec),
-        }
+  /** Like {@link Value.file} but options are resolved lazily at runtime via a builder function. */
+  static dynamicFile<Required extends boolean, OuterType = unknown>(
+    a: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        extensions: string[]
+        required: Required
       },
-      fileInfoParser.nullable(),
-    )
+      OuterType
+    >,
+  ) {
+    return new Value<
+      AsRequired<FileInfo, Required>,
+      FileInfo | null,
+      OuterType
+    >(async (options) => {
+      const spec = {
+        type: 'file' as const,
+        description: null,
+        warning: null,
+        ...(await a(options)),
+      }
+      return {
+        spec,
+        validator: asRequiredParser(fileInfoParser, spec),
+      }
+    }, fileInfoParser.nullable())
   }
   /**
    * @description Displays a dropdown, allowing for a single selection. Depending on the selection, a different object ("sub form") is presented.
@@ -1029,7 +1123,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
   }) {
     return new Value<
       typeof a.variants._TYPE,
-      typeof a.variants.validator._TYPE
+      typeof a.variants.validator._output
     >(async (options) => {
       const built = await a.variants.build(options as any)
       return {
@@ -1046,6 +1140,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       }
     }, a.variants.validator)
   }
+  /** Like {@link Value.union} but options (including which variants are available) are resolved lazily at runtime. */
   static dynamicUnion<
     VariantValues extends {
       [K in string]: {
@@ -1053,37 +1148,47 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         spec: InputSpec<any>
       }
     },
+    OuterType = unknown,
   >(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      variants: Variants<VariantValues>
-      default: keyof VariantValues & string
-      disabled: string[] | false | string
-    }>,
-  ): Value<UnionRes<VariantValues>, unknown>
+    getA: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        variants: Variants<VariantValues>
+        default: keyof VariantValues & string
+        disabled: string[] | false | string
+      },
+      OuterType
+    >,
+  ): Value<UnionRes<VariantValues>, UnionRes<VariantValues>, OuterType>
+  /** Like {@link Value.union} but options are resolved lazily, with an explicit static validator type. */
   static dynamicUnion<
-    VariantValues extends StaticVariantValues,
     StaticVariantValues extends {
       [K in string]: {
         name: string
         spec: InputSpec<any, any>
       }
     },
+    VariantValues extends StaticVariantValues,
+    OuterType = unknown,
   >(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      variants: Variants<VariantValues>
-      default: keyof VariantValues & string
-      disabled: string[] | false | string
-    }>,
-    validator: Parser<unknown, UnionResStaticValidatedAs<StaticVariantValues>>,
+    getA: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        variants: Variants<VariantValues>
+        default: keyof VariantValues & string
+        disabled: string[] | false | string
+      },
+      OuterType
+    >,
+    validator: z.ZodType<UnionResStaticValidatedAs<StaticVariantValues>>,
   ): Value<
     UnionRes<VariantValues>,
-    UnionResStaticValidatedAs<StaticVariantValues>
+    UnionResStaticValidatedAs<StaticVariantValues>,
+    OuterType
   >
   static dynamicUnion<
     VariantValues extends {
@@ -1092,35 +1197,40 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         spec: InputSpec<any>
       }
     },
+    OuterType = unknown,
   >(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      variants: Variants<VariantValues>
-      default: keyof VariantValues & string
-      disabled: string[] | false | string
-    }>,
-    validator: Parser<unknown, unknown> = any,
-  ) {
-    return new Value<UnionRes<VariantValues>, typeof validator._TYPE>(
-      async (options) => {
-        const newValues = await getA(options)
-        const built = await newValues.variants.build(options as any)
-        return {
-          spec: {
-            type: 'union' as const,
-            description: null,
-            warning: null,
-            ...newValues,
-            variants: built.spec,
-            immutable: false,
-          },
-          validator: built.validator,
-        }
+    getA: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        variants: Variants<VariantValues>
+        default: keyof VariantValues & string
+        disabled: string[] | false | string
       },
-      validator,
-    )
+      OuterType
+    >,
+    validator: z.ZodType<unknown> = z.any(),
+  ) {
+    return new Value<
+      UnionRes<VariantValues>,
+      z.infer<typeof validator>,
+      OuterType
+    >(async (options) => {
+      const newValues = await getA(options)
+      const built = await newValues.variants.build(options as any)
+      return {
+        spec: {
+          type: 'union' as const,
+          description: null,
+          warning: null,
+          ...newValues,
+          variants: built.spec,
+          immutable: false,
+        },
+        validator: built.validator,
+      }
+    }, validator)
   }
   /**
    * @description Presents an interface to add/remove/edit items in a list.
@@ -1196,10 +1306,10 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     hiddenExample: Value.hidden(),
    * ```
    */
-  static hidden<T>(): Value<T, unknown>
-  static hidden<T>(parser: Parser<unknown, T>): Value<T>
-  static hidden<T>(parser: Parser<unknown, T> = any) {
-    return new Value<T, typeof parser._TYPE>(async () => {
+  static hidden<T>(): Value<T>
+  static hidden<T>(parser: z.ZodType<T>): Value<T>
+  static hidden<T>(parser: z.ZodType<T> = z.any()) {
+    return new Value<T, z.infer<typeof parser>>(async () => {
       return {
         spec: {
           type: 'hidden' as const,
@@ -1216,8 +1326,10 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     hiddenExample: Value.hidden(),
    * ```
    */
-  static dynamicHidden<T>(getParser: LazyBuild<Parser<unknown, T>>) {
-    return new Value<T, unknown>(async (options) => {
+  static dynamicHidden<T, OuterType = unknown>(
+    getParser: LazyBuild<z.ZodType<T>, OuterType>,
+  ) {
+    return new Value<T, T, OuterType>(async (options) => {
       const validator = await getParser(options)
       return {
         spec: {
@@ -1225,16 +1337,41 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         } as ValueSpecHidden,
         validator,
       }
-    }, any)
+    }, z.any())
   }
 
-  map<U>(fn: (value: StaticValidatedAs) => U): Value<U> {
-    return new Value(async (effects) => {
-      const built = await this.build(effects)
+  /**
+   * Returns a new Value that produces the same field spec but with `disabled` set to the given message.
+   * The field remains in the form but cannot be edited by the user.
+   *
+   * @param message - The reason the field is disabled, displayed to the user
+   */
+  withDisabled(message: string): Value<Type, StaticValidatedAs, OuterType> {
+    const original = this
+    const v = new Value<Type, StaticValidatedAs, OuterType>(async (options) => {
+      const built = await original.build(options)
+      return {
+        spec: { ...built.spec, disabled: message } as ValueSpec,
+        validator: built.validator,
+      }
+    }, this.validator)
+    v._objectSpec = this._objectSpec
+    return v
+  }
+
+  /**
+   * Transforms the validated output value using a mapping function.
+   * The form field itself remains unchanged, but the value is transformed after validation.
+   *
+   * @param fn - A function to transform the validated value
+   */
+  map<U>(fn: (value: StaticValidatedAs) => U): Value<U, U, OuterType> {
+    return new Value<U, U, OuterType>(async (options) => {
+      const built = await this.build(options)
       return {
         spec: built.spec,
-        validator: built.validator.map(fn),
+        validator: built.validator.transform(fn),
       }
-    }, this.validator.map(fn))
+    }, this.validator.transform(fn))
   }
 }

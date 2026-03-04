@@ -1,10 +1,10 @@
-import { literals, some, string } from "ts-matches"
+import { z } from "@start9labs/start-sdk"
 
 type NestedPath<A extends string, B extends string> = `/${A}/${string}/${B}`
 type NestedPaths = NestedPath<"actions", "run" | "getInput">
 // prettier-ignore
-type UnNestPaths<A> = 
-  A extends `${infer A}/${infer B}` ? [...UnNestPaths<A>, ... UnNestPaths<B>] : 
+type UnNestPaths<A> =
+  A extends `${infer A}/${infer B}` ? [...UnNestPaths<A>, ... UnNestPaths<B>] :
   [A]
 
 export function unNestPath<A extends string>(a: A): UnNestPaths<A> {
@@ -17,14 +17,14 @@ function isNestedPath(path: string): path is NestedPaths {
     return true
   return false
 }
-export const jsonPath = some(
-  literals(
+export const jsonPath = z.union([
+  z.enum([
     "/packageInit",
     "/packageUninit",
     "/backup/create",
     "/backup/restore",
-  ),
-  string.refine(isNestedPath, "isNestedPath"),
-)
+  ]),
+  z.string().refine(isNestedPath),
+])
 
-export type JsonPath = typeof jsonPath._TYPE
+export type JsonPath = z.infer<typeof jsonPath>

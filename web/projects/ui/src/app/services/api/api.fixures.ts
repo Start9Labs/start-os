@@ -2,9 +2,8 @@ import {
   InstalledState,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { RR, ServerMetrics, ServerNotifications } from './api.types'
+import { ActionRes } from './api.types'
 import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
-import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { T, ISB, IST } from '@start9labs/start-sdk'
 import { GetPackagesRes } from '@start9labs/marketplace'
@@ -30,7 +29,7 @@ export namespace Mock {
     shuttingDown: false,
   }
 
-  export const RegistryOSUpdate: RR.CheckOsUpdateRes = {
+  export const RegistryOSUpdate: T.OsVersionInfoMap = {
     '0.4.1': {
       headline: 'v0.4.1',
       releaseNotes: 'Testing some release notes',
@@ -232,12 +231,11 @@ export namespace Mock {
     },
     releaseNotes: 'Taproot, Schnorr, and more.',
     license: 'MIT',
-    wrapperRepo: 'https://github.com/start9labs/bitcoind-wrapper',
+    packageRepo: 'https://github.com/start9labs/bitcoind-wrapper',
     upstreamRepo: 'https://github.com/bitcoin/bitcoin',
-    supportSite: 'https://bitcoin.org',
-    marketingSite: 'https://bitcoin.org',
+    marketingUrl: 'https://bitcoin.org',
     donationUrl: 'https://start9.com',
-    docsUrl: 'https://docs.start9.com',
+    docsUrls: ['https://docs.start9.com'],
     alerts: {
       install: 'Bitcoin can take over a week to sync.',
       uninstall:
@@ -264,6 +262,7 @@ export namespace Mock {
       ram: null,
     },
     hardwareAcceleration: false,
+    plugins: [],
   }
 
   export const MockManifestLnd: T.Manifest = {
@@ -280,12 +279,11 @@ export namespace Mock {
     },
     releaseNotes: 'Dual funded channels!',
     license: 'MIT',
-    wrapperRepo: 'https://github.com/start9labs/lnd-wrapper',
+    packageRepo: 'https://github.com/start9labs/lnd-wrapper',
     upstreamRepo: 'https://github.com/lightningnetwork/lnd',
-    supportSite: 'https://lightning.engineering/',
-    marketingSite: 'https://lightning.engineering/',
+    marketingUrl: 'https://lightning.engineering/',
     donationUrl: null,
-    docsUrl: 'https://docs.start9.com',
+    docsUrls: ['https://docs.start9.com'],
     alerts: {
       install: null,
       uninstall: null,
@@ -324,6 +322,54 @@ export namespace Mock {
       ram: null,
     },
     hardwareAcceleration: false,
+    plugins: [],
+  }
+
+  export const MockManifestTor: T.Manifest = {
+    id: 'tor',
+    title: 'Tor',
+    version: '0.4.8:0',
+    satisfies: [],
+    canMigrateTo: '!',
+    canMigrateFrom: '*',
+    gitHash: 'torhash1',
+    description: {
+      short: 'An anonymous overlay network.',
+      long: 'Tor provides anonymous communication by directing traffic through a free, worldwide overlay network.',
+    },
+    releaseNotes: 'Bug fixes and stability improvements.',
+    license: 'BSD-3-Clause',
+    packageRepo: 'https://github.com/start9labs/tor-wrapper',
+    upstreamRepo: 'https://gitlab.torproject.org/tpo/core/tor',
+    marketingUrl: 'https://www.torproject.org',
+    donationUrl: null,
+    docsUrls: ['https://docs.start9.com'],
+    alerts: {
+      install: null,
+      uninstall: null,
+      restore: null,
+      start: null,
+      stop: null,
+    },
+    osVersion: '0.2.12',
+    sdkVersion: '0.4.0',
+    dependencies: {},
+    images: {
+      main: {
+        source: 'packed',
+        arch: ['x86_64', 'aarch64'],
+        emulateMissingAs: 'aarch64',
+        nvidiaContainer: false,
+      },
+    },
+    volumes: ['main'],
+    hardwareRequirements: {
+      device: [],
+      arch: null,
+      ram: null,
+    },
+    hardwareAcceleration: false,
+    plugins: ['url-v0'],
   }
 
   export const MockManifestBitcoinProxy: T.Manifest = {
@@ -340,12 +386,11 @@ export namespace Mock {
     },
     releaseNotes: 'Even better support for Bitcoin and wallets!',
     license: 'MIT',
-    wrapperRepo: 'https://github.com/start9labs/btc-rpc-proxy-wrapper',
+    packageRepo: 'https://github.com/start9labs/btc-rpc-proxy-wrapper',
     upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
-    supportSite: '',
-    marketingSite: '',
+    marketingUrl: '',
     donationUrl: 'https://start9.com',
-    docsUrl: 'https://docs.start9.com',
+    docsUrls: ['https://docs.start9.com'],
     alerts: {
       install: 'Testing install alert',
       uninstall: null,
@@ -377,6 +422,7 @@ export namespace Mock {
       ram: null,
     },
     hardwareAcceleration: false,
+    plugins: [],
   }
 
   export const BitcoinDep: T.DependencyMetadata = {
@@ -403,14 +449,13 @@ export namespace Mock {
             title: 'Bitcoin Core',
             description: mockDescription,
             license: 'mit',
-            wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
+            packageRepo: 'https://github.com/start9labs/bitcoind-startos',
             upstreamRepo: 'https://github.com/bitcoin/bitcoin',
-            supportSite: 'https://bitcoin.org',
-            marketingSite: 'https://bitcoin.org',
-            docsUrl: 'https://bitcoin.org',
+            marketingUrl: 'https://bitcoin.org',
+            docsUrls: ['https://bitcoin.org'],
             releaseNotes: 'Even better support for Bitcoin and wallets!',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.48',
+            sdkVersion: '0.4.0-beta.49',
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
@@ -437,6 +482,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+            plugins: [],
           },
           '#knots:26.1.20240325:0': {
             title: 'Bitcoin Knots',
@@ -445,14 +491,13 @@ export namespace Mock {
               long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
             },
             license: 'mit',
-            wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
+            packageRepo: 'https://github.com/start9labs/bitcoinknots-startos',
             upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
-            supportSite: 'https://bitcoinknots.org',
-            marketingSite: 'https://bitcoinknots.org',
-            docsUrl: 'https://bitcoinknots.org',
+            marketingUrl: 'https://bitcoinknots.org',
+            docsUrls: ['https://bitcoinknots.org'],
             releaseNotes: 'Even better support for Bitcoin and wallets!',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.48',
+            sdkVersion: '0.4.0-beta.49',
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
@@ -479,6 +524,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+            plugins: [],
           },
         },
         categories: ['bitcoin', 'featured'],
@@ -497,14 +543,13 @@ export namespace Mock {
             title: 'Bitcoin Core',
             description: mockDescription,
             license: 'mit',
-            wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
+            packageRepo: 'https://github.com/start9labs/bitcoind-startos',
             upstreamRepo: 'https://github.com/bitcoin/bitcoin',
-            supportSite: 'https://bitcoin.org',
-            marketingSite: 'https://bitcoin.org',
-            docsUrl: 'https://bitcoin.org',
+            marketingUrl: 'https://bitcoin.org',
+            docsUrls: ['https://bitcoin.org'],
             releaseNotes: 'Even better support for Bitcoin and wallets!',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.48',
+            sdkVersion: '0.4.0-beta.49',
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
@@ -531,6 +576,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+            plugins: [],
           },
           '#knots:26.1.20240325:0': {
             title: 'Bitcoin Knots',
@@ -539,14 +585,13 @@ export namespace Mock {
               long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
             },
             license: 'mit',
-            wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
+            packageRepo: 'https://github.com/start9labs/bitcoinknots-startos',
             upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
-            supportSite: 'https://bitcoinknots.org',
-            marketingSite: 'https://bitcoinknots.org',
-            docsUrl: 'https://bitcoinknots.org',
+            marketingUrl: 'https://bitcoinknots.org',
+            docsUrls: ['https://bitcoinknots.org'],
             releaseNotes: 'Even better support for Bitcoin and wallets!',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.48',
+            sdkVersion: '0.4.0-beta.49',
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
@@ -573,6 +618,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+            plugins: [],
           },
         },
         categories: ['bitcoin', 'featured'],
@@ -593,14 +639,13 @@ export namespace Mock {
             title: 'LND',
             description: mockDescription,
             license: 'mit',
-            wrapperRepo: 'https://github.com/start9labs/lnd-startos',
+            packageRepo: 'https://github.com/start9labs/lnd-startos',
             upstreamRepo: 'https://github.com/lightningnetwork/lnd',
-            supportSite: 'https://lightning.engineering/slack.html',
-            marketingSite: 'https://lightning.engineering/',
-            docsUrl: 'https://lightning.engineering/',
+            marketingUrl: 'https://lightning.engineering/',
+            docsUrls: ['https://lightning.engineering/'],
             releaseNotes: 'Upstream release to 0.17.5',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.48',
+            sdkVersion: '0.4.0-beta.49',
             gitHash: 'fakehash',
             icon: LND_ICON,
             sourceVersion: null,
@@ -630,6 +675,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+            plugins: [],
           },
         },
         categories: ['lightning'],
@@ -648,14 +694,13 @@ export namespace Mock {
             title: 'LND',
             description: mockDescription,
             license: 'mit',
-            wrapperRepo: 'https://github.com/start9labs/lnd-startos',
+            packageRepo: 'https://github.com/start9labs/lnd-startos',
             upstreamRepo: 'https://github.com/lightningnetwork/lnd',
-            supportSite: 'https://lightning.engineering/slack.html',
-            marketingSite: 'https://lightning.engineering/',
-            docsUrl: 'https://lightning.engineering/',
+            marketingUrl: 'https://lightning.engineering/',
+            docsUrls: ['https://lightning.engineering/'],
             releaseNotes: 'Upstream release to 0.17.4',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.48',
+            sdkVersion: '0.4.0-beta.49',
             gitHash: 'fakehash',
             icon: LND_ICON,
             sourceVersion: null,
@@ -685,6 +730,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+            plugins: [],
           },
         },
         categories: ['lightning'],
@@ -707,14 +753,13 @@ export namespace Mock {
           title: 'Bitcoin Core',
           description: mockDescription,
           license: 'mit',
-          wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
+          packageRepo: 'https://github.com/start9labs/bitcoind-startos',
           upstreamRepo: 'https://github.com/bitcoin/bitcoin',
-          supportSite: 'https://bitcoin.org',
-          marketingSite: 'https://bitcoin.org',
-          docsUrl: 'https://bitcoin.org',
+          marketingUrl: 'https://bitcoin.org',
+          docsUrls: ['https://bitcoin.org'],
           releaseNotes: 'Even better support for Bitcoin and wallets!',
           osVersion: '0.3.6',
-          sdkVersion: '0.4.0-beta.48',
+          sdkVersion: '0.4.0-beta.49',
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
@@ -741,6 +786,7 @@ export namespace Mock {
             ],
           ],
           hardwareAcceleration: false,
+          plugins: [],
         },
         '#knots:27.1.0:0': {
           title: 'Bitcoin Knots',
@@ -749,14 +795,13 @@ export namespace Mock {
             long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
           },
           license: 'mit',
-          wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
+          packageRepo: 'https://github.com/start9labs/bitcoinknots-startos',
           upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
-          supportSite: 'https://bitcoinknots.org',
-          marketingSite: 'https://bitcoinknots.org',
-          docsUrl: 'https://bitcoinknots.org',
+          marketingUrl: 'https://bitcoinknots.org',
+          docsUrls: [],
           releaseNotes: 'Even better support for Bitcoin and wallets!',
           osVersion: '0.3.6',
-          sdkVersion: '0.4.0-beta.48',
+          sdkVersion: '0.4.0-beta.49',
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
@@ -783,6 +828,7 @@ export namespace Mock {
             ],
           ],
           hardwareAcceleration: false,
+          plugins: [],
         },
       },
       categories: ['bitcoin', 'featured'],
@@ -801,14 +847,13 @@ export namespace Mock {
           title: 'LND',
           description: mockDescription,
           license: 'mit',
-          wrapperRepo: 'https://github.com/start9labs/lnd-startos',
+          packageRepo: 'https://github.com/start9labs/lnd-startos',
           upstreamRepo: 'https://github.com/lightningnetwork/lnd',
-          supportSite: 'https://lightning.engineering/slack.html',
-          marketingSite: 'https://lightning.engineering/',
-          docsUrl: 'https://lightning.engineering/',
+          marketingUrl: 'https://lightning.engineering/',
+          docsUrls: [],
           releaseNotes: 'Upstream release and minor fixes.',
           osVersion: '0.3.6',
-          sdkVersion: '0.4.0-beta.48',
+          sdkVersion: '0.4.0-beta.49',
           gitHash: 'fakehash',
           icon: LND_ICON,
           sourceVersion: null,
@@ -838,6 +883,7 @@ export namespace Mock {
             ],
           ],
           hardwareAcceleration: false,
+          plugins: [],
         },
       },
       categories: ['lightning'],
@@ -856,14 +902,13 @@ export namespace Mock {
           title: 'Bitcoin Proxy',
           description: mockDescription,
           license: 'mit',
-          wrapperRepo: 'https://github.com/Start9Labs/btc-rpc-proxy-wrappers',
+          packageRepo: 'https://github.com/Start9Labs/btc-rpc-proxy-wrappers',
           upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
-          supportSite: 'https://github.com/Kixunil/btc-rpc-proxy/issues',
-          docsUrl: 'https://github.com/Kixunil/btc-rpc-proxy',
-          marketingSite: '',
+          docsUrls: [],
+          marketingUrl: '',
           releaseNotes: 'Upstream release and minor fixes.',
           osVersion: '0.3.6',
-          sdkVersion: '0.4.0-beta.48',
+          sdkVersion: '0.4.0-beta.49',
           gitHash: 'fakehash',
           icon: PROXY_ICON,
           sourceVersion: null,
@@ -892,6 +937,7 @@ export namespace Mock {
             ],
           ],
           hardwareAcceleration: false,
+          plugins: [],
         },
       },
       categories: ['bitcoin'],
@@ -899,7 +945,7 @@ export namespace Mock {
     },
   }
 
-  export const Notifications: ServerNotifications = [
+  export const Notifications: T.NotificationWithId[] = [
     {
       id: 1,
       packageId: null,
@@ -974,7 +1020,7 @@ export namespace Mock {
     },
   ]
 
-  export function getMetrics(): ServerMetrics {
+  export function getMetrics(): T.Metrics {
     return {
       general: {
         temperature: {
@@ -1055,7 +1101,7 @@ export namespace Mock {
     }
   }
 
-  export const ServerLogs: Log[] = [
+  export const ServerLogs: T.LogEntry[] = [
     {
       timestamp: '2022-07-28T03:52:54.808769Z',
       message: '****** START *****',
@@ -1079,7 +1125,7 @@ export namespace Mock {
     },
   ]
 
-  export const Sessions: RR.GetSessionsRes = {
+  export const Sessions: T.SessionList = {
     current: 'b7b1a9cef4284f00af9e9dda6e676177',
     sessions: {
       '9513226517c54ddd8107d6d7b9d8aed7': {
@@ -1101,7 +1147,7 @@ export namespace Mock {
     },
   }
 
-  export const SshKeys: RR.GetSSHKeysRes = [
+  export const SshKeys: T.SshKeyResponse[] = [
     {
       createdAt: new Date().toISOString(),
       alg: 'ed25519',
@@ -1116,14 +1162,14 @@ export namespace Mock {
     },
   ]
 
-  export const SshKey: RR.AddSSHKeyRes = {
+  export const SshKey: T.SshKeyResponse = {
     createdAt: new Date().toISOString(),
     alg: 'ed25519',
     hostname: 'Lucy Key',
     fingerprint: '44:44:7e:78:61:b4:bf:g2:de:24:15:96:4e:d4:15:53',
   }
 
-  export const Wifi: RR.GetWifiRes = {
+  export const Wifi: T.WifiListInfo = {
     ethernet: true,
     ssids: {
       Goosers: 50,
@@ -1150,7 +1196,7 @@ export namespace Mock {
     ],
   }
 
-  export const BackupTargets: RR.GetBackupTargetsRes = {
+  export const BackupTargets: { [id: string]: T.BackupTarget } = {
     hsbdjhasbasda: {
       type: 'cifs',
       hostname: 'smb://192.169.10.0',
@@ -1195,6 +1241,7 @@ export namespace Mock {
       used: 100000000000,
       model: null,
       vendor: 'SSK',
+      guid: null,
       startOs: {
         '1234-5678-9876-5432': {
           hostname: 'adjective-noun',
@@ -1338,7 +1385,7 @@ export namespace Mock {
   //   },
   // ]
 
-  export const BackupInfo: RR.GetBackupInfoRes = {
+  export const BackupInfo: T.BackupInfo = {
     version: '0.3.6',
     timestamp: new Date().toISOString(),
     packageBackups: {
@@ -1357,7 +1404,7 @@ export namespace Mock {
     },
   }
 
-  export const ActionResMessage: RR.ActionRes = {
+  export const ActionResMessage: ActionRes = {
     version: '1',
     title: 'New Password',
     message:
@@ -1365,7 +1412,7 @@ export namespace Mock {
     result: null,
   }
 
-  export const ActionResSingle: RR.ActionRes = {
+  export const ActionResSingle: ActionRes = {
     version: '1',
     title: 'New Password',
     message:
@@ -1379,7 +1426,7 @@ export namespace Mock {
     },
   }
 
-  export const ActionResGroup: RR.ActionRes = {
+  export const ActionResGroup: ActionRes = {
     version: '1',
     title: 'Properties',
     message:
@@ -1443,6 +1490,31 @@ export namespace Mock {
       ],
     },
   }
+
+  export const getCreateOnionServiceSpec = async (): Promise<IST.InputSpec> =>
+    configBuilderToSpec(
+      ISB.InputSpec.of({
+        ssl: ISB.Value.toggle({
+          name: 'SSL',
+          description: 'Enable HTTPS for this onion service',
+          default: true,
+        }),
+        privateKey: ISB.Value.text({
+          name: 'Private Key',
+          description:
+            'Optionally provide an existing ed25519 private key to reuse a .onion address. Leave blank to generate a new one.',
+          required: false,
+          default: null,
+          masked: true,
+        }),
+        urlPluginMetadata: ISB.Value.hidden<{
+          packageId: string
+          interfaceId: string
+          hostId: string
+          internalPort: number
+        }>(),
+      }),
+    )
 
   export const getActionInputSpec = async (): Promise<IST.InputSpec> =>
     configBuilderToSpec(
@@ -2126,8 +2198,50 @@ export namespace Mock {
             net: {
               assignedPort: 80,
               assignedSslPort: 443,
-              publicEnabled: [],
-              privateDisabled: [],
+            },
+            addresses: {
+              enabled: [],
+              disabled: [],
+              available: [
+                {
+                  ssl: true,
+                  public: false,
+                  hostname: 'adjective-noun.local',
+                  port: 1234,
+                  metadata: {
+                    kind: 'mdns',
+                    gateways: ['eth0', 'wlan0'],
+                  },
+                },
+                {
+                  ssl: true,
+                  public: false,
+                  hostname: '192.168.10.11',
+                  port: 1234,
+                  metadata: { kind: 'ipv4', gateway: 'wlan0' },
+                },
+                {
+                  ssl: true,
+                  public: false,
+                  hostname: '10.0.0.2',
+                  port: 1234,
+                  metadata: { kind: 'ipv4', gateway: 'wlan0' },
+                },
+                {
+                  ssl: true,
+                  public: false,
+                  hostname: 'fe80:cd00:0000:0cde:1257:0000:211e:72cd',
+                  port: 1234,
+                  metadata: { kind: 'ipv6', gateway: 'eth0', scopeId: 2 },
+                },
+                {
+                  ssl: true,
+                  public: false,
+                  hostname: 'fe80:cd00:0000:0cde:1257:0000:211e:1234',
+                  port: 1234,
+                  metadata: { kind: 'ipv6', gateway: 'wlan0', scopeId: 3 },
+                },
+              ],
             },
             options: {
               addSsl: null,
@@ -2137,88 +2251,8 @@ export namespace Mock {
           },
         },
         publicDomains: {},
-        privateDomains: [],
-        onions: [],
-        hostnameInfo: {
-          80: [
-            {
-              kind: 'ip',
-              gateway: { id: 'eth0', name: 'Ethernet', public: false },
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '192.168.10.11',
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '10.0.0.2',
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'eth0', name: 'Ethernet', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: '[fe80:cd00:0000:0cde:1257:0000:211e:72cd]',
-                scopeId: 2,
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'ip',
-              gateway: { id: 'wlan0', name: 'Wireless', public: false },
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: '[fe80:cd00:0000:0cde:1257:0000:211e:1234]',
-                scopeId: 3,
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'onion',
-              hostname: {
-                value: 'bitcoin-p2p.onion',
-                port: 80,
-                sslPort: 443,
-              },
-            },
-          ],
-        },
+        privateDomains: {},
+        portForwards: [],
       },
       bcdefgh: {
         bindings: {
@@ -2227,8 +2261,11 @@ export namespace Mock {
             net: {
               assignedPort: 8332,
               assignedSslPort: null,
-              publicEnabled: [],
-              privateDisabled: [],
+            },
+            addresses: {
+              enabled: [],
+              disabled: [],
+              available: [],
             },
             options: {
               addSsl: null,
@@ -2238,11 +2275,8 @@ export namespace Mock {
           },
         },
         publicDomains: {},
-        privateDomains: [],
-        onions: [],
-        hostnameInfo: {
-          8332: [],
-        },
+        privateDomains: {},
+        portForwards: [],
       },
       cdefghi: {
         bindings: {
@@ -2251,8 +2285,11 @@ export namespace Mock {
             net: {
               assignedPort: 8333,
               assignedSslPort: null,
-              publicEnabled: [],
-              privateDisabled: [],
+            },
+            addresses: {
+              enabled: [],
+              disabled: [],
+              available: [],
             },
             options: {
               addSsl: null,
@@ -2262,16 +2299,15 @@ export namespace Mock {
           },
         },
         publicDomains: {},
-        privateDomains: [],
-        onions: [],
-        hostnameInfo: {
-          8333: [],
-        },
+        privateDomains: {},
+        portForwards: [],
       },
     },
     storeExposedDependents: [],
+    outboundGateway: null,
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
+    plugin: { url: null },
     tasks: {
       'bitcoind-config': {
         task: {
@@ -2338,8 +2374,10 @@ export namespace Mock {
     },
     hosts: {},
     storeExposedDependents: [],
+    outboundGateway: null,
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
+    plugin: { url: null },
     tasks: {},
   }
 
@@ -2444,8 +2482,10 @@ export namespace Mock {
     },
     hosts: {},
     storeExposedDependents: [],
+    outboundGateway: null,
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
+    plugin: { url: null },
     tasks: {
       config: {
         active: true,

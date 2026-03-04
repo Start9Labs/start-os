@@ -12,7 +12,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostname;
 use crate::prelude::*;
 use crate::util::io::create_file;
 use crate::util::serde::{HandlerExtSerde, Pem, WithIoFormat, display_serializable};
@@ -58,7 +58,8 @@ impl ValueParserFactory for SshPubKey {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SshKeyResponse {
     pub alg: String,
@@ -115,15 +116,19 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct AddParams {
+pub struct SshAddParams {
     #[arg(help = "help.arg.ssh-public-key")]
     key: SshPubKey,
 }
 
 #[instrument(skip_all)]
-pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKeyResponse, Error> {
+pub async fn add(
+    ctx: RpcContext,
+    SshAddParams { key }: SshAddParams,
+) -> Result<SshKeyResponse, Error> {
     let mut key = WithTimeData::new(key);
     let fingerprint = InternedString::intern(key.0.fingerprint_md5());
     let (keys, res) = ctx
@@ -150,9 +155,10 @@ pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKey
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct DeleteParams {
+pub struct SshDeleteParams {
     #[arg(help = "help.arg.ssh-fingerprint")]
     #[ts(type = "string")]
     fingerprint: InternedString,
@@ -161,7 +167,7 @@ pub struct DeleteParams {
 #[instrument(skip_all)]
 pub async fn remove(
     ctx: RpcContext,
-    DeleteParams { fingerprint }: DeleteParams,
+    SshDeleteParams { fingerprint }: SshDeleteParams,
 ) -> Result<(), Error> {
     let keys = ctx
         .db
@@ -235,7 +241,7 @@ pub async fn list(ctx: RpcContext) -> Result<Vec<SshKeyResponse>, Error> {
 
 #[instrument(skip_all)]
 pub async fn sync_keys<P: AsRef<Path>>(
-    hostname: &Hostname,
+    hostname: &ServerHostname,
     privkey: &Pem<ssh_key::PrivateKey>,
     pubkeys: &SshKeys,
     ssh_dir: P,
@@ -281,8 +287,8 @@ pub async fn sync_keys<P: AsRef<Path>>(
             .to_openssh()
             .with_kind(ErrorKind::OpenSsh)?
             + " start9@"
-            + &*hostname.0)
-            .as_bytes(),
+            + hostname.as_ref())
+        .as_bytes(),
     )
     .await?;
     f.write_all(b"\n").await?;

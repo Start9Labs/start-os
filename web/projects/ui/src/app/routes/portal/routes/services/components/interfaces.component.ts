@@ -22,6 +22,7 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
           <th tuiTh>{{ 'Name' | i18n }}</th>
           <th tuiTh>{{ 'Type' | i18n }}</th>
           <th tuiTh>{{ 'Description' | i18n }}</th>
+          <th tuiTh></th>
         </tr>
       </thead>
       <tbody>
@@ -30,6 +31,7 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
             tabindex="-1"
             serviceInterface
             [info]="info"
+            [link]="info.routerLink"
             [routerLink]="info.routerLink"
           >
             <a [routerLink]="info.routerLink">
@@ -53,10 +55,10 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ServiceInterfaceItemComponent,
+    RouterLink,
     TuiTable,
     i18nPipe,
     PlaceholderComponent,
-    RouterLink,
   ],
 })
 export class ServiceInterfacesComponent {

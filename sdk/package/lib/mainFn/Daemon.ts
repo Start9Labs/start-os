@@ -13,10 +13,15 @@ import { Oneshot } from './Oneshot'
 const TIMEOUT_INCREMENT_MS = 1000
 const MAX_TIMEOUT_MS = 30000
 /**
- * This is a wrapper around CommandController that has a state of off, where the command shouldn't be running
- * and the others state of running, where it will keep a living running command
+ * A managed long-running process wrapper around {@link CommandController}.
+ *
+ * When started, the daemon automatically restarts its underlying command on failure
+ * with exponential backoff (up to 30 seconds). When stopped, the command is terminated
+ * gracefully. Implements {@link Drop} for automatic cleanup when the context is left.
+ *
+ * @typeParam Manifest - The service manifest type
+ * @typeParam C - The subcontainer type, or `null` for JS-only daemons
  */
-
 export class Daemon<
   Manifest extends T.SDKManifest,
   C extends SubContainer<Manifest> | null = SubContainer<Manifest> | null,
@@ -33,9 +38,16 @@ export class Daemon<
   ) {
     super()
   }
+  /** Returns true if this daemon is a one-shot process (exits after success) */
   isOneshot(): this is Oneshot<Manifest> {
     return this.oneshot
   }
+  /**
+   * Factory method to create a new Daemon.
+   *
+   * Returns a curried function: `(effects, subcontainer, exec) => Daemon`.
+   * The daemon auto-terminates when the effects context is left.
+   */
   static of<Manifest extends T.SDKManifest>() {
     return <C extends SubContainer<Manifest> | null>(
       effects: T.Effects,
@@ -57,6 +69,12 @@ export class Daemon<
       return res
     }
   }
+  /**
+   * Start the daemon. If it is already running, this is a no-op.
+   *
+   * The daemon will automatically restart on failure with increasing backoff
+   * until {@link term} is called.
+   */
   async start() {
     if (this.commandController) {
       return
@@ -105,6 +123,17 @@ export class Daemon<
       console.error(asError(err))
     })
   }
+  /**
+   * Terminate the daemon, stopping its underlying command.
+   *
+   * Sends the configured signal (default SIGTERM) and waits for the process to exit.
+   * Optionally destroys the subcontainer after termination.
+   *
+   * @param termOptions - Optional termination settings
+   * @param termOptions.signal - The signal to send (default: SIGTERM)
+   * @param termOptions.timeout - Milliseconds to wait before SIGKILL
+   * @param termOptions.destroySubcontainer - Whether to destroy the subcontainer after exit
+   */
   async term(termOptions?: {
     signal?: NodeJS.Signals | undefined
     timeout?: number | undefined
@@ -125,14 +154,20 @@ export class Daemon<
       this.exiting = null
     }
   }
+  /** Get a reference-counted handle to the daemon's subcontainer, or null if there is none */
   subcontainerRc(): SubContainerRc<Manifest> | null {
     return this.subcontainer?.rc() ?? null
   }
+  /** Check whether this daemon shares the same subcontainer as another daemon */
   sharesSubcontainerWith(
     other: Daemon<Manifest, SubContainer<Manifest> | null>,
   ): boolean {
     return this.subcontainer?.guid === other.subcontainer?.guid
   }
+  /**
+   * Register a callback to be invoked each time the daemon's process exits.
+   * @param fn - Callback receiving `true` on clean exit, `false` on error
+   */
   onExit(fn: (success: boolean) => void) {
     this.onExitFns.push(fn)
   }

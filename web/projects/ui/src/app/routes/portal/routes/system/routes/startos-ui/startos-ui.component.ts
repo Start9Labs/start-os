@@ -12,10 +12,7 @@ import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
-import {
-  getPublicDomains,
-  InterfaceService,
-} from 'src/app/routes/portal/components/interfaces/interface.service'
+import { InterfaceService } from 'src/app/routes/portal/components/interfaces/interface.service'
 import { GatewayService } from 'src/app/services/gateway.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
@@ -74,9 +71,13 @@ export default class StartOsUiComponent {
     },
   }
 
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+
   readonly network = toSignal(
-    inject<PatchDB<DataModel>>(PatchDB).watch$('serverInfo', 'network'),
+    this.patch.watch$('serverInfo', 'network'),
   )
+
+  readonly allPackageData = toSignal(this.patch.watch$('packageData'))
 
   readonly ui = computed(() => {
     const network = this.network()
@@ -84,25 +85,18 @@ export default class StartOsUiComponent {
 
     if (!network || !gateways) return
 
-    const binding = network.host.bindings['80']
-
     return {
       ...this.iface,
-      addresses: this.interfaceService.getAddresses(
+      gatewayGroups: this.interfaceService.getGatewayGroups(
         this.iface,
         network.host,
         gateways,
       ),
-      gateways: gateways.map(g => ({
-        enabled:
-          (g.public
-            ? binding?.net.publicEnabled.includes(g.id)
-            : !binding?.net.privateDisabled.includes(g.id)) ?? false,
-        ...g,
-      })),
-      torDomains: network.host.onions,
-      publicDomains: getPublicDomains(network.host.publicDomains, gateways),
-      privateDomains: network.host.privateDomains,
+      pluginGroups: this.interfaceService.getPluginGroups(
+        this.iface,
+        network.host,
+        this.allPackageData(),
+      ),
       addSsl: true,
     }
   })

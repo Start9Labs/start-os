@@ -4,7 +4,7 @@ import {
   computed,
   input,
 } from '@angular/core'
-import { ServerMetrics } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 import { DataComponent } from './data.component'
 import { i18nKey } from '@start9labs/shared'
 
@@ -86,7 +86,7 @@ const LABELS: Record<string, i18nKey> = {
   imports: [DataComponent],
 })
 export class CpuComponent {
-  readonly value = input<ServerMetrics['cpu']>()
+  readonly value = input<T.Metrics['cpu']>()
 
   readonly transform = computed(
     (value = this.value()?.percentageUsed?.value || '0') =>

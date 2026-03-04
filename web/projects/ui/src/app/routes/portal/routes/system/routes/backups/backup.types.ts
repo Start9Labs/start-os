@@ -1,9 +1,8 @@
+import { T } from '@start9labs/start-sdk'
 import { TuiDialogContext } from '@taiga-ui/core'
 import {
-  BackupInfo,
   CifsBackupTarget,
   DiskBackupTarget,
-  PackageBackupInfo,
 } from 'src/app/services/api/api.types'
 import { MappedBackupTarget } from './backup.service'
 
@@ -12,7 +11,7 @@ export type BackupContext = TuiDialogContext<
   MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>
 >
 
-export interface RecoverOption extends PackageBackupInfo {
+export interface RecoverOption extends T.PackageBackupInfo {
   id: string
   checked: boolean
   installed: boolean
@@ -22,6 +21,6 @@ export interface RecoverOption extends PackageBackupInfo {
 export interface RecoverData {
   targetId: string
   serverId: string
-  backupInfo: BackupInfo
+  backupInfo: T.BackupInfo
   password: string
 }

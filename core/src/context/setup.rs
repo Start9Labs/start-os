@@ -19,8 +19,8 @@ use crate::MAIN_DATA;
 use crate::context::RpcContext;
 use crate::context::config::ServerConfig;
 use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
-use crate::hostname::Hostname;
-use crate::net::gateway::UpgradableListener;
+use crate::hostname::ServerHostname;
+use crate::net::gateway::WildcardListener;
 use crate::net::web_server::{WebServer, WebServerAcceptorSetter};
 use crate::prelude::*;
 use crate::progress::FullProgressTracker;
@@ -45,13 +45,13 @@ lazy_static::lazy_static! {
 #[ts(export)]
 pub struct SetupResult {
     #[ts(type = "string")]
-    pub hostname: Hostname,
+    pub hostname: ServerHostname,
     pub root_ca: Pem<X509>,
     pub needs_restart: bool,
 }
 
 pub struct SetupContextSeed {
-    pub webserver: WebServerAcceptorSetter<UpgradableListener>,
+    pub webserver: WebServerAcceptorSetter<WildcardListener>,
     pub config: SyncMutex<ServerConfig>,
     pub disable_encryption: bool,
     pub progress: FullProgressTracker,
@@ -70,7 +70,7 @@ pub struct SetupContext(Arc<SetupContextSeed>);
 impl SetupContext {
     #[instrument(skip_all)]
     pub fn init(
-        webserver: &WebServer<UpgradableListener>,
+        webserver: &WebServer<WildcardListener>,
         config: ServerConfig,
     ) -> Result<Self, Error> {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);

@@ -13,6 +13,7 @@ use openssl::hash::MessageDigest;
 use patch_db::{HasModel, Value};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+use url::Url;
 
 use crate::account::AccountInfo;
 use crate::db::DbAccessByKey;
@@ -20,8 +21,9 @@ use crate::db::model::Database;
 use crate::db::model::package::AllPackageData;
 use crate::net::acme::AcmeProvider;
 use crate::net::host::Host;
-use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, NetInfo};
-use crate::net::utils::ipv6_is_local;
+use crate::net::host::binding::{
+    AddSslOptions, BindInfo, BindOptions, Bindings, DerivedAddressInfo, NetInfo,
+};
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::progress::FullProgress;
@@ -57,42 +59,43 @@ impl Public {
                 platform: get_platform(),
                 id: account.server_id.clone(),
                 version: Current::default().semver(),
-                hostname: account.hostname.no_dot_host_name(),
+                name: account.hostname.name.clone(),
+                hostname: (*account.hostname.hostname).clone(),
                 last_backup: None,
                 package_version_compat: Current::default().compat().clone(),
                 post_init_migration_todos: BTreeMap::new(),
                 network: NetworkInfo {
                     host: Host {
-                        bindings: [(
-                            80,
-                            BindInfo {
-                                enabled: false,
-                                options: BindOptions {
-                                    preferred_external_port: 80,
-                                    add_ssl: Some(AddSslOptions {
-                                        preferred_external_port: 443,
-                                        add_x_forwarded_headers: false,
-                                        alpn: Some(AlpnInfo::Specified(vec![
-                                            MaybeUtf8String("h2".into()),
-                                            MaybeUtf8String("http/1.1".into()),
-                                        ])),
-                                    }),
-                                    secure: None,
+                        bindings: Bindings(
+                            [(
+                                80,
+                                BindInfo {
+                                    enabled: false,
+                                    options: BindOptions {
+                                        preferred_external_port: 80,
+                                        add_ssl: Some(AddSslOptions {
+                                            preferred_external_port: 443,
+                                            add_x_forwarded_headers: false,
+                                            alpn: Some(AlpnInfo::Specified(vec![
+                                                MaybeUtf8String("h2".into()),
+                                                MaybeUtf8String("http/1.1".into()),
+                                            ])),
+                                        }),
+                                        secure: None,
+                                    },
+                                    net: NetInfo {
+                                        assigned_port: None,
+                                        assigned_ssl_port: Some(443),
+                                    },
+                                    addresses: DerivedAddressInfo::default(),
                                 },
-                                net: NetInfo {
-                                    assigned_port: None,
-                                    assigned_ssl_port: Some(443),
-                                    private_disabled: OrdSet::new(),
-                                    public_enabled: OrdSet::new(),
-                                },
-                            },
-                        )]
-                        .into_iter()
-                        .collect(),
-                        onions: account.tor_keys.iter().map(|k| k.onion_address()).collect(),
+                            )]
+                            .into_iter()
+                            .collect(),
+                        ),
                         public_domains: BTreeMap::new(),
-                        private_domains: BTreeSet::new(),
-                        hostname_info: BTreeMap::new(),
+                        private_domains: BTreeMap::new(),
+                        port_forwards: BTreeSet::new(),
                     },
                     wifi: WifiInfo {
                         enabled: true,
@@ -117,6 +120,7 @@ impl Public {
                         acme
                     },
                     dns: Default::default(),
+                    default_outbound: None,
                 },
                 status_info: ServerStatus {
                     backup_progress: None,
@@ -141,6 +145,7 @@ impl Public {
                 zram: true,
                 governor: None,
                 smtp: None,
+                ifconfig_url: default_ifconfig_url(),
                 ram: 0,
                 devices: Vec::new(),
                 kiosk,
@@ -162,19 +167,21 @@ fn get_platform() -> InternedString {
     (&*PLATFORM).into()
 }
 
+pub fn default_ifconfig_url() -> Url {
+    "https://ifconfig.co".parse().unwrap()
+}
+
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct ServerInfo {
     #[serde(default = "get_arch")]
-    #[ts(type = "string")]
     pub arch: InternedString,
     #[serde(default = "get_platform")]
-    #[ts(type = "string")]
     pub platform: InternedString,
     pub id: String,
-    #[ts(type = "string")]
+    pub name: InternedString,
     pub hostname: InternedString,
     #[ts(type = "string")]
     pub version: Version,
@@ -198,6 +205,9 @@ pub struct ServerInfo {
     pub zram: bool,
     pub governor: Option<Governor>,
     pub smtp: Option<SmtpValue>,
+    #[serde(default = "default_ifconfig_url")]
+    #[ts(type = "string")]
+    pub ifconfig_url: Url,
     #[ts(type = "number")]
     pub ram: u64,
     pub devices: Vec<LshwDevice>,
@@ -220,6 +230,9 @@ pub struct NetworkInfo {
     pub acme: BTreeMap<AcmeProvider, AcmeSettings>,
     #[serde(default)]
     pub dns: DnsSettings,
+    #[serde(default)]
+    #[ts(type = "string | null")]
+    pub default_outbound: Option<GatewayId>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -239,41 +252,12 @@ pub struct DnsSettings {
 #[ts(export)]
 pub struct NetworkInterfaceInfo {
     pub name: Option<InternedString>,
-    pub public: Option<bool>,
     pub secure: Option<bool>,
     pub ip_info: Option<Arc<IpInfo>>,
+    #[serde(default, rename = "type")]
+    pub gateway_type: Option<GatewayType>,
 }
 impl NetworkInterfaceInfo {
-    pub fn public(&self) -> bool {
-        self.public.unwrap_or_else(|| {
-            !self.ip_info.as_ref().map_or(true, |ip_info| {
-                let ip4s = ip_info
-                    .subnets
-                    .iter()
-                    .filter_map(|ipnet| {
-                        if let IpAddr::V4(ip4) = ipnet.addr() {
-                            Some(ip4)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<BTreeSet<_>>();
-                if !ip4s.is_empty() {
-                    return ip4s
-                        .iter()
-                        .all(|ip4| ip4.is_loopback() || ip4.is_private() || ip4.is_link_local());
-                }
-                ip_info.subnets.iter().all(|ipnet| {
-                    if let IpAddr::V6(ip6) = ipnet.addr() {
-                        ipv6_is_local(ip6)
-                    } else {
-                        true
-                    }
-                })
-            })
-        })
-    }
-
     pub fn secure(&self) -> bool {
         self.secure.unwrap_or(false)
     }
@@ -308,6 +292,28 @@ pub enum NetworkInterfaceType {
     Bridge,
     Wireguard,
     Loopback,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Deserialize,
+    Serialize,
+    TS,
+    clap::ValueEnum,
+)]
+#[ts(export)]
+#[serde(rename_all = "kebab-case")]
+pub enum GatewayType {
+    #[default]
+    InboundOutbound,
+    OutboundOnly,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

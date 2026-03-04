@@ -85,6 +85,7 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct SetWifiEnabledParams {
@@ -150,16 +151,20 @@ pub fn country<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct AddParams {
+pub struct WifiAddParams {
     #[arg(help = "help.arg.wifi-ssid")]
     ssid: String,
     #[arg(help = "help.arg.wifi-password")]
     password: String,
 }
 #[instrument(skip_all)]
-pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Result<(), Error> {
+pub async fn add(
+    ctx: RpcContext,
+    WifiAddParams { ssid, password }: WifiAddParams,
+) -> Result<(), Error> {
     let wifi_manager = ctx.wifi_manager.clone();
     if !ssid.is_ascii() {
         return Err(Error::new(
@@ -229,15 +234,19 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
     Ok(())
 }
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct SsidParams {
+pub struct WifiSsidParams {
     #[arg(help = "help.arg.wifi-ssid")]
     ssid: String,
 }
 
 #[instrument(skip_all)]
-pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<(), Error> {
+pub async fn connect(
+    ctx: RpcContext,
+    WifiSsidParams { ssid }: WifiSsidParams,
+) -> Result<(), Error> {
     let wifi_manager = ctx.wifi_manager.clone();
     if !ssid.is_ascii() {
         return Err(Error::new(
@@ -311,7 +320,7 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
 }
 
 #[instrument(skip_all)]
-pub async fn remove(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<(), Error> {
+pub async fn remove(ctx: RpcContext, WifiSsidParams { ssid }: WifiSsidParams) -> Result<(), Error> {
     let wifi_manager = ctx.wifi_manager.clone();
     if !ssid.is_ascii() {
         return Err(Error::new(
@@ -359,11 +368,13 @@ pub async fn remove(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<
         .result?;
     Ok(())
 }
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct WifiListInfo {
     ssids: HashMap<Ssid, SignalStrength>,
     connected: Option<Ssid>,
+    #[ts(type = "string | null")]
     country: Option<CountryCode>,
     ethernet: bool,
     available_wifi: Vec<WifiListOut>,
@@ -374,7 +385,8 @@ pub struct WifiListInfoLow {
     strength: SignalStrength,
     security: Vec<String>,
 }
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct WifiListOut {
     ssid: Ssid,
@@ -560,6 +572,7 @@ pub async fn get_available(ctx: RpcContext, _: Empty) -> Result<Vec<WifiListOut>
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct SetCountryParams {
@@ -605,7 +618,7 @@ pub struct NetworkId(String);
 
 /// Ssid are the names of the wifis, usually human readable.
 #[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize, TS,
 )]
 pub struct Ssid(String);
 
@@ -622,6 +635,7 @@ pub struct Ssid(String);
     Hash,
     serde::Serialize,
     serde::Deserialize,
+    TS,
 )]
 pub struct SignalStrength(u8);
 

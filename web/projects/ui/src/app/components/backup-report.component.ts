@@ -12,7 +12,7 @@ import { TuiCell } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
-import { BackupReport } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 import { getManifest } from '../utils/get-package-data'
 import { DataModel } from '../services/patch-db/data-model'
 
@@ -60,7 +60,7 @@ export class BackupsReportModal {
 
   readonly data =
     injectContext<
-      TuiDialogContext<void, { content: BackupReport; createdAt: string }>
+      TuiDialogContext<void, { content: T.BackupReport; createdAt: string }>
     >().data
 
   readonly pkgTitles = toSignal(

@@ -45,7 +45,7 @@ impl TS for DepInfo {
         "DepInfo".into()
     }
     fn inline() -> String {
-        "{ description: string | null, optional: boolean } & MetadataSrc".into()
+        "{ description: LocaleString | null, optional: boolean } & MetadataSrc".into()
     }
     fn inline_flattened() -> String {
         Self::inline()
@@ -54,7 +54,8 @@ impl TS for DepInfo {
     where
         Self: 'static,
     {
-        v.visit::<MetadataSrc>()
+        v.visit::<MetadataSrc>();
+        v.visit::<LocaleString>();
     }
     fn output_path() -> Option<&'static std::path::Path> {
         Some(Path::new("DepInfo.ts"))

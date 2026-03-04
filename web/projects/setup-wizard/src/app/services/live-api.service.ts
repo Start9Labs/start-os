@@ -2,7 +2,6 @@ import { Inject, Injectable, DOCUMENT } from '@angular/core'
 import {
   DiskInfo,
   encodeBase64,
-  FollowLogsRes,
   FullKeyboard,
   HttpService,
   isRpcError,
@@ -16,15 +15,7 @@ import * as jose from 'node-jose'
 import { Observable } from 'rxjs'
 import { webSocket } from 'rxjs/webSocket'
 import { ApiService } from './api.service'
-import {
-  SetupStatusRes,
-  InstallOsParams,
-  InstallOsRes,
-  AttachParams,
-  SetupExecuteParams,
-  SetupCompleteRes,
-  EchoReq,
-} from '../types'
+import { InstallOsParams, InstallOsRes } from '../types'
 
 @Injectable({
   providedIn: 'root',
@@ -47,12 +38,12 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async echo(params: EchoReq, url: string): Promise<string> {
+  async echo(params: T.EchoParams, url: string): Promise<string> {
     return this.rpcRequest({ method: 'echo', params }, url)
   }
 
   async getStatus() {
-    return this.rpcRequest<SetupStatusRes>({
+    return this.rpcRequest<T.SetupStatusRes>({
       method: 'setup.status',
       params: {},
     })
@@ -102,14 +93,14 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async attach(params: AttachParams) {
+  async attach(params: T.AttachParams) {
     return this.rpcRequest<T.SetupProgress>({
       method: 'setup.attach',
       params,
     })
   }
 
-  async execute(params: SetupExecuteParams) {
+  async execute(params: T.SetupExecuteParams) {
     if (params.recoverySource?.type === 'backup') {
       const target = params.recoverySource.target
       if (target.type === 'cifs') {
@@ -124,14 +115,14 @@ export class LiveApiService extends ApiService {
   }
 
   async initFollowLogs() {
-    return this.rpcRequest<FollowLogsRes>({
+    return this.rpcRequest<T.LogFollowResponse>({
       method: 'setup.logs.follow',
       params: {},
     })
   }
 
   async complete() {
-    const res = await this.rpcRequest<SetupCompleteRes>({
+    const res = await this.rpcRequest<T.SetupResult>({
       method: 'setup.complete',
       params: {},
     })

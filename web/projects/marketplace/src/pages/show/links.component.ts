@@ -23,7 +23,7 @@ import { MarketplaceLinkComponent } from './link.component'
             class="item-pointer"
           />
           <marketplace-link
-            [url]="pkg().wrapperRepo"
+            [url]="pkg().packageRepo"
             label="StartOS package"
             icon="@tui.external-link"
             class="item-pointer"
@@ -37,12 +37,12 @@ import { MarketplaceLinkComponent } from './link.component'
         <h2 class="additional-detail-title">{{ 'Links' | i18n }}</h2>
         <div class="detail-container">
           <marketplace-link
-            [url]="pkg().marketingSite"
+            [url]="pkg().marketingUrl"
             label="Marketing"
             icon="@tui.external-link"
             class="item-pointer"
           />
-          @if (pkg().docsUrl; as docsUrl) {
+          @for (docsUrl of pkg().docsUrls; track $index) {
             <marketplace-link
               [url]="docsUrl"
               label="Documentation"
@@ -50,12 +50,6 @@ import { MarketplaceLinkComponent } from './link.component'
               class="item-pointer"
             />
           }
-          <marketplace-link
-            [url]="pkg().supportSite"
-            label="Support"
-            icon="@tui.external-link"
-            class="item-pointer"
-          />
           @if (pkg().donationUrl; as donationUrl) {
             <marketplace-link
               [url]="donationUrl"

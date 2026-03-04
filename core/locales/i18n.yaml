@@ -197,6 +197,13 @@ setup.transferring-data:
   fr_FR: "Transfert de données"
   pl_PL: "Przesyłanie danych"
 
+setup.password-required:
+  en_US: "Password is required for fresh setup"
+  de_DE: "Passwort ist für die Ersteinrichtung erforderlich"
+  es_ES: "Se requiere contraseña para la configuración inicial"
+  fr_FR: "Le mot de passe est requis pour la première configuration"
+  pl_PL: "Hasło jest wymagane do nowej konfiguracji"
+
 # system.rs
 system.governor-not-available:
   en_US: "Governor %{governor} not available"
@@ -994,6 +1001,27 @@ disk.mount.binding:
   fr_FR: "Liaison de %{src} à %{dst}"
   pl_PL: "Wiązanie %{src} do %{dst}"
 
+hostname.empty:
+  en_US: "Hostname cannot be empty"
+  de_DE: "Der Hostname darf nicht leer sein"
+  es_ES: "El nombre de host no puede estar vacío"
+  fr_FR: "Le nom d'hôte ne peut pas être vide"
+  pl_PL: "Nazwa hosta nie może być pusta"
+
+hostname.invalid-character:
+  en_US: "Invalid character in hostname: %{char}"
+  de_DE: "Ungültiges Zeichen im Hostnamen: %{char}"
+  es_ES: "Carácter no válido en el nombre de host: %{char}"
+  fr_FR: "Caractère invalide dans le nom d'hôte : %{char}"
+  pl_PL: "Nieprawidłowy znak w nazwie hosta: %{char}"
+
+hostname.must-provide-name-or-hostname:
+  en_US: "Must provide at least one of: name, hostname"
+  de_DE: "Es muss mindestens eines angegeben werden: name, hostname"
+  es_ES: "Se debe proporcionar al menos uno de: name, hostname"
+  fr_FR: "Vous devez fournir au moins l'un des éléments suivants : name, hostname"
+  pl_PL: "Należy podać co najmniej jedno z: name, hostname"
+
 # init.rs
 init.running-preinit:
   en_US: "Running preinit.sh"
@@ -1242,6 +1270,21 @@ backup.target.cifs.target-not-found-id:
   es_ES: "ID de destino de copia de seguridad %{id} no encontrado"
   fr_FR: "ID de cible de sauvegarde %{id} non trouvé"
   pl_PL: "Nie znaleziono ID celu kopii zapasowej %{id}"
+
+# service/effects/net/plugin.rs
+net.plugin.manifest-missing-plugin:
+  en_US: "manifest does not declare the \"%{plugin}\" plugin"
+  de_DE: "Manifest deklariert das Plugin \"%{plugin}\" nicht"
+  es_ES: "el manifiesto no declara el plugin \"%{plugin}\""
+  fr_FR: "le manifeste ne déclare pas le plugin \"%{plugin}\""
+  pl_PL: "manifest nie deklaruje wtyczki \"%{plugin}\""
+
+net.plugin.binding-not-found:
+  en_US: "binding not found: %{binding}"
+  de_DE: "Bindung nicht gefunden: %{binding}"
+  es_ES: "enlace no encontrado: %{binding}"
+  fr_FR: "liaison introuvable : %{binding}"
+  pl_PL: "powiązanie nie znalezione: %{binding}"
 
 # net/ssl.rs
 net.ssl.unreachable:
@@ -1789,6 +1832,28 @@ registry.package.remove-mirror.unauthorized:
   es_ES: "No autorizado"
   fr_FR: "Non autorisé"
   pl_PL: "Brak autoryzacji"
+
+# registry/package/index.rs
+registry.package.index.metadata-mismatch:
+  en_US: "package metadata mismatch: remove the existing version first, then re-add"
+  de_DE: "Paketmetadaten stimmen nicht überein: vorhandene Version zuerst entfernen, dann erneut hinzufügen"
+  es_ES: "discrepancia de metadatos del paquete: elimine la versión existente primero, luego vuelva a agregarla"
+  fr_FR: "discordance des métadonnées du paquet : supprimez d'abord la version existante, puis ajoutez-la à nouveau"
+  pl_PL: "niezgodność metadanych pakietu: najpierw usuń istniejącą wersję, a następnie dodaj ponownie"
+
+registry.package.index.icon-mismatch:
+  en_US: "package icon mismatch: remove the existing version first, then re-add"
+  de_DE: "Paketsymbol stimmt nicht überein: vorhandene Version zuerst entfernen, dann erneut hinzufügen"
+  es_ES: "discrepancia del icono del paquete: elimine la versión existente primero, luego vuelva a agregarla"
+  fr_FR: "discordance de l'icône du paquet : supprimez d'abord la version existante, puis ajoutez-la à nouveau"
+  pl_PL: "niezgodność ikony pakietu: najpierw usuń istniejącą wersję, a następnie dodaj ponownie"
+
+registry.package.index.dependency-metadata-mismatch:
+  en_US: "dependency metadata mismatch: remove the existing version first, then re-add"
+  de_DE: "Abhängigkeitsmetadaten stimmen nicht überein: vorhandene Version zuerst entfernen, dann erneut hinzufügen"
+  es_ES: "discrepancia de metadatos de dependencia: elimine la versión existente primero, luego vuelva a agregarla"
+  fr_FR: "discordance des métadonnées de dépendance : supprimez d'abord la version existante, puis ajoutez-la à nouveau"
+  pl_PL: "niezgodność metadanych zależności: najpierw usuń istniejącą wersję, a następnie dodaj ponownie"
 
 # registry/package/get.rs
 registry.package.get.version-not-found:
@@ -3087,7 +3152,7 @@ help.arg.smtp-from:
   fr_FR: "Adresse de l'expéditeur"
   pl_PL: "Adres nadawcy e-mail"
 
-help.arg.smtp-login:
+help.arg.smtp-username:
   en_US: "SMTP authentication username"
   de_DE: "SMTP-Authentifizierungsbenutzername"
   es_ES: "Nombre de usuario de autenticación SMTP"
@@ -3108,12 +3173,19 @@ help.arg.smtp-port:
   fr_FR: "Port du serveur SMTP"
   pl_PL: "Port serwera SMTP"
 
-help.arg.smtp-server:
+help.arg.smtp-host:
   en_US: "SMTP server hostname"
   de_DE: "SMTP-Server-Hostname"
   es_ES: "Nombre de host del servidor SMTP"
   fr_FR: "Nom d'hôte du serveur SMTP"
   pl_PL: "Nazwa hosta serwera SMTP"
+
+help.arg.smtp-security:
+  en_US: "Connection security mode (starttls or tls)"
+  de_DE: "Verbindungssicherheitsmodus (starttls oder tls)"
+  es_ES: "Modo de seguridad de conexión (starttls o tls)"
+  fr_FR: "Mode de sécurité de connexion (starttls ou tls)"
+  pl_PL: "Tryb zabezpieczeń połączenia (starttls lub tls)"
 
 help.arg.smtp-to:
   en_US: "Email recipient address"
@@ -3612,6 +3684,13 @@ help.arg.s9pk-file-path:
   fr_FR: "Chemin vers le fichier de paquet s9pk"
   pl_PL: "Ścieżka do pliku pakietu s9pk"
 
+help.arg.s9pk-file-paths:
+  en_US: "Paths to s9pk package files"
+  de_DE: "Pfade zu s9pk-Paketdateien"
+  es_ES: "Rutas a los archivos de paquete s9pk"
+  fr_FR: "Chemins vers les fichiers de paquet s9pk"
+  pl_PL: "Ścieżki do plików pakietów s9pk"
+
 help.arg.session-ids:
   en_US: "Session identifiers"
   de_DE: "Sitzungskennungen"
@@ -3935,6 +4014,13 @@ about.allow-gateway-infer-inbound-access-from-wan:
   fr_FR: "Permettre à cette passerelle de déduire si elle a un accès entrant depuis le WAN en fonction de son adresse IPv4"
   pl_PL: "Pozwól tej bramce wywnioskować, czy ma dostęp przychodzący z WAN na podstawie adresu IPv4"
 
+about.apply-available-update:
+  en_US: "Apply available update"
+  de_DE: "Verfügbares Update anwenden"
+  es_ES: "Aplicar actualización disponible"
+  fr_FR: "Appliquer la mise à jour disponible"
+  pl_PL: "Zastosuj dostępną aktualizację"
+
 about.calculate-blake3-hash-for-file:
   en_US: "Calculate blake3 hash for a file"
   de_DE: "Blake3-Hash für eine Datei berechnen"
@@ -3948,6 +4034,20 @@ about.cancel-install-package:
   es_ES: "Cancelar la instalación de un paquete"
   fr_FR: "Annuler l'installation d'un paquet"
   pl_PL: "Anuluj instalację pakietu"
+
+about.check-dns-configuration:
+  en_US: "Check DNS configuration for a gateway"
+  de_DE: "DNS-Konfiguration für ein Gateway prüfen"
+  es_ES: "Verificar la configuración DNS de un gateway"
+  fr_FR: "Vérifier la configuration DNS d'une passerelle"
+  pl_PL: "Sprawdź konfigurację DNS bramy"
+
+about.check-for-updates:
+  en_US: "Check for available updates"
+  de_DE: "Nach verfügbaren Updates suchen"
+  es_ES: "Buscar actualizaciones disponibles"
+  fr_FR: "Vérifier les mises à jour disponibles"
+  pl_PL: "Sprawdź dostępne aktualizacje"
 
 about.check-update-startos:
   en_US: "Check a given registry for StartOS updates and update if available"
@@ -4887,6 +4987,13 @@ about.publish-s9pk:
   fr_FR: "Publier s9pk dans le bucket S3 et indexer dans le registre"
   pl_PL: "Opublikuj s9pk do bucketu S3 i zindeksuj w rejestrze"
 
+about.select-s9pk-for-device:
+  en_US: "Select the best compatible s9pk for a target device"
+  de_DE: "Das beste kompatible s9pk für ein Zielgerät auswählen"
+  es_ES: "Seleccionar el s9pk más compatible para un dispositivo destino"
+  fr_FR: "Sélectionner le meilleur s9pk compatible pour un appareil cible"
+  pl_PL: "Wybierz najlepiej kompatybilny s9pk dla urządzenia docelowego"
+
 about.rebuild-service-container:
   en_US: "Rebuild service container"
   de_DE: "Dienst-Container neu erstellen"
@@ -5138,6 +5245,13 @@ about.set-country:
   es_ES: "Establecer el país"
   fr_FR: "Définir le pays"
   pl_PL: "Ustaw kraj"
+
+about.set-hostname:
+  en_US: "Set the server hostname"
+  de_DE: "Den Server-Hostnamen festlegen"
+  es_ES: "Establecer el nombre de host del servidor"
+  fr_FR: "Définir le nom d'hôte du serveur"
+  pl_PL: "Ustaw nazwę hosta serwera"
 
 about.set-gateway-enabled-for-binding:
   en_US: "Set gateway enabled for binding"

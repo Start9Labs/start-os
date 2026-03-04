@@ -8,7 +8,12 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
+import {
+  ErrorService,
+  i18nPipe,
+  LoadingService,
+  normalizeHostname,
+} from '@start9labs/shared'
 import { TuiAutoFocus, TuiMapperPipe, TuiValidator } from '@taiga-ui/cdk'
 import {
   TuiButton,
@@ -31,31 +36,36 @@ import { StateService } from '../services/state.service'
       <header tuiHeader>
         <h2 tuiTitle>
           {{
-            isRequired
-              ? ('Set Master Password' | i18n)
+            isFresh
+              ? ('Set Up Your Server' | i18n)
               : ('Set New Password (Optional)' | i18n)
           }}
-          <span tuiSubtitle>
-            {{
-              isRequired
-                ? ('Make it good. Write it down.' | i18n)
-                : ('Skip to keep your existing password.' | i18n)
-            }}
-          </span>
         </h2>
       </header>
 
       <form [formGroup]="form" (ngSubmit)="submit()">
-        <tui-textfield>
+        @if (isFresh) {
+          <tui-textfield>
+            <label tuiLabel>{{ 'Server Name' | i18n }}</label>
+            <input tuiTextfield tuiAutoFocus formControlName="name" />
+          </tui-textfield>
+          <tui-error
+            formControlName="name"
+            [error]="[] | tuiFieldError | async"
+          />
+          @if (form.controls.name.value?.trim()) {
+            <p class="hostname-preview">{{ derivedHostname }}.local</p>
+          }
+        }
+
+        <tui-textfield [style.margin-top.rem]="isFresh ? 1 : 0">
           <label tuiLabel>
-            {{
-              isRequired ? ('Enter Password' | i18n) : ('New Password' | i18n)
-            }}
+            {{ isFresh ? ('Password' | i18n) : ('New Password' | i18n) }}
           </label>
           <input
             tuiTextfield
             type="password"
-            tuiAutoFocus
+            [tuiAutoFocus]="!isFresh"
             maxlength="64"
             formControlName="password"
           />
@@ -87,14 +97,14 @@ import { StateService } from '../services/state.service'
           <button
             tuiButton
             [disabled]="
-              isRequired
+              isFresh
                 ? form.invalid
                 : form.controls.password.value && form.invalid
             "
           >
             {{ 'Finish' | i18n }}
           </button>
-          @if (!isRequired) {
+          @if (!isFresh) {
             <button
               tuiButton
               appearance="secondary"
@@ -109,6 +119,12 @@ import { StateService } from '../services/state.service'
     </section>
   `,
   styles: `
+    .hostname-preview {
+      color: var(--tui-text-secondary);
+      font: var(--tui-font-text-s);
+      margin-top: 0.25rem;
+    }
+
     footer {
       display: flex;
       flex-direction: column;
@@ -149,22 +165,27 @@ export default class PasswordPage {
   private readonly stateService = inject(StateService)
   private readonly i18n = inject(i18nPipe)
 
-  // Password is required only for fresh install
-  readonly isRequired = this.stateService.setupType === 'fresh'
+  // Fresh install requires password and name
+  readonly isFresh = this.stateService.setupType === 'fresh'
 
   readonly form = new FormGroup({
     password: new FormControl('', [
-      ...(this.isRequired ? [Validators.required] : []),
+      ...(this.isFresh ? [Validators.required] : []),
       Validators.minLength(12),
       Validators.maxLength(64),
     ]),
     confirm: new FormControl(''),
+    name: new FormControl('', [Validators.required]),
   })
 
   readonly validator = (value: string) => (control: AbstractControl) =>
     value === control.value
       ? null
       : { match: this.i18n.transform('Passwords do not match') }
+
+  get derivedHostname(): string {
+    return normalizeHostname(this.form.controls.name.value || '')
+  }
 
   async skip() {
     // Skip means no new password - pass null
@@ -177,13 +198,15 @@ export default class PasswordPage {
 
   private async executeSetup(password: string | null) {
     const loader = this.loader.open('Starting setup').subscribe()
+    const name = this.form.controls.name.value || ''
+    const hostname = normalizeHostname(name)
 
     try {
       if (this.stateService.setupType === 'attach') {
         await this.stateService.attachDrive(password)
       } else {
         // fresh, restore, or transfer - all use execute
-        await this.stateService.executeSetup(password)
+        await this.stateService.executeSetup(password, name, hostname)
       }
 
       await this.router.navigate(['/loading'])

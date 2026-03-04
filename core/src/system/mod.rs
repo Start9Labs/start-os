@@ -20,6 +20,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::disk::util::{get_available, get_used};
 use crate::logs::{LogSource, LogsParams, SYSTEM_UNIT};
 use crate::prelude::*;
+use crate::registry::device_info::DeviceInfo;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::shutdown::Shutdown;
 use crate::util::Invoke;
@@ -191,7 +192,9 @@ pub async fn governor(
     Ok(GovernorInfo { current, available })
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
 pub struct TimeInfo {
     now: String,
     uptime: u64,
@@ -245,6 +248,64 @@ pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {
         now: Utc::now().to_rfc3339(),
         uptime: ctx.start_time.elapsed().as_secs(),
     })
+}
+
+pub async fn device_info(ctx: RpcContext) -> Result<DeviceInfo, Error> {
+    DeviceInfo::load(&ctx).await
+}
+
+pub fn display_device_info(params: WithIoFormat<Empty>, info: DeviceInfo) -> Result<(), Error> {
+    use prettytable::*;
+
+    if let Some(format) = params.format {
+        return display_serializable(format, info);
+    }
+
+    let mut table = Table::new();
+    table.add_row(row![br -> "PLATFORM", &*info.os.platform]);
+    table.add_row(row![br -> "OS VERSION", info.os.version.to_string()]);
+    table.add_row(row![br -> "OS COMPAT", info.os.compat.to_string()]);
+    if let Some(lang) = &info.os.language {
+        table.add_row(row![br -> "LANGUAGE", &**lang]);
+    }
+    if let Some(hw) = &info.hardware {
+        table.add_row(row![br -> "ARCH", &*hw.arch]);
+        table.add_row(row![br -> "RAM", format_ram(hw.ram)]);
+        if let Some(devices) = &hw.devices {
+            for dev in devices {
+                let (class, desc) = match dev {
+                    crate::util::lshw::LshwDevice::Processor(p) => (
+                        "PROCESSOR",
+                        p.product.as_deref().unwrap_or("unknown").to_string(),
+                    ),
+                    crate::util::lshw::LshwDevice::Display(d) => (
+                        "DISPLAY",
+                        format!(
+                            "{}{}",
+                            d.product.as_deref().unwrap_or("unknown"),
+                            d.driver
+                                .as_deref()
+                                .map(|drv| format!(" ({})", drv))
+                                .unwrap_or_default()
+                        ),
+                    ),
+                };
+                table.add_row(row![br -> class, desc]);
+            }
+        }
+    }
+    table.print_tty(false)?;
+    Ok(())
+}
+
+fn format_ram(bytes: u64) -> String {
+    const GIB: u64 = 1024 * 1024 * 1024;
+    const MIB: u64 = 1024 * 1024;
+    if bytes >= GIB {
+        format!("{:.1} GiB", bytes as f64 / GIB as f64)
+    } else {
+        format!("{:.1} MiB", bytes as f64 / MIB as f64)
+    }
 }
 
 pub fn logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, LogsParams> {
@@ -331,6 +392,7 @@ pub struct MetricLeaf<T> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, TS)]
+#[ts(type = "{ value: string, unit: string }")]
 pub struct Celsius(f64);
 impl fmt::Display for Celsius {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -359,6 +421,7 @@ impl<'de> Deserialize<'de> for Celsius {
     }
 }
 #[derive(Clone, Debug, PartialEq, PartialOrd, TS)]
+#[ts(type = "{ value: string, unit: string }")]
 pub struct Percentage(f64);
 impl Serialize for Percentage {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -385,6 +448,7 @@ impl<'de> Deserialize<'de> for Percentage {
 }
 
 #[derive(Clone, Debug, TS)]
+#[ts(type = "{ value: string, unit: string }")]
 pub struct MebiBytes(pub f64);
 impl Serialize for MebiBytes {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -411,6 +475,7 @@ impl<'de> Deserialize<'de> for MebiBytes {
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, TS)]
+#[ts(type = "{ value: string, unit: string }")]
 pub struct GigaBytes(f64);
 impl Serialize for GigaBytes {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -490,6 +555,7 @@ pub async fn metrics(ctx: RpcContext) -> Result<Metrics, Error> {
 
 #[derive(Deserialize, Serialize, Clone, Debug, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct MetricsFollowResponse {
     pub guid: Guid,
     pub metrics: Metrics,
@@ -1042,20 +1108,36 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
     })
 }
 
+#[derive(
+    Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize, TS, clap::ValueEnum,
+)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum SmtpSecurity {
+    #[default]
+    Starttls,
+    Tls,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SmtpValue {
-    #[arg(long, help = "help.arg.smtp-server")]
-    pub server: String,
+    #[arg(long, help = "help.arg.smtp-host")]
+    #[serde(alias = "server")]
+    pub host: String,
     #[arg(long, help = "help.arg.smtp-port")]
     pub port: u16,
     #[arg(long, help = "help.arg.smtp-from")]
     pub from: String,
-    #[arg(long, help = "help.arg.smtp-login")]
-    pub login: String,
+    #[arg(long, help = "help.arg.smtp-username")]
+    #[serde(alias = "login")]
+    pub username: String,
     #[arg(long, help = "help.arg.smtp-password")]
     pub password: Option<String>,
+    #[arg(long, help = "help.arg.smtp-security")]
+    #[serde(default)]
+    pub security: SmtpSecurity,
 }
 pub async fn set_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Error> {
     let smtp = Some(smtp);
@@ -1088,51 +1170,89 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+pub struct SetIfconfigUrlParams {
+    #[arg(help = "help.arg.ifconfig-url")]
+    pub url: url::Url,
+}
+
+pub async fn set_ifconfig_url(
+    ctx: RpcContext,
+    SetIfconfigUrlParams { url }: SetIfconfigUrlParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_ifconfig_url_mut()
+                .ser(&url)
+        })
+        .await
+        .result
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct TestSmtpParams {
-    #[arg(long, help = "help.arg.smtp-server")]
-    pub server: String,
+    #[arg(long, help = "help.arg.smtp-host")]
+    pub host: String,
     #[arg(long, help = "help.arg.smtp-port")]
     pub port: u16,
     #[arg(long, help = "help.arg.smtp-from")]
     pub from: String,
     #[arg(long, help = "help.arg.smtp-to")]
     pub to: String,
-    #[arg(long, help = "help.arg.smtp-login")]
-    pub login: String,
+    #[arg(long, help = "help.arg.smtp-username")]
+    pub username: String,
     #[arg(long, help = "help.arg.smtp-password")]
     pub password: String,
+    #[arg(long, help = "help.arg.smtp-security")]
+    #[serde(default)]
+    pub security: SmtpSecurity,
 }
 pub async fn test_smtp(
     _: RpcContext,
     TestSmtpParams {
-        server,
+        host,
         port,
         from,
         to,
-        login,
+        username,
         password,
+        security,
     }: TestSmtpParams,
 ) -> Result<(), Error> {
     use lettre::message::header::ContentType;
     use lettre::transport::smtp::authentication::Credentials;
+    use lettre::transport::smtp::client::{Tls, TlsParameters};
     use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 
-    AsyncSmtpTransport::<Tokio1Executor>::relay(&server)?
-        .port(port)
-        .credentials(Credentials::new(login, password))
-        .build()
-        .send(
-            Message::builder()
-                .from(from.parse()?)
-                .to(to.parse()?)
-                .subject("StartOS Test Email")
-                .header(ContentType::TEXT_PLAIN)
-                .body("This is a test email sent from your StartOS Server".to_owned())?,
-        )
-        .await?;
+    let creds = Credentials::new(username, password);
+    let message = Message::builder()
+        .from(from.parse()?)
+        .to(to.parse()?)
+        .subject("StartOS Test Email")
+        .header(ContentType::TEXT_PLAIN)
+        .body("This is a test email sent from your StartOS Server".to_owned())?;
+
+    let transport = match security {
+        SmtpSecurity::Starttls => AsyncSmtpTransport::<Tokio1Executor>::relay(&host)?
+            .port(port)
+            .credentials(creds)
+            .build(),
+        SmtpSecurity::Tls => {
+            let tls = TlsParameters::new(host.clone())?;
+            AsyncSmtpTransport::<Tokio1Executor>::relay(&host)?
+                .port(port)
+                .tls(Tls::Wrapper(tls))
+                .credentials(creds)
+                .build()
+        }
+    };
+
+    transport.send(message).await?;
     Ok(())
 }
 
@@ -1211,6 +1331,7 @@ pub async fn set_keyboard(ctx: RpcContext, options: KeyboardOptions) -> Result<(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, Parser)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SetLanguageParams {
     #[arg(help = "help.arg.language-code")]
@@ -1231,9 +1352,15 @@ pub async fn save_language(language: &str) -> Result<(), Error> {
         "/media/startos/config/overlay/usr/lib/locale/locale-archive",
     )
     .await?;
+    let locale_content = format!("LANG={language}.UTF-8\n");
     write_file_atomic(
         "/media/startos/config/overlay/etc/default/locale",
-        format!("LANG={language}.UTF-8\n").as_bytes(),
+        locale_content.as_bytes(),
+    )
+    .await?;
+    write_file_atomic(
+        "/media/startos/config/overlay/etc/locale.conf",
+        locale_content.as_bytes(),
     )
     .await?;
     Ok(())

@@ -9,6 +9,7 @@ pub mod api;
 pub mod auth;
 pub mod context;
 pub mod db;
+pub mod update;
 pub mod web;
 pub mod wg;
 

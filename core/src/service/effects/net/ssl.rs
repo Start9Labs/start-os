@@ -55,20 +55,18 @@ pub async fn get_ssl_certificate(
                 .map(|(_, m)| m.as_hosts().as_entries())
                 .flatten_ok()
                 .map_ok(|(_, m)| {
-                    Ok(m.as_onions()
-                        .de()?
-                        .iter()
-                        .map(InternedString::from_display)
-                        .chain(m.as_public_domains().keys()?)
-                        .chain(m.as_private_domains().de()?)
+                    Ok(m.as_public_domains()
+                        .keys()?
+                        .into_iter()
+                        .chain(m.as_private_domains().keys()?)
                         .chain(
-                            m.as_hostname_info()
+                            m.as_bindings()
                                 .de()?
                                 .values()
-                                .flatten()
+                                .flat_map(|b| b.addresses.available.iter().cloned())
                                 .map(|h| h.to_san_hostname()),
                         )
-                        .collect::<Vec<_>>())
+                        .collect::<Vec<InternedString>>())
                 })
                 .map(|a| a.and_then(|a| a))
                 .flatten_ok()
@@ -181,20 +179,18 @@ pub async fn get_ssl_key(
                 .map(|m| m.as_hosts().as_entries())
                 .flatten_ok()
                 .map_ok(|(_, m)| {
-                    Ok(m.as_onions()
-                        .de()?
-                        .iter()
-                        .map(InternedString::from_display)
-                        .chain(m.as_public_domains().keys()?)
-                        .chain(m.as_private_domains().de()?)
+                    Ok(m.as_public_domains()
+                        .keys()?
+                        .into_iter()
+                        .chain(m.as_private_domains().keys()?)
                         .chain(
-                            m.as_hostname_info()
+                            m.as_bindings()
                                 .de()?
                                 .values()
-                                .flatten()
+                                .flat_map(|b| b.addresses.available.iter().cloned())
                                 .map(|h| h.to_san_hostname()),
                         )
-                        .collect::<Vec<_>>())
+                        .collect::<Vec<InternedString>>())
                 })
                 .map(|a| a.and_then(|a| a))
                 .flatten_ok()

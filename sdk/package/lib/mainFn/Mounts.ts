@@ -49,6 +49,15 @@ type DependencyOpts<Manifest extends T.SDKManifest> = {
   readonly: boolean
 } & SharedOptions
 
+/**
+ * Immutable builder for declaring filesystem mounts into a subcontainer.
+ *
+ * Supports mounting volumes, static assets, dependency volumes, and backup directories.
+ * Each `mount*` method returns a new `Mounts` instance (immutable builder pattern).
+ *
+ * @typeParam Manifest - The service manifest type
+ * @typeParam Backups - Tracks whether backup mounts have been added (type-level flag)
+ */
 export class Mounts<
   Manifest extends T.SDKManifest,
   Backups extends SharedOptions = never,
@@ -60,10 +69,19 @@ export class Mounts<
     readonly backups: Backups[],
   ) {}
 
+  /**
+   * Create an empty Mounts builder with no mounts configured.
+   * @returns A new Mounts instance ready for chaining mount declarations
+   */
   static of<Manifest extends T.SDKManifest>() {
     return new Mounts<Manifest>([], [], [], [])
   }
 
+  /**
+   * Add a volume mount from the service's own volumes.
+   * @param options - Volume ID, mountpoint, readonly flag, and optional subpath
+   * @returns A new Mounts instance with this volume added
+   */
   mountVolume(options: VolumeOpts<Manifest>) {
     return new Mounts<Manifest, Backups>(
       [...this.volumes, options],
@@ -73,6 +91,11 @@ export class Mounts<
     )
   }
 
+  /**
+   * Add a read-only mount of the service's packaged static assets.
+   * @param options - Mountpoint and optional subpath within the assets directory
+   * @returns A new Mounts instance with this asset mount added
+   */
   mountAssets(options: SharedOptions) {
     return new Mounts<Manifest, Backups>(
       [...this.volumes],
@@ -82,6 +105,11 @@ export class Mounts<
     )
   }
 
+  /**
+   * Add a mount from a dependency package's volume.
+   * @param options - Dependency ID, volume ID, mountpoint, readonly flag, and optional subpath
+   * @returns A new Mounts instance with this dependency mount added
+   */
   mountDependency<DependencyManifest extends T.SDKManifest>(
     options: DependencyOpts<DependencyManifest>,
   ) {
@@ -93,6 +121,11 @@ export class Mounts<
     )
   }
 
+  /**
+   * Add a mount of the backup directory. Only valid during backup/restore operations.
+   * @param options - Mountpoint and optional subpath within the backup directory
+   * @returns A new Mounts instance with this backup mount added
+   */
   mountBackups(options: SharedOptions) {
     return new Mounts<
       Manifest,
@@ -108,6 +141,11 @@ export class Mounts<
     )
   }
 
+  /**
+   * Compile all declared mounts into the low-level mount array consumed by the subcontainer runtime.
+   * @throws If any two mounts share the same mountpoint
+   * @returns An array of `{ mountpoint, options }` objects
+   */
   build(): MountArray {
     const mountpoints = new Set()
     for (let mountpoint of this.volumes

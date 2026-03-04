@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core'
 import { LoadingService } from '@start9labs/shared'
 import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
 import { from, switchMap } from 'rxjs'
-import { BackupTarget } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { TARGET, TARGET_CREATE } from '../modals/target.component'
 import { BACKUP, BACKUP_OPTIONS } from '../modals/backup.component'
@@ -17,7 +17,7 @@ export class BackupsCreateService {
 
   readonly handle = () => {
     this.dialogs
-      .open<BackupTarget & { id: string }>(TARGET, TARGET_CREATE)
+      .open<T.BackupTarget & { id: string }>(TARGET, TARGET_CREATE)
       .pipe(
         switchMap(({ id }) =>
           this.dialogs

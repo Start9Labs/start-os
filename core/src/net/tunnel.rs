@@ -8,7 +8,7 @@ use ts_rs::TS;
 
 use crate::GatewayId;
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::db::model::public::{GatewayType, NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::net::host::all_hosts;
 use crate::prelude::*;
 use crate::util::Invoke;
@@ -32,14 +32,19 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AddTunnelParams {
     #[arg(help = "help.arg.tunnel-name")]
     name: InternedString,
     #[arg(help = "help.arg.wireguard-config")]
     config: String,
-    #[arg(help = "help.arg.is-public")]
-    public: bool,
+    #[arg(help = "help.arg.gateway-type")]
+    #[serde(default, rename = "type")]
+    gateway_type: Option<GatewayType>,
+    #[arg(help = "help.arg.set-as-default-outbound")]
+    #[serde(default)]
+    set_as_default_outbound: bool,
 }
 
 fn sanitize_config(config: &str) -> String {
@@ -64,7 +69,8 @@ pub async fn add_tunnel(
     AddTunnelParams {
         name,
         config,
-        public,
+        gateway_type,
+        set_as_default_outbound,
     }: AddTunnelParams,
 ) -> Result<GatewayId, Error> {
     let ifaces = ctx.net_controller.net_iface.watcher.subscribe();
@@ -76,9 +82,9 @@ pub async fn add_tunnel(
                     iface.clone(),
                     NetworkInterfaceInfo {
                         name: Some(name),
-                        public: Some(public),
                         secure: None,
                         ip_info: None,
+                        gateway_type,
                     },
                 );
                 return true;
@@ -120,6 +126,19 @@ pub async fn add_tunnel(
 
     sub.recv().await;
 
+    if set_as_default_outbound {
+        ctx.db
+            .mutate(|db| {
+                db.as_public_mut()
+                    .as_server_info_mut()
+                    .as_network_mut()
+                    .as_default_outbound_mut()
+                    .ser(&Some(iface.clone()))
+            })
+            .await
+            .result?;
+    }
+
     Ok(iface)
 }
 
@@ -156,10 +175,19 @@ pub async fn remove_tunnel(
 
     ctx.db
         .mutate(|db| {
+            let hostname = crate::hostname::ServerHostname::load(db.as_public().as_server_info())?;
+            let gateways = db
+                .as_public()
+                .as_server_info()
+                .as_network()
+                .as_gateways()
+                .de()?;
+            let ports = db.as_private().as_available_ports().de()?;
             for host in all_hosts(db) {
                 let host = host?;
                 host.as_public_domains_mut()
                     .mutate(|p| Ok(p.retain(|_, v| v.gateway != id)))?;
+                host.update_addresses(&hostname, &gateways, &ports)?;
             }
 
             Ok(())
@@ -171,14 +199,24 @@ pub async fn remove_tunnel(
 
     ctx.db
         .mutate(|db| {
+            let hostname = crate::hostname::ServerHostname::load(db.as_public().as_server_info())?;
+            let gateways = db
+                .as_public()
+                .as_server_info()
+                .as_network()
+                .as_gateways()
+                .de()?;
+            let ports = db.as_private().as_available_ports().de()?;
             for host in all_hosts(db) {
                 let host = host?;
-                host.as_bindings_mut().mutate(|b| {
-                    Ok(b.values_mut().for_each(|v| {
-                        v.net.private_disabled.remove(&id);
-                        v.net.public_enabled.remove(&id);
-                    }))
+                host.as_private_domains_mut().mutate(|d| {
+                    for gateways in d.values_mut() {
+                        gateways.remove(&id);
+                    }
+                    d.retain(|_, gateways| !gateways.is_empty());
+                    Ok(())
                 })?;
+                host.update_addresses(&hostname, &gateways, &ports)?;
             }
 
             Ok(())

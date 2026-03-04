@@ -7,7 +7,6 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
-import { Title } from '@angular/platform-browser'
 import { RouterLink } from '@angular/router'
 import {
   DialogService,
@@ -24,14 +23,13 @@ import {
   LANGUAGE_TO_CODE,
   LoadingService,
 } from '@start9labs/shared'
+import { WA_WINDOW } from '@ng-web-apis/common'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiAnimated } from '@taiga-ui/cdk'
 import {
   TuiAppearance,
   TuiButton,
-  tuiFadeIn,
   TuiIcon,
-  tuiScaleIn,
   TuiTextfield,
   TuiTitle,
 } from '@taiga-ui/core'
@@ -47,14 +45,14 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ConfigService } from 'src/app/services/config.service'
 import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
-import { SnekDirective } from './snek.directive'
+import { ABOUT } from 'src/app/routes/portal/components/header/about.component'
+import { SnakeDirective } from './snake.directive'
 import { UPDATE } from './update.component'
-import { SystemWipeComponent } from './wipe.component'
 import { KeyboardSelectComponent } from './keyboard-select.component'
+import { ServerNameDialog } from './server-name.dialog'
 
 @Component({
   template: `
@@ -66,17 +64,28 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
     </ng-container>
     @if (server(); as server) {
       <div tuiCell tuiAppearance="outline-grayscale">
-        <tui-icon icon="@tui.zap" />
+        <tui-icon icon="@tui.info" />
         <span tuiTitle>
-          <strong>{{ 'Software Update' | i18n }}</strong>
-          <span tuiSubtitle [style.flex-wrap]="'wrap'">
-            {{ server.version }}
+          <strong>{{ 'About this server' | i18n }}</strong>
+          <span tuiSubtitle>
+            {{ 'Version, Root CA, and more' | i18n }}
+          </span>
+        </span>
+        <button tuiButton (click)="about()">
+          {{ 'Details' | i18n }}
+        </button>
+      </div>
+      <div tuiCell tuiAppearance="outline-grayscale">
+        <tui-icon icon="@tui.zap" (click)="count = count + 1" />
+        <span tuiTitle>
+          <strong>
+            {{ 'Software Update' | i18n }}
             @if (os.showUpdate$ | async) {
               <tui-badge-notification>
                 {{ 'Update available' | i18n }}
               </tui-badge-notification>
             }
-          </span>
+          </strong>
         </span>
         <button
           tuiButton
@@ -97,14 +106,17 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
         </button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
-        <tui-icon icon="@tui.app-window" />
+        <tui-icon icon="@tui.server" />
         <span tuiTitle>
-          <strong>{{ 'Browser tab title' | i18n }}</strong>
+          <strong>{{ 'Server Name' | i18n }}</strong>
           <span tuiSubtitle>
-            {{ 'Customize the name appearing in your browser tab' | i18n }}
+            {{ server.name }}
           </span>
+          <span tuiSubtitle>{{ server.hostname }}.local</span>
         </span>
-        <button tuiButton (click)="onTitle()">{{ 'Change' | i18n }}</button>
+        <button tuiButton (click)="onName()">
+          {{ 'Change' | i18n }}
+        </button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.languages" />
@@ -178,18 +190,6 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
           </button>
         }
       </div>
-      <div tuiCell tuiAppearance="outline-grayscale">
-        <tui-icon icon="@tui.rotate-cw" (click)="count = count + 1" />
-        <span tuiTitle>
-          <strong>{{ 'Restart Tor' | i18n }}</strong>
-          <span tuiSubtitle>
-            {{ 'Restart the Tor daemon on your server' | i18n }}
-          </span>
-        </span>
-        <button tuiButton appearance="glass" (click)="onTorRestart()">
-          {{ 'Restart' | i18n }}
-        </button>
-      </div>
       @if (count > 4) {
         <div tuiCell tuiAppearance="outline-grayscale" tuiAnimated>
           <tui-icon icon="@tui.briefcase-medical" />
@@ -203,10 +203,10 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
         </div>
       }
       <img
-        [snek]="score() || 0"
-        class="snek"
+        [snake]="score() || 0"
+        class="snake"
         alt="Play Snake"
-        src="assets/img/icons/snek.png"
+        src="assets/img/icons/snake.png"
       />
     }
   `,
@@ -215,7 +215,7 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
       max-inline-size: 40rem;
     }
 
-    .snek {
+    .snake {
       width: 1rem;
       opacity: 0.2;
       cursor: pointer;
@@ -270,29 +270,30 @@ import { KeyboardSelectComponent } from './keyboard-select.component'
     TuiDataListWrapper,
     TuiTextfield,
     FormsModule,
-    SnekDirective,
+    SnakeDirective,
     TuiBadge,
     TuiBadgeNotification,
     TuiAnimated,
   ],
 })
 export default class SystemGeneralComponent {
-  private readonly title = inject(Title)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
-  private readonly isTor = inject(ConfigService).accessType === 'tor'
   private readonly dialog = inject(DialogService)
   private readonly i18n = inject(i18nPipe)
   private readonly injector = inject(INJECTOR)
+  private readonly win = inject(WA_WINDOW)
 
-  wipe = false
   count = 0
 
+  about() {
+    this.dialog.openComponent(ABOUT, { label: 'About this server' }).subscribe()
+  }
+
   readonly server = toSignal(this.patch.watch$('serverInfo'))
-  readonly name = toSignal(this.patch.watch$('ui', 'name'))
   readonly score = toSignal(this.patch.watch$('ui', 'snakeHighScore'))
   readonly os = inject(OSService)
   readonly i18nService = inject(i18nService)
@@ -362,52 +363,80 @@ export default class SystemGeneralComponent {
     }
   }
 
-  onTitle() {
-    const sub = this.dialog
-      .openPrompt<string>({
-        label: 'Browser tab title',
-        data: {
-          label: 'Device Name',
-          message:
-            'This value will be displayed as the title of your browser tab.',
-          placeholder: 'StartOS' as i18nKey,
-          required: false,
-          buttonText: 'Save',
-          initialValue: this.name(),
-        },
-      })
-      .subscribe(async name => {
-        const loader = this.loader.open('Saving').subscribe()
-        const title = `${name || 'StartOS'} — ${this.i18n.transform('System')}`
+  onName() {
+    const server = this.server()
+    if (!server) return
 
-        try {
-          await this.api.setDbValue(['name'], name || null)
-          this.title.setTitle(title)
-        } catch (e: any) {
-          this.errorService.handleError(e)
-        } finally {
-          loader.unsubscribe()
-          sub.unsubscribe()
+    this.dialog
+      .openComponent<{ name: string; hostname: string } | null>(
+        new PolymorpheusComponent(ServerNameDialog, this.injector),
+        {
+          label: 'Server Name',
+          size: 's',
+          data: { initialName: server.name },
+        },
+      )
+      .pipe(
+        filter(
+          (result): result is { name: string; hostname: string } =>
+            result !== null,
+        ),
+      )
+      .subscribe(result => {
+        if (this.win.location.hostname.endsWith('.local')) {
+          this.confirmNameChange(result)
+        } else {
+          this.saveName(result)
         }
       })
   }
 
-  onTorRestart() {
-    this.wipe = false
+  private confirmNameChange(result: { name: string; hostname: string }) {
     this.dialog
       .openConfirm({
-        label: this.isTor ? 'Warning' : 'Confirm',
+        label: 'Warning',
         data: {
-          content: new PolymorpheusComponent(
-            SystemWipeComponent,
-            this.injector,
-          ),
-          yes: 'Restart',
+          content:
+            'You are currently connected via your .local address. Changing the hostname will require you to switch to the new .local address.',
+          yes: 'Save',
           no: 'Cancel',
         },
       })
       .pipe(filter(Boolean))
-      .subscribe(() => this.resetTor(this.wipe))
+      .subscribe(() => this.saveName(result, true))
+  }
+
+  private async saveName(
+    { name, hostname }: { name: string; hostname: string },
+    wasLocal = false,
+  ) {
+    const loader = this.loader.open('Saving').subscribe()
+
+    try {
+      await this.api.setHostname({ name, hostname })
+
+      if (wasLocal) {
+        const { protocol, port } = this.win.location
+        const newUrl = `${protocol}//${hostname}.local${port ? ':' + port : ''}`
+
+        this.dialog
+          .openConfirm({
+            label: 'Hostname Changed',
+            data: {
+              content:
+                `${this.i18n.transform('Your server is now reachable at')} ${hostname}.local` as i18nKey,
+              yes: 'Open new address',
+              no: 'Dismiss',
+            },
+          })
+          .pipe(filter(Boolean))
+          .subscribe(() => this.win.open(newUrl, '_blank'))
+      }
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
   }
 
   async onRepair() {
@@ -530,19 +559,6 @@ export default class SystemGeneralComponent {
       })
       .pipe(filter(Boolean))
       .subscribe(() => this.restart())
-  }
-
-  private async resetTor(wipeState: boolean) {
-    const loader = this.loader.open().subscribe()
-
-    try {
-      await this.api.resetTor({ wipeState, reason: 'User triggered' })
-      this.dialog.openAlert('Tor restart in progress').subscribe()
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
   }
 
   private update() {

@@ -25,6 +25,9 @@ pub fn platform_to_arch(platform: &str) -> &str {
     if let Some(arch) = platform.strip_suffix("-nonfree") {
         return arch;
     }
+    if let Some(arch) = platform.strip_suffix("-nvidia") {
+        return arch;
+    }
     match platform {
         "raspberrypi" | "rockchip64" => "aarch64",
         _ => platform,
@@ -269,6 +272,18 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
+            "device-info",
+            ParentHandler::<C, WithIoFormat<Empty>>::new().root_handler(
+                from_fn_async(system::device_info)
+                    .with_display_serializable()
+                    .with_custom_display_fn(|handle, result| {
+                        system::display_device_info(handle.params, result)
+                    })
+                    .with_about("about.get-device-info")
+                    .with_call_remote::<CliContext>(),
+            ),
+        )
+        .subcommand(
             "experimental",
             system::experimental::<C>().with_about("about.commands-experimental"),
         )
@@ -376,6 +391,20 @@ pub fn server<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "host",
             net::host::server_host_api::<C>().with_about("about.commands-host-system-ui"),
+        )
+        .subcommand(
+            "set-hostname",
+            from_fn_async(hostname::set_hostname_rpc)
+                .no_display()
+                .with_about("about.set-hostname")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set-ifconfig-url",
+            from_fn_async(system::set_ifconfig_url)
+                .no_display()
+                .with_about("about.set-ifconfig-url")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "set-keyboard",
@@ -547,5 +576,13 @@ pub fn package<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "host",
             net::host::host_api::<C>().with_about("about.manage-network-hosts-package"),
+        )
+        .subcommand(
+            "set-outbound-gateway",
+            from_fn_async(net::gateway::set_outbound_gateway)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.set-outbound-gateway-package")
+                .with_call_remote::<CliContext>(),
         )
 }

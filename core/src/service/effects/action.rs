@@ -122,6 +122,10 @@ pub struct GetActionInputParams {
     package_id: Option<PackageId>,
     #[arg(help = "help.arg.action-id")]
     action_id: ActionId,
+    #[ts(type = "Record<string, unknown> | null")]
+    #[serde(default)]
+    #[arg(skip)]
+    prefill: Option<Value>,
 }
 async fn get_action_input(
     context: EffectContext,
@@ -129,9 +133,11 @@ async fn get_action_input(
         procedure_id,
         package_id,
         action_id,
+        prefill,
     }: GetActionInputParams,
 ) -> Result<Option<ActionInput>, Error> {
     let context = context.deref()?;
+    let prefill = prefill.unwrap_or(Value::Null);
 
     if let Some(package_id) = package_id {
         context
@@ -142,16 +148,18 @@ async fn get_action_input(
             .await
             .as_ref()
             .or_not_found(&package_id)?
-            .get_action_input(procedure_id, action_id)
+            .get_action_input(procedure_id, action_id, prefill)
             .await
     } else {
-        context.get_action_input(procedure_id, action_id).await
+        context
+            .get_action_input(procedure_id, action_id, prefill)
+            .await
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
+#[ts(export, rename = "EffectsRunActionParams")]
 pub struct RunActionParams {
     #[serde(default)]
     #[ts(skip)]
@@ -243,11 +251,12 @@ async fn create_task(
                     .get(&task.package_id)
                     .await
                     .as_ref()
+                    .filter(|s| s.is_initialized())
                 {
-                    let Some(prev) = service
-                        .get_action_input(procedure_id.clone(), task.action_id.clone())
-                        .await?
-                    else {
+                    let prev = service
+                        .get_action_input(procedure_id.clone(), task.action_id.clone(), Value::Null)
+                        .await?;
+                    let Some(prev) = prev else {
                         return Err(Error::new(
                             eyre!(
                                 "{}",
@@ -270,7 +279,9 @@ async fn create_task(
                         true
                     }
                 } else {
-                    true // update when service is installed
+                    // Service not installed or not yet initialized — assume active.
+                    // Will be retested when service init completes (Service::recheck_tasks).
+                    true
                 }
             }
         },

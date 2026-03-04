@@ -7,7 +7,7 @@ GIT_HASH_FILE := $(shell ./build/env/check-git-hash.sh)
 VERSION_FILE := $(shell ./build/env/check-version.sh)
 BASENAME := $(shell PROJECT=startos ./build/env/basename.sh)
 PLATFORM := $(shell if [ -f $(PLATFORM_FILE) ]; then cat $(PLATFORM_FILE); else echo unknown; fi)
-ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
+ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; elif [ "$(PLATFORM)" = "rockchip64" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g; s/-nvidia$$//g'; fi)
 RUST_ARCH := $(shell if [ "$(ARCH)" = "riscv64" ]; then echo riscv64gc; else echo $(ARCH); fi)
 REGISTRY_BASENAME := $(shell PROJECT=start-registry PLATFORM=$(ARCH) ./build/env/basename.sh)
 TUNNEL_BASENAME := $(shell PROJECT=start-tunnel PLATFORM=$(ARCH) ./build/env/basename.sh)
@@ -139,6 +139,11 @@ install-tunnel: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox
 	$(call mkdir,$(DESTDIR)/usr/lib/startos/scripts)
 	$(call cp,build/lib/scripts/forward-port,$(DESTDIR)/usr/lib/startos/scripts/forward-port)
 
+	$(call mkdir,$(DESTDIR)/etc/apt/sources.list.d)
+	$(call cp,apt/start9.list,$(DESTDIR)/etc/apt/sources.list.d/start9.list)
+	$(call mkdir,$(DESTDIR)/usr/share/keyrings)
+	$(call cp,apt/start9.gpg,$(DESTDIR)/usr/share/keyrings/start9.gpg)
+
 core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) web/dist/static/start-tunnel/index.html
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build/build-tunnelbox.sh
 
@@ -236,9 +241,9 @@ update-startbox: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox
 update-deb: results/$(BASENAME).deb # better than update, but only available from debian
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
-	$(call mkdir,/media/startos/next/tmp/startos-deb)
-	$(call cp,results/$(BASENAME).deb,/media/startos/next/tmp/startos-deb/$(BASENAME).deb)
-	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y --reinstall /tmp/startos-deb/$(BASENAME).deb"')
+	$(call mkdir,/media/startos/next/var/tmp/startos-deb)
+	$(call cp,results/$(BASENAME).deb,/media/startos/next/var/tmp/startos-deb/$(BASENAME).deb)
+	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y --reinstall /var/tmp/startos-deb/$(BASENAME).deb"')
 
 update-squashfs: results/$(BASENAME).squashfs
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
@@ -278,7 +283,7 @@ core/bindings/index.ts: $(call ls-files, core) $(ENVIRONMENT_FILE)
 	rm -rf core/bindings
 	./core/build/build-ts.sh
 	ls core/bindings/*.ts | sed 's/core\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' | grep -v '"./index"' | tee core/bindings/index.ts
-	npm --prefix sdk exec -- prettier --config ./sdk/base/package.json -w ./core/bindings/*.ts
+	npm --prefix sdk/base exec -- prettier --config=./sdk/base/package.json -w './core/bindings/**/*.ts'
 	touch core/bindings/index.ts
 
 sdk/dist/package.json sdk/baseDist/package.json: $(call ls-files, sdk) sdk/base/lib/osBindings/index.ts

@@ -1,12 +1,13 @@
 import { inject, Injectable } from '@angular/core'
 import {
   DialogService,
-  ErrorService,
+  getErrorMessage,
   i18nKey,
   LoadingService,
 } from '@start9labs/shared'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
+import { ACTION_CONFIRM_MODAL } from 'src/app/routes/portal/routes/services/modals/action-confirm.component'
 import {
   ActionInputModal,
   PackageActionData,
@@ -21,7 +22,6 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 export class ActionService {
   private readonly api = inject(ApiService)
   private readonly dialog = inject(DialogService)
-  private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
   private readonly formDialog = inject(FormDialogService)
 
@@ -36,14 +36,10 @@ export class ActionService {
     } else {
       if (actionInfo.metadata.warning) {
         this.dialog
-          .openConfirm({
-            label: 'Warning',
+          .openComponent<boolean>(ACTION_CONFIRM_MODAL, {
+            label: actionInfo.metadata.name as i18nKey,
             size: 's',
-            data: {
-              no: 'Cancel',
-              yes: 'Run',
-              content: actionInfo.metadata.warning as i18nKey,
-            },
+            data,
           })
           .pipe(filter(Boolean))
           .subscribe(() => this.execute(pkgInfo.id, null, actionInfo.id))
@@ -64,9 +60,9 @@ export class ActionService {
     try {
       const res = await this.api.runAction({
         packageId,
-        eventId,
         actionId,
         input: input ?? null,
+        eventId,
       })
 
       if (!res) return
@@ -84,7 +80,9 @@ export class ActionService {
           .subscribe()
       }
     } catch (e: any) {
-      this.errorService.handleError(e)
+      this.dialog
+        .openAlert(getErrorMessage(e) as i18nKey, { label: 'Error' })
+        .subscribe()
     } finally {
       loader.unsubscribe()
     }

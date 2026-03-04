@@ -15,26 +15,11 @@ import { System } from "../../../Interfaces/System"
 import { matchManifest, Manifest } from "./matchManifest"
 import * as childProcess from "node:child_process"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
+import { DockerProcedure } from "../../../Models/DockerProcedure"
 import { promisify } from "node:util"
 import * as U from "./oldEmbassyTypes"
 import { MainLoop } from "./MainLoop"
-import {
-  matches,
-  boolean,
-  dictionary,
-  literal,
-  literals,
-  object,
-  string,
-  unknown,
-  any,
-  tuple,
-  number,
-  anyOf,
-  deferred,
-  Parser,
-  array,
-} from "ts-matches"
+import { z } from "@start9labs/start-sdk"
 import { AddSslOptions } from "@start9labs/start-sdk/base/lib/osBindings"
 import {
   BindOptionsByProtocol,
@@ -57,6 +42,15 @@ function todo(): never {
   throw new Error("Not implemented")
 }
 
+/**
+ * Local type for procedure values from the manifest.
+ * The manifest's zod schemas use ZodTypeAny casts that produce `unknown` in zod v4.
+ * This type restores the expected shape for type-safe property access.
+ */
+type Procedure =
+  | (DockerProcedure & { type: "docker" })
+  | { type: "script"; args: unknown[] | null }
+
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 
@@ -65,26 +59,24 @@ const configFile = FileHelper.json(
     base: new Volume("embassy"),
     subpath: "config.json",
   },
-  matches.any,
+  z.any(),
 )
 const dependsOnFile = FileHelper.json(
   {
     base: new Volume("embassy"),
     subpath: "dependsOn.json",
   },
-  dictionary([string, array(string)]),
+  z.record(z.string(), z.array(z.string())),
 )
 
-const matchResult = object({
-  result: any,
+const matchResult = z.object({
+  result: z.any(),
 })
-const matchError = object({
-  error: string,
+const matchError = z.object({
+  error: z.string(),
 })
-const matchErrorCode = object<{
-  "error-code": [number, string] | readonly [number, string]
-}>({
-  "error-code": tuple(number, string),
+const matchErrorCode = z.object({
+  "error-code": z.tuple([z.number(), z.string()]),
 })
 
 const assertNever = (
@@ -96,29 +88,34 @@ const assertNever = (
 /**
   Should be changing the type for specific properties, and this is mostly a transformation for the old return types to the newer one.
 */
+function isMatchResult(a: unknown): a is z.infer<typeof matchResult> {
+  return matchResult.safeParse(a).success
+}
+function isMatchError(a: unknown): a is z.infer<typeof matchError> {
+  return matchError.safeParse(a).success
+}
+function isMatchErrorCode(a: unknown): a is z.infer<typeof matchErrorCode> {
+  return matchErrorCode.safeParse(a).success
+}
 const fromReturnType = <A>(a: U.ResultType<A>): A => {
-  if (matchResult.test(a)) {
+  if (isMatchResult(a)) {
     return a.result
   }
-  if (matchError.test(a)) {
+  if (isMatchError(a)) {
     console.info({ passedErrorStack: new Error().stack, error: a.error })
     throw { error: a.error }
   }
-  if (matchErrorCode.test(a)) {
+  if (isMatchErrorCode(a)) {
     const [code, message] = a["error-code"]
     throw { error: message, code }
   }
-  return assertNever(a)
+  return assertNever(a as never)
 }
 
-const matchSetResult = object({
-  "depends-on": dictionary([string, array(string)])
-    .nullable()
-    .optional(),
-  dependsOn: dictionary([string, array(string)])
-    .nullable()
-    .optional(),
-  signal: literals(
+const matchSetResult = z.object({
+  "depends-on": z.record(z.string(), z.array(z.string())).nullable().optional(),
+  dependsOn: z.record(z.string(), z.array(z.string())).nullable().optional(),
+  signal: z.enum([
     "SIGTERM",
     "SIGHUP",
     "SIGINT",
@@ -151,7 +148,7 @@ const matchSetResult = object({
     "SIGPWR",
     "SIGSYS",
     "SIGINFO",
-  ),
+  ]),
 })
 
 type OldGetConfigRes = {
@@ -233,33 +230,29 @@ const asProperty = (x: PackagePropertiesV2): PropertiesReturn =>
   Object.fromEntries(
     Object.entries(x).map(([key, value]) => [key, asProperty_(value)]),
   )
-const [matchPackageProperties, setMatchPackageProperties] =
-  deferred<PackagePropertiesV2>()
-const matchPackagePropertyObject: Parser<unknown, PackagePropertyObject> =
-  object({
-    value: matchPackageProperties,
-    type: literal("object"),
-    description: string,
-  })
+const matchPackagePropertyObject: z.ZodType<PackagePropertyObject> = z.object({
+  value: z.lazy(() => matchPackageProperties),
+  type: z.literal("object"),
+  description: z.string(),
+})
 
-const matchPackagePropertyString: Parser<unknown, PackagePropertyString> =
-  object({
-    type: literal("string"),
-    description: string.nullable().optional(),
-    value: string,
-    copyable: boolean.nullable().optional(),
-    qr: boolean.nullable().optional(),
-    masked: boolean.nullable().optional(),
-  })
-setMatchPackageProperties(
-  dictionary([
-    string,
-    anyOf(matchPackagePropertyObject, matchPackagePropertyString),
-  ]),
+const matchPackagePropertyString: z.ZodType<PackagePropertyString> = z.object({
+  type: z.literal("string"),
+  description: z.string().nullable().optional(),
+  value: z.string(),
+  copyable: z.boolean().nullable().optional(),
+  qr: z.boolean().nullable().optional(),
+  masked: z.boolean().nullable().optional(),
+})
+const matchPackageProperties: z.ZodType<PackagePropertiesV2> = z.lazy(() =>
+  z.record(
+    z.string(),
+    z.union([matchPackagePropertyObject, matchPackagePropertyString]),
+  ),
 )
 
-const matchProperties = object({
-  version: literal(2),
+const matchProperties = z.object({
+  version: z.literal(2),
   data: matchPackageProperties,
 })
 
@@ -303,7 +296,7 @@ export class SystemForEmbassy implements System {
       })
     const manifestData = await fs.readFile(manifestLocation, "utf-8")
     return new SystemForEmbassy(
-      matchManifest.unsafeCast(JSON.parse(manifestData)),
+      matchManifest.parse(JSON.parse(manifestData)),
       moduleCode,
     )
   }
@@ -389,7 +382,9 @@ export class SystemForEmbassy implements System {
     delete this.currentRunning
     if (currentRunning) {
       await currentRunning.clean({
-        timeout: fromDuration(this.manifest.main["sigterm-timeout"] || "30s"),
+        timeout: fromDuration(
+          (this.manifest.main["sigterm-timeout"] as any) || "30s",
+        ),
       })
     }
   }
@@ -510,6 +505,7 @@ export class SystemForEmbassy implements System {
   async getActionInput(
     effects: Effects,
     actionId: string,
+    _prefill: Record<string, unknown> | null,
     timeoutMs: number | null,
   ): Promise<T.ActionInput | null> {
     if (actionId === "config") {
@@ -622,7 +618,7 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<void> {
-    const backup = this.manifest.backup.create
+    const backup = this.manifest.backup.create as Procedure
     if (backup.type === "docker") {
       const commands = [backup.entrypoint, ...backup.args]
       const container = await DockerProcedureContainer.of(
@@ -655,7 +651,7 @@ export class SystemForEmbassy implements System {
         encoding: "utf-8",
       })
       .catch((_) => null)
-    const restoreBackup = this.manifest.backup.restore
+    const restoreBackup = this.manifest.backup.restore as Procedure
     if (restoreBackup.type === "docker") {
       const commands = [restoreBackup.entrypoint, ...restoreBackup.args]
       const container = await DockerProcedureContainer.of(
@@ -688,7 +684,7 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<OldGetConfigRes> {
-    const config = this.manifest.config?.get
+    const config = this.manifest.config?.get as Procedure | undefined
     if (!config) return { spec: {} }
     if (config.type === "docker") {
       const commands = [config.entrypoint, ...config.args]
@@ -730,7 +726,7 @@ export class SystemForEmbassy implements System {
     )
     await updateConfig(effects, this.manifest, spec, newConfig)
     await configFile.write(effects, newConfig)
-    const setConfigValue = this.manifest.config?.set
+    const setConfigValue = this.manifest.config?.set as Procedure | undefined
     if (!setConfigValue) return
     if (setConfigValue.type === "docker") {
       const commands = [
@@ -745,7 +741,7 @@ export class SystemForEmbassy implements System {
         this.manifest.volumes,
         `Set Config - ${commands.join(" ")}`,
       )
-      const answer = matchSetResult.unsafeCast(
+      const answer = matchSetResult.parse(
         JSON.parse(
           (await container.execFail(commands, timeoutMs)).stdout.toString(),
         ),
@@ -758,7 +754,7 @@ export class SystemForEmbassy implements System {
       const method = moduleCode.setConfig
       if (!method) throw new Error("Expecting that the method setConfig exists")
 
-      const answer = matchSetResult.unsafeCast(
+      const answer = matchSetResult.parse(
         await method(
           polyfillEffects(effects, this.manifest),
           newConfig as U.Config,
@@ -787,7 +783,11 @@ export class SystemForEmbassy implements System {
     const requiredDeps = {
       ...Object.fromEntries(
         Object.entries(this.manifest.dependencies ?? {})
-          .filter(([k, v]) => v?.requirement.type === "required")
+          .filter(
+            ([k, v]) =>
+              (v?.requirement as { type: string } | undefined)?.type ===
+              "required",
+          )
           .map((x) => [x[0], []]) || [],
       ),
     }
@@ -855,7 +855,7 @@ export class SystemForEmbassy implements System {
     }
 
     if (migration) {
-      const [_, procedure] = migration
+      const [_, procedure] = migration as readonly [unknown, Procedure]
       if (procedure.type === "docker") {
         const commands = [procedure.entrypoint, ...procedure.args]
         const container = await DockerProcedureContainer.of(
@@ -893,7 +893,10 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<PropertiesReturn> {
-    const setConfigValue = this.manifest.properties
+    const setConfigValue = this.manifest.properties as
+      | Procedure
+      | null
+      | undefined
     if (!setConfigValue) throw new Error("There is no properties")
     if (setConfigValue.type === "docker") {
       const commands = [setConfigValue.entrypoint, ...setConfigValue.args]
@@ -904,7 +907,7 @@ export class SystemForEmbassy implements System {
         this.manifest.volumes,
         `Properties - ${commands.join(" ")}`,
       )
-      const properties = matchProperties.unsafeCast(
+      const properties = matchProperties.parse(
         JSON.parse(
           (await container.execFail(commands, timeoutMs)).stdout.toString(),
         ),
@@ -915,7 +918,7 @@ export class SystemForEmbassy implements System {
       const method = moduleCode.properties
       if (!method)
         throw new Error("Expecting that the method properties exists")
-      const properties = matchProperties.unsafeCast(
+      const properties = matchProperties.parse(
         await method(polyfillEffects(effects, this.manifest)).then(
           fromReturnType,
         ),
@@ -930,7 +933,8 @@ export class SystemForEmbassy implements System {
     formData: unknown,
     timeoutMs: number | null,
   ): Promise<T.ActionResult> {
-    const actionProcedure = this.manifest.actions?.[actionId]?.implementation
+    const actionProcedure = this.manifest.actions?.[actionId]
+      ?.implementation as Procedure | undefined
     const toActionResult = ({
       message,
       value,
@@ -997,7 +1001,9 @@ export class SystemForEmbassy implements System {
     oldConfig: unknown,
     timeoutMs: number | null,
   ): Promise<object> {
-    const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
+    const actionProcedure = this.manifest.dependencies?.[id]?.config?.check as
+      | Procedure
+      | undefined
     if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
       const commands = [
@@ -1089,40 +1095,50 @@ export class SystemForEmbassy implements System {
   }
 }
 
-const matchPointer = object({
-  type: literal("pointer"),
+const matchPointer = z.object({
+  type: z.literal("pointer"),
 })
 
-const matchPointerPackage = object({
-  subtype: literal("package"),
-  target: literals("tor-key", "tor-address", "lan-address"),
-  "package-id": string,
-  interface: string,
+const matchPointerPackage = z.object({
+  subtype: z.literal("package"),
+  target: z.enum(["tor-key", "tor-address", "lan-address"]),
+  "package-id": z.string(),
+  interface: z.string(),
 })
-const matchPointerConfig = object({
-  subtype: literal("package"),
-  target: literals("config"),
-  "package-id": string,
-  selector: string,
-  multi: boolean,
+const matchPointerConfig = z.object({
+  subtype: z.literal("package"),
+  target: z.enum(["config"]),
+  "package-id": z.string(),
+  selector: z.string(),
+  multi: z.boolean(),
 })
-const matchSpec = object({
-  spec: object,
+const matchSpec = z.object({
+  spec: z.record(z.string(), z.unknown()),
 })
-const matchVariants = object({ variants: dictionary([string, unknown]) })
+const matchVariants = z.object({ variants: z.record(z.string(), z.unknown()) })
+function isMatchPointer(v: unknown): v is z.infer<typeof matchPointer> {
+  return matchPointer.safeParse(v).success
+}
+function isMatchSpec(v: unknown): v is z.infer<typeof matchSpec> {
+  return matchSpec.safeParse(v).success
+}
+function isMatchVariants(v: unknown): v is z.infer<typeof matchVariants> {
+  return matchVariants.safeParse(v).success
+}
 function cleanSpecOfPointers<T>(mutSpec: T): T {
-  if (!object.test(mutSpec)) return mutSpec
+  if (typeof mutSpec !== "object" || mutSpec === null) return mutSpec
   for (const key in mutSpec) {
     const value = mutSpec[key]
-    if (matchSpec.test(value)) value.spec = cleanSpecOfPointers(value.spec)
-    if (matchVariants.test(value))
+    if (isMatchSpec(value))
+      value.spec = cleanSpecOfPointers(value.spec) as Record<string, unknown>
+    if (isMatchVariants(value))
       value.variants = Object.fromEntries(
         Object.entries(value.variants).map(([key, value]) => [
           key,
           cleanSpecOfPointers(value),
         ]),
       )
-    if (!matchPointer.test(value)) continue
+    if (!isMatchPointer(value)) continue
     delete mutSpec[key]
     // // if (value.target === )
   }
@@ -1244,12 +1260,8 @@ async function updateConfig(
             ? ""
             : catchFn(
                 () =>
-                  (specValue.target === "lan-address"
-                    ? filled.addressInfo!.filter({ kind: "mdns" }) ||
-                      filled.addressInfo!.onion
-                    : filled.addressInfo!.onion ||
-                      filled.addressInfo!.filter({ kind: "mdns" })
-                  ).hostnames[0].hostname.value,
+                  filled.addressInfo!.filter({ kind: "mdns" })!.hostnames[0]
+                    .hostname,
               ) || ""
         mutConfigValue[key] = url
       }
@@ -1272,7 +1284,7 @@ function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
 }
 async function convertToNewConfig(value: OldGetConfigRes) {
   try {
-    const valueSpec: OldConfigSpec = matchOldConfigSpec.unsafeCast(value.spec)
+    const valueSpec: OldConfigSpec = matchOldConfigSpec.parse(value.spec)
     const spec = transformConfigSpec(valueSpec)
     if (!value.config) return { spec, config: null }
     const config = transformOldConfigToNew(valueSpec, value.config) ?? null

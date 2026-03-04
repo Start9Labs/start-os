@@ -4,9 +4,9 @@ import synapseManifest from "./__fixtures__/synapseManifest"
 
 describe("matchManifest", () => {
   test("gittea", () => {
-    matchManifest.unsafeCast(giteaManifest)
+    matchManifest.parse(giteaManifest)
   })
   test("synapse", () => {
-    matchManifest.unsafeCast(synapseManifest)
+    matchManifest.parse(synapseManifest)
   })
 })

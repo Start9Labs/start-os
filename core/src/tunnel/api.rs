@@ -53,6 +53,24 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
                         .with_call_remote::<CliContext>(),
                 ),
         )
+        .subcommand(
+            "update",
+            ParentHandler::<C>::new()
+                .subcommand(
+                    "check",
+                    from_fn_async(super::update::check_update)
+                        .with_display_serializable()
+                        .with_about("about.check-for-updates")
+                        .with_call_remote::<CliContext>(),
+                )
+                .subcommand(
+                    "apply",
+                    from_fn_async(super::update::apply_update)
+                        .with_display_serializable()
+                        .with_about("about.apply-available-update")
+                        .with_call_remote::<CliContext>(),
+                ),
+        )
 }
 
 #[derive(Deserialize, Serialize, Parser)]
@@ -414,14 +432,11 @@ pub async fn show_config(
                 i.iter().find_map(|(_, info)| {
                     info.ip_info
                         .as_ref()
-                        .filter(|_| info.public())
-                        .iter()
-                        .find_map(|info| info.subnets.iter().next())
-                        .copied()
+                        .and_then(|ip_info| ip_info.wan_ip)
+                        .map(IpAddr::from)
                 })
             })
             .or_not_found("a public IP address")?
-            .addr()
     };
     Ok(client
         .client_config(
@@ -459,7 +474,10 @@ pub async fn add_forward(
         })
         .map(|s| s.prefix_len())
         .unwrap_or(32);
-    let rc = ctx.forward.add_forward(source, target, prefix).await?;
+    let rc = ctx
+        .forward
+        .add_forward(source, target, prefix, None)
+        .await?;
     ctx.active_forwards.mutate(|m| {
         m.insert(source, rc);
     });

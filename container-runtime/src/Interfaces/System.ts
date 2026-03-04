@@ -33,6 +33,7 @@ export type System = {
   getActionInput(
     effects: Effects,
     actionId: string,
+    prefill: Record<string, unknown> | null,
     timeoutMs: number | null,
   ): Promise<T.ActionInput | null>
 

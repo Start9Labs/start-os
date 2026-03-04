@@ -9,6 +9,7 @@ import {
   DeleteSubnetReq,
   LoginReq,
   SubscribeRes,
+  TunnelUpdateResult,
   UpsertDeviceReq,
   UpsertSubnetReq,
 } from './api.service'
@@ -194,6 +195,24 @@ export class MockApiService extends ApiService {
     this.mockRevision(patch)
 
     return null
+  }
+
+  async checkUpdate(): Promise<TunnelUpdateResult> {
+    await pauseFor(1000)
+    return {
+      status: 'update-available',
+      installed: '0.4.0-alpha.19',
+      candidate: '0.4.0-alpha.20',
+    }
+  }
+
+  async applyUpdate(): Promise<TunnelUpdateResult> {
+    await pauseFor(2000)
+    return {
+      status: 'updating',
+      installed: '0.4.0-alpha.19',
+      candidate: '0.4.0-alpha.20',
+    }
   }
 
   private async mockRevision<T>(patch: Operation<T>[]): Promise<void> {

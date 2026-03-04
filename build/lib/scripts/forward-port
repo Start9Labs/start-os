@@ -5,7 +5,7 @@ if [ -z "$sip" ] || [ -z "$dip" ] || [ -z "$dprefix" ] || [ -z "$sport" ] || [ -
     exit 1
 fi
 
-NAME="F$(echo "$sip:$sport -> $dip/$dprefix:$dport" | sha256sum | head -c 15)"
+NAME="F$(echo "$sip:$sport -> $dip/$dprefix:$dport ${src_subnet:-any}" | sha256sum | head -c 15)"
 
 for kind in INPUT FORWARD ACCEPT; do
     if ! iptables -C $kind -j "${NAME}_${kind}" 2> /dev/null; then
@@ -13,7 +13,7 @@ for kind in INPUT FORWARD ACCEPT; do
         iptables -A $kind -j "${NAME}_${kind}"
     fi
 done
-for kind in PREROUTING INPUT OUTPUT POSTROUTING; do
+for kind in PREROUTING OUTPUT POSTROUTING; do
     if ! iptables -t nat -C $kind -j "${NAME}_${kind}" 2> /dev/null; then
         iptables -t nat -N "${NAME}_${kind}" 2> /dev/null
         iptables -t nat -A $kind -j "${NAME}_${kind}"
@@ -26,7 +26,7 @@ trap 'err=1' ERR
 for kind in INPUT FORWARD ACCEPT; do
     iptables -F "${NAME}_${kind}" 2> /dev/null
 done
-for kind in PREROUTING INPUT OUTPUT POSTROUTING; do
+for kind in PREROUTING OUTPUT POSTROUTING; do
     iptables -t nat -F "${NAME}_${kind}" 2> /dev/null
 done
 if [ "$UNDO" = 1 ]; then
@@ -36,20 +36,37 @@ if [ "$UNDO" = 1 ]; then
 fi
 
 # DNAT: rewrite destination for incoming packets (external traffic)
-iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
-iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+# When src_subnet is set, only forward traffic from that subnet (private forwards)
+if [ -n "$src_subnet" ]; then
+    iptables -t nat -A ${NAME}_PREROUTING -s "$src_subnet" -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+    iptables -t nat -A ${NAME}_PREROUTING -s "$src_subnet" -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+    # Also allow containers on the bridge subnet to reach this forward
+    if [ -n "$bridge_subnet" ]; then
+        iptables -t nat -A ${NAME}_PREROUTING -s "$bridge_subnet" -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+        iptables -t nat -A ${NAME}_PREROUTING -s "$bridge_subnet" -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+    fi
+else
+    iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+    iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+fi
 
 # DNAT: rewrite destination for locally-originated packets (hairpin from host itself)
 iptables -t nat -A ${NAME}_OUTPUT -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
 iptables -t nat -A ${NAME}_OUTPUT -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
 
-# MASQUERADE: rewrite source for all forwarded traffic to the destination
-# This ensures responses are routed back through the host regardless of source IP
-iptables -t nat -A ${NAME}_POSTROUTING -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
-iptables -t nat -A ${NAME}_POSTROUTING -d "$dip" -p udp --dport "$dport" -j MASQUERADE
-
 # Allow new connections to be forwarded to the destination
 iptables -A ${NAME}_FORWARD -d $dip -p tcp --dport $dport -m state --state NEW -j ACCEPT
 iptables -A ${NAME}_FORWARD -d $dip -p udp --dport $dport -m state --state NEW -j ACCEPT
+
+# NAT hairpin: masquerade traffic from the bridge subnet or host to the DNAT
+# target, so replies route back through the host for proper NAT reversal.
+# Container-to-container hairpin (source is on the bridge subnet)
+if [ -n "$bridge_subnet" ]; then
+    iptables -t nat -A ${NAME}_POSTROUTING -s "$bridge_subnet" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
+    iptables -t nat -A ${NAME}_POSTROUTING -s "$bridge_subnet" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
+fi
+# Host-to-container hairpin (host connects to its own gateway IP, source is sip)
+iptables -t nat -A ${NAME}_POSTROUTING -s "$sip" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
+iptables -t nat -A ${NAME}_POSTROUTING -s "$sip" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
 
 exit $err

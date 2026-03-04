@@ -19,7 +19,7 @@ use super::mount::filesystem::block_dev::BlockDev;
 use super::mount::guard::TmpMountGuard;
 use crate::disk::OsPartitionInfo;
 use crate::disk::mount::guard::GenericMountGuard;
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostname;
 use crate::prelude::*;
 use crate::util::Invoke;
 use crate::util::serde::IoFormat;
@@ -43,22 +43,28 @@ pub struct DiskInfo {
     pub guid: Option<InternedString>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, ts_rs::TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct PartitionInfo {
     pub logicalname: PathBuf,
     pub label: Option<String>,
+    #[ts(type = "number")]
     pub capacity: u64,
+    #[ts(type = "number | null")]
     pub used: Option<u64>,
     pub start_os: BTreeMap<String, StartOsRecoveryInfo>,
     pub guid: Option<InternedString>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, ts_rs::TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct StartOsRecoveryInfo {
-    pub hostname: Hostname,
+    pub hostname: ServerHostname,
+    #[ts(type = "string")]
     pub version: exver::Version,
+    #[ts(type = "string")]
     pub timestamp: DateTime<Utc>,
     pub password_hash: Option<String>,
     pub wrapped_key: Option<String>,

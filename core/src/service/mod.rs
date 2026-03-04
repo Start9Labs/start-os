@@ -16,7 +16,7 @@ use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
 use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use nix::sys::signal::Signal;
-use persistent_container::{PersistentContainer, Subcontainer};
+use persistent_container::PersistentContainer;
 use rpc_toolkit::HandlerArgs;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
@@ -52,7 +52,7 @@ use crate::util::serde::Pem;
 use crate::util::sync::SyncMutex;
 use crate::util::tui::choose;
 use crate::volume::data_dir;
-use crate::{ActionId, CAP_1_KiB, DATA_DIR, HostId, ImageId, PackageId};
+use crate::{ActionId, CAP_1_KiB, DATA_DIR, ImageId, PackageId};
 
 pub mod action;
 pub mod cli;
@@ -215,6 +215,84 @@ pub struct Service {
     seed: Arc<ServiceActorSeed>,
 }
 impl Service {
+    pub fn is_initialized(&self) -> bool {
+        self.seed.persistent_container.state.borrow().rt_initialized
+    }
+
+    /// Re-evaluate all tasks that reference this service's actions.
+    /// Called after every service init to update task active state.
+    #[instrument(skip_all)]
+    async fn recheck_tasks(&self) -> Result<(), Error> {
+        let service_id = &self.seed.id;
+        let peek = self.seed.ctx.db.peek().await;
+        let mut action_input: BTreeMap<ActionId, Value> = BTreeMap::new();
+        let tasks: BTreeSet<_> = peek
+            .as_public()
+            .as_package_data()
+            .as_entries()?
+            .into_iter()
+            .map(|(_, pde)| {
+                Ok(pde
+                    .as_tasks()
+                    .as_entries()?
+                    .into_iter()
+                    .map(|(_, r)| {
+                        let t = r.as_task();
+                        Ok::<_, Error>(
+                            if t.as_package_id().de()? == *service_id
+                                && t.as_input().transpose_ref().is_some()
+                            {
+                                Some(t.as_action_id().de()?)
+                            } else {
+                                None
+                            },
+                        )
+                    })
+                    .filter_map_ok(|a| a))
+            })
+            .flatten_ok()
+            .map(|a| a.and_then(|a| a))
+            .try_collect()?;
+        let procedure_id = Guid::new();
+        for action_id in tasks {
+            if let Some(input) = self
+                .get_action_input(procedure_id.clone(), action_id.clone(), Value::Null)
+                .await
+                .log_err()
+                .flatten()
+                .and_then(|i| i.value)
+            {
+                action_input.insert(action_id, input);
+            }
+        }
+        self.seed
+            .ctx
+            .db
+            .mutate(|db| {
+                for (action_id, input) in &action_input {
+                    for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                        pde.as_tasks_mut().mutate(|tasks| {
+                            Ok(update_tasks(tasks, service_id, action_id, input, false))
+                        })?;
+                    }
+                }
+                for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                    if pde
+                        .as_tasks()
+                        .de()?
+                        .into_iter()
+                        .any(|(_, t)| t.active && t.task.severity == TaskSeverity::Critical)
+                    {
+                        pde.as_status_info_mut().stop()?;
+                    }
+                }
+                Ok(())
+            })
+            .await
+            .result?;
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     async fn new(
         ctx: RpcContext,
@@ -263,6 +341,7 @@ impl Service {
             .persistent_container
             .init(service.weak(), procedure_id, init_kind)
             .await?;
+        service.recheck_tasks().await?;
         if let Some(recovery_guard) = recovery_guard {
             recovery_guard.unmount(true).await?;
         }
@@ -489,70 +568,8 @@ impl Service {
         )
         .await?;
 
-        if let Some(mut progress) = progress {
-            progress.finalization_progress.complete();
-            progress.progress.complete();
-            tokio::task::yield_now().await;
-        }
-
-        let peek = ctx.db.peek().await;
-        let mut action_input: BTreeMap<ActionId, Value> = BTreeMap::new();
-        let tasks: BTreeSet<_> = peek
-            .as_public()
-            .as_package_data()
-            .as_entries()?
-            .into_iter()
-            .map(|(_, pde)| {
-                Ok(pde
-                    .as_tasks()
-                    .as_entries()?
-                    .into_iter()
-                    .map(|(_, r)| {
-                        let t = r.as_task();
-                        Ok::<_, Error>(
-                            if t.as_package_id().de()? == manifest.id
-                                && t.as_input().transpose_ref().is_some()
-                            {
-                                Some(t.as_action_id().de()?)
-                            } else {
-                                None
-                            },
-                        )
-                    })
-                    .filter_map_ok(|a| a))
-            })
-            .flatten_ok()
-            .map(|a| a.and_then(|a| a))
-            .try_collect()?;
-        for action_id in tasks {
-            if peek
-                .as_public()
-                .as_package_data()
-                .as_idx(&manifest.id)
-                .or_not_found(&manifest.id)?
-                .as_actions()
-                .contains_key(&action_id)?
-            {
-                if let Some(input) = service
-                    .get_action_input(procedure_id.clone(), action_id.clone())
-                    .await
-                    .log_err()
-                    .flatten()
-                    .and_then(|i| i.value)
-                {
-                    action_input.insert(action_id, input);
-                }
-            }
-        }
         ctx.db
             .mutate(|db| {
-                for (action_id, input) in &action_input {
-                    for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                        pde.as_tasks_mut().mutate(|tasks| {
-                            Ok(update_tasks(tasks, &manifest.id, action_id, input, false))
-                        })?;
-                    }
-                }
                 let entry = db
                     .as_public_mut()
                     .as_package_data_mut()
@@ -587,11 +604,18 @@ impl Service {
                 entry.as_developer_key_mut().ser(&Pem::new(developer_key))?;
                 entry.as_icon_mut().ser(&icon)?;
                 entry.as_registry_mut().ser(registry)?;
+                entry.as_status_info_mut().as_error_mut().ser(&None)?;
 
                 Ok(())
             })
             .await
             .result?;
+
+        if let Some(mut progress) = progress {
+            progress.finalization_progress.complete();
+            progress.progress.complete();
+            tokio::task::yield_now().await;
+        }
 
         // Trigger manifest callbacks after successful installation
         let manifest = service.seed.persistent_container.s9pk.as_manifest();
@@ -682,14 +706,6 @@ impl Service {
             memory_usage: MiB::from_MiB(used),
         })
     }
-
-    pub async fn sync_host(&self, host_id: HostId) -> Result<(), Error> {
-        self.seed
-            .persistent_container
-            .net_service
-            .sync_host(host_id)
-            .await
-    }
 }
 
 struct ServiceActorSeed {
@@ -701,6 +717,7 @@ struct ServiceActorSeed {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct RebuildParams {
     #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
@@ -1194,6 +1211,9 @@ pub async fn cli_attach(
         {
             Ok(a) => a,
             Err(e) => {
+                if e.kind != ErrorKind::InvalidRequest {
+                    return Err(e);
+                }
                 let prompt = e.to_string();
                 let options: Vec<SubcontainerInfo> = from_value(e.info)?;
                 let choice = choose(&prompt, &options).await?;
@@ -1206,6 +1226,7 @@ pub async fn cli_attach(
     )?;
     let mut ws = context.ws_continuation(guid).await?;
 
+    print!("\r");
     let (kill, thread_kill) = tokio::sync::oneshot::channel();
     let (thread_send, recv) = tokio::sync::mpsc::channel(4 * CAP_1_KiB);
     let stdin_thread: NonDetachingJoinHandle<()> = tokio::task::spawn_blocking(move || {
@@ -1234,18 +1255,6 @@ pub async fn cli_attach(
     let mut stderr = Some(stderr);
     loop {
         futures::select_biased! {
-            // signal = tokio:: => {
-            //     let exit = exit?;
-            //     if current_out != "exit" {
-            //         ws.send(Message::Text("exit".into()))
-            //             .await
-            //             .with_kind(ErrorKind::Network)?;
-            //         current_out = "exit";
-            //     }
-            //     ws.send(Message::Binary(
-            //         i32::to_be_bytes(exit.into_raw()).to_vec()
-            //     )).await.with_kind(ErrorKind::Network)?;
-            // }
             input = stdin.as_mut().map_or(
                 futures::future::Either::Left(futures::future::pending()),
                 |s| futures::future::Either::Right(s.recv())

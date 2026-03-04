@@ -30,6 +30,7 @@ use crate::util::serde::IoFormat;
 use crate::version::VersionT;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct BackupParams {
@@ -270,9 +271,9 @@ async fn perform_backup(
                 package_backups.insert(
                     id.clone(),
                     PackageBackupInfo {
-                        os_version: manifest.as_os_version().de()?,
+                        os_version: manifest.as_metadata().as_os_version().de()?,
                         version: manifest.as_version().de()?,
-                        title: manifest.as_title().de()?,
+                        title: manifest.as_metadata().as_title().de()?,
                         timestamp: Utc::now(),
                     },
                 );
@@ -337,7 +338,7 @@ async fn perform_backup(
     let timestamp = Utc::now();
 
     backup_guard.unencrypted_metadata.version = crate::version::Current::default().semver().into();
-    backup_guard.unencrypted_metadata.hostname = ctx.account.peek(|a| a.hostname.clone());
+    backup_guard.unencrypted_metadata.hostname = ctx.account.peek(|a| a.hostname.hostname.clone());
     backup_guard.unencrypted_metadata.timestamp = timestamp.clone();
     backup_guard.metadata.version = crate::version::Current::default().semver().into();
     backup_guard.metadata.timestamp = Some(timestamp);

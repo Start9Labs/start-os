@@ -13,14 +13,14 @@ import {
   take,
   tap,
 } from 'rxjs'
-import { ServerMetrics } from 'src/app/services/api/api.types'
+import { T } from '@start9labs/start-sdk'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 
 @Injectable({
   providedIn: 'root',
 })
-export class MetricsService extends Observable<ServerMetrics> {
+export class MetricsService extends Observable<T.Metrics> {
   private readonly connection = inject(ConnectionService)
   private readonly api = inject(ApiService)
 
@@ -28,7 +28,7 @@ export class MetricsService extends Observable<ServerMetrics> {
     this.api.followServerMetrics({}),
   ).pipe(
     switchMap(({ guid, metrics }) =>
-      this.api.openWebsocket$<ServerMetrics>(guid).pipe(startWith(metrics)),
+      this.api.openWebsocket$<T.Metrics>(guid).pipe(startWith(metrics)),
     ),
     catchError(() =>
       this.connection.pipe(filter(Boolean), take(1), ignoreElements()),

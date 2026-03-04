@@ -7,11 +7,11 @@ source ./builder-alias.sh
 set -ea
 shopt -s expand_aliases
 
-PROFILE=${PROFILE:-release}
+PROFILE=${PROFILE:-debug}
 if [ "${PROFILE}" = "release" ]; then
 	BUILD_FLAGS="--release"
 else
-  if [ "$PROFILE" != "debug"]; then
+  if [ "$PROFILE" != "debug" ]; then
     >&2 echo "Unknown profile $PROFILE: falling back to debug..."
     PROFILE=debug
   fi
@@ -38,7 +38,7 @@ if [[ "${ENVIRONMENT}" =~ (^|-)console($|-) ]]; then
 fi
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-zig-builder cargo test --manifest-path=./core/Cargo.toml $BUILD_FLAGS --features test,$FEATURES --locked 'export_bindings_'
+rust-zig-builder cargo test --manifest-path=./core/Cargo.toml --lib $BUILD_FLAGS --features test,$FEATURES --locked 'export_bindings_'
 if [ "$(ls -nd "core/bindings" | awk '{ print $3 }')" != "$UID" ]; then
   rust-zig-builder sh -c "chown -R $UID:$UID core/target && chown -R $UID:$UID core/bindings && chown -R $UID:$UID  /usr/local/cargo"
 fi

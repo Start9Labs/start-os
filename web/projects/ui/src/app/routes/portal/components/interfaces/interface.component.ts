@@ -1,26 +1,27 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { MappedServiceInterface } from './interface.service'
-import { InterfaceGatewaysComponent } from './gateways.component'
-import { InterfaceTorDomainsComponent } from './tor-domains.component'
-import { PublicDomainsComponent } from './public-domains/pd.component'
-import { InterfacePrivateDomainsComponent } from './private-domains.component'
 import { InterfaceAddressesComponent } from './addresses/addresses.component'
+import { PluginAddressesComponent } from './addresses/plugin.component'
 
 @Component({
   selector: 'service-interface',
   template: `
-    <div>
-      <section [gateways]="value()?.gateways"></section>
+    @for (group of value()?.gatewayGroups; track group.gatewayId) {
       <section
-        [publicDomains]="value()?.publicDomains"
-        [addSsl]="value()?.addSsl || false"
+        [gatewayGroup]="group"
+        [packageId]="packageId()"
+        [value]="value()"
+        [isRunning]="isRunning()"
       ></section>
-      <section [torDomains]="value()?.torDomains"></section>
-      <section [privateDomains]="value()?.privateDomains"></section>
-    </div>
-    <hr [style.width.rem]="10" />
-    <section [addresses]="value()?.addresses" [isRunning]="true"></section>
+    }
+    @for (group of value()?.pluginGroups; track group.pluginId) {
+      <section
+        [pluginGroup]="group"
+        [packageId]="packageId()"
+        [value]="value()"
+      ></section>
+    }
   `,
   styles: `
     :host {
@@ -30,33 +31,16 @@ import { InterfaceAddressesComponent } from './addresses/addresses.component'
       color: var(--tui-text-secondary);
       font: var(--tui-font-text-l);
 
-      div {
-        display: grid;
-        grid-template-columns: repeat(10, 1fr);
-        gap: inherit;
-        flex-direction: column;
-      }
-
       ::ng-deep [tuiSkeleton] {
         width: 100%;
         height: 1rem;
         border-radius: var(--tui-radius-s);
       }
     }
-
-    :host-context(tui-root._mobile) div {
-      display: flex;
-    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [tuiButtonOptionsProvider({ size: 'xs' })],
-  imports: [
-    InterfaceGatewaysComponent,
-    InterfaceTorDomainsComponent,
-    PublicDomainsComponent,
-    InterfacePrivateDomainsComponent,
-    InterfaceAddressesComponent,
-  ],
+  imports: [InterfaceAddressesComponent, PluginAddressesComponent],
 })
 export class InterfaceComponent {
   readonly packageId = input('')

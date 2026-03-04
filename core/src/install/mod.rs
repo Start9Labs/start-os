@@ -177,6 +177,7 @@ pub async fn install(
 }
 
 #[derive(Deserialize, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SideloadParams {
     #[ts(skip)]
@@ -185,6 +186,7 @@ pub struct SideloadParams {
 }
 
 #[derive(Deserialize, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SideloadResponse {
     pub upload: Guid,
@@ -284,6 +286,7 @@ pub async fn sideload(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CancelInstallParams {
@@ -521,6 +524,7 @@ pub async fn cli_install(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UninstallParams {

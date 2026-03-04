@@ -12,6 +12,10 @@ fi
 if [[ "$PLATFORM" =~ -nonfree$ ]]; then
     FEATURES+=("nonfree")
 fi
+if [[ "$PLATFORM" =~ -nvidia$ ]]; then
+    FEATURES+=("nonfree")
+    FEATURES+=("nvidia")
+fi
 
 feature_file_checker='
 /^#/ { next }

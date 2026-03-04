@@ -9,14 +9,14 @@ use async_compression::tokio::bufread::GzipEncoder;
 use axum::Router;
 use axum::body::Body;
 use axum::extract::{self as x, Request};
-use axum::response::{IntoResponse, Redirect, Response};
+use axum::response::Response;
 use axum::routing::{any, get};
 use base64::display::Base64Display;
 use digest::Digest;
 use futures::future::ready;
 use http::header::{
     ACCEPT_ENCODING, ACCEPT_RANGES, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH,
-    CONTENT_RANGE, CONTENT_TYPE, ETAG, HOST, RANGE,
+    CONTENT_RANGE, CONTENT_TYPE, ETAG, RANGE,
 };
 use http::request::Parts as RequestParts;
 use http::{HeaderValue, Method, StatusCode};
@@ -31,13 +31,11 @@ use tokio_util::io::ReaderStream;
 use url::Url;
 
 use crate::context::{DiagnosticContext, InitContext, RpcContext, SetupContext};
-use crate::hostname::Hostname;
+use crate::hostname::ServerHostname;
 use crate::middleware::auth::Auth;
 use crate::middleware::auth::session::ValidSessionToken;
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
-use crate::net::gateway::GatewayInfo;
-use crate::net::tls::TlsHandshakeInfo;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuations};
 use crate::s9pk::S9pk;
@@ -89,30 +87,6 @@ impl UiContext for RpcContext {
             .middleware(SyncDb::new())
     }
     fn extend_router(self, router: Router) -> Router {
-        async fn https_redirect_if_public_http(
-            req: Request,
-            next: axum::middleware::Next,
-        ) -> Response {
-            if req
-                .extensions()
-                .get::<GatewayInfo>()
-                .map_or(false, |p| p.info.public())
-                && req.extensions().get::<TlsHandshakeInfo>().is_none()
-            {
-                Redirect::temporary(&format!(
-                    "https://{}{}",
-                    req.headers()
-                        .get(HOST)
-                        .and_then(|s| s.to_str().ok())
-                        .unwrap_or("localhost"),
-                    req.uri()
-                ))
-                .into_response()
-            } else {
-                next.run(req).await
-            }
-        }
-
         router
             .route("/proxy/{url}", {
                 let ctx = self.clone();
@@ -131,12 +105,12 @@ impl UiContext for RpcContext {
                 get(move || {
                     let ctx = self.clone();
                     async move {
-                        ctx.account
-                            .peek(|account| cert_send(&account.root_ca_cert, &account.hostname))
+                        ctx.account.peek(|account| {
+                            cert_send(&account.root_ca_cert, &account.hostname.hostname)
+                        })
                     }
                 }),
             )
-            .layer(axum::middleware::from_fn(https_redirect_if_public_http))
     }
 }
 
@@ -446,7 +420,7 @@ pub fn bad_request() -> Response {
         .unwrap()
 }
 
-fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response, Error> {
+fn cert_send(cert: &X509, hostname: &ServerHostname) -> Result<Response, Error> {
     let pem = cert.to_pem()?;
     Response::builder()
         .status(StatusCode::OK)
@@ -462,7 +436,7 @@ fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response, Error> {
         .header(http::header::CONTENT_LENGTH, pem.len())
         .header(
             http::header::CONTENT_DISPOSITION,
-            format!("attachment; filename={}.crt", &hostname.0),
+            format!("attachment; filename={}.crt", hostname.as_ref()),
         )
         .body(Body::from(pem))
         .with_kind(ErrorKind::Network)

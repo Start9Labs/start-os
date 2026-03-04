@@ -1,7 +1,22 @@
-import { object } from 'ts-matches'
-
+/**
+ * Performs a deep structural equality check across all provided arguments.
+ * Returns true only if every argument is deeply equal to every other argument.
+ * Handles primitives, arrays, and plain objects recursively.
+ *
+ * @param args - Two or more values to compare for deep equality
+ * @returns True if all arguments are deeply equal
+ *
+ * @example
+ * ```ts
+ * deepEqual({ a: 1 }, { a: 1 })           // true
+ * deepEqual([1, 2], [1, 2], [1, 2])       // true
+ * deepEqual({ a: 1 }, { a: 2 })           // false
+ * ```
+ */
 export function deepEqual(...args: unknown[]) {
-  const objects = args.filter(object.test)
+  const objects = args.filter(
+    (x): x is object => typeof x === 'object' && x !== null,
+  )
   if (objects.length === 0) {
     for (const x of args) if (x !== args[0]) return false
     return true
