@@ -252,7 +252,7 @@ export default class General {
   protected readonly themes = THEMES
 
   protected readonly stringifyTheme = (t: Theme): string =>
-    t[0].toUpperCase() + t.slice(1)
+    t ? t[0].toUpperCase() + t.slice(1) : ''
 
   protected readonly stringifyLanguage = (posix: Language): string =>
     LANGUAGES.find(l => l.posix === posix)?.nativeName || posix
