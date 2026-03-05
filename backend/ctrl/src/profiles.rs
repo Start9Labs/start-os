@@ -1,4 +1,5 @@
 use crate::ethernet::DEFAULT_LAN_BRIDGE;
+use crate::system::UciPreferences;
 use crate::utils::DeserializeStdin;
 use crate::CtrlContext;
 use crate::{utils::HandlerExtSerde, Error, ErrorKind};
@@ -409,7 +410,7 @@ pub fn list<C: CtrlContext>(ctx: C) -> Result<Vec<ProfileId>, Error> {
     list_config(ctx, &cfgs)
 }
 
-fn list_config(_ctx: impl CtrlContext, cfgs: &Configs) -> Result<Vec<ProfileId>, Error> {
+pub(crate) fn list_config(_ctx: impl CtrlContext, cfgs: &Configs) -> Result<Vec<ProfileId>, Error> {
     let mut found = Vec::new();
     for section in &cfgs["startwrt"].sections {
         let Ok(UciProfile {
@@ -551,6 +552,7 @@ fn set_config<C: CtrlContext>(
     cfgs: &mut Configs,
     profile: &Profile<ProfileIdOpt>,
 ) -> Result<ProfileId, Error> {
+    let ipv6 = is_ipv6_enabled(cfgs);
     for section in &mut cfgs["startwrt"].sections {
         if let Some(mut existing_profile) = section.get_typed::<UciProfile>()? {
             if let Some(given_fullname) = &profile.id.fullname {
@@ -605,6 +607,7 @@ fn set_config<C: CtrlContext>(
                 iface.proto = InterfaceProto::STATIC;
                 iface.ipaddr = Some(profile.gateway_ip);
                 iface.netmask = Some(Ipv4Addr::new(255, 255, 255, 0));
+                iface.ip6assign = if ipv6 { Some("64".into()) } else { None };
                 found_bridge = Some(
                     iface
                         .device
@@ -632,6 +635,8 @@ fn set_config<C: CtrlContext>(
                 proto: InterfaceProto::STATIC,
                 ipaddr: Some(profile.gateway_ip),
                 netmask: Some(Ipv4Addr::new(255, 255, 255, 0)),
+                ip6assign: if ipv6 { Some("64".into()) } else { None },
+                ..Default::default()
             },
             Some(&profile.id.interface),
         )?;
@@ -702,6 +707,7 @@ fn create_config(
     cfgs: &mut Configs,
     profile: &Profile<ProfileIdOpt>,
 ) -> Result<ProfileId, Error> {
+    let ipv6 = is_ipv6_enabled(cfgs);
     let interface = if profile.owns_lan {
         if Lookup::parse(ctx.clone(), cfgs)?.lan_owner.is_some() {
             return Err(ErrorKind::LanOwnerExists.into());
@@ -818,6 +824,8 @@ fn create_config(
                 proto: InterfaceProto::STATIC,
                 ipaddr: Some(profile.gateway_ip),
                 netmask: Some(Ipv4Addr::new(255, 255, 255, 0)),
+                ip6assign: if ipv6 { Some("64".into()) } else { None },
+                ..Default::default()
             },
             Some(&interface),
         )?;
@@ -1169,17 +1177,39 @@ fn rewrite_firewall(
     Ok(())
 }
 
+pub(crate) fn is_ipv6_enabled(cfgs: &Configs) -> bool {
+    cfgs["dhcp"].sections.iter().any(|s| {
+        s.name().as_deref() == Some("lan")
+            && s.get_typed::<Dhcp>()
+                .ok()
+                .flatten()
+                .and_then(|d| d.ra)
+                .map(|ra| ra == "server")
+                .unwrap_or(false)
+    })
+}
+
 pub fn rewrite_dhcp(
     _ctx: &impl CtrlContext,
     cfgs: &mut Configs,
     profile: &Profile,
 ) -> Result<(), Error> {
+    let ipv6 = is_ipv6_enabled(cfgs);
+    let ra_value = if ipv6 { "server" } else { "disabled" }.to_string();
+    let dhcpv6_value = if ipv6 { "server" } else { "disabled" }.to_string();
+
     let mut found_dhcp = false;
-    for section in &cfgs["dhcp"].sections {
-        let Ok(dhcp) = section.get::<Dhcp>() else {
+    for section in &mut cfgs["dhcp"].sections {
+        let Ok(mut dhcp) = section.get::<Dhcp>() else {
             continue;
         };
         if dhcp.interface == profile.id.interface {
+            // Ensure IPv6 RA/DHCPv6 matches global state on existing sections
+            if dhcp.ra.as_deref() != Some(&ra_value) || dhcp.dhcpv6.as_deref() != Some(&dhcpv6_value) {
+                dhcp.ra = Some(ra_value.clone());
+                dhcp.dhcpv6 = Some(dhcpv6_value.clone());
+                section.set(&dhcp)?;
+            }
             found_dhcp = true;
         }
     }
@@ -1190,6 +1220,9 @@ pub fn rewrite_dhcp(
                 start: 100, // default in the openwrt docs
                 limit: 150,
                 leasetime: "12h".into(),
+                ra: Some(ra_value),
+                dhcpv6: Some(dhcpv6_value),
+                ra_management: None,
             },
             Some(&profile.id.interface),
         )?;
@@ -1458,6 +1491,17 @@ pub fn bootstrap_admin_profile(uci_root: &str) -> Result<(), Error> {
         },
         Some("lan"),
     )?;
+
+    // Write default preferences so the frontend has values on first load
+    cfgs["startwrt"].append(
+        &UciPreferences {
+            language: "en_US".to_string(),
+            theme: "system".to_string(),
+            remote_access: "default".to_string(),
+        },
+        Some("preferences"),
+    )?;
+
     dump_all(uci_root, cfgs)?;
     Ok(())
 }

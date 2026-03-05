@@ -121,7 +121,7 @@ CONFIG_PACKAGE_kmod-mt7916-firmware=y
 # CONFIG_PACKAGE_kmod-nf-flow is not set
 CONFIG_PACKAGE_kmod-nf-ipt=y
 # CONFIG_PACKAGE_kmod-nf-log6 is not set
-# CONFIG_PACKAGE_kmod-nf-reject6 is not set
+CONFIG_PACKAGE_kmod-nf-reject6=y
 # CONFIG_PACKAGE_kmod-nfnetlink is not set
 # CONFIG_PACKAGE_kmod-nft-core is not set
 # CONFIG_PACKAGE_kmod-nft-fib is not set
@@ -188,8 +188,8 @@ CONFIG_PACKAGE_mdadm=y
 # CONFIG_PACKAGE_nftables-json is not set
 CONFIG_PACKAGE_nlbwmon=y
 CONFIG_PACKAGE_nstat=y
-# CONFIG_PACKAGE_odhcp6c is not set
-# CONFIG_PACKAGE_odhcpd-ipv6only is not set
+CONFIG_PACKAGE_odhcp6c=y
+CONFIG_PACKAGE_odhcpd-ipv6only=y
 CONFIG_PACKAGE_partx-utils=y
 # CONFIG_PACKAGE_ppp is not set
 CONFIG_PACKAGE_resize2fs=y

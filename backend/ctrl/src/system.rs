@@ -19,7 +19,7 @@ use uciedit::{dump_all, parse_all, Arena, Configs, TypedSection};
 
 #[derive(Debug, TypedSection, Default)]
 #[uci(ty = "preferences")]
-struct UciPreferences {
+pub(crate) struct UciPreferences {
     #[uci(default_value = "\"en_US\".to_string()")]
     pub language: String,
     #[uci(default_value = "\"system\".to_string()")]

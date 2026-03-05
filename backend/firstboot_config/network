@@ -26,6 +26,6 @@ config interface 'wan'
 	option proto 'dhcp'
 
 config interface 'wan6'
-	option device 'eth1'
+	option device '@wan'
 	option proto 'dhcpv6'
 

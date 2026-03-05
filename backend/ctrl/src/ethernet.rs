@@ -275,8 +275,7 @@ fn set_config(
                 &NetworkInterface {
                     device: wan_port.clone(),
                     proto: InterfaceProto::DHCP,
-                    ipaddr: None,
-                    netmask: None,
+                    ..Default::default()
                 },
                 Some(DEFAULT_WAN_INTERFACE),
             )?;
@@ -286,8 +285,7 @@ fn set_config(
                 &NetworkInterface {
                     device: wan_port.clone(),
                     proto: InterfaceProto::DHCPV6,
-                    ipaddr: None,
-                    netmask: None,
+                    ..Default::default()
                 },
                 Some(DEFAULT_WAN6_INTERFACE),
             )?;

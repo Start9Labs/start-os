@@ -179,7 +179,7 @@ async fn inner_main() -> Result<(), Error> {
         .fallback(axum::routing::any(serve_embedded))
         .layer(Extension(app_state));
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 80));
+    let addr = SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 0], 80));
     println!("listening on {}", addr);
     axum_server::bind(addr)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())

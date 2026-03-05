@@ -126,6 +126,18 @@ struct DhcpLease {
     hostname: String,
 }
 
+/// Parse a 32-char hex IPv6 address from /proc/net/if_inet6 into standard notation.
+fn parse_proc_ipv6_addr(hex: &str) -> Option<String> {
+    if hex.len() != 32 {
+        return None;
+    }
+    let mut bytes = [0u8; 16];
+    for i in 0..16 {
+        bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(std::net::Ipv6Addr::from(bytes).to_string())
+}
+
 fn parse_arp_output(output: &str) -> Vec<ArpEntry> {
     let mut entries = Vec::new();
     for line in output.lines() {
@@ -407,6 +419,62 @@ fn reload_firewall_and_dnsmasq() {
 // --- Handlers ---
 
 pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
+    // Ping IPv6 all-nodes multicast to populate the NDP neighbor table.
+    // SLAAC is stateless — the router never learns which addresses clients
+    // configured. This solicits a reply from every IPv6-capable device on
+    // the LAN so `ip neigh show` will include their IPv6 entries.
+    //
+    // Two phases:
+    // 1. Ping ff02::1 from each br-lan* interface (populates link-local NDP)
+    // 2. Ping ff02::1 from each interface's ULA/global address — RFC 6724
+    //    source selection makes clients respond from their ULA address,
+    //    which populates the ULA NDP entries we actually want to display.
+    let _ = tokio::task::spawn_blocking(|| {
+        // Phase 1: link-local discovery on LAN interfaces.
+        // When bridge VLAN filtering is active, br-lan.X interfaces exist for
+        // each profile VLAN — use those exclusively. Multicast on the bridge
+        // master (br-lan) leaks out ALL member ports including WAN, which
+        // causes upstream devices to appear as LAN clients.
+        // When no VLANs exist (single admin profile), fall back to br-lan.
+        let mut ifaces = Vec::new();
+        if let Ok(entries) = std::fs::read_dir("/sys/class/net") {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with("br-lan.") {
+                    ifaces.push(name);
+                }
+            }
+        }
+        if ifaces.is_empty() {
+            ifaces.push("br-lan".to_string());
+        }
+        for iface in &ifaces {
+            let _ = Command::new("ping6")
+                .args(["-c", "1", "-W", "1", "-I", iface, "ff02::1"])
+                .output();
+        }
+
+        // Phase 2: ULA/global discovery — ping from each interface's global
+        // IPv6 address so clients respond from their ULA addresses.
+        // Only ping on the same set of interfaces selected in Phase 1.
+        if let Ok(content) = std::fs::read_to_string("/proc/net/if_inet6") {
+            for line in content.lines() {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                // Format: addr_hex ifindex prefix_len scope flags ifname
+                // scope "00" = global
+                if parts.len() >= 6 && parts[3] == "00" && ifaces.iter().any(|i| i == parts[5]) {
+                    if let Some(addr) = parse_proc_ipv6_addr(parts[0]) {
+                        let dest = format!("ff02::1%{}", parts[5]);
+                        let _ = Command::new("ping6")
+                            .args(["-c", "1", "-W", "1", "-I", &addr, &dest])
+                            .output();
+                    }
+                }
+            }
+        }
+    })
+    .await;
+
     // Gather data from multiple sources
     let (arp_output, leases_output, nlbw_output, conntrack_output, wifi_clients) = tokio::join!(
         tokio::task::spawn_blocking(|| run_cmd("ip", &["neigh", "show"])),
@@ -576,7 +644,6 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         let ipv6 = arp_list
             .iter()
             .find(|e| e.ip.contains(':') && !e.ip.starts_with("fe80:"))
-            .or_else(|| arp_list.iter().find(|e| e.ip.starts_with("fe80:")))
             .map(|e| e.ip.clone());
 
         // Profile from VLAN tag

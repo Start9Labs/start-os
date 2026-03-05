@@ -35,6 +35,8 @@ import {
   DeviceUpdateReq,
   DeviceDataUsageReq,
   DataUsagePointFromApi,
+  LanIpv6Response,
+  LanIpv6SetRequest,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -213,5 +215,13 @@ export class LiveApiService extends ApiService {
     params: DeviceDataUsageReq,
   ): Promise<DataUsagePointFromApi[]> {
     return this.rpc.request({ method: 'devices.data-usage', params })
+  }
+
+  async lanIpv6Get(): Promise<LanIpv6Response> {
+    return this.rpc.request({ method: 'lan.ipv6-get', params: {} })
+  }
+
+  async lanIpv6Set(params: LanIpv6SetRequest): Promise<null> {
+    return this.rpc.request({ method: 'lan.ipv6-set', params })
   }
 }

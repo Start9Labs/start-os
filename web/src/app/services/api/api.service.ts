@@ -48,6 +48,22 @@ export abstract class ApiService {
   abstract devicesDataUsage(
     params: DeviceDataUsageReq,
   ): Promise<DataUsagePointFromApi[]>
+  abstract lanIpv6Get(): Promise<LanIpv6Response>
+  abstract lanIpv6Set(params: LanIpv6SetRequest): Promise<null>
+}
+
+export type LanIpv6Response = {
+  slaac: boolean
+  dhcpv6: boolean
+  prefix: number
+  ip6addr: string | null
+  wan_prefix: number
+}
+
+export type LanIpv6SetRequest = {
+  slaac: boolean
+  dhcpv6: boolean
+  prefix: number
 }
 
 export type LogEntry = { timestamp: string; message: string }

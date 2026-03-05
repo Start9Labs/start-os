@@ -8,6 +8,7 @@ pub mod exec;
 pub mod files;
 pub mod flash;
 pub mod init;
+pub mod lan;
 pub mod logs;
 pub mod middleware;
 pub mod profiles;
@@ -15,6 +16,7 @@ pub mod setup;
 pub mod system;
 pub mod uci;
 pub mod utils;
+pub mod wan;
 pub mod wifi;
 pub mod embedded_web;
 pub mod bins;
@@ -240,6 +242,8 @@ pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
         .subcommand("setup", setup::setup::<C>())
         .subcommand("system", system::system::<C>())
         .subcommand("devices", devices::devices::<C>())
+        .subcommand("wan", wan::wan::<C>())
+        .subcommand("lan", lan::lan::<C>())
 }
 
 pub fn init_logging(name: &str) -> DefaultGuard {

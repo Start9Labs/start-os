@@ -79,9 +79,11 @@ pub enum InterfaceProto {
     STATIC,
     DHCP,
     DHCPV6,
+    #[strum(serialize = "6rd")]
+    SIXRD,
 }
 
-#[derive(Debug, TypedSection)]
+#[derive(Debug, Default, TypedSection)]
 #[uci(ty = "interface")]
 pub struct NetworkInterface {
     pub device: String,
@@ -89,6 +91,24 @@ pub struct NetworkInterface {
     pub proto: InterfaceProto,
     pub ipaddr: Option<Ipv4Addr>,
     pub netmask: Option<Ipv4Addr>,
+    // IPv6 fields
+    #[uci(default)]
+    pub ip6assign: Option<String>,
+    #[uci(default)]
+    pub ip6addr: Option<String>,
+    #[uci(default)]
+    pub ip6gw: Option<String>,
+    #[uci(default)]
+    pub reqaddress: Option<String>,
+    #[uci(default)]
+    pub reqprefix: Option<String>,
+    // 6RD fields
+    #[uci(default)]
+    pub peeraddr: Option<String>,
+    #[uci(default)]
+    pub ip6prefix: Option<String>,
+    #[uci(default)]
+    pub ip6prefixlen: Option<String>,
 }
 
 #[derive(strum::EnumString, strum::Display, PartialEq, Eq, Debug)]
@@ -264,6 +284,13 @@ pub struct Dhcp {
     pub start: u32,
     pub limit: u32,
     pub leasetime: String,
+    // IPv6 fields
+    #[uci(default)]
+    pub ra: Option<String>,
+    #[uci(default)]
+    pub dhcpv6: Option<String>,
+    #[uci(default)]
+    pub ra_management: Option<String>,
 }
 
 #[derive(Debug, TypedSection, Default)]

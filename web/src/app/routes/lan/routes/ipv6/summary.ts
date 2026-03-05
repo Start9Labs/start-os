@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed } from '@angular/core'
 import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { Summary } from 'src/app/components/summary'
 import { injectFormService } from 'src/app/services/form.service'
-import { LanIpv6Data } from './uci/service'
+import { LanIpv6Data } from './service'
 
 @Component({
   selector: '[lanIpv6Summary]',

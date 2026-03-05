@@ -30,7 +30,7 @@ import { PREFIX } from 'src/app/utils/masks'
 
 import { LanIpv6Service } from './service'
 import { LanIpv6Summary } from './summary'
-import { LanIpv6Data } from './uci/service'
+import { LanIpv6Data } from './service'
 import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
 
 @Component({

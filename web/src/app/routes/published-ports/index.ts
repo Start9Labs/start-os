@@ -10,7 +10,7 @@ import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { LanIpv6UciService } from 'src/app/routes/lan/routes/ipv6/uci/service'
+import { ApiService } from 'src/app/services/api/api.service'
 import { DdnsUciService } from 'src/app/routes/wan/routes/ddns/uci/service'
 import { WanIpv4UciService } from 'src/app/routes/wan/routes/ipv4/uci/service'
 import { WanIpv6UciService } from 'src/app/routes/wan/routes/ipv6/uci/service'
@@ -46,7 +46,7 @@ import { PublishedPortDialogResult, PublishedPortDisplay } from './types'
 export default class PublishedPorts {
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(PublishedPortsService)
-  protected readonly lanIpv6Uci = inject(LanIpv6UciService)
+  private readonly api = inject(ApiService)
   protected readonly wanIpv6Uci = inject(WanIpv6UciService)
   protected readonly wanIpv4Uci = inject(WanIpv4UciService)
   protected readonly ddnsUci = inject(DdnsUciService)
@@ -64,7 +64,7 @@ export default class PublishedPorts {
   private async loadDependencies() {
     const [wanEnabled, lanEnabled, ddnsHostname, wanIp] = await Promise.all([
       this.wanIpv6Uci.isEnabled(),
-      this.lanIpv6Uci.isEnabled(),
+      this.api.lanIpv6Get().then(r => r.slaac || r.dhcpv6),
       this.ddnsUci.getHostname(),
       this.wanIpv4Uci.getWanIp(),
     ])

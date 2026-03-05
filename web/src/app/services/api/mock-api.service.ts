@@ -38,6 +38,8 @@ import {
   DeviceUpdateReq,
   DeviceDataUsageReq,
   DataUsagePointFromApi,
+  LanIpv6Response,
+  LanIpv6SetRequest,
 } from './api.service'
 import {
   DhcpSection,
@@ -926,6 +928,30 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
   ): Promise<DataUsagePointFromApi[]> {
     await pauseFor(250)
     return generateMockDataUsage(params.mac, params.period)
+  }
+
+  private mockLanIpv6: LanIpv6Response = {
+    slaac: true,
+    dhcpv6: true,
+    prefix: 64,
+    ip6addr: 'fd00::1',
+    wan_prefix: 48,
+  }
+
+  async lanIpv6Get(): Promise<LanIpv6Response> {
+    await pauseFor(250)
+    return structuredClone(this.mockLanIpv6)
+  }
+
+  async lanIpv6Set(params: LanIpv6SetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockLanIpv6 = {
+      ...this.mockLanIpv6,
+      slaac: params.slaac,
+      dhcpv6: params.dhcpv6,
+      prefix: params.prefix,
+    }
+    return null
   }
 
   /**
