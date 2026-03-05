@@ -62,11 +62,26 @@ fi
 chroot /media/startos/next bash -e << "EOF"
 
 if [ -f /boot/grub/grub.cfg ]; then
-    grub-install --no-nvram /dev/$(eval $(lsblk -o MOUNTPOINT,PKNAME -P | grep 'MOUNTPOINT="/media/startos/root"') && echo $PKNAME)
+    grub-install /dev/$(eval $(lsblk -o MOUNTPOINT,PKNAME -P | grep 'MOUNTPOINT="/media/startos/root"') && echo $PKNAME)
     update-grub
 fi
 
 EOF
+
+# Promote the USB installer boot entry back to first in EFI boot order.
+# The entry number was saved during initial OS install.
+if [ -d /sys/firmware/efi ] && [ -f /media/startos/config/efi-installer-entry ]; then
+    USB_ENTRY=$(cat /media/startos/config/efi-installer-entry)
+    if [ -n "$USB_ENTRY" ]; then
+        CURRENT_ORDER=$(efibootmgr | grep BootOrder | sed 's/BootOrder: //')
+        OTHER_ENTRIES=$(echo "$CURRENT_ORDER" | tr ',' '\n' | grep -v "$USB_ENTRY" | tr '\n' ',' | sed 's/,$//')
+        if [ -n "$OTHER_ENTRIES" ]; then
+            efibootmgr -o "$USB_ENTRY,$OTHER_ENTRIES"
+        else
+            efibootmgr -o "$USB_ENTRY"
+        fi
+    fi
+fi
 
 sync
 
