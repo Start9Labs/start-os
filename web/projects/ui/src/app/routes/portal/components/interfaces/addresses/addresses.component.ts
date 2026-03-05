@@ -37,7 +37,7 @@ import { InterfaceAddressItemComponent } from './item.component'
   selector: 'section[gatewayGroup]',
   template: `
     <header>
-      {{ gatewayGroup().gatewayName }}
+      {{ 'Gateway' | i18n }}: {{ gatewayGroup().gatewayName }}
       <button
         tuiDropdown
         tuiButton
@@ -57,7 +57,14 @@ import { InterfaceAddressItemComponent } from './item.component'
       </button>
     </header>
     <table
-      [appTable]="['Enabled', 'Type', 'Certificate Authority', 'URL', null]"
+      [appTable]="[
+        null,
+        'Access',
+        'Type',
+        'Certificate Authority',
+        'URL',
+        null,
+      ]"
     >
       @for (address of gatewayGroup().addresses; track $index) {
         <tr
@@ -69,7 +76,7 @@ import { InterfaceAddressItemComponent } from './item.component'
         ></tr>
       } @empty {
         <tr>
-          <td colspan="5">
+          <td colspan="6">
             <app-placeholder icon="@tui.list-x">
               {{ 'No addresses' | i18n }}
             </app-placeholder>
@@ -132,7 +139,7 @@ export class InterfaceAddressesComponent {
             }),
           }),
         ),
-        note: await this.getSharedHostNote(),
+        note: this.getSharedHostNote(),
         buttons: [
           {
             text: this.i18n.transform('Save')!,
@@ -191,7 +198,7 @@ export class InterfaceAddressesComponent {
       size: 's',
       data: {
         spec: await configBuilderToSpec(addSpec),
-        note: await this.getSharedHostNote(),
+        note: this.getSharedHostNote(),
         buttons: [
           {
             text: this.i18n.transform('Save')!,
@@ -235,26 +242,11 @@ export class InterfaceAddressesComponent {
     }
   }
 
-  private async getSharedHostNote(): Promise<string> {
-    const iface = this.value()
-    const pkgId = this.packageId()
-    if (!iface || !pkgId) return ''
+  private getSharedHostNote(): string {
+    const names = this.value()?.sharedHostNames
+    if (!names?.length) return ''
 
-    const pkg = await firstValueFrom(
-      this.patch.watch$('packageData', pkgId),
-    )
-    if (!pkg) return ''
-
-    const hostId = iface.addressInfo.hostId
-    const otherNames = Object.values(pkg.serviceInterfaces)
-      .filter(
-        si => si.addressInfo.hostId === hostId && si.id !== iface.id,
-      )
-      .map(si => si.name)
-
-    if (!otherNames.length) return ''
-
-    return `${this.i18n.transform('This domain will also apply to')} ${otherNames.join(', ')}`
+    return `${this.i18n.transform('This domain will also apply to')} ${names.join(', ')}`
   }
 
   private async savePublicDomain(

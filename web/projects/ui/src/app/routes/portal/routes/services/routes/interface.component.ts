@@ -125,6 +125,10 @@ export default class ServiceInterfaceRoute {
     const binding = host.bindings[port]
     const gateways = this.gatewayService.gateways() || []
 
+    const sharedHostNames = Object.values(serviceInterfaces)
+      .filter(si => si.addressInfo.hostId === key && si.id !== iFace.id)
+      .map(si => si.name)
+
     return {
       ...iFace,
       gatewayGroups: this.interfaceService.getGatewayGroups(
@@ -132,8 +136,13 @@ export default class ServiceInterfaceRoute {
         host,
         gateways,
       ),
-      pluginGroups: this.interfaceService.getPluginGroups(iFace, host, this.allPackageData()),
+      pluginGroups: this.interfaceService.getPluginGroups(
+        iFace,
+        host,
+        this.allPackageData(),
+      ),
       addSsl: !!binding?.options.addSsl,
+      sharedHostNames,
     }
   })
 

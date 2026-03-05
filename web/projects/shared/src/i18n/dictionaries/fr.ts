@@ -705,4 +705,8 @@ export default {
   775: "Cette adresse ne fonctionnera pas depuis votre réseau local en raison d'une limitation de hairpinning du routeur",
   776: 'Action introuvable',
   777: "Ce domaine s'appliquera également à",
+  778: 'Plugin',
+  779: 'Public',
+  780: 'Privé',
+  781: 'Local',
 } satisfies i18n

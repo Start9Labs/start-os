@@ -30,19 +30,6 @@ import { DomainHealthService } from './domain-health.service'
   selector: 'td[actions]',
   template: `
     <div class="desktop">
-      @if (address().ui) {
-        <a
-          tuiIconButton
-          appearance="flat-grayscale"
-          iconStart="@tui.external-link"
-          target="_blank"
-          rel="noreferrer"
-          [attr.href]="address().enabled ? address().url : null"
-          [class.disabled]="!address().enabled"
-        >
-          {{ 'Open UI' | i18n }}
-        </a>
-      }
       @if (address().deletable) {
         <button
           tuiIconButton
@@ -86,6 +73,19 @@ import { DomainHealthService } from './domain-health.service'
         >
           {{ 'Address Requirements' | i18n }}
         </button>
+      }
+      @if (address().ui) {
+        <a
+          tuiIconButton
+          appearance="flat-grayscale"
+          iconStart="@tui.external-link"
+          target="_blank"
+          rel="noreferrer"
+          [attr.href]="address().enabled ? address().url : null"
+          [class.disabled]="!address().enabled"
+        >
+          {{ 'Open UI' | i18n }}
+        </a>
       }
       <button
         tuiIconButton

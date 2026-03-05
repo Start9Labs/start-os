@@ -652,7 +652,7 @@ export const mockPatchData: DataModel = {
           publicDomains: {
             'bitcoin.example.com': {
               gateway: 'eth0',
-              acme: null,
+              acme: 'https://acme-v02.api.letsencrypt.org/directory',
             },
           },
           privateDomains: {

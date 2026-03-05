@@ -81,7 +81,7 @@ function getAddressType(h: T.HostnameInfo): string {
       return 'IPv6'
     case 'public-domain':
     case 'private-domain':
-      return h.hostname
+      return 'Domain'
     case 'mdns':
       return 'mDNS'
     case 'plugin':
@@ -337,4 +337,5 @@ export type MappedServiceInterface = T.ServiceInterface & {
   gatewayGroups: GatewayAddressGroup[]
   pluginGroups: PluginAddressGroup[]
   addSsl: boolean
+  sharedHostNames: string[]
 }

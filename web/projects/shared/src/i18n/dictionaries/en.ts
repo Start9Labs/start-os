@@ -705,4 +705,8 @@ export const ENGLISH: Record<string, number> = {
   'This address will not work from your local network due to a router hairpinning limitation': 775,
   'Action not found': 776,
   'This domain will also apply to': 777,
+  'Plugin': 778,
+  'Public': 779, // as in, publicly accessible
+  'Private': 780, // as in, privately accessible
+  'Local': 781, // as in, locally accessible
 }

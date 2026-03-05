@@ -705,4 +705,8 @@ export default {
   775: 'Esta dirección no funcionará desde tu red local debido a una limitación de hairpinning del router',
   776: 'Acción no encontrada',
   777: 'Este dominio también se aplicará a',
+  778: 'Plugin',
+  779: 'Público',
+  780: 'Privado',
+  781: 'Local',
 } satisfies i18n
