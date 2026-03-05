@@ -141,6 +141,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       | 'getSystemSmtp'
       | 'getOutboundGateway'
       | 'getContainerIp'
+      | 'getStatus'
       | 'getDataVersion'
       | 'setDataVersion'
       | 'getServiceManifest'
@@ -164,7 +165,6 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       getSslKey: (effects, ...args) => effects.getSslKey(...args),
       shutdown: (effects, ...args) => effects.shutdown(...args),
       getDependencies: (effects, ...args) => effects.getDependencies(...args),
-      getStatus: (effects, ...args) => effects.getStatus(...args),
       setHealth: (effects, ...args) => effects.setHealth(...args),
     }
 
@@ -331,6 +331,104 @@ export class StartSdk<Manifest extends T.SDKManifest> {
                 resolveCell.resolve = resolve
               })
               const res = await effects.getContainerIp({ ...options, callback })
+              if (pred(res)) {
+                resolveCell.resolve()
+                return res
+              }
+              await waitForNext
+            }
+            return null
+          },
+        }
+      },
+
+      /**
+       * Get the service's current status with reactive subscription support.
+       *
+       * Returns an object with multiple read strategies: `const()` for a value
+       * that retries on change, `once()` for a single read, `watch()` for an async
+       * generator, `onChange()` for a callback, and `waitFor()` to block until a predicate is met.
+       *
+       * @param effects - The effects context
+       * @param options - Optional filtering options (e.g. `packageId`)
+       */
+      getStatus: (
+        effects: T.Effects,
+        options: Omit<Parameters<T.Effects['getStatus']>[0], 'callback'> = {},
+      ) => {
+        async function* watch(abort?: AbortSignal) {
+          const resolveCell = { resolve: () => {} }
+          effects.onLeaveContext(() => {
+            resolveCell.resolve()
+          })
+          abort?.addEventListener('abort', () => resolveCell.resolve())
+          while (effects.isInContext && !abort?.aborted) {
+            let callback: () => void = () => {}
+            const waitForNext = new Promise<void>((resolve) => {
+              callback = resolve
+              resolveCell.resolve = resolve
+            })
+            yield await effects.getStatus({ ...options, callback })
+            await waitForNext
+          }
+        }
+        return {
+          const: () =>
+            effects.getStatus({
+              ...options,
+              callback:
+                effects.constRetry &&
+                (() => effects.constRetry && effects.constRetry()),
+            }),
+          once: () => effects.getStatus(options),
+          watch: (abort?: AbortSignal) => {
+            const ctrl = new AbortController()
+            abort?.addEventListener('abort', () => ctrl.abort())
+            return DropGenerator.of(watch(ctrl.signal), () => ctrl.abort())
+          },
+          onChange: (
+            callback: (
+              value: T.StatusInfo | null,
+              error?: Error,
+            ) => { cancel: boolean } | Promise<{ cancel: boolean }>,
+          ) => {
+            ;(async () => {
+              const ctrl = new AbortController()
+              for await (const value of watch(ctrl.signal)) {
+                try {
+                  const res = await callback(value)
+                  if (res.cancel) {
+                    ctrl.abort()
+                    break
+                  }
+                } catch (e) {
+                  console.error(
+                    'callback function threw an error @ getStatus.onChange',
+                    e,
+                  )
+                }
+              }
+            })()
+              .catch((e) => callback(null, e))
+              .catch((e) =>
+                console.error(
+                  'callback function threw an error @ getStatus.onChange',
+                  e,
+                ),
+              )
+          },
+          waitFor: async (pred: (value: T.StatusInfo | null) => boolean) => {
+            const resolveCell = { resolve: () => {} }
+            effects.onLeaveContext(() => {
+              resolveCell.resolve()
+            })
+            while (effects.isInContext) {
+              let callback: () => void = () => {}
+              const waitForNext = new Promise<void>((resolve) => {
+                callback = resolve
+                resolveCell.resolve = resolve
+              })
+              const res = await effects.getStatus({ ...options, callback })
               if (pred(res)) {
                 resolveCell.resolve()
                 return res
