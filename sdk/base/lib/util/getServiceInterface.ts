@@ -26,6 +26,18 @@ export const getHostname = (url: string): Hostname | null => {
   return last
 }
 
+/**
+ * The kinds of hostnames that can be filtered on.
+ *
+ * - `'mdns'` — mDNS / Bonjour `.local` hostnames
+ * - `'domain'` — any os-managed domain name (matches both `'private-domain'` and `'public-domain'` metadata kinds)
+ * - `'ip'` — shorthand for both `'ipv4'` and `'ipv6'`
+ * - `'ipv4'` — IPv4 addresses only
+ * - `'ipv6'` — IPv6 addresses only
+ * - `'localhost'` — loopback addresses (`localhost`, `127.0.0.1`, `::1`)
+ * - `'link-local'` — IPv6 link-local addresses (fe80::/10)
+ * - `'plugin'` — hostnames provided by a plugin package
+ */
 type FilterKinds =
   | 'mdns'
   | 'domain'
@@ -34,10 +46,25 @@ type FilterKinds =
   | 'ipv6'
   | 'localhost'
   | 'link-local'
+  | 'plugin'
+
+/**
+ * Describes which hostnames to include (or exclude) when filtering a `Filled` address.
+ *
+ * Every field is optional — omitted fields impose no constraint.
+ * Filters are composable: the `.filter()` method intersects successive filters,
+ * and the `exclude` field inverts a nested filter.
+ */
 export type Filter = {
+  /** Keep only hostnames with the given visibility. `'public'` = externally reachable, `'private'` = LAN-only. */
   visibility?: 'public' | 'private'
+  /** Keep only hostnames whose metadata kind matches. A single kind or array of kinds. `'ip'` expands to `['ipv4','ipv6']`, `'domain'` matches both `'private-domain'` and `'public-domain'`. */
   kind?: FilterKinds | FilterKinds[]
+  /** Arbitrary predicate — hostnames for which this returns `false` are excluded. */
   predicate?: (h: HostnameInfo) => boolean
+  /** Keep only plugin hostnames provided by this package. Implies `kind: 'plugin'`. */
+  pluginId?: PackageId
+  /** A nested filter whose matches are *removed* from the result (logical NOT). */
   exclude?: Filter
 }
 
@@ -65,9 +92,13 @@ type KindFilter<K extends FilterKinds> = K extends 'mdns'
         ?
             | (HostnameInfo & { metadata: { kind: 'ipv6' } })
             | KindFilter<Exclude<K, 'ipv6'>>
-        : K extends 'ip'
-          ? KindFilter<Exclude<K, 'ip'> | 'ipv4' | 'ipv6'>
-          : never
+        : K extends 'plugin'
+          ?
+              | (HostnameInfo & { metadata: { kind: 'plugin' } })
+              | KindFilter<Exclude<K, 'plugin'>>
+          : K extends 'ip'
+            ? KindFilter<Exclude<K, 'ip'> | 'ipv4' | 'ipv6'>
+            : never
 
 type FilterReturnTy<F extends Filter> = F extends {
   visibility: infer V extends 'public' | 'private'
@@ -107,20 +138,62 @@ type FormatReturnTy<
       ? UrlString | FormatReturnTy<F, Exclude<Format, 'urlstring'>>
       : never
 
+/**
+ * A resolved address with its hostnames already populated, plus helpers
+ * for filtering, formatting, and converting hostnames to URLs.
+ *
+ * Filters are chainable and each call returns a new `Filled` narrowed to the
+ * matching subset of hostnames:
+ *
+ * ```ts
+ * addresses.nonLocal                         // exclude localhost & link-local
+ * addresses.public                           // only publicly-reachable hostnames
+ * addresses.filter({ kind: 'domain' })       // only domain-name hostnames
+ * addresses.filter({ visibility: 'private' }) // only LAN-reachable hostnames
+ * addresses.nonLocal.filter({ kind: 'ip' })  // chainable — non-local IPs only
+ * ```
+ */
 export type Filled<F extends Filter = {}> = {
+  /** The hostnames that survived all applied filters. */
   hostnames: HostnameInfo[]
 
+  /** Convert a single hostname into a fully-formed URL string, applying the address's scheme, username, and suffix. */
   toUrl: (h: HostnameInfo) => UrlString
 
+  /**
+   * Return every hostname in the requested format.
+   *
+   * - `'urlstring'` (default) — formatted URL strings
+   * - `'url'`                 — `URL` objects
+   * - `'hostname-info'`       — raw `HostnameInfo` objects
+   */
   format: <Format extends Formats = 'urlstring'>(
     format?: Format,
   ) => FormatReturnTy<{}, Format>[]
 
+  /**
+   * Apply an arbitrary {@link Filter} and return a new `Filled` containing only
+   * the hostnames that match. Filters compose: calling `.filter()` on an
+   * already-filtered `Filled` intersects the constraints.
+   */
   filter: <NewFilter extends Filter>(
     filter: NewFilter,
   ) => Filled<NewFilter & Filter>
 
+  /**
+   * Apply multiple filters and return hostnames that match **any** of them (union / OR).
+   *
+   * ```ts
+   * addresses.matchesAny([{ kind: 'domain' }, { kind: 'mdns' }])
+   * ```
+   */
+  matchesAny: <NewFilters extends Filter[]>(
+    filters: [...NewFilters],
+  ) => Filled<NewFilters[number] & F>
+
+  /** Shorthand filter that excludes `localhost` and IPv6 link-local addresses — keeps only network-reachable hostnames. */
   nonLocal: Filled<typeof nonLocalFilter & Filter>
+  /** Shorthand filter that keeps only publicly-reachable hostnames (those with `public: true`). */
   public: Filled<typeof publicFilter & Filter>
 }
 export type FilledAddressInfo = AddressInfo & Filled
@@ -210,7 +283,16 @@ function filterRec(
             ['localhost', '127.0.0.1', '::1'].includes(h.hostname)) ||
           (kind.has('link-local') &&
             h.metadata.kind === 'ipv6' &&
-            IPV6_LINK_LOCAL.contains(IpAddress.parse(h.hostname)))),
+            IPV6_LINK_LOCAL.contains(IpAddress.parse(h.hostname))) ||
+          (kind.has('plugin') && h.metadata.kind === 'plugin')),
+    )
+  }
+  if (filter.pluginId) {
+    const id = filter.pluginId
+    hostnames = hostnames.filter(
+      (h) =>
+        invert !==
+        (h.metadata.kind === 'plugin' && h.metadata.packageId === id),
     )
   }
 
@@ -279,6 +361,19 @@ export const filledAddress = (
         return filledAddressFromHostnames<NewFilter & F>(
           filterRec(hostnames, filter, false),
         )
+      },
+      matchesAny: <NewFilters extends Filter[]>(filters: [...NewFilters]) => {
+        const seen = new Set<HostnameInfo>()
+        const union: HostnameInfo[] = []
+        for (const f of filters) {
+          for (const h of filterRec(hostnames, f, false)) {
+            if (!seen.has(h)) {
+              seen.add(h)
+              union.push(h)
+            }
+          }
+        }
+        return filledAddressFromHostnames<NewFilters[number] & F>(union)
       },
       get nonLocal(): Filled<typeof nonLocalFilter & F> {
         return getNonLocal()

@@ -19,33 +19,45 @@ export class DomainHealthService {
   async checkPublicDomain(
     fqdn: string,
     gatewayId: string,
-    port: number,
+    portOrRes: number | T.AddPublicDomainRes,
   ): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      const [dnsPass, portResult] = await Promise.all([
-        this.api
-          .queryDns({ fqdn })
-          .then(ip => ip === gateway.ipInfo.wanIp)
-          .catch(() => false),
-        this.api
-          .checkPort({ gateway: gatewayId, port })
-          .catch((): null => null),
-      ])
+      let dnsPass: boolean
+      let ports: number[]
+      let portResults: (T.CheckPortRes | null)[]
 
-      const portOk =
-        !!portResult?.openInternally &&
-        !!portResult?.openExternally &&
-        !!portResult?.hairpinning
+      if (typeof portOrRes === 'number') {
+        ports = [portOrRes]
+        const [dns, portResult] = await Promise.all([
+          this.api
+            .queryDns({ fqdn })
+            .then(ip => ip === gateway.ipInfo.wanIp)
+            .catch(() => false),
+          this.api
+            .checkPort({ gateway: gatewayId, port: portOrRes })
+            .catch((): null => null),
+        ])
+        dnsPass = dns
+        portResults = [portResult]
+      } else {
+        dnsPass = portOrRes.dns === gateway.ipInfo.wanIp
+        ports = portOrRes.port.map(r => r.port)
+        portResults = portOrRes.port
+      }
 
-      if (!dnsPass || !portOk) {
+      const allPortsOk = portResults.every(
+        r => !!r?.openInternally && !!r?.openExternally && !!r?.hairpinning,
+      )
+
+      if (!dnsPass || !allPortsOk) {
         setTimeout(
           () =>
-            this.openPublicDomainModal(fqdn, gateway, port, {
+            this.openPublicDomainModal(fqdn, gateway, ports, {
               dnsPass,
-              portResult,
+              portResults,
             }),
           250,
         )
@@ -55,14 +67,17 @@ export class DomainHealthService {
     }
   }
 
-  async checkPrivateDomain(gatewayId: string): Promise<void> {
+  async checkPrivateDomain(
+    gatewayId: string,
+    prefetchedConfigured?: boolean,
+  ): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      const configured = await this.api
-        .checkDns({ gateway: gatewayId })
-        .catch(() => false)
+      const configured =
+        prefetchedConfigured ??
+        (await this.api.checkDns({ gateway: gatewayId }).catch(() => false))
 
       if (!configured) {
         setTimeout(
@@ -84,7 +99,7 @@ export class DomainHealthService {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      this.openPublicDomainModal(fqdn, gateway, port)
+      this.openPublicDomainModal(fqdn, gateway, [port])
     } catch (e: any) {
       this.errorService.handleError(e)
     }
@@ -149,14 +164,17 @@ export class DomainHealthService {
   private openPublicDomainModal(
     fqdn: string,
     gateway: DnsGateway,
-    port: number,
-    initialResults?: { dnsPass: boolean; portResult: T.CheckPortRes | null },
+    ports: number[],
+    initialResults?: {
+      dnsPass: boolean
+      portResults: (T.CheckPortRes | null)[]
+    },
   ) {
     this.dialog
       .openComponent(DOMAIN_VALIDATION, {
         label: 'Address Requirements',
         size: 'm',
-        data: { fqdn, gateway, port, initialResults },
+        data: { fqdn, gateway, ports, initialResults },
       })
       .subscribe()
   }

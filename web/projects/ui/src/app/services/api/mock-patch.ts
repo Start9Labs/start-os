@@ -212,6 +212,7 @@ export const mockPatchData: DataModel = {
           },
         },
       },
+      passthroughs: [],
       defaultOutbound: 'eth0',
       dns: {
         dhcpServers: ['1.1.1.1', '8.8.8.8'],

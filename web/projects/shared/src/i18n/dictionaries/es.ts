@@ -678,7 +678,7 @@ export default {
   741: 'En su registrador de dominios para',
   742: 'cree este registro DNS',
   743: 'En su puerta de enlace',
-  744: 'cree esta regla de reenvío de puertos',
+  744: 'cree estas reglas de reenvío de puertos',
   745: 'Puerto externo',
   747: 'Puerto interno',
   749: 'Configuración del servidor DNS',

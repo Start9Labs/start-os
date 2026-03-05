@@ -185,11 +185,32 @@ export class InterfaceAddressesComponent {
         : {}),
     })
 
+    let note = ''
+    const pkgId = this.packageId()
+    if (pkgId) {
+      const pkg = await firstValueFrom(
+        this.patch.watch$('packageData', pkgId),
+      )
+      if (pkg) {
+        const hostId = iface.addressInfo.hostId
+        const otherNames = Object.values(pkg.serviceInterfaces)
+          .filter(
+            si =>
+              si.addressInfo.hostId === hostId && si.id !== iface.id,
+          )
+          .map(si => si.name)
+        if (otherNames.length) {
+          note = `This domain also applies to ${otherNames.join(', ')}`
+        }
+      }
+    }
+
     this.formDialog.open(FormComponent, {
       label: 'Add public domain',
       size: 's',
       data: {
         spec: await configBuilderToSpec(addSpec),
+        note,
         buttons: [
           {
             text: this.i18n.transform('Save')!,
@@ -207,18 +228,22 @@ export class InterfaceAddressesComponent {
     const loader = this.loader.open('Saving').subscribe()
 
     try {
+      let configured: boolean
       if (this.packageId()) {
-        await this.api.pkgAddPrivateDomain({
+        configured = await this.api.pkgAddPrivateDomain({
           fqdn,
           gateway: gatewayId,
           package: this.packageId(),
           host: iface?.addressInfo.hostId || '',
         })
       } else {
-        await this.api.osUiAddPrivateDomain({ fqdn, gateway: gatewayId })
+        configured = await this.api.osUiAddPrivateDomain({
+          fqdn,
+          gateway: gatewayId,
+        })
       }
 
-      await this.domainHealth.checkPrivateDomain(gatewayId)
+      await this.domainHealth.checkPrivateDomain(gatewayId, configured)
 
       return true
     } catch (e: any) {
@@ -244,23 +269,18 @@ export class InterfaceAddressesComponent {
     }
 
     try {
+      let res
       if (this.packageId()) {
-        await this.api.pkgAddPublicDomain({
+        res = await this.api.pkgAddPublicDomain({
           ...params,
           package: this.packageId(),
           host: iface?.addressInfo.hostId || '',
         })
       } else {
-        await this.api.osUiAddPublicDomain(params)
+        res = await this.api.osUiAddPublicDomain(params)
       }
 
-      const port = this.gatewayGroup().addresses.find(
-        a => a.access === 'public' && a.hostnameInfo.port !== null,
-      )?.hostnameInfo.port
-
-      if (port !== undefined && port !== null) {
-        await this.domainHealth.checkPublicDomain(fqdn, gatewayId, port)
-      }
+      await this.domainHealth.checkPublicDomain(fqdn, gatewayId, res)
 
       return true
     } catch (e: any) {

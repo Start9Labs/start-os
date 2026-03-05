@@ -12,6 +12,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::db::model::DatabaseModel;
 use crate::hostname::ServerHostname;
 use crate::net::acme::AcmeProvider;
+use crate::net::gateway::{CheckDnsParams, CheckPortParams, CheckPortRes, check_dns, check_port};
 use crate::net::host::{HostApiKind, all_hosts};
 use crate::prelude::*;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
@@ -170,6 +171,15 @@ pub struct AddPublicDomainParams {
     pub gateway: GatewayId,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct AddPublicDomainRes {
+    #[ts(type = "string | null")]
+    pub dns: Option<Ipv4Addr>,
+    pub port: Vec<CheckPortRes>,
+}
+
 pub async fn add_public_domain<Kind: HostApiKind>(
     ctx: RpcContext,
     AddPublicDomainParams {
@@ -178,8 +188,9 @@ pub async fn add_public_domain<Kind: HostApiKind>(
         gateway,
     }: AddPublicDomainParams,
     inheritance: Kind::Inheritance,
-) -> Result<Option<Ipv4Addr>, Error> {
-    ctx.db
+) -> Result<AddPublicDomainRes, Error> {
+    let ports = ctx
+        .db
         .mutate(|db| {
             if let Some(acme) = &acme {
                 if !db
@@ -195,21 +206,62 @@ pub async fn add_public_domain<Kind: HostApiKind>(
 
             Kind::host_for(&inheritance, db)?
                 .as_public_domains_mut()
-                .insert(&fqdn, &PublicDomainConfig { acme, gateway })?;
+                .insert(
+                    &fqdn,
+                    &PublicDomainConfig {
+                        acme,
+                        gateway: gateway.clone(),
+                    },
+                )?;
             handle_duplicates(db)?;
             let hostname = ServerHostname::load(db.as_public().as_server_info())?;
-            let gateways = db.as_public().as_server_info().as_network().as_gateways().de()?;
-            let ports = db.as_private().as_available_ports().de()?;
-            Kind::host_for(&inheritance, db)?.update_addresses(&hostname, &gateways, &ports)
+            let gateways = db
+                .as_public()
+                .as_server_info()
+                .as_network()
+                .as_gateways()
+                .de()?;
+            let available_ports = db.as_private().as_available_ports().de()?;
+            let host = Kind::host_for(&inheritance, db)?;
+            host.update_addresses(&hostname, &gateways, &available_ports)?;
+            let bindings = host.as_bindings().de()?;
+            let ports: BTreeSet<u16> = bindings
+                .values()
+                .flat_map(|b| &b.addresses.available)
+                .filter(|a| a.public && a.hostname == fqdn)
+                .filter_map(|a| a.port)
+                .collect();
+            Ok(ports)
         })
         .await
         .result?;
 
-    tokio::task::spawn_blocking(|| {
-        crate::net::dns::query_dns(ctx, crate::net::dns::QueryDnsParams { fqdn })
+    let ctx2 = ctx.clone();
+    let fqdn2 = fqdn.clone();
+
+    let (dns_result, port_results) = tokio::join!(
+        async {
+            tokio::task::spawn_blocking(move || {
+                crate::net::dns::query_dns(ctx2, crate::net::dns::QueryDnsParams { fqdn: fqdn2 })
+            })
+            .await
+            .with_kind(ErrorKind::Unknown)?
+        },
+        futures::future::join_all(ports.into_iter().map(|port| {
+            check_port(
+                ctx.clone(),
+                CheckPortParams {
+                    port,
+                    gateway: gateway.clone(),
+                },
+            )
+        }))
+    );
+
+    Ok(AddPublicDomainRes {
+        dns: dns_result?,
+        port: port_results.into_iter().collect::<Result<Vec<_>, _>>()?,
     })
-    .await
-    .with_kind(ErrorKind::Unknown)?
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -257,13 +309,13 @@ pub async fn add_private_domain<Kind: HostApiKind>(
     ctx: RpcContext,
     AddPrivateDomainParams { fqdn, gateway }: AddPrivateDomainParams,
     inheritance: Kind::Inheritance,
-) -> Result<(), Error> {
+) -> Result<bool, Error> {
     ctx.db
         .mutate(|db| {
             Kind::host_for(&inheritance, db)?
                 .as_private_domains_mut()
                 .upsert(&fqdn, || Ok(BTreeSet::new()))?
-                .mutate(|d| Ok(d.insert(gateway)))?;
+                .mutate(|d| Ok(d.insert(gateway.clone())))?;
             handle_duplicates(db)?;
             let hostname = ServerHostname::load(db.as_public().as_server_info())?;
             let gateways = db
@@ -278,7 +330,7 @@ pub async fn add_private_domain<Kind: HostApiKind>(
         .await
         .result?;
 
-    Ok(())
+    check_dns(ctx, CheckDnsParams { gateway }).await
 }
 
 pub async fn remove_private_domain<Kind: HostApiKind>(

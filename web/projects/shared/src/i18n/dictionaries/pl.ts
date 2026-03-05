@@ -678,7 +678,7 @@ export default {
   741: 'W rejestratorze domeny dla',
   742: 'utwórz ten rekord DNS',
   743: 'W bramie',
-  744: 'utwórz tę regułę przekierowania portów',
+  744: 'utwórz te reguły przekierowania portów',
   745: 'Port zewnętrzny',
   747: 'Port wewnętrzny',
   749: 'Konfiguracja serwera DNS',

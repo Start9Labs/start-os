@@ -14,28 +14,34 @@ export const knownProtocols = {
     defaultPort: 80,
     withSsl: 'https',
     alpn: { specified: ['http/1.1'] } as AlpnInfo,
+    addXForwardedHeaders: true,
   },
   https: {
     secure: { ssl: true },
     defaultPort: 443,
+    addXForwardedHeaders: true,
   },
   ws: {
     secure: null,
     defaultPort: 80,
     withSsl: 'wss',
     alpn: { specified: ['http/1.1'] } as AlpnInfo,
+    addXForwardedHeaders: true,
   },
   wss: {
     secure: { ssl: true },
     defaultPort: 443,
+    addXForwardedHeaders: true,
   },
   ssh: {
     secure: { ssl: false },
     defaultPort: 22,
+    addXForwardedHeaders: false,
   },
   dns: {
     secure: { ssl: false },
     defaultPort: 53,
+    addXForwardedHeaders: false,
   },
 } as const
 
@@ -136,7 +142,7 @@ export class MultiHost {
     const sslProto = this.getSslProto(options)
     const addSsl = sslProto
       ? {
-          addXForwardedHeaders: false,
+          addXForwardedHeaders: knownProtocols[sslProto].addXForwardedHeaders,
           preferredExternalPort: knownProtocols[sslProto].defaultPort,
           scheme: sslProto,
           alpn: 'alpn' in protoInfo ? protoInfo.alpn : null,
@@ -148,7 +154,7 @@ export class MultiHost {
             preferredExternalPort: 443,
             scheme: sslProto,
             alpn: null,
-            ...('addSsl' in options ? options.addSsl : null),
+            ...options.addSsl,
           }
         : null
 
