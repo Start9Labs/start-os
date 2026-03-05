@@ -1238,8 +1238,7 @@ async fn poll_ip_info(
             device_type,
             Some(NetworkInterfaceType::Bridge | NetworkInterfaceType::Loopback)
         ) {
-        *prev_attempt = Some(Instant::now());
-        match get_wan_ipv4(iface.as_str(), &ifconfig_url).await {
+        let res = match get_wan_ipv4(iface.as_str(), &ifconfig_url).await {
             Ok(a) => a,
             Err(e) => {
                 tracing::error!(
@@ -1253,7 +1252,9 @@ async fn poll_ip_info(
                 tracing::debug!("{e:?}");
                 None
             }
-        }
+        };
+        *prev_attempt = Some(Instant::now());
+        res
     } else {
         None
     };
