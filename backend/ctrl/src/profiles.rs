@@ -51,6 +51,7 @@ pub struct Profile<Id: Ord = ProfileId> {
     pub outbound: String,
     pub lan_access: LanAccess<Id>,
     pub wan_access: WanAccess,
+    #[serde(default)]
     pub dns_override: Vec<String>,
     pub access_to_new_profiles: bool,
     pub owns_lan: bool,
