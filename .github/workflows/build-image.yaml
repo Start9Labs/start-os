@@ -6,13 +6,6 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
-    inputs:
-      runner:
-        type: choice
-        description: Runner type
-        options:
-          - fast
-          - standard
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -25,16 +18,8 @@ jobs:
   build:
     name: Build Image
     if: github.event.pull_request.draft != true
-    runs-on: >-
-      ${{
-        fromJson('["buildjet-32vcpu-ubuntu-2204", "ubuntu-latest"]')
-        [github.event.inputs.runner == 'standard']
-      }}
+    runs-on: ubuntu-latest
     steps:
-      - name: Mount tmpfs
-        if: github.event.inputs.runner != 'standard'
-        run: sudo mount -t tmpfs tmpfs .
-
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -43,7 +28,6 @@ jobs:
       - uses: ./.github/actions/setup-build
         with:
           nodejs-version: ${{ env.NODEJS_VERSION }}
-          free-space: ${{ github.event.inputs.runner == 'standard' && 'true' || 'false' }}
 
       - name: Cache OpenWrt download directory
         uses: actions/cache@v4
