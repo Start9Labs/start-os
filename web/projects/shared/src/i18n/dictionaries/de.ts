@@ -678,7 +678,7 @@ export default {
   741: 'In Ihrem Domain-Registrar für',
   742: 'diesen DNS-Eintrag erstellen',
   743: 'In Ihrem Gateway',
-  744: 'diese Portweiterleitungsregeln erstellen',
+  744: 'diese Portweiterleitungsregel erstellen',
   745: 'Externer Port',
   747: 'Interner Port',
   749: 'DNS-Server-Konfiguration',

@@ -26,12 +26,12 @@ export class DomainHealthService {
       if (!gateway) return
 
       let dnsPass: boolean
-      let ports: number[]
-      let portResults: (T.CheckPortRes | null)[]
+      let port: number
+      let portResult: T.CheckPortRes | null
 
       if (typeof portOrRes === 'number') {
-        ports = [portOrRes]
-        const [dns, portResult] = await Promise.all([
+        port = portOrRes
+        const [dns, portRes] = await Promise.all([
           this.api
             .queryDns({ fqdn })
             .then(ip => ip === gateway.ipInfo.wanIp)
@@ -41,23 +41,24 @@ export class DomainHealthService {
             .catch((): null => null),
         ])
         dnsPass = dns
-        portResults = [portResult]
+        portResult = portRes
       } else {
         dnsPass = portOrRes.dns === gateway.ipInfo.wanIp
-        ports = portOrRes.port.map(r => r.port)
-        portResults = portOrRes.port
+        port = portOrRes.port.port
+        portResult = portOrRes.port
       }
 
-      const allPortsOk = portResults.every(
-        r => !!r?.openInternally && !!r?.openExternally && !!r?.hairpinning,
-      )
+      const portOk =
+        !!portResult?.openInternally &&
+        !!portResult?.openExternally &&
+        !!portResult?.hairpinning
 
-      if (!dnsPass || !allPortsOk) {
+      if (!dnsPass || !portOk) {
         setTimeout(
           () =>
-            this.openPublicDomainModal(fqdn, gateway, ports, {
+            this.openPublicDomainModal(fqdn, gateway, port, {
               dnsPass,
-              portResults,
+              portResult,
             }),
           250,
         )
@@ -99,7 +100,7 @@ export class DomainHealthService {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      this.openPublicDomainModal(fqdn, gateway, [port])
+      this.openPublicDomainModal(fqdn, gateway, port)
     } catch (e: any) {
       this.errorService.handleError(e)
     }
@@ -164,17 +165,17 @@ export class DomainHealthService {
   private openPublicDomainModal(
     fqdn: string,
     gateway: DnsGateway,
-    ports: number[],
+    port: number,
     initialResults?: {
       dnsPass: boolean
-      portResults: (T.CheckPortRes | null)[]
+      portResult: T.CheckPortRes | null
     },
   ) {
     this.dialog
       .openComponent(DOMAIN_VALIDATION, {
         label: 'Address Requirements',
         size: 'm',
-        data: { fqdn, gateway, ports, initialResults },
+        data: { fqdn, gateway, port, initialResults },
       })
       .subscribe()
   }

@@ -15,6 +15,7 @@ import {
 } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PortCheckIconComponent } from 'src/app/routes/portal/components/port-check-icon.component'
+import { PortCheckWarningsComponent } from 'src/app/routes/portal/components/port-check-warnings.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { T } from '@start9labs/start-sdk'
@@ -28,11 +29,8 @@ export type DnsGateway = T.NetworkInterfaceInfo & {
 export type DomainValidationData = {
   fqdn: string
   gateway: DnsGateway
-  ports: number[]
-  initialResults?: {
-    dnsPass: boolean
-    portResults: (T.CheckPortRes | null)[]
-  }
+  port: number
+  initialResults?: { dnsPass: boolean; portResult: T.CheckPortRes | null }
 }
 
 @Component({
@@ -94,50 +92,32 @@ export type DomainValidationData = {
     <h2>{{ 'Port Forwarding' | i18n }}</h2>
     <p>
       {{ 'In your gateway' | i18n }} "{{ gatewayName }}",
-      {{ 'create these port forwarding rules' | i18n }}
+      {{ 'create this port forwarding rule' | i18n }}
     </p>
 
+    @let portRes = portResult();
+
     <table [appTable]="[null, 'External Port', 'Internal Port', null]">
-      @for (port of context.data.ports; track port; let i = $index) {
-        <tr>
-          <td class="status">
-            <port-check-icon
-              [result]="portResults()[i]"
-              [loading]="!!portLoadings()[i]"
-            />
-          </td>
-          <td>{{ port }}</td>
-          <td>{{ port }}</td>
-          <td>
-            <button
-              tuiButton
-              size="s"
-              [loading]="!!portLoadings()[i]"
-              (click)="testPort(i)"
-            >
-              {{ 'Test' | i18n }}
-            </button>
-          </td>
-        </tr>
-      }
+      <tr>
+        <td class="status">
+          <port-check-icon [result]="portRes" [loading]="portLoading()" />
+        </td>
+        <td>{{ context.data.port }}</td>
+        <td>{{ context.data.port }}</td>
+        <td>
+          <button
+            tuiButton
+            size="s"
+            [loading]="portLoading()"
+            (click)="testPort()"
+          >
+            {{ 'Test' | i18n }}
+          </button>
+        </td>
+      </tr>
     </table>
 
-    @if (anyNotRunning()) {
-      <p class="g-warning">
-        {{
-          'Port status cannot be determined while service is not running'
-            | i18n
-        }}
-      </p>
-    }
-    @if (anyNoHairpinning()) {
-      <p class="g-warning">
-        {{
-          'This address will not work from your local network due to a router hairpinning limitation'
-            | i18n
-        }}
-      </p>
-    }
+    <port-check-warnings [result]="portRes" />
 
     @if (!isManualMode) {
       <footer class="g-buttons padding-top">
@@ -236,6 +216,7 @@ export type DomainValidationData = {
     TuiIcon,
     TuiLoader,
     PortCheckIconComponent,
+    PortCheckWarningsComponent,
   ],
 })
 export class DomainValidationComponent {
@@ -251,28 +232,16 @@ export class DomainValidationComponent {
     parse(this.context.data.fqdn).domain || this.context.data.fqdn
 
   readonly dnsLoading = signal(false)
-  readonly portLoadings = signal<boolean[]>(
-    this.context.data.ports.map(() => false),
-  )
+  readonly portLoading = signal(false)
   readonly dnsPass = signal<boolean | undefined>(undefined)
-  readonly portResults = signal<(T.CheckPortRes | undefined)[]>(
-    this.context.data.ports.map(() => undefined),
-  )
-
-  readonly anyNotRunning = computed(() =>
-    this.portResults().some(r => r && !r.openInternally),
-  )
-
-  readonly anyNoHairpinning = computed(() =>
-    this.portResults().some(r => r && r.openExternally && !r.hairpinning),
-  )
+  readonly portResult = signal<T.CheckPortRes | undefined>(undefined)
 
   readonly allPass = computed(() => {
-    const results = this.portResults()
+    const result = this.portResult()
     return (
       this.dnsPass() === true &&
-      results.length > 0 &&
-      results.every(r => !!r?.openInternally && !!r?.openExternally)
+      !!result?.openInternally &&
+      !!result?.openExternally
     )
   })
 
@@ -282,9 +251,7 @@ export class DomainValidationComponent {
     const initial = this.context.data.initialResults
     if (initial) {
       this.dnsPass.set(initial.dnsPass)
-      this.portResults.set(
-        initial.portResults.map(r => r ?? undefined),
-      )
+      if (initial.portResult) this.portResult.set(initial.portResult)
     }
   }
 
@@ -304,32 +271,20 @@ export class DomainValidationComponent {
     }
   }
 
-  async testPort(index: number) {
-    this.portLoadings.update(l => {
-      const copy = [...l]
-      copy[index] = true
-      return copy
-    })
+  async testPort() {
+    this.portLoading.set(true)
 
     try {
       const result = await this.api.checkPort({
         gateway: this.context.data.gateway.id,
-        port: this.context.data.ports[index]!,
+        port: this.context.data.port,
       })
 
-      this.portResults.update(r => {
-        const copy = [...r]
-        copy[index] = result
-        return copy
-      })
+      this.portResult.set(result)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
-      this.portLoadings.update(l => {
-        const copy = [...l]
-        copy[index] = false
-        return copy
-      })
+      this.portLoading.set(false)
     }
   }
 }

@@ -678,7 +678,7 @@ export default {
   741: 'Dans votre registraire de domaine pour',
   742: 'créez cet enregistrement DNS',
   743: 'Dans votre passerelle',
-  744: 'créez ces règles de redirection de port',
+  744: 'créez cette règle de redirection de port',
   745: 'Port externe',
   747: 'Port interne',
   749: 'Configuration du serveur DNS',

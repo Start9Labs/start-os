@@ -1467,15 +1467,13 @@ export class MockApiService extends ApiService {
 
     return {
       dns: null,
-      port: [
-        {
-          ip: '0.0.0.0',
-          port: 443,
-          openExternally: false,
-          openInternally: false,
-          hairpinning: false,
-        },
-      ],
+      port: {
+        ip: '0.0.0.0',
+        port: 443,
+        openExternally: false,
+        openInternally: false,
+        hairpinning: false,
+      },
     }
   }
 
@@ -1575,15 +1573,13 @@ export class MockApiService extends ApiService {
 
     return {
       dns: null,
-      port: [
-        {
-          ip: '0.0.0.0',
-          port: 443,
-          openExternally: false,
-          openInternally: false,
-          hairpinning: false,
-        },
-      ],
+      port: {
+        ip: '0.0.0.0',
+        port: 443,
+        openExternally: false,
+        openInternally: false,
+        hairpinning: false,
+      },
     }
   }
 

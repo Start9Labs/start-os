@@ -31,7 +31,7 @@ export type PortForwardValidationData = {
     <h2>{{ 'Port Forwarding' | i18n }}</h2>
     <p>
       {{ 'In your gateway' | i18n }} "{{ gatewayName }}",
-      {{ 'create these port forwarding rules' | i18n }}
+      {{ 'create this port forwarding rule' | i18n }}
     </p>
 
     @let portRes = portResult();

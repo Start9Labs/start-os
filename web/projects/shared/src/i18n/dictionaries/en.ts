@@ -678,7 +678,7 @@ export const ENGLISH: Record<string, number> = {
   'In your domain registrar for': 741, // partial sentence, followed by a domain name
   'create this DNS record': 742,
   'In your gateway': 743, // partial sentence, followed by a gateway name
-  'create these port forwarding rules': 744,
+  'create this port forwarding rule': 744,
   'External Port': 745,
   'Internal Port': 747,
   'DNS Server Config': 749,

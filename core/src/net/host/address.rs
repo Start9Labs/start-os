@@ -161,6 +161,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AddPublicDomainParams {
     #[arg(help = "help.arg.fqdn")]
@@ -169,6 +170,8 @@ pub struct AddPublicDomainParams {
     pub acme: Option<AcmeProvider>,
     #[arg(help = "help.arg.gateway-id")]
     pub gateway: GatewayId,
+    #[arg(help = "help.arg.internal-port")]
+    pub internal_port: u16,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
@@ -177,7 +180,7 @@ pub struct AddPublicDomainParams {
 pub struct AddPublicDomainRes {
     #[ts(type = "string | null")]
     pub dns: Option<Ipv4Addr>,
-    pub port: Vec<CheckPortRes>,
+    pub port: CheckPortRes,
 }
 
 pub async fn add_public_domain<Kind: HostApiKind>(
@@ -186,10 +189,11 @@ pub async fn add_public_domain<Kind: HostApiKind>(
         fqdn,
         acme,
         gateway,
+        internal_port,
     }: AddPublicDomainParams,
     inheritance: Kind::Inheritance,
 ) -> Result<AddPublicDomainRes, Error> {
-    let ports = ctx
+    let ext_port = ctx
         .db
         .mutate(|db| {
             if let Some(acme) = &acme {
@@ -224,14 +228,46 @@ pub async fn add_public_domain<Kind: HostApiKind>(
             let available_ports = db.as_private().as_available_ports().de()?;
             let host = Kind::host_for(&inheritance, db)?;
             host.update_addresses(&hostname, &gateways, &available_ports)?;
+
+            // Find the external port for the target binding
             let bindings = host.as_bindings().de()?;
-            let ports: BTreeSet<u16> = bindings
-                .values()
-                .flat_map(|b| &b.addresses.available)
-                .filter(|a| a.public && a.hostname == fqdn)
-                .filter_map(|a| a.port)
-                .collect();
-            Ok(ports)
+            let target_bind = bindings
+                .get(&internal_port)
+                .ok_or_else(|| Error::new(eyre!("binding not found for internal port {internal_port}"), ErrorKind::NotFound))?;
+            let ext_port = target_bind
+                .addresses
+                .available
+                .iter()
+                .find(|a| a.public && a.hostname == fqdn)
+                .and_then(|a| a.port)
+                .ok_or_else(|| Error::new(eyre!("no public address found for {fqdn} on port {internal_port}"), ErrorKind::NotFound))?;
+
+            // Disable the domain on all other bindings
+            host.as_bindings_mut().mutate(|b| {
+                for (&port, bind) in b.iter_mut() {
+                    if port == internal_port {
+                        continue;
+                    }
+                    let has_addr = bind
+                        .addresses
+                        .available
+                        .iter()
+                        .any(|a| a.public && a.hostname == fqdn);
+                    if has_addr {
+                        let other_ext = bind
+                            .addresses
+                            .available
+                            .iter()
+                            .find(|a| a.public && a.hostname == fqdn)
+                            .and_then(|a| a.port)
+                            .unwrap_or(ext_port);
+                        bind.addresses.disabled.insert((fqdn.clone(), other_ext));
+                    }
+                }
+                Ok(())
+            })?;
+
+            Ok(ext_port)
         })
         .await
         .result?;
@@ -239,7 +275,7 @@ pub async fn add_public_domain<Kind: HostApiKind>(
     let ctx2 = ctx.clone();
     let fqdn2 = fqdn.clone();
 
-    let (dns_result, port_results) = tokio::join!(
+    let (dns_result, port_result) = tokio::join!(
         async {
             tokio::task::spawn_blocking(move || {
                 crate::net::dns::query_dns(ctx2, crate::net::dns::QueryDnsParams { fqdn: fqdn2 })
@@ -247,20 +283,18 @@ pub async fn add_public_domain<Kind: HostApiKind>(
             .await
             .with_kind(ErrorKind::Unknown)?
         },
-        futures::future::join_all(ports.into_iter().map(|port| {
-            check_port(
-                ctx.clone(),
-                CheckPortParams {
-                    port,
-                    gateway: gateway.clone(),
-                },
-            )
-        }))
+        check_port(
+            ctx.clone(),
+            CheckPortParams {
+                port: ext_port,
+                gateway: gateway.clone(),
+            },
+        )
     );
 
     Ok(AddPublicDomainRes {
         dns: dns_result?,
-        port: port_results.into_iter().collect::<Result<Vec<_>, _>>()?,
+        port: port_result?,
     })
 }
 

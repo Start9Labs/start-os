@@ -269,6 +269,7 @@ export class InterfaceAddressesComponent {
       fqdn,
       gateway: gatewayId,
       acme: !authority || authority === 'local' ? null : authority,
+      internalPort: iface?.addressInfo.internalPort || 80,
     }
 
     try {
