@@ -1,0 +1,7 @@
+{
+  "useMocks": false,
+  "api": {
+    "url": "rpc",
+    "version": "v1"
+  }
+}
