@@ -704,4 +704,5 @@ export const ENGLISH: Record<string, number> = {
   'Port status cannot be determined while service is not running': 774,
   'This address will not work from your local network due to a router hairpinning limitation': 775,
   'Action not found': 776,
+  'This domain will also apply to': 777,
 }

@@ -132,6 +132,7 @@ export class InterfaceAddressesComponent {
             }),
           }),
         ),
+        note: await this.getSharedHostNote(),
         buttons: [
           {
             text: this.i18n.transform('Save')!,
@@ -185,32 +186,12 @@ export class InterfaceAddressesComponent {
         : {}),
     })
 
-    let note = ''
-    const pkgId = this.packageId()
-    if (pkgId) {
-      const pkg = await firstValueFrom(
-        this.patch.watch$('packageData', pkgId),
-      )
-      if (pkg) {
-        const hostId = iface.addressInfo.hostId
-        const otherNames = Object.values(pkg.serviceInterfaces)
-          .filter(
-            si =>
-              si.addressInfo.hostId === hostId && si.id !== iface.id,
-          )
-          .map(si => si.name)
-        if (otherNames.length) {
-          note = `This domain also applies to ${otherNames.join(', ')}`
-        }
-      }
-    }
-
     this.formDialog.open(FormComponent, {
       label: 'Add public domain',
       size: 's',
       data: {
         spec: await configBuilderToSpec(addSpec),
-        note,
+        note: await this.getSharedHostNote(),
         buttons: [
           {
             text: this.i18n.transform('Save')!,
@@ -252,6 +233,28 @@ export class InterfaceAddressesComponent {
     } finally {
       loader.unsubscribe()
     }
+  }
+
+  private async getSharedHostNote(): Promise<string> {
+    const iface = this.value()
+    const pkgId = this.packageId()
+    if (!iface || !pkgId) return ''
+
+    const pkg = await firstValueFrom(
+      this.patch.watch$('packageData', pkgId),
+    )
+    if (!pkg) return ''
+
+    const hostId = iface.addressInfo.hostId
+    const otherNames = Object.values(pkg.serviceInterfaces)
+      .filter(
+        si => si.addressInfo.hostId === hostId && si.id !== iface.id,
+      )
+      .map(si => si.name)
+
+    if (!otherNames.length) return ''
+
+    return `${this.i18n.transform('This domain will also apply to')} ${otherNames.join(', ')}`
   }
 
   private async savePublicDomain(

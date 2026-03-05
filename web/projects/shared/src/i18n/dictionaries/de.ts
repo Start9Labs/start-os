@@ -704,4 +704,5 @@ export default {
   774: 'Der Portstatus kann nicht ermittelt werden, solange der Dienst nicht läuft',
   775: 'Diese Adresse funktioniert nicht aus Ihrem lokalen Netzwerk aufgrund einer Router-Hairpinning-Einschränkung',
   776: 'Aktion nicht gefunden',
+  777: 'Diese Domain wird auch gelten für',
 } satisfies i18n

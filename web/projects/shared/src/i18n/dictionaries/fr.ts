@@ -704,4 +704,5 @@ export default {
   774: "L'état du port ne peut pas être déterminé tant que le service n'est pas en cours d'exécution",
   775: "Cette adresse ne fonctionnera pas depuis votre réseau local en raison d'une limitation de hairpinning du routeur",
   776: 'Action introuvable',
+  777: "Ce domaine s'appliquera également à",
 } satisfies i18n
