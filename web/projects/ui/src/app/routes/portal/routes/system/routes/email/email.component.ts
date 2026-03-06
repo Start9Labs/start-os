@@ -57,7 +57,7 @@ function detectProviderKey(host: string | undefined): string {
                 docsLink
                 path="/start-os/user-manual/smtp.html"
                 appearance="icon"
-                iconStart="@tui.external-link"
+                iconStart="@tui.book-open-text"
               >
                 {{ 'Documentation' | i18n }}
               </a>

@@ -49,7 +49,7 @@ const ipv6 =
                 docsLink
                 path="/start-os/user-manual/dns.html"
                 appearance="icon"
-                iconStart="@tui.external-link"
+                iconStart="@tui.book-open-text"
               >
                 {{ 'Documentation' | i18n }}
               </a>

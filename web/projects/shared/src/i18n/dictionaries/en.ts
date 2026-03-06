@@ -658,8 +658,6 @@ export const ENGLISH: Record<string, number> = {
   'Select the gateway for outbound traffic': 721,
   'The type of gateway': 722,
   'Outbound Only': 723,
-  'Set as default outbound': 724,
-  'Route all outbound traffic through this gateway': 725,
   'WireGuard Config File': 726,
   'Inbound/Outbound': 727,
   'StartTunnel (Inbound/Outbound)': 728,
@@ -668,7 +666,6 @@ export const ENGLISH: Record<string, number> = {
   'Public Domain': 731,
   'Private Domain': 732,
   'Hide': 733,
-  'default outbound': 734,
   'Certificate': 735,
   'Self signed': 736,
   'Port Forwarding': 737,
@@ -710,4 +707,7 @@ export const ENGLISH: Record<string, number> = {
   'Local': 781, // as in, locally accessible
   'Unknown Drive': 782,
   'Must be a valid email address': 783,
+  'Auto': 786,
+  'Outbound Traffic': 787,
+  'Use gateway': 788,
 }

@@ -21,7 +21,6 @@ import { GatewayService } from 'src/app/services/gateway.service'
     </table>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [GatewayService],
   imports: [TuiSkeleton, i18nPipe, TableComponent, GatewaysItemComponent],
 })
 export class GatewaysTableComponent {

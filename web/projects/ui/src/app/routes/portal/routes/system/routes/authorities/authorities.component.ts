@@ -23,7 +23,7 @@ import { AuthoritiesTableComponent } from './table.component'
           docsLink
           path="/start-os/user-manual/trust-ca.html"
           appearance="icon"
-          iconStart="@tui.external-link"
+          iconStart="@tui.book-open-text"
         >
           {{ 'Documentation' | i18n }}
         </a>
