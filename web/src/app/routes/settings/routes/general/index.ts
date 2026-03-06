@@ -8,7 +8,7 @@ import {
 } from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { WA_LOCAL_STORAGE } from '@ng-web-apis/common'
-import { TuiValueChanges } from '@taiga-ui/cdk'
+import { TuiAnimated, TuiValueChanges } from '@taiga-ui/cdk'
 import {
   TUI_DARK_MODE,
   TUI_DARK_MODE_KEY,
@@ -30,7 +30,7 @@ import {
   TuiDataListWrapper,
   TuiSelect,
 } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
+import { TuiElasticContainer, TuiHeader } from '@taiga-ui/layout'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
 import { MarkdownPipe } from 'src/app/pipes/markdown.pipe'
@@ -117,12 +117,14 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
           </label>
         }
       </fieldset>
-      @if (form.value.remote === 'always') {
-        <div tuiNotification appearance="warning">
-          This setting is not recommended as your router will be exposed to the
-          internet
-        </div>
-      }
+      <tui-elastic-container>
+        @if (form.value.remote === 'always') {
+          <div tuiAnimated tuiNotification appearance="warning">
+            This setting is not recommended as your router will be exposed to
+            the internet
+          </div>
+        }
+      </tui-elastic-container>
       <footer appFooter></footer>
     </form>
   `,
@@ -134,7 +136,7 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
     .update-banner {
       .release-notes {
         color: var(--tui-text-secondary);
-        font: var(--tui-font-text-s);
+        font: var(--tui-typography-text-s);
 
         ::ng-deep {
           h1,
@@ -142,7 +144,7 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
           h3,
           h4 {
             margin: 0.75rem 0 0.25rem;
-            font: var(--tui-font-text-s);
+            font: var(--tui-typography-text-s);
             font-weight: bold;
             color: var(--tui-text-primary);
 
@@ -204,6 +206,8 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
     TuiAccordion,
     MarkdownPipe,
     NgDompurifyPipe,
+    TuiElasticContainer,
+    TuiAnimated,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

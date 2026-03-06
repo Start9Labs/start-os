@@ -14,6 +14,17 @@ export const IPV6_SLAAC_CONTROLS = ['prefix'] as const
 export const IPV6_DHCPV6_CONTROLS = ['prefix'] as const
 export const IPV6_STATIC_CONTROLS = ['wan', 'prefix', 'gateway'] as const
 export const IPV6_SIXRD_CONTROLS = ['prefix', 'ip4', 'mask', 'border'] as const
+export const IPV6_ALL_CONTROLS = Array.from(
+  new Set([...IPV6_STATIC_CONTROLS, ...IPV6_SIXRD_CONTROLS]),
+)
+
+export const IPV6_CONTROLS: Record<Ipv6Mode, readonly string[]> = {
+  slaac: IPV6_SLAAC_CONTROLS,
+  dhcpv6: IPV6_DHCPV6_CONTROLS,
+  static: IPV6_STATIC_CONTROLS,
+  '6rd': IPV6_SIXRD_CONTROLS,
+  disabled: [],
+}
 
 export const IPV6_LABELS: Record<
   | Ipv6Mode

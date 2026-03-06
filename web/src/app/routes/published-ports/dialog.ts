@@ -11,7 +11,11 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { TuiContext, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
+import {
+  TuiAnimated,
+  TuiContext,
+  tuiMarkControlAsTouchedAndValidate,
+} from '@taiga-ui/cdk'
 import {
   TuiButton,
   TuiDialogContext,
@@ -29,7 +33,7 @@ import {
   TuiRadioList,
   TuiSelect,
 } from '@taiga-ui/kit'
-import { TuiForm } from '@taiga-ui/layout'
+import { TuiElasticContainer, TuiForm } from '@taiga-ui/layout'
 import { injectContext } from '@taiga-ui/polymorpheus'
 import { ModalHelp } from 'src/app/help/modal-help'
 import { provideHelp } from 'src/app/help/help'
@@ -64,11 +68,7 @@ const IP: Record<string, string> = {
       <tui-error formControlName="label" />
 
       <div class="device-port-row">
-        <tui-textfield
-          tuiChevron
-          [tuiTextfieldCleaner]="false"
-          [stringify]="stringifyDevice"
-        >
+        <tui-textfield tuiChevron [stringify]="stringifyDevice">
           <label tuiLabel>Device</label>
           <input
             tuiSelect
@@ -117,18 +117,19 @@ const IP: Record<string, string> = {
         />
       </fieldset>
 
-      @if (form.value.sourceType === 'custom') {
-        <tui-textfield>
-          <label tuiLabel>Source IP / prefix</label>
-          <input
-            tuiInput
-            formControlName="sourceValue"
-            placeholder="e.g. 203.0.113.0/24"
-          />
-        </tui-textfield>
-        <tui-error formControlName="sourceValue" />
-      }
-
+      <tui-elastic-container>
+        @if (form.value.sourceType === 'custom') {
+          <tui-textfield tuiAnimated>
+            <label tuiLabel>Source IP / prefix</label>
+            <input
+              tuiInput
+              formControlName="sourceValue"
+              placeholder="e.g. 203.0.113.0/24"
+            />
+          </tui-textfield>
+          <tui-error formControlName="sourceValue" />
+        }
+      </tui-elastic-container>
       <fieldset>
         <legend>IP Version</legend>
         <tui-radio-list
@@ -145,18 +146,28 @@ const IP: Record<string, string> = {
         </small>
       }
 
-      @if (form.value.ipVersion === 'ipv4' || form.value.ipVersion === 'both') {
-        <fieldset>
-          <legend>IPv4 External Port</legend>
-          <tui-radio-list
-            size="s"
-            formControlName="ipv4PublicPortType"
-            [items]="publicPortTypeValues"
-            [itemContent]="port"
-          />
-        </fieldset>
-        @if (form.value.ipv4PublicPortType === 'other') {
-          <tui-textfield>
+      <tui-elastic-container>
+        @if (['ipv4', 'both'].includes(form.value.ipVersion || '')) {
+          <!-- TODO: Remove <div tuiForm> after Taiga 5.0 -->
+          <div tuiForm>
+            <fieldset tuiAnimated>
+              <legend [style.padding-top.rem]="0.5">IPv4 External Port</legend>
+              <tui-radio-list
+                size="s"
+                formControlName="ipv4PublicPortType"
+                [items]="publicPortTypeValues"
+                [itemContent]="port"
+              />
+            </fieldset>
+          </div>
+        }
+      </tui-elastic-container>
+      <tui-elastic-container>
+        @if (
+          ['ipv4', 'both'].includes(form.value.ipVersion || '') &&
+          form.value.ipv4PublicPortType === 'other'
+        ) {
+          <tui-textfield tuiAnimated>
             <input
               tuiInput
               formControlName="ipv4PublicPort"
@@ -165,7 +176,7 @@ const IP: Record<string, string> = {
           </tui-textfield>
           <tui-error formControlName="ipv4PublicPort" />
         }
-      }
+      </tui-elastic-container>
 
       @if (reservationNeeds()) {
         <div tuiNotification appearance="info">
@@ -226,6 +237,8 @@ const IP: Record<string, string> = {
     TuiRadioList,
     TuiNotification,
     TuiTitle,
+    TuiElasticContainer,
+    TuiAnimated,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

@@ -113,12 +113,28 @@ li {
   }
 
   tui-error {
-    font: var(--tui-font-text-xs);
+    font: var(--tui-typography-text-xs);
   }
 
   label:has(input[type='checkbox'], input[type='radio']) {
     cursor: pointer;
     align-items: center;
+
+    i {
+      display: none;
+    }
+  }
+
+  label:has(input[type='checkbox']:disabled, input[type='radio']:disabled) {
+    position: relative;
+    opacity: var(--tui-disabled-opacity);
+    cursor: not-allowed;
+
+    i {
+      display: block;
+      position: absolute;
+      inset: 0;
+    }
   }
 
   [tuiCardLarge][tuiSurface][tuiAppearance][data-appearance='neutral'] {
@@ -187,7 +203,7 @@ li {
 
   caption {
     text-align: start;
-    font: var(--tui-font-text-l);
+    font: var(--tui-typography-text-l);
     font-weight: bold;
     padding: 0.25rem 0.75rem;
     border-radius: 0.5rem 0.5rem 0 0;
@@ -292,7 +308,7 @@ tui-data-list {
     align-items: center;
     justify-content: space-between;
     cursor: pointer;
-    font: var(--tui-font-body-m);
+    font: var(--tui-typography-body-m);
     font-weight: bold;
     list-style: none;
 

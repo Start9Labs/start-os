@@ -4,18 +4,20 @@ import {
   computed,
   effect,
   inject,
-  signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { ActivatedRoute, Router, RouterLink } from '@angular/router'
 import {
   TuiButton,
+  TuiError,
+  TuiHintDirective,
+  TuiInput,
   TuiLink,
   TuiTitle,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TuiSkeleton } from '@taiga-ui/kit'
+import { TuiSkeleton, TuiSwitch } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
@@ -27,8 +29,6 @@ import {
   updateDeviceValidators,
 } from 'src/app/routes/devices/utils'
 import { PublishedPortsUciService } from 'src/app/routes/published-ports/uci/service'
-import { DeviceIp } from './ip'
-import { DeviceName } from './name'
 import { DeviceSummary } from './summary'
 
 @Component({
@@ -93,9 +93,33 @@ import { DeviceSummary } from './summary'
       (reset.prevent)="onCancel()"
       (ngSubmit)="onSave()"
     >
-      <device-name [formGroup]="form" [hostname]="data()?.hostname ?? ''" />
-      <hr />
-      <device-ip formGroupName="ip" [ipv4Locked]="portUsage().usesIpv4" />
+      <section>
+        <div>
+          <tui-textfield>
+            <label tuiLabel>Name</label>
+            <input
+              tuiInput
+              formControlName="name"
+              [placeholder]="data()?.hostname ?? ''"
+            />
+          </tui-textfield>
+          <tui-error formControlName="name" />
+        </div>
+      </section>
+      <section formGroupName="ip">
+        <div>
+          <tui-textfield>
+            <label tuiLabel>IPv4 address</label>
+            <input tuiInput formControlName="ipv4" [readOnly]="!ipv4Static()" />
+          </tui-textfield>
+          <tui-error formControlName="ipv4" />
+        </div>
+        <label tuiLabel>
+          <input tuiSwitch type="checkbox" formControlName="ipv4Static" />
+          Reserve
+          <i tuiHint="Required by a published port rule"></i>
+        </label>
+      </section>
       @if (data()) {
         <footer appFooter></footer>
       }
@@ -119,10 +143,12 @@ import { DeviceSummary } from './summary'
     TuiButton,
     Footer,
     Form,
-    DeviceIp,
-    DeviceName,
     DeviceSummary,
     TuiSkeleton,
+    TuiInput,
+    TuiError,
+    TuiHintDirective,
+    TuiSwitch,
   ],
 })
 export default class DeviceDetail {
@@ -133,19 +159,10 @@ export default class DeviceDetail {
   readonly service = inject(DevicesService)
   readonly mac = this.route.snapshot.queryParams['mac']
   readonly returnUrl = history.state?.['returnUrl'] || '/devices'
-
   readonly form = getDeviceForm(inject(NonNullableFormBuilder))
-
-  // Track if this device has published ports using IPv4
-  readonly portUsage = signal<{ usesIpv4: boolean; usesIpv6: boolean }>({
-    usesIpv4: false,
-    usesIpv6: false,
-  })
-
-  readonly data = computed(() => {
-    const allDevices = this.service.data()
-    return allDevices?.find(d => d.mac === this.mac) ?? null
-  })
+  readonly data = computed(
+    () => this.service.data()?.find(d => d.mac === this.mac) ?? null,
+  )
 
   readonly ipv4Static = toSignal(
     this.form.controls.ip.controls.ipv4Static.valueChanges.pipe(
@@ -185,8 +202,9 @@ export default class DeviceDetail {
   }
 
   private async loadDependencies() {
-    const usage = await this.publishedPortsUci.getDevicePortUsage(this.mac)
-    this.portUsage.set(usage)
+    if ((await this.publishedPortsUci.getDevicePortUsage(this.mac)).usesIpv4) {
+      this.form.controls.ip.controls.ipv4Static.disable()
+    }
   }
 
   async onSave() {
@@ -200,9 +218,8 @@ export default class DeviceDetail {
       ipv6Static: formValue.ip.ipv6Static,
       ipv6: formValue.ip.ipv6,
     })
-    if (success) {
-      this.form.markAsPristine()
-    }
+
+    if (success) this.form.markAsPristine()
   }
 
   onCancel() {
@@ -221,22 +238,19 @@ export default class DeviceDetail {
   }
 
   async onBlock() {
-    const success = await this.service.block(this.mac)
-    if (success) {
+    if (await this.service.block(this.mac)) {
       this.router.navigate(['..'], { relativeTo: this.route })
     }
   }
 
   async onUnblock() {
-    const success = await this.service.unblock(this.mac)
-    if (success) {
+    if (await this.service.unblock(this.mac)) {
       this.router.navigate(['..'], { relativeTo: this.route })
     }
   }
 
   async onForget() {
-    const success = await this.service.forget(this.mac)
-    if (success) {
+    if (await this.service.forget(this.mac)) {
       this.router.navigate(['..'], { relativeTo: this.route })
     }
   }
