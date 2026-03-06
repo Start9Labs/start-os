@@ -61,7 +61,7 @@ import {
           <input
             tuiInputNumber
             formControlName="routerOctet"
-            [min]="1"
+            [min]="0"
             [max]="254"
           />
         </tui-textfield>

@@ -36,7 +36,7 @@ export function getLanIpv4Form(builder: NonNullableFormBuilder) {
       // be the single source of truth for the 3rd octet.
       routerOctet: builder.control(1, [
         Validators.required,
-        Validators.min(1),
+        Validators.min(0),
         Validators.max(254),
       ]),
     }),
