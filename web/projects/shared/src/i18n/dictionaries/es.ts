@@ -644,7 +644,6 @@ export default {
   706: 'Conservar',
   707: 'Sobrescribir',
   708: 'Desbloquear',
-  709: 'Unidad',
   710: 'Transferir',
   711: 'La lista está vacía',
   712: 'Reiniciar ahora',
@@ -709,4 +708,6 @@ export default {
   779: 'Público',
   780: 'Privado',
   781: 'Local',
+  782: 'Unidad desconocida',
+  783: 'Debe ser una dirección de correo electrónico válida',
 } satisfies i18n

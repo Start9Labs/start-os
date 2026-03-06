@@ -644,7 +644,6 @@ export const ENGLISH: Record<string, number> = {
   'Preserve': 706,
   'Overwrite': 707,
   'Unlock': 708,
-  'Drive': 709, // the noun, a storage device
   'Transfer': 710, // the verb
   'The list is empty': 711,
   'Restart now': 712,
@@ -709,4 +708,6 @@ export const ENGLISH: Record<string, number> = {
   'Public': 779, // as in, publicly accessible
   'Private': 780, // as in, privately accessible
   'Local': 781, // as in, locally accessible
+  'Unknown Drive': 782,
+  'Must be a valid email address': 783,
 }

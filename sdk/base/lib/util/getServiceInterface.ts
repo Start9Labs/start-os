@@ -324,6 +324,14 @@ function enabledAddresses(addr: DerivedAddressInfo): HostnameInfo[] {
   })
 }
 
+/**
+ * Filters out localhost and IPv6 link-local hostnames from a list.
+ * Equivalent to the `nonLocal` filter on `Filled` addresses.
+ */
+export function filterNonLocal(hostnames: HostnameInfo[]): HostnameInfo[] {
+  return filterRec(hostnames, nonLocalFilter, false)
+}
+
 export const filledAddress = (
   host: Host,
   addressInfo: AddressInfo,

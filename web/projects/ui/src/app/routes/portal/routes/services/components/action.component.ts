@@ -28,7 +28,7 @@ interface ActionItem {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiTitle],
   host: {
-    '[disabled]': '!!disabled() || inactive()',
+    '[attr.disabled]': '(!!disabled() || inactive()) || null',
   },
 })
 export class ServiceActionComponent {

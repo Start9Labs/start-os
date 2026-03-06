@@ -191,7 +191,118 @@ export class MockApiService extends ApiService {
   }
 }
 
+const GiB = 2 ** 30
+
 const MOCK_DISKS: DiskInfo[] = [
+  // 0 capacity - should be hidden entirely
+  {
+    logicalname: '/dev/sdd',
+    vendor: 'Generic',
+    model: 'Card Reader',
+    partitions: [],
+    capacity: 0,
+    guid: null,
+  },
+  // 10 GiB - too small for OS and data; also tests both vendor+model null
+  {
+    logicalname: '/dev/sde',
+    vendor: null,
+    model: null,
+    partitions: [
+      {
+        logicalname: '/dev/sde1',
+        label: null,
+        capacity: 10 * GiB,
+        used: null,
+        startOs: {},
+        guid: null,
+      },
+    ],
+    capacity: 10 * GiB,
+    guid: null,
+  },
+  // 18 GiB - exact OS boundary; tests vendor null with model present
+  {
+    logicalname: '/dev/sdf',
+    vendor: null,
+    model: 'SATA Flash Drive',
+    partitions: [
+      {
+        logicalname: '/dev/sdf1',
+        label: null,
+        capacity: 18 * GiB,
+        used: null,
+        startOs: {},
+        guid: null,
+      },
+    ],
+    capacity: 18 * GiB,
+    guid: null,
+  },
+  // 20 GiB - exact data boundary; tests vendor present with model null
+  {
+    logicalname: '/dev/sdg',
+    vendor: 'PNY',
+    model: null,
+    partitions: [
+      {
+        logicalname: '/dev/sdg1',
+        label: null,
+        capacity: 20 * GiB,
+        used: null,
+        startOs: {},
+        guid: null,
+      },
+    ],
+    capacity: 20 * GiB,
+    guid: null,
+  },
+  // 30 GiB - OK for OS or data alone, too small for both (< 38 GiB)
+  {
+    logicalname: '/dev/sdh',
+    vendor: 'SanDisk',
+    model: 'Ultra',
+    partitions: [
+      {
+        logicalname: '/dev/sdh1',
+        label: null,
+        capacity: 30 * GiB,
+        used: null,
+        startOs: {},
+        guid: null,
+      },
+    ],
+    capacity: 30 * GiB,
+    guid: null,
+  },
+  // 30 GiB with existing StartOS data - tests preserve/overwrite + capacity constraint
+  {
+    logicalname: '/dev/sdi',
+    vendor: 'Kingston',
+    model: 'A400',
+    partitions: [
+      {
+        logicalname: '/dev/sdi1',
+        label: null,
+        capacity: 30 * GiB,
+        used: null,
+        startOs: {
+          'small-server-id': {
+            hostname: 'small-server',
+            version: '0.3.6',
+            timestamp: new Date().toISOString(),
+            passwordHash:
+              '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+            wrappedKey: null,
+          },
+        },
+        guid: 'small-existing-guid',
+      },
+    ],
+    capacity: 30 * GiB,
+    guid: 'small-existing-guid',
+  },
+  // 500 GB - large, always OK
   {
     logicalname: '/dev/sda',
     vendor: 'Samsung',
@@ -209,6 +320,7 @@ const MOCK_DISKS: DiskInfo[] = [
     capacity: 500000000000,
     guid: null,
   },
+  // 1 TB with existing StartOS data
   {
     logicalname: '/dev/sdb',
     vendor: 'Crucial',
@@ -235,6 +347,7 @@ const MOCK_DISKS: DiskInfo[] = [
     capacity: 1000000000000,
     guid: 'existing-guid',
   },
+  // 2 TB
   {
     logicalname: '/dev/sdc',
     vendor: 'WD',

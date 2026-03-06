@@ -644,7 +644,6 @@ export default {
   706: 'Beibehalten',
   707: 'Überschreiben',
   708: 'Entsperren',
-  709: 'Laufwerk',
   710: 'Übertragen',
   711: 'Die Liste ist leer',
   712: 'Jetzt neu starten',
@@ -709,4 +708,6 @@ export default {
   779: 'Öffentlich',
   780: 'Privat',
   781: 'Lokal',
+  782: 'Unbekanntes Laufwerk',
+  783: 'Muss eine gültige E-Mail-Adresse sein',
 } satisfies i18n

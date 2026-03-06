@@ -1,11 +1,6 @@
 import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
-import { FormsModule, ReactiveFormsModule } from '@angular/forms'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { FormControl, ReactiveFormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import {
   DialogService,
@@ -15,28 +10,17 @@ import {
   i18nPipe,
   LoadingService,
 } from '@start9labs/shared'
-import { inputSpec } from '@start9labs/start-sdk'
-import { TuiButton, TuiTextfield, TuiTitle } from '@taiga-ui/core'
+import { inputSpec, utils } from '@start9labs/start-sdk'
+import { TuiButton, TuiError, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
-import { Subscription, switchMap, tap } from 'rxjs'
+import { switchMap } from 'rxjs'
 import { FormGroupComponent } from 'src/app/routes/portal/components/form/containers/group.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormService } from 'src/app/services/form.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
-
-const PROVIDER_HINTS: Record<string, string> = {
-  gmail:
-    'Requires an App Password. Enable 2FA in your Google account, then generate an App Password.',
-  ses: 'Use SMTP credentials (not IAM credentials). Update the host to match your SES region.',
-  sendgrid:
-    "Username is 'apikey' (literal). Password is your SendGrid API key.",
-  mailgun: 'Use SMTP credentials from your Mailgun domain settings.',
-  protonmail:
-    'Requires a Proton for Business account. Use your Proton email as username.',
-}
 
 function detectProviderKey(host: string | undefined): string {
   if (!host) return 'other'
@@ -61,8 +45,8 @@ function detectProviderKey(host: string | undefined): string {
       </a>
       {{ 'SMTP' | i18n }}
     </ng-container>
-    @if (form$ | async; as form) {
-      <form [formGroup]="form">
+    @if (form$ | async; as data) {
+      <form [formGroup]="data.form">
         <header tuiHeader="body-l">
           <h3 tuiTitle>
             <b>
@@ -80,59 +64,54 @@ function detectProviderKey(host: string | undefined): string {
             </b>
           </h3>
         </header>
-        @if (spec | async; as resolved) {
-          <form-group [spec]="resolved" />
-        }
-        @if (providerHint()) {
-          <p class="provider-hint">{{ providerHint() }}</p>
-        }
+        <form-group [spec]="data.spec" />
         <footer>
-          @if (isSaved) {
-            <button
-              tuiButton
-              size="l"
-              appearance="secondary-destructive"
-              (click)="save(null)"
-            >
-              {{ 'Delete' | i18n }}
-            </button>
-          }
           <button
             tuiButton
             size="l"
-            [disabled]="form.invalid || form.pristine"
-            (click)="save(form.value)"
+            [disabled]="data.form.invalid || data.form.pristine"
+            (click)="save(data.form.value)"
           >
             {{ 'Save' | i18n }}
           </button>
         </footer>
       </form>
-      <form>
-        <header tuiHeader="body-l">
-          <h3 tuiTitle>
-            <b>{{ 'Send test email' | i18n }}</b>
-          </h3>
-        </header>
-        <tui-textfield>
-          <label tuiLabel>Name Lastname &lt;email&#64;example.com&gt;</label>
-          <input
-            tuiTextfield
-            inputmode="email"
-            [(ngModel)]="testAddress"
-            [ngModelOptions]="{ standalone: true }"
+      @if (data.form.value.provider?.selection !== 'none') {
+        <form>
+          <header tuiHeader="body-l">
+            <h3 tuiTitle>
+              <b>{{ 'Send test email' | i18n }}</b>
+            </h3>
+          </header>
+          <tui-textfield>
+            <label tuiLabel>email&#64;example.com</label>
+            <input
+              tuiTextfield
+              inputmode="email"
+              [formControl]="testEmailControl"
+            />
+          </tui-textfield>
+          <tui-error
+            [error]="
+              !testEmailControl.pristine && isEmailInvalid
+                ? ('Must be a valid email address' | i18n)
+                : null
+            "
           />
-        </tui-textfield>
-        <footer>
-          <button
-            tuiButton
-            size="l"
-            [disabled]="!testAddress || form.invalid"
-            (click)="sendTestEmail(form.value)"
-          >
-            {{ 'Send' | i18n }}
-          </button>
-        </footer>
-      </form>
+          <footer>
+            <button
+              tuiButton
+              size="l"
+              [disabled]="
+                !testEmailControl.value || isEmailInvalid || data.form.invalid
+              "
+              (click)="sendTestEmail(data.form.value)"
+            >
+              {{ 'Send' | i18n }}
+            </button>
+          </footer>
+        </form>
+      }
     }
   `,
   styles: `
@@ -150,20 +129,14 @@ function detectProviderKey(host: string | undefined): string {
     footer {
       justify-content: flex-end;
     }
-
-    .provider-hint {
-      margin: 0.5rem 0 0;
-      font-size: 0.85rem;
-      opacity: 0.7;
-    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    FormsModule,
     ReactiveFormsModule,
     FormGroupComponent,
     TuiButton,
+    TuiError,
     TuiTextfield,
     TuiHeader,
     TuiTitle,
@@ -182,49 +155,58 @@ export default class SystemEmailComponent {
   private readonly api = inject(ApiService)
   private readonly i18n = inject(i18nPipe)
 
-  readonly providerHint = signal('')
-  private providerSub: Subscription | null = null
+  private readonly emailRegex = new RegExp(utils.Patterns.email.regex)
+  readonly testEmailControl = new FormControl('')
 
-  testAddress = ''
-  isSaved = false
-
-  readonly spec = configBuilderToSpec(inputSpec.constants.systemSmtpSpec)
+  get isEmailInvalid(): boolean {
+    const value = this.testEmailControl.value
+    return !!value && !this.emailRegex.test(value)
+  }
 
   readonly form$ = this.patch.watch$('serverInfo', 'smtp').pipe(
-    tap(value => {
-      this.isSaved = !!value
-    }),
     switchMap(async value => {
-      const spec = await this.spec
+      const spec = await configBuilderToSpec(inputSpec.constants.systemSmtpSpec)
+
       const formData = value
-        ? { provider: { selection: detectProviderKey(value.host), value } }
+        ? {
+            provider: {
+              selection: detectProviderKey(value.host),
+              value: {
+                host: value.host,
+                security: {
+                  selection: value.security,
+                  value: { port: String(value.port) },
+                },
+                from: value.from,
+                username: value.username,
+                password: value.password,
+              },
+            },
+          }
         : undefined
       const form = this.formService.createForm(spec, formData)
 
-      // Watch provider selection for hints
-      this.providerSub?.unsubscribe()
-      const selectionCtrl = form.get('provider.selection')
-      if (selectionCtrl) {
-        this.providerHint.set(PROVIDER_HINTS[selectionCtrl.value] || '')
-        this.providerSub = selectionCtrl.valueChanges.subscribe(key => {
-          this.providerHint.set(PROVIDER_HINTS[key] || '')
-        })
-      }
-
-      return form
+      return { form, spec }
     }),
   )
 
-  async save(formValue: Record<string, any> | null): Promise<void> {
+  private getSmtpValue(formValue: Record<string, any>) {
+    const { security, ...rest } = formValue['provider'].value
+    return {
+      ...rest,
+      security: security.selection,
+      port: Number(security.value.port),
+    }
+  }
+
+  async save(formValue: Record<string, any>): Promise<void> {
     const loader = this.loader.open('Saving').subscribe()
 
     try {
-      if (formValue) {
-        await this.api.setSmtp(formValue['provider'].value)
-        this.isSaved = true
-      } else {
+      if (formValue['provider'].selection === 'none') {
         await this.api.clearSmtp({})
-        this.isSaved = false
+      } else {
+        await this.api.setSmtp(this.getSmtpValue(formValue))
       }
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -234,21 +216,22 @@ export default class SystemEmailComponent {
   }
 
   async sendTestEmail(formValue: Record<string, any>) {
-    const smtpValue = formValue['provider'].value
+    const smtpValue = this.getSmtpValue(formValue)
+    const address = this.testEmailControl.value!
     const loader = this.loader.open('Sending email').subscribe()
     const success =
-      `${this.i18n.transform('A test email has been sent to')} ${this.testAddress}. <i>${this.i18n.transform('Check your spam folder and mark as not spam.')}</i>` as i18nKey
+      `${this.i18n.transform('A test email has been sent to')} ${address}. <i>${this.i18n.transform('Check your spam folder and mark as not spam.')}</i>` as i18nKey
 
     try {
       await this.api.testSmtp({
         ...smtpValue,
         password: smtpValue.password || '',
-        to: this.testAddress,
+        to: address,
       })
       this.dialog
         .openAlert(success, { label: 'Success', size: 's' })
         .subscribe()
-      this.testAddress = ''
+      this.testEmailControl.reset()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

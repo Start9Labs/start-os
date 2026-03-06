@@ -644,7 +644,6 @@ export default {
   706: 'Zachowaj',
   707: 'Nadpisz',
   708: 'Odblokuj',
-  709: 'Dysk',
   710: 'Przenieś',
   711: 'Lista jest pusta',
   712: 'Uruchom ponownie teraz',
@@ -709,4 +708,6 @@ export default {
   779: 'Publiczny',
   780: 'Prywatny',
   781: 'Lokalny',
+  782: 'Nieznany dysk',
+  783: 'Musi być prawidłowy adres e-mail',
 } satisfies i18n

@@ -1,25 +1,25 @@
 export * as inputSpecTypes from './actions/input/inputSpecTypes'
+export {
+  CurrentDependenciesResult,
+  OptionalDependenciesOf as OptionalDependencies,
+  RequiredDependenciesOf as RequiredDependencies,
+} from './dependencies/setupDependencies'
+export * from './osBindings'
+export { SDKManifest } from './types/ManifestTypes'
+export { Effects }
 import { InputSpec as InputSpecClass } from './actions/input/builder/inputSpec'
 
-import {
-  DependencyRequirement,
-  NamedHealthCheckResult,
-  Manifest,
-  ServiceInterface,
-  ActionId,
-} from './osBindings'
-import { Affine, StringObject, ToKebab } from './util'
 import { Action, Actions } from './actions/setupActions'
 import { Effects } from './Effects'
 import { ExtendedVersion, VersionRange } from './exver'
-export { Effects }
-export * from './osBindings'
-export { SDKManifest } from './types/ManifestTypes'
-export {
-  RequiredDependenciesOf as RequiredDependencies,
-  OptionalDependenciesOf as OptionalDependencies,
-  CurrentDependenciesResult,
-} from './dependencies/setupDependencies'
+import {
+  ActionId,
+  DependencyRequirement,
+  Manifest,
+  NamedHealthCheckResult,
+  ServiceInterface,
+} from './osBindings'
+import { StringObject, ToKebab } from './util'
 
 /** An object that can be built into a terminable daemon process. */
 export type DaemonBuildable = {

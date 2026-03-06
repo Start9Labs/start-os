@@ -1,8 +1,31 @@
-import { SmtpValue } from '../../types'
 import { GetSystemSmtp, Patterns } from '../../util'
-import { InputSpec, InputSpecOf } from './builder/inputSpec'
+import { InputSpec } from './builder/inputSpec'
 import { Value } from './builder/value'
 import { Variants } from './builder/variants'
+
+const securityVariants = Variants.of({
+  tls: {
+    name: 'TLS',
+    spec: InputSpec.of({
+      port: Value.dynamicText(async () => ({
+        name: 'Port',
+        required: true,
+        default: '465',
+        disabled: 'Fixed for TLS',
+      })),
+    }),
+  },
+  starttls: {
+    name: 'STARTTLS',
+    spec: InputSpec.of({
+      port: Value.select({
+        name: 'Port',
+        default: '587',
+        values: { '25': '25', '587': '587', '2525': '2525' },
+      }),
+    }),
+  },
+})
 
 /**
  * Creates an SMTP field spec with provider-specific defaults pre-filled.
@@ -10,32 +33,25 @@ import { Variants } from './builder/variants'
 function smtpFields(
   defaults: {
     host?: string
-    port?: number
     security?: 'starttls' | 'tls'
+    hostDisabled?: boolean
   } = {},
-): InputSpec<SmtpValue> {
-  return InputSpec.of<InputSpecOf<SmtpValue>>({
-    host: Value.text({
-      name: 'Host',
-      required: true,
-      default: defaults.host ?? null,
-      placeholder: 'smtp.example.com',
-    }),
-    port: Value.number({
-      name: 'Port',
-      required: true,
-      default: defaults.port ?? 587,
-      min: 1,
-      max: 65535,
-      integer: true,
-    }),
-    security: Value.select({
+) {
+  const hostSpec = Value.text({
+    name: 'Host',
+    required: true,
+    default: defaults.host ?? null,
+    placeholder: 'smtp.example.com',
+  })
+
+  return InputSpec.of({
+    host: defaults.hostDisabled
+      ? hostSpec.withDisabled('Fixed for this provider')
+      : hostSpec,
+    security: Value.union({
       name: 'Connection Security',
-      default: defaults.security ?? 'starttls',
-      values: {
-        starttls: 'STARTTLS',
-        tls: 'TLS',
-      },
+      default: defaults.security ?? 'tls',
+      variants: securityVariants,
     }),
     from: Value.text({
       name: 'From Address',
@@ -68,44 +84,47 @@ export const customSmtp = smtpFields()
  * Each variant has SMTP fields pre-filled with the provider's recommended settings.
  */
 export const smtpProviderVariants = Variants.of({
+  none: {
+    name: 'None',
+    spec: InputSpec.of({}),
+  },
   gmail: {
     name: 'Gmail',
     spec: smtpFields({
       host: 'smtp.gmail.com',
-      port: 587,
-      security: 'starttls',
+      security: 'tls',
+      hostDisabled: true,
     }),
   },
   ses: {
     name: 'Amazon SES',
     spec: smtpFields({
       host: 'email-smtp.us-east-1.amazonaws.com',
-      port: 587,
-      security: 'starttls',
+      security: 'tls',
     }),
   },
   sendgrid: {
     name: 'SendGrid',
     spec: smtpFields({
       host: 'smtp.sendgrid.net',
-      port: 587,
-      security: 'starttls',
+      security: 'tls',
+      hostDisabled: true,
     }),
   },
   mailgun: {
     name: 'Mailgun',
     spec: smtpFields({
       host: 'smtp.mailgun.org',
-      port: 587,
-      security: 'starttls',
+      security: 'tls',
+      hostDisabled: true,
     }),
   },
   protonmail: {
     name: 'Proton Mail',
     spec: smtpFields({
       host: 'smtp.protonmail.ch',
-      port: 587,
-      security: 'starttls',
+      security: 'tls',
+      hostDisabled: true,
     }),
   },
   other: {
@@ -121,7 +140,7 @@ export const smtpProviderVariants = Variants.of({
 export const systemSmtpSpec = InputSpec.of({
   provider: Value.union({
     name: 'Provider',
-    default: null as any,
+    default: 'none',
     variants: smtpProviderVariants,
   }),
 })

@@ -8,6 +8,7 @@ export {
   GetServiceInterface,
   getServiceInterface,
   filledAddress,
+  filterNonLocal,
 } from './getServiceInterface'
 export { getServiceInterfaces } from './getServiceInterfaces'
 export { once } from './once'

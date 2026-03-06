@@ -644,7 +644,6 @@ export default {
   706: 'Conserver',
   707: 'Écraser',
   708: 'Déverrouiller',
-  709: 'Disque',
   710: 'Transférer',
   711: 'La liste est vide',
   712: 'Redémarrer maintenant',
@@ -709,4 +708,6 @@ export default {
   779: 'Public',
   780: 'Privé',
   781: 'Local',
+  782: 'Lecteur inconnu',
+  783: 'Doit être une adresse e-mail valide',
 } satisfies i18n

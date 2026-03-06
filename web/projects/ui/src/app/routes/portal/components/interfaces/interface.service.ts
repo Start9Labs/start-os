@@ -116,7 +116,12 @@ export class InterfaceService {
       gatewayMap.set(gateway.id, gateway)
     }
 
-    for (const h of addr.available) {
+    const available =
+      this.config.accessType === 'localhost'
+        ? addr.available
+        : utils.filterNonLocal(addr.available)
+
+    for (const h of available) {
       const gatewayIds = getGatewayIds(h)
       for (const gid of gatewayIds) {
         const list = groupMap.get(gid)
