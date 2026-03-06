@@ -551,8 +551,8 @@ pub fn set<C: CtrlContext>(
             }
             _ => false,
         };
-        if block_changed {
-            let profile_interfaces: std::collections::HashSet<String> =
+        let restart_ifaces: Vec<String> = if block_changed {
+            let pi: std::collections::HashSet<String> =
                 list_config(ctx.clone(), &cfgs)?
                     .into_iter()
                     .filter(|p| p.interface != crate::lan::LAN_INTERFACE)
@@ -561,9 +561,14 @@ pub fn set<C: CtrlContext>(
             crate::lan::update_profile_ips_for_block_change(
                 &mut cfgs,
                 profile.gateway_ip,
-                &profile_interfaces,
+                &pi,
             )?;
-        }
+            let mut v = vec![crate::lan::LAN_INTERFACE.to_string()];
+            v.extend(pi);
+            v
+        } else {
+            vec![crate::lan::LAN_INTERFACE.to_string()]
+        };
 
         match dump_all(ctx.uci_root(), cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
@@ -574,7 +579,7 @@ pub fn set<C: CtrlContext>(
             Ok(()) => {
                 if ctx.effectful() {
                     if admin_ip_changed {
-                        crate::lan::restart_network_services(block_changed);
+                        crate::lan::restart_network_services(profile.gateway_ip, restart_ifaces);
                     } else {
                         reload_system()?;
                     }

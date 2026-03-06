@@ -123,15 +123,17 @@ pub fn ipv4_set<C: CtrlContext>(
         };
 
         // If the network block changed, update all profile interfaces and routing rules
-        if block_changed {
-            let profile_interfaces: HashSet<String> = profiles::list_config(ctx.clone(), &cfgs)?
+        let profile_interfaces: HashSet<String> = if block_changed {
+            let pi: HashSet<String> = profiles::list_config(ctx.clone(), &cfgs)?
                 .into_iter()
                 .filter(|p| p.interface != LAN_INTERFACE)
                 .map(|p| p.interface)
                 .collect();
-
-            update_profile_ips_for_block_change(&mut cfgs, address, &profile_interfaces)?;
-        }
+            update_profile_ips_for_block_change(&mut cfgs, address, &pi)?;
+            pi
+        } else {
+            HashSet::new()
+        };
 
         match dump_all(ctx.uci_root(), cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
@@ -141,7 +143,9 @@ pub fn ipv4_set<C: CtrlContext>(
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 if ctx.effectful() {
-                    restart_network_services(block_changed);
+                    let mut ifaces = vec![LAN_INTERFACE.to_string()];
+                    ifaces.extend(profile_interfaces);
+                    restart_network_services(address, ifaces);
                 }
                 return Ok(());
             }
@@ -374,32 +378,60 @@ pub fn update_profile_ips_for_block_change(
     Ok(())
 }
 
-/// Synchronous restart of network services after an IP change.
-/// Clears DHCP leases, restarts network, optionally restarts WiFi
-/// (when the network block changed), then restarts dnsmasq.
-pub fn restart_network_services(block_changed: bool) {
+/// Reload network services after an IP change.
+/// Cycles only the specified interfaces via ifdown/ifup (instead of
+/// `network reload` which restarts ALL interfaces including WAN, causing
+/// its DHCP client to lose its lease and breaking internet).
+/// Then reloads firewall and restarts dnsmasq once br-lan has the new IP.
+/// Runs in a background thread so the HTTP response can be sent before
+/// the network disruption.
+pub fn restart_network_services(new_lan_ip: Ipv4Addr, interfaces: Vec<String>) {
     // Clear DHCP leases — old leases reference the previous
     // subnet and would cause clients to receive stale IPs.
     let _ = std::fs::remove_file("/tmp/dhcp.leases");
-    let _ = Command::new("/etc/init.d/network")
-        .arg("restart")
-        .spawn()
-        .and_then(|mut c| c.wait());
-    if block_changed {
-        // Restart WiFi so hostapd re-reads vlan_file and
-        // re-establishes dynamic VLAN assignments after
-        // network interfaces were torn down and recreated.
+    std::thread::spawn(move || {
+        // Cycle only the changed interfaces — `network reload` restarts ALL
+        // interfaces including WAN, causing its DHCP client to lose its lease.
+        for iface in &interfaces {
+            let _ = Command::new("ifdown").arg(iface).spawn().and_then(|mut c| c.wait());
+        }
+        for iface in &interfaces {
+            let _ = Command::new("ifup").arg(iface).spawn().and_then(|mut c| c.wait());
+        }
+        // Safety: wait for br-lan to have the new IP before reloading
+        // dependent services. ifup should be synchronous for static
+        // interfaces, but poll as a safety net.
+        let expected = new_lan_ip.to_string();
+        for _ in 0..30 {
+            if let Ok(out) = Command::new("ip")
+                .args(["-4", "-o", "addr", "show", "br-lan"])
+                .output()
+            {
+                if String::from_utf8_lossy(&out.stdout).contains(&expected) {
+                    break;
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+        // Regenerate nftables rules so masquerade/NAT covers the new subnets.
+        let _ = Command::new("/etc/init.d/firewall")
+            .arg("reload")
+            .spawn()
+            .and_then(|mut c| c.wait());
+        // Full restart (not reload) so dnsmasq rebinds to new interface IPs.
+        // A reload (SIGHUP) re-reads config but doesn't rebind listeners.
+        let _ = Command::new("/etc/init.d/dnsmasq")
+            .arg("restart")
+            .spawn()
+            .and_then(|mut c| c.wait());
+        // Bounce WiFi so all clients disassociate and reassociate,
+        // triggering fresh DHCP on the new subnet. Without this,
+        // clients that stay connected keep stale leases from the
+        // old network block.
         let _ = Command::new("wifi")
             .spawn()
             .and_then(|mut c| c.wait());
-    }
-    // Restart dnsmasq AFTER network and wifi so it
-    // binds to interfaces with their new IPs and
-    // generates correct DHCP pools for each subnet.
-    let _ = Command::new("/etc/init.d/dnsmasq")
-        .arg("restart")
-        .spawn()
-        .and_then(|mut c| c.wait());
+    });
 }
 
 #[cfg(test)]
