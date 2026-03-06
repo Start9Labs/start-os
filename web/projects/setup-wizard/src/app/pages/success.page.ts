@@ -286,7 +286,7 @@ export default class SuccessPage implements AfterViewInit {
 
     while (attempts < maxAttempts) {
       try {
-        await this.api.echo({ message: 'ping' }, this.lanAddress)
+        await this.api.echo({ message: 'ping' }, `${this.lanAddress}/rpc/v1`)
         return
       } catch {
         await new Promise(resolve => setTimeout(resolve, 5000))
