@@ -418,19 +418,79 @@ fn reload_firewall_and_dnsmasq() {
 
 // --- Handlers ---
 
+/// Collect IPv4 addresses from STALE neighbor entries whose MACs are not
+/// active WiFi clients. Returns Vec<(ip, mac)> for ping probes.
+fn stale_non_wifi_ips(
+    arp_entries: &[ArpEntry],
+    wifi_clients: &HashMap<String, String>,
+) -> Vec<(String, String)> {
+    // Collect MACs that have any REACHABLE entry — no need to probe those.
+    let reachable_macs: std::collections::HashSet<&str> = arp_entries
+        .iter()
+        .filter(|e| e.state == "REACHABLE")
+        .map(|e| e.mac.as_str())
+        .collect();
+
+    let mut targets = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for entry in arp_entries {
+        if entry.state != "STALE" {
+            continue;
+        }
+        // Skip WiFi clients (hostapd is authoritative for them).
+        if wifi_clients.contains_key(&entry.mac) {
+            continue;
+        }
+        // Skip MACs that already have a REACHABLE entry.
+        if reachable_macs.contains(entry.mac.as_str()) {
+            continue;
+        }
+        // Only probe IPv4 (ping6 would work but adds complexity).
+        if entry.ip.contains(':') {
+            continue;
+        }
+        // One probe per IP is enough.
+        if seen.insert(entry.ip.clone()) {
+            targets.push((entry.ip.clone(), entry.mac.clone()));
+        }
+    }
+    targets
+}
+
+/// Ping STALE IPs concurrently and return the set of MACs that did NOT reply.
+/// A MAC is only considered unreachable if ALL of its probed IPs failed.
+fn ping_unreachable_macs(targets: Vec<(String, String)>) -> std::collections::HashSet<String> {
+    let mut results: Vec<(String, std::process::Child)> = Vec::new();
+    for (ip, mac) in &targets {
+        if let Ok(child) = Command::new("ping")
+            .args(["-c", "1", "-W", "1", ip])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+        {
+            results.push((mac.clone(), child));
+        }
+    }
+    // Track which MACs were probed and which responded to at least one ping.
+    let mut probed = std::collections::HashSet::new();
+    let mut responded = std::collections::HashSet::new();
+    for (mac, mut child) in results {
+        probed.insert(mac.clone());
+        let ok = child.wait().map(|s| s.success()).unwrap_or(false);
+        if ok {
+            responded.insert(mac);
+        }
+    }
+    probed.difference(&responded).cloned().collect()
+}
+
 pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
-    // Ping IPv6 all-nodes multicast to populate the NDP neighbor table.
-    // SLAAC is stateless — the router never learns which addresses clients
-    // configured. This solicits a reply from every IPv6-capable device on
-    // the LAN so `ip neigh show` will include their IPv6 entries.
+    // --- Phase 1: IPv6 multicast discovery (all pings concurrent, ~1s) ---
     //
-    // Two phases:
-    // 1. Ping ff02::1 from each br-lan* interface (populates link-local NDP)
-    // 2. Ping ff02::1 from each interface's ULA/global address — RFC 6724
-    //    source selection makes clients respond from their ULA address,
-    //    which populates the ULA NDP entries we actually want to display.
+    // Ping ff02::1 to populate the NDP neighbor table. SLAAC is stateless —
+    // the router never learns which addresses clients configured. All pings
+    // fire concurrently so wall-clock time is 1s regardless of interface count.
     let _ = tokio::task::spawn_blocking(|| {
-        // Phase 1: link-local discovery on LAN interfaces.
         // When bridge VLAN filtering is active, br-lan.X interfaces exist for
         // each profile VLAN — use those exclusively. Multicast on the bridge
         // master (br-lan) leaks out ALL member ports including WAN, which
@@ -448,15 +508,23 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         if ifaces.is_empty() {
             ifaces.push("br-lan".to_string());
         }
+
+        let mut children = Vec::new();
+
+        // Link-local discovery on each LAN VLAN interface.
         for iface in &ifaces {
-            let _ = Command::new("ping6")
+            if let Ok(child) = Command::new("ping6")
                 .args(["-c", "1", "-W", "1", "-I", iface, "ff02::1"])
-                .output();
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+            {
+                children.push(child);
+            }
         }
 
-        // Phase 2: ULA/global discovery — ping from each interface's global
-        // IPv6 address so clients respond from their ULA addresses.
-        // Only ping on the same set of interfaces selected in Phase 1.
+        // ULA/global discovery — ping from each interface's global IPv6
+        // address so clients respond from their ULA addresses (RFC 6724).
         if let Ok(content) = std::fs::read_to_string("/proc/net/if_inet6") {
             for line in content.lines() {
                 let parts: Vec<&str> = line.split_whitespace().collect();
@@ -465,19 +533,76 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                 if parts.len() >= 6 && parts[3] == "00" && ifaces.iter().any(|i| i == parts[5]) {
                     if let Some(addr) = parse_proc_ipv6_addr(parts[0]) {
                         let dest = format!("ff02::1%{}", parts[5]);
-                        let _ = Command::new("ping6")
+                        if let Ok(child) = Command::new("ping6")
                             .args(["-c", "1", "-W", "1", "-I", &addr, &dest])
-                            .output();
+                            .stdout(std::process::Stdio::null())
+                            .stderr(std::process::Stdio::null())
+                            .spawn()
+                        {
+                            children.push(child);
+                        }
                     }
                 }
             }
         }
+
+        for mut child in children {
+            let _ = child.wait();
+        }
     })
     .await;
 
-    // Gather data from multiple sources
-    let (arp_output, leases_output, nlbw_output, conntrack_output, wifi_clients) = tokio::join!(
+    // --- Phase 2a: Initial data gather (parallel) ---
+    //
+    // We need ARP + WiFi clients first to identify which STALE entries need
+    // probing. UCI parsing has no dependency on any of these, so it runs in
+    // parallel too.
+    let (arp_output, wifi_clients, uci_result) = tokio::join!(
         tokio::task::spawn_blocking(|| run_cmd("ip", &["neigh", "show"])),
+        tokio::task::spawn_blocking(get_wifi_clients),
+        tokio::task::spawn_blocking(|| -> Result<_, Error> {
+            let arena = Arena::new();
+            let cfgs = parse_all("/etc/config", &arena, &["dhcp", "firewall", "startwrt", "network"])?;
+
+            let mut hosts_by_mac: HashMap<String, DhcpHost> = HashMap::new();
+            cfgs["dhcp"].each::<DhcpHost, Error>(|_, host| {
+                hosts_by_mac.insert(host.mac.to_uppercase(), host);
+            })?;
+
+            let mut blocked_macs: HashMap<String, bool> = HashMap::new();
+            cfgs["firewall"].each::<FirewallRule, Error>(|_, rule| {
+                if matches!(rule.target, FirewallTarget::REJECT | FirewallTarget::DROP) {
+                    if let Some(mac) = rule.src_mac {
+                        blocked_macs.insert(mac.to_uppercase(), true);
+                    }
+                }
+            })?;
+
+            let lookup = Lookup::parse(ServerContext, &cfgs)?;
+            let profiles: HashMap<u16, String> = lookup
+                .list()
+                .iter()
+                .map(|p| (p.vlan_tag, p.fullname.clone()))
+                .collect();
+
+            Ok::<_, Error>((hosts_by_mac, blocked_macs, profiles))
+        }),
+    );
+
+    let arp_output = arp_output.unwrap_or_default();
+    let wifi_clients = wifi_clients.unwrap_or_default();
+    let initial_arp = parse_arp_output(&arp_output);
+
+    // --- Phase 2b: Probe STALE entries + remaining data (parallel) ---
+    //
+    // For any device that is STALE and not an active WiFi client, ping it to
+    // check if it's actually present. Ping exit code tells us definitively
+    // whether the device replied (rather than relying on kernel NUD timing
+    // which takes ~8s to transition STALE → FAILED). This runs concurrently
+    // with nlbw, conntrack, and lease reads so it adds zero net latency.
+    let probe_targets = stale_non_wifi_ips(&initial_arp, &wifi_clients);
+    let (unreachable_macs, leases_output, nlbw_output, conntrack_output) = tokio::join!(
+        tokio::task::spawn_blocking(move || ping_unreachable_macs(probe_targets)),
         tokio::task::spawn_blocking(|| {
             std::fs::read_to_string("/tmp/dhcp.leases").unwrap_or_default()
         }),
@@ -485,17 +610,16 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         tokio::task::spawn_blocking(|| {
             std::fs::read_to_string("/proc/net/nf_conntrack").unwrap_or_default()
         }),
-        tokio::task::spawn_blocking(get_wifi_clients),
     );
 
-    let arp_output = arp_output.unwrap_or_default();
+    let unreachable_macs = unreachable_macs.unwrap_or_default();
     let leases_output = leases_output.unwrap_or_default();
     let nlbw_output = nlbw_output.unwrap_or_default();
     let conntrack_output = conntrack_output.unwrap_or_default();
-    let wifi_clients = wifi_clients.unwrap_or_default();
 
-    // Parse ARP and leases
-    let arp_entries = parse_arp_output(&arp_output);
+    // Use the initial ARP snapshot — no need to re-read since we use ping
+    // exit codes (not kernel NUD state) to determine reachability.
+    let arp_entries = initial_arp;
     let dhcp_leases = parse_dhcp_leases(&leases_output);
 
     // Parse nlbw data for cumulative data usage totals
@@ -557,33 +681,13 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         *cache = Some(new_cache);
     }
 
-    // Read UCI configs for DHCP hosts, firewall rules, and profile lookup
-    let arena = Arena::new();
-    let cfgs = parse_all(
-        "/etc/config",
-        &arena,
-        &["dhcp", "firewall", "startwrt", "network"],
-    )?;
-    let ctx = ServerContext;
-
-    // DHCP hosts
-    let mut hosts_by_mac: HashMap<String, DhcpHost> = HashMap::new();
-    cfgs["dhcp"].each::<DhcpHost, Error>(|_, host| {
-        hosts_by_mac.insert(host.mac.to_uppercase(), host);
+    // Unpack UCI results
+    let (hosts_by_mac, blocked_macs, profile_by_vlan) = uci_result.unwrap_or_else(|_| {
+        Err(Error::from(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "UCI parse failed in background task",
+        )))
     })?;
-
-    // Blocked MACs from firewall rules
-    let mut blocked_macs: HashMap<String, bool> = HashMap::new();
-    cfgs["firewall"].each::<FirewallRule, Error>(|_, rule| {
-        if matches!(rule.target, FirewallTarget::REJECT | FirewallTarget::DROP) {
-            if let Some(mac) = rule.src_mac {
-                blocked_macs.insert(mac.to_uppercase(), true);
-            }
-        }
-    })?;
-
-    // Profile lookup (VLAN tag → fullname)
-    let lookup = Lookup::parse(ctx.clone(), &cfgs)?;
 
     // Build ARP index
     let mut arp_by_mac: HashMap<String, Vec<&ArpEntry>> = HashMap::new();
@@ -615,7 +719,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         all_macs.insert(mac.clone());
     }
 
-    // Build device list
+    // --- Phase 4: Build device list ---
     let mut devices = Vec::new();
     for mac in &all_macs {
         let arp_list = arp_by_mac.get(mac).cloned().unwrap_or_default();
@@ -623,9 +727,13 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         let host = hosts_by_mac.get(mac);
         let is_blocked = blocked_macs.contains_key(mac);
 
-        // Status
+        // Status: STALE entries for devices that failed the ping probe are
+        // treated as offline. WiFi clients skip probing (hostapd is
+        // authoritative) so they remain online via their STALE entries.
         let status = if is_blocked {
             DeviceStatus::Blocked
+        } else if unreachable_macs.contains(mac) {
+            DeviceStatus::Offline
         } else if arp_list
             .iter()
             .any(|e| matches!(e.state.as_str(), "REACHABLE" | "STALE" | "DELAY" | "PROBE"))
@@ -656,7 +764,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                     .and_then(|s| s.parse::<u16>().ok())
             })
             .unwrap_or(1);
-        let security_profile = lookup.from_vlan(vlan_tag).map(|p| p.fullname.clone());
+        let security_profile = profile_by_vlan.get(&vlan_tag).cloned();
 
         // Name
         let name = host
