@@ -141,8 +141,12 @@ export default class LanguagePage {
 
       try {
         await this.api.setLanguage({ language: this.selected.name })
-        // Always go to keyboard selection
-        await this.router.navigate(['/keyboard'])
+
+        if (this.stateService.kiosk) {
+          await this.router.navigate(['/keyboard'])
+        } else {
+          await this.stateService.navigateAfterLocale()
+        }
       } finally {
         this.saving.set(false)
       }

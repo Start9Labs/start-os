@@ -37,7 +37,7 @@ import { InterfaceAddressItemComponent } from './item.component'
   selector: 'section[gatewayGroup]',
   template: `
     <header>
-      {{ gatewayGroup().gatewayName }}
+      {{ 'Gateway' | i18n }}: {{ gatewayGroup().gatewayName }}
       <button
         tuiDropdown
         tuiButton
@@ -57,7 +57,14 @@ import { InterfaceAddressItemComponent } from './item.component'
       </button>
     </header>
     <table
-      [appTable]="['Enabled', 'Type', 'Certificate Authority', 'URL', null]"
+      [appTable]="[
+        null,
+        'Access',
+        'Type',
+        'Certificate Authority',
+        'URL',
+        null,
+      ]"
     >
       @for (address of gatewayGroup().addresses; track $index) {
         <tr
@@ -69,7 +76,7 @@ import { InterfaceAddressItemComponent } from './item.component'
         ></tr>
       } @empty {
         <tr>
-          <td colspan="5">
+          <td colspan="6">
             <app-placeholder icon="@tui.list-x">
               {{ 'No addresses' | i18n }}
             </app-placeholder>
@@ -132,6 +139,7 @@ export class InterfaceAddressesComponent {
             }),
           }),
         ),
+        note: this.getSharedHostNote(),
         buttons: [
           {
             text: this.i18n.transform('Save')!,
@@ -190,6 +198,7 @@ export class InterfaceAddressesComponent {
       size: 's',
       data: {
         spec: await configBuilderToSpec(addSpec),
+        note: this.getSharedHostNote(),
         buttons: [
           {
             text: this.i18n.transform('Save')!,
@@ -207,18 +216,22 @@ export class InterfaceAddressesComponent {
     const loader = this.loader.open('Saving').subscribe()
 
     try {
+      let configured: boolean
       if (this.packageId()) {
-        await this.api.pkgAddPrivateDomain({
+        configured = await this.api.pkgAddPrivateDomain({
           fqdn,
           gateway: gatewayId,
           package: this.packageId(),
           host: iface?.addressInfo.hostId || '',
         })
       } else {
-        await this.api.osUiAddPrivateDomain({ fqdn, gateway: gatewayId })
+        configured = await this.api.osUiAddPrivateDomain({
+          fqdn,
+          gateway: gatewayId,
+        })
       }
 
-      await this.domainHealth.checkPrivateDomain(gatewayId)
+      await this.domainHealth.checkPrivateDomain(gatewayId, configured)
 
       return true
     } catch (e: any) {
@@ -227,6 +240,13 @@ export class InterfaceAddressesComponent {
     } finally {
       loader.unsubscribe()
     }
+  }
+
+  private getSharedHostNote(): string {
+    const names = this.value()?.sharedHostNames
+    if (!names?.length) return ''
+
+    return `${this.i18n.transform('This domain will also apply to')} ${names.join(', ')}`
   }
 
   private async savePublicDomain(
@@ -241,26 +261,22 @@ export class InterfaceAddressesComponent {
       fqdn,
       gateway: gatewayId,
       acme: !authority || authority === 'local' ? null : authority,
+      internalPort: iface?.addressInfo.internalPort || 80,
     }
 
     try {
+      let res
       if (this.packageId()) {
-        await this.api.pkgAddPublicDomain({
+        res = await this.api.pkgAddPublicDomain({
           ...params,
           package: this.packageId(),
           host: iface?.addressInfo.hostId || '',
         })
       } else {
-        await this.api.osUiAddPublicDomain(params)
+        res = await this.api.osUiAddPublicDomain(params)
       }
 
-      const port = this.gatewayGroup().addresses.find(
-        a => a.access === 'public' && a.hostnameInfo.port !== null,
-      )?.hostnameInfo.port
-
-      if (port !== undefined && port !== null) {
-        await this.domainHealth.checkPublicDomain(fqdn, gatewayId, port)
-      }
+      await this.domainHealth.checkPublicDomain(fqdn, gatewayId, res)
 
       return true
     } catch (e: any) {

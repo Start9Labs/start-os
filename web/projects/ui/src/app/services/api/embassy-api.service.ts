@@ -340,11 +340,13 @@ export abstract class ApiService {
 
   abstract osUiAddPublicDomain(
     params: T.AddPublicDomainParams,
-  ): Promise<string | null>
+  ): Promise<T.AddPublicDomainRes>
 
   abstract osUiRemovePublicDomain(params: T.RemoveDomainParams): Promise<null>
 
-  abstract osUiAddPrivateDomain(params: T.AddPrivateDomainParams): Promise<null>
+  abstract osUiAddPrivateDomain(
+    params: T.AddPrivateDomainParams,
+  ): Promise<boolean>
 
   abstract osUiRemovePrivateDomain(params: T.RemoveDomainParams): Promise<null>
 
@@ -354,13 +356,15 @@ export abstract class ApiService {
 
   abstract pkgAddPublicDomain(
     params: PkgAddPublicDomainReq,
-  ): Promise<string | null>
+  ): Promise<T.AddPublicDomainRes>
 
   abstract pkgRemovePublicDomain(
     params: PkgRemovePublicDomainReq,
   ): Promise<null>
 
-  abstract pkgAddPrivateDomain(params: PkgAddPrivateDomainReq): Promise<null>
+  abstract pkgAddPrivateDomain(
+    params: PkgAddPrivateDomainReq,
+  ): Promise<boolean>
 
   abstract pkgRemovePrivateDomain(
     params: PkgRemovePrivateDomainReq,

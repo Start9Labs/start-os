@@ -23,9 +23,8 @@ import { filter } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { GatewayPlus } from 'src/app/services/gateway.service'
-import { TuiBadge } from '@taiga-ui/kit'
+import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { PORT_FORWARDS_MODAL } from './port-forwards.component'
 
 @Component({
@@ -45,11 +44,6 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
           }
         }
         {{ gateway.name }}
-        @if (gateway.isDefaultOutbound) {
-          <tui-badge appearance="primary-success">
-            {{ 'default outbound' | i18n }}
-          </tui-badge>
-        }
       </td>
       <td>
         @if (gateway.type === 'outbound-only') {
@@ -91,13 +85,6 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
                 </button>
               </tui-opt-group>
             }
-            @if (!gateway.isDefaultOutbound) {
-              <tui-opt-group>
-                <button tuiOption new (click)="setDefaultOutbound()">
-                  {{ 'Set as default outbound' | i18n }}
-                </button>
-              </tui-opt-group>
-            }
             @if (gateway.ipInfo.deviceType === 'wireguard') {
               <tui-opt-group>
                 <button tuiOption new class="g-negative" (click)="remove()">
@@ -116,8 +103,8 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
       margin-right: 0.7rem;
     }
 
-    tui-badge {
-      margin-left: 1rem;
+    td:first-child {
+      width: 24rem;
     }
 
     td:last-child {
@@ -171,7 +158,6 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
     TuiOptGroup,
     TuiTextfield,
     i18nPipe,
-    TuiBadge,
   ],
 })
 export class GatewaysItemComponent {
@@ -212,18 +198,6 @@ export class GatewaysItemComponent {
           loader.unsubscribe()
         }
       })
-  }
-
-  async setDefaultOutbound() {
-    const loader = this.loader.open().subscribe()
-
-    try {
-      await this.api.setDefaultOutbound({ gateway: this.gateway().id })
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
   }
 
   async rename() {

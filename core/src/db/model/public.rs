@@ -24,7 +24,7 @@ use crate::net::host::Host;
 use crate::net::host::binding::{
     AddSslOptions, BindInfo, BindOptions, Bindings, DerivedAddressInfo, NetInfo,
 };
-use crate::net::vhost::AlpnInfo;
+use crate::net::vhost::{AlpnInfo, PassthroughInfo};
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::system::{KeyboardOptions, SmtpValue};
@@ -121,6 +121,7 @@ impl Public {
                     },
                     dns: Default::default(),
                     default_outbound: None,
+                    passthroughs: Vec::new(),
                 },
                 status_info: ServerStatus {
                     backup_progress: None,
@@ -233,6 +234,8 @@ pub struct NetworkInfo {
     #[serde(default)]
     #[ts(type = "string | null")]
     pub default_outbound: Option<GatewayId>,
+    #[serde(default)]
+    pub passthroughs: Vec<PassthroughInfo>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]

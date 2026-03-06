@@ -23,7 +23,6 @@ import {
   ALLOWED_STATUSES,
   getInstalledBaseStatus,
   INACTIVE_STATUSES,
-  renderPkgStatus,
 } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 
@@ -153,7 +152,7 @@ export class ServiceTaskComponent {
     const action = pkg.actions[this.task().actionId]
     if (!action) return this.i18n.transform('Action not found')!
 
-    const status = renderPkgStatus(pkg).primary
+    const status = getInstalledBaseStatus(pkg.statusInfo)
 
     if (INACTIVE_STATUSES.includes(status)) return status as string
 

@@ -174,11 +174,11 @@ async fn set_name(
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-struct CheckPortParams {
+pub struct CheckPortParams {
     #[arg(help = "help.arg.port")]
-    port: u16,
+    pub port: u16,
     #[arg(help = "help.arg.gateway-id")]
-    gateway: GatewayId,
+    pub gateway: GatewayId,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
@@ -200,7 +200,7 @@ pub struct IfconfigPortRes {
     pub reachable: bool,
 }
 
-async fn check_port(
+pub async fn check_port(
     ctx: RpcContext,
     CheckPortParams { port, gateway }: CheckPortParams,
 ) -> Result<CheckPortRes, Error> {
@@ -276,12 +276,12 @@ async fn check_port(
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-struct CheckDnsParams {
+pub struct CheckDnsParams {
     #[arg(help = "help.arg.gateway-id")]
-    gateway: GatewayId,
+    pub gateway: GatewayId,
 }
 
-async fn check_dns(
+pub async fn check_dns(
     ctx: RpcContext,
     CheckDnsParams { gateway }: CheckDnsParams,
 ) -> Result<bool, Error> {
@@ -1238,8 +1238,7 @@ async fn poll_ip_info(
             device_type,
             Some(NetworkInterfaceType::Bridge | NetworkInterfaceType::Loopback)
         ) {
-        *prev_attempt = Some(Instant::now());
-        match get_wan_ipv4(iface.as_str(), &ifconfig_url).await {
+        let res = match get_wan_ipv4(iface.as_str(), &ifconfig_url).await {
             Ok(a) => a,
             Err(e) => {
                 tracing::error!(
@@ -1253,7 +1252,9 @@ async fn poll_ip_info(
                 tracing::debug!("{e:?}");
                 None
             }
-        }
+        };
+        *prev_attempt = Some(Instant::now());
+        res
     } else {
         None
     };

@@ -31,6 +31,7 @@ export interface FormContext<T> {
   buttons: ActionButton<T>[]
   value?: T
   operations?: Operation[]
+  note?: string
 }
 
 @Component({
@@ -43,6 +44,9 @@ export interface FormContext<T> {
       (tuiValueChanges)="markAsDirty()"
     >
       <form-group [spec]="spec" />
+      @if (note) {
+        <p class="note">{{ note }}</p>
+      }
       <footer>
         <ng-content />
         @for (button of buttons; track $index) {
@@ -70,6 +74,12 @@ export interface FormContext<T> {
     </form>
   `,
   styles: `
+    .note {
+      color: var(--tui-text-secondary);
+      font: var(--tui-font-text-s);
+      margin-top: 1rem;
+    }
+
     footer {
       position: sticky;
       bottom: 0;
@@ -106,6 +116,7 @@ export class FormComponent<T extends Record<string, any>> implements OnInit {
   @Input() buttons = this.context?.data.buttons || []
   @Input() operations = this.context?.data.operations || []
   @Input() value?: T = this.context?.data.value
+  @Input() note = this.context?.data.note || ''
 
   form = new FormGroup({})
 

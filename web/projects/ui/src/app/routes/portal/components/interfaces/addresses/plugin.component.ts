@@ -32,7 +32,7 @@ import {
       @if (pluginGroup().pluginPkgInfo; as pkgInfo) {
         <img [src]="pkgInfo.icon" alt="" class="plugin-icon" />
       }
-      {{ pluginGroup().pluginName }}
+      {{ 'Plugin' | i18n }}: {{ pluginGroup().pluginName }}
       @if (pluginGroup().tableAction; as action) {
         <button
           tuiButton

@@ -70,6 +70,12 @@ hr {
   min-height: fit-content;
   flex: 1;
   padding: 1rem;
+
+  &::after {
+    content: '';
+    display: block;
+    height: 1rem;
+  }
 }
 
 .g-aside {

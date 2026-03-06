@@ -24,9 +24,9 @@ import { getManifest } from 'src/app/utils/get-package-data'
 import { ServiceActionComponent } from '../components/action.component'
 import {
   ALLOWED_STATUSES,
+  BaseStatus,
+  getInstalledBaseStatus,
   INACTIVE_STATUSES,
-  PrimaryStatus,
-  renderPkgStatus,
 } from 'src/app/services/pkg-status-rendering.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
@@ -108,7 +108,7 @@ export default class ServiceActionsRoute {
         const specialGroup = Object.values(pkg.actions).some(a => !!a.group)
           ? 'Other'
           : 'General'
-        const status = renderPkgStatus(pkg).primary
+        const status = getInstalledBaseStatus(pkg.statusInfo)
         return {
           status,
           icon: pkg.icon,
@@ -187,7 +187,7 @@ export default class ServiceActionsRoute {
   }
 
   handle(
-    status: PrimaryStatus,
+    status: BaseStatus,
     icon: string,
     { id, title }: T.Manifest,
     action: T.ActionMetadata & { id: string },

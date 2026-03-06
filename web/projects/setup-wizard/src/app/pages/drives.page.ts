@@ -34,110 +34,121 @@ import { PreserveOverwriteDialog } from '../components/preserve-overwrite.dialog
 @Component({
   template: `
     @if (!shuttingDown) {
-    <section tuiCardLarge="compact">
-      <header tuiHeader>
-        <h2 tuiTitle>{{ 'Select Drives' | i18n }}</h2>
-      </header>
+      <section tuiCardLarge="compact">
+        <header tuiHeader>
+          <h2 tuiTitle>{{ 'Select Drives' | i18n }}</h2>
+        </header>
 
-      @if (loading) {
-        <tui-loader />
-      } @else if (drives.length === 0) {
-        <p class="no-drives">
-          {{
-            'No drives found. Please connect a drive and click Refresh.' | i18n
-          }}
-        </p>
-      } @else {
-        <tui-textfield [stringify]="stringify">
-          <label tuiLabel>{{ 'OS Drive' | i18n }}</label>
-          @if (mobile) {
-            <select
-              tuiSelect
-              [(ngModel)]="selectedOsDrive"
-              [items]="drives"
-            ></select>
-          } @else {
-            <input tuiSelect [(ngModel)]="selectedOsDrive" />
-          }
-          @if (!mobile) {
-            <tui-data-list-wrapper
-              new
-              *tuiTextfieldDropdown
-              [items]="drives"
-              [itemContent]="driveContent"
-            />
-          }
-          <tui-icon [tuiTooltip]="osDriveTooltip" />
-        </tui-textfield>
-
-        <tui-textfield [stringify]="stringify">
-          <label tuiLabel>{{ 'Data Drive' | i18n }}</label>
-          @if (mobile) {
-            <select
-              tuiSelect
-              [(ngModel)]="selectedDataDrive"
-              (ngModelChange)="onDataDriveChange($event)"
-              [items]="drives"
-            ></select>
-          } @else {
-            <input
-              tuiSelect
-              [(ngModel)]="selectedDataDrive"
-              (ngModelChange)="onDataDriveChange($event)"
-            />
-          }
-          @if (!mobile) {
-            <tui-data-list-wrapper
-              new
-              *tuiTextfieldDropdown
-              [items]="drives"
-              [itemContent]="driveContent"
-            />
-          }
-          @if (preserveData === true) {
-            <tui-icon
-              icon="@tui.database"
-              style="color: var(--tui-status-positive); pointer-events: none"
-            />
-          }
-          @if (preserveData === false) {
-            <tui-icon
-              icon="@tui.database-zap"
-              style="color: var(--tui-status-negative); pointer-events: none"
-            />
-          }
-          <tui-icon [tuiTooltip]="dataDriveTooltip" />
-        </tui-textfield>
-
-        <ng-template #driveContent let-drive>
-          <div class="drive-item">
-            <span class="drive-name">
-              {{ drive.vendor || ('Unknown' | i18n) }}
-              {{ drive.model || ('Drive' | i18n) }}
-            </span>
-            <small>
-              {{ formatCapacity(drive.capacity) }} · {{ drive.logicalname }}
-            </small>
-          </div>
-        </ng-template>
-      }
-
-      <footer>
-        @if (drives.length === 0) {
-          <button tuiButton appearance="secondary" (click)="refresh()">
-            {{ 'Refresh' | i18n }}
-          </button>
+        @if (loading) {
+          <tui-loader />
+        } @else if (drives.length === 0) {
+          <p class="no-drives">
+            {{
+              'No drives found. Please connect a drive and click Refresh.'
+                | i18n
+            }}
+          </p>
         } @else {
-          <button
-            tuiButton
-            [disabled]="!selectedOsDrive || !selectedDataDrive"
-            (click)="continue()"
+          <tui-textfield
+            [stringify]="stringify"
+            [disabledItemHandler]="osDisabled"
           >
-            {{ 'Continue' | i18n }}
-          </button>
+            <label tuiLabel>{{ 'OS Drive' | i18n }}</label>
+            @if (mobile) {
+              <select
+                tuiSelect
+                [ngModel]="selectedOsDrive"
+                (ngModelChange)="onOsDriveChange($event)"
+                [items]="drives"
+              ></select>
+            } @else {
+              <input
+                tuiSelect
+                [ngModel]="selectedOsDrive"
+                (ngModelChange)="onOsDriveChange($event)"
+              />
+            }
+            @if (!mobile) {
+              <tui-data-list-wrapper
+                new
+                *tuiTextfieldDropdown
+                [items]="drives"
+                [itemContent]="driveContent"
+              />
+            }
+            <tui-icon [tuiTooltip]="osDriveTooltip" />
+          </tui-textfield>
+
+          <tui-textfield
+            [stringify]="stringify"
+            [disabledItemHandler]="dataDisabled"
+          >
+            <label tuiLabel>{{ 'Data Drive' | i18n }}</label>
+            @if (mobile) {
+              <select
+                tuiSelect
+                [(ngModel)]="selectedDataDrive"
+                (ngModelChange)="onDataDriveChange($event)"
+                [items]="drives"
+              ></select>
+            } @else {
+              <input
+                tuiSelect
+                [(ngModel)]="selectedDataDrive"
+                (ngModelChange)="onDataDriveChange($event)"
+              />
+            }
+            @if (!mobile) {
+              <tui-data-list-wrapper
+                new
+                *tuiTextfieldDropdown
+                [items]="drives"
+                [itemContent]="driveContent"
+              />
+            }
+            @if (preserveData === true) {
+              <tui-icon
+                icon="@tui.database"
+                style="color: var(--tui-status-positive); pointer-events: none"
+              />
+            }
+            @if (preserveData === false) {
+              <tui-icon
+                icon="@tui.database-zap"
+                style="color: var(--tui-status-negative); pointer-events: none"
+              />
+            }
+            <tui-icon [tuiTooltip]="dataDriveTooltip" />
+          </tui-textfield>
+
+          <ng-template #driveContent let-drive>
+            <div class="drive-item">
+              <span class="drive-name">
+                {{ driveName(drive) }}
+              </span>
+              <small>
+                {{ formatCapacity(drive.capacity) }} · {{ drive.logicalname }}
+              </small>
+            </div>
+          </ng-template>
         }
-      </footer>
-    </section>
+
+        <footer>
+          @if (drives.length === 0) {
+            <button tuiButton appearance="secondary" (click)="refresh()">
+              {{ 'Refresh' | i18n }}
+            </button>
+          } @else {
+            <button
+              tuiButton
+              [disabled]="!selectedOsDrive || !selectedDataDrive"
+              (click)="continue()"
+            >
+              {{ 'Continue' | i18n }}
+            </button>
+          }
+        </footer>
+      </section>
     }
   `,
   styles: `
@@ -198,6 +209,10 @@ export default class DrivesPage {
     'The drive where your StartOS data (services, settings, etc.) will be stored. This can be the same as the OS drive or a separate drive.',
   )
 
+  private readonly MIN_OS = 18 * 2 ** 30 // 18 GiB
+  private readonly MIN_DATA = 20 * 2 ** 30 // 20 GiB
+  private readonly MIN_BOTH = 38 * 2 ** 30 // 38 GiB
+
   drives: DiskInfo[] = []
   loading = true
   shuttingDown = false
@@ -206,10 +221,17 @@ export default class DrivesPage {
   selectedDataDrive: DiskInfo | null = null
   preserveData: boolean | null = null
 
+  readonly osDisabled = (drive: DiskInfo): boolean =>
+    drive.capacity < this.MIN_OS
+
+  dataDisabled = (drive: DiskInfo): boolean => drive.capacity < this.MIN_DATA
+
+  readonly driveName = (drive: DiskInfo): string =>
+    [drive.vendor, drive.model].filter(Boolean).join(' ') ||
+    this.i18n.transform('Unknown Drive')
+
   readonly stringify = (drive: DiskInfo | null) =>
-    drive
-      ? `${drive.vendor || this.i18n.transform('Unknown')} ${drive.model || this.i18n.transform('Drive')}`
-      : ''
+    drive ? this.driveName(drive) : ''
 
   formatCapacity(bytes: number): string {
     const gb = bytes / 1e9
@@ -229,6 +251,22 @@ export default class DrivesPage {
     this.selectedDataDrive = null
     this.preserveData = null
     await this.loadDrives()
+  }
+
+  onOsDriveChange(osDrive: DiskInfo | null) {
+    this.selectedOsDrive = osDrive
+    this.dataDisabled = (drive: DiskInfo) => {
+      if (osDrive && drive.logicalname === osDrive.logicalname) {
+        return drive.capacity < this.MIN_BOTH
+      }
+      return drive.capacity < this.MIN_DATA
+    }
+
+    // Clear data drive if it's now invalid
+    if (this.selectedDataDrive && this.dataDisabled(this.selectedDataDrive)) {
+      this.selectedDataDrive = null
+      this.preserveData = null
+    }
   }
 
   onDataDriveChange(drive: DiskInfo | null) {
@@ -400,7 +438,7 @@ export default class DrivesPage {
 
   private async loadDrives() {
     try {
-      this.drives = await this.api.getDisks()
+      this.drives = (await this.api.getDisks()).filter(d => d.capacity > 0)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

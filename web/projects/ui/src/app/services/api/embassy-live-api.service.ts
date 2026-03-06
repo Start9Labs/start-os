@@ -393,7 +393,7 @@ export class LiveApiService extends ApiService {
   // wifi
 
   async enableWifi(params: T.SetWifiEnabledParams): Promise<null> {
-    return this.rpcRequest({ method: 'wifi.enable', params })
+    return this.rpcRequest({ method: 'wifi.set-enabled', params })
   }
 
   async getWifi(params: {}, timeout?: number): Promise<T.WifiListInfo> {
@@ -630,7 +630,7 @@ export class LiveApiService extends ApiService {
 
   async osUiAddPublicDomain(
     params: T.AddPublicDomainParams,
-  ): Promise<string | null> {
+  ): Promise<T.AddPublicDomainRes> {
     return this.rpcRequest({
       method: 'server.host.address.domain.public.add',
       params,
@@ -644,7 +644,9 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async osUiAddPrivateDomain(params: T.AddPrivateDomainParams): Promise<null> {
+  async osUiAddPrivateDomain(
+    params: T.AddPrivateDomainParams,
+  ): Promise<boolean> {
     return this.rpcRequest({
       method: 'server.host.address.domain.private.add',
       params,
@@ -669,7 +671,7 @@ export class LiveApiService extends ApiService {
 
   async pkgAddPublicDomain(
     params: PkgAddPublicDomainReq,
-  ): Promise<string | null> {
+  ): Promise<T.AddPublicDomainRes> {
     return this.rpcRequest({
       method: 'package.host.address.domain.public.add',
       params,
@@ -683,7 +685,7 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async pkgAddPrivateDomain(params: PkgAddPrivateDomainReq): Promise<null> {
+  async pkgAddPrivateDomain(params: PkgAddPrivateDomainReq): Promise<boolean> {
     return this.rpcRequest({
       method: 'package.host.address.domain.private.add',
       params,

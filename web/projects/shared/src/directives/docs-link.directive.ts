@@ -16,7 +16,7 @@ export const VERSION = new InjectionToken<string>('VERSION')
   host: {
     target: '_blank',
     rel: 'noreferrer',
-    '[href]': 'url()',
+    '[attr.href]': 'url()',
   },
 })
 export class DocsLinkDirective {

@@ -11,10 +11,22 @@ START9_GPG_KEY="2D63C217"
 ARCHES="aarch64 aarch64-nonfree aarch64-nvidia riscv64 riscv64-nonfree x86_64 x86_64-nonfree x86_64-nvidia"
 CLI_ARCHES="aarch64 riscv64 x86_64"
 
+parse_run_id() {
+    local val="$1"
+    if [[ "$val" =~ /actions/runs/([0-9]+) ]]; then
+        echo "${BASH_REMATCH[1]}"
+    else
+        echo "$val"
+    fi
+}
+
 require_version() {
-    if [ -z "$VERSION" ]; then
-        >&2 echo '$VERSION required'
-        exit 2
+    if [ -z "${VERSION:-}" ]; then
+        read -rp "VERSION: " VERSION
+        if [ -z "$VERSION" ]; then
+            >&2 echo '$VERSION required'
+            exit 2
+        fi
     fi
 }
 
@@ -75,6 +87,22 @@ resolve_gh_user() {
 
 cmd_download() {
     require_version
+
+    if [ -z "${RUN_ID:-}" ]; then
+        read -rp "RUN_ID (OS images, leave blank to skip): " RUN_ID
+    fi
+    RUN_ID=$(parse_run_id "${RUN_ID:-}")
+
+    if [ -z "${ST_RUN_ID:-}" ]; then
+        read -rp "ST_RUN_ID (start-tunnel, leave blank to skip): " ST_RUN_ID
+    fi
+    ST_RUN_ID=$(parse_run_id "${ST_RUN_ID:-}")
+
+    if [ -z "${CLI_RUN_ID:-}" ]; then
+        read -rp "CLI_RUN_ID (start-cli, leave blank to skip): " CLI_RUN_ID
+    fi
+    CLI_RUN_ID=$(parse_run_id "${CLI_RUN_ID:-}")
+
     ensure_release_dir
 
     if [ -n "$RUN_ID" ]; then
@@ -143,10 +171,14 @@ cmd_upload() {
     enter_release_dir
 
     for file in $(release_files); do
-        gh release upload -R $REPO "v$VERSION" "$file"
-    done
-    for file in *.iso *.squashfs; do
-        s3cmd put -P "$file" "$S3_BUCKET/v$VERSION/$file"
+        case "$file" in
+            *.iso|*.squashfs)
+                s3cmd put -P "$file" "$S3_BUCKET/v$VERSION/$file"
+                ;;
+            *)
+                gh release upload -R $REPO "v$VERSION" "$file"
+                ;;
+        esac
     done
 }
 

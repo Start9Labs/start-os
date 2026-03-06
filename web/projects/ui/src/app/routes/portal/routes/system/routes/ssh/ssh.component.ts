@@ -41,7 +41,7 @@ import { SSHTableComponent } from './table.component'
           docsLink
           path="/start-os/user-manual/ssh.html"
           appearance="icon"
-          iconStart="@tui.external-link"
+          iconStart="@tui.book-open-text"
         >
           {{ 'Documentation' | i18n }}
         </a>

@@ -73,9 +73,7 @@ export default class StartOsUiComponent {
 
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
-  readonly network = toSignal(
-    this.patch.watch$('serverInfo', 'network'),
-  )
+  readonly network = toSignal(this.patch.watch$('serverInfo', 'network'))
 
   readonly allPackageData = toSignal(this.patch.watch$('packageData'))
 
@@ -98,6 +96,7 @@ export default class StartOsUiComponent {
         this.allPackageData(),
       ),
       addSsl: true,
+      sharedHostNames: [],
     }
   })
 }

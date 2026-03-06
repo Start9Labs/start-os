@@ -12,7 +12,6 @@ export type GatewayPlus = T.NetworkInterfaceInfo & {
   subnets: utils.IpNet[]
   lanIpv4: string[]
   wanIp?: utils.IpAddress
-  isDefaultOutbound: boolean
 }
 
 @Injectable()
@@ -29,7 +28,6 @@ export class GatewayService {
     this.network$.pipe(
       map(network => {
         const gateways = network.gateways
-        const defaultOutbound = network.defaultOutbound
         return Object.entries(gateways)
           .filter(([_, val]) => !!val?.ipInfo)
           .filter(
@@ -49,7 +47,6 @@ export class GatewayService {
               lanIpv4: subnets.filter(s => s.isIpv4()).map(s => s.address),
               wanIp:
                 val.ipInfo?.wanIp && utils.IpAddress.parse(val.ipInfo?.wanIp),
-              isDefaultOutbound: id === defaultOutbound,
             } as GatewayPlus
           })
       }),

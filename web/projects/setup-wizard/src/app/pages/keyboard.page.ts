@@ -1,5 +1,4 @@
 import { Component, inject, signal } from '@angular/core'
-import { Router } from '@angular/router'
 import { FormsModule } from '@angular/forms'
 import {
   getAllKeyboardsSorted,
@@ -72,7 +71,6 @@ import { StateService } from '../services/state.service'
   ],
 })
 export default class KeyboardPage {
-  private readonly router = inject(Router)
   private readonly api = inject(ApiService)
   private readonly stateService = inject(StateService)
 
@@ -103,22 +101,9 @@ export default class KeyboardPage {
       })
 
       this.stateService.keyboard = this.selected.layout
-      await this.navigateToNextStep()
+      await this.stateService.navigateAfterLocale()
     } finally {
       this.saving.set(false)
-    }
-  }
-
-  private async navigateToNextStep() {
-    if (this.stateService.dataDriveGuid) {
-      if (this.stateService.attach) {
-        this.stateService.setupType = 'attach'
-        await this.router.navigate(['/password'])
-      } else {
-        await this.router.navigate(['/home'])
-      }
-    } else {
-      await this.router.navigate(['/drives'])
     }
   }
 }

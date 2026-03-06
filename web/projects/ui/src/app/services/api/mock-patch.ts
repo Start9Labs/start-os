@@ -212,6 +212,7 @@ export const mockPatchData: DataModel = {
           },
         },
       },
+      passthroughs: [],
       defaultOutbound: 'eth0',
       dns: {
         dhcpServers: ['1.1.1.1', '8.8.8.8'],
@@ -651,7 +652,7 @@ export const mockPatchData: DataModel = {
           publicDomains: {
             'bitcoin.example.com': {
               gateway: 'eth0',
-              acme: null,
+              acme: 'https://acme-v02.api.letsencrypt.org/directory',
             },
           },
           privateDomains: {

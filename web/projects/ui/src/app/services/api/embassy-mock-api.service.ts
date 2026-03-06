@@ -1440,7 +1440,7 @@ export class MockApiService extends ApiService {
 
   async osUiAddPublicDomain(
     params: T.AddPublicDomainParams,
-  ): Promise<string | null> {
+  ): Promise<T.AddPublicDomainRes> {
     await pauseFor(2000)
 
     const patch: Operation<any>[] = [
@@ -1465,7 +1465,16 @@ export class MockApiService extends ApiService {
     ]
     this.mockRevision(patch)
 
-    return null
+    return {
+      dns: null,
+      port: {
+        ip: '0.0.0.0',
+        port: 443,
+        openExternally: false,
+        openInternally: false,
+        hairpinning: false,
+      },
+    }
   }
 
   async osUiRemovePublicDomain(params: T.RemoveDomainParams): Promise<null> {
@@ -1482,7 +1491,9 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async osUiAddPrivateDomain(params: T.AddPrivateDomainParams): Promise<null> {
+  async osUiAddPrivateDomain(
+    params: T.AddPrivateDomainParams,
+  ): Promise<boolean> {
     await pauseFor(2000)
 
     const patch: Operation<any>[] = [
@@ -1505,7 +1516,7 @@ export class MockApiService extends ApiService {
     ]
     this.mockRevision(patch)
 
-    return null
+    return false
   }
 
   async osUiRemovePrivateDomain(params: T.RemoveDomainParams): Promise<null> {
@@ -1535,7 +1546,7 @@ export class MockApiService extends ApiService {
 
   async pkgAddPublicDomain(
     params: PkgAddPublicDomainReq,
-  ): Promise<string | null> {
+  ): Promise<T.AddPublicDomainRes> {
     await pauseFor(2000)
 
     const patch: Operation<any>[] = [
@@ -1560,7 +1571,16 @@ export class MockApiService extends ApiService {
     ]
     this.mockRevision(patch)
 
-    return null
+    return {
+      dns: null,
+      port: {
+        ip: '0.0.0.0',
+        port: 443,
+        openExternally: false,
+        openInternally: false,
+        hairpinning: false,
+      },
+    }
   }
 
   async pkgRemovePublicDomain(params: PkgRemovePublicDomainReq): Promise<null> {
@@ -1577,7 +1597,9 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async pkgAddPrivateDomain(params: PkgAddPrivateDomainReq): Promise<null> {
+  async pkgAddPrivateDomain(
+    params: PkgAddPrivateDomainReq,
+  ): Promise<boolean> {
     await pauseFor(2000)
 
     const patch: Operation<any>[] = [
@@ -1600,7 +1622,7 @@ export class MockApiService extends ApiService {
     ]
     this.mockRevision(patch)
 
-    return null
+    return false
   }
 
   async pkgRemovePrivateDomain(

@@ -27,6 +27,63 @@ use crate::util::serde::IoFormat;
 mod gpt;
 mod mbr;
 
+/// Get the EFI BootCurrent entry number (the entry firmware used to boot).
+/// Returns None on non-EFI systems or if BootCurrent is not set.
+async fn get_efi_boot_current() -> Result<Option<String>, Error> {
+    let efi_output = String::from_utf8(
+        Command::new("efibootmgr")
+            .invoke(ErrorKind::Grub)
+            .await?,
+    )
+    .map_err(|e| Error::new(eyre!("efibootmgr output not valid UTF-8: {e}"), ErrorKind::Grub))?;
+
+    Ok(efi_output
+        .lines()
+        .find(|line| line.starts_with("BootCurrent:"))
+        .and_then(|line| line.strip_prefix("BootCurrent:"))
+        .map(|s| s.trim().to_string()))
+}
+
+/// Promote a specific boot entry to first in the EFI boot order.
+async fn promote_efi_entry(entry: &str) -> Result<(), Error> {
+    let efi_output = String::from_utf8(
+        Command::new("efibootmgr")
+            .invoke(ErrorKind::Grub)
+            .await?,
+    )
+    .map_err(|e| Error::new(eyre!("efibootmgr output not valid UTF-8: {e}"), ErrorKind::Grub))?;
+
+    let current_order = efi_output
+        .lines()
+        .find(|line| line.starts_with("BootOrder:"))
+        .and_then(|line| line.strip_prefix("BootOrder:"))
+        .map(|s| s.trim())
+        .unwrap_or("");
+
+    if current_order.is_empty() || current_order.starts_with(entry) {
+        return Ok(());
+    }
+
+    let other_entries: Vec<&str> = current_order
+        .split(',')
+        .filter(|e| e.trim() != entry)
+        .collect();
+
+    let new_order = if other_entries.is_empty() {
+        entry.to_string()
+    } else {
+        format!("{},{}", entry, other_entries.join(","))
+    };
+
+    Command::new("efibootmgr")
+        .arg("-o")
+        .arg(&new_order)
+        .invoke(ErrorKind::Grub)
+        .await?;
+
+    Ok(())
+}
+
 /// Probe a squashfs image to determine its target architecture
 async fn probe_squashfs_arch(squashfs_path: &Path) -> Result<InternedString, Error> {
     let output = String::from_utf8(
@@ -359,7 +416,6 @@ pub async fn install_os_to(
             "riscv64" => install.arg("--target=riscv64-efi"),
             _ => &mut install,
         };
-        install.arg("--no-nvram");
     }
     install
         .arg(disk_path)
@@ -429,6 +485,21 @@ pub async fn install_os(
     });
 
     let use_efi = tokio::fs::metadata("/sys/firmware/efi").await.is_ok();
+
+    // Save the boot entry we booted from (the USB installer) before grub-install
+    // overwrites the boot order.
+    let boot_current = if use_efi {
+        match get_efi_boot_current().await {
+            Ok(entry) => entry,
+            Err(e) => {
+                tracing::warn!("Failed to get EFI BootCurrent: {e}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let InstallOsResult { part_info, rootfs } = install_os_to(
         "/run/live/medium/live/filesystem.squashfs",
         &disk.logicalname,
@@ -439,6 +510,20 @@ pub async fn install_os(
         use_efi,
     )
     .await?;
+
+    // grub-install prepends its new entry to the EFI boot order, overriding the
+    // USB-first priority. Promote the USB entry (identified by BootCurrent from
+    // when we booted the installer) back to first, and persist the entry number
+    // so the upgrade script can do the same.
+    if let Some(ref entry) = boot_current {
+        if let Err(e) = promote_efi_entry(entry).await {
+            tracing::warn!("Failed to restore EFI boot order: {e}");
+        }
+        let efi_entry_path = rootfs.path().join("config/efi-installer-entry");
+        if let Err(e) = tokio::fs::write(&efi_entry_path, entry).await {
+            tracing::warn!("Failed to save EFI installer entry number: {e}");
+        }
+    }
 
     ctx.config
         .mutate(|c| c.os_partitions = Some(part_info.clone()));

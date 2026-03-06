@@ -19,21 +19,34 @@ export class DomainHealthService {
   async checkPublicDomain(
     fqdn: string,
     gatewayId: string,
-    port: number,
+    portOrRes: number | T.AddPublicDomainRes,
   ): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      const [dnsPass, portResult] = await Promise.all([
-        this.api
-          .queryDns({ fqdn })
-          .then(ip => ip === gateway.ipInfo.wanIp)
-          .catch(() => false),
-        this.api
-          .checkPort({ gateway: gatewayId, port })
-          .catch((): null => null),
-      ])
+      let dnsPass: boolean
+      let port: number
+      let portResult: T.CheckPortRes | null
+
+      if (typeof portOrRes === 'number') {
+        port = portOrRes
+        const [dns, portRes] = await Promise.all([
+          this.api
+            .queryDns({ fqdn })
+            .then(ip => ip === gateway.ipInfo.wanIp)
+            .catch(() => false),
+          this.api
+            .checkPort({ gateway: gatewayId, port: portOrRes })
+            .catch((): null => null),
+        ])
+        dnsPass = dns
+        portResult = portRes
+      } else {
+        dnsPass = portOrRes.dns === gateway.ipInfo.wanIp
+        port = portOrRes.port.port
+        portResult = portOrRes.port
+      }
 
       const portOk =
         !!portResult?.openInternally &&
@@ -55,14 +68,17 @@ export class DomainHealthService {
     }
   }
 
-  async checkPrivateDomain(gatewayId: string): Promise<void> {
+  async checkPrivateDomain(
+    gatewayId: string,
+    prefetchedConfigured?: boolean,
+  ): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      const configured = await this.api
-        .checkDns({ gateway: gatewayId })
-        .catch(() => false)
+      const configured =
+        prefetchedConfigured ??
+        (await this.api.checkDns({ gateway: gatewayId }).catch(() => false))
 
       if (!configured) {
         setTimeout(
@@ -150,7 +166,10 @@ export class DomainHealthService {
     fqdn: string,
     gateway: DnsGateway,
     port: number,
-    initialResults?: { dnsPass: boolean; portResult: T.CheckPortRes | null },
+    initialResults?: {
+      dnsPass: boolean
+      portResult: T.CheckPortRes | null
+    },
   ) {
     this.dialog
       .openComponent(DOMAIN_VALIDATION, {

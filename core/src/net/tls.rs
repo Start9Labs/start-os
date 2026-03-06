@@ -16,6 +16,14 @@ use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::rustls::{ClientConfig, RootCertStore, ServerConfig};
 use visit_rs::{Visit, VisitFields};
 
+/// Result of a TLS handler's decision about how to handle a connection.
+pub enum TlsHandlerAction {
+    /// Complete the TLS handshake with this ServerConfig.
+    Tls(ServerConfig),
+    /// Don't complete TLS — rewind the BackTrackingIO and return the raw stream.
+    Passthrough,
+}
+
 use crate::net::http::handle_http_on_https;
 use crate::net::web_server::{Accept, AcceptStream, MetadataVisitor};
 use crate::prelude::*;
@@ -50,7 +58,7 @@ pub trait TlsHandler<'a, A: Accept> {
         &'a mut self,
         hello: &'a ClientHello<'a>,
         metadata: &'a A::Metadata,
-    ) -> impl Future<Output = Option<ServerConfig>> + Send + 'a;
+    ) -> impl Future<Output = Option<TlsHandlerAction>> + Send + 'a;
 }
 
 #[derive(Clone)]
@@ -66,7 +74,7 @@ where
         &'a mut self,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> Option<ServerConfig> {
+    ) -> Option<TlsHandlerAction> {
         if let Some(config) = self.0.get_config(hello, metadata).await {
             return Some(config);
         }
@@ -86,7 +94,7 @@ pub trait WrapTlsHandler<A: Accept> {
         prev: ServerConfig,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> impl Future<Output = Option<ServerConfig>> + Send + 'a
+    ) -> impl Future<Output = Option<TlsHandlerAction>> + Send + 'a
     where
         Self: 'a;
 }
@@ -102,9 +110,12 @@ where
         &'a mut self,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> Option<ServerConfig> {
-        let prev = self.inner.get_config(hello, metadata).await?;
-        self.wrapper.wrap(prev, hello, metadata).await
+    ) -> Option<TlsHandlerAction> {
+        let action = self.inner.get_config(hello, metadata).await?;
+        match action {
+            TlsHandlerAction::Tls(cfg) => self.wrapper.wrap(cfg, hello, metadata).await,
+            other => Some(other),
+        }
     }
 }
 
@@ -203,34 +214,56 @@ where
                             }
                         };
                     let hello = mid.client_hello();
-                    if let Some(cfg) = tls_handler.get_config(&hello, &metadata).await {
-                        let buffered = mid.io.stop_buffering();
-                        mid.io
-                            .write_all(&buffered)
-                            .await
-                            .with_kind(ErrorKind::Network)?;
-                        return Ok(match mid.into_stream(Arc::new(cfg)).await {
-                            Ok(stream) => {
-                                let s = stream.get_ref().1;
-                                Some((
-                                    TlsMetadata {
-                                        inner: metadata,
-                                        tls_info: TlsHandshakeInfo {
-                                            sni: s.server_name().map(InternedString::intern),
-                                            alpn: s
-                                                .alpn_protocol()
-                                                .map(|a| MaybeUtf8String(a.to_vec())),
+                    let sni = hello.server_name().map(InternedString::intern);
+                    match tls_handler.get_config(&hello, &metadata).await {
+                        Some(TlsHandlerAction::Tls(cfg)) => {
+                            let buffered = mid.io.stop_buffering();
+                            mid.io
+                                .write_all(&buffered)
+                                .await
+                                .with_kind(ErrorKind::Network)?;
+                            return Ok(match mid.into_stream(Arc::new(cfg)).await {
+                                Ok(stream) => {
+                                    let s = stream.get_ref().1;
+                                    Some((
+                                        TlsMetadata {
+                                            inner: metadata,
+                                            tls_info: TlsHandshakeInfo {
+                                                sni: s
+                                                    .server_name()
+                                                    .map(InternedString::intern),
+                                                alpn: s
+                                                    .alpn_protocol()
+                                                    .map(|a| MaybeUtf8String(a.to_vec())),
+                                            },
                                         },
-                                    },
-                                    Box::pin(stream) as AcceptStream,
-                                ))
-                            }
-                            Err(e) => {
-                                tracing::trace!("Error completing TLS handshake: {e}");
-                                tracing::trace!("{e:?}");
-                                None
-                            }
-                        });
+                                        Box::pin(stream) as AcceptStream,
+                                    ))
+                                }
+                                Err(e) => {
+                                    tracing::trace!("Error completing TLS handshake: {e}");
+                                    tracing::trace!("{e:?}");
+                                    None
+                                }
+                            });
+                        }
+                        Some(TlsHandlerAction::Passthrough) => {
+                            let (dummy, _drop) = tokio::io::duplex(1);
+                            let mut bt = std::mem::replace(
+                                &mut mid.io,
+                                BackTrackingIO::new(Box::pin(dummy) as AcceptStream),
+                            );
+                            drop(mid);
+                            bt.rewind();
+                            return Ok(Some((
+                                TlsMetadata {
+                                    inner: metadata,
+                                    tls_info: TlsHandshakeInfo { sni, alpn: None },
+                                },
+                                Box::pin(bt) as AcceptStream,
+                            )));
+                        }
+                        None => {}
                     }
 
                     Ok(None)

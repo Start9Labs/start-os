@@ -56,7 +56,7 @@ import { wifiSpec } from './wifi.const'
             docsLink
             path="/start-os/user-manual/wifi.html"
             appearance="icon"
-            iconStart="@tui.external-link"
+            iconStart="@tui.book-open-text"
           >
             {{ 'Documentation' | i18n }}
           </a>

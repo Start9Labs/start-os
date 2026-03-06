@@ -45,7 +45,7 @@ import { ABOUT } from './about.component'
       }
       <tui-data-list [style.width.rem]="13">
         <tui-opt-group>
-          <button tuiOption iconStart="@tui.info" (click)="about()">
+          <button tuiOption iconStart="@tui.info" new (click)="about()">
             {{ 'About this server' | i18n }}
           </button>
         </tui-opt-group>
@@ -53,13 +53,15 @@ import { ABOUT } from './about.component'
           <a
             tuiOption
             docsLink
-            iconStart="@tui.book-open"
-            path="/start-os/user-manual/index.html"
+            new
+            iconStart="@tui.book-open-text"
+            path="/start-os/user-manual"
           >
             {{ 'User manual' | i18n }}
           </a>
           <a
             tuiOption
+            new
             iconStart="@tui.headphones"
             href="https://start9.com/contact"
           >
@@ -67,6 +69,7 @@ import { ABOUT } from './about.component'
           </a>
           <a
             tuiOption
+            new
             iconStart="@tui.dollar-sign"
             href="https://donate.start9.com"
           >
@@ -76,6 +79,7 @@ import { ABOUT } from './about.component'
         <tui-opt-group label="">
           <a
             tuiOption
+            new
             iconStart="@tui.settings"
             routerLink="/system"
             (click)="open = false"
@@ -86,6 +90,7 @@ import { ABOUT } from './about.component'
         <tui-opt-group label="">
           <button
             tuiOption
+            new
             iconStart="@tui.refresh-cw"
             (click)="promptPower('restart')"
           >
@@ -93,12 +98,13 @@ import { ABOUT } from './about.component'
           </button>
           <button
             tuiOption
+            new
             iconStart="@tui.power"
             (click)="promptPower('shutdown')"
           >
             {{ 'Shutdown' | i18n }}
           </button>
-          <button tuiOption iconStart="@tui.log-out" (click)="logout()">
+          <button tuiOption new iconStart="@tui.log-out" (click)="logout()">
             {{ 'Logout' | i18n }}
           </button>
         </tui-opt-group>

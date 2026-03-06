@@ -5,6 +5,7 @@ import type { DnsSettings } from './DnsSettings'
 import type { GatewayId } from './GatewayId'
 import type { Host } from './Host'
 import type { NetworkInterfaceInfo } from './NetworkInterfaceInfo'
+import type { PassthroughInfo } from './PassthroughInfo'
 import type { WifiInfo } from './WifiInfo'
 
 export type NetworkInfo = {
@@ -14,4 +15,5 @@ export type NetworkInfo = {
   acme: { [key: AcmeProvider]: AcmeSettings }
   dns: DnsSettings
   defaultOutbound: string | null
+  passthroughs: Array<PassthroughInfo>
 }

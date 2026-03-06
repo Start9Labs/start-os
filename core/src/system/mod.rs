@@ -1238,19 +1238,13 @@ pub async fn test_smtp(
         .body("This is a test email sent from your StartOS Server".to_owned())?;
 
     let transport = match security {
-        SmtpSecurity::Starttls => AsyncSmtpTransport::<Tokio1Executor>::relay(&host)?
-            .port(port)
-            .credentials(creds)
-            .build(),
-        SmtpSecurity::Tls => {
-            let tls = TlsParameters::new(host.clone())?;
-            AsyncSmtpTransport::<Tokio1Executor>::relay(&host)?
-                .port(port)
-                .tls(Tls::Wrapper(tls))
-                .credentials(creds)
-                .build()
-        }
-    };
+        SmtpSecurity::Starttls => AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&host)?,
+        SmtpSecurity::Tls => AsyncSmtpTransport::<Tokio1Executor>::relay(&host)?,
+    }
+    .port(port)
+    .tls(Tls::Wrapper(TlsParameters::new(host.clone())?))
+    .credentials(creds)
+    .build();
 
     transport.send(message).await?;
     Ok(())

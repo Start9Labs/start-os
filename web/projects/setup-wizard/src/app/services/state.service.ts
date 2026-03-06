@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core'
+import { Router } from '@angular/router'
 import { T } from '@start9labs/start-sdk'
 import { ApiService } from './api.service'
 
@@ -29,6 +30,7 @@ export type RecoverySource =
 })
 export class StateService {
   private readonly api = inject(ApiService)
+  private readonly router = inject(Router)
 
   // Determined at app init
   kiosk = false
@@ -44,6 +46,23 @@ export class StateService {
   // Set during setup flow
   setupType?: SetupType
   recoverySource?: RecoverySource
+
+  /**
+   * Navigate to the appropriate step after language/keyboard selection.
+   * Keyboard selection is only needed in kiosk mode.
+   */
+  async navigateAfterLocale(): Promise<void> {
+    if (this.dataDriveGuid) {
+      if (this.attach) {
+        this.setupType = 'attach'
+        await this.router.navigate(['/password'])
+      } else {
+        await this.router.navigate(['/home'])
+      }
+    } else {
+      await this.router.navigate(['/drives'])
+    }
+  }
 
   /**
    * Called for attach flow (existing data drive)

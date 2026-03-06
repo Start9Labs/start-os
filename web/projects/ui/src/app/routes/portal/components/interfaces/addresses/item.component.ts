@@ -10,7 +10,7 @@ import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
 import { TuiObfuscatePipe } from '@taiga-ui/cdk'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { FormsModule } from '@angular/forms'
-import { TuiSwitch } from '@taiga-ui/kit'
+import { TuiBadge, TuiSwitch } from '@taiga-ui/kit'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { GatewayAddress, MappedServiceInterface } from '../interface.service'
 import { AddressActionsComponent } from './actions.component'
@@ -36,22 +36,51 @@ import { DomainHealthService } from './domain-health.service'
           (ngModelChange)="onToggleEnabled()"
         />
       </td>
-      <td class="type">
+      <td class="access">
         <tui-icon
           [icon]="address.access === 'public' ? '@tui.globe' : '@tui.house'"
         />
-        {{ address.type }}
+        <span>
+          {{ (address.access === 'public' ? 'Public' : 'Local') | i18n }}
+        </span>
+      </td>
+      <td class="type">
+        <tui-badge
+          size="s"
+          [appearance]="typeAppearance(address.hostnameInfo.metadata.kind)"
+        >
+          {{ address.type }}
+        </tui-badge>
       </td>
       <td>
-        {{ address.certificate }}
+        <div class="cert">
+          @if (address.certificate === 'Root CA') {
+            <img src="assets/icons/favicon.svg" alt="" class="cert-icon" />
+          } @else if (address.certificate.startsWith("Let's Encrypt")) {
+            <img src="assets/icons/letsencrypt.svg" alt="" class="cert-icon" />
+          } @else if (
+            address.certificate !== '-' && address.certificate !== 'Self signed'
+          ) {
+            <tui-icon icon="@tui.shield" class="cert-icon" />
+          }
+          {{ address.certificate }}
+        </div>
       </td>
       <td>
         <div class="url">
-          <span
-            [title]="address.masked && currentlyMasked() ? '' : address.url"
-          >
-            {{ address.url | tuiObfuscate: recipe() }}
-          </span>
+          @if (address.masked && currentlyMasked()) {
+            <span>{{ address.url | tuiObfuscate: 'mask' }}</span>
+          } @else {
+            <span [title]="address.url">
+              @if (urlParts(); as parts) {
+                {{ parts.prefix }}
+                <b>{{ parts.hostname }}</b>
+                {{ parts.suffix }}
+              } @else {
+                {{ address.url }}
+              }
+            </span>
+          }
           @if (address.masked) {
             <button
               tuiIconButton
@@ -81,10 +110,26 @@ import { DomainHealthService } from './domain-health.service'
       grid-template-columns: fit-content(10rem) 1fr 2rem 2rem;
     }
 
-    .type tui-icon {
+    .access tui-icon {
       font-size: 1.3rem;
       margin-right: 0.7rem;
       vertical-align: middle;
+    }
+
+    .cert {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .cert-icon {
+      height: 1.25rem;
+      width: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    tui-icon.cert-icon {
+      font-size: 1.25rem;
     }
 
     .url {
@@ -104,6 +149,7 @@ import { DomainHealthService } from './domain-health.service'
 
     :host-context(tui-root._mobile) {
       padding-inline-start: 0.75rem !important;
+      row-gap: 0.25rem;
 
       &::before {
         content: '';
@@ -129,18 +175,32 @@ import { DomainHealthService } from './domain-health.service'
         display: none;
       }
 
-      td:nth-child(2) {
+      .access {
+        padding-right: 0;
+        font: var(--tui-font-text-m);
+        font-weight: bold;
+
+        tui-icon {
+          display: none;
+        }
+      }
+
+      .type {
         font: var(--tui-font-text-m);
         font-weight: bold;
         color: var(--tui-text-primary);
         padding-inline-end: 0.5rem;
       }
 
-      td:nth-child(3) {
+      td:nth-child(4) {
         grid-area: 2 / 1 / 2 / 3;
+
+        .cert-icon {
+          display: none;
+        }
       }
 
-      td:nth-child(4) {
+      td:nth-child(5) {
         grid-area: 3 / 1 / 3 / 3;
       }
 
@@ -154,6 +214,7 @@ import { DomainHealthService } from './domain-health.service'
   imports: [
     i18nPipe,
     AddressActionsComponent,
+    TuiBadge,
     TuiButton,
     TuiIcon,
     TuiObfuscatePipe,
@@ -179,6 +240,33 @@ export class InterfaceAddressItemComponent {
   readonly recipe = computed(() =>
     this.address()?.masked && this.currentlyMasked() ? 'mask' : 'none',
   )
+
+  readonly urlParts = computed(() => {
+    const { url, hostnameInfo } = this.address()
+    const idx = url.indexOf(hostnameInfo.hostname)
+    if (idx === -1) return null
+    return {
+      prefix: url.slice(0, idx),
+      hostname: hostnameInfo.hostname,
+      suffix: url.slice(idx + hostnameInfo.hostname.length),
+    }
+  })
+
+  typeAppearance(kind: string): string {
+    switch (kind) {
+      case 'public-domain':
+      case 'private-domain':
+        return 'info'
+      case 'mdns':
+        return 'positive'
+      case 'ipv4':
+        return 'warning'
+      case 'ipv6':
+        return 'neutral'
+      default:
+        return 'neutral'
+    }
+  }
 
   async onToggleEnabled() {
     const addr = this.address()
