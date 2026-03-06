@@ -6,7 +6,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
-import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
+import { TuiAnimated, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
   TuiError,
   TuiInput,
@@ -17,7 +17,7 @@ import {
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
 import { TuiSwitch } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
+import { TuiElasticContainer, TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
@@ -58,41 +58,29 @@ import {
           </label>
         }
       </section>
-      @if (mode() === 'custom') {
-        <section>
-          <tui-textfield>
-            <label tuiLabel>Primary*</label>
-            <input tuiInput formControlName="custom1" />
-          </tui-textfield>
-          <label tuiLabel>
-            <input type="checkbox" tuiSwitch formControlName="custom1Tls" />
-            TLS
-          </label>
-        </section>
-        <tui-error formControlName="custom1" />
-        <section>
-          <tui-textfield>
-            <label tuiLabel>Secondary</label>
-            <input tuiInput formControlName="custom2" />
-          </tui-textfield>
-          <label tuiLabel>
-            <input type="checkbox" tuiSwitch formControlName="custom2Tls" />
-            TLS
-          </label>
-        </section>
-        <tui-error formControlName="custom2" />
-        <section>
-          <tui-textfield>
-            <label tuiLabel>Tertiary</label>
-            <input tuiInput formControlName="custom3" />
-          </tui-textfield>
-          <label tuiLabel>
-            <input type="checkbox" tuiSwitch formControlName="custom3Tls" />
-            TLS
-          </label>
-        </section>
-        <tui-error formControlName="custom3" />
-      }
+      <tui-elastic-container>
+        @if (mode() === 'custom') {
+          @for (label of ['Primary', 'Secondary', 'Tertiary']; track $index) {
+            <section tuiAnimated>
+              <tui-textfield>
+                <label tuiLabel>
+                  {{ label }}{{ $first ? '' : ' (optional)' }}
+                </label>
+                <input tuiInput [formControlName]="'custom' + ($index + 1)" />
+              </tui-textfield>
+              <label tuiLabel>
+                <input
+                  type="checkbox"
+                  tuiSwitch
+                  [formControlName]="'custom' + ($index + 1) + 'Tls'"
+                />
+                TLS
+              </label>
+            </section>
+            <tui-error [formControlName]="'custom' + ($index + 1)" />
+          }
+        }
+      </tui-elastic-container>
       @if (service.data()) {
         <footer appFooter></footer>
       }
@@ -111,6 +99,8 @@ import {
     TuiSwitch,
     Form,
     Footer,
+    TuiElasticContainer,
+    TuiAnimated,
   ],
   providers: [
     provideFormService(DnsService),
@@ -121,13 +111,10 @@ import {
 export default class Dns {
   protected readonly builder = inject(NonNullableFormBuilder)
   protected readonly service = injectFormService<DnsForm>()
-
   protected readonly labels = DNS_LABELS
   protected readonly dnsModes = DNS_MODES
-
-  readonly form = getDnsForm(this.builder, [CustomValidators.ipv4()])
-
-  readonly mode = toSignal(
+  protected readonly form = getDnsForm(this.builder, [CustomValidators.ipv4()])
+  protected readonly mode = toSignal(
     this.form.controls.mode.valueChanges.pipe(
       startWith(this.form.controls.mode.value),
     ),

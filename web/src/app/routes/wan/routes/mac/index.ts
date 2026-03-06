@@ -7,8 +7,15 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
-import { TuiLabel, TuiRadio, TuiTitle } from '@taiga-ui/core'
-import { TuiHeader } from '@taiga-ui/layout'
+import {
+  TuiError,
+  TuiInput,
+  TuiLabel,
+  TuiRadio,
+  TuiTitle,
+  tuiValidationErrorsProvider,
+} from '@taiga-ui/core'
+import { TuiElasticContainer, TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
@@ -16,13 +23,13 @@ import {
   injectFormService,
   provideFormService,
 } from 'src/app/services/form.service'
-import { MacAddress } from './form/address'
 import { MacService } from './service'
 import { MacSummary } from './summary'
 import {
   getMacForm,
   MAC_LABELS,
   MAC_STRATEGIES,
+  MAC_VALIDATION_ERRORS,
   MacForm,
   updateMacValidators,
 } from './utils'
@@ -51,10 +58,15 @@ import {
           </label>
         }
       </section>
-      @if (strategy() === 'custom') {
-        <hr />
-        <mac-address formGroupName="address" />
-      }
+      <tui-elastic-container formGroupName="address">
+        @if (strategy() === 'custom') {
+          <tui-textfield [style.max-inline-size.rem]="13">
+            <label tuiLabel>{{ labels.mac }}</label>
+            <input tuiInput formControlName="mac" />
+          </tui-textfield>
+          <tui-error formControlName="mac" />
+        }
+      </tui-elastic-container>
       @if (service.data()) {
         <footer appFooter></footer>
       }
@@ -70,17 +82,20 @@ import {
     Form,
     Footer,
     MacSummary,
-    MacAddress,
+    TuiInput,
+    TuiError,
+    TuiElasticContainer,
   ],
-  providers: [provideFormService(MacService)],
+  providers: [
+    provideFormService(MacService),
+    tuiValidationErrorsProvider(MAC_VALIDATION_ERRORS),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Mac {
   protected readonly builder = inject(NonNullableFormBuilder)
   protected readonly service = injectFormService<MacForm>()
-
-  readonly form = getMacForm(this.builder)
-
+  protected readonly form = getMacForm(this.builder)
   protected readonly strategies = MAC_STRATEGIES
   protected readonly labels = MAC_LABELS
 

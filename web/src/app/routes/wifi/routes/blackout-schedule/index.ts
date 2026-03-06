@@ -8,8 +8,7 @@ import {
 } from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
-import { TuiAutoColorPipe } from '@taiga-ui/kit'
-import { TuiTimeline } from 'src/app/components/timeline'
+import { TuiAutoColorPipe, TuiTimeline } from '@taiga-ui/kit'
 import { ADD_BLACKOUT_WINDOW } from 'src/app/routes/wifi/routes/blackout-schedule/dialog'
 import { BlackoutService, BlackoutWindow } from './service'
 
@@ -17,19 +16,25 @@ import { BlackoutService, BlackoutWindow } from './service'
   template: `
     <section (change)="save()">
       @for (day of order; track $index) {
-        <tui-timeline #timeline [total]="96" [template]="gap">
-          <label>{{ labels[day] }}</label>
+        <tui-timeline
+          #timeline
+          orientation="vertical"
+          [max]="96"
+          [template]="gap"
+        >
+          <span class="day">{{ labels[day] }}</span>
           @for (window of windows(); track $index) {
             @if (window.days[day]) {
-              <tui-timeline-item
+              <label
+                tuiTimelineItem
                 [style.--color]="(($index + 1) * 123).toString() | tuiAutoColor"
                 [(value)]="window.range"
                 (dblclick)="edit($index)"
               >
                 <tui-icon icon="@tui.ellipsis" />
-                <span [innerHTML]="getTime(window.range)"></span>
+                <span class="time" [innerHTML]="getTime(window.range)"></span>
                 <tui-icon icon="@tui.ellipsis" />
-              </tui-timeline-item>
+              </label>
             }
           }
           <ng-template #gap let-index>
@@ -75,7 +80,7 @@ import { BlackoutService, BlackoutWindow } from './service'
       border-inline-start: 2rem solid transparent;
     }
 
-    tui-timeline-item {
+    [tuiTimelineItem] {
       background: var(--tui-background-neutral-1);
       box-shadow: inset 0 0 0 0.875rem var(--tui-background-neutral-1-hover);
       clip-path: inset(1px 2px round 0.125rem);
@@ -89,7 +94,7 @@ import { BlackoutService, BlackoutWindow } from './service'
       }
     }
 
-    label {
+    .day {
       writing-mode: horizontal-tb;
       position: absolute;
       top: -2rem;
@@ -115,7 +120,7 @@ import { BlackoutService, BlackoutWindow } from './service'
       }
     }
 
-    span {
+    .time {
       position: absolute;
       writing-mode: horizontal-tb;
       display: flex;
@@ -153,7 +158,7 @@ import { BlackoutService, BlackoutWindow } from './service'
           width: 6rem;
         }
 
-        tui-timeline:not(:hover) label {
+        tui-timeline:not(:hover) .day {
           font-size: 0;
         }
       }
@@ -164,7 +169,7 @@ import { BlackoutService, BlackoutWindow } from './service'
         }
 
         tui-timeline:not(:first-child) {
-          label {
+          .day {
             font-size: 0;
           }
         }

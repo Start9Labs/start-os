@@ -16,7 +16,7 @@ import { AuthService } from 'src/app/services/auth.service'
   template: `
     <img alt="Start9" src="assets/favicon.svg" />
     <form (ngSubmit)="login()">
-      <tui-textfield [tuiTextfieldCleaner]="false">
+      <tui-textfield>
         <input
           tuiInput
           type="password"

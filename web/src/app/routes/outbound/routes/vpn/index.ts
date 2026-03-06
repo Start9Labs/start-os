@@ -68,7 +68,7 @@ import { VPNSummary } from './summary'
       <section>
         <div>
           <tui-textfield>
-            <label tuiLabel>Label *</label>
+            <label tuiLabel>Label</label>
             <input tuiInput formControlName="label" />
           </tui-textfield>
           <tui-error formControlName="label" />

@@ -13,6 +13,7 @@ import {
   Validators,
 } from '@angular/forms'
 import {
+  TuiAnimated,
   TuiContext,
   tuiMarkControlAsTouchedAndValidate,
   TuiStringHandler,
@@ -41,7 +42,7 @@ import {
   TuiStringifyPipe,
   TuiSwitch,
 } from '@taiga-ui/kit'
-import { TuiForm } from '@taiga-ui/layout'
+import { TuiElasticContainer, TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { startWith } from 'rxjs'
 import { provideHelp } from 'src/app/help/help'
@@ -95,7 +96,7 @@ export interface ProfileDialogResult {
           <tui-textfield>
             <input tuiInput [value]="subnetBase().secondOctet" disabled />
           </tui-textfield>
-          <tui-textfield [tuiTextfieldCleaner]="false">
+          <tui-textfield>
             <input
               tuiInputNumber
               formControlName="subnet"
@@ -109,11 +110,7 @@ export interface ProfileDialogResult {
         </div>
       </fieldset>
       <tui-error formControlName="subnet" />
-      <tui-textfield
-        tuiChevron
-        [tuiTextfieldCleaner]="false"
-        [stringify]="stringifyOutbound"
-      >
+      <tui-textfield tuiChevron [stringify]="stringifyOutbound">
         <label tuiLabel>Outbound Routing</label>
         <input tuiSelect formControlName="outbound" />
         <tui-data-list *tuiDropdown>
@@ -128,42 +125,29 @@ export interface ProfileDialogResult {
         <input type="checkbox" tuiSwitch formControlName="useCustomDns" />
         Use custom DNS servers
       </label>
-      @if (useCustomDns()) {
-        <section>
-          <tui-textfield>
-            <label tuiLabel>Primary*</label>
-            <input tuiInput formControlName="dns1" />
-          </tui-textfield>
-          <label tuiLabel>
-            <input type="checkbox" tuiSwitch formControlName="dns1Tls" />
-            TLS
-          </label>
-        </section>
-        <tui-error formControlName="dns1" />
-        <section>
-          <tui-textfield>
-            <label tuiLabel>Secondary</label>
-            <input tuiInput formControlName="dns2" />
-          </tui-textfield>
-          <label tuiLabel>
-            <input type="checkbox" tuiSwitch formControlName="dns2Tls" />
-            TLS
-          </label>
-        </section>
-        <tui-error formControlName="dns2" />
-        <section>
-          <tui-textfield>
-            <label tuiLabel>Tertiary</label>
-            <input tuiInput formControlName="dns3" />
-          </tui-textfield>
-          <label tuiLabel>
-            <input type="checkbox" tuiSwitch formControlName="dns3Tls" />
-            TLS
-          </label>
-        </section>
-        <tui-error formControlName="dns3" />
-      }
-
+      <tui-elastic-container>
+        @if (useCustomDns()) {
+          @for (label of ['Primary', 'Secondary', 'Tertiary']; track $index) {
+            <section tuiAnimated>
+              <tui-textfield>
+                <label tuiLabel>
+                  {{ label }}{{ $first ? '' : ' (optional)' }}
+                </label>
+                <input tuiInput [formControlName]="'dns' + ($index + 1)" />
+              </tui-textfield>
+              <label tuiLabel>
+                <input
+                  type="checkbox"
+                  tuiSwitch
+                  [formControlName]="'dns' + ($index + 1) + 'Tls'"
+                />
+                TLS
+              </label>
+            </section>
+            <tui-error [formControlName]="'dns' + ($index + 1)" />
+          }
+        }
+      </tui-elastic-container>
       <fieldset>
         <legend>LAN Access</legend>
         <tui-radio-list
@@ -176,38 +160,44 @@ export interface ProfileDialogResult {
       </fieldset>
 
       <!-- LAN Access Profile Checkboxes (conditional) -->
-      @if (lanAccessType() === 'whitelist' || lanAccessType() === 'blacklist') {
-        <tui-textfield multi tuiChevron [stringify]="'fullname' | tuiStringify">
-          @if (!context.data.otherProfiles.length) {
-            <label tuiLabel>No other profiles</label>
-          }
-          <input
-            tuiInputChip
-            tuiSelectLike
-            [disabled]="!context.data.otherProfiles.length"
-            [placeholder]="multi().length ? '' : 'Profiles'"
-            [ngModelOptions]="{ standalone: true }"
-            [(ngModel)]="multi"
-            (ngModelChange)="onWhitelist($event)"
-          />
-          <tui-input-chip *tuiItem />
-          <tui-data-list-wrapper
-            *tuiDropdown
-            tuiMultiSelectGroup
-            [items]="context.data.otherProfiles"
-          />
-        </tui-textfield>
+      <tui-elastic-container>
+        @if (['whitelist', 'blacklist'].includes(lanAccessType())) {
+          <tui-textfield
+            multi
+            tuiAnimated
+            tuiChevron
+            [stringify]="'fullname' | tuiStringify"
+          >
+            @if (!context.data.otherProfiles.length) {
+              <label tuiLabel>No other profiles</label>
+            }
+            <input
+              tuiInputChip
+              tuiSelectLike
+              [disabled]="!context.data.otherProfiles.length"
+              [placeholder]="multi().length ? '' : 'Profiles'"
+              [ngModelOptions]="{ standalone: true }"
+              [(ngModel)]="multi"
+              (ngModelChange)="onWhitelist($event)"
+            />
+            <tui-input-chip *tuiItem />
+            <tui-data-list-wrapper
+              *tuiDropdown
+              tuiMultiSelectGroup
+              [items]="context.data.otherProfiles"
+            />
+          </tui-textfield>
 
-        <label tuiLabel>
-          <input
-            type="checkbox"
-            tuiCheckbox
-            formControlName="accessToNewProfiles"
-          />
-          Auto whitelist new profiles
-        </label>
-      }
-
+          <label tuiLabel>
+            <input
+              type="checkbox"
+              tuiCheckbox
+              formControlName="accessToNewProfiles"
+            />
+            Auto whitelist new profiles
+          </label>
+        }
+      </tui-elastic-container>
       <fieldset>
         <legend>WAN Access</legend>
         <tui-radio-list
@@ -218,23 +208,23 @@ export interface ProfileDialogResult {
           [style.flex-direction]="'row'"
         />
       </fieldset>
-
-      @if (wanAccessType() === 'whitelist' || wanAccessType() === 'blacklist') {
-        <tui-textfield>
-          @if (wanAccessType() === 'whitelist') {
-            <label tuiLabel>Allowed Destinations</label>
-          } @else {
-            <label tuiLabel>Blocked Destinations</label>
-          }
-          <input
-            tuiInput
-            formControlName="wanAccessList"
-            placeholder="e.g. 1.1.1.1, 8.8.8.8/24"
-          />
-        </tui-textfield>
-        <tui-error formControlName="wanAccessList" />
-      }
-
+      <tui-elastic-container>
+        @if (['whitelist', 'blacklist'].includes(wanAccessType())) {
+          <tui-textfield tuiAnimated>
+            @if (wanAccessType() === 'whitelist') {
+              <label tuiLabel>Allowed Destinations</label>
+            } @else {
+              <label tuiLabel>Blocked Destinations</label>
+            }
+            <input
+              tuiInput
+              formControlName="wanAccessList"
+              placeholder="e.g. 1.1.1.1, 8.8.8.8/24"
+            />
+          </tui-textfield>
+          <tui-error formControlName="wanAccessList" />
+        }
+      </tui-elastic-container>
       <footer>
         <button
           tuiButton
@@ -283,6 +273,8 @@ export interface ProfileDialogResult {
     TuiDataListWrapper,
     FormsModule,
     TuiStringifyPipe,
+    TuiElasticContainer,
+    TuiAnimated,
   ],
 })
 class AddProfile {
