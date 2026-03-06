@@ -198,8 +198,6 @@ export default class GatewaysComponent {
   async saveOutbound() {
     const loader = this.loader.open('Saving').subscribe()
 
-    console.log('outbound', this.selectedOutbound())
-
     try {
       await this.api.setDefaultOutbound({
         gateway: this.selectedOutbound()?.id ?? null,
