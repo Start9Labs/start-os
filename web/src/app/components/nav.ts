@@ -114,7 +114,7 @@ const MENU = {
     span {
       display: block;
       padding: 0.5rem 1rem;
-      font: var(--tui-font-text-s);
+      font: var(--tui-typography-text-s);
       color: var(--tui-text-secondary);
       text-transform: uppercase;
 

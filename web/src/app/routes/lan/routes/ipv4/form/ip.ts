@@ -29,7 +29,7 @@ import {
 @Component({
   selector: 'lan-ipv4-ip',
   template: `
-    <fieldset [tuiTextfieldCleaner]="false">
+    <fieldset>
       <legend>Network Block</legend>
       <div tuiGroup>
         <tui-textfield tuiDropdownLimitWidth="min">
@@ -48,7 +48,7 @@ import {
         /16
       </div>
     </fieldset>
-    <fieldset [tuiTextfieldCleaner]="false">
+    <fieldset>
       <legend>Router IP</legend>
       <div tuiGroup>
         <tui-textfield>

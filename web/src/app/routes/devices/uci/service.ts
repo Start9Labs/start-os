@@ -270,21 +270,6 @@ export class DevicesUciService {
     })
   }
 
-  /**
-   * Check if any device has a reserved IPv6 address
-   */
-  async hasIpv6Reservations(): Promise<boolean> {
-    if (!this._uciFiles) {
-      await this.get() // Load if not already loaded
-    }
-
-    const dhcpHosts = this._uciFiles!.dhcp.sections.filter(
-      (s): s is DhcpHostSection => s.type === 'host',
-    )
-
-    return dhcpHosts.some(host => !!host.options.hostid)
-  }
-
   private ruleBlocksMac(rule: FirewallRuleSection, mac: string): boolean {
     // Check single MAC in options
     if (rule.options.src_mac?.toUpperCase() === mac) {

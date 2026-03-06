@@ -7,6 +7,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
+import { TuiAnimated } from '@taiga-ui/cdk'
 import {
   TuiDataList,
   TuiInput,
@@ -16,6 +17,7 @@ import {
   tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
 import { TuiChevron, TuiSelect, TuiSwitch } from '@taiga-ui/kit'
+import { TuiElasticContainer } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
@@ -50,16 +52,18 @@ import { WifiService } from '../../service'
           </label>
         }
       </fieldset>
-      @if (band() === 'Both') {
-        <label tuiLabel>
-          <input
-            type="checkbox"
-            tuiSwitch
-            formControlName="broadcastSeparately"
-          />
-          Broadcast Separately
-        </label>
-      }
+      <tui-elastic-container>
+        @if (band() === 'Both') {
+          <label tuiLabel tuiAnimated>
+            <input
+              type="checkbox"
+              tuiSwitch
+              formControlName="broadcastSeparately"
+            />
+            Broadcast Separately
+          </label>
+        }
+      </tui-elastic-container>
       <fieldset>
         <legend>Frequency Range</legend>
         <!-- @TODO: Implement channel optimization (requires backend channel scan endpoint) -->
@@ -112,6 +116,8 @@ import { WifiService } from '../../service'
     TuiDataList,
     Footer,
     Form,
+    TuiElasticContainer,
+    TuiAnimated,
   ],
 })
 export default class WifiSettings {

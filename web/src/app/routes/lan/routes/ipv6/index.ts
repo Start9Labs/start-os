@@ -1,16 +1,23 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   effect,
   inject,
-  signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
-import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
-import { tuiNumberFormatProvider, TuiTitle } from '@taiga-ui/core'
-import { TuiHeader } from '@taiga-ui/layout'
+import { MaskitoDirective } from '@maskito/angular'
+import { TuiAnimated, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
+import {
+  TuiError,
+  TuiHint,
+  TuiInput,
+  TuiLabel,
+  tuiNumberFormatProvider,
+  TuiTitle,
+} from '@taiga-ui/core'
+import { TuiSwitch } from '@taiga-ui/kit'
+import { TuiElasticContainer, TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
@@ -19,7 +26,8 @@ import {
   injectFormService,
   provideFormService,
 } from 'src/app/services/form.service'
-import { LanIpv6Form } from './form'
+import { PREFIX } from 'src/app/utils/masks'
+
 import { LanIpv6Service } from './service'
 import { LanIpv6Summary } from './summary'
 import { LanIpv6Data } from './uci/service'
@@ -36,15 +44,31 @@ import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
       (reset.prevent)="form.reset(service.data())"
       (ngSubmit)="onSave()"
     >
-      <lan-ipv6-form
-        [enabled]="slaacEnabled()"
-        [locked]="slaacLocked()"
-        [lockedReason]="slaacLockedReason()"
-      />
+      <ng-container formGroupName="strategy">
+        <label tuiLabel>
+          <input type="checkbox" tuiSwitch formControlName="slaac" />
+          Enable
+          <i tuiHint="Cannot disable: published ports using IPv6 exist"></i>
+        </label>
+      </ng-container>
+      <tui-elastic-container formGroupName="subnet">
+        @if (slaacEnabled()) {
+          <tui-textfield tuiAnimated>
+            <label tuiLabel>Prefix Length</label>
+            <input tuiInput formControlName="prefix" [maskito]="mask" />
+          </tui-textfield>
+          <tui-error formControlName="prefix" />
+        }
+      </tui-elastic-container>
       @if (service.data()) {
         <footer appFooter></footer>
       }
     </form>
+  `,
+  styles: `
+    tui-textfield {
+      max-width: 10rem;
+    }
   `,
   host: { class: 'g-page' },
   imports: [
@@ -54,7 +78,14 @@ import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
     Footer,
     Form,
     LanIpv6Summary,
-    LanIpv6Form,
+    TuiLabel,
+    TuiSwitch,
+    TuiHint,
+    TuiError,
+    TuiInput,
+    TuiElasticContainer,
+    MaskitoDirective,
+    TuiAnimated,
   ],
   providers: [
     provideFormService(LanIpv6Service),
@@ -63,31 +94,18 @@ import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class LanIpv6 {
-  protected readonly builder = inject(NonNullableFormBuilder)
-  protected readonly service = injectFormService<LanIpv6Data>()
+  private readonly builder = inject(NonNullableFormBuilder)
   private readonly publishedPortsUci = inject(PublishedPortsUciService)
 
-  readonly form = getLanIpv6Form(this.builder)
-
-  readonly slaacEnabled = toSignal(
+  protected readonly service = injectFormService<LanIpv6Data>()
+  protected readonly form = getLanIpv6Form(this.builder)
+  protected readonly mask = PREFIX
+  protected readonly slaacEnabled = toSignal(
     this.form.controls.strategy.controls.slaac.valueChanges.pipe(
       startWith(this.form.controls.strategy.controls.slaac.value),
     ),
     { requireSync: true },
   )
-
-  readonly wanPrefix = computed(() => this.service.data()?.wanPrefix ?? 48)
-
-  // Track if published ports use IPv6
-  readonly hasIpv6Ports = signal(false)
-
-  // SLAAC is locked if there are published ports using IPv6
-  readonly slaacLocked = computed(() => this.hasIpv6Ports())
-
-  readonly slaacLockedReason = computed(() => {
-    if (!this.slaacLocked()) return null
-    return 'Cannot disable: published ports using IPv6 exist'
-  })
 
   constructor() {
     // Load IPv6 dependencies
@@ -108,15 +126,18 @@ export default class LanIpv6 {
 
     // Update validators when SLAAC mode changes
     effect(() => {
-      const slaac = this.slaacEnabled()
-      const wanPrefix = this.wanPrefix()
-      updateLanIpv6Validators(this.form, slaac, wanPrefix)
+      updateLanIpv6Validators(
+        this.form,
+        this.slaacEnabled(),
+        this.service.data()?.wanPrefix ?? 48,
+      )
     })
   }
 
   private async loadIpv6Dependencies() {
-    const hasPorts = await this.publishedPortsUci.hasIpv6Ports()
-    this.hasIpv6Ports.set(hasPorts)
+    if ((await this.publishedPortsUci.hasIpv6Ports()) && this.slaacEnabled()) {
+      this.form.controls.strategy.controls.slaac.disable()
+    }
   }
 
   async onSave() {

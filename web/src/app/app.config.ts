@@ -52,7 +52,7 @@ export const appConfig: ApplicationConfig = {
     tuiTabsOptionsProvider({ size: 'm' }),
     tuiRadioOptionsProvider({ size: 's' }),
     tuiCheckboxOptionsProvider({ size: 's' }),
-    tuiTextfieldOptionsProvider({ size: signal('m') }),
+    tuiTextfieldOptionsProvider({ size: signal('m'), cleaner: signal(false) }),
     tuiFormOptionsProvider({ size: 'm' }),
     tuiCardOptionsProvider({ space: 'compact' }),
     tuiDropdownOptionsProvider({ appearance: 'start-9' }),

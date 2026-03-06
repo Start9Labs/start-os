@@ -34,7 +34,7 @@ import { getWanIpv6Form, updateIpv6Validators, WanIpv6Form } from './utils'
       (reset.prevent)="form.reset(service.data())"
       (ngSubmit)="onSave()"
     >
-      <wan-ipv6-ip formGroupName="ip" [disabledLocked]="hasIpv6Ports()" />
+      <wan-ipv6-ip formGroupName="ip" />
       @if (service.data()) {
         <footer appFooter></footer>
       }
@@ -54,15 +54,14 @@ import { getWanIpv6Form, updateIpv6Validators, WanIpv6Form } from './utils'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class WanIpv6 {
-  protected readonly builder = inject(NonNullableFormBuilder)
-  protected readonly service = injectFormService<WanIpv6Form>()
+  private readonly builder = inject(NonNullableFormBuilder)
   private readonly publishedPortsUci = inject(PublishedPortsUciService)
 
-  readonly form = getWanIpv6Form(this.builder)
+  protected readonly service = injectFormService<WanIpv6Form>()
+  protected readonly form = getWanIpv6Form(this.builder)
 
   // Track if any published port uses IPv6
   readonly hasIpv6Ports = signal(false)
-
   readonly ipMode = toSignal(
     this.form.controls.ip.controls.mode.valueChanges.pipe(
       startWith(this.form.controls.ip.controls.mode.value),
@@ -93,8 +92,7 @@ export default class WanIpv6 {
   }
 
   private async loadIpv6PortUsage() {
-    const hasPorts = await this.publishedPortsUci.hasIpv6Ports()
-    this.hasIpv6Ports.set(hasPorts)
+    this.hasIpv6Ports.set(await this.publishedPortsUci.hasIpv6Ports())
   }
 
   async onSave() {

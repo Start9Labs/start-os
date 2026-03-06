@@ -7,7 +7,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
-import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
+import { TuiAnimated, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import { TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import {
   TuiChevron,
@@ -15,7 +15,7 @@ import {
   TuiSelect,
   TuiSwitch,
 } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
+import { TuiElasticContainer, TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
@@ -51,26 +51,33 @@ import {
         <input type="checkbox" tuiSwitch formControlName="enabled" />
         Enable Dynamic DNS
       </label>
-      @if (enabled()) {
-        <section>
-          <tui-textfield tuiChevron [tuiTextfieldCleaner]="false">
-            <label tuiLabel>Provider</label>
-            <input tuiSelect formControlName="provider" />
-            <tui-data-list-wrapper
-              *tuiDropdown
-              [itemContent]="providerContent"
-              [items]="providerList"
-            />
-            <ng-template #providerContent let-item>
-              {{ getProviderLabel(item) }}
-            </ng-template>
-          </tui-textfield>
-        </section>
-        @if (providerFields().length) {
-          <hr />
-          <ddns-fields formGroupName="fields" [fields]="providerFields()" />
+      <tui-elastic-container>
+        @if (enabled()) {
+          <section tuiAnimated>
+            <tui-textfield tuiChevron>
+              <label tuiLabel>Provider</label>
+              <input tuiSelect formControlName="provider" />
+              <tui-data-list-wrapper
+                *tuiDropdown
+                [itemContent]="providerContent"
+                [items]="providerList"
+              />
+              <ng-template #providerContent let-item>
+                {{ getProviderLabel(item) }}
+              </ng-template>
+            </tui-textfield>
+          </section>
         }
-      }
+      </tui-elastic-container>
+      <tui-elastic-container>
+        @if (enabled() && providerFields().length) {
+          <ddns-fields
+            tuiAnimated
+            formGroupName="fields"
+            [fields]="providerFields()"
+          />
+        }
+      </tui-elastic-container>
       @if (service.data()) {
         <footer appFooter></footer>
       }
@@ -90,6 +97,8 @@ import {
     Footer,
     DdnsSummary,
     DdnsFields,
+    TuiElasticContainer,
+    TuiAnimated,
   ],
   providers: [provideFormService(DdnsService)],
   changeDetection: ChangeDetectionStrategy.OnPush,
