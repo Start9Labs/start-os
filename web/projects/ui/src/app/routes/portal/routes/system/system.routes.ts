@@ -28,7 +28,7 @@ export default [
       {
         path: 'email',
         title: titleResolver,
-        loadComponent: () => import('./routes/email/email.component'),
+        loadComponent: () => import('./routes/smtp/smtp.component'),
       },
       {
         path: 'backup',

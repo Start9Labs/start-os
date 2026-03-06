@@ -360,7 +360,6 @@ export default {
   377: 'Wykryto kopie zapasowe StartOS',
   378: 'Nie wykryto kopii zapasowych StartOS',
   379: 'Wersja StartOS',
-  381: 'Dane logowania SMTP',
   382: 'Wyślij e-mail testowy',
   383: 'Wyślij',
   384: 'Wysyłanie e-maila',

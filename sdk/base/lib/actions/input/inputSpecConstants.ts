@@ -84,10 +84,6 @@ export const customSmtp = smtpFields()
  * Each variant has SMTP fields pre-filled with the provider's recommended settings.
  */
 export const smtpProviderVariants = Variants.of({
-  none: {
-    name: 'None',
-    spec: InputSpec.of({}),
-  },
   gmail: {
     name: 'Gmail',
     spec: smtpFields({
@@ -140,7 +136,7 @@ export const smtpProviderVariants = Variants.of({
 export const systemSmtpSpec = InputSpec.of({
   provider: Value.union({
     name: 'Provider',
-    default: 'none',
+    default: 'gmail',
     variants: smtpProviderVariants,
   }),
 })

@@ -359,7 +359,6 @@ export const ENGLISH: Record<string, number> = {
   'StartOS backups detected': 377,
   'No StartOS backups detected': 378,
   'StartOS Version': 379,
-  'SMTP Credentials': 381,
   'Send test email': 382,
   'Send': 383,
   'Sending email': 384,

@@ -360,7 +360,6 @@ export default {
   377: 'Sauvegardes StartOS détectées',
   378: 'Aucune sauvegarde StartOS détectée',
   379: 'Version de StartOS',
-  381: 'Identifiants SMTP',
   382: 'Envoyer un email de test',
   383: 'Envoyer',
   384: 'Envoi de l’email',

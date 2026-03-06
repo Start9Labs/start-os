@@ -10,7 +10,7 @@ import {
   i18nPipe,
   LoadingService,
 } from '@start9labs/shared'
-import { inputSpec, utils } from '@start9labs/start-sdk'
+import { inputSpec, ISB, utils } from '@start9labs/start-sdk'
 import { TuiButton, TuiError, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
@@ -43,14 +43,14 @@ function detectProviderKey(host: string | undefined): string {
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
         {{ 'Back' | i18n }}
       </a>
-      {{ 'SMTP' | i18n }}
+      SMTP
     </ng-container>
     @if (form$ | async; as data) {
       <form [formGroup]="data.form">
         <header tuiHeader="body-l">
           <h3 tuiTitle>
             <b>
-              {{ 'SMTP Credentials' | i18n }}
+              SMTP
               <a
                 tuiIconButton
                 size="xs"
@@ -66,6 +66,16 @@ function detectProviderKey(host: string | undefined): string {
         </header>
         <form-group [spec]="data.spec" />
         <footer>
+          @if (!data.form.pristine) {
+            <button
+              tuiButton
+              size="l"
+              appearance="secondary"
+              (click)="cancel(data)"
+            >
+              {{ 'Cancel' | i18n }}
+            </button>
+          }
           <button
             tuiButton
             size="l"
@@ -76,7 +86,7 @@ function detectProviderKey(host: string | undefined): string {
           </button>
         </footer>
       </form>
-      @if (data.form.value.provider?.selection !== 'none') {
+      @if (data.form.value.smtp?.selection === 'enabled') {
         <form>
           <header tuiHeader="body-l">
             <h3 tuiTitle>
@@ -163,35 +173,57 @@ export default class SystemEmailComponent {
     return !!value && !this.emailRegex.test(value)
   }
 
+  private readonly smtpSpec = ISB.InputSpec.of({
+    smtp: ISB.Value.union({
+      name: this.i18n.transform('SMTP'),
+      default: 'disabled',
+      variants: ISB.Variants.of({
+        disabled: {
+          name: this.i18n.transform('Disabled'),
+          spec: ISB.InputSpec.of({}),
+        },
+        enabled: {
+          name: this.i18n.transform('Enabled'),
+          spec: inputSpec.constants.systemSmtpSpec,
+        },
+      }),
+    }),
+  })
+
   readonly form$ = this.patch.watch$('serverInfo', 'smtp').pipe(
     switchMap(async value => {
-      const spec = await configBuilderToSpec(inputSpec.constants.systemSmtpSpec)
+      const spec = await configBuilderToSpec(this.smtpSpec)
 
       const formData = value
         ? {
-            provider: {
-              selection: detectProviderKey(value.host),
+            smtp: {
+              selection: 'enabled' as const,
               value: {
-                host: value.host,
-                security: {
-                  selection: value.security,
-                  value: { port: String(value.port) },
+                provider: {
+                  selection: detectProviderKey(value.host),
+                  value: {
+                    host: value.host,
+                    security: {
+                      selection: value.security,
+                      value: { port: String(value.port) },
+                    },
+                    from: value.from,
+                    username: value.username,
+                    password: value.password,
+                  },
                 },
-                from: value.from,
-                username: value.username,
-                password: value.password,
               },
             },
           }
         : undefined
       const form = this.formService.createForm(spec, formData)
 
-      return { form, spec }
+      return { form, spec, formData }
     }),
   )
 
   private getSmtpValue(formValue: Record<string, any>) {
-    const { security, ...rest } = formValue['provider'].value
+    const { security, ...rest } = formValue['smtp'].value.provider.value
     return {
       ...rest,
       security: security.selection,
@@ -203,7 +235,7 @@ export default class SystemEmailComponent {
     const loader = this.loader.open('Saving').subscribe()
 
     try {
-      if (formValue['provider'].selection === 'none') {
+      if (formValue['smtp'].selection === 'disabled') {
         await this.api.clearSmtp({})
       } else {
         await this.api.setSmtp(this.getSmtpValue(formValue))
@@ -213,6 +245,13 @@ export default class SystemEmailComponent {
     } finally {
       loader.unsubscribe()
     }
+  }
+
+  cancel(data: {
+    form: ReturnType<FormService['createForm']>
+    formData: Record<string, any> | undefined
+  }) {
+    data.form.reset(data.formData)
   }
 
   async sendTestEmail(formValue: Record<string, any>) {

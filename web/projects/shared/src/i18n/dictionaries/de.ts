@@ -360,7 +360,6 @@ export default {
   377: 'StartOS-Sicherungen erkannt',
   378: 'Keine StartOS-Sicherungen erkannt',
   379: 'StartOS-Version',
-  381: 'SMTP-Zugangsdaten',
   382: 'Test-E-Mail senden',
   383: 'Senden',
   384: 'E-Mail wird gesendet',

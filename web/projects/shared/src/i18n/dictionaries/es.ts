@@ -360,7 +360,6 @@ export default {
   377: 'Copias de seguridad de StartOS detectadas',
   378: 'No se detectaron copias de seguridad de StartOS',
   379: 'Versión de StartOS',
-  381: 'Credenciales SMTP',
   382: 'Enviar correo de prueba',
   383: 'Enviar',
   384: 'Enviando correo',
