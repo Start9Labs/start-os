@@ -48,8 +48,19 @@ export abstract class ApiService {
   abstract devicesDataUsage(
     params: DeviceDataUsageReq,
   ): Promise<DataUsagePointFromApi[]>
+  abstract lanIpv4Get(): Promise<LanIpv4Response>
+  abstract lanIpv4Set(params: LanIpv4SetRequest): Promise<null>
   abstract lanIpv6Get(): Promise<LanIpv6Response>
   abstract lanIpv6Set(params: LanIpv6SetRequest): Promise<null>
+}
+
+export type LanIpv4Response = {
+  address: string
+  netmask: string
+}
+
+export type LanIpv4SetRequest = {
+  address: string
 }
 
 export type LanIpv6Response = {

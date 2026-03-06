@@ -5,6 +5,7 @@ import {
   inject,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
+import { WA_WINDOW } from '@ng-web-apis/common'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
 import {
@@ -145,13 +146,14 @@ export default class Profiles {
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(ProfilesService)
   protected readonly outboundService = inject(OutboundService)
+  private readonly window = inject(WA_WINDOW)
 
   private readonly lanSubnet = computed(() => {
     const profiles = this.service.data()
     const lan = profiles?.find(p => p.owns_lan)
     if (lan) {
       const [first, second] = lan.gateway_ip.split('.').map(Number)
-      return { firstOctet: first || 192, secondOctet: second || 168 }
+      return { firstOctet: first ?? 192, secondOctet: second ?? 168 }
     }
     return { firstOctet: 192, secondOctet: 168 }
   })
@@ -236,12 +238,34 @@ export default class Profiles {
           },
         },
       })
-      .subscribe(result => {
+      .subscribe(async result => {
         if (profile) {
-          this.service.updateProfile({
-            ...profile,
-            ...result,
-          })
+          const adminIpChanged = await this.service.updateProfile(
+            { ...profile, ...result },
+            profile.gateway_ip,
+          )
+
+          if (adminIpChanged) {
+            const newIp = result.gateway_ip
+            const currentHost = this.window.location.hostname
+
+            if (currentHost === profile.gateway_ip) {
+              this.dialogs
+                .open(
+                  "Your router's IP address has changed. The UI is now available at the new address.",
+                  {
+                    label: 'IP Address Changed',
+                    dismissible: false,
+                    data: 'Open',
+                  },
+                )
+                .subscribe({
+                  complete: () => {
+                    this.window.location.href = `http://${newIp}`
+                  },
+                })
+            }
+          }
         } else {
           this.service.createProfile(result)
         }

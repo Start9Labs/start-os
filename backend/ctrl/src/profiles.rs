@@ -530,7 +530,41 @@ pub fn set<C: CtrlContext>(
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )?;
+
+        // Capture old LAN IP before set_config modifies it
+        let old_lan_ip = if profile.owns_lan {
+            get_lan_ip(&cfgs)
+        } else {
+            None
+        };
+
         let out = set_config(ctx.clone(), &mut cfgs, &profile)?;
+
+        // Detect admin IP change and propagate block changes to sibling profiles
+        let admin_ip_changed = profile.owns_lan
+            && old_lan_ip.is_some()
+            && old_lan_ip != Some(profile.gateway_ip);
+        let block_changed = match (admin_ip_changed, old_lan_ip) {
+            (true, Some(old)) => {
+                old.octets()[0] != profile.gateway_ip.octets()[0]
+                    || old.octets()[1] != profile.gateway_ip.octets()[1]
+            }
+            _ => false,
+        };
+        if block_changed {
+            let profile_interfaces: std::collections::HashSet<String> =
+                list_config(ctx.clone(), &cfgs)?
+                    .into_iter()
+                    .filter(|p| p.interface != crate::lan::LAN_INTERFACE)
+                    .map(|p| p.interface)
+                    .collect();
+            crate::lan::update_profile_ips_for_block_change(
+                &mut cfgs,
+                profile.gateway_ip,
+                &profile_interfaces,
+            )?;
+        }
+
         match dump_all(ctx.uci_root(), cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
@@ -539,12 +573,28 @@ pub fn set<C: CtrlContext>(
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 if ctx.effectful() {
-                    reload_system()?;
+                    if admin_ip_changed {
+                        crate::lan::restart_network_services(block_changed);
+                    } else {
+                        reload_system()?;
+                    }
                 }
                 return Ok(out);
             }
         }
     }
+}
+
+/// Read the current LAN interface IP from parsed configs.
+fn get_lan_ip(cfgs: &uciedit::Configs) -> Option<Ipv4Addr> {
+    for section in &cfgs["network"].sections {
+        if section.name().as_deref() == Some(crate::lan::LAN_INTERFACE) {
+            if let Ok(Some(iface)) = section.get_typed::<NetworkInterface>() {
+                return iface.ipaddr;
+            }
+        }
+    }
+    None
 }
 
 fn set_config<C: CtrlContext>(

@@ -35,6 +35,8 @@ import {
   DeviceUpdateReq,
   DeviceDataUsageReq,
   DataUsagePointFromApi,
+  LanIpv4Response,
+  LanIpv4SetRequest,
   LanIpv6Response,
   LanIpv6SetRequest,
 } from './api.service'
@@ -215,6 +217,14 @@ export class LiveApiService extends ApiService {
     params: DeviceDataUsageReq,
   ): Promise<DataUsagePointFromApi[]> {
     return this.rpc.request({ method: 'devices.data-usage', params })
+  }
+
+  async lanIpv4Get(): Promise<LanIpv4Response> {
+    return this.rpc.request({ method: 'lan.ipv4-get', params: {} })
+  }
+
+  async lanIpv4Set(params: LanIpv4SetRequest): Promise<null> {
+    return this.rpc.request({ method: 'lan.ipv4-set', params })
   }
 
   async lanIpv6Get(): Promise<LanIpv6Response> {

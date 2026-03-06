@@ -58,15 +58,15 @@ import {
           <input tuiInput [value]="secondOctet()" disabled />
         </tui-textfield>
         <tui-textfield>
-          <input tuiInput value="0" disabled />
-        </tui-textfield>
-        <tui-textfield>
           <input
             tuiInputNumber
             formControlName="routerOctet"
             [min]="1"
             [max]="254"
           />
+        </tui-textfield>
+        <tui-textfield>
+          <input tuiInput value="1" disabled />
         </tui-textfield>
       </div>
     </fieldset>

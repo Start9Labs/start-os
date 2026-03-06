@@ -38,6 +38,8 @@ import {
   DeviceUpdateReq,
   DeviceDataUsageReq,
   DataUsagePointFromApi,
+  LanIpv4Response,
+  LanIpv4SetRequest,
   LanIpv6Response,
   LanIpv6SetRequest,
 } from './api.service'
@@ -51,7 +53,6 @@ import { wanIpv4Dhcp } from 'src/app/routes/wan/routes/ipv4/uci/mocks'
 import { wanIpv6Slaac } from 'src/app/routes/wan/routes/ipv6/uci/mock'
 import { ddnsDyndns } from 'src/app/routes/wan/routes/ddns/uci/mocks'
 import { macRouterDevice } from 'src/app/routes/wan/routes/mac/uci/mocks'
-import { lanDefault } from 'src/app/routes/lan/routes/ipv4/uci/mocks'
 import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/lan/routes/ipv6/uci/mocks'
 import { mockWireGuardSections } from 'src/app/routes/outbound/uci/mocks'
 import {
@@ -930,6 +931,22 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
     return generateMockDataUsage(params.mac, params.period)
   }
 
+  private mockLanIpv4: LanIpv4Response = {
+    address: '192.168.0.1',
+    netmask: '255.255.0.0',
+  }
+
+  async lanIpv4Get(): Promise<LanIpv4Response> {
+    await pauseFor(250)
+    return structuredClone(this.mockLanIpv4)
+  }
+
+  async lanIpv4Set(params: LanIpv4SetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockLanIpv4 = { ...this.mockLanIpv4, address: params.address }
+    return null
+  }
+
   private mockLanIpv6: LanIpv6Response = {
     slaac: true,
     dhcpv6: true,
@@ -995,7 +1012,19 @@ export const mockUci: Record<string, UciFile<UciSection>> = {
       wanIpv4Dhcp,
       wanIpv6Slaac,
       macRouterDevice,
-      lanDefault,
+      {
+        type: 'interface',
+        name: 'lan',
+        options: {
+          proto: 'static',
+          device: 'br-lan',
+          ipaddr: '192.168.0.1',
+          netmask: '255.255.0.0',
+          ip6assign: '64',
+          ip6addr: 'fd00::1/64',
+        },
+        lists: {},
+      },
       mockBrLan,
       mockWanDevice,
       ...mockWireGuardSections,

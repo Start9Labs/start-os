@@ -27,11 +27,11 @@ export class ActionService {
     const loading = this.notifications.open(options.loading).subscribe()
 
     try {
-      await action()
-
       if (options.restart) {
         this.networkRestart.suppress()
       }
+
+      await action()
 
       if (options.success) {
         this.alerts

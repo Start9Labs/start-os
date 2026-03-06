@@ -7,6 +7,8 @@ import {
   SecurityProfile,
 } from 'src/app/services/api/api.service'
 import { FormService } from 'src/app/services/form.service'
+import { NETWORK_RESTART_TIMEOUT_MS } from 'src/app/services/network-restart.service'
+import { pauseFor } from 'src/app/utils/pauseFor'
 
 @Injectable({ providedIn: 'root' })
 export class ProfilesService extends FormService<SecurityProfile[]> {
@@ -35,11 +37,29 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
     })
   }
 
-  async updateProfile(params: ProfileUpdateInput) {
-    await this.actions.run(async () => {
-      await this.api.profileUpdate(params)
-      this.refresh()
-    })
+  async updateProfile(
+    params: ProfileUpdateInput,
+    oldGatewayIp?: string,
+  ): Promise<boolean> {
+    const adminIpChanged =
+      params.owns_lan && !!oldGatewayIp && oldGatewayIp !== params.gateway_ip
+
+    const success = await this.actions.run(
+      async () => {
+        await this.api.profileUpdate(params)
+        if (adminIpChanged) {
+          await pauseFor(NETWORK_RESTART_TIMEOUT_MS)
+        }
+        this.refresh()
+      },
+      {
+        loading: adminIpChanged ? 'Applying network changes...' : undefined,
+        success: adminIpChanged ? 'Network settings applied' : undefined,
+        restart: adminIpChanged,
+      },
+    )
+
+    return success && adminIpChanged
   }
 
   async deleteProfile(params: ProfileIdOpt) {

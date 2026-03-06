@@ -85,7 +85,7 @@ OPENWRT_IMAGE := out/$(OPENWRT_IMAGE_NAME)
 # Usage:  make update
 #         make update REMOTE=root@10.0.0.1   # override target device
 # ---------------------------------------------------------------------------
-REMOTE ?= root@192.168.1.1
+REMOTE ?= root@192.168.0.1
 PV := $(shell command -v pv 2>/dev/null || echo cat)
 
 .PHONY: all clean openwrt-setup stage image image-quick update
