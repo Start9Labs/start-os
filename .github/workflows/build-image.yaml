@@ -18,7 +18,7 @@ jobs:
   build:
     name: Build Image
     if: github.event.pull_request.draft != true
-    runs-on: buildjet-8vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,7 +30,7 @@ jobs:
           nodejs-version: ${{ env.NODEJS_VERSION }}
 
       - name: Cache OpenWrt download directory
-        uses: buildjet/cache@v4
+        uses: actions/cache@v4
         with:
           path: openwrt/dl
           key: openwrt-dl-${{ hashFiles('build/feeds.conf', 'build/openwrt.diffconfig') }}
