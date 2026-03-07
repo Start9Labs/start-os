@@ -2,6 +2,7 @@ import { CdkCopyToClipboard } from '@angular/cdk/clipboard'
 import {
   ChangeDetectionStrategy,
   Component,
+  inject,
   input,
   ViewEncapsulation,
 } from '@angular/core'
@@ -10,6 +11,7 @@ import {
   TuiAppearance,
   TuiButton,
   tuiButtonOptionsProvider,
+  TuiNotificationService,
   TuiTitle,
 } from '@taiga-ui/core'
 import { tuiBadgeOptionsProvider } from '@taiga-ui/kit'
@@ -25,6 +27,9 @@ import { tuiBadgeOptionsProvider } from '@taiga-ui/kit'
           tuiIconButton
           iconStart="@tui.copy"
           [cdkCopyToClipboard]="appSummary()"
+          (cdkCopyToClipboardCopied)="
+            alerts.open('Copied', { appearance: 'positive' }).subscribe()
+          "
         >
           Copy
         </button>
@@ -68,6 +73,8 @@ import { tuiBadgeOptionsProvider } from '@taiga-ui/kit'
   imports: [TuiButton, CdkCopyToClipboard],
 })
 export class Summary {
+  protected readonly alerts = inject(TuiNotificationService)
+
   public readonly appSummary = input('', {
     transform: (value?: string) => value || '',
   })
