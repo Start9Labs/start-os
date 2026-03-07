@@ -7,12 +7,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, RouterLink } from '@angular/router'
-import {
-  DialogService,
-  DocsLinkDirective,
-  i18nPipe,
-  UnitConversionPipesModule,
-} from '@start9labs/shared'
+import { DialogService, DocsLinkDirective, i18nPipe } from '@start9labs/shared'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
 import {
   TuiButton,
@@ -150,7 +145,6 @@ import { BACKUP_RESTORE } from './restore.component'
     TuiNotification,
     TuiMapperPipe,
     TitleDirective,
-    UnitConversionPipesModule,
     BackupNetworkComponent,
     BackupPhysicalComponent,
     BackupProgressComponent,

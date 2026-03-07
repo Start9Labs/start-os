@@ -6,7 +6,7 @@ import {
   MarketplacePackageHeroComponent,
   MarketplaceReleaseNotesComponent,
 } from '@start9labs/marketplace'
-import { DialogService, MARKDOWN, SharedPipesModule } from '@start9labs/shared'
+import { DialogService, EmptyPipe, MARKDOWN } from '@start9labs/shared'
 import { of } from 'rxjs'
 import { MarketplaceControlsComponent } from '../marketplace/components/controls.component'
 import { MarketplacePkgSideload } from './sideload.utils'
@@ -69,7 +69,7 @@ import { MarketplacePkgSideload } from './sideload.utils'
     }
   `,
   imports: [
-    SharedPipesModule,
+    EmptyPipe,
     MarketplaceAboutComponent,
     MarketplaceLinksComponent,
     MarketplacePackageHeroComponent,

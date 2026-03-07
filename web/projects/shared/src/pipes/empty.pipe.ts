@@ -1,13 +1,11 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { isEmptyObject } from '../../util/misc.util'
+import { isEmptyObject } from '../util/misc.util'
 
 @Pipe({
   name: 'empty',
-  standalone: false,
 })
 export class EmptyPipe implements PipeTransform {
   transform(val: object | [] = {}): boolean {
-    if (Array.isArray(val)) return !val.length
-    return isEmptyObject(val)
+    return Array.isArray(val) ? !val.length : isEmptyObject(val)
   }
 }

@@ -21,7 +21,6 @@ import { knownRegistries, sameUrl } from '@start9labs/shared'
   `,
   styles: ':host { overflow: hidden; }',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: false,
 })
 export class StoreIconComponent {
   @Input()

@@ -1,3 +1,4 @@
+import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -5,7 +6,11 @@ import {
   Input,
   Output,
 } from '@angular/core'
+import { RouterModule } from '@angular/router'
+import { LocalizePipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { TuiAppearance, TuiIcon } from '@taiga-ui/core'
+import { TuiSkeleton } from '@taiga-ui/kit'
 
 const ICONS: Record<string, string> = {
   all: '@tui.layout-grid',
@@ -26,8 +31,15 @@ const ICONS: Record<string, string> = {
   selector: 'marketplace-categories',
   templateUrl: 'categories.component.html',
   styleUrls: ['categories.component.scss'],
+  imports: [
+    RouterModule,
+    CommonModule,
+    TuiAppearance,
+    TuiIcon,
+    TuiSkeleton,
+    LocalizePipe,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: false,
 })
 export class CategoriesComponent {
   @Input()

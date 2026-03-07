@@ -4,7 +4,6 @@ import Fuse from 'fuse.js'
 
 @Pipe({
   name: 'filterPackages',
-  standalone: false,
 })
 export class FilterPackagesPipe implements PipeTransform {
   transform(
@@ -79,9 +78,3 @@ export class FilterPackagesPipe implements PipeTransform {
       .map(a => ({ ...a }))
   }
 }
-
-@NgModule({
-  declarations: [FilterPackagesPipe],
-  exports: [FilterPackagesPipe],
-})
-export class FilterPackagesPipeModule {}

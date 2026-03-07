@@ -1,12 +1,15 @@
+import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { RouterModule } from '@angular/router'
+import { LocalizePipe, TickerComponent } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 
 @Component({
   selector: 'marketplace-item',
   templateUrl: 'item.component.html',
   styleUrls: ['item.component.scss'],
+  imports: [CommonModule, RouterModule, TickerComponent, LocalizePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: false,
 })
 export class ItemComponent {
   @Input({ required: true })

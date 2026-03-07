@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { Component, Inject } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { WA_WINDOW } from '@ng-web-apis/common'
 import {
   DialogService,
@@ -16,7 +17,7 @@ import { ConfigService } from 'src/app/services/config.service'
   selector: 'diagnostic-home',
   templateUrl: 'home.component.html',
   styleUrls: ['home.page.scss'],
-  imports: [CommonModule, TuiButton, i18nPipe],
+  imports: [CommonModule, TuiButton, i18nPipe, RouterLink],
 })
 export default class HomePage {
   restarted = false
