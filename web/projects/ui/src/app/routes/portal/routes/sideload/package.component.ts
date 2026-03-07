@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import { Component, inject, input } from '@angular/core'
 import {
   MarketplaceAboutComponent,
@@ -70,7 +69,6 @@ import { MarketplacePkgSideload } from './sideload.utils'
     }
   `,
   imports: [
-    CommonModule,
     SharedPipesModule,
     MarketplaceAboutComponent,
     MarketplaceLinksComponent,

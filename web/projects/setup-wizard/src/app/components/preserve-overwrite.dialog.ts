@@ -5,7 +5,6 @@ import { TuiDialogContext } from '@taiga-ui/core'
 import { injectContext } from '@taiga-ui/polymorpheus'
 
 @Component({
-  standalone: true,
   imports: [TuiButton, i18nPipe],
   template: `
     <p>{{ 'This drive contains existing StartOS data.' | i18n }}</p>

@@ -20,9 +20,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
-  template: `
-    <app-initializing [progress]="progress()" />
-  `,
+  template: '<app-initializing [progress]="progress()" />',
   providers: [provideSetupLogsService(ApiService)],
   styles: ':host { height: 100%; }',
   imports: [InitializingComponent],

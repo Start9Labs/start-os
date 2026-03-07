@@ -11,7 +11,6 @@ import { TuiPassword } from '@taiga-ui/kit'
 import { injectContext } from '@taiga-ui/polymorpheus'
 
 @Component({
-  standalone: true,
   imports: [
     FormsModule,
     TuiButton,

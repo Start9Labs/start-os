@@ -150,7 +150,11 @@ export class MarketplaceControlsComponent {
     const originalUrl = localPkg?.registry || null
 
     if (!localPkg) {
-      if (await this.alerts.alertInstall(this.i18n.localize(this.pkg().alerts.install || ''))) {
+      if (
+        await this.alerts.alertInstall(
+          this.i18n.localize(this.pkg().alerts.install || ''),
+        )
+      ) {
         this.installOrUpload(currentUrl)
       }
       return

@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -78,7 +77,6 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
     },
   ],
   imports: [
-    CommonModule,
     ItemModule,
     TuiAutoFocus,
     TuiButton,

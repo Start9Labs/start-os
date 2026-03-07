@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
@@ -94,7 +93,6 @@ const ipv6 =
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
     FormsModule,
     ReactiveFormsModule,
     FormGroupComponent,
