@@ -64,7 +64,7 @@ import {
                   <input
                     tuiInput
                     [formControlName]="name"
-                    [maskito]="['prefix', 'mask'].includes(name) ? mask : null"
+                    [maskito]="['prefix', 'ip6prefixlen', 'ip4prefixlen'].includes(name) ? mask : null"
                     [placeholder]="optional ? 'Auto' : ''"
                   />
                 </tui-textfield>

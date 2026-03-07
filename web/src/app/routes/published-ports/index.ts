@@ -11,9 +11,6 @@ import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ApiService } from 'src/app/services/api/api.service'
-import { DdnsUciService } from 'src/app/routes/wan/routes/ddns/uci/service'
-import { WanIpv4UciService } from 'src/app/routes/wan/routes/ipv4/uci/service'
-import { WanIpv6UciService } from 'src/app/routes/wan/routes/ipv6/uci/service'
 import { provideFormService } from 'src/app/services/form.service'
 import { PublishPortDialog } from './dialog'
 import { PublishedPortsService } from './service'
@@ -47,9 +44,6 @@ export default class PublishedPorts {
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(PublishedPortsService)
   private readonly api = inject(ApiService)
-  protected readonly wanIpv6Uci = inject(WanIpv6UciService)
-  protected readonly wanIpv4Uci = inject(WanIpv4UciService)
-  protected readonly ddnsUci = inject(DdnsUciService)
   protected readonly loading = computed(() => !this.service.data())
 
   protected readonly ipv6Available = signal(true)
@@ -62,17 +56,20 @@ export default class PublishedPorts {
   }
 
   private async loadDependencies() {
-    const [wanEnabled, lanEnabled, ddnsHostname, wanIp] = await Promise.all([
-      this.wanIpv6Uci.isEnabled(),
-      this.api.lanIpv6Get().then(r => r.slaac || r.dhcpv6),
-      this.ddnsUci.getHostname(),
-      this.wanIpv4Uci.getWanIp(),
+    const [wanIpv6, lanIpv6, ddns, wanIpv4] = await Promise.all([
+      this.api.wanIpv6Get(),
+      this.api.lanIpv6Get(),
+      this.api.wanDdnsGet(),
+      this.api.wanIpv4Get(),
     ])
     // IPv6 port forwarding requires WAN IPv6 + LAN IPv6
-    this.ipv6Available.set(wanEnabled && lanEnabled)
+    const wanIpv6Enabled = wanIpv6.mode !== 'disabled'
+    const lanIpv6Enabled = lanIpv6.slaac || lanIpv6.dhcpv6
+    this.ipv6Available.set(wanIpv6Enabled && lanIpv6Enabled)
 
     // Use DDNS hostname if available, otherwise WAN IP
-    this.ipv4EndpointHost.set(ddnsHostname || wanIp)
+    const ddnsHostname = ddns.enabled ? ddns.hostname || null : null
+    this.ipv4EndpointHost.set(ddnsHostname || wanIpv4.assigned_ip)
   }
 
   edit(existing?: PublishedPortDisplay) {

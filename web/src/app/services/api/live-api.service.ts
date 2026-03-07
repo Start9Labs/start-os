@@ -39,6 +39,16 @@ import {
   LanIpv4SetRequest,
   LanIpv6Response,
   LanIpv6SetRequest,
+  WanIpv4Response,
+  WanIpv4SetRequest,
+  WanIpv6Response,
+  WanIpv6SetRequest,
+  WanMacResponse,
+  WanMacSetRequest,
+  WanDnsResponse,
+  WanDnsSetRequest,
+  WanDdnsResponse,
+  WanDdnsSetRequest,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -233,5 +243,45 @@ export class LiveApiService extends ApiService {
 
   async lanIpv6Set(params: LanIpv6SetRequest): Promise<null> {
     return this.rpc.request({ method: 'lan.ipv6-set', params })
+  }
+
+  async wanIpv4Get(): Promise<WanIpv4Response> {
+    return this.rpc.request({ method: 'wan.ipv4-get', params: {} })
+  }
+
+  async wanIpv4Set(params: WanIpv4SetRequest): Promise<null> {
+    return this.rpc.request({ method: 'wan.ipv4-set', params })
+  }
+
+  async wanIpv6Get(): Promise<WanIpv6Response> {
+    return this.rpc.request({ method: 'wan.ipv6-get', params: {} })
+  }
+
+  async wanIpv6Set(params: WanIpv6SetRequest): Promise<null> {
+    return this.rpc.request({ method: 'wan.ipv6-set', params })
+  }
+
+  async wanMacGet(): Promise<WanMacResponse> {
+    return this.rpc.request({ method: 'wan.mac-get', params: {} })
+  }
+
+  async wanMacSet(params: WanMacSetRequest): Promise<null> {
+    return this.rpc.request({ method: 'wan.mac-set', params })
+  }
+
+  async wanDnsGet(): Promise<WanDnsResponse> {
+    return this.rpc.request({ method: 'wan.dns-get', params: {} })
+  }
+
+  async wanDnsSet(params: WanDnsSetRequest): Promise<null> {
+    return this.rpc.request({ method: 'wan.dns-set', params })
+  }
+
+  async wanDdnsGet(): Promise<WanDdnsResponse> {
+    return this.rpc.request({ method: 'wan.ddns-get', params: {} })
+  }
+
+  async wanDdnsSet(params: WanDdnsSetRequest): Promise<null> {
+    return this.rpc.request({ method: 'wan.ddns-set', params })
   }
 }

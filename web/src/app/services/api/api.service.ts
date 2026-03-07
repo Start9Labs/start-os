@@ -52,6 +52,16 @@ export abstract class ApiService {
   abstract lanIpv4Set(params: LanIpv4SetRequest): Promise<null>
   abstract lanIpv6Get(): Promise<LanIpv6Response>
   abstract lanIpv6Set(params: LanIpv6SetRequest): Promise<null>
+  abstract wanIpv4Get(): Promise<WanIpv4Response>
+  abstract wanIpv4Set(params: WanIpv4SetRequest): Promise<null>
+  abstract wanIpv6Get(): Promise<WanIpv6Response>
+  abstract wanIpv6Set(params: WanIpv6SetRequest): Promise<null>
+  abstract wanMacGet(): Promise<WanMacResponse>
+  abstract wanMacSet(params: WanMacSetRequest): Promise<null>
+  abstract wanDnsGet(): Promise<WanDnsResponse>
+  abstract wanDnsSet(params: WanDnsSetRequest): Promise<null>
+  abstract wanDdnsGet(): Promise<WanDdnsResponse>
+  abstract wanDdnsSet(params: WanDdnsSetRequest): Promise<null>
 }
 
 export type LanIpv4Response = {
@@ -355,4 +365,107 @@ export interface DataUsagePointFromApi {
   timestamp: number
   upload: number
   download: number
+}
+
+// WAN types
+
+export type WanIpv4Mode = 'dhcp' | 'static' | 'pppoe'
+
+export type WanIpv4Response = {
+  mode: WanIpv4Mode
+  assigned_ip: string | null
+  address: string | null
+  netmask: string | null
+  gateway: string | null
+  username: string | null
+  password: string | null
+  device: string | null
+}
+
+export type WanIpv4SetRequest = {
+  mode: WanIpv4Mode
+  address?: string
+  netmask?: string
+  gateway?: string
+  username?: string
+  password?: string
+  device?: string
+}
+
+export type WanIpv6Mode = 'disabled' | 'slaac' | 'dhcpv6' | 'static' | '6rd'
+
+export type WanIpv6Response = {
+  mode: WanIpv6Mode
+  address?: string | null
+  prefix?: string | null
+  gateway?: string | null
+  ip6prefix?: string | null
+  ip6prefixlen?: string | null
+  ip4prefixlen?: string | null
+  border_relay?: string | null
+  assigned_ipv6?: string | null
+}
+
+export type WanIpv6SetRequest = {
+  mode: WanIpv6Mode
+  address?: string
+  prefix?: string
+  gateway?: string
+  ip6prefix?: string
+  ip6prefixlen?: string
+  ip4prefixlen?: string
+  border_relay?: string
+}
+
+export type WanMacStrategy = 'router' | 'custom'
+
+export type WanMacResponse = {
+  strategy: WanMacStrategy
+  mac: string
+  default_mac: string
+}
+
+export type WanMacSetRequest = {
+  strategy: WanMacStrategy
+  mac?: string
+}
+
+export type WanDnsMode = 'isp' | 'custom'
+
+export type WanDnsResponse = {
+  mode: WanDnsMode
+  servers: string[]
+}
+
+export type WanDnsSetRequest = {
+  mode: WanDnsMode
+  servers?: string[]
+}
+
+export type WanDdnsProvider =
+  | 'start9'
+  | 'dyndns'
+  | 'noip'
+  | 'cloudflare'
+  | 'duckdns'
+  | 'freedns'
+
+export type WanDdnsResponse = {
+  enabled: boolean
+  provider: WanDdnsProvider
+  hostname?: string | null
+  username?: string | null
+  password?: string | null
+  token?: string | null
+  zone?: string | null
+}
+
+export type WanDdnsSetRequest = {
+  enabled: boolean
+  provider: WanDdnsProvider
+  hostname?: string
+  username?: string
+  password?: string
+  token?: string
+  zone?: string
 }

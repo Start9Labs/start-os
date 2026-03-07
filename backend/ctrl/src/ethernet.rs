@@ -187,6 +187,7 @@ fn set_config(
             name: DEFAULT_LAN_BRIDGE.into(),
             ty: Some(DeviceType::BRIDGE),
             ports: Vec::new(),
+            macaddr: None,
         },
     };
     bridge.ports.clear();

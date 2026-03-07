@@ -79,6 +79,7 @@ pub enum InterfaceProto {
     STATIC,
     DHCP,
     DHCPV6,
+    PPPOE,
     #[strum(serialize = "6rd")]
     SIXRD,
 }
@@ -91,6 +92,20 @@ pub struct NetworkInterface {
     pub proto: InterfaceProto,
     pub ipaddr: Option<Ipv4Addr>,
     pub netmask: Option<Ipv4Addr>,
+    #[uci(default)]
+    pub gateway: Option<String>,
+    // PPPoE fields
+    #[uci(default)]
+    pub username: Option<String>,
+    #[uci(default)]
+    pub password: Option<String>,
+    // MAC override
+    #[uci(default)]
+    pub macaddr: Option<String>,
+    // DNS fields
+    #[uci(default)]
+    pub peerdns: Option<String>,
+    pub dns: Vec<String>,
     // IPv6 fields
     #[uci(default)]
     pub ip6assign: Option<String>,
@@ -109,6 +124,8 @@ pub struct NetworkInterface {
     pub ip6prefix: Option<String>,
     #[uci(default)]
     pub ip6prefixlen: Option<String>,
+    #[uci(default)]
+    pub ip4prefixlen: Option<String>,
 }
 
 #[derive(strum::EnumString, strum::Display, PartialEq, Eq, Debug)]
@@ -124,6 +141,8 @@ pub struct NetworkDevice {
     #[uci(rename = "type")]
     pub ty: Option<DeviceType>,
     pub ports: Vec<String>,
+    #[uci(default)]
+    pub macaddr: Option<String>,
 }
 
 #[derive(Inpt, Debug)]
@@ -306,4 +325,25 @@ pub struct DhcpHost {
     pub hostid: Option<String>,
     #[uci(default)]
     pub dns: Option<String>,
+}
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "service")]
+pub struct DdnsService {
+    #[uci(default)]
+    pub enabled: Option<String>,
+    #[uci(default)]
+    pub service_name: Option<String>,
+    #[uci(default)]
+    pub ip_source: Option<String>,
+    #[uci(default)]
+    pub ip_network: Option<String>,
+    #[uci(default)]
+    pub username: Option<String>,
+    #[uci(default)]
+    pub password: Option<String>,
+    #[uci(default)]
+    pub domain: Option<String>,
+    #[uci(default)]
+    pub lookup_host: Option<String>,
 }

@@ -42,6 +42,16 @@ import {
   LanIpv4SetRequest,
   LanIpv6Response,
   LanIpv6SetRequest,
+  WanIpv4Response,
+  WanIpv4SetRequest,
+  WanIpv6Response,
+  WanIpv6SetRequest,
+  WanMacResponse,
+  WanMacSetRequest,
+  WanDnsResponse,
+  WanDnsSetRequest,
+  WanDdnsResponse,
+  WanDdnsSetRequest,
 } from './api.service'
 import {
   DhcpSection,
@@ -49,10 +59,6 @@ import {
   UciFile,
   UciSection,
 } from './types'
-import { wanIpv4Dhcp } from 'src/app/routes/wan/routes/ipv4/uci/mocks'
-import { wanIpv6Slaac } from 'src/app/routes/wan/routes/ipv6/uci/mock'
-import { ddnsDyndns } from 'src/app/routes/wan/routes/ddns/uci/mocks'
-import { macRouterDevice } from 'src/app/routes/wan/routes/mac/uci/mocks'
 import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/lan/routes/ipv6/uci/mocks'
 import { mockWireGuardSections } from 'src/app/routes/outbound/uci/mocks'
 import {
@@ -971,6 +977,143 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
     return null
   }
 
+  // --- WAN smart endpoint mocks ---
+
+  private mockWanIpv4: WanIpv4Response = {
+    mode: 'dhcp',
+    assigned_ip: '203.0.113.45',
+    address: null,
+    netmask: null,
+    gateway: null,
+    username: null,
+    password: null,
+    device: 'eth1',
+  }
+
+  async wanIpv4Get(): Promise<WanIpv4Response> {
+    await pauseFor(250)
+    return structuredClone(this.mockWanIpv4)
+  }
+
+  async wanIpv4Set(params: WanIpv4SetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockWanIpv4 = {
+      ...this.mockWanIpv4,
+      mode: params.mode,
+      address: params.address ?? null,
+      netmask: params.netmask ?? null,
+      gateway: params.gateway ?? null,
+      username: params.username ?? null,
+      password: params.password ?? null,
+      device: params.device ?? this.mockWanIpv4.device,
+    }
+    return null
+  }
+
+  private mockWanIpv6: WanIpv6Response = {
+    mode: 'slaac',
+    address: null,
+    prefix: null,
+    gateway: null,
+    ip6prefix: null,
+    ip6prefixlen: null,
+    ip4prefixlen: null,
+    assigned_ipv6: '2001:db8::1',
+    border_relay: null,
+  }
+
+  async wanIpv6Get(): Promise<WanIpv6Response> {
+    await pauseFor(250)
+    return structuredClone(this.mockWanIpv6)
+  }
+
+  async wanIpv6Set(params: WanIpv6SetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockWanIpv6 = {
+      mode: params.mode,
+      address: params.address ?? null,
+      prefix: params.prefix ?? null,
+      gateway: params.gateway ?? null,
+      ip6prefix: params.ip6prefix ?? null,
+      ip6prefixlen: params.ip6prefixlen ?? null,
+      ip4prefixlen: params.ip4prefixlen ?? null,
+      border_relay: params.border_relay ?? null,
+    }
+    return null
+  }
+
+  private mockWanMac: WanMacResponse = {
+    strategy: 'router',
+    mac: 'AA:BB:CC:DD:EE:01',
+    default_mac: 'AA:BB:CC:DD:EE:01',
+  }
+
+  async wanMacGet(): Promise<WanMacResponse> {
+    await pauseFor(250)
+    return structuredClone(this.mockWanMac)
+  }
+
+  async wanMacSet(params: WanMacSetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockWanMac = {
+      ...this.mockWanMac,
+      strategy: params.strategy,
+      mac:
+        params.strategy === 'custom'
+          ? (params.mac ?? this.mockWanMac.mac)
+          : this.mockWanMac.default_mac,
+    }
+    return null
+  }
+
+  private mockWanDns: WanDnsResponse = {
+    mode: 'isp',
+    servers: [],
+  }
+
+  async wanDnsGet(): Promise<WanDnsResponse> {
+    await pauseFor(250)
+    return structuredClone(this.mockWanDns)
+  }
+
+  async wanDnsSet(params: WanDnsSetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockWanDns = {
+      mode: params.mode,
+      servers: params.servers ?? [],
+    }
+    return null
+  }
+
+  private mockWanDdns: WanDdnsResponse = {
+    enabled: true,
+    provider: 'dyndns',
+    hostname: 'myhost.dyndns.org',
+    username: 'myuser',
+    password: 'mypass',
+    token: null,
+    zone: null,
+  }
+
+  async wanDdnsGet(): Promise<WanDdnsResponse> {
+    await pauseFor(250)
+    return structuredClone(this.mockWanDdns)
+  }
+
+  async wanDdnsSet(params: WanDdnsSetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockWanDdns = {
+      enabled: params.enabled,
+      provider: params.provider,
+      hostname: params.hostname ?? null,
+      username: params.username ?? null,
+      password: params.password ?? null,
+      token: params.token ?? null,
+      zone: params.zone ?? null,
+    }
+    return null
+  }
+
   /**
    * Check if WAN IPv6 is enabled in mock UCI data
    */
@@ -1009,9 +1152,36 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
 export const mockUci: Record<string, UciFile<UciSection>> = {
   network: {
     sections: [
-      wanIpv4Dhcp,
-      wanIpv6Slaac,
-      macRouterDevice,
+      {
+        type: 'interface',
+        name: 'wan',
+        options: {
+          proto: 'dhcp',
+          device: 'eth0.2',
+          peerdns: '1',
+        },
+        lists: { dns: [] },
+      },
+      {
+        type: 'interface',
+        name: 'wan6',
+        options: {
+          proto: 'dhcpv6',
+          reqaddress: 'try',
+          reqprefix: 'auto',
+          device: '@wan',
+        },
+        lists: {},
+      },
+      {
+        type: 'device',
+        name: null,
+        options: {
+          name: 'eth0.2',
+          macaddr: 'AA:BB:CC:DD:EE:01',
+        },
+        lists: {},
+      },
       {
         type: 'interface',
         name: 'lan',
@@ -1032,7 +1202,23 @@ export const mockUci: Record<string, UciFile<UciSection>> = {
     modified: new Date().toISOString(),
   },
   ddns: {
-    sections: [ddnsDyndns],
+    sections: [
+      {
+        type: 'service',
+        name: 'wan',
+        options: {
+          enabled: '1',
+          service_name: 'dyndns.org',
+          username: 'myuser',
+          password: 'mypass',
+          domain: 'myhost.dyndns.org',
+          lookup_host: 'myhost.dyndns.org',
+          ip_source: 'network',
+          ip_network: 'wan',
+        },
+        lists: {},
+      },
+    ],
     modified: new Date().toISOString(),
   },
   dhcp: {

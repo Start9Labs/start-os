@@ -13,7 +13,12 @@ export const IPV6_MODES = [
 export const IPV6_SLAAC_CONTROLS = ['prefix'] as const
 export const IPV6_DHCPV6_CONTROLS = ['prefix'] as const
 export const IPV6_STATIC_CONTROLS = ['wan', 'prefix', 'gateway'] as const
-export const IPV6_SIXRD_CONTROLS = ['prefix', 'ip4', 'mask', 'border'] as const
+export const IPV6_SIXRD_CONTROLS = [
+  'ip6prefix',
+  'ip6prefixlen',
+  'ip4prefixlen',
+  'border',
+] as const
 export const IPV6_ALL_CONTROLS = Array.from(
   new Set([...IPV6_STATIC_CONTROLS, ...IPV6_SIXRD_CONTROLS]),
 )
@@ -40,9 +45,10 @@ export const IPV6_LABELS: Record<
   wan: 'WAN IP',
   prefix: 'IPv6 Prefix',
   gateway: 'Gateway IP',
-  ip4: 'IPv4 Gateway IP',
-  mask: 'IPv4 Prefix Length',
-  border: 'Border Router IP',
+  ip6prefix: 'IPv6 Prefix',
+  ip6prefixlen: 'IPv6 Prefix Length',
+  ip4prefixlen: 'IPv4 Prefix Length',
+  border: 'Border Relay IP',
 }
 
 export const IPV6_VALIDATION_ERRORS = {
@@ -64,8 +70,9 @@ export function getWanIpv6Form(builder: NonNullableFormBuilder) {
       prefix: builder.control('', [CustomValidators.prefix(0, 128)]),
       gateway: builder.control('', [CustomValidators.ipv6()]),
       // 6RD fields
-      ip4: builder.control('', [CustomValidators.ipv4()]),
-      mask: builder.control('', [CustomValidators.prefix(0, 32)]),
+      ip6prefix: builder.control('', [CustomValidators.ipv6()]),
+      ip6prefixlen: builder.control('', [CustomValidators.prefix(0, 128)]),
+      ip4prefixlen: builder.control('', [CustomValidators.prefix(0, 32)]),
       border: builder.control('', [CustomValidators.ipv4()]),
     }),
   })
@@ -83,16 +90,18 @@ export function updateIpv6Validators(
   ip.wan.clearValidators()
   ip.prefix.clearValidators()
   ip.gateway.clearValidators()
-  ip.ip4.clearValidators()
-  ip.mask.clearValidators()
+  ip.ip6prefix.clearValidators()
+  ip.ip6prefixlen.clearValidators()
+  ip.ip4prefixlen.clearValidators()
   ip.border.clearValidators()
 
   // Re-add format validators
   ip.wan.addValidators([CustomValidators.ipv6()])
   ip.prefix.addValidators([CustomValidators.prefix(0, 128)])
   ip.gateway.addValidators([CustomValidators.ipv6()])
-  ip.ip4.addValidators([CustomValidators.ipv4()])
-  ip.mask.addValidators([CustomValidators.prefix(0, 32)])
+  ip.ip6prefix.addValidators([CustomValidators.ipv6()])
+  ip.ip6prefixlen.addValidators([CustomValidators.prefix(0, 128)])
+  ip.ip4prefixlen.addValidators([CustomValidators.prefix(0, 32)])
   ip.border.addValidators([CustomValidators.ipv4()])
 
   // Add required validators based on mode
@@ -101,9 +110,9 @@ export function updateIpv6Validators(
     ip.prefix.addValidators([Validators.required])
     ip.gateway.addValidators([Validators.required])
   } else if (mode === '6rd') {
-    ip.prefix.addValidators([Validators.required])
-    ip.ip4.addValidators([Validators.required])
-    ip.mask.addValidators([Validators.required])
+    ip.ip6prefix.addValidators([Validators.required])
+    ip.ip6prefixlen.addValidators([Validators.required])
+    ip.ip4prefixlen.addValidators([Validators.required])
     ip.border.addValidators([Validators.required])
   }
 
@@ -111,7 +120,8 @@ export function updateIpv6Validators(
   ip.wan.updateValueAndValidity()
   ip.prefix.updateValueAndValidity()
   ip.gateway.updateValueAndValidity()
-  ip.ip4.updateValueAndValidity()
-  ip.mask.updateValueAndValidity()
+  ip.ip6prefix.updateValueAndValidity()
+  ip.ip6prefixlen.updateValueAndValidity()
+  ip.ip4prefixlen.updateValueAndValidity()
   ip.border.updateValueAndValidity()
 }

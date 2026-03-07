@@ -1,4 +1,9 @@
-import { NonNullableFormBuilder, Validators } from '@angular/forms'
+import {
+  AbstractControl,
+  NonNullableFormBuilder,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms'
 import { FormRawValue } from 'src/app/services/form.service'
 import { CustomValidators } from 'src/app/utils/validators'
 
@@ -31,23 +36,28 @@ export const IPV4_VALIDATION_ERRORS = {
   ipv4: 'Enter a valid IPv4 address',
   prefix: ({ min, max }: { min: number; max: number }) =>
     `Enter a value between ${min} and ${max}`,
+  gatewaySubnet: 'Gateway must be on the same subnet as the WAN IP',
+  gatewaySameAsWan: 'Gateway must be different from the WAN IP',
 }
 
 export type Ipv4Mode = (typeof IPV4_MODES)[number]
 
 export function getWanIpv4Form(builder: NonNullableFormBuilder) {
   return builder.group({
-    ip: builder.group({
-      mode: builder.control<Ipv4Mode>('dhcp'),
-      // Static fields
-      wan: builder.control('', [CustomValidators.ipv4()]),
-      prefix: builder.control('', [CustomValidators.prefix(0, 32)]),
-      gateway: builder.control('', [CustomValidators.ipv4()]),
-      // PPPoE fields
-      username: builder.control(''),
-      password: builder.control(''),
-      device: builder.control(''),
-    }),
+    ip: builder.group(
+      {
+        mode: builder.control<Ipv4Mode>('dhcp'),
+        // Static fields
+        wan: builder.control('', [CustomValidators.ipv4()]),
+        prefix: builder.control('', [CustomValidators.prefix(0, 32)]),
+        gateway: builder.control('', [CustomValidators.ipv4()]),
+        // PPPoE fields
+        username: builder.control(''),
+        password: builder.control(''),
+        device: builder.control(''),
+      },
+      { validators: [gatewaySubnetValidator] },
+    ),
   })
 }
 
@@ -87,6 +97,47 @@ export function updateIpv4Validators(
   ip.gateway.updateValueAndValidity()
   ip.username.updateValueAndValidity()
   ip.password.updateValueAndValidity()
+}
+
+function ipv4ToNumber(ip: string): number | null {
+  const match = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+  if (!match) return null
+  const octets = [match[1], match[2], match[3], match[4]].map(Number)
+  if (octets.some(o => o > 255)) return null
+  return (
+    ((octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3]) >>> 0
+  )
+}
+
+function gatewaySubnetValidator(
+  group: AbstractControl,
+): ValidationErrors | null {
+  const wan = group.get('wan')?.value
+  const prefix = group.get('prefix')?.value
+  const gateway = group.get('gateway')?.value
+  const mode = group.get('mode')?.value
+
+  if (mode !== 'static' || !wan || !prefix || !gateway) return null
+
+  const wanNum = ipv4ToNumber(wan)
+  const gwNum = ipv4ToNumber(gateway)
+  if (wanNum === null || gwNum === null) return null
+
+  if (wanNum === gwNum) {
+    group.get('gateway')?.setErrors({ gatewaySameAsWan: true })
+    return { gatewaySameAsWan: true }
+  }
+
+  const prefixNum = parseInt(prefix.replace('/', ''), 10)
+  if (isNaN(prefixNum) || prefixNum < 0 || prefixNum > 32) return null
+
+  const mask = prefixNum === 0 ? 0 : (0xffffffff << (32 - prefixNum)) >>> 0
+  if ((wanNum & mask) !== (gwNum & mask)) {
+    group.get('gateway')?.setErrors({ gatewaySubnet: true })
+    return { gatewaySubnet: true }
+  }
+
+  return null
 }
 
 export function prefixFromNetmask(netmask: string | undefined): string {

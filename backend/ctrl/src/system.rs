@@ -128,7 +128,7 @@ fn get_wan_ipv4() -> Result<Option<Ipv4Addr>, Error> {
     }
 }
 
-fn get_wan_ipv6s() -> Result<Vec<Ipv6Addr>, Error> {
+pub fn get_wan_ipv6s() -> Result<Vec<Ipv6Addr>, Error> {
     let output = StdCommand::new("ubus")
         .args(["call", "network.interface.wan6", "status"])
         .output()

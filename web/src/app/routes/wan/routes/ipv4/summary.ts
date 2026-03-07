@@ -1,7 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+} from '@angular/core'
 import { Summary } from 'src/app/components/summary'
 import { injectFormService } from 'src/app/services/form.service'
 import { WanIpv4Form, IPV4_LABELS, netmaskFromPrefix } from './utils'
+import { WanIpv4Service } from './service'
 
 const SUMMARY_FIELDS = [
   'wan',
@@ -19,6 +25,9 @@ type SummaryField = (typeof SUMMARY_FIELDS)[number]
   selector: '[wanIpv4Summary]',
   template: `
     <section>
+      @if (assignedIp(); as ip) {
+        <div [appSummary]="ip">Assigned IP</div>
+      }
       @for (item of items(); track item.label) {
         @if (item.val; as val) {
           <div [appSummary]="val">{{ item.label }}</div>
@@ -32,6 +41,8 @@ type SummaryField = (typeof SUMMARY_FIELDS)[number]
 })
 export class WanIpv4Summary {
   protected readonly service = injectFormService<WanIpv4Form>()
+  private readonly ipv4Service = inject(WanIpv4Service)
+  readonly assignedIp = this.ipv4Service.assignedIp
 
   readonly items = computed(() => {
     const ip = this.service.data()?.ip
