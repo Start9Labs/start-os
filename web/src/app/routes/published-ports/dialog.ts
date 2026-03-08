@@ -7,8 +7,10 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
+  AbstractControl,
   NonNullableFormBuilder,
   ReactiveFormsModule,
+  ValidationErrors,
   Validators,
 } from '@angular/forms'
 import {
@@ -39,6 +41,14 @@ import { ModalHelp } from 'src/app/help/modal-help'
 import { provideHelp } from 'src/app/help/help'
 import { Device } from 'src/app/routes/devices/utils'
 import { Protocol, PublishedPort, PublishedPortDialogResult } from './types'
+
+function uuid4(): string {
+  const b = crypto.getRandomValues(new Uint8Array(16))
+  b[6] = (b[6] & 0x0f) | 0x40
+  b[8] = (b[8] & 0x3f) | 0x80
+  const h = Array.from(b, v => v.toString(16).padStart(2, '0')).join('')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
 
 export interface PublishPortDialogData {
   devices: Device[]
@@ -140,10 +150,13 @@ const IP: Record<string, string> = {
           [disabledItemHandler]="isIpVersionDisabled"
         />
       </fieldset>
+      <tui-error formControlName="ipVersion" />
       @if (!context.data.ipv6Available) {
         <small class="g-secondary">
           IPv6 options require WAN IPv6 and LAN IPv6 to be enabled
         </small>
+      } @else if (ipVersionHint()) {
+        <small class="g-secondary">{{ ipVersionHint() }}</small>
       }
 
       <tui-elastic-container>
@@ -221,6 +234,7 @@ const IP: Record<string, string> = {
     tuiValidationErrorsProvider({
       required: 'This field is required',
       pattern: 'Invalid format',
+      missingDeviceAddress: ({ message }: { message: string }) => message,
     }),
   ],
   imports: [
@@ -297,8 +311,32 @@ export class PublishPortDialog implements OnInit {
   protected readonly protocol = (ctx: TuiContext<Protocol>) =>
     PROTOCOL[ctx.$implicit]
 
-  protected readonly isIpVersionDisabled = (value: string): boolean =>
-    !this.context.data.ipv6Available && (value === 'ipv6' || value === 'both')
+  protected readonly selectedDevice = computed(() =>
+    this.deviceMap().get(this.selectedDeviceMac()),
+  )
+
+  protected readonly ipVersionHint = computed(() => {
+    const device = this.selectedDevice()
+    if (!device) return ''
+    const missing: string[] = []
+    if (!device.ipv4) missing.push('IPv4')
+    if (!device.ipv6) missing.push('IPv6')
+    if (!missing.length) return ''
+    return `Device has no ${missing.join(' or ')} address`
+  })
+
+  protected readonly isIpVersionDisabled = (value: string): boolean => {
+    const device = this.selectedDevice()
+    const ipv6Available = this.context.data.ipv6Available
+
+    if (!ipv6Available && (value === 'ipv6' || value === 'both')) return true
+    if (device && !device.ipv4 && (value === 'ipv4' || value === 'both'))
+      return true
+    if (device && !device.ipv6 && (value === 'ipv6' || value === 'both'))
+      return true
+
+    return false
+  }
 
   // TODO @Alex refactor this to declarative validation
   ngOnInit() {
@@ -382,6 +420,29 @@ export class PublishPortDialog implements OnInit {
       updatePublicPortValidation,
     )
 
+    // Validate ipVersion against device's available addresses
+    const updateIpVersionValidation = () => {
+      const ipVersionControl = this.form.controls.ipVersion
+      ipVersionControl.setValidators([this.validateIpVersion.bind(this)])
+      ipVersionControl.updateValueAndValidity()
+    }
+
+    // Auto-correct ipVersion when selected device lacks an address
+    this.form.controls.deviceMac.valueChanges.subscribe(mac => {
+      const device = this.deviceMap().get(mac)
+      if (!device) return
+      const current = this.form.value.ipVersion
+      if (!device.ipv4 && (current === 'ipv4' || current === 'both')) {
+        this.form.patchValue({ ipVersion: device.ipv6 ? 'ipv6' : 'ipv4' })
+      }
+      if (!device.ipv6 && (current === 'ipv6' || current === 'both')) {
+        this.form.patchValue({ ipVersion: device.ipv4 ? 'ipv4' : 'ipv6' })
+      }
+      updateIpVersionValidation()
+    })
+
+    updateIpVersionValidation()
+
     // Trigger initial validation based on current values
     if (this.form.value.sourceType === 'custom') {
       this.form.controls.sourceValue.setValidators([
@@ -424,6 +485,23 @@ export class PublishPortDialog implements OnInit {
     }
   }
 
+  private validateIpVersion(control: AbstractControl): ValidationErrors | null {
+    const value = control.value as 'ipv4' | 'ipv6' | 'both'
+    const device = this.deviceMap().get(this.form?.value.deviceMac ?? '')
+    if (!device) return null
+
+    const needsIpv4 = value === 'ipv4' || value === 'both'
+    const needsIpv6 = value === 'ipv6' || value === 'both'
+
+    if (needsIpv4 && !device.ipv4) {
+      return { missingDeviceAddress: { message: 'Device has no IPv4 address' } }
+    }
+    if (needsIpv6 && !device.ipv6) {
+      return { missingDeviceAddress: { message: 'Device has no IPv6 address' } }
+    }
+    return null
+  }
+
   protected save() {
     if (this.form.invalid) {
       tuiMarkControlAsTouchedAndValidate(this.form)
@@ -447,7 +525,7 @@ export class PublishPortDialog implements OnInit {
     }
 
     const port: PublishedPort = {
-      id: existing?.id || crypto.randomUUID(),
+      id: existing?.id || uuid4(),
       enabled: existing?.enabled ?? true,
       label: value.label,
       deviceMac: value.deviceMac,
@@ -456,7 +534,7 @@ export class PublishPortDialog implements OnInit {
       ipv4,
       ipv6,
       ipv4PublicPort,
-      source: value.sourceType === 'any' ? 'any' : value.sourceValue,
+      source: value.sourceType === 'any' ? 'any' : value.sourceValue || 'any',
     }
 
     const result: PublishedPortDialogResult = {

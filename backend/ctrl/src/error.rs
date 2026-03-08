@@ -60,6 +60,12 @@ pub enum ErrorKind {
     DuplicatePassword,
     #[error("duplicate wifi password label")]
     DuplicatePasswordLabel,
+    #[error("device {mac} has no {family} address for port forward \"{label}\"")]
+    MissingDeviceAddress {
+        mac: String,
+        family: String,
+        label: String,
+    },
     #[error("invalid value for {field}: {value:?}")]
     InvalidValue { field: String, value: String },
     #[error(transparent)]

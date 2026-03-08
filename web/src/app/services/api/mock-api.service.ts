@@ -52,6 +52,8 @@ import {
   WanDnsSetRequest,
   WanDdnsResponse,
   WanDdnsSetRequest,
+  PublishedPortFromApi,
+  PublishedPortsSetRequest,
 } from './api.service'
 import {
   DhcpSection,
@@ -71,7 +73,6 @@ import {
   mockDhcpHosts,
   mockDhcpLeasesOutput,
 } from 'src/app/routes/devices/uci/mocks'
-import { mockPublishedPorts } from 'src/app/routes/published-ports/uci/mocks'
 import { mockBrLan, mockWanDevice } from 'src/app/routes/ethernet/uci/mocks'
 
 @Injectable({
@@ -1114,6 +1115,87 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
     return null
   }
 
+  // --- Published Ports smart endpoint mocks ---
+
+  private mockPublishedPorts: PublishedPortFromApi[] = [
+    {
+      id: 'home_assistant',
+      enabled: true,
+      label: 'Home Assistant',
+      device_mac: '00:1A:2B:3C:4D:5E',
+      ports: '8123',
+      protocol: 'tcp',
+      ipv4: true,
+      ipv6: true,
+      ipv4_public_port: null,
+      source: 'any',
+      status: 'active',
+      status_reason: null,
+      device_name: 'Home Server',
+      device_ipv4: '192.168.1.100',
+      device_ipv6: '2001:db8:abcd:1::100',
+    },
+    {
+      id: 'minecraft',
+      enabled: true,
+      label: 'Minecraft Server',
+      device_mac: '00:1A:2B:3C:4D:5F',
+      ports: '25565',
+      protocol: 'tcp+udp',
+      ipv4: true,
+      ipv6: false,
+      ipv4_public_port: null,
+      source: 'any',
+      status: 'active',
+      status_reason: null,
+      device_name: 'Gaming PC',
+      device_ipv4: '192.168.1.101',
+      device_ipv6: null,
+    },
+    {
+      id: 'ssh_access',
+      enabled: false,
+      label: 'SSH Access',
+      device_mac: 'DE:AD:BE:EF:CA:FF',
+      ports: '22',
+      protocol: 'tcp',
+      ipv4: true,
+      ipv6: true,
+      ipv4_public_port: '2222',
+      source: '203.0.113.0/24',
+      status: 'disabled',
+      status_reason: null,
+      device_name: null,
+      device_ipv4: '192.168.1.103',
+      device_ipv6: '2001:db8:abcd:1::103',
+    },
+  ]
+
+  async publishedPortsList(): Promise<PublishedPortFromApi[]> {
+    await pauseFor(250)
+    return structuredClone(this.mockPublishedPorts)
+  }
+
+  async publishedPortsSet(params: PublishedPortsSetRequest): Promise<null> {
+    await pauseFor(250)
+    // Update the mock data — enrich inputs with existing display data
+    this.mockPublishedPorts = params.ports.map(input => {
+      const existing = this.mockPublishedPorts.find(p => p.id === input.id)
+      return {
+        ...input,
+        ipv4_public_port: input.ipv4_public_port ?? null,
+        status: input.enabled
+          ? (existing?.status ?? 'active')
+          : ('disabled' as const),
+        status_reason: input.enabled ? null : null,
+        device_name: existing?.device_name ?? null,
+        device_ipv4: existing?.device_ipv4 ?? null,
+        device_ipv6: existing?.device_ipv6 ?? null,
+      }
+    })
+    return null
+  }
+
   /**
    * Check if WAN IPv6 is enabled in mock UCI data
    */
@@ -1226,7 +1308,7 @@ export const mockUci: Record<string, UciFile<UciSection>> = {
     modified: new Date().toISOString(),
   },
   firewall: {
-    sections: [...mockBlockedDevices, ...mockPublishedPorts],
+    sections: [...mockBlockedDevices],
     modified: new Date().toISOString(),
   },
 }

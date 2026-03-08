@@ -1,52 +1,47 @@
 import { inject, Injectable } from '@angular/core'
 import { FormService } from 'src/app/services/form.service'
-import { PublishedPortsUciService } from './uci/service'
-import {
-  PublishedPort,
-  PublishedPortDisplay,
-  PublishedPortStatus,
-} from './types'
+import { PublishedPort, PublishedPortDisplay } from './types'
 import { DevicesApiService } from 'src/app/routes/devices/service'
 import { Device, DeviceUpdateData } from 'src/app/routes/devices/utils'
+import {
+  ApiService,
+  PublishedPortFromApi,
+} from 'src/app/services/api/api.service'
 
 @Injectable()
 export class PublishedPortsService extends FormService<PublishedPortDisplay[]> {
-  private readonly uci = inject(PublishedPortsUciService)
-  private readonly devicesUci = inject(DevicesApiService)
+  private readonly api = inject(ApiService)
+  private readonly devicesApi = inject(DevicesApiService)
 
   private devices: Device[] = []
-  private ports: PublishedPort[] = []
 
   async load(): Promise<PublishedPortDisplay[]> {
-    // Load devices and ports in parallel
-    const [devices, ports] = await Promise.all([
-      this.devicesUci.get(),
-      this.uci.get(),
+    // Load devices (for reserveDeviceIps) and published ports in parallel
+    const [devices, portsFromApi] = await Promise.all([
+      this.devicesApi.get(),
+      this.api.publishedPortsList(),
     ])
 
     this.devices = devices
-    this.ports = ports
 
-    return this.enrichPorts(ports, devices)
+    return portsFromApi.map(p => this.fromApi(p))
   }
 
   async store(items: PublishedPortDisplay[]): Promise<void> {
-    // Extract just the PublishedPort data (without display fields)
-    const ports: PublishedPort[] = items.map(item => ({
-      id: item.id,
-      enabled: item.enabled,
-      label: item.label,
-      deviceMac: item.deviceMac,
-      ports: item.ports,
-      protocol: item.protocol,
-      ipv4: item.ipv4,
-      ipv6: item.ipv6,
-      ipv4PublicPort: item.ipv4PublicPort,
-      source: item.source,
-    }))
-
-    await this.uci.set(ports)
-    this.ports = ports
+    await this.api.publishedPortsSet({
+      ports: items.map(item => ({
+        id: item.id,
+        enabled: item.enabled,
+        label: item.label,
+        device_mac: item.deviceMac,
+        ports: item.ports,
+        protocol: item.protocol,
+        ipv4: item.ipv4,
+        ipv6: item.ipv6,
+        ipv4_public_port: item.ipv4PublicPort,
+        source: item.source,
+      })),
+    })
   }
 
   getDevices(): Device[] {
@@ -68,7 +63,6 @@ export class PublishedPortsService extends FormService<PublishedPortDisplay[]> {
     const device = this.getDevice(mac)
     if (!device) return
 
-    // Build update data with current device values
     const updates: DeviceUpdateData = {
       name: device.name,
       ipv4Static: reserveIpv4 ? true : device.ipv4Static,
@@ -77,9 +71,8 @@ export class PublishedPortsService extends FormService<PublishedPortDisplay[]> {
       ipv6: device.ipv6 || '',
     }
 
-    await this.devicesUci.update(mac, updates)
+    await this.devicesApi.update(mac, updates)
 
-    // Update local device cache
     if (reserveIpv4) device.ipv4Static = true
     if (reserveIpv6) device.ipv6Static = true
   }
@@ -88,65 +81,29 @@ export class PublishedPortsService extends FormService<PublishedPortDisplay[]> {
    * Check if a device has any published ports
    */
   deviceHasPublishedPorts(mac: string): boolean {
-    return this.ports.some(p => p.deviceMac.toUpperCase() === mac.toUpperCase())
+    const data = this.data()
+    if (!data) return false
+    return data.some(p => p.deviceMac.toUpperCase() === mac.toUpperCase())
   }
 
-  private enrichPorts(
-    ports: PublishedPort[],
-    devices: Device[],
-  ): PublishedPortDisplay[] {
-    return ports.map(port => {
-      const device = devices.find(
-        d => d.mac.toUpperCase() === port.deviceMac.toUpperCase(),
-      )
-      const status = this.computeStatus(port, device)
-
-      return {
-        ...port,
-        status: status.status,
-        statusReason: status.reason,
-        deviceName: device?.name || device?.hostname || 'Unknown Device',
-        deviceIpv4: device?.ipv4,
-        deviceIpv6: device?.ipv6,
-      }
-    })
-  }
-
-  private computeStatus(
-    port: PublishedPort,
-    device?: Device,
-  ): { status: PublishedPortStatus; reason?: string } {
-    if (!port.enabled) {
-      return { status: 'disabled' }
+  /** Map backend snake_case response to frontend camelCase types */
+  private fromApi(p: PublishedPortFromApi): PublishedPortDisplay {
+    return {
+      id: p.id,
+      enabled: p.enabled,
+      label: p.label,
+      deviceMac: p.device_mac,
+      ports: p.ports,
+      protocol: p.protocol,
+      ipv4: p.ipv4,
+      ipv6: p.ipv6,
+      ipv4PublicPort: p.ipv4_public_port ?? undefined,
+      source: p.source,
+      status: p.status,
+      statusReason: p.status_reason ?? undefined,
+      deviceName: p.device_name ?? undefined,
+      deviceIpv4: p.device_ipv4 ?? undefined,
+      deviceIpv6: p.device_ipv6 ?? undefined,
     }
-
-    if (!device) {
-      return { status: 'paused', reason: 'Device not found' }
-    }
-
-    if (device.status === 'offline') {
-      return { status: 'paused', reason: 'Device offline' }
-    }
-
-    if (device.status === 'blocked') {
-      return { status: 'paused', reason: 'Device blocked' }
-    }
-
-    // Check if IPv4 is requested but unavailable (CGNAT, etc.)
-    if (port.ipv4 && !device.ipv4) {
-      if (port.ipv6 && device.ipv6) {
-        return { status: 'partial', reason: 'IPv4 unavailable' }
-      }
-      return { status: 'error', reason: 'No addresses available' }
-    }
-
-    if (port.ipv6 && !device.ipv6) {
-      if (port.ipv4 && device.ipv4) {
-        return { status: 'partial', reason: 'IPv6 unavailable' }
-      }
-      return { status: 'error', reason: 'No addresses available' }
-    }
-
-    return { status: 'active' }
   }
 }

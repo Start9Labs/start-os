@@ -1069,6 +1069,7 @@ fn rewrite_firewall(
                 dest_ip: Some(dns_ip.clone()),
                 dest_port: Some("53".into()),
                 target: "DNAT".into(),
+                ..Default::default()
             },
             None,
         )?;

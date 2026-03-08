@@ -62,6 +62,8 @@ export abstract class ApiService {
   abstract wanDnsSet(params: WanDnsSetRequest): Promise<null>
   abstract wanDdnsGet(): Promise<WanDdnsResponse>
   abstract wanDdnsSet(params: WanDdnsSetRequest): Promise<null>
+  abstract publishedPortsList(): Promise<PublishedPortFromApi[]>
+  abstract publishedPortsSet(params: PublishedPortsSetRequest): Promise<null>
 }
 
 export type LanIpv4Response = {
@@ -468,4 +470,48 @@ export type WanDdnsSetRequest = {
   password?: string
   token?: string
   zone?: string
+}
+
+// Published Ports types (from backend smart endpoints)
+export type PublishedPortProtocol = 'tcp' | 'udp' | 'tcp+udp'
+export type PublishedPortStatusValue =
+  | 'active'
+  | 'partial'
+  | 'paused'
+  | 'error'
+  | 'disabled'
+
+export interface PublishedPortFromApi {
+  id: string
+  enabled: boolean
+  label: string
+  device_mac: string
+  ports: string
+  protocol: PublishedPortProtocol
+  ipv4: boolean
+  ipv6: boolean
+  ipv4_public_port: string | null
+  source: string
+  status: PublishedPortStatusValue
+  status_reason: string | null
+  device_name: string | null
+  device_ipv4: string | null
+  device_ipv6: string | null
+}
+
+export interface PublishedPortInputForApi {
+  id: string
+  enabled: boolean
+  label: string
+  device_mac: string
+  ports: string
+  protocol: PublishedPortProtocol
+  ipv4: boolean
+  ipv6: boolean
+  ipv4_public_port?: string | null
+  source: string
+}
+
+export type PublishedPortsSetRequest = {
+  ports: PublishedPortInputForApi[]
 }

@@ -40,15 +40,30 @@ pub struct FirewallRule {
     */
     pub name: String,
     pub src: String,
+    #[uci(default)]
     pub src_ip: Option<String>,
+    #[uci(default)]
     pub src_mac: Option<String>,
+    #[uci(default)]
     pub src_port: Option<String>,
+    #[uci(default)]
     pub dest: Option<String>,
+    #[uci(default)]
     pub dest_ip: Option<String>,
+    #[uci(default)]
     pub dest_port: Option<String>,
     pub proto: Vec<String>,
     pub target: FirewallTarget,
+    #[uci(default)]
     pub family: Option<String>,
+    #[uci(default)]
+    pub enabled: Option<String>,
+    /// Published-port metadata: links IPv4 redirect + IPv6 rule
+    #[uci(default)]
+    pub _pp_id: Option<String>,
+    /// Published-port metadata: device MAC
+    #[uci(default)]
+    pub _pp_mac: Option<String>,
 }
 
 #[derive(Debug, TypedSection, Default)]
@@ -56,12 +71,26 @@ pub struct FirewallRule {
 pub struct FirewallRedirect {
     pub name: String,
     pub src: String,
+    #[uci(default)]
     pub dest: Option<String>,
     pub proto: Vec<String>,
+    #[uci(default)]
     pub src_dport: Option<String>,
+    #[uci(default)]
+    pub src_ip: Option<String>,
+    #[uci(default)]
     pub dest_ip: Option<String>,
+    #[uci(default)]
     pub dest_port: Option<String>,
     pub target: String,
+    #[uci(default)]
+    pub enabled: Option<String>,
+    /// Published-port metadata: links IPv4 redirect + IPv6 rule
+    #[uci(default)]
+    pub _pp_id: Option<String>,
+    /// Published-port metadata: device MAC
+    #[uci(default)]
+    pub _pp_mac: Option<String>,
 }
 
 #[derive(Debug, TypedSection)]

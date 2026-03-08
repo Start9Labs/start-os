@@ -49,6 +49,8 @@ import {
   WanDnsSetRequest,
   WanDdnsResponse,
   WanDdnsSetRequest,
+  PublishedPortFromApi,
+  PublishedPortsSetRequest,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -283,5 +285,13 @@ export class LiveApiService extends ApiService {
 
   async wanDdnsSet(params: WanDdnsSetRequest): Promise<null> {
     return this.rpc.request({ method: 'wan.ddns-set', params })
+  }
+
+  async publishedPortsList(): Promise<PublishedPortFromApi[]> {
+    return this.rpc.request({ method: 'published-ports.list', params: {} })
+  }
+
+  async publishedPortsSet(params: PublishedPortsSetRequest): Promise<null> {
+    return this.rpc.request({ method: 'published-ports.set', params })
   }
 }

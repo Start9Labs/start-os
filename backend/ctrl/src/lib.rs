@@ -12,6 +12,7 @@ pub mod lan;
 pub mod logs;
 pub mod middleware;
 pub mod profiles;
+pub mod published_ports;
 pub mod setup;
 pub mod system;
 pub mod uci;
@@ -244,6 +245,7 @@ pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
         .subcommand("devices", devices::devices::<C>())
         .subcommand("wan", wan::wan::<C>())
         .subcommand("lan", lan::lan::<C>())
+        .subcommand("published-ports", published_ports::published_ports::<C>())
 }
 
 pub fn init_logging(name: &str) -> DefaultGuard {
