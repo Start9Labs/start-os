@@ -64,7 +64,11 @@ import {
                   <input
                     tuiInput
                     [formControlName]="name"
-                    [maskito]="['prefix', 'ip6prefixlen', 'ip4prefixlen'].includes(name) ? mask : null"
+                    [maskito]="
+                      ['prefix', 'ip6prefixlen', 'ip4prefixlen'].includes(name)
+                        ? mask
+                        : null
+                    "
                     [placeholder]="optional ? 'Auto' : ''"
                   />
                 </tui-textfield>
@@ -109,7 +113,7 @@ export class WanIpv6Ip {
   protected readonly mask = PREFIX
   protected readonly handler = computed(() =>
     this.parent.hasIpv6Ports()
-      ? (item: string) => item === 'ddisabled'
+      ? (item: string) => item === 'disabled'
       : TUI_FALSE_HANDLER,
   )
 }

@@ -3,6 +3,7 @@ import {
   Component,
   effect,
   inject,
+  signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
@@ -48,7 +49,13 @@ import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
         <label tuiLabel>
           <input type="checkbox" tuiSwitch formControlName="slaac" />
           Enable
-          <i tuiHint="Cannot disable: published ports using IPv6 exist"></i>
+          <i
+            [tuiHint]="
+              slaacLocked()
+                ? 'Cannot disable: published ports using IPv6 exist'
+                : ''
+            "
+          ></i>
         </label>
       </ng-container>
       <tui-elastic-container formGroupName="subnet">
@@ -100,6 +107,7 @@ export default class LanIpv6 {
   protected readonly service = injectFormService<LanIpv6Data>()
   protected readonly form = getLanIpv6Form(this.builder)
   protected readonly mask = PREFIX
+  readonly slaacLocked = signal(false)
   protected readonly slaacEnabled = toSignal(
     this.form.controls.strategy.controls.slaac.valueChanges.pipe(
       startWith(this.form.controls.strategy.controls.slaac.value),
@@ -136,8 +144,11 @@ export default class LanIpv6 {
 
   private async loadIpv6Dependencies() {
     const ports = await this.api.publishedPortsList()
-    if (ports.some(p => p.ipv6 && p.enabled) && this.slaacEnabled()) {
-      this.form.controls.strategy.controls.slaac.disable()
+    if (ports.some(p => p.ipv6 && p.enabled)) {
+      this.slaacLocked.set(true)
+      if (this.slaacEnabled()) {
+        this.form.controls.strategy.controls.slaac.disable()
+      }
     }
   }
 
