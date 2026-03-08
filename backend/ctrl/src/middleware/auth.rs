@@ -90,7 +90,16 @@ impl<C: Context> Middleware<C> for SessionAuth {
         self.is_loopback = request
             .extensions()
             .get::<ConnectInfo<SocketAddr>>()
-            .map_or(false, |ci| ci.0.ip().is_loopback());
+            .map_or(false, |ci| {
+                let ip = match ci.0.ip() {
+                    std::net::IpAddr::V6(v6) => v6
+                        .to_ipv4_mapped()
+                        .map(std::net::IpAddr::V4)
+                        .unwrap_or(std::net::IpAddr::V6(v6)),
+                    other => other,
+                };
+                ip.is_loopback()
+            });
         Ok(())
     }
 
