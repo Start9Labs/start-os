@@ -418,43 +418,75 @@ fn reload_firewall_and_dnsmasq() {
 
 // --- Handlers ---
 
-/// Collect IPv4 addresses from STALE neighbor entries whose MACs are not
-/// active WiFi clients. Returns Vec<(ip, mac)> for ping probes.
-fn stale_non_wifi_ips(
+/// Identify non-WiFi MACs that need reachability verification.
+///
+/// Returns:
+/// - `probe_targets`: IPv4 (ip, mac) pairs to ping-probe
+/// - `ipv6_only_macs`: MACs with only IPv6 neighbor entries (no IPv4 to probe)
+///    — these are treated as unreachable since we can't verify them
+///
+/// Active WiFi clients are skipped entirely — hostapd is authoritative.
+fn non_wifi_probe_candidates(
     arp_entries: &[ArpEntry],
     wifi_clients: &HashMap<String, String>,
-) -> Vec<(String, String)> {
-    // Collect MACs that have any REACHABLE entry — no need to probe those.
+) -> (Vec<(String, String)>, std::collections::HashSet<String>) {
+    // Collect MACs that have any REACHABLE entry.
     let reachable_macs: std::collections::HashSet<&str> = arp_entries
         .iter()
         .filter(|e| e.state == "REACHABLE")
         .map(|e| e.mac.as_str())
         .collect();
 
+    // Track which non-WiFi MACs have any alive neighbor entry, and which
+    // of those have at least one IPv4 address we can probe.
+    let mut alive_non_wifi_macs = std::collections::HashSet::new();
+    let mut has_ipv4 = std::collections::HashSet::new();
+
     let mut targets = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for entry in arp_entries {
-        if entry.state != "STALE" {
-            continue;
-        }
         // Skip WiFi clients (hostapd is authoritative for them).
         if wifi_clients.contains_key(&entry.mac) {
             continue;
         }
-        // Skip MACs that already have a REACHABLE entry.
-        if reachable_macs.contains(entry.mac.as_str()) {
+        // Only consider alive states.
+        if !matches!(
+            entry.state.as_str(),
+            "REACHABLE" | "STALE" | "DELAY" | "PROBE"
+        ) {
             continue;
         }
-        // Only probe IPv4 (ping6 would work but adds complexity).
+        alive_non_wifi_macs.insert(entry.mac.clone());
+        // Only probe IPv4 (ping6 would add complexity).
         if entry.ip.contains(':') {
             continue;
+        }
+        has_ipv4.insert(entry.mac.clone());
+        match entry.state.as_str() {
+            // STALE non-WiFi entries need probing, unless they also have a
+            // REACHABLE entry (kernel already confirmed them).
+            "STALE" if reachable_macs.contains(entry.mac.as_str()) => continue,
+            "STALE" => {}
+            // REACHABLE entries are normally trusted, but if the MAC was
+            // recently a WiFi client (not in hostapd anymore, not in
+            // wifi_clients), the kernel's REACHABLE state is stale — probe it.
+            "REACHABLE" => {}
+            _ => continue,
         }
         // One probe per IP is enough.
         if seen.insert(entry.ip.clone()) {
             targets.push((entry.ip.clone(), entry.mac.clone()));
         }
     }
-    targets
+
+    // MACs with only IPv6 neighbor entries can't be probed — treat as
+    // unreachable so lingering NDP entries don't resurrect offline devices.
+    let ipv6_only = alive_non_wifi_macs
+        .difference(&has_ipv4)
+        .cloned()
+        .collect();
+
+    (targets, ipv6_only)
 }
 
 /// Ping STALE IPs concurrently and return the set of MACs that did NOT reply.
@@ -593,14 +625,16 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     let wifi_clients = wifi_clients.unwrap_or_default();
     let initial_arp = parse_arp_output(&arp_output);
 
-    // --- Phase 2b: Probe STALE entries + remaining data (parallel) ---
+    // --- Phase 2b: Probe non-WiFi entries + remaining data (parallel) ---
     //
-    // For any device that is STALE and not an active WiFi client, ping it to
-    // check if it's actually present. Ping exit code tells us definitively
-    // whether the device replied (rather than relying on kernel NUD timing
-    // which takes ~8s to transition STALE → FAILED). This runs concurrently
-    // with nlbw, conntrack, and lease reads so it adds zero net latency.
-    let probe_targets = stale_non_wifi_ips(&initial_arp, &wifi_clients);
+    // For any non-WiFi device (STALE or REACHABLE), ping it to check if it's
+    // actually present. This catches both aged-out entries AND recently
+    // disconnected WiFi devices whose ARP is still REACHABLE but hostapd has
+    // already dropped them. MACs with only IPv6 neighbor entries (no IPv4 to
+    // probe) are treated as unreachable. Runs concurrently with nlbw,
+    // conntrack, and lease reads so it adds zero net latency.
+    let (probe_targets, ipv6_only_macs) =
+        non_wifi_probe_candidates(&initial_arp, &wifi_clients);
     let (unreachable_macs, leases_output, nlbw_output, conntrack_output) = tokio::join!(
         tokio::task::spawn_blocking(move || ping_unreachable_macs(probe_targets)),
         tokio::task::spawn_blocking(|| {
@@ -612,7 +646,8 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         }),
     );
 
-    let unreachable_macs = unreachable_macs.unwrap_or_default();
+    let mut unreachable_macs = unreachable_macs.unwrap_or_default();
+    unreachable_macs.extend(ipv6_only_macs);
     let leases_output = leases_output.unwrap_or_default();
     let nlbw_output = nlbw_output.unwrap_or_default();
     let conntrack_output = conntrack_output.unwrap_or_default();
