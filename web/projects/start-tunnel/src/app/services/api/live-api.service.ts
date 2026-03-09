@@ -17,6 +17,7 @@ import {
   LoginReq,
   SubscribeRes,
   TunnelUpdateResult,
+  UpdateForwardLabelReq,
   UpsertDeviceReq,
   UpsertSubnetReq,
 } from './api.service'
@@ -102,6 +103,10 @@ export class LiveApiService extends ApiService {
 
   async deleteForward(params: DeleteForwardReq): Promise<null> {
     return this.rpcRequest({ method: 'port-forward.remove', params })
+  }
+
+  async updateForwardLabel(params: UpdateForwardLabelReq): Promise<null> {
+    return this.rpcRequest({ method: 'port-forward.update-label', params })
   }
 
   // update

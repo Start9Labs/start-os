@@ -10,6 +10,7 @@ export interface MappedForward {
   readonly externalport: string
   readonly device: MappedDevice
   readonly internalport: string
+  readonly label: string
 }
 
 export interface PortForwardsData {

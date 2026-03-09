@@ -11,6 +11,7 @@ use crate::db::model::public::NetworkInterfaceType;
 use crate::net::forward::add_iptables_rule;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
+use crate::tunnel::db::PortForwardEntry;
 use crate::tunnel::wg::{WIREGUARD_INTERFACE_NAME, WgConfig, WgSubnetClients, WgSubnetConfig};
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 
@@ -50,6 +51,14 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
                         .with_metadata("sync_db", Value::Bool(true))
                         .no_display()
                         .with_about("about.remove-port-forward")
+                        .with_call_remote::<CliContext>(),
+                )
+                .subcommand(
+                    "update-label",
+                    from_fn_async(update_forward_label)
+                        .with_metadata("sync_db", Value::Bool(true))
+                        .no_display()
+                        .with_about("about.update-port-forward-label")
                         .with_call_remote::<CliContext>(),
                 ),
         )
@@ -453,11 +462,17 @@ pub async fn show_config(
 pub struct AddPortForwardParams {
     source: SocketAddrV4,
     target: SocketAddrV4,
+    #[arg(long)]
+    label: String,
 }
 
 pub async fn add_forward(
     ctx: TunnelContext,
-    AddPortForwardParams { source, target }: AddPortForwardParams,
+    AddPortForwardParams {
+        source,
+        target,
+        label,
+    }: AddPortForwardParams,
 ) -> Result<(), Error> {
     let prefix = ctx
         .net_iface
@@ -482,10 +497,12 @@ pub async fn add_forward(
         m.insert(source, rc);
     });
 
+    let entry = PortForwardEntry { target, label };
+
     ctx.db
         .mutate(|db| {
             db.as_port_forwards_mut()
-                .insert(&source, &target)
+                .insert(&source, &entry)
                 .and_then(|replaced| {
                     if replaced.is_some() {
                         Err(Error::new(
@@ -522,4 +539,32 @@ pub async fn remove_forward(
         ctx.forward.gc().await?;
     }
     Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatePortForwardLabelParams {
+    source: SocketAddrV4,
+    label: String,
+}
+
+pub async fn update_forward_label(
+    ctx: TunnelContext,
+    UpdatePortForwardLabelParams { source, label }: UpdatePortForwardLabelParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_port_forwards_mut().mutate(|pf| {
+                let entry = pf.0.get_mut(&source).ok_or_else(|| {
+                    Error::new(
+                        eyre!("Port forward from {source} not found"),
+                        ErrorKind::NotFound,
+                    )
+                })?;
+                entry.label = label.clone();
+                Ok(())
+            })
+        })
+        .await
+        .result
 }

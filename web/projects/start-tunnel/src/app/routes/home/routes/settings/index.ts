@@ -4,11 +4,14 @@ import {
   inject,
   signal,
 } from '@angular/core'
-import { ErrorService } from '@start9labs/shared'
+import { Router } from '@angular/router'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiAppearance, TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiDialogService } from '@taiga-ui/experimental'
 import { TuiBadge, TuiButtonLoading } from '@taiga-ui/kit'
 import { TuiCard, TuiCell } from '@taiga-ui/layout'
+import { ApiService } from 'src/app/services/api/api.service'
+import { AuthService } from 'src/app/services/auth.service'
 import { UpdateService } from 'src/app/services/update.service'
 
 import { CHANGE_PASSWORD } from './change-password'
@@ -50,6 +53,20 @@ import { CHANGE_PASSWORD } from './change-password'
         </span>
         <button tuiButton size="s" (click)="onChangePassword()">Change</button>
       </div>
+      <div tuiCell>
+        <span tuiTitle>
+          <strong>Logout</strong>
+        </span>
+        <button
+          tuiButton
+          size="s"
+          appearance="secondary-destructive"
+          iconStart="@tui.log-out"
+          (click)="onLogout()"
+        >
+          Logout
+        </button>
+      </div>
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -66,6 +83,10 @@ import { CHANGE_PASSWORD } from './change-password'
 export default class Settings {
   private readonly dialogs = inject(TuiDialogService)
   private readonly errorService = inject(ErrorService)
+  private readonly api = inject(ApiService)
+  private readonly auth = inject(AuthService)
+  private readonly router = inject(Router)
+  private readonly loading = inject(LoadingService)
 
   protected readonly update = inject(UpdateService)
   protected readonly checking = signal(false)
@@ -96,6 +117,20 @@ export default class Settings {
       this.errorService.handleError(e)
     } finally {
       this.applying.set(false)
+    }
+  }
+
+  protected async onLogout() {
+    const loader = this.loading.open().subscribe()
+
+    try {
+      await this.api.logout()
+      this.auth.authenticated.set(false)
+      this.router.navigate(['/'])
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
     }
   }
 }

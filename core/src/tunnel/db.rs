@@ -53,7 +53,7 @@ impl Model<TunnelDatabase> {
         }
         self.as_port_forwards_mut().mutate(|pf| {
             Ok(pf.0.retain(|k, v| {
-                if keep_targets.contains(v.ip()) {
+                if keep_targets.contains(v.target.ip()) {
                     keep_sources.insert(*k);
                     true
                 } else {
@@ -70,11 +70,19 @@ fn export_bindings_tunnel_db() {
     TunnelDatabase::export_all_to("bindings/tunnel").unwrap();
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct PortForwardEntry {
+    pub target: SocketAddrV4,
+    #[serde(default)]
+    pub label: String,
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
-pub struct PortForwards(pub BTreeMap<SocketAddrV4, SocketAddrV4>);
+pub struct PortForwards(pub BTreeMap<SocketAddrV4, PortForwardEntry>);
 impl Map for PortForwards {
     type Key = SocketAddrV4;
-    type Value = SocketAddrV4;
+    type Value = PortForwardEntry;
     fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
         Self::key_string(key)
     }

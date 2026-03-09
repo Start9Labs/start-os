@@ -6,15 +6,20 @@ import {
   Signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { ReactiveFormsModule } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { utils } from '@start9labs/start-sdk'
-import { TuiButton } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiDataList,
+  TuiDropdown,
+  TuiTextfield,
+} from '@taiga-ui/core'
 import { TuiDialogService } from '@taiga-ui/experimental'
 import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PORT_FORWARDS_ADD } from 'src/app/routes/home/routes/port-forwards/add'
+import { PORT_FORWARDS_EDIT_LABEL } from 'src/app/routes/home/routes/port-forwards/edit-label'
 import { ApiService } from 'src/app/services/api/api.service'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
 
@@ -25,6 +30,7 @@ import { MappedDevice, MappedForward } from './utils'
     <table class="g-table">
       <thead>
         <tr>
+          <th>Label</th>
           <th>External IP</th>
           <th>External Port</th>
           <th>Device</th>
@@ -39,6 +45,7 @@ import { MappedDevice, MappedForward } from './utils'
       <tbody>
         @for (forward of forwards(); track $index) {
           <tr>
+            <td>{{ forward.label || '—' }}</td>
             <td>{{ forward.externalip }}</td>
             <td>{{ forward.externalport }}</td>
             <td>{{ forward.device.name }}</td>
@@ -47,11 +54,30 @@ import { MappedDevice, MappedForward } from './utils'
               <button
                 tuiIconButton
                 size="xs"
+                tuiDropdown
+                tuiDropdownOpen
                 appearance="flat-grayscale"
-                iconStart="@tui.trash"
-                (click)="onDelete(forward)"
+                iconStart="@tui.ellipsis-vertical"
               >
                 Actions
+                <tui-data-list *tuiTextfieldDropdown size="s">
+                  <button
+                    tuiOption
+                    iconStart="@tui.pencil"
+                    new
+                    (click)="onEditLabel(forward)"
+                  >
+                    {{ forward.label ? 'Rename' : 'Add label' }}
+                  </button>
+                  <button
+                    tuiOption
+                    iconStart="@tui.trash"
+                    new
+                    (click)="onDelete(forward)"
+                  >
+                    Delete
+                  </button>
+                </tui-data-list>
               </button>
             </td>
           </tr>
@@ -62,7 +88,7 @@ import { MappedDevice, MappedForward } from './utils'
     </table>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TuiButton],
+  imports: [TuiButton, TuiDropdown, TuiDataList, TuiTextfield],
 })
 export default class PortForwards {
   private readonly dialogs = inject(TuiDialogService)
@@ -100,15 +126,16 @@ export default class PortForwards {
   )
 
   protected readonly forwards = computed(() =>
-    Object.entries(this.portForwards() || {}).map(([source, target]) => {
+    Object.entries(this.portForwards() || {}).map(([source, entry]) => {
       const sourceSplit = source.split(':')
-      const targetSplit = target.split(':')
+      const targetSplit = entry.target.split(':')
 
       return {
         externalip: sourceSplit[0]!,
         externalport: sourceSplit[1]!,
         device: this.devices().find(d => d.ip === targetSplit[0])!,
         internalport: targetSplit[1]!,
+        label: entry.label,
       }
     }),
   )
@@ -118,6 +145,18 @@ export default class PortForwards {
       .open(PORT_FORWARDS_ADD, {
         label: 'Add port forward',
         data: { ips: this.ips, devices: this.devices },
+      })
+      .subscribe()
+  }
+
+  protected onEditLabel(forward: MappedForward): void {
+    this.dialogs
+      .open(PORT_FORWARDS_EDIT_LABEL, {
+        label: 'Edit label',
+        data: {
+          source: `${forward.externalip}:${forward.externalport}`,
+          label: forward.label,
+        },
       })
       .subscribe()
   }
