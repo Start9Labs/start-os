@@ -155,7 +155,7 @@ results/$(BASENAME).deb: debian/dpkg-build.sh $(call ls-files,debian/startos) $(
 registry-deb: results/$(REGISTRY_BASENAME).deb
 
 results/$(REGISTRY_BASENAME).deb: debian/dpkg-build.sh $(call ls-files,debian/start-registry) $(REGISTRY_TARGETS)
-	PROJECT=start-registry PLATFORM=$(ARCH) REQUIRES=debian ./build/os-compat/run-compat.sh ./debian/dpkg-build.sh
+	PROJECT=start-registry PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=ca-certificates ./build/os-compat/run-compat.sh ./debian/dpkg-build.sh
 
 tunnel-deb: results/$(TUNNEL_BASENAME).deb
 
