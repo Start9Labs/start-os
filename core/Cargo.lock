@@ -4345,6 +4345,7 @@ name = "patch-db"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "ciborium",
  "fd-lock-rs",
  "futures",
  "imbl",
@@ -4355,7 +4356,6 @@ dependencies = [
  "nix 0.30.1",
  "patch-db-macro",
  "serde",
- "serde_cbor 0.11.1",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -5377,7 +5377,7 @@ dependencies = [
  "pin-project",
  "reqwest",
  "serde",
- "serde_cbor 0.11.2",
+ "serde_cbor",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
@@ -5780,14 +5780,6 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11fc7cc2c76d73e0f27ee52abbd64eec84d46f370c88371120433196934e4b7f"
 dependencies = [
- "serde",
-]
-
-[[package]]
-name = "serde_cbor"
-version = "0.11.1"
-dependencies = [
- "half 1.8.3",
  "serde",
 ]
 

@@ -170,9 +170,7 @@ once_cell = "1.19.0"
 openssh-keys = "0.6.2"
 openssl = { version = "0.10.57", features = ["vendored"] }
 p256 = { version = "0.13.2", features = ["pem"] }
-patch-db = { version = "*", path = "../patch-db/patch-db", features = [
-  "trace",
-] }
+patch-db = { version = "*", path = "../patch-db/core", features = ["trace"] }
 pbkdf2 = "0.12.2"
 pin-project = "1.1.3"
 pkcs8 = { version = "0.10.2", features = ["std"] }
