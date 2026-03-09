@@ -28,7 +28,7 @@ use crate::s9pk::S9pk;
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::service::rpc::{ExitParams, InitKind};
-use crate::service::{LoadDisposition, Service, ServiceRef};
+use crate::service::{LoadDisposition, Service, ServiceRef, get_data_version};
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::status::{DesiredStatus, StatusInfo};
 use crate::util::future::NonDetachingJoinHandle;
@@ -310,36 +310,60 @@ impl ServiceMap {
                 .handle_last(async move {
                     finalization_progress.start();
                     let s9pk = S9pk::open(&installed_path, Some(&id)).await?;
+                    let data_version = get_data_version(&id).await?;
                     let prev = if let Some(service) = service.take() {
                         ensure_code!(
                             recovery_source.is_none(),
                             ErrorKind::InvalidRequest,
                             "cannot restore over existing package"
                         );
-                        let prev_version = service
-                            .seed
-                            .persistent_container
-                            .s9pk
-                            .as_manifest()
-                            .version
-                            .clone();
-                        let prev_can_migrate_to = &service
-                            .seed
-                            .persistent_container
-                            .s9pk
-                            .as_manifest()
-                            .can_migrate_to;
-                        let next_version = &s9pk.as_manifest().version;
-                        let next_can_migrate_from = &s9pk.as_manifest().can_migrate_from;
-                        let uninit = if prev_version.satisfies(next_can_migrate_from) {
-                            ExitParams::target_version(&*prev_version)
-                        } else if next_version.satisfies(prev_can_migrate_to) {
-                            ExitParams::target_version(&s9pk.as_manifest().version)
+                        let uninit = if let Some(ref data_ver) = data_version {
+                            let prev_can_migrate_to = &service
+                                .seed
+                                .persistent_container
+                                .s9pk
+                                .as_manifest()
+                                .can_migrate_to;
+                            let next_version = &s9pk.as_manifest().version;
+                            let next_can_migrate_from =
+                                &s9pk.as_manifest().can_migrate_from;
+                            if let Ok(data_ver_ev) =
+                                data_ver.parse::<exver::ExtendedVersion>()
+                            {
+                                if data_ver_ev.satisfies(next_can_migrate_from) {
+                                    ExitParams::target_str(data_ver)
+                                } else if next_version.satisfies(prev_can_migrate_to) {
+                                    ExitParams::target_version(&s9pk.as_manifest().version)
+                                } else {
+                                    ExitParams::target_range(&VersionRange::and(
+                                        prev_can_migrate_to.clone(),
+                                        next_can_migrate_from.clone(),
+                                    ))
+                                }
+                            } else if let Ok(data_ver_range) =
+                                data_ver.parse::<VersionRange>()
+                            {
+                                ExitParams::target_range(&VersionRange::and(
+                                    data_ver_range,
+                                    next_can_migrate_from.clone(),
+                                ))
+                            } else if next_version.satisfies(prev_can_migrate_to) {
+                                ExitParams::target_version(&s9pk.as_manifest().version)
+                            } else {
+                                ExitParams::target_range(&VersionRange::and(
+                                    prev_can_migrate_to.clone(),
+                                    next_can_migrate_from.clone(),
+                                ))
+                            }
                         } else {
-                            ExitParams::target_range(&VersionRange::and(
-                                prev_can_migrate_to.clone(),
-                                next_can_migrate_from.clone(),
-                            ))
+                            ExitParams::target_version(
+                                &*service
+                                    .seed
+                                    .persistent_container
+                                    .s9pk
+                                    .as_manifest()
+                                    .version,
+                            )
                         };
                         let cleanup = service.uninstall(uninit, false, false).await?;
                         progress.complete();
@@ -354,7 +378,7 @@ impl ServiceMap {
                         &registry,
                         if recovery_source.is_some() {
                             InitKind::Restore
-                        } else if prev.is_some() {
+                        } else if data_version.is_some() {
                             InitKind::Update
                         } else {
                             InitKind::Install
