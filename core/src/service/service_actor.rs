@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use imbl::vector;
 use patch_db::TypedDbWatch;
 
 use super::ServiceActorSeed;
@@ -99,15 +98,8 @@ async fn service_actor_loop<'a>(
     seed: &'a Arc<ServiceActorSeed>,
     transition: &mut Option<Transition<'a>>,
 ) -> Result<(), Error> {
-    let id = &seed.id;
     let status_model = watch.peek_and_mark_seen()?;
     let status = status_model.de()?;
-
-    if let Some(callbacks) = seed.ctx.callbacks.get_status(id) {
-        callbacks
-            .call(vector![patch_db::ModelExt::into_value(status_model)])
-            .await?;
-    }
 
     match status {
         StatusInfo {

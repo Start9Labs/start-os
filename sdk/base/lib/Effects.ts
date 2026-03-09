@@ -69,7 +69,7 @@ export type Effects = {
   getStatus(options: {
     packageId?: PackageId
     callback?: () => void
-  }): Promise<StatusInfo>
+  }): Promise<StatusInfo | null>
   /** DEPRECATED: indicate to the host os what runstate the service is in */
   setMainStatus(options: SetMainStatus): Promise<null>
 
