@@ -738,9 +738,7 @@ async fn migrate(
     );
 
     let tmpdir = Path::new(package_data_transfer_args.0).join("tmp");
-    if tokio::fs::metadata(&tmpdir).await.is_ok() {
-        tokio::fs::remove_dir_all(&tmpdir).await?;
-    }
+    crate::util::io::delete_dir(&tmpdir).await?;
 
     let ordering = std::sync::atomic::Ordering::Relaxed;
 

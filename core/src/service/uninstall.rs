@@ -101,13 +101,11 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, soft: bool) -> Result<(),
 
             if !soft {
                 let path = Path::new(DATA_DIR).join(PKG_VOLUME_DIR).join(&manifest.id);
-                if tokio::fs::metadata(&path).await.is_ok() {
-                    tokio::fs::remove_dir_all(&path).await?;
-                }
-                let logs_dir = Path::new(PACKAGE_DATA).join("logs").join(&manifest.id);
-                if tokio::fs::metadata(&logs_dir).await.is_ok() {
-                    #[cfg(not(feature = "dev"))]
-                    tokio::fs::remove_dir_all(&logs_dir).await?;
+                crate::util::io::delete_dir(&path).await?;
+                #[cfg(not(feature = "dev"))]
+                {
+                    let logs_dir = Path::new(PACKAGE_DATA).join("logs").join(&manifest.id);
+                    crate::util::io::delete_dir(&logs_dir).await?;
                 }
             }
         },

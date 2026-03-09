@@ -291,21 +291,15 @@ pub async fn init(
 
     init_tmp.start();
     let tmp_dir = Path::new(PACKAGE_DATA).join("tmp");
-    if tokio::fs::metadata(&tmp_dir).await.is_ok() {
-        tokio::fs::remove_dir_all(&tmp_dir).await?;
-    }
+    crate::util::io::delete_dir(&tmp_dir).await?;
     if tokio::fs::metadata(&tmp_dir).await.is_err() {
         tokio::fs::create_dir_all(&tmp_dir).await?;
     }
     let tmp_var = Path::new(PACKAGE_DATA).join("tmp/var");
-    if tokio::fs::metadata(&tmp_var).await.is_ok() {
-        tokio::fs::remove_dir_all(&tmp_var).await?;
-    }
+    crate::util::io::delete_dir(&tmp_var).await?;
     crate::disk::mount::util::bind(&tmp_var, "/var/tmp", false).await?;
     let downloading = Path::new(PACKAGE_DATA).join("archive/downloading");
-    if tokio::fs::metadata(&downloading).await.is_ok() {
-        tokio::fs::remove_dir_all(&downloading).await?;
-    }
+    crate::util::io::delete_dir(&downloading).await?;
     let tmp_docker = Path::new(PACKAGE_DATA).join("tmp").join(*CONTAINER_TOOL);
     crate::disk::mount::util::bind(&tmp_docker, *CONTAINER_DATADIR, false).await?;
     init_tmp.complete();
