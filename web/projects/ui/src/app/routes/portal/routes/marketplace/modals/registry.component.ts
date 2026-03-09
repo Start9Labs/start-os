@@ -1,10 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
-import {
-  MarketplaceRegistryComponent,
-  StoreIconComponentModule,
-} from '@start9labs/marketplace'
+import { MarketplaceRegistryComponent } from '@start9labs/marketplace'
 import {
   DialogService,
   ErrorService,
@@ -14,6 +11,7 @@ import {
   sameUrl,
   toUrl,
 } from '@start9labs/shared'
+import { IST, utils } from '@start9labs/start-sdk'
 import { TuiButton, TuiDialogContext, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiCell } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -24,7 +22,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { IST, utils } from '@start9labs/start-sdk'
 import { StorageService } from 'src/app/services/storage.service'
 
 @Component({
@@ -80,7 +77,6 @@ import { StorageService } from 'src/app/services/storage.service'
     TuiTitle,
     TuiButton,
     MarketplaceRegistryComponent,
-    StoreIconComponentModule,
     i18nPipe,
   ],
 })

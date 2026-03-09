@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -144,7 +143,6 @@ import { GatewaysTableComponent } from './table.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [GatewayService],
   imports: [
-    CommonModule,
     FormsModule,
     RouterLink,
     TuiButton,

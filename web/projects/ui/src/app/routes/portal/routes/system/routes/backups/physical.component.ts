@@ -5,11 +5,7 @@ import {
   output,
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import {
-  DialogService,
-  i18nPipe,
-  UnitConversionPipesModule,
-} from '@start9labs/shared'
+import { ConvertBytesPipe, DialogService, i18nPipe } from '@start9labs/shared'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiTooltip } from '@taiga-ui/kit'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
@@ -115,7 +111,7 @@ import { BackupStatusComponent } from './status.component'
     TuiButton,
     TuiIcon,
     TuiTooltip,
-    UnitConversionPipesModule,
+    ConvertBytesPipe,
     PlaceholderComponent,
     BackupStatusComponent,
     TableComponent,

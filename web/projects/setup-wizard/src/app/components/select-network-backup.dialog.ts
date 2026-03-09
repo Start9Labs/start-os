@@ -11,7 +11,6 @@ interface Data {
 }
 
 @Component({
-  standalone: true,
   imports: [FormsModule, TuiTextfield, TuiSelect, TuiDataListWrapper, i18nPipe],
   template: `
     <p>{{ 'Multiple backups found. Select which one to restore.' | i18n }}</p>

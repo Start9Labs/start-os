@@ -4,7 +4,6 @@ import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { injectContext } from '@taiga-ui/polymorpheus'
 
 @Component({
-  standalone: true,
   imports: [TuiButton, i18nPipe],
   template: `
     <div class="animation-container">

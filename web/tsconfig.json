@@ -19,7 +19,6 @@
     "importHelpers": true,
     "target": "es2022",
     "module": "es2020",
-    "lib": ["es2020", "dom"],
     "useDefineForClassFields": false,
     "paths": {
       /* These paths are relative to each app base folder */

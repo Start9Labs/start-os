@@ -7,7 +7,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
   Marketplace,
-  StoreIconComponentModule,
+  StoreIconComponent,
   StoreIdentity,
 } from '@start9labs/marketplace'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
@@ -230,7 +230,7 @@ interface UpdatesData {
     TuiBadgeNotification,
     TuiFade,
     TuiButton,
-    StoreIconComponentModule,
+    StoreIconComponent,
     FilterUpdatesPipe,
     UpdatesItemComponent,
     TitleDirective,

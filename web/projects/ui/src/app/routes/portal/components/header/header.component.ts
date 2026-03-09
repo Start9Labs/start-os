@@ -36,6 +36,7 @@ import { HeaderStatusComponent } from './status.component'
       height: 2.75rem;
       border-radius: var(--bumper);
       margin: var(--bumper);
+      clip-path: inset(0 round var(--bumper));
       overflow: hidden;
       filter: grayscale(1) brightness(0.75);
 
@@ -107,7 +108,8 @@ import { HeaderStatusComponent } from './status.component'
 
       &:has([data-status='success']) {
         --status: transparent;
-        filter: none;
+        // "none" breaks border radius in Firefox
+        filter: grayscale(0.001);
       }
     }
 

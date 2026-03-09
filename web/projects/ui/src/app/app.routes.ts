@@ -1,14 +1,14 @@
 import { NgModule } from '@angular/core'
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router'
+import { AuthGuard } from 'src/app/guards/auth.guard'
+import { UnauthGuard } from 'src/app/guards/unauth.guard'
 import { stateNot } from 'src/app/services/state.service'
-import { AuthGuard } from './guards/auth.guard'
-import { UnauthGuard } from './guards/unauth.guard'
 
-const routes: Routes = [
+export const ROUTES: Routes = [
   {
     path: 'diagnostic',
     canActivate: [stateNot(['initializing', 'running'])],
-    loadChildren: () => import('./routes/diagnostic/diagnostic.module'),
+    loadChildren: () => import('./routes/diagnostic/diagnostic.routes'),
   },
   {
     path: 'initializing',
@@ -18,8 +18,7 @@ const routes: Routes = [
   {
     path: 'login',
     canActivate: [UnauthGuard, stateNot(['error', 'initializing'])],
-    loadChildren: () =>
-      import('./routes/login/login.module').then(m => m.LoginPageModule),
+    loadComponent: () => import('./routes/login/login.page'),
   },
   {
     path: '',
@@ -32,17 +31,3 @@ const routes: Routes = [
     pathMatch: 'full',
   },
 ]
-
-@NgModule({
-  imports: [
-    RouterModule.forRoot(routes, {
-      scrollPositionRestoration: 'enabled',
-      paramsInheritanceStrategy: 'always',
-      preloadingStrategy: PreloadAllModules,
-      initialNavigation: 'disabled',
-      bindToComponentInputs: true,
-    }),
-  ],
-  exports: [RouterModule],
-})
-export class RoutingModule {}

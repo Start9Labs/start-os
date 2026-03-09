@@ -1,28 +1,11 @@
-import { Pipe, PipeTransform } from '@angular/core'
-import { Exver } from '../../services/exver.service'
-
-@Pipe({
-  name: 'satisfiesExver',
-  standalone: false,
-})
-export class ExverSatisfiesPipe implements PipeTransform {
-  constructor(private readonly exver: Exver) {}
-
-  transform(versionUnderTest?: string, range?: string): boolean {
-    return (
-      !!versionUnderTest &&
-      !!range &&
-      this.exver.satisfies(versionUnderTest, range)
-    )
-  }
-}
+import { inject, Pipe, PipeTransform } from '@angular/core'
+import { Exver } from '../services/exver.service'
 
 @Pipe({
   name: 'compareExver',
-  standalone: false,
 })
 export class ExverComparesPipe implements PipeTransform {
-  constructor(private readonly exver: Exver) {}
+  private readonly exver = inject(Exver)
 
   transform(first: string, second: string): SemverResult {
     try {

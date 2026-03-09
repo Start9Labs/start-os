@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { SharedPipesModule, TickerComponent } from '@start9labs/shared'
+import { TickerComponent } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
 @Component({
@@ -118,7 +118,7 @@ import { T } from '@start9labs/start-sdk'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SharedPipesModule, TickerComponent],
+  imports: [TickerComponent],
 })
 export class MarketplacePackageHeroComponent {
   @Input({ required: true })
