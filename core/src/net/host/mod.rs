@@ -283,7 +283,7 @@ impl Model<Host> {
                     };
                     available.insert(HostnameInfo {
                         ssl: opt.secure.map_or(false, |s| s.ssl),
-                        public: true,
+                        public: false,
                         hostname: domain.clone(),
                         port: Some(port),
                         metadata: HostnameMetadata::PrivateDomain { gateways },
@@ -300,7 +300,7 @@ impl Model<Host> {
                     }
                     available.insert(HostnameInfo {
                         ssl: true,
-                        public: true,
+                        public: false,
                         hostname: domain,
                         port: Some(port),
                         metadata: HostnameMetadata::PrivateDomain {
@@ -314,7 +314,7 @@ impl Model<Host> {
                 {
                     available.insert(HostnameInfo {
                         ssl: true,
-                        public: true,
+                        public: false,
                         hostname: domain,
                         port: Some(opt.preferred_external_port),
                         metadata: HostnameMetadata::PrivateDomain {
