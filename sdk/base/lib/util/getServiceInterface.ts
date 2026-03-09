@@ -36,6 +36,7 @@ export const getHostname = (url: string): Hostname | null => {
  * - `'ipv6'` — IPv6 addresses only
  * - `'localhost'` — loopback addresses (`localhost`, `127.0.0.1`, `::1`)
  * - `'link-local'` — IPv6 link-local addresses (fe80::/10)
+ * - `'bridge'` — The LXC bridge interface
  * - `'plugin'` — hostnames provided by a plugin package
  */
 type FilterKinds =
@@ -46,6 +47,7 @@ type FilterKinds =
   | 'ipv6'
   | 'localhost'
   | 'link-local'
+  | 'bridge'
   | 'plugin'
 
 /**
@@ -120,7 +122,11 @@ type FilterReturnTy<F extends Filter> = F extends {
 
 const nonLocalFilter = {
   exclude: {
-    kind: ['localhost', 'link-local'] as ('localhost' | 'link-local')[],
+    kind: ['localhost', 'link-local', 'bridge'] as (
+      | 'localhost'
+      | 'link-local'
+      | 'bridge'
+    )[],
   },
 } as const
 const publicFilter = {
@@ -284,6 +290,9 @@ function filterRec(
           (kind.has('link-local') &&
             h.metadata.kind === 'ipv6' &&
             IPV6_LINK_LOCAL.contains(IpAddress.parse(h.hostname))) ||
+          (kind.has('bridge') &&
+            h.metadata.kind === 'ipv4' &&
+            h.metadata.gateway === 'lxcbr0') ||
           (kind.has('plugin') && h.metadata.kind === 'plugin')),
     )
   }
