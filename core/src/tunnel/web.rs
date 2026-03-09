@@ -524,7 +524,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                     "To access your Web URL securely, trust your Root CA (displayed above) on your client device(s):\n",
                     "  - MacOS\n",
                     "    1. Open the Terminal app\n",
-                    "    2. Paste the following command (**DO NOT** click Enter/Return yet, just paste it): pbcopy > ~/Desktop/tunnel-ca.crt\n",
+                    "    2. Type or copy/paste the following command (**DO NOT** click Enter/Return yet): pbpaste > ~/Desktop/tunnel-ca.crt\n",
                     "    3. Copy your Root CA (including -----BEGIN CERTIFICATE----- and -----END CERTIFICATE-----)\n",
                     "    4. Back in Terminal, click Enter/Return. tunnel-ca.crt is saved to your Desktop\n",
                     "    5. Complete by trusting your Root CA: https://docs.start9.com/device-guides/mac/ca.html\n",
