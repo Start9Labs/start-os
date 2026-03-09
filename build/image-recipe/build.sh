@@ -209,6 +209,10 @@ cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
 
 set -e
 
+if [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ]; then
+    /usr/lib/startos/scripts/enable-kiosk
+fi
+
 if [ "${NVIDIA}" = "1" ]; then
     # install a specific NVIDIA driver version
 
@@ -236,7 +240,7 @@ if [ "${NVIDIA}" = "1" ]; then
     echo "[nvidia-hook] Target kernel version: \${KVER}" >&2
 
     # Ensure kernel headers are present
-	TEMP_APT_DEPS=(build-essential)
+	TEMP_APT_DEPS=(build-essential pkg-config)
     if [ ! -e "/lib/modules/\${KVER}/build" ]; then
 		TEMP_APT_DEPS+=(linux-headers-\${KVER})
     fi
@@ -279,6 +283,16 @@ if [ "${NVIDIA}" = "1" ]; then
 
     echo "[nvidia-hook] NVIDIA \${NVIDIA_DRIVER_VERSION} installation complete for kernel \${KVER}" >&2
 
+    echo "[nvidia-hook] Removing .run installer..." >&2
+    rm -f "\${RUN_PATH}"
+
+    echo "[nvidia-hook] Blacklisting nouveau..." >&2
+    echo "blacklist nouveau" > /etc/modprobe.d/blacklist-nouveau.conf
+    echo "options nouveau modeset=0" >> /etc/modprobe.d/blacklist-nouveau.conf
+
+    echo "[nvidia-hook] Rebuilding initramfs..." >&2
+    update-initramfs -u -k "\${KVER}"
+
     echo "[nvidia-hook] Removing build dependencies..." >&2
 	apt-get purge -y nvidia-depends
 	apt-get autoremove -y
@@ -309,10 +323,6 @@ usermod -aG sudo start9
 usermod -aG systemd-journal start9
 
 echo "start9 ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/010_start9-nopasswd"
-
-if [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ]; then
-    /usr/lib/startos/scripts/enable-kiosk
-fi
 
 if ! [[ "${IB_OS_ENV}" =~ (^|-)dev($|-) ]]; then
     passwd -l start9
