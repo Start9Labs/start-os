@@ -17,6 +17,7 @@ use crate::s9pk::manifest::{HardwareRequirements, Manifest};
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::v2::pack::ImageConfig;
+use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::util::io::{TmpDir, create_file, open_file};
 use crate::util::serde::{HandlerExtSerde, apply_expr};
 use crate::util::{Apply, Invoke};
@@ -130,6 +131,13 @@ fn inspect() -> ParentHandler<CliContext, S9pkPath> {
                 .with_inherited(only_parent)
                 .with_display_serializable()
                 .with_about("about.display-s9pk-manifest"),
+        )
+        .subcommand(
+            "commitment",
+            from_fn_async(inspect_commitment)
+                .with_inherited(only_parent)
+                .with_display_serializable()
+                .with_about("about.display-s9pk-root-sighash-and-maxsize"),
         )
 }
 
@@ -260,6 +268,15 @@ async fn inspect_manifest(
     )
     .await?;
     Ok(s9pk.as_manifest().clone())
+}
+
+async fn inspect_commitment(
+    _: CliContext,
+    _: Empty,
+    S9pkPath { s9pk: s9pk_path }: S9pkPath,
+) -> Result<MerkleArchiveCommitment, Error> {
+    let s9pk = super::S9pk::open(&s9pk_path, None).await?;
+    s9pk.as_archive().commitment().await
 }
 
 async fn convert(ctx: CliContext, S9pkPath { s9pk: s9pk_path }: S9pkPath) -> Result<(), Error> {
