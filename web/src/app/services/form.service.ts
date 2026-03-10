@@ -31,7 +31,10 @@ export abstract class FormService<T> {
           if (isNetworkError(e) && this.networkRestart.isSuppressed) {
             return EMPTY
           }
-          return this.alerts.open<never>(e, { appearance: 'negative' })
+          console.error(e)
+          return this.alerts.open<never>(e.message || e, {
+            appearance: 'negative',
+          })
         }),
       ),
     ),
