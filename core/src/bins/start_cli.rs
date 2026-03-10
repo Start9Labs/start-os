@@ -8,10 +8,6 @@ use crate::context::config::ClientConfig;
 use crate::util::logger::LOGGER;
 use crate::version::{Current, VersionT};
 
-lazy_static::lazy_static! {
-    static ref VERSION_STRING: String = Current::default().semver().to_string();
-}
-
 pub fn main(args: impl IntoIterator<Item = OsString>) {
     LOGGER.enable();
 
@@ -20,6 +16,10 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
         crate::main_api(),
     )
     .mutate_command(super::translate_cli)
+    .mutate_command(|cmd| {
+        cmd.name("start-cli")
+            .version(Current::default().semver().to_string())
+    })
     .run(args)
     {
         match e.data {

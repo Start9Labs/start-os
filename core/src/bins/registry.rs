@@ -8,6 +8,7 @@ use tokio::signal::unix::signal;
 use tracing::instrument;
 
 use crate::context::CliContext;
+use crate::version::{Current, VersionT};
 use crate::context::config::ClientConfig;
 use crate::net::web_server::{Acceptor, WebServer};
 use crate::prelude::*;
@@ -101,6 +102,10 @@ pub fn cli(args: impl IntoIterator<Item = OsString>) {
         crate::registry::registry_api(),
     )
     .mutate_command(super::translate_cli)
+    .mutate_command(|cmd| {
+        cmd.name("start-registry")
+            .version(Current::default().semver().to_string())
+    })
     .run(args)
     {
         match e.data {
