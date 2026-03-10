@@ -247,6 +247,7 @@ export interface ProfileDialogResult {
       min: 'Must be at least 1',
       max: 'Must be at most 254',
       ipv4: 'Enter a valid IPv4 address',
+      duplicateName: 'A profile with this name already exists',
       ipv4List:
         'Enter valid IPv4 addresses or CIDRs (e.g. 1.1.1.1, 8.8.8.8/24)',
     }),
@@ -290,7 +291,15 @@ class AddProfile {
   private readonly dnsConfig = this.parseDnsOverride()
 
   protected readonly form = this.builder.group({
-    fullname: [this.existing?.fullname || '', Validators.required],
+    fullname: [
+      this.existing?.fullname || '',
+      [
+        Validators.required,
+        CustomValidators.duplicateName(
+          this.context.data.otherProfiles.map(p => p.fullname),
+        ),
+      ],
+    ],
     subnet: [
       this.nextAvailableSubnet(),
       [Validators.required, Validators.min(1), Validators.max(254)],

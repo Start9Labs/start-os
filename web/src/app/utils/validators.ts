@@ -82,6 +82,16 @@ export class CustomValidators {
     }
   }
 
+  static duplicateName(existing: string[]): ValidatorFn {
+    const names = new Set(existing.map(n => n.trim().toLowerCase()))
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null
+      return names.has(control.value.trim().toLowerCase())
+        ? { duplicateName: true }
+        : null
+    }
+  }
+
   static ipv4List(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       if (!control.value) return null
