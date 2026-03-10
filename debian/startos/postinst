@@ -28,13 +28,12 @@ if [ -f /etc/default/grub ]; then
 		sed -i '/\(^\|#\)'"$1"'=/d' /etc/default/grub
 		printf '%s="%s"\n' "$1" "$2" >> /etc/default/grub
 	}
-	# Enable both graphical and serial terminal output
-	grub_set GRUB_TERMINAL_INPUT 'console serial'
-	grub_set GRUB_TERMINAL_OUTPUT 'gfxterm serial'
-	# Remove GRUB_TERMINAL if present (replaced by INPUT/OUTPUT above)
+	# Graphical terminal (serial added conditionally via /etc/grub.d/01_serial)
+	grub_set GRUB_TERMINAL_INPUT 'console'
+	grub_set GRUB_TERMINAL_OUTPUT 'gfxterm'
+	# Remove GRUB_TERMINAL and GRUB_SERIAL_COMMAND if present
 	sed -i '/^\(#\|\)GRUB_TERMINAL=/d' /etc/default/grub
-	# Serial console settings
-	grub_set GRUB_SERIAL_COMMAND 'serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1'
+	sed -i '/^\(#\|\)GRUB_SERIAL_COMMAND=/d' /etc/default/grub
 	# Graphics mode and splash background
 	grub_set GRUB_GFXMODE 800x600
 	grub_set GRUB_GFXPAYLOAD_LINUX keep
@@ -49,6 +48,24 @@ if [ -f /etc/default/grub ]; then
 		mkdir -p /boot/grub/startos-theme
 		cp -r /usr/lib/startos/grub-theme/* /boot/grub/startos-theme/
 	fi
+	# Copy font to boot partition so GRUB can load it without accessing rootfs
+	if [ -f /usr/share/grub/unicode.pf2 ]; then
+		mkdir -p /boot/grub/fonts
+		cp /usr/share/grub/unicode.pf2 /boot/grub/fonts/unicode.pf2
+	fi
+	# Install conditional serial console script for GRUB
+	cat > /etc/grub.d/01_serial << 'GRUBEOF'
+#!/bin/sh
+cat << 'EOF'
+# Conditionally enable serial console (avoids breaking gfxterm on EFI
+# systems where the serial port is unavailable)
+if serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1; then
+  terminal_input console serial
+  terminal_output gfxterm serial
+fi
+EOF
+GRUBEOF
+	chmod +x /etc/grub.d/01_serial
 fi
 
 VERSION="$(cat /usr/lib/startos/VERSION.txt)"
