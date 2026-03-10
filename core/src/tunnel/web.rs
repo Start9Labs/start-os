@@ -168,10 +168,10 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "reset",
+            "uninit",
             from_fn_async(reset_web)
                 .no_display()
-                .with_about("about.reset-webserver")
+                .with_about("about.uninitialize-webserver")
                 .with_call_remote::<CliContext>(),
         )
 }

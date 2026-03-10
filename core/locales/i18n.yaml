@@ -857,6 +857,13 @@ error.set-sys-info:
   fr_FR: "Erreur de Définition des Infos Système"
   pl_PL: "Błąd Ustawiania Informacji o Systemie"
 
+error.bios:
+  en_US: "BIOS/UEFI Error"
+  de_DE: "BIOS/UEFI-Fehler"
+  es_ES: "Error de BIOS/UEFI"
+  fr_FR: "Erreur BIOS/UEFI"
+  pl_PL: "Błąd BIOS/UEFI"
+
 # disk/main.rs
 disk.main.disk-not-found:
   en_US: "StartOS disk not found."
@@ -2913,6 +2920,13 @@ help.arg.log-limit:
   es_ES: "Número máximo de entradas de registro"
   fr_FR: "Nombre maximum d'entrées de journal"
   pl_PL: "Maksymalna liczba wpisów logu"
+
+help.arg.merge:
+  en_US: "Merge with existing version range instead of replacing"
+  de_DE: "Mit vorhandenem Versionsbereich zusammenführen statt ersetzen"
+  es_ES: "Combinar con el rango de versiones existente en lugar de reemplazar"
+  fr_FR: "Fusionner avec la plage de versions existante au lieu de remplacer"
+  pl_PL: "Połącz z istniejącym zakresem wersji zamiast zastępować"
 
 help.arg.mirror-url:
   en_US: "URL of the mirror"
@@ -5204,12 +5218,12 @@ about.reset-user-interface-password:
   fr_FR: "Réinitialiser le mot de passe de l'interface utilisateur"
   pl_PL: "Zresetuj hasło interfejsu użytkownika"
 
-about.reset-webserver:
-  en_US: "Reset the webserver"
-  de_DE: "Den Webserver zurücksetzen"
-  es_ES: "Restablecer el servidor web"
-  fr_FR: "Réinitialiser le serveur web"
-  pl_PL: "Zresetuj serwer internetowy"
+about.uninitialize-webserver:
+  en_US: "Uninitialize the webserver"
+  de_DE: "Den Webserver deinitialisieren"
+  es_ES: "Desinicializar el servidor web"
+  fr_FR: "Désinitialiser le serveur web"
+  pl_PL: "Zdezinicjalizuj serwer internetowy"
 
 about.restart-server:
   en_US: "Restart the server"
