@@ -376,3 +376,4 @@ pub struct DdnsService {
     #[uci(default)]
     pub lookup_host: Option<String>,
 }
+

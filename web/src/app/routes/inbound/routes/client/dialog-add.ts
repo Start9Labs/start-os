@@ -5,8 +5,10 @@ import {
   signal,
 } from '@angular/core'
 import {
+  AbstractControl,
   NonNullableFormBuilder,
   ReactiveFormsModule,
+  ValidatorFn,
   Validators,
 } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
@@ -20,6 +22,7 @@ import {
 } from '@taiga-ui/core'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { CustomValidators } from 'src/app/utils/validators'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
 import { VpnServerPeer } from 'src/app/routes/inbound/service'
@@ -87,18 +90,46 @@ class AddClient {
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     name: ['', Validators.required],
-    ip: [this.nextAvailableIp(), Validators.required],
+    ip: [
+      this.nextAvailableIp(),
+      [
+        Validators.required,
+        CustomValidators.ipv4(),
+        this.peerIpRange(),
+        this.uniqueIp(),
+      ],
+    ],
     public_key: [''],
   })
 
   private nextAvailableIp(): string {
     const prefix = this.serverAddress.replace(/\.\d+$/, '')
-    const startOctet = parseInt(this.serverAddress.split('.').pop()!, 10) + 1
-    for (let i = startOctet; i <= 254; i++) {
+    for (let i = 200; i <= 253; i++) {
       const candidate = `${prefix}.${i}`
       if (!this.usedIps.includes(candidate)) return candidate
     }
-    return `${prefix}.${startOctet}`
+    return `${prefix}.200`
+  }
+
+  private peerIpRange(): ValidatorFn {
+    return (control: AbstractControl) => {
+      if (!control.value) return null
+      const prefix = this.serverAddress.replace(/\.\d+$/, '')
+      const match = control.value.match(/^(.+)\.(\d+)$/)
+      if (!match) return { peerIpRange: true }
+      const octet = parseInt(match[2], 10)
+      if (match[1] !== prefix || octet < 200 || octet > 253) {
+        return { peerIpRange: true }
+      }
+      return null
+    }
+  }
+
+  private uniqueIp(): ValidatorFn {
+    return (control: AbstractControl) => {
+      if (!control.value) return null
+      return this.usedIps.includes(control.value) ? { uniqueIp: true } : null
+    }
   }
 
   protected save(): void {

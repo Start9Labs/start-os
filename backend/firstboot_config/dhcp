@@ -28,8 +28,8 @@ config dnsmasq
 
 config dhcp lan
 	option interface	lan
-	option start 	100
-	option limit	150
+	option start 	2
+	option limit	198
 	option leasetime	12h
 	option ra		server
 	option dhcpv6		server

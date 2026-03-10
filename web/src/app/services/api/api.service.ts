@@ -183,6 +183,11 @@ export interface VpnServerConfig {
   private_key?: string
 }
 
+export interface VpnServerEndpoint {
+  address: string
+  label: string
+}
+
 export interface VpnServers {
   servers: VpnServer[]
 }

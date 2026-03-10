@@ -131,6 +131,7 @@ CONFIG_PACKAGE_kmod-nf-reject6=y
 # CONFIG_PACKAGE_kmod-ppp is not set
 CONFIG_PACKAGE_kmod-sched-core=y
 CONFIG_PACKAGE_kmod-thermal=y
+CONFIG_PACKAGE_kmod-wireguard=y
 # CONFIG_PACKAGE_knot-resolver_dnstap is not set
 CONFIG_PACKAGE_lame-lib=y
 CONFIG_PACKAGE_libatomic=y
@@ -215,6 +216,7 @@ CONFIG_PACKAGE_ucode-mod-uloop=y
 CONFIG_PACKAGE_uhttpd=y
 CONFIG_PACKAGE_uhttpd-mod-ubus=y
 CONFIG_PACKAGE_wifi-scripts=y
+CONFIG_PACKAGE_wireguard-tools=y
 CONFIG_PACKAGE_wireless-regdb=y
 CONFIG_PACKAGE_wpa-cli=y
 CONFIG_PACKAGE_wpa-supplicant-mbedtls=y

@@ -198,8 +198,10 @@ export default class InboundClients {
         if (response?.client_config) {
           this.dialogs
             .open(CLIENT_CONFIG, {
-              label: peer.name,
-              data: response.client_config,
+              data: {
+                name: peer.name,
+                config: response.client_config,
+              },
             })
             .subscribe()
         }

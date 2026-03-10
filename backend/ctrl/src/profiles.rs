@@ -266,6 +266,16 @@ fn get_config(
 }
 
 pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
+    // Resolve the profile interface name before the retry loop so we can
+    // use it for ifdown after dump_all succeeds (delete_config consumes the query).
+    let interface_name = {
+        let arena = Arena::new();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"])?;
+        let lookup = Lookup::parse(ctx.clone(), &cfgs)?;
+        lookup.resolve(&id)?.interface.clone()
+    };
+    let wg_interface_name = format!("wg_{}", interface_name);
+
     let mut retries = 4;
     loop {
         let arena = Arena::new();
@@ -283,8 +293,13 @@ pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 if ctx.effectful() {
-                    reload_system()?;
-                    restart_wifi();
+                    // Bring down the WireGuard interface before reloading services.
+                    // reload_system() alone won't tear down an active WireGuard tunnel.
+                    let _ = Command::new("ifdown")
+                        .arg(&wg_interface_name)
+                        .spawn()
+                        .and_then(|mut c| c.wait());
+                    reload_system_and_wifi()?;
                 }
                 return Ok(());
             }
@@ -305,25 +320,49 @@ fn delete_config(
         return Err(ErrorKind::CannotDeleteLanOwner.into());
     }
 
-    // Remove profile from startwrt config
+    // Remove profile and its VPN server metadata from startwrt config
+    let wg_interface_name = format!("wg_{}", id.interface);
     cfgs["startwrt"].sections.retain(|section| {
-        let Ok(profile) = section.get::<UciProfile>() else {
-            return true;
-        };
-        profile.id() != id
+        if let Ok(profile) = section.get::<UciProfile>() {
+            if profile.id() == id {
+                return false;
+            }
+        }
+        // Remove VPN server metadata for this profile's WireGuard interface
+        if section.ty() == "vpn_server" {
+            if section.lines.iter().any(|line| {
+                matches!(line, uciedit::Line::Option { option, value, .. }
+                    if option.as_str() == "interface" && value.as_str() == wg_interface_name.as_str())
+            }) {
+                return false;
+            }
+        }
+        true
     });
 
-    // Remove network interface and bridge-vlan for this VLAN tag
+    // Remove network interface, bridge-vlan, and WireGuard interface + peers
+    let wg_peer_type = format!("wireguard_{}", wg_interface_name);
     cfgs["network"].sections.retain(|section| {
         if section.get::<NetworkInterface>().is_ok() {
             if section.name().as_deref() == Some(&id.interface) {
                 return false;
             }
         }
+        // Remove WireGuard interface for this profile (checked separately because
+        // WireGuard interfaces lack a `device` field so NetworkInterface parsing fails)
+        if section.ty() == "interface"
+            && section.name().as_deref() == Some(wg_interface_name.as_str())
+        {
+            return false;
+        }
         if let Ok(vlan) = section.get::<NetworkBridgeVlan>() {
             if vlan.vlan == id.vlan_tag {
                 return false;
             }
+        }
+        // Remove WireGuard peer sections for this profile's VPN server
+        if section.ty() == wg_peer_type {
+            return false;
         }
         true
     });
@@ -398,6 +437,9 @@ fn delete_config(
             && s.name().as_deref() != Some(rule_name.as_str())
     });
 
+    // Remove WireGuard WAN firewall rule (src: "wan", not caught by zone cleanup above)
+    crate::vpn_server::remove_wireguard_firewall_rule(cfgs, &wg_interface_name)?;
+
     // Clean up orphaned VPN interfaces from WAN zone
     cleanup_orphaned_wan_vpns(cfgs);
 
@@ -449,14 +491,29 @@ pub fn reload_system() -> Result<(), Error> {
     Ok(())
 }
 
-/// Full wifi restart so hostapd re-reads wpa_psk_file and vlan_file.
-/// Only needed when profile VLANs are created or deleted — not on every profile update.
-pub fn restart_wifi() {
+/// Combined reload for operations that also need a WiFi restart (profile create/delete).
+/// Runs everything sequentially in one thread to avoid race conditions — the `wifi` command
+/// tears down and recreates wireless interfaces, which destabilizes the network if the
+/// firewall reloads concurrently.
+pub fn reload_system_and_wifi() -> Result<(), Error> {
     std::thread::spawn(|| {
+        let _ = Command::new("/etc/init.d/network")
+            .arg("reload")
+            .spawn()
+            .and_then(|mut c| c.wait());
         let _ = Command::new("wifi")
             .spawn()
             .and_then(|mut c| c.wait());
+        let _ = Command::new("/etc/init.d/firewall")
+            .arg("reload")
+            .spawn()
+            .and_then(|mut c| c.wait());
+        let _ = Command::new("/etc/init.d/dnsmasq")
+            .arg("reload")
+            .spawn()
+            .and_then(|mut c| c.wait());
     });
+    Ok(())
 }
 
 /// When the first bridge-vlan is about to be created on a bridge, we must also create
@@ -761,8 +818,7 @@ pub fn create<C: CtrlContext>(
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 if ctx.effectful() {
-                    reload_system()?;
-                    restart_wifi();
+                    reload_system_and_wifi()?;
                 }
                 return Ok(out);
             }
@@ -1283,10 +1339,19 @@ pub fn rewrite_dhcp(
             continue;
         };
         if dhcp.interface == profile.id.interface {
-            // Ensure IPv6 RA/DHCPv6 matches global state on existing sections
+            let mut changed = false;
             if dhcp.ra.as_deref() != Some(&ra_value) || dhcp.dhcpv6.as_deref() != Some(&dhcpv6_value) {
                 dhcp.ra = Some(ra_value.clone());
                 dhcp.dhcpv6 = Some(dhcpv6_value.clone());
+                changed = true;
+            }
+            // Enforce DHCP pool bounds (avoid overlap with VPN peer range .200-.253)
+            if dhcp.start != 2 || dhcp.limit != 198 {
+                dhcp.start = 2;
+                dhcp.limit = 198;
+                changed = true;
+            }
+            if changed {
                 section.set(&dhcp)?;
             }
             found_dhcp = true;
@@ -1296,8 +1361,8 @@ pub fn rewrite_dhcp(
         cfgs["dhcp"].append(
             &Dhcp {
                 interface: profile.id.interface.clone(),
-                start: 100, // default in the openwrt docs
-                limit: 150,
+                start: 2,
+                limit: 198,
                 leasetime: "12h".into(),
                 ra: Some(ra_value),
                 dhcpv6: Some(dhcpv6_value),
@@ -2857,5 +2922,240 @@ config dhcp 'lan'
             redirect_count, 0,
             "empty dns_override should not create any redirect sections"
         );
+    }
+
+    #[test]
+    fn test_delete_removes_vpn_server_resources() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        use crate::wg::{Base64, WgKey};
+        let server_key = Base64::new(WgKey::generate()).to_base64();
+        let peer_key = Base64::new(WgKey::generate()).to_base64();
+
+        // Write configs with VPN server resources for Guest profile
+        std::fs::write(
+            dir.path().join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '99'
+\toption access_to_new_profiles '1'
+
+config profile guest
+\toption fullname 'Guest'
+\toption interface 'guest'
+\toption vlan_tag '101'
+
+config vpn_server 'wg_guest'
+\toption interface 'wg_guest'
+\toption profile_interface 'guest'
+\toption label 'Guest VPN'
+\toption listen_port '51820'
+\toption endpoint 'vpn.example.com'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.path().join("network"),
+            format!(
+                "\
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth0'
+
+config interface 'lan'
+\toption device 'br-lan.99'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+
+config interface 'guest'
+\toption device 'br-lan.101'
+\toption proto 'static'
+\toption ipaddr '192.168.101.1'
+\toption netmask '255.255.255.0'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '99'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '101'
+
+config interface 'wg_guest'
+\toption proto 'wireguard'
+\toption private_key '{server_key}'
+\toption listen_port '51820'
+\tlist addresses '192.168.101.254/32'
+
+config wireguard_wg_guest 'wg_guest_0'
+\toption public_key '{peer_key}'
+\toption description 'Phone'
+\toption persistent_keepalive '25'
+\toption route_allowed_ips '1'
+\tlist allowed_ips '192.168.101.200/32'
+"
+            ),
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.path().join("firewall"),
+            "\
+config zone
+\toption name 'lan'
+\tlist network 'lan'
+\toption input 'ACCEPT'
+\toption output 'ACCEPT'
+\toption forward 'ACCEPT'
+
+config zone
+\toption name 'wan'
+\tlist network 'wan'
+\toption input 'REJECT'
+\toption output 'ACCEPT'
+\toption forward 'REJECT'
+
+config zone
+\toption name 'vlan_guest'
+\tlist network 'guest'
+\tlist network 'wg_guest'
+\toption input 'ACCEPT'
+\toption output 'ACCEPT'
+\toption forward 'ACCEPT'
+
+config forwarding
+\toption src 'lan'
+\toption dest 'wan'
+
+config forwarding
+\toption src 'vlan_guest'
+\toption dest 'wan'
+
+config rule
+\toption name 'Allow-DHCP-DNS-Guest'
+\toption src 'vlan_guest'
+\toption dest_port '53 67 68'
+\tlist proto 'tcp'
+\tlist proto 'udp'
+\tlist proto 'icmp'
+\toption target 'ACCEPT'
+
+config rule 'allow_wireguard_wg_guest'
+\toption name 'Allow-WireGuard-wg_guest'
+\toption src 'wan'
+\toption dest_port '51820'
+\tlist proto 'udp'
+\toption target 'ACCEPT'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.path().join("dhcp"),
+            "\
+config dhcp 'lan'
+\toption interface 'lan'
+\toption start '100'
+\toption limit '150'
+\toption leasetime '12h'
+
+config dhcp 'guest'
+\toption interface 'guest'
+\toption start '100'
+\toption limit '150'
+\toption leasetime '12h'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.path().join("wireless"),
+            "\
+config wifi-device 'radio0'
+\toption type 'mac80211'
+\toption band '2g'
+\toption channel '1'
+
+config wifi-iface 'default_radio0'
+\toption device 'radio0'
+\toption mode 'ap'
+\toption ssid 'TestNet'
+\toption encryption 'psk2'
+\toption key 'adminpass1'
+\toption dynamic_vlan '1'
+",
+        )
+        .unwrap();
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp", "wireless"],
+        )
+        .unwrap();
+
+        // Delete Guest profile
+        delete_config(
+            ctx,
+            &mut cfgs,
+            &ProfileIdOpt {
+                fullname: None,
+                interface: Some("guest".into()),
+                vlan_tag: None,
+            },
+        )
+        .unwrap();
+
+        // 1. No vpn_server section with interface=wg_guest in startwrt
+        let has_vpn_meta = cfgs["startwrt"]
+            .sections
+            .iter()
+            .any(|s| s.ty() == "vpn_server");
+        assert!(!has_vpn_meta, "vpn_server metadata should be removed");
+
+        // 2. No wg_guest interface section in network
+        let has_wg_iface = cfgs["network"]
+            .sections
+            .iter()
+            .any(|s| s.name().as_deref() == Some("wg_guest"));
+        assert!(!has_wg_iface, "wg_guest interface should be removed");
+
+        // 3. No wireguard_wg_guest peer sections in network
+        let has_peers = cfgs["network"]
+            .sections
+            .iter()
+            .any(|s| s.ty() == "wireguard_wg_guest");
+        assert!(!has_peers, "wireguard peer sections should be removed");
+
+        // 4. No allow_wireguard_wg_guest rule in firewall (the specific bug that was fixed)
+        let has_wg_rule = cfgs["firewall"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<FirewallRule>().ok())
+            .any(|r| r.name == "Allow-WireGuard-wg_guest");
+        assert!(
+            !has_wg_rule,
+            "WireGuard WAN firewall rule should be removed on profile deletion"
+        );
+
+        // 5. Admin profile resources untouched
+        let admin_exists = cfgs["startwrt"]
+            .sections
+            .iter()
+            .any(|s| s.ty() == "profile");
+        assert!(admin_exists, "Admin profile should survive");
+
+        let admin_iface = cfgs["network"]
+            .sections
+            .iter()
+            .any(|s| s.name().as_deref() == Some("lan"));
+        assert!(admin_iface, "Admin network interface should survive");
     }
 }
