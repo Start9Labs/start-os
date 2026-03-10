@@ -52,13 +52,19 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
 pub async fn unmount<P: AsRef<Path>>(mountpoint: P, lazy: bool) -> Result<(), Error> {
     tracing::debug!("Unmounting {}.", mountpoint.as_ref().display());
     let mut cmd = tokio::process::Command::new("umount");
+    cmd.env("LANG", "C.UTF-8");
     if lazy {
         cmd.arg("-l");
     }
-    cmd.arg(mountpoint.as_ref())
+    match cmd
+        .arg(mountpoint.as_ref())
         .invoke(crate::ErrorKind::Filesystem)
-        .await?;
-    Ok(())
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(e) if e.to_string().contains("not mounted") => Ok(()),
+        Err(e) => Err(e),
+    }
 }
 
 /// Unmounts all mountpoints under (and including) the given path, in reverse
