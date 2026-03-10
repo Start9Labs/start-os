@@ -59,8 +59,7 @@ pub struct AddPackageSignerParams {
     #[ts(type = "string | null")]
     pub versions: Option<VersionRange>,
     #[arg(long, help = "help.arg.merge")]
-    #[ts(optional)]
-    pub merge: Option<bool>,
+    pub merge: bool,
 }
 
 pub async fn add_package_signer(
@@ -89,7 +88,7 @@ pub async fn add_package_signer(
                 .as_authorized_mut()
                 .upsert(&signer, || Ok(VersionRange::None))?
                 .mutate(|existing| {
-                    *existing = if merge.unwrap_or(false) {
+                    *existing = if merge {
                         VersionRange::or(existing.clone(), versions)
                     } else {
                         versions
