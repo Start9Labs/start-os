@@ -104,6 +104,7 @@ local_mount_root()
 		-olowerdir=/startos/config/overlay:/lower,upperdir=/upper/data,workdir=/upper/work \
 		overlay ${rootmnt}
 
+	mkdir -m 750 -p ${rootmnt}/media/startos
 	mkdir -p ${rootmnt}/media/startos/config
 	mount --bind /startos/config ${rootmnt}/media/startos/config
 	mkdir -p ${rootmnt}/media/startos/images
