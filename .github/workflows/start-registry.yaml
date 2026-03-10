@@ -162,7 +162,7 @@ jobs:
 
           ADD *.deb .
 
-          RUN apt-get install -y ./*_$(uname -m).deb && rm *.deb
+          RUN apt-get update && apt-get install -y ./*_$(uname -m).deb && rm -rf *.deb /var/lib/apt/lists/*
 
           VOLUME /var/lib/startos
 
