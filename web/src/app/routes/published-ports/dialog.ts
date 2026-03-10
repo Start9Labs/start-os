@@ -456,14 +456,14 @@ export class PublishPortDialog implements OnInit {
 
   protected readonly deviceMacs = computed(() => {
     return this.context.data.devices
-      .filter(d => d.status !== 'blocked')
-      .map(d => d.mac)
+      .filter(d => d.status !== 'blocked' && d.mac)
+      .map(d => d.mac!)
   })
 
   protected readonly deviceMap = computed(() => {
     const map = new Map<string, Device>()
     for (const device of this.context.data.devices) {
-      map.set(device.mac, device)
+      if (device.mac) map.set(device.mac, device)
     }
     return map
   })

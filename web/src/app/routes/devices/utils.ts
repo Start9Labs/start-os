@@ -7,11 +7,11 @@ export type DeviceStatus = 'online' | 'offline' | 'blocked'
 
 // Device as shown in the table
 export interface DeviceTableItem {
-  mac: string // Unique ID
+  mac: string | null // Unique ID (null for VPN peers)
   name: string // Custom name or hostname
   hostname: string // Original hostname from device
   status: DeviceStatus
-  connection?: string // e.g., 'Ethernet', 'Wi-Fi 5GHz', 'Wi-Fi 2.4GHz'
+  connection?: string // e.g., 'Ethernet', 'Wi-Fi 5GHz', 'Wi-Fi 2.4GHz', 'VPN Home'
   securityProfile?: string // e.g., 'Default', 'Kids', 'Guest'
   ipv4?: string
   ipv6?: string

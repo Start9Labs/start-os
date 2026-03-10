@@ -49,7 +49,7 @@ export class PublishedPortsService extends FormService<PublishedPortDisplay[]> {
   }
 
   getDevice(mac: string): Device | undefined {
-    return this.devices.find(d => d.mac.toUpperCase() === mac.toUpperCase())
+    return this.devices.find(d => d.mac?.toUpperCase() === mac.toUpperCase())
   }
 
   /**

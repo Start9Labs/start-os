@@ -417,10 +417,10 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<PublishedPort>, Error> {
         ?;
     let devices = devices_result?;
 
-    // Index devices by MAC
+    // Index devices by MAC (skip VPN devices which have no MAC)
     let devices_by_mac: HashMap<String, &Device> = devices
         .iter()
-        .map(|d| (d.mac.to_uppercase(), d))
+        .filter_map(|d| Some((d.mac.as_ref()?.to_uppercase(), d)))
         .collect();
 
     let ports = raw_ports

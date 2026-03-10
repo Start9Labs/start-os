@@ -28,14 +28,21 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
       </tr>
     </thead>
     <tbody>
-      @for (item of devicesOffline() | tuiTableSort; track item.mac) {
+      @for (
+        item of devicesOffline() | tuiTableSort;
+        track item.mac ?? item.ipv4
+      ) {
         <tr>
           <td tuiTd>
-            <a tuiLink routerLink="device" [queryParams]="{ mac: item.mac }">
+            @if (item.mac) {
+              <a tuiLink routerLink="device" [queryParams]="{ mac: item.mac }">
+                <strong>{{ item.name }}</strong>
+              </a>
+            } @else {
               <strong>{{ item.name }}</strong>
-            </a>
+            }
           </td>
-          <td tuiTd>{{ item.mac }}</td>
+          <td tuiTd>{{ item.mac || '-' }}</td>
           <td tuiTd>
             @if (item.ipv4) {
               <div
@@ -61,22 +68,24 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
             <small class="g-secondary">GB</small>
           </td>
           <td tuiTd class="actions">
-            <button
-              appearance="secondary"
-              size="xs"
-              tuiButton
-              (click)="onForget(item.mac)"
-            >
-              Forget
-            </button>
-            <button
-              appearance="secondary-destructive"
-              size="xs"
-              tuiButton
-              (click)="onBlock(item.mac)"
-            >
-              Block
-            </button>
+            @if (item.mac) {
+              <button
+                appearance="secondary"
+                size="xs"
+                tuiButton
+                (click)="onForget(item.mac)"
+              >
+                Forget
+              </button>
+              <button
+                appearance="secondary-destructive"
+                size="xs"
+                tuiButton
+                (click)="onBlock(item.mac)"
+              >
+                Block
+              </button>
+            }
           </td>
         </tr>
       } @empty {

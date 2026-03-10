@@ -60,7 +60,7 @@ export class DevicesApiService {
     const name =
       d.name ||
       (d.hostname && d.hostname !== '*' ? d.hostname : null) ||
-      this.generateNameFromMac(d.mac)
+      (d.mac ? this.generateNameFromMac(d.mac) : 'VPN Device')
 
     return {
       mac: d.mac,

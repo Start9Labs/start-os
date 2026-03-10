@@ -8,7 +8,7 @@ use std::process::Command;
 use std::sync::Mutex;
 use std::time::Instant;
 use uciedit::openwrt::{DhcpHost, FirewallRule, FirewallTarget, WifiDevice, WifiInterface};
-use uciedit::{dump_all, parse_all, Arena};
+use uciedit::{dump_all, parse_all, Arena, Configs, Line, TypedSection};
 
 pub fn devices<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -42,7 +42,7 @@ pub enum DeviceStatus {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Device {
-    pub mac: String,
+    pub mac: Option<String>,
     pub name: Option<String>,
     pub hostname: Option<String>,
     pub status: DeviceStatus,
@@ -385,6 +385,137 @@ fn get_wifi_clients() -> HashMap<String, String> {
     wifi_macs
 }
 
+// --- VPN peer types and helpers ---
+
+/// VPN server metadata stored in /etc/config/startwrt (mirrors vpn_server.rs UciVpnServer)
+#[derive(Debug, TypedSection)]
+#[uci(ty = "vpn_server")]
+struct UciVpnServer {
+    pub interface: String,
+    pub profile_interface: String,
+    pub label: String,
+    pub listen_port: u16,
+    pub endpoint: String,
+}
+
+/// Metadata about a VPN server needed for device discovery
+struct VpnServerInfo {
+    wg_interface: String,
+    label: String,
+    profile_fullname: String,
+}
+
+/// A configured VPN peer from UCI
+struct VpnPeerConfig {
+    public_key: String,
+    name: String,
+    ip: Option<String>,
+}
+
+/// An active VPN peer from `wg show`
+struct WgActivePeer {
+    public_key: String,
+    latest_handshake: u64,
+    rx_bytes: u64,
+    tx_bytes: u64,
+}
+
+/// Collect VPN server info from already-parsed UCI configs
+fn get_vpn_server_info(cfgs: &Configs, lookup: &Lookup) -> Vec<VpnServerInfo> {
+    cfgs["startwrt"]
+        .sections
+        .iter()
+        .filter_map(|section| section.get::<UciVpnServer>().ok())
+        .filter_map(|meta| {
+            let profile_id = lookup.from_interface(&meta.profile_interface)?;
+            Some(VpnServerInfo {
+                wg_interface: meta.interface.clone(),
+                label: meta.label.clone(),
+                profile_fullname: profile_id.fullname.clone(),
+            })
+        })
+        .collect()
+}
+
+/// Get configured peers for a WireGuard interface from UCI (mirrors vpn_server.rs logic)
+fn get_vpn_peer_configs(cfgs: &Configs, wg_interface: &str) -> Vec<VpnPeerConfig> {
+    let peer_type = format!("wireguard_{}", wg_interface);
+
+    cfgs["network"]
+        .sections
+        .iter()
+        .filter(|section| section.ty() == peer_type)
+        .filter_map(|section| {
+            let mut public_key = String::new();
+            let mut ip = None;
+            let mut description = None;
+
+            for line in &section.lines {
+                match line {
+                    Line::Option { option, value, .. } => match option.as_str().as_ref() {
+                        "public_key" => public_key = value.as_str().to_string(),
+                        "description" => description = Some(value.as_str().to_string()),
+                        _ => {}
+                    },
+                    Line::List { list, item, .. } => {
+                        if list.as_str() == "allowed_ips" {
+                            if let Some(ip_part) = item.as_str().split('/').next() {
+                                ip = Some(ip_part.to_string());
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if public_key.is_empty() {
+                return None;
+            }
+
+            Some(VpnPeerConfig {
+                public_key,
+                name: description
+                    .unwrap_or_else(|| section.name().unwrap_or_default().to_string()),
+                ip,
+            })
+        })
+        .collect()
+}
+
+/// Parse `wg show <interface> dump` output into active peer entries.
+/// First line is the interface itself; subsequent lines are peers.
+fn parse_wg_show_dump(output: &str) -> Vec<WgActivePeer> {
+    output
+        .lines()
+        .skip(1) // skip interface line
+        .filter_map(|line| {
+            let fields: Vec<&str> = line.split('\t').collect();
+            if fields.len() < 7 {
+                return None;
+            }
+            Some(WgActivePeer {
+                public_key: fields[0].to_string(),
+                latest_handshake: fields[4].parse().unwrap_or(0),
+                rx_bytes: fields[5].parse().unwrap_or(0),
+                tx_bytes: fields[6].parse().unwrap_or(0),
+            })
+        })
+        .collect()
+}
+
+/// Query all WireGuard interfaces and return active peer data.
+/// Returns Vec<(wg_interface_name, Vec<WgActivePeer>)>.
+fn query_wg_active_peers(wg_interfaces: &[String]) -> Vec<(String, Vec<WgActivePeer>)> {
+    wg_interfaces
+        .iter()
+        .map(|iface| {
+            let output = run_cmd("wg", &["show", iface, "dump"]);
+            let peers = parse_wg_show_dump(&output);
+            (iface.clone(), peers)
+        })
+        .collect()
+}
+
 fn reload_firewall() {
     std::thread::spawn(|| {
         let _ = Command::new("/etc/init.d/firewall")
@@ -617,7 +748,17 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                 .map(|p| (p.vlan_tag, p.fullname.clone()))
                 .collect();
 
-            Ok::<_, Error>((hosts_by_mac, blocked_macs, profiles))
+            // VPN server info and peer configs from UCI
+            let vpn_servers = get_vpn_server_info(&cfgs, &lookup);
+            let vpn_peer_configs: Vec<(VpnServerInfo, Vec<VpnPeerConfig>)> = vpn_servers
+                .into_iter()
+                .map(|server| {
+                    let peers = get_vpn_peer_configs(&cfgs, &server.wg_interface);
+                    (server, peers)
+                })
+                .collect();
+
+            Ok::<_, Error>((hosts_by_mac, blocked_macs, profiles, vpn_peer_configs))
         }),
     );
 
@@ -635,7 +776,23 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     // conntrack, and lease reads so it adds zero net latency.
     let (probe_targets, ipv6_only_macs) =
         non_wifi_probe_candidates(&initial_arp, &wifi_clients);
-    let (unreachable_macs, leases_output, nlbw_output, conntrack_output) = tokio::join!(
+
+    // Collect WireGuard interface names for querying active peers.
+    // We need to extract this before the uci_result is consumed, but uci_result
+    // hasn't been unwrapped yet. Peek at it to get the interface list for wg show.
+    let wg_interfaces: Vec<String> = uci_result
+        .as_ref()
+        .ok()
+        .and_then(|r| r.as_ref().ok())
+        .map(|(_, _, _, vpn_peer_configs)| {
+            vpn_peer_configs
+                .iter()
+                .map(|(server, _)| server.wg_interface.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let (unreachable_macs, leases_output, nlbw_output, conntrack_output, wg_active_peers) = tokio::join!(
         tokio::task::spawn_blocking(move || ping_unreachable_macs(probe_targets)),
         tokio::task::spawn_blocking(|| {
             std::fs::read_to_string("/tmp/dhcp.leases").unwrap_or_default()
@@ -644,6 +801,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         tokio::task::spawn_blocking(|| {
             std::fs::read_to_string("/proc/net/nf_conntrack").unwrap_or_default()
         }),
+        tokio::task::spawn_blocking(move || query_wg_active_peers(&wg_interfaces)),
     );
 
     let mut unreachable_macs = unreachable_macs.unwrap_or_default();
@@ -651,6 +809,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     let leases_output = leases_output.unwrap_or_default();
     let nlbw_output = nlbw_output.unwrap_or_default();
     let conntrack_output = conntrack_output.unwrap_or_default();
+    let wg_active_peers = wg_active_peers.unwrap_or_default();
 
     // Use the initial ARP snapshot — no need to re-read since we use ping
     // exit codes (not kernel NUD state) to determine reachability.
@@ -679,12 +838,11 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     let now = Instant::now();
     let mut speeds: HashMap<String, SpeedData> = HashMap::new();
     {
-        let mut cache = TRAFFIC_CACHE.lock().unwrap();
-        let prev = cache.take().unwrap_or_default();
-        let mut new_cache = prev.clone();
+        let mut cache_guard = TRAFFIC_CACHE.lock().unwrap();
+        let cache = cache_guard.get_or_insert_with(HashMap::new);
 
         for (mac, &(rx, tx)) in &conntrack_by_mac {
-            if let Some(prev_snap) = new_cache.get(mac) {
+            if let Some(prev_snap) = cache.get(mac) {
                 let elapsed = now.duration_since(prev_snap.timestamp).as_secs_f64();
                 // Only compute speed if enough time has passed. Use saturating_sub
                 // per-direction since conntrack totals can decrease when connections close.
@@ -703,7 +861,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                     );
                 }
             }
-            new_cache.insert(
+            cache.insert(
                 mac.clone(),
                 TrafficSnapshot {
                     timestamp: now,
@@ -712,12 +870,10 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                 },
             );
         }
-
-        *cache = Some(new_cache);
     }
 
     // Unpack UCI results
-    let (hosts_by_mac, blocked_macs, profile_by_vlan) = uci_result.unwrap_or_else(|_| {
+    let (hosts_by_mac, blocked_macs, profile_by_vlan, vpn_peer_configs) = uci_result.unwrap_or_else(|_| {
         Err(Error::from(std::io::Error::new(
             std::io::ErrorKind::Other,
             "UCI parse failed in background task",
@@ -844,7 +1000,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         });
 
         devices.push(Device {
-            mac: mac.clone(),
+            mac: Some(mac.clone()),
             name,
             hostname,
             status,
@@ -857,6 +1013,100 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
             speed,
             data_usage,
         });
+    }
+
+    // --- Phase 5: Add VPN-connected peers ---
+    //
+    // WireGuard peers operate at L3 (no MAC address). We discover them via
+    // `wg show` and join with UCI peer configs for name/IP. A peer is
+    // considered online if its last handshake was within 180 seconds.
+    let now_unix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let handshake_timeout = 180; // 3 minutes
+
+    // Build active peer index: public_key → WgActivePeer, keyed per interface
+    let mut wg_active_by_iface: HashMap<String, HashMap<String, &WgActivePeer>> = HashMap::new();
+    for (iface, peers) in &wg_active_peers {
+        let peer_map: HashMap<String, &WgActivePeer> = peers
+            .iter()
+            .map(|p| (p.public_key.clone(), p))
+            .collect();
+        wg_active_by_iface.insert(iface.clone(), peer_map);
+    }
+
+    for (server, peer_configs) in &vpn_peer_configs {
+        let active_map = wg_active_by_iface.get(&server.wg_interface);
+
+        for peer_cfg in peer_configs {
+            let active = active_map.and_then(|m| m.get(&peer_cfg.public_key));
+
+            // Only show peers with a recent handshake
+            let is_online = active
+                .map(|a| a.latest_handshake > 0 && now_unix.saturating_sub(a.latest_handshake) < handshake_timeout)
+                .unwrap_or(false);
+
+            if !is_online {
+                continue;
+            }
+
+            let active = active.unwrap();
+
+            // Speed from wg show byte deltas via TRAFFIC_CACHE (keyed by public key)
+            let cache_key = format!("vpn:{}", peer_cfg.public_key);
+            let speed = {
+                let mut cache = TRAFFIC_CACHE.lock().unwrap();
+                let prev = cache.get_or_insert_with(HashMap::new);
+                let speed = if let Some(prev_snap) = prev.get(&cache_key) {
+                    let elapsed = now.duration_since(prev_snap.timestamp).as_secs_f64();
+                    if elapsed > 1.0 {
+                        let rx_delta = active.rx_bytes.saturating_sub(prev_snap.rx_bytes);
+                        let tx_delta = active.tx_bytes.saturating_sub(prev_snap.tx_bytes);
+                        let down = rx_delta as f64 / elapsed / 1_048_576.0;
+                        let up = tx_delta as f64 / elapsed / 1_048_576.0;
+                        Some(SpeedData {
+                            up: (up * 10.0).round() / 10.0,
+                            down: (down * 10.0).round() / 10.0,
+                        })
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                prev.insert(
+                    cache_key,
+                    TrafficSnapshot {
+                        timestamp: now,
+                        rx_bytes: active.rx_bytes,
+                        tx_bytes: active.tx_bytes,
+                    },
+                );
+                speed
+            };
+
+            // Data usage from cumulative wg show bytes (resets on interface restart)
+            let data_usage = {
+                let total = (active.rx_bytes + active.tx_bytes) as f64 / 1_073_741_824.0;
+                Some((total * 10.0).round() / 10.0)
+            };
+
+            devices.push(Device {
+                mac: None,
+                name: Some(peer_cfg.name.clone()),
+                hostname: None,
+                status: DeviceStatus::Online,
+                connection: Some(format!("VPN {}", server.label)),
+                ipv4: peer_cfg.ip.clone(),
+                ipv6: None,
+                ipv4_static: true,
+                ipv6_static: false,
+                security_profile: Some(server.profile_fullname.clone()),
+                speed,
+                data_usage,
+            });
+        }
     }
 
     Ok(devices)

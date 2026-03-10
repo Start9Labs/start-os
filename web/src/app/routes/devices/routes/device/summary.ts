@@ -124,6 +124,9 @@ export class DeviceSummary {
     if (connection.includes('wi-fi') || connection.includes('wifi')) {
       return '@tui.wifi'
     }
+    if (connection.startsWith('vpn')) {
+      return '@tui.shield'
+    }
     return '@tui.monitor'
   })
 }

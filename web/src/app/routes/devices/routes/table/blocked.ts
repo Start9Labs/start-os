@@ -25,31 +25,40 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
       </tr>
     </thead>
     <tbody>
-      @for (item of devicesBlocked() | tuiTableSort; track item.mac) {
+      @for (
+        item of devicesBlocked() | tuiTableSort;
+        track item.mac ?? item.ipv4
+      ) {
         <tr>
           <td tuiTd>
-            <a tuiLink routerLink="device" [queryParams]="{ mac: item.mac }">
+            @if (item.mac) {
+              <a tuiLink routerLink="device" [queryParams]="{ mac: item.mac }">
+                <strong>{{ item.name }}</strong>
+              </a>
+            } @else {
               <strong>{{ item.name }}</strong>
-            </a>
+            }
           </td>
-          <td tuiTd>{{ item.mac }}</td>
+          <td tuiTd>{{ item.mac || '-' }}</td>
           <td tuiTd class="actions">
-            <button
-              appearance="secondary"
-              size="xs"
-              tuiButton
-              (click)="onForget(item.mac)"
-            >
-              Forget
-            </button>
-            <button
-              appearance="secondary-destructive"
-              size="xs"
-              tuiButton
-              (click)="onUnblock(item.mac)"
-            >
-              Unblock
-            </button>
+            @if (item.mac) {
+              <button
+                appearance="secondary"
+                size="xs"
+                tuiButton
+                (click)="onForget(item.mac)"
+              >
+                Forget
+              </button>
+              <button
+                appearance="secondary-destructive"
+                size="xs"
+                tuiButton
+                (click)="onUnblock(item.mac)"
+              >
+                Unblock
+              </button>
+            }
           </td>
         </tr>
       } @empty {
