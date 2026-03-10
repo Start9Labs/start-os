@@ -299,9 +299,10 @@ impl ServiceMap {
                     s9pk.serialize(&mut progress_writer, true).await?;
                     let (file, mut unpack_progress) = progress_writer.into_inner();
                     file.sync_all().await?;
-                    unpack_progress.complete();
 
                     crate::util::io::rename(&download_path, &installed_path).await?;
+
+                    unpack_progress.complete();
 
                     Ok::<_, Error>(sync_progress_task)
                 })
@@ -325,11 +326,8 @@ impl ServiceMap {
                                 .as_manifest()
                                 .can_migrate_to;
                             let next_version = &s9pk.as_manifest().version;
-                            let next_can_migrate_from =
-                                &s9pk.as_manifest().can_migrate_from;
-                            if let Ok(data_ver_ev) =
-                                data_ver.parse::<exver::ExtendedVersion>()
-                            {
+                            let next_can_migrate_from = &s9pk.as_manifest().can_migrate_from;
+                            if let Ok(data_ver_ev) = data_ver.parse::<exver::ExtendedVersion>() {
                                 if data_ver_ev.satisfies(next_can_migrate_from) {
                                     ExitParams::target_str(data_ver)
                                 } else if next_version.satisfies(prev_can_migrate_to) {
@@ -340,9 +338,7 @@ impl ServiceMap {
                                         next_can_migrate_from.clone(),
                                     ))
                                 }
-                            } else if let Ok(data_ver_range) =
-                                data_ver.parse::<VersionRange>()
-                            {
+                            } else if let Ok(data_ver_range) = data_ver.parse::<VersionRange>() {
                                 ExitParams::target_range(&VersionRange::and(
                                     data_ver_range,
                                     next_can_migrate_from.clone(),
@@ -357,12 +353,7 @@ impl ServiceMap {
                             }
                         } else {
                             ExitParams::target_version(
-                                &*service
-                                    .seed
-                                    .persistent_container
-                                    .s9pk
-                                    .as_manifest()
-                                    .version,
+                                &*service.seed.persistent_container.s9pk.as_manifest().version,
                             )
                         };
                         let cleanup = service.uninstall(uninit, false, false).await?;
