@@ -1116,16 +1116,24 @@ export class SystemForEmbassy implements System {
     // TODO: docker
     const status = await getStatus(effects, { packageId: id }).const()
     if (!status) return
-    await effects.mount({
-      location: `/media/embassy/${id}`,
-      target: {
-        packageId: id,
-        volumeId: "embassy",
-        subpath: null,
-        readonly: true,
-        idmap: [],
-      },
-    })
+    try {
+      await effects.mount({
+        location: `/media/embassy/${id}`,
+        target: {
+          packageId: id,
+          volumeId: "embassy",
+          subpath: null,
+          readonly: true,
+          idmap: [],
+        },
+      })
+    } catch (e) {
+      console.error(
+        `Failed to mount dependency volume for ${id}, skipping autoconfig:`,
+        e,
+      )
+      return
+    }
     configFile
       .withPath(`/media/embassy/${id}/config.json`)
       .read()
