@@ -60,6 +60,8 @@ pub enum ErrorKind {
     DuplicatePassword,
     #[error("duplicate wifi password label")]
     DuplicatePasswordLabel,
+    #[error("a profile named {name:?} already exists")]
+    DuplicateFullname { name: String },
     #[error("device {mac} has no {family} address for port forward \"{label}\"")]
     MissingDeviceAddress {
         mac: String,

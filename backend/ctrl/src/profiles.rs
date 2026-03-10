@@ -608,6 +608,19 @@ fn set_config<C: CtrlContext>(
     profile: &Profile<ProfileIdOpt>,
 ) -> Result<ProfileId, Error> {
     let ipv6 = is_ipv6_enabled(cfgs);
+    // Check fullname uniqueness before renaming
+    if let Some(given_fullname) = &profile.id.fullname {
+        let pre_lookup = Lookup::parse(ctx.clone(), cfgs)?;
+        if let Some(existing) = pre_lookup.from_fullname(given_fullname) {
+            // Only error if the name belongs to a different profile
+            if !profile.id.matches(&existing.clone().into()) {
+                return Err(ErrorKind::DuplicateFullname {
+                    name: given_fullname.clone(),
+                }
+                .into());
+            }
+        }
+    }
     for section in &mut cfgs["startwrt"].sections {
         if let Some(mut existing_profile) = section.get_typed::<UciProfile>()? {
             if let Some(given_fullname) = &profile.id.fullname {
@@ -783,6 +796,16 @@ fn create_config(
         .fullname
         .clone()
         .unwrap_or_else(|| "Untitled".into());
+    // Check fullname uniqueness
+    {
+        let lookup = Lookup::parse(ctx.clone(), cfgs)?;
+        if lookup.from_fullname(&fullname).is_some() {
+            return Err(ErrorKind::DuplicateFullname {
+                name: fullname,
+            }
+            .into());
+        }
+    }
     let mut all_interfaces = BTreeSet::<String>::new();
     let mut existing_tags = BTreeSet::new();
     let mut found_bridge = None;
