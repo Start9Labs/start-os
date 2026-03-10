@@ -10,6 +10,7 @@ import {
   LoginReq,
   SubscribeRes,
   TunnelUpdateResult,
+  SetForwardEnabledReq,
   UpdateForwardLabelReq,
   UpsertDeviceReq,
   UpsertSubnetReq,
@@ -181,7 +182,11 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.ADD,
         path: `/portForwards/${params.source}`,
-        value: { target: params.target, label: params.label || '' },
+        value: {
+          target: params.target,
+          label: params.label || '',
+          enabled: true,
+        },
       },
     ]
     this.mockRevision(patch)
@@ -197,6 +202,21 @@ export class MockApiService extends ApiService {
         op: PatchOp.REPLACE,
         path: `/portForwards/${params.source}/label`,
         value: params.label,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setForwardEnabled(params: SetForwardEnabledReq): Promise<null> {
+    await pauseFor(1000)
+
+    const patch: ReplaceOperation<boolean>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/portForwards/${params.source}/enabled`,
+        value: params.enabled,
       },
     ]
     this.mockRevision(patch)

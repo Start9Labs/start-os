@@ -17,6 +17,7 @@ import {
   LoginReq,
   SubscribeRes,
   TunnelUpdateResult,
+  SetForwardEnabledReq,
   UpdateForwardLabelReq,
   UpsertDeviceReq,
   UpsertSubnetReq,
@@ -107,6 +108,10 @@ export class LiveApiService extends ApiService {
 
   async updateForwardLabel(params: UpdateForwardLabelReq): Promise<null> {
     return this.rpcRequest({ method: 'port-forward.update-label', params })
+  }
+
+  async setForwardEnabled(params: SetForwardEnabledReq): Promise<null> {
+    return this.rpcRequest({ method: 'port-forward.set-enabled', params })
   }
 
   // update

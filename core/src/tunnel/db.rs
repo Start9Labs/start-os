@@ -76,6 +76,12 @@ pub struct PortForwardEntry {
     pub target: SocketAddrV4,
     #[serde(default)]
     pub label: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]

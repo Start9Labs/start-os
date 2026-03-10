@@ -60,6 +60,14 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
                         .no_display()
                         .with_about("about.update-port-forward-label")
                         .with_call_remote::<CliContext>(),
+                )
+                .subcommand(
+                    "set-enabled",
+                    from_fn_async(set_forward_enabled)
+                        .with_metadata("sync_db", Value::Bool(true))
+                        .no_display()
+                        .with_about("about.enable-or-disable-port-forward")
+                        .with_call_remote::<CliContext>(),
                 ),
         )
         .subcommand(
@@ -497,7 +505,7 @@ pub async fn add_forward(
         m.insert(source, rc);
     });
 
-    let entry = PortForwardEntry { target, label };
+    let entry = PortForwardEntry { target, label, enabled: true };
 
     ctx.db
         .mutate(|db| {
@@ -567,4 +575,65 @@ pub async fn update_forward_label(
         })
         .await
         .result
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct SetPortForwardEnabledParams {
+    source: SocketAddrV4,
+    enabled: bool,
+}
+
+pub async fn set_forward_enabled(
+    ctx: TunnelContext,
+    SetPortForwardEnabledParams { source, enabled }: SetPortForwardEnabledParams,
+) -> Result<(), Error> {
+    let target = ctx
+        .db
+        .mutate(|db| {
+            db.as_port_forwards_mut().mutate(|pf| {
+                let entry = pf.0.get_mut(&source).ok_or_else(|| {
+                    Error::new(
+                        eyre!("Port forward from {source} not found"),
+                        ErrorKind::NotFound,
+                    )
+                })?;
+                entry.enabled = enabled;
+                Ok(entry.target)
+            })
+        })
+        .await
+        .result?;
+
+    if enabled {
+        let prefix = ctx
+            .net_iface
+            .peek(|i| {
+                i.iter()
+                    .find_map(|(_, i)| {
+                        i.ip_info.as_ref().and_then(|i| {
+                            i.subnets
+                                .iter()
+                                .find(|s| s.contains(&IpAddr::from(*target.ip())))
+                        })
+                    })
+                    .cloned()
+            })
+            .map(|s| s.prefix_len())
+            .unwrap_or(32);
+        let rc = ctx
+            .forward
+            .add_forward(source, target, prefix, None)
+            .await?;
+        ctx.active_forwards.mutate(|m| {
+            m.insert(source, rc);
+        });
+    } else {
+        if let Some(rc) = ctx.active_forwards.mutate(|m| m.remove(&source)) {
+            drop(rc);
+            ctx.forward.gc().await?;
+        }
+    }
+
+    Ok(())
 }

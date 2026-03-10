@@ -185,6 +185,9 @@ impl TunnelContext {
 
         let mut active_forwards = BTreeMap::new();
         for (from, entry) in peek.as_port_forwards().de()?.0 {
+            if !entry.enabled {
+                continue;
+            }
             let to = entry.target;
             let prefix = net_iface
                 .peek(|i| {

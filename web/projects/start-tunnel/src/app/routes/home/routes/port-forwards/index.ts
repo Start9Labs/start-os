@@ -3,19 +3,22 @@ import {
   Component,
   computed,
   inject,
+  signal,
   Signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { FormsModule } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { utils } from '@start9labs/start-sdk'
 import {
   TuiButton,
   TuiDataList,
   TuiDropdown,
+  TuiLoader,
   TuiTextfield,
 } from '@taiga-ui/core'
 import { TuiDialogService } from '@taiga-ui/experimental'
-import { TUI_CONFIRM } from '@taiga-ui/kit'
+import { TUI_CONFIRM, TuiSwitch } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PORT_FORWARDS_ADD } from 'src/app/routes/home/routes/port-forwards/add'
@@ -30,6 +33,7 @@ import { MappedDevice, MappedForward } from './utils'
     <table class="g-table">
       <thead>
         <tr>
+          <th></th>
           <th>Label</th>
           <th>External IP</th>
           <th>External Port</th>
@@ -45,6 +49,22 @@ import { MappedDevice, MappedForward } from './utils'
       <tbody>
         @for (forward of forwards(); track $index) {
           <tr>
+            <td>
+              <tui-loader
+                [showLoader]="toggling() === $index"
+                size="xs"
+                [overlay]="true"
+              >
+                <input
+                  tuiSwitch
+                  type="checkbox"
+                  size="s"
+                  [showIcons]="false"
+                  [ngModel]="forward.enabled"
+                  (ngModelChange)="onToggle(forward, $index)"
+                />
+              </tui-loader>
+            </td>
             <td>{{ forward.label || '—' }}</td>
             <td>{{ forward.externalip }}</td>
             <td>{{ forward.externalport }}</td>
@@ -88,7 +108,15 @@ import { MappedDevice, MappedForward } from './utils'
     </table>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiDropdown, TuiDataList, TuiTextfield],
+  imports: [
+    FormsModule,
+    TuiButton,
+    TuiDropdown,
+    TuiDataList,
+    TuiLoader,
+    TuiSwitch,
+    TuiTextfield,
+  ],
 })
 export default class PortForwards {
   private readonly dialogs = inject(TuiDialogService)
@@ -136,9 +164,25 @@ export default class PortForwards {
         device: this.devices().find(d => d.ip === targetSplit[0])!,
         internalport: targetSplit[1]!,
         label: entry.label,
+        enabled: entry.enabled,
       }
     }),
   )
+
+  protected readonly toggling = signal<number | null>(null)
+
+  protected async onToggle(forward: MappedForward, index: number) {
+    this.toggling.set(index)
+    const source = `${forward.externalip}:${forward.externalport}`
+
+    try {
+      await this.api.setForwardEnabled({ source, enabled: !forward.enabled })
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      this.toggling.set(null)
+    }
+  }
 
   protected onAdd(): void {
     this.dialogs
