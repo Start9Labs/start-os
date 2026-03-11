@@ -100,7 +100,7 @@ export interface ProfileDialogResult {
             <input
               tuiInputNumber
               formControlName="subnet"
-              [min]="1"
+              [min]="0"
               [max]="254"
             />
           </tui-textfield>
@@ -244,7 +244,7 @@ export interface ProfileDialogResult {
     provideHelp('/profiles/dialog'),
     tuiValidationErrorsProvider({
       required: 'Required',
-      min: 'Must be at least 1',
+      min: 'Must be at least 0',
       max: 'Must be at most 254',
       ipv4: 'Enter a valid IPv4 address',
       duplicateName: 'A profile with this name already exists',
@@ -302,7 +302,7 @@ class AddProfile {
     ],
     subnet: [
       this.nextAvailableSubnet(),
-      [Validators.required, Validators.min(1), Validators.max(254)],
+      [Validators.required, Validators.min(0), Validators.max(254)],
     ],
     outbound: [this.getOutbound()],
     useCustomDns: [this.dnsConfig.useCustomDns],
