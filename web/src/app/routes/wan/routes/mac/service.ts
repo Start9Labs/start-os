@@ -1,8 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { FormService } from 'src/app/services/form.service'
 import { ApiService } from 'src/app/services/api/api.service'
-import { pauseFor } from 'src/app/utils/pauseFor'
-import { NETWORK_RESTART_TIMEOUT_MS } from 'src/app/services/network-restart.service'
 import { MacForm } from './utils'
 
 @Injectable()
@@ -30,7 +28,6 @@ export class MacService extends FormService<MacForm> {
     return this.actions.run(
       async () => {
         await this.store(data)
-        await pauseFor(NETWORK_RESTART_TIMEOUT_MS)
         await this.refreshAndWait()
       },
       {

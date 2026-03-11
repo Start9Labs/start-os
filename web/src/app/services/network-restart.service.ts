@@ -4,7 +4,7 @@ import { Injectable } from '@angular/core'
  * Slightly more than the expected network restart duration on a Banana Pi F3.
  * Network services typically recover within ~10s; this adds margin.
  */
-export const NETWORK_RESTART_TIMEOUT_MS = 15_000
+export const NETWORK_RESTART_TIMEOUT_MS = 30_000
 
 @Injectable({ providedIn: 'root' })
 export class NetworkRestartService {

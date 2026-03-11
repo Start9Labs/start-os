@@ -7,8 +7,6 @@ import {
   SecurityProfile,
 } from 'src/app/services/api/api.service'
 import { FormService } from 'src/app/services/form.service'
-import { NETWORK_RESTART_TIMEOUT_MS } from 'src/app/services/network-restart.service'
-import { pauseFor } from 'src/app/utils/pauseFor'
 
 @Injectable({ providedIn: 'root' })
 export class ProfilesService extends FormService<SecurityProfile[]> {
@@ -31,10 +29,17 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
   }
 
   async createProfile(params: ProfileCreateInput) {
-    await this.actions.run(async () => {
-      await this.api.profileCreate(params)
-      this.refresh()
-    })
+    await this.actions.run(
+      async () => {
+        await this.api.profileCreate(params)
+        this.refresh()
+      },
+      {
+        loading: 'Creating profile and restarting network...',
+        success: 'Profile created',
+        restart: true,
+      },
+    )
   }
 
   async updateProfile(
@@ -47,15 +52,12 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
     const success = await this.actions.run(
       async () => {
         await this.api.profileUpdate(params)
-        if (adminIpChanged) {
-          await pauseFor(NETWORK_RESTART_TIMEOUT_MS)
-        }
         this.refresh()
       },
       {
-        loading: adminIpChanged ? 'Applying network changes...' : undefined,
-        success: adminIpChanged ? 'Network settings applied' : undefined,
-        restart: adminIpChanged,
+        loading: 'Applying profile settings...',
+        success: 'Profile updated',
+        restart: true,
       },
     )
 
@@ -63,9 +65,16 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
   }
 
   async deleteProfile(params: ProfileIdOpt) {
-    await this.actions.run(async () => {
-      await this.api.profileDelete(params)
-      this.refresh()
-    })
+    await this.actions.run(
+      async () => {
+        await this.api.profileDelete(params)
+        this.refresh()
+      },
+      {
+        loading: 'Deleting profile and restarting network...',
+        success: 'Profile deleted',
+        restart: true,
+      },
+    )
   }
 }

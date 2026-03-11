@@ -1,8 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { FormService } from 'src/app/services/form.service'
 import { ApiService } from 'src/app/services/api/api.service'
-import { pauseFor } from 'src/app/utils/pauseFor'
-import { NETWORK_RESTART_TIMEOUT_MS } from 'src/app/services/network-restart.service'
 import { DnsForm, parseDnsServer } from './utils'
 
 @Injectable()
@@ -65,7 +63,6 @@ export class DnsService extends FormService<DnsForm> {
     return this.actions.run(
       async () => {
         await this.store(data)
-        await pauseFor(NETWORK_RESTART_TIMEOUT_MS)
         await this.refreshAndWait()
       },
       {

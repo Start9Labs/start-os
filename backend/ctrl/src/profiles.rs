@@ -474,20 +474,18 @@ pub(crate) fn list_config(_ctx: impl CtrlContext, cfgs: &Configs) -> Result<Vec<
 }
 
 pub fn reload_system() -> Result<(), Error> {
-    std::thread::spawn(|| {
-        let _ = Command::new("/etc/init.d/network")
-            .arg("reload")
-            .spawn()
-            .and_then(|mut c| c.wait());
-        let _ = Command::new("/etc/init.d/firewall")
-            .arg("reload")
-            .spawn()
-            .and_then(|mut c| c.wait());
-        let _ = Command::new("/etc/init.d/dnsmasq")
-            .arg("reload")
-            .spawn()
-            .and_then(|mut c| c.wait());
-    });
+    let _ = Command::new("/etc/init.d/network")
+        .arg("reload")
+        .spawn()
+        .and_then(|mut c| c.wait());
+    let _ = Command::new("/etc/init.d/firewall")
+        .arg("reload")
+        .spawn()
+        .and_then(|mut c| c.wait());
+    let _ = Command::new("/etc/init.d/dnsmasq")
+        .arg("reload")
+        .spawn()
+        .and_then(|mut c| c.wait());
     Ok(())
 }
 
@@ -496,23 +494,21 @@ pub fn reload_system() -> Result<(), Error> {
 /// tears down and recreates wireless interfaces, which destabilizes the network if the
 /// firewall reloads concurrently.
 pub fn reload_system_and_wifi() -> Result<(), Error> {
-    std::thread::spawn(|| {
-        let _ = Command::new("/etc/init.d/network")
-            .arg("reload")
-            .spawn()
-            .and_then(|mut c| c.wait());
-        let _ = Command::new("wifi")
-            .spawn()
-            .and_then(|mut c| c.wait());
-        let _ = Command::new("/etc/init.d/firewall")
-            .arg("reload")
-            .spawn()
-            .and_then(|mut c| c.wait());
-        let _ = Command::new("/etc/init.d/dnsmasq")
-            .arg("reload")
-            .spawn()
-            .and_then(|mut c| c.wait());
-    });
+    let _ = Command::new("/etc/init.d/network")
+        .arg("reload")
+        .spawn()
+        .and_then(|mut c| c.wait());
+    let _ = Command::new("wifi")
+        .spawn()
+        .and_then(|mut c| c.wait());
+    let _ = Command::new("/etc/init.d/firewall")
+        .arg("reload")
+        .spawn()
+        .and_then(|mut c| c.wait());
+    let _ = Command::new("/etc/init.d/dnsmasq")
+        .arg("reload")
+        .spawn()
+        .and_then(|mut c| c.wait());
     Ok(())
 }
 

@@ -383,55 +383,51 @@ pub fn update_profile_ips_for_block_change(
 /// `network reload` which restarts ALL interfaces including WAN, causing
 /// its DHCP client to lose its lease and breaking internet).
 /// Then reloads firewall and restarts dnsmasq once br-lan has the new IP.
-/// Runs in a background thread so the HTTP response can be sent before
-/// the network disruption.
 pub fn restart_network_services(new_lan_ip: Ipv4Addr, interfaces: Vec<String>) {
     // Clear DHCP leases — old leases reference the previous
     // subnet and would cause clients to receive stale IPs.
     let _ = std::fs::remove_file("/tmp/dhcp.leases");
-    std::thread::spawn(move || {
-        // Cycle only the changed interfaces — `network reload` restarts ALL
-        // interfaces including WAN, causing its DHCP client to lose its lease.
-        for iface in &interfaces {
-            let _ = Command::new("ifdown").arg(iface).spawn().and_then(|mut c| c.wait());
-        }
-        for iface in &interfaces {
-            let _ = Command::new("ifup").arg(iface).spawn().and_then(|mut c| c.wait());
-        }
-        // Safety: wait for br-lan to have the new IP before reloading
-        // dependent services. ifup should be synchronous for static
-        // interfaces, but poll as a safety net.
-        let expected = new_lan_ip.to_string();
-        for _ in 0..30 {
-            if let Ok(out) = Command::new("ip")
-                .args(["-4", "-o", "addr", "show", "br-lan"])
-                .output()
-            {
-                if String::from_utf8_lossy(&out.stdout).contains(&expected) {
-                    break;
-                }
+    // Cycle only the changed interfaces — `network reload` restarts ALL
+    // interfaces including WAN, causing its DHCP client to lose its lease.
+    for iface in &interfaces {
+        let _ = Command::new("ifdown").arg(iface).spawn().and_then(|mut c| c.wait());
+    }
+    for iface in &interfaces {
+        let _ = Command::new("ifup").arg(iface).spawn().and_then(|mut c| c.wait());
+    }
+    // Safety: wait for br-lan to have the new IP before reloading
+    // dependent services. ifup should be synchronous for static
+    // interfaces, but poll as a safety net.
+    let expected = new_lan_ip.to_string();
+    for _ in 0..30 {
+        if let Ok(out) = Command::new("ip")
+            .args(["-4", "-o", "addr", "show", "br-lan"])
+            .output()
+        {
+            if String::from_utf8_lossy(&out.stdout).contains(&expected) {
+                break;
             }
-            std::thread::sleep(std::time::Duration::from_millis(500));
         }
-        // Regenerate nftables rules so masquerade/NAT covers the new subnets.
-        let _ = Command::new("/etc/init.d/firewall")
-            .arg("reload")
-            .spawn()
-            .and_then(|mut c| c.wait());
-        // Full restart (not reload) so dnsmasq rebinds to new interface IPs.
-        // A reload (SIGHUP) re-reads config but doesn't rebind listeners.
-        let _ = Command::new("/etc/init.d/dnsmasq")
-            .arg("restart")
-            .spawn()
-            .and_then(|mut c| c.wait());
-        // Bounce WiFi so all clients disassociate and reassociate,
-        // triggering fresh DHCP on the new subnet. Without this,
-        // clients that stay connected keep stale leases from the
-        // old network block.
-        let _ = Command::new("wifi")
-            .spawn()
-            .and_then(|mut c| c.wait());
-    });
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+    // Regenerate nftables rules so masquerade/NAT covers the new subnets.
+    let _ = Command::new("/etc/init.d/firewall")
+        .arg("reload")
+        .spawn()
+        .and_then(|mut c| c.wait());
+    // Full restart (not reload) so dnsmasq rebinds to new interface IPs.
+    // A reload (SIGHUP) re-reads config but doesn't rebind listeners.
+    let _ = Command::new("/etc/init.d/dnsmasq")
+        .arg("restart")
+        .spawn()
+        .and_then(|mut c| c.wait());
+    // Bounce WiFi so all clients disassociate and reassociate,
+    // triggering fresh DHCP on the new subnet. Without this,
+    // clients that stay connected keep stale leases from the
+    // old network block.
+    let _ = Command::new("wifi")
+        .spawn()
+        .and_then(|mut c| c.wait());
 }
 
 #[cfg(test)]
