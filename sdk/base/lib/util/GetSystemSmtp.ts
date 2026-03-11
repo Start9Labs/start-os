@@ -9,7 +9,7 @@ export class GetSystemSmtp extends Watchable<T.SmtpValue | null> {
     super(effects)
   }
 
-  protected call(callback?: () => void) {
+  protected fetch(callback?: () => void) {
     return this.effects.getSystemSmtp({ callback })
   }
 }

@@ -12,7 +12,7 @@ export class GetHostInfo extends Watchable<Host | null> {
     super(effects)
   }
 
-  protected call(callback?: () => void) {
+  protected fetch(callback?: () => void) {
     return this.effects.getHostInfo({ ...this.opts, callback })
   }
 }

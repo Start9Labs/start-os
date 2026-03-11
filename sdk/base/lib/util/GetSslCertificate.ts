@@ -14,7 +14,7 @@ export class GetSslCertificate extends Watchable<[string, string, string]> {
     super(effects)
   }
 
-  protected call(callback?: () => void) {
+  protected fetch(callback?: () => void) {
     return this.effects.getSslCertificate({ ...this.opts, callback })
   }
 }

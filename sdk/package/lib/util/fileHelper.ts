@@ -4,8 +4,8 @@ import * as TOML from '@iarna/toml'
 import * as INI from 'ini'
 import * as T from '../../../base/lib/types'
 import * as fs from 'node:fs/promises'
-import { AbortedError, asError, deepEqual } from '../../../base/lib/util'
-import { DropGenerator, DropPromise } from '../../../base/lib/util/Drop'
+import { asError, deepEqual } from '../../../base/lib/util'
+import { Watchable } from '../../../base/lib/util/Watchable'
 import { PathBase } from './Volume'
 
 const previousPath = /(.+?)\/([^/]*)$/
@@ -228,132 +228,72 @@ export class FileHelper<A> {
     return map(this.validate(data))
   }
 
-  private async readConst<B>(
+  private createFileWatchable<B>(
     effects: T.Effects,
     map: (value: A) => B,
-    eq: (left: B | null | undefined, right: B | null) => boolean,
-  ): Promise<B | null> {
-    const watch = this.readWatch(effects, map, eq)
-    const res = await watch.next()
-    if (effects.constRetry) {
-      const record: (typeof this.consts)[number] = [
-        effects.constRetry,
-        res.value,
-        map,
-        eq,
-      ]
-      this.consts.push(record)
-      watch
-        .next()
-        .then(() => {
-          this.consts = this.consts.filter((r) => r !== record)
-          effects.constRetry && effects.constRetry()
-        })
-        .catch()
-    }
-    return res.value
-  }
-
-  private async *readWatch<B>(
-    effects: T.Effects,
-    map: (value: A) => B,
-    eq: (left: B | null | undefined, right: B | null) => boolean,
-    abort?: AbortSignal,
+    eq: (left: B | null, right: B | null) => boolean,
   ) {
-    let prev: { value: B | null } | null = null
-    while (effects.isInContext && !abort?.aborted) {
-      if (await exists(this.path)) {
-        const ctrl = new AbortController()
-        abort?.addEventListener('abort', () => ctrl.abort())
-        const watch = fs.watch(this.path, {
-          persistent: false,
-          signal: ctrl.signal,
-        })
-        const newRes = await this.readOnce(map)
-        const listen = Promise.resolve()
-          .then(async () => {
-            for await (const _ of watch) {
-              ctrl.abort()
-              return null
-            }
-          })
-          .catch((e) => console.error(asError(e)))
-        if (!prev || !eq(prev.value, newRes)) {
-          console.error('yielding', JSON.stringify({ prev: prev, newRes }))
-          yield newRes
-        }
-        prev = { value: newRes }
-        await listen
-      } else {
-        yield null
-        await onCreated(this.path).catch((e) => console.error(asError(e)))
-      }
+    const doRead = async (): Promise<A | null> => {
+      const data = await this.readFile()
+      if (!data) return null
+      return this.validate(data)
     }
-    return new Promise<never>((_, rej) => rej(new AbortedError()))
-  }
+    const filePath = this.path
+    const fileHelper = this
 
-  private readOnChange<B>(
-    effects: T.Effects,
-    callback: (
-      value: B | null,
-      error?: Error,
-    ) => { cancel: boolean } | Promise<{ cancel: boolean }>,
-    map: (value: A) => B,
-    eq: (left: B | null | undefined, right: B | null) => boolean,
-  ) {
-    ;(async () => {
-      const ctrl = new AbortController()
-      for await (const value of this.readWatch(effects, map, eq, ctrl.signal)) {
-        try {
-          const res = await callback(value)
-          if (res.cancel) ctrl.abort()
-        } catch (e) {
-          console.error(
-            'callback function threw an error @ FileHelper.read.onChange',
-            e,
-          )
-        }
+    const wrappedMap = (raw: A | null): B | null => {
+      if (raw === null) return null
+      return map(raw)
+    }
+
+    return new (class extends Watchable<A | null, B | null> {
+      protected readonly label = 'FileHelper'
+
+      protected async fetch() {
+        return doRead()
       }
-    })()
-      .catch((e) => callback(null, e))
-      .catch((e) =>
-        console.error(
-          'callback function threw an error @ FileHelper.read.onChange',
-          e,
-        ),
-      )
-  }
 
-  private readWaitFor<B>(
-    effects: T.Effects,
-    pred: (value: B | null, error?: Error) => boolean,
-    map: (value: A) => B,
-  ): Promise<B | null> {
-    const ctrl = new AbortController()
-    return DropPromise.of(
-      Promise.resolve().then(async () => {
-        const watch = this.readWatch(effects, map, (_) => false, ctrl.signal)
-        while (true) {
-          try {
-            const res = await watch.next()
-            if (pred(res.value)) {
-              ctrl.abort()
-              return res.value
-            }
-            if (res.done) {
-              break
-            }
-          } catch (e) {
-            if (pred(null, e as Error)) {
-              break
-            }
+      protected async *produce(
+        abort: AbortSignal,
+      ): AsyncGenerator<A | null, void> {
+        while (this.effects.isInContext && !abort.aborted) {
+          if (await exists(filePath)) {
+            const ctrl = new AbortController()
+            abort.addEventListener('abort', () => ctrl.abort())
+            const watch = fs.watch(filePath, {
+              persistent: false,
+              signal: ctrl.signal,
+            })
+            yield await doRead()
+            await Promise.resolve()
+              .then(async () => {
+                for await (const _ of watch) {
+                  ctrl.abort()
+                  return null
+                }
+              })
+              .catch((e) => console.error(asError(e)))
+          } else {
+            yield null
+            await onCreated(filePath).catch((e) => console.error(asError(e)))
           }
         }
-        ctrl.abort()
-        return null
-      }),
-      () => ctrl.abort(),
-    )
+      }
+
+      protected onConstRegistered(value: B | null): (() => void) | void {
+        if (!this.effects.constRetry) return
+        const record: (typeof fileHelper.consts)[number] = [
+          this.effects.constRetry,
+          value,
+          wrappedMap,
+          eq,
+        ]
+        fileHelper.consts.push(record)
+        return () => {
+          fileHelper.consts = fileHelper.consts.filter((r) => r !== record)
+        }
+      }
+    })(effects, { map: wrappedMap, eq })
   }
 
   /**
@@ -372,7 +312,7 @@ export class FileHelper<A> {
   read(): ReadType<A>
   read<B>(
     map: (value: A) => B,
-    eq?: (left: B | null | undefined, right: B | null) => boolean,
+    eq?: (left: B | null, right: B | null) => boolean,
   ): ReadType<B>
   read(
     map?: (value: A) => any,
@@ -382,24 +322,19 @@ export class FileHelper<A> {
     eq = eq ?? deepEqual
     return {
       once: () => this.readOnce(map),
-      const: (effects: T.Effects) => this.readConst(effects, map, eq),
-      watch: (effects: T.Effects, abort?: AbortSignal) => {
-        const ctrl = new AbortController()
-        abort?.addEventListener('abort', () => ctrl.abort())
-        return DropGenerator.of(
-          this.readWatch(effects, map, eq, ctrl.signal),
-          () => ctrl.abort(),
-        )
-      },
+      const: (effects: T.Effects) =>
+        this.createFileWatchable(effects, map, eq).const(),
+      watch: (effects: T.Effects, abort?: AbortSignal) =>
+        this.createFileWatchable(effects, map, eq).watch(abort),
       onChange: (
         effects: T.Effects,
         callback: (
           value: A | null,
           error?: Error,
         ) => { cancel: boolean } | Promise<{ cancel: boolean }>,
-      ) => this.readOnChange(effects, callback, map, eq),
+      ) => this.createFileWatchable(effects, map, eq).onChange(callback),
       waitFor: (effects: T.Effects, pred: (value: A | null) => boolean) =>
-        this.readWaitFor(effects, pred, map),
+        this.createFileWatchable(effects, map, eq).waitFor(pred),
     }
   }
 

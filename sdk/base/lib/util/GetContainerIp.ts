@@ -12,7 +12,7 @@ export class GetContainerIp extends Watchable<string> {
     super(effects)
   }
 
-  protected call(callback?: () => void) {
+  protected fetch(callback?: () => void) {
     return this.effects.getContainerIp({ ...this.opts, callback })
   }
 }

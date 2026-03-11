@@ -8,7 +8,7 @@ export class GetOutboundGateway extends Watchable<string> {
     super(effects)
   }
 
-  protected call(callback?: () => void) {
+  protected fetch(callback?: () => void) {
     return this.effects.getOutboundGateway({ callback })
   }
 }

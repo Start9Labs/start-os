@@ -12,7 +12,7 @@ export class GetStatus extends Watchable<StatusInfo | null> {
     super(effects)
   }
 
-  protected call(callback?: () => void) {
+  protected fetch(callback?: () => void) {
     return this.effects.getStatus({ ...this.opts, callback })
   }
 }
