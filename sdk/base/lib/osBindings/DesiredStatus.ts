@@ -3,6 +3,6 @@ import type { StartStop } from './StartStop'
 
 export type DesiredStatus =
   | { main: 'stopped' }
-  | { main: 'restarting' }
+  | { main: 'restarting'; restartAgain: boolean }
   | { main: 'running' }
   | { main: 'backing-up'; onComplete: StartStop }

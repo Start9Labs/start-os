@@ -163,7 +163,7 @@ pub async fn set_main_status(
             if prev.is_none() && status == SetMainStatusStatus::Running {
                 s.as_desired_mut().map_mutate(|s| {
                     Ok(match s {
-                        DesiredStatus::Restarting => DesiredStatus::Running,
+                        DesiredStatus::Restarting { .. } => DesiredStatus::Running,
                         x => x,
                     })
                 })?;

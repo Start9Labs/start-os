@@ -243,12 +243,7 @@ impl ServiceMap {
                                             PackageState::Installing(installing)
                                         },
                                         s9pk: installed_path,
-                                        status_info: StatusInfo {
-                                            error: None,
-                                            health: BTreeMap::new(),
-                                            started: None,
-                                            desired: DesiredStatus::Stopped,
-                                        },
+                                        status_info: StatusInfo::default(),
                                         registry,
                                         developer_key: Pem::new(developer_key),
                                         icon,

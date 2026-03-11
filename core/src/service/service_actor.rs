@@ -103,7 +103,7 @@ async fn service_actor_loop<'a>(
 
     match status {
         StatusInfo {
-            desired: DesiredStatus::Running | DesiredStatus::Restarting,
+            desired: DesiredStatus::Running | DesiredStatus::Restarting { .. },
             started: None,
             ..
         } => {
@@ -114,7 +114,7 @@ async fn service_actor_loop<'a>(
         }
         StatusInfo {
             desired:
-                DesiredStatus::Stopped | DesiredStatus::Restarting | DesiredStatus::BackingUp { .. },
+                DesiredStatus::Stopped | DesiredStatus::Restarting { .. } | DesiredStatus::BackingUp { .. },
             started: Some(_),
             ..
         } => {
