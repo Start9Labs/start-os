@@ -42,6 +42,7 @@ export class StateService {
   // From install response or status response (incomplete)
   dataDriveGuid = ''
   attach = false
+  mokEnrolled = false
 
   // Set during setup flow
   setupType?: SetupType
@@ -116,6 +117,7 @@ export class StateService {
     this.keyboard = ''
     this.dataDriveGuid = ''
     this.attach = false
+    this.mokEnrolled = false
     this.setupType = undefined
     this.recoverySource = undefined
   }

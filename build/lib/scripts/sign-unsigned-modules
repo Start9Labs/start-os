@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# sign-unsigned-modules [--source <dir> --dest <dir>] [--sign-file <path>]
+#                        [--mok-key <path>] [--mok-pub <path>]
+#
+# Signs all unsigned kernel modules using the DKMS MOK key.
+#
+# Default (install) mode:
+#   Run inside a chroot. Finds and signs unsigned modules in /lib/modules in-place.
+#   sign-file and MOK key are auto-detected from standard paths.
+#
+# Overlay mode (--source/--dest):
+#   Finds unsigned modules in <source>, copies to <dest>, signs the copies.
+#   Clears old signed modules in <dest> first. Used during upgrades where the
+#   overlay upper is tmpfs and writes would be lost.
+
+set -e
+
+SOURCE=""
+DEST=""
+SIGN_FILE=""
+MOK_KEY="/var/lib/dkms/mok.key"
+MOK_PUB="/var/lib/dkms/mok.pub"
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --source) SOURCE="$2"; shift 2;;
+        --dest) DEST="$2"; shift 2;;
+        --sign-file) SIGN_FILE="$2"; shift 2;;
+        --mok-key) MOK_KEY="$2"; shift 2;;
+        --mok-pub) MOK_PUB="$2"; shift 2;;
+        *) echo "Unknown option: $1" >&2; exit 1;;
+    esac
+done
+
+# Auto-detect sign-file if not specified
+if [ -z "$SIGN_FILE" ]; then
+    SIGN_FILE="$(ls -1 /usr/lib/linux-kbuild-*/scripts/sign-file 2>/dev/null | head -1)"
+fi
+
+if [ -z "$SIGN_FILE" ] || [ ! -x "$SIGN_FILE" ]; then
+    exit 0
+fi
+
+if [ ! -f "$MOK_KEY" ] || [ ! -f "$MOK_PUB" ]; then
+    exit 0
+fi
+
+COUNT=0
+
+if [ -n "$SOURCE" ] && [ -n "$DEST" ]; then
+    # Overlay mode: find unsigned in source, copy to dest, sign in dest
+    rm -rf "${DEST}"/lib/modules
+
+    for ko in $(find "${SOURCE}"/lib/modules -name '*.ko' 2>/dev/null); do
+        if ! modinfo "$ko" 2>/dev/null | grep -q '^sig_id:'; then
+            rel_path="${ko#${SOURCE}}"
+            mkdir -p "${DEST}$(dirname "$rel_path")"
+            cp "$ko" "${DEST}${rel_path}"
+            "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_PUB" "${DEST}${rel_path}"
+            COUNT=$((COUNT + 1))
+        fi
+    done
+else
+    # In-place mode: sign modules directly
+    for ko in $(find /lib/modules -name '*.ko' 2>/dev/null); do
+        if ! modinfo "$ko" 2>/dev/null | grep -q '^sig_id:'; then
+            "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_PUB" "$ko"
+            COUNT=$((COUNT + 1))
+        fi
+    done
+fi
+
+if [ $COUNT -gt 0 ]; then
+    echo "[sign-modules] Signed $COUNT unsigned kernel modules"
+fi

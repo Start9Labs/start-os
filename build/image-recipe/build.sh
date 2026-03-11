@@ -299,6 +299,16 @@ if [ "${NVIDIA}" = "1" ]; then
     echo "[nvidia-hook] Removed build dependencies." >&2
 fi
 
+# Install linux-kbuild for sign-file (Secure Boot module signing)
+KVER_ALL="\$(ls -1t /boot/vmlinuz-* 2>/dev/null | head -n1 | sed 's|.*/vmlinuz-||')"
+if [ -n "\${KVER_ALL}" ]; then
+    KBUILD_VER="\$(echo "\${KVER_ALL}" | grep -oP '^\d+\.\d+')"
+    if [ -n "\${KBUILD_VER}" ]; then
+        echo "[build] Installing linux-kbuild-\${KBUILD_VER} for Secure Boot support" >&2
+        apt-get install -y "linux-kbuild-\${KBUILD_VER}" || echo "[build] WARNING: linux-kbuild-\${KBUILD_VER} not available" >&2
+    fi
+fi
+
 cp /etc/resolv.conf /etc/resolv.conf.bak
 
 if [ "${IB_SUITE}" = trixie ] && [ "${IB_TARGET_ARCH}" != riscv64 ]; then

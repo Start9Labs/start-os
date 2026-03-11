@@ -709,4 +709,8 @@ export default {
   786: 'Automatycznie',
   787: 'Ruch wychodzący',
   788: 'Użyj bramy',
+  789: 'Rejestracja klucza Secure Boot',
+  790: 'Klucz podpisu został zarejestrowany dla Secure Boot. Przy następnym uruchomieniu pojawi się niebieski ekran (MokManager).',
+  791: 'Wprowadź swoje hasło główne StartOS po wyświetleniu monitu',
+  792: 'Rozumiem',
 } satisfies i18n

@@ -83,6 +83,15 @@ if [ -d /sys/firmware/efi ] && [ -f /media/startos/config/efi-installer-entry ];
     fi
 fi
 
+# Sign unsigned kernel modules for Secure Boot
+SIGN_FILE="$(ls -1 /media/startos/next/usr/lib/linux-kbuild-*/scripts/sign-file 2>/dev/null | head -1)"
+/media/startos/next/usr/lib/startos/scripts/sign-unsigned-modules \
+    --source /media/startos/lower \
+    --dest /media/startos/config/overlay \
+    --sign-file "$SIGN_FILE" \
+    --mok-key /media/startos/config/overlay/var/lib/dkms/mok.key \
+    --mok-pub /media/startos/config/overlay/var/lib/dkms/mok.pub
+
 sync
 
 umount -Rl /media/startos/next

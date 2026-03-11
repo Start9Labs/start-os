@@ -19,6 +19,7 @@ import { ApiService } from '../services/api.service'
 import { StateService } from '../services/state.service'
 import { DocumentationComponent } from '../components/documentation.component'
 import { MatrixComponent } from '../components/matrix.component'
+import { MokEnrollmentDialog } from '../components/mok-enrollment.dialog'
 import { RemoveMediaDialog } from '../components/remove-media.dialog'
 import { T } from '@start9labs/start-sdk'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -274,6 +275,20 @@ export default class SuccessPage implements AfterViewInit {
         if (!this.result.needsRestart) {
           await this.api.exit()
         }
+      }
+
+      if (this.stateService.mokEnrolled && this.result.needsRestart) {
+        this.dialogs
+          .openComponent<boolean>(
+            new PolymorpheusComponent(MokEnrollmentDialog),
+            {
+              label: 'Secure Boot',
+              size: 's',
+              dismissible: false,
+              closeable: true,
+            },
+          )
+          .subscribe()
       }
     } catch (e: any) {
       this.errorService.handleError(e)

@@ -45,6 +45,7 @@ pub mod iter;
 pub mod logger;
 pub mod lshw;
 pub mod mime;
+pub mod mok;
 pub mod net;
 pub mod rpc;
 pub mod rpc_client;

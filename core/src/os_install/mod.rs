@@ -21,7 +21,7 @@ use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::setup::SetupInfo;
 use crate::util::Invoke;
-use crate::util::io::{TmpDir, delete_file, open_file, write_file_atomic};
+use crate::util::io::{TmpDir, delete_dir, delete_file, open_file, write_file_atomic};
 use crate::util::serde::IoFormat;
 
 mod gpt;
@@ -30,12 +30,7 @@ mod mbr;
 /// Get the EFI BootCurrent entry number (the entry firmware used to boot).
 /// Returns None on non-EFI systems or if BootCurrent is not set.
 async fn get_efi_boot_current() -> Result<Option<String>, Error> {
-    let efi_output = String::from_utf8(
-        Command::new("efibootmgr")
-            .invoke(ErrorKind::Grub)
-            .await?,
-    )
-    .map_err(|e| Error::new(eyre!("efibootmgr output not valid UTF-8: {e}"), ErrorKind::Grub))?;
+    let efi_output = String::from_utf8(Command::new("efibootmgr").invoke(ErrorKind::Grub).await?)?;
 
     Ok(efi_output
         .lines()
@@ -46,12 +41,7 @@ async fn get_efi_boot_current() -> Result<Option<String>, Error> {
 
 /// Promote a specific boot entry to first in the EFI boot order.
 async fn promote_efi_entry(entry: &str) -> Result<(), Error> {
-    let efi_output = String::from_utf8(
-        Command::new("efibootmgr")
-            .invoke(ErrorKind::Grub)
-            .await?,
-    )
-    .map_err(|e| Error::new(eyre!("efibootmgr output not valid UTF-8: {e}"), ErrorKind::Grub))?;
+    let efi_output = String::from_utf8(Command::new("efibootmgr").invoke(ErrorKind::Grub).await?)?;
 
     let current_order = efi_output
         .lines()
@@ -182,6 +172,7 @@ struct DataDrive {
 pub struct InstallOsResult {
     pub part_info: OsPartitionInfo,
     pub rootfs: TmpMountGuard,
+    pub mok_enrolled: bool,
 }
 
 pub async fn install_os_to(
@@ -230,6 +221,7 @@ pub async fn install_os_to(
                 delete_file(guard.path().join("config/upgrade")).await?;
                 delete_file(guard.path().join("config/overlay/etc/hostname")).await?;
                 delete_file(guard.path().join("config/disk.guid")).await?;
+                delete_dir(guard.path().join("config/lib/modules")).await?;
                 Command::new("cp")
                     .arg("-r")
                     .arg(guard.path().join("config"))
@@ -265,9 +257,7 @@ pub async fn install_os_to(
     let config_path = rootfs.path().join("config");
 
     if tokio::fs::metadata("/tmp/config.bak").await.is_ok() {
-        if tokio::fs::metadata(&config_path).await.is_ok() {
-            tokio::fs::remove_dir_all(&config_path).await?;
-        }
+        crate::util::io::delete_dir(&config_path).await?;
         Command::new("cp")
             .arg("-r")
             .arg("/tmp/config.bak")
@@ -402,6 +392,28 @@ pub async fn install_os_to(
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
 
+    // Secure Boot: generate MOK key, sign unsigned modules, enroll MOK
+    let mut mok_enrolled = false;
+    if use_efi && crate::util::mok::is_secure_boot_enabled().await {
+        let new_key = crate::util::mok::ensure_dkms_key(overlay.path()).await?;
+        tracing::info!(
+            "DKMS MOK key: {}",
+            if new_key {
+                "generated"
+            } else {
+                "already exists"
+            }
+        );
+
+        crate::util::mok::sign_unsigned_modules(overlay.path()).await?;
+
+        let mok_pub = overlay.path().join(crate::util::mok::DKMS_MOK_PUB.trim_start_matches('/'));
+        match crate::util::mok::enroll_mok(&mok_pub).await {
+            Ok(enrolled) => mok_enrolled = enrolled,
+            Err(e) => tracing::warn!("MOK enrollment failed: {e}"),
+        }
+    }
+
     let mut install = Command::new("chroot");
     install.arg(overlay.path()).arg("grub-install");
     if !use_efi {
@@ -443,7 +455,11 @@ pub async fn install_os_to(
     tokio::fs::remove_dir_all(&work).await?;
     lower.unmount().await?;
 
-    Ok(InstallOsResult { part_info, rootfs })
+    Ok(InstallOsResult {
+        part_info,
+        rootfs,
+        mok_enrolled,
+    })
 }
 
 pub async fn install_os(
@@ -500,7 +516,11 @@ pub async fn install_os(
         None
     };
 
-    let InstallOsResult { part_info, rootfs } = install_os_to(
+    let InstallOsResult {
+        part_info,
+        rootfs,
+        mok_enrolled,
+    } = install_os_to(
         "/run/live/medium/live/filesystem.squashfs",
         &disk.logicalname,
         disk.capacity,
@@ -529,6 +549,7 @@ pub async fn install_os(
         .mutate(|c| c.os_partitions = Some(part_info.clone()));
 
     let mut setup_info = SetupInfo::default();
+    setup_info.mok_enrolled = mok_enrolled;
 
     if let Some(data_drive) = data_drive {
         let mut logicalname = &*data_drive.logicalname;
@@ -612,7 +633,11 @@ pub async fn cli_install_os(
 
     let use_efi = efi.unwrap_or_else(|| !matches!(partition_table, Some(PartitionTable::Mbr)));
 
-    let InstallOsResult { part_info, rootfs } = install_os_to(
+    let InstallOsResult {
+        part_info,
+        rootfs,
+        mok_enrolled: _,
+    } = install_os_to(
         &squashfs,
         &disk,
         capacity,

@@ -40,6 +40,7 @@ export class AppComponent {
             this.stateService.dataDriveGuid = status.guid
           }
           this.stateService.attach = status.attach
+          this.stateService.mokEnrolled = status.mokEnrolled
           await this.router.navigate(['/language'])
           break
 

@@ -709,4 +709,8 @@ export default {
   786: 'Automatique',
   787: 'Trafic sortant',
   788: 'Utiliser la passerelle',
+  789: "Enregistrement de la clé Secure Boot",
+  790: "Une clé de signature a été enregistrée pour Secure Boot. Au prochain redémarrage, un écran bleu (MokManager) apparaîtra.",
+  791: 'Entrez votre mot de passe principal StartOS lorsque vous y êtes invité',
+  792: 'Compris',
 } satisfies i18n

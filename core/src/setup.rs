@@ -279,6 +279,7 @@ pub enum SetupStatusRes {
 pub struct SetupInfo {
     pub guid: Option<InternedString>,
     pub attach: bool,
+    pub mok_enrolled: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
@@ -630,6 +631,7 @@ async fn fresh_setup(
     }: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let account = AccountInfo::new(password, root_ca_start_time().await, hostname)?;
+
     let db = ctx.db().await?;
     let kiosk = Some(kiosk.unwrap_or(true)).filter(|_| &*PLATFORM != "raspberrypi");
     sync_kiosk(kiosk).await?;

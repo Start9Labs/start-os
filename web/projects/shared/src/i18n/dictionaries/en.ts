@@ -709,4 +709,9 @@ export const ENGLISH: Record<string, number> = {
   'Auto': 786,
   'Outbound Traffic': 787,
   'Use gateway': 788,
+  // Secure Boot MOK enrollment
+  'Secure Boot Key Enrollment': 789,
+  'A signing key was enrolled for Secure Boot. On the next reboot, a blue screen (MokManager) will appear.': 790,
+  'Enter your StartOS master password when prompted': 791,
+  'Got it': 792,
 }

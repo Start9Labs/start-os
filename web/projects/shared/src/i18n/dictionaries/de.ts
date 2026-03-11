@@ -709,4 +709,8 @@ export default {
   786: 'Automatisch',
   787: 'Ausgehender Datenverkehr',
   788: 'Gateway verwenden',
+  789: 'Secure-Boot-Schlüsselregistrierung',
+  790: 'Ein Signaturschlüssel wurde für Secure Boot registriert. Beim nächsten Neustart erscheint ein blauer Bildschirm (MokManager).',
+  791: 'Geben Sie Ihr StartOS-Master-Passwort ein, wenn Sie dazu aufgefordert werden',
+  792: 'Verstanden',
 } satisfies i18n

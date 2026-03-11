@@ -709,4 +709,8 @@ export default {
   786: 'Automático',
   787: 'Tráfico saliente',
   788: 'Usar gateway',
+  789: 'Registro de clave de Secure Boot',
+  790: 'Se registró una clave de firma para Secure Boot. En el próximo reinicio, aparecerá una pantalla azul (MokManager).',
+  791: 'Ingrese su contraseña maestra de StartOS cuando se le solicite',
+  792: 'Entendido',
 } satisfies i18n

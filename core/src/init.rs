@@ -173,6 +173,11 @@ pub async fn init(
     RpcContext::init_auth_cookie().await?;
     local_auth.complete();
 
+    // Re-enroll MOK on every boot if Secure Boot key exists but isn't enrolled yet
+    if let Err(e) = crate::util::mok::enroll_mok(std::path::Path::new(crate::util::mok::DKMS_MOK_PUB)).await {
+        tracing::warn!("MOK enrollment failed: {e}");
+    }
+
     load_database.start();
     let db = cfg.db().await?;
     crate::version::Current::default().pre_init(&db).await?;

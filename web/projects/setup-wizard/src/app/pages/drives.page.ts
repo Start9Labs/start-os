@@ -390,6 +390,7 @@ export default class DrivesPage {
 
       this.stateService.dataDriveGuid = result.guid
       this.stateService.attach = result.attach
+      this.stateService.mokEnrolled = result.mokEnrolled
 
       loader.unsubscribe()
 

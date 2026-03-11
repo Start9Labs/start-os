@@ -116,6 +116,7 @@ export class MockApiService extends ApiService {
     return {
       guid: 'mock-data-guid',
       attach: !params.dataDrive.wipe,
+      mokEnrolled: false,
     }
   }
 
