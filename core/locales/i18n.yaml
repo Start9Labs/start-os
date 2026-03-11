@@ -1592,6 +1592,13 @@ net.gateway.cannot-delete-without-connection:
   fr_FR: "Impossible de supprimer l'appareil sans connexion active"
   pl_PL: "Nie można usunąć urządzenia bez aktywnego połączenia"
 
+net.gateway.no-configured-echoip-urls:
+  en_US: "No configured echoip URLs"
+  de_DE: "Keine konfigurierten EchoIP-URLs"
+  es_ES: "No hay URLs de echoip configuradas"
+  fr_FR: "Aucune URL echoip configurée"
+  pl_PL: "Brak skonfigurowanych adresów URL echoip"
+
 # net/dns.rs
 net.dns.timeout-updating-catalog:
   en_US: "timed out waiting to update dns catalog"
@@ -2752,6 +2759,13 @@ help.arg.download-directory:
   es_ES: "Ruta del directorio de descarga"
   fr_FR: "Chemin du répertoire de téléchargement"
   pl_PL: "Ścieżka katalogu do pobrania"
+
+help.arg.echoip-urls:
+  en_US: "Echo IP service URLs for external IP detection"
+  de_DE: "Echo-IP-Dienst-URLs zur externen IP-Erkennung"
+  es_ES: "URLs del servicio Echo IP para detección de IP externa"
+  fr_FR: "URLs du service Echo IP pour la détection d'IP externe"
+  pl_PL: "Adresy URL usługi Echo IP do wykrywania zewnętrznego IP"
 
 help.arg.emulate-missing-arch:
   en_US: "Emulate missing architecture using this one"
@@ -5259,6 +5273,13 @@ about.set-country:
   es_ES: "Establecer el país"
   fr_FR: "Définir le pays"
   pl_PL: "Ustaw kraj"
+
+about.set-echoip-urls:
+  en_US: "Set the Echo IP service URLs"
+  de_DE: "Die Echo-IP-Dienst-URLs festlegen"
+  es_ES: "Establecer las URLs del servicio Echo IP"
+  fr_FR: "Définir les URLs du service Echo IP"
+  pl_PL: "Ustaw adresy URL usługi Echo IP"
 
 about.set-hostname:
   en_US: "Set the server hostname"

@@ -1172,21 +1172,21 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser)]
-pub struct SetIfconfigUrlParams {
-    #[arg(help = "help.arg.ifconfig-url")]
-    pub url: url::Url,
+pub struct SetEchoipUrlsParams {
+    #[arg(help = "help.arg.echoip-urls")]
+    pub urls: Vec<url::Url>,
 }
 
-pub async fn set_ifconfig_url(
+pub async fn set_echoip_urls(
     ctx: RpcContext,
-    SetIfconfigUrlParams { url }: SetIfconfigUrlParams,
+    SetEchoipUrlsParams { urls }: SetEchoipUrlsParams,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
             db.as_public_mut()
                 .as_server_info_mut()
-                .as_ifconfig_url_mut()
-                .ser(&url)
+                .as_echoip_urls_mut()
+                .ser(&urls)
         })
         .await
         .result

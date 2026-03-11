@@ -205,7 +205,7 @@ pub async fn check_port(
     CheckPortParams { port, gateway }: CheckPortParams,
 ) -> Result<CheckPortRes, Error> {
     let db = ctx.db.peek().await;
-    let base_url = db.as_public().as_server_info().as_ifconfig_url().de()?;
+    let base_urls = db.as_public().as_server_info().as_echoip_urls().de()?;
     let gateways = db
         .as_public()
         .as_server_info()
@@ -240,22 +240,41 @@ pub async fn check_port(
     let client = reqwest::Client::builder();
     #[cfg(target_os = "linux")]
     let client = client.interface(gateway.as_str());
-    let url = base_url
-        .join(&format!("/port/{port}"))
-        .with_kind(ErrorKind::ParseUrl)?;
-    let IfconfigPortRes {
+    let client = client.build()?;
+
+    let mut res = None;
+    for base_url in base_urls {
+        let url = base_url
+            .join(&format!("/port/{port}"))
+            .with_kind(ErrorKind::ParseUrl)?;
+        res = Some(
+            async {
+                client
+                    .get(url)
+                    .timeout(Duration::from_secs(5))
+                    .send()
+                    .await?
+                    .error_for_status()?
+                    .json()
+                    .await
+            }
+            .await,
+        );
+        if res.as_ref().map_or(false, |r| r.is_ok()) {
+            break;
+        }
+    }
+    let Some(IfconfigPortRes {
         ip,
         port,
         reachable: open_externally,
-    } = client
-        .build()?
-        .get(url)
-        .timeout(Duration::from_secs(10))
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
+    }) = res.transpose()?
+    else {
+        return Err(Error::new(
+            eyre!("{}", t!("net.gateway.no-configured-echoip-urls")),
+            ErrorKind::Network,
+        ));
+    };
 
     let hairpinning = tokio::time::timeout(
         Duration::from_secs(5),
@@ -761,7 +780,7 @@ async fn get_wan_ipv4(iface: &str, base_url: &Url) -> Result<Option<Ipv4Addr>, E
     let text = client
         .build()?
         .get(url)
-        .timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(5))
         .send()
         .await?
         .error_for_status()?
@@ -857,7 +876,7 @@ async fn watch_ip(
             .fuse()
         });
 
-    let mut prev_attempt: Option<Instant> = None;
+    let mut echoip_ratelimit_state: BTreeMap<Url, Instant> = BTreeMap::new();
 
     loop {
         until
@@ -967,7 +986,7 @@ async fn watch_ip(
                                         &dhcp4_proxy,
                                         &policy_guard,
                                         &iface,
-                                        &mut prev_attempt,
+                                        &mut echoip_ratelimit_state,
                                         db,
                                         write_to,
                                         device_type,
@@ -1174,7 +1193,7 @@ async fn poll_ip_info(
     dhcp4_proxy: &Option<Dhcp4ConfigProxy<'_>>,
     policy_guard: &Option<PolicyRoutingCleanup>,
     iface: &GatewayId,
-    prev_attempt: &mut Option<Instant>,
+    echoip_ratelimit_state: &mut BTreeMap<Url, Instant>,
     db: Option<&TypedPatchDb<Database>>,
     write_to: &Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     device_type: Option<NetworkInterfaceType>,
@@ -1221,43 +1240,49 @@ async fn poll_ip_info(
         apply_policy_routing(guard, iface, &lan_ip).await?;
     }
 
-    let ifconfig_url = if let Some(db) = db {
+    let echoip_urls = if let Some(db) = db {
         db.peek()
             .await
             .as_public()
             .as_server_info()
-            .as_ifconfig_url()
+            .as_echoip_urls()
             .de()
-            .unwrap_or_else(|_| crate::db::model::public::default_ifconfig_url())
+            .unwrap_or_else(|_| crate::db::model::public::default_echoip_urls())
     } else {
-        crate::db::model::public::default_ifconfig_url()
+        crate::db::model::public::default_echoip_urls()
     };
-    let wan_ip = if prev_attempt.map_or(true, |i| i.elapsed() > Duration::from_secs(300))
-        && !subnets.is_empty()
-        && !matches!(
-            device_type,
-            Some(NetworkInterfaceType::Bridge | NetworkInterfaceType::Loopback)
-        ) {
-        let res = match get_wan_ipv4(iface.as_str(), &ifconfig_url).await {
-            Ok(a) => a,
-            Err(e) => {
-                tracing::error!(
-                    "{}",
-                    t!(
-                        "net.gateway.failed-to-determine-wan-ip",
-                        iface = iface.to_string(),
-                        error = e.to_string()
-                    )
-                );
-                tracing::debug!("{e:?}");
-                None
+    let mut wan_ip = None;
+    for echoip_url in echoip_urls {
+        let wan_ip = if echoip_ratelimit_state
+            .get(&echoip_url)
+            .map_or(true, |i| i.elapsed() > Duration::from_secs(300))
+            && !subnets.is_empty()
+            && !matches!(
+                device_type,
+                Some(NetworkInterfaceType::Bridge | NetworkInterfaceType::Loopback)
+            ) {
+            match get_wan_ipv4(iface.as_str(), &echoip_url).await {
+                Ok(a) => {
+                    wan_ip = a;
+                }
+                Err(e) => {
+                    tracing::error!(
+                        "{}",
+                        t!(
+                            "net.gateway.failed-to-determine-wan-ip",
+                            iface = iface.to_string(),
+                            error = e.to_string()
+                        )
+                    );
+                    tracing::debug!("{e:?}");
+                }
+            };
+            echoip_ratelimit_state.insert(echoip_url, Instant::now());
+            if wan_ip.is_some() {
+                break;
             }
         };
-        *prev_attempt = Some(Instant::now());
-        res
-    } else {
-        None
-    };
+    }
     let mut ip_info = IpInfo {
         name: name.clone(),
         scope_id,
