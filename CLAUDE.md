@@ -31,6 +31,7 @@ make test-core                            # Run Rust tests
 - Check component-level CLAUDE.md files for component-specific conventions. ALWAYS read it before operating on that component.
 - Follow existing patterns before inventing new ones
 - Always use `make` recipes when they exist for testing builds rather than manually invoking build commands
+- **Commit signing:** Never push unsigned commits. Before pushing, check all unpushed commits for signatures with `git log --show-signature @{upstream}..HEAD`. If any are unsigned, prompt the user to sign them with `git rebase --exec 'git commit --amend -S --no-edit' @{upstream}`.
 
 ## Supplementary Documentation
 
@@ -50,7 +51,6 @@ On startup:
 1. **Check for `docs/USER.md`** - If it doesn't exist, prompt the user for their name/identifier and create it. This file is gitignored since it varies per developer.
 
 2. **Check `docs/TODO.md` for relevant tasks** - Show TODOs that either:
-
    - Have no `@username` tag (relevant to everyone)
    - Are tagged with the current user's identifier
 
