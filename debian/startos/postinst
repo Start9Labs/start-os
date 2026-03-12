@@ -54,18 +54,36 @@ if [ -f /etc/default/grub ]; then
 		cp /usr/share/grub/unicode.pf2 /boot/grub/fonts/unicode.pf2
 	fi
 	# Install conditional serial console script for GRUB
-	cat > /etc/grub.d/01_serial << 'GRUBEOF'
-#!/bin/sh
-cat << 'EOF'
-# Conditionally enable serial console (avoids breaking gfxterm on EFI
-# systems where the serial port is unavailable)
-if serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1; then
-  terminal_input console serial
-  terminal_output gfxterm serial
-fi
-EOF
-GRUBEOF
+	cat > /etc/grub.d/01_serial <<-'GRUBEOF'
+	#!/bin/sh
+	cat << 'EOF'
+	# Conditionally enable serial console (avoids breaking gfxterm on EFI
+	# systems where the serial port is unavailable)
+	if serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1; then
+	  terminal_input console serial
+	  terminal_output gfxterm serial
+	fi
+	EOF
+	GRUBEOF
 	chmod +x /etc/grub.d/01_serial
+	# Install GRUB script to boot from StartOS installer USB when present.
+	# At boot, GRUB searches for the .startos-installer marker and,
+	# if found, loads the USB's own grub.cfg as the default boot entry.
+	cat > /etc/grub.d/07_startos_installer <<-'GRUBEOF'
+	#!/bin/sh
+	cat << 'EOF'
+	search --no-floppy --file --set=installer_dev /.startos-installer
+	if [ -n "$installer_dev" ]; then
+	    menuentry "StartOS Installer" --id startos-installer {
+	        set root=$installer_dev
+	        configfile /boot/grub/grub.cfg
+	    }
+	    set default=startos-installer
+	    set timeout=5
+	fi
+	EOF
+	GRUBEOF
+	chmod +x /etc/grub.d/07_startos_installer
 fi
 
 VERSION="$(cat /usr/lib/startos/VERSION.txt)"
