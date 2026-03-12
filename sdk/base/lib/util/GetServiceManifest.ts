@@ -3,9 +3,10 @@ import { Manifest, PackageId } from '../osBindings'
 import { deepEqual } from './deepEqual'
 import { Watchable } from './Watchable'
 
-export class GetServiceManifest<
-  Mapped = Manifest | null,
-> extends Watchable<Manifest | null, Mapped> {
+export class GetServiceManifest<Mapped = Manifest | null> extends Watchable<
+  Manifest | null,
+  Mapped
+> {
   protected readonly label = 'GetServiceManifest'
 
   constructor(
@@ -40,8 +41,12 @@ export function getServiceManifest<Mapped>(
   map?: (manifest: Manifest | null) => Mapped,
   eq?: (a: Mapped, b: Mapped) => boolean,
 ): GetServiceManifest<Mapped> {
-  return new GetServiceManifest<Mapped>(effects, { packageId }, {
-    map: map ?? ((a) => a as Mapped),
-    eq: eq ?? ((a, b) => deepEqual(a, b)),
-  })
+  return new GetServiceManifest<Mapped>(
+    effects,
+    { packageId },
+    {
+      map: map ?? ((a) => a as Mapped),
+      eq: eq ?? ((a, b) => deepEqual(a, b)),
+    },
+  )
 }

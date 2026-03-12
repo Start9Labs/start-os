@@ -481,10 +481,14 @@ export function getOwnServiceInterface<Mapped>(
   map?: (interfaces: ServiceInterfaceFilled | null) => Mapped,
   eq?: (a: Mapped, b: Mapped) => boolean,
 ): GetServiceInterface<Mapped> {
-  return new GetServiceInterface<Mapped>(effects, { id }, {
-    map: map ?? ((a) => a as Mapped),
-    eq: eq ?? ((a, b) => deepEqual(a, b)),
-  })
+  return new GetServiceInterface<Mapped>(
+    effects,
+    { id },
+    {
+      map: map ?? ((a) => a as Mapped),
+      eq: eq ?? ((a, b) => deepEqual(a, b)),
+    },
+  )
 }
 
 export function getServiceInterface(

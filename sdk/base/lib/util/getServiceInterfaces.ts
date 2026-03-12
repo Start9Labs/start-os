@@ -64,9 +64,7 @@ export class GetServiceInterfaces<
   }
 }
 
-export function getOwnServiceInterfaces(
-  effects: Effects,
-): GetServiceInterfaces
+export function getOwnServiceInterfaces(effects: Effects): GetServiceInterfaces
 export function getOwnServiceInterfaces<Mapped>(
   effects: Effects,
   map: (interfaces: ServiceInterfaceFilled[]) => Mapped,
@@ -77,10 +75,14 @@ export function getOwnServiceInterfaces<Mapped>(
   map?: (interfaces: ServiceInterfaceFilled[]) => Mapped,
   eq?: (a: Mapped, b: Mapped) => boolean,
 ): GetServiceInterfaces<Mapped> {
-  return new GetServiceInterfaces<Mapped>(effects, {}, {
-    map: map ?? ((a) => a as Mapped),
-    eq: eq ?? ((a, b) => deepEqual(a, b)),
-  })
+  return new GetServiceInterfaces<Mapped>(
+    effects,
+    {},
+    {
+      map: map ?? ((a) => a as Mapped),
+      eq: eq ?? ((a, b) => deepEqual(a, b)),
+    },
+  )
 }
 
 export function getServiceInterfaces(
