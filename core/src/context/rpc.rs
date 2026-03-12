@@ -327,12 +327,7 @@ impl RpcContext {
 
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
-            os_partitions: config.os_partitions.clone().ok_or_else(|| {
-                Error::new(
-                    eyre!("{}", t!("context.rpc.os-partition-info-missing")),
-                    ErrorKind::Filesystem,
-                )
-            })?,
+            os_partitions: OsPartitionInfo::from_fstab().await?,
             wifi_interface: wifi_interface.clone(),
             ethernet_interface: find_eth_iface().await?,
             disk_guid,

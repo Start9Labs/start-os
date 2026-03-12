@@ -9,7 +9,6 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::MAIN_DATA;
-use crate::disk::OsPartitionInfo;
 use crate::prelude::*;
 use crate::util::serde::IoFormat;
 use crate::version::VersionT;
@@ -120,8 +119,6 @@ impl ClientConfig {
 pub struct ServerConfig {
     #[arg(short, long, help = "help.arg.config-file-path")]
     pub config: Option<PathBuf>,
-    #[arg(skip)]
-    pub os_partitions: Option<OsPartitionInfo>,
     #[arg(long, help = "help.arg.socks-listen-address")]
     pub socks_listen: Option<SocketAddr>,
     #[arg(long, help = "help.arg.revision-cache-size")]
@@ -138,7 +135,6 @@ impl ContextConfig for ServerConfig {
         self.config.take()
     }
     fn merge_with(&mut self, other: Self) {
-        self.os_partitions = self.os_partitions.take().or(other.os_partitions);
         self.socks_listen = self.socks_listen.take().or(other.socks_listen);
         self.revision_cache_size = self
             .revision_cache_size

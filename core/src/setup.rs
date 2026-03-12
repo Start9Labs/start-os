@@ -95,8 +95,8 @@ const LIVE_MEDIUM_PATH: &str = "/run/live/medium";
 
 pub async fn list_disks(ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
     let mut disks = crate::disk::util::list(
-        &ctx.config
-            .peek(|c| c.os_partitions.clone())
+        &crate::disk::OsPartitionInfo::from_fstab()
+            .await
             .unwrap_or_default(),
     )
     .await?;

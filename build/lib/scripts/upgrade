@@ -68,21 +68,6 @@ fi
 
 EOF
 
-# Promote the USB installer boot entry back to first in EFI boot order.
-# The entry number was saved during initial OS install.
-if [ -d /sys/firmware/efi ] && [ -f /media/startos/config/efi-installer-entry ]; then
-    USB_ENTRY=$(cat /media/startos/config/efi-installer-entry)
-    if [ -n "$USB_ENTRY" ]; then
-        CURRENT_ORDER=$(efibootmgr | grep BootOrder | sed 's/BootOrder: //')
-        OTHER_ENTRIES=$(echo "$CURRENT_ORDER" | tr ',' '\n' | grep -v "$USB_ENTRY" | tr '\n' ',' | sed 's/,$//')
-        if [ -n "$OTHER_ENTRIES" ]; then
-            efibootmgr -o "$USB_ENTRY,$OTHER_ENTRIES"
-        else
-            efibootmgr -o "$USB_ENTRY"
-        fi
-    fi
-fi
-
 # Sign unsigned kernel modules for Secure Boot
 SIGN_FILE="$(ls -1 /media/startos/next/usr/lib/linux-kbuild-*/scripts/sign-file 2>/dev/null | head -1)"
 /media/startos/next/usr/lib/startos/scripts/sign-unsigned-modules \

@@ -164,10 +164,10 @@ pub async fn partition(
         .await?;
 
     Ok(OsPartitionInfo {
-        efi: None,
         bios: None,
         boot: partition_for(&disk_path, 1),
         root: partition_for(&disk_path, 2),
+        extra_boot: Default::default(),
         data: data_part,
     })
 }
