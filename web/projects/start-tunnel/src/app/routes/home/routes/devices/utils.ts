@@ -1,8 +1,7 @@
 import { Signal } from '@angular/core'
 import { AbstractControl } from '@angular/forms'
-import { utils } from '@start9labs/start-sdk'
+import { T, utils } from '@start9labs/start-sdk'
 import { IpNet } from '@start9labs/start-sdk/util'
-import { WgServer } from 'src/app/services/patch-db/data-model'
 
 export interface MappedDevice {
   readonly subnet: {
@@ -16,7 +15,7 @@ export interface MappedDevice {
 export interface MappedSubnet {
   readonly range: string
   readonly name: string
-  readonly clients: WgServer['subnets']['']['clients']
+  readonly clients: T.Tunnel.WgSubnetClients
 }
 
 export interface DeviceData {

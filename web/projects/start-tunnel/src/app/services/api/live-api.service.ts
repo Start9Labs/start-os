@@ -8,20 +8,8 @@ import {
 } from '@start9labs/shared'
 import { filter, firstValueFrom, Observable } from 'rxjs'
 import { webSocket } from 'rxjs/webSocket'
-import {
-  AddForwardReq,
-  ApiService,
-  DeleteDeviceReq,
-  DeleteForwardReq,
-  DeleteSubnetReq,
-  LoginReq,
-  SubscribeRes,
-  TunnelUpdateResult,
-  SetForwardEnabledReq,
-  UpdateForwardLabelReq,
-  UpsertDeviceReq,
-  UpsertSubnetReq,
-} from './api.service'
+import { T } from '@start9labs/start-sdk'
+import { ApiService, SubscribeRes } from './api.service'
 import { AuthService } from '../auth.service'
 import { PATCH_CACHE } from '../patch-db/patch-db-source'
 
@@ -54,7 +42,7 @@ export class LiveApiService extends ApiService {
 
   // auth
 
-  async login(params: LoginReq): Promise<null> {
+  async login(params: T.Tunnel.SetPasswordParams): Promise<null> {
     return this.rpcRequest({ method: 'auth.login', params })
   }
 
@@ -62,75 +50,87 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'auth.logout', params: {} })
   }
 
-  async setPassword(params: LoginReq): Promise<null> {
+  async setPassword(params: T.Tunnel.SetPasswordParams): Promise<null> {
     return this.rpcRequest({ method: 'auth.set-password', params })
   }
 
-  async addSubnet(params: UpsertSubnetReq): Promise<null> {
+  async addSubnet(
+    params: T.Tunnel.SubnetParams & T.Tunnel.AddSubnetParams,
+  ): Promise<null> {
     return this.upsertSubnet(params)
   }
 
-  async editSubnet(params: UpsertSubnetReq): Promise<null> {
+  async editSubnet(
+    params: T.Tunnel.SubnetParams & T.Tunnel.AddSubnetParams,
+  ): Promise<null> {
     return this.upsertSubnet(params)
   }
 
-  async deleteSubnet(params: DeleteSubnetReq): Promise<null> {
+  async deleteSubnet(params: T.Tunnel.SubnetParams): Promise<null> {
     return this.rpcRequest({ method: 'subnet.remove', params })
   }
 
   // devices
 
-  async addDevice(params: UpsertDeviceReq): Promise<null> {
+  async addDevice(params: T.Tunnel.AddDeviceParams): Promise<null> {
     return this.upsertDevice(params)
   }
 
-  async editDevice(params: UpsertDeviceReq): Promise<null> {
+  async editDevice(params: T.Tunnel.AddDeviceParams): Promise<null> {
     return this.upsertDevice(params)
   }
 
-  async deleteDevice(params: DeleteDeviceReq): Promise<null> {
+  async deleteDevice(params: T.Tunnel.RemoveDeviceParams): Promise<null> {
     return this.rpcRequest({ method: 'device.remove', params })
   }
 
-  async showDeviceConfig(params: DeleteDeviceReq): Promise<string> {
+  async showDeviceConfig(params: T.Tunnel.RemoveDeviceParams): Promise<string> {
     return this.rpcRequest({ method: 'device.show-config', params })
   }
 
   // forwards
 
-  async addForward(params: AddForwardReq): Promise<null> {
+  async addForward(params: T.Tunnel.AddPortForwardParams): Promise<null> {
     return this.rpcRequest({ method: 'port-forward.add', params })
   }
 
-  async deleteForward(params: DeleteForwardReq): Promise<null> {
+  async deleteForward(
+    params: T.Tunnel.RemovePortForwardParams,
+  ): Promise<null> {
     return this.rpcRequest({ method: 'port-forward.remove', params })
   }
 
-  async updateForwardLabel(params: UpdateForwardLabelReq): Promise<null> {
+  async updateForwardLabel(
+    params: T.Tunnel.UpdatePortForwardLabelParams,
+  ): Promise<null> {
     return this.rpcRequest({ method: 'port-forward.update-label', params })
   }
 
-  async setForwardEnabled(params: SetForwardEnabledReq): Promise<null> {
+  async setForwardEnabled(
+    params: T.Tunnel.SetPortForwardEnabledParams,
+  ): Promise<null> {
     return this.rpcRequest({ method: 'port-forward.set-enabled', params })
   }
 
   // update
 
-  async checkUpdate(): Promise<TunnelUpdateResult> {
+  async checkUpdate(): Promise<T.Tunnel.TunnelUpdateResult> {
     return this.rpcRequest({ method: 'update.check', params: {} })
   }
 
-  async applyUpdate(): Promise<TunnelUpdateResult> {
+  async applyUpdate(): Promise<T.Tunnel.TunnelUpdateResult> {
     return this.rpcRequest({ method: 'update.apply', params: {} })
   }
 
   // private
 
-  private async upsertSubnet(params: UpsertSubnetReq): Promise<null> {
+  private async upsertSubnet(
+    params: T.Tunnel.SubnetParams & T.Tunnel.AddSubnetParams,
+  ): Promise<null> {
     return this.rpcRequest({ method: 'subnet.add', params })
   }
 
-  private async upsertDevice(params: UpsertDeviceReq): Promise<null> {
+  private async upsertDevice(params: T.Tunnel.AddDeviceParams): Promise<null> {
     return this.rpcRequest({ method: 'device.add', params })
   }
 

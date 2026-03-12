@@ -14,7 +14,8 @@ import {
   switchMap,
   takeWhile,
 } from 'rxjs'
-import { ApiService, TunnelUpdateResult } from './api/api.service'
+import { T } from '@start9labs/start-sdk'
+import { ApiService } from './api/api.service'
 import { AuthService } from './auth.service'
 
 @Component({
@@ -34,7 +35,7 @@ export class UpdateService {
   private readonly dialogs = inject(TuiDialogService)
   private readonly errorService = inject(ErrorService)
 
-  readonly result = signal<TunnelUpdateResult | null>(null)
+  readonly result = signal<T.Tunnel.TunnelUpdateResult | null>(null)
   readonly hasUpdate = computed(
     () => this.result()?.status === 'update-available',
   )
@@ -60,7 +61,7 @@ export class UpdateService {
     this.setResult(result)
   }
 
-  private setResult(result: TunnelUpdateResult): void {
+  private setResult(result: T.Tunnel.TunnelUpdateResult): void {
     this.result.set(result)
 
     if (result.status === 'updating') {

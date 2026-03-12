@@ -15,11 +15,12 @@ import {
 import { TuiFieldErrorPipe } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { T } from '@start9labs/start-sdk'
 import { ApiService } from 'src/app/services/api/api.service'
 
 export interface EditLabelData {
   readonly source: string
-  readonly label: string
+  readonly label: T.Tunnel.PortForwardEntry['label']
 }
 
 @Component({

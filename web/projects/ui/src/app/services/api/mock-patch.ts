@@ -239,7 +239,7 @@ export const mockPatchData: DataModel = {
     caFingerprint: '63:2B:11:99:44:40:17:DF:37:FC:C3:DF:0F:3D:15',
     ntpSynced: false,
     smtp: null,
-    ifconfigUrl: 'https://ifconfig.co',
+    echoipUrls: ['https://ipconfig.me', 'https://ifconfig.co'],
     platform: 'x86_64-nonfree',
     zram: true,
     governor: 'performance',

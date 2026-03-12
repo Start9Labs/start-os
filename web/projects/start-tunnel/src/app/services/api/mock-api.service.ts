@@ -1,21 +1,9 @@
 import { inject, Injectable } from '@angular/core'
 import { shareReplay, Subject, tap } from 'rxjs'
 import { WebSocketSubject } from 'rxjs/webSocket'
-import {
-  AddForwardReq,
-  ApiService,
-  DeleteDeviceReq,
-  DeleteForwardReq,
-  DeleteSubnetReq,
-  LoginReq,
-  SubscribeRes,
-  TunnelUpdateResult,
-  SetForwardEnabledReq,
-  UpdateForwardLabelReq,
-  UpsertDeviceReq,
-  UpsertSubnetReq,
-} from './api.service'
+import { ApiService, SubscribeRes } from './api.service'
 import { pauseFor } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { AuthService } from '../auth.service'
 import {
   AddOperation,
@@ -26,12 +14,7 @@ import {
   Revision,
 } from 'patch-db-client'
 import { toObservable } from '@angular/core/rxjs-interop'
-import {
-  mockTunnelData,
-  PortForwardEntry,
-  WgClient,
-  WgSubnet,
-} from '../patch-db/data-model'
+import { mockTunnelData } from '../patch-db/data-model'
 
 @Injectable({
   providedIn: 'root',
@@ -66,7 +49,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async login(params: LoginReq): Promise<null> {
+  async login(params: T.Tunnel.SetPasswordParams): Promise<null> {
     await pauseFor(1000)
     return null
   }
@@ -76,15 +59,15 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setPassword(params: LoginReq): Promise<null> {
+  async setPassword(params: T.Tunnel.SetPasswordParams): Promise<null> {
     await pauseFor(1000)
     return null
   }
 
-  async addSubnet(params: UpsertSubnetReq): Promise<null> {
+  async addSubnet(params: T.Tunnel.SubnetParams & T.Tunnel.AddSubnetParams): Promise<null> {
     await pauseFor(1000)
 
-    const patch: AddOperation<WgSubnet>[] = [
+    const patch: AddOperation<T.Tunnel.WgSubnetConfig>[] = [
       {
         op: PatchOp.ADD,
         path: `/wg/subnets/${replaceSlashes(params.subnet)}`,
@@ -96,7 +79,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async editSubnet(params: UpsertSubnetReq): Promise<null> {
+  async editSubnet(params: T.Tunnel.SubnetParams & T.Tunnel.AddSubnetParams): Promise<null> {
     await pauseFor(1000)
 
     const patch: ReplaceOperation<string>[] = [
@@ -111,7 +94,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async deleteSubnet(params: DeleteSubnetReq): Promise<null> {
+  async deleteSubnet(params: T.Tunnel.SubnetParams): Promise<null> {
     await pauseFor(1000)
 
     const patch: RemoveOperation[] = [
@@ -125,14 +108,14 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async addDevice(params: UpsertDeviceReq): Promise<null> {
+  async addDevice(params: T.Tunnel.AddDeviceParams): Promise<null> {
     await pauseFor(1000)
 
-    const patch: AddOperation<WgClient>[] = [
+    const patch: AddOperation<T.Tunnel.WgConfig>[] = [
       {
         op: PatchOp.ADD,
         path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}`,
-        value: { name: params.name },
+        value: { name: params.name, key: '', psk: '' },
       },
     ]
     this.mockRevision(patch)
@@ -140,7 +123,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async editDevice(params: UpsertDeviceReq): Promise<null> {
+  async editDevice(params: T.Tunnel.AddDeviceParams): Promise<null> {
     await pauseFor(1000)
 
     const patch: ReplaceOperation<string>[] = [
@@ -155,7 +138,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async deleteDevice(params: DeleteDeviceReq): Promise<null> {
+  async deleteDevice(params: T.Tunnel.RemoveDeviceParams): Promise<null> {
     await pauseFor(1000)
 
     const patch: RemoveOperation[] = [
@@ -169,22 +152,22 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async showDeviceConfig(params: DeleteDeviceReq): Promise<string> {
+  async showDeviceConfig(params: T.Tunnel.RemoveDeviceParams): Promise<string> {
     await pauseFor(1000)
 
     return MOCK_CONFIG
   }
 
-  async addForward(params: AddForwardReq): Promise<null> {
+  async addForward(params: T.Tunnel.AddPortForwardParams): Promise<null> {
     await pauseFor(1000)
 
-    const patch: AddOperation<PortForwardEntry>[] = [
+    const patch: AddOperation<T.Tunnel.PortForwardEntry>[] = [
       {
         op: PatchOp.ADD,
         path: `/portForwards/${params.source}`,
         value: {
           target: params.target,
-          label: params.label || '',
+          label: params.label || null,
           enabled: true,
         },
       },
@@ -194,10 +177,10 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async updateForwardLabel(params: UpdateForwardLabelReq): Promise<null> {
+  async updateForwardLabel(params: T.Tunnel.UpdatePortForwardLabelParams): Promise<null> {
     await pauseFor(1000)
 
-    const patch: ReplaceOperation<string>[] = [
+    const patch: ReplaceOperation<string | null>[] = [
       {
         op: PatchOp.REPLACE,
         path: `/portForwards/${params.source}/label`,
@@ -209,7 +192,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setForwardEnabled(params: SetForwardEnabledReq): Promise<null> {
+  async setForwardEnabled(params: T.Tunnel.SetPortForwardEnabledParams): Promise<null> {
     await pauseFor(1000)
 
     const patch: ReplaceOperation<boolean>[] = [
@@ -224,7 +207,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async deleteForward(params: DeleteForwardReq): Promise<null> {
+  async deleteForward(params: T.Tunnel.RemovePortForwardParams): Promise<null> {
     await pauseFor(1000)
 
     const patch: RemoveOperation[] = [
@@ -238,7 +221,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async checkUpdate(): Promise<TunnelUpdateResult> {
+  async checkUpdate(): Promise<T.Tunnel.TunnelUpdateResult> {
     await pauseFor(1000)
     return {
       status: 'update-available',
@@ -247,7 +230,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async applyUpdate(): Promise<TunnelUpdateResult> {
+  async applyUpdate(): Promise<T.Tunnel.TunnelUpdateResult> {
     await pauseFor(2000)
     return {
       status: 'updating',

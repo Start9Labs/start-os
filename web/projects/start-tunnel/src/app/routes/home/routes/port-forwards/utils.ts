@@ -1,4 +1,5 @@
 import { Signal } from '@angular/core'
+import { T } from '@start9labs/start-sdk'
 
 export interface MappedDevice {
   readonly ip: string
@@ -10,8 +11,8 @@ export interface MappedForward {
   readonly externalport: string
   readonly device: MappedDevice
   readonly internalport: string
-  readonly label: string
-  readonly enabled: boolean
+  readonly label: T.Tunnel.PortForwardEntry['label']
+  readonly enabled: T.Tunnel.PortForwardEntry['enabled']
 }
 
 export interface PortForwardsData {

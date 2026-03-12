@@ -1,45 +1,21 @@
 import { T } from '@start9labs/start-sdk'
 
-export type PortForwardEntry = {
-  target: string
-  label: string
-  enabled: boolean
-}
-
-export type TunnelData = {
-  wg: WgServer
-  portForwards: Record<string, PortForwardEntry>
-  gateways: Record<string, T.NetworkInterfaceInfo>
-}
-
-export type WgServer = {
-  subnets: Record<string, WgSubnet>
-}
-
-export type WgSubnet = {
-  name: string
-  clients: Record<string, WgClient>
-}
-
-export type WgClient = {
-  name: string
-}
+export type TunnelData = Pick<
+  T.Tunnel.TunnelDatabase,
+  'wg' | 'portForwards' | 'gateways'
+>
 
 export const mockTunnelData: TunnelData = {
   wg: {
+    port: 51820,
+    key: '',
     subnets: {
       '10.59.0.0/24': {
         name: 'Family',
         clients: {
-          '10.59.0.2': {
-            name: 'Start9 Server',
-          },
-          '10.59.0.3': {
-            name: 'Phone',
-          },
-          '10.59.0.4': {
-            name: 'Laptop',
-          },
+          '10.59.0.2': { name: 'Start9 Server', key: '', psk: '' },
+          '10.59.0.3': { name: 'Phone', key: '', psk: '' },
+          '10.59.0.4': { name: 'Laptop', key: '', psk: '' },
         },
       },
     },
