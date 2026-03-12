@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
-import { StoreIconComponentModule } from './store-icon/store-icon.component.module'
+import { StoreIconComponent } from './store-icon.component'
 
 @Component({
   selector: '[registry]',
@@ -17,7 +17,7 @@ import { StoreIconComponentModule } from './store-icon/store-icon.component.modu
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [StoreIconComponentModule, TuiIcon, TuiTitle],
+  imports: [StoreIconComponent, TuiIcon, TuiTitle],
 })
 export class MarketplaceRegistryComponent {
   @Input()

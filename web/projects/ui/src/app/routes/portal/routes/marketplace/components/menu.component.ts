@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { MenuModule } from '@start9labs/marketplace'
+import { MenuComponent } from '@start9labs/marketplace'
 import { TuiIcon, TuiButton, TuiAppearance } from '@taiga-ui/core'
 import { MARKETPLACE_REGISTRY } from '../modals/registry.component'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
@@ -41,7 +41,7 @@ import { DialogService, i18nPipe } from '@start9labs/shared'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    MenuModule,
+    MenuComponent,
     TuiButton,
     TuiIcon,
     TuiAppearance,

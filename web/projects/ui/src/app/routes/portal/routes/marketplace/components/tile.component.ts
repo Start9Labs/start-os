@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -8,7 +7,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
-import { ItemModule, MarketplacePkg } from '@start9labs/marketplace'
+import { ItemComponent, MarketplacePkg } from '@start9labs/marketplace'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { TuiButton, TuiDropdownService, TuiPopup } from '@taiga-ui/core'
 import { TuiDrawer } from '@taiga-ui/kit'
@@ -78,8 +77,7 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
     },
   ],
   imports: [
-    CommonModule,
-    ItemModule,
+    ItemComponent,
     TuiAutoFocus,
     TuiButton,
     TuiPopup,

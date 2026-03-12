@@ -36,6 +36,11 @@ import { MappedDevice, PortForwardsData } from './utils'
 @Component({
   template: `
     <form tuiForm [formGroup]="form">
+      <tui-textfield>
+        <label tuiLabel>Label</label>
+        <input tuiTextfield formControlName="label" />
+      </tui-textfield>
+      <tui-error formControlName="label" [error]="[] | tuiFieldError | async" />
       <tui-textfield tuiChevron>
         <label tuiLabel>External IP</label>
         @if (mobile) {
@@ -161,6 +166,7 @@ export class PortForwardsAdd {
     injectContext<TuiDialogContext<void, PortForwardsData>>()
 
   protected readonly form = inject(NonNullableFormBuilder).group({
+    label: ['', Validators.required],
     externalip: ['', Validators.required],
     externalport: [null as number | null, Validators.required],
     device: [null as MappedDevice | null, Validators.required],
@@ -185,19 +191,21 @@ export class PortForwardsAdd {
 
     const loader = this.loading.open().subscribe()
 
-    const { externalip, externalport, device, internalport, also80 } =
+    const { label, externalip, externalport, device, internalport, also80 } =
       this.form.getRawValue()
 
     try {
       await this.api.addForward({
         source: `${externalip}:${externalport}`,
         target: `${device!.ip}:${internalport}`,
+        label,
       })
 
       if (externalport === 443 && internalport === 443 && also80) {
         await this.api.addForward({
           source: `${externalip}:80`,
           target: `${device!.ip}:443`,
+          label: `${label} (HTTP redirect)`,
         })
       }
     } catch (e: any) {

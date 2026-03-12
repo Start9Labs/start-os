@@ -5,7 +5,7 @@ import {
   Input,
   Output,
 } from '@angular/core'
-import { UnitConversionPipesModule } from '@start9labs/shared'
+import { ConvertBytesPipe } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
 import { UnknownDisk } from 'src/app/services/api/api.types'
@@ -109,7 +109,7 @@ import { UnknownDisk } from 'src/app/services/api/api.types'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, UnitConversionPipesModule, TuiSkeleton],
+  imports: [TuiButton, ConvertBytesPipe, TuiSkeleton],
 })
 export class BackupsPhysicalComponent {
   @Input()

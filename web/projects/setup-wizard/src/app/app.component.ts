@@ -1,15 +1,17 @@
-import { Component, inject, DOCUMENT } from '@angular/core'
-import { Router } from '@angular/router'
+import { Component, DOCUMENT, inject, OnInit } from '@angular/core'
+import { Router, RouterOutlet } from '@angular/router'
 import { ErrorService } from '@start9labs/shared'
+import { TuiRoot } from '@taiga-ui/core'
+
 import { ApiService } from './services/api.service'
 import { StateService } from './services/state.service'
 
 @Component({
   selector: 'app-root',
   template: '<tui-root tuiTheme="dark"><router-outlet /></tui-root>',
-  standalone: false,
+  imports: [TuiRoot, RouterOutlet],
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
   private readonly router = inject(Router)

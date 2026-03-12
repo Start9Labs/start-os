@@ -1,3 +1,4 @@
+import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,16 +7,35 @@ import {
   OnDestroy,
   signal,
 } from '@angular/core'
+import { DocsLinkDirective, i18nPipe } from '@start9labs/shared'
+import { TuiAppearance, TuiButton, TuiIcon, TuiPopup } from '@taiga-ui/core'
+import { TuiDrawer, TuiSkeleton } from '@taiga-ui/kit'
 import { Subject, takeUntil } from 'rxjs'
+import { CategoriesComponent } from '../../pages/list/categories/categories.component'
+import { SearchComponent } from '../../pages/list/search/search.component'
 import { AbstractCategoryService } from '../../services/category.service'
 import { StoreDataWithUrl } from '../../types'
+import { StoreIconComponent } from '../store-icon.component'
 
 @Component({
   selector: 'menu',
   templateUrl: './menu.component.html',
   styleUrls: ['./menu.component.scss'],
+  imports: [
+    CommonModule,
+    SearchComponent,
+    CategoriesComponent,
+    TuiButton,
+    StoreIconComponent,
+    TuiAppearance,
+    TuiIcon,
+    TuiSkeleton,
+    TuiDrawer,
+    TuiPopup,
+    i18nPipe,
+    DocsLinkDirective,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: false,
 })
 export class MenuComponent implements OnDestroy {
   @Input({ required: true })

@@ -7,7 +7,7 @@ import {
   TemplateRef,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { DialogService, i18nPipe, SharedPipesModule } from '@start9labs/shared'
+import { DialogService, i18nPipe } from '@start9labs/shared'
 import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { TuiRadioList } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
@@ -76,7 +76,6 @@ import { MarketplaceItemComponent } from './item.component'
   imports: [
     MarketplaceItemComponent,
     TuiButton,
-    SharedPipesModule,
     FormsModule,
     TuiRadioList,
     i18nPipe,

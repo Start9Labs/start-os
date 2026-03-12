@@ -3,9 +3,20 @@ import {
   withFetch,
   withInterceptorsFromDi,
 } from '@angular/common/http'
-import { inject, NgModule, provideAppInitializer } from '@angular/core'
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
-import { PreloadAllModules, RouterModule } from '@angular/router'
+import {
+  ApplicationConfig,
+  inject,
+  provideAppInitializer,
+  provideZoneChangeDetection,
+  signal,
+} from '@angular/core'
+import { provideAnimations } from '@angular/platform-browser/animations'
+import {
+  PreloadAllModules,
+  provideRouter,
+  withDisabledInitialNavigation,
+  withPreloading,
+} from '@angular/router'
 import { WA_LOCATION } from '@ng-web-apis/common'
 import initArgon from '@start9labs/argon2'
 import {
@@ -15,13 +26,16 @@ import {
   VERSION,
   WorkspaceConfig,
 } from '@start9labs/shared'
-import { tuiButtonOptionsProvider, TuiRoot } from '@taiga-ui/core'
-import { NG_EVENT_PLUGINS } from '@taiga-ui/event-plugins'
+import {
+  tuiButtonOptionsProvider,
+  tuiTextfieldOptionsProvider,
+} from '@taiga-ui/core'
+import { provideEventPlugins } from '@taiga-ui/event-plugins'
+
+import { ROUTES } from './app.routes'
 import { ApiService } from './services/api.service'
 import { LiveApiService } from './services/live-api.service'
 import { MockApiService } from './services/mock-api.service'
-import { AppComponent } from './app.component'
-import { ROUTES } from './app.routes'
 
 const {
   useMocks,
@@ -30,18 +44,16 @@ const {
 
 const version = require('../../../../package.json').version
 
-@NgModule({
-  declarations: [AppComponent],
-  imports: [
-    BrowserAnimationsModule,
-    RouterModule.forRoot(ROUTES, {
-      preloadingStrategy: PreloadAllModules,
-      initialNavigation: 'disabled',
-    }),
-    TuiRoot,
-  ],
+export const APP_CONFIG: ApplicationConfig = {
   providers: [
-    NG_EVENT_PLUGINS,
+    provideZoneChangeDetection(),
+    provideAnimations(),
+    provideEventPlugins(),
+    provideRouter(
+      ROUTES,
+      withDisabledInitialNavigation(),
+      withPreloading(PreloadAllModules),
+    ),
     I18N_PROVIDERS,
     provideSetupLogsService(ApiService),
     tuiButtonOptionsProvider({ size: 'm' }),
@@ -64,7 +76,6 @@ const version = require('../../../../package.json').version
 
       initArgon({ module_or_path })
     }),
+    tuiTextfieldOptionsProvider({ cleaner: signal(false) }),
   ],
-  bootstrap: [AppComponent],
-})
-export class AppModule {}
+}

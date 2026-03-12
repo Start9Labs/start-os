@@ -1,7 +1,12 @@
 import { KeyValue } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Input,
+} from '@angular/core'
 import { RouterModule } from '@angular/router'
-import { ExverPipesModule, i18nPipe, i18nService } from '@start9labs/shared'
+import { i18nPipe, i18nService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiAvatar, TuiLineClamp } from '@taiga-ui/kit'
 import { MarketplacePkgBase } from '../../../types'
@@ -20,9 +25,7 @@ import { MarketplacePkgBase } from '../../../types'
         <tui-line-clamp [linesLimit]="2" [content]="titleContent" />
         <ng-template #titleContent>
           <div class="title">
-            <span>
-              {{ getTitle(dep.key) }}
-            </span>
+            <span>{{ getTitle(dep.key) }}</span>
             <p>
               @if (dep.value.optional) {
                 <span>({{ 'Optional' | i18n }})</span>
@@ -37,9 +40,7 @@ import { MarketplacePkgBase } from '../../../types'
           [content]="descContent"
           class="description"
         />
-        <ng-template #descContent>
-          {{ dep.value.description }}
-        </ng-template>
+        <ng-template #descContent>{{ dep.value.description }}</ng-template>
       </div>
     </div>
   `,
@@ -94,7 +95,7 @@ import { MarketplacePkgBase } from '../../../types'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterModule, TuiAvatar, ExverPipesModule, TuiLineClamp, i18nPipe],
+  imports: [RouterModule, TuiAvatar, TuiLineClamp, i18nPipe],
 })
 export class MarketplaceDepItemComponent {
   private readonly i18nService = inject(i18nService)

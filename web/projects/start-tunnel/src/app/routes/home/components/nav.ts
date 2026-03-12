@@ -1,10 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { Router, RouterLink, RouterLinkActive } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { RouterLink, RouterLinkActive } from '@angular/router'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiBadgeNotification } from '@taiga-ui/kit'
-import { ApiService } from 'src/app/services/api/api.service'
-import { AuthService } from 'src/app/services/auth.service'
 import { SidebarService } from 'src/app/services/sidebar.service'
 import { UpdateService } from 'src/app/services/update.service'
 
@@ -38,15 +35,6 @@ import { UpdateService } from 'src/app/services/update.service'
         }
       </a>
     </div>
-    <button
-      tuiButton
-      iconStart="@tui.log-out"
-      appearance="neutral"
-      size="s"
-      (click)="logout()"
-    >
-      Logout
-    </button>
   `,
   styles: `
     :host {
@@ -79,12 +67,6 @@ import { UpdateService } from 'src/app/services/update.service'
       }
     }
 
-    button {
-      width: 100%;
-      border-radius: 0;
-      justify-content: flex-start;
-    }
-
     :host-context(tui-root._mobile) {
       position: absolute;
       top: 3.5rem;
@@ -106,12 +88,7 @@ import { UpdateService } from 'src/app/services/update.service'
   },
 })
 export class Nav {
-  private readonly service = inject(AuthService)
-  private readonly router = inject(Router)
   protected readonly sidebars = inject(SidebarService)
-  protected readonly api = inject(ApiService)
-  private readonly loader = inject(LoadingService)
-  private readonly errorService = inject(ErrorService)
   protected readonly update = inject(UpdateService)
 
   protected readonly routes = [
@@ -131,18 +108,4 @@ export class Nav {
       link: 'port-forwards',
     },
   ] as const
-
-  protected async logout() {
-    const loader = this.loader.open().subscribe()
-    try {
-      await this.api.logout()
-      this.service.authenticated.set(false)
-      this.router.navigate(['.'])
-    } catch (e: any) {
-      console.error(e)
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
-  }
 }

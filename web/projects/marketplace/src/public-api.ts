@@ -3,11 +3,8 @@
  */
 
 export * from './pages/list/categories/categories.component'
-export * from './pages/list/categories/categories.module'
 export * from './pages/list/item/item.component'
-export * from './pages/list/item/item.module'
 export * from './pages/list/search/search.component'
-export * from './pages/list/search/search.module'
 export * from './pages/show/link.component'
 export * from './pages/show/item.component'
 export * from './pages/show/links.component'
@@ -22,10 +19,7 @@ export * from './pages/show/release-notes.component'
 
 export * from './pipes/filter-packages.pipe'
 
-export * from './components/store-icon/store-icon.component'
-export * from './components/store-icon/store-icon.component.module'
-export * from './components/store-icon/store-icon.component'
-export * from './components/menu/menu.component.module'
+export * from './components/store-icon.component'
 export * from './components/menu/menu.component'
 export * from './components/registry.component'
 

@@ -1,6 +1,14 @@
+import { CommonModule } from '@angular/common'
 import { Component, Inject } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { WA_WINDOW } from '@ng-web-apis/common'
-import { DialogService, i18nKey, LoadingService } from '@start9labs/shared'
+import {
+  DialogService,
+  i18nKey,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
+import { TuiButton } from '@taiga-ui/core'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
@@ -9,9 +17,9 @@ import { ConfigService } from 'src/app/services/config.service'
   selector: 'diagnostic-home',
   templateUrl: 'home.component.html',
   styleUrls: ['home.page.scss'],
-  standalone: false,
+  imports: [CommonModule, TuiButton, i18nPipe, RouterLink],
 })
-export class HomePage {
+export default class HomePage {
   restarted = false
   error?: {
     code: number

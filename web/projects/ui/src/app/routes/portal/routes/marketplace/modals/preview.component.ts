@@ -15,12 +15,7 @@ import {
   MarketplaceReleaseNotesComponent,
   MarketplaceVersionsComponent,
 } from '@start9labs/marketplace'
-import {
-  DialogService,
-  Exver,
-  MARKDOWN,
-  SharedPipesModule,
-} from '@start9labs/shared'
+import { DialogService, EmptyPipe, Exver, MARKDOWN } from '@start9labs/shared'
 import { TuiLoader } from '@taiga-ui/core'
 import {
   BehaviorSubject,
@@ -115,7 +110,7 @@ import { MarketplaceControlsComponent } from '../components/controls.component'
     CommonModule,
     MarketplacePackageHeroComponent,
     MarketplaceDependenciesComponent,
-    SharedPipesModule,
+    EmptyPipe,
     TuiLoader,
     MarketplaceLinksComponent,
     MarketplaceFlavorsComponent,

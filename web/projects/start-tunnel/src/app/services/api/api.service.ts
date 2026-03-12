@@ -25,6 +25,8 @@ export abstract class ApiService {
   // forwards
   abstract addForward(params: AddForwardReq): Promise<null> // port-forward.add
   abstract deleteForward(params: DeleteForwardReq): Promise<null> // port-forward.remove
+  abstract updateForwardLabel(params: UpdateForwardLabelReq): Promise<null> // port-forward.update-label
+  abstract setForwardEnabled(params: SetForwardEnabledReq): Promise<null> // port-forward.set-enabled
   // update
   abstract checkUpdate(): Promise<TunnelUpdateResult> // update.check
   abstract applyUpdate(): Promise<TunnelUpdateResult> // update.apply
@@ -60,10 +62,21 @@ export type DeleteDeviceReq = {
 export type AddForwardReq = {
   source: string // externalip:port
   target: string // internalip:port
+  label: string
 }
 
 export type DeleteForwardReq = {
   source: string
+}
+
+export type UpdateForwardLabelReq = {
+  source: string
+  label: string
+}
+
+export type SetForwardEnabledReq = {
+  source: string
+  enabled: boolean
 }
 
 export type TunnelUpdateResult = {

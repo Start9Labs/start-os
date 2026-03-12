@@ -1,8 +1,14 @@
 import { T } from '@start9labs/start-sdk'
 
+export type PortForwardEntry = {
+  target: string
+  label: string
+  enabled: boolean
+}
+
 export type TunnelData = {
   wg: WgServer
-  portForwards: Record<string, string>
+  portForwards: Record<string, PortForwardEntry>
   gateways: Record<string, T.NetworkInterfaceInfo>
 }
 
@@ -39,8 +45,12 @@ export const mockTunnelData: TunnelData = {
     },
   },
   portForwards: {
-    '69.1.1.42:443': '10.59.0.2:443',
-    '69.1.1.42:3000': '10.59.0.2:3000',
+    '69.1.1.42:443': { target: '10.59.0.2:443', label: 'HTTPS', enabled: true },
+    '69.1.1.42:3000': {
+      target: '10.59.0.2:3000',
+      label: 'Grafana',
+      enabled: true,
+    },
   },
   gateways: {
     eth0: {

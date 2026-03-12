@@ -5,7 +5,6 @@ import { ActivatedRoute, Router } from '@angular/router'
 import {
   AbstractCategoryService,
   FilterPackagesPipe,
-  FilterPackagesPipeModule,
 } from '@start9labs/marketplace'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiScrollbar } from '@taiga-ui/core'
@@ -153,7 +152,7 @@ import { ConfigService } from 'src/app/services/config.service'
     MarketplaceMenuComponent,
     MarketplaceNotificationComponent,
     TuiScrollbar,
-    FilterPackagesPipeModule,
+    FilterPackagesPipe,
     TitleDirective,
     i18nPipe,
   ],
