@@ -5,6 +5,7 @@ use imbl_value::InternedString;
 use ipnet::Ipv4Net;
 use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::db::model::public::NetworkInterfaceType;
@@ -90,9 +91,10 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SubnetParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
 }
 
@@ -168,7 +170,7 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AddSubnetParams {
     name: InternedString,
@@ -293,11 +295,13 @@ pub async fn remove_subnet(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AddDeviceParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
     name: InternedString,
+    #[ts(type = "string | null")]
     ip: Option<Ipv4Addr>,
 }
 
@@ -354,10 +358,12 @@ pub async fn add_device(
     server.sync().await
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDeviceParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
+    #[ts(type = "string")]
     ip: Ipv4Addr,
 }
 
@@ -383,9 +389,10 @@ pub async fn remove_device(
     ctx.gc_forwards(&keep).await
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ListDevicesParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
 }
 
@@ -403,14 +410,18 @@ pub async fn list_devices(
         .de()
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowConfigParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
+    #[ts(type = "string")]
     ip: Ipv4Addr,
+    #[ts(type = "string | null")]
     wan_addr: Option<IpAddr>,
     #[serde(rename = "__ConnectInfo_local_addr")]
     #[arg(skip)]
+    #[ts(skip)]
     local_addr: Option<SocketAddr>,
 }
 
@@ -465,13 +476,15 @@ pub async fn show_config(
         .to_string())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AddPortForwardParams {
+    #[ts(type = "string")]
     source: SocketAddrV4,
+    #[ts(type = "string")]
     target: SocketAddrV4,
     #[arg(long)]
-    label: String,
+    label: Option<String>,
 }
 
 pub async fn add_forward(
@@ -505,7 +518,11 @@ pub async fn add_forward(
         m.insert(source, rc);
     });
 
-    let entry = PortForwardEntry { target, label, enabled: true };
+    let entry = PortForwardEntry {
+        target,
+        label,
+        enabled: true,
+    };
 
     ctx.db
         .mutate(|db| {
@@ -528,9 +545,10 @@ pub async fn add_forward(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RemovePortForwardParams {
+    #[ts(type = "string")]
     source: SocketAddrV4,
 }
 
@@ -549,11 +567,12 @@ pub async fn remove_forward(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdatePortForwardLabelParams {
+    #[ts(type = "string")]
     source: SocketAddrV4,
-    label: String,
+    label: Option<String>,
 }
 
 pub async fn update_forward_label(
@@ -569,7 +588,7 @@ pub async fn update_forward_label(
                         ErrorKind::NotFound,
                     )
                 })?;
-                entry.label = label.clone();
+                entry.label = label;
                 Ok(())
             })
         })
@@ -577,9 +596,10 @@ pub async fn update_forward_label(
         .result
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SetPortForwardEnabledParams {
+    #[ts(type = "string")]
     source: SocketAddrV4,
     enabled: bool,
 }

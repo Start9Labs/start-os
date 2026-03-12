@@ -10,8 +10,8 @@ use http::HeaderMap;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use include_dir::Dir;
-use ipnet::Ipv4Net;
 use patch_db::PatchDb;
+use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -34,7 +34,8 @@ use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
 use crate::tunnel::api::tunnel_api;
 use crate::tunnel::db::TunnelDatabase;
-use crate::tunnel::wg::{WIREGUARD_INTERFACE_NAME, WgSubnetConfig};
+use crate::tunnel::migrations::run_migrations;
+use crate::tunnel::wg::WIREGUARD_INTERFACE_NAME;
 use crate::util::collections::OrdMapIterMut;
 use crate::util::io::read_file_to_string;
 use crate::util::sync::{SyncMutex, Watch};
@@ -98,21 +99,11 @@ impl TunnelContext {
             tokio::fs::create_dir_all(&datadir).await?;
         }
         let db_path = datadir.join("tunnel.db");
-        let db = TypedPatchDb::<TunnelDatabase>::load_or_init(
-            PatchDb::open(&db_path).await?,
-            || async {
-                let mut db = TunnelDatabase::default();
-                db.wg.subnets.0.insert(
-                    Ipv4Net::new_assert([10, 59, rand::random(), 1].into(), 24),
-                    WgSubnetConfig {
-                        name: "Default Subnet".into(),
-                        ..Default::default()
-                    },
-                );
-                Ok(db)
-            },
-        )
-        .await?;
+        let db = TypedPatchDb::<TunnelDatabase>::load_unchecked(PatchDb::open(&db_path).await?);
+        if db.dump(&ROOT).await.value.is_null() {
+            db.put(&ROOT, &TunnelDatabase::init()).await?;
+        }
+        db.mutate(|db| run_migrations(db)).await.result?;
         let listen = config.tunnel_listen.unwrap_or(TUNNEL_DEFAULT_LISTEN);
         let ip_info = crate::net::utils::load_ip_info().await?;
         let net_iface = db

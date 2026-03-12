@@ -7,6 +7,7 @@ use axum::extract::ws;
 use clap::Parser;
 use imbl::{HashMap, OrdMap};
 use imbl_value::InternedString;
+use ipnet::Ipv4Net;
 use itertools::Itertools;
 use patch_db::Dump;
 use patch_db::json_ptr::{JsonPointer, ROOT};
@@ -25,23 +26,47 @@ use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::sign::AnyVerifyingKey;
 use crate::tunnel::auth::SignerInfo;
 use crate::tunnel::context::TunnelContext;
+use crate::tunnel::migrations;
 use crate::tunnel::web::WebserverInfo;
-use crate::tunnel::wg::WgServer;
+use crate::tunnel::wg::{WgServer, WgSubnetConfig};
 use crate::util::serde::{HandlerExtSerde, apply_expr};
 
 #[derive(Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct TunnelDatabase {
+    #[serde(default)]
+    #[ts(skip)]
+    pub migrations: BTreeSet<InternedString>,
     pub webserver: WebserverInfo,
     pub sessions: Sessions,
     pub password: Option<String>,
     #[ts(as = "std::collections::HashMap::<AnyVerifyingKey, SignerInfo>")]
     pub auth_pubkeys: HashMap<AnyVerifyingKey, SignerInfo>,
-    #[ts(as = "std::collections::BTreeMap::<AnyVerifyingKey, SignerInfo>")]
+    #[ts(as = "std::collections::BTreeMap::<GatewayId, NetworkInterfaceInfo>")]
     pub gateways: OrdMap<GatewayId, NetworkInterfaceInfo>,
     pub wg: WgServer,
     pub port_forwards: PortForwards,
+}
+
+impl TunnelDatabase {
+    pub fn init() -> Self {
+        let mut db = Self {
+            migrations: migrations::MIGRATIONS
+                .iter()
+                .map(|m| m.name().into())
+                .collect(),
+            ..Default::default()
+        };
+        db.wg.subnets.0.insert(
+            Ipv4Net::new_assert([10, 59, rand::random(), 1].into(), 24),
+            WgSubnetConfig {
+                name: "Default Subnet".into(),
+                ..Default::default()
+            },
+        );
+        db
+    }
 }
 
 impl Model<TunnelDatabase> {
@@ -67,15 +92,30 @@ impl Model<TunnelDatabase> {
 
 #[test]
 fn export_bindings_tunnel_db() {
+    use crate::tunnel::api::*;
+    use crate::tunnel::auth::{AddKeyParams, RemoveKeyParams, SetPasswordParams};
+
     TunnelDatabase::export_all_to("bindings/tunnel").unwrap();
+    SubnetParams::export_all_to("bindings/tunnel").unwrap();
+    AddSubnetParams::export_all_to("bindings/tunnel").unwrap();
+    AddDeviceParams::export_all_to("bindings/tunnel").unwrap();
+    RemoveDeviceParams::export_all_to("bindings/tunnel").unwrap();
+    ListDevicesParams::export_all_to("bindings/tunnel").unwrap();
+    ShowConfigParams::export_all_to("bindings/tunnel").unwrap();
+    AddPortForwardParams::export_all_to("bindings/tunnel").unwrap();
+    RemovePortForwardParams::export_all_to("bindings/tunnel").unwrap();
+    UpdatePortForwardLabelParams::export_all_to("bindings/tunnel").unwrap();
+    SetPortForwardEnabledParams::export_all_to("bindings/tunnel").unwrap();
+    AddKeyParams::export_all_to("bindings/tunnel").unwrap();
+    RemoveKeyParams::export_all_to("bindings/tunnel").unwrap();
+    SetPasswordParams::export_all_to("bindings/tunnel").unwrap();
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PortForwardEntry {
     pub target: SocketAddrV4,
-    #[serde(default)]
-    pub label: String,
+    pub label: Option<String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
 }

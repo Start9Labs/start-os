@@ -283,6 +283,10 @@ core/bindings/index.ts: $(call ls-files, core) $(ENVIRONMENT_FILE)
 	rm -rf core/bindings
 	./core/build/build-ts.sh
 	ls core/bindings/*.ts | sed 's/core\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' | grep -v '"./index"' | tee core/bindings/index.ts
+	if [ -d core/bindings/tunnel ]; then \
+		ls core/bindings/tunnel/*.ts | sed 's/core\/bindings\/tunnel\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' | grep -v '"./index"' > core/bindings/tunnel/index.ts; \
+		echo 'export * as Tunnel from "./tunnel";' >> core/bindings/index.ts; \
+	fi
 	npm --prefix sdk/base exec -- prettier --config=./sdk/base/package.json -w './core/bindings/**/*.ts'
 	touch core/bindings/index.ts
 

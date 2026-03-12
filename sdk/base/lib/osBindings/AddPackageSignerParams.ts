@@ -6,5 +6,5 @@ export type AddPackageSignerParams = {
   id: PackageId
   signer: Guid
   versions: string | null
-  merge?: boolean
+  merge: boolean
 }
