@@ -176,7 +176,13 @@ sed -i -e '2i set timeout=5' config/bootloaders/grub-pc/config.cfg
 mkdir -p config/archives
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	curl -fsSL https://archive.raspberrypi.com/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
+	# Fetch the keyring package (not the old raspberrypi.gpg.key, which has
+	# SHA1-only binding signatures that sqv on Trixie rejects).
+	KEYRING_DEB=$(mktemp)
+	curl -fsSL -o "$KEYRING_DEB" https://archive.raspberrypi.com/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2025.1+rpt1_all.deb
+	dpkg-deb -x "$KEYRING_DEB" "$KEYRING_DEB.d"
+	cp "$KEYRING_DEB.d/usr/share/keyrings/raspberrypi-archive-keyring.gpg" config/archives/raspi.key
+	rm -rf "$KEYRING_DEB" "$KEYRING_DEB.d"
 	echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/raspi.key.gpg] https://archive.raspberrypi.com/debian/ ${IB_SUITE} main" > config/archives/raspi.list
 fi
 
