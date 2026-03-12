@@ -12,15 +12,16 @@ get_variables () {
   BOOT_DEV_NAME=$(echo /sys/block/*/"${BOOT_PART_NAME}" | cut -d "/" -f 4)
   BOOT_PART_NUM=$(cat "/sys/block/${BOOT_DEV_NAME}/${BOOT_PART_NAME}/partition")
 
-  OLD_DISKID=$(fdisk -l "$ROOT_DEV" | sed -n 's/Disk identifier: 0x\([^ ]*\)/\1/p')
-
   ROOT_DEV_SIZE=$(cat "/sys/block/${ROOT_DEV_NAME}/size")
-  if [ "$ROOT_DEV_SIZE" -le 67108864 ]; then
-      TARGET_END=$((ROOT_DEV_SIZE - 1))
+  # GPT backup header/entries occupy last 33 sectors
+  USABLE_END=$((ROOT_DEV_SIZE - 34))
+
+  if [ "$USABLE_END" -le 67108864 ]; then
+      TARGET_END=$USABLE_END
   else
       TARGET_END=$((33554432 - 1))
       DATA_PART_START=33554432
-      DATA_PART_END=$((ROOT_DEV_SIZE - 1))
+      DATA_PART_END=$USABLE_END
   fi
 
   PARTITION_TABLE=$(parted -m "$ROOT_DEV" unit s print | tr -d 's')
@@ -61,33 +62,24 @@ main () {
     return 1
   fi
 
-#   if [ "$ROOT_PART_END" -eq "$TARGET_END" ]; then
-#     reboot_pi
-#   fi
-
   if ! echo Yes | parted -m --align=optimal "$ROOT_DEV" ---pretend-input-tty u s resizepart "$ROOT_PART_NUM" "$TARGET_END" ; then
     FAIL_REASON="Root partition resize failed"
     return 1
   fi
 
   if [ -n "$DATA_PART_START" ]; then
-    if ! parted -ms --align=optimal "$ROOT_DEV" u s mkpart primary "$DATA_PART_START" "$DATA_PART_END"; then
+    if ! parted -ms --align=optimal "$ROOT_DEV" u s mkpart data "$DATA_PART_START" "$DATA_PART_END"; then
       FAIL_REASON="Data partition creation failed"
       return 1
     fi
   fi
 
-  (
-    echo x
-    echo i
-    echo "0xcb15ae4d"
-    echo r
-    echo w
-  ) | fdisk $ROOT_DEV
+  # Fix GPT backup header to reflect new partition layout
+  sgdisk -e "$ROOT_DEV" 2>/dev/null || true
 
   mount / -o remount,rw
 
-  resize2fs $ROOT_PART_DEV
+  btrfs filesystem resize max /media/startos/root
 
   if ! systemd-machine-id-setup --root=/media/startos/config/overlay/; then
     FAIL_REASON="systemd-machine-id-setup failed"
@@ -111,7 +103,7 @@ mount / -o remount,ro
 beep
 
 if main; then
-  sed -i 's| init=/usr/lib/startos/scripts/init_resize\.sh||' /boot/cmdline.txt
+  sed -i 's| init=/usr/lib/startos/scripts/init_resize\.sh||' /boot/grub/grub.cfg
   echo "Resized root filesystem. Rebooting in 5 seconds..."
   sleep 5
 else

@@ -23,6 +23,8 @@ RUN apt-get update && \
     squashfs-tools \
     rsync \
     b3sum \
+    btrfs-progs \
+    gdisk \
     dpkg-dev
 
 

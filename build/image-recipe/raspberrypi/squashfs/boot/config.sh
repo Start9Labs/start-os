@@ -27,20 +27,18 @@ disable_overscan=1
 # (e.g. for USB device mode) or if USB support is not required.
 otg_mode=1
 
-[all]
-
 [pi4]
 # Run as fast as firmware / board allows
 arm_boost=1
-kernel=vmlinuz-${KERNEL_VERSION}-rpi-v8
-initramfs initrd.img-${KERNEL_VERSION}-rpi-v8 followkernel
-
-[pi5]
-kernel=vmlinuz-${KERNEL_VERSION}-rpi-2712
-initramfs initrd.img-${KERNEL_VERSION}-rpi-2712 followkernel
 
 [all]
 gpu_mem=16
 dtoverlay=pwm-2chan,disable-bt
+
+# Enable UART for U-Boot and serial console
+enable_uart=1
+
+# Load U-Boot as the bootloader (GRUB is chainloaded from U-Boot)
+kernel=u-boot.bin
 
 EOF

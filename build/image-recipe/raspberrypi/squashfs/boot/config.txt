@@ -84,4 +84,8 @@ arm_boost=1
 gpu_mem=16
 dtoverlay=pwm-2chan,disable-bt
 
-auto_initramfs=1
+# Enable UART for U-Boot and serial console
+enable_uart=1
+
+# Load U-Boot as the bootloader (GRUB is chainloaded from U-Boot)
+kernel=u-boot.bin

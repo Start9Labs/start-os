@@ -132,6 +132,10 @@ ff02::1         ip6-allnodes
 ff02::2         ip6-allrouters
 EOT
 
+# Installer marker file (used by installed GRUB to detect the live USB)
+mkdir -p config/includes.binary
+touch config/includes.binary/.startos-installer
+
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	mkdir -p config/includes.chroot
 	git clone --depth=1 --branch=stable https://github.com/raspberrypi/rpi-firmware.git config/includes.chroot/boot
@@ -322,9 +326,10 @@ fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
     ln -sf /usr/bin/pi-beep /usr/local/bin/beep
-    KERNEL_VERSION=${RPI_KERNEL_VERSION} sh /boot/config.sh > /boot/config.txt
+    sh /boot/config.sh > /boot/config.txt
     mkinitramfs -c gzip -o /boot/initrd.img-${RPI_KERNEL_VERSION}-rpi-v8 ${RPI_KERNEL_VERSION}-rpi-v8
     mkinitramfs -c gzip -o /boot/initrd.img-${RPI_KERNEL_VERSION}-rpi-2712 ${RPI_KERNEL_VERSION}-rpi-2712
+    cp /usr/lib/u-boot/rpi_arm64/u-boot.bin /boot/u-boot.bin
 fi
 
 useradd --shell /bin/bash -G startos -m start9
@@ -390,38 +395,65 @@ if [ "${IMAGE_TYPE}" = iso ]; then
 elif [ "${IMAGE_TYPE}" = img ]; then
 
 	SECTOR_LEN=512
-	BOOT_START=$((1024 * 1024)) # 1MiB
-	BOOT_LEN=$((512 * 1024 * 1024)) # 512MiB
+	FW_START=$((1024 * 1024)) # 1MiB (sector 2048) — Pi-specific
+	FW_LEN=$((128 * 1024 * 1024)) # 128MiB (Pi firmware + U-Boot + DTBs)
+	FW_END=$((FW_START + FW_LEN - 1))
+	ESP_START=$((FW_END + 1)) # 100MB EFI System Partition (matches os_install)
+	ESP_LEN=$((100 * 1024 * 1024))
+	ESP_END=$((ESP_START + ESP_LEN - 1))
+	BOOT_START=$((ESP_END + 1)) # 2GB /boot (matches os_install)
+	BOOT_LEN=$((2 * 1024 * 1024 * 1024))
 	BOOT_END=$((BOOT_START + BOOT_LEN - 1))
 	ROOT_START=$((BOOT_END + 1))
 	ROOT_LEN=$((MAX_IMG_LEN - ROOT_START))
-	ROOT_END=$((MAX_IMG_LEN - 1))
+
+	# Fixed GPT partition UUIDs (deterministic, based on old MBR disk ID cb15ae4d)
+	FW_UUID=cb15ae4d-0001-4000-8000-000000000001
+	ESP_UUID=cb15ae4d-0002-4000-8000-000000000002
+	BOOT_UUID=cb15ae4d-0003-4000-8000-000000000003
+	ROOT_UUID=cb15ae4d-0004-4000-8000-000000000004
 
 	TARGET_NAME=$prep_results_dir/${IMAGE_BASENAME}.img
 	truncate -s $MAX_IMG_LEN $TARGET_NAME
 
 	sfdisk $TARGET_NAME <<-EOF
-		label: dos
-		label-id: 0xcb15ae4d
-		unit: sectors
-		sector-size: 512
+		label: gpt
 
-		${TARGET_NAME}1 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=c, bootable
-		${TARGET_NAME}2 : start=$((ROOT_START / SECTOR_LEN)), size=$((ROOT_LEN / SECTOR_LEN)), type=83
+		${TARGET_NAME}1 : start=$((FW_START / SECTOR_LEN)), size=$((FW_LEN / SECTOR_LEN)), type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7, uuid=${FW_UUID}, name="firmware"
+		${TARGET_NAME}2 : start=$((ESP_START / SECTOR_LEN)), size=$((ESP_LEN / SECTOR_LEN)), type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=${ESP_UUID}, name="efi"
+		${TARGET_NAME}3 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=${BOOT_UUID}, name="boot"
+		${TARGET_NAME}4 : start=$((ROOT_START / SECTOR_LEN)), size=$((ROOT_LEN / SECTOR_LEN)), type=B921B045-1DF0-41C3-AF44-4C6F280D3FAE, uuid=${ROOT_UUID}, name="root"
 	EOF
 
+	FW_DEV=$(losetup --show -f --offset $FW_START --sizelimit $FW_LEN $TARGET_NAME)
+	ESP_DEV=$(losetup --show -f --offset $ESP_START --sizelimit $ESP_LEN $TARGET_NAME)
 	BOOT_DEV=$(losetup --show -f --offset $BOOT_START --sizelimit $BOOT_LEN $TARGET_NAME)
 	ROOT_DEV=$(losetup --show -f --offset $ROOT_START --sizelimit $ROOT_LEN $TARGET_NAME)
 
-	mkfs.vfat -F32 $BOOT_DEV
-	mkfs.ext4 $ROOT_DEV
+	mkfs.vfat -F32 -n firmware $FW_DEV
+	mkfs.vfat -F32 -n efi $ESP_DEV
+	mkfs.vfat -F32 -n boot $BOOT_DEV
+	mkfs.btrfs -f -L rootfs $ROOT_DEV
 
 	TMPDIR=$(mktemp -d)
 
-	mkdir -p $TMPDIR/boot $TMPDIR/root
-	mount $ROOT_DEV $TMPDIR/root
+	# Extract boot files from squashfs to staging area
+	BOOT_STAGING=$(mktemp -d)
+	unsquashfs -n -f -d $BOOT_STAGING $prep_results_dir/binary/live/filesystem.squashfs boot
+
+	# Mount partitions
+	mkdir -p $TMPDIR/firmware $TMPDIR/efi $TMPDIR/boot $TMPDIR/root
+	mount $FW_DEV $TMPDIR/firmware
+	mount $ESP_DEV $TMPDIR/efi
 	mount $BOOT_DEV $TMPDIR/boot
-	unsquashfs -n -f -d $TMPDIR $prep_results_dir/binary/live/filesystem.squashfs boot
+	mount $ROOT_DEV $TMPDIR/root
+
+	# Split boot files: firmware to Part 1, kernels/initramfs to Part 3 (/boot)
+	cp -a $BOOT_STAGING/boot/. $TMPDIR/firmware/
+	for f in $TMPDIR/firmware/vmlinuz-* $TMPDIR/firmware/initrd.img-* $TMPDIR/firmware/System.map-* $TMPDIR/firmware/config-*; do
+		[ -e "$f" ] && mv "$f" $TMPDIR/boot/
+	done
+	rm -rf $BOOT_STAGING
 
 	mkdir $TMPDIR/root/images $TMPDIR/root/config
 	B3SUM=$(b3sum $prep_results_dir/binary/live/filesystem.squashfs | head -c 16)
@@ -434,40 +466,73 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	mount -t overlay -o lowerdir=$TMPDIR/lower,workdir=$TMPDIR/root/config/work,upperdir=$TMPDIR/root/config/overlay overlay $TMPDIR/next
 
 	if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-		sed -i 's| boot=startos| boot=startos init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
 		rsync -a $SOURCE_DIR/raspberrypi/img/ $TMPDIR/next/
+
+		# Install GRUB: ESP at /boot/efi (Part 2), /boot (Part 3)
+		mkdir -p $TMPDIR/next/boot $TMPDIR/next/boot/efi $TMPDIR/next/boot/firmware \
+			$TMPDIR/next/dev $TMPDIR/next/proc $TMPDIR/next/sys $TMPDIR/next/media/startos/root
+		mount --bind $TMPDIR/boot $TMPDIR/next/boot
+		mount --bind $TMPDIR/efi $TMPDIR/next/boot/efi
+		mount --bind $TMPDIR/firmware $TMPDIR/next/boot/firmware
+		mount --bind /dev $TMPDIR/next/dev
+		mount --bind /proc $TMPDIR/next/proc
+		mount --bind /sys $TMPDIR/next/sys
+		mount --bind $TMPDIR/root $TMPDIR/next/media/startos/root
+
+		chroot $TMPDIR/next grub-install --target=arm64-efi --removable --efi-directory=/boot/efi --boot-directory=/boot --no-nvram
+		chroot $TMPDIR/next update-grub
+
+		umount $TMPDIR/next/media/startos/root
+		umount $TMPDIR/next/sys
+		umount $TMPDIR/next/proc
+		umount $TMPDIR/next/dev
+		umount $TMPDIR/next/boot/firmware
+		umount $TMPDIR/next/boot/efi
+		umount $TMPDIR/next/boot
+
+		# Fix root= in grub.cfg: update-grub sees loop devices, but the
+		# real device uses a fixed GPT PARTUUID for root (Part 4).
+		sed -i "s|root=[^ ]*|root=PARTUUID=${ROOT_UUID}|g" $TMPDIR/boot/grub/grub.cfg
+
+		# Inject first-boot resize script into GRUB config
+		sed -i 's| boot=startos| boot=startos init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/grub/grub.cfg
 	fi
 
 	umount $TMPDIR/next
 	umount $TMPDIR/lower
 
+	umount $TMPDIR/firmware
+	umount $TMPDIR/efi
 	umount $TMPDIR/boot
 	umount $TMPDIR/root
 
-
-	e2fsck -fy $ROOT_DEV
-	resize2fs -M $ROOT_DEV
-
-	BLOCK_COUNT=$(dumpe2fs -h $ROOT_DEV | awk '/^Block count:/ { print $3 }')
-	BLOCK_SIZE=$(dumpe2fs -h $ROOT_DEV | awk '/^Block size:/ { print $3 }')
-	ROOT_LEN=$((BLOCK_COUNT * BLOCK_SIZE))
+	# Shrink btrfs to minimum size
+	SHRINK_MNT=$(mktemp -d)
+	mount $ROOT_DEV $SHRINK_MNT
+	btrfs filesystem resize min $SHRINK_MNT
+	umount $SHRINK_MNT
+	rmdir $SHRINK_MNT
+	ROOT_LEN=$(btrfs inspect-internal dump-super $ROOT_DEV | awk '/^total_bytes/ {print $2}')
 
 	losetup -d $ROOT_DEV
 	losetup -d $BOOT_DEV
+	losetup -d $ESP_DEV
+	losetup -d $FW_DEV
 
-	# Recreate partition 2 with the new size using sfdisk
+	# Recreate partition table with shrunk root
 	sfdisk $TARGET_NAME <<-EOF
-		label: dos
-		label-id: 0xcb15ae4d
-		unit: sectors
-		sector-size: 512
+		label: gpt
 
-		${TARGET_NAME}1 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=c, bootable
-		${TARGET_NAME}2 : start=$((ROOT_START / SECTOR_LEN)), size=$((ROOT_LEN / SECTOR_LEN)), type=83
+		${TARGET_NAME}1 : start=$((FW_START / SECTOR_LEN)), size=$((FW_LEN / SECTOR_LEN)), type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7, uuid=${FW_UUID}, name="firmware"
+		${TARGET_NAME}2 : start=$((ESP_START / SECTOR_LEN)), size=$((ESP_LEN / SECTOR_LEN)), type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=${ESP_UUID}, name="efi"
+		${TARGET_NAME}3 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=${BOOT_UUID}, name="boot"
+		${TARGET_NAME}4 : start=$((ROOT_START / SECTOR_LEN)), size=$((ROOT_LEN / SECTOR_LEN)), type=B921B045-1DF0-41C3-AF44-4C6F280D3FAE, uuid=${ROOT_UUID}, name="root"
 	EOF
 
 	TARGET_SIZE=$((ROOT_START + ROOT_LEN))
 	truncate -s $TARGET_SIZE $TARGET_NAME
+	# Move backup GPT to new end of disk after truncation
+	sgdisk -e $TARGET_NAME
 
 	mv $TARGET_NAME $RESULTS_DIR/$IMAGE_BASENAME.img
 
