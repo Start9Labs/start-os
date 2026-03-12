@@ -21,7 +21,7 @@ import { AuthoritiesTableComponent } from './table.component'
           tuiIconButton
           size="xs"
           docsLink
-          path="/start-os/user-manual/trust-ca.html"
+          path="/start-os/trust-ca.html"
           appearance="icon"
           iconStart="@tui.book-open-text"
         >

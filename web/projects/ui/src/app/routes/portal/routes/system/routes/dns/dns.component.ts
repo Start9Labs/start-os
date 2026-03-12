@@ -46,7 +46,7 @@ const ipv6 =
                 tuiIconButton
                 size="xs"
                 docsLink
-                path="/start-os/user-manual/dns.html"
+                path="/start-os/dns.html"
                 appearance="icon"
                 iconStart="@tui.book-open-text"
               >

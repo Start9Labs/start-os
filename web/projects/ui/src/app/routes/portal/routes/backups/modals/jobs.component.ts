@@ -26,7 +26,7 @@ import { DocsLinkDirective } from 'projects/shared/src/public-api'
       Scheduling automatic backups is an excellent way to ensure your StartOS
       data is safely backed up. StartOS will issue a notification whenever one
       of your scheduled backups succeeds or fails.
-      <a tuiLink docsLink path="/start-os/user-manual/backup-create.html">
+      <a tuiLink docsLink path="/start-os/backup-create.html">
         View instructions
       </a>
     </tui-notification>

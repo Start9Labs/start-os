@@ -61,7 +61,7 @@ import { BACKUP_RESTORE } from './restore.component'
             <a
               tuiLink
               docsLink
-              path="/start-os/user-manual/backup-create.html"
+              path="/start-os/backup-create.html"
               appearance="action-grayscale"
               iconEnd="@tui.external-link"
               [textContent]="'View instructions' | i18n"
@@ -74,7 +74,7 @@ import { BACKUP_RESTORE } from './restore.component'
             <a
               tuiLink
               docsLink
-              path="/start-os/user-manual/backup-restore.html"
+              path="/start-os/backup-restore.html"
               appearance="action-grayscale"
               iconEnd="@tui.external-link"
               [textContent]="'View instructions' | i18n"
@@ -116,7 +116,7 @@ import { BACKUP_RESTORE } from './restore.component'
           <a
             tuiLink
             docsLink
-            path="/start-os/user-manual/backup-create.html"
+            path="/start-os/backup-create.html"
             fragment="#network-folder"
             appearance="action-grayscale"
             iconEnd="@tui.external-link"
