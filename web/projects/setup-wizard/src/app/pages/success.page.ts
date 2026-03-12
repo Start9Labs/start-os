@@ -1,10 +1,10 @@
 import {
   AfterViewInit,
   Component,
+  DOCUMENT,
   ElementRef,
   inject,
   ViewChild,
-  DOCUMENT,
 } from '@angular/core'
 import {
   DialogService,
@@ -12,17 +12,17 @@ import {
   ErrorService,
   i18nPipe,
 } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiCell, TuiHeader } from '@taiga-ui/layout'
-import { ApiService } from '../services/api.service'
-import { StateService } from '../services/state.service'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { DocumentationComponent } from '../components/documentation.component'
 import { MatrixComponent } from '../components/matrix.component'
 import { MokEnrollmentDialog } from '../components/mok-enrollment.dialog'
 import { RemoveMediaDialog } from '../components/remove-media.dialog'
-import { T } from '@start9labs/start-sdk'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { ApiService } from '../services/api.service'
+import { StateService } from '../services/state.service'
 
 @Component({
   template: `
@@ -50,7 +50,7 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
       } @else {
         <!-- Step: Download Address Info (non-kiosk only) -->
         @if (!stateService.kiosk) {
-          <button tuiCell="l" [disabled]="downloaded" (click)="download()">
+          <button tuiCell="l" (click)="download()">
             <tui-avatar appearance="secondary" src="@tui.download" />
             <div tuiTitle>
               {{ 'Download Address Info' | i18n }}
@@ -67,12 +67,12 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
           </button>
         }
 
-        <!-- Step: Remove USB Media (when restart needed) -->
+        <!-- Step: Restart flow -->
         @if (result.needsRestart) {
           <button
             tuiCell="l"
             [class.disabled]="!stateService.kiosk && !downloaded"
-            [disabled]="(!stateService.kiosk && !downloaded) || usbRemoved"
+            [disabled]="!stateService.kiosk && !downloaded"
             (click)="removeMedia()"
           >
             <tui-avatar appearance="secondary" src="@tui.usb" />
@@ -90,11 +90,39 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
             }
           </button>
 
+          <!-- Step: Secure Boot Enrollment (when MOK enrolled) -->
+          @if (stateService.mokEnrolled) {
+            <button
+              tuiCell="l"
+              [class.disabled]="!usbRemoved"
+              [disabled]="!usbRemoved"
+              (click)="acknowledgeMok()"
+            >
+              <tui-avatar appearance="secondary" src="@tui.shield-check" />
+              <div tuiTitle>
+                {{ 'Secure Boot Enrollment' | i18n }}
+                <div tuiSubtitle>
+                  {{
+                    'Prepare for Secure Boot key enrollment on the next reboot'
+                      | i18n
+                  }}
+                </div>
+              </div>
+              @if (mokAcknowledged) {
+                <tui-icon icon="@tui.circle-check" class="g-positive" />
+              }
+            </button>
+          }
+
           <!-- Step: Restart Server -->
           <button
             tuiCell="l"
-            [class.disabled]="!usbRemoved"
-            [disabled]="!usbRemoved || rebooted || rebooting"
+            [class.disabled]="
+              !usbRemoved || (stateService.mokEnrolled && !mokAcknowledged)
+            "
+            [disabled]="
+              !usbRemoved || (stateService.mokEnrolled && !mokAcknowledged)
+            "
             (click)="reboot()"
           >
             <tui-avatar appearance="secondary" src="@tui.rotate-cw" />
@@ -115,6 +143,16 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
             } @else if (rebooted) {
               <tui-icon icon="@tui.circle-check" class="g-positive" />
             }
+          </button>
+        } @else if (stateService.kiosk) {
+          <button tuiCell="l" (click)="exitKiosk()">
+            <tui-avatar appearance="secondary" src="@tui.log-in" />
+            <div tuiTitle>
+              {{ 'Continue to Login' | i18n }}
+              <div tuiSubtitle>
+                {{ 'Proceed to the StartOS login screen' | i18n }}
+              </div>
+            </div>
           </button>
         }
 
@@ -137,22 +175,6 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
         }
 
         <!-- Step: Continue to Login (kiosk only) -->
-        @if (stateService.kiosk) {
-          <button
-            tuiCell="l"
-            [class.disabled]="result.needsRestart && !rebooted"
-            [disabled]="result.needsRestart && !rebooted"
-            (click)="exitKiosk()"
-          >
-            <tui-avatar appearance="secondary" src="@tui.log-in" />
-            <div tuiTitle>
-              {{ 'Continue to Login' | i18n }}
-              <div tuiSubtitle>
-                {{ 'Proceed to the StartOS login screen' | i18n }}
-              </div>
-            </div>
-          </button>
-        }
       }
     </section>
   `,
@@ -198,6 +220,7 @@ export default class SuccessPage implements AfterViewInit {
   lanAddress = ''
   downloaded = false
   usbRemoved = false
+  mokAcknowledged = false
   rebooting = false
   rebooted = false
 
@@ -212,8 +235,6 @@ export default class SuccessPage implements AfterViewInit {
   }
 
   download() {
-    if (this.downloaded) return
-
     const lanElem = this.document.getElementById('lan-addr')
     if (lanElem) lanElem.innerHTML = this.lanAddress
 
@@ -243,6 +264,19 @@ export default class SuccessPage implements AfterViewInit {
       })
   }
 
+  acknowledgeMok() {
+    this.dialogs
+      .openComponent<boolean>(new PolymorpheusComponent(MokEnrollmentDialog), {
+        label: 'Secure Boot',
+        size: 'm',
+        dismissible: false,
+        closeable: false,
+      })
+      .subscribe(() => {
+        this.mokAcknowledged = true
+      })
+  }
+
   exitKiosk() {
     this.api.exit()
   }
@@ -252,6 +286,8 @@ export default class SuccessPage implements AfterViewInit {
   }
 
   async reboot() {
+    if (this.rebooting || this.rebooted) return
+
     this.rebooting = true
 
     try {
@@ -275,20 +311,6 @@ export default class SuccessPage implements AfterViewInit {
         if (!this.result.needsRestart) {
           await this.api.exit()
         }
-      }
-
-      if (this.stateService.mokEnrolled && this.result.needsRestart) {
-        this.dialogs
-          .openComponent<boolean>(
-            new PolymorpheusComponent(MokEnrollmentDialog),
-            {
-              label: 'Secure Boot',
-              size: 's',
-              dismissible: false,
-              closeable: true,
-            },
-          )
-          .subscribe()
       }
     } catch (e: any) {
       this.errorService.handleError(e)

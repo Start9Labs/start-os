@@ -713,4 +713,13 @@ export default {
   790: 'Se registró una clave de firma para Secure Boot. En el próximo reinicio, aparecerá una pantalla azul (MokManager).',
   791: 'Ingrese su contraseña maestra de StartOS cuando se le solicite',
   792: 'Entendido',
+  793: 'Registro de Secure Boot',
+  794: 'Prepararse para el registro de clave de Secure Boot en el próximo reinicio',
+  795: 'Conecte un monitor y un teclado a su servidor antes de reiniciar.',
+  796: 'Mantenga su monitor conectado para el próximo reinicio.',
+  797: 'En el próximo arranque, aparecerá una pantalla azul (MokManager). Tendrá 10 segundos para seleccionar "Enroll MOK" antes de que desaparezca.',
+  798: 'Si pierde la oportunidad, simplemente reinicie para intentar de nuevo. La pantalla azul aparecerá en cada arranque hasta que se registre la clave.',
+  799: 'Después de hacer clic en "Enroll MOK":',
+  800: 'Cuando se le solicite, ingrese su contraseña de StartOS',
+  801: 'Su sistema tiene Secure Boot habilitado, lo que requiere que todos los módulos del kernel estén firmados con una clave de confianza. Algunos controladores de hardware \u2014 como los de las GPU NVIDIA \u2014 no están firmados con la clave de distribución predeterminada. Registrar la clave de firma de StartOS permite que su firmware confíe en estos módulos para que su hardware pueda utilizarse completamente.',
 } satisfies i18n

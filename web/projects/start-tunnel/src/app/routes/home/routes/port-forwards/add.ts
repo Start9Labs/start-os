@@ -22,10 +22,10 @@ import {
   TuiCheckbox,
   TuiChevron,
   TuiDataListWrapper,
+  TuiElasticContainer,
   TuiFieldErrorPipe,
   TuiInputNumber,
   TuiSelect,
-  TuiElasticContainer,
 } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -167,7 +167,12 @@ export class PortForwardsAdd {
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     label: ['', Validators.required],
-    externalip: ['', Validators.required],
+    externalip: [
+      this.context.data.ips().length === 1
+        ? (this.context.data.ips().at(0) ?? '')
+        : '',
+      Validators.required,
+    ],
     externalport: [null as number | null, Validators.required],
     device: [null as MappedDevice | null, Validators.required],
     internalport: [null as number | null, Validators.required],

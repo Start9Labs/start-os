@@ -6,7 +6,6 @@ import {
   Validators,
 } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { utils } from '@start9labs/start-sdk'
 import {
   TUI_IS_MOBILE,
   TuiAutoFocus,
@@ -121,15 +120,23 @@ export class DevicesAdd {
   protected readonly context =
     injectContext<TuiDialogContext<void, DeviceData>>()
 
+  private readonly autoSubnet =
+    !this.context.data.device && this.context.data.subnets().length === 1
+      ? this.context.data.subnets().at(0)
+      : undefined
+
   protected readonly form = inject(NonNullableFormBuilder).group({
     name: [this.context.data.device?.name || '', Validators.required],
     subnet: [
-      this.context.data.device?.subnet,
+      this.context.data.device?.subnet ?? this.autoSubnet,
       [Validators.required, subnetValidator],
     ],
     ip: [
-      this.context.data.device?.ip || '',
-      [Validators.required, Validators.pattern(utils.Patterns.ipv4.regex)],
+      this.context.data.device?.ip ||
+        (this.autoSubnet ? getIp(this.autoSubnet) : ''),
+      this.autoSubnet
+        ? [Validators.required, ipInSubnetValidator(this.autoSubnet.range)]
+        : [],
     ],
   })
 

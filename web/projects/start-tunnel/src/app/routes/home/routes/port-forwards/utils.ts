@@ -16,6 +16,6 @@ export interface MappedForward {
 }
 
 export interface PortForwardsData {
-  readonly ips: Signal<any>
+  readonly ips: Signal<readonly string[]>
   readonly devices: Signal<readonly MappedDevice[]>
 }
