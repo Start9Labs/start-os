@@ -15,9 +15,9 @@ use std::process::{Command, Stdio};
 use uciedit::openwrt::{
     DeviceType, Dhcp, FirewallForwarding, FirewallRedirect, FirewallRule, FirewallTarget,
     FirewallZone, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkRoute,
-    NetworkRule, NetworkVlanPort, NetworkVlanPortTagging, WifiStation, WifiVlan,
+    NetworkRule, NetworkVlanPort, NetworkVlanPortTagging, ProfileDnsmasq, WifiStation, WifiVlan,
 };
-use uciedit::{dump_all, parse_all, Arena, Configs, TypedSection};
+use uciedit::{dump_all, parse_all, Arena, Configs, Line, Token, TypedSection};
 
 pub const DEFAULT_WAN_ZONE: &str = "wan";
 pub const INTERFACE_NAME_LIMIT: usize = 5;
@@ -54,6 +54,8 @@ pub struct Profile<Id: Ord = ProfileId> {
     pub wan_access: WanAccess,
     #[serde(default)]
     pub dns_override: Vec<String>,
+    #[serde(default)]
+    pub dns_source: String,
     pub access_to_new_profiles: bool,
     pub owns_lan: bool,
 }
@@ -156,6 +158,115 @@ fn wan_access_destinations(wa: &WanAccess) -> Vec<String> {
     }
 }
 
+fn get_vpn_dns(cfgs: &Configs, vpn_interface: &str) -> Vec<String> {
+    for section in &cfgs["network"].sections {
+        if let Ok(iface) = section.get::<NetworkInterface>() {
+            if section.name().as_deref() == Some(vpn_interface) && !iface.dns.is_empty() {
+                return iface.dns.iter().map(|s| s.to_string()).collect();
+            }
+        }
+    }
+    Vec::new()
+}
+
+fn compute_dns_source(cfgs: &Configs, profile: &Profile) -> String {
+    if !profile.dns_override.is_empty() {
+        "custom".into()
+    } else if profile.outbound != "wan" && !get_vpn_dns(cfgs, &profile.outbound).is_empty() {
+        "vpn".into()
+    } else {
+        "system".into()
+    }
+}
+
+fn effective_dns(cfgs: &Configs, profile: &Profile) -> Vec<String> {
+    if !profile.dns_override.is_empty() {
+        profile.dns_override.clone()
+    } else if profile.outbound != "wan" {
+        get_vpn_dns(cfgs, &profile.outbound)
+    } else {
+        Vec::new()
+    }
+}
+
+pub(crate) fn rewrite_dns_forwarding(cfgs: &mut Configs, profile: &Profile) -> Result<(), Error> {
+    let dns = effective_dns(cfgs, profile);
+    let section_name = format!("dns_{}", profile.id.interface);
+
+    // Remove any existing per-profile dnsmasq section
+    cfgs["dhcp"]
+        .sections
+        .retain(|s| s.name().as_deref() != Some(&section_name));
+
+    // Remove notinterface entry for this profile from main dnsmasq
+    for section in &mut cfgs["dhcp"].sections {
+        if section.ty() == "dnsmasq"
+            && !section
+                .name()
+                .map(|n| n.starts_with("dns_"))
+                .unwrap_or(false)
+        {
+            section.lines.retain(|line| {
+                !matches!(line, Line::List { list, item, .. }
+                    if list.as_str() == "notinterface"
+                        && item.as_str() == profile.id.interface.as_str())
+            });
+            break;
+        }
+    }
+
+    // If effective DNS is non-empty, create per-profile dnsmasq + notinterface
+    if !dns.is_empty() {
+        let servers = if profile.outbound != "wan" {
+            dns.into_iter()
+                .map(|ip| format!("{}@{}", ip, profile.outbound))
+                .collect()
+        } else {
+            dns
+        };
+        cfgs["dhcp"].append(
+            &ProfileDnsmasq {
+                server: servers,
+                noresolv: Some("1".to_string()),
+                interface: vec![],
+                localservice: Some("1".to_string()),
+                nonwildcard: Some("1".to_string()),
+                listen_address: vec![profile.gateway_ip.to_string()],
+                notinterface: vec!["loopback".to_string()],
+                rebind_domain: vec![],
+                rebind_protection: Some("0".to_string()),
+                localuse: Some("0".to_string()),
+                leasefile: Some(format!("/tmp/dhcp.leases.{}", section_name)),
+                domain: Some("lan".to_string()),
+                expandhosts: Some("1".to_string()),
+                boguspriv: Some("0".to_string()),
+                local: Some("/lan/".to_string()),
+            },
+            Some(&section_name),
+        )?;
+
+        // Add notinterface to main dnsmasq
+        for section in &mut cfgs["dhcp"].sections {
+            if section.ty() == "dnsmasq"
+                && !section
+                    .name()
+                    .map(|n| n.starts_with("dns_"))
+                    .unwrap_or(false)
+            {
+                let arena = section.arena;
+                section.lines.push(Line::List {
+                    list: Token::from_string("notinterface".to_string(), arena),
+                    item: Token::from_string(profile.id.interface.clone(), arena),
+                    comment: uciedit::LineComment::None,
+                });
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 pub fn get<C: CtrlContext>(ctx: C, query: ProfileIdOpt) -> Result<Profile, Error> {
     let arena = Arena::new();
     let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "network", "firewall"])?;
@@ -189,6 +300,7 @@ fn get_config(
             .as_ref()
             .map(|p| p.dns_override.clone())
             .unwrap_or_default(),
+        dns_source: String::new(),
         access_to_new_profiles: match &uciprofile {
             Some(p) => p.access_to_new_profiles,
             None => false,
@@ -262,6 +374,7 @@ fn get_config(
     } else {
         wip_profile.lan_access = LanAccess::OtherProfiles(other_profiles);
     }
+    wip_profile.dns_source = compute_dns_source(cfgs, &wip_profile);
     Ok(wip_profile)
 }
 
@@ -414,6 +527,29 @@ fn delete_config(
         dhcp.interface != id.interface
     });
 
+    // Remove per-profile dnsmasq section
+    let dns_section_name = format!("dns_{}", id.interface);
+    cfgs["dhcp"]
+        .sections
+        .retain(|s| s.name().as_deref() != Some(dns_section_name.as_str()));
+
+    // Remove notinterface entry from main dnsmasq
+    for section in &mut cfgs["dhcp"].sections {
+        if section.ty() == "dnsmasq"
+            && !section
+                .name()
+                .map(|n| n.starts_with("dns_"))
+                .unwrap_or(false)
+        {
+            section.lines.retain(|line| {
+                !matches!(line, Line::List { list, item, .. }
+                    if list.as_str() == "notinterface"
+                        && item.as_str() == id.interface.as_str())
+            });
+            break;
+        }
+    }
+
     // Remove WiFi stations and VLAN sections referencing this profile's VLAN tag
     cfgs["wireless"].sections.retain(|section| {
         if let Ok(station) = section.get::<WifiStation>() {
@@ -431,10 +567,13 @@ fn delete_config(
 
     // Remove policy routing entries for this profile
     let route_name = format!("prt_{}", id.interface);
+    let local_route_name = format!("plr_{}", id.interface);
     let rule_name = format!("prr_{}", id.interface);
     cfgs["network"].sections.retain(|s| {
-        s.name().as_deref() != Some(route_name.as_str())
-            && s.name().as_deref() != Some(rule_name.as_str())
+        let n = s.name();
+        n.as_deref() != Some(route_name.as_str())
+            && n.as_deref() != Some(local_route_name.as_str())
+            && n.as_deref() != Some(rule_name.as_str())
     });
 
     // Remove WireGuard WAN firewall rule (src: "wan", not caught by zone cleanup above)
@@ -483,7 +622,7 @@ pub fn reload_system() -> Result<(), Error> {
         .spawn()
         .and_then(|mut c| c.wait());
     let _ = Command::new("/etc/init.d/dnsmasq")
-        .arg("reload")
+        .arg("restart")
         .spawn()
         .and_then(|mut c| c.wait());
     Ok(())
@@ -506,7 +645,7 @@ pub fn reload_system_and_wifi() -> Result<(), Error> {
         .spawn()
         .and_then(|mut c| c.wait());
     let _ = Command::new("/etc/init.d/dnsmasq")
-        .arg("reload")
+        .arg("restart")
         .spawn()
         .and_then(|mut c| c.wait());
     Ok(())
@@ -712,6 +851,7 @@ fn set_config<C: CtrlContext>(
         },
         wan_access: profile.wan_access.clone(),
         dns_override: profile.dns_override.clone(),
+        dns_source: String::new(),
         access_to_new_profiles: profile.access_to_new_profiles,
         owns_lan: profile.owns_lan,
     };
@@ -788,6 +928,7 @@ fn set_config<C: CtrlContext>(
     }
     rewrite_firewall(&ctx, cfgs, &profile, &all_interfaces, &[], false)?;
     rewrite_dhcp(&ctx, cfgs, &profile)?;
+    rewrite_dns_forwarding(cfgs, &profile)?;
     rewrite_routing(&ctx, cfgs, &profile)?;
     cleanup_orphaned_wan_vpns(cfgs);
     Ok(profile.id)
@@ -1024,11 +1165,13 @@ fn create_config(
         },
         wan_access: profile.wan_access.clone(),
         dns_override: profile.dns_override.clone(),
+        dns_source: String::new(),
         access_to_new_profiles: profile.access_to_new_profiles,
         owns_lan: profile.owns_lan,
     };
     rewrite_firewall(&ctx, cfgs, &profile, &all_interfaces, &wants_access, true)?;
     rewrite_dhcp(&ctx, cfgs, &profile)?;
+    rewrite_dns_forwarding(cfgs, &profile)?;
     rewrite_routing(&ctx, cfgs, &profile)?;
     cleanup_orphaned_wan_vpns(cfgs);
     Ok(profile.id)
@@ -1124,24 +1267,27 @@ fn rewrite_firewall(
         !(redir.src == this_zone_name && redir.name.contains("DNS-Override"))
     });
 
-    // Add DNS override redirect rules (DNAT port 53 to specified servers)
+    // Add DNS redirect rules (DNAT port 53 to specified servers)
+    // Priority: custom dns_override > VPN DNS > none (system)
     // TODO: parse @853 suffix from dns_ip entries to support DNS-over-TLS.
     // Plain entries (e.g. "1.1.1.1") use DNAT as below. TLS entries (e.g.
     // "1.1.1.1@853") need a local DoT forwarder (stubby/unbound) that accepts
     // plaintext on a per-profile loopback port and forwards upstream over TLS.
-    for dns_ip in &profile.dns_override {
+    // DNS hijacking: redirect all port 53 traffic to the profile's gateway,
+    // where per-profile dnsmasq handles .lan locally and forwards the rest
+    // to the VPN DNS servers. This replaces per-server DNAT which bypassed
+    // the local dnsmasq and broke .lan resolution.
+    if !effective_dns(cfgs, profile).is_empty() {
         cfgs["firewall"].append(
             &FirewallRedirect {
                 name: format!(
-                    "DNS-Override-{}-{}",
+                    "DNS-Override-{}",
                     profile.id.fullname.replace(" ", "-"),
-                    dns_ip
                 ),
                 src: this_zone_name.clone(),
-                dest: Some(DEFAULT_WAN_ZONE.into()),
                 proto: vec!["tcp".into(), "udp".into()],
                 src_dport: Some("53".into()),
-                dest_ip: Some(dns_ip.clone()),
+                dest_ip: Some(profile.gateway_ip.to_string()),
                 dest_port: Some("53".into()),
                 target: "DNAT".into(),
                 ..Default::default()
@@ -1370,18 +1516,21 @@ pub fn rewrite_dhcp(
     Ok(())
 }
 
-pub fn rewrite_routing(
+pub(crate) fn rewrite_routing(
     _ctx: &impl CtrlContext,
     cfgs: &mut Configs,
     profile: &Profile,
 ) -> Result<(), Error> {
     let route_name = format!("prt_{}", profile.id.interface);
+    let local_route_name = format!("plr_{}", profile.id.interface);
     let rule_name = format!("prr_{}", profile.id.interface);
 
     // 1. Remove old route/rule for this profile
     cfgs["network"].sections.retain(|s| {
-        s.name().as_deref() != Some(route_name.as_str())
-            && s.name().as_deref() != Some(rule_name.as_str())
+        let n = s.name();
+        n.as_deref() != Some(route_name.as_str())
+            && n.as_deref() != Some(local_route_name.as_str())
+            && n.as_deref() != Some(rule_name.as_str())
     });
 
     // 2. If outbound is "wan", main table suffices — no policy routing needed
@@ -1405,12 +1554,28 @@ pub fn rewrite_routing(
         Some(&route_name),
     )?;
 
-    // 4. Create ip rule:
+    // 4. Create connected route for the profile's local subnet so LAN traffic
+    //    stays local instead of being sent through the VPN tunnel:
+    //    config route 'plr_<interface>'
+    //      option interface '<interface>'
+    //      option target '<network>/24'
+    //      option table '<vlan_tag>'
+    let octets = profile.gateway_ip.octets();
+    let network_addr = format!("{}.{}.{}.0/24", octets[0], octets[1], octets[2]);
+    cfgs["network"].append(
+        &NetworkRoute {
+            interface: profile.id.interface.clone(),
+            target: network_addr.clone(),
+            table: Some(profile.id.vlan_tag as u32),
+            ..Default::default()
+        },
+        Some(&local_route_name),
+    )?;
+
+    // 5. Create ip rule:
     //    config rule 'prr_<interface>'
     //      option src '<network_addr>/24'
     //      option lookup '<vlan_tag>'
-    let octets = profile.gateway_ip.octets();
-    let network_addr = format!("{}.{}.{}.0/24", octets[0], octets[1], octets[2]);
     cfgs["network"].append(
         &NetworkRule {
             src: network_addr,
@@ -1419,7 +1584,7 @@ pub fn rewrite_routing(
         Some(&rule_name),
     )?;
 
-    // 5. Ensure VPN interface is in WAN zone (for masquerading)
+    // 6. Ensure VPN interface is in WAN zone (for masquerading)
     for section in &mut cfgs["firewall"].sections {
         if let Ok(mut zone) = section.get::<FirewallZone>() {
             if zone.name == DEFAULT_WAN_ZONE {
@@ -1437,7 +1602,7 @@ pub fn rewrite_routing(
 
 /// After routing changes, remove VPN interfaces from the WAN zone that are no longer
 /// referenced by any profile's outbound field.
-fn cleanup_orphaned_wan_vpns(cfgs: &mut Configs) {
+pub(crate) fn cleanup_orphaned_wan_vpns(cfgs: &mut Configs) {
     // Collect all VPN interface names referenced by any profile's outbound
     let mut referenced_vpns = std::collections::HashSet::new();
     for section in &cfgs["startwrt"].sections {
@@ -1663,6 +1828,7 @@ pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> 
             lan_access: LanAccess::All,
             wan_access: WanAccess::All,
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: true,
             owns_lan: list(ctx.clone())?.is_empty(),
         };
@@ -1684,6 +1850,7 @@ pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> 
             },
             wan_access: current_profile.wan_access,
             dns_override: current_profile.dns_override,
+            dns_source: String::new(),
             access_to_new_profiles: current_profile.access_to_new_profiles,
             owns_lan: current_profile.owns_lan,
         };
@@ -2208,6 +2375,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2253,6 +2421,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::Whitelist(vec!["1.1.1.1/32".into(), "8.8.8.8/32".into()]),
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2322,6 +2491,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::Blacklist(vec!["10.0.0.0/8".into()]),
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2391,6 +2561,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::Whitelist(vec!["1.1.1.1/32".into(), "8.8.8.8/32".into()]),
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2452,6 +2623,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2508,6 +2680,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2562,6 +2735,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2607,6 +2781,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2633,6 +2808,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2680,6 +2856,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2726,6 +2903,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2794,6 +2972,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
             dns_override: vec!["1.1.1.1".into()],
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2807,8 +2986,8 @@ config dhcp 'lan'
             .filter(|r| r.name.contains("DNS-Override") && r.src == "vlan_guest")
             .collect();
         assert_eq!(redirects.len(), 1, "should have 1 DNS override redirect");
-        assert_eq!(redirects[0].dest.as_deref(), Some(DEFAULT_WAN_ZONE));
-        assert_eq!(redirects[0].dest_ip.as_deref(), Some("1.1.1.1"));
+        assert_eq!(redirects[0].dest.as_deref(), None);
+        assert_eq!(redirects[0].dest_ip.as_deref(), Some("192.168.101.1"));
         assert_eq!(redirects[0].dest_port.as_deref(), Some("53"));
         assert_eq!(redirects[0].src_dport.as_deref(), Some("53"));
         assert_eq!(redirects[0].target, "DNAT");
@@ -2840,6 +3019,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
             dns_override: vec!["1.1.1.1".into(), "8.8.8.8".into()],
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };
@@ -2899,6 +3079,7 @@ config dhcp 'lan'
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
             dns_override: Vec::new(),
+            dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
         };

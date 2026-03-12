@@ -39,10 +39,10 @@ import { OutboundService } from 'src/app/routes/outbound/service'
             </td>
             <td tuiTd>{{ item.target }}</td>
             <td tuiTd>
-              @if (item.usedBy) {
-                <button tuiLink iconStart="@tui.scroll-text">
-                  {{ item.usedBy }}
-                </button>
+              @if (item.used_by.length) {
+                <a tuiLink routerLink="/profiles">
+                  {{ item.used_by.join(', ') }}
+                </a>
               } @else {
                 -
               }
@@ -88,7 +88,10 @@ export default class OutboundTable {
 
   protected add() {
     const existing = this.service.data() ?? []
-    const data = ['Internet', ...existing.map(v => v.label)]
+    const data = {
+      targets: ['Internet', ...existing.map(v => v.label)],
+      existingLabels: existing.map(v => v.label),
+    }
 
     this.dialogs
       .open<any>(ADD_CLIENT, { label: 'Add Outbound VPN', data })

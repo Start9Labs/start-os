@@ -18,6 +18,7 @@ pub mod system;
 pub mod uci;
 pub mod utils;
 pub mod wan;
+pub mod vpn_client;
 pub mod vpn_server;
 pub mod wg;
 pub mod wifi;
@@ -234,6 +235,7 @@ pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
         .subcommand("ethernet", ethernet::ethernet::<C>())
         .subcommand("wifi", wifi::wifi::<C>())
         .subcommand("vpn-server", vpn_server::vpn_server::<C>())
+        .subcommand("vpn-client", vpn_client::vpn_client::<C>())
         .subcommand("uci", uci::uci::<C>())
         .subcommand("file", files::file::<C>())
         .subcommand("dir", files::dir::<C>())

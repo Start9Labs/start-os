@@ -6,7 +6,11 @@ import {
   inject,
   signal,
 } from '@angular/core'
-import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
+import {
+  NonNullableFormBuilder,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms'
 import { ActivatedRoute, Router, RouterLink } from '@angular/router'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
@@ -19,6 +23,7 @@ import {
   TuiTitle,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
   TUI_CONFIRM,
   TuiChevron,
@@ -35,6 +40,7 @@ import {
   getOutboundVpnForm,
   OUTBOUND_VALIDATION_ERRORS,
 } from 'src/app/routes/outbound/utils'
+import { CustomValidators } from 'src/app/utils/validators'
 import { VPNSummary } from './summary'
 
 @Component({
@@ -130,7 +136,11 @@ export default class OutboundVPN {
 
   readonly service = inject(OutboundService)
   readonly vpnId = this.route.snapshot.queryParams['id']
-  readonly form = getOutboundVpnForm(inject(NonNullableFormBuilder))
+  private readonly otherLabels = computed(() => {
+    const allVpns = this.service.data() ?? []
+    return allVpns.filter(v => v.id !== this.vpnId).map(v => v.label)
+  })
+  readonly form = getOutboundVpnForm(inject(NonNullableFormBuilder), [])
   readonly data = computed(
     () => this.service.data()?.find(v => v.id === this.vpnId) ?? null,
   )
@@ -147,14 +157,23 @@ export default class OutboundVPN {
   constructor() {
     effect(() => {
       const data = this.data()
+      const otherLabels = this.otherLabels()
       if (data && this.form.pristine) {
+        this.form.controls.label.setValidators([
+          Validators.required,
+          CustomValidators.duplicateName(otherLabels),
+          CustomValidators.interfaceNameLength('wg_', 15),
+        ])
         this.form.reset({ ...data })
       }
     })
   }
 
   async onSave() {
-    if (this.form.invalid) return
+    if (this.form.invalid) {
+      tuiMarkControlAsTouchedAndValidate(this.form)
+      return
+    }
 
     const success = await this.service.update(
       this.vpnId,

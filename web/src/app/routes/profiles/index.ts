@@ -53,7 +53,11 @@ import { ProfilesService } from './service'
               @if (item.outbound === 'wan') {
                 {{ item.routingDisplay }}
               } @else {
-                <a tuiLink [routerLink]="'/outbound/' + item.outbound">
+                <a
+                  tuiLink
+                  routerLink="/outbound/vpn"
+                  [queryParams]="{ id: item.outbound }"
+                >
                   {{ item.routingDisplay }}
                 </a>
               }
@@ -173,9 +177,14 @@ export default class Profiles {
   })
 
   private getDnsDisplay(profile: SecurityProfile): string {
-    return profile.dns_override && profile.dns_override.length
-      ? 'Custom'
-      : 'System'
+    switch (profile.dns_source) {
+      case 'vpn':
+        return 'VPN'
+      case 'custom':
+        return 'Custom'
+      default:
+        return 'System'
+    }
   }
 
   private getRoutingDisplay(

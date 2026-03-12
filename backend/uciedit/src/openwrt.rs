@@ -111,11 +111,13 @@ pub enum InterfaceProto {
     PPPOE,
     #[strum(serialize = "6rd")]
     SIXRD,
+    WIREGUARD,
 }
 
 #[derive(Debug, Default, TypedSection)]
 #[uci(ty = "interface")]
 pub struct NetworkInterface {
+    #[uci(default)]
     pub device: String,
     #[uci(default)]
     pub proto: InterfaceProto,
@@ -339,6 +341,41 @@ pub struct Dhcp {
     pub dhcpv6: Option<String>,
     #[uci(default)]
     pub ra_management: Option<String>,
+}
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "dnsmasq")]
+pub struct ProfileDnsmasq {
+    #[uci(default)]
+    pub server: Vec<String>,
+    #[uci(default)]
+    pub noresolv: Option<String>,
+    #[uci(default)]
+    pub interface: Vec<String>,
+    #[uci(default)]
+    pub localservice: Option<String>,
+    #[uci(default)]
+    pub nonwildcard: Option<String>,
+    #[uci(default)]
+    pub listen_address: Vec<String>,
+    #[uci(default)]
+    pub notinterface: Vec<String>,
+    #[uci(default)]
+    pub rebind_domain: Vec<String>,
+    #[uci(default)]
+    pub rebind_protection: Option<String>,
+    #[uci(default)]
+    pub localuse: Option<String>,
+    #[uci(default)]
+    pub leasefile: Option<String>,
+    #[uci(default)]
+    pub domain: Option<String>,
+    #[uci(default)]
+    pub expandhosts: Option<String>,
+    #[uci(default)]
+    pub boguspriv: Option<String>,
+    #[uci(default)]
+    pub local: Option<String>,
 }
 
 #[derive(Debug, TypedSection, Default)]

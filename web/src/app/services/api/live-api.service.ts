@@ -51,6 +51,12 @@ import {
   WanDdnsSetRequest,
   PublishedPortFromApi,
   PublishedPortsSetRequest,
+  OutboundVpn,
+  OutboundVpnCreateRequest,
+  OutboundVpnCreateResponse,
+  OutboundVpnUpdateRequest,
+  OutboundVpnDeleteRequest,
+  OutboundVpnSetEnabledRequest,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -293,5 +299,29 @@ export class LiveApiService extends ApiService {
 
   async publishedPortsSet(params: PublishedPortsSetRequest): Promise<null> {
     return this.rpc.request({ method: 'published-ports.set', params })
+  }
+
+  async vpnClientList(): Promise<OutboundVpn[]> {
+    return this.rpc.request({ method: 'vpn-client.list', params: {} })
+  }
+
+  async vpnClientCreate(
+    params: OutboundVpnCreateRequest,
+  ): Promise<OutboundVpnCreateResponse> {
+    return this.rpc.request({ method: 'vpn-client.create', params })
+  }
+
+  async vpnClientUpdate(params: OutboundVpnUpdateRequest): Promise<null> {
+    return this.rpc.request({ method: 'vpn-client.update', params })
+  }
+
+  async vpnClientDelete(params: OutboundVpnDeleteRequest): Promise<null> {
+    return this.rpc.request({ method: 'vpn-client.delete', params })
+  }
+
+  async vpnClientSetEnabled(
+    params: OutboundVpnSetEnabledRequest,
+  ): Promise<null> {
+    return this.rpc.request({ method: 'vpn-client.set-enabled', params })
   }
 }

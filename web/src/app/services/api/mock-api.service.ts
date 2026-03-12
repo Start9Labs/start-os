@@ -54,6 +54,12 @@ import {
   WanDdnsSetRequest,
   PublishedPortFromApi,
   PublishedPortsSetRequest,
+  OutboundVpn,
+  OutboundVpnCreateRequest,
+  OutboundVpnCreateResponse,
+  OutboundVpnUpdateRequest,
+  OutboundVpnDeleteRequest,
+  OutboundVpnSetEnabledRequest,
 } from './api.service'
 import {
   DhcpSection,
@@ -62,7 +68,6 @@ import {
   UciSection,
 } from './types'
 import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/lan/routes/ipv6/uci/mocks'
-import { mockWireGuardSections } from 'src/app/routes/outbound/uci/mocks'
 import {
   generateMockDataUsage,
   getMockArpOutput,
@@ -556,6 +561,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
       wan_access: 'ALL',
       access_to_new_profiles: true,
       owns_lan: true,
+      dns_source: 'system',
     },
     {
       fullname: 'Guest',
@@ -568,6 +574,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
       access_to_new_profiles: false,
       owns_lan: false,
       dns_override: ['1.1.1.1', '8.8.8.8'],
+      dns_source: 'custom',
     },
     {
       fullname: 'IoT',
@@ -579,6 +586,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
       wan_access: { blacklist: ['192.0.2.0/24', '198.51.100.0/24'] },
       access_to_new_profiles: false,
       owns_lan: false,
+      dns_source: 'system',
     },
   ]
 
@@ -636,6 +644,11 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
       wan_access: params.wan_access,
       access_to_new_profiles: params.access_to_new_profiles,
       owns_lan: params.owns_lan,
+      dns_source: params.dns_override?.length
+        ? 'custom'
+        : params.outbound !== 'wan'
+          ? 'vpn'
+          : 'system',
     }
 
     this.mockProfiles = [...this.mockProfiles, newProfile]
@@ -1196,6 +1209,74 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
     return null
   }
 
+  // --- Outbound VPN (WireGuard Client) smart endpoint mocks ---
+
+  private mockVpnClients: OutboundVpn[] = [
+    {
+      id: 'wg_proton',
+      label: 'Proton',
+      target: 'Internet',
+      enabled: true,
+      used_by: [],
+    },
+    {
+      id: 'wg_mullvad',
+      label: 'Mullvad',
+      target: 'Proton',
+      enabled: true,
+      used_by: [],
+    },
+  ]
+
+  async vpnClientList(): Promise<OutboundVpn[]> {
+    await pauseFor(250)
+    return structuredClone(this.mockVpnClients)
+  }
+
+  async vpnClientCreate(
+    params: OutboundVpnCreateRequest,
+  ): Promise<OutboundVpnCreateResponse> {
+    await pauseFor(250)
+    const id = `wg_${params.label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+    this.mockVpnClients = [
+      ...this.mockVpnClients,
+      {
+        id,
+        label: params.label,
+        target: params.target,
+        enabled: true,
+        used_by: [],
+      },
+    ]
+    return { id }
+  }
+
+  async vpnClientUpdate(params: OutboundVpnUpdateRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockVpnClients = this.mockVpnClients.map(c =>
+      c.id === params.id
+        ? { ...c, label: params.label, target: params.target }
+        : c,
+    )
+    return null
+  }
+
+  async vpnClientDelete(params: OutboundVpnDeleteRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockVpnClients = this.mockVpnClients.filter(c => c.id !== params.id)
+    return null
+  }
+
+  async vpnClientSetEnabled(
+    params: OutboundVpnSetEnabledRequest,
+  ): Promise<null> {
+    await pauseFor(250)
+    this.mockVpnClients = this.mockVpnClients.map(c =>
+      c.id === params.id ? { ...c, enabled: params.enabled } : c,
+    )
+    return null
+  }
+
   /**
    * Check if WAN IPv6 is enabled in mock UCI data
    */
@@ -1279,7 +1360,6 @@ export const mockUci: Record<string, UciFile<UciSection>> = {
       },
       mockBrLan,
       mockWanDevice,
-      ...mockWireGuardSections,
     ],
     modified: new Date().toISOString(),
   },

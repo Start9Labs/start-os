@@ -92,6 +92,28 @@ export class CustomValidators {
     }
   }
 
+  /**
+   * Linux interface names are limited to 15 chars (IFNAMSIZ = 16 including NUL).
+   * The backend prefixes with "wg_" (3 chars), leaving 12 for the sanitized label.
+   * Sanitization: lowercase, non-alphanumeric → underscore.
+   */
+  static interfaceNameLength(prefix: string, maxTotal: number): ValidatorFn {
+    const maxSanitized = maxTotal - prefix.length
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null
+      const sanitized = control.value.toLowerCase().replace(/[^a-z0-9]/g, '_')
+      return sanitized.length > maxSanitized
+        ? {
+            interfaceNameLength: {
+              max: maxTotal,
+              prefix,
+              current: prefix.length + sanitized.length,
+            },
+          }
+        : null
+    }
+  }
+
   static ipv4List(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       if (!control.value) return null

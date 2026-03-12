@@ -21,7 +21,7 @@ const PEER_IP_END: u8 = 253;
 /// WireGuard interface section in /etc/config/network
 #[derive(Debug, TypedSection)]
 #[uci(ty = "interface")]
-struct WgInterface {
+pub struct WgInterface {
     #[uci(rename = "proto")]
     pub proto: String,
     pub private_key: String,
@@ -29,18 +29,24 @@ struct WgInterface {
     pub listen_port: Option<u16>,
     #[uci(default)]
     pub addresses: Vec<String>,
+    #[uci(default)]
+    pub disabled: Option<String>,
 }
 
 impl WgInterface {
-    fn is_wireguard(&self) -> bool {
+    pub fn is_wireguard(&self) -> bool {
         self.proto == "wireguard"
+    }
+
+    pub fn disabled(&self) -> bool {
+        self.disabled.as_deref() == Some("1")
     }
 }
 
 /// VPN server metadata stored in /etc/config/startwrt
 #[derive(Debug, TypedSection)]
 #[uci(ty = "vpn_server")]
-struct UciVpnServer {
+pub struct UciVpnServer {
     /// WireGuard interface name (e.g., "wg_lan")
     pub interface: String,
     /// Profile interface name (e.g., "lan")
@@ -503,7 +509,7 @@ pub fn delete(_ctx: ServerContext, args: DeleteArgs) -> Result<(), Error> {
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt", "firewall"])?;
+        let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt", "firewall", "dhcp"])?;
 
         // Remove the WireGuard interface from network config
         cfgs["network"].sections.retain(|section| {
@@ -968,6 +974,7 @@ fn set_wireguard_interface(
             private_key,
             listen_port: if config.enabled { Some(config.listen_port) } else { None },
             addresses: vec![address_cidr],
+            disabled: None,
         };
         cfgs["network"].append(&new_iface, Some(interface_name))?;
     }

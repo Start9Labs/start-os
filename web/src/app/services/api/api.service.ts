@@ -64,6 +64,15 @@ export abstract class ApiService {
   abstract wanDdnsSet(params: WanDdnsSetRequest): Promise<null>
   abstract publishedPortsList(): Promise<PublishedPortFromApi[]>
   abstract publishedPortsSet(params: PublishedPortsSetRequest): Promise<null>
+  abstract vpnClientList(): Promise<OutboundVpn[]>
+  abstract vpnClientCreate(
+    params: OutboundVpnCreateRequest,
+  ): Promise<OutboundVpnCreateResponse>
+  abstract vpnClientUpdate(params: OutboundVpnUpdateRequest): Promise<null>
+  abstract vpnClientDelete(params: OutboundVpnDeleteRequest): Promise<null>
+  abstract vpnClientSetEnabled(
+    params: OutboundVpnSetEnabledRequest,
+  ): Promise<null>
 }
 
 export type LanIpv4Response = {
@@ -271,7 +280,8 @@ export interface SecurityProfile {
   wan_access: WanAccess
   access_to_new_profiles: boolean
   owns_lan: boolean
-  dns_override?: string[] // Not yet supported by backend
+  dns_override?: string[]
+  dns_source: 'system' | 'custom' | 'vpn'
 }
 
 export type LanAccess<Id = ProfileId> =
@@ -519,4 +529,39 @@ export interface PublishedPortInputForApi {
 
 export type PublishedPortsSetRequest = {
   ports: PublishedPortInputForApi[]
+}
+
+// Outbound VPN (WireGuard Client) types
+
+export interface OutboundVpn {
+  id: string
+  label: string
+  target: string
+  enabled: boolean
+  used_by: string[]
+}
+
+export interface OutboundVpnCreateRequest {
+  label: string
+  target: string
+  config: string
+}
+
+export interface OutboundVpnCreateResponse {
+  id: string
+}
+
+export interface OutboundVpnUpdateRequest {
+  id: string
+  label: string
+  target: string
+}
+
+export interface OutboundVpnDeleteRequest {
+  id: string
+}
+
+export interface OutboundVpnSetEnabledRequest {
+  id: string
+  enabled: boolean
 }
