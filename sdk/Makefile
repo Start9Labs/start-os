@@ -29,15 +29,7 @@ base/lib/exver/exver.ts: base/node_modules base/lib/exver/exver.pegjs
 
 baseDist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) base/package.json base/node_modules base/README.md base/LICENSE
 	(cd base && npm run tsc)
-	# Copy hand-written .js/.d.ts pairs (no corresponding .ts source) into the output.
-	cd base/lib && find . -name '*.js' | while read f; do \
-		base="$${f%.js}"; \
-		if [ -f "$$base.d.ts" ] && [ ! -f "$$base.ts" ]; then \
-			mkdir -p "../../baseDist/$$(dirname "$$f")"; \
-			cp "$$f" "../../baseDist/$$f"; \
-			cp "$$base.d.ts" "../../baseDist/$$base.d.ts"; \
-		fi; \
-	done
+	rsync -ac --include='*.js' --include='*.d.ts' --include='*/' --exclude='*' base/lib/ baseDist/
 	rsync -ac base/node_modules baseDist/
 	cp base/package.json baseDist/package.json
 	cp base/README.md baseDist/README.md
@@ -46,14 +38,7 @@ baseDist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) base/package.json base/node_modul
 
 dist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) package/package.json package/.npmignore package/node_modules package/README.md package/LICENSE
 	(cd package && npm run tsc)
-	cd base/lib && find . -name '*.js' | while read f; do \
-		base="$${f%.js}"; \
-		if [ -f "$$base.d.ts" ] && [ ! -f "$$base.ts" ]; then \
-			mkdir -p "../../dist/base/lib/$$(dirname "$$f")"; \
-			cp "$$f" "../../dist/base/lib/$$f"; \
-			cp "$$base.d.ts" "../../dist/base/lib/$$base.d.ts"; \
-		fi; \
-	done
+	rsync -ac --include='*.js' --include='*.d.ts' --include='*/' --exclude='*' base/lib/ dist/base/lib/
 	rsync -ac package/node_modules dist/
 	cp package/.npmignore dist/.npmignore
 	cp package/package.json dist/package.json
