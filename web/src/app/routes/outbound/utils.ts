@@ -73,6 +73,32 @@ export type AddOutboundVpnForm = FormRawValue<
 >
 
 /**
+ * Compute which VPN labels are safe targets for a given VPN.
+ * A target T is unsafe if following T's chain eventually reaches selfLabel (cycle).
+ */
+export function getSafeTargets(
+  selfLabel: string,
+  allVpns: OutboundVpn[],
+): string[] {
+  return [
+    'Internet',
+    ...allVpns
+      .filter(v => v.label !== selfLabel)
+      .filter(v => {
+        const visited = new Set<string>([selfLabel])
+        let current: OutboundVpn | undefined = v
+        while (current && current.target !== 'Internet') {
+          if (visited.has(current.target)) return false
+          visited.add(current.target)
+          current = allVpns.find(x => x.label === current!.target)
+        }
+        return true
+      })
+      .map(v => v.label),
+  ]
+}
+
+/**
  * Build the full connection path for a VPN
  * e.g., ['Mullvad', 'Proton', 'Internet']
  */

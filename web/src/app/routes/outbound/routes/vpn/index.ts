@@ -16,6 +16,7 @@ import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
   TuiButton,
   TuiError,
+  TuiHint,
   TuiInput,
   TuiLink,
   TuiTextfield,
@@ -38,6 +39,7 @@ import { Form } from 'src/app/components/form'
 import { OutboundService } from 'src/app/routes/outbound/service'
 import {
   getOutboundVpnForm,
+  getSafeTargets,
   OUTBOUND_VALIDATION_ERRORS,
 } from 'src/app/routes/outbound/utils'
 import { CustomValidators } from 'src/app/utils/validators'
@@ -96,6 +98,18 @@ import { VPNSummary } from './summary'
             type="button"
             appearance="secondary-destructive"
             class="g-delete"
+            [disabled]="dependentVpns().length"
+            [tuiHint]="
+              dependentVpns().length
+                ? 'Cannot delete: ' +
+                  dependentVpns().join(', ') +
+                  ' ' +
+                  (dependentVpns().length === 1 ? 'uses' : 'use') +
+                  ' this VPN as a target. Change ' +
+                  (dependentVpns().length === 1 ? 'its' : 'their') +
+                  ' target first.'
+                : null
+            "
             (click)="onDelete()"
           >
             Delete
@@ -122,6 +136,7 @@ import { VPNSummary } from './summary'
     TuiSelect,
     TuiDataListWrapper,
     TuiButton,
+    TuiHint,
     TuiInput,
     Footer,
     Form,
@@ -145,13 +160,17 @@ export default class OutboundVPN {
     () => this.service.data()?.find(v => v.id === this.vpnId) ?? null,
   )
 
+  readonly dependentVpns = computed(() => {
+    const allVpns = this.service.data() ?? []
+    const thisLabel = this.data()?.label
+    if (!thisLabel) return []
+    return allVpns.filter(v => v.target === thisLabel).map(v => v.label)
+  })
+
   readonly targetOptions = computed(() => {
     const currentLabel = this.data()?.label
-    const allVpns = this.service.data() ?? []
-    const otherVpns = allVpns
-      .filter(v => v.label !== currentLabel)
-      .map(v => v.label)
-    return ['Internet', ...otherVpns]
+    if (!currentLabel) return ['Internet']
+    return getSafeTargets(currentLabel, this.service.data() ?? [])
   })
 
   constructor() {

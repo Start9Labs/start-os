@@ -60,6 +60,13 @@ pub enum ErrorKind {
     DuplicatePassword,
     #[error("duplicate wifi password label")]
     DuplicatePasswordLabel,
+    #[error("VPN {label:?} cannot be removed or disabled because it is used as a target by: {dependents:?}")]
+    VpnHasDependents {
+        label: String,
+        dependents: Vec<String>,
+    },
+    #[error("VPN chain cycle detected: {label:?} would create a loop through {cycle:?}")]
+    VpnChainCycle { label: String, cycle: Vec<String> },
     #[error("a profile named {name:?} already exists")]
     DuplicateFullname { name: String },
     #[error("device {mac} has no {family} address for port forward \"{label}\"")]

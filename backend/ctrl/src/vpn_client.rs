@@ -139,6 +139,17 @@ fn restart_wireguard_interface(interface_name: &str) -> Result<(), Error> {
     Ok(())
 }
 
+/// Find all VPN clients whose `target` matches a given label (for chain dependency checks).
+fn get_vpn_dependents(cfgs: &Configs, label: &str) -> Vec<String> {
+    cfgs["startwrt"]
+        .sections
+        .iter()
+        .filter_map(|s| s.get::<UciVpnClient>().ok())
+        .filter(|meta| meta.target == label)
+        .map(|meta| meta.label.clone())
+        .collect()
+}
+
 /// Get the set of VPN server interface names from startwrt config
 fn get_vpn_server_interfaces(cfgs: &Configs) -> std::collections::BTreeSet<String> {
     cfgs["startwrt"]
@@ -342,6 +353,56 @@ fn validate_label(label: &str) -> Result<(), Error> {
     Ok(())
 }
 
+/// Validate that `target` exists and wouldn't create a routing cycle.
+/// `self_label` is the label of the VPN being created/updated.
+fn validate_target(cfgs: &Configs, target: &str, self_label: &str) -> Result<(), Error> {
+    if target == "Internet" {
+        return Ok(());
+    }
+
+    // Build label → target map from all VPN client entries
+    let clients: Vec<UciVpnClient> = cfgs["startwrt"]
+        .sections
+        .iter()
+        .filter_map(|s| s.get::<UciVpnClient>().ok())
+        .collect();
+
+    let label_to_target: std::collections::HashMap<&str, &str> = clients
+        .iter()
+        .map(|c| (c.label.as_str(), c.target.as_str()))
+        .collect();
+
+    // Check that target exists as a label
+    if !label_to_target.contains_key(target) {
+        return Err(ErrorKind::InvalidValue {
+            field: "target".into(),
+            value: target.into(),
+        }
+        .into());
+    }
+
+    // Walk the chain from target, checking for cycles back to self_label
+    let mut visited = vec![self_label.to_string()];
+    let mut current = target;
+    loop {
+        if current == self_label {
+            return Err(ErrorKind::VpnChainCycle {
+                label: self_label.into(),
+                cycle: visited,
+            }
+            .into());
+        }
+        if current == "Internet" {
+            return Ok(());
+        }
+        visited.push(current.to_string());
+        match label_to_target.get(current) {
+            Some(next) => current = next,
+            None => return Ok(()), // target chain ends at unknown label
+        }
+    }
+}
+
 /// List all outbound VPN clients
 pub fn list(_ctx: ServerContext) -> Result<Vec<OutboundVpn>, Error> {
     let arena = Arena::new();
@@ -425,6 +486,8 @@ pub fn create(
             .into());
         }
 
+        validate_target(&cfgs, &req.target, &req.label)?;
+
         // Create the WireGuard interface section
         create_wg_client_interface(&mut cfgs, &interface_name, &parsed, &arena)?;
 
@@ -438,6 +501,8 @@ pub fn create(
             target: req.target.clone(),
         };
         cfgs["startwrt"].append(&meta, Some(&interface_name))?;
+
+        rewrite_vpn_chain_routes(&mut cfgs)?;
 
         match dump_all("/etc/config", cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
@@ -480,14 +545,16 @@ pub fn update(
             .into());
         }
 
-        // Find and update metadata
+        // Find and update metadata, capturing old label for cascade
         let mut found = false;
+        let mut old_label = String::new();
         for section in &mut cfgs["startwrt"].sections {
             let Ok(mut meta) = section.get::<UciVpnClient>() else { continue };
             if meta.interface != req.id {
                 continue;
             }
 
+            old_label = meta.label.clone();
             meta.label = req.label.clone();
             meta.target = req.target.clone();
             section.set(&meta)?;
@@ -498,6 +565,21 @@ pub fn update(
         if !found {
             return Err(Error::other(format!("VPN client {} not found", req.id)));
         }
+
+        validate_target(&cfgs, &req.target, &req.label)?;
+
+        // Cascade label rename: update any VPN clients targeting the old label
+        if old_label != req.label {
+            for section in &mut cfgs["startwrt"].sections {
+                let Ok(mut meta) = section.get::<UciVpnClient>() else { continue };
+                if meta.target == old_label {
+                    meta.target = req.label.clone();
+                    let _ = section.set(&meta);
+                }
+            }
+        }
+
+        rewrite_vpn_chain_routes(&mut cfgs)?;
 
         match dump_all("/etc/config", cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
@@ -521,6 +603,24 @@ pub fn delete(ctx: ServerContext, args: OutboundVpnDeleteRequest) -> Result<(), 
     loop {
         let arena = Arena::new();
         let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt", "firewall", "dhcp"])?;
+
+        // Block deletion if other VPNs chain through this one
+        let this_label = cfgs["startwrt"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<UciVpnClient>().ok())
+            .find(|meta| meta.interface == *interface_name)
+            .map(|meta| meta.label.clone())
+            .ok_or_else(|| Error::other(format!("VPN client {} not found", interface_name)))?;
+
+        let dependents = get_vpn_dependents(&cfgs, &this_label);
+        if !dependents.is_empty() {
+            return Err(ErrorKind::VpnHasDependents {
+                label: this_label,
+                dependents,
+            }
+            .into());
+        }
 
         // Find profiles that reference this VPN and reset them to WAN
         let affected_profiles = reset_profiles_using_vpn(&mut cfgs, interface_name);
@@ -577,6 +677,8 @@ pub fn delete(ctx: ServerContext, args: OutboundVpnDeleteRequest) -> Result<(), 
         // This is more robust than removing just the deleted VPN — it also
         // cleans up any previously orphaned entries.
         crate::profiles::cleanup_orphaned_wan_vpns(&mut cfgs);
+
+        rewrite_vpn_chain_routes(&mut cfgs)?;
 
         match dump_all("/etc/config", cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
@@ -647,14 +749,26 @@ pub fn set_enabled(
         let arena = Arena::new();
         let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt"])?;
 
-        // Verify the VPN client exists in metadata
-        let exists = cfgs["startwrt"]
+        // Verify the VPN client exists in metadata and get its label
+        let this_meta = cfgs["startwrt"]
             .sections
             .iter()
             .filter_map(|s| s.get::<UciVpnClient>().ok())
-            .any(|meta| meta.interface == *interface_name);
-        if !exists {
+            .find(|meta| meta.interface == *interface_name);
+        let Some(this_meta) = this_meta else {
             return Err(Error::other(format!("VPN client {} not found", interface_name)));
+        };
+
+        // Block disabling if other VPNs chain through this one
+        if !req.enabled {
+            let dependents = get_vpn_dependents(&cfgs, &this_meta.label);
+            if !dependents.is_empty() {
+                return Err(ErrorKind::VpnHasDependents {
+                    label: this_meta.label.clone(),
+                    dependents,
+                }
+                .into());
+            }
         }
 
         // Find and update the WireGuard interface disabled state
@@ -681,6 +795,8 @@ pub fn set_enabled(
             )));
         }
 
+        rewrite_vpn_chain_routes(&mut cfgs)?;
+
         match dump_all("/etc/config", cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
@@ -701,6 +817,89 @@ pub fn set_enabled(
             }
         }
     }
+}
+
+// === VPN Chain Routing ===
+
+/// Read the `endpoint_host` from a peer section (`wireguard_<interface>`).
+fn get_peer_endpoint_host(cfgs: &Configs, interface: &str) -> Option<String> {
+    let peer_type = format!("wireguard_{}", interface);
+    cfgs["network"]
+        .sections
+        .iter()
+        .find(|s| s.ty() == peer_type)
+        .and_then(|s| {
+            s.lines.iter().find_map(|line| {
+                if let Line::Option {
+                    option, value, ..
+                } = line
+                {
+                    if option.as_str() == "endpoint_host" {
+                        return Some(value.as_str().to_string());
+                    }
+                }
+                None
+            })
+        })
+}
+
+/// Idempotently rebuild all VPN chain endpoint routes (`vcr_*` sections).
+///
+/// For each VPN client whose target is another VPN (not "Internet"), creates a
+/// `/32` static route in the main routing table sending the VPN's peer endpoint
+/// through its target VPN's tunnel interface. This ensures WireGuard's locally-
+/// generated UDP packets traverse the chain instead of exiting via WAN.
+pub(crate) fn rewrite_vpn_chain_routes(cfgs: &mut Configs) -> Result<(), Error> {
+    use uciedit::openwrt::NetworkRoute;
+
+    // 1. Remove all existing vcr_* route sections
+    cfgs["network"]
+        .sections
+        .retain(|s| !s.name().map(|n| n.starts_with("vcr_")).unwrap_or(false));
+
+    // 2. Build label → interface map from all VPN client entries
+    let vpn_clients: Vec<UciVpnClient> = cfgs["startwrt"]
+        .sections
+        .iter()
+        .filter_map(|s| s.get::<UciVpnClient>().ok())
+        .collect();
+
+    let label_to_interface: std::collections::HashMap<&str, &str> = vpn_clients
+        .iter()
+        .map(|c| (c.label.as_str(), c.interface.as_str()))
+        .collect();
+
+    // 3. For each VPN client with target ≠ "Internet", create a chain route
+    for client in &vpn_clients {
+        if client.target == "Internet" {
+            continue;
+        }
+
+        let Some(target_interface) = label_to_interface.get(client.target.as_str()) else {
+            continue;
+        };
+
+        let Some(endpoint_host) = get_peer_endpoint_host(cfgs, &client.interface) else {
+            continue;
+        };
+
+        // Only create routes for IP endpoints, skip hostnames
+        if endpoint_host.parse::<IpAddr>().is_err() {
+            continue;
+        }
+
+        let route_name = format!("vcr_{}", client.interface);
+        cfgs["network"].append(
+            &NetworkRoute {
+                interface: target_interface.to_string(),
+                target: format!("{}/32", endpoint_host),
+                ..Default::default()
+            },
+            Some(&route_name),
+        )?;
+    }
+
+    Ok(())
 }
 
 // === Helper Functions ===
@@ -1873,6 +2072,245 @@ config interface 'wg_guest'
         assert_eq!(client_count, 1, "should have exactly one vpn_client after update");
     }
 
+    // === VPN chain dependency tests ===
+
+    /// Write configs with two chained VPN clients: Mullvad targets Proton's label.
+    fn setup_with_chained_vpns(dir: &Path) {
+        let client_key1 = gen_key();
+        let peer_pubkey1 = gen_key();
+        let client_key2 = gen_key();
+        let peer_pubkey2 = gen_key();
+
+        std::fs::write(
+            dir.join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '99'
+\toption access_to_new_profiles '1'
+
+config vpn_client wg_proton
+\toption interface 'wg_proton'
+\toption label 'Proton VPN'
+\toption target 'Internet'
+
+config vpn_client wg_mullvad
+\toption interface 'wg_mullvad'
+\toption label 'Mullvad'
+\toption target 'Proton VPN'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.join("network"),
+            format!(
+                "\
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth0'
+
+config interface 'lan'
+\toption device 'br-lan.99'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+
+config interface 'wg_proton'
+\toption proto 'wireguard'
+\toption private_key '{client_key1}'
+\toption disabled '0'
+\toption defaultroute '0'
+\toption peerdns '0'
+\tlist addresses '10.2.0.2/32'
+
+config wireguard_wg_proton 'proton_peer0'
+\toption public_key '{peer_pubkey1}'
+\toption endpoint_host 'vpn.example.com'
+\toption endpoint_port '51820'
+\toption route_allowed_ips '0'
+\tlist allowed_ips '0.0.0.0/0'
+
+config interface 'wg_mullvad'
+\toption proto 'wireguard'
+\toption private_key '{client_key2}'
+\toption disabled '0'
+\toption defaultroute '0'
+\toption peerdns '0'
+\tlist addresses '10.3.0.2/32'
+
+config wireguard_wg_mullvad 'mullvad_peer0'
+\toption public_key '{peer_pubkey2}'
+\toption endpoint_host 'mullvad.example.com'
+\toption endpoint_port '51820'
+\toption route_allowed_ips '0'
+\tlist allowed_ips '0.0.0.0/0'
+"
+            ),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_get_vpn_dependents_finds_matching() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_chained_vpns(dir.path());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).unwrap();
+
+        let deps = get_vpn_dependents(&cfgs, "Proton VPN");
+        assert_eq!(deps, vec!["Mullvad"]);
+    }
+
+    #[test]
+    fn test_get_vpn_dependents_empty_when_no_chain() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_chained_vpns(dir.path());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).unwrap();
+
+        // Mullvad is not targeted by anyone
+        let deps = get_vpn_dependents(&cfgs, "Mullvad");
+        assert!(deps.is_empty());
+    }
+
+    #[test]
+    fn test_delete_blocked_when_vpn_has_dependents() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_chained_vpns(dir.path());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).unwrap();
+
+        // Proton VPN has Mullvad as a dependent — should be blocked
+        let this_label = cfgs["startwrt"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<UciVpnClient>().ok())
+            .find(|meta| meta.interface == "wg_proton")
+            .map(|meta| meta.label.clone())
+            .unwrap();
+
+        let dependents = get_vpn_dependents(&cfgs, &this_label);
+        assert!(!dependents.is_empty(), "Proton VPN should have dependents");
+        assert_eq!(dependents, vec!["Mullvad"]);
+    }
+
+    #[test]
+    fn test_delete_allowed_when_no_dependents() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_chained_vpns(dir.path());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).unwrap();
+
+        // Mullvad has no dependents — should be allowed
+        let this_label = cfgs["startwrt"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<UciVpnClient>().ok())
+            .find(|meta| meta.interface == "wg_mullvad")
+            .map(|meta| meta.label.clone())
+            .unwrap();
+
+        let dependents = get_vpn_dependents(&cfgs, &this_label);
+        assert!(dependents.is_empty(), "Mullvad should have no dependents");
+    }
+
+    #[test]
+    fn test_disable_blocked_when_vpn_has_dependents() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_chained_vpns(dir.path());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).unwrap();
+
+        // Proton VPN has Mullvad as a dependent — disabling should be blocked
+        let this_label = cfgs["startwrt"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<UciVpnClient>().ok())
+            .find(|meta| meta.interface == "wg_proton")
+            .map(|meta| meta.label.clone())
+            .unwrap();
+
+        let dependents = get_vpn_dependents(&cfgs, &this_label);
+        assert!(!dependents.is_empty(), "should block disable for VPN with dependents");
+    }
+
+    #[test]
+    fn test_disable_allowed_when_no_dependents() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_chained_vpns(dir.path());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).unwrap();
+
+        // Mullvad has no dependents — disabling should be allowed
+        let this_label = cfgs["startwrt"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<UciVpnClient>().ok())
+            .find(|meta| meta.interface == "wg_mullvad")
+            .map(|meta| meta.label.clone())
+            .unwrap();
+
+        let dependents = get_vpn_dependents(&cfgs, &this_label);
+        assert!(dependents.is_empty(), "should allow disable for VPN without dependents");
+    }
+
+    #[test]
+    fn test_rename_cascades_to_dependents() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_chained_vpns(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).unwrap();
+
+        let old_label = "Proton VPN";
+        let new_label = "Proton US";
+
+        // Update the primary VPN's label
+        for section in &mut cfgs["startwrt"].sections {
+            let Ok(mut meta) = section.get::<UciVpnClient>() else { continue };
+            if meta.interface != "wg_proton" { continue }
+            meta.label = new_label.to_string();
+            section.set(&meta).unwrap();
+            break;
+        }
+
+        // Cascade: update dependents' target fields
+        for section in &mut cfgs["startwrt"].sections {
+            let Ok(mut meta) = section.get::<UciVpnClient>() else { continue };
+            if meta.target == old_label {
+                meta.target = new_label.to_string();
+                let _ = section.set(&meta);
+            }
+        }
+
+        // Verify Mullvad now targets "Proton US"
+        let mullvad = cfgs["startwrt"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<UciVpnClient>().ok())
+            .find(|m| m.interface == "wg_mullvad")
+            .unwrap();
+        assert_eq!(mullvad.target, "Proton US", "dependent's target should be updated");
+
+        // Verify Proton's label was updated
+        let proton = cfgs["startwrt"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<UciVpnClient>().ok())
+            .find(|m| m.interface == "wg_proton")
+            .unwrap();
+        assert_eq!(proton.label, "Proton US");
+    }
+
     // === DNS cleanup on VPN delete ===
 
     #[test]
@@ -1984,5 +2422,447 @@ config dnsmasq 'dns_lan'
             !still_has_notinterface_lan,
             "main dnsmasq should not have notinterface 'lan' after cleanup"
         );
+    }
+
+    // === VPN chain route tests ===
+
+    /// Helper: set up two chained VPNs with IP endpoints (sto → dal → Internet)
+    fn setup_chain_with_ip_endpoints(dir: &Path) {
+        let key_dal = gen_key();
+        let pub_dal = gen_key();
+        let key_sto = gen_key();
+        let pub_sto = gen_key();
+
+        std::fs::write(
+            dir.join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '99'
+\toption access_to_new_profiles '1'
+
+config vpn_client wg_mullvad_dal
+\toption interface 'wg_mullvad_dal'
+\toption label 'Mullvad Dallas'
+\toption target 'Internet'
+
+config vpn_client wg_mullvad_sto
+\toption interface 'wg_mullvad_sto'
+\toption label 'Mullvad Stockholm'
+\toption target 'Mullvad Dallas'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.join("network"),
+            format!(
+                "\
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth0'
+
+config interface 'lan'
+\toption device 'br-lan.99'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+
+config interface 'wg_mullvad_dal'
+\toption proto 'wireguard'
+\toption private_key '{key_dal}'
+\toption disabled '0'
+\toption defaultroute '0'
+\toption peerdns '0'
+\tlist addresses '10.64.0.1/32'
+
+config wireguard_wg_mullvad_dal 'dal_peer0'
+\toption public_key '{pub_dal}'
+\toption endpoint_host '185.213.154.68'
+\toption endpoint_port '51820'
+\toption route_allowed_ips '0'
+\tlist allowed_ips '0.0.0.0/0'
+
+config interface 'wg_mullvad_sto'
+\toption proto 'wireguard'
+\toption private_key '{key_sto}'
+\toption disabled '0'
+\toption defaultroute '0'
+\toption peerdns '0'
+\tlist addresses '10.65.0.1/32'
+
+config wireguard_wg_mullvad_sto 'sto_peer0'
+\toption public_key '{pub_sto}'
+\toption endpoint_host '185.65.135.70'
+\toption endpoint_port '51820'
+\toption route_allowed_ips '0'
+\tlist allowed_ips '0.0.0.0/0'
+"
+            ),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_rewrite_chain_routes_creates_route() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_chain_with_ip_endpoints(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).unwrap();
+
+        rewrite_vpn_chain_routes(&mut cfgs).unwrap();
+
+        // sto targets dal, so vcr_wg_mullvad_sto should route sto's endpoint through dal
+        let route = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("vcr_wg_mullvad_sto"))
+            .expect("vcr_wg_mullvad_sto route should exist");
+
+        let route_data = route.get::<uciedit::openwrt::NetworkRoute>().unwrap();
+        assert_eq!(route_data.interface, "wg_mullvad_dal");
+        assert_eq!(route_data.target, "185.65.135.70/32");
+        assert!(route_data.table.is_none(), "should be in main routing table");
+
+        // dal targets Internet, so no vcr_wg_mullvad_dal route
+        assert!(
+            cfgs["network"]
+                .sections
+                .iter()
+                .find(|s| s.name().as_deref() == Some("vcr_wg_mullvad_dal"))
+                .is_none(),
+            "dal targets Internet — no chain route needed"
+        );
+    }
+
+    #[test]
+    fn test_rewrite_chain_routes_skips_hostname() {
+        let dir = tempfile::tempdir().unwrap();
+        let key1 = gen_key();
+        let pub1 = gen_key();
+        let key2 = gen_key();
+        let pub2 = gen_key();
+
+        std::fs::write(
+            dir.path().join("startwrt"),
+            "\
+config vpn_client wg_a
+\toption interface 'wg_a'
+\toption label 'VPN A'
+\toption target 'Internet'
+
+config vpn_client wg_b
+\toption interface 'wg_b'
+\toption label 'VPN B'
+\toption target 'VPN A'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.path().join("network"),
+            format!(
+                "\
+config interface 'wg_a'
+\toption proto 'wireguard'
+\toption private_key '{key1}'
+
+config wireguard_wg_a 'a_peer0'
+\toption public_key '{pub1}'
+\toption endpoint_host '1.2.3.4'
+\toption endpoint_port '51820'
+
+config interface 'wg_b'
+\toption proto 'wireguard'
+\toption private_key '{key2}'
+
+config wireguard_wg_b 'b_peer0'
+\toption public_key '{pub2}'
+\toption endpoint_host 'vpn.example.com'
+\toption endpoint_port '51820'
+"
+            ),
+        )
+        .unwrap();
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).unwrap();
+
+        rewrite_vpn_chain_routes(&mut cfgs).unwrap();
+
+        // wg_b has a hostname endpoint — no route should be created
+        assert!(
+            cfgs["network"]
+                .sections
+                .iter()
+                .find(|s| s.name().as_deref() == Some("vcr_wg_b"))
+                .is_none(),
+            "hostname endpoints should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_rewrite_chain_routes_removes_stale() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_chain_with_ip_endpoints(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).unwrap();
+
+        // First call creates the route
+        rewrite_vpn_chain_routes(&mut cfgs).unwrap();
+        assert!(
+            cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("vcr_wg_mullvad_sto")),
+            "route should exist after first call"
+        );
+
+        // Change sto's target to Internet
+        for section in &mut cfgs["startwrt"].sections {
+            let Ok(mut meta) = section.get::<UciVpnClient>() else { continue };
+            if meta.interface == "wg_mullvad_sto" {
+                meta.target = "Internet".to_string();
+                section.set(&meta).unwrap();
+                break;
+            }
+        }
+
+        // Second call should remove the stale route
+        rewrite_vpn_chain_routes(&mut cfgs).unwrap();
+        assert!(
+            cfgs["network"]
+                .sections
+                .iter()
+                .find(|s| s.name().as_deref() == Some("vcr_wg_mullvad_sto"))
+                .is_none(),
+            "stale route should be removed after target changed to Internet"
+        );
+    }
+
+    #[test]
+    fn test_rewrite_chain_routes_multihop() {
+        let dir = tempfile::tempdir().unwrap();
+        let key_a = gen_key();
+        let pub_a = gen_key();
+        let key_b = gen_key();
+        let pub_b = gen_key();
+        let key_c = gen_key();
+        let pub_c = gen_key();
+
+        std::fs::write(
+            dir.path().join("startwrt"),
+            "\
+config vpn_client wg_c
+\toption interface 'wg_c'
+\toption label 'VPN C'
+\toption target 'Internet'
+
+config vpn_client wg_b
+\toption interface 'wg_b'
+\toption label 'VPN B'
+\toption target 'VPN C'
+
+config vpn_client wg_a
+\toption interface 'wg_a'
+\toption label 'VPN A'
+\toption target 'VPN B'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.path().join("network"),
+            format!(
+                "\
+config interface 'wg_a'
+\toption proto 'wireguard'
+\toption private_key '{key_a}'
+
+config wireguard_wg_a 'a_peer0'
+\toption public_key '{pub_a}'
+\toption endpoint_host '1.1.1.1'
+\toption endpoint_port '51820'
+
+config interface 'wg_b'
+\toption proto 'wireguard'
+\toption private_key '{key_b}'
+
+config wireguard_wg_b 'b_peer0'
+\toption public_key '{pub_b}'
+\toption endpoint_host '2.2.2.2'
+\toption endpoint_port '51820'
+
+config interface 'wg_c'
+\toption proto 'wireguard'
+\toption private_key '{key_c}'
+
+config wireguard_wg_c 'c_peer0'
+\toption public_key '{pub_c}'
+\toption endpoint_host '3.3.3.3'
+\toption endpoint_port '51820'
+"
+            ),
+        )
+        .unwrap();
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).unwrap();
+
+        rewrite_vpn_chain_routes(&mut cfgs).unwrap();
+
+        // A → B: A's endpoint (1.1.1.1) routed through B's interface
+        let route_a = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("vcr_wg_a"))
+            .expect("vcr_wg_a should exist");
+        let rd_a = route_a.get::<uciedit::openwrt::NetworkRoute>().unwrap();
+        assert_eq!(rd_a.interface, "wg_b");
+        assert_eq!(rd_a.target, "1.1.1.1/32");
+
+        // B → C: B's endpoint (2.2.2.2) routed through C's interface
+        let route_b = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("vcr_wg_b"))
+            .expect("vcr_wg_b should exist");
+        let rd_b = route_b.get::<uciedit::openwrt::NetworkRoute>().unwrap();
+        assert_eq!(rd_b.interface, "wg_c");
+        assert_eq!(rd_b.target, "2.2.2.2/32");
+
+        // C → Internet: no chain route for C
+        assert!(
+            cfgs["network"]
+                .sections
+                .iter()
+                .find(|s| s.name().as_deref() == Some("vcr_wg_c"))
+                .is_none(),
+            "C targets Internet — no chain route"
+        );
+    }
+
+    #[test]
+    fn test_rewrite_chain_routes_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_chain_with_ip_endpoints(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).unwrap();
+
+        rewrite_vpn_chain_routes(&mut cfgs).unwrap();
+        rewrite_vpn_chain_routes(&mut cfgs).unwrap();
+
+        // Should have exactly one vcr_* route
+        let vcr_count = cfgs["network"]
+            .sections
+            .iter()
+            .filter(|s| s.name().map(|n| n.starts_with("vcr_")).unwrap_or(false))
+            .count();
+        assert_eq!(vcr_count, 1, "idempotent: should have exactly one chain route");
+
+        let route = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("vcr_wg_mullvad_sto"))
+            .expect("vcr_wg_mullvad_sto should still exist");
+        let rd = route.get::<uciedit::openwrt::NetworkRoute>().unwrap();
+        assert_eq!(rd.interface, "wg_mullvad_dal");
+        assert_eq!(rd.target, "185.65.135.70/32");
+    }
+
+    // === validate_target tests ===
+
+    fn setup_vpn_chain_configs(dir: &Path, clients: &[(&str, &str, &str)]) {
+        let mut startwrt = String::new();
+        for (iface, label, target) in clients {
+            startwrt.push_str(&format!(
+                "config vpn_client '{iface}'\n\
+                 \toption interface '{iface}'\n\
+                 \toption label '{label}'\n\
+                 \toption target '{target}'\n\n"
+            ));
+        }
+        std::fs::write(dir.join("startwrt"), startwrt).unwrap();
+    }
+
+    #[test]
+    fn test_validate_target_accepts_internet() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_vpn_chain_configs(dir.path(), &[]);
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["startwrt"]).unwrap();
+        assert!(validate_target(&cfgs, "Internet", "MyVPN").is_ok());
+    }
+
+    #[test]
+    fn test_validate_target_rejects_nonexistent() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_vpn_chain_configs(dir.path(), &[("wg_a", "A", "Internet")]);
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["startwrt"]).unwrap();
+        let err = validate_target(&cfgs, "DoesNotExist", "A").unwrap_err();
+        assert!(
+            matches!(err.kind, ErrorKind::InvalidValue { ref field, .. } if field == "target"),
+            "expected InvalidValue, got: {:?}",
+            err.kind
+        );
+    }
+
+    #[test]
+    fn test_validate_target_rejects_cycle() {
+        let dir = tempfile::tempdir().unwrap();
+        // A→B, B→Internet. Now validate B targeting A → cycle
+        setup_vpn_chain_configs(
+            dir.path(),
+            &[("wg_a", "A", "B"), ("wg_b", "B", "Internet")],
+        );
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["startwrt"]).unwrap();
+        let err = validate_target(&cfgs, "A", "B").unwrap_err();
+        assert!(
+            matches!(err.kind, ErrorKind::VpnChainCycle { .. }),
+            "expected VpnChainCycle, got: {:?}",
+            err.kind
+        );
+    }
+
+    #[test]
+    fn test_validate_target_rejects_longer_cycle() {
+        let dir = tempfile::tempdir().unwrap();
+        // A→B→C→Internet. Validate C targeting A → cycle
+        setup_vpn_chain_configs(
+            dir.path(),
+            &[
+                ("wg_a", "A", "B"),
+                ("wg_b", "B", "C"),
+                ("wg_c", "C", "Internet"),
+            ],
+        );
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["startwrt"]).unwrap();
+        let err = validate_target(&cfgs, "A", "C").unwrap_err();
+        assert!(
+            matches!(err.kind, ErrorKind::VpnChainCycle { .. }),
+            "expected VpnChainCycle, got: {:?}",
+            err.kind
+        );
+    }
+
+    #[test]
+    fn test_validate_target_accepts_valid_chain() {
+        let dir = tempfile::tempdir().unwrap();
+        // A→B→Internet. New VPN "C" targeting A is valid (C→A→B→Internet)
+        setup_vpn_chain_configs(
+            dir.path(),
+            &[("wg_a", "A", "B"), ("wg_b", "B", "Internet")],
+        );
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["startwrt"]).unwrap();
+        assert!(validate_target(&cfgs, "A", "C").is_ok());
     }
 }
