@@ -929,7 +929,8 @@ fn set_config<C: CtrlContext>(
     cfgs: &mut Configs,
     profile: &Profile<ProfileIdOpt>,
 ) -> Result<ProfileId, Error> {
-    let ipv6 = is_ipv6_enabled(cfgs);
+    let ipv6 = is_ipv6_enabled(cfgs)
+        && outbound_supports_ipv6(cfgs, &profile.outbound);
     // Check fullname uniqueness before renaming
     if let Some(given_fullname) = &profile.id.fullname {
         let pre_lookup = Lookup::parse(ctx.clone(), cfgs)?;
@@ -1105,7 +1106,8 @@ fn create_config(
     cfgs: &mut Configs,
     profile: &Profile<ProfileIdOpt>,
 ) -> Result<ProfileId, Error> {
-    let ipv6 = is_ipv6_enabled(cfgs);
+    let ipv6 = is_ipv6_enabled(cfgs)
+        && outbound_supports_ipv6(cfgs, &profile.outbound);
     let interface = if profile.owns_lan {
         if Lookup::parse(ctx.clone(), cfgs)?.lan_owner.is_some() {
             return Err(ErrorKind::LanOwnerExists.into());
@@ -1596,12 +1598,31 @@ pub(crate) fn is_ipv6_enabled(cfgs: &Configs) -> bool {
     })
 }
 
+/// Check whether an outbound VPN interface has IPv6 addresses configured.
+/// If the outbound is "wan" or the VPN has at least one IPv6 address, returns true.
+/// If the VPN has no IPv6 addresses, returns false (IPv6 would leak outside the tunnel).
+pub(crate) fn outbound_supports_ipv6(cfgs: &Configs, outbound: &str) -> bool {
+    use crate::vpn_server::WgInterface;
+    if outbound == "wan" {
+        return true;
+    }
+    cfgs["network"]
+        .sections
+        .iter()
+        .find(|s| s.name().as_deref() == Some(outbound))
+        .and_then(|s| s.get::<WgInterface>().ok())
+        .filter(|wg| wg.is_wireguard())
+        .map(|wg| wg.addresses.iter().any(|addr| addr.contains(':')))
+        .unwrap_or(true) // if we can't find the interface, don't restrict
+}
+
 pub fn rewrite_dhcp(
     _ctx: &impl CtrlContext,
     cfgs: &mut Configs,
     profile: &Profile,
 ) -> Result<(), Error> {
-    let ipv6 = is_ipv6_enabled(cfgs);
+    let ipv6 = is_ipv6_enabled(cfgs)
+        && outbound_supports_ipv6(cfgs, &profile.outbound);
     let ra_value = if ipv6 { "server" } else { "disabled" }.to_string();
     let dhcpv6_value = if ipv6 { "server" } else { "disabled" }.to_string();
 

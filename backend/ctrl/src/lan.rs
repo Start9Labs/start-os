@@ -5,7 +5,7 @@ use crate::CtrlContext;
 use crate::Error;
 use rpc_toolkit::{from_fn, ParentHandler};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::net::Ipv4Addr;
 use std::process::Command;
 use uciedit::openwrt::{Dhcp, NetworkInterface, NetworkRule};
@@ -266,17 +266,25 @@ pub fn ipv6_set<C: CtrlContext>(
             return Err(Error::other("LAN section not found in DHCP config"));
         }
 
-        // Update all profile DHCP/network sections to match global IPv6 state
-        let profile_interfaces: HashSet<String> = profiles::list_config(ctx.clone(), &cfgs)?
-            .into_iter()
-            .map(|p| p.interface)
-            .collect();
+        // Update all profile DHCP/network sections to match global IPv6 state.
+        // Profiles routed through a VPN that lacks IPv6 addresses always get
+        // IPv6 disabled to prevent leaking traffic outside the tunnel.
+        let ipv6_requested = req.slaac || req.dhcpv6;
+        let mut profile_ipv6_map: HashMap<String, bool> = HashMap::new();
+        for section in &cfgs["startwrt"].sections {
+            if let Ok(p) = section.get::<profiles::UciProfile>() {
+                let outbound = p.outbound.unwrap_or_else(|| "wan".to_string());
+                let has_ipv6 = ipv6_requested
+                    && profiles::outbound_supports_ipv6(&cfgs, &outbound);
+                profile_ipv6_map.insert(p.interface.clone(), has_ipv6);
+            }
+        }
 
         for section in &mut cfgs["network"].sections {
             if let Some(name) = section.name() {
-                if profile_interfaces.contains(name.as_ref()) {
+                if let Some(&profile_ipv6) = profile_ipv6_map.get(name.as_ref()) {
                     if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
-                        iface.ip6assign = if req.slaac || req.dhcpv6 {
+                        iface.ip6assign = if profile_ipv6 {
                             Some(req.prefix.to_string())
                         } else {
                             None
@@ -289,11 +297,11 @@ pub fn ipv6_set<C: CtrlContext>(
 
         for section in &mut cfgs["dhcp"].sections {
             if let Some(name) = section.name() {
-                if profile_interfaces.contains(name.as_ref()) {
+                if let Some(&profile_ipv6) = profile_ipv6_map.get(name.as_ref()) {
                     if let Some(mut dhcp) = section.get_typed::<Dhcp>()? {
-                        dhcp.ra = Some(if req.slaac { "server" } else { "disabled" }.to_string());
+                        dhcp.ra = Some(if profile_ipv6 && req.slaac { "server" } else { "disabled" }.to_string());
                         dhcp.dhcpv6 =
-                            Some(if req.dhcpv6 { "server" } else { "disabled" }.to_string());
+                            Some(if profile_ipv6 && req.dhcpv6 { "server" } else { "disabled" }.to_string());
                         section.set(&dhcp)?;
                     }
                 }
