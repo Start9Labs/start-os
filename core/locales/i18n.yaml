@@ -1379,6 +1379,21 @@ net.tor.client-error:
   fr_FR: "Erreur du client Tor : %{error}"
   pl_PL: "Błąd klienta Tor: %{error}"
 
+# net/tunnel.rs
+net.tunnel.timeout-waiting-for-add:
+  en_US: "timed out waiting for gateway %{gateway} to appear in database"
+  de_DE: "Zeitüberschreitung beim Warten auf das Erscheinen von Gateway %{gateway} in der Datenbank"
+  es_ES: "se agotó el tiempo esperando que la puerta de enlace %{gateway} aparezca en la base de datos"
+  fr_FR: "délai d'attente dépassé pour l'apparition de la passerelle %{gateway} dans la base de données"
+  pl_PL: "upłynął limit czasu oczekiwania na pojawienie się bramy %{gateway} w bazie danych"
+
+net.tunnel.timeout-waiting-for-remove:
+  en_US: "timed out waiting for gateway %{gateway} to be removed from database"
+  de_DE: "Zeitüberschreitung beim Warten auf das Entfernen von Gateway %{gateway} aus der Datenbank"
+  es_ES: "se agotó el tiempo esperando que la puerta de enlace %{gateway} sea eliminada de la base de datos"
+  fr_FR: "délai d'attente dépassé pour la suppression de la passerelle %{gateway} de la base de données"
+  pl_PL: "upłynął limit czasu oczekiwania na usunięcie bramy %{gateway} z bazy danych"
+
 # net/wifi.rs
 net.wifi.ssid-no-special-characters:
   en_US: "SSID may not have special characters"
