@@ -47,6 +47,28 @@ start_service() {
 INITEOF
 chmod +x "${FILES_DIR}/etc/init.d/startwrt"
 
+# Custom SmartDNS init script — uses our generated config instead of the
+# stock UCI-generated one. The stock init script generates its own config
+# from UCI at /var/etc/smartdns/smartdns.conf, ignoring ours.
+cat > "${FILES_DIR}/etc/init.d/smartdns" << 'SMARTDNSEOF'
+#!/bin/sh /etc/rc.common
+# StartWRT SmartDNS service — uses our generated config instead of UCI.
+START=19
+STOP=82
+USE_PROCD=1
+
+CONF="/etc/smartdns/smartdns.conf"
+
+start_service() {
+    [ -f "$CONF" ] || return
+    procd_open_instance
+    procd_set_param command /usr/sbin/smartdns -f -c "$CONF"
+    procd_set_param respawn
+    procd_close_instance
+}
+SMARTDNSEOF
+chmod +x "${FILES_DIR}/etc/init.d/smartdns"
+
 # Comment out distfeeds entries for repos not hosted on downloads.openwrt.org.
 # The spacemit target packages and spacemit_openwrt_feeds are built locally
 # but have no upstream package repository, so opkg update fails for them.

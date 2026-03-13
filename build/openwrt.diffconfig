@@ -204,6 +204,7 @@ CONFIG_PACKAGE_rpcd-mod-ucode=y
 CONFIG_PACKAGE_samba4-libs=y
 CONFIG_PACKAGE_sfdisk=y
 CONFIG_PACKAGE_samba4-server=y
+CONFIG_PACKAGE_smartdns=y
 CONFIG_PACKAGE_tc-bpf=y
 CONFIG_PACKAGE_tc-full=y
 CONFIG_PACKAGE_tc-tiny=y

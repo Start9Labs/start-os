@@ -1,3 +1,5 @@
+use crate::dns::{self, DnsServer};
+use crate::profiles;
 use crate::system::get_wan_ipv6s;
 use crate::utils::DeserializeStdin;
 use crate::utils::HandlerExtSerde;
@@ -6,7 +8,7 @@ use crate::Error;
 use rpc_toolkit::{from_fn, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::process::Command;
-use uciedit::openwrt::{DdnsService, InterfaceProto, NetworkDevice, NetworkInterface};
+use uciedit::openwrt::{DdnsService, InterfaceProto, NetworkDevice, NetworkInterface, UciSystemDns};
 use uciedit::{dump_all, parse_all, Arena};
 
 pub const WAN_INTERFACE: &str = "wan";
@@ -119,13 +121,13 @@ pub enum DnsMode {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WanDnsResponse {
     pub mode: DnsMode,
-    pub servers: Vec<String>,
+    pub servers: Vec<DnsServer>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WanDnsSetRequest {
     pub mode: DnsMode,
-    pub servers: Option<Vec<String>>,
+    pub servers: Option<Vec<DnsServer>>,
 }
 
 // ── DDNS types ──────────────────────────────────────────────
@@ -670,39 +672,20 @@ pub fn mac_set<C: CtrlContext>(
 
 pub fn dns_get<C: CtrlContext>(ctx: C) -> Result<WanDnsResponse, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["network"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"])?;
 
-    for section in &cfgs["network"].sections {
-        if section.name().as_deref() == Some(WAN_INTERFACE) {
-            if let Some(iface) = section.get_typed::<NetworkInterface>()? {
-                if iface.peerdns.as_deref() == Some("0") && !iface.dns.is_empty() {
-                    return Ok(WanDnsResponse {
-                        mode: DnsMode::Custom,
-                        servers: iface.dns,
-                    });
-                }
-            }
-        }
+    let servers = dns::get_system_dns_servers(&cfgs);
+    if !servers.is_empty() {
+        Ok(WanDnsResponse {
+            mode: DnsMode::Custom,
+            servers,
+        })
+    } else {
+        Ok(WanDnsResponse {
+            mode: DnsMode::Isp,
+            servers: vec![],
+        })
     }
-
-    // Also check wan6
-    for section in &cfgs["network"].sections {
-        if section.name().as_deref() == Some(WAN6_INTERFACE) {
-            if let Some(iface) = section.get_typed::<NetworkInterface>()? {
-                if iface.peerdns.as_deref() == Some("0") && !iface.dns.is_empty() {
-                    return Ok(WanDnsResponse {
-                        mode: DnsMode::Custom,
-                        servers: iface.dns,
-                    });
-                }
-            }
-        }
-    }
-
-    Ok(WanDnsResponse {
-        mode: DnsMode::Isp,
-        servers: vec![],
-    })
 }
 
 pub fn dns_set<C: CtrlContext>(
@@ -712,29 +695,59 @@ pub fn dns_set<C: CtrlContext>(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network"])?;
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "dhcp", "firewall"],
+        )?;
 
-        // Apply to WAN interface
-        for section in &mut cfgs["network"].sections {
-            if section.name().as_deref() == Some(WAN_INTERFACE) {
-                if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
-                    apply_dns_to_iface(&req, &mut iface);
-                    section.set(&iface)?;
+        // Remove existing system_dns section
+        cfgs["startwrt"]
+            .sections
+            .retain(|s| s.name().as_deref() != Some("system_dns"));
+
+        match req.mode {
+            DnsMode::Custom => {
+                let servers = req.servers.clone().unwrap_or_default();
+                cfgs["startwrt"].append(
+                    &UciSystemDns {
+                        servers: dns::serialize_dns_server_list(&servers),
+                    },
+                    Some("system_dns"),
+                )?;
+
+                // Set peerdns=0 on WAN/WAN6 to prevent ISP DNS from appearing in resolvfile
+                for section in &mut cfgs["network"].sections {
+                    let name = section.name();
+                    let n = name.as_deref();
+                    if n == Some(WAN_INTERFACE) || n == Some(WAN6_INTERFACE) {
+                        if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
+                            iface.peerdns = Some("0".to_string());
+                            iface.dns = vec![];
+                            section.set(&iface)?;
+                        }
+                    }
                 }
             }
-        }
-
-        // Apply to WAN6 interface if it exists and is not disabled
-        for section in &mut cfgs["network"].sections {
-            if section.name().as_deref() == Some(WAN6_INTERFACE) {
-                if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
-                    if iface.proto != InterfaceProto::NONE {
-                        apply_dns_to_iface(&req, &mut iface);
-                        section.set(&iface)?;
+            DnsMode::Isp => {
+                // Restore peerdns=1 on WAN/WAN6
+                for section in &mut cfgs["network"].sections {
+                    let name = section.name();
+                    let n = name.as_deref();
+                    if n == Some(WAN_INTERFACE) || n == Some(WAN6_INTERFACE) {
+                        if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
+                            iface.peerdns = Some("1".to_string());
+                            iface.dns = vec![];
+                            section.set(&iface)?;
+                        }
                     }
                 }
             }
         }
+
+        // Rewrite DNS forwarding (dnsmasq + firewall DNAT) for all profiles
+        // so they pick up the new system DNS setting.
+        profiles::rewrite_all_dns_forwarding(&mut cfgs)?;
 
         match dump_all(ctx.uci_root(), cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
@@ -744,23 +757,15 @@ pub fn dns_set<C: CtrlContext>(
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 if ctx.effectful() {
-                    restart_network();
+                    // Re-read configs to regenerate SmartDNS with the updated state
+                    let arena2 = Arena::new();
+                    let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"])?;
+                    dns::regenerate_smartdns(&ctx, &cfgs2)?;
+                    // Use reload_system() which restarts network + smartdns + firewall + dnsmasq
+                    profiles::reload_system()?;
                 }
                 return Ok(());
             }
-        }
-    }
-}
-
-fn apply_dns_to_iface(req: &WanDnsSetRequest, iface: &mut NetworkInterface) {
-    match req.mode {
-        DnsMode::Isp => {
-            iface.peerdns = Some("1".to_string());
-            iface.dns = vec![];
-        }
-        DnsMode::Custom => {
-            iface.peerdns = Some("0".to_string());
-            iface.dns = req.servers.clone().unwrap_or_default();
         }
     }
 }
@@ -1083,10 +1088,58 @@ config service 'wan'
 
     // ── DNS ──
 
+    fn setup_startwrt(dir: &std::path::Path) {
+        std::fs::write(
+            dir.join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '1'
+",
+        )
+        .unwrap();
+
+        // dns_set now loads dhcp and firewall configs too
+        if !dir.join("dhcp").exists() {
+            std::fs::write(
+                dir.join("dhcp"),
+                "\
+config dnsmasq
+\toption domainneeded '1'
+\toption localise_queries '1'
+",
+            )
+            .unwrap();
+        }
+        if !dir.join("firewall").exists() {
+            std::fs::write(
+                dir.join("firewall"),
+                "\
+config zone
+\toption name 'wan'
+\tlist network 'wan'
+\toption input 'REJECT'
+\toption output 'ACCEPT'
+\toption forward 'REJECT'
+
+config zone
+\toption name 'lan'
+\tlist network 'lan'
+\toption input 'ACCEPT'
+\toption output 'ACCEPT'
+\toption forward 'ACCEPT'
+",
+            )
+            .unwrap();
+        }
+    }
+
     #[test]
     fn dns_get_isp_default() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
+        setup_startwrt(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
         let res = dns_get(ctx).unwrap();
@@ -1098,20 +1151,27 @@ config service 'wan'
     fn dns_set_custom() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
+        setup_startwrt(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
         dns_set(
             ctx.clone(),
             DeserializeStdin(WanDnsSetRequest {
                 mode: DnsMode::Custom,
-                servers: Some(vec!["1.1.1.1".to_string(), "8.8.8.8@853".to_string()]),
+                servers: Some(vec![
+                    DnsServer { address: "1.1.1.1".into(), ssl: false },
+                    DnsServer { address: "8.8.8.8".into(), ssl: true },
+                ]),
             }),
         )
         .unwrap();
 
         let res = dns_get(ctx).unwrap();
         assert_eq!(res.mode, DnsMode::Custom);
-        assert_eq!(res.servers, vec!["1.1.1.1", "8.8.8.8@853"]);
+        assert_eq!(res.servers, vec![
+            DnsServer { address: "1.1.1.1".into(), ssl: false },
+            DnsServer { address: "8.8.8.8".into(), ssl: true },
+        ]);
     }
 
     // ── DDNS ──
@@ -1168,9 +1228,10 @@ config service 'wan'
     }
 
     #[test]
-    fn ipv4_static_auto_sets_gateway_as_dns() {
+    fn ipv4_static_auto_sets_gateway_as_wan_dns() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
+        setup_startwrt(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
         ipv4_set(
@@ -1187,28 +1248,30 @@ config service 'wan'
         )
         .unwrap();
 
+        // ipv4_set sets peerdns=0 and dns=gateway on the WAN interface,
+        // but system DNS (dns_get) reads from startwrt config
         let res = dns_get(ctx).unwrap();
-        assert_eq!(res.mode, DnsMode::Custom);
-        assert_eq!(res.servers, vec!["192.168.10.1"]);
+        assert_eq!(res.mode, DnsMode::Isp);
     }
 
     #[test]
     fn ipv4_static_preserves_custom_dns() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
+        setup_startwrt(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
-        // Set custom DNS first
+        // Set custom system DNS first
         dns_set(
             ctx.clone(),
             DeserializeStdin(WanDnsSetRequest {
                 mode: DnsMode::Custom,
-                servers: Some(vec!["1.1.1.1".to_string()]),
+                servers: Some(vec![DnsServer { address: "1.1.1.1".into(), ssl: false }]),
             }),
         )
         .unwrap();
 
-        // Switch to static — should NOT overwrite custom DNS
+        // Switch to static — should NOT overwrite system DNS
         ipv4_set(
             ctx.clone(),
             DeserializeStdin(WanIpv4SetRequest {
@@ -1225,7 +1288,7 @@ config service 'wan'
 
         let res = dns_get(ctx).unwrap();
         assert_eq!(res.mode, DnsMode::Custom);
-        assert_eq!(res.servers, vec!["1.1.1.1"]);
+        assert_eq!(res.servers, vec![DnsServer { address: "1.1.1.1".into(), ssl: false }]);
     }
 
     // ── IPv4 mode switching ──
@@ -1571,13 +1634,14 @@ config service 'wan'
     fn dns_custom_to_isp_clears_servers() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
+        setup_startwrt(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
         dns_set(
             ctx.clone(),
             DeserializeStdin(WanDnsSetRequest {
                 mode: DnsMode::Custom,
-                servers: Some(vec!["1.1.1.1".to_string()]),
+                servers: Some(vec![DnsServer { address: "1.1.1.1".into(), ssl: false }]),
             }),
         )
         .unwrap();
@@ -1594,6 +1658,100 @@ config service 'wan'
         let res = dns_get(ctx).unwrap();
         assert_eq!(res.mode, DnsMode::Isp);
         assert!(res.servers.is_empty(), "servers should be cleared");
+    }
+
+    #[test]
+    fn dns_set_custom_rewrites_profile_dnsmasq() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_network(dir.path());
+        setup_startwrt(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        // Set system DNS to custom
+        dns_set(
+            ctx.clone(),
+            DeserializeStdin(WanDnsSetRequest {
+                mode: DnsMode::Custom,
+                servers: Some(vec![DnsServer { address: "9.9.9.9".into(), ssl: false }]),
+            }),
+        )
+        .unwrap();
+
+        // Verify that a per-profile dnsmasq section was created for the Admin profile
+        let arena = Arena::new();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp", "network"]).unwrap();
+        let has_dns_lan = cfgs["dhcp"]
+            .sections
+            .iter()
+            .any(|s| s.name().as_deref() == Some("dns_lan"));
+        assert!(has_dns_lan, "dns_set should create per-profile dnsmasq for existing profiles");
+
+        // Verify peerdns=0 on both WAN and WAN6
+        for iface_name in &[WAN_INTERFACE, WAN6_INTERFACE] {
+            let section = cfgs["network"]
+                .sections
+                .iter()
+                .find(|s| s.name().as_deref() == Some(iface_name))
+                .unwrap_or_else(|| panic!("missing {iface_name} section"));
+            let iface = section.get_typed::<NetworkInterface>().unwrap().unwrap();
+            assert_eq!(
+                iface.peerdns.as_deref(),
+                Some("0"),
+                "peerdns should be 0 on {iface_name} in custom DNS mode"
+            );
+        }
+    }
+
+    #[test]
+    fn dns_set_isp_removes_profile_dnsmasq() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_network(dir.path());
+        setup_startwrt(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        // Set system DNS to custom first
+        dns_set(
+            ctx.clone(),
+            DeserializeStdin(WanDnsSetRequest {
+                mode: DnsMode::Custom,
+                servers: Some(vec![DnsServer { address: "9.9.9.9".into(), ssl: false }]),
+            }),
+        )
+        .unwrap();
+
+        // Switch back to ISP
+        dns_set(
+            ctx.clone(),
+            DeserializeStdin(WanDnsSetRequest {
+                mode: DnsMode::Isp,
+                servers: None,
+            }),
+        )
+        .unwrap();
+
+        // Verify that the per-profile dnsmasq section was removed
+        let arena = Arena::new();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp", "network"]).unwrap();
+        let has_dns_lan = cfgs["dhcp"]
+            .sections
+            .iter()
+            .any(|s| s.name().as_deref() == Some("dns_lan"));
+        assert!(!has_dns_lan, "dns_set ISP should remove per-profile dnsmasq sections");
+
+        // Verify peerdns=1 on both WAN and WAN6
+        for iface_name in &[WAN_INTERFACE, WAN6_INTERFACE] {
+            let section = cfgs["network"]
+                .sections
+                .iter()
+                .find(|s| s.name().as_deref() == Some(iface_name))
+                .unwrap_or_else(|| panic!("missing {iface_name} section"));
+            let iface = section.get_typed::<NetworkInterface>().unwrap().unwrap();
+            assert_eq!(
+                iface.peerdns.as_deref(),
+                Some("1"),
+                "peerdns should be 1 on {iface_name} in ISP DNS mode"
+            );
+        }
     }
 
     // ── DDNS revert + provider switching ──

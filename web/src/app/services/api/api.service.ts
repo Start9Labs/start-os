@@ -280,7 +280,7 @@ export interface SecurityProfile {
   wan_access: WanAccess
   access_to_new_profiles: boolean
   owns_lan: boolean
-  dns_override?: string[]
+  dns_override?: DnsServer[]
   dns_source: 'system' | 'custom' | 'vpn'
 }
 
@@ -305,7 +305,7 @@ export interface ProfileCreateInput {
   wan_access: WanAccess
   access_to_new_profiles: boolean
   owns_lan: boolean
-  dns_override?: string[]
+  dns_override?: DnsServer[]
 }
 
 export interface ProfileUpdateInput {
@@ -318,7 +318,7 @@ export interface ProfileUpdateInput {
   wan_access: WanAccess
   access_to_new_profiles: boolean
   owns_lan: boolean
-  dns_override?: string[]
+  dns_override?: DnsServer[]
 }
 export type CheckInitializedRes = { initialized: boolean }
 
@@ -449,14 +449,19 @@ export type WanMacSetRequest = {
 
 export type WanDnsMode = 'isp' | 'custom'
 
+export type DnsServer = {
+  address: string
+  ssl: boolean
+}
+
 export type WanDnsResponse = {
   mode: WanDnsMode
-  servers: string[]
+  servers: DnsServer[]
 }
 
 export type WanDnsSetRequest = {
   mode: WanDnsMode
-  servers?: string[]
+  servers?: DnsServer[]
 }
 
 export type WanDdnsProvider =

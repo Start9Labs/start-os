@@ -573,7 +573,10 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
       wan_access: { whitelist: ['1.1.1.1', '8.8.8.8', '9.9.9.9'] },
       access_to_new_profiles: false,
       owns_lan: false,
-      dns_override: ['1.1.1.1', '8.8.8.8'],
+      dns_override: [
+        { address: '1.1.1.1', ssl: true },
+        { address: '8.8.8.8', ssl: false },
+      ],
       dns_source: 'custom',
     },
     {

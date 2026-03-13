@@ -25,6 +25,15 @@ struct ProfileIdOpt {
     vlan_tag: Option<u16>,
 }
 
+/// A single DNS server entry with protocol info.
+#[derive(Serialize, Deserialize)]
+struct DnsServer {
+    /// IPv4 address of the DNS server
+    address: String,
+    /// false = plain UDP (port 53), true = DNS-over-HTTPS via SmartDNS
+    ssl: bool,
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum Protocol {
@@ -321,7 +330,7 @@ enum DnsMode {
 struct WanDnsResponse {
     mode: DnsMode,
     /// Populated when mode = Custom
-    servers: Vec<String>,
+    servers: Vec<DnsServer>,
 }
 ```
 
@@ -331,8 +340,8 @@ struct WanDnsResponse {
 #[derive(Deserialize)]
 struct WanDnsSetRequest {
     mode: DnsMode,
-    /// Required when mode = Custom. DNS server addresses (may include @853 suffix for DoT).
-    servers: Option<Vec<String>>,
+    /// Required when mode = Custom. Each entry specifies address and protocol.
+    servers: Option<Vec<DnsServer>>,
 }
 // Response: null
 // Backend: updates UCI network wan+wan6 DNS settings, restarts network
@@ -970,7 +979,9 @@ struct SecurityProfile {
     wan_access: WanAccess,
     access_to_new_profiles: bool,
     owns_lan: bool,
-    dns_override: Option<Vec<String>>,
+    dns_override: Option<Vec<DnsServer>>,
+    /// "system", "custom", or "vpn"
+    dns_source: String,
 }
 // Response: SecurityProfile
 ```
@@ -989,7 +1000,7 @@ struct ProfileCreateRequest {
     wan_access: WanAccess,
     access_to_new_profiles: bool,
     owns_lan: bool,
-    dns_override: Option<Vec<String>>,
+    dns_override: Option<Vec<DnsServer>>,
 }
 // Response: ProfileId
 ```
@@ -1010,7 +1021,7 @@ struct ProfileUpdateRequest {
     wan_access: WanAccess,
     access_to_new_profiles: bool,
     owns_lan: bool,
-    dns_override: Option<Vec<String>>,
+    dns_override: Option<Vec<DnsServer>>,
 }
 // Response: ProfileId
 ```

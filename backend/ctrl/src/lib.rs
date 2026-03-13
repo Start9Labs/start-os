@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod captive;
 pub mod devices;
+pub mod dns;
 pub mod emmc;
 pub mod error;
 pub mod ethernet;

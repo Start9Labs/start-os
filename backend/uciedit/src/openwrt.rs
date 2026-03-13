@@ -394,6 +394,13 @@ pub struct DhcpHost {
 }
 
 #[derive(Debug, TypedSection, Default)]
+#[uci(ty = "system_dns")]
+pub struct UciSystemDns {
+    #[uci(default)]
+    pub servers: Vec<String>, // JSON-encoded DnsServer entries
+}
+
+#[derive(Debug, TypedSection, Default)]
 #[uci(ty = "service")]
 pub struct DdnsService {
     #[uci(default)]

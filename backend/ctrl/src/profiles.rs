@@ -1,3 +1,4 @@
+use crate::dns::{self, DnsServer};
 use crate::ethernet::DEFAULT_LAN_BRIDGE;
 use crate::system::UciPreferences;
 use crate::utils::DeserializeStdin;
@@ -53,7 +54,7 @@ pub struct Profile<Id: Ord = ProfileId> {
     pub lan_access: LanAccess<Id>,
     pub wan_access: WanAccess,
     #[serde(default)]
-    pub dns_override: Vec<String>,
+    pub dns_override: Vec<DnsServer>,
     #[serde(default)]
     pub dns_source: String,
     pub access_to_new_profiles: bool,
@@ -117,7 +118,7 @@ impl ProfileIdOpt {
 
 #[derive(Debug, TypedSection)]
 #[uci(ty = "profile")]
-struct UciProfile {
+pub(crate) struct UciProfile {
     pub fullname: String,
     pub interface: String,
     pub vlan_tag: u16,
@@ -179,18 +180,105 @@ fn compute_dns_source(cfgs: &Configs, profile: &Profile) -> String {
     }
 }
 
-fn effective_dns(cfgs: &Configs, profile: &Profile) -> Vec<String> {
-    if !profile.dns_override.is_empty() {
-        profile.dns_override.clone()
-    } else if profile.outbound != "wan" {
-        get_vpn_dns(cfgs, &profile.outbound)
-    } else {
-        Vec::new()
+/// Returns true if the profile has non-system DNS (custom override or VPN DNS).
+fn has_effective_dns(cfgs: &Configs, profile: &Profile) -> bool {
+    !profile.dns_override.is_empty()
+        || (profile.outbound != "wan" && !get_vpn_dns(cfgs, &profile.outbound).is_empty())
+}
+
+/// Rewrite DNS forwarding (dnsmasq sections) for ALL profiles.
+/// Call after any operation that changes system DNS settings.
+pub(crate) fn rewrite_all_dns_forwarding(cfgs: &mut Configs) -> Result<(), Error> {
+    // Collect all profiles first to avoid borrow issues
+    let profiles: Vec<Profile> = cfgs["startwrt"]
+        .sections
+        .iter()
+        .filter_map(|section| {
+            let uci_profile = section.get::<UciProfile>().ok()?;
+            let dns_override = dns::parse_dns_server_list(&uci_profile.dns_override);
+            Some(Profile {
+                id: uci_profile.id(),
+                gateway_ip: {
+                    // Look up gateway from network config
+                    let interface = &uci_profile.interface;
+                    cfgs["network"]
+                        .sections
+                        .iter()
+                        .find_map(|s| {
+                            if s.name().as_deref() == Some(interface) {
+                                s.get::<NetworkInterface>().ok().and_then(|i| i.ipaddr)
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or(Ipv4Addr::new(0, 0, 0, 0))
+                },
+                outbound: uci_profile.outbound.unwrap_or_else(|| "wan".into()),
+                lan_access: LanAccess::All, // Not used by rewrite_dns_forwarding
+                wan_access: WanAccess::All,  // Not used by rewrite_dns_forwarding
+                dns_override,
+                dns_source: String::new(),
+                access_to_new_profiles: false,
+                owns_lan: false,
+            })
+        })
+        .collect();
+
+    for profile in &profiles {
+        rewrite_dns_forwarding(cfgs, profile)?;
+        rewrite_dns_redirect(cfgs, profile)?;
     }
+    Ok(())
+}
+
+/// Rewrite the DNS-Override DNAT redirect rule for a single profile.
+/// Adds or removes the redirect based on whether the profile needs DNS hijacking.
+fn rewrite_dns_redirect(cfgs: &mut Configs, profile: &Profile) -> Result<(), Error> {
+    // Find this profile's firewall zone name
+    let zone_name = cfgs["firewall"]
+        .sections
+        .iter()
+        .find_map(|s| {
+            let zone = s.get::<FirewallZone>().ok()?;
+            if zone.network.iter().any(|n| n == &profile.id.interface) {
+                Some(zone.name.clone())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| format!("vlan_{}", profile.id.interface));
+
+    // Remove existing DNS-Override redirect for this profile
+    cfgs["firewall"].sections.retain(|section| {
+        let Ok(redir) = section.get::<FirewallRedirect>() else {
+            return true;
+        };
+        !(redir.src == zone_name && redir.name.contains("DNS-Override"))
+    });
+
+    // Add redirect if this profile needs DNS hijacking
+    if has_effective_dns(cfgs, profile) || !dns::get_system_dns_servers(cfgs).is_empty() {
+        cfgs["firewall"].append(
+            &FirewallRedirect {
+                name: format!(
+                    "DNS-Override-{}",
+                    profile.id.fullname.replace(" ", "-"),
+                ),
+                src: zone_name,
+                proto: vec!["tcp".into(), "udp".into()],
+                src_dport: Some("53".into()),
+                dest_ip: Some(profile.gateway_ip.to_string()),
+                dest_port: Some("53".into()),
+                target: "DNAT".into(),
+                ..Default::default()
+            },
+            None,
+        )?;
+    }
+    Ok(())
 }
 
 pub(crate) fn rewrite_dns_forwarding(cfgs: &mut Configs, profile: &Profile) -> Result<(), Error> {
-    let dns = effective_dns(cfgs, profile);
     let section_name = format!("dns_{}", profile.id.interface);
 
     // Remove any existing per-profile dnsmasq section
@@ -215,15 +303,37 @@ pub(crate) fn rewrite_dns_forwarding(cfgs: &mut Configs, profile: &Profile) -> R
         }
     }
 
-    // If effective DNS is non-empty, create per-profile dnsmasq + notinterface
-    if !dns.is_empty() {
-        let servers = if profile.outbound != "wan" {
-            dns.into_iter()
+    // Determine the dnsmasq server list based on DNS source:
+    // 1. Custom DNS → SmartDNS profile group
+    // 2. VPN DNS → dnsmasq server IP@interface directly (SmartDNS can't bind to VPN iface)
+    // 3. System DNS (custom) → SmartDNS system group
+    // 4. System DNS (ISP) → no per-profile dnsmasq (uses default resolvfile)
+    let servers: Vec<String> = if !profile.dns_override.is_empty() {
+        // Custom DNS: route through SmartDNS profile group
+        let port = dns::smartdns_port_for_vlan(profile.id.vlan_tag);
+        vec![format!("127.0.0.1#{}", port)]
+    } else if profile.outbound != "wan" {
+        // VPN DNS: use dnsmasq server IP@interface directly
+        let vpn_dns = get_vpn_dns(cfgs, &profile.outbound);
+        if vpn_dns.is_empty() {
+            vec![]
+        } else {
+            vpn_dns
+                .into_iter()
                 .map(|ip| format!("{}@{}", ip, profile.outbound))
                 .collect()
+        }
+    } else {
+        // System DNS: route through SmartDNS system group if configured
+        let system_dns = dns::get_system_dns_servers(cfgs);
+        if !system_dns.is_empty() {
+            vec![format!("127.0.0.1#{}", dns::SMARTDNS_SYSTEM_PORT)]
         } else {
-            dns
-        };
+            vec![] // ISP mode — no per-profile dnsmasq needed
+        }
+    };
+
+    if !servers.is_empty() {
         cfgs["dhcp"].append(
             &ProfileDnsmasq {
                 server: servers,
@@ -298,7 +408,7 @@ fn get_config(
         wan_access: WanAccess::None,
         dns_override: uciprofile
             .as_ref()
-            .map(|p| p.dns_override.clone())
+            .map(|p| dns::parse_dns_server_list(&p.dns_override))
             .unwrap_or_default(),
         dns_source: String::new(),
         access_to_new_profiles: match &uciprofile {
@@ -406,6 +516,12 @@ pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 if ctx.effectful() {
+                    // Regenerate SmartDNS config after UCI dump so the deleted
+                    // profile's group is removed.
+                    let arena2 = Arena::new();
+                    let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"])?;
+                    dns::regenerate_smartdns(&ctx, &cfgs2)?;
+
                     // Bring down the WireGuard interface before reloading services.
                     // reload_system() alone won't tear down an active WireGuard tunnel.
                     let _ = Command::new("ifdown")
@@ -617,6 +733,10 @@ pub fn reload_system() -> Result<(), Error> {
         .arg("reload")
         .spawn()
         .and_then(|mut c| c.wait());
+    let _ = Command::new("/etc/init.d/smartdns")
+        .arg("restart")
+        .spawn()
+        .and_then(|mut c| c.wait());
     let _ = Command::new("/etc/init.d/firewall")
         .arg("reload")
         .spawn()
@@ -638,6 +758,10 @@ pub fn reload_system_and_wifi() -> Result<(), Error> {
         .spawn()
         .and_then(|mut c| c.wait());
     let _ = Command::new("wifi")
+        .spawn()
+        .and_then(|mut c| c.wait());
+    let _ = Command::new("/etc/init.d/smartdns")
+        .arg("restart")
         .spawn()
         .and_then(|mut c| c.wait());
     let _ = Command::new("/etc/init.d/firewall")
@@ -770,6 +894,12 @@ pub fn set<C: CtrlContext>(
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 if ctx.effectful() {
+                    // Regenerate SmartDNS config after UCI dump so it reflects
+                    // any dns_override changes on this profile.
+                    let arena2 = Arena::new();
+                    let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"])?;
+                    dns::regenerate_smartdns(&ctx, &cfgs2)?;
+
                     if admin_ip_changed {
                         crate::lan::restart_network_services(profile.gateway_ip, restart_ifaces);
                     } else {
@@ -829,7 +959,8 @@ fn set_config<C: CtrlContext>(
                 existing_profile.outbound = Some(profile.outbound.clone());
                 existing_profile.wan_access = Some(wan_access_type_str(&profile.wan_access));
                 existing_profile.wan_access_list = wan_access_destinations(&profile.wan_access);
-                existing_profile.dns_override = profile.dns_override.clone();
+                existing_profile.dns_override =
+                    dns::serialize_dns_server_list(&profile.dns_override);
                 section.set(&existing_profile)?;
             }
         }
@@ -955,6 +1086,12 @@ pub fn create<C: CtrlContext>(
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 if ctx.effectful() {
+                    // Regenerate SmartDNS config after UCI dump so it reflects
+                    // any dns_override on the new profile.
+                    let arena2 = Arena::new();
+                    let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"])?;
+                    dns::regenerate_smartdns(&ctx, &cfgs2)?;
+
                     reload_system_and_wifi()?;
                 }
                 return Ok(out);
@@ -1141,7 +1278,7 @@ fn create_config(
             access_to_new_profiles: profile.access_to_new_profiles,
             wan_access: Some(wan_access_type_str(&profile.wan_access)),
             wan_access_list: wan_access_destinations(&profile.wan_access),
-            dns_override: profile.dns_override.clone(),
+            dns_override: dns::serialize_dns_server_list(&profile.dns_override),
         },
         Some(&interface),
     )?;
@@ -1267,17 +1404,10 @@ fn rewrite_firewall(
         !(redir.src == this_zone_name && redir.name.contains("DNS-Override"))
     });
 
-    // Add DNS redirect rules (DNAT port 53 to specified servers)
-    // Priority: custom dns_override > VPN DNS > none (system)
-    // TODO: parse @853 suffix from dns_ip entries to support DNS-over-TLS.
-    // Plain entries (e.g. "1.1.1.1") use DNAT as below. TLS entries (e.g.
-    // "1.1.1.1@853") need a local DoT forwarder (stubby/unbound) that accepts
-    // plaintext on a per-profile loopback port and forwards upstream over TLS.
     // DNS hijacking: redirect all port 53 traffic to the profile's gateway,
     // where per-profile dnsmasq handles .lan locally and forwards the rest
-    // to the VPN DNS servers. This replaces per-server DNAT which bypassed
-    // the local dnsmasq and broke .lan resolution.
-    if !effective_dns(cfgs, profile).is_empty() {
+    // via SmartDNS (for custom/system DNS) or directly (for VPN DNS).
+    if has_effective_dns(cfgs, profile) || !dns::get_system_dns_servers(cfgs).is_empty() {
         cfgs["firewall"].append(
             &FirewallRedirect {
                 name: format!(
@@ -2971,7 +3101,7 @@ config dhcp 'lan'
             outbound: "wan".into(),
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
-            dns_override: vec!["1.1.1.1".into()],
+            dns_override: vec![DnsServer { address: "1.1.1.1".into(), ssl: false }],
             dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
@@ -3018,7 +3148,10 @@ config dhcp 'lan'
             outbound: "wan".into(),
             lan_access: LanAccess::SameProfile,
             wan_access: WanAccess::All,
-            dns_override: vec!["1.1.1.1".into(), "8.8.8.8".into()],
+            dns_override: vec![
+                DnsServer { address: "1.1.1.1".into(), ssl: false },
+                DnsServer { address: "8.8.8.8".into(), ssl: false },
+            ],
             dns_source: String::new(),
             access_to_new_profiles: false,
             owns_lan: false,
@@ -3049,7 +3182,10 @@ config dhcp 'lan'
 
         assert_eq!(
             got.dns_override,
-            vec!["1.1.1.1".to_string(), "8.8.8.8".to_string()],
+            vec![
+                DnsServer { address: "1.1.1.1".into(), ssl: false },
+                DnsServer { address: "8.8.8.8".into(), ssl: false },
+            ],
             "dns_override should round-trip through UCI"
         );
     }
@@ -3334,5 +3470,159 @@ config wifi-iface 'default_radio0'
             .iter()
             .any(|s| s.name().as_deref() == Some("lan"));
         assert!(admin_iface, "Admin network interface should survive");
+    }
+
+    #[test]
+    fn test_collect_smartdns_groups_with_profile_dns() {
+        let dir = tempfile::tempdir().unwrap();
+        // Create startwrt config with a profile that has dns_override
+        std::fs::write(
+            dir.path().join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '1'
+
+config profile guest
+\toption fullname 'Guest'
+\toption interface 'guest'
+\toption vlan_tag '101'
+\tlist dns_override '{\"address\":\"1.1.1.1\",\"ssl\":false}'
+\tlist dns_override '{\"address\":\"8.8.8.8\",\"ssl\":true}'
+
+config system_dns system_dns
+\tlist servers '{\"address\":\"9.9.9.9\",\"ssl\":false}'
+",
+        )
+        .unwrap();
+
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["startwrt"]).unwrap();
+        let groups = dns::collect_smartdns_groups(&cfgs);
+
+        // Should have both system and profile groups
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0].name, "system");
+        assert_eq!(groups[0].port, dns::SMARTDNS_SYSTEM_PORT);
+        assert_eq!(groups[1].name, "profile_guest");
+        assert_eq!(groups[1].port, dns::smartdns_port_for_vlan(101));
+        assert_eq!(groups[1].servers.len(), 2);
+    }
+
+    #[test]
+    fn test_collect_smartdns_groups_no_profile_dns() {
+        let dir = tempfile::tempdir().unwrap();
+        // Profile without dns_override should not produce a SmartDNS group
+        std::fs::write(
+            dir.path().join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '1'
+",
+        )
+        .unwrap();
+
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["startwrt"]).unwrap();
+        let groups = dns::collect_smartdns_groups(&cfgs);
+
+        assert!(groups.is_empty(), "No groups when no system or profile DNS");
+    }
+
+    #[test]
+    fn test_rewrite_all_dns_forwarding_creates_dnsmasq_for_system_dns() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '1'
+
+config profile guest
+\toption fullname 'Guest'
+\toption interface 'guest'
+\toption vlan_tag '101'
+
+config system_dns system_dns
+\tlist servers '{\"address\":\"1.1.1.1\",\"ssl\":false}'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.path().join("network"),
+            "\
+config interface 'lan'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption device 'br-lan.1'
+\toption netmask '255.255.255.0'
+
+config interface 'guest'
+\toption proto 'static'
+\toption ipaddr '192.168.101.1'
+\toption device 'br-lan.101'
+\toption netmask '255.255.255.0'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.path().join("dhcp"),
+            "\
+config dnsmasq
+\toption domainneeded '1'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.path().join("firewall"),
+            "\
+config zone
+\toption name 'wan'
+\tlist network 'wan'
+\toption input 'REJECT'
+\toption output 'ACCEPT'
+\toption forward 'REJECT'
+
+config zone
+\toption name 'lan'
+\tlist network 'lan'
+\toption input 'ACCEPT'
+\toption output 'ACCEPT'
+\toption forward 'ACCEPT'
+
+config zone
+\toption name 'vlan_guest'
+\tlist network 'guest'
+\toption input 'ACCEPT'
+\toption output 'ACCEPT'
+\toption forward 'ACCEPT'
+",
+        )
+        .unwrap();
+
+        let arena = Arena::new();
+        let mut cfgs =
+            parse_all(dir.path(), &arena, &["startwrt", "network", "dhcp", "firewall"]).unwrap();
+        rewrite_all_dns_forwarding(&mut cfgs).unwrap();
+
+        // Both profiles should get per-profile dnsmasq sections pointing to SmartDNS
+        let dns_lan = cfgs["dhcp"]
+            .sections
+            .iter()
+            .any(|s| s.name().as_deref() == Some("dns_lan"));
+        let dns_guest = cfgs["dhcp"]
+            .sections
+            .iter()
+            .any(|s| s.name().as_deref() == Some("dns_guest"));
+        assert!(dns_lan, "Admin profile should get per-profile dnsmasq");
+        assert!(dns_guest, "Guest profile should get per-profile dnsmasq");
     }
 }

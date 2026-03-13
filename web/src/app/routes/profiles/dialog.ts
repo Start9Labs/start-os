@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core'
@@ -48,6 +49,7 @@ import { startWith } from 'rxjs'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
 import type {
+  DnsServer,
   LanAccess,
   ProfileIdOpt,
   SecurityProfile,
@@ -71,7 +73,7 @@ export interface ProfileDialogResult {
   wan_access: WanAccess
   access_to_new_profiles: boolean
   owns_lan: boolean
-  dns_override?: string[]
+  dns_override?: DnsServer[]
 }
 
 @Component({
@@ -141,7 +143,7 @@ export interface ProfileDialogResult {
                   tuiSwitch
                   [formControlName]="'dns' + ($index + 1) + 'Tls'"
                 />
-                TLS
+                Secure (DoH)
               </label>
             </section>
             <tui-error [formControlName]="'dns' + ($index + 1)" />
@@ -347,6 +349,25 @@ class AddProfile {
     { requireSync: true },
   )
 
+  constructor() {
+    // Update dns field validators when custom DNS toggle changes
+    effect(() => {
+      const useCustom = this.useCustomDns()
+      const { dns1, dns2, dns3 } = this.form.controls
+      for (const control of [dns1, dns2, dns3]) {
+        control.clearValidators()
+        if (useCustom) {
+          control.addValidators([CustomValidators.ipv4()])
+        }
+        control.updateValueAndValidity()
+      }
+      if (useCustom) {
+        dns1.addValidators([Validators.required])
+        dns1.updateValueAndValidity()
+      }
+    })
+  }
+
   protected readonly outboundOptions = computed(() => {
     return [
       { interface: 'wan', label: 'WAN' },
@@ -425,23 +446,16 @@ class AddProfile {
       }
     }
 
-    const parse = (server: string): { ip: string; tls: boolean } =>
-      server.includes('@853') || server.includes('#853')
-        ? { ip: server.split(/[@#]/)[0], tls: true }
-        : { ip: server, tls: false }
-
-    const s1 = servers[0] ? parse(servers[0]) : { ip: '', tls: false }
-    const s2 = servers[1] ? parse(servers[1]) : { ip: '', tls: false }
-    const s3 = servers[2] ? parse(servers[2]) : { ip: '', tls: false }
+    const s = (i: number) => servers[i] || { address: '', ssl: false }
 
     return {
       useCustomDns: true,
-      dns1: s1.ip,
-      dns1Tls: s1.tls,
-      dns2: s2.ip,
-      dns2Tls: s2.tls,
-      dns3: s3.ip,
-      dns3Tls: s3.tls,
+      dns1: s(0).address,
+      dns1Tls: s(0).ssl,
+      dns2: s(1).address,
+      dns2Tls: s(1).ssl,
+      dns3: s(2).address,
+      dns3Tls: s(2).ssl,
     }
   }
 
@@ -547,17 +561,17 @@ class AddProfile {
       }
 
       // Build DNS override
-      let dns_override: string[] | undefined
+      let dns_override: DnsServer[] | undefined
       if (val.useCustomDns) {
-        const servers: string[] = []
+        const servers: DnsServer[] = []
         if (val.dns1) {
-          servers.push(val.dns1Tls ? `${val.dns1}@853` : val.dns1)
+          servers.push({ address: val.dns1, ssl: val.dns1Tls })
         }
         if (val.dns2) {
-          servers.push(val.dns2Tls ? `${val.dns2}@853` : val.dns2)
+          servers.push({ address: val.dns2, ssl: val.dns2Tls })
         }
         if (val.dns3) {
-          servers.push(val.dns3Tls ? `${val.dns3}@853` : val.dns3)
+          servers.push({ address: val.dns3, ssl: val.dns3Tls })
         }
         dns_override = servers.length ? servers : undefined
       }
