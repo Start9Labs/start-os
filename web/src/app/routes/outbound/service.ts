@@ -61,7 +61,6 @@ export class OutboundService extends FormService<OutboundVpn[]> {
     )
   }
 
-  // @TODO matt where should the associated element be exposed in the UI?
   setEnabled(id: string, enabled: boolean) {
     return this.actions.run(
       async () => {

@@ -739,7 +739,7 @@ fn reset_profiles_using_vpn(cfgs: &mut Configs, vpn_interface: &str) -> Vec<(Str
 
 /// Enable or disable an outbound VPN client
 pub fn set_enabled(
-    _ctx: ServerContext,
+    ctx: ServerContext,
     DeserializeStdin(req): DeserializeStdin<OutboundVpnSetEnabledRequest>,
 ) -> Result<(), Error> {
     let interface_name = &req.id;
@@ -747,7 +747,11 @@ pub fn set_enabled(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt"])?;
+        let mut cfgs = parse_all(
+            "/etc/config",
+            &arena,
+            &["network", "startwrt", "firewall", "dhcp"],
+        )?;
 
         // Verify the VPN client exists in metadata and get its label
         let this_meta = cfgs["startwrt"]
@@ -768,6 +772,30 @@ pub fn set_enabled(
                     dependents,
                 }
                 .into());
+            }
+        }
+
+        // When disabling, reset any profiles that route through this VPN back to WAN
+        if !req.enabled {
+            let affected_profiles = reset_profiles_using_vpn(&mut cfgs, interface_name);
+            for (profile_interface, vlan_tag, gateway_ip) in &affected_profiles {
+                let profile = crate::profiles::Profile {
+                    id: crate::profiles::ProfileId {
+                        fullname: String::new(),
+                        interface: profile_interface.clone(),
+                        vlan_tag: *vlan_tag,
+                    },
+                    gateway_ip: *gateway_ip,
+                    outbound: "wan".to_string(),
+                    lan_access: crate::profiles::LanAccess::SameProfile,
+                    wan_access: crate::profiles::WanAccess::None,
+                    dns_override: Vec::new(),
+                    dns_source: String::new(),
+                    access_to_new_profiles: false,
+                    owns_lan: false,
+                };
+                crate::profiles::rewrite_routing(&ctx, &mut cfgs, &profile)?;
+                crate::profiles::rewrite_dns_forwarding(&mut cfgs, &profile)?;
             }
         }
 
