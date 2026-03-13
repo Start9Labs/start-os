@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-MAX_IMG_LEN=$((4 * 1024 * 1024 * 1024)) # 4GB
 
 echo "==== StartOS Image Build ===="
 
@@ -332,10 +331,10 @@ fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
     ln -sf /usr/bin/pi-beep /usr/local/bin/beep
-    sh /boot/config.sh > /boot/config.txt
+    sh /boot/firmware/config.sh > /boot/firmware/config.txt
     mkinitramfs -c gzip -o /boot/initrd.img-${RPI_KERNEL_VERSION}-rpi-v8 ${RPI_KERNEL_VERSION}-rpi-v8
     mkinitramfs -c gzip -o /boot/initrd.img-${RPI_KERNEL_VERSION}-rpi-2712 ${RPI_KERNEL_VERSION}-rpi-2712
-    cp /usr/lib/u-boot/rpi_arm64/u-boot.bin /boot/u-boot.bin
+    cp /usr/lib/u-boot/rpi_arm64/u-boot.bin /boot/firmware/u-boot.bin
 fi
 
 useradd --shell /bin/bash -G startos -m start9
@@ -411,7 +410,16 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	BOOT_LEN=$((2 * 1024 * 1024 * 1024))
 	BOOT_END=$((BOOT_START + BOOT_LEN - 1))
 	ROOT_START=$((BOOT_END + 1))
-	ROOT_LEN=$((MAX_IMG_LEN - ROOT_START))
+
+	# Size root partition to fit the squashfs + 256MB overhead for btrfs
+	# metadata and config overlay, avoiding the need for btrfs resize
+	SQUASHFS_SIZE=$(stat -c %s $prep_results_dir/binary/live/filesystem.squashfs)
+	ROOT_LEN=$(( SQUASHFS_SIZE + 256 * 1024 * 1024 ))
+	# Align to sector boundary
+	ROOT_LEN=$(( (ROOT_LEN + SECTOR_LEN - 1) / SECTOR_LEN * SECTOR_LEN ))
+
+	# Total image: partitions + GPT backup header (34 sectors)
+	IMG_LEN=$((ROOT_START + ROOT_LEN + 34 * SECTOR_LEN))
 
 	# Fixed GPT partition UUIDs (deterministic, based on old MBR disk ID cb15ae4d)
 	FW_UUID=cb15ae4d-0001-4000-8000-000000000001
@@ -420,7 +428,7 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	ROOT_UUID=cb15ae4d-0004-4000-8000-000000000004
 
 	TARGET_NAME=$prep_results_dir/${IMAGE_BASENAME}.img
-	truncate -s $MAX_IMG_LEN $TARGET_NAME
+	truncate -s $IMG_LEN $TARGET_NAME
 
 	sfdisk $TARGET_NAME <<-EOF
 		label: gpt
@@ -431,10 +439,23 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 		${TARGET_NAME}4 : start=$((ROOT_START / SECTOR_LEN)), size=$((ROOT_LEN / SECTOR_LEN)), type=B921B045-1DF0-41C3-AF44-4C6F280D3FAE, uuid=${ROOT_UUID}, name="root"
 	EOF
 
-	FW_DEV=$(losetup --show -f --offset $FW_START --sizelimit $FW_LEN $TARGET_NAME)
-	ESP_DEV=$(losetup --show -f --offset $ESP_START --sizelimit $ESP_LEN $TARGET_NAME)
-	BOOT_DEV=$(losetup --show -f --offset $BOOT_START --sizelimit $BOOT_LEN $TARGET_NAME)
-	ROOT_DEV=$(losetup --show -f --offset $ROOT_START --sizelimit $ROOT_LEN $TARGET_NAME)
+	# Create named loop device nodes (high minor numbers to avoid conflicts)
+	# and detach any stale ones from previous failed builds
+	FW_DEV=/dev/startos-loop-fw
+	ESP_DEV=/dev/startos-loop-esp
+	BOOT_DEV=/dev/startos-loop-boot
+	ROOT_DEV=/dev/startos-loop-root
+	for dev in $FW_DEV:200 $ESP_DEV:201 $BOOT_DEV:202 $ROOT_DEV:203; do
+		name=${dev%:*}
+		minor=${dev#*:}
+		[ -e $name ] || mknod $name b 7 $minor
+		losetup -d $name 2>/dev/null || true
+	done
+
+	losetup $FW_DEV --offset $FW_START --sizelimit $FW_LEN $TARGET_NAME
+	losetup $ESP_DEV --offset $ESP_START --sizelimit $ESP_LEN $TARGET_NAME
+	losetup $BOOT_DEV --offset $BOOT_START --sizelimit $BOOT_LEN $TARGET_NAME
+	losetup $ROOT_DEV --offset $ROOT_START --sizelimit $ROOT_LEN $TARGET_NAME
 
 	mkfs.vfat -F32 -n firmware $FW_DEV
 	mkfs.vfat -F32 -n efi $ESP_DEV
@@ -447,18 +468,16 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	BOOT_STAGING=$(mktemp -d)
 	unsquashfs -n -f -d $BOOT_STAGING $prep_results_dir/binary/live/filesystem.squashfs boot
 
-	# Mount partitions
-	mkdir -p $TMPDIR/firmware $TMPDIR/efi $TMPDIR/boot $TMPDIR/root
-	mount $FW_DEV $TMPDIR/firmware
-	mount $ESP_DEV $TMPDIR/efi
+	# Mount partitions (nested: firmware and efi inside boot)
+	mkdir -p $TMPDIR/boot $TMPDIR/root
 	mount $BOOT_DEV $TMPDIR/boot
+	mkdir -p $TMPDIR/boot/firmware $TMPDIR/boot/efi
+	mount $FW_DEV $TMPDIR/boot/firmware
+	mount $ESP_DEV $TMPDIR/boot/efi
 	mount $ROOT_DEV $TMPDIR/root
 
-	# Split boot files: firmware to Part 1, kernels/initramfs to Part 3 (/boot)
-	cp -a $BOOT_STAGING/boot/. $TMPDIR/firmware/
-	for f in $TMPDIR/firmware/vmlinuz-* $TMPDIR/firmware/initrd.img-* $TMPDIR/firmware/System.map-* $TMPDIR/firmware/config-*; do
-		[ -e "$f" ] && mv "$f" $TMPDIR/boot/
-	done
+	# Copy boot files — nested mounts route firmware/* to the firmware partition
+	cp -a $BOOT_STAGING/boot/. $TMPDIR/boot/
 	rm -rf $BOOT_STAGING
 
 	mkdir $TMPDIR/root/images $TMPDIR/root/config
@@ -475,11 +494,9 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 		rsync -a $SOURCE_DIR/raspberrypi/img/ $TMPDIR/next/
 
 		# Install GRUB: ESP at /boot/efi (Part 2), /boot (Part 3)
-		mkdir -p $TMPDIR/next/boot $TMPDIR/next/boot/efi $TMPDIR/next/boot/firmware \
+		mkdir -p $TMPDIR/next/boot \
 			$TMPDIR/next/dev $TMPDIR/next/proc $TMPDIR/next/sys $TMPDIR/next/media/startos/root
-		mount --bind $TMPDIR/boot $TMPDIR/next/boot
-		mount --bind $TMPDIR/efi $TMPDIR/next/boot/efi
-		mount --bind $TMPDIR/firmware $TMPDIR/next/boot/firmware
+		mount --rbind $TMPDIR/boot $TMPDIR/next/boot
 		mount --bind /dev $TMPDIR/next/dev
 		mount --bind /proc $TMPDIR/next/proc
 		mount --bind /sys $TMPDIR/next/sys
@@ -492,9 +509,7 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 		umount $TMPDIR/next/sys
 		umount $TMPDIR/next/proc
 		umount $TMPDIR/next/dev
-		umount $TMPDIR/next/boot/firmware
-		umount $TMPDIR/next/boot/efi
-		umount $TMPDIR/next/boot
+		umount -l $TMPDIR/next/boot
 
 		# Fix root= in grub.cfg: update-grub sees loop devices, but the
 		# real device uses a fixed GPT PARTUUID for root (Part 4).
@@ -507,38 +522,15 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	umount $TMPDIR/next
 	umount $TMPDIR/lower
 
-	umount $TMPDIR/firmware
-	umount $TMPDIR/efi
+	umount $TMPDIR/boot/firmware
+	umount $TMPDIR/boot/efi
 	umount $TMPDIR/boot
 	umount $TMPDIR/root
-
-	# Shrink btrfs to minimum size
-	SHRINK_MNT=$(mktemp -d)
-	mount $ROOT_DEV $SHRINK_MNT
-	btrfs filesystem resize min $SHRINK_MNT
-	umount $SHRINK_MNT
-	rmdir $SHRINK_MNT
-	ROOT_LEN=$(btrfs inspect-internal dump-super $ROOT_DEV | awk '/^total_bytes/ {print $2}')
 
 	losetup -d $ROOT_DEV
 	losetup -d $BOOT_DEV
 	losetup -d $ESP_DEV
 	losetup -d $FW_DEV
-
-	# Recreate partition table with shrunk root
-	sfdisk $TARGET_NAME <<-EOF
-		label: gpt
-
-		${TARGET_NAME}1 : start=$((FW_START / SECTOR_LEN)), size=$((FW_LEN / SECTOR_LEN)), type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7, uuid=${FW_UUID}, name="firmware"
-		${TARGET_NAME}2 : start=$((ESP_START / SECTOR_LEN)), size=$((ESP_LEN / SECTOR_LEN)), type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=${ESP_UUID}, name="efi"
-		${TARGET_NAME}3 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=${BOOT_UUID}, name="boot"
-		${TARGET_NAME}4 : start=$((ROOT_START / SECTOR_LEN)), size=$((ROOT_LEN / SECTOR_LEN)), type=B921B045-1DF0-41C3-AF44-4C6F280D3FAE, uuid=${ROOT_UUID}, name="root"
-	EOF
-
-	TARGET_SIZE=$((ROOT_START + ROOT_LEN))
-	truncate -s $TARGET_SIZE $TARGET_NAME
-	# Move backup GPT to new end of disk after truncation
-	sgdisk -e $TARGET_NAME
 
 	mv $TARGET_NAME $RESULTS_DIR/$IMAGE_BASENAME.img
 
