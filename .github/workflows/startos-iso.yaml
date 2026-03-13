@@ -100,7 +100,7 @@ jobs:
       - name: Mount tmpfs
         if: ${{ github.event.inputs.runner == 'fast' }}
         run: sudo mount -t tmpfs tmpfs .
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: ./.github/actions/setup-build
@@ -114,7 +114,7 @@ jobs:
           SCCACHE_GHA_ENABLED: on
           SCCACHE_GHA_VERSION: 0
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: compiled-${{ matrix.arch }}.tar
           path: compiled-${{ matrix.arch }}.tar
@@ -209,14 +209,14 @@ jobs:
         run: sudo mkdir -p /opt/hostedtoolcache && sudo chown $USER:$USER /opt/hostedtoolcache
 
       - name: Set up docker QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
       - name: Download compiled artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: compiled-${{ env.ARCH }}.tar
 
@@ -253,18 +253,18 @@ jobs:
         run: PLATFORM=${{ matrix.platform }} make img
         if: ${{ matrix.platform == 'raspberrypi' }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform }}.squashfs
           path: results/*.squashfs
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform }}.iso
           path: results/*.iso
         if: ${{ matrix.platform != 'raspberrypi' }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform }}.img
           path: results/*.img
