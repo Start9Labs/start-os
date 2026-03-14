@@ -1,4 +1,3 @@
-import { DOCUMENT } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton } from '@taiga-ui/core'
@@ -24,7 +23,7 @@ export default class Advanced {
   private readonly api = inject(ApiService)
   private readonly actions = inject(ActionService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
-  protected readonly luciUrl = `${inject(DOCUMENT).location.origin.replace(/:(\d+)$/, '')}:8080`
+  protected readonly luciUrl = '/cgi-bin/luci'
 
   protected factoryReset() {
     this.dialogs

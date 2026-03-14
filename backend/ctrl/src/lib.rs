@@ -11,11 +11,13 @@ pub mod flash;
 pub mod init;
 pub mod lan;
 pub mod logs;
+pub mod luci_proxy;
 pub mod middleware;
 pub mod profiles;
 pub mod published_ports;
 pub mod setup;
 pub mod ssh_keys;
+pub mod ssl;
 pub mod system;
 pub mod uci;
 pub mod utils;
@@ -38,7 +40,6 @@ use clap::Parser;
 use cookie_store::CookieStore;
 use reqwest_cookie_store::CookieStoreMutex;
 use tokio::runtime::Runtime;
-use tracing::subscriber::DefaultGuard;
 
 pub use error::{Error, ErrorKind};
 use imbl_value::imbl::OrdMap;
@@ -256,25 +257,30 @@ pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
         .subcommand("ssh-keys", ssh_keys::ssh_keys::<C>())
 }
 
-pub fn init_logging(name: &str) -> DefaultGuard {
+pub fn init_logging(name: &str) {
     use tracing_rfc_5424::{
         rfc3164::Rfc3164, tracing::TrivialTracingFormatter, transport::UnixSocket,
     };
     use tracing_subscriber::Registry;
     use tracing_subscriber::{
-        layer::SubscriberExt, // Needed to get `with()`
+        layer::SubscriberExt,
+        EnvFilter,
     };
 
-    // Setup the subsriber...
-    let subscriber = Registry::default().with(
-        tracing_rfc_5424::layer::Layer::<
-            tracing_subscriber::Registry,
-            Rfc3164,
-            TrivialTracingFormatter,
-            UnixSocket,
-        >::try_default()
-        .unwrap(),
-    );
-    // and install it.
-    tracing::subscriber::set_default(subscriber)
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info"));
+
+    let syslog = tracing_rfc_5424::layer::Layer::<
+        tracing_subscriber::Registry,
+        Rfc3164,
+        TrivialTracingFormatter,
+        UnixSocket,
+    >::try_default()
+    .unwrap();
+
+    let subscriber = Registry::default()
+        .with(syslog)
+        .with(filter);
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("failed to set global tracing subscriber");
 }

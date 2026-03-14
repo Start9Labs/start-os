@@ -117,6 +117,24 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
           </label>
         }
       </fieldset>
+      <fieldset>
+        <legend>Security</legend>
+        <section class="ca-section">
+          <p>
+            Download your Root CA to trust HTTPS connections from additional
+            devices.
+          </p>
+          <a
+            tuiButton
+            size="s"
+            iconEnd="@tui.download"
+            href="/static/root-ca.crt"
+            download="startwrt-ca.crt"
+          >
+            Download Root CA
+          </a>
+        </section>
+      </fieldset>
       <tui-elastic-container>
         @if (form.value.remote === 'always') {
           <div tuiAnimated tuiNotification appearance="warning">
@@ -180,6 +198,19 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
 
       label {
         text-transform: capitalize;
+      }
+
+      .ca-section {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+
+        p {
+          margin: 0;
+          color: var(--tui-text-secondary);
+          font: var(--tui-typography-text-s);
+        }
       }
     }
   `,

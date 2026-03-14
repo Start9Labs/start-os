@@ -86,9 +86,8 @@ const VALID_REMOTE_ACCESS: &[&str] = &["default", "never", "always"];
 const REMOTE_RULE_PREFIX: &str = "startwrt_remote_";
 const REMOTE_ACCESS_PORTS: &[(&str, &str)] = &[
     ("startwrt_remote_80", "80"),
+    ("startwrt_remote_443", "443"),
     ("startwrt_remote_22", "22"),
-    ("startwrt_remote_8080", "8080"),
-    ("startwrt_remote_8443", "8443"),
 ];
 
 fn is_private_ipv4(ip: &Ipv4Addr) -> bool {
@@ -676,7 +675,7 @@ config zone wan
         apply_remote_access_config(&mut cfgs, "always", None, &[]);
         dump_all(dir.path(), cfgs).unwrap();
 
-        assert_eq!(count_remote_rules(dir.path()), 4);
+        assert_eq!(count_remote_rules(dir.path()), 3);
         // All rules should have no family restriction
         for family in get_remote_rule_families(dir.path()) {
             assert_eq!(family, None);
@@ -696,7 +695,7 @@ config zone wan
         let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).unwrap();
         apply_remote_access_config(&mut cfgs, "always", None, &[]);
         dump_all(dir.path(), cfgs).unwrap();
-        assert_eq!(count_remote_rules(dir.path()), 4);
+        assert_eq!(count_remote_rules(dir.path()), 3);
 
         // Now apply "never" — should remove them all
         let arena = Arena::new();
@@ -722,7 +721,7 @@ config zone wan
         apply_remote_access_config(&mut cfgs, "default", Some(wan_ipv4), &[wan_ipv6]);
         dump_all(dir.path(), cfgs).unwrap();
 
-        assert_eq!(count_remote_rules(dir.path()), 4);
+        assert_eq!(count_remote_rules(dir.path()), 3);
         for family in get_remote_rule_families(dir.path()) {
             assert_eq!(family, Some("ipv4".to_string()));
         }
@@ -744,7 +743,7 @@ config zone wan
         apply_remote_access_config(&mut cfgs, "default", Some(wan_ipv4), &[wan_ipv6]);
         dump_all(dir.path(), cfgs).unwrap();
 
-        assert_eq!(count_remote_rules(dir.path()), 4);
+        assert_eq!(count_remote_rules(dir.path()), 3);
         for family in get_remote_rule_families(dir.path()) {
             assert_eq!(family, None);
         }
@@ -803,7 +802,7 @@ config zone wan
         dump_all(dir.path(), cfgs).unwrap();
 
         // Private IPv4, no IPv6 — IPv4-only rules
-        assert_eq!(count_remote_rules(dir.path()), 4);
+        assert_eq!(count_remote_rules(dir.path()), 3);
         for family in get_remote_rule_families(dir.path()) {
             assert_eq!(family, Some("ipv4".to_string()));
         }
@@ -825,7 +824,7 @@ config zone wan
         dump_all(dir.path(), cfgs).unwrap();
 
         // No IPv4, ULA-only IPv6 — IPv6-only rules
-        assert_eq!(count_remote_rules(dir.path()), 4);
+        assert_eq!(count_remote_rules(dir.path()), 3);
         for family in get_remote_rule_families(dir.path()) {
             assert_eq!(family, Some("ipv6".to_string()));
         }
@@ -848,6 +847,6 @@ config zone wan
         }
 
         // Should still have exactly 4 rules, not 8
-        assert_eq!(count_remote_rules(dir.path()), 4);
+        assert_eq!(count_remote_rules(dir.path()), 3);
     }
 }

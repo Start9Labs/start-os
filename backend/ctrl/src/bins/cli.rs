@@ -35,7 +35,7 @@ pub fn main(args: VecDeque<OsString>) {
         _ => {}
     }
 
-    let _guard = init_logging("startwrt-cli");
+    init_logging("startwrt-cli");
 
     // Reconstruct args with synthetic argv[0] for clap/rpc-toolkit
     let full_args = std::iter::once(OsString::from("startwrt-cli")).chain(args);

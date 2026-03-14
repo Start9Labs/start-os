@@ -143,6 +143,14 @@ pub fn ipv4_set<C: CtrlContext>(
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 if ctx.effectful() {
+                    // Regenerate server cert with updated LAN IP as SAN
+                    let ip_changed = old_address.map_or(true, |old| old != address);
+                    if ip_changed {
+                        if let Err(e) = crate::ssl::regenerate_server_cert(address) {
+                            tracing::error!("failed to regenerate server cert: {e}");
+                        }
+                    }
+
                     let mut ifaces = vec![LAN_INTERFACE.to_string()];
                     ifaces.extend(profile_interfaces);
                     restart_network_services(address, ifaces);
