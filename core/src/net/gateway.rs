@@ -1018,18 +1018,16 @@ async fn apply_policy_routing(
         })
         .copied();
 
-    // Flush and rebuild per-interface routing table.
-    // Clone all non-default routes from the main table so that LAN IPs on
-    // other subnets remain reachable when the priority-75 catch-all overrides
-    // default routing, then replace the default route with this interface's.
-    Command::new("ip")
-        .arg("route")
-        .arg("flush")
-        .arg("table")
-        .arg(&table_str)
-        .invoke(ErrorKind::Network)
-        .await
-        .log_err();
+    // Rebuild per-interface routing table using `ip route replace` to avoid
+    // the connectivity gap that a flush+add cycle would create.  We replace
+    // every desired route in-place (each replace is atomic in the kernel),
+    // then delete any stale routes that are no longer in the desired set.
+
+    // Collect the set of desired non-default route prefixes (the first
+    // whitespace-delimited token of each `ip route show` line is the
+    // destination prefix, e.g. "192.168.1.0/24" or "10.0.0.0/8").
+    let mut desired_prefixes = BTreeSet::<String>::new();
+
     if let Ok(main_routes) = Command::new("ip")
         .arg("route")
         .arg("show")
@@ -1044,11 +1042,14 @@ async fn apply_policy_routing(
             if line.is_empty() || line.starts_with("default") {
                 continue;
             }
+            if let Some(prefix) = line.split_whitespace().next() {
+                desired_prefixes.insert(prefix.to_owned());
+            }
             let mut cmd = Command::new("ip");
-            cmd.arg("route").arg("add");
+            cmd.arg("route").arg("replace");
             for part in line.split_whitespace() {
                 // Skip status flags that appear in route output but
-                // are not valid for `ip route add`.
+                // are not valid for `ip route replace`.
                 if part == "linkdown" || part == "dead" {
                     continue;
                 }
@@ -1058,10 +1059,11 @@ async fn apply_policy_routing(
             cmd.invoke(ErrorKind::Network).await.log_err();
         }
     }
-    // Add default route via this interface's gateway
+
+    // Replace the default route via this interface's gateway.
     {
         let mut cmd = Command::new("ip");
-        cmd.arg("route").arg("add").arg("default");
+        cmd.arg("route").arg("replace").arg("default");
         if let Some(gw) = ipv4_gateway {
             cmd.arg("via").arg(gw.to_string());
         }
@@ -1073,6 +1075,40 @@ async fn apply_policy_routing(
             cmd.arg("scope").arg("link");
         }
         cmd.invoke(ErrorKind::Network).await.log_err();
+    }
+
+    // Delete stale routes: any non-default route in the per-interface table
+    // whose prefix is not in the desired set.
+    if let Ok(existing_routes) = Command::new("ip")
+        .arg("route")
+        .arg("show")
+        .arg("table")
+        .arg(&table_str)
+        .invoke(ErrorKind::Network)
+        .await
+        .and_then(|b| String::from_utf8(b).with_kind(ErrorKind::Utf8))
+    {
+        for line in existing_routes.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with("default") {
+                continue;
+            }
+            let Some(prefix) = line.split_whitespace().next() else {
+                continue;
+            };
+            if desired_prefixes.contains(prefix) {
+                continue;
+            }
+            Command::new("ip")
+                .arg("route")
+                .arg("del")
+                .arg(prefix)
+                .arg("table")
+                .arg(&table_str)
+                .invoke(ErrorKind::Network)
+                .await
+                .log_err();
+        }
     }
 
     // Ensure global CONNMARK restore rules in mangle PREROUTING (forwarded

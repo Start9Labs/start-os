@@ -24,7 +24,7 @@ fi
 
 unsquashfs -f -d / $1 boot
 
-umount -R /media/startos/next 2> /dev/null || true
+umount -l /media/startos/next 2> /dev/null || true
 umount /media/startos/upper 2> /dev/null || true
 umount /media/startos/lower 2> /dev/null || true
 
@@ -47,13 +47,8 @@ mount --bind /tmp /media/startos/next/tmp
 mount --bind /dev /media/startos/next/dev
 mount --bind /sys /media/startos/next/sys
 mount --bind /proc /media/startos/next/proc
-mount --bind /boot /media/startos/next/boot
+mount --rbind /boot /media/startos/next/boot
 mount --bind /media/startos/root /media/startos/next/media/startos/root
-
-if mountpoint /boot/efi 2>&1 > /dev/null; then
-    mkdir -p /media/startos/next/boot/efi
-    mount --bind /boot/efi /media/startos/next/boot/efi
-fi
 
 if mountpoint /sys/firmware/efi/efivars 2>&1 > /dev/null; then
     mount --bind /sys/firmware/efi/efivars /media/startos/next/sys/firmware/efi/efivars
@@ -79,7 +74,7 @@ SIGN_FILE="$(ls -1 /media/startos/next/usr/lib/linux-kbuild-*/scripts/sign-file 
 
 sync
 
-umount -Rl /media/startos/next
+umount -l /media/startos/next
 umount /media/startos/upper
 umount /media/startos/lower
 

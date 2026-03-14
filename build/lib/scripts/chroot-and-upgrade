@@ -34,7 +34,7 @@ set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
 if [ -z "$NO_SYNC" ]; then
     echo 'Syncing...'
-    umount -R /media/startos/next 2> /dev/null
+    umount -l /media/startos/next 2> /dev/null
     umount /media/startos/upper 2> /dev/null
     rm -rf /media/startos/upper /media/startos/next
     mkdir /media/startos/upper

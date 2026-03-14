@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use clap::Parser;
 use imbl_value::InternedString;
 use patch_db::json_ptr::JsonPointer;
@@ -8,7 +10,9 @@ use ts_rs::TS;
 
 use crate::GatewayId;
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::public::{GatewayType, NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::db::model::public::{
+    GatewayType, NetworkInfo, NetworkInterfaceInfo, NetworkInterfaceType,
+};
 use crate::net::host::all_hosts;
 use crate::prelude::*;
 use crate::util::Invoke;
@@ -139,6 +143,34 @@ pub async fn add_tunnel(
             .result?;
     }
 
+    // Wait for the sync loop to fully commit gateway state (addresses, hosts)
+    // to the database, with a 15-second timeout.
+    if tokio::time::timeout(Duration::from_secs(15), async {
+        let mut watch = ctx
+            .db
+            .watch("/public/serverInfo/network".parse::<JsonPointer>().unwrap())
+            .await
+            .typed::<NetworkInfo>();
+        loop {
+            if watch
+                .peek()?
+                .as_gateways()
+                .as_idx(&iface)
+                .and_then(|g| g.as_ip_info().transpose_ref())
+                .is_some()
+            {
+                break;
+            }
+            watch.changed().await?;
+        }
+        Ok::<_, Error>(())
+    })
+    .await
+    .is_err()
+    {
+        tracing::warn!("{}", t!("net.tunnel.timeout-waiting-for-add", gateway = iface.as_str()));
+    }
+
     Ok(iface)
 }
 
@@ -223,6 +255,28 @@ pub async fn remove_tunnel(
         })
         .await
         .result?;
+
+    // Wait for the sync loop to fully commit gateway removal to the database,
+    // with a 15-second timeout.
+    if tokio::time::timeout(Duration::from_secs(15), async {
+        let mut watch = ctx
+            .db
+            .watch("/public/serverInfo/network".parse::<JsonPointer>().unwrap())
+            .await
+            .typed::<NetworkInfo>();
+        loop {
+            if watch.peek()?.as_gateways().as_idx(&id).is_none() {
+                break;
+            }
+            watch.changed().await?;
+        }
+        Ok::<_, Error>(())
+    })
+    .await
+    .is_err()
+    {
+        tracing::warn!("{}", t!("net.tunnel.timeout-waiting-for-remove", gateway = id.as_str()));
+    }
 
     Ok(())
 }
