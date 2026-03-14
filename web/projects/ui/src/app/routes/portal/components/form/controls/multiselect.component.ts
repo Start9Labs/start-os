@@ -29,12 +29,6 @@ import { Control } from './control'
       }
     </tui-textfield>
   `,
-  styles: `
-    // TODO: Remove after Taiga UI update
-    :host ::ng-deep .t-input {
-      pointer-events: none;
-    }
-  `,
   imports: [
     FormsModule,
     TuiTextfield,

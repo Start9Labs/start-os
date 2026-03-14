@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import { Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
 import {
@@ -8,31 +7,28 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import {
-  ErrorService,
-  i18nPipe,
-  LoadingService,
-  normalizeHostname,
-} from '@start9labs/shared'
+import { ErrorService, i18nPipe, normalizeHostname } from '@start9labs/shared'
 import { TuiAutoFocus, TuiMapperPipe, TuiValidator } from '@taiga-ui/cdk'
 import {
   TuiButton,
   TuiError,
   TuiIcon,
-  TuiTextfield,
   TuiTitle,
-} from '@taiga-ui/core'
-import {
-  TuiFieldErrorPipe,
-  TuiPassword,
+  TuiInput,
   tuiValidationErrorsProvider,
-} from '@taiga-ui/kit'
-import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
+} from '@taiga-ui/core'
+import { TuiNotificationMiddleService, TuiPassword } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { StateService } from '../services/state.service'
 
 @Component({
   template: `
-    <section tuiCardLarge="compact">
+    <form
+      tuiCardLarge="compact"
+      tuiForm
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+    >
       <header tuiHeader>
         <h2 tuiTitle>
           {{
@@ -43,104 +39,80 @@ import { StateService } from '../services/state.service'
         </h2>
       </header>
 
-      <form [formGroup]="form" (ngSubmit)="submit()">
-        @if (isFresh) {
-          <tui-textfield>
-            <label tuiLabel>{{ 'Server Name' | i18n }}</label>
-            <input tuiTextfield tuiAutoFocus formControlName="name" />
-          </tui-textfield>
-          <tui-error
-            formControlName="name"
-            [error]="[] | tuiFieldError | async"
-          />
-          @if (form.controls.name.value?.trim()) {
-            <p class="hostname-preview">{{ derivedHostname }}.local</p>
-          }
+      @if (isFresh) {
+        <tui-textfield>
+          <label tuiLabel>{{ 'Server Name' | i18n }}</label>
+          <input tuiInput tuiAutoFocus formControlName="name" />
+        </tui-textfield>
+        <tui-error formControlName="name" />
+        @if (form.controls.name.value?.trim()) {
+          <tui-error class="g-secondary" error="{{ derivedHostname }}.local" />
         }
+      }
 
-        <tui-textfield [style.margin-top.rem]="isFresh ? 1 : 0">
-          <label tuiLabel>
-            {{ isFresh ? ('Password' | i18n) : ('New Password' | i18n) }}
-          </label>
-          <input
-            tuiTextfield
-            type="password"
-            [tuiAutoFocus]="!isFresh"
-            maxlength="64"
-            formControlName="password"
-          />
-          <tui-icon tuiPassword />
-        </tui-textfield>
-        <tui-error
+      <tui-textfield>
+        <label tuiLabel>
+          {{ isFresh ? ('Password' | i18n) : ('New Password' | i18n) }}
+        </label>
+        <input
+          tuiInput
+          type="password"
+          [tuiAutoFocus]="!isFresh"
+          maxlength="64"
           formControlName="password"
-          [error]="[] | tuiFieldError | async"
         />
+        <tui-icon tuiPassword />
+      </tui-textfield>
+      <tui-error formControlName="password" />
 
-        <tui-textfield [style.margin-top.rem]="1">
-          <label tuiLabel>{{ 'Confirm Password' | i18n }}</label>
-          <input
-            tuiTextfield
-            type="password"
-            formControlName="confirm"
-            [tuiValidator]="
-              form.controls.password.value || '' | tuiMapper: validator
-            "
-          />
-          <tui-icon tuiPassword />
-        </tui-textfield>
-        <tui-error
+      <tui-textfield>
+        <label tuiLabel>{{ 'Confirm Password' | i18n }}</label>
+        <input
+          tuiInput
+          type="password"
           formControlName="confirm"
-          [error]="[] | tuiFieldError | async"
+          [tuiValidator]="
+            form.controls.password.value || '' | tuiMapper: validator
+          "
         />
+        <tui-icon tuiPassword />
+      </tui-textfield>
+      <tui-error formControlName="confirm" />
 
-        <footer>
+      <footer>
+        <button
+          tuiButton
+          size="m"
+          [disabled]="
+            isFresh
+              ? form.invalid
+              : form.controls.password.value && form.invalid
+          "
+        >
+          {{ 'Finish' | i18n }}
+        </button>
+        @if (!isFresh) {
           <button
             tuiButton
-            [disabled]="
-              isFresh
-                ? form.invalid
-                : form.controls.password.value && form.invalid
-            "
+            size="m"
+            appearance="secondary"
+            type="button"
+            (click)="skip()"
           >
-            {{ 'Finish' | i18n }}
+            {{ 'Skip' | i18n }}
           </button>
-          @if (!isFresh) {
-            <button
-              tuiButton
-              appearance="secondary"
-              type="button"
-              (click)="skip()"
-            >
-              {{ 'Skip' | i18n }}
-            </button>
-          }
-        </footer>
-      </form>
-    </section>
-  `,
-  styles: `
-    .hostname-preview {
-      color: var(--tui-text-secondary);
-      font: var(--tui-font-text-s);
-      margin-top: 0.25rem;
-    }
-
-    footer {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin-top: 1.5rem;
-    }
+        }
+      </footer>
+    </form>
   `,
   imports: [
-    AsyncPipe,
     ReactiveFormsModule,
     TuiCardLarge,
     TuiButton,
     TuiError,
     TuiAutoFocus,
-    TuiFieldErrorPipe,
-    TuiTextfield,
+    TuiInput,
+    TuiForm,
     TuiPassword,
     TuiValidator,
     TuiIcon,
@@ -160,7 +132,7 @@ import { StateService } from '../services/state.service'
 })
 export default class PasswordPage {
   private readonly router = inject(Router)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
   private readonly i18n = inject(i18nPipe)

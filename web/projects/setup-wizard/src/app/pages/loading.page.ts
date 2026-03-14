@@ -12,10 +12,10 @@ import {
   getErrorMessage,
   i18nPipe,
   InitializingComponent,
-  LoadingService,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import {
   catchError,
   filter,
@@ -64,7 +64,7 @@ import { StateService } from '../services/state.service'
 })
 export default class LoadingPage {
   private readonly api = inject(ApiService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly dialog = inject(DialogService)
   private readonly router = inject(Router)
 

@@ -6,6 +6,7 @@
   --tui-background-accent-1: #428bf9;
   --tui-background-accent-1-hover: #126df7;
   --tui-background-accent-1-pressed: #156ed4;
+  --tui-stroke-width: 1.5px;
 }
 
 body {
@@ -41,9 +42,21 @@ tui-dropdown[data-appearance='start-9'] {
   backdrop-filter: blur(1rem);
 }
 
-tui-dialog[new][data-appearance~='start-9'] {
-  background: var(--tui-background-neutral-1);
-  backdrop-filter: blur(5rem);
+[tuiTheme='dark'] tui-dialog[data-appearance~='start-9'],
+[tuiTheme='dark'] tui-sheet-dialog[data-appearance~='start-9'] .t-sheet {
+  background:
+    linear-gradient(45deg, #5240a89c, transparent),
+    linear-gradient(to bottom, #5240a854, transparent),
+    color-mix(in hsl, var(--tui-background-elevation-1) 90%, transparent 10%);
+  background-blend-mode: multiply;
+
+  header {
+    background: transparent;
+  }
+}
+
+tui-notification-middle {
+  --tui-background-accent-1: var(--tui-status-warning);
 }
 
 .g-table {

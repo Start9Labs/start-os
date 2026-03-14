@@ -1,9 +1,8 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { i18nPipe, TrustUrlPipe } from '@start9labs/shared'
-import { TuiTitle } from '@taiga-ui/core'
+import { TuiTitle, TuiCell } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
-import { TuiCell } from '@taiga-ui/layout'
 import { MarketplacePkg } from '../../types'
 
 @Component({
@@ -21,10 +20,9 @@ import { MarketplacePkg } from '../../types'
             [queryParams]="{ id: pkg.id, flavor: pkg.flavor }"
             queryParamsHandling="merge"
           >
-            <tui-avatar
-              appearance="action-grayscale"
-              [src]="pkg.icon | trustUrl"
-            />
+            <span tuiAvatar appearance="action-grayscale">
+              <img alt="" [src]="pkg.icon | trustUrl" />
+            </span>
             <span tuiTitle>
               {{ pkg.title }}
               <span tuiSubtitle>{{ pkg.version }}</span>

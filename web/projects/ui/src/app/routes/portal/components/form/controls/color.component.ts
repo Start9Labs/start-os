@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { IST } from '@start9labs/start-sdk'
-import { TuiIcon, TuiTextfield } from '@taiga-ui/core'
+import { TuiIcon, TuiInput } from '@taiga-ui/core'
 import { TuiInputColor, TuiTooltip } from '@taiga-ui/kit'
 
 import { Control } from './control'
@@ -35,7 +35,7 @@ import { HintPipe } from '../pipes/hint.pipe'
   `,
   imports: [
     FormsModule,
-    TuiTextfield,
+    TuiInput,
     TuiInputColor,
     TuiIcon,
     TuiTooltip,

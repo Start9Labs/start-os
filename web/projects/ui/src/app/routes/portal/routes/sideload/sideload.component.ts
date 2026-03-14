@@ -46,13 +46,13 @@ import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
         <ng-template>
           @if (error(); as err) {
             <div>
-              <tui-avatar appearance="secondary" src="@tui.circle-x" />
+              <span tuiAvatar="@tui.circle-x" appearance="secondary"></span>
               <p class="g-negative">{{ err | i18n }}</p>
               <button tuiButton>{{ 'Try again' | i18n }}</button>
             </div>
           } @else {
             <div>
-              <tui-avatar appearance="secondary" src="@tui.upload" />
+              <span tuiAvatar="@tui.upload" appearance="secondary"></span>
               <p>{{ 'Upload .s9pk package file' | i18n }}</p>
               <button tuiButton>{{ 'Select' | i18n }}</button>
             </div>

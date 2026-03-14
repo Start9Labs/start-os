@@ -1,8 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { Router, RouterLink, RouterLinkActive } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
-import { TuiBadgeNotification } from '@taiga-ui/kit'
+import {
+  TuiBadgeNotification,
+  TuiNotificationMiddleService,
+} from '@taiga-ui/kit'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { SidebarService } from 'src/app/services/sidebar.service'
@@ -110,7 +113,7 @@ export class Nav {
   private readonly router = inject(Router)
   protected readonly sidebars = inject(SidebarService)
   protected readonly api = inject(ApiService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   protected readonly update = inject(UpdateService)
 
@@ -133,7 +136,7 @@ export class Nav {
   ] as const
 
   protected async logout() {
-    const loader = this.loader.open().subscribe()
+    const loader = this.loader.open('').subscribe()
     try {
       await this.api.logout()
       this.service.authenticated.set(false)

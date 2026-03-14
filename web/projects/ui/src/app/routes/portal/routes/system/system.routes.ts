@@ -1,3 +1,4 @@
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { inject } from '@angular/core'
 import {
   ActivatedRouteSnapshot,
@@ -5,7 +6,6 @@ import {
   RouterStateSnapshot,
   Routes,
 } from '@angular/router'
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import { titleResolver } from 'src/app/utils/title-resolver'
 import { SystemComponent } from './system.component'
 
@@ -16,7 +16,7 @@ export default [
     canActivate: [
       ({ firstChild }: ActivatedRouteSnapshot, state: RouterStateSnapshot) =>
         !!firstChild ||
-        inject(TUI_IS_MOBILE) ||
+        inject(WA_IS_MOBILE) ||
         inject(Router).parseUrl(`${state.url}/general`),
     ],
     children: [

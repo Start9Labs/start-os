@@ -1,11 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import {
-  TuiButton,
-  TuiDialogContext,
-  TuiIcon,
-  TuiTextfield,
-  TuiTitle,
-} from '@taiga-ui/core'
+import { TuiButton, TuiDialogContext, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiCopy, TuiSegmented, TuiTextarea } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -60,7 +54,6 @@ import { QrCodeComponent } from 'ng-qrcode'
     TuiIcon,
     TuiTitle,
     TuiSegmented,
-    TuiTextfield,
     TuiTextarea,
     TuiCopy,
   ],

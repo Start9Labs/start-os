@@ -1,32 +1,26 @@
-import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
 import { utils } from '@start9labs/start-sdk'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
-  TUI_IS_MOBILE,
+  TuiAnimated,
   TuiAutoFocus,
   tuiMarkControlAsTouchedAndValidate,
 } from '@taiga-ui/cdk'
-import {
-  TuiButton,
-  TuiDialogContext,
-  TuiError,
-  TuiTextfield,
-} from '@taiga-ui/core'
-import { TuiDialogService } from '@taiga-ui/experimental'
+import { TuiButton, TuiDialogContext, TuiError, TuiInput } from '@taiga-ui/core'
 import {
   TuiChevron,
   TuiDataListWrapper,
-  TuiElasticContainer,
-  TuiFieldErrorPipe,
+  TuiNotificationMiddleService,
   TuiSelect,
 } from '@taiga-ui/kit'
-import { TuiForm } from '@taiga-ui/layout'
+import { TuiForm, TuiElasticContainer } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ApiService } from 'src/app/services/api/api.service'
 
@@ -44,9 +38,9 @@ import {
     <form tuiForm [formGroup]="form">
       <tui-textfield>
         <label tuiLabel>Name</label>
-        <input tuiTextfield tuiAutoFocus formControlName="name" />
+        <input tuiInput tuiAutoFocus formControlName="name" />
       </tui-textfield>
-      <tui-error formControlName="name" [error]="[] | tuiFieldError | async" />
+      <tui-error formControlName="name" />
 
       @if (!context.data.device) {
         <tui-textfield tuiChevron [stringify]="stringify">
@@ -63,31 +57,24 @@ import {
           }
           @if (!mobile) {
             <tui-data-list-wrapper
-              *tuiTextfieldDropdown
-              new
+              *tuiDropdown
               [items]="context.data.subnets()"
               (itemClick)="onSubnet($event)"
             />
           }
         </tui-textfield>
-        <tui-error
-          formControlName="subnet"
-          [error]="[] | tuiFieldError | async"
-        />
+        <tui-error formControlName="subnet" />
 
         <tui-elastic-container>
           @if (form.controls.subnet.value?.range) {
-            <tui-textfield>
+            <tui-textfield tuiAnimated>
               <label tuiLabel>LAN IP</label>
-              <input tuiTextfield tuiAutoFocus formControlName="ip" />
+              <input tuiInput tuiAutoFocus formControlName="ip" />
             </tui-textfield>
           }
         </tui-elastic-container>
         @if (form.controls.subnet.value?.range) {
-          <tui-error
-            formControlName="ip"
-            [error]="[] | tuiFieldError | async"
-          />
+          <tui-error formControlName="ip" />
         }
       }
       <footer>
@@ -97,27 +84,26 @@ import {
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    AsyncPipe,
     ReactiveFormsModule,
     TuiAutoFocus,
     TuiButton,
     TuiDataListWrapper,
     TuiError,
-    TuiFieldErrorPipe,
     TuiForm,
     TuiSelect,
-    TuiTextfield,
+    TuiInput,
+    TuiAnimated,
     TuiChevron,
     TuiElasticContainer,
   ],
 })
 export class DevicesAdd {
-  private readonly loading = inject(LoadingService)
+  private readonly loading = inject(TuiNotificationMiddleService)
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
 
-  protected readonly mobile = inject(TUI_IS_MOBILE)
+  protected readonly mobile = inject(WA_IS_MOBILE)
   protected readonly context =
     injectContext<TuiDialogContext<void, DeviceData>>()
 
@@ -160,7 +146,7 @@ export class DevicesAdd {
       return
     }
 
-    const loader = this.loading.open().subscribe()
+    const loader = this.loading.open('').subscribe()
     const { ip, name, subnet } = this.form.getRawValue()
     const data = { ip, name, subnet: subnet?.range || '' }
 

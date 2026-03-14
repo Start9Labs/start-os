@@ -1,13 +1,14 @@
-import { tuiDropdownOptionsProvider } from '@taiga-ui/core'
-import { provideEventPlugins } from '@taiga-ui/event-plugins'
-import { provideAnimations } from '@angular/platform-browser/animations'
+import {
+  tuiDropdownOptionsProvider,
+  tuiDialogOptionsProvider,
+  provideTaiga,
+} from '@taiga-ui/core'
 import {
   ApplicationConfig,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from '@angular/core'
 import { provideRouter, withRouterConfig } from '@angular/router'
-import { tuiDialogOptionsProvider } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
 import {
   PATCH_CACHE,
@@ -31,11 +32,10 @@ const {
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideAnimations(),
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
     provideRouter(routes, withRouterConfig({ onSameUrlNavigation: 'reload' })),
-    provideEventPlugins(),
+    provideTaiga({ mode: 'dark' }),
     tuiDropdownOptionsProvider({ appearance: 'start-9' }),
     tuiDialogOptionsProvider({ appearance: 'start-9 taiga' }),
     {

@@ -47,7 +47,7 @@
               "projects/ui/src/manifest.webmanifest"
             ],
             "styles": [
-              "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
+              "node_modules/@taiga-ui/styles/taiga-ui-theme.less",
               "projects/shared/styles/taiga.scss",
               "projects/shared/styles/shared.scss",
               "projects/ui/src/styles.scss"
@@ -158,7 +158,7 @@
               }
             ],
             "styles": [
-              "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
+              "node_modules/@taiga-ui/styles/taiga-ui-theme.less",
               "projects/shared/styles/taiga.scss",
               "projects/shared/styles/shared.scss",
               "projects/setup-wizard/src/styles.scss"
@@ -258,8 +258,8 @@
               }
             ],
             "styles": [
-              "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
-              "node_modules/@taiga-ui/core/styles/taiga-ui-fonts.less",
+              "node_modules/@taiga-ui/styles/taiga-ui-theme.less",
+              "node_modules/@taiga-ui/styles/taiga-ui-fonts.less",
               "projects/shared/styles/shared.scss",
               "projects/start-tunnel/src/styles.scss"
             ],

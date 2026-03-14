@@ -1,3 +1,4 @@
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -10,15 +11,13 @@ import {
   StoreIconComponent,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
-import { TuiButton, TuiNotification, TuiTitle } from '@taiga-ui/core'
+import { TuiButton, TuiNotification, TuiTitle, TuiCell } from '@taiga-ui/core'
 import {
   TuiAvatar,
   TuiBadgeNotification,
   TuiFade,
   TuiSkeleton,
 } from '@taiga-ui/kit'
-import { TuiCell } from '@taiga-ui/layout'
 import { combineLatest, tap } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
@@ -69,9 +68,9 @@ interface UpdatesData {
           [class.g-secondary]="current()?.url !== registry.url"
           (click)="current.set(registry)"
         >
-          <tui-avatar appearance="action-grayscale">
+          <span tuiAvatar appearance="action-grayscale">
             <store-icon [url]="registry.url" />
-          </tui-avatar>
+          </span>
           <span tuiTitle>
             <b tuiFade>{{ registry.name }}</b>
             <span tuiSubtitle tuiFade>{{ clear(registry.url) }}</span>
@@ -92,12 +91,13 @@ interface UpdatesData {
     </aside>
     <section class="g-subpage">
       @if (data()?.errors?.includes(current()?.url || '')) {
-        <tui-notification
+        <div
+          tuiNotification
           appearance="negative"
           [style.margin-block-end.rem]="1"
         >
           {{ 'Request failed' | i18n }}
-        </tui-notification>
+        </div>
       }
       <section class="g-card">
         <header>{{ current()?.name }}</header>
@@ -240,7 +240,7 @@ interface UpdatesData {
   ],
 })
 export default class UpdatesComponent {
-  private readonly isMobile = inject(TUI_IS_MOBILE)
+  private readonly isMobile = inject(WA_IS_MOBILE)
   private readonly marketplaceService = inject(MarketplaceService)
 
   readonly current = signal<StoreIdentity | null>(null)

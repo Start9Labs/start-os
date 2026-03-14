@@ -1,12 +1,12 @@
 import { ErrorHandler, inject, Injectable } from '@angular/core'
-import { TuiAlertService } from '@taiga-ui/core'
+import { TuiNotificationService } from '@taiga-ui/core'
 import { HttpError } from '../classes/http-error'
 
 @Injectable({
   providedIn: 'root',
 })
 export class ErrorService extends ErrorHandler {
-  private readonly alerts = inject(TuiAlertService)
+  private readonly alerts = inject(TuiNotificationService)
 
   override handleError(error: HttpError | string, link?: string) {
     console.error(error)

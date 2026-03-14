@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms'
 import { i18nPipe } from '@start9labs/shared'
 import { IST, utils } from '@start9labs/start-sdk'
 import { tuiInjectElement } from '@taiga-ui/cdk'
-import { TuiButton, TuiIcon, TuiTextfield } from '@taiga-ui/core'
+import { TuiButton, TuiIcon, TuiInput } from '@taiga-ui/core'
 import { TuiTooltip } from '@taiga-ui/kit'
 
 import { Control } from './control'
@@ -22,7 +22,7 @@ import { HintPipe } from '../pipes/hint.pipe'
         </label>
       }
       <input
-        tuiTextfield
+        tuiInput
         [attr.inputmode]="spec.inputmode"
         [attr.minLength]="spec.minLength"
         [attr.maxLength]="spec.maxLength"
@@ -86,7 +86,7 @@ import { HintPipe } from '../pipes/hint.pipe'
   `,
   imports: [
     FormsModule,
-    TuiTextfield,
+    TuiInput,
     TuiButton,
     TuiIcon,
     TuiTooltip,

@@ -6,15 +6,10 @@ import {
   Signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import {
-  TuiButton,
-  TuiDataList,
-  TuiDropdown,
-  TuiTextfield,
-} from '@taiga-ui/core'
-import { TuiDialogService } from '@taiga-ui/experimental'
-import { TUI_CONFIRM } from '@taiga-ui/kit'
+import { ErrorService } from '@start9labs/shared'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
+import { TUI_CONFIRM, TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { ApiService } from 'src/app/services/api/api.service'
@@ -49,16 +44,15 @@ import { MappedDevice, MappedSubnet } from './utils'
                 tuiIconButton
                 size="xs"
                 tuiDropdown
-                tuiDropdownOpen
+                tuiDropdownAuto
                 appearance="flat-grayscale"
                 iconStart="@tui.ellipsis-vertical"
               >
                 Actions
-                <tui-data-list *tuiTextfieldDropdown size="s">
+                <tui-data-list *tuiDropdown size="s">
                   <button
                     tuiOption
                     iconStart="@tui.pencil"
-                    new
                     (click)="onEdit(device)"
                   >
                     Rename
@@ -66,7 +60,6 @@ import { MappedDevice, MappedSubnet } from './utils'
                   <button
                     tuiOption
                     iconStart="@tui.settings"
-                    new
                     (click)="onConfig(device)"
                   >
                     View Config
@@ -74,7 +67,6 @@ import { MappedDevice, MappedSubnet } from './utils'
                   <button
                     tuiOption
                     iconStart="@tui.trash"
-                    new
                     (click)="onDelete(device)"
                   >
                     Delete
@@ -90,12 +82,12 @@ import { MappedDevice, MappedSubnet } from './utils'
     </table>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiDropdown, TuiDataList, TuiTextfield],
+  imports: [TuiButton, TuiDropdown, TuiDataList],
 })
 export default class Devices {
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly api = inject(ApiService)
-  private readonly loading = inject(LoadingService)
+  private readonly loading = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
 
   protected readonly subnets: Signal<readonly MappedSubnet[]> = toSignal(
@@ -145,7 +137,7 @@ export default class Devices {
   }
 
   async onConfig({ subnet, ip }: MappedDevice) {
-    const loader = this.loading.open().subscribe()
+    const loader = this.loading.open('').subscribe()
     try {
       const data = await this.api.showDeviceConfig({ subnet: subnet.range, ip })
 
@@ -163,7 +155,7 @@ export default class Devices {
       .open(TUI_CONFIRM, { label: 'Are you sure?' })
       .pipe(filter(Boolean))
       .subscribe(async () => {
-        const loader = this.loading.open().subscribe()
+        const loader = this.loading.open('').subscribe()
         try {
           await this.api.deleteDevice({ subnet: subnet.range, ip })
         } catch (e: any) {

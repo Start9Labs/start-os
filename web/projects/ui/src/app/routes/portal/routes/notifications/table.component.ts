@@ -1,4 +1,5 @@
-import { TuiCheckbox, TuiSkeleton } from '@taiga-ui/kit'
+import { TuiCheckbox } from '@taiga-ui/core'
+import { TuiSkeleton } from '@taiga-ui/kit'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -97,9 +98,9 @@ import { PlaceholderComponent } from '../../components/placeholder.component'
     PlaceholderComponent,
   ],
 })
-export class NotificationsTableComponent<T extends ServerNotification<number>>
-  implements OnChanges
-{
+export class NotificationsTableComponent<
+  T extends ServerNotification<number>,
+> implements OnChanges {
   readonly notifications = input<readonly T[] | null>(null)
 
   readonly selected = signal<readonly T[]>([])

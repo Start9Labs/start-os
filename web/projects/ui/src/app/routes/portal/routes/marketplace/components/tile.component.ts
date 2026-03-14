@@ -9,11 +9,10 @@ import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
 import { ItemComponent, MarketplacePkg } from '@start9labs/marketplace'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
-import { TuiButton, TuiDropdownService, TuiPopup } from '@taiga-ui/core'
+import { TuiButton, TuiPopup } from '@taiga-ui/core'
 import { TuiDrawer } from '@taiga-ui/kit'
 import { debounceTime } from 'rxjs'
 import { MarketplacePreviewComponent } from '../modals/preview.component'
-import { MarketplaceSidebarService } from '../services/sidebar.service'
 
 @Component({
   selector: 'marketplace-tile',
@@ -70,12 +69,6 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [
-    {
-      provide: TuiDropdownService,
-      useExisting: MarketplaceSidebarService,
-    },
-  ],
   imports: [
     ItemComponent,
     TuiAutoFocus,

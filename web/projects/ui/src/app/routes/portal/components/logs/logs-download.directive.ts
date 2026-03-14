@@ -3,9 +3,9 @@ import {
   convertAnsi,
   DownloadHTMLService,
   ErrorService,
-  LoadingService,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { LogsComponent } from './logs.component'
 
 @Directive({
@@ -13,7 +13,7 @@ import { LogsComponent } from './logs.component'
 })
 export class LogsDownloadDirective {
   private readonly component = inject(LogsComponent)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly downloadHtml = inject(DownloadHTMLService)
 

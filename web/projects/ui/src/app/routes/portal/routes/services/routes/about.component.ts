@@ -1,3 +1,4 @@
+import { TuiCell } from '@taiga-ui/core'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
@@ -8,7 +9,6 @@ import {
   i18nPipe,
   MARKDOWN,
 } from '@start9labs/shared'
-import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { defer, map } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'

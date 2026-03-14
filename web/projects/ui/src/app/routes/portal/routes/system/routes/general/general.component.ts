@@ -8,6 +8,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
+import { WA_WINDOW } from '@ng-web-apis/common'
 import {
   DialogService,
   ErrorService,
@@ -19,18 +20,18 @@ import {
   Keyboard,
   KeyboardLayout,
   Language,
-  LANGUAGES,
   LANGUAGE_TO_CODE,
-  LoadingService,
+  LANGUAGES,
 } from '@start9labs/shared'
-import { WA_WINDOW } from '@ng-web-apis/common'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiAnimated } from '@taiga-ui/cdk'
 import {
   TuiAppearance,
   TuiButton,
+  TuiCell,
+  tuiCellOptionsProvider,
   TuiIcon,
-  TuiTextfield,
+  TuiInput,
   TuiTitle,
 } from '@taiga-ui/core'
 import {
@@ -39,20 +40,20 @@ import {
   TuiButtonLoading,
   TuiButtonSelect,
   TuiDataListWrapper,
+  TuiNotificationMiddleService,
 } from '@taiga-ui/kit'
-import { TuiCell, tuiCellOptionsProvider } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
+import { ABOUT } from 'src/app/routes/portal/components/header/about.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
-import { ABOUT } from 'src/app/routes/portal/components/header/about.component'
-import { SnakeDirective } from './snake.directive'
-import { UPDATE } from './update.component'
 import { KeyboardSelectComponent } from './keyboard-select.component'
 import { ServerNameDialog } from './server-name.dialog'
+import { SnakeDirective } from './snake.directive'
+import { UPDATE } from './update.component'
 
 @Component({
   template: `
@@ -135,8 +136,7 @@ import { ServerNameDialog } from './server-name.dialog'
         >
           {{ 'Change' | i18n }}
           <tui-data-list-wrapper
-            *tuiTextfieldDropdown
-            new
+            *tuiDropdown
             size="l"
             [items]="languages"
             [itemContent]="languageContent"
@@ -151,12 +151,13 @@ import { ServerNameDialog } from './server-name.dialog'
         <span tuiTitle>
           <strong>
             {{ 'Kiosk Mode' | i18n }}
-            <tui-badge
+            <span
+              tuiBadge
               size="m"
               [appearance]="server.kiosk ? 'warning' : 'primary-grayscale'"
             >
               {{ server.kiosk ? ('Enabled' | i18n) : ('Disabled' | i18n) }}
-            </tui-badge>
+            </span>
           </strong>
           <span tuiSubtitle [class.warning-text]="server.kiosk">
             @if (server.kiosk === null) {
@@ -268,7 +269,7 @@ import { ServerNameDialog } from './server-name.dialog'
     TuiButtonLoading,
     TuiButtonSelect,
     TuiDataListWrapper,
-    TuiTextfield,
+    TuiInput,
     FormsModule,
     SnakeDirective,
     TuiBadge,
@@ -278,7 +279,7 @@ import { ServerNameDialog } from './server-name.dialog'
 })
 export default class SystemGeneralComponent {
   private readonly dialogs = inject(TuiResponsiveDialogService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)

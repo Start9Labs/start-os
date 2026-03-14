@@ -1,5 +1,5 @@
 import { Directive, inject, Output } from '@angular/core'
-import { IntersectionObserveeService } from '@ng-web-apis/intersection-observer'
+import { WaIntersectionObserveeService } from '@ng-web-apis/intersection-observer'
 import { convertAnsi, ErrorService } from '@start9labs/shared'
 import { catchError, defer, filter, from, map, of, switchMap, tap } from 'rxjs'
 import { LogsComponent } from './logs.component'
@@ -8,7 +8,7 @@ import { LogsComponent } from './logs.component'
   selector: '[logsFetch]',
 })
 export class LogsFetchDirective {
-  private readonly observer = inject(IntersectionObserveeService)
+  private readonly observer = inject(WaIntersectionObserveeService)
   private readonly component = inject(LogsComponent)
   private readonly errors = inject(ErrorService)
 

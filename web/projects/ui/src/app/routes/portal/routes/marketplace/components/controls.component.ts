@@ -15,10 +15,10 @@ import {
   ExverComparesPipe,
   i18nPipe,
   i18nService,
-  LoadingService,
   sameUrl,
 } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom, switchMap } from 'rxjs'
 import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
@@ -118,7 +118,7 @@ export class MarketplaceControlsComponent {
   private readonly alerts = inject(MarketplaceAlertsService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly errorService = inject(ErrorService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly exver = inject(Exver)
   private readonly router = inject(Router)
   private readonly marketplace = inject(MarketplaceService)

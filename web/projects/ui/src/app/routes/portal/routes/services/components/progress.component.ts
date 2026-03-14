@@ -4,10 +4,10 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
+import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
-import { TuiProgress } from '@taiga-ui/kit'
+import { TuiNotificationMiddleService, TuiProgress } from '@taiga-ui/kit'
 import { InstallingProgressPipe } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -84,7 +84,7 @@ export class ServiceInstallProgressComponent {
 
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
 
   isIndeterminate(progress: T.Progress): boolean {
     return (
@@ -94,7 +94,7 @@ export class ServiceInstallProgressComponent {
   }
 
   async cancel() {
-    const loader = this.loader.open().subscribe()
+    const loader = this.loader.open('').subscribe()
 
     try {
       await this.api.cancelInstallPackage({ id: getManifest(this.pkg).id })

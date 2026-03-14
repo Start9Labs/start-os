@@ -19,7 +19,7 @@ import { TuiIcon } from '@taiga-ui/core'
       justify-content: center;
       text-align: center;
       padding: 1rem;
-      font: var(--tui-font-text-l);
+      font: var(--tui-typography-body-l);
       color: var(--tui-text-tertiary);
 
       tui-icon {

@@ -32,7 +32,6 @@ export * from './services/download-html.service'
 export * from './services/exver.service'
 export * from './services/error.service'
 export * from './services/http.service'
-export * from './services/loading.service'
 export * from './services/setup-logs.service'
 
 export * from './types/api'

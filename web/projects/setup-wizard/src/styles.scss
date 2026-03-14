@@ -12,6 +12,10 @@ tui-root {
   height: 100%;
 }
 
+ul {
+  padding-inline-start: 1rem;
+}
+
 router-outlet + * {
   height: 100%;
   max-width: min(35rem, 100vw);
@@ -30,39 +34,9 @@ router-outlet + * {
   }
 }
 
-.inline-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  :first-child {
-    width: 2rem;
-    height: 2rem;
-  }
-
-}
-
 button:disabled {
   opacity: var(--tui-disabled-opacity);
   pointer-events: none;
-}
-
-header {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  text-align: center;
-  font: var(--tui-font-heading-4);
-
-  p {
-    font: var(--tui-font-text-m);
-    color: var(--tui-text-secondary);
-  }
-}
-
-h2 {
-  margin: 0;
-  font: var(--tui-font-heading-6);
 }
 
 .g-positive {
@@ -77,14 +51,27 @@ h2 {
   color: var(--tui-status-negative);
 }
 
+.g-secondary {
+  color: var(--tui-text-secondary) !important;
+}
+
 .g-info {
   color: var(--tui-status-info);
 }
 
-[tuiCardLarge] footer button {
-  width: 100%;
+[tuiCardLarge] footer {
+  display: flex;
+
+  button {
+    flex: 1;
+  }
 }
 
-[tuiCell]:not(:last-of-type) {
+[tuiCell]:not([tuiOption]):not(:last-of-type) {
   box-shadow: 0 calc(0.5rem + 1px) 0 -0.5rem var(--tui-border-normal);
+}
+
+// TODO: Remove in Taiga v5.0
+[tuiButton] {
+  min-block-size: var(--t-size);
 }

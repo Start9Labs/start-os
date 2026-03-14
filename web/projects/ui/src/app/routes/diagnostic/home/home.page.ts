@@ -2,13 +2,9 @@ import { CommonModule } from '@angular/common'
 import { Component, Inject } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { WA_WINDOW } from '@ng-web-apis/common'
-import {
-  DialogService,
-  i18nKey,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
+import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
@@ -29,7 +25,7 @@ export default class HomePage {
   }
 
   constructor(
-    private readonly loader: LoadingService,
+    private readonly loader: TuiNotificationMiddleService,
     private readonly api: ApiService,
     private readonly dialog: DialogService,
     @Inject(WA_WINDOW) private readonly window: Window,

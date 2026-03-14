@@ -36,7 +36,7 @@ import { distinctUntilChanged } from 'rxjs/operators'
       }
 
       h3 {
-        font: var(--tui-font-heading-4);
+        font: var(--tui-typography-heading-h4);
         font-weight: normal;
         margin: 0;
         text-align: center;
@@ -54,7 +54,7 @@ import { distinctUntilChanged } from 'rxjs/operators'
         text-align: center;
         text-transform: uppercase;
         color: var(--tui-text-secondary);
-        font: var(--tui-font-text-ui-xs);
+        font: var(--tui-typography-ui-2xs);
         font-size: min(4cqw, 0.75rem);
       }
 

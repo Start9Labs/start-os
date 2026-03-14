@@ -14,14 +14,14 @@ import { tuiIsNumber } from '@taiga-ui/cdk'
   selector: 'task-info',
   template: `
     @if (diff.length) {
-      <tui-notification>
+      <div tuiNotification>
         {{ 'The following modifications were made' | i18n }}:
         <ul>
           @for (d of diff; track d) {
             <li [innerHTML]="d"></li>
           }
         </ul>
-      </tui-notification>
+      </div>
     }
   `,
   imports: [TuiNotification, i18nPipe],

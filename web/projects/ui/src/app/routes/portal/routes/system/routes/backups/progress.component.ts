@@ -3,9 +3,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
-import { TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
+import { TuiIcon, TuiLoader, TuiTitle, TuiCell } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
-import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { take } from 'rxjs'
 import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
@@ -18,9 +17,9 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     @for (pkg of pkgs() | keyvalue; track $index) {
       @if (backupProgress()?.[pkg.key]; as progress) {
         <div tuiCell>
-          <tui-avatar appearance="action-grayscale">
+          <span tuiAvatar appearance="action-grayscale">
             <img alt="" [src]="pkg.value.icon" />
-          </tui-avatar>
+          </span>
           <span tuiTitle>
             {{ (pkg.value | toManifest).title }}
             <span tuiSubtitle>

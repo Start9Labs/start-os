@@ -12,9 +12,9 @@ import { DialogService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
   TuiButton,
-  TuiTextfield,
-  TuiTextfieldDirective,
+  TuiInputDirective,
   TuiTitle,
+  TuiInput,
 } from '@taiga-ui/core'
 import { QrCodeComponent } from 'ng-qrcode'
 
@@ -24,7 +24,7 @@ import { QrCodeComponent } from 'ng-qrcode'
     <tui-textfield>
       <label tuiLabel>{{ member.name }}</label>
       <input
-        tuiTextfield
+        tuiInput
         [readOnly]="true"
         [ngModel]="member.value"
         [type]="member.masked && masked ? 'password' : 'text'"
@@ -98,7 +98,7 @@ import { QrCodeComponent } from 'ng-qrcode'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     .reveal {
       @include taiga.center-all();
@@ -111,7 +111,7 @@ import { QrCodeComponent } from 'ng-qrcode'
   `,
   imports: [
     FormsModule,
-    TuiTextfield,
+    TuiInput,
     TuiButton,
     QrCodeComponent,
     TuiTitle,
@@ -119,7 +119,7 @@ import { QrCodeComponent } from 'ng-qrcode'
   ],
 })
 export class ActionSuccessMemberComponent {
-  @ViewChild(TuiTextfieldDirective, { read: ElementRef })
+  @ViewChild(TuiInputDirective, { read: ElementRef })
   private readonly input!: ElementRef<HTMLInputElement>
   private readonly dialog = inject(DialogService)
 

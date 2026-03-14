@@ -1,9 +1,8 @@
 import { CommonModule, TitleCasePipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
   ErrorService,
   i18nPipe,
-  LoadingService,
   MarkdownPipe,
   SafeLinksDirective,
 } from '@start9labs/shared'
@@ -11,10 +10,8 @@ import { Version } from '@start9labs/start-sdk'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { TuiButton, TuiDialogContext, TuiScrollbar } from '@taiga-ui/core'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'
-import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusComponent,
-} from '@taiga-ui/polymorpheus'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -56,6 +53,14 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   ],
 })
 export class SystemUpdateModal {
+  private readonly loader = inject(TuiNotificationMiddleService)
+  private readonly errorService = inject(ErrorService)
+  private readonly embassyApi = inject(ApiService)
+  private readonly os = inject(OSService)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly context =
+    injectContext<TuiDialogContext<void, { currentVersion: string }>>()
+
   readonly versions = Object.entries(this.os.osUpdate!)
     .filter(
       ([version]) =>
@@ -65,19 +70,6 @@ export class SystemUpdateModal {
     )
     .sort(([a], [b]) => Version.parse(b).compareForSort(Version.parse(a)))
     .map(([version, info]) => ({ version, notes: info.releaseNotes }))
-
-  constructor(
-    @Inject(POLYMORPHEUS_CONTEXT)
-    private readonly context: TuiDialogContext<
-      void,
-      { currentVersion: string }
-    >,
-    private readonly loader: LoadingService,
-    private readonly errorService: ErrorService,
-    private readonly embassyApi: ApiService,
-    private readonly os: OSService,
-    private readonly patch: PatchDB<DataModel>,
-  ) {}
 
   async update() {
     const loader = this.loader.open('Beginning update').subscribe()

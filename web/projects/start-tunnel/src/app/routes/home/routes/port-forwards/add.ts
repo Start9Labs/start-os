@@ -1,13 +1,12 @@
-import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
-  TUI_IS_MOBILE,
   tuiMarkControlAsTouchedAndValidate,
   TuiValueChanges,
 } from '@taiga-ui/cdk'
@@ -16,18 +15,16 @@ import {
   TuiDialogContext,
   TuiError,
   TuiNumberFormat,
-  TuiTextfield,
+  TuiCheckbox,
 } from '@taiga-ui/core'
 import {
-  TuiCheckbox,
   TuiChevron,
   TuiDataListWrapper,
-  TuiFieldErrorPipe,
   TuiInputNumber,
+  TuiNotificationMiddleService,
   TuiSelect,
-  TuiElasticContainer,
 } from '@taiga-ui/kit'
-import { TuiForm } from '@taiga-ui/layout'
+import { TuiForm, TuiElasticContainer } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ApiService } from 'src/app/services/api/api.service'
 
@@ -49,17 +46,10 @@ import { MappedDevice, PortForwardsData } from './utils'
           <input tuiSelect formControlName="externalip" />
         }
         @if (!mobile) {
-          <tui-data-list-wrapper
-            *tuiTextfieldDropdown
-            new
-            [items]="context.data.ips()"
-          />
+          <tui-data-list-wrapper *tuiDropdown [items]="context.data.ips()" />
         }
       </tui-textfield>
-      <tui-error
-        formControlName="externalip"
-        [error]="[] | tuiFieldError | async"
-      />
+      <tui-error formControlName="externalip" />
       <tui-textfield>
         <label tuiLabel>External Port</label>
         <input
@@ -71,10 +61,7 @@ import { MappedDevice, PortForwardsData } from './utils'
           (tuiValueChanges)="checkShow80()"
         />
       </tui-textfield>
-      <tui-error
-        formControlName="externalport"
-        [error]="[] | tuiFieldError | async"
-      />
+      <tui-error formControlName="externalport" />
       <tui-textfield tuiChevron [stringify]="stringify">
         <label tuiLabel>Device</label>
         @if (mobile) {
@@ -89,16 +76,12 @@ import { MappedDevice, PortForwardsData } from './utils'
         }
         @if (!mobile) {
           <tui-data-list-wrapper
-            *tuiTextfieldDropdown
-            new
+            *tuiDropdown
             [items]="context.data.devices()"
           />
         }
       </tui-textfield>
-      <tui-error
-        formControlName="device"
-        [error]="[] | tuiFieldError | async"
-      />
+      <tui-error formControlName="device" />
       <tui-textfield>
         <label tuiLabel>Internal Port</label>
         <input
@@ -110,10 +93,7 @@ import { MappedDevice, PortForwardsData } from './utils'
           (tuiValueChanges)="checkShow80()"
         />
       </tui-textfield>
-      <tui-error
-        formControlName="internalport"
-        [error]="[] | tuiFieldError | async"
-      />
+      <tui-error formControlName="internalport" />
       <tui-elastic-container>
         @if (show80) {
           <label tuiLabel>
@@ -132,7 +112,6 @@ import { MappedDevice, PortForwardsData } from './utils'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    AsyncPipe,
     ReactiveFormsModule,
     TuiButton,
     TuiChevron,
@@ -140,8 +119,6 @@ import { MappedDevice, PortForwardsData } from './utils'
     TuiError,
     TuiInputNumber,
     TuiNumberFormat,
-    TuiFieldErrorPipe,
-    TuiTextfield,
     TuiSelect,
     TuiForm,
     TuiCheckbox,
@@ -151,12 +128,12 @@ import { MappedDevice, PortForwardsData } from './utils'
 })
 export class PortForwardsAdd {
   private readonly api = inject(ApiService)
-  private readonly loading = inject(LoadingService)
+  private readonly loading = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
 
   show80 = false
 
-  protected readonly mobile = inject(TUI_IS_MOBILE)
+  protected readonly mobile = inject(WA_IS_MOBILE)
   protected readonly context =
     injectContext<TuiDialogContext<void, PortForwardsData>>()
 
@@ -183,7 +160,7 @@ export class PortForwardsAdd {
       return
     }
 
-    const loader = this.loading.open().subscribe()
+    const loader = this.loading.open('').subscribe()
 
     const { externalip, externalport, device, internalport, also80 } =
       this.form.getRawValue()

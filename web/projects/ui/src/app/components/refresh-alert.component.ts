@@ -2,11 +2,12 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { SwUpdate } from '@angular/service-worker'
 import { WA_WINDOW } from '@ng-web-apis/common'
-import { i18nPipe, LoadingService } from '@start9labs/shared'
+import { i18nPipe } from '@start9labs/shared'
 import { Version } from '@start9labs/start-sdk'
 import { TuiResponsiveDialog } from '@taiga-ui/addon-mobile'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { distinctUntilChanged, map, merge, Subject } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
@@ -74,7 +75,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 export class RefreshAlertComponent {
   private readonly win = inject(WA_WINDOW)
   private readonly updates = inject(SwUpdate)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly version = Version.parse(inject(ConfigService).version)
 
   readonly i18n = inject(i18nPipe)

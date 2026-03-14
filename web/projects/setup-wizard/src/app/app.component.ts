@@ -8,7 +8,7 @@ import { StateService } from './services/state.service'
 
 @Component({
   selector: 'app-root',
-  template: '<tui-root tuiTheme="dark"><router-outlet /></tui-root>',
+  template: '<tui-root><router-outlet /></tui-root>',
   imports: [TuiRoot, RouterOutlet],
 })
 export class AppComponent implements OnInit {

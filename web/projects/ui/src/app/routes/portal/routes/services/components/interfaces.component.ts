@@ -16,7 +16,7 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
   selector: 'service-interfaces',
   template: `
     <header>{{ 'Service Interfaces' | i18n }}</header>
-    <table tuiTable class="g-table">
+    <table tuiTable class="g-table-service">
       <thead>
         <tr>
           <th tuiTh>{{ 'Name' | i18n }}</th>
@@ -39,9 +39,13 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
             </a>
           </tr>
         } @empty {
-          <app-placeholder icon="@tui.monitor-x">
-            {{ 'No service interfaces' | i18n }}
-          </app-placeholder>
+          <tr>
+            <td colspan="4">
+              <app-placeholder icon="@tui.monitor-x">
+                {{ 'No service interfaces' | i18n }}
+              </app-placeholder>
+            </td>
+          </tr>
         }
       </tbody>
     </table>

@@ -1,10 +1,6 @@
 import { inject, Injectable } from '@angular/core'
-import {
-  DialogService,
-  getErrorMessage,
-  i18nKey,
-  LoadingService,
-} from '@start9labs/shared'
+import { DialogService, getErrorMessage, i18nKey } from '@start9labs/shared'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
 import { ACTION_CONFIRM_MODAL } from 'src/app/routes/portal/routes/services/modals/action-confirm.component'
@@ -22,7 +18,7 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 export class ActionService {
   private readonly api = inject(ApiService)
   private readonly dialog = inject(DialogService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly formDialog = inject(FormDialogService)
 
   async present(data: PackageActionData) {

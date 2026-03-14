@@ -12,9 +12,9 @@ import {
   ErrorService,
   i18nPipe,
 } from '@start9labs/shared'
-import { TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
+import { TuiIcon, TuiLoader, TuiTitle, TuiCell } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiCell, TuiHeader } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { ApiService } from '../services/api.service'
 import { StateService } from '../services/state.service'
 import { DocumentationComponent } from '../components/documentation.component'
@@ -50,7 +50,7 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
         <!-- Step: Download Address Info (non-kiosk only) -->
         @if (!stateService.kiosk) {
           <button tuiCell="l" [disabled]="downloaded" (click)="download()">
-            <tui-avatar appearance="secondary" src="@tui.download" />
+            <span tuiAvatar="@tui.download" appearance="secondary"></span>
             <div tuiTitle>
               {{ 'Download Address Info' | i18n }}
               <div tuiSubtitle>
@@ -74,7 +74,7 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
             [disabled]="(!stateService.kiosk && !downloaded) || usbRemoved"
             (click)="removeMedia()"
           >
-            <tui-avatar appearance="secondary" src="@tui.usb" />
+            <span tuiAvatar="@tui.usb" appearance="secondary"></span>
             <div tuiTitle>
               {{ 'Remove Installation Media' | i18n }}
               <div tuiSubtitle>
@@ -96,7 +96,7 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
             [disabled]="!usbRemoved || rebooted || rebooting"
             (click)="reboot()"
           >
-            <tui-avatar appearance="secondary" src="@tui.rotate-cw" />
+            <span tuiAvatar="@tui.rotate-cw" appearance="secondary"></span>
             <div tuiTitle>
               {{ 'Restart Server' | i18n }}
               <div tuiSubtitle>
@@ -125,7 +125,7 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
             [disabled]="!canOpenAddress"
             (click)="openLocalAddress()"
           >
-            <tui-avatar appearance="secondary" src="@tui.external-link" />
+            <span tuiAvatar="@tui.external-link" appearance="secondary"></span>
             <div tuiTitle>
               {{ 'Open Local Address' | i18n }}
               <div tuiSubtitle>{{ lanAddress }}</div>
@@ -143,7 +143,7 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
             [disabled]="result.needsRestart && !rebooted"
             (click)="exitKiosk()"
           >
-            <tui-avatar appearance="secondary" src="@tui.log-in" />
+            <span tuiAvatar="@tui.log-in" appearance="secondary"></span>
             <div tuiTitle>
               {{ 'Continue to Login' | i18n }}
               <div tuiSubtitle>
@@ -233,9 +233,8 @@ export default class SuccessPage implements AfterViewInit {
   removeMedia() {
     this.dialogs
       .openComponent<boolean>(new PolymorpheusComponent(RemoveMediaDialog), {
-        size: 's',
         dismissible: false,
-        closeable: false,
+        closable: false,
       })
       .subscribe(() => {
         this.usbRemoved = true

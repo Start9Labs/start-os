@@ -8,10 +8,10 @@ import {
   ErrorService,
   i18nKey,
   i18nPipe,
-  LoadingService,
 } from '@start9labs/shared'
 import { inputSpec, ISB, utils } from '@start9labs/start-sdk'
-import { TuiButton, TuiError, TuiTextfield, TuiTitle } from '@taiga-ui/core'
+import { TuiButton, TuiError, TuiInput, TuiTitle } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { switchMap } from 'rxjs'
@@ -96,7 +96,7 @@ function detectProviderKey(host: string | undefined): string {
           <tui-textfield>
             <label tuiLabel>email&#64;example.com</label>
             <input
-              tuiTextfield
+              tuiInput
               inputmode="email"
               [formControl]="testEmailControl"
             />
@@ -147,7 +147,7 @@ function detectProviderKey(host: string | undefined): string {
     FormGroupComponent,
     TuiButton,
     TuiError,
-    TuiTextfield,
+    TuiInput,
     TuiHeader,
     TuiTitle,
     RouterLink,
@@ -158,7 +158,7 @@ function detectProviderKey(host: string | undefined): string {
 })
 export default class SystemEmailComponent {
   private readonly dialog = inject(DialogService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly formService = inject(FormService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)

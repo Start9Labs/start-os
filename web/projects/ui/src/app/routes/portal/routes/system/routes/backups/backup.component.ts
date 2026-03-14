@@ -1,14 +1,15 @@
-import { Component, inject } from '@angular/core'
+import { Component, inject, OnInit } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { verify } from '@start9labs/argon2'
+import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import {
-  DialogService,
-  ErrorService,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
-import { TuiButton, TuiGroup, TuiLoader, TuiTitle } from '@taiga-ui/core'
-import { TuiBlock, TuiCheckbox } from '@taiga-ui/kit'
+  TuiButton,
+  TuiCheckbox,
+  TuiGroup,
+  TuiLoader,
+  TuiTitle,
+} from '@taiga-ui/core'
+import { TuiBlock, TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom, map } from 'rxjs'
@@ -86,9 +87,9 @@ interface Package {
     i18nPipe,
   ],
 })
-export class BackupsBackupComponent {
+export class BackupsBackupComponent implements OnInit {
   private readonly dialog = inject(DialogService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)

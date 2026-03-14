@@ -85,7 +85,8 @@ import { BACKUP_RESTORE } from './restore.component'
     </header>
 
     @if (type === 'create' && !(os.backingUp$ | async) && server(); as s) {
-      <tui-notification
+      <div
+        tuiNotification
         [appearance]="s.lastBackup | tuiMapper: toAppearance"
         icon=""
       >
@@ -95,7 +96,7 @@ import { BACKUP_RESTORE } from './restore.component'
             {{ s.lastBackup ? (s.lastBackup | date: 'medium') : 'never' }}
           </div>
         </div>
-      </tui-notification>
+      </div>
     }
 
     @if (type === 'create' && (os.backingUp$ | async)) {

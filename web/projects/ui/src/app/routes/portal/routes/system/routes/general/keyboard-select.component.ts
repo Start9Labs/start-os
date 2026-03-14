@@ -1,8 +1,8 @@
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { i18nPipe, Keyboard, KeyboardLayout } from '@start9labs/shared'
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
-import { TuiButton, TuiDialogContext, TuiTextfield } from '@taiga-ui/core'
+import { TuiButton, TuiDialogContext, TuiInput } from '@taiga-ui/core'
 import { TuiChevron, TuiDataListWrapper, TuiSelect } from '@taiga-ui/kit'
 import { injectContext } from '@taiga-ui/polymorpheus'
 
@@ -20,7 +20,7 @@ import { injectContext } from '@taiga-ui/polymorpheus'
         <input tuiSelect [(ngModel)]="selected" />
       }
       @if (!mobile) {
-        <tui-data-list-wrapper new *tuiTextfieldDropdown [items]="keyboards" />
+        <tui-data-list-wrapper *tuiDropdown [items]="keyboards" />
       }
     </tui-textfield>
     <footer>
@@ -50,7 +50,7 @@ import { injectContext } from '@taiga-ui/polymorpheus'
   imports: [
     FormsModule,
     TuiButton,
-    TuiTextfield,
+    TuiInput,
     TuiChevron,
     TuiSelect,
     TuiDataListWrapper,
@@ -66,7 +66,7 @@ export class KeyboardSelectComponent {
       >
     >()
 
-  protected readonly mobile = inject(TUI_IS_MOBILE)
+  protected readonly mobile = inject(WA_IS_MOBILE)
   readonly keyboards = this.context.data.keyboards
   readonly initialLayout = this.context.data.currentLayout
   selected =

@@ -1,12 +1,10 @@
-import { Injectable } from '@angular/core'
 import { TuiDay, TuiTime, TuiValueTransformer } from '@taiga-ui/cdk'
 
-type From = [TuiDay | null, TuiTime | null] | null
+type From = [TuiDay, TuiTime | null] | null
 type To = string | null
 
-@Injectable()
-export class DatetimeTransformerService extends TuiValueTransformer<From, To> {
-  fromControlValue(controlValue: To): From {
+export const DatetimeTransformer: TuiValueTransformer<From, To> = {
+  fromControlValue: controlValue => {
     if (!controlValue) {
       return null
     }
@@ -18,9 +16,9 @@ export class DatetimeTransformerService extends TuiValueTransformer<From, To> {
         : null
 
     return [day, time]
-  }
+  },
 
-  toControlValue(componentValue: From): To {
+  toControlValue: componentValue => {
     if (!componentValue) {
       return null
     }
@@ -28,5 +26,13 @@ export class DatetimeTransformerService extends TuiValueTransformer<From, To> {
     const [day, time] = componentValue
 
     return day?.toJSON() + (time ? `T${time.toString()}` : '')
-  }
+  },
+}
+
+export const DateTransformer: TuiValueTransformer<
+  TuiDay | null,
+  string | null
+> = {
+  fromControlValue: value => (value ? TuiDay.jsonParse(value) : null),
+  toControlValue: value => value?.toJSON() || null,
 }

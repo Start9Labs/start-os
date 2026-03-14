@@ -13,14 +13,10 @@ import {
   TuiDialogContext,
   TuiError,
   TuiIcon,
-  TuiTextfield,
+  TuiInput,
+  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import {
-  TUI_VALIDATION_ERRORS,
-  TuiButtonLoading,
-  TuiFieldErrorPipe,
-  TuiPassword,
-} from '@taiga-ui/kit'
+import { TuiButtonLoading, TuiPassword } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ApiService } from '../services/api.service'
 import { StartOSDiskInfoWithId } from '../types'
@@ -36,42 +32,36 @@ export interface CifsResult {
       <tui-textfield>
         <label tuiLabel>{{ 'Hostname' | i18n }}*</label>
         <input
-          tuiTextfield
+          tuiInput
           formControlName="hostname"
           placeholder="e.g. 'My Computer' OR 'my-computer.local'"
         />
       </tui-textfield>
-      <tui-error
-        formControlName="hostname"
-        [error]="['required'] | tuiFieldError | async"
-      />
+      <tui-error formControlName="hostname" [order]="['required']" />
 
       <tui-textfield class="input">
         <label tuiLabel>{{ 'Path' | i18n }}*</label>
         <input
-          tuiTextfield
+          tuiInput
           formControlName="path"
           placeholder="/Desktop/my-folder"
         />
       </tui-textfield>
-      <tui-error formControlName="path" [error]="[] | tuiFieldError | async" />
+      <tui-error formControlName="path" />
 
       <tui-textfield class="input">
         <label tuiLabel>{{ 'Username' | i18n }}*</label>
         <input
-          tuiTextfield
+          tuiInput
           formControlName="username"
           placeholder="Enter username"
         />
       </tui-textfield>
-      <tui-error
-        formControlName="username"
-        [error]="[] | tuiFieldError | async"
-      />
+      <tui-error formControlName="username" />
 
       <tui-textfield class="input">
         <label tuiLabel>{{ 'Password' | i18n }}</label>
-        <input tuiTextfield type="password" formControlName="password" />
+        <input tuiInput type="password" formControlName="password" />
         <tui-icon tuiPassword />
       </tui-textfield>
 
@@ -107,20 +97,16 @@ export interface CifsResult {
     ReactiveFormsModule,
     TuiButton,
     TuiButtonLoading,
-    TuiTextfield,
+    TuiInput,
     TuiPassword,
     TuiError,
-    TuiFieldErrorPipe,
     TuiIcon,
     i18nPipe,
   ],
   providers: [
-    {
-      provide: TUI_VALIDATION_ERRORS,
-      useValue: {
-        required: 'This field is required',
-      },
-    },
+    tuiValidationErrorsProvider({
+      required: 'This field is required',
+    }),
   ],
 })
 export class CifsComponent {
@@ -183,10 +169,7 @@ export class CifsComponent {
     this.dialogs
       .openAlert(
         'Unable to connect to network folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.',
-        {
-          label: 'Connection Failed',
-          size: 's',
-        },
+        { label: 'Connection Failed' },
       )
       .subscribe()
   }

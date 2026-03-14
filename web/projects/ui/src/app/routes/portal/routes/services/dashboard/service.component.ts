@@ -35,7 +35,7 @@ import { StatusComponent } from './status.component'
     </td>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     :host {
       @include taiga.transition(background);
@@ -116,12 +116,12 @@ import { StatusComponent } from './status.component'
 
       .title {
         grid-area: 2 / 2;
-        font: var(--tui-font-heading-6);
+        font: var(--tui-typography-heading-h6);
       }
 
       .version {
         grid-area: 1 / 2;
-        font: var(--tui-font-text-s);
+        font: var(--tui-typography-body-s);
       }
 
       .uptime {

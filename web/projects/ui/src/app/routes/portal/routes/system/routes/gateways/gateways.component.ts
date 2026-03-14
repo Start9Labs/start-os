@@ -7,16 +7,16 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
-import {
-  DocsLinkDirective,
-  ErrorService,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
+import { DocsLinkDirective, ErrorService, i18nPipe } from '@start9labs/shared'
 import { ISB } from '@start9labs/start-sdk'
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
-import { TuiButton, TuiTextfield, TuiTitle } from '@taiga-ui/core'
-import { TuiChevron, TuiDataListWrapper, TuiSelect } from '@taiga-ui/kit'
+import { TuiButton, TuiInput, TuiTitle } from '@taiga-ui/core'
+import {
+  TuiChevron,
+  TuiDataListWrapper,
+  TuiNotificationMiddleService,
+  TuiSelect,
+} from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -102,11 +102,7 @@ import { GatewaysTableComponent } from './table.component'
             />
           }
           @if (!mobile) {
-            <tui-data-list-wrapper
-              new
-              *tuiTextfieldDropdown
-              [items]="options"
-            />
+            <tui-data-list-wrapper *tuiDropdown [items]="options" />
           }
         </tui-textfield>
         <footer>
@@ -146,7 +142,7 @@ import { GatewaysTableComponent } from './table.component'
     FormsModule,
     RouterLink,
     TuiButton,
-    TuiTextfield,
+    TuiInput,
     TuiTitle,
     TuiChevron,
     TuiSelect,
@@ -159,13 +155,13 @@ import { GatewaysTableComponent } from './table.component'
   ],
 })
 export default class GatewaysComponent {
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly formDialog = inject(FormDialogService)
   private readonly i18n = inject(i18nPipe)
   readonly gatewayService = inject(GatewayService)
-  readonly mobile = inject(TUI_IS_MOBILE)
+  readonly mobile = inject(WA_IS_MOBILE)
 
   private readonly autoOption = {
     id: null,

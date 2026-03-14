@@ -5,25 +5,25 @@ import {
   signal,
 } from '@angular/core'
 import { ErrorService } from '@start9labs/shared'
-import { TuiAppearance, TuiButton, TuiTitle } from '@taiga-ui/core'
-import { TuiDialogService } from '@taiga-ui/experimental'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import { TuiButton, TuiCell, TuiTitle } from '@taiga-ui/core'
 import { TuiBadge, TuiButtonLoading } from '@taiga-ui/kit'
-import { TuiCard, TuiCell } from '@taiga-ui/layout'
+import { TuiCard } from '@taiga-ui/layout'
 import { UpdateService } from 'src/app/services/update.service'
 
 import { CHANGE_PASSWORD } from './change-password'
 
 @Component({
   template: `
-    <div tuiCardLarge tuiAppearance="neutral">
+    <div tuiCardLarge>
       <div tuiCell>
         <span tuiTitle>
           <strong>
             Version
             @if (update.hasUpdate()) {
-              <tui-badge appearance="positive" size="s">
+              <span tuiBadge appearance="positive" size="s">
                 Update Available
-              </tui-badge>
+              </span>
             }
           </strong>
           <span tuiSubtitle>Current: {{ update.installed() ?? '—' }}</span>
@@ -52,19 +52,20 @@ import { CHANGE_PASSWORD } from './change-password'
       </div>
     </div>
   `,
+  styles: `
+    [tuiCardLarge] {
+      background: var(--tui-background-neutral-1);
+
+      &:not([data-appearance]) {
+        display: none;
+      }
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    TuiCard,
-    TuiCell,
-    TuiTitle,
-    TuiButton,
-    TuiButtonLoading,
-    TuiBadge,
-    TuiAppearance,
-  ],
+  imports: [TuiCard, TuiCell, TuiTitle, TuiButton, TuiButtonLoading, TuiBadge],
 })
 export default class Settings {
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly errorService = inject(ErrorService)
 
   protected readonly update = inject(UpdateService)

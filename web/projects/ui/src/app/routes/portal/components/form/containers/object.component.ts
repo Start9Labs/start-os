@@ -9,8 +9,7 @@ import {
 } from '@angular/core'
 import { ControlContainer } from '@angular/forms'
 import { IST } from '@start9labs/start-sdk'
-import { TuiButton, TuiIcon } from '@taiga-ui/core'
-import { TuiExpand } from '@taiga-ui/experimental'
+import { TuiButton, TuiIcon, TuiExpand } from '@taiga-ui/core'
 import { TuiTooltip } from '@taiga-ui/kit'
 
 import { ControlDirective } from './control.directive'
@@ -43,7 +42,7 @@ import { FormGroupComponent } from './group.component'
     </tui-expand>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     :host {
       display: flex;
@@ -57,7 +56,7 @@ import { FormGroupComponent } from './group.component'
       display: flex;
       align-items: center;
       cursor: pointer;
-      font: var(--tui-font-text-l);
+      font: var(--tui-typography-body-l);
       font-weight: bold;
       margin: 0 0 -0.75rem;
     }

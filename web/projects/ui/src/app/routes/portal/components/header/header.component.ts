@@ -22,7 +22,7 @@ import { HeaderStatusComponent } from './status.component'
     <header-menu class="item item_corner" />
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     @keyframes connecting {
       25%,
@@ -122,7 +122,7 @@ import { HeaderStatusComponent } from './status.component'
         display: flex;
         height: 100%;
         align-items: center;
-        font: var(--tui-font-text-l);
+        font: var(--tui-typography-body-l);
         padding: 1rem;
         white-space: nowrap;
         overflow: hidden;

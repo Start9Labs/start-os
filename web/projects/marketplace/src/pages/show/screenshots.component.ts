@@ -4,7 +4,7 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { TuiButton, TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
 import { TuiCarousel } from '@taiga-ui/kit'
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
@@ -130,7 +130,7 @@ export class MarketplacePackageScreenshotComponent {
 
   index = 0
 
-  isMobile = inject(TUI_IS_MOBILE)
+  isMobile = inject(WA_IS_MOBILE)
 
   presentModalImg(content: PolymorpheusContent<TuiDialogContext>) {
     this.dialogs
