@@ -60,6 +60,9 @@ import {
   OutboundVpnUpdateRequest,
   OutboundVpnDeleteRequest,
   OutboundVpnSetEnabledRequest,
+  SshKeyFromApi,
+  SshKeysAddRequest,
+  SshKeysDeleteRequest,
 } from './api.service'
 import {
   DhcpSection,
@@ -213,19 +216,8 @@ export class MockApiService extends ApiService {
     }
   }
 
-  private mockAuthorizedKeys = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl matt@macbook
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa lucy@desktop`
-
   async getFile(params: GetFileReq): Promise<GetFileRes> {
     await pauseFor(250)
-
-    if (params.path === '/root/.ssh/authorized_keys') {
-      return {
-        modified: new Date().toISOString(),
-        contents: this.mockAuthorizedKeys,
-      }
-    }
-
     return {
       modified: new Date().toISOString(),
       contents: '',
@@ -234,11 +226,6 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
 
   async setFile(params: SetFileReq): Promise<null> {
     await pauseFor(250)
-
-    if (params.path === '/root/.ssh/authorized_keys') {
-      this.mockAuthorizedKeys = params.contents
-    }
-
     return null
   }
 
@@ -1276,6 +1263,50 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
     await pauseFor(250)
     this.mockVpnClients = this.mockVpnClients.map(c =>
       c.id === params.id ? { ...c, enabled: params.enabled } : c,
+    )
+    return null
+  }
+
+  // --- SSH Keys smart endpoint mocks ---
+
+  private mockSshKeys: SshKeyFromApi[] = [
+    {
+      algorithm: 'ssh-ed25519',
+      fingerprint: 'ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89',
+      hostname: 'matt@macbook',
+    },
+    {
+      algorithm: 'ssh-ed25519',
+      fingerprint: '12:34:56:78:9a:bc:de:f0:12:34:56:78:9a:bc:de:f0',
+      hostname: 'lucy@desktop',
+    },
+  ]
+
+  async sshKeysList(): Promise<SshKeyFromApi[]> {
+    await pauseFor(250)
+    return structuredClone(this.mockSshKeys)
+  }
+
+  async sshKeysAdd(params: SshKeysAddRequest): Promise<SshKeyFromApi> {
+    await pauseFor(250)
+    const parts = params.key.trim().split(/\s+/)
+    const newKey: SshKeyFromApi = {
+      algorithm: parts[0] || 'ssh-ed25519',
+      fingerprint: Array.from({ length: 16 }, () =>
+        Math.floor(Math.random() * 256)
+          .toString(16)
+          .padStart(2, '0'),
+      ).join(':'),
+      hostname: parts.slice(2).join(' ') || '',
+    }
+    this.mockSshKeys = [...this.mockSshKeys, newKey]
+    return newKey
+  }
+
+  async sshKeysDelete(params: SshKeysDeleteRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockSshKeys = this.mockSshKeys.filter(
+      k => k.fingerprint !== params.fingerprint,
     )
     return null
   }

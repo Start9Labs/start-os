@@ -22,7 +22,7 @@ macaddr = "1.0.0"
 uciedit = { workspace = true, version = "0.1.0" }
 rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit", default-features = false }
 clap = "4.5.37"
-axum-server = "0.7.2"
+axum-server = { version = "0.7.2", features = ["tls-rustls"] }
 axum = { version = "0.8.6", features = ["ws"] }
 include_dir = "0.7"
 mime_guess = "2"
@@ -50,3 +50,8 @@ basic-cookies = "0.1.5"
 http = "1.0"
 cookie_store = "0.22"
 reqwest_cookie_store = "0.9"
+openssh-keys = "0.6.2"
+rcgen = { version = "0.13", features = ["pem"] }
+rustls = "0.23"
+rustls-pemfile = "2"
+tokio-rustls = "0.26"

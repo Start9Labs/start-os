@@ -57,6 +57,9 @@ import {
   OutboundVpnUpdateRequest,
   OutboundVpnDeleteRequest,
   OutboundVpnSetEnabledRequest,
+  SshKeyFromApi,
+  SshKeysAddRequest,
+  SshKeysDeleteRequest,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -323,5 +326,17 @@ export class LiveApiService extends ApiService {
     params: OutboundVpnSetEnabledRequest,
   ): Promise<null> {
     return this.rpc.request({ method: 'vpn-client.set-enabled', params })
+  }
+
+  async sshKeysList(): Promise<SshKeyFromApi[]> {
+    return this.rpc.request({ method: 'ssh-keys.list', params: {} })
+  }
+
+  async sshKeysAdd(params: SshKeysAddRequest): Promise<SshKeyFromApi> {
+    return this.rpc.request({ method: 'ssh-keys.add', params })
+  }
+
+  async sshKeysDelete(params: SshKeysDeleteRequest): Promise<null> {
+    return this.rpc.request({ method: 'ssh-keys.delete', params })
   }
 }

@@ -1043,18 +1043,17 @@ struct ProfileUpdateRequest {
 // Request: {}
 
 #[derive(Serialize)]
-struct SshKey {
-    /// Full raw line from authorized_keys
-    raw: String,
+#[serde(rename_all = "camelCase")]
+struct SshKeyResponse {
     /// e.g. "ssh-ed25519", "ssh-rsa"
     algorithm: String,
-    /// Base64-encoded public key
-    public_key: String,
+    /// MD5 fingerprint of the public key (unique identifier)
+    fingerprint: String,
     /// Comment/hostname portion
     hostname: String,
 }
-// Response: Vec<SshKey>
-// Backend: reads /root/.ssh/authorized_keys, parses lines
+// Response: Vec<SshKeyResponse>
+// Backend: reads /etc/dropbear/authorized_keys, parses with openssh_keys crate
 ```
 
 ### `ssh-keys.add`
@@ -1065,8 +1064,9 @@ struct SshKeyAddRequest {
     /// Full SSH public key line (e.g. "ssh-ed25519 AAAA... user@host")
     key: String,
 }
-// Response: null
-// Backend: appends to /root/.ssh/authorized_keys
+// Response: SshKeyResponse (the newly added key)
+// Backend: validates with openssh_keys, checks for duplicates via fingerprint,
+//          appends to /root/.ssh/authorized_keys, creates ~/.ssh dir if needed
 ```
 
 ### `ssh-keys.delete`
@@ -1074,11 +1074,11 @@ struct SshKeyAddRequest {
 ```rust
 #[derive(Deserialize)]
 struct SshKeyDeleteRequest {
-    /// The full raw line to remove
-    raw: String,
+    /// MD5 fingerprint of the key to remove
+    fingerprint: String,
 }
 // Response: null
-// Backend: removes matching line from /root/.ssh/authorized_keys
+// Backend: removes line matching fingerprint from /root/.ssh/authorized_keys
 ```
 
 ---

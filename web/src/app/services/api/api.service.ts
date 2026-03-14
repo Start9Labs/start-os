@@ -73,7 +73,20 @@ export abstract class ApiService {
   abstract vpnClientSetEnabled(
     params: OutboundVpnSetEnabledRequest,
   ): Promise<null>
+  abstract sshKeysList(): Promise<SshKeyFromApi[]>
+  abstract sshKeysAdd(params: SshKeysAddRequest): Promise<SshKeyFromApi>
+  abstract sshKeysDelete(params: SshKeysDeleteRequest): Promise<null>
 }
+
+// SSH Keys types
+export interface SshKeyFromApi {
+  algorithm: string
+  fingerprint: string
+  hostname: string
+}
+
+export type SshKeysAddRequest = { key: string }
+export type SshKeysDeleteRequest = { fingerprint: string }
 
 export type LanIpv4Response = {
   address: string
