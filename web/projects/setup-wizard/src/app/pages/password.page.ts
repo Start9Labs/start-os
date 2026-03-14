@@ -175,7 +175,7 @@ export default class PasswordPage {
       Validators.maxLength(64),
     ]),
     confirm: new FormControl(''),
-    name: new FormControl('', [Validators.required]),
+    name: new FormControl('', this.isFresh ? [Validators.required] : []),
   })
 
   readonly validator = (value: string) => (control: AbstractControl) =>
