@@ -74,7 +74,12 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
         </tui-expand>
       </tui-accordion>
     }
-    <form [formGroup]="form" [formLoading]="false" (ngSubmit)="onSubmit()">
+    <form
+      [formGroup]="form"
+      [formLoading]="false"
+      (reset.prevent)="onCancel()"
+      (ngSubmit)="onSubmit()"
+    >
       <fieldset>
         <legend>Preferences</legend>
         <section>
@@ -301,6 +306,18 @@ export default class General {
       this.mode.reset()
     } else {
       this.mode.set(theme === 'dark')
+    }
+  }
+
+  protected onCancel(): void {
+    const info = this.system.info()
+    if (info) {
+      this.form.reset({
+        theme: info.theme,
+        language: info.language as Language,
+        remote: info.remoteAccess ?? 'default',
+      })
+      this.onTheme(info.theme)
     }
   }
 
