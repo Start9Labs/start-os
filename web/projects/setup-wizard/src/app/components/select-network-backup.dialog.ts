@@ -1,8 +1,9 @@
-import { Component, inject } from '@angular/core'
+import { Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { i18nPipe } from '@start9labs/shared'
-import { TuiDialogContext, TuiTextfield } from '@taiga-ui/core'
+import { TuiDialogContext, TuiTitle } from '@taiga-ui/core'
 import { TuiDataListWrapper, TuiSelect } from '@taiga-ui/kit'
+import { TuiHeader } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { StartOSDiskInfoWithId } from '../types'
 
@@ -11,36 +12,48 @@ interface Data {
 }
 
 @Component({
-  imports: [FormsModule, TuiTextfield, TuiSelect, TuiDataListWrapper, i18nPipe],
+  imports: [
+    FormsModule,
+    TuiSelect,
+    TuiDataListWrapper,
+    i18nPipe,
+    TuiHeader,
+    TuiTitle,
+  ],
   template: `
-    <p>{{ 'Multiple backups found. Select which one to restore.' | i18n }}</p>
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h2 [id]="context.id">{{ 'Select Network Backup' | i18n }}</h2>
+        <p>
+          {{ 'Multiple backups found. Select which one to restore.' | i18n }}
+        </p>
+      </hgroup>
+    </header>
     <tui-textfield [stringify]="stringify">
       <label tuiLabel>{{ 'Backups' | i18n }}</label>
       <input tuiSelect [(ngModel)]="selectedServer" />
       <tui-data-list-wrapper
-        new
-        *tuiTextfieldDropdown
+        *tuiDropdown
         [items]="context.data.servers"
         [itemContent]="serverContent"
       />
     </tui-textfield>
 
     <ng-template #serverContent let-server>
-      <div class="server-item">
-        <span>{{ server.id }}</span>
+      <span tuiTitle>
+        {{ server.id }}
         <!-- @TODO eos-version? -->
-        <small>{{ server['eos-version'] }}</small>
-      </div>
+        @if (server['eos-version']) {
+          <span tuiSubtitle>
+            {{ server['eos-version'] }}
+          </span>
+        }
+      </span>
     </ng-template>
   `,
   styles: `
-    .server-item {
-      display: flex;
-      flex-direction: column;
-
-      small {
-        opacity: 0.7;
-      }
+    div {
+      margin-block-end: 1rem;
     }
   `,
 })

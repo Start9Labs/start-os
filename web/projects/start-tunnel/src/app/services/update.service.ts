@@ -1,8 +1,8 @@
 import { Component, computed, inject, Injectable, signal } from '@angular/core'
 import { toObservable } from '@angular/core/rxjs-interop'
 import { ErrorService } from '@start9labs/shared'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiLoader } from '@taiga-ui/core'
-import { TuiDialogService } from '@taiga-ui/experimental'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import {
   catchError,
@@ -32,7 +32,7 @@ class UpdatingDialog {
 export class UpdateService {
   private readonly api = inject(ApiService)
   private readonly auth = inject(AuthService)
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly errorService = inject(ErrorService)
 
   readonly result = signal<T.Tunnel.TunnelUpdateResult | null>(null)

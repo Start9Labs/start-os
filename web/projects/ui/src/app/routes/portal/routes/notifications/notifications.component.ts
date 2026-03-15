@@ -8,16 +8,12 @@ import {
 } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
-import {
-  ErrorService,
-  i18nPipe,
-  isEmptyObject,
-  LoadingService,
-} from '@start9labs/shared'
+import { ErrorService, i18nPipe, isEmptyObject } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import { distinctUntilChanged, skip } from 'rxjs/operators'
-import { T } from '@start9labs/start-sdk'
 import { ServerNotification } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { BadgeService } from 'src/app/services/badge.service'
@@ -58,7 +54,7 @@ import { NotificationsTableComponent } from './table.component'
 export default class NotificationsComponent implements OnInit {
   private readonly router = inject(Router)
   private readonly route = inject(ActivatedRoute)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
 
   readonly service = inject(NotificationService)
   readonly api = inject(ApiService)

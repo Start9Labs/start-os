@@ -5,9 +5,9 @@ import {
   i18nKey,
   i18nPipe,
   i18nService,
-  LoadingService,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { defaultIfEmpty, defer, filter, firstValueFrom, of } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -21,7 +21,7 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
 export class ControlsService {
   private readonly dialog = inject(DialogService)
   private readonly errorService = inject(ErrorService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly api = inject(ApiService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly i18n = inject(i18nPipe)

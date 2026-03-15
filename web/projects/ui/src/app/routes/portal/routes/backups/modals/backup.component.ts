@@ -2,16 +2,14 @@ import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import {
   TuiButton,
+  TuiCheckbox,
   TuiDialogContext,
   TuiDialogOptions,
   TuiGroup,
   TuiLoader,
 } from '@taiga-ui/core'
-import { TuiBlock, TuiCheckbox } from '@taiga-ui/kit'
-import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusComponent,
-} from '@taiga-ui/polymorpheus'
+import { TuiBlock } from '@taiga-ui/kit'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom, map } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -74,9 +72,7 @@ interface Package {
 export class BackupsBackupModal {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   readonly context =
-    inject<TuiDialogContext<string[], { btnText: string } | undefined>>(
-      POLYMORPHEUS_CONTEXT,
-    )
+    injectContext<TuiDialogContext<string[], { btnText: string } | undefined>>()
 
   hasSelection = false
 

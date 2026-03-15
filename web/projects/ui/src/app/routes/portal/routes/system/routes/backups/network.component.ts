@@ -5,15 +5,10 @@ import {
   output,
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import {
-  DialogService,
-  ErrorService,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
+import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { ISB, T } from '@start9labs/start-sdk'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
-import { TuiTooltip } from '@taiga-ui/kit'
+import { TuiNotificationMiddleService, TuiTooltip } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
@@ -97,7 +92,7 @@ const ERROR =
     </table>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     tr {
       @include taiga.transition(background);
@@ -160,7 +155,7 @@ const ERROR =
 
       .name {
         color: var(--tui-text-primary);
-        font: var(--tui-font-text-m);
+        font: var(--tui-typography-body-m);
         font-weight: bold;
         grid-column: 1;
         max-width: 12rem;
@@ -183,7 +178,7 @@ export class BackupNetworkComponent {
   private readonly dialog = inject(DialogService)
   private readonly formDialog = inject(FormDialogService)
   private readonly api = inject(ApiService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly type = inject(ActivatedRoute).snapshot.data['type']
   private readonly i18n = inject(i18nPipe)

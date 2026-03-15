@@ -123,7 +123,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 
       td:first-child {
         padding: 0;
-        font: var(--tui-font-text-s);
+        font: var(--tui-typography-body-s);
         color: var(--tui-text-secondary);
         margin-block-end: -0.25rem;
       }

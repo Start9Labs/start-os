@@ -1597,9 +1597,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async pkgAddPrivateDomain(
-    params: PkgAddPrivateDomainReq,
-  ): Promise<boolean> {
+  async pkgAddPrivateDomain(params: PkgAddPrivateDomainReq): Promise<boolean> {
     await pauseFor(2000)
 
     const patch: Operation<any>[] = [

@@ -5,21 +5,21 @@ import {
   input,
   signal,
 } from '@angular/core'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
   CopyService,
   DialogService,
   ErrorService,
   i18nPipe,
-  LoadingService,
 } from '@start9labs/shared'
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import {
   TuiButton,
   tuiButtonOptionsProvider,
   TuiDataList,
   TuiDropdown,
-  TuiTextfield,
+  TuiInput,
 } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { QRModal } from 'src/app/routes/portal/modals/qr.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -114,11 +114,10 @@ import { DomainHealthService } from './domain-health.service'
         [(tuiDropdownOpen)]="open"
       >
         {{ 'Actions' | i18n }}
-        <tui-data-list *tuiTextfieldDropdown (click)="open.set(false)">
+        <tui-data-list *tuiDropdown (click)="open.set(false)">
           @if (address().ui) {
             <a
               tuiOption
-              new
               iconStart="@tui.external-link"
               target="_blank"
               rel="noreferrer"
@@ -130,7 +129,6 @@ import { DomainHealthService } from './domain-health.service'
           }
           <button
             tuiOption
-            new
             [iconStart]="
               address().enabled ? '@tui.toggle-right' : '@tui.toggle-left'
             "
@@ -138,12 +136,11 @@ import { DomainHealthService } from './domain-health.service'
           >
             {{ (address().enabled ? 'Disable' : 'Enable') | i18n }}
           </button>
-          <button tuiOption new iconStart="@tui.qr-code" (click)="showQR()">
+          <button tuiOption iconStart="@tui.qr-code" (click)="showQR()">
             {{ 'Show QR' | i18n }}
           </button>
           <button
             tuiOption
-            new
             iconStart="@tui.copy"
             (click)="copyService.copy(address().url)"
           >
@@ -152,7 +149,6 @@ import { DomainHealthService } from './domain-health.service'
           @if (address().hostnameInfo.metadata.kind === 'public-domain') {
             <button
               tuiOption
-              new
               iconStart="@tui.settings"
               (click)="showDnsValidation()"
             >
@@ -162,7 +158,6 @@ import { DomainHealthService } from './domain-health.service'
           @if (address().hostnameInfo.metadata.kind === 'private-domain') {
             <button
               tuiOption
-              new
               iconStart="@tui.settings"
               (click)="showPrivateDnsValidation()"
             >
@@ -175,7 +170,6 @@ import { DomainHealthService } from './domain-health.service'
           ) {
             <button
               tuiOption
-              new
               iconStart="@tui.settings"
               (click)="showPortForwardValidation()"
             >
@@ -183,12 +177,7 @@ import { DomainHealthService } from './domain-health.service'
             </button>
           }
           @if (address().deletable) {
-            <button
-              tuiOption
-              new
-              iconStart="@tui.trash"
-              (click)="deleteDomain()"
-            >
+            <button tuiOption iconStart="@tui.trash" (click)="deleteDomain()">
               {{ 'Delete' | i18n }}
             </button>
           }
@@ -224,15 +213,15 @@ import { DomainHealthService } from './domain-health.service'
       }
     }
   `,
-  imports: [TuiButton, TuiDropdown, TuiDataList, i18nPipe, TuiTextfield],
+  imports: [TuiButton, TuiDropdown, TuiDataList, i18nPipe, TuiInput],
   providers: [tuiButtonOptionsProvider({ appearance: 'icon' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AddressActionsComponent {
-  private readonly isMobile = inject(TUI_IS_MOBILE)
+  private readonly isMobile = inject(WA_IS_MOBILE)
   private readonly dialog = inject(DialogService)
   private readonly api = inject(ApiService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly domainHealth = inject(DomainHealthService)
   readonly copyService = inject(CopyService)
@@ -247,8 +236,8 @@ export class AddressActionsComponent {
   showQR() {
     this.dialog
       .openComponent(new PolymorpheusComponent(QRModal), {
-        size: 'auto',
-        closeable: this.isMobile,
+        size: 's',
+        closable: this.isMobile,
         data: this.address().url,
       })
       .subscribe()

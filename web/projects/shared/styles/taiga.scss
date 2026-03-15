@@ -1,4 +1,4 @@
-@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+@use '@taiga-ui/styles/utils' as taiga;
 
 [tuiTheme='dark'] {
   --tui-background-base: rgba(23, 23, 23, 1);
@@ -135,13 +135,13 @@ tui-dropdown[data-appearance='start-os'][data-appearance='start-os'] {
     inset 0 0 1rem rgba(0, 0, 0, 0.25),
     var(--tui-shadow-medium);
 
-  [tuiOption] {
-    justify-content: flex-start;
-    gap: 0.5rem;
+  input {
+    // Checkmark
+    --tui-text-action: var(--tui-text-primary);
   }
 }
 
-// @TODO Alex: Move to Taiga UI
+// TODO: Remove in Taiga v5.0
 a[tuiIconButton]:not([href]) {
   pointer-events: none;
   opacity: var(--tui-disabled-opacity);
@@ -160,7 +160,7 @@ tui-textfield [tuiTooltip] {
     padding-block: 0.75rem;
 
     [tuiTitle] {
-      font: var(--tui-font-text-l);
+      font: var(--tui-typography-body-l);
     }
   }
 
@@ -169,7 +169,16 @@ tui-textfield [tuiTooltip] {
   }
 }
 
-// TODO: Remove after migrating to v5
-[tuiOption] {
-  word-break: break-word;
+:root {
+  --tui-typography-family-text: 'Proxima Nova', system-ui;
+  --tui-typography-family-display: 'Proxima Nova', system-ui;
+}
+
+tui-notification-middle {
+  --tui-background-accent-1: var(--tui-status-warning);
+}
+
+// TODO: Remove in Taiga v5.0
+[tuiButton] {
+  min-block-size: var(--t-size);
 }

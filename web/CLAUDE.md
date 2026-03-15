@@ -98,7 +98,8 @@ this.dialog.openComponent(new PolymorpheusComponent(MyComponent, injector), { la
 ### Errors & Tooltips
 
 ```html
-<tui-error [error]="[] | tuiFieldError | async" />
+<tui-error formControlName="controlName" />
+<tui-error [error]="'Error text'" />
 <tui-icon [tuiTooltip]="'Hint text'" />
 ```
 

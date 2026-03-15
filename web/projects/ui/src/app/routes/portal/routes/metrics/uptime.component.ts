@@ -41,11 +41,11 @@ import { TimeService } from 'src/app/services/time.service'
 
     b {
       display: block;
-      font: var(--tui-font-heading-5);
+      font: var(--tui-typography-heading-h5);
     }
 
     :host-context(tui-root._mobile) {
-      font: var(--tui-font-text-ui-xs);
+      font: var(--tui-typography-ui-2xs);
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

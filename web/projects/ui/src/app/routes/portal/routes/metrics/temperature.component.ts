@@ -51,7 +51,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
     <b>{{ value() ? value() + ' C°' : 'N/A' }}</b>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     :host {
       height: 100%;

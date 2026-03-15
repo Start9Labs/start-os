@@ -6,8 +6,8 @@ import {
   Keyboard,
   LanguageCode,
 } from '@start9labs/shared'
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
-import { TuiButton, TuiTextfield, TuiTitle } from '@taiga-ui/core'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
+import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import {
   TuiButtonLoading,
   TuiChevron,
@@ -36,11 +36,7 @@ import { StateService } from '../services/state.service'
           <input tuiSelect [(ngModel)]="selected" />
         }
         @if (!mobile) {
-          <tui-data-list-wrapper
-            new
-            *tuiTextfieldDropdown
-            [items]="keyboards"
-          />
+          <tui-data-list-wrapper *tuiDropdown [items]="keyboards" />
         }
       </tui-textfield>
 
@@ -61,7 +57,6 @@ import { StateService } from '../services/state.service'
     TuiCardLarge,
     TuiButton,
     TuiButtonLoading,
-    TuiTextfield,
     TuiChevron,
     TuiSelect,
     TuiDataListWrapper,
@@ -74,7 +69,7 @@ export default class KeyboardPage {
   private readonly api = inject(ApiService)
   private readonly stateService = inject(StateService)
 
-  protected readonly mobile = inject(TUI_IS_MOBILE)
+  protected readonly mobile = inject(WA_IS_MOBILE)
   // All keyboards, with language-specific keyboards at the top
   readonly keyboards = getAllKeyboardsSorted(
     this.stateService.language as LanguageCode,

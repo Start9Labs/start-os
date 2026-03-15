@@ -1,10 +1,10 @@
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { Router, RouterLink } from '@angular/router'
 import { invert } from '@start9labs/shared'
 import { IST } from '@start9labs/start-sdk'
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
-import { TuiDataList, TuiIcon, TuiTextfield } from '@taiga-ui/core'
+import { TuiDataList, TuiIcon, TuiInput } from '@taiga-ui/core'
 import {
   TuiChevron,
   TuiFluidTypography,
@@ -50,12 +50,11 @@ import { HintPipe } from '../pipes/hint.pipe'
         />
       }
       @if (!mobile) {
-        <tui-data-list *tuiTextfieldDropdown>
+        <tui-data-list *tuiDropdown>
           @for (item of items; track item) {
             @if (inverted[item]?.startsWith('~')) {
               <a
                 tuiOption
-                new
                 iconEnd="@tui.arrow-right"
                 tuiFluidTypography
                 [routerLink]="inverted[item]?.slice(1)"
@@ -65,7 +64,6 @@ import { HintPipe } from '../pipes/hint.pipe'
             } @else {
               <button
                 tuiOption
-                new
                 tuiFluidTypography
                 [style.white-space]="'nowrap'"
                 [value]="item"
@@ -85,7 +83,7 @@ import { HintPipe } from '../pipes/hint.pipe'
   imports: [
     FormsModule,
     RouterLink,
-    TuiTextfield,
+    TuiInput,
     TuiSelect,
     TuiDataList,
     TuiFluidTypography,
@@ -98,7 +96,7 @@ import { HintPipe } from '../pipes/hint.pipe'
 export class FormSelectComponent extends Control<IST.ValueSpecSelect, string> {
   protected readonly router = inject(Router)
   protected readonly inverted = invert(this.spec.values)
-  protected readonly mobile = inject(TUI_IS_MOBILE)
+  protected readonly mobile = inject(WA_IS_MOBILE)
   protected readonly items = Object.values(this.spec.values)
   protected readonly disabledItemHandler = (item: string) =>
     Array.isArray(this.spec.disabled) &&

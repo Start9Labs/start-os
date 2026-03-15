@@ -12,24 +12,29 @@ import {
   ErrorService,
   i18nKey,
   i18nPipe,
-  LoadingService,
   toGuid,
 } from '@start9labs/shared'
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
   TuiButton,
   TuiIcon,
   TuiLoader,
-  TuiTextfield,
+  TuiInput,
+  TuiNotification,
   TuiTitle,
 } from '@taiga-ui/core'
-import { TuiDataListWrapper, TuiSelect, TuiTooltip } from '@taiga-ui/kit'
+import {
+  TuiDataListWrapper,
+  TuiNotificationMiddleService,
+  TuiSelect,
+  TuiTooltip,
+} from '@taiga-ui/kit'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter, Subscription } from 'rxjs'
 import { ApiService } from '../services/api.service'
 import { StateService } from '../services/state.service'
-import { PreserveOverwriteDialog } from '../components/preserve-overwrite.dialog'
+import { PRESERVE_OVERWRITE } from '../components/preserve-overwrite.dialog'
 
 @Component({
   template: `
@@ -42,7 +47,7 @@ import { PreserveOverwriteDialog } from '../components/preserve-overwrite.dialog
         @if (loading) {
           <tui-loader />
         } @else if (drives.length === 0) {
-          <p class="no-drives">
+          <p tuiNotification size="m" appearance="warning">
             {{
               'No drives found. Please connect a drive and click Refresh.'
                 | i18n
@@ -70,8 +75,7 @@ import { PreserveOverwriteDialog } from '../components/preserve-overwrite.dialog
             }
             @if (!mobile) {
               <tui-data-list-wrapper
-                new
-                *tuiTextfieldDropdown
+                *tuiDropdown
                 [items]="drives"
                 [itemContent]="driveContent"
               />
@@ -100,36 +104,27 @@ import { PreserveOverwriteDialog } from '../components/preserve-overwrite.dialog
             }
             @if (!mobile) {
               <tui-data-list-wrapper
-                new
-                *tuiTextfieldDropdown
+                *tuiDropdown
                 [items]="drives"
                 [itemContent]="driveContent"
               />
             }
             @if (preserveData === true) {
-              <tui-icon
-                icon="@tui.database"
-                style="color: var(--tui-status-positive); pointer-events: none"
-              />
+              <tui-icon icon="@tui.database" class="g-positive" />
             }
             @if (preserveData === false) {
-              <tui-icon
-                icon="@tui.database-zap"
-                style="color: var(--tui-status-negative); pointer-events: none"
-              />
+              <tui-icon icon="@tui.database-zap" class="g-negative" />
             }
             <tui-icon [tuiTooltip]="dataDriveTooltip" />
           </tui-textfield>
 
           <ng-template #driveContent let-drive>
-            <div class="drive-item">
-              <span class="drive-name">
-                {{ driveName(drive) }}
-              </span>
-              <small>
+            <span tuiTitle>
+              {{ driveName(drive) }}
+              <span tuiSubtitle>
                 {{ formatCapacity(drive.capacity) }} · {{ drive.logicalname }}
-              </small>
-            </div>
+              </span>
+            </span>
           </ng-template>
         }
 
@@ -152,19 +147,8 @@ import { PreserveOverwriteDialog } from '../components/preserve-overwrite.dialog
     }
   `,
   styles: `
-    .no-drives {
-      text-align: center;
-      color: var(--tui-text-secondary);
-      padding: 2rem;
-    }
-
-    .drive-item {
-      display: flex;
-      flex-direction: column;
-
-      small {
-        opacity: 0.7;
-      }
+    tui-icon:not([tuiTooltip]) {
+      pointer-events: none;
     }
   `,
   imports: [
@@ -173,7 +157,8 @@ import { PreserveOverwriteDialog } from '../components/preserve-overwrite.dialog
     TuiButton,
     TuiIcon,
     TuiLoader,
-    TuiTextfield,
+    TuiInput,
+    TuiNotification,
     TuiSelect,
     TuiDataListWrapper,
     TuiTooltip,
@@ -186,13 +171,13 @@ export default class DrivesPage {
   private readonly api = inject(ApiService)
   private readonly router = inject(Router)
   private readonly dialogs = inject(DialogService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
   private readonly cdr = inject(ChangeDetectorRef)
   private readonly i18n = inject(i18nPipe)
 
-  protected readonly mobile = inject(TUI_IS_MOBILE)
+  protected readonly mobile = inject(WA_IS_MOBILE)
 
   @HostListener('document:keydown', ['$event'])
   onKeydown(event: KeyboardEvent) {
@@ -308,38 +293,27 @@ export default class DrivesPage {
   private showPreserveOverwriteDialog() {
     let selectionMade = false
 
-    this.dialogs
-      .openComponent<boolean>(
-        new PolymorpheusComponent(PreserveOverwriteDialog),
-        {
-          label: 'StartOS Data Detected',
-          size: 's',
-          dismissible: true,
-          closeable: true,
-        },
-      )
-      .subscribe({
-        next: preserve => {
-          selectionMade = true
-          this.preserveData = preserve
+    this.dialogs.openComponent<boolean>(PRESERVE_OVERWRITE).subscribe({
+      next: preserve => {
+        selectionMade = true
+        this.preserveData = preserve
+        this.cdr.markForCheck()
+      },
+      complete: () => {
+        if (!selectionMade) {
+          // Dialog was dismissed without selection - clear the data drive
+          this.selectedDataDrive = null
+          this.preserveData = null
           this.cdr.markForCheck()
-        },
-        complete: () => {
-          if (!selectionMade) {
-            // Dialog was dismissed without selection - clear the data drive
-            this.selectedDataDrive = null
-            this.preserveData = null
-            this.cdr.markForCheck()
-          }
-        },
-      })
+        }
+      },
+    })
   }
 
   private showOsDriveWarning() {
     this.dialogs
       .openConfirm({
         label: 'Warning',
-        size: 's',
         data: {
           content: `<ul>
 <li class="g-negative">${this.i18n.transform('Data on the OS drive may be overwritten.')}</li>
@@ -363,7 +337,6 @@ export default class DrivesPage {
     this.dialogs
       .openConfirm({
         label: 'Warning',
-        size: 's',
         data: {
           content: message as i18nKey,
           yes: 'Continue',
@@ -398,10 +371,9 @@ export default class DrivesPage {
       this.dialogSub = this.dialogs
         .openAlert('StartOS has been installed successfully.', {
           label: 'Installation Complete!',
-          size: 's',
           dismissible: false,
-          closeable: true,
-          data: { button: this.i18n.transform('Continue to Setup') },
+          closable: true,
+          data: this.i18n.transform('Continue to Setup'),
         })
         .subscribe({
           complete: () => {

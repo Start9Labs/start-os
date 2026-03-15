@@ -1,5 +1,3 @@
-import { toSignal } from '@angular/core/rxjs-interop'
-import { TuiCheckbox, TuiSkeleton } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -7,10 +5,18 @@ import {
   inject,
   signal,
 } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TUI_TRUE_HANDLER, TUI_FALSE_HANDLER } from '@taiga-ui/cdk'
-import { TuiDialogService, TuiIcon, TuiLink, TuiButton } from '@taiga-ui/core'
+import { ErrorService } from '@start9labs/shared'
+import { TUI_FALSE_HANDLER, TUI_TRUE_HANDLER } from '@taiga-ui/cdk'
+import {
+  TuiButton,
+  TuiCheckbox,
+  TuiDialogService,
+  TuiIcon,
+  TuiLink,
+} from '@taiga-ui/core'
+import { TuiNotificationMiddleService, TuiSkeleton } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { from } from 'rxjs'
 import { REPORT } from 'src/app/components/backup-report.component'
@@ -101,7 +107,7 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
     </table>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     tui-icon {
       font-size: 1rem;
@@ -170,7 +176,7 @@ export class BackupsHistoryModal {
   private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiDialogService)
   private readonly errorService = inject(ErrorService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
 
   readonly targets = toSignal(from(this.api.getBackupTargets({})))
   readonly runs = signal<BackupRun[] | null>(null)

@@ -1,15 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { LoadingService } from '@start9labs/shared'
 import { utils } from '@start9labs/start-sdk'
-import {
-  TuiButton,
-  TuiDataList,
-  TuiDropdown,
-  TuiTextfield,
-} from '@taiga-ui/core'
-import { TuiDialogService } from '@taiga-ui/experimental'
-import { TUI_CONFIRM } from '@taiga-ui/kit'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
+import { TUI_CONFIRM, TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { ApiService } from 'src/app/services/api/api.service'
@@ -41,16 +35,15 @@ import { SUBNETS_ADD } from './add'
                 tuiIconButton
                 size="xs"
                 tuiDropdown
-                tuiDropdownOpen
+                tuiDropdownAuto
                 appearance="flat-grayscale"
                 iconStart="@tui.ellipsis-vertical"
               >
                 Actions
-                <tui-data-list *tuiTextfieldDropdown size="s">
+                <tui-data-list *tuiDropdown size="s">
                   <button
                     tuiOption
                     iconStart="@tui.pencil"
-                    new
                     (click)="onEdit(subnet)"
                   >
                     Rename
@@ -58,7 +51,6 @@ import { SUBNETS_ADD } from './add'
                   <button
                     tuiOption
                     iconStart="@tui.trash"
-                    new
                     (click)="onDelete($index)"
                   >
                     Delete
@@ -74,12 +66,12 @@ import { SUBNETS_ADD } from './add'
     </table>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiDropdown, TuiDataList, TuiTextfield],
+  imports: [TuiButton, TuiDropdown, TuiDataList],
 })
 export default class Subnets {
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly api = inject(ApiService)
-  private readonly loading = inject(LoadingService)
+  private readonly loading = inject(TuiNotificationMiddleService)
 
   protected readonly subnets = toSignal<MappedSubnet[], []>(
     inject<PatchDB<TunnelData>>(PatchDB)
@@ -120,7 +112,7 @@ export default class Subnets {
       .pipe(filter(Boolean))
       .subscribe(async () => {
         const subnet = this.subnets()[index]?.range || ''
-        const loader = this.loading.open().subscribe()
+        const loader = this.loading.open('').subscribe()
 
         try {
           await this.api.deleteSubnet({ subnet })

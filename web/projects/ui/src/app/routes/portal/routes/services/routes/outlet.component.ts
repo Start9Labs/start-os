@@ -7,9 +7,14 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router, RouterModule } from '@angular/router'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
-import { TuiAppearance, TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
+import {
+  TuiAppearance,
+  TuiButton,
+  TuiIcon,
+  TuiTitle,
+  TuiCell,
+} from '@taiga-ui/core'
 import { TuiAvatar, TuiFade } from '@taiga-ui/kit'
-import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -28,16 +33,16 @@ import { getManifest } from 'src/app/utils/get-package-data'
         <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
           {{ 'Back' | i18n }}
         </a>
-        <tui-avatar size="xs" [style.margin-inline-end.rem]="0.75">
+        <span tuiAvatar size="xs" [style.margin-inline-end.rem]="0.75">
           <img alt="" [src]="service()?.icon" />
-        </tui-avatar>
+        </span>
         <span tuiFade>{{ manifest()?.title }}</span>
       </div>
       <aside class="g-aside">
         <header tuiCell routerLink="./">
-          <tui-avatar appearance="action-grayscale">
+          <span tuiAvatar appearance="action-grayscale">
             <img alt="" [src]="service()?.icon" />
-          </tui-avatar>
+          </span>
           <span tuiTitle>
             <strong tuiFade>{{ manifest()?.title }}</strong>
             <span tuiSubtitle>{{ manifest()?.version }}</span>

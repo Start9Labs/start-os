@@ -5,28 +5,31 @@ import {
   signal,
 } from '@angular/core'
 import { Router } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiAppearance, TuiButton, TuiTitle } from '@taiga-ui/core'
-import { TuiDialogService } from '@taiga-ui/experimental'
-import { TuiBadge, TuiButtonLoading } from '@taiga-ui/kit'
-import { TuiCard, TuiCell } from '@taiga-ui/layout'
+import { ErrorService } from '@start9labs/shared'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import { TuiButton, TuiCell, TuiTitle } from '@taiga-ui/core'
+import {
+  TuiBadge,
+  TuiButtonLoading,
+  TuiNotificationMiddleService,
+} from '@taiga-ui/kit'
+import { TuiCard } from '@taiga-ui/layout'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { UpdateService } from 'src/app/services/update.service'
-
 import { CHANGE_PASSWORD } from './change-password'
 
 @Component({
   template: `
-    <div tuiCardLarge tuiAppearance="neutral">
+    <div tuiCardLarge>
       <div tuiCell>
         <span tuiTitle>
           <strong>
             Version
             @if (update.hasUpdate()) {
-              <tui-badge appearance="positive" size="s">
+              <span tuiBadge appearance="positive" size="s">
                 Update Available
-              </tui-badge>
+              </span>
             }
           </strong>
           <span tuiSubtitle>Current: {{ update.installed() ?? '—' }}</span>
@@ -69,24 +72,25 @@ import { CHANGE_PASSWORD } from './change-password'
       </div>
     </div>
   `,
+  styles: `
+    [tuiCardLarge] {
+      background: var(--tui-background-neutral-1);
+
+      &:not([data-appearance]) {
+        display: none;
+      }
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    TuiCard,
-    TuiCell,
-    TuiTitle,
-    TuiButton,
-    TuiButtonLoading,
-    TuiBadge,
-    TuiAppearance,
-  ],
+  imports: [TuiCard, TuiCell, TuiTitle, TuiButton, TuiButtonLoading, TuiBadge],
 })
 export default class Settings {
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly auth = inject(AuthService)
   private readonly router = inject(Router)
-  private readonly loading = inject(LoadingService)
+  private readonly loading = inject(TuiNotificationMiddleService)
 
   protected readonly update = inject(UpdateService)
   protected readonly checking = signal(false)
@@ -121,7 +125,7 @@ export default class Settings {
   }
 
   protected async onLogout() {
-    const loader = this.loading.open().subscribe()
+    const loader = this.loading.open('').subscribe()
 
     try {
       await this.api.logout()

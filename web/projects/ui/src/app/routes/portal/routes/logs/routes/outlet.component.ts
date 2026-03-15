@@ -1,15 +1,14 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
-import { TuiAppearance, TuiIcon, TuiTitle } from '@taiga-ui/core'
-import { TuiCardMedium } from '@taiga-ui/layout'
+import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TitleDirective } from 'src/app/services/title.service'
 
 @Component({
   template: `
     <ng-container *title>{{ 'Logs' | i18n }}</ng-container>
     @for (log of logs; track $index) {
-      <a tuiCardMedium tuiAppearance="neutral" [routerLink]="log.link">
+      <a [routerLink]="log.link">
         <tui-icon [icon]="log.icon" />
         <span tuiTitle>
           {{ log.title | i18n }}
@@ -32,7 +31,13 @@ import { TitleDirective } from 'src/app/services/title.service'
         padding: 1rem;
       }
 
-      [tuiCardMedium] {
+      a {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 0.75rem;
+        border-radius: var(--tui-radius-l);
+        background: var(--tui-background-neutral-1);
         height: 14rem;
         width: 14rem;
         cursor: pointer;
@@ -61,15 +66,7 @@ import { TitleDirective } from 'src/app/services/title.service'
       }
     `,
   ],
-  imports: [
-    RouterLink,
-    TitleDirective,
-    TuiTitle,
-    TuiCardMedium,
-    TuiIcon,
-    TuiAppearance,
-    i18nPipe,
-  ],
+  imports: [RouterLink, TitleDirective, TuiTitle, TuiIcon, i18nPipe],
 })
 export default class SystemLogsComponent {
   readonly logs = [

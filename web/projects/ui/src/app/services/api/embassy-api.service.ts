@@ -362,9 +362,7 @@ export abstract class ApiService {
     params: PkgRemovePublicDomainReq,
   ): Promise<null>
 
-  abstract pkgAddPrivateDomain(
-    params: PkgAddPrivateDomainReq,
-  ): Promise<boolean>
+  abstract pkgAddPrivateDomain(params: PkgAddPrivateDomainReq): Promise<boolean>
 
   abstract pkgRemovePrivateDomain(
     params: PkgRemovePrivateDomainReq,

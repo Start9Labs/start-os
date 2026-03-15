@@ -6,9 +6,10 @@ import {
   viewChild,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
+import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { from, map, merge, Observable, Subject } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { TitleDirective } from 'src/app/services/title.service'
@@ -62,7 +63,7 @@ import { SessionsTableComponent } from './table.component'
   ],
 })
 export default class SystemSessionsComponent {
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly sessions$ = from(this.api.getSessions({}))

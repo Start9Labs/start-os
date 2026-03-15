@@ -15,8 +15,8 @@ import {
   TuiIcon,
   TuiLoader,
   TuiTitle,
+  TuiCell,
 } from '@taiga-ui/core'
-import { TuiCell } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'

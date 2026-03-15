@@ -40,9 +40,9 @@ import { getInstalledBaseStatus } from 'src/app/services/pkg-status-rendering.se
         <hgroup tuiTitle>
           <h3>
             {{ value.name }}
-            <tui-badge size="l" [appearance]="getAppearance(value.type)">
+            <span tuiBadge size="l" [appearance]="getAppearance(value.type)">
               {{ value.type }}
-            </tui-badge>
+            </span>
           </h3>
           <p tuiSubtitle>{{ value.description }}</p>
         </hgroup>

@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,17 +14,14 @@ import {
 import { ErrorService } from '@start9labs/shared'
 import { TuiAutoFocus, TuiValidator } from '@taiga-ui/cdk'
 import {
-  TuiAlertService,
   TuiButton,
   TuiDialogContext,
   TuiError,
-  TuiTextfield,
-} from '@taiga-ui/core'
-import {
-  TuiButtonLoading,
-  TuiFieldErrorPipe,
+  TuiNotificationService,
+  TuiInput,
   tuiValidationErrorsProvider,
-} from '@taiga-ui/kit'
+} from '@taiga-ui/core'
+import { TuiButtonLoading } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { map } from 'rxjs'
@@ -36,24 +32,18 @@ import { ApiService } from 'src/app/services/api/api.service'
     <form tuiForm [formGroup]="form">
       <tui-textfield>
         <label tuiLabel>New password</label>
-        <input tuiTextfield tuiAutoFocus formControlName="password" />
+        <input tuiInput tuiAutoFocus formControlName="password" />
       </tui-textfield>
-      <tui-error
-        formControlName="password"
-        [error]="[] | tuiFieldError | async"
-      />
+      <tui-error formControlName="password" />
       <tui-textfield>
         <label tuiLabel>Confirm new password</label>
         <input
-          tuiTextfield
+          tuiInput
           formControlName="confirm"
           [tuiValidator]="matchValidator()"
         />
       </tui-textfield>
-      <tui-error
-        formControlName="confirm"
-        [error]="[] | tuiFieldError | async"
-      />
+      <tui-error formControlName="confirm" />
       <footer>
         <button
           tuiButton
@@ -76,22 +66,20 @@ import { ApiService } from 'src/app/services/api/api.service'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    AsyncPipe,
     ReactiveFormsModule,
     TuiAutoFocus,
     TuiButton,
     TuiButtonLoading,
     TuiError,
-    TuiFieldErrorPipe,
     TuiForm,
-    TuiTextfield,
+    TuiInput,
     TuiValidator,
   ],
 })
 export class ChangePasswordDialog {
   private readonly context = injectContext<TuiDialogContext<void>>()
   private readonly api = inject(ApiService)
-  private readonly alerts = inject(TuiAlertService)
+  private readonly alerts = inject(TuiNotificationService)
   private readonly errorService = inject(ErrorService)
 
   protected readonly loading = signal(false)

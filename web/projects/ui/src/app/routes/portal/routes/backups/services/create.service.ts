@@ -1,17 +1,17 @@
 import { inject, Injectable } from '@angular/core'
-import { LoadingService } from '@start9labs/shared'
-import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
-import { from, switchMap } from 'rxjs'
 import { T } from '@start9labs/start-sdk'
+import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
+import { from, switchMap } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { TARGET, TARGET_CREATE } from '../modals/target.component'
 import { BACKUP, BACKUP_OPTIONS } from '../modals/backup.component'
+import { TARGET, TARGET_CREATE } from '../modals/target.component'
 
 @Injectable({
   providedIn: 'root',
 })
 export class BackupsCreateService {
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly dialogs = inject(TuiDialogService)
   private readonly api = inject(ApiService)
 

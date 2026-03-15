@@ -16,9 +16,14 @@ import {
   MarkdownPipe,
   SafeLinksDirective,
 } from '@start9labs/shared'
-import { TuiButton, TuiIcon, TuiLink, TuiTitle } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiIcon,
+  TuiLink,
+  TuiTitle,
+  TuiExpand,
+} from '@taiga-ui/core'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'
-import { TuiExpand } from '@taiga-ui/experimental'
 import {
   TuiAvatar,
   TuiButtonLoading,
@@ -46,9 +51,9 @@ import UpdatesComponent from './updates.component'
     <tr (click)="expanded.set(!expanded())">
       <td>
         <div [style.gap.rem]="0.75" [style.padding-inline-end.rem]="1">
-          <tui-avatar appearance="action-grayscale" size="s">
+          <span tuiAvatar appearance="action-grayscale" size="s">
             <img alt="" [src]="item().icon" />
-          </tui-avatar>
+          </span>
           <span tuiTitle [style.margin]="'-0.125rem 0 0'">
             <b tuiFade>{{ item().title }}</b>
             <span tuiSubtitle tuiFade class="mobile">

@@ -29,7 +29,7 @@ import { PluginAddressesComponent } from './addresses/plugin.component'
       flex-direction: column;
       gap: 1rem;
       color: var(--tui-text-secondary);
-      font: var(--tui-font-text-l);
+      font: var(--tui-typography-body-l);
 
       ::ng-deep [tuiSkeleton] {
         width: 100%;

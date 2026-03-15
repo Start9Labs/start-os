@@ -1,4 +1,4 @@
-@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+@use '@taiga-ui/styles/utils' as taiga;
 
 .card {
   @include taiga.center-all();

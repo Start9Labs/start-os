@@ -7,13 +7,18 @@ import {
   ErrorService,
   i18nKey,
   i18nPipe,
-  LoadingService,
   sameUrl,
   toUrl,
 } from '@start9labs/shared'
 import { IST, utils } from '@start9labs/start-sdk'
-import { TuiButton, TuiDialogContext, TuiIcon, TuiTitle } from '@taiga-ui/core'
-import { TuiCell } from '@taiga-ui/layout'
+import {
+  TuiButton,
+  TuiCell,
+  TuiDialogContext,
+  TuiIcon,
+  TuiTitle,
+} from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, filter, firstValueFrom, map, Subscription } from 'rxjs'
@@ -82,7 +87,7 @@ import { StorageService } from 'src/app/services/storage.service'
 })
 export class MarketplaceRegistryModal {
   private readonly api = inject(ApiService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly formDialog = inject(FormDialogService)
   private readonly dialog = inject(DialogService)

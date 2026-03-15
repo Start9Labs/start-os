@@ -2,9 +2,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterModule } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
-import { TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiIcon, TuiTitle, TuiCell } from '@taiga-ui/core'
 import { TuiBadgeNotification } from '@taiga-ui/kit'
-import { TuiCell } from '@taiga-ui/layout'
 import { BadgeService } from 'src/app/services/badge.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SYSTEM_MENU } from './system.const'
@@ -15,14 +14,10 @@ import { SYSTEM_MENU } from './system.const'
     <aside class="g-aside">
       @for (cat of menu; track $index) {
         @if ($index) {
-          <hr [style.margin.rem]="0.5" />
+          <hr />
         }
         @for (page of cat; track $index) {
-          <a
-            tuiCell="s"
-            routerLinkActive="active"
-            [routerLink]="page.link"
-          >
+          <a tuiCell="s" routerLinkActive="active" [routerLink]="page.link">
             <tui-icon [icon]="page.icon" />
             <span tuiTitle>
               <span>
@@ -46,6 +41,13 @@ import { SYSTEM_MENU } from './system.const'
 
     tui-badge-notification {
       vertical-align: baseline;
+    }
+
+    hr {
+      height: 1px;
+      margin: 0.5rem;
+      background: var(--tui-border-normal);
+      border: none;
     }
 
     [tuiCell] {
@@ -90,7 +92,7 @@ import { SYSTEM_MENU } from './system.const'
         margin: 0.5rem 0;
 
         [tuiTitle] {
-          font: var(--tui-font-text-l);
+          font: var(--tui-typography-body-l);
         }
       }
 

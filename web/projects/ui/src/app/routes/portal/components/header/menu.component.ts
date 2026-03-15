@@ -5,7 +5,6 @@ import {
   DocsLinkDirective,
   ErrorService,
   i18nPipe,
-  LoadingService,
   SafeLinksDirective,
 } from '@start9labs/shared'
 import {
@@ -15,6 +14,7 @@ import {
   TuiHint,
   TuiIcon,
 } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
@@ -43,71 +43,60 @@ import { ABOUT } from './about.component'
           {{ status().message | i18n }}
         </div>
       }
-      <tui-data-list [style.width.rem]="13">
-        <tui-opt-group>
-          <button tuiOption iconStart="@tui.info" new (click)="about()">
-            {{ 'About this server' | i18n }}
-          </button>
-        </tui-opt-group>
-        <tui-opt-group label="" safeLinks>
-          <a
-            tuiOption
-            docsLink
-            new
-            iconStart="@tui.book-open-text"
-            path="/start-os/index.html"
-          >
-            {{ 'User manual' | i18n }}
-          </a>
-          <a
-            tuiOption
-            new
-            iconStart="@tui.headphones"
-            href="https://start9.com/contact"
-          >
-            {{ 'Contact support' | i18n }}
-          </a>
-          <a
-            tuiOption
-            new
-            iconStart="@tui.dollar-sign"
-            href="https://donate.start9.com"
-          >
-            {{ 'Donate to Start9' | i18n }}
-          </a>
-        </tui-opt-group>
-        <tui-opt-group label="">
-          <a
-            tuiOption
-            new
-            iconStart="@tui.settings"
-            routerLink="/system"
-            (click)="open = false"
-          >
-            {{ 'System Settings' | i18n }}
-          </a>
-        </tui-opt-group>
-        <tui-opt-group label="">
-          <button
-            tuiOption
-            new
-            iconStart="@tui.refresh-cw"
-            (click)="promptPower('restart')"
-          >
-            {{ 'Restart' | i18n }}
-          </button>
-          <button
-            tuiOption
-            new
-            iconStart="@tui.power"
-            (click)="promptPower('shutdown')"
-          >
-            {{ 'Shutdown' | i18n }}
-          </button>
-          <button tuiOption new iconStart="@tui.log-out" (click)="logout()">
-            {{ 'Logout' | i18n }}
-          </button>
-        </tui-opt-group>
+      <tui-data-list safeLinks [style.width.rem]="13">
+        <button tuiOption iconStart="@tui.info" (click)="about()">
+          {{ 'About this server' | i18n }}
+        </button>
+        <hr />
+        <a
+          tuiOption
+          docsLink
+          iconStart="@tui.book-open-text"
+          path="/start-os/index.html"
+        >
+          {{ 'User manual' | i18n }}
+        </a>
+        <a
+          tuiOption
+          iconStart="@tui.headphones"
+          href="https://start9.com/contact"
+        >
+          {{ 'Contact support' | i18n }}
+        </a>
+        <a
+          tuiOption
+          iconStart="@tui.dollar-sign"
+          href="https://donate.start9.com"
+        >
+          {{ 'Donate to Start9' | i18n }}
+        </a>
+        <hr />
+        <a
+          tuiOption
+          iconStart="@tui.settings"
+          routerLink="/system"
+          (click)="open = false"
+        >
+          {{ 'System Settings' | i18n }}
+        </a>
+        <hr />
+        <button
+          tuiOption
+          iconStart="@tui.refresh-cw"
+          (click)="promptPower('restart')"
+        >
+          {{ 'Restart' | i18n }}
+        </button>
+        <button
+          tuiOption
+          iconStart="@tui.power"
+          (click)="promptPower('shutdown')"
+        >
+          {{ 'Shutdown' | i18n }}
+        </button>
+        <button tuiOption iconStart="@tui.log-out" (click)="logout()">
+          {{ 'Logout' | i18n }}
+        </button>
       </tui-data-list>
     </ng-template>
   `,
@@ -151,7 +140,7 @@ import { ABOUT } from './about.component'
 export class HeaderMenuComponent {
   private readonly api = inject(ApiService)
   private readonly auth = inject(AuthService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly dialog = inject(DialogService)
 

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
-import { TuiButton, TuiDialogContext, TuiTextfield } from '@taiga-ui/core'
+import { TuiButton, TuiDialogContext, TuiInput } from '@taiga-ui/core'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { i18nPipe } from '../i18n/i18n.pipe'
 import { i18nKey } from '../i18n/i18n.providers'
@@ -23,7 +23,7 @@ import { i18nKey } from '../i18n/i18n.providers'
           </label>
         }
         <input
-          tuiTextfield
+          tuiInput
           tuiAutoFocus
           [ngModelOptions]="{ standalone: true }"
           [(ngModel)]="value"
@@ -81,7 +81,7 @@ import { i18nKey } from '../i18n/i18n.providers'
       -webkit-text-security: disc;
     }
   `,
-  imports: [FormsModule, TuiButton, TuiTextfield, TuiAutoFocus, i18nPipe],
+  imports: [FormsModule, TuiButton, TuiInput, TuiAutoFocus, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PromptModal {

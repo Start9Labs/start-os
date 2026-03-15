@@ -14,7 +14,7 @@ import { PatchMonitorService } from './services/patch-monitor.service'
   selector: 'app-root',
   imports: [TuiRoot, RouterOutlet, ToastContainerComponent],
   template: `
-    <tui-root tuiTheme="dark">
+    <tui-root>
       <router-outlet />
       <toast-container />
     </tui-root>

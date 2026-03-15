@@ -74,7 +74,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
 
     h4 {
       display: flex;
-      font: var(--tui-font-text-m);
+      font: var(--tui-typography-body-m);
       font-weight: bold;
       color: var(--tui-text-secondary);
       text-transform: uppercase;

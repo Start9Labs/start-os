@@ -5,15 +5,10 @@ import {
   inject,
   input,
 } from '@angular/core'
-import {
-  DialogService,
-  ErrorService,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
+import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
-import { TuiAvatar, TuiFade } from '@taiga-ui/kit'
+import { TuiAvatar, TuiFade, TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import { ServiceTasksComponent } from 'src/app/routes/portal/routes/services/components/tasks.component'
 import { ActionService } from 'src/app/services/action.service'
@@ -30,9 +25,9 @@ import { getManifest } from 'src/app/utils/get-package-data'
   selector: 'tr[task]',
   template: `
     <td tuiFade class="row">
-      <tui-avatar appearance="action-grayscale" size="xs">
+      <i tuiAvatar appearance="action-grayscale" size="xs">
         <img [src]="pkg()?.icon || fallback()?.icon" alt="" />
-      </tui-avatar>
+      </i>
       <span>{{ title() || fallback()?.title }}</span>
     </td>
     <td [style.grid-row]="2">
@@ -131,7 +126,7 @@ export class ServiceTaskComponent {
   private readonly dialog = inject(DialogService)
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly tasks = inject(ServiceTasksComponent)
   private readonly i18n = inject(i18nPipe)
 
@@ -174,7 +169,7 @@ export class ServiceTaskComponent {
       .openConfirm(DISMISS)
       .pipe(filter(Boolean))
       .subscribe(async () => {
-        const loader = this.loader.open().subscribe()
+        const loader = this.loader.open('').subscribe()
         try {
           await this.api.clearTask({ packageId, replayId, force: false })
         } catch (e: any) {

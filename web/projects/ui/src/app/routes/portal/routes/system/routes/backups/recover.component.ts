@@ -3,16 +3,17 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
-import {
-  ErrorService,
-  i18nKey,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
+import { ErrorService, i18nKey, i18nPipe } from '@start9labs/shared'
 import { Version } from '@start9labs/start-sdk'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
-import { TuiButton, TuiDialogContext, TuiGroup, TuiTitle } from '@taiga-ui/core'
-import { TuiBlock, TuiCheckbox } from '@taiga-ui/kit'
+import {
+  TuiButton,
+  TuiCheckbox,
+  TuiDialogContext,
+  TuiGroup,
+  TuiTitle,
+} from '@taiga-ui/core'
+import { TuiBlock, TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { map, take } from 'rxjs'
@@ -85,7 +86,7 @@ import { RecoverData, RecoverOption } from './backup.types'
 export class BackupsRecoverComponent {
   private readonly config = inject(ConfigService)
   private readonly api = inject(ApiService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly router = inject(Router)
   private readonly context =

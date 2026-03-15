@@ -1,17 +1,21 @@
 import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import {
   TuiButton,
   TuiDialogContext,
   TuiDialogService,
-  TuiTextfield,
+  TuiInput,
 } from '@taiga-ui/core'
-import { TuiBadge, TuiSwitch } from '@taiga-ui/kit'
+import {
+  TuiBadge,
+  TuiNotificationMiddleService,
+  TuiSwitch,
+} from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { from, map } from 'rxjs'
-import { T } from '@start9labs/start-sdk'
 import { BackupJob } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
@@ -25,7 +29,7 @@ import { TARGET, TARGET_CREATE } from './target.component'
       <tui-textfield>
         <label tuiLabel>Job Name</label>
         <input
-          tuiTextfield
+          tuiInput
           name="name"
           [(ngModel)]="job.name"
           placeholder="My Backup Job"
@@ -40,11 +44,12 @@ import { TARGET, TARGET_CREATE } from './target.component'
         (click)="selectTarget()"
       >
         Target
-        <tui-badge
+        <span
+          tuiBadge
           [appearance]="target()?.[job.targetId]?.type ? 'success' : 'warning'"
         >
           {{ target()?.[job.targetId]?.type || 'Select target' }}
-        </tui-badge>
+        </span>
       </button>
       <button
         tuiButton
@@ -55,14 +60,17 @@ import { TARGET, TARGET_CREATE } from './target.component'
         (click)="selectPackages()"
       >
         Packages
-        <tui-badge [appearance]="job.packageIds.length ? 'success' : 'warning'">
+        <span
+          tuiBadge
+          [appearance]="job.packageIds.length ? 'success' : 'warning'"
+        >
           {{ job.packageIds.length + ' selected' }}
-        </tui-badge>
+        </span>
       </button>
       <tui-textfield>
         <label tuiLabel>Schedule</label>
         <input
-          tuiTextfield
+          tuiInput
           name="cron"
           [(ngModel)]="job.cron"
           placeholder="* * * * *"
@@ -109,7 +117,7 @@ import { TARGET, TARGET_CREATE } from './target.component'
   `,
   imports: [
     FormsModule,
-    TuiTextfield,
+    TuiInput,
     TuiSwitch,
     TuiButton,
     TuiBadge,
@@ -119,7 +127,7 @@ import { TARGET, TARGET_CREATE } from './target.component'
 export class BackupsEditModal {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly dialogs = inject(TuiDialogService)
   private readonly context =
     injectContext<TuiDialogContext<BackupJob, BackupJobBuilder>>()

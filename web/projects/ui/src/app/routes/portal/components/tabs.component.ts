@@ -75,7 +75,7 @@ const FILTER = ['services', 'system', 'marketplace']
     </nav>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     :host {
       display: none;

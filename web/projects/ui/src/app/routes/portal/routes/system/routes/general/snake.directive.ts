@@ -1,10 +1,6 @@
 import { Directive, HostListener, inject, Input } from '@angular/core'
-import {
-  DialogService,
-  ErrorService,
-  i18nKey,
-  LoadingService,
-} from '@start9labs/shared'
+import { DialogService, ErrorService, i18nKey } from '@start9labs/shared'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -14,7 +10,7 @@ import { SnakeComponent } from './snake.component'
   selector: 'img[snake]',
 })
 export class SnakeDirective {
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly dialog = inject(DialogService)
@@ -28,7 +24,7 @@ export class SnakeDirective {
       .openComponent<number>(new PolymorpheusComponent(SnakeComponent), {
         label: 'Snake!' as i18nKey,
         size: 'l',
-        closeable: false,
+        closable: false,
         dismissible: false,
         data: this.snake,
       })

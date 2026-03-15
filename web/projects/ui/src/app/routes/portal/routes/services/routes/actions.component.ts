@@ -6,31 +6,27 @@ import {
   inject,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import {
-  ErrorService,
-  getPkgId,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
+import { ErrorService, getPkgId, i18nPipe } from '@start9labs/shared'
 import { ISB, T } from '@start9labs/start-sdk'
-import { TuiCell } from '@taiga-ui/layout'
+import { TuiCell } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom, map } from 'rxjs'
+import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { StandardActionsService } from 'src/app/services/standard-actions.service'
-import { getManifest } from 'src/app/utils/get-package-data'
-import { ServiceActionComponent } from '../components/action.component'
 import {
   ALLOWED_STATUSES,
   BaseStatus,
   getInstalledBaseStatus,
   INACTIVE_STATUSES,
 } from 'src/app/services/pkg-status-rendering.service'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { FormComponent } from 'src/app/routes/portal/components/form.component'
+import { StandardActionsService } from 'src/app/services/standard-actions.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
+import { getManifest } from 'src/app/utils/get-package-data'
+import { ServiceActionComponent } from '../components/action.component'
 
 @Component({
   template: `
@@ -92,7 +88,7 @@ export default class ServiceActionsRoute {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly formDialog = inject(FormDialogService)
   private readonly api = inject(ApiService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
 
   ungrouped: 'General' | 'Other' = 'General'

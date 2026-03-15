@@ -10,7 +10,6 @@ import {
   provideZoneChangeDetection,
 } from '@angular/core'
 import { UntypedFormBuilder } from '@angular/forms'
-import { provideAnimations } from '@angular/platform-browser/animations'
 import {
   ActivationStart,
   PreloadAllModules,
@@ -40,21 +39,22 @@ import {
 } from '@start9labs/shared'
 import { tuiObfuscateOptionsProvider } from '@taiga-ui/cdk'
 import {
-  TUI_DATE_FORMAT,
+  provideTaiga,
   TUI_DIALOGS_CLOSE,
   TUI_MEDIA,
-  tuiAlertOptionsProvider,
   tuiButtonOptionsProvider,
+  tuiDateFormatProvider,
   tuiDropdownOptionsProvider,
+  tuiHintOptionsProvider,
+  tuiNotificationOptionsProvider,
   tuiNumberFormatProvider,
 } from '@taiga-ui/core'
-import { provideEventPlugins } from '@taiga-ui/event-plugins'
 import {
-  TUI_DATE_TIME_VALUE_TRANSFORMER,
-  TUI_DATE_VALUE_TRANSFORMER,
+  tuiInputDateOptionsProvider,
+  tuiInputDateTimeOptionsProvider,
 } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { filter, identity, merge, of, pairwise } from 'rxjs'
+import { filter, identity, merge, pairwise } from 'rxjs'
 import { FilterUpdatesPipe } from 'src/app/routes/portal/routes/updates/filter-updates.pipe'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { LiveApiService } from 'src/app/services/api/embassy-live-api.service'
@@ -63,14 +63,16 @@ import { AuthService } from 'src/app/services/auth.service'
 import { CategoryService } from 'src/app/services/category.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { ConfigService } from 'src/app/services/config.service'
-import { DateTransformerService } from 'src/app/services/date-transformer.service'
-import { DatetimeTransformerService } from 'src/app/services/datetime-transformer.service'
 import {
   PATCH_CACHE,
   PatchDbSource,
 } from 'src/app/services/patch-db/patch-db-source'
 import { StateService } from 'src/app/services/state.service'
 import { StorageService } from 'src/app/services/storage.service'
+import {
+  DateTransformer,
+  DatetimeTransformer,
+} from 'src/app/utils/value-transformers'
 import { environment } from 'src/environments/environment'
 
 import { ROUTES } from './app.routes'
@@ -83,8 +85,7 @@ const {
 export const APP_CONFIG: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection(),
-    provideAnimations(),
-    provideEventPlugins(),
+    provideTaiga({ mode: 'dark' }),
     provideHttpClient(withInterceptorsFromDi(), withFetch()),
     provideRouter(
       ROUTES,
@@ -107,24 +108,13 @@ export const APP_CONFIG: ApplicationConfig = {
     tuiNumberFormatProvider({ decimalSeparator: '.', thousandSeparator: '' }),
     tuiButtonOptionsProvider({ size: 'm' }),
     tuiDropdownOptionsProvider({ appearance: 'start-os' }),
-    tuiAlertOptionsProvider({
+    tuiNotificationOptionsProvider({
       autoClose: appearance => (appearance === 'negative' ? 0 : 3000),
     }),
-    {
-      provide: TUI_DATE_FORMAT,
-      useValue: of({
-        mode: 'MDY',
-        separator: '/',
-      }),
-    },
-    {
-      provide: TUI_DATE_VALUE_TRANSFORMER,
-      useClass: DateTransformerService,
-    },
-    {
-      provide: TUI_DATE_TIME_VALUE_TRANSFORMER,
-      useClass: DatetimeTransformerService,
-    },
+    tuiDateFormatProvider({ mode: 'mm/dd/yyyy', separator: '/' }),
+    tuiInputDateOptionsProvider({ valueTransformer: DateTransformer }),
+    tuiInputDateTimeOptionsProvider({ valueTransformer: DatetimeTransformer }),
+    tuiHintOptionsProvider({ appearance: 'primary-grayscale' }),
     {
       provide: ApiService,
       useClass: useMocks ? MockApiService : LiveApiService,

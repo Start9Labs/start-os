@@ -1,14 +1,12 @@
 import { Component, inject, OnInit, signal } from '@angular/core'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiButton, TuiLink, TuiNotification } from '@taiga-ui/core'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { FormComponent } from 'src/app/routes/portal/components/form.component'
+import { ErrorService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import {
-  BackupTargetType,
-  RR,
-  UnknownDisk,
-} from 'src/app/services/api/api.types'
+import { TuiButton, TuiLink, TuiNotification } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { DocsLinkDirective } from 'projects/shared/src/public-api'
+import { FormComponent } from 'src/app/routes/portal/components/form.component'
+import { RR, UnknownDisk } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
@@ -22,11 +20,10 @@ import {
   googleDriveSpec,
   remoteBackupTargetSpec,
 } from '../types/target'
-import { DocsLinkDirective } from 'projects/shared/src/public-api'
 
 @Component({
   template: `
-    <tui-notification>
+    <div tuiNotification>
       Backup targets are physical or virtual locations for storing encrypted
       backups. They can be physical drives plugged into your server, shared
       folders on your Local Area Network (LAN), or third party clouds such as
@@ -34,7 +31,7 @@ import { DocsLinkDirective } from 'projects/shared/src/public-api'
       <a tuiLink docsLink path="/start-os/backup-create.html">
         View instructions
       </a>
-    </tui-notification>
+    </div>
     <h3 class="g-title">
       Unknown Physical Drives
       <button
@@ -77,7 +74,7 @@ export class BackupsTargetsModal implements OnInit {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
   private readonly formDialog = inject(FormDialogService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
 
   targets = signal<RR.GetBackupTargetsRes | null>(null)
 

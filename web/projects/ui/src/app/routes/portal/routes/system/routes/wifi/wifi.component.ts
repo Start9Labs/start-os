@@ -12,16 +12,10 @@ import {
   ErrorService,
   i18nKey,
   i18nPipe,
-  LoadingService,
   pauseFor,
 } from '@start9labs/shared'
-import {
-  TuiAlertService,
-  TuiAppearance,
-  TuiButton,
-  TuiLoader,
-} from '@taiga-ui/core'
-import { TuiSwitch } from '@taiga-ui/kit'
+import { TuiButton, TuiLoader, TuiNotificationService } from '@taiga-ui/core'
+import { TuiNotificationMiddleService, TuiSwitch } from '@taiga-ui/kit'
 import { TuiCardLarge } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { catchError, defer, map, merge, Observable, of, Subject } from 'rxjs'
@@ -73,19 +67,11 @@ import { wifiSpec } from './wifi.const'
           @if (wifi(); as data) {
             @if (data.known.length) {
               <p class="g-secondary">{{ 'Known Networks' | i18n }}</p>
-              <div
-                tuiCardLarge="compact"
-                tuiAppearance="neutral"
-                [wifi]="data.known"
-              ></div>
+              <div tuiCardLarge="compact" [wifi]="data.known"></div>
             }
             @if (data.available.length) {
               <p class="g-secondary">{{ 'Other Networks' | i18n }}</p>
-              <div
-                tuiCardLarge="compact"
-                tuiAppearance="neutral"
-                [wifi]="data.available"
-              ></div>
+              <div tuiCardLarge="compact" [wifi]="data.available"></div>
             }
             <p>
               <button tuiButton (click)="other(data)" appearance="flat">
@@ -119,7 +105,6 @@ import { wifiSpec } from './wifi.const'
     TuiSwitch,
     TuiCardLarge,
     TuiLoader,
-    TuiAppearance,
     WifiTableComponent,
     TitleDirective,
     RouterLink,
@@ -129,10 +114,10 @@ import { wifiSpec } from './wifi.const'
   ],
 })
 export default class SystemWifiComponent {
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
-  private readonly alerts = inject(TuiAlertService)
+  private readonly alerts = inject(TuiNotificationService)
   private readonly update$ = new Subject<WifiData>()
   private readonly formDialog = inject(FormDialogService)
   private readonly cdr = inject(ChangeDetectorRef)

@@ -11,10 +11,10 @@ import {
   DocsLinkDirective,
   ErrorService,
   i18nPipe,
-  LoadingService,
 } from '@start9labs/shared'
 import { ISB, T } from '@start9labs/start-sdk'
-import { TuiButton, TuiHint } from '@taiga-ui/core'
+import { TuiButton } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { filter, from, merge, Subject } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -89,13 +89,12 @@ import { SSHTableComponent } from './table.component'
     TitleDirective,
     i18nPipe,
     DocsLinkDirective,
-    TuiHint,
   ],
 })
 export default class SystemSSHComponent {
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly formDialog = inject(FormDialogService)
   private readonly i18n = inject(i18nPipe)
   private readonly dialogs = inject(DialogService)

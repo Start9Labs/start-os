@@ -13,9 +13,9 @@ import {
   i18nPipe,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
+import { TuiCell, TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiCell, TuiHeader } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { DocumentationComponent } from '../components/documentation.component'
 import { MatrixComponent } from '../components/matrix.component'
@@ -51,7 +51,7 @@ import { StateService } from '../services/state.service'
         <!-- Step: Download Address Info (non-kiosk only) -->
         @if (!stateService.kiosk) {
           <button tuiCell="l" (click)="download()">
-            <tui-avatar appearance="secondary" src="@tui.download" />
+            <span tuiAvatar="@tui.download" appearance="secondary"></span>
             <div tuiTitle>
               {{ 'Download Address Info' | i18n }}
               <div tuiSubtitle>
@@ -75,7 +75,7 @@ import { StateService } from '../services/state.service'
             [disabled]="!stateService.kiosk && !downloaded"
             (click)="removeMedia()"
           >
-            <tui-avatar appearance="secondary" src="@tui.usb" />
+            <span tuiAvatar="@tui.usb" appearance="secondary"></span>
             <div tuiTitle>
               {{ 'Remove Installation Media' | i18n }}
               <div tuiSubtitle>
@@ -98,7 +98,7 @@ import { StateService } from '../services/state.service'
               [disabled]="!usbRemoved"
               (click)="acknowledgeMok()"
             >
-              <tui-avatar appearance="secondary" src="@tui.shield-check" />
+              <span tuiAvatar="@tui.shield-check" appearance="secondary"></span>
               <div tuiTitle>
                 {{ 'Secure Boot Enrollment' | i18n }}
                 <div tuiSubtitle>
@@ -125,7 +125,7 @@ import { StateService } from '../services/state.service'
             "
             (click)="reboot()"
           >
-            <tui-avatar appearance="secondary" src="@tui.rotate-cw" />
+            <span tuiAvatar="@tui.rotate-cw" appearance="secondary"></span>
             <div tuiTitle>
               {{ 'Restart Server' | i18n }}
               <div tuiSubtitle>
@@ -146,7 +146,7 @@ import { StateService } from '../services/state.service'
           </button>
         } @else if (stateService.kiosk) {
           <button tuiCell="l" (click)="exitKiosk()">
-            <tui-avatar appearance="secondary" src="@tui.log-in" />
+            <span tuiAvatar="@tui.log-in" appearance="secondary"></span>
             <div tuiTitle>
               {{ 'Continue to Login' | i18n }}
               <div tuiSubtitle>
@@ -164,7 +164,7 @@ import { StateService } from '../services/state.service'
             [disabled]="!canOpenAddress"
             (click)="openLocalAddress()"
           >
-            <tui-avatar appearance="secondary" src="@tui.external-link" />
+            <span tuiAvatar="@tui.external-link" appearance="secondary"></span>
             <div tuiTitle>
               {{ 'Open Local Address' | i18n }}
               <div tuiSubtitle>{{ lanAddress }}</div>
@@ -173,8 +173,6 @@ import { StateService } from '../services/state.service'
 
           <app-documentation hidden [lanAddress]="lanAddress" />
         }
-
-        <!-- Step: Continue to Login (kiosk only) -->
       }
     </section>
   `,
@@ -255,9 +253,8 @@ export default class SuccessPage implements AfterViewInit {
   removeMedia() {
     this.dialogs
       .openComponent<boolean>(new PolymorpheusComponent(RemoveMediaDialog), {
-        size: 's',
         dismissible: false,
-        closeable: false,
+        closable: false,
       })
       .subscribe(() => {
         this.usbRemoved = true
@@ -270,7 +267,7 @@ export default class SuccessPage implements AfterViewInit {
         label: 'Secure Boot',
         size: 'm',
         dismissible: false,
-        closeable: false,
+        closable: false,
       })
       .subscribe(() => {
         this.mokAcknowledged = true

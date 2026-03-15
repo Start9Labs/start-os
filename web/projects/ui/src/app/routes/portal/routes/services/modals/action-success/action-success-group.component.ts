@@ -12,12 +12,14 @@ import { GroupResult } from './types'
           <app-action-success-member [member]="member" />
         }
         @if (member.type === 'group') {
-          <tui-accordion-item>
-            <div tuiFade>{{ member.name }}</div>
-            <ng-template tuiAccordionItemContent>
+          <tui-accordion>
+            <button tuiAccordion>
+              <span tuiFade>{{ member.name }}</span>
+            </button>
+            <tui-expand>
               <app-action-success-group [group]="member" />
-            </ng-template>
-          </tui-accordion-item>
+            </tui-expand>
+          </tui-accordion>
         }
       </p>
     }

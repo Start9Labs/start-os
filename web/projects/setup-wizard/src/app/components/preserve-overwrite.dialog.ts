@@ -1,13 +1,19 @@
-import { Component, inject } from '@angular/core'
+import { Component } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
-import { TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiDialogContext } from '@taiga-ui/core'
-import { injectContext } from '@taiga-ui/polymorpheus'
+import { TuiHeader } from '@taiga-ui/layout'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 
 @Component({
-  imports: [TuiButton, i18nPipe],
+  imports: [TuiButton, TuiHeader, TuiTitle, i18nPipe],
   template: `
-    <p>{{ 'This drive contains existing StartOS data.' | i18n }}</p>
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h2 [id]="context.id">{{ 'StartOS Data Detected' | i18n }}</h2>
+        <p>{{ 'This drive contains existing StartOS data.' | i18n }}</p>
+      </hgroup>
+    </header>
     <ul>
       <li>
         <strong class="g-positive">{{ 'Preserve' | i18n }}</strong>
@@ -28,30 +34,19 @@ import { injectContext } from '@taiga-ui/polymorpheus'
       </button>
       <button
         tuiButton
-        class="preserve-btn"
+        appearance=""
+        [style.background]="'var(--tui-status-positive)'"
         (click)="context.completeWith(true)"
       >
         {{ 'Preserve' | i18n }}
       </button>
     </footer>
   `,
-  styles: `
-    p {
-      margin: 0 0 0.75rem;
-    }
-
-    footer {
-      display: flex;
-      margin-top: 2rem;
-      gap: 0.5rem;
-      flex-direction: column-reverse;
-    }
-
-    .preserve-btn {
-      background: var(--tui-status-positive) !important;
-    }
-  `,
 })
 export class PreserveOverwriteDialog {
   protected readonly context = injectContext<TuiDialogContext<boolean>>()
 }
+
+export const PRESERVE_OVERWRITE = new PolymorpheusComponent(
+  PreserveOverwriteDialog,
+)

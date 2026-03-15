@@ -1,3 +1,4 @@
+import { TuiElasticContainer } from '@taiga-ui/layout'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,7 +14,6 @@ import {
 } from '@angular/forms'
 import { IST } from '@start9labs/start-sdk'
 import { TuiValueChanges } from '@taiga-ui/cdk'
-import { TuiElasticContainer } from '@taiga-ui/kit'
 import { FormService } from 'src/app/services/form.service'
 import { FormControlComponent } from './control.component'
 import { FormGroupComponent } from './group.component'

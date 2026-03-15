@@ -1,4 +1,4 @@
-@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+@use '@taiga-ui/styles/utils' as taiga;
 
 :root {
   color-scheme: light dark;
@@ -15,12 +15,6 @@ h2 {
 ul {
   padding-left: 40px;
   list-style-type: disc;
-}
-
-hr {
-  height: 1px;
-  background: var(--tui-border-normal);
-  border: none;
 }
 
 :root {
@@ -126,7 +120,7 @@ hr {
     padding-top: 4rem;
   }
 
-  tui-root:not(._mobile) &:has(.g-table:not([tuiTable])) {
+  tui-root:not(._mobile) &:has(.g-table) {
     padding-block-end: 1rem;
 
     > header {
@@ -149,7 +143,7 @@ hr {
     }
   }
 
-  > table[tuiTable] {
+  > .g-table-service {
     margin: 0 -0.5rem;
   }
 
@@ -161,7 +155,7 @@ hr {
     align-items: center;
     gap: 0.25rem;
     padding: 0 1rem;
-    font: var(--tui-font-text-l);
+    font: var(--tui-typography-body-l);
     font-weight: bold;
     background: var(--tui-background-neutral-1);
   }
@@ -174,7 +168,7 @@ hr {
   }
 }
 
-.g-table:not([tuiTable]) {
+.g-table {
   width: stretch;
   border: 1px solid var(--tui-background-neutral-1);
   border-spacing: 0;
@@ -187,7 +181,7 @@ hr {
   td,
   th {
     position: relative;
-    font: var(--tui-font-text-s);
+    font: var(--tui-typography-body-s);
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--tui-background-neutral-1);
     border-left: 0;
@@ -235,7 +229,7 @@ hr {
       padding: 0;
 
       &:first-child {
-        font: var(--tui-font-text-m);
+        font: var(--tui-typography-body-m);
         font-weight: bold;
         color: var(--tui-text-primary);
       }
@@ -247,7 +241,7 @@ hr {
   }
 }
 
-.g-table[tuiTable] {
+.g-table-service {
   width: stretch;
 
   &:not(:has(tbody tr)) {
@@ -308,7 +302,7 @@ hr {
   align-items: center;
   padding: 0 1rem;
   box-shadow: inset 0 0 0 1px var(--tui-background-neutral-1-hover);
-  font: var(--tui-font-text-l);
+  font: var(--tui-typography-body-l);
   font-weight: bold;
   border-radius: var(--tui-radius-m);
 

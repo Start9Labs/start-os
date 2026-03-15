@@ -1,21 +1,20 @@
-import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import {
   TuiButton,
   TuiDialogContext,
   TuiError,
   TuiTextfield,
 } from '@taiga-ui/core'
-import { TuiFieldErrorPipe } from '@taiga-ui/kit'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { T } from '@start9labs/start-sdk'
 import { ApiService } from 'src/app/services/api/api.service'
 
 export interface EditLabelData {
@@ -30,7 +29,7 @@ export interface EditLabelData {
         <label tuiLabel>Label</label>
         <input tuiTextfield formControlName="label" />
       </tui-textfield>
-      <tui-error formControlName="label" [error]="[] | tuiFieldError | async" />
+      <tui-error formControlName="label" />
       <footer>
         <button tuiButton [disabled]="form.invalid" (click)="onSave()">
           Save
@@ -39,19 +38,11 @@ export interface EditLabelData {
     </form>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    AsyncPipe,
-    ReactiveFormsModule,
-    TuiButton,
-    TuiError,
-    TuiFieldErrorPipe,
-    TuiTextfield,
-    TuiForm,
-  ],
+  imports: [ReactiveFormsModule, TuiButton, TuiError, TuiTextfield, TuiForm],
 })
 export class PortForwardsEditLabel {
   private readonly api = inject(ApiService)
-  private readonly loading = inject(LoadingService)
+  private readonly loading = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
 
   protected readonly context =
@@ -62,7 +53,7 @@ export class PortForwardsEditLabel {
   })
 
   protected async onSave() {
-    const loader = this.loading.open().subscribe()
+    const loader = this.loading.open('').subscribe()
 
     try {
       await this.api.updateForwardLabel({

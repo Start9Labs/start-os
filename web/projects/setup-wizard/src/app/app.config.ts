@@ -10,7 +10,6 @@ import {
   provideZoneChangeDetection,
   signal,
 } from '@angular/core'
-import { provideAnimations } from '@angular/platform-browser/animations'
 import {
   PreloadAllModules,
   provideRouter,
@@ -29,8 +28,10 @@ import {
 import {
   tuiButtonOptionsProvider,
   tuiTextfieldOptionsProvider,
+  provideTaiga,
+  tuiHintOptionsProvider,
+  tuiDialogOptionsProvider,
 } from '@taiga-ui/core'
-import { provideEventPlugins } from '@taiga-ui/event-plugins'
 
 import { ROUTES } from './app.routes'
 import { ApiService } from './services/api.service'
@@ -47,8 +48,9 @@ const version = require('../../../../package.json').version
 export const APP_CONFIG: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection(),
-    provideAnimations(),
-    provideEventPlugins(),
+    provideTaiga({ mode: 'dark' }),
+    tuiHintOptionsProvider({ appearance: 'primary-grayscale' }),
+    tuiDialogOptionsProvider({ size: 's' }),
     provideRouter(
       ROUTES,
       withDisabledInitialNavigation(),

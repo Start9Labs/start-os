@@ -1,17 +1,13 @@
 import { inject, Injectable } from '@angular/core'
-import {
-  DialogService,
-  ErrorService,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
+import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { knownAuthorities, toAuthorityName } from 'src/app/utils/acme'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
@@ -27,7 +23,7 @@ export type RemoteAuthority = Authority & { url: string }
 @Injectable()
 export class AuthorityService {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly formDialog = inject(FormDialogService)

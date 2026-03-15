@@ -36,12 +36,12 @@ export class FormDialogService {
       },
     }
 
-    const closeable = this.formService.withConfirm(PROMPT)
+    const closable = this.formService.withConfirm(PROMPT)
 
     this.dialog
       .openComponent(new PolymorpheusComponent(component, this.injector), {
-        dismissible: closeable,
-        closeable,
+        dismissible: closable,
+        closable,
         ...options,
       })
       .subscribe({

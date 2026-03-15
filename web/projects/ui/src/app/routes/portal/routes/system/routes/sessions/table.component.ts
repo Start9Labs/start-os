@@ -8,8 +8,8 @@ import {
   signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiIcon } from '@taiga-ui/core'
-import { TuiCheckbox, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
+import { TuiIcon, TuiCheckbox } from '@taiga-ui/core'
+import { TuiFade, TuiSkeleton } from '@taiga-ui/kit'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { T } from '@start9labs/start-sdk'
 import { PlatformInfoPipe } from './platform-info.pipe'

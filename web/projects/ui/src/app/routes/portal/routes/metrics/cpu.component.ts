@@ -27,7 +27,7 @@ const LABELS: Record<string, i18nKey> = {
     <metrics-data [labels]="labels" [value]="value()" />
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     .cpu {
       position: relative;
@@ -53,7 +53,7 @@ const LABELS: Record<string, i18nKey> = {
       bottom: 10%;
       width: 100%;
       text-align: center;
-      font: var(--tui-font-text-l);
+      font: var(--tui-typography-body-l);
     }
 
     .arrow {

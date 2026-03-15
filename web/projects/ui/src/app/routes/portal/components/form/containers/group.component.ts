@@ -3,13 +3,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   Input,
+  signal,
   SkipSelf,
   ViewEncapsulation,
 } from '@angular/core'
 import { ControlContainer, ReactiveFormsModule } from '@angular/forms'
 import { IST } from '@start9labs/start-sdk'
 import { TUI_DEFAULT_ERROR_MESSAGE } from '@taiga-ui/core'
-import { identity, of } from 'rxjs'
+import { identity } from 'rxjs'
 
 import { FilterHiddenPipe } from '../pipes/filter-hidden.pipe'
 import { FormArrayComponent } from './array.component'
@@ -92,7 +93,7 @@ import { FormUnionComponent } from './union.component'
   viewProviders: [
     {
       provide: TUI_DEFAULT_ERROR_MESSAGE,
-      useValue: of('Unknown error'),
+      useValue: signal('Unknown error'),
     },
     {
       provide: ControlContainer,
