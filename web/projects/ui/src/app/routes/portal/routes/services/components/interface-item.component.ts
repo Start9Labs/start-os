@@ -8,9 +8,9 @@ import { TuiBadge } from '@taiga-ui/kit'
   template: `
     <td><ng-content /></td>
     <td>
-      <tui-badge size="m" [appearance]="appearance">
+      <span tuiBadge size="m" [appearance]="appearance">
         {{ info().type }}
-      </tui-badge>
+      </span>
     </td>
     <td class="g-secondary" [style.grid-area]="'2 / 1 / 2 / 3'">
       {{ info().description }}

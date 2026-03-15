@@ -50,15 +50,15 @@ export type PackageActionData = {
       <h4>{{ pkgInfo.title }}</h4>
     </div>
     @if (error()) {
-      <tui-notification appearance="negative">
+      <div tuiNotification appearance="negative">
         <div [innerHTML]="error()"></div>
-      </tui-notification>
+      </div>
     }
     @if (res(); as res) {
       @if (warning) {
-        <tui-notification appearance="warning">
+        <div tuiNotification appearance="warning">
           <div [innerHTML]="warning"></div>
-        </tui-notification>
+        </div>
       }
 
       <app-form

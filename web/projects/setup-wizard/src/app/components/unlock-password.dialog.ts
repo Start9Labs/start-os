@@ -1,32 +1,27 @@
 import { Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { i18nPipe } from '@start9labs/shared'
-import {
-  TuiButton,
-  TuiDialogContext,
-  TuiIcon,
-  TuiTextfield,
-} from '@taiga-ui/core'
+import { TuiButton, TuiDialogContext, TuiIcon, TuiInput } from '@taiga-ui/core'
 import { TuiPassword } from '@taiga-ui/kit'
-import { injectContext } from '@taiga-ui/polymorpheus'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 
 @Component({
-  imports: [
-    FormsModule,
-    TuiButton,
-    TuiTextfield,
-    TuiPassword,
-    TuiIcon,
-    i18nPipe,
-  ],
+  imports: [FormsModule, TuiButton, TuiInput, TuiPassword, TuiIcon, i18nPipe],
   template: `
-    <p>
-      {{ 'Enter the password that was used to encrypt this backup.' | i18n }}
-    </p>
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h2 [id]="context.id">{{ 'Unlock Backup' | i18n }}</h2>
+        <p>
+          {{
+            'Enter the password that was used to encrypt this backup.' | i18n
+          }}
+        </p>
+      </hgroup>
+    </header>
     <tui-textfield>
       <label tuiLabel>{{ 'Password' | i18n }}</label>
       <input
-        tuiTextfield
+        tuiInput
         type="password"
         [(ngModel)]="password"
         (keyup.enter)="unlock()"
@@ -62,3 +57,5 @@ export class UnlockPasswordDialog {
     }
   }
 }
+
+export const UNLOCK_PASSWORD = new PolymorpheusComponent(UnlockPasswordDialog)

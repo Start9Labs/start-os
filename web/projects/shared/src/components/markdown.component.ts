@@ -11,7 +11,12 @@ import { getErrorMessage } from '../services/error.service'
 @Component({
   template: `
     @if (error()) {
-      <tui-notification appearance="negative" safeLinks [innerHTML]="error()" />
+      <div
+        tuiNotification
+        appearance="negative"
+        safeLinks
+        [innerHTML]="error()"
+      ></div>
     }
 
     @if (content(); as result) {

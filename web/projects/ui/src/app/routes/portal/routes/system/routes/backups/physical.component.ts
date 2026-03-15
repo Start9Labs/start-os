@@ -61,7 +61,7 @@ import { BackupStatusComponent } from './status.component'
     </table>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     tr {
       @include taiga.transition(background);
@@ -98,7 +98,7 @@ import { BackupStatusComponent } from './status.component'
 
       .name {
         color: var(--tui-text-primary);
-        font: var(--tui-font-text-m);
+        font: var(--tui-typography-body-m);
         font-weight: bold;
         grid-column: 1;
         max-width: 12rem;

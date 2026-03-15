@@ -2,8 +2,12 @@ import { Component, inject, Injectable } from '@angular/core'
 import { CanActivateFn, IsActiveMatchOptions, Router } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
 import { TUI_TRUE_HANDLER } from '@taiga-ui/cdk'
-import { TuiAlertService, TuiLoader, TuiTitle } from '@taiga-ui/core'
-import { TuiCell } from '@taiga-ui/layout'
+import {
+  TuiLoader,
+  TuiTitle,
+  TuiNotificationService,
+  TuiCell,
+} from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import {
   BehaviorSubject,
@@ -57,7 +61,7 @@ class DisconnectedToast {}
   providedIn: 'root',
 })
 export class StateService extends Observable<ServerState | null> {
-  private readonly alerts = inject(TuiAlertService)
+  private readonly alerts = inject(TuiNotificationService)
   private readonly i18n = inject(i18nPipe)
   private readonly api = inject(ApiService)
   private readonly router = inject(Router)
@@ -66,7 +70,7 @@ export class StateService extends Observable<ServerState | null> {
 
   private readonly disconnected$ = this.alerts.open(
     new PolymorpheusComponent(DisconnectedToast),
-    { closeable: false, appearance: 'negative', icon: '' },
+    { closable: false, appearance: 'negative', icon: '' },
   )
 
   private readonly reconnected$ = this.alerts.open(

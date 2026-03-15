@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { IST } from '@start9labs/start-sdk'
-import { TuiIcon, TuiTextfield } from '@taiga-ui/core'
+import { TuiIcon, TuiInput } from '@taiga-ui/core'
 import { TuiTextarea, TuiTooltip } from '@taiga-ui/kit'
 
 import { Control } from './control'
@@ -37,14 +37,7 @@ import { HintPipe } from '../pipes/hint.pipe'
       }
     </tui-textfield>
   `,
-  imports: [
-    FormsModule,
-    TuiTextfield,
-    TuiTextarea,
-    TuiIcon,
-    TuiTooltip,
-    HintPipe,
-  ],
+  imports: [FormsModule, TuiInput, TuiTextarea, TuiIcon, TuiTooltip, HintPipe],
 })
 export class FormTextareaComponent extends Control<
   IST.ValueSpecTextarea,

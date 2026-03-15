@@ -1,16 +1,22 @@
 import { Component, inject, OnInit } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
 import {
+  TuiButton,
   TuiDialogOptions,
   TuiDialogService,
   TuiIcon,
-  TuiButton,
-  TuiNotification,
   TuiLink,
+  TuiNotification,
 } from '@taiga-ui/core'
-import { TuiConfirmData, TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
+import {
+  TUI_CONFIRM,
+  TuiConfirmData,
+  TuiNotificationMiddleService,
+  TuiSkeleton,
+} from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { DocsLinkDirective } from 'projects/shared/src/public-api'
 import { BehaviorSubject, filter, from } from 'rxjs'
 import { BackupJob } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -18,18 +24,17 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
 import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
 import { BackupJobBuilder } from '../utils/job-builder'
 import { EDIT } from './edit.component'
-import { DocsLinkDirective } from 'projects/shared/src/public-api'
 
 @Component({
   template: `
-    <tui-notification>
+    <div tuiNotification>
       Scheduling automatic backups is an excellent way to ensure your StartOS
       data is safely backed up. StartOS will issue a notification whenever one
       of your scheduled backups succeeds or fails.
       <a tuiLink docsLink path="/start-os/user-manual/backup-create.html">
         View instructions
       </a>
-    </tui-notification>
+    </div>
     <h3 class="g-title">
       Saved Jobs
       <button tuiButton size="s" iconStart="@tui.plus" (click)="create()">
@@ -147,7 +152,7 @@ import { DocsLinkDirective } from 'projects/shared/src/public-api'
 })
 export class BackupsJobsModal implements OnInit {
   private readonly dialogs = inject(TuiDialogService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
 

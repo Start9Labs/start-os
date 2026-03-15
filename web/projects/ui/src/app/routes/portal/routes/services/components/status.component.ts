@@ -41,7 +41,7 @@ import {
     }
 
     h3 {
-      font: var(--tui-font-heading-4);
+      font: var(--tui-typography-heading-h4);
       font-weight: normal;
       margin: 0;
       text-align: center;
@@ -58,7 +58,7 @@ import {
 
     small {
       display: block;
-      font: var(--tui-font-text-l);
+      font: var(--tui-typography-body-l);
       color: var(--tui-text-secondary);
       text-align: center;
     }

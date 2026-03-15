@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiDialogService, TuiIcon, TuiTitle } from '@taiga-ui/core'
-import { TuiCell } from '@taiga-ui/layout'
+import { TuiDialogService, TuiIcon, TuiTitle, TuiCell } from '@taiga-ui/core'
 import { BackupsUpcomingComponent } from './components/upcoming.component'
 import { HISTORY } from './modals/history.component'
 import { JOBS } from './modals/jobs.component'

@@ -2,9 +2,10 @@ import { Component, computed, inject, signal } from '@angular/core'
 import { Router } from '@angular/router'
 import { FormsModule } from '@angular/forms'
 import { i18nPipe, i18nService, Language, LANGUAGES } from '@start9labs/shared'
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
-import { TuiButton, TuiTextfield, TuiTitle } from '@taiga-ui/core'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
+import { TuiButton, TuiCell, TuiTitle } from '@taiga-ui/core'
 import {
+  TuiAvatar,
   TuiButtonLoading,
   TuiChevron,
   TuiDataListWrapper,
@@ -18,13 +19,15 @@ import { StateService } from '../services/state.service'
   template: `
     <section tuiCardLarge="compact">
       <header tuiHeader>
-        <h2 tuiTitle>
-          <span class="inline-title">
-            <img src="assets/img/icon.png" alt="Start9" />
+        <hgroup tuiTitle>
+          <h2 tuiCell="m">
+            <span tuiAvatar>
+              <img src="assets/img/icon.png" alt="Start9" />
+            </span>
             {{ 'Welcome to' | i18n }} StartOS
-          </span>
-          <span tuiSubtitle>{{ 'Select your language' | i18n }}</span>
-        </h2>
+          </h2>
+          <p tuiSubtitle>{{ 'Select your language' | i18n }}</p>
+        </hgroup>
       </header>
       <tui-textfield
         tuiChevron
@@ -48,8 +51,7 @@ import { StateService } from '../services/state.service'
         }
         @if (!mobile) {
           <tui-data-list-wrapper
-            *tuiTextfieldDropdown
-            new
+            *tuiDropdown
             [items]="languages"
             [itemContent]="itemContent"
           />
@@ -57,11 +59,10 @@ import { StateService } from '../services/state.service'
       </tui-textfield>
 
       <ng-template #itemContent let-item>
-        @let lang = asLanguage(item);
-        <div class="language-item">
-          <span>{{ lang.nativeName }}</span>
-          <small>{{ lang.name | i18n }}</small>
-        </div>
+        <span tuiTitle>
+          {{ asLanguage(item).nativeName }}
+          <span tuiSubtitle>{{ asLanguage(item).name | i18n }}</span>
+        </span>
       </ng-template>
 
       <footer>
@@ -76,22 +77,13 @@ import { StateService } from '../services/state.service'
       </footer>
     </section>
   `,
-  styles: `
-    .language-item {
-      display: flex;
-      flex-direction: column;
-
-      small {
-        opacity: 0.7;
-      }
-    }
-  `,
   imports: [
     FormsModule,
     TuiCardLarge,
     TuiButton,
     TuiButtonLoading,
-    TuiTextfield,
+    TuiAvatar,
+    TuiCell,
     TuiChevron,
     TuiSelect,
     TuiDataListWrapper,
@@ -106,7 +98,7 @@ export default class LanguagePage {
   private readonly stateService = inject(StateService)
   private readonly i18nService = inject(i18nService)
 
-  protected readonly mobile = inject(TUI_IS_MOBILE)
+  protected readonly mobile = inject(WA_IS_MOBILE)
   readonly languages = LANGUAGES
 
   selected =

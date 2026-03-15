@@ -6,9 +6,19 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterOutlet } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiButton, TuiIcon, TuiLoader, TuiScrollbar } from '@taiga-ui/core'
-import { TuiActionBar, TuiProgress } from '@taiga-ui/kit'
+import { ErrorService } from '@start9labs/shared'
+import {
+  TuiButton,
+  TuiIcon,
+  TuiLoader,
+  TuiPopup,
+  TuiScrollbar,
+} from '@taiga-ui/core'
+import {
+  TuiActionBar,
+  TuiNotificationMiddleService,
+  TuiProgress,
+} from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { TabsComponent } from 'src/app/routes/portal/components/tabs.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -26,7 +36,7 @@ import { HeaderComponent } from './components/header/header.component'
     </main>
     <app-tabs />
     @if (update(); as update) {
-      <tui-action-bar *tuiActionBar="bar()">
+      <tui-action-bar *tuiPopup="bar()">
         @if (update === true) {
           <tui-icon icon="@tui.check" class="g-positive" />
           Download complete, restart to apply changes
@@ -52,7 +62,7 @@ import { HeaderComponent } from './components/header/header.component'
     }
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     :host {
       height: 100%;
@@ -93,10 +103,11 @@ import { HeaderComponent } from './components/header/header.component'
     TuiLoader,
     TuiIcon,
     TuiButton,
+    TuiPopup,
   ],
 })
 export class PortalComponent {
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)

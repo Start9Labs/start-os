@@ -14,7 +14,7 @@ import { i18nPipe } from '@start9labs/shared'
   selector: 'service-tasks',
   template: `
     <header>{{ 'Tasks' | i18n }}</header>
-    <table tuiTable class="g-table">
+    <table tuiTable class="g-table-service">
       <thead>
         <tr>
           <th tuiTh>{{ 'Service' | i18n }}</th>
@@ -27,14 +27,17 @@ import { i18nPipe } from '@start9labs/shared'
       <tbody>
         @for (item of tasks(); track $index) {
           <tr [task]="item.task" [services]="services()"></tr>
+        } @empty {
+          <tr>
+            <td colspan="5">
+              <app-placeholder icon="@tui.list-checks">
+                {{ 'All tasks complete' | i18n }}
+              </app-placeholder>
+            </td>
+          </tr>
         }
       </tbody>
     </table>
-    @if (!tasks().length) {
-      <app-placeholder icon="@tui.list-checks">
-        {{ 'All tasks complete' | i18n }}
-      </app-placeholder>
-    }
   `,
   styles: `
     :host {

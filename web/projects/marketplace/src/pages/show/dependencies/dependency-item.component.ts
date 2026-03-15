@@ -15,12 +15,9 @@ import { MarketplacePkgBase } from '../../../types'
   selector: 'marketplace-dep-item',
   template: `
     <div class="outer-container">
-      <tui-avatar
-        appearance="action-grayscale"
-        class="dep-img"
-        size="l"
-        [src]="getImage(dep.key)"
-      />
+      <span tuiAvatar appearance="action-grayscale" class="dep-img" size="l">
+        <img alt="" [src]="getImage(dep.key)" />
+      </span>
       <div>
         <tui-line-clamp [linesLimit]="2" [content]="titleContent" />
         <ng-template #titleContent>
@@ -107,8 +104,10 @@ export class MarketplaceDepItemComponent {
   dep!: KeyValue<string, T.DependencyMetadata>
 
   getImage(key: string) {
-    const icon = this.pkg.dependencyMetadata[key]?.icon
-    return icon ? icon : 'assets/img/service-icons/fallback.png'
+    return (
+      this.pkg.dependencyMetadata[key]?.icon ||
+      'assets/img/service-icons/fallback.png'
+    )
   }
 
   getTitle(key: string): string {

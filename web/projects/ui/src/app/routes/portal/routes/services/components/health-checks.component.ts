@@ -9,7 +9,7 @@ import { i18nPipe } from '@start9labs/shared'
   selector: 'service-health-checks',
   template: `
     <header>{{ 'Health Checks' | i18n }}</header>
-    <table tuiTable class="g-table">
+    <table tuiTable class="g-table-service">
       <thead>
         <tr>
           <th tuiTh>{{ 'Name' | i18n }}</th>
@@ -19,14 +19,17 @@ import { i18nPipe } from '@start9labs/shared'
       <tbody>
         @for (check of checks(); track $index) {
           <tr [healthCheck]="check"></tr>
+        } @empty {
+          <tr>
+            <td colspan="2">
+              <app-placeholder icon="@tui.heart-pulse">
+                {{ 'No health checks' | i18n }}
+              </app-placeholder>
+            </td>
+          </tr>
         }
       </tbody>
     </table>
-    @if (!checks().length) {
-      <app-placeholder icon="@tui.heart-pulse">
-        {{ 'No health checks' | i18n }}
-      </app-placeholder>
-    }
   `,
   styles: `
     :host {

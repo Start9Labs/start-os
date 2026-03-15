@@ -18,7 +18,7 @@ import { STATUS } from 'src/app/services/status.service'
     <span>{{ status().message | i18n }}</span>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     :host {
       @include taiga.transition(all);

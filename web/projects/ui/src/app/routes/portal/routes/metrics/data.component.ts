@@ -4,8 +4,7 @@ import {
   computed,
   input,
 } from '@angular/core'
-import { TuiTitle } from '@taiga-ui/core'
-import { TuiCell } from '@taiga-ui/layout'
+import { TuiTitle, TuiCell } from '@taiga-ui/core'
 import { T } from '@start9labs/start-sdk'
 import { ValuePipe } from './value.pipe'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
@@ -35,7 +34,7 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
 
       &:after {
         content: attr(data-unit);
-        font: var(--tui-font-text-ui-xs);
+        font: var(--tui-typography-ui-2xs);
         color: var(--tui-text-secondary);
       }
     }

@@ -5,7 +5,8 @@ import { TuiNotification } from '@taiga-ui/core'
 @Component({
   selector: 'marketplace-notification',
   template: `
-    <tui-notification
+    <div
+      tuiNotification
       [appearance]="status || 'warning'"
       icon=""
       class="notification-wrapper"
@@ -42,7 +43,7 @@ import { TuiNotification } from '@taiga-ui/core'
           }}
         }
       }
-    </tui-notification>
+    </div>
   `,
   styles: `
     .notification-wrapper {

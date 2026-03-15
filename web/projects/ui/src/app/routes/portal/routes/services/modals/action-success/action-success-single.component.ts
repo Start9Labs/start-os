@@ -7,7 +7,7 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { CopyService, i18nPipe } from '@start9labs/shared'
-import { TuiButton, TuiTextfield } from '@taiga-ui/core'
+import { TuiButton, TuiInput } from '@taiga-ui/core'
 import { QrCodeComponent } from 'ng-qrcode'
 import { SingleResult } from './types'
 
@@ -19,7 +19,7 @@ import { SingleResult } from './types'
     }
     <tui-textfield>
       <input
-        tuiTextfield
+        tuiInput
         [readOnly]="true"
         [ngModel]="single.value"
         [type]="single.masked && masked ? 'password' : 'text'"
@@ -74,7 +74,7 @@ import { SingleResult } from './types'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     .reveal {
       @include taiga.center-all();
@@ -88,7 +88,7 @@ import { SingleResult } from './types'
   imports: [
     CommonModule,
     FormsModule,
-    TuiTextfield,
+    TuiInput,
     TuiButton,
     QrCodeComponent,
     i18nPipe,

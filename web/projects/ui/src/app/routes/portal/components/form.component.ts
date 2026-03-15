@@ -14,7 +14,7 @@ import {
 } from '@taiga-ui/cdk'
 import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { TuiConfirmService } from '@taiga-ui/kit'
-import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
+import { injectContext } from '@taiga-ui/polymorpheus'
 import { Operation } from 'fast-json-patch'
 import { FormGroupComponent } from 'src/app/routes/portal/components/form/containers/group.component'
 import { InvalidService } from 'src/app/routes/portal/components/form/containers/control.directive'
@@ -76,7 +76,7 @@ export interface FormContext<T> {
   styles: `
     .note {
       color: var(--tui-text-secondary);
-      font: var(--tui-font-text-s);
+      font: var(--tui-typography-body-s);
       margin-top: 1rem;
     }
 
@@ -107,10 +107,9 @@ export class FormComponent<T extends Record<string, any>> implements OnInit {
   private readonly confirm = inject(TuiConfirmService, { optional: true })
   private readonly formService = inject(FormService)
   private readonly invalidService = inject(InvalidService)
-  private readonly context = inject<TuiDialogContext<void, FormContext<T>>>(
-    POLYMORPHEUS_CONTEXT,
-    { optional: true },
-  )
+  private readonly context = injectContext<
+    TuiDialogContext<void, FormContext<T>>
+  >({ optional: true })
 
   @Input() spec = this.context?.data.spec || {}
   @Input() buttons = this.context?.data.buttons || []

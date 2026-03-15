@@ -1,19 +1,15 @@
-import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   inject,
   Input,
 } from '@angular/core'
+import { ReactiveFormsModule } from '@angular/forms'
 import { DialogService, i18nPipe } from '@start9labs/shared'
 import { IST } from '@start9labs/start-sdk'
 import { tuiAsControl, TuiControl } from '@taiga-ui/cdk'
-import { TuiError } from '@taiga-ui/core'
-import {
-  TUI_FORMAT_ERROR,
-  TUI_VALIDATION_ERRORS,
-  TuiFieldErrorPipe,
-} from '@taiga-ui/kit'
+import { TUI_VALIDATION_ERRORS, TuiError } from '@taiga-ui/core'
+import { TUI_FORMAT_ERROR } from '@taiga-ui/kit'
 import { PolymorpheusOutlet } from '@taiga-ui/polymorpheus'
 
 import { ControlSpec } from '../controls/control'
@@ -35,7 +31,7 @@ export const ERRORS = [
   selector: 'form-control',
   template: `
     <ng-container *polymorpheusOutlet="controls[spec.type]" />
-    <tui-error [error]="order | tuiFieldError | async" />
+    <tui-error [formControl]="$any(control.control)" [order]="order" />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
@@ -53,7 +49,7 @@ export const ERRORS = [
     },
   ],
   hostDirectives: [ControlDirective],
-  imports: [AsyncPipe, PolymorpheusOutlet, TuiError, TuiFieldErrorPipe],
+  imports: [PolymorpheusOutlet, TuiError, ReactiveFormsModule],
 })
 export class FormControlComponent<
   T extends ControlSpec,
@@ -91,7 +87,7 @@ export class FormControlComponent<
         .openConfirm({
           label: 'Warning',
           data: { content: warning as any, yes: 'Confirm', no: 'Cancel' },
-          closeable: false,
+          closable: false,
           dismissible: false,
         })
         .subscribe(confirm => {

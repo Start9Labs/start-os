@@ -47,7 +47,7 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
             appearance="primary-grayscale"
             iconStart="@tui.external-link"
             tuiChevron
-            tuiDropdownOpen
+            tuiDropdownAuto
             tuiDropdownLimitWidth="fixed"
             [tuiDropdown]="content"
           >
@@ -58,7 +58,6 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
               @for (i of interfaces(); track $index) {
                 <a
                   tuiOption
-                  new
                   target="_blank"
                   rel="noreferrer"
                   iconEnd="@tui.external-link"

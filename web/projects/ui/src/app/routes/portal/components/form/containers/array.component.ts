@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectorRef,
   Component,
@@ -11,19 +10,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import {
   AbstractControl,
   FormArrayName,
+  FormsModule,
   ReactiveFormsModule,
 } from '@angular/forms'
 import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
 import { IST } from '@start9labs/start-sdk'
 import { TuiAnimated } from '@taiga-ui/cdk'
-import {
-  TuiButton,
-  TuiError,
-  TuiIcon,
-  TuiLink,
-  TuiTextfield,
-} from '@taiga-ui/core'
-import { TuiFieldErrorPipe, TuiTooltip } from '@taiga-ui/kit'
+import { TuiButton, TuiError, TuiIcon, TuiInput, TuiLink } from '@taiga-ui/core'
+import { TuiTooltip } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import { FormService } from 'src/app/services/form.service'
 
@@ -51,7 +45,13 @@ import { FormObjectComponent } from './object.component'
         + {{ 'Add' | i18n }}
       </button>
     </div>
-    <tui-error [error]="order | tuiFieldError | async" />
+    <!-- TODO: Remove ngModel in Taiga v5.0 -->
+    <tui-error
+      [ngModel]=""
+      [ngModelOptions]="{ standalone: true }"
+      [formArray]="array.control"
+      [order]="order"
+    />
     @for (item of array.control.controls; track item) {
       <div tuiAnimated class="control">
         <div>
@@ -92,7 +92,7 @@ import { FormObjectComponent } from './object.component'
     }
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     :host {
       display: block;
@@ -102,7 +102,7 @@ import { FormObjectComponent } from './object.component'
     .label {
       display: flex;
       align-items: center;
-      font: var(--tui-font-heading-6);
+      font: var(--tui-typography-heading-h6);
     }
 
     .add {
@@ -173,21 +173,20 @@ import { FormObjectComponent } from './object.component'
   `,
   hostDirectives: [ControlDirective],
   imports: [
-    AsyncPipe,
     ReactiveFormsModule,
     TuiIcon,
     TuiTooltip,
     TuiLink,
     TuiError,
-    TuiFieldErrorPipe,
     TuiButton,
-    TuiTextfield,
+    TuiInput,
     i18nPipe,
     HintPipe,
     MustachePipe,
     FormControlComponent,
     forwardRef(() => FormObjectComponent),
     TuiAnimated,
+    FormsModule,
   ],
 })
 export class FormArrayComponent {

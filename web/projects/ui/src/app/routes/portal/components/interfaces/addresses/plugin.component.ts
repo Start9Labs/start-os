@@ -1,3 +1,4 @@
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -7,13 +8,7 @@ import {
 } from '@angular/core'
 import { CopyService, DialogService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
-import {
-  TuiButton,
-  TuiDataList,
-  TuiDropdown,
-  TuiTextfield,
-} from '@taiga-ui/core'
+import { TuiButton, TuiDataList, TuiDropdown, TuiInput } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
@@ -109,7 +104,7 @@ import {
                   >
                     {{ 'More' | i18n }}
                     <tui-data-list
-                      *tuiTextfieldDropdown
+                      *tuiDropdown
                       (click)="overflowOpen.set(null)"
                     >
                       @for (
@@ -120,7 +115,6 @@ import {
                         @if (pluginGroup().pluginActions[actionId]; as meta) {
                           <button
                             tuiOption
-                            new
                             (click)="runRowAction(actionId, meta, address)"
                           >
                             {{ meta.name }}
@@ -142,7 +136,7 @@ import {
                 [(tuiDropdownOpen)]="open"
               >
                 {{ 'Actions' | i18n }}
-                <tui-data-list *tuiTextfieldDropdown (click)="open.set(false)">
+                <tui-data-list *tuiDropdown (click)="open.set(false)">
                   @if (address.hostnameInfo.metadata.kind === 'plugin') {
                     @if (address.hostnameInfo.metadata.removeAction) {
                       @if (
@@ -153,7 +147,6 @@ import {
                       ) {
                         <button
                           tuiOption
-                          new
                           iconStart="@tui.trash"
                           (click)="
                             runRowAction(
@@ -170,7 +163,6 @@ import {
                   }
                   <button
                     tuiOption
-                    new
                     iconStart="@tui.qr-code"
                     (click)="showQR(address.url)"
                   >
@@ -178,7 +170,6 @@ import {
                   </button>
                   <button
                     tuiOption
-                    new
                     iconStart="@tui.copy"
                     (click)="copyService.copy(address.url)"
                   >
@@ -192,7 +183,6 @@ import {
                       @if (pluginGroup().pluginActions[actionId]; as meta) {
                         <button
                           tuiOption
-                          new
                           (click)="runRowAction(actionId, meta, address)"
                         >
                           {{ meta.name }}
@@ -271,7 +261,7 @@ import {
     TuiButton,
     TuiDropdown,
     TuiDataList,
-    TuiTextfield,
+    TuiInput,
     TableComponent,
     PlaceholderComponent,
     i18nPipe,
@@ -279,7 +269,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PluginAddressesComponent {
-  private readonly isMobile = inject(TUI_IS_MOBILE)
+  private readonly isMobile = inject(WA_IS_MOBILE)
   private readonly dialog = inject(DialogService)
   private readonly actionService = inject(ActionService)
   readonly copyService = inject(CopyService)
@@ -290,12 +280,12 @@ export class PluginAddressesComponent {
   readonly packageId = input('')
   readonly value = input<MappedServiceInterface | undefined>()
 
-  showQR(url: string) {
+  showQR(data: string) {
     this.dialog
       .openComponent(new PolymorpheusComponent(QRModal), {
-        size: 'auto',
-        closeable: this.isMobile,
-        data: url,
+        size: 's',
+        closable: this.isMobile,
+        data,
       })
       .subscribe()
   }

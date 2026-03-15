@@ -6,7 +6,7 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
-import { TuiButton, TuiError, TuiTextfield } from '@taiga-ui/core'
+import { TuiButton, TuiError, TuiInput } from '@taiga-ui/core'
 import { TuiButtonLoading } from '@taiga-ui/kit'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
@@ -17,7 +17,7 @@ import { AuthService } from 'src/app/services/auth.service'
     <form (ngSubmit)="login()">
       <tui-textfield [tuiTextfieldCleaner]="false">
         <input
-          tuiTextfield
+          tuiInput
           type="password"
           placeholder="Enter password"
           [ngModelOptions]="{ standalone: true }"
@@ -59,7 +59,7 @@ import { AuthService } from 'src/app/services/auth.service'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiTextfield, FormsModule, TuiError, TuiButtonLoading],
+  imports: [TuiButton, TuiInput, FormsModule, TuiError, TuiButtonLoading],
 })
 export default class Login {
   private readonly auth = inject(AuthService)

@@ -7,11 +7,11 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ReactiveFormsModule } from '@angular/forms'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
 import { utils } from '@start9labs/start-sdk'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton } from '@taiga-ui/core'
-import { TuiDialogService } from '@taiga-ui/experimental'
-import { TUI_CONFIRM } from '@taiga-ui/kit'
+import { TUI_CONFIRM, TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PORT_FORWARDS_ADD } from 'src/app/routes/home/routes/port-forwards/add'
@@ -65,9 +65,9 @@ import { MappedDevice, MappedForward } from './utils'
   imports: [ReactiveFormsModule, TuiButton],
 })
 export default class PortForwards {
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly api = inject(ApiService)
-  private readonly loading = inject(LoadingService)
+  private readonly loading = inject(TuiNotificationMiddleService)
   private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
   private readonly errorService = inject(ErrorService)
 
@@ -127,7 +127,7 @@ export default class PortForwards {
       .open(TUI_CONFIRM, { label: 'Are you sure?' })
       .pipe(filter(Boolean))
       .subscribe(async () => {
-        const loader = this.loading.open().subscribe()
+        const loader = this.loading.open('').subscribe()
         const source = `${externalip}:${externalport}`
 
         try {

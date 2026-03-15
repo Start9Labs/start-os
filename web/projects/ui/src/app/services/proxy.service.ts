@@ -1,6 +1,7 @@
 // import { Injectable } from '@angular/core'
-// import { ErrorService, LoadingService } from '@start9labs/shared'
+// import { ErrorService } from '@start9labs/shared'
 // import { TuiDialogOptions } from '@taiga-ui/core'
+// import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 // import { PatchDB } from 'patch-db-client'
 // import { firstValueFrom } from 'rxjs'
 // import {
@@ -21,7 +22,7 @@
 //     private readonly patch: PatchDB<DataModel>,
 //     private readonly formDialog: FormDialogService,
 //     private readonly api: ApiService,
-//     private readonly loader: LoadingService,
+//     private readonly loader: TuiNotificationMiddleService,
 //     private readonly errorService: ErrorService,
 //   ) {}
 

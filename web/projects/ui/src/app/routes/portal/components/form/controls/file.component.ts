@@ -30,7 +30,7 @@ import { Control } from './control'
             }
           </div>
           @if (value) {
-            <tui-chip>
+            <span tuiChip>
               {{ value.name }}
               <button
                 tuiIconButton
@@ -42,7 +42,7 @@ import { Control } from './control'
               >
                 {{ 'Delete' | i18n }}
               </button>
-            </tui-chip>
+            </span>
           } @else {
             <small>{{ 'Click or drop file here' | i18n }}</small>
           }
@@ -54,7 +54,7 @@ import { Control } from './control'
     </label>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     .template {
       @include taiga.transition(opacity);
@@ -63,7 +63,7 @@ import { Control } from './control'
       display: flex;
       align-items: center;
       padding: 0 0.5rem;
-      font: var(--tui-font-text-m);
+      font: var(--tui-typography-body-m);
       font-weight: bold;
 
       &_hidden {

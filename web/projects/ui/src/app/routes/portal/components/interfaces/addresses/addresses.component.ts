@@ -5,14 +5,10 @@ import {
   input,
   signal,
 } from '@angular/core'
-import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
+import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
-import {
-  TuiButton,
-  TuiDataList,
-  TuiDropdown,
-  TuiTextfield,
-} from '@taiga-ui/core'
+import { TuiButton, TuiDataList, TuiDropdown, TuiInput } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
 import {
@@ -46,11 +42,11 @@ import { InterfaceAddressItemComponent } from './item.component'
         [(tuiDropdownOpen)]="addOpen"
       >
         {{ 'Add Domain' | i18n }}
-        <tui-data-list *tuiTextfieldDropdown (click)="addOpen.set(false)">
-          <button tuiOption new (click)="addPublicDomain()">
+        <tui-data-list *tuiDropdown (click)="addOpen.set(false)">
+          <button tuiOption (click)="addPublicDomain()">
             {{ 'Public Domain' | i18n }}
           </button>
-          <button tuiOption new (click)="addPrivateDomain()">
+          <button tuiOption (click)="addPrivateDomain()">
             {{ 'Private Domain' | i18n }}
           </button>
         </tui-data-list>
@@ -97,7 +93,7 @@ import { InterfaceAddressItemComponent } from './item.component'
     TuiButton,
     TuiDropdown,
     TuiDataList,
-    TuiTextfield,
+    TuiInput,
     TableComponent,
     PlaceholderComponent,
     i18nPipe,
@@ -108,7 +104,7 @@ import { InterfaceAddressItemComponent } from './item.component'
 export class InterfaceAddressesComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly formDialog = inject(FormDialogService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly i18n = inject(i18nPipe)

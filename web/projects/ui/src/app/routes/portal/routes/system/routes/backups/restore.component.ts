@@ -4,11 +4,10 @@ import {
   DialogService,
   ErrorService,
   i18nPipe,
-  LoadingService,
   StartOSDiskInfo,
 } from '@start9labs/shared'
-import { TuiTitle } from '@taiga-ui/core'
-import { TuiCell } from '@taiga-ui/layout'
+import { TuiCell, TuiTitle } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { verifyPassword } from 'src/app/utils/verify-password'
@@ -45,7 +44,7 @@ import { RECOVER } from './recover.component'
 })
 export class BackupRestoreComponent {
   private readonly dialog = inject(DialogService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
   private readonly context = injectContext<BackupContext>()

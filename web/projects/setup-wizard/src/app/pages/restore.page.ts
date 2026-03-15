@@ -6,11 +6,11 @@ import {
   TuiButton,
   TuiDataList,
   TuiDropdown,
-  TuiIcon,
+  TuiLink,
   TuiLoader,
-  TuiOptGroup,
   TuiTitle,
 } from '@taiga-ui/core'
+import { TuiChevron } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ApiService } from '../services/api.service'
@@ -18,22 +18,25 @@ import { StateService } from '../services/state.service'
 import { StartOSDiskInfoFull, StartOSDiskInfoWithId } from '../types'
 import { CIFS, CifsResult } from '../components/cifs.component'
 import { SELECT_NETWORK_BACKUP } from '../components/select-network-backup.dialog'
-import { UnlockPasswordDialog } from '../components/unlock-password.dialog'
+import { UNLOCK_PASSWORD } from '../components/unlock-password.dialog'
 
 @Component({
   template: `
     <section tuiCardLarge="compact">
       <header tuiHeader>
-        <h2 tuiTitle>
-          {{ 'Select Backup' | i18n }}
-          <span tuiSubtitle>
+        <hgroup tuiTitle>
+          <h2>{{ 'Select Backup' | i18n }}</h2>
+          <p tuiSubtitle>
             {{ 'Select the StartOS backup you want to restore' | i18n }}
-            <a class="refresh" (click)="refresh()">
-              <tui-icon icon="@tui.rotate-cw" />
-              {{ 'Refresh' | i18n }}
-            </a>
-          </span>
-        </h2>
+            <button
+              tuiLink
+              appearance="action"
+              iconEnd="@tui.rotate-cw"
+              [textContent]="'Refresh' | i18n"
+              (click)="refresh()"
+            ></button>
+          </p>
+        </hgroup>
       </header>
 
       @if (loading) {
@@ -41,70 +44,38 @@ import { UnlockPasswordDialog } from '../components/unlock-password.dialog'
       } @else {
         <button
           tuiButton
-          iconEnd="@tui.chevron-down"
-          [tuiDropdown]="dropdown"
-          [tuiDropdownLimitWidth]="'fixed'"
+          tuiChevron
+          tuiDropdown
+          tuiDropdownLimitWidth="fixed"
           [(tuiDropdownOpen)]="open"
-          style="width: 100%"
         >
           {{ 'Select Backup' | i18n }}
-        </button>
-
-        <ng-template #dropdown>
-          <tui-data-list>
-            <tui-opt-group>
-              <button tuiOption new (click)="openCifs()">
-                <tui-icon icon="@tui.folder-plus" />
-                {{ 'Open Network Backup' | i18n }}
-              </button>
-            </tui-opt-group>
+          <tui-data-list *tuiDropdown>
+            <button tuiOption iconStart="@tui.folder-plus" (click)="openCifs()">
+              {{ 'Open Network Backup' | i18n }}
+            </button>
+            <hr />
             <tui-opt-group [label]="'Physical Backups' | i18n">
               @for (server of physicalServers; track server.id) {
-                <button tuiOption new (click)="selectPhysicalBackup(server)">
-                  <div class="server-item">
-                    <span>{{ server.id }}</span>
-                    <small>
+                <button tuiOption (click)="selectPhysicalBackup(server)">
+                  <span tuiTitle>
+                    {{ server.id }}
+                    <span tuiSubtitle>
                       {{ server.drive.vendor }} {{ server.drive.model }} ·
                       {{ server.partition.logicalname }}
-                    </small>
-                  </div>
+                    </span>
+                  </span>
                 </button>
               } @empty {
-                <div class="no-items">{{ 'No physical backups' | i18n }}</div>
+                <button tuiOption [disabled]="true">
+                  {{ 'No physical backups' | i18n }}
+                </button>
               }
             </tui-opt-group>
           </tui-data-list>
-        </ng-template>
+        </button>
       }
     </section>
-  `,
-  styles: `
-    .refresh {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-      cursor: pointer;
-      color: var(--tui-text-action);
-
-      tui-icon {
-        font-size: 0.875rem;
-      }
-    }
-
-    .server-item {
-      display: flex;
-      flex-direction: column;
-
-      small {
-        opacity: 0.7;
-      }
-    }
-
-    .no-items {
-      padding: 0.5rem 0.75rem;
-      color: var(--tui-text-secondary);
-      font-style: italic;
-    }
   `,
   imports: [
     TuiButton,
@@ -112,11 +83,11 @@ import { UnlockPasswordDialog } from '../components/unlock-password.dialog'
     TuiDataList,
     TuiDropdown,
     TuiLoader,
-    TuiIcon,
-    TuiOptGroup,
     TuiTitle,
     TuiHeader,
     i18nPipe,
+    TuiLink,
+    TuiChevron,
   ],
 })
 export default class RestorePage {
@@ -142,10 +113,7 @@ export default class RestorePage {
   openCifs() {
     this.open = false
     this.dialogs
-      .openComponent<CifsResult>(CIFS, {
-        label: 'Connect Network Folder',
-        size: 's',
-      })
+      .openComponent<CifsResult>(CIFS, { label: 'Connect Network Folder' })
       .subscribe(result => {
         if (result) {
           this.handleCifsResult(result)
@@ -167,7 +135,7 @@ export default class RestorePage {
         type: 'cifs',
         ...result.cifs,
       })
-    } else if (result.servers.length > 1) {
+    } else {
       this.showSelectNetworkBackupDialog(result.cifs, result.servers)
     }
   }
@@ -178,8 +146,6 @@ export default class RestorePage {
   ) {
     this.dialogs
       .openComponent<StartOSDiskInfoWithId | null>(SELECT_NETWORK_BACKUP, {
-        label: 'Select Network Backup',
-        size: 's',
         data: { servers },
       })
       .subscribe(server => {
@@ -194,13 +160,7 @@ export default class RestorePage {
     target: { type: 'disk'; logicalname: string } | ({ type: 'cifs' } & T.Cifs),
   ) {
     this.dialogs
-      .openComponent<string | null>(
-        new PolymorpheusComponent(UnlockPasswordDialog),
-        {
-          label: 'Unlock Backup',
-          size: 's',
-        },
-      )
+      .openComponent<string | null>(UNLOCK_PASSWORD)
       .subscribe(password => {
         if (password) {
           this.stateService.recoverySource = {

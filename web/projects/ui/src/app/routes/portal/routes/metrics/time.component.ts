@@ -8,8 +8,8 @@ import {
   TuiLink,
   TuiNotification,
   TuiTitle,
+  TuiCell,
 } from '@taiga-ui/core'
-import { TuiCell } from '@taiga-ui/layout'
 import { TimeService } from 'src/app/services/time.service'
 
 @Component({
@@ -32,9 +32,9 @@ import { TimeService } from 'src/app/services/time.service'
         }
       </div>
       @if (!time.synced) {
-        <tui-notification size="s" appearance="warning">
+        <div tuiNotification size="s" appearance="warning">
           <ng-container *ngTemplateOutlet="hint" />
-        </tui-notification>
+        </div>
       }
     } @else {
       {{ 'Loading' | i18n }}...
@@ -51,7 +51,6 @@ import { TimeService } from 'src/app/services/time.service'
             appearance=""
             path="/start-os/faq/index.html"
             fragment="#clock-sync-failure"
-            [pseudo]="true"
             [textContent]="'the docs' | i18n"
           ></a>
         </div>

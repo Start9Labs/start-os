@@ -5,6 +5,7 @@ import {
   InjectionToken,
   input,
 } from '@angular/core'
+import { tuiSetSignal } from '@taiga-ui/cdk'
 import { TuiHintDirective } from '@taiga-ui/core'
 import { i18nPipe } from '../i18n/i18n.pipe'
 
@@ -33,7 +34,8 @@ export class DocsLinkDirective {
   })
 
   constructor() {
-    inject(TuiHintDirective).content.set(
+    tuiSetSignal(
+      inject(TuiHintDirective).content,
       inject(i18nPipe).transform('Documentation'),
     )
   }

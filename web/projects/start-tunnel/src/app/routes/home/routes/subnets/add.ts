@@ -1,19 +1,12 @@
-import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { LoadingService } from '@start9labs/shared'
 import { TuiAutoFocus, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
-import {
-  TuiButton,
-  TuiDialogContext,
-  TuiError,
-  TuiTextfield,
-} from '@taiga-ui/core'
-import { TuiFieldErrorPipe } from '@taiga-ui/kit'
+import { TuiButton, TuiDialogContext, TuiError, TuiInput } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ApiService } from 'src/app/services/api/api.service'
@@ -23,18 +16,15 @@ import { ApiService } from 'src/app/services/api/api.service'
     <form tuiForm [formGroup]="form">
       <tui-textfield>
         <label tuiLabel>Name</label>
-        <input tuiTextfield tuiAutoFocus formControlName="name" />
+        <input tuiInput tuiAutoFocus formControlName="name" />
       </tui-textfield>
-      <tui-error formControlName="name" [error]="[] | tuiFieldError | async" />
+      <tui-error formControlName="name" />
       @if (!context.data.name) {
         <tui-textfield>
           <label tuiLabel>IP Range</label>
-          <input tuiTextfield formControlName="subnet" />
+          <input tuiInput formControlName="subnet" />
         </tui-textfield>
-        <tui-error
-          formControlName="subnet"
-          [error]="[] | tuiFieldError | async"
-        />
+        <tui-error formControlName="subnet" />
       }
       <footer>
         <button tuiButton (click)="onSave()">Save</button>
@@ -43,19 +33,17 @@ import { ApiService } from 'src/app/services/api/api.service'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    AsyncPipe,
     ReactiveFormsModule,
     TuiAutoFocus,
     TuiButton,
     TuiError,
-    TuiFieldErrorPipe,
     TuiForm,
-    TuiTextfield,
+    TuiInput,
   ],
 })
 export class SubnetsAdd {
   private readonly api = inject(ApiService)
-  private readonly loading = inject(LoadingService)
+  private readonly loading = inject(TuiNotificationMiddleService)
 
   protected readonly context = injectContext<TuiDialogContext<void, Data>>()
   protected readonly form = inject(NonNullableFormBuilder).group({
@@ -78,7 +66,7 @@ export class SubnetsAdd {
       return
     }
 
-    const loader = this.loading.open().subscribe()
+    const loader = this.loading.open('').subscribe()
     const value = this.form.getRawValue()
 
     try {

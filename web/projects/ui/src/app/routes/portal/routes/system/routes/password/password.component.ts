@@ -7,14 +7,10 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
 import { verify } from '@start9labs/argon2'
-import {
-  ErrorService,
-  i18nKey,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
+import { ErrorService, i18nKey, i18nPipe } from '@start9labs/shared'
 import { ISB } from '@start9labs/start-sdk'
-import { TuiAlertService, TuiButton, TuiTitle } from '@taiga-ui/core'
+import { TuiButton, TuiNotificationService, TuiTitle } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { from } from 'rxjs'
@@ -74,8 +70,8 @@ import { getServerInfo } from 'src/app/utils/get-server-info'
   ],
 })
 export default class SystemPasswordComponent {
-  private readonly alerts = inject(TuiAlertService)
-  private readonly loader = inject(LoadingService)
+  private readonly alerts = inject(TuiNotificationService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)

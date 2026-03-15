@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core'
+import { Component, inject, OnInit } from '@angular/core'
 import { Router } from '@angular/router'
 import {
   DialogService,
@@ -11,10 +11,11 @@ import {
   TuiButton,
   TuiDataList,
   TuiDropdown,
-  TuiIcon,
+  TuiLink,
   TuiLoader,
   TuiTitle,
 } from '@taiga-ui/core'
+import { TuiChevron } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { ApiService } from '../services/api.service'
@@ -24,18 +25,21 @@ import { StateService } from '../services/state.service'
   template: `
     <section tuiCardLarge="compact">
       <header tuiHeader>
-        <h2 tuiTitle>
-          {{ 'Transfer Data' | i18n }}
-          <span tuiSubtitle>
+        <hgroup tuiTitle>
+          <h2>{{ 'Transfer Data' | i18n }}</h2>
+          <p tuiSubtitle>
             {{
               'Select the drive containing your existing StartOS data' | i18n
             }}
-            <a class="refresh" (click)="refresh()">
-              <tui-icon icon="@tui.rotate-cw" />
-              {{ 'Refresh' | i18n }}
-            </a>
-          </span>
-        </h2>
+            <button
+              tuiLink
+              appearance="action"
+              iconEnd="@tui.rotate-cw"
+              [textContent]="'Refresh' | i18n"
+              (click)="refresh()"
+            ></button>
+          </p>
+        </hgroup>
       </header>
 
       @if (loading) {
@@ -43,75 +47,43 @@ import { StateService } from '../services/state.service'
       } @else {
         <button
           tuiButton
-          iconEnd="@tui.chevron-down"
-          [tuiDropdown]="dropdown"
-          [tuiDropdownLimitWidth]="'fixed'"
+          tuiChevron
+          tuiDropdown
+          tuiDropdownLimitWidth="fixed"
           [(tuiDropdownOpen)]="open"
-          style="width: 100%"
         >
           {{ 'Select Drive' | i18n }}
-        </button>
-
-        <ng-template #dropdown>
-          <tui-data-list>
+          <tui-data-list
+            *tuiDropdown
+            [emptyContent]="'No StartOS data drives found' | i18n"
+          >
             @for (drive of drives; track drive.logicalname) {
-              <button tuiOption new (click)="select(drive)">
-                <div class="drive-item">
-                  <span>{{ drive.vendor }} {{ drive.model }}</span>
-                  <small>{{ drive.logicalname }}</small>
-                </div>
+              <button tuiOption (click)="select(drive)">
+                <span tuiTitle>
+                  {{ drive.vendor }} {{ drive.model }}
+                  <span tuiSubtitle>{{ drive.logicalname }}</span>
+                </span>
               </button>
-            } @empty {
-              <div class="no-items">
-                {{ 'No StartOS data drives found' | i18n }}
-              </div>
             }
           </tui-data-list>
-        </ng-template>
+        </button>
       }
     </section>
-  `,
-  styles: `
-    .refresh {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-      cursor: pointer;
-      color: var(--tui-text-action);
-
-      tui-icon {
-        font-size: 0.875rem;
-      }
-    }
-
-    .drive-item {
-      display: flex;
-      flex-direction: column;
-
-      small {
-        opacity: 0.7;
-      }
-    }
-
-    .no-items {
-      padding: 0.5rem 0.75rem;
-      color: var(--tui-text-secondary);
-      font-style: italic;
-    }
   `,
   imports: [
     TuiButton,
     TuiCardLarge,
     TuiDataList,
     TuiDropdown,
-    TuiIcon,
+    TuiLink,
+    TuiChevron,
     TuiLoader,
     TuiTitle,
     TuiHeader,
     i18nPipe,
   ],
 })
-export default class TransferPage {
+export default class TransferPage implements OnInit {
   private readonly api = inject(ApiService)
   private readonly router = inject(Router)
   private readonly dialogs = inject(DialogService)
@@ -137,7 +109,6 @@ export default class TransferPage {
     this.dialogs
       .openConfirm({
         label: 'Warning',
-        size: 's',
         data: {
           content:
             'After transferring data from this drive, do not attempt to boot into it again as a Start9 Server. This may result in services malfunctioning, data corruption, or loss of funds.',

@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
@@ -5,25 +6,18 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { NgTemplateOutlet } from '@angular/common'
-import {
-  DialogService,
-  ErrorService,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
-import { filter } from 'rxjs'
+import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { IST } from '@start9labs/start-sdk'
 import {
   TuiButton,
+  TuiCell,
   TuiDataList,
   TuiDropdown,
   TuiIcon,
-  TuiTextfield,
   TuiTitle,
 } from '@taiga-ui/core'
-import { TuiBadge, TuiFade } from '@taiga-ui/kit'
-import { TuiCell } from '@taiga-ui/layout'
+import { TuiBadge, TuiFade, TuiNotificationMiddleService } from '@taiga-ui/kit'
+import { filter } from 'rxjs'
 import {
   FormComponent,
   FormContext,
@@ -57,9 +51,9 @@ import { wifiSpec } from './wifi.const'
         </strong>
       </div>
       @if (network.connected) {
-        <tui-badge appearance="positive">
+        <span tuiBadge appearance="positive">
           {{ 'Connected' | i18n }}
-        </tui-badge>
+        </span>
       }
       @if (network.connected === false) {
         <button
@@ -71,18 +65,12 @@ import { wifiSpec } from './wifi.const'
           [(tuiDropdownOpen)]="open"
         >
           {{ 'More' | i18n }}
-          <tui-data-list *tuiTextfieldDropdown>
-            <button
-              tuiOption
-              new
-              iconStart="@tui.wifi"
-              (click)="prompt(network)"
-            >
+          <tui-data-list *tuiDropdown>
+            <button tuiOption iconStart="@tui.wifi" (click)="prompt(network)">
               {{ 'Connect' | i18n }}
             </button>
             <button
               tuiOption
-              new
               iconStart="@tui.trash"
               class="g-negative"
               (click)="forget(network)"
@@ -113,8 +101,8 @@ import { wifiSpec } from './wifi.const'
   `,
   styles: `
     :host {
-      align-items: stretch;
       padding: 0.5rem !important;
+      background: var(--tui-background-neutral-1) !important;
     }
 
     [tuiCell] {
@@ -139,12 +127,11 @@ import { wifiSpec } from './wifi.const'
     TuiFade,
     TuiDropdown,
     TuiDataList,
-    TuiTextfield,
     i18nPipe,
   ],
 })
 export class WifiTableComponent {
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly dialogs = inject(DialogService)
   private readonly api = inject(ApiService)

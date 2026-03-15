@@ -29,7 +29,7 @@ import { SidebarService } from 'src/app/services/sidebar.service'
     }
 
     h1 {
-      font: var(--tui-font-heading-6);
+      font: var(--tui-typography-heading-h6);
       margin-inline-end: auto;
     }
 

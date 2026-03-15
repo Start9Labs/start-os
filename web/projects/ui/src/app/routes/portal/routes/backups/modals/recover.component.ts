@@ -1,14 +1,19 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
-import { TuiButton, TuiDialogContext, TuiGroup } from '@taiga-ui/core'
-import { TuiBlock, TuiCheckbox } from '@taiga-ui/kit'
+import {
+  TuiButton,
+  TuiCheckbox,
+  TuiDialogContext,
+  TuiGroup,
+} from '@taiga-ui/core'
+import { TuiBlock, TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { take } from 'rxjs'
-import { T } from '@start9labs/start-sdk'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ToOptionsPipe } from '../pipes/to-options.pipe'
@@ -68,7 +73,7 @@ import { RecoverOption } from '../types/recover-option'
 })
 export class BackupsRecoverModal {
   private readonly api = inject(ApiService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly context =
     injectContext<TuiDialogContext<void, RecoverData>>()

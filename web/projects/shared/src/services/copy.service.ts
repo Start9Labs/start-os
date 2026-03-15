@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { Clipboard } from '@angular/cdk/clipboard'
-import { TuiAlertService } from '@taiga-ui/core'
+import { TuiNotificationService } from '@taiga-ui/core'
 
 import { i18nPipe } from '../i18n/i18n.pipe'
 
@@ -8,7 +8,7 @@ import { i18nPipe } from '../i18n/i18n.pipe'
 export class CopyService {
   private readonly clipboard = inject(Clipboard)
   private readonly i18n = inject(i18nPipe)
-  private readonly alerts = inject(TuiAlertService)
+  private readonly alerts = inject(TuiNotificationService)
 
   async copy(text: string) {
     const success = this.clipboard.copy(text)

@@ -89,7 +89,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
     }
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+    @use '@taiga-ui/styles/utils' as taiga;
 
     @keyframes bounce {
       to {

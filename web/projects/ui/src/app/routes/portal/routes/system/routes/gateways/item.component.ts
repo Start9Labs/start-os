@@ -4,21 +4,16 @@ import {
   inject,
   input,
 } from '@angular/core'
-import {
-  DialogService,
-  ErrorService,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
+import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { ISB } from '@start9labs/start-sdk'
 import {
   TuiButton,
   TuiDataList,
   TuiDropdown,
   TuiIcon,
-  TuiOptGroup,
-  TuiTextfield,
+  TuiInput,
 } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -72,25 +67,19 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
           [(tuiDropdownOpen)]="open"
         >
           {{ 'More' | i18n }}
-          <tui-data-list *tuiTextfieldDropdown>
-            <tui-opt-group>
-              <button tuiOption new (click)="rename()">
-                {{ 'Rename' | i18n }}
-              </button>
-            </tui-opt-group>
+          <tui-data-list *tuiDropdown>
+            <button tuiOption (click)="rename()">
+              {{ 'Rename' | i18n }}
+            </button>
             @if (gateway.type !== 'outbound-only') {
-              <tui-opt-group>
-                <button tuiOption new (click)="viewPortForwards()">
-                  {{ 'View port forwards' | i18n }}
-                </button>
-              </tui-opt-group>
+              <button tuiOption (click)="viewPortForwards()">
+                {{ 'View port forwards' | i18n }}
+              </button>
             }
             @if (gateway.ipInfo.deviceType === 'wireguard') {
-              <tui-opt-group>
-                <button tuiOption new class="g-negative" (click)="remove()">
-                  {{ 'Delete' | i18n }}
-                </button>
-              </tui-opt-group>
+              <button tuiOption class="g-negative" (click)="remove()">
+                {{ 'Delete' | i18n }}
+              </button>
             }
           </tui-data-list>
         </button>
@@ -118,7 +107,7 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
       }
 
       td:first-child {
-        font: var(--tui-font-text-m);
+        font: var(--tui-typography-body-m);
         font-weight: bold;
         color: var(--tui-text-primary);
       }
@@ -150,19 +139,11 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    TuiButton,
-    TuiDropdown,
-    TuiDataList,
-    TuiIcon,
-    TuiOptGroup,
-    TuiTextfield,
-    i18nPipe,
-  ],
+  imports: [TuiButton, TuiDropdown, TuiDataList, TuiIcon, TuiInput, i18nPipe],
 })
 export class GatewaysItemComponent {
   private readonly dialog = inject(DialogService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly formDialog = inject(FormDialogService)

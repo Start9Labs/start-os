@@ -1,6 +1,6 @@
-import { Component, inject } from '@angular/core'
+import { Component } from '@angular/core'
 import { TuiDialogContext } from '@taiga-ui/core'
-import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
+import { injectContext } from '@taiga-ui/polymorpheus'
 import { ActionSuccessGroupComponent } from './action-success-group.component'
 import { ActionSuccessSingleComponent } from './action-success-single.component'
 import { ActionResponseWithResult } from './types'
@@ -21,9 +21,7 @@ import { ActionResponseWithResult } from './types'
 })
 export class ActionSuccessPage {
   readonly data =
-    inject<TuiDialogContext<void, ActionResponseWithResult>>(
-      POLYMORPHEUS_CONTEXT,
-    ).data
+    injectContext<TuiDialogContext<void, ActionResponseWithResult>>().data
 
   readonly single = this.data.result.type === 'single' ? this.data.result : null
   readonly group = this.data.result.type === 'group' ? this.data.result : null

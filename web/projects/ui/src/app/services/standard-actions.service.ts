@@ -6,9 +6,9 @@ import {
   i18nKey,
   i18nPipe,
   i18nService,
-  LoadingService,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
 import { getAllPackages } from '../utils/get-package-data'
@@ -24,7 +24,7 @@ export class StandardActionsService {
   private readonly api = inject(ApiService)
   private readonly dialog = inject(DialogService)
   private readonly errorService = inject(ErrorService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly router = inject(Router)
   private readonly i18n = inject(i18nPipe)
   private readonly i18nService = inject(i18nService)

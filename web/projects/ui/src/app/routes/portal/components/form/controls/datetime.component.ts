@@ -8,7 +8,7 @@ import {
   TuiMapperPipe,
   TuiTime,
 } from '@taiga-ui/cdk'
-import { TuiIcon, TuiTextfield } from '@taiga-ui/core'
+import { TuiIcon, TuiInput } from '@taiga-ui/core'
 import {
   TuiInputDate,
   TuiInputDateTime,
@@ -22,21 +22,23 @@ import { HintPipe } from '../pipes/hint.pipe'
 @Component({
   selector: 'form-datetime',
   template: `
-    <!--
-      TODO: Move @switch down to only affect <input ... /> after fix:
-      https://github.com/taiga-family/taiga-ui/issues/11780
-    -->
-    @switch (spec.inputmode) {
-      @case ('time') {
-        <tui-textfield (tuiActiveZoneChange)="!$event && control.onTouched()">
-          @if (spec.name) {
-            <label tuiLabel>
-              {{ spec.name }}
-              @if (spec.required) {
-                <span>*</span>
-              }
-            </label>
+    <tui-textfield (tuiActiveZoneChange)="!$event && control.onTouched()">
+      @if (spec.name) {
+        <label tuiLabel>
+          {{ spec.name }}
+          @if (spec.required) {
+            <span>*</span>
           }
+        </label>
+      }
+      @if (spec | hint; as hint) {
+        <tui-icon [tuiTooltip]="hint" />
+      }
+      @if (spec.inputmode !== 'time') {
+        <tui-calendar *tuiDropdown />
+      }
+      @switch (spec.inputmode) {
+        @case ('time') {
           <input
             tuiInputTime
             type="time"
@@ -47,21 +49,8 @@ import { HintPipe } from '../pipes/hint.pipe'
             (ngModelChange)="value = $event?.toString() || null"
             (blur)="control.onTouched()"
           />
-          @if (spec | hint; as hint) {
-            <tui-icon [tuiTooltip]="hint" />
-          }
-        </tui-textfield>
-      }
-      @case ('date') {
-        <tui-textfield (tuiActiveZoneChange)="!$event && control.onTouched()">
-          @if (spec.name) {
-            <label tuiLabel>
-              {{ spec.name }}
-              @if (spec.required) {
-                <span>*</span>
-              }
-            </label>
-          }
+        }
+        @case ('date') {
           <input
             tuiInputDate
             type="date"
@@ -73,22 +62,8 @@ import { HintPipe } from '../pipes/hint.pipe'
             [(ngModel)]="value"
             (blur)="control.onTouched()"
           />
-          @if (spec | hint; as hint) {
-            <tui-icon [tuiTooltip]="hint" />
-          }
-          <tui-calendar *tuiTextfieldDropdown />
-        </tui-textfield>
-      }
-      @case ('datetime-local') {
-        <tui-textfield (tuiActiveZoneChange)="!$event && control.onTouched()">
-          @if (spec.name) {
-            <label tuiLabel>
-              {{ spec.name }}
-              @if (spec.required) {
-                <span>*</span>
-              }
-            </label>
-          }
+        }
+        @case ('datetime-local') {
           <input
             tuiInputDateTime
             type="datetime-local"
@@ -100,17 +75,13 @@ import { HintPipe } from '../pipes/hint.pipe'
             [(ngModel)]="value"
             (blur)="control.onTouched()"
           />
-          @if (spec | hint; as hint) {
-            <tui-icon [tuiTooltip]="hint" />
-          }
-          <tui-calendar *tuiTextfieldDropdown />
-        </tui-textfield>
+        }
       }
-    }
+    </tui-textfield>
   `,
   imports: [
     FormsModule,
-    TuiTextfield,
+    TuiInput,
     TuiIcon,
     TuiTooltip,
     TuiInputTime,

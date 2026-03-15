@@ -6,11 +6,15 @@ import {
   input,
   signal,
 } from '@angular/core'
-import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
+import { FormsModule } from '@angular/forms'
+import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { TuiObfuscatePipe } from '@taiga-ui/cdk'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
-import { FormsModule } from '@angular/forms'
-import { TuiBadge, TuiSwitch } from '@taiga-ui/kit'
+import {
+  TuiBadge,
+  TuiNotificationMiddleService,
+  TuiSwitch,
+} from '@taiga-ui/kit'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { GatewayAddress, MappedServiceInterface } from '../interface.service'
 import { AddressActionsComponent } from './actions.component'
@@ -45,12 +49,13 @@ import { DomainHealthService } from './domain-health.service'
         </span>
       </td>
       <td class="type">
-        <tui-badge
+        <span
+          tuiBadge
           size="s"
           [appearance]="typeAppearance(address.hostnameInfo.metadata.kind)"
         >
           {{ address.type }}
-        </tui-badge>
+        </span>
       </td>
       <td>
         <div class="cert">
@@ -177,7 +182,7 @@ import { DomainHealthService } from './domain-health.service'
 
       .access {
         padding-right: 0;
-        font: var(--tui-font-text-m);
+        font: var(--tui-typography-body-m);
         font-weight: bold;
 
         tui-icon {
@@ -186,7 +191,7 @@ import { DomainHealthService } from './domain-health.service'
       }
 
       .type {
-        font: var(--tui-font-text-m);
+        font: var(--tui-typography-body-m);
         font-weight: bold;
         color: var(--tui-text-primary);
         padding-inline-end: 0.5rem;
@@ -226,7 +231,7 @@ import { DomainHealthService } from './domain-health.service'
 export class InterfaceAddressItemComponent {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly domainHealth = inject(DomainHealthService)
 
   readonly address = input.required<GatewayAddress>()

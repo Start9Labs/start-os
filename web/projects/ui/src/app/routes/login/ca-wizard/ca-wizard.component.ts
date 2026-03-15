@@ -1,7 +1,7 @@
 import { Component, inject, DOCUMENT } from '@angular/core'
 import { DocsLinkDirective, i18nPipe, RELATIVE_URL } from '@start9labs/shared'
-import { TuiButton, TuiIcon, TuiSurface } from '@taiga-ui/core'
-import { TuiCardLarge } from '@taiga-ui/layout'
+import { TuiButton, TuiIcon } from '@taiga-ui/core'
+import { TuiCardLarge, TuiSurface } from '@taiga-ui/layout'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 

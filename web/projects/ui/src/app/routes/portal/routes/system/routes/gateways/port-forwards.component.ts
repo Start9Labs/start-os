@@ -123,7 +123,7 @@ function parseSocketAddr(s: string): { ip: string; port: number } {
       td,
       th {
         padding: 0.5rem 0.5rem !important;
-        font: var(--tui-font-text-s) !important;
+        font: var(--tui-typography-body-s) !important;
         color: var(--tui-text-primary) !important;
         font-weight: normal !important;
       }

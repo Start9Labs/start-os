@@ -2,14 +2,10 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
-import {
-  DocsLinkDirective,
-  ErrorService,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
-import { ISB, utils } from '@start9labs/start-sdk'
+import { DocsLinkDirective, ErrorService, i18nPipe } from '@start9labs/shared'
+import { ISB } from '@start9labs/start-sdk'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, first, switchMap } from 'rxjs'
@@ -106,7 +102,7 @@ const ipv6 =
   ],
 })
 export default class SystemDnsComponent {
-  private readonly loader = inject(LoadingService)
+  private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly formService = inject(FormService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)

@@ -2,9 +2,8 @@ import { KeyValuePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
-import { TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiIcon, TuiTitle, TuiCell } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
-import { TuiCell } from '@taiga-ui/layout'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { PkgDependencyErrors } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -24,7 +23,7 @@ import { ToManifestPipe } from '../../../pipes/to-manifest'
         [queryParams]="services[d.key] ? {} : { search: d.key }"
         [class.error]="getError(d.key)"
       >
-        <tui-avatar appearance="action-grayscale">
+        <span tuiAvatar appearance="action-grayscale">
           <img
             alt=""
             [src]="
@@ -33,7 +32,7 @@ import { ToManifestPipe } from '../../../pipes/to-manifest'
               'assets/img/service-icons/fallback.png'
             "
           />
-        </tui-avatar>
+        </span>
         <span tuiTitle>
           {{
             services[d.key]
