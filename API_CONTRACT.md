@@ -891,8 +891,10 @@ struct WifiPassword {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct WifiConfig {
     ssid: String,
+    broadcast_separately: bool,
     radios: HashMap<String, WifiRadio>,
     passwords: Vec<WifiPassword>,
 }

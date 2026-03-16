@@ -470,6 +470,7 @@ export class MockApiService extends ApiService {
 
   private mockWifi: WifiConfig = {
     ssid: 'StartOS',
+    broadcastSeparately: false,
     radios: {
       default_radio0: {
         band: '2g',

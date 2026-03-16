@@ -260,6 +260,7 @@ export interface WifiProfileId {
 
 export interface WifiConfig {
   ssid: string
+  broadcastSeparately: boolean
   radios: Record<string, WifiRadio>
   passwords: WifiPassword[]
 }

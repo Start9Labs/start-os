@@ -31,21 +31,20 @@ pub fn is_setup_mode() -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// PMK resolution
+// Password resolution
 // ---------------------------------------------------------------------------
 
-/// Result of PMK resolution at daemon startup.
+/// Result of password resolution at daemon startup.
 #[derive(Clone)]
-pub struct ResolvedPmk {
-    pub pmk_hex: String,
-    /// True if the PMK came from the SD card's rootfs partition (custom image).
+pub struct ResolvedPassword {
+    pub password: String,
+    /// True if the password came from the SD card's rootfs partition (custom image).
     pub baked_in: bool,
 }
 
 /// Magic header written by the startwrt-bake-password tool.
-/// Format: 8-byte magic "SWRTPMK\0" + 64 ASCII hex chars of the PMK.
-const BAKE_MAGIC: &[u8; 8] = b"SWRTPMK\0";
-const BAKE_PMK_LEN: usize = 64;
+/// Format: 8-byte magic "SWRTPWD\0" + null-terminated ASCII password.
+const BAKE_MAGIC: &[u8; 8] = b"SWRTPWD\0";
 
 /// Find a partition named `name` on block device `dev_path` and return its node.
 fn find_partition_by_name(dev_path: &str, name: &str) -> Result<Option<String>, Error> {
@@ -63,12 +62,13 @@ fn align_up_4k(n: u64) -> u64 {
     (n + 4095) & !4095
 }
 
-/// Try reading a baked-in PMK from a rootfs partition device.
+/// Try reading a baked-in password from a rootfs partition device.
 ///
 /// Reads the squashfs superblock at offset 0 to get `bytes_used`, then looks
-/// for the `SWRTPMK\0` magic + 64 hex chars at the next 4096-byte aligned
-/// offset. Returns `Some(pmk_hex)` if found and valid, `None` otherwise.
-fn read_raw_baked_pmk(dev: &str) -> Option<String> {
+/// for the `SWRTPWD\0` magic + null-terminated ASCII password at the next
+/// 4096-byte aligned offset. Returns `Some(password)` if found and valid,
+/// `None` otherwise.
+fn read_raw_baked_password(dev: &str) -> Option<String> {
     let mut f = File::open(dev).ok()?;
 
     // Read squashfs superblock (first 48 bytes)
@@ -85,23 +85,27 @@ fn read_raw_baked_pmk(dev: &str) -> Option<String> {
     let bytes_used = u64::from_le_bytes(sb[40..48].try_into().unwrap());
 
     // Seek to aligned offset after squashfs data
-    let pmk_offset = align_up_4k(bytes_used);
-    f.seek(SeekFrom::Start(pmk_offset)).ok()?;
+    let baked_offset = align_up_4k(bytes_used);
+    f.seek(SeekFrom::Start(baked_offset)).ok()?;
 
-    // Read magic + PMK
-    let mut buf = [0u8; 8 + BAKE_PMK_LEN];
+    // Read magic + up to 63 chars of password + null terminator
+    // Max WPA2 passphrase is 63 ASCII chars; 8 (magic) + 63 + 1 (null) = 72
+    let mut buf = [0u8; 8 + 64];
     f.read_exact(&mut buf).ok()?;
 
     if &buf[..8] != BAKE_MAGIC {
         return None;
     }
 
-    let pmk = std::str::from_utf8(&buf[8..]).ok()?;
-    if pmk.len() == BAKE_PMK_LEN && pmk.chars().all(|c| c.is_ascii_hexdigit()) {
-        Some(pmk.to_string())
-    } else {
-        None
+    // Find null terminator in the password portion
+    let password_bytes = &buf[8..];
+    let null_pos = password_bytes.iter().position(|&b| b == 0)?;
+    if null_pos < 8 || null_pos > 63 {
+        return None; // WPA2 passphrase must be 8-63 chars
     }
+
+    let password = std::str::from_utf8(&password_bytes[..null_pos]).ok()?;
+    Some(password.to_string())
 }
 
 /// Mount a partition at a given mount point (read-only by default).
@@ -219,8 +223,8 @@ fn mark_overlay_ready(overlay_mount: &str) -> Result<(), Error> {
     Ok(())
 }
 
-/// Try reading a PMK from an ext4 partition (mount, read file, unmount).
-fn read_ext4_pmk(dev: &str, mount_point: &str) -> Option<String> {
+/// Try reading a password from an ext4 partition (mount, read file, unmount).
+fn read_ext4_password(dev: &str, mount_point: &str) -> Option<String> {
     // If block mount already mounted the device (e.g., via fstab label match),
     // unmount it first to avoid "Resource busy" when we mount at our own path.
     let _ = flash::run_cmd("umount", &[dev]);
@@ -228,9 +232,9 @@ fn read_ext4_pmk(dev: &str, mount_point: &str) -> Option<String> {
     if mount_ro(dev, mount_point).is_err() {
         return None;
     }
-    let pmk_path = format!("{mount_point}/wifi_pmk");
-    let result = if Path::new(&pmk_path).exists() {
-        fs::read_to_string(&pmk_path).ok().map(|s| s.trim().to_string())
+    let password_path = format!("{mount_point}/wifi_password");
+    let result = if Path::new(&password_path).exists() {
+        fs::read_to_string(&password_path).ok().map(|s| s.trim().to_string())
     } else {
         None
     };
@@ -238,24 +242,24 @@ fn read_ext4_pmk(dev: &str, mount_point: &str) -> Option<String> {
     result
 }
 
-/// Resolve the WiFi PMK.
+/// Resolve the WiFi password.
 ///
 /// Precedence: SD baked-in (rootfs) → eMMC key_backup (ext4) → None.
 /// Must be called from setup mode (booted from SD).
 ///
 /// For the SD card, reads the squashfs superblock in the rootfs partition to
-/// find `bytes_used`, then checks for the `SWRTPMK` magic at the next
+/// find `bytes_used`, then checks for the `SWRTPWD` magic at the next
 /// 4096-aligned offset (written by `startwrt-bake-password`).
 /// The eMMC key_backup partition always uses ext4.
-pub fn resolve_pmk() -> Result<Option<ResolvedPmk>, Error> {
+pub fn resolve_password() -> Result<Option<ResolvedPassword>, Error> {
     let boot_dev = flash::boot_device()?;
     let sd_path = format!("/dev/{boot_dev}");
 
-    // 1. Check SD card's rootfs partition for a baked-in PMK
+    // 1. Check SD card's rootfs partition for a baked-in password
     if let Ok(Some(sd_rootfs_dev)) = find_partition_by_name(&sd_path, "rootfs") {
-        if let Some(pmk) = read_raw_baked_pmk(&sd_rootfs_dev) {
-            return Ok(Some(ResolvedPmk {
-                pmk_hex: pmk,
+        if let Some(password) = read_raw_baked_password(&sd_rootfs_dev) {
+            return Ok(Some(ResolvedPassword {
+                password,
                 baked_in: true,
             }));
         }
@@ -269,9 +273,9 @@ pub fn resolve_pmk() -> Result<Option<ResolvedPmk>, Error> {
     let emmc_path = format!("/dev/{emmc_dev}");
 
     if let Ok(Some(emmc_persistent_dev)) = find_partition_by_name(&emmc_path, "key_backup") {
-        if let Some(pmk) = read_ext4_pmk(&emmc_persistent_dev, "/mnt/emmc_persistent") {
-            return Ok(Some(ResolvedPmk {
-                pmk_hex: pmk,
+        if let Some(password) = read_ext4_password(&emmc_persistent_dev, "/mnt/emmc_persistent") {
+            return Ok(Some(ResolvedPassword {
+                password,
                 baked_in: false,
             }));
         }
@@ -578,11 +582,11 @@ pub enum SetupEvent {
 /// before returning.
 pub fn run_setup_flash(
     mode: FlashMode,
-    password: &str,
-    pmk_hex: &str,
+    admin_password: &str,
+    wifi_password: &str,
     tx: &mpsc::Sender<SetupEvent>,
 ) {
-    if let Err(e) = run_setup_flash_inner(mode, password, pmk_hex, tx) {
+    if let Err(e) = run_setup_flash_inner(mode, admin_password, wifi_password, tx) {
         let _ = tx.blocking_send(SetupEvent::Error {
             message: e.to_string(),
         });
@@ -591,8 +595,8 @@ pub fn run_setup_flash(
 
 fn run_setup_flash_inner(
     mode: FlashMode,
-    password: &str,
-    pmk_hex: &str,
+    admin_password: &str,
+    wifi_password: &str,
     tx: &mpsc::Sender<SetupEvent>,
 ) -> Result<(), Error> {
     let total_steps: u32 = 3;
@@ -604,7 +608,7 @@ fn run_setup_flash_inner(
         total_steps,
     });
 
-    if password.len() < 12 {
+    if admin_password.len() < 12 {
         return Err(Error::other("password must be at least 12 characters"));
     }
 
@@ -683,7 +687,7 @@ fn run_setup_flash_inner(
         step: 3,
         total_steps,
     });
-    write_admin_password(EMMC_MERGED_MOUNT, password)?;
+    write_admin_password(EMMC_MERGED_MOUNT, admin_password)?;
 
     // Write WiFi config
     let _ = tx.blocking_send(SetupEvent::Status {
@@ -692,7 +696,7 @@ fn run_setup_flash_inner(
         total_steps,
     });
     let uci_root = format!("{EMMC_MERGED_MOUNT}/etc/config");
-    init::configure_wifi(&uci_root, pmk_hex, None)?;
+    init::configure_wifi(&uci_root, wifi_password, None)?;
 
     // Mark overlay as FS_STATE_READY so mount_root doesn't wipe it on first boot
     mark_overlay_ready(EMMC_OVERLAY_MOUNT)?;
@@ -702,7 +706,7 @@ fn run_setup_flash_inner(
         eprintln!("WARNING: umount_emmc_overlayfs failed (non-fatal, cleaned up on reboot): {e}");
     }
 
-    // Write PMK to eMMC key_backup partition.
+    // Write password to eMMC key_backup partition.
     //
     // run_flash_core mounted /key_backup, but the hotplug/block-mount handler
     // (triggered asynchronously by partx -u) may have unmounted it in the
@@ -718,7 +722,7 @@ fn run_setup_flash_inner(
         step: 3,
         total_steps,
     });
-    emmc::write_pmk(pmk_hex)?;
+    emmc::write_password(wifi_password)?;
 
     // Unmount key_backup to flush all data to disk and guarantee durability
     // before the Complete event tells the client it's safe to reboot.
@@ -834,14 +838,14 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // ── read_raw_baked_pmk ───────────────────────────────────────────
+    // ── read_raw_baked_password ─────────────────────────────────────
 
-    /// Create a fake rootfs file with squashfs superblock + optional baked PMK.
+    /// Create a fake rootfs file with squashfs superblock + optional baked password.
     fn make_fake_rootfs(
         path: &std::path::Path,
         bytes_used: u64,
-        pmk_magic: &[u8],
-        pmk_data: &[u8],
+        bake_magic: &[u8],
+        password_data: &[u8],
     ) {
         let mut f = fs::File::create(path).unwrap();
 
@@ -852,64 +856,76 @@ mod tests {
         f.write_all(&sb).unwrap();
 
         // Pad to aligned offset: align_up_4k(bytes_used)
-        let pmk_offset = align_up_4k(bytes_used) as usize;
-        if pmk_offset > 48 {
-            f.write_all(&vec![0u8; pmk_offset - 48]).unwrap();
+        let baked_offset = align_up_4k(bytes_used) as usize;
+        if baked_offset > 48 {
+            f.write_all(&vec![0u8; baked_offset - 48]).unwrap();
         }
 
-        // Write magic + PMK data
-        f.write_all(pmk_magic).unwrap();
-        f.write_all(pmk_data).unwrap();
+        // Write magic + password data
+        f.write_all(bake_magic).unwrap();
+        f.write_all(password_data).unwrap();
+        // Pad to fill the 64-byte read buffer after the magic
+        let remaining = 64 - password_data.len();
+        if remaining > 0 {
+            f.write_all(&vec![0u8; remaining]).unwrap();
+        }
     }
 
     #[test]
-    fn raw_baked_pmk_valid() {
+    fn raw_baked_password_valid() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("rootfs");
-        let pmk_hex = format!("{:0>64}", "a1b2c3d4e5f6");
+        let password = "AbCdEf234567";
 
-        make_fake_rootfs(&path, 1000, BAKE_MAGIC, pmk_hex.as_bytes());
+        // Password bytes + null terminator
+        let mut data = password.as_bytes().to_vec();
+        data.push(0);
+        make_fake_rootfs(&path, 1000, BAKE_MAGIC, &data);
 
-        let result = read_raw_baked_pmk(path.to_str().unwrap());
-        assert_eq!(result, Some(pmk_hex));
+        let result = read_raw_baked_password(path.to_str().unwrap());
+        assert_eq!(result, Some(password.to_string()));
     }
 
     #[test]
-    fn raw_baked_pmk_wrong_magic() {
+    fn raw_baked_password_wrong_magic() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("rootfs");
-        let pmk_hex = "a".repeat(64);
 
-        make_fake_rootfs(&path, 1000, b"WRONGMAG", pmk_hex.as_bytes());
+        let mut data = b"AbCdEf234567".to_vec();
+        data.push(0);
+        make_fake_rootfs(&path, 1000, b"WRONGMAG", &data);
 
-        assert_eq!(read_raw_baked_pmk(path.to_str().unwrap()), None);
+        assert_eq!(read_raw_baked_password(path.to_str().unwrap()), None);
     }
 
     #[test]
-    fn raw_baked_pmk_short_file() {
+    fn raw_baked_password_short_file() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("rootfs");
         fs::write(&path, b"SHORT").unwrap();
-        assert_eq!(read_raw_baked_pmk(path.to_str().unwrap()), None);
+        assert_eq!(read_raw_baked_password(path.to_str().unwrap()), None);
     }
 
     #[test]
-    fn raw_baked_pmk_invalid_hex() {
+    fn raw_baked_password_too_short() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("rootfs");
 
-        make_fake_rootfs(&path, 1000, BAKE_MAGIC, "z".repeat(64).as_bytes());
+        // Password shorter than 8 chars (WPA2 minimum)
+        let mut data = b"short".to_vec();
+        data.push(0);
+        make_fake_rootfs(&path, 1000, BAKE_MAGIC, &data);
 
-        assert_eq!(read_raw_baked_pmk(path.to_str().unwrap()), None);
+        assert_eq!(read_raw_baked_password(path.to_str().unwrap()), None);
     }
 
     #[test]
-    fn raw_baked_pmk_nonexistent_file() {
-        assert_eq!(read_raw_baked_pmk("/nonexistent/path/rootfs"), None);
+    fn raw_baked_password_nonexistent_file() {
+        assert_eq!(read_raw_baked_password("/nonexistent/path/rootfs"), None);
     }
 
     #[test]
-    fn raw_baked_pmk_no_squashfs_magic() {
+    fn raw_baked_password_no_squashfs_magic() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("rootfs");
 
@@ -918,26 +934,26 @@ mod tests {
         f.write_all(&[0u8; 48]).unwrap();
         drop(f);
 
-        assert_eq!(read_raw_baked_pmk(path.to_str().unwrap()), None);
+        assert_eq!(read_raw_baked_password(path.to_str().unwrap()), None);
     }
 
     #[test]
-    fn raw_baked_pmk_no_pmk_written() {
+    fn raw_baked_password_no_password_written() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("rootfs");
 
-        // Valid squashfs header but no PMK written after it
+        // Valid squashfs header but no password written after it
         let mut f = fs::File::create(&path).unwrap();
         let mut sb = [0u8; 48];
         sb[0..4].copy_from_slice(&flash::SQUASHFS_MAGIC.to_le_bytes());
         let bytes_used: u64 = 1000;
         sb[40..48].copy_from_slice(&bytes_used.to_le_bytes());
         f.write_all(&sb).unwrap();
-        // Pad to alignment but leave all zeros (no SWRTPMK magic)
+        // Pad to alignment but leave all zeros (no SWRTPWD magic)
         f.write_all(&vec![0u8; 4096 - 48 + 72]).unwrap();
         drop(f);
 
-        assert_eq!(read_raw_baked_pmk(path.to_str().unwrap()), None);
+        assert_eq!(read_raw_baked_password(path.to_str().unwrap()), None);
     }
 
     // ── list_conffiles ───────────────────────────────────────────────
@@ -1221,7 +1237,7 @@ Conffiles:
     #[test]
     fn flash_rejects_short_password() {
         let (tx, mut rx) = mpsc::channel(16);
-        run_setup_flash(FlashMode::FreshStart, "short", &"ab".repeat(32), &tx);
+        run_setup_flash(FlashMode::FreshStart, "short", "AbCdEf234567", &tx);
         drop(tx);
 
         let mut events = Vec::new();

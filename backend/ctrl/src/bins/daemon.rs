@@ -20,14 +20,14 @@ use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
 use crate::embedded_web::serve_embedded;
 use crate::luci_proxy::{self, ProxyClient};
-use crate::setup::{self, FlashMode, ResolvedPmk, SetupEvent};
+use crate::setup::{self, FlashMode, ResolvedPassword, SetupEvent};
 use crate::{init_logging, main_api, middleware::SessionAuth, ssl, ServerContext};
 
 /// Shared state passed to HTTP handlers via Extension.
 #[derive(Clone)]
 struct AppState {
-    /// Resolved PMK for setup mode. None in normal mode.
-    setup_pmk: Option<Arc<ResolvedPmk>>,
+    /// Resolved WiFi password for setup mode. None in normal mode.
+    setup_password: Option<Arc<ResolvedPassword>>,
     /// Guards against concurrent flash operations.
     flash_in_progress: Arc<AtomicBool>,
 }
@@ -55,9 +55,9 @@ async fn setup_flash_handler(
     Extension(state): Extension<AppState>,
     Json(params): Json<FlashParams>,
 ) -> Response<Body> {
-    let pmk = match state.setup_pmk {
-        Some(ref pmk) => pmk.clone(),
-        None => return ndjson_error("no WiFi PMK available — cannot flash"),
+    let pwd = match state.setup_password {
+        Some(ref pwd) => pwd.clone(),
+        None => return ndjson_error("no WiFi password available — cannot flash"),
     };
 
     // Prevent concurrent flash operations
@@ -73,7 +73,7 @@ async fn setup_flash_handler(
     let (tx, rx) = mpsc::channel::<SetupEvent>(32);
 
     tokio::task::spawn_blocking(move || {
-        setup::run_setup_flash(params.mode, &params.password, &pmk.pmk_hex, &tx);
+        setup::run_setup_flash(params.mode, &params.password, &pwd.password, &tx);
         flash_flag.store(false, Ordering::SeqCst);
     });
 
@@ -147,28 +147,28 @@ async fn inner_main() -> Result<(), Error> {
     if setup_mode {
         tracing::info!("setup mode detected (booted from removable media)");
 
-        // Resolve WiFi PMK: SD baked-in → eMMC key_backup → None
-        let pmk = tokio::task::spawn_blocking(|| match setup::resolve_pmk() {
-            Ok(Some(pmk)) => {
-                tracing::info!("PMK resolved (baked_in={})", pmk.baked_in);
-                Some(pmk)
+        // Resolve WiFi password: SD baked-in → eMMC key_backup → None
+        let pwd = tokio::task::spawn_blocking(|| match setup::resolve_password() {
+            Ok(Some(pwd)) => {
+                tracing::info!("WiFi password resolved (baked_in={})", pwd.baked_in);
+                Some(pwd)
             }
             Ok(None) => {
-                tracing::error!("no WiFi PMK available — cannot start setup AP");
+                tracing::error!("no WiFi password available — cannot start setup AP");
                 None
             }
             Err(e) => {
-                tracing::error!("PMK resolution failed: {e}");
+                tracing::error!("WiFi password resolution failed: {e}");
                 None
             }
         })
         .await?;
 
-        if let Some(ref pmk) = pmk {
-            // Configure WiFi AP with resolved PMK (single-client limit)
-            let pmk_hex = pmk.pmk_hex.clone();
+        if let Some(ref pwd) = pwd {
+            // Configure WiFi AP with resolved password (single-client limit)
+            let wifi_password = pwd.password.clone();
             tokio::task::spawn_blocking(move || {
-                if let Err(e) = crate::init::configure_wifi("/etc/config", &pmk_hex, Some(1)) {
+                if let Err(e) = crate::init::configure_wifi("/etc/config", &wifi_password, Some(1)) {
                     tracing::error!("WiFi AP setup failed: {e}");
                 }
                 let _ = std::process::Command::new("wifi").arg("reload").status();
@@ -182,11 +182,11 @@ async fn inner_main() -> Result<(), Error> {
                 tracing::error!("captive portal setup failed: {e}");
             }
         } else {
-            tracing::error!("no WiFi PMK available — setup AP cannot start");
+            tracing::error!("no WiFi password available — setup AP cannot start");
         }
 
         app_state = AppState {
-            setup_pmk: pmk.map(Arc::new),
+            setup_password: pwd.map(Arc::new),
             flash_in_progress: Arc::new(AtomicBool::new(false)),
         };
     } else {
@@ -209,7 +209,7 @@ async fn inner_main() -> Result<(), Error> {
         }
 
         app_state = AppState {
-            setup_pmk: None,
+            setup_password: None,
             flash_in_progress: Arc::new(AtomicBool::new(false)),
         };
     }

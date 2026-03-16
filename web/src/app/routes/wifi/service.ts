@@ -45,6 +45,20 @@ export class WifiService extends FormService<WifiConfig> {
     })
   }
 
+  async saveWithRestart(data: WifiConfig): Promise<boolean> {
+    return this.actions.run(
+      async () => {
+        await this.api.wifiSet(data)
+        await this.refreshAndWait()
+      },
+      {
+        loading: 'Restarting WiFi...',
+        success: 'WiFi settings saved',
+        restart: true,
+      },
+    )
+  }
+
   async deletePassword(index: number) {
     await this.actions.run(async () => {
       const current = this.data()

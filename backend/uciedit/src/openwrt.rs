@@ -241,7 +241,7 @@ pub enum WifiMode {
     MESH,
 }
 
-#[derive(Clone, Copy, Inpt, Debug, Default)]
+#[derive(Clone, Copy, Inpt, Debug, Default, PartialEq, Eq)]
 pub enum WifiChannel {
     #[default]
     #[inpt(regex = "auto")]

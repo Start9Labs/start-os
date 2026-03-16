@@ -635,13 +635,13 @@ pub fn run_flash_unattended(
         .ok_or_else(|| Error::other("flash aborted unexpectedly in unattended mode"))
 }
 
-/// Combined manufacturing flow: password → flash → persist PMK.
+/// Combined manufacturing flow: password → flash → persist password.
 ///
 /// Intended for use when booted from removable media. The operator enters
-/// the sticker password (pure computation, no disk needed), the eMMC is
-/// flashed (creating the key_backup partition), and the PMK is written to
-/// key_backup. On the subsequent eMMC boot, `restore_wifi_if_needed()`
-/// recovers WiFi and the captive portal activates.
+/// the sticker password (no disk needed), the eMMC is flashed (creating
+/// the key_backup partition), and the password is written to key_backup.
+/// On the subsequent eMMC boot, `restore_wifi_if_needed()` recovers WiFi
+/// and the captive portal activates.
 pub fn run_manufacture() -> Result<(), Error> {
     // 1. Banner
     println!();
@@ -650,17 +650,17 @@ pub fn run_manufacture() -> Result<(), Error> {
     println!("========================================");
     println!();
 
-    // 2. Prompt for password and derive PMK (no disk access)
-    let pmk_hex = init::prompt_and_derive_pmk()?;
+    // 2. Prompt for password (no disk access)
+    let password = init::prompt_password()?;
 
     // 3. Flash eMMC (creates key_backup partition and mounts it)
     if !run_flash()? {
         return Ok(()); // operator aborted
     }
 
-    // 4. Write PMK to key_backup (now mounted from step 3)
+    // 4. Write password to key_backup (now mounted from step 3)
     println!("Writing WiFi credentials to key_backup partition...");
-    emmc::write_pmk(&pmk_hex)?;
+    emmc::write_password(&password)?;
 
     // 5. Success
     println!();

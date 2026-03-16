@@ -7,7 +7,8 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
-import { TuiAnimated } from '@taiga-ui/cdk'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import { tuiMarkControlAsTouchedAndValidate, TuiAnimated } from '@taiga-ui/cdk'
 import {
   TuiDataList,
   TuiInput,
@@ -16,16 +17,26 @@ import {
   TuiTextfield,
   tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
-import { TuiChevron, TuiSelect, TuiSwitch } from '@taiga-ui/kit'
+import { TUI_CONFIRM, TuiChevron, TuiSelect, TuiSwitch } from '@taiga-ui/kit'
 import { TuiElasticContainer } from '@taiga-ui/layout'
-import { startWith } from 'rxjs'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { filter, startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
+import { WifiConfig } from 'src/app/services/api/api.service'
+import { NETWORK_RESTART_TIMEOUT_MS } from 'src/app/services/network-restart.service'
+import { pauseFor } from 'src/app/utils/pauseFor'
 import { WifiService } from '../../service'
+import { ReconnectDialog } from './reconnect-dialog'
 
 @Component({
   template: `
-    <form [formGroup]="form" [formLoading]="!service.data()">
+    <form
+      [formGroup]="form"
+      [formLoading]="!service.data()"
+      (reset.prevent)="onCancel()"
+      (ngSubmit)="onSave()"
+    >
       <label tuiLabel>
         <input type="checkbox" tuiSwitch formControlName="enabled" />
         Enable Wi-Fi
@@ -122,6 +133,7 @@ import { WifiService } from '../../service'
 })
 export default class WifiSettings {
   protected readonly service = inject(WifiService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly form = inject(NonNullableFormBuilder).group({
     enabled: [true],
     ssid: ['StartOS'],
@@ -187,27 +199,116 @@ export default class WifiSettings {
   constructor() {
     effect(() => {
       const config = this.service.data()
-
-      if (!config || !this.form.pristine) return
-
-      const radios = Object.entries(config.radios)
-      const radio2g = radios.find(([, r]) => r.band === '2g')
-      const radio5g = radios.find(([, r]) => r.band === '5g')
-      const anyEnabled = radios.some(([, r]) => r.enabled)
-      const anyBroadcast = radios.some(([, r]) => r.broadcast)
-      const channelToOption = (ch: string) => (ch === 'auto' ? 'Auto' : ch)
-
-      this.form.patchValue(
-        {
-          enabled: anyEnabled,
-          ssid: config.ssid,
-          broadcast: anyBroadcast,
-          band: radio2g && radio5g ? 'Both' : radio5g ? '5 GHz' : '2.4 GHz',
-          channel24: radio2g ? channelToOption(radio2g[1].channel) : 'Auto',
-          channel5: radio5g ? channelToOption(radio5g[1].channel) : 'Auto',
-        },
-        { emitEvent: false },
-      )
+      if (config && this.form.pristine) {
+        this.form.reset(this.toFormValue(config))
+      }
     })
+  }
+
+  protected onCancel(): void {
+    const config = this.service.data()
+    if (config) this.form.reset(this.toFormValue(config))
+  }
+
+  protected async onSave(): Promise<void> {
+    if (this.form.invalid) {
+      tuiMarkControlAsTouchedAndValidate(this.form)
+      return
+    }
+
+    const config = this.toConfig()
+    if (!config) return
+
+    const ssidChanged = config.ssid !== this.service.data()?.ssid
+
+    if (ssidChanged) {
+      this.dialogs
+        .open(TUI_CONFIRM, {
+          label: 'Change SSID?',
+          data: {
+            content: `Changing the SSID will disconnect all WiFi clients. You will need to reconnect to "${config.ssid}".`,
+            yes: 'Change SSID',
+            no: 'Cancel',
+          },
+        })
+        .pipe(filter(Boolean))
+        .subscribe(async () => {
+          const savePromise = this.service.saveWithRestart(config)
+          savePromise.catch(() => {}) // Swallow if timeout wins
+          const saved = await Promise.race([
+            savePromise,
+            pauseFor(NETWORK_RESTART_TIMEOUT_MS).then(() => true),
+          ])
+          if (saved) {
+            this.dialogs
+              .open(new PolymorpheusComponent(ReconnectDialog), {
+                closable: false,
+                dismissible: false,
+                data: { ssid: config.ssid },
+              })
+              .subscribe()
+          }
+        })
+      return
+    }
+
+    if (await this.service.saveWithRestart(config)) {
+      this.form.markAsPristine()
+    }
+  }
+
+  private toFormValue(config: WifiConfig) {
+    const radios = Object.entries(config.radios)
+    const radio2g = radios.find(([, r]) => r.band === '2g')
+    const radio5g = radios.find(([, r]) => r.band === '5g')
+    const anyEnabled = radios.some(([, r]) => r.enabled)
+    const anyBroadcast = radios.some(([, r]) => r.broadcast)
+    const channelToOption = (ch: string) => (ch === 'auto' ? 'Auto' : ch)
+
+    return {
+      enabled: anyEnabled,
+      ssid: config.ssid,
+      broadcast: anyBroadcast,
+      band: radio2g && radio5g ? 'Both' : radio5g ? '5 GHz' : '2.4 GHz',
+      broadcastSeparately: config.broadcastSeparately,
+      channel24: radio2g ? channelToOption(radio2g[1].channel) : 'Auto',
+      channel5: radio5g ? channelToOption(radio5g[1].channel) : 'Auto',
+    }
+  }
+
+  private toConfig(): WifiConfig | null {
+    const data = this.service.data()
+    if (!data) return null
+
+    const form = this.form.getRawValue()
+    const optionToChannel = (ch: string) => (ch === 'Auto' ? 'auto' : ch)
+
+    const radios: WifiConfig['radios'] = {}
+    for (const [key, radio] of Object.entries(data.radios)) {
+      const is2g = radio.band === '2g'
+      const is5g = radio.band === '5g'
+      const enabledByBand =
+        form.band === 'Both' ||
+        (is2g && form.band === '2.4 GHz') ||
+        (is5g && form.band === '5 GHz')
+
+      radios[key] = {
+        band: radio.band,
+        channel: is2g
+          ? optionToChannel(form.channel24)
+          : is5g
+            ? optionToChannel(form.channel5)
+            : radio.channel,
+        enabled: form.enabled && enabledByBand,
+        broadcast: form.broadcast && form.enabled && enabledByBand,
+      }
+    }
+
+    return {
+      ssid: form.ssid,
+      broadcastSeparately: form.band === 'Both' && form.broadcastSeparately,
+      radios,
+      passwords: data.passwords,
+    }
   }
 }
