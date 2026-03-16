@@ -543,6 +543,18 @@ async fn factory_reset(_ctx: ServerContext) -> Result<(), Error> {
     Ok(())
 }
 
+#[instrument(skip_all)]
+async fn restart(_ctx: ServerContext) -> Result<(), Error> {
+    tokio::spawn(async {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        if let Err(e) = Command::new("reboot").status().await {
+            tracing::error!("failed to reboot: {e}");
+        }
+    });
+
+    Ok(())
+}
+
 pub fn system<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
@@ -566,6 +578,13 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
             from_fn(apply_remote_access::<C>)
                 .with_metadata("no_auth", Value::Bool(true))
                 .no_display(),
+        )
+        .subcommand(
+            "restart",
+            from_fn_async(restart)
+                .no_display()
+                .with_about("Reboot the device")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "factory-reset",

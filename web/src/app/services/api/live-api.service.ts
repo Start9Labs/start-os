@@ -109,8 +109,7 @@ export class LiveApiService extends ApiService {
   }
 
   async systemRestart(): Promise<null> {
-    await this.exec({ command: 'reboot', args: [], timeout: 5000 })
-    return null
+    return this.rpc.request({ method: 'system.restart', params: {} })
   }
 
   async setPassword(params: SetPasswordReq): Promise<null> {
