@@ -187,9 +187,10 @@ export function makeEffects(context: EffectContext): Effects {
     getServiceManifest(
       ...[options]: Parameters<T.Effects["getServiceManifest"]>
     ) {
-      return rpcRound("get-service-manifest", options) as ReturnType<
-        T.Effects["getServiceManifest"]
-      >
+      return rpcRound("get-service-manifest", {
+        ...options,
+        callback: context.callbacks?.addCallback(options.callback) || null,
+      }) as ReturnType<T.Effects["getServiceManifest"]>
     },
     subcontainer: {
       createFs(options: { imageId: string; name: string }) {
@@ -211,9 +212,10 @@ export function makeEffects(context: EffectContext): Effects {
       >
     }) as Effects["exportServiceInterface"],
     getContainerIp(...[options]: Parameters<T.Effects["getContainerIp"]>) {
-      return rpcRound("get-container-ip", options) as ReturnType<
-        T.Effects["getContainerIp"]
-      >
+      return rpcRound("get-container-ip", {
+        ...options,
+        callback: context.callbacks?.addCallback(options.callback) || null,
+      }) as ReturnType<T.Effects["getContainerIp"]>
     },
     getOsIp(...[]: Parameters<T.Effects["getOsIp"]>) {
       return rpcRound("get-os-ip", {}) as ReturnType<T.Effects["getOsIp"]>
@@ -244,9 +246,10 @@ export function makeEffects(context: EffectContext): Effects {
       >
     },
     getSslCertificate(options: Parameters<T.Effects["getSslCertificate"]>[0]) {
-      return rpcRound("get-ssl-certificate", options) as ReturnType<
-        T.Effects["getSslCertificate"]
-      >
+      return rpcRound("get-ssl-certificate", {
+        ...options,
+        callback: context.callbacks?.addCallback(options.callback) || null,
+      }) as ReturnType<T.Effects["getSslCertificate"]>
     },
     getSslKey(options: Parameters<T.Effects["getSslKey"]>[0]) {
       return rpcRound("get-ssl-key", options) as ReturnType<
@@ -308,7 +311,10 @@ export function makeEffects(context: EffectContext): Effects {
     },
 
     getStatus(...[o]: Parameters<T.Effects["getStatus"]>) {
-      return rpcRound("get-status", o) as ReturnType<T.Effects["getStatus"]>
+      return rpcRound("get-status", {
+        ...o,
+        callback: context.callbacks?.addCallback(o.callback) || null,
+      }) as ReturnType<T.Effects["getStatus"]>
     },
     /// DEPRECATED
     setMainStatus(o: { status: "running" | "stopped" }): Promise<null> {
