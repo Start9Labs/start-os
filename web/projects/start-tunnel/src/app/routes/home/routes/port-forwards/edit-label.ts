@@ -6,12 +6,7 @@ import {
 } from '@angular/forms'
 import { ErrorService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import {
-  TuiButton,
-  TuiDialogContext,
-  TuiError,
-  TuiTextfield,
-} from '@taiga-ui/core'
+import { TuiButton, TuiDialogContext, TuiError, TuiInput } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -27,7 +22,7 @@ export interface EditLabelData {
     <form tuiForm [formGroup]="form">
       <tui-textfield>
         <label tuiLabel>Label</label>
-        <input tuiTextfield formControlName="label" />
+        <input tuiInput formControlName="label" />
       </tui-textfield>
       <tui-error formControlName="label" />
       <footer>
@@ -38,7 +33,7 @@ export interface EditLabelData {
     </form>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TuiButton, TuiError, TuiTextfield, TuiForm],
+  imports: [ReactiveFormsModule, TuiButton, TuiError, TuiInput, TuiForm],
 })
 export class PortForwardsEditLabel {
   private readonly api = inject(ApiService)

@@ -37,7 +37,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withRouterConfig({ onSameUrlNavigation: 'reload' })),
     provideTaiga({ mode: 'dark' }),
     tuiDropdownOptionsProvider({ appearance: 'start-9' }),
-    tuiDialogOptionsProvider({ appearance: 'start-9 taiga' }),
+    tuiDialogOptionsProvider({ appearance: 'start-9 taiga', size: 's' }),
     {
       provide: PatchDB,
       deps: [PatchDbSource, PATCH_CACHE],

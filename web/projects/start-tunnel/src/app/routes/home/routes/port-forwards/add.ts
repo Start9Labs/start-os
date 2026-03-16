@@ -15,6 +15,7 @@ import {
   TuiCheckbox,
   TuiDialogContext,
   TuiError,
+  TuiInput,
   TuiNumberFormat,
 } from '@taiga-ui/core'
 import {
@@ -35,7 +36,7 @@ import { MappedDevice, PortForwardsData } from './utils'
     <form tuiForm [formGroup]="form">
       <tui-textfield>
         <label tuiLabel>Label</label>
-        <input tuiTextfield formControlName="label" />
+        <input tuiInput formControlName="label" />
       </tui-textfield>
       <tui-error formControlName="label" />
       <tui-textfield tuiChevron>
@@ -129,6 +130,7 @@ import { MappedDevice, PortForwardsData } from './utils'
     TuiCheckbox,
     TuiValueChanges,
     TuiElasticContainer,
+    TuiInput,
   ],
 })
 export class PortForwardsAdd {
