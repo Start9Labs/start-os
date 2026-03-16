@@ -2,11 +2,13 @@ use std::path::Path;
 
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::json;
+use reqwest::Url;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{VersionT, v0_4_0_alpha_19};
 use crate::context::RpcContext;
 use crate::prelude::*;
+use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 
 lazy_static::lazy_static! {
     static ref V0_4_0_alpha_20: exver::Version = exver::Version::new(
@@ -33,74 +35,106 @@ impl VersionT for Version {
     }
     #[instrument(skip_all)]
     fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
-        // Extract onion migration data before removing it
-        let onion_store = db
+        // Use the pre-built torMigration data from v0_3_6_alpha_0 if available.
+        // This contains all (hostname, packageId, hostId, key) entries with keys
+        // already resolved, avoiding the issue where packageData is empty during
+        // migration (packages aren't reinstalled until post_up).
+        let migration_data = if let Some(tor_migration) = db
             .get("private")
-            .and_then(|p| p.get("keyStore"))
-            .and_then(|k| k.get("onion"))
-            .cloned()
-            .unwrap_or(Value::Object(Default::default()));
-
-        let mut addresses = imbl::Vector::<Value>::new();
-
-        // Extract OS host onion addresses
-        if let Some(onions) = db
-            .get("public")
-            .and_then(|p| p.get("serverInfo"))
-            .and_then(|s| s.get("network"))
-            .and_then(|n| n.get("host"))
-            .and_then(|h| h.get("onions"))
-            .and_then(|o| o.as_array())
+            .and_then(|p| p.get("torMigration"))
+            .and_then(|t| t.as_array())
         {
-            for onion in onions {
-                if let Some(hostname) = onion.as_str() {
-                    let key = onion_store
-                        .get(hostname)
-                        .and_then(|v| v.as_str())
-                        .unwrap_or_default();
-                    addresses.push_back(json!({
-                        "hostname": hostname,
-                        "packageId": "STARTOS",
-                        "hostId": "STARTOS",
-                        "key": key,
-                    }));
+            json!({
+                "addresses": tor_migration.clone(),
+            })
+        } else {
+            // Fallback for fresh installs or installs that didn't go through
+            // v0_3_6_alpha_0 with the torMigration field.
+            let onion_store = db
+                .get("private")
+                .and_then(|p| p.get("keyStore"))
+                .and_then(|k| k.get("onion"))
+                .cloned()
+                .unwrap_or(Value::Object(Default::default()));
+
+            let mut addresses = imbl::Vector::<Value>::new();
+
+            // Extract OS host onion addresses
+            if let Some(onions) = db
+                .get("public")
+                .and_then(|p| p.get("serverInfo"))
+                .and_then(|s| s.get("network"))
+                .and_then(|n| n.get("host"))
+                .and_then(|h| h.get("onions"))
+                .and_then(|o| o.as_array())
+            {
+                for onion in onions {
+                    if let Some(hostname) = onion.as_str() {
+                        let key = onion_store
+                            .get(hostname)
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| {
+                                Error::new(
+                                    eyre!("missing tor key for onion address {hostname}"),
+                                    ErrorKind::Database,
+                                )
+                            })?;
+                        addresses.push_back(json!({
+                            "hostname": hostname,
+                            "packageId": "STARTOS",
+                            "hostId": "startos-ui",
+                            "key": key,
+                        }));
+                    }
                 }
             }
-        }
 
-        // Extract package host onion addresses
-        if let Some(packages) = db
-            .get("public")
-            .and_then(|p| p.get("packageData"))
-            .and_then(|p| p.as_object())
-        {
-            for (package_id, package) in packages.iter() {
-                if let Some(hosts) = package.get("hosts").and_then(|h| h.as_object()) {
-                    for (host_id, host) in hosts.iter() {
-                        if let Some(onions) = host.get("onions").and_then(|o| o.as_array()) {
-                            for onion in onions {
-                                if let Some(hostname) = onion.as_str() {
-                                    let key = onion_store
-                                        .get(hostname)
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or_default();
-                                    addresses.push_back(json!({
-                                        "hostname": hostname,
-                                        "packageId": &**package_id,
-                                        "hostId": &**host_id,
-                                        "key": key,
-                                    }));
+            // Extract package host onion addresses
+            if let Some(packages) = db
+                .get("public")
+                .and_then(|p| p.get("packageData"))
+                .and_then(|p| p.as_object())
+            {
+                for (package_id, package) in packages.iter() {
+                    if let Some(hosts) = package.get("hosts").and_then(|h| h.as_object()) {
+                        for (host_id, host) in hosts.iter() {
+                            if let Some(onions) = host.get("onions").and_then(|o| o.as_array()) {
+                                for onion in onions {
+                                    if let Some(hostname) = onion.as_str() {
+                                        let key = onion_store
+                                            .get(hostname)
+                                            .and_then(|v| v.as_str())
+                                            .ok_or_else(|| {
+                                                Error::new(
+                                                    eyre!(
+                                                        "missing tor key for onion address {hostname}"
+                                                    ),
+                                                    ErrorKind::Database,
+                                                )
+                                            })?;
+                                        addresses.push_back(json!({
+                                            "hostname": hostname,
+                                            "packageId": &**package_id,
+                                            "hostId": &**host_id,
+                                            "key": key,
+                                        }));
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
 
-        let migration_data = json!({
-            "addresses": addresses,
-        });
+            json!({
+                "addresses": addresses,
+            })
+        };
+
+        // Clean up torMigration from private
+        if let Some(private) = db.get_mut("private").and_then(|p| p.as_object_mut()) {
+            private.remove("torMigration");
+        }
 
         // Remove onions and tor-related fields from server host
         if let Some(host) = db
@@ -200,7 +234,7 @@ impl VersionT for Version {
     }
 
     #[instrument(skip_all)]
-    async fn post_up(self, _ctx: &RpcContext, input: Value) -> Result<(), Error> {
+    async fn post_up(self, ctx: &RpcContext, input: Value) -> Result<(), Error> {
         let path = Path::new(
             "/media/startos/data/package-data/volumes/tor/data/startos/onion-migration.json",
         );
@@ -208,6 +242,53 @@ impl VersionT for Version {
         let json = serde_json::to_string(&input).with_kind(ErrorKind::Serialization)?;
 
         crate::util::io::write_file_atomic(path, json).await?;
+
+        // Sideload the bundled tor s9pk
+        let s9pk_path_str = format!("/usr/lib/startos/tor_{}.s9pk", crate::ARCH);
+        let s9pk_path = Path::new(&s9pk_path_str);
+        if tokio::fs::metadata(s9pk_path).await.is_ok() {
+            if let Err(e) = async {
+                let package_s9pk = tokio::fs::File::open(s9pk_path).await?;
+                let file = MultiCursorFile::open(&package_s9pk).await?;
+
+                let key = ctx.db.peek().await.into_private().into_developer_key();
+                let registry_url =
+                    Url::parse("https://registry.start9.com/").with_kind(ErrorKind::ParseUrl)?;
+
+                ctx.services
+                    .install(
+                        ctx.clone(),
+                        || crate::s9pk::load(file.clone(), || Ok(key.de()?.0), None),
+                        None,
+                        None::<crate::util::Never>,
+                        None,
+                    )
+                    .await?
+                    .await?
+                    .await?;
+
+                // Set the marketplace URL on the installed tor package
+                let tor_id = "tor".parse::<crate::PackageId>()?;
+                ctx.db
+                    .mutate(|db| {
+                        if let Some(pkg) =
+                            db.as_public_mut().as_package_data_mut().as_idx_mut(&tor_id)
+                        {
+                            pkg.as_registry_mut().ser(&Some(registry_url))?;
+                        }
+                        Ok(())
+                    })
+                    .await
+                    .result?;
+
+                Ok::<_, Error>(())
+            }
+            .await
+            {
+                tracing::error!("Error installing tor package: {e}");
+                tracing::debug!("{e:?}");
+            }
+        }
 
         Ok(())
     }

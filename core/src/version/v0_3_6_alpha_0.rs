@@ -143,7 +143,8 @@ pub struct Version;
 
 impl VersionT for Version {
     type Previous = v0_3_5_2::Version;
-    type PreUpRes = (AccountInfo, SshKeys, CifsTargets);
+    /// (package_id, host_id, expanded_key)
+    type PreUpRes = (AccountInfo, SshKeys, CifsTargets, Vec<(String, String, [u8; 64])>);
     fn semver(self) -> exver::Version {
         V0_3_6_alpha_0.clone()
     }
@@ -158,15 +159,17 @@ impl VersionT for Version {
 
         let cifs = previous_cifs(&pg).await?;
 
+        let tor_keys = previous_tor_keys(&pg).await?;
+
         Command::new("systemctl")
             .arg("stop")
             .arg("postgresql@*.service")
             .invoke(crate::ErrorKind::Database)
             .await?;
 
-        Ok((account, ssh_keys, cifs))
+        Ok((account, ssh_keys, cifs, tor_keys))
     }
-    fn up(self, db: &mut Value, (account, ssh_keys, cifs): Self::PreUpRes) -> Result<Value, Error> {
+    fn up(self, db: &mut Value, (account, ssh_keys, cifs, tor_keys): Self::PreUpRes) -> Result<Value, Error> {
         let prev_package_data = db["package-data"].clone();
 
         let wifi = json!({
@@ -183,6 +186,11 @@ impl VersionT for Version {
             "shuttingDown": db["server-info"]["status-info"]["shutting-down"],
             "restarting": db["server-info"]["status-info"]["restarting"],
         });
+        let tor_address: String = from_value(db["server-info"]["tor-address"].clone())?;
+        let onion_address = tor_address
+            .replace("https://", "")
+            .replace("http://", "")
+            .replace(".onion/", "");
         let server_info = {
             let mut server_info = json!({
                 "arch": db["server-info"]["arch"],
@@ -196,15 +204,9 @@ impl VersionT for Version {
             });
 
             server_info["postInitMigrationTodos"] = json!({});
-            let tor_address: String = from_value(db["server-info"]["tor-address"].clone())?;
             // Maybe we do this like the Public::init does
-            server_info["torAddress"] = json!(tor_address);
-            server_info["onionAddress"] = json!(
-                tor_address
-                    .replace("https://", "")
-                    .replace("http://", "")
-                    .replace(".onion/", "")
-            );
+            server_info["torAddress"] = json!(&tor_address);
+            server_info["onionAddress"] = json!(&onion_address);
             server_info["networkInterfaces"] = json!({});
             server_info["statusInfo"] = status_info;
             server_info["wifi"] = wifi;
@@ -233,6 +235,30 @@ impl VersionT for Version {
         let private = {
             let mut value = json!({});
             value["keyStore"] = crate::dbg!(to_value(&keystore)?);
+            // Preserve tor onion keys so later migrations (v0_4_0_alpha_20) can
+            // include them in onion-migration.json for the tor service.
+            if !tor_keys.is_empty() {
+                let mut onion_map: Value = json!({});
+                let onion_obj = onion_map.as_object_mut().unwrap();
+                let mut tor_migration = imbl::Vector::<Value>::new();
+                for (package_id, host_id, key_bytes) in &tor_keys {
+                    let onion_addr = onion_address_from_key(key_bytes);
+                    let encoded_key =
+                        base64::Engine::encode(&crate::util::serde::BASE64, key_bytes);
+                    onion_obj.insert(
+                        onion_addr.as_str().into(),
+                        Value::String(encoded_key.clone().into()),
+                    );
+                    tor_migration.push_back(json!({
+                        "hostname": &onion_addr,
+                        "packageId": package_id,
+                        "hostId": host_id,
+                        "key": &encoded_key,
+                    }));
+                }
+                value["keyStore"]["onion"] = onion_map;
+                value["torMigration"] = Value::Array(tor_migration);
+            }
             value["password"] = to_value(&account.password)?;
             value["compatS9pkKey"] =
                 to_value(&crate::db::model::private::generate_developer_key())?;
@@ -497,4 +523,110 @@ async fn previous_ssh_keys(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<SshKeys, E
         SshKeys::from(keys)
     };
     Ok(ssh_keys)
+}
+
+/// Returns `Vec<(package_id, host_id, expanded_key)>`.
+/// Server key uses `("STARTOS", "STARTOS")`.
+#[tracing::instrument(skip_all)]
+async fn previous_tor_keys(
+    pg: &sqlx::Pool<sqlx::Postgres>,
+) -> Result<Vec<(String, String, [u8; 64])>, Error> {
+    let mut keys = Vec::new();
+
+    // Server tor key from the account table.
+    // Older installs have tor_key (64 bytes). Newer installs (post-NetworkKeys migration)
+    // made tor_key nullable and use network_key (32 bytes, needs expansion) instead.
+    let row = sqlx::query(r#"SELECT tor_key, network_key FROM account"#)
+        .fetch_one(pg)
+        .await
+        .with_kind(ErrorKind::Database)?;
+    if let Ok(tor_key) = row.try_get::<Vec<u8>, _>("tor_key") {
+        if let Ok(key) = <[u8; 64]>::try_from(tor_key) {
+            keys.push(("STARTOS".to_owned(), "STARTOS".to_owned(), key));
+        }
+    } else if let Ok(net_key) = row.try_get::<Vec<u8>, _>("network_key") {
+        if let Ok(seed) = <[u8; 32]>::try_from(net_key) {
+            keys.push((
+                "STARTOS".to_owned(),
+                "STARTOS".to_owned(),
+                crate::util::crypto::ed25519_expand_key(&seed),
+            ));
+        }
+    }
+
+    // Package tor keys from the network_keys table (32-byte keys that need expansion)
+    if let Ok(rows) = sqlx::query(r#"SELECT package, interface, key FROM network_keys"#)
+        .fetch_all(pg)
+        .await
+    {
+        for row in rows {
+            let Ok(package) = row.try_get::<String, _>("package") else {
+                continue;
+            };
+            let Ok(interface) = row.try_get::<String, _>("interface") else {
+                continue;
+            };
+            let Ok(key_bytes) = row.try_get::<Vec<u8>, _>("key") else {
+                continue;
+            };
+            if let Ok(seed) = <[u8; 32]>::try_from(key_bytes) {
+                keys.push((
+                    package,
+                    interface,
+                    crate::util::crypto::ed25519_expand_key(&seed),
+                ));
+            }
+        }
+    }
+
+    // Package tor keys from the tor table (already 64-byte expanded keys)
+    if let Ok(rows) = sqlx::query(r#"SELECT package, interface, key FROM tor"#)
+        .fetch_all(pg)
+        .await
+    {
+        for row in rows {
+            let Ok(package) = row.try_get::<String, _>("package") else {
+                continue;
+            };
+            let Ok(interface) = row.try_get::<String, _>("interface") else {
+                continue;
+            };
+            let Ok(key_bytes) = row.try_get::<Vec<u8>, _>("key") else {
+                continue;
+            };
+            if let Ok(key) = <[u8; 64]>::try_from(key_bytes) {
+                keys.push((package, interface, key));
+            }
+        }
+    }
+
+    Ok(keys)
+}
+
+/// Derive the tor v3 onion address (without .onion suffix) from a 64-byte
+/// expanded ed25519 secret key.
+fn onion_address_from_key(expanded_key: &[u8; 64]) -> String {
+    use sha3::Digest;
+
+    // Derive public key from expanded secret key using ed25519-dalek v1
+    let esk =
+        ed25519_dalek_v1::ExpandedSecretKey::from_bytes(expanded_key).expect("invalid tor key");
+    let pk = ed25519_dalek_v1::PublicKey::from(&esk);
+    let pk_bytes = pk.to_bytes();
+
+    // Compute onion v3 address: base32(pubkey || checksum || version)
+    // checksum = SHA3-256(".onion checksum" || pubkey || version)[0..2]
+    let mut hasher = sha3::Sha3_256::new();
+    hasher.update(b".onion checksum");
+    hasher.update(&pk_bytes);
+    hasher.update(b"\x03");
+    let hash = hasher.finalize();
+
+    let mut raw = [0u8; 35];
+    raw[..32].copy_from_slice(&pk_bytes);
+    raw[32] = hash[0]; // checksum byte 0
+    raw[33] = hash[1]; // checksum byte 1
+    raw[34] = 0x03; // version
+
+    base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &raw).to_ascii_lowercase()
 }
