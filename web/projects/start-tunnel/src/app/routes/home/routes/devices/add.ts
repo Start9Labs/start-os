@@ -168,7 +168,9 @@ export class DevicesAdd {
           ip,
         })
 
-        this.dialogs.open(DEVICES_CONFIG, { data: config }).subscribe()
+        this.dialogs
+          .open(DEVICES_CONFIG, { data: config, closable: false })
+          .subscribe()
       }
     } catch (e: any) {
       console.error(e)
