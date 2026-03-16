@@ -38,6 +38,7 @@ pub mod collections;
 pub mod cpupower;
 pub mod crypto;
 pub mod data_url;
+pub mod direct_io;
 pub mod future;
 pub mod http_reader;
 pub mod io;
