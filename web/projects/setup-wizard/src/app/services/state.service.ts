@@ -72,6 +72,7 @@ export class StateService {
     await this.api.attach({
       guid: this.dataDriveGuid,
       password: password ? await this.api.encrypt(password) : null,
+      kiosk: this.kiosk,
     })
   }
 
@@ -106,6 +107,7 @@ export class StateService {
       name,
       hostname,
       recoverySource,
+      kiosk: this.kiosk,
     })
   }
 

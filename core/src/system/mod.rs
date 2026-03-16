@@ -319,13 +319,11 @@ pub fn kernel_logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, L
 const DISABLE_KIOSK_PATH: &str =
     "/media/startos/config/overlay/etc/systemd/system/getty@tty1.service.d/autologin.conf";
 
-pub async fn sync_kiosk(kiosk: Option<bool>) -> Result<(), Error> {
-    if let Some(kiosk) = kiosk {
-        if kiosk {
-            enable_kiosk().await?;
-        } else {
-            disable_kiosk().await?;
-        }
+pub async fn sync_kiosk(kiosk: bool) -> Result<(), Error> {
+    if kiosk {
+        enable_kiosk().await?;
+    } else {
+        disable_kiosk().await?;
     }
     Ok(())
 }

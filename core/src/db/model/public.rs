@@ -49,7 +49,7 @@ pub struct Public {
 impl Public {
     pub fn init(
         account: &AccountInfo,
-        kiosk: Option<bool>,
+        kiosk: bool,
         language: Option<InternedString>,
         keyboard: Option<KeyboardOptions>,
     ) -> Result<Self, Error> {
@@ -149,7 +149,7 @@ impl Public {
                 echoip_urls: default_echoip_urls(),
                 ram: 0,
                 devices: Vec::new(),
-                kiosk,
+                kiosk: Some(kiosk).filter(|_| &*PLATFORM != "raspberrypi"),
                 language,
                 keyboard,
             },
