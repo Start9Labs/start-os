@@ -126,7 +126,10 @@ pub fn regenerate_smartdns(ctx: &impl CtrlContext, cfgs: &Configs) -> Result<(),
     let groups = collect_smartdns_groups(cfgs);
 
     if groups.is_empty() {
-        let _ = std::fs::write(SMARTDNS_CONF_PATH, "# No DNS groups configured\n");
+        // Remove the config file so the init script's `[ -f "$CONF" ]` guard
+        // prevents SmartDNS from starting. Without a bind directive, SmartDNS
+        // defaults to 0.0.0.0:53 which steals port 53 from dnsmasq.
+        let _ = std::fs::remove_file(SMARTDNS_CONF_PATH);
         let _ = std::process::Command::new("/etc/init.d/smartdns")
             .arg("stop")
             .spawn()
