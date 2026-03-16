@@ -5,7 +5,7 @@ StartOS is an open-source Linux distribution for running personal servers. It ma
 ## Tech Stack
 
 - Backend: Rust (async/Tokio, Axum web framework)
-- Frontend: Angular 20 + TypeScript + TaigaUI
+- Frontend: Angular 21 + TypeScript + Taiga UI 5
 - Container runtime: Node.js/TypeScript with LXC
 - Database/State: Patch-DB (git submodule) - storage layer with reactive frontend sync
 - API: JSON-RPC via rpc-toolkit (see `core/rpc-toolkit.md`)
@@ -30,7 +30,7 @@ StartOS is an open-source Linux distribution for running personal servers. It ma
 
 - **`core/`** — Rust backend daemon. Produces a single binary `startbox` that is symlinked as `startd` (main daemon), `start-cli` (CLI), `start-container` (runs inside LXC containers), `registrybox` (package registry), and `tunnelbox` (VPN/tunnel). Handles all backend logic: RPC API, service lifecycle, networking (DNS, ACME, WiFi, Tor, WireGuard), backups, and database state management. See [core/ARCHITECTURE.md](core/ARCHITECTURE.md).
 
-- **`web/`** — Angular 20 + TypeScript workspace using Taiga UI. Contains three applications (admin UI, setup wizard, VPN management) and two shared libraries (common components/services, marketplace). Communicates with the backend exclusively via JSON-RPC. See [web/ARCHITECTURE.md](web/ARCHITECTURE.md).
+- **`web/`** — Angular 21 + TypeScript workspace using Taiga UI 5. Contains three applications (admin UI, setup wizard, VPN management) and two shared libraries (common components/services, marketplace). Communicates with the backend exclusively via JSON-RPC. See [web/ARCHITECTURE.md](web/ARCHITECTURE.md).
 
 - **`container-runtime/`** — Node.js runtime that runs inside each service's LXC container. Loads the service's JavaScript from its S9PK package and manages subcontainers. Communicates with the host daemon via JSON-RPC over Unix socket. See [container-runtime/CLAUDE.md](container-runtime/CLAUDE.md).
 
