@@ -22,3 +22,4 @@ secrets.db
 tmp
 web/.i18n-checked
 docs/USER.md
+*.s9pk

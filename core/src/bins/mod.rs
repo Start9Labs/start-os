@@ -149,6 +149,11 @@ impl MultiExecutable {
     }
 
     pub fn execute(&self) {
+        #[cfg(feature = "backtrace-on-stack-overflow")]
+        unsafe {
+            backtrace_on_stack_overflow::enable()
+        };
+
         set_locale_from_env();
 
         let mut popped = Vec::with_capacity(2);

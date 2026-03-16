@@ -17,6 +17,7 @@ use ts_rs::TS;
 
 #[allow(unused_imports)]
 use crate::prelude::*;
+use crate::shutdown::Shutdown;
 use crate::util::future::TimedResource;
 use crate::util::net::WebSocket;
 use crate::util::{FromStrParser, new_guid};
@@ -98,12 +99,15 @@ pub type RestHandler = Box<dyn FnOnce(Request) -> RestFuture + Send>;
 
 pub struct WebSocketFuture {
     kill: Option<broadcast::Receiver<()>>,
+    shutdown: Option<broadcast::Receiver<Option<Shutdown>>>,
     fut: BoxFuture<'static, ()>,
 }
 impl Future for WebSocketFuture {
     type Output = ();
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if self.kill.as_ref().map_or(false, |k| !k.is_empty()) {
+        if self.kill.as_ref().map_or(false, |k| !k.is_empty())
+            || self.shutdown.as_ref().map_or(false, |s| !s.is_empty())
+        {
             Poll::Ready(())
         } else {
             self.fut.poll_unpin(cx)
@@ -138,6 +142,7 @@ impl RpcContinuation {
         RpcContinuation::WebSocket(TimedResource::new(
             Box::new(|ws| WebSocketFuture {
                 kill: None,
+                shutdown: None,
                 fut: handler(ws.into()).boxed(),
             }),
             timeout,
@@ -170,6 +175,7 @@ impl RpcContinuation {
         RpcContinuation::WebSocket(TimedResource::new(
             Box::new(|ws| WebSocketFuture {
                 kill,
+                shutdown: None,
                 fut: handler(ws.into()).boxed(),
             }),
             timeout,
@@ -183,15 +189,21 @@ impl RpcContinuation {
     }
 }
 
-pub struct RpcContinuations(AsyncMutex<BTreeMap<Guid, RpcContinuation>>);
+pub struct RpcContinuations {
+    continuations: AsyncMutex<BTreeMap<Guid, RpcContinuation>>,
+    shutdown: Option<broadcast::Sender<Option<Shutdown>>>,
+}
 impl RpcContinuations {
-    pub fn new() -> Self {
-        RpcContinuations(AsyncMutex::new(BTreeMap::new()))
+    pub fn new(shutdown: Option<broadcast::Sender<Option<Shutdown>>>) -> Self {
+        RpcContinuations {
+            continuations: AsyncMutex::new(BTreeMap::new()),
+            shutdown,
+        }
     }
 
     #[instrument(skip_all)]
     pub async fn clean(&self) {
-        let mut continuations = self.0.lock().await;
+        let mut continuations = self.continuations.lock().await;
         let mut to_remove = Vec::new();
         for (guid, cont) in &*continuations {
             if cont.is_timed_out() {
@@ -206,23 +218,28 @@ impl RpcContinuations {
     #[instrument(skip_all)]
     pub async fn add(&self, guid: Guid, handler: RpcContinuation) {
         self.clean().await;
-        self.0.lock().await.insert(guid, handler);
+        self.continuations.lock().await.insert(guid, handler);
     }
 
     pub async fn get_ws_handler(&self, guid: &Guid) -> Option<WebSocketHandler> {
-        let mut continuations = self.0.lock().await;
+        let mut continuations = self.continuations.lock().await;
         if !matches!(continuations.get(guid), Some(RpcContinuation::WebSocket(_))) {
             return None;
         }
         let Some(RpcContinuation::WebSocket(x)) = continuations.remove(guid) else {
             return None;
         };
-        x.get().await
+        let handler = x.get().await?;
+        let shutdown = self.shutdown.as_ref().map(|s| s.subscribe());
+        Some(Box::new(move |ws| {
+            let mut fut = handler(ws);
+            fut.shutdown = shutdown;
+            fut
+        }))
     }
 
     pub async fn get_rest_handler(&self, guid: &Guid) -> Option<RestHandler> {
-        let mut continuations: tokio::sync::MutexGuard<'_, BTreeMap<Guid, RpcContinuation>> =
-            self.0.lock().await;
+        let mut continuations = self.continuations.lock().await;
         if !matches!(continuations.get(guid), Some(RpcContinuation::Rest(_))) {
             return None;
         }

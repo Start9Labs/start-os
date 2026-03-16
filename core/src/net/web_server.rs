@@ -509,7 +509,7 @@ where
             drop(queue_cell.replace(None));
 
             if !runner.is_empty() {
-                tokio::time::timeout(Duration::from_secs(60), runner)
+                tokio::time::timeout(Duration::from_millis(100), runner)
                     .await
                     .log_err();
             }

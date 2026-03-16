@@ -174,7 +174,9 @@ pub async fn init(
     local_auth.complete();
 
     // Re-enroll MOK on every boot if Secure Boot key exists but isn't enrolled yet
-    if let Err(e) = crate::util::mok::enroll_mok(std::path::Path::new(crate::util::mok::DKMS_MOK_PUB)).await {
+    if let Err(e) =
+        crate::util::mok::enroll_mok(std::path::Path::new(crate::util::mok::DKMS_MOK_PUB)).await
+    {
         tracing::warn!("MOK enrollment failed: {e}");
     }
 
@@ -369,7 +371,7 @@ pub async fn init(
     enable_zram.complete();
 
     update_server_info.start();
-    sync_kiosk(server_info.as_kiosk().de()?).await?;
+    sync_kiosk(server_info.as_kiosk().de()?.unwrap_or(false)).await?;
     let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
     let devices = lshw().await?;
     let status_info = ServerStatus {

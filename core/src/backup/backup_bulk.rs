@@ -300,6 +300,15 @@ async fn perform_backup(
                     error: backup_result,
                 },
             );
+        } else {
+            backup_report.insert(
+                id.clone(),
+                PackageBackupReport {
+                    error: Some(
+                        t!("backup.bulk.service-not-ready").to_string(),
+                    ),
+                },
+            );
         }
     }
 

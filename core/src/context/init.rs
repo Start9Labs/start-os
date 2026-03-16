@@ -32,7 +32,7 @@ impl InitContext {
             error: watch::channel(None).0,
             progress,
             shutdown,
-            rpc_continuations: RpcContinuations::new(),
+            rpc_continuations: RpcContinuations::new(None),
         })))
     }
 }

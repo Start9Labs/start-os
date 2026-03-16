@@ -115,7 +115,7 @@ pub async fn list_disks(ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
 async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
-    kiosk: Option<bool>,
+    kiosk: bool,
     hostname: Option<ServerHostnameInfo>,
     init_phases: InitPhases,
 ) -> Result<(AccountInfo, InitResult), Error> {
@@ -137,9 +137,8 @@ async fn setup_init(
             account.save(m)?;
             let info = m.as_public_mut().as_server_info_mut();
             info.as_password_hash_mut().ser(&account.password)?;
-            if let Some(kiosk) = kiosk {
-                info.as_kiosk_mut().ser(&Some(kiosk))?;
-            }
+            info.as_kiosk_mut()
+                .ser(&Some(kiosk).filter(|_| &*PLATFORM != "raspberrypi"))?;
             if let Some(language) = language.clone() {
                 info.as_language_mut().ser(&Some(language))?;
             }
@@ -174,8 +173,7 @@ async fn setup_init(
 pub struct AttachParams {
     pub password: Option<EncryptedWire>,
     pub guid: InternedString,
-    #[ts(optional)]
-    pub kiosk: Option<bool>,
+    pub kiosk: bool,
 }
 
 #[instrument(skip_all)]
@@ -411,8 +409,7 @@ pub struct SetupExecuteParams {
     guid: InternedString,
     password: Option<EncryptedWire>,
     recovery_source: Option<RecoverySource<EncryptedWire>>,
-    #[ts(optional)]
-    kiosk: Option<bool>,
+    kiosk: bool,
     name: Option<InternedString>,
     hostname: Option<InternedString>,
 }
@@ -549,7 +546,7 @@ pub async fn execute_inner(
     guid: InternedString,
     password: Option<String>,
     recovery_source: Option<RecoverySource<String>>,
-    kiosk: Option<bool>,
+    kiosk: bool,
     hostname: Option<ServerHostnameInfo>,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let progress = &ctx.progress;
@@ -622,7 +619,7 @@ async fn fresh_setup(
     ctx: &SetupContext,
     guid: InternedString,
     password: &str,
-    kiosk: Option<bool>,
+    kiosk: bool,
     hostname: Option<ServerHostnameInfo>,
     SetupExecuteProgress {
         init_phases,
@@ -633,7 +630,6 @@ async fn fresh_setup(
     let account = AccountInfo::new(password, root_ca_start_time().await, hostname)?;
 
     let db = ctx.db().await?;
-    let kiosk = Some(kiosk.unwrap_or(true)).filter(|_| &*PLATFORM != "raspberrypi");
     sync_kiosk(kiosk).await?;
 
     let language = ctx.language.peek(|a| a.clone());
@@ -684,7 +680,7 @@ async fn recover(
     recovery_source: BackupTargetFS,
     server_id: String,
     recovery_password: String,
-    kiosk: Option<bool>,
+    kiosk: bool,
     hostname: Option<ServerHostnameInfo>,
     progress: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
@@ -709,7 +705,7 @@ async fn migrate(
     guid: InternedString,
     old_guid: &str,
     password: Option<String>,
-    kiosk: Option<bool>,
+    kiosk: bool,
     hostname: Option<ServerHostnameInfo>,
     SetupExecuteProgress {
         init_phases,

@@ -131,6 +131,11 @@ ff02::1         ip6-allnodes
 ff02::2         ip6-allrouters
 EOT
 
+if [[ "${IB_OS_ENV}" =~ (^|-)dev($|-) ]]; then
+	mkdir -p config/includes.chroot/etc/ssh/sshd_config.d
+	echo "PasswordAuthentication yes" > config/includes.chroot/etc/ssh/sshd_config.d/dev-password-auth.conf
+fi
+
 # Installer marker file (used by installed GRUB to detect the live USB)
 mkdir -p config/includes.binary
 touch config/includes.binary/.startos-installer

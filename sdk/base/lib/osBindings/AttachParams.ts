@@ -4,5 +4,5 @@ import type { EncryptedWire } from './EncryptedWire'
 export type AttachParams = {
   password: EncryptedWire | null
   guid: string
-  kiosk?: boolean
+  kiosk: boolean
 }

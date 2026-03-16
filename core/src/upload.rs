@@ -13,7 +13,6 @@ use futures::{FutureExt, Stream, StreamExt, ready};
 use http::header::CONTENT_LENGTH;
 use http::{HeaderMap, StatusCode};
 use imbl_value::InternedString;
-use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::watch;
 
@@ -23,6 +22,7 @@ use crate::progress::{PhaseProgressTrackerHandle, ProgressUnits};
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::{FileCursor, MultiCursorFile};
+use crate::util::direct_io::DirectIoFile;
 use crate::util::io::{TmpDir, create_file};
 
 pub async fn upload(
@@ -67,16 +67,6 @@ impl Progress {
             true
         } else {
             false
-        }
-    }
-    fn handle_write(&mut self, res: &std::io::Result<usize>) -> bool {
-        match res {
-            Ok(a) => {
-                self.written += *a as u64;
-                self.tracker += *a as u64;
-                true
-            }
-            Err(e) => self.handle_error(e),
         }
     }
     async fn expected_size(watch: &mut watch::Receiver<Self>) -> Option<u64> {
@@ -192,16 +182,19 @@ impl UploadingFile {
             complete: false,
         });
         let file = create_file(path).await?;
+        let multi_cursor = MultiCursorFile::open(&file).await?;
+        let direct_file = DirectIoFile::from_tokio_file(file).await?;
         let uploading = Self {
             tmp_dir: None,
-            file: MultiCursorFile::open(&file).await?,
+            file: multi_cursor,
             progress: progress.1,
         };
         Ok((
             UploadHandle {
                 tmp_dir: None,
-                file,
+                file: direct_file,
                 progress: progress.0,
+                last_synced: 0,
             },
             uploading,
         ))
@@ -346,8 +339,9 @@ impl AsyncSeek for UploadingFileReader {
 pub struct UploadHandle {
     tmp_dir: Option<Arc<TmpDir>>,
     #[pin]
-    file: File,
+    file: DirectIoFile,
     progress: watch::Sender<Progress>,
+    last_synced: u64,
 }
 impl UploadHandle {
     pub async fn upload(&mut self, request: Request) {
@@ -394,6 +388,19 @@ impl UploadHandle {
         if let Err(e) = self.file.sync_all().await {
             self.progress.send_if_modified(|p| p.handle_error(&e));
         }
+        // Update progress with final synced bytes
+        self.update_sync_progress();
+    }
+    fn update_sync_progress(&mut self) {
+        let synced = self.file.bytes_synced();
+        let delta = synced - self.last_synced;
+        if delta > 0 {
+            self.last_synced = synced;
+            self.progress.send_modify(|p| {
+                p.written += delta;
+                p.tracker += delta;
+            });
+        }
     }
 }
 #[pin_project::pinned_drop]
@@ -410,13 +417,23 @@ impl AsyncWrite for UploadHandle {
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
         let this = self.project();
+        // Update progress based on bytes actually flushed to disk
+        let synced = this.file.bytes_synced();
+        let delta = synced - *this.last_synced;
+        if delta > 0 {
+            *this.last_synced = synced;
+            this.progress.send_modify(|p| {
+                p.written += delta;
+                p.tracker += delta;
+            });
+        }
         match this.file.poll_write(cx, buf) {
-            Poll::Ready(res) => {
+            Poll::Ready(Err(e)) => {
                 this.progress
-                    .send_if_modified(|progress| progress.handle_write(&res));
-                Poll::Ready(res)
+                    .send_if_modified(|progress| progress.handle_error(&e));
+                Poll::Ready(Err(e))
             }
-            Poll::Pending => Poll::Pending,
+            a => a,
         }
     }
     fn poll_flush(
