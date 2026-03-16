@@ -58,6 +58,11 @@ check_variables () {
 main () {
   get_variables
 
+  # Fix GPT backup header first — the image was built with a tight root
+  # partition, so the backup GPT is not at the end of the SD card. parted
+  # will prompt interactively if this isn't fixed before we use it.
+  sgdisk -e "$ROOT_DEV" 2>/dev/null || true
+
   if ! check_variables; then
     return 1
   fi
@@ -73,9 +78,6 @@ main () {
       return 1
     fi
   fi
-
-  # Fix GPT backup header to reflect new partition layout
-  sgdisk -e "$ROOT_DEV" 2>/dev/null || true
 
   mount / -o remount,rw
 

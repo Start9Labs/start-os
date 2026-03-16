@@ -820,7 +820,6 @@ impl NetService {
                 break;
             }
         }
-        self.shutdown = true;
         Ok(())
     }
 
@@ -832,6 +831,7 @@ impl NetService {
 impl Drop for NetService {
     fn drop(&mut self) {
         if !self.shutdown {
+            self.shutdown = true;
             let svc = std::mem::replace(self, Self::dummy());
             tokio::spawn(async move { svc.remove_all().await.log_err() });
         }

@@ -190,7 +190,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
                 }
             }
         });
-        rt.shutdown_timeout(Duration::from_secs(60));
+        rt.shutdown_timeout(Duration::from_millis(100));
         res
     };
 
