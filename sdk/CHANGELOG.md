@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0-beta.60 — StartOS v0.4.0-alpha.20 (2026-03-16)
+
+### Added
+
+- Tunnel TS type exports and port forward labels
+- Secure Boot MOK key enrollment fields in `SetupInfo`
+
+### Changed
+
+- Consolidated `Watchable` base class with generic `map`/`eq` support; renamed `call` to `fetch`
+- Moved `GetServiceManifest` and `GetSslCertificate` from `package/` to `base/`
+- Simplified `getServiceInterface`, `getServiceInterfaces`, `GetOutboundGateway`, `GetSystemSmtp`, and `fileHelper` using `Watchable` base class
+- Simplified SDK Makefile with rsync
+
+### Fixed
+
+- Added `restart_again` flag to `DesiredStatus::Restarting`
+
 ## 0.4.0-beta.59 — StartOS v0.4.0-alpha.20 (2026-03-06)
 
 ### Added
