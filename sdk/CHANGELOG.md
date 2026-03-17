@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0-beta.61 — StartOS v0.4.0-alpha.21 (2026-03-16)
+
+### Fixed
+
+- Fixed bug where leaving the effect context triggered consts
+
 ## 0.4.0-beta.60 — StartOS v0.4.0-alpha.20 (2026-03-16)
 
 ### Added
