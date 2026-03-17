@@ -353,6 +353,10 @@ if ! [[ "${IB_OS_ENV}" =~ (^|-)dev($|-) ]]; then
     passwd -l start9
 fi
 
+mkdir -p /media/startos
+chmod 750 /media/startos
+chown root:startos /media/startos
+
 EOF
 
 SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date '+%s')}"
