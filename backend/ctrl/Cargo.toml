@@ -23,7 +23,7 @@ uciedit = { workspace = true, version = "0.1.0" }
 rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit", default-features = false }
 clap = "4.5.37"
 axum-server = { version = "0.7.2", features = ["tls-rustls"] }
-axum = { version = "0.8.6", features = ["ws"] }
+axum = { version = "0.8.6", features = ["ws", "multipart"] }
 include_dir = "0.7"
 mime_guess = "2"
 thiserror = { workspace = true }

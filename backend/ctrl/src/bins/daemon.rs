@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use axum::body::Body;
 use axum::http::{Response, header};
+use axum::extract::DefaultBodyLimit;
 use axum::routing::{any, get, post};
 use axum::{Extension, Json, Router};
 use color_eyre::eyre::Error;
@@ -250,6 +251,10 @@ async fn inner_main() -> Result<(), Error> {
         .route("/api/setup/flash", post(setup_flash_handler))
         // WebSocket endpoint for live log streaming
         .route("/api/logs", axum::routing::get(crate::logs::logs_ws_handler))
+        // Config backup/restore
+        .route("/api/backup", get(crate::backup::backup_handler))
+        .route("/api/restore", post(crate::backup::restore_handler)
+            .layer(DefaultBodyLimit::max(10 * 1024 * 1024)))
         // Root CA download (no auth required)
         .route("/static/root-ca.crt", get(root_ca_handler))
         // LuCI reverse proxy — forwards to uhttpd on localhost:8080

@@ -151,6 +151,18 @@ mkdir -p "${FILES_DIR}/etc/hotplug.d/iface"
 cp backend/hotplug/99-startwrt-remote-access "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-remote-access"
 chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-remote-access"
 
+# sysupgrade keep.d — additional files to include in config backups
+mkdir -p "${FILES_DIR}/lib/upgrade/keep.d"
+cat > "${FILES_DIR}/lib/upgrade/keep.d/startwrt" << 'KEEPEOF'
+/etc/ssl/certs/startwrt-ca.pem
+/etc/ssl/certs/startwrt-int.pem
+/etc/ssl/certs/startwrt-server.pem
+/etc/ssl/private/startwrt-ca.key
+/etc/ssl/private/startwrt-int.key
+/etc/ssl/private/startwrt-server.key
+/key_backup/
+KEEPEOF
+
 # Key backup partition mount point
 mkdir -p "${FILES_DIR}/key_backup"
 

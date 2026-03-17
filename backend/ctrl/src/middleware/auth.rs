@@ -67,6 +67,18 @@ impl SessionAuth {
     }
 }
 
+/// Validate session cookie from HTTP headers. For use by non-RPC handlers
+/// (backup, logs, etc.) that can't use the SessionAuth RPC middleware.
+pub async fn validate_session_from_headers(headers: &axum::http::HeaderMap) -> bool {
+    match headers.get(COOKIE) {
+        Some(cookie) => match extract_session_token(cookie) {
+            Some(token) => validate_session(token.hashed()).await.is_ok(),
+            None => false,
+        },
+        None => false,
+    }
+}
+
 /// Extract the session token from a Cookie header value.
 pub fn extract_session_token(cookie_header: &HeaderValue) -> Option<HashSessionToken> {
     let cookie_str = cookie_header.to_str().ok()?;

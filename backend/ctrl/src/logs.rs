@@ -1,7 +1,6 @@
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use http::header::COOKIE;
 use serde::{Deserialize, Serialize};
 use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -46,14 +45,7 @@ pub async fn logs_ws_handler(
     ws: WebSocketUpgrade,
 ) -> Response {
     // Validate session cookie before upgrading
-    let valid = match headers.get(COOKIE) {
-        Some(cookie) => match crate::middleware::extract_session_token(cookie) {
-            Some(token) => crate::auth::validate_session(token.hashed()).await.is_ok(),
-            None => false,
-        },
-        None => false,
-    };
-    if !valid {
+    if !crate::middleware::validate_session_from_headers(&headers).await {
         return StatusCode::UNAUTHORIZED.into_response();
     }
     ws.on_upgrade(handle_ws)

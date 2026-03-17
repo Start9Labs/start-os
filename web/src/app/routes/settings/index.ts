@@ -47,6 +47,7 @@ class Settings {
     'SSH Keys',
     'Activity',
     'Logs',
+    'Backup',
     'Advanced',
   ]
 }
@@ -75,6 +76,10 @@ export default [
       {
         path: 'logs',
         loadComponent: () => import('./routes/logs'),
+      },
+      {
+        path: 'backup',
+        loadComponent: () => import('./routes/backup'),
       },
       {
         path: 'advanced',
