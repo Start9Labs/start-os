@@ -101,7 +101,7 @@ export class ServiceHealthCheckComponent {
       case 'starting':
         return this.i18n.transform('Starting')!
       case 'success':
-        return `${this.i18n.transform('Success')}: ${message || 'health check passing'}`
+        return message || this.i18n.transform('Success')!
       case 'waiting':
         return message
           ? `${this.i18n.transform('Waiting on')} ${message}...`
