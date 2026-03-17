@@ -45,13 +45,13 @@ mkdir -p /media/startos/next/media/startos/root
 mount --bind /run /media/startos/next/run
 mount --bind /tmp /media/startos/next/tmp
 mount --bind /dev /media/startos/next/dev
-mount --bind /sys /media/startos/next/sys
-mount --bind /proc /media/startos/next/proc
+mount -t sysfs sysfs /media/startos/next/sys
+mount -t proc proc /media/startos/next/proc
 mount --rbind /boot /media/startos/next/boot
 mount --bind /media/startos/root /media/startos/next/media/startos/root
 
 if mountpoint /sys/firmware/efi/efivars 2>&1 > /dev/null; then
-    mount --bind /sys/firmware/efi/efivars /media/startos/next/sys/firmware/efi/efivars
+    mount -t efivarfs efivarfs /media/startos/next/sys/firmware/efi/efivars
 fi
 
 chroot /media/startos/next bash -e << "EOF"

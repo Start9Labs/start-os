@@ -507,8 +507,8 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 			$TMPDIR/next/dev $TMPDIR/next/proc $TMPDIR/next/sys $TMPDIR/next/media/startos/root
 		mount --rbind $TMPDIR/boot $TMPDIR/next/boot
 		mount --bind /dev $TMPDIR/next/dev
-		mount --bind /proc $TMPDIR/next/proc
-		mount --bind /sys $TMPDIR/next/sys
+		mount -t proc proc $TMPDIR/next/proc
+		mount -t sysfs sysfs $TMPDIR/next/sys
 		mount --bind $TMPDIR/root $TMPDIR/next/media/startos/root
 
 		chroot $TMPDIR/next grub-install --target=arm64-efi --removable --efi-directory=/boot/efi --boot-directory=/boot --no-nvram
