@@ -722,4 +722,5 @@ export default {
   799: 'Después de hacer clic en "Enroll MOK":',
   800: 'Cuando se le solicite, ingrese su contraseña de StartOS',
   801: 'Su sistema tiene Secure Boot habilitado, lo que requiere que todos los módulos del kernel estén firmados con una clave de confianza. Algunos controladores de hardware \u2014 como los de las GPU NVIDIA \u2014 no están firmados con la clave de distribución predeterminada. Registrar la clave de firma de StartOS permite que su firmware confíe en estos módulos para que su hardware pueda utilizarse completamente.',
+  802: 'Las traducciones a nivel del sistema operativo ya están en vigor. Se requiere un reinicio para que las traducciones a nivel de servicio surtan efecto.',
 } satisfies i18n

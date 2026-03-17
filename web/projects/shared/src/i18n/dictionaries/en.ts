@@ -723,4 +723,5 @@ export const ENGLISH: Record<string, number> = {
   'After clicking "Enroll MOK":': 799,
   'When prompted, enter your StartOS password': 800,
   'Your system has Secure Boot enabled, which requires all kernel modules to be signed with a trusted key. Some hardware drivers \u2014 such as those for NVIDIA GPUs \u2014 are not signed by the default distribution key. Enrolling the StartOS signing key allows your firmware to trust these modules so your hardware can be fully utilized.': 801,
+  'OS-level translations are already in effect. A restart is required for service-level translations to take effect.': 802,
 }
