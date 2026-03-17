@@ -6,6 +6,9 @@ use crate::{Error, ErrorKind};
 use rpc_toolkit::{from_fn, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::process::Command;
+use std::thread;
+use std::time::Duration;
 use uciedit::openwrt::{
     DeviceType, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface,
     NetworkVlanPort, NetworkVlanPortTagging,
@@ -32,12 +35,12 @@ pub fn find_lan_bridge(cfgs: &Configs) -> Result<Option<NetworkDevice>, Error> {
 pub const DEFAULT_WAN_INTERFACE: &str = "wan";
 pub const DEFAULT_WAN6_INTERFACE: &str = "wan6";
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Port<Id: Ord = ProfileId> {
     pub profile: Option<Id>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ethernet<Id: Ord = ProfileId> {
     pub wan_ipv6: bool,
     pub wan_port: Option<String>,
@@ -122,10 +125,30 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Ethernet, Error> 
     })
 }
 
+/// IEEE 802.3 Clause 28 `break_link_timer` requires 1200–1500 ms of link pulse
+/// suppression for the link partner to reliably detect carrier loss.  We use 2 s
+/// to provide margin above the 1.5 s maximum.
+const PORT_BOUNCE_DOWN_SECS: u64 = 2;
+
 pub fn set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(ethernet): DeserializeStdin<Ethernet<ProfileIdOpt>>,
 ) -> Result<(), Error> {
+    // Snapshot current port→profile mapping so we can detect changes after write.
+    let old_ports = if ctx.effectful() {
+        get(ctx.clone())
+            .ok()
+            .map(|e| {
+                e.ports
+                    .into_iter()
+                    .map(|(name, port)| (name, port.profile.map(|p| p.vlan_tag)))
+                    .collect::<HashMap<String, Option<u16>>>()
+            })
+            .unwrap_or_default()
+    } else {
+        HashMap::new()
+    };
+
     let mut retries = 4;
     loop {
         let arena = Arena::new();
@@ -159,11 +182,72 @@ pub fn set<C: CtrlContext>(
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 if ctx.effectful() {
-                    profiles::reload_system_and_wifi()?;
+                    // Spawn reload in a background thread so the RPC
+                    // response reaches the client before the network
+                    // disruption.  A VLAN change is an L2 path switch —
+                    // no TCP RST is sent, so the client's HTTP request
+                    // would hang forever if we blocked here.
+                    //
+                    // Only network config (bridge VLANs) was modified —
+                    // no need to restart wifi/dnsmasq/smartdns.  Running
+                    // `wifi` would destroy and recreate wireless
+                    // interfaces whose new instances lose their bridge
+                    // VLAN 1 entry, permanently breaking WiFi.
+                    thread::spawn(move || {
+                        let _ = Command::new("/etc/init.d/network")
+                            .arg("reload")
+                            .spawn()
+                            .and_then(|mut c| c.wait());
+                        let _ = Command::new("/etc/init.d/firewall")
+                            .arg("restart")
+                            .spawn()
+                            .and_then(|mut c| c.wait());
+                        bounce_changed_ports(&old_ports, &ethernet);
+                    });
                 }
                 return Ok(());
             }
         }
+    }
+}
+
+/// Bounce (link down/up) any ports whose VLAN assignment changed, so that
+/// connected clients detect carrier loss and re-run DHCP on the new subnet.
+fn bounce_changed_ports(
+    old_ports: &HashMap<String, Option<u16>>,
+    new_ethernet: &Ethernet,
+) {
+    let mut to_bounce = Vec::new();
+    for (name, new_port) in &new_ethernet.ports {
+        let new_vlan = new_port.profile.as_ref().map(|p| p.vlan_tag);
+        let old_vlan = old_ports.get(name).copied().flatten();
+        // Only bounce if the port existed before and its VLAN actually changed.
+        // Skip the WAN port — it's not a bridge member.
+        if old_ports.contains_key(name)
+            && old_vlan != new_vlan
+            && new_ethernet.wan_port.as_ref() != Some(name)
+        {
+            to_bounce.push(name.clone());
+        }
+    }
+    if to_bounce.is_empty() {
+        return;
+    }
+    // Bring changed ports down
+    for port in &to_bounce {
+        let _ = Command::new("ip")
+            .args(["link", "set", port, "down"])
+            .spawn()
+            .and_then(|mut c| c.wait());
+    }
+    // IEEE 802.3 break_link_timer: hold down for ≥1.5 s
+    thread::sleep(Duration::from_secs(PORT_BOUNCE_DOWN_SECS));
+    // Bring them back up
+    for port in &to_bounce {
+        let _ = Command::new("ip")
+            .args(["link", "set", port, "up"])
+            .spawn()
+            .and_then(|mut c| c.wait());
     }
 }
 
