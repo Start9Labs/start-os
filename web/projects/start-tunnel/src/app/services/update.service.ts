@@ -1,9 +1,8 @@
-import { Component, computed, inject, Injectable, signal } from '@angular/core'
+import { computed, inject, Injectable, signal } from '@angular/core'
 import { toObservable } from '@angular/core/rxjs-interop'
 import { ErrorService } from '@start9labs/shared'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiLoader } from '@taiga-ui/core'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { T } from '@start9labs/start-sdk'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import {
   catchError,
   EMPTY,
@@ -14,17 +13,8 @@ import {
   switchMap,
   takeWhile,
 } from 'rxjs'
-import { T } from '@start9labs/start-sdk'
 import { ApiService } from './api/api.service'
 import { AuthService } from './auth.service'
-
-@Component({
-  template: '<tui-loader size="xl" [textContent]="text" />',
-  imports: [TuiLoader],
-})
-class UpdatingDialog {
-  protected readonly text = 'StartTunnel is updating...'
-}
 
 @Injectable({
   providedIn: 'root',
@@ -32,7 +22,7 @@ class UpdatingDialog {
 export class UpdateService {
   private readonly api = inject(ApiService)
   private readonly auth = inject(AuthService)
-  private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly loading = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
 
   readonly result = signal<T.Tunnel.TunnelUpdateResult | null>(null)
@@ -106,11 +96,8 @@ export class UpdateService {
 
   private showUpdatingDialog(): void {
     if (this.updatingDialog) return
-    this.updatingDialog = this.dialogs
-      .open(new PolymorpheusComponent(UpdatingDialog), {
-        closable: false,
-        dismissible: false,
-      })
+    this.updatingDialog = this.loading
+      .open('StartTunnel is updating...')
       .subscribe({ complete: () => (this.updatingDialog = null) })
   }
 

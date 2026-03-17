@@ -29,20 +29,20 @@ import { StateService } from '../services/state.service'
     <canvas matrix></canvas>
     <section tuiCardLarge>
       <header tuiHeader>
-        <h2 tuiTitle>
-          <span class="inline-title">
+        <hgroup tuiTitle>
+          <h2 tuiCell="m">
             <tui-icon icon="@tui.circle-check-big" class="g-positive" />
             {{ 'Setup Complete!' | i18n }}
-          </span>
-          @if (!stateService.kiosk) {
-            <span tuiSubtitle>
-              {{
-                'http://start.local was for setup only. It will no longer work.'
-                  | i18n
-              }}
-            </span>
-          }
-        </h2>
+          </h2>
+        </hgroup>
+        @if (!stateService.kiosk) {
+          <p tuiSubtitle>
+            {{
+              'http://start.local was for setup only. It will no longer work.'
+                | i18n
+            }}
+          </p>
+        }
       </header>
 
       @if (!result) {
@@ -52,15 +52,15 @@ import { StateService } from '../services/state.service'
         @if (!stateService.kiosk) {
           <button tuiCell="l" (click)="download()">
             <span tuiAvatar="@tui.download" appearance="secondary"></span>
-            <div tuiTitle>
-              {{ 'Download Address Info' | i18n }}
-              <div tuiSubtitle>
+            <span tuiTitle>
+              <b>{{ 'Download Address Info' | i18n }}</b>
+              <span tuiSubtitle>
                 {{
                   "Contains your server's permanent local address and Root CA"
                     | i18n
                 }}
-              </div>
-            </div>
+              </span>
+            </span>
             @if (downloaded) {
               <tui-icon icon="@tui.circle-check" class="g-positive" />
             }
@@ -76,15 +76,15 @@ import { StateService } from '../services/state.service'
             (click)="removeMedia()"
           >
             <span tuiAvatar="@tui.usb" appearance="secondary"></span>
-            <div tuiTitle>
-              {{ 'Remove Installation Media' | i18n }}
-              <div tuiSubtitle>
+            <span tuiTitle>
+              <b>{{ 'Remove Installation Media' | i18n }}</b>
+              <span tuiSubtitle>
                 {{
                   'Remove USB stick or other installation media from your server'
                     | i18n
                 }}
-              </div>
-            </div>
+              </span>
+            </span>
             @if (usbRemoved) {
               <tui-icon icon="@tui.circle-check" class="g-positive" />
             }
@@ -99,15 +99,15 @@ import { StateService } from '../services/state.service'
               (click)="acknowledgeMok()"
             >
               <span tuiAvatar="@tui.shield-check" appearance="secondary"></span>
-              <div tuiTitle>
-                {{ 'Secure Boot Enrollment' | i18n }}
-                <div tuiSubtitle>
+              <span tuiTitle>
+                <b>{{ 'Secure Boot Enrollment' | i18n }}</b>
+                <span tuiSubtitle>
                   {{
                     'Prepare for Secure Boot key enrollment on the next reboot'
                       | i18n
                   }}
-                </div>
-              </div>
+                </span>
+              </span>
               @if (mokAcknowledged) {
                 <tui-icon icon="@tui.circle-check" class="g-positive" />
               }
@@ -126,9 +126,9 @@ import { StateService } from '../services/state.service'
             (click)="reboot()"
           >
             <span tuiAvatar="@tui.rotate-cw" appearance="secondary"></span>
-            <div tuiTitle>
-              {{ 'Restart Server' | i18n }}
-              <div tuiSubtitle>
+            <span tuiTitle>
+              <b>{{ 'Restart Server' | i18n }}</b>
+              <span tuiSubtitle>
                 @if (rebooting) {
                   {{ 'Waiting for server to come back online' | i18n }}
                 } @else if (rebooted) {
@@ -136,8 +136,8 @@ import { StateService } from '../services/state.service'
                 } @else {
                   {{ 'Restart your server to complete setup' | i18n }}
                 }
-              </div>
-            </div>
+              </span>
+            </span>
             @if (rebooting) {
               <tui-loader />
             } @else if (rebooted) {
@@ -147,12 +147,12 @@ import { StateService } from '../services/state.service'
         } @else if (stateService.kiosk) {
           <button tuiCell="l" (click)="exitKiosk()">
             <span tuiAvatar="@tui.log-in" appearance="secondary"></span>
-            <div tuiTitle>
-              {{ 'Continue to Login' | i18n }}
-              <div tuiSubtitle>
+            <span tuiTitle>
+              <b>{{ 'Continue to Login' | i18n }}</b>
+              <span tuiSubtitle>
                 {{ 'Proceed to the StartOS login screen' | i18n }}
-              </div>
-            </div>
+              </span>
+            </span>
           </button>
         }
 
@@ -165,10 +165,10 @@ import { StateService } from '../services/state.service'
             (click)="openLocalAddress()"
           >
             <span tuiAvatar="@tui.external-link" appearance="secondary"></span>
-            <div tuiTitle>
-              {{ 'Open Local Address' | i18n }}
-              <div tuiSubtitle>{{ lanAddress }}</div>
-            </div>
+            <span tuiTitle>
+              <b>{{ 'Open Local Address' | i18n }}</b>
+              <span tuiSubtitle>{{ lanAddress }}</span>
+            </span>
           </button>
 
           <app-documentation hidden [lanAddress]="lanAddress" />
@@ -177,12 +177,6 @@ import { StateService } from '../services/state.service'
     </section>
   `,
   styles: `
-    .inline-title {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
     [tuiCell].disabled {
       opacity: var(--tui-disabled-opacity);
       pointer-events: none;

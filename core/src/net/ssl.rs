@@ -188,7 +188,7 @@ lazy_static::lazy_static! {
 }
 
 fn asn1_time_to_system_time(time: &Asn1TimeRef) -> Result<SystemTime, Error> {
-    let diff = time.diff(&**ASN1_UNIX_EPOCH)?;
+    let diff = ASN1_UNIX_EPOCH.diff(time)?;
     let mut res = UNIX_EPOCH;
     if diff.days >= 0 {
         res += Duration::from_secs(diff.days as u64 * 86400);

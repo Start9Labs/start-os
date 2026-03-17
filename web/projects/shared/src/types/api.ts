@@ -7,6 +7,7 @@ export interface DiskInfo {
   partitions: PartitionInfo[]
   capacity: number
   guid: string | null
+  filesystem: string | null
 }
 
 export interface PartitionInfo {
@@ -16,6 +17,7 @@ export interface PartitionInfo {
   used: number | null
   startOs: Record<string, StartOSDiskInfo>
   guid: string | null
+  filesystem: string | null
 }
 
 export type StartOSDiskInfo = {

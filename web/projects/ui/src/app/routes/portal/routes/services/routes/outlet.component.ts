@@ -98,6 +98,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       padding-top: 1rem;
       border-radius: 0;
       cursor: pointer;
+      overflow: hidden;
       box-shadow: 0 -1px rgba(255, 255, 255, 0.1);
     }
 

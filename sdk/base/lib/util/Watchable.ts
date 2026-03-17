@@ -83,10 +83,12 @@ export abstract class Watchable<Raw, Mapped = Raw> {
       const constRetry = this.effects.constRetry
       const cleanup = this.onConstRegistered(value)
       gen.next().then(
-        () => {
+        (a) => {
           abort.abort()
           cleanup?.()
-          constRetry()
+          if (!a.done) {
+            constRetry()
+          }
         },
         () => {
           abort.abort()

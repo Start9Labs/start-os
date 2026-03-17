@@ -38,6 +38,10 @@ if [[ "${ENVIRONMENT}" =~ (^|-)console($|-) ]]; then
 	RUSTFLAGS="--cfg tokio_unstable"
 fi
 
+if [[ "${ENVIRONMENT}" =~ (^|-)unstable($|-) ]]; then
+	RUSTFLAGS="$RUSTFLAGS -C debuginfo=1"
+fi
+
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
 rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --features=$FEATURES --locked --bin tunnelbox --target=$RUST_ARCH-unknown-linux-musl

@@ -307,6 +307,8 @@ impl ServiceMap {
                     finalization_progress.start();
                     let s9pk = S9pk::open(&installed_path, Some(&id)).await?;
                     let data_version = get_data_version(&id).await?;
+                    // Snapshot existing volumes before install/update modifies them
+                    crate::volume::snapshot_volumes_for_install(&id).await?;
                     let prev = if let Some(service) = service.take() {
                         ensure_code!(
                             recovery_source.is_none(),
@@ -381,6 +383,8 @@ impl ServiceMap {
                     if let Some(cleanup) = prev {
                         cleanup.await?;
                     }
+
+                    crate::volume::remove_install_backup(&id).await.log_err();
 
                     drop(service);
 

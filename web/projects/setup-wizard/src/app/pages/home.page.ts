@@ -16,7 +16,7 @@ import { StateService } from '../services/state.service'
       <button tuiCell="l" (click)="startFresh()">
         <span tuiAvatar="@tui.plus" appearance="positive"></span>
         <div tuiTitle>
-          {{ 'Start Fresh' | i18n }}
+          <b>{{ 'Start Fresh' | i18n }}</b>
           <div tuiSubtitle>{{ 'Set up a brand new server' | i18n }}</div>
         </div>
       </button>
@@ -24,7 +24,7 @@ import { StateService } from '../services/state.service'
       <button tuiCell="l" (click)="restore()">
         <span tuiAvatar="@tui.archive-restore" appearance="warning"></span>
         <div tuiTitle>
-          {{ 'Restore from Backup' | i18n }}
+          <b>{{ 'Restore from Backup' | i18n }}</b>
           <div tuiSubtitle>
             {{ 'Restore StartOS data from an encrypted backup' | i18n }}
           </div>
@@ -34,7 +34,7 @@ import { StateService } from '../services/state.service'
       <button tuiCell="l" (click)="transfer()">
         <span tuiAvatar="@tui.hard-drive-download" appearance="info"></span>
         <div tuiTitle>
-          {{ 'Transfer' | i18n }}
+          <b>{{ 'Transfer' | i18n }}</b>
           <div tuiSubtitle>
             {{ 'Transfer data from an existing StartOS data drive' | i18n }}
           </div>

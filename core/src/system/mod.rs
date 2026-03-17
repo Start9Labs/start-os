@@ -6,7 +6,6 @@ use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
-use imbl::vector;
 use imbl_value::InternedString;
 use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -319,13 +318,11 @@ pub fn kernel_logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, L
 const DISABLE_KIOSK_PATH: &str =
     "/media/startos/config/overlay/etc/systemd/system/getty@tty1.service.d/autologin.conf";
 
-pub async fn sync_kiosk(kiosk: Option<bool>) -> Result<(), Error> {
-    if let Some(kiosk) = kiosk {
-        if kiosk {
-            enable_kiosk().await?;
-        } else {
-            disable_kiosk().await?;
-        }
+pub async fn sync_kiosk(kiosk: bool) -> Result<(), Error> {
+    if kiosk {
+        enable_kiosk().await?;
+    } else {
+        disable_kiosk().await?;
     }
     Ok(())
 }
@@ -1150,9 +1147,6 @@ pub async fn set_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Err
         })
         .await
         .result?;
-    if let Some(callbacks) = ctx.callbacks.get_system_smtp() {
-        callbacks.call(vector![to_value(&smtp)?]).await?;
-    }
     Ok(())
 }
 pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
@@ -1165,9 +1159,6 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
         })
         .await
         .result?;
-    if let Some(callbacks) = ctx.callbacks.get_system_smtp() {
-        callbacks.call(vector![Value::Null]).await?;
-    }
     Ok(())
 }
 

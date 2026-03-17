@@ -25,20 +25,28 @@ pub enum RepairStrategy {
     Preen,
     Aggressive,
 }
+/// Detects the filesystem type of a block device using `grub-probe`.
+/// Returns e.g. `"ext2"` (for ext4), `"btrfs"`, etc.
+pub async fn detect_filesystem(
+    logicalname: impl AsRef<Path> + std::fmt::Debug,
+) -> Result<String, Error> {
+    Ok(String::from_utf8(
+        Command::new("grub-probe")
+            .arg("-d")
+            .arg(logicalname.as_ref())
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?,
+    )?
+    .trim()
+    .to_owned())
+}
+
 impl RepairStrategy {
     pub async fn fsck(
         &self,
         logicalname: impl AsRef<Path> + std::fmt::Debug,
     ) -> Result<RequiresReboot, Error> {
-        match &*String::from_utf8(
-            Command::new("grub-probe")
-                .arg("-d")
-                .arg(logicalname.as_ref())
-                .invoke(crate::ErrorKind::DiskManagement)
-                .await?,
-        )?
-        .trim()
-        {
+        match &*detect_filesystem(&logicalname).await? {
             "ext2" => self.e2fsck(logicalname).await,
             "btrfs" => self.btrfs_check(logicalname).await,
             fs => {

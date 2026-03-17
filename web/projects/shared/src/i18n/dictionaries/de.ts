@@ -722,4 +722,7 @@ export default {
   799: 'Nach Klick auf "Enroll MOK":',
   800: 'Geben Sie bei Aufforderung Ihr StartOS-Passwort ein',
   801: 'Ihr System hat Secure Boot aktiviert, was erfordert, dass alle Kernel-Module mit einem vertrauenswürdigen Schlüssel signiert sind. Einige Hardware-Treiber \u2014 wie die für NVIDIA-GPUs \u2014 sind nicht mit dem Standard-Distributionsschlüssel signiert. Die Registrierung des StartOS-Signaturschlüssels ermöglicht es Ihrer Firmware, diesen Modulen zu vertrauen, damit Ihre Hardware vollständig genutzt werden kann.',
+  802: 'Die Übersetzungen auf Betriebssystemebene sind bereits aktiv. Ein Neustart ist erforderlich, damit die Übersetzungen auf Dienstebene wirksam werden.',
+  803: 'Dieses Laufwerk verwendet ext4 und wird automatisch in btrfs konvertiert. Ein Backup wird dringend empfohlen, bevor Sie fortfahren.',
+  804: 'Ich habe ein Backup meiner Daten',
 } satisfies i18n

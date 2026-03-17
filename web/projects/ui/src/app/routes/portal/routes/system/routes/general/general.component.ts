@@ -306,6 +306,7 @@ export default class SystemGeneralComponent {
 
   onLanguageChange(language: Language) {
     this.i18nService.setLang(language.name)
+    this.promptLanguageRestart()
   }
 
   // Expose shared utilities for template use
@@ -554,6 +555,21 @@ export default class SystemGeneralComponent {
         label: 'Restart to apply',
         data: {
           content: 'This change will take effect after the next boot',
+          yes: 'Restart now',
+          no: 'Later',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.restart())
+  }
+
+  private promptLanguageRestart() {
+    this.dialog
+      .openConfirm({
+        label: 'Restart to apply',
+        data: {
+          content:
+            'OS-level translations are already in effect. A restart is required for service-level translations to take effect.',
           yes: 'Restart now',
           no: 'Later',
         },

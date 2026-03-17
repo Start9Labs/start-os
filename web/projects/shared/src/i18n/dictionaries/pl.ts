@@ -722,4 +722,7 @@ export default {
   799: 'Po kliknięciu "Enroll MOK":',
   800: 'Po wyświetleniu monitu wprowadź swoje hasło StartOS',
   801: 'Twój system ma włączony Secure Boot, co wymaga, aby wszystkie moduły jądra były podpisane zaufanym kluczem. Niektóre sterowniki sprzętowe \u2014 takie jak te dla GPU NVIDIA \u2014 nie są podpisane domyślnym kluczem dystrybucji. Zarejestrowanie klucza podpisu StartOS pozwala firmware ufać tym modułom, aby sprzęt mógł być w pełni wykorzystany.',
+  802: 'Tłumaczenia na poziomie systemu operacyjnego są już aktywne. Wymagane jest ponowne uruchomienie, aby tłumaczenia na poziomie usług zaczęły obowiązywać.',
+  803: 'Ten dysk używa ext4 i zostanie automatycznie skonwertowany na btrfs. Zdecydowanie zaleca się wykonanie kopii zapasowej przed kontynuowaniem.',
+  804: 'Mam kopię zapasową moich danych',
 } satisfies i18n

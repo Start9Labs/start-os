@@ -1255,6 +1255,13 @@ backup.bulk.leaked-reference:
   fr_FR: "référence fuitée vers BackupMountGuard"
   pl_PL: "wyciekła referencja do BackupMountGuard"
 
+backup.bulk.service-not-ready:
+  en_US: "Cannot create a backup of a service that is still initializing or in an error state"
+  de_DE: "Es kann keine Sicherung eines Dienstes erstellt werden, der noch initialisiert wird oder sich im Fehlerzustand befindet"
+  es_ES: "No se puede crear una copia de seguridad de un servicio que aún se está inicializando o está en estado de error"
+  fr_FR: "Impossible de créer une sauvegarde d'un service encore en cours d'initialisation ou en état d'erreur"
+  pl_PL: "Nie można utworzyć kopii zapasowej usługi, która jest jeszcze inicjalizowana lub znajduje się w stanie błędu"
+
 # backup/restore.rs
 backup.restore.package-error:
   en_US: "Error restoring package %{id}: %{error}"

@@ -69,7 +69,7 @@ import { getOwnServiceInterfaces } from '../../base/lib/util/getServiceInterface
 import { Volumes, createVolumes } from './util/Volume'
 
 /** The minimum StartOS version required by this SDK release */
-export const OSVersion = testTypeVersion('0.4.0-alpha.20')
+export const OSVersion = testTypeVersion('0.4.0-alpha.21')
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 

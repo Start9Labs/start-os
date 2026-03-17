@@ -7,7 +7,7 @@ use rust_i18n::t;
 use tokio::process::Command;
 use tracing::instrument;
 
-use super::fsck::{RepairStrategy, RequiresReboot};
+use super::fsck::{RepairStrategy, RequiresReboot, detect_filesystem};
 use super::util::pvscan;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::{FileSystem, ReadWrite};
@@ -301,6 +301,37 @@ pub async fn mount_fs<P: AsRef<Path>>(
             .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
         blockdev_path = Path::new("/dev/mapper").join(&full_name);
     }
+
+    // Convert ext4 → btrfs on the package-data partition if needed
+    let fs_type = detect_filesystem(&blockdev_path).await?;
+    if fs_type == "ext2" {
+        tracing::info!("Running e2fsck before converting {name} from ext4 to btrfs");
+        Command::new("e2fsck")
+            .arg("-fy")
+            .arg(&blockdev_path)
+            .invoke(ErrorKind::DiskManagement)
+            .await?;
+        tracing::info!("Converting {name} from ext4 to btrfs");
+        Command::new("btrfs-convert")
+            .arg("--no-progress")
+            .arg(&blockdev_path)
+            .invoke(ErrorKind::DiskManagement)
+            .await?;
+        // Defragment after conversion for optimal performance
+        let tmp_mount = datadir.as_ref().join(format!("{name}.convert-tmp"));
+        tokio::fs::create_dir_all(&tmp_mount).await?;
+        BlockDev::new(&blockdev_path)
+            .mount(&tmp_mount, ReadWrite)
+            .await?;
+        Command::new("btrfs")
+            .args(["filesystem", "defragment", "-r"])
+            .arg(&tmp_mount)
+            .invoke(ErrorKind::DiskManagement)
+            .await?;
+        unmount(&tmp_mount, false).await?;
+        tokio::fs::remove_dir(&tmp_mount).await?;
+    }
+
     let reboot = repair.fsck(&blockdev_path).await?;
 
     if !guid.ends_with("_UNENC") {
@@ -341,4 +372,100 @@ pub async fn mount_all_fs<P: AsRef<Path>>(
     reboot |= mount_fs(guid, &datadir, "main", repair, password).await?;
     reboot |= mount_fs(guid, &datadir, "package-data", repair, password).await?;
     Ok(reboot)
+}
+
+/// Temporarily activates a VG and opens LUKS to probe the `package-data`
+/// filesystem type. Returns `None` if probing fails (e.g. LV doesn't exist).
+#[instrument(skip_all)]
+pub async fn probe_package_data_fs(guid: &str) -> Result<Option<String>, Error> {
+    // Import and activate the VG
+    match Command::new("vgimport")
+        .arg(guid)
+        .invoke(ErrorKind::DiskManagement)
+        .await
+    {
+        Ok(_) => {}
+        Err(e)
+            if format!("{}", e.source)
+                .lines()
+                .any(|l| l.trim() == format!("Volume group \"{}\" is not exported", guid)) =>
+        {
+            // Already imported, that's fine
+        }
+        Err(e) => {
+            tracing::warn!("Could not import VG {guid} for filesystem probe: {e}");
+            return Ok(None);
+        }
+    }
+    if let Err(e) = Command::new("vgchange")
+        .arg("-ay")
+        .arg(guid)
+        .invoke(ErrorKind::DiskManagement)
+        .await
+    {
+        tracing::warn!("Could not activate VG {guid} for filesystem probe: {e}");
+        return Ok(None);
+    }
+
+    let mut opened_luks = false;
+    let result = async {
+        let lv_path = Path::new("/dev").join(guid).join("package-data");
+        if tokio::fs::metadata(&lv_path).await.is_err() {
+            return Ok(None);
+        }
+
+        let blockdev_path = if !guid.ends_with("_UNENC") {
+            let full_name = format!("{guid}_package-data");
+            let password = DEFAULT_PASSWORD;
+            if let Some(parent) = Path::new(PASSWORD_PATH).parent() {
+                tokio::fs::create_dir_all(parent).await?;
+            }
+            tokio::fs::write(PASSWORD_PATH, password)
+                .await
+                .with_ctx(|_| (ErrorKind::Filesystem, PASSWORD_PATH))?;
+            Command::new("cryptsetup")
+                .arg("-q")
+                .arg("luksOpen")
+                .arg("--allow-discards")
+                .arg(format!("--key-file={PASSWORD_PATH}"))
+                .arg(format!("--keyfile-size={}", password.len()))
+                .arg(&lv_path)
+                .arg(&full_name)
+                .invoke(ErrorKind::DiskManagement)
+                .await?;
+            let _ = tokio::fs::remove_file(PASSWORD_PATH).await;
+            opened_luks = true;
+            PathBuf::from(format!("/dev/mapper/{full_name}"))
+        } else {
+            lv_path.clone()
+        };
+
+        detect_filesystem(&blockdev_path).await.map(Some)
+    }
+    .await;
+
+    // Always clean up: close LUKS, deactivate VG, export VG
+    if opened_luks {
+        let full_name = format!("{guid}_package-data");
+        Command::new("cryptsetup")
+            .arg("-q")
+            .arg("luksClose")
+            .arg(&full_name)
+            .invoke(ErrorKind::DiskManagement)
+            .await
+            .log_err();
+    }
+    Command::new("vgchange")
+        .arg("-an")
+        .arg(guid)
+        .invoke(ErrorKind::DiskManagement)
+        .await
+        .log_err();
+    Command::new("vgexport")
+        .arg(guid)
+        .invoke(ErrorKind::DiskManagement)
+        .await
+        .log_err();
+
+    result
 }

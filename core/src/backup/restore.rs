@@ -10,6 +10,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use super::target::BackupTargetId;
+use crate::PackageId;
 use crate::backup::os::OsBackup;
 use crate::context::setup::SetupResult;
 use crate::context::{RpcContext, SetupContext};
@@ -26,7 +27,6 @@ use crate::service::service_map::DownloadInstallFuture;
 use crate::setup::SetupExecuteProgress;
 use crate::system::{save_language, sync_kiosk};
 use crate::util::serde::{IoFormat, Pem};
-use crate::{PLATFORM, PackageId};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
@@ -90,7 +90,7 @@ pub async fn recover_full_server(
     recovery_source: TmpMountGuard,
     server_id: &str,
     recovery_password: &str,
-    kiosk: Option<bool>,
+    kiosk: bool,
     hostname: Option<ServerHostnameInfo>,
     SetupExecuteProgress {
         init_phases,
@@ -123,7 +123,6 @@ pub async fn recover_full_server(
         os_backup.account.hostname = h;
     }
 
-    let kiosk = Some(kiosk.unwrap_or(true)).filter(|_| &*PLATFORM != "raspberrypi");
     sync_kiosk(kiosk).await?;
 
     let language = ctx.language.peek(|a| a.clone());

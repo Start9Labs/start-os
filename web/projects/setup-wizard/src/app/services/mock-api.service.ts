@@ -203,6 +203,7 @@ const MOCK_DISKS: DiskInfo[] = [
     partitions: [],
     capacity: 0,
     guid: null,
+    filesystem: null,
   },
   // 10 GiB - too small for OS and data; also tests both vendor+model null
   {
@@ -217,10 +218,12 @@ const MOCK_DISKS: DiskInfo[] = [
         used: null,
         startOs: {},
         guid: null,
+        filesystem: null,
       },
     ],
     capacity: 10 * GiB,
     guid: null,
+    filesystem: null,
   },
   // 18 GiB - exact OS boundary; tests vendor null with model present
   {
@@ -235,10 +238,12 @@ const MOCK_DISKS: DiskInfo[] = [
         used: null,
         startOs: {},
         guid: null,
+        filesystem: null,
       },
     ],
     capacity: 18 * GiB,
     guid: null,
+    filesystem: null,
   },
   // 20 GiB - exact data boundary; tests vendor present with model null
   {
@@ -253,10 +258,12 @@ const MOCK_DISKS: DiskInfo[] = [
         used: null,
         startOs: {},
         guid: null,
+        filesystem: null,
       },
     ],
     capacity: 20 * GiB,
     guid: null,
+    filesystem: null,
   },
   // 30 GiB - OK for OS or data alone, too small for both (< 38 GiB)
   {
@@ -271,10 +278,12 @@ const MOCK_DISKS: DiskInfo[] = [
         used: null,
         startOs: {},
         guid: null,
+        filesystem: null,
       },
     ],
     capacity: 30 * GiB,
     guid: null,
+    filesystem: null,
   },
   // 30 GiB with existing StartOS data - tests preserve/overwrite + capacity constraint
   {
@@ -298,10 +307,12 @@ const MOCK_DISKS: DiskInfo[] = [
           },
         },
         guid: 'small-existing-guid',
+        filesystem: 'ext2',
       },
     ],
     capacity: 30 * GiB,
     guid: 'small-existing-guid',
+    filesystem: 'ext2',
   },
   // 500 GB - large, always OK
   {
@@ -316,10 +327,12 @@ const MOCK_DISKS: DiskInfo[] = [
         used: null,
         startOs: {},
         guid: null,
+        filesystem: null,
       },
     ],
     capacity: 500000000000,
     guid: null,
+    filesystem: null,
   },
   // 1 TB with existing StartOS data
   {
@@ -343,10 +356,12 @@ const MOCK_DISKS: DiskInfo[] = [
           },
         },
         guid: 'existing-guid',
+        filesystem: 'btrfs',
       },
     ],
     capacity: 1000000000000,
     guid: 'existing-guid',
+    filesystem: 'btrfs',
   },
   // 2 TB
   {
@@ -370,10 +385,12 @@ const MOCK_DISKS: DiskInfo[] = [
           },
         },
         guid: null,
+        filesystem: null,
       },
     ],
     capacity: 2000000000000,
     guid: null,
+    filesystem: null,
   },
 ]
 

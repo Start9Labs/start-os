@@ -3,24 +3,28 @@ import {
   Component,
   computed,
   inject,
-  Signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
-import { TUI_CONFIRM, TuiNotificationMiddleService } from '@taiga-ui/kit'
+import {
+  TUI_CONFIRM,
+  TuiNotificationMiddleService,
+  TuiSkeleton,
+} from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
+import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
 import { ApiService } from 'src/app/services/api/api.service'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
 import { DEVICES_ADD } from './add'
 import { DEVICES_CONFIG } from './config'
-import { MappedDevice, MappedSubnet } from './utils'
+import { MappedDevice } from './utils'
 
 @Component({
   template: `
-    <table class="g-table">
+    <table class="g-table" [tuiSkeleton]="!devices()">
       <thead>
         <tr>
           <th>Name</th>
@@ -49,7 +53,11 @@ import { MappedDevice, MappedSubnet } from './utils'
                 iconStart="@tui.ellipsis-vertical"
               >
                 Actions
-                <tui-data-list *tuiDropdown size="s">
+                <tui-data-list
+                  *tuiDropdown="let close"
+                  size="s"
+                  (click)="close()"
+                >
                   <button
                     tuiOption
                     iconStart="@tui.pencil"
@@ -76,13 +84,23 @@ import { MappedDevice, MappedSubnet } from './utils'
             </td>
           </tr>
         } @empty {
-          <div class="placeholder">No devices</div>
+          <tr>
+            <td colspan="4">
+              <app-placeholder icon="@tui.laptop">No devices</app-placeholder>
+            </td>
+          </tr>
         }
       </tbody>
     </table>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiDropdown, TuiDataList],
+  imports: [
+    TuiButton,
+    TuiDropdown,
+    TuiDataList,
+    PlaceholderComponent,
+    TuiSkeleton,
+  ],
 })
 export default class Devices {
   private readonly dialogs = inject(TuiResponsiveDialogService)
@@ -90,7 +108,7 @@ export default class Devices {
   private readonly loading = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
 
-  protected readonly subnets: Signal<readonly MappedSubnet[]> = toSignal(
+  protected readonly subnets = toSignal(
     inject<PatchDB<TunnelData>>(PatchDB)
       .watch$('wg', 'subnets')
       .pipe(
@@ -102,11 +120,11 @@ export default class Devices {
           })),
         ),
       ),
-    { initialValue: [] },
+    { initialValue: null },
   )
 
   protected readonly devices = computed(() =>
-    this.subnets().flatMap(subnet =>
+    this.subnets()?.flatMap(subnet =>
       Object.entries(subnet.clients).map(([ip, { name }]) => ({
         subnet: {
           name: subnet.name,
@@ -141,7 +159,7 @@ export default class Devices {
     try {
       const data = await this.api.showDeviceConfig({ subnet: subnet.range, ip })
 
-      this.dialogs.open(DEVICES_CONFIG, { data }).subscribe()
+      this.dialogs.open(DEVICES_CONFIG, { data, closable: false }).subscribe()
     } catch (e: any) {
       console.log(e)
       this.errorService.handleError(e)

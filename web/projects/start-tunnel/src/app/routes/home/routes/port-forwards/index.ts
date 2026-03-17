@@ -21,10 +21,12 @@ import {
 import {
   TUI_CONFIRM,
   TuiNotificationMiddleService,
+  TuiSkeleton,
   TuiSwitch,
 } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
+import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
 import { PORT_FORWARDS_ADD } from 'src/app/routes/home/routes/port-forwards/add'
 import { PORT_FORWARDS_EDIT_LABEL } from 'src/app/routes/home/routes/port-forwards/edit-label'
 import { ApiService } from 'src/app/services/api/api.service'
@@ -34,7 +36,7 @@ import { MappedDevice, MappedForward } from './utils'
 
 @Component({
   template: `
-    <table class="g-table">
+    <table class="g-table" [tuiSkeleton]="!portForwards()">
       <thead>
         <tr>
           <th></th>
@@ -84,11 +86,14 @@ import { MappedDevice, MappedForward } from './utils'
                 iconStart="@tui.ellipsis-vertical"
               >
                 Actions
-                <tui-data-list *tuiDropdown size="s">
+                <tui-data-list
+                  *tuiDropdown="let close"
+                  size="s"
+                  (click)="close()"
+                >
                   <button
                     tuiOption
                     iconStart="@tui.pencil"
-                    new
                     (click)="onEditLabel(forward)"
                   >
                     {{ forward.label ? 'Rename' : 'Add label' }}
@@ -96,7 +101,6 @@ import { MappedDevice, MappedForward } from './utils'
                   <button
                     tuiOption
                     iconStart="@tui.trash"
-                    new
                     (click)="onDelete(forward)"
                   >
                     Delete
@@ -106,7 +110,13 @@ import { MappedDevice, MappedForward } from './utils'
             </td>
           </tr>
         } @empty {
-          <div class="placeholder">No port forwards</div>
+          <tr>
+            <td colspan="7">
+              <app-placeholder icon="@tui.globe">
+                No port forwards
+              </app-placeholder>
+            </td>
+          </tr>
         }
       </tbody>
     </table>
@@ -120,6 +130,8 @@ import { MappedDevice, MappedForward } from './utils'
     TuiLoader,
     TuiSwitch,
     TuiTextfield,
+    PlaceholderComponent,
+    TuiSkeleton,
   ],
 })
 export default class PortForwards {
@@ -128,8 +140,6 @@ export default class PortForwards {
   private readonly loading = inject(TuiNotificationMiddleService)
   private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
   private readonly errorService = inject(ErrorService)
-
-  private readonly portForwards = toSignal(this.patch.watch$('portForwards'))
   private readonly ips = toSignal(
     this.patch.watch$('gateways').pipe(
       map(g =>
@@ -157,6 +167,7 @@ export default class PortForwards {
     { initialValue: [] },
   )
 
+  protected readonly portForwards = toSignal(this.patch.watch$('portForwards'))
   protected readonly forwards = computed(() =>
     Object.entries(this.portForwards() || {}).map(([source, entry]) => {
       const sourceSplit = source.split(':')

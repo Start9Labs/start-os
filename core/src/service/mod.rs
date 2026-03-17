@@ -432,11 +432,15 @@ impl Service {
                             tracing::error!("Error installing service: {e}");
                             tracing::debug!("{e:?}")
                         }) {
+                            crate::volume::remove_install_backup(id).await.log_err();
                             return Ok(Some(service));
                         }
                     }
                 }
                 cleanup(ctx, id, false).await.log_err();
+                crate::volume::restore_volumes_from_install_backup(id)
+                    .await
+                    .log_err();
                 ctx.db
                     .mutate(|v| v.as_public_mut().as_package_data_mut().remove(id))
                     .await
@@ -471,37 +475,60 @@ impl Service {
                             tracing::error!("Error installing service: {e}");
                             tracing::debug!("{e:?}")
                         }) {
+                            crate::volume::remove_install_backup(id).await.log_err();
                             return Ok(Some(service));
                         }
                     }
                 }
-                let s9pk = S9pk::open(s9pk_path, Some(id)).await?;
-                ctx.db
-                    .mutate({
-                        |db| {
-                            db.as_public_mut()
-                                .as_package_data_mut()
-                                .as_idx_mut(id)
-                                .or_not_found(id)?
-                                .as_state_info_mut()
-                                .map_mutate(|s| {
-                                    if let PackageState::Updating(UpdatingState {
-                                        manifest, ..
-                                    }) = s
-                                    {
-                                        Ok(PackageState::Installed(InstalledState { manifest }))
-                                    } else {
-                                        Err(Error::new(
-                                            eyre!("{}", t!("service.mod.race-condition-detected")),
-                                            ErrorKind::Database,
-                                        ))
-                                    }
-                                })
-                        }
-                    })
-                    .await
-                    .result?;
-                handle_installed(s9pk).await
+                match async {
+                    let s9pk = S9pk::open(s9pk_path, Some(id)).await?;
+                    ctx.db
+                        .mutate({
+                            |db| {
+                                db.as_public_mut()
+                                    .as_package_data_mut()
+                                    .as_idx_mut(id)
+                                    .or_not_found(id)?
+                                    .as_state_info_mut()
+                                    .map_mutate(|s| {
+                                        if let PackageState::Updating(UpdatingState {
+                                            manifest,
+                                            ..
+                                        }) = s
+                                        {
+                                            Ok(PackageState::Installed(InstalledState { manifest }))
+                                        } else {
+                                            Err(Error::new(
+                                                eyre!(
+                                                    "{}",
+                                                    t!("service.mod.race-condition-detected")
+                                                ),
+                                                ErrorKind::Database,
+                                            ))
+                                        }
+                                    })
+                            }
+                        })
+                        .await
+                        .result?;
+                    handle_installed(s9pk).await
+                }
+                .await
+                {
+                    Ok(service) => {
+                        crate::volume::remove_install_backup(id).await.log_err();
+                        Ok(service)
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            "Update rollback failed for {id}, restoring volume snapshot: {e}"
+                        );
+                        crate::volume::restore_volumes_from_install_backup(id)
+                            .await
+                            .log_err();
+                        Err(e)
+                    }
+                }
             }
             PackageStateMatchModelRef::Removing(_) | PackageStateMatchModelRef::Restoring(_) => {
                 if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id)).await.map_err(|e| {
@@ -648,17 +675,6 @@ impl Service {
             progress.finalization_progress.complete();
             progress.progress.complete();
             tokio::task::yield_now().await;
-        }
-
-        // Trigger manifest callbacks after successful installation
-        let manifest = service.seed.persistent_container.s9pk.as_manifest();
-        if let Some(callbacks) = ctx.callbacks.get_service_manifest(&manifest.id) {
-            let manifest_value =
-                serde_json::to_value(manifest).with_kind(ErrorKind::Serialization)?;
-            callbacks
-                .call(imbl::vector![manifest_value.into()])
-                .await
-                .log_err();
         }
 
         Ok(service)

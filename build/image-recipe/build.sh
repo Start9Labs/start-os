@@ -131,6 +131,11 @@ ff02::1         ip6-allnodes
 ff02::2         ip6-allrouters
 EOT
 
+if [[ "${IB_OS_ENV}" =~ (^|-)dev($|-) ]]; then
+	mkdir -p config/includes.chroot/etc/ssh/sshd_config.d
+	echo "PasswordAuthentication yes" > config/includes.chroot/etc/ssh/sshd_config.d/dev-password-auth.conf
+fi
+
 # Installer marker file (used by installed GRUB to detect the live USB)
 mkdir -p config/includes.binary
 touch config/includes.binary/.startos-installer
@@ -348,6 +353,10 @@ if ! [[ "${IB_OS_ENV}" =~ (^|-)dev($|-) ]]; then
     passwd -l start9
 fi
 
+mkdir -p /media/startos
+chmod 750 /media/startos
+chown root:startos /media/startos
+
 EOF
 
 SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date '+%s')}"
@@ -498,8 +507,8 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 			$TMPDIR/next/dev $TMPDIR/next/proc $TMPDIR/next/sys $TMPDIR/next/media/startos/root
 		mount --rbind $TMPDIR/boot $TMPDIR/next/boot
 		mount --bind /dev $TMPDIR/next/dev
-		mount --bind /proc $TMPDIR/next/proc
-		mount --bind /sys $TMPDIR/next/sys
+		mount -t proc proc $TMPDIR/next/proc
+		mount -t sysfs sysfs $TMPDIR/next/sys
 		mount --bind $TMPDIR/root $TMPDIR/next/media/startos/root
 
 		chroot $TMPDIR/next grub-install --target=arm64-efi --removable --efi-directory=/boot/efi --boot-directory=/boot --no-nvram

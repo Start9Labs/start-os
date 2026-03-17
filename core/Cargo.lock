@@ -3377,6 +3377,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "keccak"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb26cec98cce3a3d96cbb7bced3c4b16e3d13f27ec56dbd62cbc8f39cfb9d653"
+dependencies = [
+ "cpufeatures",
+]
+
+[[package]]
 name = "kv"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5986,6 +5995,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha3"
+version = "0.10.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75872d278a8f37ef87fa0ddbda7802605cb18344497949862c0d4dcb291eba60"
+dependencies = [
+ "digest 0.10.7",
+ "keccak",
+]
+
+[[package]]
 name = "sharded-slab"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6415,7 +6434,7 @@ dependencies = [
 
 [[package]]
 name = "start-os"
-version = "0.4.0-alpha.20"
+version = "0.4.0-alpha.21"
 dependencies = [
  "aes",
  "async-acme",
@@ -6519,6 +6538,7 @@ dependencies = [
  "serde_yml",
  "sha-crypt",
  "sha2 0.10.9",
+ "sha3",
  "signal-hook",
  "socket2 0.6.2",
  "socks5-impl",
