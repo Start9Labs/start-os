@@ -399,7 +399,25 @@ pub async fn get_service_manifest(
         callback,
     }: GetServiceManifestParams,
 ) -> Result<Manifest, Error> {
+    use crate::db::model::package::PackageState;
+
     let context = context.deref()?;
+
+    let ptr = format!("/public/packageData/{}/stateInfo", package_id)
+        .parse()
+        .expect("valid json pointer");
+    let mut watch = context
+        .seed
+        .ctx
+        .db
+        .watch(ptr)
+        .await
+        .typed::<PackageState>();
+
+    let manifest = watch
+        .peek_and_mark_seen()?
+        .as_manifest(ManifestPreference::Old)
+        .de()?;
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
@@ -407,19 +425,12 @@ pub async fn get_service_manifest(
             .seed
             .ctx
             .callbacks
-            .add_get_service_manifest(package_id.clone(), CallbackHandler::new(&context, callback));
+            .add_get_service_manifest(
+                package_id.clone(),
+                watch,
+                CallbackHandler::new(&context, callback),
+            );
     }
-
-    let db = context.seed.ctx.db.peek().await;
-
-    let manifest = db
-        .as_public()
-        .as_package_data()
-        .as_idx(&package_id)
-        .or_not_found(&package_id)?
-        .as_state_info()
-        .as_manifest(ManifestPreference::New)
-        .de()?;
 
     Ok(manifest)
 }

@@ -12,18 +12,20 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 use ts_rs::TS;
 
+use crate::db::model::package::PackageState;
 use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::host::Host;
+use crate::net::service_interface::ServiceInterface;
 use crate::net::ssl::FullchainCertData;
 use crate::prelude::*;
 use crate::service::effects::context::EffectContext;
 use crate::service::effects::net::ssl::Algorithm;
 use crate::service::rpc::{CallbackHandle, CallbackId};
 use crate::service::{Service, ServiceActorSeed};
+use crate::status::StatusInfo;
 use crate::util::collections::EqMap;
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::sync::SyncMutex;
-use crate::status::StatusInfo;
 use crate::{GatewayId, HostId, PackageId, ServiceInterfaceId};
 
 /// Abstraction for callbacks that are triggered by patchdb subscriptions.
@@ -66,9 +68,7 @@ impl<K: Ord + Clone + Send + Sync + 'static> DbWatchedCallbacks<K> {
                                         .map(|(_, handlers)| CallbackHandlers(handlers))
                                         .filter(|cb| !cb.0.is_empty())
                                 }) {
-                                    let value = watch
-                                        .peek_and_mark_seen()
-                                        .unwrap_or_default();
+                                    let value = watch.peek_and_mark_seen().unwrap_or_default();
                                     if let Err(e) = cbs.call(vector![value]).await {
                                         tracing::error!("Error in {label} callback: {e}");
                                         tracing::debug!("{e:?}");
@@ -99,6 +99,10 @@ pub struct ServiceCallbacks {
     inner: SyncMutex<ServiceCallbackMap>,
     get_host_info: Arc<DbWatchedCallbacks<(PackageId, HostId)>>,
     get_status: Arc<DbWatchedCallbacks<PackageId>>,
+    get_service_interface: Arc<DbWatchedCallbacks<(PackageId, ServiceInterfaceId)>>,
+    list_service_interfaces: Arc<DbWatchedCallbacks<PackageId>>,
+    get_system_smtp: Arc<DbWatchedCallbacks<()>>,
+    get_service_manifest: Arc<DbWatchedCallbacks<PackageId>>,
 }
 
 impl Default for ServiceCallbacks {
@@ -107,21 +111,21 @@ impl Default for ServiceCallbacks {
             inner: SyncMutex::new(ServiceCallbackMap::default()),
             get_host_info: Arc::new(DbWatchedCallbacks::new("host info")),
             get_status: Arc::new(DbWatchedCallbacks::new("get_status")),
+            get_service_interface: Arc::new(DbWatchedCallbacks::new("get_service_interface")),
+            list_service_interfaces: Arc::new(DbWatchedCallbacks::new("list_service_interfaces")),
+            get_system_smtp: Arc::new(DbWatchedCallbacks::new("get_system_smtp")),
+            get_service_manifest: Arc::new(DbWatchedCallbacks::new("get_service_manifest")),
         }
     }
 }
 
 #[derive(Default)]
 struct ServiceCallbackMap {
-    get_service_interface: BTreeMap<(PackageId, ServiceInterfaceId), Vec<CallbackHandler>>,
-    list_service_interfaces: BTreeMap<PackageId, Vec<CallbackHandler>>,
-    get_system_smtp: Vec<CallbackHandler>,
     get_ssl_certificate: EqMap<
         (BTreeSet<InternedString>, FullchainCertData, Algorithm),
         (NonDetachingJoinHandle<()>, Vec<CallbackHandler>),
     >,
     get_container_ip: BTreeMap<PackageId, Vec<CallbackHandler>>,
-    get_service_manifest: BTreeMap<PackageId, Vec<CallbackHandler>>,
     get_outbound_gateway: BTreeMap<PackageId, (NonDetachingJoinHandle<()>, Vec<CallbackHandler>)>,
 }
 
@@ -132,21 +136,7 @@ impl ServiceCallbacks {
 
     pub fn gc(&self) {
         self.mutate(|this| {
-            this.get_service_interface.retain(|_, v| {
-                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-                !v.is_empty()
-            });
-            this.list_service_interfaces.retain(|_, v| {
-                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-                !v.is_empty()
-            });
-            this.get_system_smtp
-                .retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
             this.get_ssl_certificate.retain(|_, (_, v)| {
-                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-                !v.is_empty()
-            });
-            this.get_service_manifest.retain(|_, v| {
                 v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
                 !v.is_empty()
             });
@@ -157,70 +147,38 @@ impl ServiceCallbacks {
         });
         self.get_host_info.gc();
         self.get_status.gc();
+        self.get_service_interface.gc();
+        self.list_service_interfaces.gc();
+        self.get_system_smtp.gc();
+        self.get_service_manifest.gc();
     }
 
     pub(super) fn add_get_service_interface(
         &self,
         package_id: PackageId,
         service_interface_id: ServiceInterfaceId,
+        watch: TypedDbWatch<ServiceInterface>,
         handler: CallbackHandler,
     ) {
-        self.mutate(|this| {
-            this.get_service_interface
-                .entry((package_id, service_interface_id))
-                .or_default()
-                .push(handler);
-        })
+        self.get_service_interface
+            .add((package_id, service_interface_id), watch, handler);
     }
 
-    #[must_use]
-    pub fn get_service_interface(
-        &self,
-        id: &(PackageId, ServiceInterfaceId),
-    ) -> Option<CallbackHandlers> {
-        self.mutate(|this| {
-            Some(CallbackHandlers(
-                this.get_service_interface.remove(id).unwrap_or_default(),
-            ))
-            .filter(|cb| !cb.0.is_empty())
-        })
-    }
-
-    pub(super) fn add_list_service_interfaces(
+    pub(super) fn add_list_service_interfaces<T: Send + 'static>(
         &self,
         package_id: PackageId,
+        watch: TypedDbWatch<T>,
         handler: CallbackHandler,
     ) {
-        self.mutate(|this| {
-            this.list_service_interfaces
-                .entry(package_id)
-                .or_default()
-                .push(handler);
-        })
+        self.list_service_interfaces.add(package_id, watch, handler);
     }
 
-    #[must_use]
-    pub fn list_service_interfaces(&self, id: &PackageId) -> Option<CallbackHandlers> {
-        self.mutate(|this| {
-            Some(CallbackHandlers(
-                this.list_service_interfaces.remove(id).unwrap_or_default(),
-            ))
-            .filter(|cb| !cb.0.is_empty())
-        })
-    }
-
-    pub(super) fn add_get_system_smtp(&self, handler: CallbackHandler) {
-        self.mutate(|this| {
-            this.get_system_smtp.push(handler);
-        })
-    }
-
-    #[must_use]
-    pub fn get_system_smtp(&self) -> Option<CallbackHandlers> {
-        self.mutate(|this| {
-            Some(CallbackHandlers(std::mem::take(&mut this.get_system_smtp)))
-                .filter(|cb| !cb.0.is_empty())
-        })
+    pub(super) fn add_get_system_smtp<T: Send + 'static>(
+        &self,
+        watch: TypedDbWatch<T>,
+        handler: CallbackHandler,
+    ) {
+        self.get_system_smtp.add((), watch, handler);
     }
 
     pub(super) fn add_get_host_info(
@@ -376,23 +334,13 @@ impl ServiceCallbacks {
         })
     }
 
-    pub(super) fn add_get_service_manifest(&self, package_id: PackageId, handler: CallbackHandler) {
-        self.mutate(|this| {
-            this.get_service_manifest
-                .entry(package_id)
-                .or_default()
-                .push(handler)
-        })
-    }
-
-    #[must_use]
-    pub fn get_service_manifest(&self, package_id: &PackageId) -> Option<CallbackHandlers> {
-        self.mutate(|this| {
-            this.get_service_manifest
-                .remove(package_id)
-                .map(CallbackHandlers)
-                .filter(|cb| !cb.0.is_empty())
-        })
+    pub(super) fn add_get_service_manifest(
+        &self,
+        package_id: PackageId,
+        watch: TypedDbWatch<PackageState>,
+        handler: CallbackHandler,
+    ) {
+        self.get_service_manifest.add(package_id, watch, handler);
     }
 }
 
