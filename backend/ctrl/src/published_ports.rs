@@ -1259,7 +1259,7 @@ config redirect 'pp_del1'
         assert!(!ports[0].enabled);
 
         let content = std::fs::read_to_string(dir.path().join("firewall")).unwrap();
-        assert!(content.contains("option enabled 0"), "expected 'option enabled 0' in:\n{content}");
+        assert!(content.contains("option enabled '0'"), "expected 'option enabled 0' in:\n{content}");
     }
 
     #[test]
@@ -1280,8 +1280,8 @@ config redirect 'pp_del1'
         .unwrap();
 
         let content = std::fs::read_to_string(dir.path().join("firewall")).unwrap();
-        assert!(content.contains("option src_dport 9090"), "public port should be 9090");
-        assert!(content.contains("option dest_port 80"), "internal port should be 80");
+        assert!(content.contains("option src_dport '9090'"), "public port should be 9090");
+        assert!(content.contains("option dest_port '80'"), "internal port should be 80");
 
         let arena = Arena::new();
         let ports = extract_ports(&arena, dir.path()).unwrap();
@@ -1389,7 +1389,7 @@ config redirect 'pp_del1'
         );
         // But the _pp_id option value preserves the original hyphenated ID
         assert!(
-            content.contains("option _pp_id a-b-c"),
+            content.contains("option _pp_id 'a-b-c'"),
             "_pp_id should preserve original ID in:\n{content}"
         );
     }

@@ -509,16 +509,15 @@ impl<'a> Token<'a> {
     }
 
     pub fn from_string(s: String, arena: &'a Arena) -> Self {
-        if s.is_empty()
-            || s.contains(|c: char| !(c.is_alphanumeric() || ['_', '-', '.'].contains(&c)))
-        {
+        if s.contains('\'') {
+            // Value contains single quote — must use double-quoting with escapes
             let q = arena.alloc(format!("{:?}", s));
             Token::Q(Quoted {
                 inner: &q[1..q.len() - 1],
             })
         } else {
             let s = arena.alloc(s);
-            Token::W(Spaced { inner: s })
+            Token::Sq(SingleQuoted { inner: s })
         }
     }
 
@@ -535,8 +534,8 @@ impl<'a> Token<'a> {
 
     pub fn from_bool(s: bool) -> Self {
         match s {
-            false => Token::W(Spaced { inner: "0" }),
-            true => Token::W(Spaced { inner: "1" }),
+            false => Token::Sq(SingleQuoted { inner: "0" }),
+            true => Token::Sq(SingleQuoted { inner: "1" }),
         }
     }
 

@@ -8,7 +8,7 @@ import { provideFormService } from 'src/app/services/form.service'
 
 import { EthernetTable } from './table'
 import { CHANGE_WAN_DIALOG } from './dialog'
-import { EthernetPort, EthernetService } from './service'
+import { EthernetPortView, EthernetService } from './service'
 
 @Component({
   template: `
@@ -42,19 +42,18 @@ export default class Ethernet {
 
   protected readonly service = inject(EthernetService)
 
-  onChangeWan(data: EthernetPort[]) {
+  onChangeWan(data: EthernetPortView[]) {
     this.dialogs
-      .open<EthernetPort | null>(CHANGE_WAN_DIALOG, { size: 's', data })
+      .open<EthernetPortView | null>(CHANGE_WAN_DIALOG, { size: 's', data })
       .pipe(filter(Boolean))
       .subscribe(async ({ name }) => {
         const items = data.map(port => ({
           ...port,
           wan: port.name === name,
+          profile: port.name === name ? null : port.profile,
         }))
 
-        if (await this.service.save(items)) {
-          this.service.restart()
-        }
+        await this.service.save(items)
       })
   }
 }

@@ -1,5 +1,5 @@
 use crate::dns::{self, DnsServer};
-use crate::ethernet::DEFAULT_LAN_BRIDGE;
+use crate::ethernet::find_lan_bridge;
 use crate::system::UciPreferences;
 use crate::utils::DeserializeStdin;
 use crate::CtrlContext;
@@ -738,7 +738,7 @@ pub fn reload_system() -> Result<(), Error> {
         .spawn()
         .and_then(|mut c| c.wait());
     let _ = Command::new("/etc/init.d/firewall")
-        .arg("reload")
+        .arg("restart")
         .spawn()
         .and_then(|mut c| c.wait());
     let _ = Command::new("/etc/init.d/dnsmasq")
@@ -765,7 +765,7 @@ pub fn reload_system_and_wifi() -> Result<(), Error> {
         .spawn()
         .and_then(|mut c| c.wait());
     let _ = Command::new("/etc/init.d/firewall")
-        .arg("reload")
+        .arg("restart")
         .spawn()
         .and_then(|mut c| c.wait());
     let _ = Command::new("/etc/init.d/dnsmasq")
@@ -987,8 +987,8 @@ fn set_config<C: CtrlContext>(
         access_to_new_profiles: profile.access_to_new_profiles,
         owns_lan: profile.owns_lan,
     };
+    let found_bridge = find_lan_bridge(cfgs)?.map(|dev| dev.name);
     let mut all_interfaces = BTreeSet::<String>::new();
-    let mut found_bridge = None;
     let mut found_interface = false;
     for section in &mut cfgs["network"].sections {
         if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
@@ -1001,22 +1001,8 @@ fn set_config<C: CtrlContext>(
                 iface.ipaddr = Some(profile.gateway_ip);
                 iface.netmask = Some(Ipv4Addr::new(255, 255, 255, 0));
                 iface.ip6assign = if ipv6 { Some("64".into()) } else { None };
-                found_bridge = Some(
-                    iface
-                        .device
-                        .rsplit_once('.')
-                        .map(|(bridge, _)| bridge.to_string())
-                        .unwrap_or_else(|| iface.device.clone()),
-                );
                 section.set(&iface)?;
                 found_interface = true;
-            }
-        }
-        if let Some(dev) = section.get_typed::<NetworkDevice>()? {
-            if dev.ty == Some(DeviceType::BRIDGE)
-                && (found_bridge.is_none() || dev.name == DEFAULT_LAN_BRIDGE)
-            {
-                found_bridge = Some(dev.name.to_string());
             }
         }
     }
@@ -1140,7 +1126,6 @@ fn create_config(
     }
     let mut all_interfaces = BTreeSet::<String>::new();
     let mut existing_tags = BTreeSet::new();
-    let mut found_bridge = None;
     for section in &cfgs["network"].sections {
         match &*section.ty() {
             NetworkInterface::TY => {
@@ -1157,15 +1142,6 @@ fn create_config(
                     }
                 }
             }
-            NetworkDevice::TY => {
-                if let Ok(dev) = section.get::<NetworkDevice>() {
-                    if dev.ty == Some(DeviceType::BRIDGE)
-                        && (found_bridge.is_none() || dev.name == DEFAULT_LAN_BRIDGE)
-                    {
-                        found_bridge = Some(dev.name);
-                    }
-                }
-            }
             NetworkBridgeVlan::TY => {
                 if let Ok(vlan) = section.get::<NetworkBridgeVlan>() {
                     existing_tags.insert(vlan.vlan);
@@ -1174,7 +1150,9 @@ fn create_config(
             _ => (),
         }
     }
-    let found_bridge = found_bridge.ok_or(ErrorKind::MissingLanBridge)?;
+    let found_bridge = find_lan_bridge(cfgs)?
+        .map(|dev| dev.name)
+        .ok_or(Error::from(ErrorKind::MissingLanBridge))?;
     let vlan_tag = match profile.id.vlan_tag {
         Some(chosen_tag) => {
             if existing_tags.contains(&chosen_tag) {

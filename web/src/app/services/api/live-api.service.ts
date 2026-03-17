@@ -57,6 +57,8 @@ import {
   OutboundVpnUpdateRequest,
   OutboundVpnDeleteRequest,
   OutboundVpnSetEnabledRequest,
+  EthernetConfig,
+  EthernetSetConfig,
   SshKeyFromApi,
   SshKeysAddRequest,
   SshKeysDeleteRequest,
@@ -325,6 +327,14 @@ export class LiveApiService extends ApiService {
     params: OutboundVpnSetEnabledRequest,
   ): Promise<null> {
     return this.rpc.request({ method: 'vpn-client.set-enabled', params })
+  }
+
+  async ethernetGet(): Promise<EthernetConfig> {
+    return this.rpc.request({ method: 'ethernet.get', params: {} })
+  }
+
+  async ethernetSet(params: EthernetSetConfig): Promise<null> {
+    return this.rpc.request({ method: 'ethernet.set', params })
   }
 
   async sshKeysList(): Promise<SshKeyFromApi[]> {

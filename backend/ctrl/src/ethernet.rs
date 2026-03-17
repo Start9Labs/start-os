@@ -6,7 +6,6 @@ use crate::{Error, ErrorKind};
 use rpc_toolkit::{from_fn, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::process::Command;
 use uciedit::openwrt::{
     DeviceType, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface,
     NetworkVlanPort, NetworkVlanPortTagging,
@@ -14,6 +13,22 @@ use uciedit::openwrt::{
 use uciedit::{dump_all, parse_all, Arena, Configs};
 
 pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
+
+/// Find the LAN bridge device in the network config.
+/// Prefers the device named `br-lan`; falls back to any bridge.
+pub fn find_lan_bridge(cfgs: &Configs) -> Result<Option<NetworkDevice>, Error> {
+    let mut found = None;
+    cfgs["network"].try_each(|_, dev: NetworkDevice| {
+        if dev.ty == Some(DeviceType::BRIDGE)
+            && (found.is_none() || dev.name == DEFAULT_LAN_BRIDGE)
+        {
+            found = Some(dev);
+        }
+        Ok::<_, Error>(())
+    })?;
+    Ok(found)
+}
+
 pub const DEFAULT_WAN_INTERFACE: &str = "wan";
 pub const DEFAULT_WAN6_INTERFACE: &str = "wan6";
 
@@ -44,23 +59,15 @@ pub fn get<C: CtrlContext>(ctx: C) -> Result<Ethernet, Error> {
 
 fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Ethernet, Error> {
     let lookup = profiles::Lookup::parse(ctx.clone(), cfgs)?;
-    // TODO: avoid duplicating this "find the bridge" logic so much
-    let mut found_bridge = None;
-    cfgs["network"].try_each(|_, dev: NetworkDevice| {
-        if dev.ty == Some(DeviceType::BRIDGE)
-            && (found_bridge.is_none() || dev.name == DEFAULT_LAN_BRIDGE)
-        {
-            found_bridge = Some(dev);
-        }
-        Ok::<_, Error>(())
-    })?;
-    let Some(found_bridge) = found_bridge else {
-        return Err(ErrorKind::MissingLanBridge.into());
-    };
+    let found_bridge = find_lan_bridge(cfgs)?.ok_or(Error::from(ErrorKind::MissingLanBridge))?;
 
     let mut wan_ipv6 = false;
     let mut wan_port = None;
-    let mut all_ports: HashSet<String> = found_bridge.ports.into_iter().collect();
+    let all_ports: HashSet<String> = found_bridge
+        .ports
+        .into_iter()
+        .filter(|p| !p.starts_with("wlan") && !p.starts_with("phy"))
+        .collect();
     let mut vlan_ports = HashMap::new();
     for section in &cfgs["network"].sections {
         if let Some(vlan) = section.get_typed::<NetworkBridgeVlan>()? {
@@ -80,17 +87,12 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Ethernet, Error> 
             }
         }
         if let Some(iface) = section.get_typed::<NetworkInterface>()? {
-            if iface.proto == InterfaceProto::DHCP
-                && section.name().as_deref() == Some(DEFAULT_WAN_INTERFACE)
-            {
-                // TODO: better check to see if this is actually an ethernet port
-                all_ports.insert(iface.device.clone());
+            if section.name().as_deref() == Some(DEFAULT_WAN_INTERFACE) {
                 wan_port = Some(iface.device.clone());
             }
         }
     }
-    wan_port = wan_port.filter(|s| all_ports.contains(s));
-    let ports = all_ports
+    let mut ports: BTreeMap<String, Port> = all_ports
         .iter()
         .map(|name| {
             (
@@ -104,6 +106,9 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Ethernet, Error> 
             )
         })
         .collect();
+    if let Some(ref wp) = wan_port {
+        ports.entry(wp.clone()).or_insert(Port { profile: None });
+    }
     cfgs["network"].try_each(|_, iface: NetworkInterface| {
         if iface.proto == InterfaceProto::DHCPV6 && Some(&iface.device) == wan_port.as_ref() {
             wan_ipv6 = true;
@@ -154,10 +159,7 @@ pub fn set<C: CtrlContext>(
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 if ctx.effectful() {
-                    let _ = Command::new("/etc/init.d/network")
-                        .arg("reload")
-                        .spawn()?
-                        .wait();
+                    profiles::reload_system_and_wifi()?;
                 }
                 return Ok(());
             }
@@ -171,17 +173,7 @@ fn set_config(
     ethernet: &Ethernet,
     lookup: &profiles::Lookup,
 ) -> Result<(), Error> {
-    // TODO: avoid duplicating this "find the bridge" logic so much
-    let mut found_bridge = None;
-    cfgs["network"].try_each(|_, dev: NetworkDevice| {
-        if dev.ty == Some(DeviceType::BRIDGE)
-            && (found_bridge.is_none() || dev.name == DEFAULT_LAN_BRIDGE)
-        {
-            found_bridge = Some(dev);
-        }
-        Ok::<_, Error>(())
-    })?;
-    let mut bridge = match found_bridge {
+    let mut bridge = match find_lan_bridge(cfgs)? {
         Some(br) => br,
         None => NetworkDevice {
             name: DEFAULT_LAN_BRIDGE.into(),
@@ -190,6 +182,14 @@ fn set_config(
             macaddr: None,
         },
     };
+    // Save non-ethernet ports (WiFi, etc.) that the bridge already has
+    let non_ethernet_ports: Vec<String> = bridge
+        .ports
+        .iter()
+        .filter(|p| p.starts_with("wlan") || p.starts_with("phy"))
+        .cloned()
+        .collect();
+
     bridge.ports.clear();
     for (port_name, port) in &ethernet.ports {
         if Some(port_name) == ethernet.wan_port.as_ref() {
@@ -203,6 +203,9 @@ fn set_config(
             bridge.ports.push(port_name.clone());
         }
     }
+
+    // Re-add non-ethernet ports (WiFi, etc.)
+    bridge.ports.extend(non_ethernet_ports.iter().cloned());
 
     let mut pending_bridge = true;
     let mut pending_ipv4 = ethernet.wan_port.is_some();
@@ -222,14 +225,14 @@ fn set_config(
     for section in &mut cfgs["network"].sections {
         if let Some(dev) = section.get_typed::<NetworkDevice>()? {
             if dev.ty == Some(DeviceType::BRIDGE) && dev.name == bridge.name {
-                section.set(&bridge)?;
+                if dev.ports != bridge.ports {
+                    section.set(&bridge)?;
+                }
                 pending_bridge = false;
             }
         }
         if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
-            if iface.proto == InterfaceProto::DHCP
-                && section.name().as_deref() == Some(DEFAULT_WAN_INTERFACE)
-            {
+            if section.name().as_deref() == Some(DEFAULT_WAN_INTERFACE) {
                 pending_ipv4 = false;
                 if let Some(wan_port) = &ethernet.wan_port {
                     iface.device = wan_port.clone();
@@ -253,8 +256,7 @@ fn set_config(
     // Remove WAN interfaces that are no longer needed
     cfgs["network"].sections.retain(|section| {
         if let Ok(iface) = section.get::<NetworkInterface>() {
-            if iface.proto == InterfaceProto::DHCP
-                && section.name().as_deref() == Some(DEFAULT_WAN_INTERFACE)
+            if section.name().as_deref() == Some(DEFAULT_WAN_INTERFACE)
                 && ethernet.wan_port.is_none()
             {
                 return false;
@@ -317,6 +319,19 @@ fn set_config(
             }
         }
 
+        // Non-ethernet bridge ports (WiFi, etc.) need a VLAN assignment when
+        // filtering is active, otherwise `network reload` ejects them from the
+        // bridge.  Place them in VLAN 1 (the admin VLAN), matching the behavior
+        // of ensure_vlan_filtering() and profiles::create_config().
+        if profile.vlan_tag == 1 && needs_vlan_filtering {
+            for port_name in &non_ethernet_ports {
+                ports.push(NetworkVlanPort {
+                    port: port_name.clone(),
+                    tagging: Some(NetworkVlanPortTagging::PRIMARY),
+                });
+            }
+        }
+
         let vlan = profile.vlan_tag;
         if ports.is_empty() && vlan == 1 {
             continue;
@@ -331,6 +346,17 @@ fn set_config(
         )?;
     }
     Ok(())
+}
+
+/// Convenience for tests: run set_config through configs already in memory.
+#[cfg(test)]
+fn set_from_config(
+    ctx: &impl CtrlContext,
+    cfgs: &mut Configs,
+    ethernet: &Ethernet,
+) -> Result<(), Error> {
+    let lookup = profiles::Lookup::parse(ctx.clone(), cfgs)?;
+    set_config(ctx, cfgs, ethernet, &lookup)
 }
 
 pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
@@ -353,4 +379,1018 @@ pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
     };
     let modified_ethernet = crate::utils::edit_in_editor(&current_ethernet)?;
     set(ctx, DeserializeStdin(modified_ethernet))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rpc_toolkit::Context;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+    use tokio::runtime::Runtime;
+    use uciedit::{parse_all, Arena};
+
+    #[derive(Clone)]
+    struct TestContext(PathBuf);
+
+    impl Context for TestContext {
+        fn runtime(&self) -> Option<Arc<Runtime>> {
+            None
+        }
+    }
+
+    impl CtrlContext for TestContext {
+        fn uci_root(&self) -> PathBuf {
+            self.0.clone()
+        }
+        fn effectful(&self) -> bool {
+            false
+        }
+    }
+
+    /// Two profiles: Admin (lan, vlan 1) and Guest (guest, vlan 3).
+    /// Bridge with two ports: eth0, eth1. No WAN.
+    fn setup_basic(dir: &std::path::Path) {
+        std::fs::write(
+            dir.join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '1'
+
+config profile guest
+\toption fullname 'Guest'
+\toption interface 'guest'
+\toption vlan_tag '3'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.join("network"),
+            "\
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth0'
+\tlist ports 'eth1'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '1'
+\tlist ports 'eth0:u*'
+\tlist ports 'eth1:u*'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '3'
+
+config interface 'lan'
+\toption device 'br-lan.1'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+
+config interface 'guest'
+\toption device 'br-lan.3'
+\toption proto 'static'
+\toption ipaddr '192.168.3.1'
+\toption netmask '255.255.255.0'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.join("firewall"),
+            "\
+config zone
+\toption name 'lan'
+\tlist network 'lan'
+\toption input 'ACCEPT'
+\toption output 'ACCEPT'
+\toption forward 'ACCEPT'
+
+config zone
+\toption name 'vlan_guest'
+\tlist network 'guest'
+\toption input 'ACCEPT'
+\toption output 'ACCEPT'
+\toption forward 'ACCEPT'
+",
+        )
+        .unwrap();
+    }
+
+    /// Adds a WAN interface on eth2 (third port) with optional IPv6.
+    fn setup_with_wan(dir: &std::path::Path, ipv6: bool) {
+        setup_basic(dir);
+        // Rewrite network to include eth2 + WAN
+        std::fs::write(
+            dir.join("network"),
+            format!(
+                "\
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth0'
+\tlist ports 'eth1'
+\tlist ports 'eth2'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '1'
+\tlist ports 'eth0:u*'
+\tlist ports 'eth1:u*'
+
+config interface 'lan'
+\toption device 'br-lan.1'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+
+config interface 'guest'
+\toption device 'br-lan.3'
+\toption proto 'static'
+\toption ipaddr '192.168.3.1'
+\toption netmask '255.255.255.0'
+
+config interface 'wan'
+\toption device 'eth2'
+\toption proto 'dhcp'
+{wan6}",
+                wan6 = if ipv6 {
+                    "\nconfig interface 'wan6'\n\toption device 'eth2'\n\toption proto 'dhcpv6'\n"
+                } else {
+                    ""
+                }
+            ),
+        )
+        .unwrap();
+    }
+
+    // ── get tests ──────────────────────────────────────────────
+
+    #[test]
+    fn get_returns_all_bridge_ports() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let result = get(ctx).unwrap();
+        assert_eq!(result.ports.len(), 2);
+        assert!(result.ports.contains_key("eth0"));
+        assert!(result.ports.contains_key("eth1"));
+    }
+
+    #[test]
+    fn get_resolves_profile_from_vlan() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let result = get(ctx).unwrap();
+        // Both ports are untagged+primary on VLAN 1 → Admin profile
+        let eth0_profile = result.ports["eth0"].profile.as_ref().unwrap();
+        assert_eq!(eth0_profile.interface, "lan");
+        assert_eq!(eth0_profile.vlan_tag, 1);
+    }
+
+    #[test]
+    fn get_no_wan_when_no_wan_interface() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let result = get(ctx).unwrap();
+        assert!(result.wan_port.is_none());
+        assert!(!result.wan_ipv6);
+    }
+
+    #[test]
+    fn get_detects_wan_port() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_wan(dir.path(), false);
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let result = get(ctx).unwrap();
+        assert_eq!(result.wan_port.as_deref(), Some("eth2"));
+        assert!(!result.wan_ipv6);
+    }
+
+    #[test]
+    fn get_detects_wan_ipv6() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_wan(dir.path(), true);
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let result = get(ctx).unwrap();
+        assert_eq!(result.wan_port.as_deref(), Some("eth2"));
+        assert!(result.wan_ipv6);
+    }
+
+    #[test]
+    fn get_errors_when_no_bridge() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("network"), "").unwrap();
+        std::fs::write(dir.path().join("startwrt"), "").unwrap();
+        std::fs::write(dir.path().join("firewall"), "").unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let err = get(ctx).unwrap_err();
+        assert!(
+            err.to_string().contains("bridge"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn get_port_with_no_vlan_assignment_has_none_profile() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        // Rewrite network: eth1 has no VLAN assignment (not in any bridge-vlan)
+        std::fs::write(
+            dir.path().join("network"),
+            "\
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth0'
+\tlist ports 'eth1'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '1'
+\tlist ports 'eth0:u*'
+
+config interface 'lan'
+\toption device 'br-lan.1'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+",
+        )
+        .unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let result = get(ctx).unwrap();
+        assert!(result.ports["eth0"].profile.is_some());
+        assert!(result.ports["eth1"].profile.is_none());
+    }
+
+    #[test]
+    fn get_filters_wifi_interfaces() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        // Add wlan0 to bridge ports
+        std::fs::write(
+            dir.path().join("network"),
+            "\
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth0'
+\tlist ports 'eth1'
+\tlist ports 'wlan0'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '1'
+\tlist ports 'eth0:u*'
+\tlist ports 'eth1:u*'
+
+config interface 'lan'
+\toption device 'br-lan.1'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+",
+        )
+        .unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let result = get(ctx).unwrap();
+        assert!(result.ports.contains_key("eth0"));
+        assert!(result.ports.contains_key("eth1"));
+        assert!(
+            !result.ports.contains_key("wlan0"),
+            "WiFi interfaces should be filtered from ethernet ports"
+        );
+    }
+
+    #[test]
+    fn get_detects_wan_port_not_in_bridge() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        // WAN on eth1, which is NOT in the bridge
+        std::fs::write(
+            dir.path().join("network"),
+            "\
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth0'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '1'
+\tlist ports 'eth0:u*'
+
+config interface 'lan'
+\toption device 'br-lan.1'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+
+config interface 'wan'
+\toption device 'eth1'
+\toption proto 'dhcp'
+",
+        )
+        .unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let result = get(ctx).unwrap();
+        assert_eq!(
+            result.wan_port.as_deref(),
+            Some("eth1"),
+            "WAN port should be detected even when not in bridge"
+        );
+        assert!(
+            result.ports.contains_key("eth1"),
+            "WAN port should appear in ports map"
+        );
+    }
+
+    // ── set tests ──────────────────────────────────────────────
+
+    #[test]
+    fn set_round_trip_preserves_state() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let original = get(ctx.clone()).unwrap();
+        set(
+            ctx.clone(),
+            DeserializeStdin(Ethernet {
+                wan_ipv6: original.wan_ipv6,
+                wan_port: original.wan_port.clone(),
+                ports: original
+                    .ports
+                    .iter()
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            Port {
+                                profile: v.profile.as_ref().map(|p| ProfileIdOpt {
+                                    fullname: Some(p.fullname.clone()),
+                                    interface: Some(p.interface.clone()),
+                                    vlan_tag: Some(p.vlan_tag),
+                                }),
+                            },
+                        )
+                    })
+                    .collect(),
+            }),
+        )
+        .unwrap();
+
+        let after = get(ctx).unwrap();
+        assert_eq!(original.wan_ipv6, after.wan_ipv6);
+        assert_eq!(original.wan_port, after.wan_port);
+        assert_eq!(original.ports.len(), after.ports.len());
+        for (name, port) in &original.ports {
+            assert_eq!(
+                port.profile.as_ref().map(|p| &p.interface),
+                after.ports[name].profile.as_ref().map(|p| &p.interface),
+                "port {name} profile mismatch"
+            );
+        }
+    }
+
+    #[test]
+    fn set_assigns_port_to_guest_profile() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        // Assign eth1 to Guest
+        set(
+            ctx.clone(),
+            DeserializeStdin(Ethernet {
+                wan_ipv6: false,
+                wan_port: None,
+                ports: BTreeMap::from([
+                    (
+                        "eth0".into(),
+                        Port {
+                            profile: Some(ProfileIdOpt {
+                                fullname: None,
+                                interface: Some("lan".into()),
+                                vlan_tag: None,
+                            }),
+                        },
+                    ),
+                    (
+                        "eth1".into(),
+                        Port {
+                            profile: Some(ProfileIdOpt {
+                                fullname: None,
+                                interface: Some("guest".into()),
+                                vlan_tag: None,
+                            }),
+                        },
+                    ),
+                ]),
+            }),
+        )
+        .unwrap();
+
+        let after = get(ctx).unwrap();
+        assert_eq!(
+            after.ports["eth1"].profile.as_ref().unwrap().interface,
+            "guest"
+        );
+        assert_eq!(
+            after.ports["eth0"].profile.as_ref().unwrap().interface,
+            "lan"
+        );
+    }
+
+    #[test]
+    fn set_designates_wan_port() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        // Make eth1 the WAN port (no profile allowed)
+        set(
+            ctx.clone(),
+            DeserializeStdin(Ethernet {
+                wan_ipv6: false,
+                wan_port: Some("eth1".into()),
+                ports: BTreeMap::from([
+                    (
+                        "eth0".into(),
+                        Port {
+                            profile: Some(ProfileIdOpt {
+                                fullname: None,
+                                interface: Some("lan".into()),
+                                vlan_tag: None,
+                            }),
+                        },
+                    ),
+                    ("eth1".into(), Port { profile: None }),
+                ]),
+            }),
+        )
+        .unwrap();
+
+        let after = get(ctx).unwrap();
+        assert_eq!(after.wan_port.as_deref(), Some("eth1"));
+        assert!(!after.wan_ipv6);
+        assert!(
+            after.ports.contains_key("eth1"),
+            "WAN port should appear in ports map"
+        );
+    }
+
+    #[test]
+    fn set_enables_wan_ipv6() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        set(
+            ctx.clone(),
+            DeserializeStdin(Ethernet {
+                wan_ipv6: true,
+                wan_port: Some("eth1".into()),
+                ports: BTreeMap::from([
+                    (
+                        "eth0".into(),
+                        Port {
+                            profile: Some(ProfileIdOpt {
+                                fullname: None,
+                                interface: Some("lan".into()),
+                                vlan_tag: None,
+                            }),
+                        },
+                    ),
+                    ("eth1".into(), Port { profile: None }),
+                ]),
+            }),
+        )
+        .unwrap();
+
+        let after = get(ctx).unwrap();
+        assert_eq!(after.wan_port.as_deref(), Some("eth1"));
+        assert!(after.wan_ipv6);
+    }
+
+    #[test]
+    fn set_removes_wan_when_unset() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_wan(dir.path(), true);
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        // Verify WAN exists first
+        let before = get(ctx.clone()).unwrap();
+        assert!(before.wan_port.is_some());
+
+        // Remove WAN
+        set(
+            ctx.clone(),
+            DeserializeStdin(Ethernet {
+                wan_ipv6: false,
+                wan_port: None,
+                ports: BTreeMap::from([
+                    (
+                        "eth0".into(),
+                        Port {
+                            profile: Some(ProfileIdOpt {
+                                fullname: None,
+                                interface: Some("lan".into()),
+                                vlan_tag: None,
+                            }),
+                        },
+                    ),
+                    ("eth1".into(), Port { profile: None }),
+                    ("eth2".into(), Port { profile: None }),
+                ]),
+            }),
+        )
+        .unwrap();
+
+        let after = get(ctx).unwrap();
+        assert!(after.wan_port.is_none());
+        assert!(!after.wan_ipv6);
+    }
+
+    #[test]
+    fn set_errors_wan_port_with_profile() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let err = set(
+            ctx,
+            DeserializeStdin(Ethernet {
+                wan_ipv6: false,
+                wan_port: Some("eth1".into()),
+                ports: BTreeMap::from([
+                    ("eth0".into(), Port { profile: None }),
+                    (
+                        "eth1".into(),
+                        Port {
+                            profile: Some(ProfileIdOpt {
+                                fullname: None,
+                                interface: Some("guest".into()),
+                                vlan_tag: None,
+                            }),
+                        },
+                    ),
+                ]),
+            }),
+        )
+        .unwrap_err();
+
+        assert!(
+            err.to_string().contains("eth1") || err.to_string().contains("WAN"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn set_moves_wan_to_different_port() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_wan(dir.path(), false);
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let before = get(ctx.clone()).unwrap();
+        assert_eq!(before.wan_port.as_deref(), Some("eth2"));
+
+        // Move WAN from eth2 to eth0
+        set(
+            ctx.clone(),
+            DeserializeStdin(Ethernet {
+                wan_ipv6: false,
+                wan_port: Some("eth0".into()),
+                ports: BTreeMap::from([
+                    ("eth0".into(), Port { profile: None }),
+                    (
+                        "eth1".into(),
+                        Port {
+                            profile: Some(ProfileIdOpt {
+                                fullname: None,
+                                interface: Some("lan".into()),
+                                vlan_tag: None,
+                            }),
+                        },
+                    ),
+                    (
+                        "eth2".into(),
+                        Port {
+                            profile: Some(ProfileIdOpt {
+                                fullname: None,
+                                interface: Some("guest".into()),
+                                vlan_tag: None,
+                            }),
+                        },
+                    ),
+                ]),
+            }),
+        )
+        .unwrap();
+
+        // Verify WAN moved to eth0 in UCI config
+        let arena = Arena::new();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).unwrap();
+        for section in &cfgs["network"].sections {
+            if let Some(iface) = section.get_typed::<NetworkInterface>().unwrap() {
+                if section.name().as_deref() == Some("wan") && iface.proto == InterfaceProto::DHCP {
+                    assert_eq!(iface.device, "eth0", "WAN should now point to eth0");
+                }
+            }
+            // eth2 should be back in the bridge (no longer WAN)
+            if let Some(dev) = section.get_typed::<NetworkDevice>().unwrap() {
+                if dev.name == "br-lan" {
+                    assert!(
+                        dev.ports.contains(&"eth2".to_string()),
+                        "eth2 should be back in bridge after WAN moved away"
+                    );
+                    assert!(
+                        !dev.ports.contains(&"eth0".to_string()),
+                        "eth0 (new WAN) should not be in bridge"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn set_wan_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_wan(dir.path(), true);
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let before = get(ctx.clone()).unwrap();
+        assert_eq!(before.wan_port.as_deref(), Some("eth2"));
+        assert!(before.wan_ipv6);
+
+        // Round-trip: set with the same values
+        set(
+            ctx.clone(),
+            DeserializeStdin(Ethernet {
+                wan_ipv6: true,
+                wan_port: Some("eth2".into()),
+                ports: before
+                    .ports
+                    .iter()
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            Port {
+                                profile: v.profile.as_ref().map(|p| ProfileIdOpt {
+                                    fullname: Some(p.fullname.clone()),
+                                    interface: Some(p.interface.clone()),
+                                    vlan_tag: Some(p.vlan_tag),
+                                }),
+                            },
+                        )
+                    })
+                    .collect(),
+            }),
+        )
+        .unwrap();
+
+        let after = get(ctx).unwrap();
+        assert_eq!(
+            after.wan_port.as_deref(),
+            Some("eth2"),
+            "WAN port should be preserved after round-trip"
+        );
+        assert!(after.wan_ipv6, "WAN IPv6 should be preserved after round-trip");
+        assert!(
+            after.ports.contains_key("eth2"),
+            "WAN port should appear in ports map"
+        );
+    }
+
+    #[test]
+    fn set_unassigned_ports_default_to_admin_when_vlan_filtering() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        // Assign eth0 to Guest, leave eth1 unassigned (None)
+        set(
+            ctx.clone(),
+            DeserializeStdin(Ethernet {
+                wan_ipv6: false,
+                wan_port: None,
+                ports: BTreeMap::from([
+                    (
+                        "eth0".into(),
+                        Port {
+                            profile: Some(ProfileIdOpt {
+                                fullname: None,
+                                interface: Some("guest".into()),
+                                vlan_tag: None,
+                            }),
+                        },
+                    ),
+                    ("eth1".into(), Port { profile: None }),
+                ]),
+            }),
+        )
+        .unwrap();
+
+        let after = get(ctx).unwrap();
+        assert_eq!(
+            after.ports["eth0"].profile.as_ref().unwrap().interface,
+            "guest"
+        );
+        // Unassigned port should default to Admin (vlan 1) since other profiles have non-1 vlans
+        assert_eq!(
+            after.ports["eth1"].profile.as_ref().unwrap().interface,
+            "lan",
+            "unassigned port should default to admin profile"
+        );
+    }
+
+    // ── set_config unit tests (in-memory, no disk I/O) ─────────
+
+    #[test]
+    fn set_config_removes_old_bridge_vlans() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).unwrap();
+
+        // Count bridge-vlan sections before
+        let before_count = cfgs["network"]
+            .sections
+            .iter()
+            .filter(|s| s.get::<NetworkBridgeVlan>().is_ok())
+            .count();
+        assert!(before_count > 0, "fixture should have bridge-vlans");
+
+        let ethernet = Ethernet {
+            wan_ipv6: false,
+            wan_port: None,
+            ports: BTreeMap::from([
+                ("eth0".into(), Port { profile: None }),
+                ("eth1".into(), Port { profile: None }),
+            ]),
+        };
+        set_from_config(&ctx, &mut cfgs, &ethernet).unwrap();
+
+        // All old bridge-vlans should be replaced
+        let after_vlans: Vec<_> = cfgs["network"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<NetworkBridgeVlan>().ok())
+            .collect();
+
+        // With no port assignments and vlan_tag 1 for admin (only profile in play
+        // when no ports assigned to non-admin), the admin vlan=1 with empty ports
+        // is skipped, but guest vlan=3 should still be created (even with empty ports)
+        for vlan in &after_vlans {
+            assert_eq!(vlan.device, "br-lan");
+        }
+    }
+
+    #[test]
+    fn set_config_creates_wan_interfaces() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).unwrap();
+
+        let ethernet = Ethernet {
+            wan_ipv6: true,
+            wan_port: Some("eth1".into()),
+            ports: BTreeMap::from([
+                ("eth0".into(), Port { profile: None }),
+                ("eth1".into(), Port { profile: None }),
+            ]),
+        };
+        set_from_config(&ctx, &mut cfgs, &ethernet).unwrap();
+
+        // Should have wan (DHCP) and wan6 (DHCPv6) interfaces
+        let mut found_wan = false;
+        let mut found_wan6 = false;
+        for section in &cfgs["network"].sections {
+            if let Some(iface) = section.get_typed::<NetworkInterface>().unwrap() {
+                if section.name().as_deref() == Some("wan") && iface.proto == InterfaceProto::DHCP {
+                    assert_eq!(iface.device, "eth1");
+                    found_wan = true;
+                }
+                if section.name().as_deref() == Some("wan6")
+                    && iface.proto == InterfaceProto::DHCPV6
+                {
+                    assert_eq!(iface.device, "eth1");
+                    found_wan6 = true;
+                }
+            }
+        }
+        assert!(found_wan, "WAN interface should be created");
+        assert!(found_wan6, "WAN6 interface should be created");
+    }
+
+    #[test]
+    fn set_config_excludes_wan_port_from_bridge() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).unwrap();
+
+        let ethernet = Ethernet {
+            wan_ipv6: false,
+            wan_port: Some("eth1".into()),
+            ports: BTreeMap::from([
+                ("eth0".into(), Port { profile: None }),
+                ("eth1".into(), Port { profile: None }),
+            ]),
+        };
+        set_from_config(&ctx, &mut cfgs, &ethernet).unwrap();
+
+        // Bridge should only contain eth0 (eth1 is WAN)
+        for section in &cfgs["network"].sections {
+            if let Some(dev) = section.get_typed::<NetworkDevice>().unwrap() {
+                if dev.name == "br-lan" {
+                    assert!(
+                        dev.ports.contains(&"eth0".to_string()),
+                        "eth0 should be in bridge"
+                    );
+                    assert!(
+                        !dev.ports.contains(&"eth1".to_string()),
+                        "WAN port eth1 should NOT be in bridge"
+                    );
+                }
+            }
+        }
+    }
+
+    // ── find_lan_bridge tests ──────────────────────────────────
+
+    #[test]
+    fn set_preserves_wifi_bridge_ports() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path());
+        // Add wlan0 to bridge ports
+        std::fs::write(
+            dir.path().join("network"),
+            "\
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth0'
+\tlist ports 'eth1'
+\tlist ports 'wlan0'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '1'
+\tlist ports 'eth0:u*'
+\tlist ports 'eth1:u*'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '3'
+
+config interface 'lan'
+\toption device 'br-lan.1'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+
+config interface 'guest'
+\toption device 'br-lan.3'
+\toption proto 'static'
+\toption ipaddr '192.168.3.1'
+\toption netmask '255.255.255.0'
+",
+        )
+        .unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        // Change eth0 to Guest profile — wlan0 should be preserved
+        set(
+            ctx.clone(),
+            DeserializeStdin(Ethernet {
+                wan_ipv6: false,
+                wan_port: None,
+                ports: BTreeMap::from([
+                    (
+                        "eth0".into(),
+                        Port {
+                            profile: Some(ProfileIdOpt {
+                                fullname: None,
+                                interface: Some("guest".into()),
+                                vlan_tag: None,
+                            }),
+                        },
+                    ),
+                    (
+                        "eth1".into(),
+                        Port {
+                            profile: Some(ProfileIdOpt {
+                                fullname: None,
+                                interface: Some("lan".into()),
+                                vlan_tag: None,
+                            }),
+                        },
+                    ),
+                ]),
+            }),
+        )
+        .unwrap();
+
+        // Verify wlan0 is still in the bridge
+        let arena = Arena::new();
+        let cfgs =
+            parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).unwrap();
+        for section in &cfgs["network"].sections {
+            if let Some(dev) = section.get_typed::<NetworkDevice>().unwrap() {
+                if dev.name == "br-lan" {
+                    assert!(
+                        dev.ports.contains(&"wlan0".to_string()),
+                        "wlan0 should be preserved in bridge after ethernet.set, got: {:?}",
+                        dev.ports
+                    );
+                    assert!(dev.ports.contains(&"eth0".to_string()));
+                    assert!(dev.ports.contains(&"eth1".to_string()));
+                    return;
+                }
+            }
+        }
+        panic!("br-lan bridge device not found");
+    }
+
+    #[test]
+    fn find_lan_bridge_prefers_br_lan() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("network"),
+            "\
+config device
+\toption name 'br-other'
+\toption type 'bridge'
+\tlist ports 'eth0'
+
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth1'
+",
+        )
+        .unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).unwrap();
+        let bridge = find_lan_bridge(&cfgs).unwrap().unwrap();
+        assert_eq!(bridge.name, "br-lan");
+    }
+
+    #[test]
+    fn find_lan_bridge_falls_back_to_any_bridge() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("network"),
+            "\
+config device
+\toption name 'br-custom'
+\toption type 'bridge'
+\tlist ports 'eth0'
+",
+        )
+        .unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).unwrap();
+        let bridge = find_lan_bridge(&cfgs).unwrap().unwrap();
+        assert_eq!(bridge.name, "br-custom");
+    }
+
+    #[test]
+    fn find_lan_bridge_returns_none_when_no_bridge() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("network"), "").unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).unwrap();
+        assert!(find_lan_bridge(&cfgs).unwrap().is_none());
+    }
 }

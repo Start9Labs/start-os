@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   inject,
   input,
 } from '@angular/core'
@@ -16,7 +15,8 @@ import {
 } from '@taiga-ui/core'
 import { TuiBadge, TuiButtonSelect, TuiChevron } from '@taiga-ui/kit'
 
-import { EthernetPort, EthernetService } from './service'
+import { Placeholder } from 'src/app/components/placeholder'
+import { EthernetPortView, EthernetService } from './service'
 
 @Component({
   selector: '[ethernetTable]',
@@ -24,7 +24,7 @@ import { EthernetPort, EthernetService } from './service'
     <thead>
       <tr>
         <th tuiTh [sorter]="'name' | tuiSorter">Port</th>
-        <th tuiTh [sorter]="'profile' | tuiSorter">Security Profile</th>
+        <th tuiTh [sorter]="'profileName' | tuiSorter">Security Profile</th>
       </tr>
     </thead>
     <tbody>
@@ -45,14 +45,14 @@ import { EthernetPort, EthernetService } from './service'
                 tuiChevron
                 tuiButtonSelect
                 tuiDropdownAlign="start"
-                [textContent]="item.profile"
-                [(ngModel)]="item.profile"
-                (ngModelChange)="onProfile()"
+                [textContent]="item.profile?.fullname || 'Admin'"
+                [ngModel]="item.profile?.fullname || 'Admin'"
+                (ngModelChange)="onProfileChange(item, $event)"
               >
                 <tui-data-list *tuiDropdown>
-                  @for (profile of profiles(); track $index) {
-                    <button tuiOption [value]="profile">
-                      {{ profile }}
+                  @for (profile of service.profiles(); track profile.vlan_tag) {
+                    <button tuiOption [value]="profile.fullname">
+                      {{ profile.fullname }}
                     </button>
                   }
                   <hr />
@@ -67,6 +67,14 @@ import { EthernetPort, EthernetService } from './service'
                 </tui-data-list>
               </button>
             }
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td tuiTd colspan="2">
+            <app-placeholder icon="@tui.inbox">
+              No ports detected
+            </app-placeholder>
           </td>
         </tr>
       }
@@ -97,17 +105,19 @@ import { EthernetPort, EthernetService } from './service'
     TuiBadge,
     RouterLink,
     TuiAppearance,
+    Placeholder,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EthernetTable {
   protected readonly service = inject(EthernetService)
 
-  readonly ethernetTable = input<EthernetPort[]>([])
+  readonly ethernetTable = input<EthernetPortView[]>([])
 
-  readonly profiles = computed(() => this.service.getProfiles())
-
-  onProfile() {
+  onProfileChange(item: EthernetPortView, fullname: string) {
+    const profile =
+      this.service.profiles().find(p => p.fullname === fullname) ?? null
+    item.profile = profile
     this.service.save([...this.ethernetTable()])
   }
 }

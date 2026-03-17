@@ -1,35 +1,79 @@
-import { inject, Injectable } from '@angular/core'
+import { inject, Injectable, signal } from '@angular/core'
 import { FormService } from 'src/app/services/form.service'
-import { ApiService } from 'src/app/services/api/api.service'
-import { EthernetPort, EthernetUciService } from './uci/service'
+import {
+  ApiService,
+  EthernetConfig,
+  ProfileId,
+} from 'src/app/services/api/api.service'
 
-// Re-export for convenience
-export type { EthernetPort }
+export interface EthernetPortView {
+  name: string
+  profile: ProfileId | null
+  profileName: string
+  wan: boolean
+}
 
 @Injectable()
-export class EthernetService extends FormService<EthernetPort[]> {
+export class EthernetService extends FormService<EthernetPortView[]> {
   private readonly api = inject(ApiService)
-  private readonly uci = inject(EthernetUciService)
 
-  async load(): Promise<EthernetPort[]> {
-    return this.uci.get()
+  /** Cached wan_ipv6 from last get, preserved across saves */
+  private wanIpv6 = false
+
+  /** Available profiles for the dropdown */
+  readonly profiles = signal<ProfileId[]>([])
+
+  async load(): Promise<EthernetPortView[]> {
+    const [ethernet, profiles] = await Promise.all([
+      this.api.ethernetGet(),
+      this.api.profilesList(),
+    ])
+
+    this.wanIpv6 = ethernet.wan_ipv6
+    this.profiles.set(profiles)
+
+    return this.toPortViews(ethernet)
   }
 
-  async store(items: EthernetPort[]): Promise<void> {
-    await this.uci.set(items)
+  override async save(data: EthernetPortView[]): Promise<boolean> {
+    return this.actions.run(
+      async () => {
+        await this.store(data)
+        await this.refreshAndWait()
+      },
+      {
+        loading: 'Restarting network...',
+        success: 'Ethernet settings saved',
+        restart: true,
+      },
+    )
   }
 
-  /**
-   * Get available security profiles (stub)
-   */
-  getProfiles(): string[] {
-    return this.uci.getProfiles()
+  async store(items: EthernetPortView[]): Promise<void> {
+    const wanPort = items.find(p => p.wan)?.name ?? null
+
+    await this.api.ethernetSet({
+      wan_ipv6: this.wanIpv6,
+      wan_port: wanPort,
+      ports: Object.fromEntries(
+        items.map(p => [
+          p.name,
+          {
+            profile: p.wan ? null : p.profile,
+          },
+        ]),
+      ),
+    })
   }
 
-  /**
-   * Restart the router
-   */
-  restart(): void {
-    this.api.systemRestart()
+  private toPortViews(ethernet: EthernetConfig): EthernetPortView[] {
+    return Object.entries(ethernet.ports)
+      .map(([name, port]) => ({
+        name,
+        profile: port.profile,
+        profileName: port.profile?.fullname ?? 'Admin',
+        wan: name === ethernet.wan_port,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
   }
 }

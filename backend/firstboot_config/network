@@ -12,7 +12,6 @@ config device
 	option name 'br-lan'
 	option type 'bridge'
 	list ports 'eth0'
-	list ports 'wlan0'
 
 config interface 'lan'
 	option device 'br-lan'

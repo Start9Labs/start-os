@@ -60,6 +60,8 @@ import {
   OutboundVpnUpdateRequest,
   OutboundVpnDeleteRequest,
   OutboundVpnSetEnabledRequest,
+  EthernetConfig,
+  EthernetSetConfig,
   SshKeyFromApi,
   SshKeysAddRequest,
   SshKeysDeleteRequest,
@@ -81,7 +83,6 @@ import {
   mockDhcpHosts,
   mockDhcpLeasesOutput,
 } from 'src/app/routes/devices/uci/mocks'
-import { mockBrLan, mockWanDevice } from 'src/app/routes/ethernet/uci/mocks'
 
 @Injectable({
   providedIn: 'root',
@@ -1268,6 +1269,57 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  // --- Ethernet smart endpoint mocks ---
+
+  private mockEthernet: EthernetConfig = {
+    wan_ipv6: true,
+    wan_port: 'eth0',
+    ports: {
+      eth0: { profile: null },
+      eth1: {
+        profile: { fullname: 'Admin', interface: 'lan', vlan_tag: 1 },
+      },
+      eth2: {
+        profile: { fullname: 'Admin', interface: 'lan', vlan_tag: 1 },
+      },
+      eth3: {
+        profile: { fullname: 'Guest', interface: 'guest', vlan_tag: 100 },
+      },
+    },
+  }
+
+  async ethernetGet(): Promise<EthernetConfig> {
+    await pauseFor(250)
+    return structuredClone(this.mockEthernet)
+  }
+
+  async ethernetSet(params: EthernetSetConfig): Promise<null> {
+    await pauseFor(250)
+    this.mockEthernet = {
+      wan_ipv6: params.wan_ipv6,
+      wan_port: params.wan_port,
+      ports: Object.fromEntries(
+        Object.entries(params.ports).map(([name, port]) => [
+          name,
+          {
+            profile: port.profile
+              ? (this.mockProfiles.find(
+                  p =>
+                    (port.profile!.fullname === undefined ||
+                      p.fullname === port.profile!.fullname) &&
+                    (port.profile!.interface === undefined ||
+                      p.interface === port.profile!.interface) &&
+                    (port.profile!.vlan_tag === undefined ||
+                      p.vlan_tag === port.profile!.vlan_tag),
+                ) ?? null)
+              : null,
+          },
+        ]),
+      ),
+    }
+    return null
+  }
+
   // --- SSH Keys smart endpoint mocks ---
 
   private mockSshKeys: SshKeyFromApi[] = [
@@ -1393,8 +1445,25 @@ export const mockUci: Record<string, UciFile<UciSection>> = {
         },
         lists: {},
       },
-      mockBrLan,
-      mockWanDevice,
+      {
+        type: 'device',
+        name: 'br_lan',
+        options: {
+          name: 'br-lan',
+          type: 'bridge',
+        },
+        lists: {
+          ports: ['eth1', 'eth2', 'eth3'],
+        },
+      },
+      {
+        type: 'device',
+        name: 'wan_eth0',
+        options: {
+          name: 'eth0',
+        },
+        lists: {},
+      },
     ],
     modified: new Date().toISOString(),
   },

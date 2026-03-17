@@ -464,28 +464,40 @@ struct LanIpv6SetRequest {
 ```rust
 // Request: {}
 
-#[derive(Serialize)]
-struct EthernetPort {
-    /// Physical port name (e.g. "eth0")
-    name: String,
-    /// Security profile assigned to this port
-    profile: String,
-    /// Whether this port is currently the WAN uplink
-    wan: bool,
+#[derive(Serialize, Deserialize)]
+struct Port<Id = ProfileId> {
+    /// Security profile assigned to this port, if any
+    profile: Option<Id>,
 }
-// Response: Vec<EthernetPort>
+
+#[derive(Serialize)]
+struct Ethernet {
+    /// Whether WAN has a DHCPv6 interface
+    wan_ipv6: bool,
+    /// Which port is the WAN uplink, if any
+    wan_port: Option<String>,
+    /// Map of physical port name → port config
+    ports: BTreeMap<String, Port>,
+}
+// Response: Ethernet
 ```
 
 ### `ethernet.set`
 
 ```rust
+// Request:
 #[derive(Deserialize)]
-struct EthernetSetRequest {
-    ports: Vec<EthernetPort>,
+struct Ethernet {
+    wan_ipv6: bool,
+    wan_port: Option<String>,
+    /// Uses ProfileIdOpt for lookup flexibility
+    ports: BTreeMap<String, Port<ProfileIdOpt>>,
 }
 // Response: null
-// Backend: updates UCI network interfaces/devices, restarts network
+// Backend: updates UCI network (bridge VLANs, WAN interfaces), restarts network
 ```
+
+Note: `ProfileId` and `ProfileIdOpt` are shared types defined at the top of the contract.
 
 ---
 

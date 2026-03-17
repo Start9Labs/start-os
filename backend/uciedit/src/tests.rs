@@ -63,15 +63,15 @@ fn test_append_section() {
     # a comment here
 
 config bar appended
-    option always 0
-    option yes 1
-    list many 2
-    list many 3
-    list many 4
-    option num_default 0
-    option opt_str_default_val default_val
-    list vec_str_default_val a
-    list vec_str_default_val b
+    option always '0'
+    option yes '1'
+    list many '2'
+    list many '3'
+    list many '4'
+    option num_default '0'
+    option opt_str_default_val 'default_val'
+    list vec_str_default_val 'a'
+    list vec_str_default_val 'b'
 ";
 
     let arena = Arena::new();
@@ -137,21 +137,21 @@ config other
     let expected = r"# top comment
 config bar named
     # always comment
-    option always 0
+    option always '0'
 
     # no comment
 
     # many comment
-    list many 2
+    list many '2'
 
     # few comment
-    list few 5
+    list few '5'
 
     # ignored comment
     option ignored 6
-    option yes 1
-    list many 3
-    list many 4
+    option yes '1'
+    list many '3'
+    list many '4'
 
 # bottom comment
 config other
@@ -261,9 +261,9 @@ fn test_token_functionality() {
     assert_eq!(token_w.as_str(), "word");
     assert_eq!(format!("{}", token_w), "word");
 
-    let token_q_needed = Token::from_string("hello world".to_string(), &arena);
-    assert_eq!(token_q_needed.as_str(), "hello world"); // as_str unescapes if from_string quoted
-    assert_eq!(format!("{}", token_q_needed), "\"hello world\"");
+    let token_sq_needed = Token::from_string("hello world".to_string(), &arena);
+    assert_eq!(token_sq_needed.as_str(), "hello world");
+    assert_eq!(format!("{}", token_sq_needed), "'hello world'");
 
     let token_sq_manual = Token::Sq(SingleQuoted { inner: "sq word" });
     assert_eq!(token_sq_manual.as_str(), "sq word");
@@ -323,8 +323,8 @@ fn test_uci_section_rename_and_type_override() {
     config2.append(&expected_obj, Some("my_section")).unwrap();
     let written = config2.dump_str();
     let expected_written = r"config custom_type my_section
-    option old_name test_value
-    option val 1
+    option old_name 'test_value'
+    option val '1'
 ";
     assert_eq!(normalize(written), normalize(expected_written.to_string()));
 }
@@ -405,12 +405,12 @@ fn test_uci_section_bool_field() {
     config2.append(&parsed, None).unwrap();
     let written = config2.dump_str();
     let expected_written = r"config boolfieldtest
-    option is_enabled 1
-    option is_active 0
-    option is_present 1
-    list bits 0
-    list bits 1
-    list bits 1
+    option is_enabled '1'
+    option is_active '0'
+    option is_present '1'
+    list bits '0'
+    list bits '1'
+    list bits '1'
 ";
     assert_eq!(normalize(written), normalize(expected_written.to_string()));
 }
@@ -435,8 +435,8 @@ fn test_uci_section_missing_required_field() {
 #[test]
 fn test_sections_mut_push_to_empty_config() {
     let expected = r"config bar
-    option always 1
-    option num_default 0
+    option always '1'
+    option num_default '0'
 ";
     let arena = Arena::new();
     let mut config = Config::parse_str(&arena, "").unwrap();
@@ -549,18 +549,18 @@ fn test_round_trip_complex_config() {
     let original_config_str = config.dump_str();
 
     let expected_written_config = r#"config complexsection first
-    option name "Section One"
-    option value 42
-    list items item1
-    list items "item2 with spaces"
-    option enabled 1
-    option old_flag 0
+    option name 'Section One'
+    option value '42'
+    list items 'item1'
+    list items 'item2 with spaces'
+    option enabled '1'
+    option old_flag '0'
     option with_quotes "'custom'"
 
 config complexsection second
-    option name "Section Two"
-    option enabled 0
-    option with_quotes "\"custom\""
+    option name 'Section Two'
+    option enabled '0'
+    option with_quotes '"custom"'
 "#;
     println!(
         "===Generated Config===\n{}\n===Expected Config===\n{}\n===",

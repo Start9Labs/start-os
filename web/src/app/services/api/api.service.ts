@@ -75,7 +75,30 @@ export abstract class ApiService {
   ): Promise<null>
   abstract sshKeysList(): Promise<SshKeyFromApi[]>
   abstract sshKeysAdd(params: SshKeysAddRequest): Promise<SshKeyFromApi>
+  abstract ethernetGet(): Promise<EthernetConfig>
+  abstract ethernetSet(params: EthernetSetConfig): Promise<null>
   abstract sshKeysDelete(params: SshKeysDeleteRequest): Promise<null>
+}
+
+// Ethernet types
+export interface EthernetPort {
+  profile: ProfileId | null
+}
+
+export interface EthernetConfig {
+  wan_ipv6: boolean
+  wan_port: string | null
+  ports: Record<string, EthernetPort>
+}
+
+export interface EthernetSetPort {
+  profile: ProfileIdOpt | null
+}
+
+export interface EthernetSetConfig {
+  wan_ipv6: boolean
+  wan_port: string | null
+  ports: Record<string, EthernetSetPort>
 }
 
 // SSH Keys types
