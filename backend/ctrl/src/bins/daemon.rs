@@ -115,6 +115,11 @@ fn init_ssl() -> bool {
         return false;
     }
 
+    if let Err(e) = ssl::ensure_intermediate_ca() {
+        tracing::error!("intermediate CA generation failed: {e}");
+        return false;
+    }
+
     let lan_ip = ssl::read_lan_ip(std::path::Path::new("/etc/config"));
     if let Err(e) = ssl::ensure_server_cert(lan_ip) {
         tracing::error!("server cert generation failed: {e}");
