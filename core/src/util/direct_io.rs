@@ -119,6 +119,7 @@ impl DirectIoFile {
             if flags == -1 {
                 return Err(std::io::Error::last_os_error());
             }
+            #[cfg(target_os = "linux")]
             if libc::fcntl(fd, libc::F_SETFL, flags | libc::O_DIRECT) == -1 {
                 return Err(std::io::Error::last_os_error());
             }
@@ -139,8 +140,7 @@ impl DirectIoFile {
         // Wait for any in-flight flush
         self.await_flush().await?;
 
-        let FileState::Idle(file) = std::mem::replace(&mut self.file_state, FileState::Done)
-        else {
+        let FileState::Idle(file) = std::mem::replace(&mut self.file_state, FileState::Done) else {
             return Ok(());
         };
 
@@ -162,6 +162,7 @@ impl DirectIoFile {
             if buf.len > 0 {
                 let fd = file.as_raw_fd();
                 // SAFETY: fd is valid, F_GETFL/F_SETFL are standard fcntl ops
+                #[cfg(target_os = "linux")]
                 unsafe {
                     let flags = libc::fcntl(fd, libc::F_GETFL);
                     libc::fcntl(fd, libc::F_SETFL, flags & !libc::O_DIRECT);
@@ -220,8 +221,7 @@ impl DirectIoFile {
         let Some((flush_buf, count)) = self.buf.take_aligned() else {
             return;
         };
-        let FileState::Idle(file) = std::mem::replace(&mut self.file_state, FileState::Done)
-        else {
+        let FileState::Idle(file) = std::mem::replace(&mut self.file_state, FileState::Done) else {
             unreachable!()
         };
         let handle = tokio::task::spawn_blocking(move || {
@@ -263,10 +263,7 @@ impl AsyncWrite for DirectIoFile {
         Poll::Ready(Ok(n))
     }
 
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::io::Result<()>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         match self.poll_complete_flush(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
@@ -282,10 +279,7 @@ impl AsyncWrite for DirectIoFile {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_shutdown(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::io::Result<()>> {
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         match self.poll_complete_flush(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
