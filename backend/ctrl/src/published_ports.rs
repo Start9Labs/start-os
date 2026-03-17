@@ -669,7 +669,7 @@ fn resolve_device_info(
         .unwrap_or_default();
 
     let mut arp_ipv4: HashMap<String, String> = HashMap::new();
-    let mut arp_ipv6: HashMap<String, String> = HashMap::new();
+    let mut arp_ipv6_candidates: HashMap<String, Vec<String>> = HashMap::new();
     let mut arp_iface: HashMap<String, String> = HashMap::new();
 
     for line in neigh_output.lines() {
@@ -686,10 +686,10 @@ fn resolve_device_info(
                                 .or_insert_with(|| iface.to_string());
                         }
                         if ip.contains(':') {
-                            // Prefer non-link-local IPv6
-                            if !ip.starts_with("fe80:") {
-                                arp_ipv6.entry(mac_upper).or_insert_with(|| ip.to_string());
-                            }
+                            arp_ipv6_candidates
+                                .entry(mac_upper)
+                                .or_default()
+                                .push(ip.to_string());
                         } else {
                             arp_ipv4
                                 .entry(mac_upper)
@@ -700,6 +700,15 @@ fn resolve_device_info(
             }
         }
     }
+
+    // Pick best IPv6 per MAC: GUA preferred over ULA, link-local excluded
+    let arp_ipv6: HashMap<String, String> = arp_ipv6_candidates
+        .iter()
+        .filter_map(|(mac, candidates)| {
+            devices::pick_ipv6(candidates.iter().map(|s| s.as_str()))
+                .map(|ip| (mac.clone(), ip))
+        })
+        .collect();
 
     // Read DHCP leases as fallback for IPv4
     let leases = std::fs::read_to_string("/tmp/dhcp.leases").unwrap_or_default();

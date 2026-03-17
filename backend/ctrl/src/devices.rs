@@ -940,10 +940,12 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
             .find(|e| !e.ip.contains(':'))
             .map(|e| e.ip.clone())
             .or_else(|| lease.map(|l| l.ip.clone()));
-        let ipv6 = arp_list
-            .iter()
-            .find(|e| e.ip.contains(':') && !e.ip.starts_with("fe80:"))
-            .map(|e| e.ip.clone());
+        let ipv6 = pick_ipv6(
+            arp_list
+                .iter()
+                .filter(|e| e.ip.contains(':'))
+                .map(|e| e.ip.as_str()),
+        );
 
         // Profile from VLAN tag
         let vlan_tag = arp_list
@@ -1429,6 +1431,25 @@ pub async fn data_usage(
     }
 
     Ok(points)
+}
+
+/// Pick the best IPv6 address from candidates, preferring GUA over ULA.
+/// Filters out link-local (fe80::) addresses.
+pub fn pick_ipv6<'a>(candidates: impl Iterator<Item = &'a str>) -> Option<String> {
+    let mut best: Option<(&str, bool)> = None; // (addr, is_gua)
+    for ip in candidates {
+        if ip.starts_with("fe80:") {
+            continue;
+        }
+        let is_ula = ip.starts_with("fd") || ip.starts_with("fc");
+        if !is_ula {
+            return Some(ip.to_string()); // GUA — best possible, return immediately
+        }
+        if best.is_none() {
+            best = Some((ip, false));
+        }
+    }
+    best.map(|(ip, _)| ip.to_string())
 }
 
 /// Extract the last 4 hextets from an IPv6 address for use as hostid.
