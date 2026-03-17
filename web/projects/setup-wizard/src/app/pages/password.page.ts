@@ -1,5 +1,4 @@
 import { Component, inject } from '@angular/core'
-import { Router } from '@angular/router'
 import {
   AbstractControl,
   FormControl,
@@ -7,14 +6,15 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
+import { Router } from '@angular/router'
 import { ErrorService, i18nPipe, normalizeHostname } from '@start9labs/shared'
 import { TuiAutoFocus, TuiMapperPipe, TuiValidator } from '@taiga-ui/cdk'
 import {
   TuiButton,
   TuiError,
   TuiIcon,
-  TuiTitle,
   TuiInput,
+  TuiTitle,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
 import { TuiNotificationMiddleService, TuiPassword } from '@taiga-ui/kit'
@@ -80,17 +80,6 @@ import { StateService } from '../services/state.service'
       <tui-error formControlName="confirm" />
 
       <footer>
-        <button
-          tuiButton
-          size="m"
-          [disabled]="
-            isFresh
-              ? form.invalid
-              : form.controls.password.value && form.invalid
-          "
-        >
-          {{ 'Finish' | i18n }}
-        </button>
         @if (!isFresh) {
           <button
             tuiButton
@@ -102,6 +91,17 @@ import { StateService } from '../services/state.service'
             {{ 'Skip' | i18n }}
           </button>
         }
+        <button
+          tuiButton
+          size="m"
+          [disabled]="
+            isFresh
+              ? form.invalid
+              : form.controls.password.value && form.invalid
+          "
+        >
+          {{ 'Finish' | i18n }}
+        </button>
       </footer>
     </form>
   `,
