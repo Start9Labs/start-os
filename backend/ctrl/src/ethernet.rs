@@ -112,12 +112,16 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Ethernet, Error> 
     if let Some(ref wp) = wan_port {
         ports.entry(wp.clone()).or_insert(Port { profile: None });
     }
-    cfgs["network"].try_each(|_, iface: NetworkInterface| {
-        if iface.proto == InterfaceProto::DHCPV6 && Some(&iface.device) == wan_port.as_ref() {
-            wan_ipv6 = true;
+    for section in &cfgs["network"].sections {
+        if section.name().as_deref() == Some(DEFAULT_WAN6_INTERFACE) {
+            if let Some(iface) = section.get_typed::<NetworkInterface>()? {
+                if iface.proto == InterfaceProto::DHCPV6 {
+                    wan_ipv6 = true;
+                }
+            }
+            break;
         }
-        Ok::<_, Error>(())
-    })?;
+    }
     Ok(Ethernet {
         wan_ipv6,
         wan_port,
@@ -671,6 +675,27 @@ config interface 'wan'
         let result = get(ctx).unwrap();
         assert_eq!(result.wan_port.as_deref(), Some("eth2"));
         assert!(result.wan_ipv6);
+    }
+
+    #[test]
+    fn get_detects_wan_ipv6_with_at_wan_alias() {
+        // Real firstboot config uses `@wan` device alias, not the raw port name.
+        // This must still be detected as wan_ipv6 = true.
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_wan(dir.path(), false);
+        // Rewrite with @wan alias instead of the direct device name
+        let network = std::fs::read_to_string(dir.path().join("network")).unwrap();
+        std::fs::write(
+            dir.path().join("network"),
+            format!(
+                "{network}\nconfig interface 'wan6'\n\toption device '@wan'\n\toption proto 'dhcpv6'\n"
+            ),
+        )
+        .unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let result = get(ctx).unwrap();
+        assert!(result.wan_ipv6, "wan_ipv6 should be true even with @wan device alias");
     }
 
     #[test]
