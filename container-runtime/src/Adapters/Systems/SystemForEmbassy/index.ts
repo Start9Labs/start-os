@@ -42,6 +42,74 @@ function todo(): never {
   throw new Error("Not implemented")
 }
 
+function getStatus(
+  effects: Effects,
+  options: Omit<Parameters<Effects["getStatus"]>[0], "callback"> = {},
+) {
+  async function* watch(abort?: AbortSignal) {
+    const resolveCell = { resolve: () => {} }
+    effects.onLeaveContext(() => {
+      resolveCell.resolve()
+    })
+    abort?.addEventListener("abort", () => resolveCell.resolve())
+    while (effects.isInContext && !abort?.aborted) {
+      let callback: () => void = () => {}
+      const waitForNext = new Promise<void>((resolve) => {
+        callback = resolve
+        resolveCell.resolve = resolve
+      })
+      yield await effects.getStatus({ ...options, callback })
+      await waitForNext
+    }
+  }
+  return {
+    const: () =>
+      effects.getStatus({
+        ...options,
+        callback:
+          effects.constRetry &&
+          (() => effects.constRetry && effects.constRetry()),
+      }),
+    once: () => effects.getStatus(options),
+    watch: (abort?: AbortSignal) => {
+      const ctrl = new AbortController()
+      abort?.addEventListener("abort", () => ctrl.abort())
+      return watch(ctrl.signal)
+    },
+    onChange: (
+      callback: (
+        value: T.StatusInfo | null,
+        error?: Error,
+      ) => { cancel: boolean } | Promise<{ cancel: boolean }>,
+    ) => {
+      ;(async () => {
+        const ctrl = new AbortController()
+        for await (const value of watch(ctrl.signal)) {
+          try {
+            const res = await callback(value)
+            if (res.cancel) {
+              ctrl.abort()
+              break
+            }
+          } catch (e) {
+            console.error(
+              "callback function threw an error @ getStatus.onChange",
+              e,
+            )
+          }
+        }
+      })()
+        .catch((e) => callback(null, e as Error))
+        .catch((e) =>
+          console.error(
+            "callback function threw an error @ getStatus.onChange",
+            e,
+          ),
+        )
+    },
+  }
+}
+
 /**
  * Local type for procedure values from the manifest.
  * The manifest's zod schemas use ZodTypeAny casts that produce `unknown` in zod v4.
@@ -1046,16 +1114,26 @@ export class SystemForEmbassy implements System {
     timeoutMs: number | null,
   ): Promise<void> {
     // TODO: docker
-    await effects.mount({
-      location: `/media/embassy/${id}`,
-      target: {
-        packageId: id,
-        volumeId: "embassy",
-        subpath: null,
-        readonly: true,
-        idmap: [],
-      },
-    })
+    const status = await getStatus(effects, { packageId: id }).const()
+    if (!status) return
+    try {
+      await effects.mount({
+        location: `/media/embassy/${id}`,
+        target: {
+          packageId: id,
+          volumeId: "embassy",
+          subpath: null,
+          readonly: true,
+          idmap: [],
+        },
+      })
+    } catch (e) {
+      console.error(
+        `Failed to mount dependency volume for ${id}, skipping autoconfig:`,
+        e,
+      )
+      return
+    }
     configFile
       .withPath(`/media/embassy/${id}/config.json`)
       .read()
@@ -1204,6 +1282,11 @@ async function updateConfig(
       if (specValue.target === "config") {
         const jp = require("jsonpath")
         const depId = specValue["package-id"]
+        const depStatus = await getStatus(effects, { packageId: depId }).const()
+        if (!depStatus) {
+          mutConfigValue[key] = null
+          continue
+        }
         await effects.mount({
           location: `/media/embassy/${depId}`,
           target: {

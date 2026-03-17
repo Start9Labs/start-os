@@ -107,6 +107,12 @@ impl ExitParams {
             target: Some(InternedString::from_display(range)),
         }
     }
+    pub fn target_str(s: &str) -> Self {
+        Self {
+            id: Guid::new(),
+            target: Some(InternedString::intern(s)),
+        }
+    }
     pub fn uninstall() -> Self {
         Self {
             id: Guid::new(),

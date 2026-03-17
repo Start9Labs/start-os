@@ -46,7 +46,7 @@ import { DocsLinkDirective } from '@start9labs/shared'
                 Download your server's Root CA and
                 <a
                   docsLink
-                  path="/start-os/user-manual/trust-ca.html"
+                  path="/start-os/trust-ca.html"
                   style="color: #6866cc; font-weight: bold; text-decoration: none"
                 >
                   follow instructions

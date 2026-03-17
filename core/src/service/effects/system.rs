@@ -16,25 +16,25 @@ pub async fn get_system_smtp(
 ) -> Result<Option<SmtpValue>, Error> {
     let context = context.deref()?;
 
+    let ptr = "/public/serverInfo/smtp"
+        .parse()
+        .expect("valid json pointer");
+    let mut watch = context.seed.ctx.db.watch(ptr).await;
+
+    let res = imbl_value::from_value(watch.peek_and_mark_seen()?)
+        .with_kind(ErrorKind::Deserialization)?;
+
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
         context
             .seed
             .ctx
             .callbacks
-            .add_get_system_smtp(CallbackHandler::new(&context, callback));
+            .add_get_system_smtp(
+                watch.typed::<Option<SmtpValue>>(),
+                CallbackHandler::new(&context, callback),
+            );
     }
-
-    let res = context
-        .seed
-        .ctx
-        .db
-        .peek()
-        .await
-        .into_public()
-        .into_server_info()
-        .into_smtp()
-        .de()?;
 
     Ok(res)
 }

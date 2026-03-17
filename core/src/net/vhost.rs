@@ -38,7 +38,7 @@ use crate::net::ssl::{CertStore, RootCaTlsHandler};
 use crate::net::tls::{
     ChainedHandler, TlsHandlerAction, TlsHandlerWrapper, TlsListener, TlsMetadata, WrapTlsHandler,
 };
-use crate::net::utils::ipv6_is_link_local;
+use crate::net::utils::{ipv6_is_link_local, is_private_ip};
 use crate::net::web_server::{Accept, AcceptStream, ExtractVisitor, TcpMetadata, extract};
 use crate::prelude::*;
 use crate::util::collections::EqSet;
@@ -732,8 +732,9 @@ where
         };
 
         let src = tcp.peer_addr.ip();
-        // Public: source is outside all known subnets (direct internet)
-        let is_public = !ip_info.subnets.iter().any(|s| s.contains(&src));
+        // Private: source is in a known subnet or is a private IP (e.g. VPN on a different VLAN)
+        let is_public =
+            !ip_info.subnets.iter().any(|s| s.contains(&src)) && !is_private_ip(src);
 
         if is_public {
             self.public.contains(&gw.id)

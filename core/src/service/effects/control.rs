@@ -80,26 +80,31 @@ pub async fn get_status(
         package_id,
         callback,
     }: GetStatusParams,
-) -> Result<StatusInfo, Error> {
+) -> Result<Option<StatusInfo>, Error> {
     let context = context.deref()?;
     let id = package_id.unwrap_or_else(|| context.seed.id.clone());
-    let db = context.seed.ctx.db.peek().await;
+
+    let ptr = format!("/public/packageData/{}/statusInfo", id)
+        .parse()
+        .expect("valid json pointer");
+    let mut watch = context
+        .seed
+        .ctx
+        .db
+        .watch(ptr)
+        .await
+        .typed::<StatusInfo>();
+
+    let status = watch.peek_and_mark_seen()?.de().ok();
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
         context.seed.ctx.callbacks.add_get_status(
             id.clone(),
+            watch,
             super::callbacks::CallbackHandler::new(&context, callback),
         );
     }
-
-    let status = db
-        .as_public()
-        .as_package_data()
-        .as_idx(&id)
-        .or_not_found(&id)?
-        .as_status_info()
-        .de()?;
 
     Ok(status)
 }
@@ -158,7 +163,7 @@ pub async fn set_main_status(
             if prev.is_none() && status == SetMainStatusStatus::Running {
                 s.as_desired_mut().map_mutate(|s| {
                     Ok(match s {
-                        DesiredStatus::Restarting => DesiredStatus::Running,
+                        DesiredStatus::Restarting { .. } => DesiredStatus::Running,
                         x => x,
                     })
                 })?;

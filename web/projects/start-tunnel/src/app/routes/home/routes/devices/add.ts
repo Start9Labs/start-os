@@ -4,9 +4,8 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { ErrorService } from '@start9labs/shared'
-import { utils } from '@start9labs/start-sdk'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
+import { ErrorService } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
   TuiAnimated,
@@ -20,7 +19,7 @@ import {
   TuiNotificationMiddleService,
   TuiSelect,
 } from '@taiga-ui/kit'
-import { TuiForm, TuiElasticContainer } from '@taiga-ui/layout'
+import { TuiElasticContainer, TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ApiService } from 'src/app/services/api/api.service'
 
@@ -107,15 +106,23 @@ export class DevicesAdd {
   protected readonly context =
     injectContext<TuiDialogContext<void, DeviceData>>()
 
+  private readonly autoSubnet =
+    !this.context.data.device && this.context.data.subnets().length === 1
+      ? this.context.data.subnets().at(0)
+      : undefined
+
   protected readonly form = inject(NonNullableFormBuilder).group({
     name: [this.context.data.device?.name || '', Validators.required],
     subnet: [
-      this.context.data.device?.subnet,
+      this.context.data.device?.subnet ?? this.autoSubnet,
       [Validators.required, subnetValidator],
     ],
     ip: [
-      this.context.data.device?.ip || '',
-      [Validators.required, Validators.pattern(utils.Patterns.ipv4.regex)],
+      this.context.data.device?.ip ||
+        (this.autoSubnet ? getIp(this.autoSubnet) : ''),
+      this.autoSubnet
+        ? [Validators.required, ipInSubnetValidator(this.autoSubnet.range)]
+        : [],
     ],
   })
 
@@ -161,7 +168,9 @@ export class DevicesAdd {
           ip,
         })
 
-        this.dialogs.open(DEVICES_CONFIG, { data: config }).subscribe()
+        this.dialogs
+          .open(DEVICES_CONFIG, { data: config, closable: false })
+          .subscribe()
       }
     } catch (e: any) {
       console.error(e)

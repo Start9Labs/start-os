@@ -173,6 +173,13 @@ pub async fn init(
     RpcContext::init_auth_cookie().await?;
     local_auth.complete();
 
+    // Re-enroll MOK on every boot if Secure Boot key exists but isn't enrolled yet
+    if let Err(e) =
+        crate::util::mok::enroll_mok(std::path::Path::new(crate::util::mok::DKMS_MOK_PUB)).await
+    {
+        tracing::warn!("MOK enrollment failed: {e}");
+    }
+
     load_database.start();
     let db = cfg.db().await?;
     crate::version::Current::default().pre_init(&db).await?;
@@ -291,21 +298,15 @@ pub async fn init(
 
     init_tmp.start();
     let tmp_dir = Path::new(PACKAGE_DATA).join("tmp");
-    if tokio::fs::metadata(&tmp_dir).await.is_ok() {
-        tokio::fs::remove_dir_all(&tmp_dir).await?;
-    }
+    crate::util::io::delete_dir(&tmp_dir).await?;
     if tokio::fs::metadata(&tmp_dir).await.is_err() {
         tokio::fs::create_dir_all(&tmp_dir).await?;
     }
     let tmp_var = Path::new(PACKAGE_DATA).join("tmp/var");
-    if tokio::fs::metadata(&tmp_var).await.is_ok() {
-        tokio::fs::remove_dir_all(&tmp_var).await?;
-    }
+    crate::util::io::delete_dir(&tmp_var).await?;
     crate::disk::mount::util::bind(&tmp_var, "/var/tmp", false).await?;
     let downloading = Path::new(PACKAGE_DATA).join("archive/downloading");
-    if tokio::fs::metadata(&downloading).await.is_ok() {
-        tokio::fs::remove_dir_all(&downloading).await?;
-    }
+    crate::util::io::delete_dir(&downloading).await?;
     let tmp_docker = Path::new(PACKAGE_DATA).join("tmp").join(*CONTAINER_TOOL);
     crate::disk::mount::util::bind(&tmp_docker, *CONTAINER_DATADIR, false).await?;
     init_tmp.complete();
@@ -370,7 +371,7 @@ pub async fn init(
     enable_zram.complete();
 
     update_server_info.start();
-    sync_kiosk(server_info.as_kiosk().de()?).await?;
+    sync_kiosk(server_info.as_kiosk().de()?.unwrap_or(false)).await?;
     let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
     let devices = lshw().await?;
     let status_info = ServerStatus {

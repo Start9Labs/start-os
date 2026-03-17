@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core'
+import { T } from '@start9labs/start-sdk'
 import { Dump } from 'patch-db-client'
-import { TunnelData } from '../patch-db/data-model'
 import { Observable } from 'rxjs'
+import { TunnelData } from '../patch-db/data-model'
 
 @Injectable({
   providedIn: 'root',
@@ -10,64 +11,43 @@ export abstract class ApiService {
   abstract openWebsocket$<T>(guid: string): Observable<T>
   abstract subscribe(): Promise<SubscribeRes> // db.subscribe
   // auth
-  abstract login(params: LoginReq): Promise<null> // auth.login
+  abstract login(params: T.Tunnel.SetPasswordParams): Promise<null> // auth.login
   abstract logout(): Promise<null> // auth.logout
-  abstract setPassword(params: LoginReq): Promise<null> // auth.set-password
+  abstract setPassword(params: T.Tunnel.SetPasswordParams): Promise<null> // auth.set-password
   // subnets
-  abstract addSubnet(params: UpsertSubnetReq): Promise<null> // subnet.add
-  abstract editSubnet(params: UpsertSubnetReq): Promise<null> // subnet.add
-  abstract deleteSubnet(params: DeleteSubnetReq): Promise<null> // subnet.remove
+  abstract addSubnet(
+    params: T.Tunnel.SubnetParams & T.Tunnel.AddSubnetParams,
+  ): Promise<null> // subnet.add
+  abstract editSubnet(
+    params: T.Tunnel.SubnetParams & T.Tunnel.AddSubnetParams,
+  ): Promise<null> // subnet.edit
+  abstract deleteSubnet(params: T.Tunnel.SubnetParams): Promise<null> // subnet.remove
   // devices
-  abstract addDevice(params: UpsertDeviceReq): Promise<null> // device.add
-  abstract editDevice(params: UpsertDeviceReq): Promise<null> // device.add
-  abstract deleteDevice(params: DeleteDeviceReq): Promise<null> // device.remove
-  abstract showDeviceConfig(params: DeleteDeviceReq): Promise<string> // device.show-config
+  abstract addDevice(params: T.Tunnel.AddDeviceParams): Promise<null> // device.add
+  abstract editDevice(params: T.Tunnel.AddDeviceParams): Promise<null> // device.edit
+  abstract deleteDevice(params: T.Tunnel.RemoveDeviceParams): Promise<null> // device.remove
+  abstract showDeviceConfig(
+    params: T.Tunnel.RemoveDeviceParams,
+  ): Promise<string> // device.show-config
   // forwards
-  abstract addForward(params: AddForwardReq): Promise<null> // port-forward.add
-  abstract deleteForward(params: DeleteForwardReq): Promise<null> // port-forward.remove
+  abstract addForward(
+    params: T.Tunnel.AddPortForwardParams,
+  ): Promise<null> // port-forward.add
+  abstract deleteForward(
+    params: T.Tunnel.RemovePortForwardParams,
+  ): Promise<null> // port-forward.remove
+  abstract updateForwardLabel(
+    params: T.Tunnel.UpdatePortForwardLabelParams,
+  ): Promise<null> // port-forward.update-label
+  abstract setForwardEnabled(
+    params: T.Tunnel.SetPortForwardEnabledParams,
+  ): Promise<null> // port-forward.set-enabled
   // update
-  abstract checkUpdate(): Promise<TunnelUpdateResult> // update.check
-  abstract applyUpdate(): Promise<TunnelUpdateResult> // update.apply
+  abstract checkUpdate(): Promise<T.Tunnel.TunnelUpdateResult> // update.check
+  abstract applyUpdate(): Promise<T.Tunnel.TunnelUpdateResult> // update.apply
 }
 
 export type SubscribeRes = {
   dump: Dump<TunnelData>
   guid: string
-}
-
-export type LoginReq = { password: string }
-
-export type UpsertSubnetReq = {
-  name: string
-  subnet: string
-}
-
-export type DeleteSubnetReq = {
-  subnet: string
-}
-
-export type UpsertDeviceReq = {
-  name: string
-  subnet: string
-  ip: string
-}
-
-export type DeleteDeviceReq = {
-  subnet: string
-  ip: string
-}
-
-export type AddForwardReq = {
-  source: string // externalip:port
-  target: string // internalip:port
-}
-
-export type DeleteForwardReq = {
-  source: string
-}
-
-export type TunnelUpdateResult = {
-  status: string
-  installed: string
-  candidate: string
 }

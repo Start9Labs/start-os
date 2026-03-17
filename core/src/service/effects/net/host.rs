@@ -23,26 +23,30 @@ pub async fn get_host_info(
     }: GetHostInfoParams,
 ) -> Result<Option<Host>, Error> {
     let context = context.deref()?;
-    let db = context.seed.ctx.db.peek().await;
     let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
+
+    let ptr = format!("/public/packageData/{}/hosts/{}", package_id, host_id)
+        .parse()
+        .expect("valid json pointer");
+    let mut watch = context
+        .seed
+        .ctx
+        .db
+        .watch(ptr)
+        .await
+        .typed::<Host>();
+
+    let res = watch.peek_and_mark_seen()?.de().ok();
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
         context.seed.ctx.callbacks.add_get_host_info(
-            &context.seed.ctx.db,
             package_id.clone(),
             host_id.clone(),
+            watch,
             CallbackHandler::new(&context, callback),
         );
     }
-
-    let res = db
-        .as_public()
-        .as_package_data()
-        .as_idx(&package_id)
-        .and_then(|m| m.as_hosts().as_idx(&host_id))
-        .map(|m| m.de())
-        .transpose()?;
 
     Ok(res)
 }

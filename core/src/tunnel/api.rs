@@ -5,12 +5,14 @@ use imbl_value::InternedString;
 use ipnet::Ipv4Net;
 use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::db::model::public::NetworkInterfaceType;
 use crate::net::forward::add_iptables_rule;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
+use crate::tunnel::db::PortForwardEntry;
 use crate::tunnel::wg::{WIREGUARD_INTERFACE_NAME, WgConfig, WgSubnetClients, WgSubnetConfig};
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 
@@ -51,6 +53,22 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
                         .no_display()
                         .with_about("about.remove-port-forward")
                         .with_call_remote::<CliContext>(),
+                )
+                .subcommand(
+                    "update-label",
+                    from_fn_async(update_forward_label)
+                        .with_metadata("sync_db", Value::Bool(true))
+                        .no_display()
+                        .with_about("about.update-port-forward-label")
+                        .with_call_remote::<CliContext>(),
+                )
+                .subcommand(
+                    "set-enabled",
+                    from_fn_async(set_forward_enabled)
+                        .with_metadata("sync_db", Value::Bool(true))
+                        .no_display()
+                        .with_about("about.enable-or-disable-port-forward")
+                        .with_call_remote::<CliContext>(),
                 ),
         )
         .subcommand(
@@ -73,9 +91,10 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SubnetParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
 }
 
@@ -151,7 +170,7 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AddSubnetParams {
     name: InternedString,
@@ -276,11 +295,13 @@ pub async fn remove_subnet(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AddDeviceParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
     name: InternedString,
+    #[ts(type = "string | null")]
     ip: Option<Ipv4Addr>,
 }
 
@@ -337,10 +358,12 @@ pub async fn add_device(
     server.sync().await
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDeviceParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
+    #[ts(type = "string")]
     ip: Ipv4Addr,
 }
 
@@ -366,9 +389,10 @@ pub async fn remove_device(
     ctx.gc_forwards(&keep).await
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ListDevicesParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
 }
 
@@ -386,14 +410,18 @@ pub async fn list_devices(
         .de()
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowConfigParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
+    #[ts(type = "string")]
     ip: Ipv4Addr,
+    #[ts(type = "string | null")]
     wan_addr: Option<IpAddr>,
     #[serde(rename = "__ConnectInfo_local_addr")]
     #[arg(skip)]
+    #[ts(skip)]
     local_addr: Option<SocketAddr>,
 }
 
@@ -448,16 +476,24 @@ pub async fn show_config(
         .to_string())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AddPortForwardParams {
+    #[ts(type = "string")]
     source: SocketAddrV4,
+    #[ts(type = "string")]
     target: SocketAddrV4,
+    #[arg(long)]
+    label: Option<String>,
 }
 
 pub async fn add_forward(
     ctx: TunnelContext,
-    AddPortForwardParams { source, target }: AddPortForwardParams,
+    AddPortForwardParams {
+        source,
+        target,
+        label,
+    }: AddPortForwardParams,
 ) -> Result<(), Error> {
     let prefix = ctx
         .net_iface
@@ -482,10 +518,16 @@ pub async fn add_forward(
         m.insert(source, rc);
     });
 
+    let entry = PortForwardEntry {
+        target,
+        label,
+        enabled: true,
+    };
+
     ctx.db
         .mutate(|db| {
             db.as_port_forwards_mut()
-                .insert(&source, &target)
+                .insert(&source, &entry)
                 .and_then(|replaced| {
                     if replaced.is_some() {
                         Err(Error::new(
@@ -503,9 +545,10 @@ pub async fn add_forward(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RemovePortForwardParams {
+    #[ts(type = "string")]
     source: SocketAddrV4,
 }
 
@@ -521,5 +564,96 @@ pub async fn remove_forward(
         drop(rc);
         ctx.forward.gc().await?;
     }
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatePortForwardLabelParams {
+    #[ts(type = "string")]
+    source: SocketAddrV4,
+    label: Option<String>,
+}
+
+pub async fn update_forward_label(
+    ctx: TunnelContext,
+    UpdatePortForwardLabelParams { source, label }: UpdatePortForwardLabelParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_port_forwards_mut().mutate(|pf| {
+                let entry = pf.0.get_mut(&source).ok_or_else(|| {
+                    Error::new(
+                        eyre!("Port forward from {source} not found"),
+                        ErrorKind::NotFound,
+                    )
+                })?;
+                entry.label = label;
+                Ok(())
+            })
+        })
+        .await
+        .result
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SetPortForwardEnabledParams {
+    #[ts(type = "string")]
+    source: SocketAddrV4,
+    enabled: bool,
+}
+
+pub async fn set_forward_enabled(
+    ctx: TunnelContext,
+    SetPortForwardEnabledParams { source, enabled }: SetPortForwardEnabledParams,
+) -> Result<(), Error> {
+    let target = ctx
+        .db
+        .mutate(|db| {
+            db.as_port_forwards_mut().mutate(|pf| {
+                let entry = pf.0.get_mut(&source).ok_or_else(|| {
+                    Error::new(
+                        eyre!("Port forward from {source} not found"),
+                        ErrorKind::NotFound,
+                    )
+                })?;
+                entry.enabled = enabled;
+                Ok(entry.target)
+            })
+        })
+        .await
+        .result?;
+
+    if enabled {
+        let prefix = ctx
+            .net_iface
+            .peek(|i| {
+                i.iter()
+                    .find_map(|(_, i)| {
+                        i.ip_info.as_ref().and_then(|i| {
+                            i.subnets
+                                .iter()
+                                .find(|s| s.contains(&IpAddr::from(*target.ip())))
+                        })
+                    })
+                    .cloned()
+            })
+            .map(|s| s.prefix_len())
+            .unwrap_or(32);
+        let rc = ctx
+            .forward
+            .add_forward(source, target, prefix, None)
+            .await?;
+        ctx.active_forwards.mutate(|m| {
+            m.insert(source, rc);
+        });
+    } else {
+        if let Some(rc) = ctx.active_forwards.mutate(|m| m.remove(&source)) {
+            drop(rc);
+            ctx.forward.gc().await?;
+        }
+    }
+
     Ok(())
 }

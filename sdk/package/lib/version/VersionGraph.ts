@@ -331,6 +331,9 @@ export class VersionGraph<CurrentVersion extends string>
     target: VersionRange | ExtendedVersion | null,
   ): Promise<void> {
     if (target) {
+      if (isRange(target) && !target.satisfiable()) {
+        return
+      }
       const from = await getDataVersion(effects)
       if (from) {
         target = await this.migrate({

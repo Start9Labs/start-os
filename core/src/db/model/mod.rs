@@ -31,7 +31,7 @@ pub struct Database {
 impl Database {
     pub fn init(
         account: &AccountInfo,
-        kiosk: Option<bool>,
+        kiosk: bool,
         language: Option<InternedString>,
         keyboard: Option<KeyboardOptions>,
     ) -> Result<Self, Error> {

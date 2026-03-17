@@ -8,11 +8,10 @@ import {
   HostnameInfo,
 } from '../types'
 import { Effects } from '../Effects'
-import { AbortedError } from './AbortedError'
-import { DropGenerator, DropPromise } from './Drop'
 import { IpAddress, IPV6_LINK_LOCAL } from './ip'
 import { deepEqual } from './deepEqual'
 import { once } from './once'
+import { Watchable } from './Watchable'
 
 export type UrlString = string
 export type HostId = string
@@ -36,6 +35,7 @@ export const getHostname = (url: string): Hostname | null => {
  * - `'ipv6'` — IPv6 addresses only
  * - `'localhost'` — loopback addresses (`localhost`, `127.0.0.1`, `::1`)
  * - `'link-local'` — IPv6 link-local addresses (fe80::/10)
+ * - `'bridge'` — The LXC bridge interface
  * - `'plugin'` — hostnames provided by a plugin package
  */
 type FilterKinds =
@@ -46,6 +46,7 @@ type FilterKinds =
   | 'ipv6'
   | 'localhost'
   | 'link-local'
+  | 'bridge'
   | 'plugin'
 
 /**
@@ -120,7 +121,11 @@ type FilterReturnTy<F extends Filter> = F extends {
 
 const nonLocalFilter = {
   exclude: {
-    kind: ['localhost', 'link-local'] as ('localhost' | 'link-local')[],
+    kind: ['localhost', 'link-local', 'bridge'] as (
+      | 'localhost'
+      | 'link-local'
+      | 'bridge'
+    )[],
   },
 } as const
 const publicFilter = {
@@ -284,6 +289,9 @@ function filterRec(
           (kind.has('link-local') &&
             h.metadata.kind === 'ipv6' &&
             IPV6_LINK_LOCAL.contains(IpAddress.parse(h.hostname))) ||
+          (kind.has('bridge') &&
+            h.metadata.kind === 'ipv4' &&
+            h.metadata.gateway === 'lxcbr0') ||
           (kind.has('plugin') && h.metadata.kind === 'plugin')),
     )
   }
@@ -431,136 +439,29 @@ const makeInterfaceFilled = async ({
   return interfaceFilled
 }
 
-export class GetServiceInterface<Mapped = ServiceInterfaceFilled | null> {
+export class GetServiceInterface<
+  Mapped = ServiceInterfaceFilled | null,
+> extends Watchable<ServiceInterfaceFilled | null, Mapped> {
+  protected readonly label = 'GetServiceInterface'
+
   constructor(
-    readonly effects: Effects,
+    effects: Effects,
     readonly opts: { id: string; packageId?: string },
-    readonly map: (interfaces: ServiceInterfaceFilled | null) => Mapped,
-    readonly eq: (a: Mapped, b: Mapped) => boolean,
-  ) {}
-
-  /**
-   * Returns the requested service interface. Reruns the context from which it has been called if the underlying value changes
-   */
-  async const() {
-    let abort = new AbortController()
-    const watch = this.watch(abort.signal)
-    const res = await watch.next()
-    if (this.effects.constRetry) {
-      watch
-        .next()
-        .then(() => {
-          abort.abort()
-          this.effects.constRetry && this.effects.constRetry()
-        })
-        .catch()
-    }
-    return res.value
-  }
-  /**
-   * Returns the requested service interface. Does nothing if the value changes
-   */
-  async once() {
-    const { id, packageId } = this.opts
-    const interfaceFilled = await makeInterfaceFilled({
-      effects: this.effects,
-      id,
-      packageId,
-    })
-
-    return this.map(interfaceFilled)
-  }
-
-  private async *watchGen(abort?: AbortSignal) {
-    let prev = null as { value: Mapped } | null
-    const { id, packageId } = this.opts
-    const resolveCell = { resolve: () => {} }
-    this.effects.onLeaveContext(() => {
-      resolveCell.resolve()
-    })
-    abort?.addEventListener('abort', () => resolveCell.resolve())
-    while (this.effects.isInContext && !abort?.aborted) {
-      let callback: () => void = () => {}
-      const waitForNext = new Promise<void>((resolve) => {
-        callback = resolve
-        resolveCell.resolve = resolve
-      })
-      const next = this.map(
-        await makeInterfaceFilled({
-          effects: this.effects,
-          id,
-          packageId,
-          callback,
-        }),
-      )
-      if (!prev || !this.eq(prev.value, next)) {
-        yield next
-      }
-      await waitForNext
-    }
-    return new Promise<never>((_, rej) => rej(new AbortedError()))
-  }
-
-  /**
-   * Watches the requested service interface. Returns an async iterator that yields whenever the value changes
-   */
-  watch(abort?: AbortSignal): AsyncGenerator<Mapped, never, unknown> {
-    const ctrl = new AbortController()
-    abort?.addEventListener('abort', () => ctrl.abort())
-    return DropGenerator.of(this.watchGen(ctrl.signal), () => ctrl.abort())
-  }
-
-  /**
-   * Watches the requested service interface. Takes a custom callback function to run whenever the value changes
-   */
-  onChange(
-    callback: (
-      value: Mapped | null,
-      error?: Error,
-    ) => { cancel: boolean } | Promise<{ cancel: boolean }>,
+    options?: {
+      map?: (value: ServiceInterfaceFilled | null) => Mapped
+      eq?: (a: Mapped, b: Mapped) => boolean
+    },
   ) {
-    ;(async () => {
-      const ctrl = new AbortController()
-      for await (const value of this.watch(ctrl.signal)) {
-        try {
-          const res = await callback(value)
-          if (res.cancel) {
-            ctrl.abort()
-            break
-          }
-        } catch (e) {
-          console.error(
-            'callback function threw an error @ GetServiceInterface.onChange',
-            e,
-          )
-        }
-      }
-    })()
-      .catch((e) => callback(null, e))
-      .catch((e) =>
-        console.error(
-          'callback function threw an error @ GetServiceInterface.onChange',
-          e,
-        ),
-      )
+    super(effects, options)
   }
 
-  /**
-   * Watches the requested service interface. Returns when the predicate is true
-   */
-  waitFor(pred: (value: Mapped) => boolean): Promise<Mapped> {
-    const ctrl = new AbortController()
-    return DropPromise.of(
-      Promise.resolve().then(async () => {
-        for await (const next of this.watchGen(ctrl.signal)) {
-          if (pred(next)) {
-            return next
-          }
-        }
-        throw new Error('context left before predicate passed')
-      }),
-      () => ctrl.abort(),
-    )
+  protected fetch(callback?: () => void) {
+    return makeInterfaceFilled({
+      effects: this.effects,
+      id: this.opts.id,
+      packageId: this.opts.packageId,
+      callback,
+    })
   }
 }
 
@@ -580,11 +481,13 @@ export function getOwnServiceInterface<Mapped>(
   map?: (interfaces: ServiceInterfaceFilled | null) => Mapped,
   eq?: (a: Mapped, b: Mapped) => boolean,
 ): GetServiceInterface<Mapped> {
-  return new GetServiceInterface(
+  return new GetServiceInterface<Mapped>(
     effects,
     { id },
-    map ?? ((a) => a as Mapped),
-    eq ?? ((a, b) => deepEqual(a, b)),
+    {
+      map: map ?? ((a) => a as Mapped),
+      eq: eq ?? ((a, b) => deepEqual(a, b)),
+    },
   )
 }
 
@@ -604,10 +507,8 @@ export function getServiceInterface<Mapped>(
   map?: (interfaces: ServiceInterfaceFilled | null) => Mapped,
   eq?: (a: Mapped, b: Mapped) => boolean,
 ): GetServiceInterface<Mapped> {
-  return new GetServiceInterface(
-    effects,
-    opts,
-    map ?? ((a) => a as Mapped),
-    eq ?? ((a, b) => deepEqual(a, b)),
-  )
+  return new GetServiceInterface<Mapped>(effects, opts, {
+    map: map ?? ((a) => a as Mapped),
+    eq: eq ?? ((a, b) => deepEqual(a, b)),
+  })
 }

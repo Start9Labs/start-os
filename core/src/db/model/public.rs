@@ -49,7 +49,7 @@ pub struct Public {
 impl Public {
     pub fn init(
         account: &AccountInfo,
-        kiosk: Option<bool>,
+        kiosk: bool,
         language: Option<InternedString>,
         keyboard: Option<KeyboardOptions>,
     ) -> Result<Self, Error> {
@@ -146,10 +146,10 @@ impl Public {
                 zram: true,
                 governor: None,
                 smtp: None,
-                ifconfig_url: default_ifconfig_url(),
+                echoip_urls: default_echoip_urls(),
                 ram: 0,
                 devices: Vec::new(),
-                kiosk,
+                kiosk: Some(kiosk).filter(|_| &*PLATFORM != "raspberrypi"),
                 language,
                 keyboard,
             },
@@ -168,8 +168,11 @@ fn get_platform() -> InternedString {
     (&*PLATFORM).into()
 }
 
-pub fn default_ifconfig_url() -> Url {
-    "https://ifconfig.co".parse().unwrap()
+pub fn default_echoip_urls() -> Vec<Url> {
+    vec![
+        "https://ipconfig.io".parse().unwrap(),
+        "https://ifconfig.co".parse().unwrap(),
+    ]
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
@@ -206,9 +209,9 @@ pub struct ServerInfo {
     pub zram: bool,
     pub governor: Option<Governor>,
     pub smtp: Option<SmtpValue>,
-    #[serde(default = "default_ifconfig_url")]
-    #[ts(type = "string")]
-    pub ifconfig_url: Url,
+    #[serde(default = "default_echoip_urls")]
+    #[ts(type = "string[]")]
+    pub echoip_urls: Vec<Url>,
     #[ts(type = "number")]
     pub ram: u64,
     pub devices: Vec<LshwDevice>,

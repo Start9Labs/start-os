@@ -34,7 +34,7 @@ set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
 if [ -z "$NO_SYNC" ]; then
     echo 'Syncing...'
-    umount -R /media/startos/next 2> /dev/null
+    umount -l /media/startos/next 2> /dev/null
     umount /media/startos/upper 2> /dev/null
     rm -rf /media/startos/upper /media/startos/next
     mkdir /media/startos/upper
@@ -58,13 +58,13 @@ mkdir -p /media/startos/next/media/startos/root
 mount --bind /run /media/startos/next/run
 mount --bind /tmp /media/startos/next/tmp
 mount --bind /dev /media/startos/next/dev
-mount --bind /sys /media/startos/next/sys
-mount --bind /proc /media/startos/next/proc
+mount -t sysfs sysfs /media/startos/next/sys
+mount -t proc proc /media/startos/next/proc
 mount --bind /boot /media/startos/next/boot
 mount --bind /media/startos/root /media/startos/next/media/startos/root
 
 if mountpoint /sys/firmware/efi/efivars 2>&1 > /dev/null; then
-  mount --bind /sys/firmware/efi/efivars /media/startos/next/sys/firmware/efi/efivars
+  mount -t efivarfs efivarfs /media/startos/next/sys/firmware/efi/efivars
 fi
 
 if [ -z "$*" ]; then
@@ -111,6 +111,6 @@ if [ "$CHROOT_RES" -eq 0 ]; then
     reboot
 fi
 
-umount /media/startos/next
-umount /media/startos/upper
+umount -l /media/startos/next
+umount -l /media/startos/upper
 rm -rf /media/startos/upper /media/startos/next

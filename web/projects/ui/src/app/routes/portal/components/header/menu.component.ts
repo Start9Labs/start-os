@@ -52,7 +52,7 @@ import { ABOUT } from './about.component'
           tuiOption
           docsLink
           iconStart="@tui.book-open-text"
-          path="/start-os/user-manual"
+          path="/start-os/index.html"
         >
           {{ 'User manual' | i18n }}
         </a>

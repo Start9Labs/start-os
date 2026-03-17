@@ -3,18 +3,32 @@ import {
   Component,
   computed,
   inject,
+  signal,
   Signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { ReactiveFormsModule } from '@angular/forms'
+import { FormsModule } from '@angular/forms'
 import { ErrorService } from '@start9labs/shared'
 import { utils } from '@start9labs/start-sdk'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiButton } from '@taiga-ui/core'
-import { TUI_CONFIRM, TuiNotificationMiddleService } from '@taiga-ui/kit'
+import {
+  TuiButton,
+  TuiDataList,
+  TuiDropdown,
+  TuiLoader,
+  TuiTextfield,
+} from '@taiga-ui/core'
+import {
+  TUI_CONFIRM,
+  TuiNotificationMiddleService,
+  TuiSkeleton,
+  TuiSwitch,
+} from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
+import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
 import { PORT_FORWARDS_ADD } from 'src/app/routes/home/routes/port-forwards/add'
+import { PORT_FORWARDS_EDIT_LABEL } from 'src/app/routes/home/routes/port-forwards/edit-label'
 import { ApiService } from 'src/app/services/api/api.service'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
 
@@ -22,9 +36,11 @@ import { MappedDevice, MappedForward } from './utils'
 
 @Component({
   template: `
-    <table class="g-table">
+    <table class="g-table" [tuiSkeleton]="!portForwards()">
       <thead>
         <tr>
+          <th></th>
+          <th>Label</th>
           <th>External IP</th>
           <th>External Port</th>
           <th>Device</th>
@@ -39,6 +55,23 @@ import { MappedDevice, MappedForward } from './utils'
       <tbody>
         @for (forward of forwards(); track $index) {
           <tr>
+            <td>
+              <tui-loader
+                [loading]="toggling() === $index"
+                size="xs"
+                [overlay]="true"
+              >
+                <input
+                  tuiSwitch
+                  type="checkbox"
+                  size="s"
+                  [showIcons]="false"
+                  [ngModel]="forward.enabled"
+                  (ngModelChange)="onToggle(forward, $index)"
+                />
+              </tui-loader>
+            </td>
+            <td>{{ forward.label || '—' }}</td>
             <td>{{ forward.externalip }}</td>
             <td>{{ forward.externalport }}</td>
             <td>{{ forward.device.name }}</td>
@@ -47,22 +80,59 @@ import { MappedDevice, MappedForward } from './utils'
               <button
                 tuiIconButton
                 size="xs"
+                tuiDropdown
+                tuiDropdownAuto
                 appearance="flat-grayscale"
-                iconStart="@tui.trash"
-                (click)="onDelete(forward)"
+                iconStart="@tui.ellipsis-vertical"
               >
                 Actions
+                <tui-data-list
+                  *tuiDropdown="let close"
+                  size="s"
+                  (click)="close()"
+                >
+                  <button
+                    tuiOption
+                    iconStart="@tui.pencil"
+                    (click)="onEditLabel(forward)"
+                  >
+                    {{ forward.label ? 'Rename' : 'Add label' }}
+                  </button>
+                  <button
+                    tuiOption
+                    iconStart="@tui.trash"
+                    (click)="onDelete(forward)"
+                  >
+                    Delete
+                  </button>
+                </tui-data-list>
               </button>
             </td>
           </tr>
         } @empty {
-          <div class="placeholder">No port forwards</div>
+          <tr>
+            <td colspan="7">
+              <app-placeholder icon="@tui.globe">
+                No port forwards
+              </app-placeholder>
+            </td>
+          </tr>
         }
       </tbody>
     </table>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TuiButton],
+  imports: [
+    FormsModule,
+    TuiButton,
+    TuiDropdown,
+    TuiDataList,
+    TuiLoader,
+    TuiSwitch,
+    TuiTextfield,
+    PlaceholderComponent,
+    TuiSkeleton,
+  ],
 })
 export default class PortForwards {
   private readonly dialogs = inject(TuiResponsiveDialogService)
@@ -70,8 +140,6 @@ export default class PortForwards {
   private readonly loading = inject(TuiNotificationMiddleService)
   private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
   private readonly errorService = inject(ErrorService)
-
-  private readonly portForwards = toSignal(this.patch.watch$('portForwards'))
   private readonly ips = toSignal(
     this.patch.watch$('gateways').pipe(
       map(g =>
@@ -99,25 +167,55 @@ export default class PortForwards {
     { initialValue: [] },
   )
 
+  protected readonly portForwards = toSignal(this.patch.watch$('portForwards'))
   protected readonly forwards = computed(() =>
-    Object.entries(this.portForwards() || {}).map(([source, target]) => {
+    Object.entries(this.portForwards() || {}).map(([source, entry]) => {
       const sourceSplit = source.split(':')
-      const targetSplit = target.split(':')
+      const targetSplit = entry.target.split(':')
 
       return {
         externalip: sourceSplit[0]!,
         externalport: sourceSplit[1]!,
         device: this.devices().find(d => d.ip === targetSplit[0])!,
         internalport: targetSplit[1]!,
+        label: entry.label,
+        enabled: entry.enabled,
       }
     }),
   )
+
+  protected readonly toggling = signal<number | null>(null)
+
+  protected async onToggle(forward: MappedForward, index: number) {
+    this.toggling.set(index)
+    const source = `${forward.externalip}:${forward.externalport}`
+
+    try {
+      await this.api.setForwardEnabled({ source, enabled: !forward.enabled })
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      this.toggling.set(null)
+    }
+  }
 
   protected onAdd(): void {
     this.dialogs
       .open(PORT_FORWARDS_ADD, {
         label: 'Add port forward',
         data: { ips: this.ips, devices: this.devices },
+      })
+      .subscribe()
+  }
+
+  protected onEditLabel(forward: MappedForward): void {
+    this.dialogs
+      .open(PORT_FORWARDS_EDIT_LABEL, {
+        label: 'Edit label',
+        data: {
+          source: `${forward.externalip}:${forward.externalport}`,
+          label: forward.label,
+        },
       })
       .subscribe()
   }

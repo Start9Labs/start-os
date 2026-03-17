@@ -28,7 +28,7 @@ import {
       backups. They can be physical drives plugged into your server, shared
       folders on your Local Area Network (LAN), or third party clouds such as
       Dropbox or Google Drive.
-      <a tuiLink docsLink path="/start-os/user-manual/backup-create.html">
+      <a tuiLink docsLink path="/start-os/backup-create.html">
         View instructions
       </a>
     </div>

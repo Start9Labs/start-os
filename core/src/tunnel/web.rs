@@ -168,10 +168,10 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "reset",
+            "uninit",
             from_fn_async(reset_web)
                 .no_display()
-                .with_about("about.reset-webserver")
+                .with_about("about.uninitialize-webserver")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -519,32 +519,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 .or_not_found("certificate in chain")?;
                 println!("📝 Root CA:");
                 print!("{cert}\n");
-
-                println!(concat!(
-                    "To access your Web URL securely, trust your Root CA (displayed above) on your client device(s):\n",
-                    "  - MacOS\n",
-                    "    1. Open the Terminal app\n",
-                    "    2. Type or copy/paste the following command (**DO NOT** click Enter/Return yet): pbpaste > ~/Desktop/tunnel-ca.crt\n",
-                    "    3. Copy your Root CA (including -----BEGIN CERTIFICATE----- and -----END CERTIFICATE-----)\n",
-                    "    4. Back in Terminal, click Enter/Return. tunnel-ca.crt is saved to your Desktop\n",
-                    "    5. Complete by trusting your Root CA: https://docs.start9.com/device-guides/mac/ca.html\n",
-                    "  - Linux\n",
-                    "    1. Open gedit, nano, or any editor\n",
-                    "    2. Copy/paste your Root CA (including -----BEGIN CERTIFICATE----- and -----END CERTIFICATE-----)\n",
-                    "    3. Name the file tunnel-ca.crt and save as plaintext\n",
-                    "    4. Complete by trusting your Root CA: https://docs.start9.com/device-guides/linux/ca.html\n",
-                    "  - Windows\n",
-                    "    1. Open the Notepad app\n",
-                    "    2. Copy/paste your Root CA (including -----BEGIN CERTIFICATE----- and -----END CERTIFICATE-----)\n",
-                    "    3. Name the file tunnel-ca.crt and save as plaintext\n",
-                    "    4. Complete by trusting your Root CA: https://docs.start9.com/device-guides/windows/ca.html\n",
-                    "  - Android/Graphene\n",
-                    "    1. Send the tunnel-ca.crt file (created above) to yourself\n",
-                    "    2. Complete by trusting your Root CA: https://docs.start9.com/device-guides/android/ca.html\n",
-                    "  - iOS\n",
-                    "    1. Send the tunnel-ca.crt file (created above) to yourself\n",
-                    "    2. Complete by trusting your Root CA: https://docs.start9.com/device-guides/ios/ca.html\n",
-                ));
+                println!("Follow instructions to trust your Root CA (recommended): https://docs.start9.com/start-tunnel/installing/index.html#trust-your-root-ca");
 
                 return Ok(());
             }

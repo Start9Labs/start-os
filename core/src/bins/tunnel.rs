@@ -13,6 +13,7 @@ use tracing::instrument;
 use visit_rs::Visit;
 
 use crate::context::CliContext;
+use crate::version::{Current, VersionT};
 use crate::context::config::ClientConfig;
 use crate::net::tls::TlsListener;
 use crate::net::web_server::{Accept, Acceptor, MetadataVisitor, WebServer};
@@ -186,6 +187,10 @@ pub fn cli(args: impl IntoIterator<Item = OsString>) {
         crate::tunnel::api::tunnel_api(),
     )
     .mutate_command(super::translate_cli)
+    .mutate_command(|cmd| {
+        cmd.name("start-tunnel")
+            .version(Current::default().semver().to_string())
+    })
     .run(args)
     {
         match e.data {

@@ -13,6 +13,7 @@ export interface InstallOsParams {
 export interface InstallOsRes {
   guid: string // data drive guid
   attach: boolean
+  mokEnrolled: boolean
 }
 
 // === Disk Info Helpers ===

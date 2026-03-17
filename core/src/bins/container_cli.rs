@@ -7,10 +7,6 @@ use crate::service::cli::{ContainerCliContext, ContainerClientConfig};
 use crate::util::logger::LOGGER;
 use crate::version::{Current, VersionT};
 
-lazy_static::lazy_static! {
-    static ref VERSION_STRING: String = Current::default().semver().to_string();
-}
-
 pub fn main(args: impl IntoIterator<Item = OsString>) {
     LOGGER.enable();
     if let Err(e) = CliApp::new(
@@ -18,6 +14,10 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
         crate::service::effects::handler(),
     )
     .mutate_command(super::translate_cli)
+    .mutate_command(|cmd| {
+        cmd.name("start-container")
+            .version(Current::default().semver().to_string())
+    })
     .run(args)
     {
         match e.data {

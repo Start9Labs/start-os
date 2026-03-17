@@ -59,7 +59,8 @@ import {
   setupOnInit,
   setupOnUninit,
 } from '../../base/lib/inits'
-import { DropGenerator } from '../../base/lib/util/Drop'
+import { GetContainerIp } from '../../base/lib/util/GetContainerIp'
+import { GetStatus } from '../../base/lib/util/GetStatus'
 import {
   getOwnServiceInterface,
   ServiceInterfaceFilled,
@@ -68,7 +69,7 @@ import { getOwnServiceInterfaces } from '../../base/lib/util/getServiceInterface
 import { Volumes, createVolumes } from './util/Volume'
 
 /** The minimum StartOS version required by this SDK release */
-export const OSVersion = testTypeVersion('0.4.0-alpha.20')
+export const OSVersion = testTypeVersion('0.4.0-alpha.21')
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -257,90 +258,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           Parameters<T.Effects['getContainerIp']>[0],
           'callback'
         > = {},
-      ) => {
-        async function* watch(abort?: AbortSignal) {
-          const resolveCell = { resolve: () => {} }
-          effects.onLeaveContext(() => {
-            resolveCell.resolve()
-          })
-          abort?.addEventListener('abort', () => resolveCell.resolve())
-          while (effects.isInContext && !abort?.aborted) {
-            let callback: () => void = () => {}
-            const waitForNext = new Promise<void>((resolve) => {
-              callback = resolve
-              resolveCell.resolve = resolve
-            })
-            yield await effects.getContainerIp({ ...options, callback })
-            await waitForNext
-          }
-        }
-        return {
-          const: () =>
-            effects.getContainerIp({
-              ...options,
-              callback:
-                effects.constRetry &&
-                (() => effects.constRetry && effects.constRetry()),
-            }),
-          once: () => effects.getContainerIp(options),
-          watch: (abort?: AbortSignal) => {
-            const ctrl = new AbortController()
-            abort?.addEventListener('abort', () => ctrl.abort())
-            return DropGenerator.of(watch(ctrl.signal), () => ctrl.abort())
-          },
-          onChange: (
-            callback: (
-              value: string | null,
-              error?: Error,
-            ) => { cancel: boolean } | Promise<{ cancel: boolean }>,
-          ) => {
-            ;(async () => {
-              const ctrl = new AbortController()
-              for await (const value of watch(ctrl.signal)) {
-                try {
-                  const res = await callback(value)
-                  if (res.cancel) {
-                    ctrl.abort()
-                    break
-                  }
-                } catch (e) {
-                  console.error(
-                    'callback function threw an error @ getContainerIp.onChange',
-                    e,
-                  )
-                }
-              }
-            })()
-              .catch((e) => callback(null, e))
-              .catch((e) =>
-                console.error(
-                  'callback function threw an error @ getContainerIp.onChange',
-                  e,
-                ),
-              )
-          },
-          waitFor: async (pred: (value: string | null) => boolean) => {
-            const resolveCell = { resolve: () => {} }
-            effects.onLeaveContext(() => {
-              resolveCell.resolve()
-            })
-            while (effects.isInContext) {
-              let callback: () => void = () => {}
-              const waitForNext = new Promise<void>((resolve) => {
-                callback = resolve
-                resolveCell.resolve = resolve
-              })
-              const res = await effects.getContainerIp({ ...options, callback })
-              if (pred(res)) {
-                resolveCell.resolve()
-                return res
-              }
-              await waitForNext
-            }
-            return null
-          },
-        }
-      },
+      ) => new GetContainerIp(effects, options),
 
       /**
        * Get the service's current status with reactive subscription support.
@@ -355,90 +273,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       getStatus: (
         effects: T.Effects,
         options: Omit<Parameters<T.Effects['getStatus']>[0], 'callback'> = {},
-      ) => {
-        async function* watch(abort?: AbortSignal) {
-          const resolveCell = { resolve: () => {} }
-          effects.onLeaveContext(() => {
-            resolveCell.resolve()
-          })
-          abort?.addEventListener('abort', () => resolveCell.resolve())
-          while (effects.isInContext && !abort?.aborted) {
-            let callback: () => void = () => {}
-            const waitForNext = new Promise<void>((resolve) => {
-              callback = resolve
-              resolveCell.resolve = resolve
-            })
-            yield await effects.getStatus({ ...options, callback })
-            await waitForNext
-          }
-        }
-        return {
-          const: () =>
-            effects.getStatus({
-              ...options,
-              callback:
-                effects.constRetry &&
-                (() => effects.constRetry && effects.constRetry()),
-            }),
-          once: () => effects.getStatus(options),
-          watch: (abort?: AbortSignal) => {
-            const ctrl = new AbortController()
-            abort?.addEventListener('abort', () => ctrl.abort())
-            return DropGenerator.of(watch(ctrl.signal), () => ctrl.abort())
-          },
-          onChange: (
-            callback: (
-              value: T.StatusInfo | null,
-              error?: Error,
-            ) => { cancel: boolean } | Promise<{ cancel: boolean }>,
-          ) => {
-            ;(async () => {
-              const ctrl = new AbortController()
-              for await (const value of watch(ctrl.signal)) {
-                try {
-                  const res = await callback(value)
-                  if (res.cancel) {
-                    ctrl.abort()
-                    break
-                  }
-                } catch (e) {
-                  console.error(
-                    'callback function threw an error @ getStatus.onChange',
-                    e,
-                  )
-                }
-              }
-            })()
-              .catch((e) => callback(null, e))
-              .catch((e) =>
-                console.error(
-                  'callback function threw an error @ getStatus.onChange',
-                  e,
-                ),
-              )
-          },
-          waitFor: async (pred: (value: T.StatusInfo | null) => boolean) => {
-            const resolveCell = { resolve: () => {} }
-            effects.onLeaveContext(() => {
-              resolveCell.resolve()
-            })
-            while (effects.isInContext) {
-              let callback: () => void = () => {}
-              const waitForNext = new Promise<void>((resolve) => {
-                callback = resolve
-                resolveCell.resolve = resolve
-              })
-              const res = await effects.getStatus({ ...options, callback })
-              if (pred(res)) {
-                resolveCell.resolve()
-                return res
-              }
-              await waitForNext
-            }
-            return null
-          },
-        }
-      },
+      ) => new GetStatus(effects, options),
 
       MultiHost: {
         /**
@@ -646,7 +481,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         effects: E,
         hostnames: string[],
         algorithm?: T.Algorithm,
-      ) => new GetSslCertificate(effects, hostnames, algorithm),
+      ) => new GetSslCertificate(effects, { hostnames, algorithm }),
       /** Retrieve the manifest of any installed service package by its ID */
       getServiceManifest,
       healthCheck: {

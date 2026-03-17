@@ -64,7 +64,7 @@ jobs:
       - name: Mount tmpfs
         if: ${{ github.event.inputs.runner == 'fast' }}
         run: sudo mount -t tmpfs tmpfs .
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: ./.github/actions/setup-build
@@ -78,7 +78,7 @@ jobs:
           SCCACHE_GHA_ENABLED: on
           SCCACHE_GHA_VERSION: 0
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: start-registry_${{ matrix.arch }}.deb
           path: results/start-registry-*_${{ matrix.arch }}.deb
@@ -102,13 +102,13 @@ jobs:
         if: ${{ github.event.inputs.runner == 'fast' }}
 
       - name: Set up docker QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: "Login to GitHub Container Registry"
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{github.actor}}
@@ -116,14 +116,14 @@ jobs:
 
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/Start9Labs/startos-registry
           tags: |
             type=raw,value=${{ github.ref_name }}
 
       - name: Download debian package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: start-registry_*.deb
 
@@ -162,7 +162,7 @@ jobs:
 
           ADD *.deb .
 
-          RUN apt-get install -y ./*_$(uname -m).deb && rm *.deb
+          RUN apt-get update && apt-get install -y ./*_$(uname -m).deb && rm -rf *.deb /var/lib/apt/lists/*
 
           VOLUME /var/lib/startos
 

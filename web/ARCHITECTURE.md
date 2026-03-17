@@ -1,6 +1,6 @@
 # Web Architecture
 
-Angular 20 + TypeScript workspace using [Taiga UI](https://taiga-ui.dev/) component library.
+Angular 21 + TypeScript workspace using [Taiga UI 5](https://taiga-ui.dev/) component library.
 
 ## API Layer (JSON-RPC)
 

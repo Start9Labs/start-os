@@ -67,10 +67,6 @@ button:disabled {
   }
 }
 
-[tuiCell]:not([tuiOption]):not(:last-of-type) {
-  box-shadow: 0 calc(0.5rem + 1px) 0 -0.5rem var(--tui-border-normal);
-}
-
 // TODO: Remove in Taiga v5.0
 [tuiButton] {
   min-block-size: var(--t-size);

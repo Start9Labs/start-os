@@ -292,8 +292,18 @@ export default class DrivesPage {
 
   private showPreserveOverwriteDialog() {
     let selectionMade = false
+    const drive = this.selectedDataDrive
+    const filesystem =
+      drive?.filesystem ||
+      drive?.partitions.find(p => p.guid)?.filesystem ||
+      null
+    const isExt4 = filesystem === 'ext2'
 
-    this.dialogs.openComponent<boolean>(PRESERVE_OVERWRITE).subscribe({
+    this.dialogs
+      .openComponent<boolean>(PRESERVE_OVERWRITE, {
+        data: { isExt4 },
+      })
+      .subscribe({
       next: preserve => {
         selectionMade = true
         this.preserveData = preserve
@@ -363,6 +373,7 @@ export default class DrivesPage {
 
       this.stateService.dataDriveGuid = result.guid
       this.stateService.attach = result.attach
+      this.stateService.mokEnrolled = result.mokEnrolled
 
       loader.unsubscribe()
 

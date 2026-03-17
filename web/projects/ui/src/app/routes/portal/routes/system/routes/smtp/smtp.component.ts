@@ -55,7 +55,7 @@ function detectProviderKey(host: string | undefined): string {
                 tuiIconButton
                 size="xs"
                 docsLink
-                path="/start-os/user-manual/smtp.html"
+                path="/start-os/smtp.html"
                 appearance="icon"
                 iconStart="@tui.book-open-text"
               >

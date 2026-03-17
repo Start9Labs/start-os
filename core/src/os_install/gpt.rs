@@ -197,11 +197,19 @@ pub async fn partition(
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
 
+    let mut extra_boot = std::collections::BTreeMap::new();
+    let bios;
+    if efi {
+        extra_boot.insert("efi".to_string(), partition_for(&disk_path, 1));
+        bios = None;
+    } else {
+        bios = Some(partition_for(&disk_path, 1));
+    }
     Ok(OsPartitionInfo {
-        efi: efi.then(|| partition_for(&disk_path, 1)),
-        bios: (!efi).then(|| partition_for(&disk_path, 1)),
+        bios,
         boot: partition_for(&disk_path, 2),
         root: partition_for(&disk_path, 3),
+        extra_boot,
         data: data_part,
     })
 }

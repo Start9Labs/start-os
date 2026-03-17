@@ -1,6 +1,6 @@
 use std::cmp::min;
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
 use std::time::{Duration, SystemTime};
 
 use clap::Parser;
@@ -8,185 +8,72 @@ use futures::future::join_all;
 use imbl::{OrdMap, Vector, vector};
 use imbl_value::InternedString;
 use patch_db::TypedDbWatch;
-use patch_db::json_ptr::JsonPointer;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use ts_rs::TS;
 
-use crate::db::model::Database;
+use crate::db::model::package::PackageState;
 use crate::db::model::public::NetworkInterfaceInfo;
+use crate::net::host::Host;
+use crate::net::service_interface::ServiceInterface;
 use crate::net::ssl::FullchainCertData;
 use crate::prelude::*;
 use crate::service::effects::context::EffectContext;
 use crate::service::effects::net::ssl::Algorithm;
 use crate::service::rpc::{CallbackHandle, CallbackId};
 use crate::service::{Service, ServiceActorSeed};
+use crate::status::StatusInfo;
 use crate::util::collections::EqMap;
 use crate::util::future::NonDetachingJoinHandle;
+use crate::util::sync::SyncMutex;
 use crate::{GatewayId, HostId, PackageId, ServiceInterfaceId};
 
-#[derive(Default)]
-pub struct ServiceCallbacks(Mutex<ServiceCallbackMap>);
-
-#[derive(Default)]
-struct ServiceCallbackMap {
-    get_service_interface: BTreeMap<(PackageId, ServiceInterfaceId), Vec<CallbackHandler>>,
-    list_service_interfaces: BTreeMap<PackageId, Vec<CallbackHandler>>,
-    get_system_smtp: Vec<CallbackHandler>,
-    get_host_info:
-        BTreeMap<(PackageId, HostId), (NonDetachingJoinHandle<()>, Vec<CallbackHandler>)>,
-    get_ssl_certificate: EqMap<
-        (BTreeSet<InternedString>, FullchainCertData, Algorithm),
-        (NonDetachingJoinHandle<()>, Vec<CallbackHandler>),
-    >,
-    get_status: BTreeMap<PackageId, Vec<CallbackHandler>>,
-    get_container_ip: BTreeMap<PackageId, Vec<CallbackHandler>>,
-    get_service_manifest: BTreeMap<PackageId, Vec<CallbackHandler>>,
-    get_outbound_gateway: BTreeMap<PackageId, (NonDetachingJoinHandle<()>, Vec<CallbackHandler>)>,
+/// Abstraction for callbacks that are triggered by patchdb subscriptions.
+///
+/// Handles the subscribe-wait-fire-remove pattern: when a callback is first
+/// registered for a key, a patchdb subscription is spawned. When the subscription
+/// fires, all handlers are consumed and invoked, then the subscription stops.
+/// A new subscription is created if a handler is registered again.
+pub struct DbWatchedCallbacks<K: Ord> {
+    label: &'static str,
+    inner: SyncMutex<BTreeMap<K, (NonDetachingJoinHandle<()>, Vec<CallbackHandler>)>>,
 }
 
-impl ServiceCallbacks {
-    fn mutate<T>(&self, f: impl FnOnce(&mut ServiceCallbackMap) -> T) -> T {
-        let mut this = self.0.lock().unwrap();
-        f(&mut *this)
+impl<K: Ord + Clone + Send + Sync + 'static> DbWatchedCallbacks<K> {
+    pub fn new(label: &'static str) -> Self {
+        Self {
+            label,
+            inner: SyncMutex::new(BTreeMap::new()),
+        }
     }
 
-    pub fn gc(&self) {
-        self.mutate(|this| {
-            this.get_service_interface.retain(|_, v| {
-                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-                !v.is_empty()
-            });
-            this.list_service_interfaces.retain(|_, v| {
-                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-                !v.is_empty()
-            });
-            this.get_system_smtp
-                .retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-            this.get_host_info.retain(|_, (_, v)| {
-                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-                !v.is_empty()
-            });
-            this.get_ssl_certificate.retain(|_, (_, v)| {
-                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-                !v.is_empty()
-            });
-            this.get_status.retain(|_, v| {
-                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-                !v.is_empty()
-            });
-            this.get_service_manifest.retain(|_, v| {
-                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-                !v.is_empty()
-            });
-            this.get_outbound_gateway.retain(|_, (_, v)| {
-                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-                !v.is_empty()
-            });
-        })
-    }
-
-    pub(super) fn add_get_service_interface(
-        &self,
-        package_id: PackageId,
-        service_interface_id: ServiceInterfaceId,
-        handler: CallbackHandler,
-    ) {
-        self.mutate(|this| {
-            this.get_service_interface
-                .entry((package_id, service_interface_id))
-                .or_default()
-                .push(handler);
-        })
-    }
-
-    #[must_use]
-    pub fn get_service_interface(
-        &self,
-        id: &(PackageId, ServiceInterfaceId),
-    ) -> Option<CallbackHandlers> {
-        self.mutate(|this| {
-            Some(CallbackHandlers(
-                this.get_service_interface.remove(id).unwrap_or_default(),
-            ))
-            .filter(|cb| !cb.0.is_empty())
-        })
-    }
-
-    pub(super) fn add_list_service_interfaces(
-        &self,
-        package_id: PackageId,
-        handler: CallbackHandler,
-    ) {
-        self.mutate(|this| {
-            this.list_service_interfaces
-                .entry(package_id)
-                .or_default()
-                .push(handler);
-        })
-    }
-
-    #[must_use]
-    pub fn list_service_interfaces(&self, id: &PackageId) -> Option<CallbackHandlers> {
-        self.mutate(|this| {
-            Some(CallbackHandlers(
-                this.list_service_interfaces.remove(id).unwrap_or_default(),
-            ))
-            .filter(|cb| !cb.0.is_empty())
-        })
-    }
-
-    pub(super) fn add_get_system_smtp(&self, handler: CallbackHandler) {
-        self.mutate(|this| {
-            this.get_system_smtp.push(handler);
-        })
-    }
-
-    #[must_use]
-    pub fn get_system_smtp(&self) -> Option<CallbackHandlers> {
-        self.mutate(|this| {
-            Some(CallbackHandlers(std::mem::take(&mut this.get_system_smtp)))
-                .filter(|cb| !cb.0.is_empty())
-        })
-    }
-
-    pub(super) fn add_get_host_info(
+    pub fn add<T: Send + 'static>(
         self: &Arc<Self>,
-        db: &TypedPatchDb<Database>,
-        package_id: PackageId,
-        host_id: HostId,
+        key: K,
+        watch: TypedDbWatch<T>,
         handler: CallbackHandler,
     ) {
-        self.mutate(|this| {
-            this.get_host_info
-                .entry((package_id.clone(), host_id.clone()))
+        self.inner.mutate(|map| {
+            map.entry(key.clone())
                 .or_insert_with(|| {
-                    let ptr: JsonPointer =
-                        format!("/public/packageData/{}/hosts/{}", package_id, host_id)
-                            .parse()
-                            .expect("valid json pointer");
-                    let db = db.clone();
-                    let callbacks = Arc::clone(self);
-                    let key = (package_id, host_id);
+                    let this = Arc::clone(self);
+                    let k = key;
+                    let label = self.label;
                     (
                         tokio::spawn(async move {
-                            let mut sub = db.subscribe(ptr).await;
-                            while sub.recv().await.is_some() {
-                                if let Some(cbs) = callbacks.mutate(|this| {
-                                    this.get_host_info
-                                        .remove(&key)
+                            let mut watch = watch.untyped();
+                            if watch.changed().await.is_ok() {
+                                if let Some(cbs) = this.inner.mutate(|map| {
+                                    map.remove(&k)
                                         .map(|(_, handlers)| CallbackHandlers(handlers))
                                         .filter(|cb| !cb.0.is_empty())
                                 }) {
-                                    if let Err(e) = cbs.call(vector![]).await {
-                                        tracing::error!("Error in host info callback: {e}");
+                                    let value = watch.peek_and_mark_seen().unwrap_or_default();
+                                    if let Err(e) = cbs.call(vector![value]).await {
+                                        tracing::error!("Error in {label} callback: {e}");
                                         tracing::debug!("{e:?}");
                                     }
                                 }
-                                // entry was removed when we consumed handlers,
-                                // so stop watching — a new subscription will be
-                                // created if the service re-registers
-                                break;
                             }
                         })
                         .into(),
@@ -196,6 +83,113 @@ impl ServiceCallbacks {
                 .1
                 .push(handler);
         })
+    }
+
+    pub fn gc(&self) {
+        self.inner.mutate(|map| {
+            map.retain(|_, (_, v)| {
+                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+                !v.is_empty()
+            });
+        })
+    }
+}
+
+pub struct ServiceCallbacks {
+    inner: SyncMutex<ServiceCallbackMap>,
+    get_host_info: Arc<DbWatchedCallbacks<(PackageId, HostId)>>,
+    get_status: Arc<DbWatchedCallbacks<PackageId>>,
+    get_service_interface: Arc<DbWatchedCallbacks<(PackageId, ServiceInterfaceId)>>,
+    list_service_interfaces: Arc<DbWatchedCallbacks<PackageId>>,
+    get_system_smtp: Arc<DbWatchedCallbacks<()>>,
+    get_service_manifest: Arc<DbWatchedCallbacks<PackageId>>,
+}
+
+impl Default for ServiceCallbacks {
+    fn default() -> Self {
+        Self {
+            inner: SyncMutex::new(ServiceCallbackMap::default()),
+            get_host_info: Arc::new(DbWatchedCallbacks::new("host info")),
+            get_status: Arc::new(DbWatchedCallbacks::new("get_status")),
+            get_service_interface: Arc::new(DbWatchedCallbacks::new("get_service_interface")),
+            list_service_interfaces: Arc::new(DbWatchedCallbacks::new("list_service_interfaces")),
+            get_system_smtp: Arc::new(DbWatchedCallbacks::new("get_system_smtp")),
+            get_service_manifest: Arc::new(DbWatchedCallbacks::new("get_service_manifest")),
+        }
+    }
+}
+
+#[derive(Default)]
+struct ServiceCallbackMap {
+    get_ssl_certificate: EqMap<
+        (BTreeSet<InternedString>, FullchainCertData, Algorithm),
+        (NonDetachingJoinHandle<()>, Vec<CallbackHandler>),
+    >,
+    get_container_ip: BTreeMap<PackageId, Vec<CallbackHandler>>,
+    get_outbound_gateway: BTreeMap<PackageId, (NonDetachingJoinHandle<()>, Vec<CallbackHandler>)>,
+}
+
+impl ServiceCallbacks {
+    fn mutate<T>(&self, f: impl FnOnce(&mut ServiceCallbackMap) -> T) -> T {
+        self.inner.mutate(f)
+    }
+
+    pub fn gc(&self) {
+        self.mutate(|this| {
+            this.get_ssl_certificate.retain(|_, (_, v)| {
+                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+                !v.is_empty()
+            });
+            this.get_outbound_gateway.retain(|_, (_, v)| {
+                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+                !v.is_empty()
+            });
+        });
+        self.get_host_info.gc();
+        self.get_status.gc();
+        self.get_service_interface.gc();
+        self.list_service_interfaces.gc();
+        self.get_system_smtp.gc();
+        self.get_service_manifest.gc();
+    }
+
+    pub(super) fn add_get_service_interface(
+        &self,
+        package_id: PackageId,
+        service_interface_id: ServiceInterfaceId,
+        watch: TypedDbWatch<ServiceInterface>,
+        handler: CallbackHandler,
+    ) {
+        self.get_service_interface
+            .add((package_id, service_interface_id), watch, handler);
+    }
+
+    pub(super) fn add_list_service_interfaces<T: Send + 'static>(
+        &self,
+        package_id: PackageId,
+        watch: TypedDbWatch<T>,
+        handler: CallbackHandler,
+    ) {
+        self.list_service_interfaces.add(package_id, watch, handler);
+    }
+
+    pub(super) fn add_get_system_smtp<T: Send + 'static>(
+        &self,
+        watch: TypedDbWatch<T>,
+        handler: CallbackHandler,
+    ) {
+        self.get_system_smtp.add((), watch, handler);
+    }
+
+    pub(super) fn add_get_host_info(
+        &self,
+        package_id: PackageId,
+        host_id: HostId,
+        watch: TypedDbWatch<Host>,
+        handler: CallbackHandler,
+    ) {
+        self.get_host_info
+            .add((package_id, host_id), watch, handler);
     }
 
     pub(super) fn add_get_ssl_certificate(
@@ -256,19 +250,14 @@ impl ServiceCallbacks {
                 .push(handler);
         })
     }
-    pub(super) fn add_get_status(&self, package_id: PackageId, handler: CallbackHandler) {
-        self.mutate(|this| this.get_status.entry(package_id).or_default().push(handler))
-    }
-    #[must_use]
-    pub fn get_status(&self, package_id: &PackageId) -> Option<CallbackHandlers> {
-        self.mutate(|this| {
-            if let Some(watched) = this.get_status.remove(package_id) {
-                Some(CallbackHandlers(watched))
-            } else {
-                None
-            }
-            .filter(|cb| !cb.0.is_empty())
-        })
+
+    pub(super) fn add_get_status(
+        &self,
+        package_id: PackageId,
+        watch: TypedDbWatch<StatusInfo>,
+        handler: CallbackHandler,
+    ) {
+        self.get_status.add(package_id, watch, handler);
     }
 
     pub(super) fn add_get_container_ip(&self, package_id: PackageId, handler: CallbackHandler) {
@@ -345,23 +334,13 @@ impl ServiceCallbacks {
         })
     }
 
-    pub(super) fn add_get_service_manifest(&self, package_id: PackageId, handler: CallbackHandler) {
-        self.mutate(|this| {
-            this.get_service_manifest
-                .entry(package_id)
-                .or_default()
-                .push(handler)
-        })
-    }
-
-    #[must_use]
-    pub fn get_service_manifest(&self, package_id: &PackageId) -> Option<CallbackHandlers> {
-        self.mutate(|this| {
-            this.get_service_manifest
-                .remove(package_id)
-                .map(CallbackHandlers)
-                .filter(|cb| !cb.0.is_empty())
-        })
+    pub(super) fn add_get_service_manifest(
+        &self,
+        package_id: PackageId,
+        watch: TypedDbWatch<PackageState>,
+        handler: CallbackHandler,
+    ) {
+        self.get_service_manifest.add(package_id, watch, handler);
     }
 }
 

@@ -198,20 +198,22 @@ cmd_sign() {
     enter_release_dir
     resolve_gh_user
 
+    mkdir -p signatures
+
     for file in $(release_files); do
-        gpg -u $START9_GPG_KEY --detach-sign --armor -o "${file}.start9.asc" "$file"
+        gpg -u $START9_GPG_KEY --detach-sign --armor -o "signatures/${file}.start9.asc" "$file"
         if [ -n "$GH_USER" ] && [ -n "$GH_GPG_KEY" ]; then
-            gpg -u "$GH_GPG_KEY" --detach-sign --armor -o "${file}.${GH_USER}.asc" "$file"
+            gpg -u "$GH_GPG_KEY" --detach-sign --armor -o "signatures/${file}.${GH_USER}.asc" "$file"
         fi
     done
 
-    gpg --export -a $START9_GPG_KEY > start9.key.asc
+    gpg --export -a $START9_GPG_KEY > signatures/start9.key.asc
     if [ -n "$GH_USER" ] && [ -n "$GH_GPG_KEY" ]; then
-        gpg --export -a "$GH_GPG_KEY" > "${GH_USER}.key.asc"
+        gpg --export -a "$GH_GPG_KEY" > "signatures/${GH_USER}.key.asc"
     else
         >&2 echo 'Warning: could not determine GitHub user or GPG signing key, skipping personal signature'
     fi
-    tar -czvf signatures.tar.gz *.asc
+    tar -czvf signatures.tar.gz -C signatures .
 
     gh release upload -R $REPO "v$VERSION" signatures.tar.gz --clobber
 }
@@ -229,17 +231,18 @@ cmd_cosign() {
 
     echo "Downloading existing signatures..."
     gh release download -R $REPO "v$VERSION" -p "signatures.tar.gz" -D "$(pwd)" --clobber
-    tar -xzf signatures.tar.gz
+    mkdir -p signatures
+    tar -xzf signatures.tar.gz -C signatures
 
     echo "Adding personal signatures as $GH_USER..."
     for file in $(release_files); do
-        gpg -u "$GH_GPG_KEY" --detach-sign --armor -o "${file}.${GH_USER}.asc" "$file"
+        gpg -u "$GH_GPG_KEY" --detach-sign --armor -o "signatures/${file}.${GH_USER}.asc" "$file"
     done
 
-    gpg --export -a "$GH_GPG_KEY" > "${GH_USER}.key.asc"
+    gpg --export -a "$GH_GPG_KEY" > "signatures/${GH_USER}.key.asc"
 
     echo "Re-packing signatures..."
-    tar -czvf signatures.tar.gz *.asc
+    tar -czvf signatures.tar.gz -C signatures .
 
     gh release upload -R $REPO "v$VERSION" signatures.tar.gz --clobber
     echo "Done. Personal signatures for $GH_USER added to v$VERSION."

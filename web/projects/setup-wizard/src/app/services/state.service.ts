@@ -42,6 +42,7 @@ export class StateService {
   // From install response or status response (incomplete)
   dataDriveGuid = ''
   attach = false
+  mokEnrolled = false
 
   // Set during setup flow
   setupType?: SetupType
@@ -71,6 +72,7 @@ export class StateService {
     await this.api.attach({
       guid: this.dataDriveGuid,
       password: password ? await this.api.encrypt(password) : null,
+      kiosk: this.kiosk,
     })
   }
 
@@ -105,6 +107,7 @@ export class StateService {
       name,
       hostname,
       recoverySource,
+      kiosk: this.kiosk,
     })
   }
 
@@ -116,6 +119,7 @@ export class StateService {
     this.keyboard = ''
     this.dataDriveGuid = ''
     this.attach = false
+    this.mokEnrolled = false
     this.setupType = undefined
     this.recoverySource = undefined
   }

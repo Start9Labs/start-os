@@ -400,10 +400,10 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "set-ifconfig-url",
-            from_fn_async(system::set_ifconfig_url)
+            "set-echoip-urls",
+            from_fn_async(system::set_echoip_urls)
                 .no_display()
-                .with_about("about.set-ifconfig-url")
+                .with_about("about.set-echoip-urls")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(

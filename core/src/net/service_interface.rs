@@ -145,9 +145,10 @@ pub struct GatewayInfo {
     pub public: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
 pub struct ServiceInterface {
     pub id: ServiceInterfaceId,
     pub name: String,

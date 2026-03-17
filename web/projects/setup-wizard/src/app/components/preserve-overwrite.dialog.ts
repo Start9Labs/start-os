@@ -1,12 +1,30 @@
 import { Component } from '@angular/core'
+import { FormsModule } from '@angular/forms'
 import { i18nPipe } from '@start9labs/shared'
-import { TuiButton, TuiTitle } from '@taiga-ui/core'
-import { TuiDialogContext } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiCheckbox,
+  TuiDialogContext,
+  TuiNotification,
+  TuiTitle,
+} from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 
+export interface PreserveOverwriteData {
+  isExt4: boolean
+}
+
 @Component({
-  imports: [TuiButton, TuiHeader, TuiTitle, i18nPipe],
+  imports: [
+    FormsModule,
+    TuiButton,
+    TuiCheckbox,
+    TuiHeader,
+    TuiNotification,
+    TuiTitle,
+    i18nPipe,
+  ],
   template: `
     <header tuiHeader>
       <hgroup tuiTitle>
@@ -24,6 +42,18 @@ import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
         {{ 'to discard' | i18n }}
       </li>
     </ul>
+    @if (context.data.isExt4) {
+      <p tuiNotification appearance="warning" size="m">
+        {{
+          'This drive uses ext4 and will be automatically converted to btrfs. A backup is strongly recommended before proceeding.'
+            | i18n
+        }}
+      </p>
+      <label>
+        <input tuiCheckbox type="checkbox" [(ngModel)]="backupAck" />
+        {{ 'I have a backup of my data' | i18n }}
+      </label>
+    }
     <footer>
       <button
         tuiButton
@@ -36,6 +66,7 @@ import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
         tuiButton
         appearance=""
         [style.background]="'var(--tui-status-positive)'"
+        [disabled]="context.data.isExt4 && !backupAck"
         (click)="context.completeWith(true)"
       >
         {{ 'Preserve' | i18n }}
@@ -44,7 +75,9 @@ import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
   `,
 })
 export class PreserveOverwriteDialog {
-  protected readonly context = injectContext<TuiDialogContext<boolean>>()
+  protected readonly context =
+    injectContext<TuiDialogContext<boolean, PreserveOverwriteData>>()
+  protected backupAck = false
 }
 
 export const PRESERVE_OVERWRITE = new PolymorpheusComponent(

@@ -298,13 +298,10 @@ export class RpcListener {
       }
       case "stop": {
         const { id } = stopType.parse(input)
+        this.callbacks?.removeChild("main")
         return handleRpc(
           id,
-          this.system.stop().then((result) => {
-            this.callbacks?.removeChild("main")
-
-            return { result }
-          }),
+          this.system.stop().then((result) => ({ result })),
         )
       }
       case "exit": {

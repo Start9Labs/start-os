@@ -857,6 +857,13 @@ error.set-sys-info:
   fr_FR: "Erreur de Définition des Infos Système"
   pl_PL: "Błąd Ustawiania Informacji o Systemie"
 
+error.bios:
+  en_US: "BIOS/UEFI Error"
+  de_DE: "BIOS/UEFI-Fehler"
+  es_ES: "Error de BIOS/UEFI"
+  fr_FR: "Erreur BIOS/UEFI"
+  pl_PL: "Błąd BIOS/UEFI"
+
 # disk/main.rs
 disk.main.disk-not-found:
   en_US: "StartOS disk not found."
@@ -1248,6 +1255,13 @@ backup.bulk.leaked-reference:
   fr_FR: "référence fuitée vers BackupMountGuard"
   pl_PL: "wyciekła referencja do BackupMountGuard"
 
+backup.bulk.service-not-ready:
+  en_US: "Cannot create a backup of a service that is still initializing or in an error state"
+  de_DE: "Es kann keine Sicherung eines Dienstes erstellt werden, der noch initialisiert wird oder sich im Fehlerzustand befindet"
+  es_ES: "No se puede crear una copia de seguridad de un servicio que aún se está inicializando o está en estado de error"
+  fr_FR: "Impossible de créer une sauvegarde d'un service encore en cours d'initialisation ou en état d'erreur"
+  pl_PL: "Nie można utworzyć kopii zapasowej usługi, która jest jeszcze inicjalizowana lub znajduje się w stanie błędu"
+
 # backup/restore.rs
 backup.restore.package-error:
   en_US: "Error restoring package %{id}: %{error}"
@@ -1371,6 +1385,21 @@ net.tor.client-error:
   es_ES: "Error del cliente Tor: %{error}"
   fr_FR: "Erreur du client Tor : %{error}"
   pl_PL: "Błąd klienta Tor: %{error}"
+
+# net/tunnel.rs
+net.tunnel.timeout-waiting-for-add:
+  en_US: "timed out waiting for gateway %{gateway} to appear in database"
+  de_DE: "Zeitüberschreitung beim Warten auf das Erscheinen von Gateway %{gateway} in der Datenbank"
+  es_ES: "se agotó el tiempo esperando que la puerta de enlace %{gateway} aparezca en la base de datos"
+  fr_FR: "délai d'attente dépassé pour l'apparition de la passerelle %{gateway} dans la base de données"
+  pl_PL: "upłynął limit czasu oczekiwania na pojawienie się bramy %{gateway} w bazie danych"
+
+net.tunnel.timeout-waiting-for-remove:
+  en_US: "timed out waiting for gateway %{gateway} to be removed from database"
+  de_DE: "Zeitüberschreitung beim Warten auf das Entfernen von Gateway %{gateway} aus der Datenbank"
+  es_ES: "se agotó el tiempo esperando que la puerta de enlace %{gateway} sea eliminada de la base de datos"
+  fr_FR: "délai d'attente dépassé pour la suppression de la passerelle %{gateway} de la base de données"
+  pl_PL: "upłynął limit czasu oczekiwania na usunięcie bramy %{gateway} z bazy danych"
 
 # net/wifi.rs
 net.wifi.ssid-no-special-characters:
@@ -1584,6 +1613,13 @@ net.gateway.cannot-delete-without-connection:
   es_ES: "No se puede eliminar el dispositivo sin conexión activa"
   fr_FR: "Impossible de supprimer l'appareil sans connexion active"
   pl_PL: "Nie można usunąć urządzenia bez aktywnego połączenia"
+
+net.gateway.no-configured-echoip-urls:
+  en_US: "No configured echoip URLs"
+  de_DE: "Keine konfigurierten EchoIP-URLs"
+  es_ES: "No hay URLs de echoip configuradas"
+  fr_FR: "Aucune URL echoip configurée"
+  pl_PL: "Brak skonfigurowanych adresów URL echoip"
 
 # net/dns.rs
 net.dns.timeout-updating-catalog:
@@ -2746,6 +2782,13 @@ help.arg.download-directory:
   fr_FR: "Chemin du répertoire de téléchargement"
   pl_PL: "Ścieżka katalogu do pobrania"
 
+help.arg.echoip-urls:
+  en_US: "Echo IP service URLs for external IP detection"
+  de_DE: "Echo-IP-Dienst-URLs zur externen IP-Erkennung"
+  es_ES: "URLs del servicio Echo IP para detección de IP externa"
+  fr_FR: "URLs du service Echo IP pour la détection d'IP externe"
+  pl_PL: "Adresy URL usługi Echo IP do wykrywania zewnętrznego IP"
+
 help.arg.emulate-missing-arch:
   en_US: "Emulate missing architecture using this one"
   de_DE: "Fehlende Architektur mit dieser emulieren"
@@ -2913,6 +2956,13 @@ help.arg.log-limit:
   es_ES: "Número máximo de entradas de registro"
   fr_FR: "Nombre maximum d'entrées de journal"
   pl_PL: "Maksymalna liczba wpisów logu"
+
+help.arg.merge:
+  en_US: "Merge with existing version range instead of replacing"
+  de_DE: "Mit vorhandenem Versionsbereich zusammenführen statt ersetzen"
+  es_ES: "Combinar con el rango de versiones existente en lugar de reemplazar"
+  fr_FR: "Fusionner avec la plage de versions existante au lieu de remplacer"
+  pl_PL: "Połącz z istniejącym zakresem wersji zamiast zastępować"
 
 help.arg.mirror-url:
   en_US: "URL of the mirror"
@@ -5204,12 +5254,12 @@ about.reset-user-interface-password:
   fr_FR: "Réinitialiser le mot de passe de l'interface utilisateur"
   pl_PL: "Zresetuj hasło interfejsu użytkownika"
 
-about.reset-webserver:
-  en_US: "Reset the webserver"
-  de_DE: "Den Webserver zurücksetzen"
-  es_ES: "Restablecer el servidor web"
-  fr_FR: "Réinitialiser le serveur web"
-  pl_PL: "Zresetuj serwer internetowy"
+about.uninitialize-webserver:
+  en_US: "Uninitialize the webserver"
+  de_DE: "Den Webserver deinitialisieren"
+  es_ES: "Desinicializar el servidor web"
+  fr_FR: "Désinitialiser le serveur web"
+  pl_PL: "Zdezinicjalizuj serwer internetowy"
 
 about.restart-server:
   en_US: "Restart the server"
@@ -5245,6 +5295,13 @@ about.set-country:
   es_ES: "Establecer el país"
   fr_FR: "Définir le pays"
   pl_PL: "Ustaw kraj"
+
+about.set-echoip-urls:
+  en_US: "Set the Echo IP service URLs"
+  de_DE: "Die Echo-IP-Dienst-URLs festlegen"
+  es_ES: "Establecer las URLs del servicio Echo IP"
+  fr_FR: "Définir les URLs du service Echo IP"
+  pl_PL: "Ustaw adresy URL usługi Echo IP"
 
 about.set-hostname:
   en_US: "Set the server hostname"

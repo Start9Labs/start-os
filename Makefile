@@ -15,7 +15,8 @@ IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo 
 WEB_UIS := web/dist/raw/ui/index.html web/dist/raw/setup-wizard/index.html
 COMPRESSED_WEB_UIS := web/dist/static/ui/index.html web/dist/static/setup-wizard/index.html
 FIRMWARE_ROMS := build/lib/firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./build/lib/firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
-BUILD_SRC := $(call ls-files, build/lib) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS)
+TOR_S9PK := build/lib/tor_$(ARCH).s9pk
+BUILD_SRC := $(call ls-files, build/lib) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS) $(TOR_S9PK)
 IMAGE_RECIPE_SRC := $(call ls-files, build/image-recipe/)
 STARTD_SRC := core/startd.service $(BUILD_SRC)
 CORE_SRC := $(call ls-files, core) $(shell git ls-files --recurse-submodules patch-db) $(GIT_HASH_FILE)
@@ -155,7 +156,7 @@ results/$(BASENAME).deb: debian/dpkg-build.sh $(call ls-files,debian/startos) $(
 registry-deb: results/$(REGISTRY_BASENAME).deb
 
 results/$(REGISTRY_BASENAME).deb: debian/dpkg-build.sh $(call ls-files,debian/start-registry) $(REGISTRY_TARGETS)
-	PROJECT=start-registry PLATFORM=$(ARCH) REQUIRES=debian ./build/os-compat/run-compat.sh ./debian/dpkg-build.sh
+	PROJECT=start-registry PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=ca-certificates ./build/os-compat/run-compat.sh ./debian/dpkg-build.sh
 
 tunnel-deb: results/$(TUNNEL_BASENAME).deb
 
@@ -188,6 +189,9 @@ install: $(STARTOS_TARGETS)
 	
 	$(call mkdir,$(DESTDIR)/lib/systemd/system)
 	$(call cp,core/startd.service,$(DESTDIR)/lib/systemd/system/startd.service)
+	if /bin/bash -c '[[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]'; then \
+		sed -i '/^Environment=/a Environment=RUST_BACKTRACE=full' $(DESTDIR)/lib/systemd/system/startd.service; \
+	fi
 
 	$(call mkdir,$(DESTDIR)/usr/lib)
 	$(call rm,$(DESTDIR)/usr/lib/startos)
@@ -283,6 +287,10 @@ core/bindings/index.ts: $(call ls-files, core) $(ENVIRONMENT_FILE)
 	rm -rf core/bindings
 	./core/build/build-ts.sh
 	ls core/bindings/*.ts | sed 's/core\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' | grep -v '"./index"' | tee core/bindings/index.ts
+	if [ -d core/bindings/tunnel ]; then \
+		ls core/bindings/tunnel/*.ts | sed 's/core\/bindings\/tunnel\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' | grep -v '"./index"' > core/bindings/tunnel/index.ts; \
+		echo 'export * as Tunnel from "./tunnel";' >> core/bindings/index.ts; \
+	fi
 	npm --prefix sdk/base exec -- prettier --config=./sdk/base/package.json -w './core/bindings/**/*.ts'
 	touch core/bindings/index.ts
 
@@ -307,6 +315,9 @@ build/lib/depends build/lib/conflicts: $(ENVIRONMENT_FILE) $(PLATFORM_FILE) $(sh
 
 $(FIRMWARE_ROMS): build/lib/firmware.json ./build/download-firmware.sh $(PLATFORM_FILE)
 	./build/download-firmware.sh $(PLATFORM)
+
+$(TOR_S9PK): ./build/download-tor-s9pk.sh
+	./build/download-tor-s9pk.sh $(ARCH)
 
 core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox: $(CORE_SRC) $(COMPRESSED_WEB_UIS) web/patchdb-ui-seed.json $(ENVIRONMENT_FILE)
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build/build-startbox.sh

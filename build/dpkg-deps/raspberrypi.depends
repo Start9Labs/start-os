@@ -1,5 +1,6 @@
-- grub-efi
++ gdisk
 + parted
++ u-boot-rpi
 + raspberrypi-net-mods
 + raspberrypi-sys-mods
 + raspi-config

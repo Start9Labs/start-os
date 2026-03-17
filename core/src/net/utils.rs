@@ -66,6 +66,13 @@ pub fn ipv6_is_local(addr: Ipv6Addr) -> bool {
     addr.is_loopback() || (addr.segments()[0] & 0xfe00) == 0xfc00 || ipv6_is_link_local(addr)
 }
 
+pub fn is_private_ip(addr: IpAddr) -> bool {
+    match addr {
+        IpAddr::V4(v4) => v4.is_private() || v4.is_loopback() || v4.is_link_local(),
+        IpAddr::V6(v6) => ipv6_is_local(v6),
+    }
+}
+
 fn parse_iface_ip(output: &str) -> Result<Vec<&str>, Error> {
     let output = output.trim();
     if output.is_empty() {

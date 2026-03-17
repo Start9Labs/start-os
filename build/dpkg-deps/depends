@@ -11,6 +11,7 @@ cifs-utils
 conntrack
 cryptsetup
 curl
+dkms
 dmidecode
 dnsutils
 dosfstools
@@ -36,6 +37,7 @@ lvm2
 lxc
 magic-wormhole
 man-db
+mokutil
 ncdu
 net-tools
 network-manager

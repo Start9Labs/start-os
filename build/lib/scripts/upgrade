@@ -24,7 +24,7 @@ fi
 
 unsquashfs -f -d / $1 boot
 
-umount -R /media/startos/next 2> /dev/null || true
+umount -l /media/startos/next 2> /dev/null || true
 umount /media/startos/upper 2> /dev/null || true
 umount /media/startos/lower 2> /dev/null || true
 
@@ -45,18 +45,13 @@ mkdir -p /media/startos/next/media/startos/root
 mount --bind /run /media/startos/next/run
 mount --bind /tmp /media/startos/next/tmp
 mount --bind /dev /media/startos/next/dev
-mount --bind /sys /media/startos/next/sys
-mount --bind /proc /media/startos/next/proc
-mount --bind /boot /media/startos/next/boot
+mount -t sysfs sysfs /media/startos/next/sys
+mount -t proc proc /media/startos/next/proc
+mount --rbind /boot /media/startos/next/boot
 mount --bind /media/startos/root /media/startos/next/media/startos/root
 
-if mountpoint /boot/efi 2>&1 > /dev/null; then
-    mkdir -p /media/startos/next/boot/efi
-    mount --bind /boot/efi /media/startos/next/boot/efi
-fi
-
 if mountpoint /sys/firmware/efi/efivars 2>&1 > /dev/null; then
-    mount --bind /sys/firmware/efi/efivars /media/startos/next/sys/firmware/efi/efivars
+    mount -t efivarfs efivarfs /media/startos/next/sys/firmware/efi/efivars
 fi
 
 chroot /media/startos/next bash -e << "EOF"
@@ -68,24 +63,18 @@ fi
 
 EOF
 
-# Promote the USB installer boot entry back to first in EFI boot order.
-# The entry number was saved during initial OS install.
-if [ -d /sys/firmware/efi ] && [ -f /media/startos/config/efi-installer-entry ]; then
-    USB_ENTRY=$(cat /media/startos/config/efi-installer-entry)
-    if [ -n "$USB_ENTRY" ]; then
-        CURRENT_ORDER=$(efibootmgr | grep BootOrder | sed 's/BootOrder: //')
-        OTHER_ENTRIES=$(echo "$CURRENT_ORDER" | tr ',' '\n' | grep -v "$USB_ENTRY" | tr '\n' ',' | sed 's/,$//')
-        if [ -n "$OTHER_ENTRIES" ]; then
-            efibootmgr -o "$USB_ENTRY,$OTHER_ENTRIES"
-        else
-            efibootmgr -o "$USB_ENTRY"
-        fi
-    fi
-fi
+# Sign unsigned kernel modules for Secure Boot
+SIGN_FILE="$(ls -1 /media/startos/next/usr/lib/linux-kbuild-*/scripts/sign-file 2>/dev/null | head -1)"
+/media/startos/next/usr/lib/startos/scripts/sign-unsigned-modules \
+    --source /media/startos/lower \
+    --dest /media/startos/config/overlay \
+    --sign-file "$SIGN_FILE" \
+    --mok-key /media/startos/config/overlay/var/lib/dkms/mok.key \
+    --mok-pub /media/startos/config/overlay/var/lib/dkms/mok.pub
 
 sync
 
-umount -Rl /media/startos/next
+umount -l /media/startos/next
 umount /media/startos/upper
 umount /media/startos/lower
 

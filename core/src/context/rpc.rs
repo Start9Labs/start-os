@@ -62,8 +62,8 @@ pub struct RpcContextSeed {
     pub db: TypedPatchDb<Database>,
     pub sync_db: watch::Sender<u64>,
     pub account: SyncRwLock<AccountInfo>,
-    pub net_controller: Arc<NetController>,
     pub os_net_service: NetService,
+    pub net_controller: Arc<NetController>,
     pub s9pk_arch: Option<&'static str>,
     pub services: ServiceMap,
     pub cancellable_installs: SyncMutex<BTreeMap<PackageId, oneshot::Sender<()>>>,
@@ -327,12 +327,7 @@ impl RpcContext {
 
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
-            os_partitions: config.os_partitions.clone().ok_or_else(|| {
-                Error::new(
-                    eyre!("{}", t!("context.rpc.os-partition-info-missing")),
-                    ErrorKind::Filesystem,
-                )
-            })?,
+            os_partitions: OsPartitionInfo::from_fstab().await?,
             wifi_interface: wifi_interface.clone(),
             ethernet_interface: find_eth_iface().await?,
             disk_guid,
@@ -351,10 +346,10 @@ impl RpcContext {
             services,
             cancellable_installs: SyncMutex::new(BTreeMap::new()),
             metrics_cache,
+            rpc_continuations: RpcContinuations::new(Some(shutdown.clone())),
             shutdown,
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_continuations: OpenAuthedContinuations::new(),
-            rpc_continuations: RpcContinuations::new(),
             wifi_manager: Arc::new(RwLock::new(wifi_interface.clone().map(|i| WpaCli::init(i)))),
             current_secret: Arc::new(
                 Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).map_err(|e| {

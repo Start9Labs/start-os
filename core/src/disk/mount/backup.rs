@@ -53,9 +53,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                         })?,
                 )?
             } else {
-                if tokio::fs::metadata(&crypt_path).await.is_ok() {
-                    tokio::fs::remove_dir_all(&crypt_path).await?;
-                }
+                crate::util::io::delete_dir(&crypt_path).await?;
                 Default::default()
             };
         let enc_key = if let (Some(hash), Some(wrapped_key)) = (

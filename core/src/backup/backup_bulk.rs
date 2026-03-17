@@ -300,6 +300,15 @@ async fn perform_backup(
                     error: backup_result,
                 },
             );
+        } else {
+            backup_report.insert(
+                id.clone(),
+                PackageBackupReport {
+                    error: Some(
+                        t!("backup.bulk.service-not-ready").to_string(),
+                    ),
+                },
+            );
         }
     }
 
@@ -323,9 +332,7 @@ async fn perform_backup(
     os_backup_file.save().await?;
 
     let luks_folder_old = backup_guard.path().join("luks.old");
-    if tokio::fs::metadata(&luks_folder_old).await.is_ok() {
-        tokio::fs::remove_dir_all(&luks_folder_old).await?;
-    }
+    crate::util::io::delete_dir(&luks_folder_old).await?;
     let luks_folder_bak = backup_guard.path().join("luks");
     if tokio::fs::metadata(&luks_folder_bak).await.is_ok() {
         tokio::fs::rename(&luks_folder_bak, &luks_folder_old).await?;

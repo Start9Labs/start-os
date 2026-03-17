@@ -38,7 +38,17 @@ impl Model<StatusInfo> {
             .map_mutate(|s| Ok(Some(s.unwrap_or_else(|| Utc::now()))))?;
         self.as_desired_mut().map_mutate(|s| {
             Ok(match s {
-                DesiredStatus::Restarting => DesiredStatus::Running,
+                DesiredStatus::Restarting {
+                    restart_again: true,
+                } => {
+                    // Clear the flag but stay Restarting so actor will stop→start again
+                    DesiredStatus::Restarting {
+                        restart_again: false,
+                    }
+                }
+                DesiredStatus::Restarting {
+                    restart_again: false,
+                } => DesiredStatus::Running,
                 a => a,
             })
         })?;
@@ -55,7 +65,9 @@ impl Model<StatusInfo> {
         Ok(())
     }
     pub fn restart(&mut self) -> Result<(), Error> {
-        self.as_desired_mut().map_mutate(|s| Ok(s.restart()))?;
+        let started = self.as_started().transpose_ref().is_some();
+        self.as_desired_mut()
+            .map_mutate(|s| Ok(s.restart(started)))?;
         self.as_health_mut().ser(&Default::default())?;
         Ok(())
     }
@@ -69,7 +81,7 @@ impl Model<StatusInfo> {
                 DesiredStatus::BackingUp {
                     on_complete: StartStop::Stop,
                 } => DesiredStatus::Stopped,
-                DesiredStatus::Restarting => DesiredStatus::Running,
+                DesiredStatus::Restarting { .. } => DesiredStatus::Running,
                 x => x,
             })
         })?;
@@ -84,9 +96,14 @@ impl Model<StatusInfo> {
 #[serde(rename_all_fields = "camelCase")]
 pub enum DesiredStatus {
     Stopped,
-    Restarting,
+    Restarting {
+        #[serde(default)]
+        restart_again: bool,
+    },
     Running,
-    BackingUp { on_complete: StartStop },
+    BackingUp {
+        on_complete: StartStop,
+    },
 }
 impl Default for DesiredStatus {
     fn default() -> Self {
@@ -97,7 +114,7 @@ impl DesiredStatus {
     pub fn running(&self) -> bool {
         match self {
             Self::Running
-            | Self::Restarting
+            | Self::Restarting { .. }
             | Self::BackingUp {
                 on_complete: StartStop::Start,
             } => true,
@@ -140,10 +157,15 @@ impl DesiredStatus {
         }
     }
 
-    pub fn restart(&self) -> Self {
+    pub fn restart(&self, started: bool) -> Self {
         match self {
-            Self::Running => Self::Restarting,
-            x => *x, // no-op: restart is meaningless in any other state
+            Self::Running => Self::Restarting {
+                restart_again: false,
+            },
+            Self::Restarting { .. } if !started => Self::Restarting {
+                restart_again: true,
+            },
+            x => *x,
         }
     }
 }

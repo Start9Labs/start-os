@@ -10,6 +10,11 @@ const matchJsProcedure = z.object({
 const matchProcedure = z.union([matchDockerProcedure, matchJsProcedure])
 export type Procedure = z.infer<typeof matchProcedure>
 
+const healthCheckFields = {
+  name: z.string(),
+  "success-message": z.string().nullable().optional(),
+}
+
 const matchAction = z.object({
   name: z.string(),
   description: z.string(),
@@ -32,13 +37,10 @@ export const matchManifest = z.object({
     .optional(),
   "health-checks": z.record(
     z.string(),
-    z.intersection(
-      matchProcedure,
-      z.object({
-        name: z.string(),
-        "success-message": z.string().nullable().optional(),
-      }),
-    ),
+    z.union([
+      matchDockerProcedure.extend(healthCheckFields),
+      matchJsProcedure.extend(healthCheckFields),
+    ]),
   ),
   config: z
     .object({

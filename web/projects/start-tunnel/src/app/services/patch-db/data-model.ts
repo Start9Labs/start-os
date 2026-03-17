@@ -1,46 +1,32 @@
 import { T } from '@start9labs/start-sdk'
 
-export type TunnelData = {
-  wg: WgServer
-  portForwards: Record<string, string>
-  gateways: Record<string, T.NetworkInterfaceInfo>
-}
-
-export type WgServer = {
-  subnets: Record<string, WgSubnet>
-}
-
-export type WgSubnet = {
-  name: string
-  clients: Record<string, WgClient>
-}
-
-export type WgClient = {
-  name: string
-}
+export type TunnelData = Pick<
+  T.Tunnel.TunnelDatabase,
+  'wg' | 'portForwards' | 'gateways'
+>
 
 export const mockTunnelData: TunnelData = {
   wg: {
+    port: 51820,
+    key: '',
     subnets: {
       '10.59.0.0/24': {
         name: 'Family',
         clients: {
-          '10.59.0.2': {
-            name: 'Start9 Server',
-          },
-          '10.59.0.3': {
-            name: 'Phone',
-          },
-          '10.59.0.4': {
-            name: 'Laptop',
-          },
+          '10.59.0.2': { name: 'Start9 Server', key: '', psk: '' },
+          '10.59.0.3': { name: 'Phone', key: '', psk: '' },
+          '10.59.0.4': { name: 'Laptop', key: '', psk: '' },
         },
       },
     },
   },
   portForwards: {
-    '69.1.1.42:443': '10.59.0.2:443',
-    '69.1.1.42:3000': '10.59.0.2:3000',
+    '69.1.1.42:443': { target: '10.59.0.2:443', label: 'HTTPS', enabled: true },
+    '69.1.1.42:3000': {
+      target: '10.59.0.2:3000',
+      label: 'Grafana',
+      enabled: true,
+    },
   },
   gateways: {
     eth0: {

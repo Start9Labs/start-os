@@ -1,8 +1,6 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use imbl::vector;
-
 use crate::context::RpcContext;
 use crate::db::model::package::{InstalledState, InstallingInfo, InstallingState, PackageState};
 use crate::net::host::all_hosts;
@@ -94,20 +92,13 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, soft: bool) -> Result<(),
                     ));
                 }
             };
-            // Trigger manifest callbacks with null to indicate uninstall
-            if let Some(callbacks) = ctx.callbacks.get_service_manifest(&manifest.id) {
-                callbacks.call(vector![Value::Null]).await.log_err();
-            }
-
             if !soft {
                 let path = Path::new(DATA_DIR).join(PKG_VOLUME_DIR).join(&manifest.id);
-                if tokio::fs::metadata(&path).await.is_ok() {
-                    tokio::fs::remove_dir_all(&path).await?;
-                }
-                let logs_dir = Path::new(PACKAGE_DATA).join("logs").join(&manifest.id);
-                if tokio::fs::metadata(&logs_dir).await.is_ok() {
-                    #[cfg(not(feature = "dev"))]
-                    tokio::fs::remove_dir_all(&logs_dir).await?;
+                crate::util::io::delete_dir(&path).await?;
+                #[cfg(not(feature = "dev"))]
+                {
+                    let logs_dir = Path::new(PACKAGE_DATA).join("logs").join(&manifest.id);
+                    crate::util::io::delete_dir(&logs_dir).await?;
                 }
             }
         },

@@ -42,7 +42,7 @@ import { GatewaysTableComponent } from './table.component'
           tuiIconButton
           size="xs"
           docsLink
-          path="/start-os/user-manual/gateways.html"
+          path="/start-os/gateways.html"
           appearance="icon"
           iconStart="@tui.book-open-text"
         >
@@ -71,7 +71,7 @@ import { GatewaysTableComponent } from './table.component'
                 tuiIconButton
                 size="xs"
                 docsLink
-                path="/start-os/user-manual/gateways.html"
+                path="/start-os/gateways.html"
                 fragment="#outbound-traffic"
                 appearance="icon"
                 iconStart="@tui.book-open-text"

@@ -1,10 +1,10 @@
 import {
   AfterViewInit,
   Component,
+  DOCUMENT,
   ElementRef,
   inject,
   ViewChild,
-  DOCUMENT,
 } from '@angular/core'
 import {
   DialogService,
@@ -12,36 +12,37 @@ import {
   ErrorService,
   i18nPipe,
 } from '@start9labs/shared'
-import { TuiIcon, TuiLoader, TuiTitle, TuiCell } from '@taiga-ui/core'
+import { T } from '@start9labs/start-sdk'
+import { TuiCell, TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
-import { ApiService } from '../services/api.service'
-import { StateService } from '../services/state.service'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { DocumentationComponent } from '../components/documentation.component'
 import { MatrixComponent } from '../components/matrix.component'
+import { MokEnrollmentDialog } from '../components/mok-enrollment.dialog'
 import { RemoveMediaDialog } from '../components/remove-media.dialog'
-import { T } from '@start9labs/start-sdk'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { ApiService } from '../services/api.service'
+import { StateService } from '../services/state.service'
 
 @Component({
   template: `
     <canvas matrix></canvas>
     <section tuiCardLarge>
       <header tuiHeader>
-        <h2 tuiTitle>
-          <span class="inline-title">
+        <hgroup tuiTitle>
+          <h2 tuiCell="m">
             <tui-icon icon="@tui.circle-check-big" class="g-positive" />
             {{ 'Setup Complete!' | i18n }}
-          </span>
-          @if (!stateService.kiosk) {
-            <span tuiSubtitle>
-              {{
-                'http://start.local was for setup only. It will no longer work.'
-                  | i18n
-              }}
-            </span>
-          }
-        </h2>
+          </h2>
+        </hgroup>
+        @if (!stateService.kiosk) {
+          <p tuiSubtitle>
+            {{
+              'http://start.local was for setup only. It will no longer work.'
+                | i18n
+            }}
+          </p>
+        }
       </header>
 
       @if (!result) {
@@ -49,57 +50,85 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
       } @else {
         <!-- Step: Download Address Info (non-kiosk only) -->
         @if (!stateService.kiosk) {
-          <button tuiCell="l" [disabled]="downloaded" (click)="download()">
+          <button tuiCell="l" (click)="download()">
             <span tuiAvatar="@tui.download" appearance="secondary"></span>
-            <div tuiTitle>
-              {{ 'Download Address Info' | i18n }}
-              <div tuiSubtitle>
+            <span tuiTitle>
+              <b>{{ 'Download Address Info' | i18n }}</b>
+              <span tuiSubtitle>
                 {{
                   "Contains your server's permanent local address and Root CA"
                     | i18n
                 }}
-              </div>
-            </div>
+              </span>
+            </span>
             @if (downloaded) {
               <tui-icon icon="@tui.circle-check" class="g-positive" />
             }
           </button>
         }
 
-        <!-- Step: Remove USB Media (when restart needed) -->
+        <!-- Step: Restart flow -->
         @if (result.needsRestart) {
           <button
             tuiCell="l"
             [class.disabled]="!stateService.kiosk && !downloaded"
-            [disabled]="(!stateService.kiosk && !downloaded) || usbRemoved"
+            [disabled]="!stateService.kiosk && !downloaded"
             (click)="removeMedia()"
           >
             <span tuiAvatar="@tui.usb" appearance="secondary"></span>
-            <div tuiTitle>
-              {{ 'Remove Installation Media' | i18n }}
-              <div tuiSubtitle>
+            <span tuiTitle>
+              <b>{{ 'Remove Installation Media' | i18n }}</b>
+              <span tuiSubtitle>
                 {{
                   'Remove USB stick or other installation media from your server'
                     | i18n
                 }}
-              </div>
-            </div>
+              </span>
+            </span>
             @if (usbRemoved) {
               <tui-icon icon="@tui.circle-check" class="g-positive" />
             }
           </button>
 
+          <!-- Step: Secure Boot Enrollment (when MOK enrolled) -->
+          @if (stateService.mokEnrolled) {
+            <button
+              tuiCell="l"
+              [class.disabled]="!usbRemoved"
+              [disabled]="!usbRemoved"
+              (click)="acknowledgeMok()"
+            >
+              <span tuiAvatar="@tui.shield-check" appearance="secondary"></span>
+              <span tuiTitle>
+                <b>{{ 'Secure Boot Enrollment' | i18n }}</b>
+                <span tuiSubtitle>
+                  {{
+                    'Prepare for Secure Boot key enrollment on the next reboot'
+                      | i18n
+                  }}
+                </span>
+              </span>
+              @if (mokAcknowledged) {
+                <tui-icon icon="@tui.circle-check" class="g-positive" />
+              }
+            </button>
+          }
+
           <!-- Step: Restart Server -->
           <button
             tuiCell="l"
-            [class.disabled]="!usbRemoved"
-            [disabled]="!usbRemoved || rebooted || rebooting"
+            [class.disabled]="
+              !usbRemoved || (stateService.mokEnrolled && !mokAcknowledged)
+            "
+            [disabled]="
+              !usbRemoved || (stateService.mokEnrolled && !mokAcknowledged)
+            "
             (click)="reboot()"
           >
             <span tuiAvatar="@tui.rotate-cw" appearance="secondary"></span>
-            <div tuiTitle>
-              {{ 'Restart Server' | i18n }}
-              <div tuiSubtitle>
+            <span tuiTitle>
+              <b>{{ 'Restart Server' | i18n }}</b>
+              <span tuiSubtitle>
                 @if (rebooting) {
                   {{ 'Waiting for server to come back online' | i18n }}
                 } @else if (rebooted) {
@@ -107,13 +136,23 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
                 } @else {
                   {{ 'Restart your server to complete setup' | i18n }}
                 }
-              </div>
-            </div>
+              </span>
+            </span>
             @if (rebooting) {
               <tui-loader />
             } @else if (rebooted) {
               <tui-icon icon="@tui.circle-check" class="g-positive" />
             }
+          </button>
+        } @else if (stateService.kiosk) {
+          <button tuiCell="l" (click)="exitKiosk()">
+            <span tuiAvatar="@tui.log-in" appearance="secondary"></span>
+            <span tuiTitle>
+              <b>{{ 'Continue to Login' | i18n }}</b>
+              <span tuiSubtitle>
+                {{ 'Proceed to the StartOS login screen' | i18n }}
+              </span>
+            </span>
           </button>
         }
 
@@ -126,42 +165,18 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
             (click)="openLocalAddress()"
           >
             <span tuiAvatar="@tui.external-link" appearance="secondary"></span>
-            <div tuiTitle>
-              {{ 'Open Local Address' | i18n }}
-              <div tuiSubtitle>{{ lanAddress }}</div>
-            </div>
+            <span tuiTitle>
+              <b>{{ 'Open Local Address' | i18n }}</b>
+              <span tuiSubtitle>{{ lanAddress }}</span>
+            </span>
           </button>
 
           <app-documentation hidden [lanAddress]="lanAddress" />
-        }
-
-        <!-- Step: Continue to Login (kiosk only) -->
-        @if (stateService.kiosk) {
-          <button
-            tuiCell="l"
-            [class.disabled]="result.needsRestart && !rebooted"
-            [disabled]="result.needsRestart && !rebooted"
-            (click)="exitKiosk()"
-          >
-            <span tuiAvatar="@tui.log-in" appearance="secondary"></span>
-            <div tuiTitle>
-              {{ 'Continue to Login' | i18n }}
-              <div tuiSubtitle>
-                {{ 'Proceed to the StartOS login screen' | i18n }}
-              </div>
-            </div>
-          </button>
         }
       }
     </section>
   `,
   styles: `
-    .inline-title {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
     [tuiCell].disabled {
       opacity: var(--tui-disabled-opacity);
       pointer-events: none;
@@ -197,6 +212,7 @@ export default class SuccessPage implements AfterViewInit {
   lanAddress = ''
   downloaded = false
   usbRemoved = false
+  mokAcknowledged = false
   rebooting = false
   rebooted = false
 
@@ -211,8 +227,6 @@ export default class SuccessPage implements AfterViewInit {
   }
 
   download() {
-    if (this.downloaded) return
-
     const lanElem = this.document.getElementById('lan-addr')
     if (lanElem) lanElem.innerHTML = this.lanAddress
 
@@ -241,6 +255,19 @@ export default class SuccessPage implements AfterViewInit {
       })
   }
 
+  acknowledgeMok() {
+    this.dialogs
+      .openComponent<boolean>(new PolymorpheusComponent(MokEnrollmentDialog), {
+        label: 'Secure Boot',
+        size: 'm',
+        dismissible: false,
+        closable: false,
+      })
+      .subscribe(() => {
+        this.mokAcknowledged = true
+      })
+  }
+
   exitKiosk() {
     this.api.exit()
   }
@@ -250,6 +277,8 @@ export default class SuccessPage implements AfterViewInit {
   }
 
   async reboot() {
+    if (this.rebooting || this.rebooted) return
+
     this.rebooting = true
 
     try {

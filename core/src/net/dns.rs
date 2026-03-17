@@ -32,6 +32,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::gateway::NetworkInterfaceWatcher;
+use crate::net::utils::is_private_ip;
 use crate::prelude::*;
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::file_string_stream;
@@ -400,6 +401,18 @@ impl Resolver {
                         })
                 }) {
                     return Some(res);
+                } else if is_private_ip(src) {
+                    // Source is a private IP not in any known subnet (e.g. VPN on a different VLAN).
+                    // Return all private IPs from all interfaces.
+                    let res: Vec<IpAddr> = self.net_iface.peek(|i| {
+                        i.values()
+                            .filter_map(|i| i.ip_info.as_ref())
+                            .flat_map(|ip_info| ip_info.subnets.iter().map(|s| s.addr()))
+                            .collect()
+                    });
+                    if !res.is_empty() {
+                        return Some(res);
+                    }
                 } else {
                     tracing::warn!(
                         "{}",

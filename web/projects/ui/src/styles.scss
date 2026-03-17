@@ -171,8 +171,7 @@ ul {
 .g-table {
   width: stretch;
   border: 1px solid var(--tui-background-neutral-1);
-  border-spacing: 0;
-  border-collapse: collapse;
+  border-collapse: collapse !important;
   border-radius: var(--tui-radius-s);
   overflow: hidden;
   box-shadow: inset 0 0 0 1px var(--tui-background-neutral-1);
@@ -245,6 +244,10 @@ ul {
   width: stretch;
 
   &:not(:has(tbody tr)) {
+    display: none;
+  }
+
+  &:has(app-placeholder) thead {
     display: none;
   }
 

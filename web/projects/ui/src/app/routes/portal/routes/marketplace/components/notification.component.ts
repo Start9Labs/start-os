@@ -7,7 +7,7 @@ import { TuiNotification } from '@taiga-ui/core'
   template: `
     <div
       tuiNotification
-      [appearance]="status || 'warning'"
+      [appearance]="appearance"
       icon=""
       class="notification-wrapper"
     >
@@ -77,5 +77,16 @@ export class MarketplaceNotificationComponent {
     }
 
     return null
+  }
+
+  get appearance() {
+    switch (this.status) {
+      case 'success':
+        return 'positive'
+      case 'error':
+        return 'negative'
+      default:
+        return 'info'
+    }
   }
 }

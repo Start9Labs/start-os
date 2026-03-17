@@ -39,7 +39,7 @@ import { SSHTableComponent } from './table.component'
           tuiIconButton
           size="xs"
           docsLink
-          path="/start-os/user-manual/ssh.html"
+          path="/start-os/ssh.html"
           appearance="icon"
           iconStart="@tui.book-open-text"
         >

@@ -1289,7 +1289,7 @@ export class MockApiService extends ApiService {
         op: PatchOp.REPLACE,
         path,
         value: {
-          desired: { main: 'restarting' },
+          desired: { main: 'restarting', restartAgain: false },
           started: null,
           error: null,
           health: {},

@@ -85,7 +85,7 @@ impl SetupContext {
             result: OnceCell::new(),
             disk_guid: OnceCell::new(),
             shutdown,
-            rpc_continuations: RpcContinuations::new(),
+            rpc_continuations: RpcContinuations::new(None),
             install_rootfs: SyncMutex::new(None),
             language: SyncMutex::new(None),
             keyboard: SyncMutex::new(None),

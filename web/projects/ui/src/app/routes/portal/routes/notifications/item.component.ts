@@ -44,7 +44,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
             {{ item.packageId || '-' }}
           }
         } @else {
-          -
+          {{ item.packageId || '-' }}
         }
       </td>
       <td class="content">

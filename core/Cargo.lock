@@ -3377,6 +3377,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "keccak"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb26cec98cce3a3d96cbb7bced3c4b16e3d13f27ec56dbd62cbc8f39cfb9d653"
+dependencies = [
+ "cpufeatures",
+]
+
+[[package]]
 name = "kv"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4355,7 +4364,7 @@ dependencies = [
  "nix 0.30.1",
  "patch-db-macro",
  "serde",
- "serde_cbor 0.11.1",
+ "serde_cbor_2",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -5377,7 +5386,7 @@ dependencies = [
  "pin-project",
  "reqwest",
  "serde",
- "serde_cbor 0.11.2",
+ "serde_cbor",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
@@ -5785,19 +5794,20 @@ dependencies = [
 
 [[package]]
 name = "serde_cbor"
-version = "0.11.1"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bef2ebfde456fb76bbcf9f59315333decc4fda0b2b44b420243c11e0f5ec1f5"
 dependencies = [
  "half 1.8.3",
  "serde",
 ]
 
 [[package]]
-name = "serde_cbor"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bef2ebfde456fb76bbcf9f59315333decc4fda0b2b44b420243c11e0f5ec1f5"
+name = "serde_cbor_2"
+version = "0.13.0"
+source = "git+https://github.com/dr-bonez/cbor.git#2ce7fe5a5ca5700aa095668b5ba67154b7f213a4"
 dependencies = [
- "half 1.8.3",
+ "half 2.7.1",
  "serde",
 ]
 
@@ -5982,6 +5992,16 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest 0.10.7",
+]
+
+[[package]]
+name = "sha3"
+version = "0.10.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75872d278a8f37ef87fa0ddbda7802605cb18344497949862c0d4dcb291eba60"
+dependencies = [
+ "digest 0.10.7",
+ "keccak",
 ]
 
 [[package]]
@@ -6414,7 +6434,7 @@ dependencies = [
 
 [[package]]
 name = "start-os"
-version = "0.4.0-alpha.20"
+version = "0.4.0-alpha.21"
 dependencies = [
  "aes",
  "async-acme",
@@ -6518,6 +6538,7 @@ dependencies = [
  "serde_yml",
  "sha-crypt",
  "sha2 0.10.9",
+ "sha3",
  "signal-hook",
  "socket2 0.6.2",
  "socks5-impl",
