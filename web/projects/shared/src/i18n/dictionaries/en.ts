@@ -726,4 +726,5 @@ export const ENGLISH: Record<string, number> = {
   'OS-level translations are already in effect. A restart is required for service-level translations to take effect.': 802,
   'This drive uses ext4 and will be automatically converted to btrfs. A backup is strongly recommended before proceeding.': 803,
   'I have a backup of my data': 804,
+  'Add Public Domain': 805,
 }

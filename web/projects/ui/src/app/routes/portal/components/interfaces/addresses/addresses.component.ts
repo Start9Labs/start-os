@@ -34,23 +34,34 @@ import { InterfaceAddressItemComponent } from './item.component'
   template: `
     <header>
       {{ 'Gateway' | i18n }}: {{ gatewayGroup().gatewayName }}
-      <button
-        tuiDropdown
-        tuiButton
-        iconStart="@tui.plus"
-        [style.margin-inline-start]="'auto'"
-        [(tuiDropdownOpen)]="addOpen"
-      >
-        {{ 'Add Domain' | i18n }}
-        <tui-data-list *tuiDropdown (click)="addOpen.set(false)">
-          <button tuiOption (click)="addPublicDomain()">
-            {{ 'Public Domain' | i18n }}
-          </button>
-          <button tuiOption (click)="addPrivateDomain()">
-            {{ 'Private Domain' | i18n }}
-          </button>
-        </tui-data-list>
-      </button>
+      @if (gatewayGroup().isWireguard) {
+        <button
+          tuiButton
+          iconStart="@tui.plus"
+          [style.margin-inline-start]="'auto'"
+          (click)="addPublicDomain()"
+        >
+          {{ 'Add Public Domain' | i18n }}
+        </button>
+      } @else {
+        <button
+          tuiDropdown
+          tuiButton
+          iconStart="@tui.plus"
+          [style.margin-inline-start]="'auto'"
+          [(tuiDropdownOpen)]="addOpen"
+        >
+          {{ 'Add Domain' | i18n }}
+          <tui-data-list *tuiDropdown (click)="addOpen.set(false)">
+            <button tuiOption (click)="addPublicDomain()">
+              {{ 'Public Domain' | i18n }}
+            </button>
+            <button tuiOption (click)="addPrivateDomain()">
+              {{ 'Private Domain' | i18n }}
+            </button>
+          </tui-data-list>
+        </button>
+      }
     </header>
     <table
       [appTable]="[

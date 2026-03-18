@@ -725,4 +725,5 @@ export default {
   802: 'Tłumaczenia na poziomie systemu operacyjnego są już aktywne. Wymagane jest ponowne uruchomienie, aby tłumaczenia na poziomie usług zaczęły obowiązywać.',
   803: 'Ten dysk używa ext4 i zostanie automatycznie skonwertowany na btrfs. Zdecydowanie zaleca się wykonanie kopii zapasowej przed kontynuowaniem.',
   804: 'Mam kopię zapasową moich danych',
+  805: 'Dodaj domenę publiczną',
 } satisfies i18n

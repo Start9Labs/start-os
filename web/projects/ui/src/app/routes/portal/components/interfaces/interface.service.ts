@@ -158,6 +158,7 @@ export class InterfaceService {
         return {
           gatewayId: g.id,
           gatewayName: g.name,
+          isWireguard: g.ipInfo?.deviceType === 'wireguard',
           addresses,
         }
       })
@@ -313,6 +314,7 @@ export type GatewayAddress = {
 export type GatewayAddressGroup = {
   gatewayId: string
   gatewayName: string
+  isWireguard: boolean
   addresses: GatewayAddress[]
 }
 

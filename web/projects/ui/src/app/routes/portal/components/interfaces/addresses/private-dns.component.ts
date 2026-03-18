@@ -5,6 +5,7 @@ import {
   signal,
 } from '@angular/core'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
+import { utils } from '@start9labs/start-sdk'
 import { TuiButton, TuiDialogContext, TuiIcon, TuiLoader } from '@taiga-ui/core'
 import { TuiButtonLoading } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -22,7 +23,7 @@ export type PrivateDnsValidationData = {
   template: `
     @let gatewayName =
       context.data.gateway.name || context.data.gateway.ipInfo.name;
-    @let internalIp = context.data.gateway.ipInfo.lanIp[0] || ('Error' | i18n);
+    @let internalIp = lanIp || ('Error' | i18n);
 
     <h2>{{ 'DNS Server Config' | i18n }}</h2>
     <p>
@@ -145,6 +146,12 @@ export class PrivateDnsValidationComponent {
 
   readonly context =
     injectContext<TuiDialogContext<void, PrivateDnsValidationData>>()
+
+  get lanIp() {
+    return this.context.data.gateway.ipInfo.subnets
+      .map(s => utils.IpNet.parse(s))
+      .find(s => s.isIpv4())?.address
+  }
 
   readonly loading = signal(false)
   readonly pass = signal<boolean | undefined>(undefined)

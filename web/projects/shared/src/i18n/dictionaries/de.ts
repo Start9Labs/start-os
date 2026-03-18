@@ -725,4 +725,5 @@ export default {
   802: 'Die Übersetzungen auf Betriebssystemebene sind bereits aktiv. Ein Neustart ist erforderlich, damit die Übersetzungen auf Dienstebene wirksam werden.',
   803: 'Dieses Laufwerk verwendet ext4 und wird automatisch in btrfs konvertiert. Ein Backup wird dringend empfohlen, bevor Sie fortfahren.',
   804: 'Ich habe ein Backup meiner Daten',
+  805: 'Öffentliche Domain hinzufügen',
 } satisfies i18n

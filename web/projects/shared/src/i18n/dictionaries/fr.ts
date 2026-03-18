@@ -723,6 +723,7 @@ export default {
   800: 'Lorsque vous y êtes invité, entrez votre mot de passe StartOS',
   801: "Votre système a Secure Boot activé, ce qui exige que tous les modules du noyau soient signés avec une clé de confiance. Certains pilotes matériels \u2014 comme ceux des GPU NVIDIA \u2014 ne sont pas signés par la clé de distribution par défaut. L'enregistrement de la clé de signature StartOS permet à votre firmware de faire confiance à ces modules afin que votre matériel puisse être pleinement utilisé.",
   802: "Les traductions au niveau du système d'exploitation sont déjà en vigueur. Un redémarrage est nécessaire pour que les traductions au niveau des services prennent effet.",
-  803: "Ce disque utilise ext4 et sera automatiquement converti en btrfs. Il est fortement recommandé de faire une sauvegarde avant de continuer.",
+  803: 'Ce disque utilise ext4 et sera automatiquement converti en btrfs. Il est fortement recommandé de faire une sauvegarde avant de continuer.',
   804: "J'ai une sauvegarde de mes données",
+  805: 'Ajouter un domaine public',
 } satisfies i18n

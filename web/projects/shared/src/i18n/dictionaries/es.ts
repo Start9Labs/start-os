@@ -725,4 +725,5 @@ export default {
   802: 'Las traducciones a nivel del sistema operativo ya están en vigor. Se requiere un reinicio para que las traducciones a nivel de servicio surtan efecto.',
   803: 'Esta unidad usa ext4 y se convertirá automáticamente a btrfs. Se recomienda encarecidamente hacer una copia de seguridad antes de continuar.',
   804: 'Tengo una copia de seguridad de mis datos',
+  805: 'Agregar dominio público',
 } satisfies i18n
