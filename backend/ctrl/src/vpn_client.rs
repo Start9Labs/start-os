@@ -673,6 +673,9 @@ pub fn delete(ctx: ServerContext, args: OutboundVpnDeleteRequest) -> Result<(), 
             true
         });
 
+        // Rebuild cross-subnet routes (affected profiles switched to WAN)
+        crate::profiles::sync_cross_subnet_routes(&mut cfgs)?;
+
         // Remove any orphaned VPN interfaces from the WAN firewall zone.
         // This is more robust than removing just the deleted VPN — it also
         // cleans up any previously orphaned entries.
@@ -822,6 +825,9 @@ pub fn set_enabled(
                 interface_name
             )));
         }
+
+        // Rebuild cross-subnet routes (profile routing may have changed)
+        crate::profiles::sync_cross_subnet_routes(&mut cfgs)?;
 
         rewrite_vpn_chain_routes(&mut cfgs)?;
 

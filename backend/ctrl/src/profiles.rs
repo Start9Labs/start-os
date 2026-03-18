@@ -695,6 +695,10 @@ fn delete_config(
     // Remove WireGuard WAN firewall rule (src: "wan", not caught by zone cleanup above)
     crate::vpn_server::remove_wireguard_firewall_rule(cfgs, &wg_interface_name)?;
 
+    // Rebuild cross-subnet routes (the deleted profile's subnet is removed,
+    // and remaining VPN profiles no longer need a route to it)
+    sync_cross_subnet_routes(cfgs)?;
+
     // Clean up orphaned VPN interfaces from WAN zone
     cleanup_orphaned_wan_vpns(cfgs);
 
@@ -1048,6 +1052,7 @@ fn set_config<C: CtrlContext>(
     rewrite_dhcp(&ctx, cfgs, &profile)?;
     rewrite_dns_forwarding(cfgs, &profile)?;
     rewrite_routing(&ctx, cfgs, &profile)?;
+    sync_cross_subnet_routes(cfgs)?;
     cleanup_orphaned_wan_vpns(cfgs);
     Ok(profile.id)
 }
@@ -1290,6 +1295,7 @@ fn create_config(
     rewrite_dhcp(&ctx, cfgs, &profile)?;
     rewrite_dns_forwarding(cfgs, &profile)?;
     rewrite_routing(&ctx, cfgs, &profile)?;
+    sync_cross_subnet_routes(cfgs)?;
     cleanup_orphaned_wan_vpns(cfgs);
     Ok(profile.id)
 }
@@ -1731,6 +1737,79 @@ pub(crate) fn rewrite_routing(
     // 7. Add /32 peer routes so locally-generated responses (DNS, HTTP) reach
     //    VPN clients via wg_X instead of being caught by the /24 subnet route
     crate::vpn_server::sync_peer_policy_routes(cfgs, &profile.id.interface)?;
+
+    Ok(())
+}
+
+/// Ensure each VPN-routed profile's routing table has routes for all sibling
+/// profile subnets, so cross-VLAN traffic to/from the router stays local
+/// instead of being sent through the VPN tunnel's default route.
+///
+/// Without these routes, a response from the router's admin IP (e.g. 192.168.0.1)
+/// to a guest device (e.g. 192.168.8.X) would match the admin profile's
+/// source-based policy rule and exit through the VPN instead of br-lan.101.
+pub(crate) fn sync_cross_subnet_routes(cfgs: &mut Configs) -> Result<(), Error> {
+    // 1. Remove all old cross-subnet routes
+    cfgs["network"]
+        .sections
+        .retain(|s| !s.name().as_deref().map_or(false, |n| n.starts_with("pxr_")));
+
+    // 2. Collect profiles with VPN routing (outbound != "wan")
+    let vpn_profiles: Vec<(String, u16)> = cfgs["startwrt"]
+        .sections
+        .iter()
+        .filter_map(|s| {
+            let p = s.get::<UciProfile>().ok()?;
+            let outbound = p.outbound.as_deref().unwrap_or("wan");
+            if outbound != "wan" {
+                Some((p.interface.clone(), p.vlan_tag))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if vpn_profiles.is_empty() {
+        return Ok(());
+    }
+
+    // 3. Collect all profile subnets from static bridge network interfaces
+    let subnets: Vec<(String, String)> = cfgs["network"]
+        .sections
+        .iter()
+        .filter_map(|s| {
+            let iface = s.get::<NetworkInterface>().ok()?;
+            let name = s.name()?.to_string();
+            if iface.proto != InterfaceProto::STATIC {
+                return None;
+            }
+            // Only include profile interfaces (br-lan / br-lan.N), not loopback etc.
+            if !iface.device.starts_with("br-lan") {
+                return None;
+            }
+            let ip = iface.ipaddr?;
+            let o = ip.octets();
+            Some((name, format!("{}.{}.{}.0/24", o[0], o[1], o[2])))
+        })
+        .collect();
+
+    // 4. For each VPN profile, add routes for all sibling subnets
+    for (vpn_iface, vlan_tag) in &vpn_profiles {
+        for (sibling_iface, subnet) in &subnets {
+            if sibling_iface == vpn_iface {
+                continue; // self-route already handled by rewrite_routing
+            }
+            cfgs["network"].append(
+                &NetworkRoute {
+                    interface: sibling_iface.clone(),
+                    target: subnet.clone(),
+                    table: Some(*vlan_tag as u32),
+                    ..Default::default()
+                },
+                Some(&format!("pxr_{}_{}", vpn_iface, sibling_iface)),
+            )?;
+        }
+    }
 
     Ok(())
 }
