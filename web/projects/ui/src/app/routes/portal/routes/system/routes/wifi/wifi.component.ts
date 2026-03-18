@@ -40,20 +40,21 @@ import { wifiSpec } from './wifi.const'
       </a>
       WiFi
     </ng-container>
-    @if (status()?.interface) {
-      <section class="g-card">
-        <header>
-          Wi-Fi
-          <a
-            tuiIconButton
-            size="xs"
-            docsLink
-            path="/start-os/wifi.html"
-            appearance="icon"
-            iconStart="@tui.book-open-text"
-          >
-            {{ 'Documentation' | i18n }}
-          </a>
+    <section class="g-card">
+      <header>
+        Wi-Fi
+        <a
+          tuiIconButton
+          size="xs"
+          docsLink
+          path="/start-os/wifi.html"
+          appearance="icon"
+          iconStart="@tui.book-open-text"
+        >
+          {{ 'Documentation' | i18n }}
+        </a>
+
+        @if (status()?.interface) {
           <input
             type="checkbox"
             tuiSwitch
@@ -62,7 +63,10 @@ import { wifiSpec } from './wifi.const'
             [ngModel]="status()?.enabled"
             (ngModelChange)="onToggle($event)"
           />
-        </header>
+        }
+      </header>
+
+      @if (status()?.interface) {
         @if (status()?.enabled) {
           @if (wifi(); as data) {
             @if (data.known.length) {
@@ -86,12 +90,12 @@ import { wifiSpec } from './wifi.const'
             {{ 'WiFi is disabled' | i18n }}
           </app-placeholder>
         }
-      </section>
-    } @else {
-      <app-placeholder icon="@tui.wifi">
-        {{ 'No wireless interface detected' | i18n }}
-      </app-placeholder>
-    }
+      } @else {
+        <app-placeholder icon="@tui.wifi">
+          {{ 'No wireless interface detected' | i18n }}
+        </app-placeholder>
+      }
+    </section>
   `,
   styles: `
     :host {
