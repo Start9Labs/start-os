@@ -150,6 +150,8 @@ INITTABEOF
 mkdir -p "${FILES_DIR}/etc/hotplug.d/iface"
 cp backend/hotplug/99-startwrt-remote-access "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-remote-access"
 chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-remote-access"
+cp backend/hotplug/99-startwrt-proxy-arp "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-proxy-arp"
+chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-proxy-arp"
 
 # sysupgrade keep.d — additional files to include in config backups
 mkdir -p "${FILES_DIR}/lib/upgrade/keep.d"

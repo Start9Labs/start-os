@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::net::Ipv4Addr;
 use std::process::Command;
-use uciedit::openwrt::DhcpHost;
+use uciedit::openwrt::{DhcpHost, NetworkInterface, NetworkRoute};
 use uciedit::{dump_all, parse_all, Arena, Configs, Line, LineComment, Section, Token, TypedSection};
 
 // === IP Allocation Constants ===
@@ -319,6 +319,137 @@ fn get_vpn_peer_ips(cfgs: &Configs, wg_interface_name: &str) -> BTreeSet<Ipv4Add
         .collect()
 }
 
+/// Sync /32 host routes for VPN peers in the profile's policy routing table.
+///
+/// When a profile uses an outbound VPN, policy routing directs traffic from the
+/// profile's subnet through the VPN tunnel. The policy table includes a /24 subnet
+/// route for local LAN traffic, but this also catches VPN peer IPs — causing the
+/// router's locally-generated responses (DNS, HTTP) to be sent to the LAN bridge
+/// instead of back through the WireGuard tunnel.
+///
+/// This function adds /32 routes for each peer, which override the /24 in the
+/// same table due to longest-prefix match.
+pub(crate) fn sync_peer_policy_routes(
+    cfgs: &mut Configs,
+    profile_interface: &str,
+) -> Result<(), Error> {
+    use crate::profiles::UciProfile;
+
+    let wg_interface_name = format!("wg_{}", profile_interface);
+    let route_prefix = format!("vpr_{}_", profile_interface);
+
+    // 1. Remove all existing VPN peer routes for this profile
+    cfgs["network"].sections.retain(|s| {
+        s.name()
+            .as_deref()
+            .map(|n| !n.starts_with(&route_prefix))
+            .unwrap_or(true)
+    });
+
+    // 2. Find the profile's outbound and vlan_tag
+    let profile = cfgs["startwrt"]
+        .sections
+        .iter()
+        .filter_map(|s| s.get::<UciProfile>().ok())
+        .find(|p| p.interface == profile_interface);
+
+    let Some(profile) = profile else {
+        return Ok(());
+    };
+
+    let outbound = profile.outbound.unwrap_or_else(|| "wan".to_string());
+    if outbound == "wan" {
+        return Ok(());
+    }
+
+    let vlan_tag = profile.vlan_tag;
+
+    // 3. Check if a VPN server exists for this profile
+    let vpn_exists = cfgs["startwrt"]
+        .sections
+        .iter()
+        .filter_map(|s| s.get::<UciVpnServer>().ok())
+        .any(|meta| meta.interface == wg_interface_name);
+
+    if !vpn_exists {
+        return Ok(());
+    }
+
+    // 4. Add a /32 route for each peer in the policy routing table
+    for ip in get_vpn_peer_ips(cfgs, &wg_interface_name) {
+        let route_name = format!("vpr_{}_{}", profile_interface, ip.octets()[3]);
+        cfgs["network"].append(
+            &NetworkRoute {
+                interface: wg_interface_name.clone(),
+                target: format!("{}/32", ip),
+                table: Some(vlan_tag as u32),
+                ..Default::default()
+            },
+            Some(&route_name),
+        )?;
+    }
+
+    Ok(())
+}
+
+/// Enable proxy_arp on the profile's bridge VLAN interface when a VPN server exists.
+///
+/// VPN peers share the same /24 subnet as LAN clients. Without proxy ARP, LAN devices
+/// try to ARP directly for VPN peer IPs (which are behind the WireGuard tunnel) and fail.
+/// With proxy_arp enabled, the router answers ARP requests on behalf of VPN peers,
+/// allowing LAN devices to route responses through the router.
+pub(crate) fn sync_proxy_arp(
+    cfgs: &mut Configs,
+    profile_interface: &str,
+) -> Result<(), Error> {
+    let wg_interface_name = format!("wg_{}", profile_interface);
+
+    // Check if a VPN server exists for this profile
+    let vpn_exists = cfgs["startwrt"]
+        .sections
+        .iter()
+        .filter_map(|s| s.get::<UciVpnServer>().ok())
+        .any(|meta| meta.interface == wg_interface_name);
+
+    let desired = if vpn_exists { Some("1".to_string()) } else { None };
+
+    // Find the profile's network interface and update proxy_arp if needed
+    let section = cfgs["network"]
+        .sections
+        .iter_mut()
+        .find(|s| s.name().as_deref() == Some(profile_interface));
+
+    let Some(section) = section else {
+        return Ok(());
+    };
+
+    let mut iface = section.get::<NetworkInterface>().map_err(|_| Error::from(
+        ErrorKind::CorruptedProfile {
+            id: ProfileIdOpt {
+                fullname: None,
+                interface: Some(profile_interface.to_string()),
+                vlan_tag: None,
+            },
+        },
+    ))?;
+
+    if iface.proxy_arp != desired {
+        iface.proxy_arp = desired;
+        section.set(&iface)?;
+    }
+
+    Ok(())
+}
+
+/// Set the proxy_arp sysctl on the profile's bridge VLAN interface.
+///
+/// netifd does not honor the UCI `proxy_arp` option on regular interfaces,
+/// so we write directly to `/proc/sys/net/ipv4/conf/<dev>/proxy_arp`.
+fn apply_proxy_arp_sysctl(vlan_tag: u16, enable: bool) {
+    let path = format!("/proc/sys/net/ipv4/conf/br-lan.{}/proxy_arp", vlan_tag);
+    let _ = std::fs::write(&path, if enable { "1" } else { "0" });
+}
+
 /// Get IPs reserved by DHCP static leases that fall within the given subnet
 fn get_dhcp_static_lease_ips(cfgs: &Configs, subnet_prefix: [u8; 3]) -> BTreeSet<Ipv4Addr> {
     cfgs["dhcp"]
@@ -474,6 +605,23 @@ pub fn set(
             remove_wireguard_firewall_rule(&mut cfgs, &wg_interface_name)?;
         }
 
+        // Sync /32 peer routes in the profile's policy routing table
+        sync_peer_policy_routes(&mut cfgs, profile_interface)?;
+
+        // Enable proxy ARP on the profile's LAN interface so LAN devices can reach VPN peers
+        sync_proxy_arp(&mut cfgs, profile_interface)?;
+
+        // Read vlan_tag before dump_all consumes cfgs
+        let vlan_tag = {
+            use crate::profiles::UciProfile;
+            cfgs["startwrt"]
+                .sections
+                .iter()
+                .filter_map(|s| s.get::<UciProfile>().ok())
+                .find(|p| p.interface == *profile_interface)
+                .map(|p| p.vlan_tag)
+        };
+
         match dump_all("/etc/config", cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
@@ -495,6 +643,10 @@ pub fn set(
                         .and_then(|mut c| c.wait());
                 }
                 reload_system()?;
+                // Apply proxy_arp sysctl directly — netifd ignores the UCI option
+                if let Some(tag) = vlan_tag {
+                    apply_proxy_arp_sysctl(tag, true);
+                }
                 return Ok(());
             }
         }
@@ -543,6 +695,23 @@ pub fn delete(_ctx: ServerContext, args: DeleteArgs) -> Result<(), Error> {
         // Remove the firewall rule allowing WireGuard on WAN
         remove_wireguard_firewall_rule(&mut cfgs, &wg_interface_name)?;
 
+        // Clean up /32 peer routes from the profile's policy routing table
+        sync_peer_policy_routes(&mut cfgs, profile_interface)?;
+
+        // Disable proxy ARP now that no VPN server exists for this profile
+        sync_proxy_arp(&mut cfgs, profile_interface)?;
+
+        // Read vlan_tag before dump_all consumes cfgs
+        let vlan_tag = {
+            use crate::profiles::UciProfile;
+            cfgs["startwrt"]
+                .sections
+                .iter()
+                .filter_map(|s| s.get::<UciProfile>().ok())
+                .find(|p| p.interface == *profile_interface)
+                .map(|p| p.vlan_tag)
+        };
+
         match dump_all("/etc/config", cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
@@ -551,6 +720,10 @@ pub fn delete(_ctx: ServerContext, args: DeleteArgs) -> Result<(), Error> {
             Err(err) => return Err(err.into()),
             Ok(()) => {
                 reload_system()?;
+                // Clear proxy_arp sysctl — netifd ignores the UCI option
+                if let Some(tag) = vlan_tag {
+                    apply_proxy_arp_sysctl(tag, false);
+                }
                 return Ok(());
             }
         }
@@ -678,6 +851,9 @@ pub fn peer_add(
         // Add the new peer
         add_single_peer(&mut cfgs, &wg_interface_name, &peer, &arena)?;
 
+        // Sync /32 peer routes in the profile's policy routing table
+        sync_peer_policy_routes(&mut cfgs, profile_interface)?;
+
         match dump_all("/etc/config", cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
@@ -774,6 +950,9 @@ pub fn peer_delete(_ctx: ServerContext, args: PeerDeleteArgs) -> Result<(), Erro
                 public_key
             )));
         }
+
+        // Sync /32 peer routes in the profile's policy routing table
+        sync_peer_policy_routes(&mut cfgs, profile_interface)?;
 
         match dump_all("/etc/config", cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {

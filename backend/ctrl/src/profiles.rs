@@ -1664,6 +1664,8 @@ pub(crate) fn rewrite_routing(
 
     // 2. If outbound is "wan", main table suffices — no policy routing needed
     if profile.outbound == "wan" {
+        // Clean up any stale VPN peer routes from when this profile used a VPN outbound
+        crate::vpn_server::sync_peer_policy_routes(cfgs, &profile.id.interface)?;
         return Ok(());
     }
 
@@ -1725,6 +1727,10 @@ pub(crate) fn rewrite_routing(
             }
         }
     }
+
+    // 7. Add /32 peer routes so locally-generated responses (DNS, HTTP) reach
+    //    VPN clients via wg_X instead of being caught by the /24 subnet route
+    crate::vpn_server::sync_peer_policy_routes(cfgs, &profile.id.interface)?;
 
     Ok(())
 }

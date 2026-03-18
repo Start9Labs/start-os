@@ -157,6 +157,8 @@ pub struct NetworkInterface {
     pub ip6prefixlen: Option<String>,
     #[uci(default)]
     pub ip4prefixlen: Option<String>,
+    #[uci(default)]
+    pub proxy_arp: Option<String>,
 }
 
 #[derive(strum::EnumString, strum::Display, PartialEq, Eq, Debug)]
