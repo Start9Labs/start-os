@@ -9,6 +9,7 @@ import { RouterOutlet } from '@angular/router'
 import { ErrorService } from '@start9labs/shared'
 import {
   TuiButton,
+  TuiCell,
   TuiIcon,
   TuiLoader,
   TuiPopup,
@@ -37,24 +38,26 @@ import { HeaderComponent } from './components/header/header.component'
     <app-tabs />
     @if (update(); as update) {
       <tui-action-bar *tuiPopup="bar()">
-        @if (update === true) {
-          <tui-icon icon="@tui.check" class="g-positive" />
-          Download complete, restart to apply changes
-        } @else if (
-          update.overall && update.overall !== true && update.overall.total
-        ) {
-          <tui-progress-circle
-            size="xxs"
-            [style.display]="'flex'"
-            [max]="100"
-            [value]="getProgress(update.overall.total, update.overall.done)"
-          />
-          Downloading:
-          {{ getProgress(update.overall.total, update.overall.done) }}%
-        } @else {
-          <tui-loader />
-          Calculating download size
-        }
+        <span tuiCell="m">
+          @if (update === true) {
+            <tui-icon icon="@tui.check" class="g-positive" />
+            Download complete, restart to apply changes
+          } @else if (
+            update.overall && update.overall !== true && update.overall.total
+          ) {
+            <tui-progress-circle
+              size="xxs"
+              [style.display]="'flex'"
+              [max]="100"
+              [value]="getProgress(update.overall.total, update.overall.done)"
+            />
+            Downloading:
+            {{ getProgress(update.overall.total, update.overall.done) }}%
+          } @else {
+            <tui-loader />
+            Calculating download size
+          }
+        </span>
         @if (update === true) {
           <button tuiButton size="s" (click)="restart()">Restart</button>
         }
@@ -91,6 +94,12 @@ import { HeaderComponent } from './components/header/header.component'
         filter: none;
       }
     }
+
+    [tuiCell] {
+      padding: 0;
+      white-space: normal;
+      text-wrap: balance;
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -104,6 +113,7 @@ import { HeaderComponent } from './components/header/header.component'
     TuiIcon,
     TuiButton,
     TuiPopup,
+    TuiCell,
   ],
 })
 export class PortalComponent {
