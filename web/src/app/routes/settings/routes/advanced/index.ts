@@ -38,10 +38,20 @@ export default class Advanced {
       })
       .pipe(filter(Boolean))
       .subscribe(() => {
-        this.actions.run(() => this.api.systemFactoryReset(), {
-          loading: 'Resetting device...',
-          success: 'Factory reset initiated. Device is rebooting...',
-        })
+        this.actions.run(
+          async () => {
+            await this.api.systemFactoryReset()
+            // Device is rebooting — poll until it goes down
+            while (true) {
+              await this.api.systemInfo()
+            }
+          },
+          {
+            loading: 'Resetting device...',
+            success: 'Factory reset complete',
+            restart: true,
+          },
+        )
       })
   }
 }

@@ -24,8 +24,6 @@ import { filter, startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
 import { WifiConfig } from 'src/app/services/api/api.service'
-import { NETWORK_RESTART_TIMEOUT_MS } from 'src/app/services/network-restart.service'
-import { pauseFor } from 'src/app/utils/pauseFor'
 import { WifiService } from '../../service'
 import { ReconnectDialog } from './reconnect-dialog'
 
@@ -232,22 +230,15 @@ export default class WifiSettings {
           },
         })
         .pipe(filter(Boolean))
-        .subscribe(async () => {
-          const savePromise = this.service.saveWithRestart(config)
-          savePromise.catch(() => {}) // Swallow if timeout wins
-          const saved = await Promise.race([
-            savePromise,
-            pauseFor(NETWORK_RESTART_TIMEOUT_MS).then(() => true),
-          ])
-          if (saved) {
-            this.dialogs
-              .open(new PolymorpheusComponent(ReconnectDialog), {
-                closable: false,
-                dismissible: false,
-                data: { ssid: config.ssid },
-              })
-              .subscribe()
-          }
+        .subscribe(() => {
+          const done = this.service.saveForSsidChange(config)
+          this.dialogs
+            .open(new PolymorpheusComponent(ReconnectDialog), {
+              closable: false,
+              dismissible: false,
+              data: { ssid: config.ssid, done },
+            })
+            .subscribe()
         })
       return
     }

@@ -23,7 +23,7 @@ export type FormRawValue<T> = T extends { getRawValue(): infer R } ? R : never
 export abstract class FormService<T> {
   private readonly load$ = new Subject<void>()
   private readonly alerts = inject(TuiNotificationService)
-  private readonly networkRestart = inject(NetworkRestartService)
+  protected readonly networkRestart = inject(NetworkRestartService)
   private readonly value$ = merge(this.load$, timer(0, 5000)).pipe(
     switchMap(() =>
       from(this.load()).pipe(

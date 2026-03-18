@@ -38,16 +38,10 @@ export class WanIpv4Service extends FormService<WanIpv4Form> {
   }
 
   override async save(data: WanIpv4Form): Promise<boolean> {
-    return this.actions.run(
-      async () => {
-        await this.store(data)
-        await this.refreshAndWait()
-      },
-      {
-        loading: 'Applying WAN settings...',
-        success: 'WAN settings applied',
-        restart: true,
-      },
-    )
+    return this.actions.run(() => this.store(data), {
+      loading: 'Applying WAN settings...',
+      success: 'WAN settings applied',
+      restart: true,
+    })
   }
 }

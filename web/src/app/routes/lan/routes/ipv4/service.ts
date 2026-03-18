@@ -17,16 +17,18 @@ export class LanIpv4Service extends FormService<LanIpv4Form> {
   }
 
   override async save(data: LanIpv4Form): Promise<boolean> {
-    return this.actions.run(
-      async () => {
-        await this.store(data)
-        await this.refreshAndWait()
-      },
-      {
-        loading: 'Applying LAN settings...',
-        success: 'LAN settings applied',
-        restart: true,
-      },
+    return this.actions.run(() => this.store(data), {
+      loading: 'Applying LAN settings...',
+      success: 'LAN settings applied',
+      restart: true,
+    })
+  }
+
+  saveForIpChange(data: LanIpv4Form): Promise<boolean> {
+    this.networkRestart.suppress()
+    return this.api.lanIpv4Set({ address: buildRouterIp(data.ip) }).then(
+      () => true,
+      () => false,
     )
   }
 }

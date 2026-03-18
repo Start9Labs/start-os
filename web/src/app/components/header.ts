@@ -24,10 +24,6 @@ import { HELP } from 'src/app/help/help'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
-import {
-  isNetworkError,
-  NetworkRestartService,
-} from 'src/app/services/network-restart.service'
 import { SidebarService } from 'src/app/services/sidebar.service'
 import { SystemService } from 'src/app/services/system.service'
 
@@ -194,7 +190,6 @@ export class Header {
   private readonly router = inject(Router)
   private readonly actions = inject(ActionService)
   private readonly alerts = inject(TuiNotificationService)
-  private readonly networkRestart = inject(NetworkRestartService)
   private readonly help = inject(HELP)
 
   protected readonly sidebars = inject(SidebarService)
@@ -238,26 +233,13 @@ export class Header {
   }
 
   protected async restart(): Promise<void> {
-    this.networkRestart.suppress(90_000)
     await this.actions.run(
       async () => {
         await this.api.systemRestart()
-        // Wait for device to go down
+        // Poll until device goes down — the network error propagates
+        // to ActionService, which opens the generic reconnect dialog
         while (true) {
-          try {
-            await this.api.systemInfo()
-          } catch {
-            break
-          }
-        }
-        // Wait for device to come back
-        while (true) {
-          try {
-            await this.api.systemInfo()
-            return
-          } catch (e) {
-            if (!isNetworkError(e)) return
-          }
+          await this.api.systemInfo()
         }
       },
       {

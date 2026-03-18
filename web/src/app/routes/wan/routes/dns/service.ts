@@ -40,16 +40,10 @@ export class DnsService extends FormService<DnsForm> {
   }
 
   override async save(data: DnsForm): Promise<boolean> {
-    return this.actions.run(
-      async () => {
-        await this.store(data)
-        await this.refreshAndWait()
-      },
-      {
-        loading: 'Applying WAN settings...',
-        success: 'WAN settings applied',
-        restart: true,
-      },
-    )
+    return this.actions.run(() => this.store(data), {
+      loading: 'Applying WAN settings...',
+      success: 'WAN settings applied',
+      restart: true,
+    })
   }
 }

@@ -49,7 +49,13 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
     const adminIpChanged =
       params.owns_lan && !!oldGatewayIp && oldGatewayIp !== params.gateway_ip
 
-    const success = await this.actions.run(
+    if (adminIpChanged) {
+      this.networkRestart.suppress()
+      await this.api.profileUpdate(params).catch(() => {})
+      return true
+    }
+
+    await this.actions.run(
       async () => {
         await this.api.profileUpdate(params)
         this.refresh()
@@ -61,7 +67,7 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
       },
     )
 
-    return success && adminIpChanged
+    return false
   }
 
   async deleteProfile(params: ProfileIdOpt) {

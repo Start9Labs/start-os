@@ -38,16 +38,10 @@ export class LanIpv6Service extends FormService<LanIpv6Data> {
   }
 
   override async save(data: LanIpv6Data): Promise<boolean> {
-    return this.actions.run(
-      async () => {
-        await this.store(data)
-        await this.refreshAndWait()
-      },
-      {
-        loading: 'Applying IPv6 settings...',
-        success: 'IPv6 settings applied',
-        restart: true,
-      },
-    )
+    return this.actions.run(() => this.store(data), {
+      loading: 'Applying IPv6 settings...',
+      success: 'IPv6 settings applied',
+      restart: true,
+    })
   }
 }

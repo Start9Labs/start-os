@@ -25,16 +25,10 @@ export class MacService extends FormService<MacForm> {
   }
 
   override async save(data: MacForm): Promise<boolean> {
-    return this.actions.run(
-      async () => {
-        await this.store(data)
-        await this.refreshAndWait()
-      },
-      {
-        loading: 'Applying WAN settings...',
-        success: 'WAN settings applied',
-        restart: true,
-      },
-    )
+    return this.actions.run(() => this.store(data), {
+      loading: 'Applying WAN settings...',
+      success: 'WAN settings applied',
+      restart: true,
+    })
   }
 }

@@ -46,16 +46,18 @@ export class WifiService extends FormService<WifiConfig> {
   }
 
   async saveWithRestart(data: WifiConfig): Promise<boolean> {
-    return this.actions.run(
-      async () => {
-        await this.api.wifiSet(data)
-        await this.refreshAndWait()
-      },
-      {
-        loading: 'Restarting WiFi...',
-        success: 'WiFi settings saved',
-        restart: true,
-      },
+    return this.actions.run(() => this.store(data), {
+      loading: 'Restarting WiFi...',
+      success: 'WiFi settings saved',
+      restart: true,
+    })
+  }
+
+  saveForSsidChange(data: WifiConfig): Promise<boolean> {
+    this.networkRestart.suppress()
+    return this.api.wifiSet(data).then(
+      () => true,
+      () => false,
     )
   }
 

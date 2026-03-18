@@ -10,6 +10,7 @@ import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { TuiCardLarge } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { ActionService } from 'src/app/services/action.service'
+import { ApiService } from 'src/app/services/api/api.service'
 
 @Component({
   template: `
@@ -86,6 +87,7 @@ import { ActionService } from 'src/app/services/action.service'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Backup {
+  private readonly api = inject(ApiService)
   private readonly actions = inject(ActionService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
 
@@ -149,10 +151,15 @@ export default class Backup {
           const text = await res.text()
           throw new Error(text || res.statusText)
         }
+        // Device is rebooting — poll until it goes down
+        while (true) {
+          await this.api.systemInfo()
+        }
       },
       {
         loading: 'Restoring backup...',
-        success: 'Backup restored successfully. Device is rebooting...',
+        success: 'Backup restored',
+        restart: true,
       },
     )
     this.uploading.set(false)

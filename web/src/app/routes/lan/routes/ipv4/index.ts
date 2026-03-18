@@ -12,10 +12,7 @@ import { tuiNumberFormatProvider, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
-import {
-  injectFormService,
-  provideFormService,
-} from 'src/app/services/form.service'
+import { provideFormService } from 'src/app/services/form.service'
 import { LanIpv4Ip } from './form/ip'
 import { LanIpv4Service } from './service'
 import { LanIpv4Summary } from './summary'
@@ -56,7 +53,7 @@ import { buildRouterIp, getLanIpv4Form, LanIpv4Form } from './utils'
 })
 export default class LanIpv4 {
   protected readonly builder = inject(NonNullableFormBuilder)
-  protected readonly service = injectFormService<LanIpv4Form>()
+  protected readonly service = inject(LanIpv4Service)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly window = inject(WA_WINDOW)
 
@@ -82,28 +79,28 @@ export default class LanIpv4 {
       : ''
     const newIp = buildRouterIp(this.form.getRawValue().ip)
     const currentHost = this.window.location.hostname
-    const saved = await this.service.save(this.form.getRawValue())
 
-    if (saved) {
-      this.form.markAsPristine()
-
-      // If IP changed and user is accessing via old IP, show redirect dialog
-      if (oldIp !== newIp && currentHost === oldIp) {
-        this.dialogs
-          .open(
-            "Your router's IP address has changed. The UI is now available at the new address.",
-            {
-              label: 'IP Address Changed',
-              dismissible: false,
-              data: 'Open',
-            },
-          )
-          .subscribe({
-            complete: () => {
-              this.window.location.href = `http://${newIp}`
-            },
-          })
-      }
+    if (oldIp !== newIp && currentHost === oldIp) {
+      // IP is changing — bypass ActionService reconnect, handle redirect ourselves
+      await this.service.saveForIpChange(this.form.getRawValue())
+      this.dialogs
+        .open(
+          "Your router's IP address has changed. The UI is now available at the new address.",
+          {
+            label: 'IP Address Changed',
+            dismissible: false,
+            data: 'Open',
+          },
+        )
+        .subscribe({
+          complete: () => {
+            this.window.location.href = `http://${newIp}`
+          },
+        })
+      return
     }
+
+    const saved = await this.service.save(this.form.getRawValue())
+    if (saved) this.form.markAsPristine()
   }
 }
