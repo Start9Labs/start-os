@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::net::Ipv4Addr;
 use std::process::Command;
-use uciedit::openwrt::{Dhcp, NetworkInterface, NetworkRule};
+use uciedit::openwrt::{Dhcp, FirewallRedirect, NetworkInterface, NetworkRoute, NetworkRule, ProfileDnsmasq};
 use uciedit::{dump_all, parse_all, Arena};
 
 pub const LAN_INTERFACE: &str = "lan";
@@ -92,7 +92,7 @@ pub fn ipv4_set<C: CtrlContext>(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "dhcp", "firewall"])?;
 
         // Update LAN interface, capturing old IP to detect network block changes
         let mut old_address: Option<Ipv4Addr> = None;
@@ -126,10 +126,9 @@ pub fn ipv4_set<C: CtrlContext>(
         let profile_interfaces: HashSet<String> = if block_changed {
             let pi: HashSet<String> = profiles::list_config(ctx.clone(), &cfgs)?
                 .into_iter()
-                .filter(|p| p.interface != LAN_INTERFACE)
                 .map(|p| p.interface)
                 .collect();
-            update_profile_ips_for_block_change(&mut cfgs, address, &pi)?;
+            update_profile_ips_for_block_change(&mut cfgs, old_address.unwrap(), address, &pi)?;
             pi
         } else {
             HashSet::new()
@@ -151,8 +150,8 @@ pub fn ipv4_set<C: CtrlContext>(
                         }
                     }
 
-                    let mut ifaces = vec![LAN_INTERFACE.to_string()];
-                    ifaces.extend(profile_interfaces);
+                    let mut ifaces: Vec<String> = vec![LAN_INTERFACE.to_string()];
+                    ifaces.extend(profile_interfaces.iter().filter(|i| *i != LAN_INTERFACE).cloned());
                     restart_network_services(address, ifaces);
                 }
                 return Ok(());
@@ -347,9 +346,11 @@ pub fn ipv6_set<C: CtrlContext>(
 /// block (first two octets) changes. Preserves each profile's 3rd/4th octets.
 pub fn update_profile_ips_for_block_change(
     cfgs: &mut uciedit::Configs,
+    old_address: Ipv4Addr,
     new_address: Ipv4Addr,
     profile_interfaces: &HashSet<String>,
 ) -> Result<(), Error> {
+    let old_oct = old_address.octets();
     let new_oct = new_address.octets();
 
     // Update profile network interface IPs
@@ -357,10 +358,10 @@ pub fn update_profile_ips_for_block_change(
         if let Some(name) = section.name() {
             if profile_interfaces.contains(name.as_ref()) {
                 if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
-                    if let Some(old_ip) = iface.ipaddr {
-                        let old_oct = old_ip.octets();
+                    if let Some(ip) = iface.ipaddr {
+                        let o = ip.octets();
                         iface.ipaddr = Some(Ipv4Addr::new(
-                            new_oct[0], new_oct[1], old_oct[2], old_oct[3],
+                            new_oct[0], new_oct[1], o[2], o[3],
                         ));
                         section.set(&iface)?;
                     }
@@ -376,14 +377,78 @@ pub fn update_profile_ips_for_block_change(
                 if profile_interfaces.contains(iface_name) {
                     if let Some(mut rule) = section.get_typed::<NetworkRule>()? {
                         if let Some(ip_part) = rule.src.split('/').next() {
-                            if let Ok(old_src) = ip_part.parse::<Ipv4Addr>() {
-                                let old_oct = old_src.octets();
+                            if let Ok(src) = ip_part.parse::<Ipv4Addr>() {
                                 rule.src = format!(
                                     "{}.{}.{}.0/24",
-                                    new_oct[0], new_oct[1], old_oct[2]
+                                    new_oct[0], new_oct[1], src.octets()[2]
                                 );
                                 section.set(&rule)?;
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Update policy routing local routes (plr_<interface>) target field
+    for section in &mut cfgs["network"].sections {
+        if let Some(name) = section.name() {
+            if let Some(iface_name) = name.strip_prefix("plr_") {
+                if profile_interfaces.contains(iface_name) {
+                    if let Some(mut route) = section.get_typed::<NetworkRoute>()? {
+                        if let Some(ip_part) = route.target.split('/').next() {
+                            if let Ok(tgt) = ip_part.parse::<Ipv4Addr>() {
+                                route.target = format!(
+                                    "{}.{}.{}.0/24",
+                                    new_oct[0], new_oct[1], tgt.octets()[2]
+                                );
+                                section.set(&route)?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Update per-profile dnsmasq listen_address (dns_<interface>)
+    for section in &mut cfgs["dhcp"].sections {
+        if let Some(name) = section.name() {
+            if let Some(iface_name) = name.strip_prefix("dns_") {
+                if profile_interfaces.contains(iface_name) {
+                    if let Some(mut dnsmasq) = section.get_typed::<ProfileDnsmasq>()? {
+                        let mut changed = false;
+                        for addr in &mut dnsmasq.listen_address {
+                            if let Ok(ip) = addr.parse::<Ipv4Addr>() {
+                                let o = ip.octets();
+                                *addr = Ipv4Addr::new(
+                                    new_oct[0], new_oct[1], o[2], o[3],
+                                ).to_string();
+                                changed = true;
+                            }
+                        }
+                        if changed {
+                            section.set(&dnsmasq)?;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Update DNS-Override firewall redirects dest_ip
+    for section in &mut cfgs["firewall"].sections {
+        if let Ok(mut redir) = section.get::<FirewallRedirect>() {
+            if redir.name.contains("DNS-Override") {
+                if let Some(ref dest) = redir.dest_ip {
+                    if let Ok(ip) = dest.parse::<Ipv4Addr>() {
+                        let o = ip.octets();
+                        if o[0] == old_oct[0] && o[1] == old_oct[1] {
+                            redir.dest_ip = Some(Ipv4Addr::new(
+                                new_oct[0], new_oct[1], o[2], o[3],
+                            ).to_string());
+                            section.set(&redir)?;
                         }
                     }
                 }
@@ -588,7 +653,7 @@ config profile lan
     #[test]
     fn ipv4_set_propagates_block_change_to_profiles() {
         let dir = tempfile::tempdir().unwrap();
-        // Network config with LAN + a Guest profile interface + routing rule
+        // Network config with LAN + a Guest profile interface + routing rules
         std::fs::write(
             dir.path().join("network"),
             "\
@@ -607,6 +672,11 @@ config interface 'guest'
 config rule 'prr_guest'
 \toption src '192.168.2.0/24'
 \toption lookup '200'
+
+config route 'plr_guest'
+\toption interface 'guest'
+\toption target '192.168.2.0/24'
+\toption table '200'
 ",
         )
         .unwrap();
@@ -628,6 +698,48 @@ config profile guest
         )
         .unwrap();
 
+        // dhcp config with per-profile dnsmasq
+        std::fs::write(
+            dir.path().join("dhcp"),
+            "\
+config dnsmasq 'dns_lan'
+\tlist listen_address '192.168.1.1'
+\toption localservice '1'
+
+config dnsmasq 'dns_guest'
+\tlist listen_address '192.168.2.1'
+\toption localservice '1'
+",
+        )
+        .unwrap();
+
+        // firewall config with DNS-Override redirects
+        std::fs::write(
+            dir.path().join("firewall"),
+            "\
+config redirect 'dns_override_admin'
+\toption name 'DNS-Override-Admin'
+\toption src 'vlan_lan'
+\tlist proto 'tcp'
+\tlist proto 'udp'
+\toption src_dport '53'
+\toption dest_ip '192.168.1.1'
+\toption dest_port '53'
+\toption target 'DNAT'
+
+config redirect 'dns_override_guest'
+\toption name 'DNS-Override-Guest'
+\toption src 'vlan_guest'
+\tlist proto 'tcp'
+\tlist proto 'udp'
+\toption src_dport '53'
+\toption dest_ip '192.168.2.1'
+\toption dest_port '53'
+\toption target 'DNAT'
+",
+        )
+        .unwrap();
+
         let ctx = TestContext(dir.path().to_path_buf());
 
         // Change from 192.168.x.x to 10.0.x.x
@@ -643,9 +755,9 @@ config profile guest
         let res = ipv4_get(ctx.clone()).unwrap();
         assert_eq!(res.address, "10.0.1.1");
 
-        // Re-read and verify Guest interface and routing rule updated
+        // Re-read all configs
         let arena = Arena::new();
-        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).unwrap();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network", "dhcp", "firewall"]).unwrap();
 
         for section in &cfgs["network"].sections {
             if section.name().as_deref() == Some("guest") {
@@ -662,6 +774,53 @@ config profile guest
                     rule.src, "10.0.2.0/24",
                     "Guest routing rule src should be updated to new block"
                 );
+            }
+            if section.name().as_deref() == Some("plr_guest") {
+                let route = section.get::<NetworkRoute>().unwrap();
+                assert_eq!(
+                    route.target, "10.0.2.0/24",
+                    "Guest local route target should be updated to new block"
+                );
+            }
+        }
+
+        // Verify per-profile dnsmasq listen_address updated
+        for section in &cfgs["dhcp"].sections {
+            if section.name().as_deref() == Some("dns_lan") {
+                let dnsmasq = section.get::<ProfileDnsmasq>().unwrap();
+                assert_eq!(
+                    dnsmasq.listen_address,
+                    vec!["10.0.1.1"],
+                    "Admin dnsmasq listen_address should be updated to new block"
+                );
+            }
+            if section.name().as_deref() == Some("dns_guest") {
+                let dnsmasq = section.get::<ProfileDnsmasq>().unwrap();
+                assert_eq!(
+                    dnsmasq.listen_address,
+                    vec!["10.0.2.1"],
+                    "Guest dnsmasq listen_address should be updated to new block"
+                );
+            }
+        }
+
+        // Verify DNS-Override firewall redirects updated
+        for section in &cfgs["firewall"].sections {
+            if let Ok(redir) = section.get::<FirewallRedirect>() {
+                if redir.name == "DNS-Override-Admin" {
+                    assert_eq!(
+                        redir.dest_ip.as_deref(),
+                        Some("10.0.1.1"),
+                        "Admin DNS-Override dest_ip should be updated to new block"
+                    );
+                }
+                if redir.name == "DNS-Override-Guest" {
+                    assert_eq!(
+                        redir.dest_ip.as_deref(),
+                        Some("10.0.2.1"),
+                        "Guest DNS-Override dest_ip should be updated to new block"
+                    );
+                }
             }
         }
     }

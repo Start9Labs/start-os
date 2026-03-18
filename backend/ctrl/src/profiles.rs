@@ -880,6 +880,7 @@ pub fn set<C: CtrlContext>(
                     .collect();
             crate::lan::update_profile_ips_for_block_change(
                 &mut cfgs,
+                old_lan_ip.unwrap(),
                 profile.gateway_ip,
                 &pi,
             )?;
