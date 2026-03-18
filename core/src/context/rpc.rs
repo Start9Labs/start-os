@@ -35,7 +35,6 @@ use crate::lxc::LxcManager;
 use crate::net::gateway::WildcardListener;
 use crate::net::net_controller::{NetController, NetService};
 use crate::net::socks::DEFAULT_SOCKS_LISTEN;
-use crate::net::utils::{find_eth_iface, find_wifi_iface};
 use crate::net::web_server::WebServerAcceptorSetter;
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
@@ -55,8 +54,6 @@ use crate::{DATA_DIR, PLATFORM, PackageId};
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
     pub os_partitions: OsPartitionInfo,
-    pub wifi_interface: Option<String>,
-    pub ethernet_interface: String,
     pub disk_guid: InternedString,
     pub ephemeral_sessions: SyncMutex<Sessions>,
     pub db: TypedPatchDb<Database>,
@@ -73,7 +70,7 @@ pub struct RpcContextSeed {
     pub open_authed_continuations: OpenAuthedContinuations<Option<InternedString>>,
     pub rpc_continuations: RpcContinuations,
     pub callbacks: Arc<ServiceCallbacks>,
-    pub wifi_manager: Arc<RwLock<Option<WpaCli>>>,
+    pub wifi_manager: RwLock<Option<WpaCli>>,
     pub current_secret: Arc<Jwk>,
     pub client: Client,
     pub start_time: Instant,
@@ -323,13 +320,9 @@ impl RpcContext {
             });
         }
 
-        let wifi_interface = find_wifi_iface().await?;
-
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
             os_partitions: OsPartitionInfo::from_fstab().await?,
-            wifi_interface: wifi_interface.clone(),
-            ethernet_interface: find_eth_iface().await?,
             disk_guid,
             ephemeral_sessions: SyncMutex::new(Sessions::new()),
             sync_db: watch::Sender::new(db.sequence().await),
@@ -350,7 +343,7 @@ impl RpcContext {
             shutdown,
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_continuations: OpenAuthedContinuations::new(),
-            wifi_manager: Arc::new(RwLock::new(wifi_interface.clone().map(|i| WpaCli::init(i)))),
+            wifi_manager: RwLock::new(None),
             current_secret: Arc::new(
                 Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).map_err(|e| {
                     tracing::debug!("{:?}", e);

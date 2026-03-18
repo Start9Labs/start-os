@@ -98,7 +98,7 @@ impl Public {
                         port_forwards: BTreeSet::new(),
                     },
                     wifi: WifiInfo {
-                        enabled: true,
+                        enabled: false,
                         ..Default::default()
                     },
                     gateways: OrdMap::new(),
@@ -378,7 +378,7 @@ pub struct ServerStatus {
 #[ts(export)]
 pub struct WifiInfo {
     pub enabled: bool,
-    pub interface: Option<String>,
+    pub interface: Option<GatewayId>,
     pub ssids: BTreeSet<String>,
     pub selected: Option<String>,
     #[ts(type = "string | null")]
