@@ -275,7 +275,8 @@ ul {
     padding: 1rem;
   }
 
-  tui-root._mobile & thead {
+  tui-root._mobile & thead,
+  &:has(app-placeholder) thead {
     display: none;
   }
 }

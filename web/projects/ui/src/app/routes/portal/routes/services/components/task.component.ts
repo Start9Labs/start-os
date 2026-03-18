@@ -25,7 +25,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   selector: 'tr[task]',
   template: `
     <td tuiFade class="row">
-      <i tuiAvatar appearance="action-grayscale" size="xs">
+      <i tuiAvatar appearance="action-grayscale" size="xs" [round]="false">
         <img [src]="pkg()?.icon || fallback()?.icon" alt="" />
       </i>
       <span>{{ title() || fallback()?.title }}</span>
