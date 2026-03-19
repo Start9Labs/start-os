@@ -251,6 +251,8 @@ async fn inner_main() -> Result<(), Error> {
         .route("/api/setup/flash", post(setup_flash_handler))
         // WebSocket endpoint for live log streaming
         .route("/api/logs", axum::routing::get(crate::logs::logs_ws_handler))
+        // Support diagnostics bundle
+        .route("/api/diagnostics", get(crate::diagnostics::diagnostics_handler))
         // Config backup/restore
         .route("/api/backup", get(crate::backup::backup_handler))
         .route("/api/restore", post(crate::backup::restore_handler)

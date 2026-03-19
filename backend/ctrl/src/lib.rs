@@ -3,6 +3,7 @@ pub mod auth;
 pub mod backup;
 pub mod captive;
 pub mod devices;
+pub mod diagnostics;
 pub mod dns;
 pub mod emmc;
 pub mod error;

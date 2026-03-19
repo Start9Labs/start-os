@@ -11,7 +11,9 @@ import { ApiService } from 'src/app/services/api/api.service'
   template: `
     <section class="g-form" tuiCardLarge [style.align-items]="'start'">
       <a tuiButton [href]="luciUrl" target="_blank">Launch LuCI Interface</a>
-      <button tuiButton>Download Support Diagnostics</button>
+      <button tuiButton (click)="downloadDiagnostics()">
+        Download Support Diagnostics
+      </button>
       <button tuiButton (click)="factoryReset()">Factory Reset</button>
     </section>
   `,
@@ -24,6 +26,28 @@ export default class Advanced {
   private readonly actions = inject(ActionService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly luciUrl = '/cgi-bin/luci'
+
+  protected downloadDiagnostics() {
+    this.actions.run(
+      async () => {
+        const res = await fetch('/api/diagnostics', { credentials: 'include' })
+        if (!res.ok) throw new Error(`Download failed: ${res.statusText}`)
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        const disposition = res.headers.get('content-disposition')
+        const match = disposition?.match(/filename="(.+)"/)
+        a.download = match?.[1] ?? 'diagnostics.tar.gz'
+        a.click()
+        URL.revokeObjectURL(url)
+      },
+      {
+        loading: 'Creating diagnostics bundle...',
+        success: 'Diagnostics downloaded',
+      },
+    )
+  }
 
   protected factoryReset() {
     this.dialogs
