@@ -29,16 +29,17 @@ use crate::system::{save_language, sync_kiosk};
 use crate::util::serde::{IoFormat, Pem};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 #[ts(export)]
 pub struct RestorePackageParams {
-    #[arg(help = "help.arg.package-ids")]
-    pub ids: Vec<PackageId>,
     #[arg(help = "help.arg.backup-target-id")]
     pub target_id: BackupTargetId,
     #[arg(help = "help.arg.backup-password")]
     pub password: String,
+    #[arg(help = "help.arg.package-ids")]
+    pub ids: Vec<PackageId>,
 }
 
 // #[command(rename = "restore", display(display_none))]

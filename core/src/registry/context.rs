@@ -39,6 +39,7 @@ const DEFAULT_REGISTRY_LISTEN: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 5959);
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct RegistryConfig {
@@ -172,6 +173,7 @@ impl Deref for RegistryContext {
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
+#[group(skip)]
 pub struct RegistryUrlParams {
     #[arg(help = "help.arg.registry-url")]
     pub registry: Url,

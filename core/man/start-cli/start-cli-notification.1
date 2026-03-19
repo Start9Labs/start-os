@@ -1,0 +1,35 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-notification 1  "notification " 
+.SH NAME
+start\-cli\-notification \- Create, delete, or list notifications
+.SH SYNOPSIS
+\fBstart\-cli notification\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Create, delete, or list notifications
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-cli\-notification\-create(1)
+Persist a new notification
+.TP
+start\-cli\-notification\-list(1)
+List notifications
+.TP
+start\-cli\-notification\-mark\-seen(1)
+Mark notifications as seen
+.TP
+start\-cli\-notification\-mark\-seen\-before(1)
+Mark notifications as seen before a given ID
+.TP
+start\-cli\-notification\-mark\-unseen(1)
+Mark notifications as unseen
+.TP
+start\-cli\-notification\-remove(1)
+Remove notification for IDs
+.TP
+start\-cli\-notification\-remove\-before(1)
+Remove notifications before a given ID

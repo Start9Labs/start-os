@@ -84,6 +84,7 @@ pub enum RevisionsRes {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliDumpParams {
@@ -260,6 +261,7 @@ pub async fn subscribe(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliApplyParams {
@@ -331,6 +333,7 @@ async fn cli_apply(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ApplyParams {
@@ -371,6 +374,7 @@ pub fn put<C: Context>() -> ParentHandler<C> {
     )
 }
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UiParams {

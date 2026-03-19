@@ -143,6 +143,7 @@ async fn list_interfaces(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 struct ForgetGatewayParams {
     #[arg(help = "help.arg.gateway-id")]
@@ -157,6 +158,7 @@ async fn forget_iface(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 struct RenameGatewayParams {
     #[arg(help = "help.arg.gateway-id")]
@@ -173,6 +175,7 @@ async fn set_name(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CheckPortParams {
@@ -240,7 +243,9 @@ pub async fn check_port(
 
     let client = reqwest::Client::builder();
     #[cfg(target_os = "linux")]
-    let client = client.interface(gateway.as_str());
+    let client = client
+        .interface(gateway.as_str())
+        .local_address(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
     let client = client.build()?;
 
     let mut res = None;
@@ -294,6 +299,7 @@ pub async fn check_port(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CheckDnsParams {
@@ -373,6 +379,7 @@ pub async fn check_dns(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct SetDefaultOutboundParams {
@@ -408,6 +415,7 @@ async fn set_default_outbound(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetOutboundGatewayParams {

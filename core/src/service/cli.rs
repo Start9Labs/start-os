@@ -13,6 +13,7 @@ use crate::lxc::HOST_RPC_SERVER_SOCKET;
 use crate::service::effects::context::EffectContext;
 
 #[derive(Debug, Default, Parser)]
+#[group(skip)]
 pub struct ContainerClientConfig {
     #[arg(long = "socket", help = "help.arg.socket-path")]
     pub socket: Option<PathBuf>,

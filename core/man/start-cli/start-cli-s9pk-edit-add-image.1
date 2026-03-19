@@ -1,0 +1,37 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-s9pk-edit-add-image 1  "add-image " 
+.SH NAME
+start\-cli\-s9pk\-edit\-add\-image \- Add image to s9pk
+.SH SYNOPSIS
+\fBstart\-cli s9pk edit add\-image\fR [\fB\-\-docker\-build\fR] [\fB\-\-dockerfile\fR] [\fB\-\-workdir\fR] [\fB\-\-docker\-tag\fR] [\fB\-\-arch\fR] [\fB\-\-emulate\-missing\-as\fR] [\fB\-\-nvidia\-container\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIID\fR> 
+.SH DESCRIPTION
+Add image to s9pk
+.SH OPTIONS
+.TP
+\fB\-\-docker\-build\fR
+Build Docker image from Dockerfile
+.TP
+\fB\-\-dockerfile\fR \fI<DOCKERFILE>\fR
+Path to Dockerfile
+.TP
+\fB\-\-workdir\fR \fI<WORKDIR>\fR
+Working directory path
+.TP
+\fB\-\-docker\-tag\fR \fI<DOCKER_TAG>\fR
+Docker image tag to use
+.TP
+\fB\-\-arch\fR \fI<ARCH>\fR
+Filter by CPU architecture
+.TP
+\fB\-\-emulate\-missing\-as\fR \fI<EMULATE_MISSING_AS>\fR
+Emulate missing architecture using this one
+.TP
+\fB\-\-nvidia\-container\fR
+Enable NVIDIA container support
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIID\fR>
+Docker image identifier

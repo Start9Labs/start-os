@@ -1,0 +1,20 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-backup 1  "backup " 
+.SH NAME
+start\-cli\-backup \- Commands related to backup creation and backup targets
+.SH SYNOPSIS
+\fBstart\-cli backup\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Commands related to backup creation and backup targets
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-cli\-backup\-create(1)
+Create a backup for all packages
+.TP
+start\-cli\-backup\-target(1)
+Commands related to a backup target

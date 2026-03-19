@@ -30,6 +30,7 @@ use crate::util::serde::IoFormat;
 use crate::version::VersionT;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]

@@ -1,0 +1,23 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-ssh 1  "ssh " 
+.SH NAME
+start\-cli\-ssh \- Commands for interacting with ssh keys i.e. add, delete, list
+.SH SYNOPSIS
+\fBstart\-cli ssh\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Commands for interacting with ssh keys i.e. add, delete, list
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-cli\-ssh\-add(1)
+Add ssh key
+.TP
+start\-cli\-ssh\-list(1)
+List SSH keys
+.TP
+start\-cli\-ssh\-remove(1)
+Remove an SSH key

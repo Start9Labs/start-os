@@ -1,0 +1,28 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-init-logs 1  "logs " 
+.SH NAME
+start\-cli\-init\-logs \- Display OS logs
+.SH SYNOPSIS
+\fBstart\-cli init logs\fR [\fB\-l\fR|\fB\-\-limit\fR] [\fB\-c\fR|\fB\-\-cursor\fR] [\fB\-b\fR|\fB\-\-boot\fR] [\fB\-B\fR|\fB\-\-before\fR] [\fB\-f\fR|\fB\-\-follow\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+.SH DESCRIPTION
+Display OS logs
+.SH OPTIONS
+.TP
+\fB\-l\fR, \fB\-\-limit\fR \fI<LIMIT>\fR
+Maximum number of log entries
+.TP
+\fB\-c\fR, \fB\-\-cursor\fR \fI<CURSOR>\fR
+Start from this cursor position
+.TP
+\fB\-b\fR, \fB\-\-boot\fR \fI<BOOT>\fR
+Filter logs by boot ID
+.TP
+\fB\-B\fR, \fB\-\-before\fR
+Show logs before the cursor position
+.TP
+\fB\-f\fR, \fB\-\-follow\fR
+Follow log output in real\-time
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help

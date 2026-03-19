@@ -1,0 +1,32 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-registry 1  "registry " 
+.SH NAME
+start\-cli\-registry \- Commands related to the registry
+.SH SYNOPSIS
+\fBstart\-cli registry\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Commands related to the registry
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-cli\-registry\-admin(1)
+Commands to add or list admins or signers
+.TP
+start\-cli\-registry\-db(1)
+Commands to interact with the db i.e. dump and apply
+.TP
+start\-cli\-registry\-index(1)
+List registry info and packages
+.TP
+start\-cli\-registry\-info(1)
+Display registry info
+.TP
+start\-cli\-registry\-os(1)
+Commands related to OS assets and versions
+.TP
+start\-cli\-registry\-package(1)
+Commands to index, add, or get packages

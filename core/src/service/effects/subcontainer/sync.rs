@@ -105,6 +105,7 @@ fn open_file_read(path: impl AsRef<Path>) -> Result<File, Error> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
+#[group(skip)]
 pub struct ExecParams {
     #[arg(long, help = "help.arg.force-tty")]
     force_tty: bool,

@@ -47,6 +47,7 @@ pub struct PackageInfoShort {
 }
 
 #[derive(Debug, Deserialize, Serialize, TS, Parser, HasModel)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 #[ts(export)]
@@ -407,6 +408,7 @@ pub fn display_package_info(
 }
 
 #[derive(Debug, Deserialize, Serialize, TS, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct CliDownloadParams {
     #[arg(help = "help.arg.package-id")]

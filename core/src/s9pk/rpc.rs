@@ -84,6 +84,7 @@ pub fn s9pk() -> ParentHandler<CliContext> {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 struct S9pkPath {
     #[arg(help = "help.arg.s9pk-file-path")]
     s9pk: PathBuf,
@@ -142,6 +143,7 @@ fn inspect() -> ParentHandler<CliContext, S9pkPath> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 struct AddImageParams {
     #[arg(help = "help.arg.image-id")]
     id: ImageId,
@@ -176,6 +178,7 @@ async fn add_image(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 struct EditManifestParams {
     #[arg(help = "help.arg.db-apply-expr")]
     expression: String,
@@ -221,6 +224,7 @@ async fn file_tree(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 struct CatParams {
@@ -352,6 +356,7 @@ async fn publish(ctx: CliContext, S9pkPath { s9pk: s9pk_path }: S9pkPath) -> Res
 }
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 struct SelectParams {
     #[arg(help = "help.arg.s9pk-file-paths")]
     s9pks: Vec<PathBuf>,

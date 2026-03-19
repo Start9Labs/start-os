@@ -7,6 +7,7 @@ use crate::rpc_continuations::Guid;
 pub(super) use crate::service::effects::context::EffectContext;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct EventId {

@@ -6,6 +6,7 @@ use crate::util::io::{delete_file, write_file_atomic};
 use crate::volume::PKG_VOLUME_DIR;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetDataVersionParams {

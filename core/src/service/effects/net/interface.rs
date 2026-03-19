@@ -150,6 +150,7 @@ pub async fn list_service_interfaces(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ClearServiceInterfacesParams {

@@ -19,6 +19,7 @@ use crate::prelude::*;
 use crate::util::{FromStrParser, Invoke};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct IdMap {
     pub from_id: u32,

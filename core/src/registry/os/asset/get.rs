@@ -118,6 +118,7 @@ pub async fn get_squashfs(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliGetOsAssetParams {

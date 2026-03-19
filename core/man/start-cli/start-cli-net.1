@@ -1,0 +1,32 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-net 1  "net " 
+.SH NAME
+start\-cli\-net \- Network commands
+.SH SYNOPSIS
+\fBstart\-cli net\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Network commands
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-cli\-net\-acme(1)
+Setup ACME certificate
+.TP
+start\-cli\-net\-dns(1)
+Manage and query DNS
+.TP
+start\-cli\-net\-forward(1)
+Manage port forwards
+.TP
+start\-cli\-net\-gateway(1)
+View and edit gateway configurations
+.TP
+start\-cli\-net\-tunnel(1)
+Manage tunnels
+.TP
+start\-cli\-net\-vhost(1)
+Manage SSL vhost proxy

@@ -103,6 +103,7 @@ async fn get_block_device_size(path: impl AsRef<Path>) -> Result<u64, Error> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct InstallOsParams {
@@ -113,6 +114,7 @@ pub struct InstallOsParams {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 struct DataDrive {
@@ -526,6 +528,7 @@ pub async fn install_os(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliInstallOsParams {

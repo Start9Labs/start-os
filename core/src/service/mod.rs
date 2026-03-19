@@ -756,6 +756,7 @@ struct ServiceActorSeed {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 pub struct RebuildParams {
     #[arg(help = "help.arg.package-id")]
@@ -1189,6 +1190,7 @@ async fn get_passwd_command(etc_passwd_path: PathBuf, user: &str) -> RootCommand
 }
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 pub struct CliAttachParams {
     #[arg(help = "help.arg.package-id")]
     pub id: PackageId,

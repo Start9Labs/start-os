@@ -282,6 +282,7 @@ pub async fn login_impl<C: SessionAuthContext>(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct LogoutParams {
@@ -375,6 +376,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) -> Resul
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ListParams {
@@ -418,6 +420,7 @@ impl AsLogoutSessionId for KillSessionId {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
@@ -436,6 +439,7 @@ pub async fn kill<C: SessionAuthContext>(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]

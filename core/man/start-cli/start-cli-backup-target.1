@@ -1,0 +1,29 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-backup-target 1  "target " 
+.SH NAME
+start\-cli\-backup\-target \- Commands related to a backup target
+.SH SYNOPSIS
+\fBstart\-cli backup target\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Commands related to a backup target
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-cli\-backup\-target\-cifs(1)
+Add, remove, or update a backup target
+.TP
+start\-cli\-backup\-target\-info(1)
+Display backup information for a package
+.TP
+start\-cli\-backup\-target\-list(1)
+List existing backup targets
+.TP
+start\-cli\-backup\-target\-mount(1)
+Mount a backup target
+.TP
+start\-cli\-backup\-target\-umount(1)
+Unmount a backup target
