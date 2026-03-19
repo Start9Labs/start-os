@@ -40,6 +40,8 @@ pub struct RestorePackageParams {
     pub password: String,
     #[arg(help = "help.arg.package-ids")]
     pub ids: Vec<PackageId>,
+    #[arg(long, help = "help.arg.server-id")]
+    pub server_id: Option<String>,
 }
 
 // #[command(rename = "restore", display(display_none))]
@@ -50,13 +52,18 @@ pub async fn restore_packages_rpc(
         ids,
         target_id,
         password,
+        server_id,
     }: RestorePackageParams,
 ) -> Result<(), Error> {
     let peek = ctx.db.peek().await;
     let fs = target_id.load(&peek)?;
+    let server_id = match server_id {
+        Some(id) => id,
+        None => peek.as_public().as_server_info().as_id().de()?,
+    };
     let backup_guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&fs, ReadWrite).await?,
-        &peek.as_public().as_server_info().as_id().de()?,
+        &server_id,
         &password,
     )
     .await?;

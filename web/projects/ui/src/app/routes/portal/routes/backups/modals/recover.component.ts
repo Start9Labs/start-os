@@ -115,13 +115,14 @@ export class BackupsRecoverModal {
     const ids = options.filter(({ checked }) => !!checked).map(({ id }) => id)
     const loader = this.loader.open('Initializing').subscribe()
 
-    const { targetId, password } = this.context.data
+    const { targetId, serverId, password } = this.context.data
 
     try {
       await this.api.restorePackages({
         ids,
         targetId,
         password,
+        serverId,
       })
 
       this.context.$implicit.complete()

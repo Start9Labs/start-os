@@ -1242,6 +1242,7 @@ export namespace Mock {
       model: null,
       vendor: 'SSK',
       guid: null,
+      filesystem: null,
       startOs: {
         '1234-5678-9876-5432': {
           hostname: 'adjective-noun',
