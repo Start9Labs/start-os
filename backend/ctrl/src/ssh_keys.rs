@@ -60,7 +60,18 @@ pub async fn add(
     _ctx: ServerContext,
     SshKeyAddParams { key }: SshKeyAddParams,
 ) -> Result<SshKeyResponse, Error> {
-    add_key(Path::new(SSH_DIR), Path::new(AUTHORIZED_KEYS), &key).await
+    let result = add_key(Path::new(SSH_DIR), Path::new(AUTHORIZED_KEYS), &key).await;
+    match &result {
+        Ok(resp) => crate::activity::log(
+            "ssh-key", "added", true,
+            &format!("Added SSH key ({}: {})", resp.algorithm, resp.fingerprint), None,
+        ),
+        Err(e) => crate::activity::log(
+            "ssh-key", "added", false,
+            "Failed to add SSH key", Some(&e.to_string()),
+        ),
+    }
+    result
 }
 
 #[derive(Deserialize, Serialize, Parser)]
@@ -75,7 +86,8 @@ pub async fn delete(
     _ctx: ServerContext,
     SshKeyDeleteParams { fingerprint }: SshKeyDeleteParams,
 ) -> Result<(), Error> {
-    delete_key(Path::new(AUTHORIZED_KEYS), &fingerprint).await
+    let result = delete_key(Path::new(AUTHORIZED_KEYS), &fingerprint).await;
+    crate::activity::log_result("ssh-key", "deleted", &format!("SSH key ({fingerprint})"), result)
 }
 
 // --- Core logic (testable, accepts paths) ---

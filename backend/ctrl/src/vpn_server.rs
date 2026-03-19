@@ -562,7 +562,7 @@ pub fn set(
 
         // Verify the profile exists and get its gateway IP
         let profile_lookup = profiles::Lookup::parse(ServerContext, &cfgs)?;
-        let _profile_id = profile_lookup.from_interface(profile_interface)
+        let profile_id = profile_lookup.from_interface(profile_interface)
             .ok_or_else(|| ErrorKind::MissingProfile {
                 id: ProfileIdOpt {
                     fullname: None,
@@ -570,6 +570,7 @@ pub fn set(
                     vlan_tag: None,
                 }
             })?;
+        let profile_name = profile_id.fullname.clone();
 
         // Check for listen port conflicts with other VPN servers
         let port_conflict = cfgs["startwrt"]
@@ -627,7 +628,10 @@ pub fn set(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("vpn-server", "configured", false, &format!("Failed to configure inbound VPN for profile '{}'", profile_name), Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 if config.enabled {
                     // Restart the interface to ensure it comes up with new config.
@@ -647,6 +651,7 @@ pub fn set(
                 if let Some(tag) = vlan_tag {
                     apply_proxy_arp_sysctl(tag, true);
                 }
+                crate::activity::log("vpn-server", "configured", true, &format!("Configured inbound VPN for profile '{}'", profile_name), None);
                 return Ok(());
             }
         }
@@ -662,6 +667,14 @@ pub fn delete(_ctx: ServerContext, args: DeleteArgs) -> Result<(), Error> {
     loop {
         let arena = Arena::new();
         let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt", "firewall", "dhcp"])?;
+
+        // Resolve profile fullname before modifying configs
+        let profile_name = {
+            let profile_lookup = profiles::Lookup::parse(ServerContext, &cfgs)?;
+            profile_lookup.from_interface(profile_interface)
+                .map(|p| p.fullname.clone())
+                .unwrap_or_else(|| profile_interface.clone())
+        };
 
         // Remove the WireGuard interface from network config
         cfgs["network"].sections.retain(|section| {
@@ -717,13 +730,17 @@ pub fn delete(_ctx: ServerContext, args: DeleteArgs) -> Result<(), Error> {
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("vpn-server", "deleted", false, &format!("Failed to delete inbound VPN for profile '{}'", profile_name), Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 reload_system()?;
                 // Clear proxy_arp sysctl — netifd ignores the UCI option
                 if let Some(tag) = vlan_tag {
                     apply_proxy_arp_sysctl(tag, false);
                 }
+                crate::activity::log("vpn-server", "deleted", true, &format!("Deleted inbound VPN for profile '{}'", profile_name), None);
                 return Ok(());
             }
         }
@@ -766,7 +783,7 @@ pub fn peer_add(
 
         // Verify the profile exists and get its gateway IP
         let profile_lookup = profiles::Lookup::parse(ServerContext, &cfgs)?;
-        let _profile_id = profile_lookup.from_interface(profile_interface)
+        let profile_id = profile_lookup.from_interface(profile_interface)
             .ok_or_else(|| ErrorKind::MissingProfile {
                 id: ProfileIdOpt {
                     fullname: None,
@@ -774,6 +791,7 @@ pub fn peer_add(
                     vlan_tag: None,
                 }
             })?;
+        let profile_name = profile_id.fullname.clone();
 
         let gateway_ip = get_gateway_ip(&cfgs, profile_interface)?;
 
@@ -859,7 +877,10 @@ pub fn peer_add(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("vpn-server", "peer-added", false, &format!("Failed to add peer '{}' to inbound VPN for profile '{}'", peer.name, profile_name), Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 // Restart the WireGuard interface to apply peer changes immediately
                 restart_wireguard_interface(&wg_interface_name)?;
@@ -894,6 +915,7 @@ pub fn peer_add(
                     )
                 });
 
+                crate::activity::log("vpn-server", "peer-added", true, &format!("Added peer '{}' to inbound VPN for profile '{}'", peer.name, profile_name), None);
                 return Ok(PeerAddResponse {
                     client_config,
                     public_key: peer_public_key,
@@ -914,6 +936,14 @@ pub fn peer_delete(_ctx: ServerContext, args: PeerDeleteArgs) -> Result<(), Erro
     loop {
         let arena = Arena::new();
         let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt"])?;
+
+        // Resolve profile fullname before modifying configs
+        let profile_name = {
+            let profile_lookup = profiles::Lookup::parse(ServerContext, &cfgs)?;
+            profile_lookup.from_interface(profile_interface)
+                .map(|p| p.fullname.clone())
+                .unwrap_or_else(|| profile_interface.clone())
+        };
 
         // Verify the VPN server exists for this profile
         let vpn_exists = cfgs["startwrt"]
@@ -959,10 +989,14 @@ pub fn peer_delete(_ctx: ServerContext, args: PeerDeleteArgs) -> Result<(), Erro
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("vpn-server", "peer-deleted", false, &format!("Failed to delete peer from inbound VPN for profile '{}'", profile_name), Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 // Restart the WireGuard interface to apply peer changes immediately
                 restart_wireguard_interface(&wg_interface_name)?;
+                crate::activity::log("vpn-server", "peer-deleted", true, &format!("Deleted peer from inbound VPN for profile '{}'", profile_name), None);
                 return Ok(());
             }
         }

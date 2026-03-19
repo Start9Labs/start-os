@@ -509,10 +509,14 @@ pub fn create(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("vpn-client", "created", false, &format!("Failed to create outbound VPN '{}'", req.label), Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 restart_wireguard_interface(&interface_name)?;
                 reload_system()?;
+                crate::activity::log("vpn-client", "created", true, &format!("Created outbound VPN '{}'", req.label), None);
                 return Ok(OutboundVpnCreateResponse { id: interface_name });
             }
         }
@@ -586,9 +590,13 @@ pub fn update(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("vpn-client", "updated", false, &format!("Failed to update outbound VPN '{}'", req.label), Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 reload_system()?;
+                crate::activity::log("vpn-client", "updated", true, &format!("Updated outbound VPN '{}'", req.label), None);
                 return Ok(());
             }
         }
@@ -688,11 +696,15 @@ pub fn delete(ctx: ServerContext, args: OutboundVpnDeleteRequest) -> Result<(), 
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("vpn-client", "deleted", false, &format!("Failed to delete outbound VPN '{}'", this_label), Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 // network reload will see the WG interface is gone from config
                 // and tear it down atomically — no separate ifdown needed.
                 reload_system()?;
+                crate::activity::log("vpn-client", "deleted", true, &format!("Deleted outbound VPN '{}'", this_label), None);
                 return Ok(());
             }
         }
@@ -765,6 +777,7 @@ pub fn set_enabled(
         let Some(this_meta) = this_meta else {
             return Err(Error::other(format!("VPN client {} not found", interface_name)));
         };
+        let vpn_label = this_meta.label.clone();
 
         // Block disabling if other VPNs chain through this one
         if !req.enabled {
@@ -836,7 +849,11 @@ pub fn set_enabled(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                let action = if req.enabled { "enabled" } else { "disabled" };
+                crate::activity::log("vpn-client", action, false, &format!("Failed to {} outbound VPN '{}'", if req.enabled { "enable" } else { "disable" }, vpn_label), Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 if req.enabled {
                     restart_wireguard_interface(interface_name)?;
@@ -847,6 +864,8 @@ pub fn set_enabled(
                         .and_then(|mut c| c.wait());
                 }
                 reload_system()?;
+                let action = if req.enabled { "enabled" } else { "disabled" };
+                crate::activity::log("vpn-client", action, true, &format!("{} outbound VPN '{}'", if req.enabled { "Enabled" } else { "Disabled" }, vpn_label), None);
                 return Ok(());
             }
         }

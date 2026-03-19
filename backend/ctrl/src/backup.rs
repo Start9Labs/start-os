@@ -47,6 +47,7 @@ pub async fn backup_handler(headers: HeaderMap) -> Response<Body> {
         Ok(output) => output,
         Err(e) => {
             tracing::error!("failed to spawn sysupgrade --create-backup: {e}");
+            crate::activity::log("backup", "downloaded", false, "Failed to create config backup", Some(&e.to_string()));
             return Response::builder()
                 .status(500)
                 .body(Body::from("Failed to create backup"))
@@ -55,16 +56,23 @@ pub async fn backup_handler(headers: HeaderMap) -> Response<Body> {
     };
 
     if !output.status.success() {
-        tracing::error!(
-            "sysupgrade --create-backup failed (exit {}): {}",
+        let msg = format!(
+            "sysupgrade --create-backup failed (exit {})",
             output.status.code().unwrap_or(-1),
+        );
+        tracing::error!(
+            "{}: {}",
+            msg,
             String::from_utf8_lossy(&output.stderr),
         );
+        crate::activity::log("backup", "downloaded", false, "Failed to create config backup", Some(&msg));
         return Response::builder()
             .status(500)
             .body(Body::from("Failed to create backup"))
             .unwrap();
     }
+
+    crate::activity::log("backup", "downloaded", true, "Downloaded config backup", None);
 
     Response::builder()
         .header(header::CONTENT_TYPE, "application/gzip")
@@ -134,6 +142,7 @@ pub async fn restore_handler(
         Ok(status) if status.success() => {}
         _ => {
             let _ = tokio::fs::remove_file(tmp_path).await;
+            crate::activity::log("backup", "restored", false, "Failed to restore config backup", Some("Invalid backup archive"));
             return Response::builder()
                 .status(400)
                 .body(Body::from("Invalid backup archive"))
@@ -154,26 +163,31 @@ pub async fn restore_handler(
     match apply {
         Ok(output) if output.status.success() => {}
         Ok(output) => {
+            let msg = format!(
+                "sysupgrade --restore-backup failed (exit {})",
+                output.status.code().unwrap_or(-1)
+            );
             tracing::error!(
-                "sysupgrade --restore-backup failed (exit {}): {}",
-                output.status.code().unwrap_or(-1),
+                "{}: {}",
+                msg,
                 String::from_utf8_lossy(&output.stderr),
             );
+            crate::activity::log("backup", "restored", false, "Failed to restore config backup", Some(&msg));
             return Response::builder()
                 .status(500)
-                .body(Body::from(format!(
-                    "sysupgrade --restore-backup failed (exit {})",
-                    output.status.code().unwrap_or(-1)
-                )))
+                .body(Body::from(msg))
                 .unwrap();
         }
         Err(e) => {
+            crate::activity::log("backup", "restored", false, "Failed to restore config backup", Some(&e.to_string()));
             return Response::builder()
                 .status(500)
                 .body(Body::from(format!("Failed to run restore: {e}")))
                 .unwrap();
         }
     }
+
+    crate::activity::log("backup", "restored", true, "Restored config backup (rebooting)", None);
 
     // Spawn delayed reboot so the response can reach the client
     tokio::spawn(async {

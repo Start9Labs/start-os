@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
+  inject,
   signal,
 } from '@angular/core'
 import {
@@ -11,23 +11,48 @@ import {
   TuiTablePagination,
   tuiTablePaginationOptionsProvider,
 } from '@taiga-ui/addon-table'
-import { TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiHeader } from '@taiga-ui/layout'
+import { Placeholder } from 'src/app/components/placeholder'
+import { ActivityEntry, ApiService } from 'src/app/services/api/api.service'
+import { ActionService } from 'src/app/services/action.service'
 
 @Component({
   template: `
+    <header tuiHeader="h6">
+      <h2 tuiTitle>Activity</h2>
+      @if (activity().length) {
+        <button tuiButton size="s" appearance="flat" (click)="clearAll()">
+          Clear All
+        </button>
+      }
+    </header>
     <table tuiTable class="g-table">
       <thead>
         <tr>
+          <th tuiTh></th>
           <th tuiTh>Date</th>
           <th tuiTh>Detail</th>
           <th tuiTh></th>
         </tr>
       </thead>
       <tbody>
-        @for (item of filtered(); track $index) {
+        @for (item of activity(); track item.id) {
           <tr>
-            <td tuiTd>{{ item.date | date: 'medium' }}</td>
-            <td tuiTd>{{ item.key }}</td>
+            <td tuiTd>
+              <tui-icon
+                [icon]="item.success ? '@tui.check' : '@tui.x'"
+                [class.g-positive]="item.success"
+                [class.g-negative]="!item.success"
+              />
+            </td>
+            <td tuiTd>{{ item.timestamp | date: 'medium' }}</td>
+            <td tuiTd>
+              {{ item.summary }}
+              @if (item.error) {
+                <span class="error-detail">{{ item.error }}</span>
+              }
+            </td>
             <td tuiTd>
               <button
                 tuiIconButton
@@ -35,20 +60,28 @@ import { TuiButton } from '@taiga-ui/core'
                 size="xs"
                 appearance="icon"
                 iconStart="@tui.trash"
-                (click)="remove($index)"
+                (click)="remove(item)"
               >
                 Delete
               </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td tuiTd colspan="4">
+              <app-placeholder icon="@tui.activity">
+                No activity
+              </app-placeholder>
             </td>
           </tr>
         }
       </tbody>
     </table>
     <tui-table-pagination
-      [total]="activity().length"
+      [total]="total()"
       [page]="page()"
       [size]="size()"
-      (paginationChange)="page.set($event.page); size.set($event.size)"
+      (paginationChange)="onPageChange($event.page, $event.size)"
     />
   `,
   styles: `
@@ -56,8 +89,24 @@ import { TuiButton } from '@taiga-ui/core'
       max-width: 50rem;
     }
 
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    td:first-child {
+      width: 2rem;
+    }
+
     td:last-child {
       text-align: end;
+    }
+
+    .error-detail {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--tui-text-tertiary);
     }
 
     tui-table-pagination {
@@ -72,33 +121,68 @@ import { TuiButton } from '@taiga-ui/core'
       useValue: signal({ linesPerPage: '', of: 'of', pages: '' }),
     },
   ],
-  imports: [DatePipe, TuiTable, TuiTablePagination, TuiButton],
+  imports: [
+    DatePipe,
+    TuiTable,
+    TuiTablePagination,
+    TuiButton,
+    TuiIcon,
+    TuiTitle,
+    TuiHeader,
+    Placeholder,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Activity {
+  private readonly api = inject(ApiService)
+  private readonly actions = inject(ActionService)
+
   protected readonly page = signal(0)
   protected readonly size = signal(10)
-  protected readonly activity = signal(
-    Array.from({ length: 25 }, (_, i) => ({
-      date: new Date(Date.now() - i * 1000 * 60 * 60 * 24),
-      key: `Random activity key #${i + 1}`,
-    })),
-  )
+  protected readonly total = signal(0)
+  protected readonly activity = signal<ActivityEntry[]>([])
 
-  protected readonly filtered = computed(() =>
-    this.activity().filter(
-      (_, i) =>
-        i < (this.page() + 1) * this.size() && i >= this.page() * this.size(),
-    ),
-  )
+  constructor() {
+    this.load()
+  }
 
-  protected remove(index: number): void {
-    this.activity.set(
-      this.activity().filter((_, i) => i !== index + this.page() * this.size()),
+  protected async load() {
+    const res = await this.api.activityList({
+      offset: this.page() * this.size(),
+      limit: this.size(),
+    })
+    this.activity.set(res.entries)
+    this.total.set(res.total)
+  }
+
+  protected onPageChange(page: number, size: number) {
+    this.page.set(page)
+    this.size.set(size)
+    this.load()
+  }
+
+  protected async remove(item: ActivityEntry) {
+    await this.actions.run(
+      async () => {
+        await this.api.activityDelete({ id: item.id })
+        if (this.activity().length === 1 && this.page() > 0) {
+          this.page.update(p => p - 1)
+        }
+        await this.load()
+      },
+      { success: 'Entry deleted' },
     )
+  }
 
-    if (!this.filtered().length) {
-      this.page.update(page => Math.max(page - 1, 0))
-    }
+  protected async clearAll() {
+    await this.actions.run(
+      async () => {
+        await this.api.activityClear()
+        this.activity.set([])
+        this.total.set(0)
+        this.page.set(0)
+      },
+      { loading: 'Clearing activity log...', success: 'Activity log cleared' },
+    )
   }
 }

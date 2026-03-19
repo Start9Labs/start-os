@@ -139,8 +139,29 @@ pub fn ipv4_set<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log(
+                    "lan", "ipv4-updated", false,
+                    &format!("Failed to update LAN IPv4 to {address}"),
+                    Some(&err.to_string()),
+                );
+                return Err(err.into());
+            }
             Ok(()) => {
+                if block_changed {
+                    crate::activity::log(
+                        "lan", "ipv4-block-changed", true,
+                        &format!("Updated LAN IPv4 to {address} (subnet block changed — all profiles updated)"),
+                        None,
+                    );
+                } else {
+                    crate::activity::log(
+                        "lan", "ipv4-updated", true,
+                        &format!("Updated LAN IPv4 to {address}"),
+                        None,
+                    );
+                }
+
                 if ctx.effectful() {
                     // Regenerate server cert with updated LAN IP as SAN
                     let ip_changed = old_address.map_or(true, |old| old != address);
@@ -320,8 +341,12 @@ pub fn ipv6_set<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("lan", "ipv6-updated", false, "Failed to update LAN IPv6 settings", Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
+                crate::activity::log("lan", "ipv6-updated", true, "Updated LAN IPv6 settings", None);
                 if ctx.effectful() {
                     // Restart odhcpd first so it can send a deprecation RA
                     // (prefix lifetimes=0) while the network is still up.

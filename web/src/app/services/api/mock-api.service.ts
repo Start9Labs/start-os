@@ -65,6 +65,9 @@ import {
   SshKeyFromApi,
   SshKeysAddRequest,
   SshKeysDeleteRequest,
+  ActivityEntry,
+  ActivityListParams,
+  ActivityListResponse,
 } from './api.service'
 import {
   DhcpSection,
@@ -1361,6 +1364,49 @@ export class MockApiService extends ApiService {
     this.mockSshKeys = this.mockSshKeys.filter(
       k => k.fingerprint !== params.fingerprint,
     )
+    return null
+  }
+
+  private mockActivity: ActivityEntry[] = Array.from(
+    { length: 25 },
+    (_, i) => ({
+      id: `mock-${i}`,
+      timestamp: new Date(Date.now() - i * 1000 * 60 * 60 * 24).toISOString(),
+      category: ['profile', 'wifi', 'vpn-client', 'device', 'auth'][i % 5],
+      action: ['created', 'updated', 'deleted', 'enabled', 'login'][i % 5],
+      success: i !== 3,
+      summary: [
+        "Created profile 'Guest'",
+        "Updated WiFi settings (SSID: 'MyNetwork')",
+        "Deleted outbound VPN 'Mullvad US'",
+        "Failed to enable outbound VPN 'NordVPN'",
+        'Logged in',
+      ][i % 5],
+      error: i === 3 ? 'VpnChainCycle: would create a loop' : null,
+    }),
+  )
+
+  async activityList(
+    params: ActivityListParams = {},
+  ): Promise<ActivityListResponse> {
+    await pauseFor(100)
+    const offset = params.offset ?? 0
+    const limit = params.limit ?? 50
+    return {
+      entries: this.mockActivity.slice(offset, offset + limit),
+      total: this.mockActivity.length,
+    }
+  }
+
+  async activityDelete(params: { id: string }): Promise<null> {
+    await pauseFor(100)
+    this.mockActivity = this.mockActivity.filter(e => e.id !== params.id)
+    return null
+  }
+
+  async activityClear(): Promise<null> {
+    await pauseFor(100)
+    this.mockActivity = []
     return null
   }
 

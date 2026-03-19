@@ -419,9 +419,11 @@ pub fn set<C: CtrlContext>(
         let mut seen_labels = std::collections::HashSet::new();
         for pass in &wifi.passwords {
             if !seen_passwords.insert(&pass.password) {
+                crate::activity::log("wifi", "updated", false, "Failed to update WiFi: duplicate password", Some("DuplicatePassword"));
                 return Err(ErrorKind::DuplicatePassword.into());
             }
             if !pass.label.is_empty() && !seen_labels.insert(&pass.label) {
+                crate::activity::log("wifi", "updated", false, "Failed to update WiFi: duplicate password label", Some("DuplicatePasswordLabel"));
                 return Err(ErrorKind::DuplicatePasswordLabel.into());
             }
         }
@@ -437,9 +439,13 @@ pub fn set<C: CtrlContext>(
                     .spawn()
                     .context("executing `wifi config`")?
                     .wait();
+                crate::activity::log("wifi", "recovered", true, "Recovered corrupted WiFi config (auto-regenerated)", None);
                 continue;
             }
-            Err(err) => return Err(err),
+            Err(err) => {
+                crate::activity::log("wifi", "updated", false, "Failed to update WiFi settings", Some(&err.to_string()));
+                return Err(err);
+            }
             Ok(v) => v,
         };
         match dump_all(ctx.uci_root(), cfgs) {
@@ -447,7 +453,10 @@ pub fn set<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("wifi", "updated", false, "Failed to write WiFi config", Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 if ctx.effectful() {
                     match restart {
@@ -466,6 +475,14 @@ pub fn set<C: CtrlContext>(
                                 .context("executing `wifi reload`")?
                                 .wait();
                         }
+                    }
+                }
+                match restart {
+                    WifiRestart::Full => {
+                        crate::activity::log("wifi", "updated", true, &format!("Updated WiFi settings (SSID: '{}')", wifi.ssid), None);
+                    }
+                    WifiRestart::PskOnly => {
+                        crate::activity::log("wifi", "passwords-updated", true, "Updated WiFi passwords (PSK hot-reload)", None);
                     }
                 }
                 return Ok(());
@@ -625,7 +642,10 @@ pub fn blackout_set<C: CtrlContext>(
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&path, &new_content)?;
+    if let Err(err) = std::fs::write(&path, &new_content) {
+        crate::activity::log("wifi", "blackout-updated", false, "Failed to write blackout schedule", Some(&err.to_string()));
+        return Err(err.into());
+    }
 
     if ctx.effectful() {
         let _ = Command::new("/etc/init.d/cron")
@@ -635,6 +655,7 @@ pub fn blackout_set<C: CtrlContext>(
             .wait();
     }
 
+    crate::activity::log("wifi", "blackout-updated", true, "Updated WiFi blackout schedule", None);
     Ok(())
 }
 

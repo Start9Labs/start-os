@@ -133,6 +133,15 @@ pub(crate) struct UciProfile {
     pub dns_override: Vec<String>,
 }
 
+/// Snapshot of profile fields before an update, for activity log diffing.
+struct OldProfileState {
+    outbound: Option<String>,
+    wan_access: Option<String>,
+    access_to_new_profiles: bool,
+    dns_override: Vec<String>,
+    gateway_ip: Option<Ipv4Addr>,
+}
+
 impl UciProfile {
     pub fn id(&self) -> ProfileId {
         ProfileId {
@@ -489,6 +498,8 @@ fn get_config(
 }
 
 pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
+    let name = id.fullname.clone().unwrap_or_default();
+
     // Resolve the profile interface name before the retry loop so we can
     // use it for ifdown after dump_all succeeds (delete_config consumes the query).
     let interface_name = {
@@ -507,13 +518,19 @@ pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
             &arena,
             &["startwrt", "network", "firewall", "dhcp", "wireless"],
         )?;
-        delete_config(ctx.clone(), &mut cfgs, &id)?;
+        if let Err(e) = delete_config(ctx.clone(), &mut cfgs, &id) {
+            crate::activity::log("profile", "deleted", false, &format!("Failed to delete profile '{name}'"), Some(&e.to_string()));
+            return Err(e);
+        }
         match dump_all(ctx.uci_root(), cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("profile", "deleted", false, &format!("Failed to delete profile '{name}'"), Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 if ctx.effectful() {
                     // Regenerate SmartDNS config after UCI dump so the deleted
@@ -530,6 +547,7 @@ pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
                         .and_then(|mut c| c.wait());
                     reload_system_and_wifi()?;
                 }
+                crate::activity::log("profile", "deleted", true, &format!("Deleted profile '{name}'"), None);
                 return Ok(());
             }
         }
@@ -842,6 +860,7 @@ pub fn set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(profile): DeserializeStdin<Profile<ProfileIdOpt>>,
 ) -> Result<ProfileId, Error> {
+    let name = profile.id.fullname.clone().unwrap_or_default();
     let mut retries = 4;
     loop {
         let arena = Arena::new();
@@ -858,7 +877,13 @@ pub fn set<C: CtrlContext>(
             None
         };
 
-        let out = set_config(ctx.clone(), &mut cfgs, &profile)?;
+        let (out, old_state) = match set_config(ctx.clone(), &mut cfgs, &profile) {
+            Ok(result) => result,
+            Err(e) => {
+                crate::activity::log("profile", "updated", false, &format!("Failed to update profile '{name}'"), Some(&e.to_string()));
+                return Err(e);
+            }
+        };
 
         // Detect admin IP change and propagate block changes to sibling profiles
         let admin_ip_changed = profile.owns_lan
@@ -896,7 +921,10 @@ pub fn set<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("profile", "updated", false, &format!("Failed to update profile '{name}'"), Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 if ctx.effectful() {
                     // Regenerate SmartDNS config after UCI dump so it reflects
@@ -911,6 +939,36 @@ pub fn set<C: CtrlContext>(
                         reload_system()?;
                     }
                 }
+                let mut changes = Vec::new();
+                if let Some(ref old) = old_state {
+                    if old.outbound.as_deref() != Some(&profile.outbound) {
+                        changes.push(format!("outbound: {}", profile.outbound));
+                    }
+                    let new_wan = wan_access_type_str(&profile.wan_access);
+                    if old.wan_access.as_deref() != Some(&new_wan) {
+                        changes.push(format!("WAN access: {}", new_wan));
+                    }
+                    if old.access_to_new_profiles != profile.access_to_new_profiles {
+                        changes.push(format!(
+                            "access to new profiles: {}",
+                            profile.access_to_new_profiles
+                        ));
+                    }
+                    if old.gateway_ip.is_some() && old.gateway_ip != Some(profile.gateway_ip) {
+                        changes.push(format!("gateway: {}", profile.gateway_ip));
+                    }
+                    if old.dns_override
+                        != dns::serialize_dns_server_list(&profile.dns_override)
+                    {
+                        changes.push("DNS".to_string());
+                    }
+                }
+                let summary = if changes.is_empty() {
+                    format!("Updated profile '{name}'")
+                } else {
+                    format!("Updated profile '{name}' — {}", changes.join(", "))
+                };
+                crate::activity::log("profile", "updated", true, &summary, None);
                 return Ok(out);
             }
         }
@@ -933,7 +991,7 @@ fn set_config<C: CtrlContext>(
     ctx: C,
     cfgs: &mut Configs,
     profile: &Profile<ProfileIdOpt>,
-) -> Result<ProfileId, Error> {
+) -> Result<(ProfileId, Option<OldProfileState>), Error> {
     let ipv6 = is_ipv6_enabled(cfgs)
         && outbound_supports_ipv6(cfgs, &profile.outbound);
     // Check fullname uniqueness before renaming
@@ -949,6 +1007,7 @@ fn set_config<C: CtrlContext>(
             }
         }
     }
+    let mut old_state: Option<OldProfileState> = None;
     for section in &mut cfgs["startwrt"].sections {
         if let Some(mut existing_profile) = section.get_typed::<UciProfile>()? {
             if let Some(given_fullname) = &profile.id.fullname {
@@ -961,6 +1020,13 @@ fn set_config<C: CtrlContext>(
                 }
             }
             if profile.id.matches(&existing_profile.id().into()) {
+                old_state = Some(OldProfileState {
+                    outbound: existing_profile.outbound.clone(),
+                    wan_access: existing_profile.wan_access.clone(),
+                    access_to_new_profiles: existing_profile.access_to_new_profiles,
+                    dns_override: existing_profile.dns_override.clone(),
+                    gateway_ip: None, // filled from network config below
+                });
                 existing_profile.access_to_new_profiles = profile.access_to_new_profiles;
                 existing_profile.outbound = Some(profile.outbound.clone());
                 existing_profile.wan_access = Some(wan_access_type_str(&profile.wan_access));
@@ -1002,6 +1068,9 @@ fn set_config<C: CtrlContext>(
                 all_interfaces.insert(name.to_string());
             }
             if name == profile.id.interface {
+                if let Some(ref mut old) = old_state {
+                    old.gateway_ip = iface.ipaddr;
+                }
                 iface.proto = InterfaceProto::STATIC;
                 iface.ipaddr = Some(profile.gateway_ip);
                 iface.netmask = Some(Ipv4Addr::new(255, 255, 255, 0));
@@ -1055,13 +1124,14 @@ fn set_config<C: CtrlContext>(
     rewrite_routing(&ctx, cfgs, &profile)?;
     sync_cross_subnet_routes(cfgs)?;
     cleanup_orphaned_wan_vpns(cfgs);
-    Ok(profile.id)
+    Ok((profile.id, old_state))
 }
 
 pub fn create<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(profile): DeserializeStdin<Profile<ProfileIdOpt>>,
 ) -> Result<ProfileId, Error> {
+    let name = profile.id.fullname.clone().unwrap_or_default();
     let mut retries = 4;
     loop {
         let arena = Arena::new();
@@ -1070,13 +1140,22 @@ pub fn create<C: CtrlContext>(
             &arena,
             &["startwrt", "network", "firewall", "dhcp", "wireless"],
         )?;
-        let out = create_config(ctx.clone(), &mut cfgs, &profile)?;
+        let out = match create_config(ctx.clone(), &mut cfgs, &profile) {
+            Ok(out) => out,
+            Err(e) => {
+                crate::activity::log("profile", "created", false, &format!("Failed to create profile '{name}'"), Some(&e.to_string()));
+                return Err(e);
+            }
+        };
         match dump_all(ctx.uci_root(), cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("profile", "created", false, &format!("Failed to create profile '{name}'"), Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 if ctx.effectful() {
                     // Regenerate SmartDNS config after UCI dump so it reflects
@@ -1087,6 +1166,7 @@ pub fn create<C: CtrlContext>(
 
                     reload_system_and_wifi()?;
                 }
+                crate::activity::log("profile", "created", true, &format!("Created profile '{name}'"), None);
                 return Ok(out);
             }
         }

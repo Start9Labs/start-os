@@ -398,7 +398,9 @@ pub fn apply_remote_access<C: CtrlContext>(ctx: C) -> Result<Value, Error> {
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                return Err(err.into());
+            }
             Ok(()) => {
                 if ctx.effectful() {
                     reload_firewall(wan_ipv4, wan_ipv6s);
@@ -507,11 +509,19 @@ fn set_preferences<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                if needs_firewall {
+                    crate::activity::log("system", "remote-access", false, &format!("Failed to update remote access to '{}'", new_mode.as_deref().unwrap_or("unknown")), Some(&err.to_string()));
+                }
+                return Err(err.into());
+            }
             Ok(()) => {
-                if new_mode.is_some() && ctx.effectful() {
-                    let (wan_ipv4, wan_ipv6s) = (get_wan_ipv4()?, get_wan_ipv6s()?);
-                    reload_firewall(wan_ipv4, wan_ipv6s);
+                if new_mode.is_some() {
+                    crate::activity::log("system", "remote-access", true, &format!("Updated remote access to '{}'", new_mode.as_deref().unwrap_or("unknown")), None);
+                    if ctx.effectful() {
+                        let (wan_ipv4, wan_ipv6s) = (get_wan_ipv4()?, get_wan_ipv6s()?);
+                        reload_firewall(wan_ipv4, wan_ipv6s);
+                    }
                 }
                 return Ok(Value::Null);
             }
@@ -529,8 +539,12 @@ async fn factory_reset(_ctx: ServerContext) -> Result<(), Error> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(Error::other(format!("firstboot failed: {stderr}")));
+        let err = Error::other(format!("firstboot failed: {stderr}"));
+        crate::activity::log("system", "factory-reset", false, "Failed to initiate factory reset", Some(&err.to_string()));
+        return Err(err);
     }
+
+    crate::activity::log("system", "factory-reset", true, "Factory reset initiated", None);
 
     // Spawn reboot after a short delay so the HTTP response can reach the client
     tokio::spawn(async {
@@ -545,6 +559,8 @@ async fn factory_reset(_ctx: ServerContext) -> Result<(), Error> {
 
 #[instrument(skip_all)]
 async fn restart(_ctx: ServerContext) -> Result<(), Error> {
+    crate::activity::log("system", "restart", true, "System restart initiated", None);
+
     tokio::spawn(async {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         if let Err(e) = Command::new("reboot").status().await {

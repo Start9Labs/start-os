@@ -1175,8 +1175,36 @@ pub fn update<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                let mut details = Vec::new();
+                if req.ipv4_static && !req.ipv4.is_empty() {
+                    details.push(format!("static IPv4: {}", req.ipv4));
+                }
+                if req.ipv6_static && !req.ipv6.is_empty() {
+                    details.push(format!("static IPv6: {}", req.ipv6));
+                }
+                let summary = if details.is_empty() {
+                    format!("Failed to update device '{}' ({})", req.name, mac_upper)
+                } else {
+                    format!("Failed to update device '{}' ({}) — {}", req.name, mac_upper, details.join(", "))
+                };
+                crate::activity::log("device", "updated", false, &summary, Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
+                let mut details = Vec::new();
+                if req.ipv4_static && !req.ipv4.is_empty() {
+                    details.push(format!("static IPv4: {}", req.ipv4));
+                }
+                if req.ipv6_static && !req.ipv6.is_empty() {
+                    details.push(format!("static IPv6: {}", req.ipv6));
+                }
+                let summary = if details.is_empty() {
+                    format!("Updated device '{}' ({})", req.name, mac_upper)
+                } else {
+                    format!("Updated device '{}' ({}) — {}", req.name, mac_upper, details.join(", "))
+                };
+                crate::activity::log("device", "updated", true, &summary, None);
                 if ctx.effectful() {
                     reload_dnsmasq();
                 }
@@ -1241,8 +1269,20 @@ pub fn block<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log(
+                    "device", "blocked", false,
+                    &format!("Failed to block device {}", mac_upper),
+                    Some(&err.to_string()),
+                );
+                return Err(err.into());
+            }
             Ok(()) => {
+                crate::activity::log(
+                    "device", "blocked", true,
+                    &format!("Blocked device {}", mac_upper),
+                    None,
+                );
                 if ctx.effectful() {
                     reload_firewall_and_dnsmasq();
                 }
@@ -1280,8 +1320,20 @@ pub fn unblock<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log(
+                    "device", "unblocked", false,
+                    &format!("Failed to unblock device {}", mac_upper),
+                    Some(&err.to_string()),
+                );
+                return Err(err.into());
+            }
             Ok(()) => {
+                crate::activity::log(
+                    "device", "unblocked", true,
+                    &format!("Unblocked device {}", mac_upper),
+                    None,
+                );
                 if ctx.effectful() {
                     reload_firewall();
                 }
@@ -1330,8 +1382,20 @@ pub fn forget<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log(
+                    "device", "forgotten", false,
+                    &format!("Failed to forget device {}", mac_upper),
+                    Some(&err.to_string()),
+                );
+                return Err(err.into());
+            }
             Ok(()) => {
+                crate::activity::log(
+                    "device", "forgotten", true,
+                    &format!("Forgot device {}", mac_upper),
+                    None,
+                );
                 if ctx.effectful() {
                     reload_firewall_and_dnsmasq();
                 }

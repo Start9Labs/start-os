@@ -611,11 +611,15 @@ pub fn set<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("published-ports", "updated", false, "Failed to update published ports", Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 if ctx.effectful() {
                     restart_firewall();
                 }
+                crate::activity::log("published-ports", "updated", true, &format!("Updated published ports ({} rules)", req.ports.len()), None);
                 return Ok(());
             }
         }

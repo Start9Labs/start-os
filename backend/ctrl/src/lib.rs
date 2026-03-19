@@ -1,3 +1,4 @@
+pub mod activity;
 pub mod auth;
 pub mod backup;
 pub mod captive;
@@ -256,6 +257,7 @@ pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
         .subcommand("lan", lan::lan::<C>())
         .subcommand("published-ports", published_ports::published_ports::<C>())
         .subcommand("ssh-keys", ssh_keys::ssh_keys::<C>())
+        .subcommand("activity", activity::activity::<C>())
 }
 
 pub fn init_logging(name: &str) {

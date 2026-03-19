@@ -62,6 +62,8 @@ import {
   SshKeyFromApi,
   SshKeysAddRequest,
   SshKeysDeleteRequest,
+  ActivityListParams,
+  ActivityListResponse,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -347,5 +349,19 @@ export class LiveApiService extends ApiService {
 
   async sshKeysDelete(params: SshKeysDeleteRequest): Promise<null> {
     return this.rpc.request({ method: 'ssh-keys.delete', params })
+  }
+
+  async activityList(
+    params: ActivityListParams = {},
+  ): Promise<ActivityListResponse> {
+    return this.rpc.request({ method: 'activity.list', params })
+  }
+
+  async activityDelete(params: { id: string }): Promise<null> {
+    return this.rpc.request({ method: 'activity.delete', params })
+  }
+
+  async activityClear(): Promise<null> {
+    return this.rpc.request({ method: 'activity.clear', params: {} })
   }
 }

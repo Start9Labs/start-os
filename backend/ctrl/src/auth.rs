@@ -283,7 +283,10 @@ pub async fn login_impl(
         user_agent,
     }: LoginParams,
 ) -> Result<LoginRes, Error> {
-    check_password(&password).await?;
+    if let Err(e) = check_password(&password).await {
+        crate::activity::log("auth", "login", false, "Login failed", Some(&e.to_string()));
+        return Err(e);
+    }
 
     let hash_token = HashSessionToken::new();
     let session = Session {
@@ -293,6 +296,7 @@ pub async fn login_impl(
     };
 
     add_session(hash_token.hashed(), session).await?;
+    crate::activity::log("auth", "login", true, "Logged in", None);
 
     Ok(hash_token.to_login_res())
 }
@@ -426,9 +430,12 @@ pub async fn reset_password_impl(
         .map_err(|e| Error::other(format!("Failed to hash password: {e}")))?;
 
     // Update /etc/shadow directly
-    update_shadow_hash("root", &new_hash).await?;
-
-    Ok(())
+    let result = update_shadow_hash("root", &new_hash).await;
+    match &result {
+        Ok(()) => crate::activity::log("auth", "password-changed", true, "Changed admin password", None),
+        Err(e) => crate::activity::log("auth", "password-changed", false, "Failed to change admin password", Some(&e.to_string())),
+    }
+    result
 }
 
 #[instrument(skip_all)]

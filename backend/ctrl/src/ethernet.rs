@@ -177,14 +177,35 @@ pub fn set<C: CtrlContext>(
                 })
                 .collect::<Result<_, Error>>()?,
         };
-        set_config(&ctx, &mut cfgs, &ethernet, &lookup)?;
+        if let Err(err) = set_config(&ctx, &mut cfgs, &ethernet, &lookup) {
+            crate::activity::log("ethernet", "updated", false, "Failed to update Ethernet port assignments", Some(&err.to_string()));
+            return Err(err);
+        }
         match dump_all(ctx.uci_root(), cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("ethernet", "updated", false, "Failed to update Ethernet port assignments", Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
+                let changed: Vec<&str> = ethernet.ports.keys()
+                    .filter(|name| {
+                        let new_vlan = ethernet.ports[*name].profile.as_ref().map(|p| p.vlan_tag);
+                        let old_vlan = old_ports.get(*name).copied().flatten();
+                        old_ports.contains_key(*name) && old_vlan != new_vlan
+                    })
+                    .map(|s| s.as_str())
+                    .collect();
+                let summary = if changed.is_empty() {
+                    "Updated Ethernet port assignments".to_string()
+                } else {
+                    format!("Updated Ethernet port assignments (changed: {})", changed.join(", "))
+                };
+                crate::activity::log("ethernet", "updated", true, &summary, None);
+
                 if ctx.effectful() {
                     // Spawn reload in a background thread so the RPC
                     // response reaches the client before the network

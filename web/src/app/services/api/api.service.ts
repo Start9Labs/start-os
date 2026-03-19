@@ -78,6 +78,11 @@ export abstract class ApiService {
   abstract ethernetGet(): Promise<EthernetConfig>
   abstract ethernetSet(params: EthernetSetConfig): Promise<null>
   abstract sshKeysDelete(params: SshKeysDeleteRequest): Promise<null>
+  abstract activityList(
+    params?: ActivityListParams,
+  ): Promise<ActivityListResponse>
+  abstract activityDelete(params: { id: string }): Promise<null>
+  abstract activityClear(): Promise<null>
 }
 
 // Ethernet types
@@ -606,4 +611,26 @@ export interface OutboundVpnDeleteRequest {
 export interface OutboundVpnSetEnabledRequest {
   id: string
   enabled: boolean
+}
+
+// Activity types
+
+export interface ActivityEntry {
+  id: string
+  timestamp: string
+  category: string
+  action: string
+  success: boolean
+  summary: string
+  error: string | null
+}
+
+export interface ActivityListResponse {
+  entries: ActivityEntry[]
+  total: number
+}
+
+export interface ActivityListParams {
+  offset?: number
+  limit?: number
 }

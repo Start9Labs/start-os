@@ -11,6 +11,14 @@ use std::process::Command;
 use uciedit::openwrt::{DdnsService, InterfaceProto, NetworkDevice, NetworkInterface, UciSystemDns};
 use uciedit::{dump_all, parse_all, Arena};
 
+/// Returns the serde-serialized string representation of an enum variant (e.g. "dhcp", "6rd").
+fn serde_name(v: &impl Serialize) -> String {
+    serde_json::to_value(v)
+        .ok()
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_default()
+}
+
 pub const WAN_INTERFACE: &str = "wan";
 pub const WAN6_INTERFACE: &str = "wan6";
 const DDNS_SECTION: &str = "wan";
@@ -357,8 +365,12 @@ pub fn ipv4_set<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("wan", "ipv4-updated", false, "Failed to update WAN IPv4", Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
+                crate::activity::log("wan", "ipv4-updated", true, &format!("Updated WAN IPv4 (mode: {})", serde_name(&req.mode)), None);
                 if ctx.effectful() {
                     restart_network();
                 }
@@ -538,8 +550,12 @@ pub fn ipv6_set<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("wan", "ipv6-updated", false, "Failed to update WAN IPv6", Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
+                crate::activity::log("wan", "ipv6-updated", true, &format!("Updated WAN IPv6 (mode: {})", serde_name(&req.mode)), None);
                 if ctx.effectful() {
                     restart_network();
                     let _ = Command::new("/etc/init.d/odhcpd")
@@ -657,8 +673,12 @@ pub fn mac_set<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("wan", "mac-updated", false, "Failed to update WAN MAC address", Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
+                crate::activity::log("wan", "mac-updated", true, "Updated WAN MAC address", None);
                 if ctx.effectful() {
                     restart_network();
                 }
@@ -754,8 +774,12 @@ pub fn dns_set<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("wan", "dns-updated", false, "Failed to update WAN DNS", Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
+                crate::activity::log("wan", "dns-updated", true, &format!("Updated WAN DNS (mode: {})", serde_name(&req.mode)), None);
                 if ctx.effectful() {
                     // Re-read configs to regenerate SmartDNS with the updated state
                     let arena2 = Arena::new();
@@ -878,8 +902,12 @@ pub fn ddns_set<C: CtrlContext>(
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("wan", "ddns-updated", false, "Failed to update DDNS", Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
+                crate::activity::log("wan", "ddns-updated", true, &format!("Updated DDNS (provider: {})", serde_name(&req.provider)), None);
                 if ctx.effectful() {
                     let _ = Command::new("/etc/init.d/ddns")
                         .arg(if req.enabled { "restart" } else { "stop" })
