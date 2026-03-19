@@ -13,6 +13,9 @@ const MAX_ENTRIES: usize = 500;
 
 static DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
     let _ = std::fs::create_dir_all(ACTIVITY_DIR);
+    #[cfg(test)]
+    let conn = Connection::open_in_memory().expect("failed to open in-memory activity database");
+    #[cfg(not(test))]
     let conn = Connection::open(ACTIVITY_DB).expect("failed to open activity database");
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS activity (
