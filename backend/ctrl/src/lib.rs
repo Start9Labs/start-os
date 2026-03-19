@@ -73,7 +73,7 @@ pub struct CliArgs {
     pub config_root: PathBuf,
     #[clap(long)]
     pub configs_only: bool,
-    #[clap(long, default_value = "http://127.0.0.1/rpc/v1")]
+    #[clap(long, default_value = "http://router.lan/rpc/v1")]
     pub host: Url,
 }
 
