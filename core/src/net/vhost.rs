@@ -64,6 +64,7 @@ pub struct PassthroughInfo {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "kebab-case")]
 struct AddPassthroughParams {
     #[arg(long)]
@@ -79,6 +80,7 @@ struct AddPassthroughParams {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "kebab-case")]
 struct RemovePassthroughParams {
     #[arg(long)]
@@ -959,7 +961,8 @@ where
         + DbAccessMut<AcmeCertStore>
         + DbAccessByKey<AcmeSettings, Key<'a> = &'a AcmeProvider>
         + Send
-        + Sync,
+        + Sync
+        + 'static,
     A: Accept + 'static,
     <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>
         + Visit<ExtractVisitor<GatewayInfo>>
@@ -1088,7 +1091,7 @@ impl<A: Accept> VHostServer<A> {
                                 acme_cache,
                                 crypto_provider: crypto_provider.clone(),
                                 get_provider: GetVHostAcmeProvider(mapping.clone()),
-                                in_progress: Watch::new(BTreeSet::new()),
+                                in_progress: Watch::new(BTreeMap::new()),
                             }),
                             RootCaTlsHandler {
                                 db,
