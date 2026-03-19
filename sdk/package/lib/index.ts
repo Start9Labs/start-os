@@ -30,6 +30,10 @@ export { SubContainer } from './util/SubContainer'
 export { StartSdk } from './StartSdk'
 export { setupManifest, buildManifest } from './manifest/setupManifest'
 export { FileHelper } from './util/fileHelper'
+export {
+  smtpShape,
+  type SmtpSelection,
+} from '../../base/lib/actions/input/inputSpecConstants'
 
 export * as actions from '../../base/lib/actions'
 export * as backup from './backup'

@@ -247,10 +247,7 @@ export type SmtpSelection =
  * Zod schema for persisting SMTP selection in a store file model.
  * Use this instead of `smtpInputSpec.validator` to avoid cross-zod-instance issues.
  */
-export const smtpShape: {
-  parse(data: unknown): SmtpSelection
-  _output: SmtpSelection
-} = z
+export const smtpShape: z.ZodType<SmtpSelection> = z
   .discriminatedUnion('selection', [
     z.object({
       selection: z.literal('disabled'),

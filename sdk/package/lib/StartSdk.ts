@@ -11,7 +11,6 @@ import * as patterns from '../../base/lib/util/patterns'
 import { Backups } from './backup/Backups'
 import {
   smtpInputSpec,
-  smtpShape,
   systemSmtpSpec,
   customSmtp,
   smtpProviderVariants,
@@ -409,7 +408,6 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       },
       inputSpecConstants: {
         smtpInputSpec,
-        smtpShape,
         systemSmtpSpec,
         customSmtp,
         smtpProviderVariants,
