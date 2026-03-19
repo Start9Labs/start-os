@@ -427,12 +427,48 @@ fn list_conffiles(rootfs_mount: &str) -> HashSet<String> {
     files
 }
 
+/// Recursively enumerate all regular files under `dir`, returning their paths
+/// relative to `rootfs_mount` (e.g. "/etc/config/startwrt").
+fn enumerate_dir_files(dir: &Path, rootfs_mount: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    let Ok(entries) = fs::read_dir(dir) else {
+        return result;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            result.extend(enumerate_dir_files(&path, rootfs_mount));
+        } else if path.is_file() {
+            if let Ok(suffix) = path.strip_prefix(rootfs_mount) {
+                result.push(format!("/{}", suffix.display()));
+            }
+        }
+    }
+    result
+}
+
 /// Back up conffiles from a mounted rootfs.
 fn backup_conffiles(rootfs_mount: &str) -> Vec<BackedUpFile> {
     let conffiles = list_conffiles(rootfs_mount);
     let mut backed_up = Vec::new();
 
-    for path in conffiles {
+    // Expand directory entries and collect all file paths to back up.
+    let mut all_paths: HashSet<String> = HashSet::new();
+    for path in &conffiles {
+        let full_path = format!("{rootfs_mount}{path}");
+        let p = Path::new(&full_path);
+        if p.is_dir() {
+            for file_path in enumerate_dir_files(p, rootfs_mount) {
+                if !CONFFILES_EXCLUDE.contains(&file_path.as_str()) {
+                    all_paths.insert(file_path);
+                }
+            }
+        } else {
+            all_paths.insert(path.clone());
+        }
+    }
+
+    for path in all_paths {
         let full_path = format!("{rootfs_mount}{path}");
         let p = Path::new(&full_path);
         if !p.exists() || !p.is_file() {
@@ -1133,6 +1169,45 @@ Conffiles:
 
         let backup = backup_conffiles(root.to_str().unwrap());
         assert!(backup.is_empty());
+    }
+
+    #[test]
+    fn backup_expands_directory_entries() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+
+        // keep.d lists a directory (trailing slash) and the excluded /etc/shadow
+        let keep_d = root.join("lib/upgrade/keep.d");
+        fs::create_dir_all(&keep_d).unwrap();
+        fs::write(keep_d.join("base"), "/etc/config/\n").unwrap();
+
+        // Create files under /etc/config/, including a nested subdir
+        fs::create_dir_all(root.join("etc/config/subdir")).unwrap();
+        fs::write(root.join("etc/config/startwrt"), "startwrt data\n").unwrap();
+        fs::write(root.join("etc/config/network"), "network data\n").unwrap();
+        fs::write(root.join("etc/config/subdir/nested"), "nested data\n").unwrap();
+        // This one should be excluded by CONFFILES_EXCLUDE
+        fs::write(root.join("etc/config/wireless"), "wireless data\n").unwrap();
+
+        let rootfs = root.to_str().unwrap();
+        let backup = backup_conffiles(rootfs);
+
+        let paths: HashSet<&str> = backup.iter().map(|f| f.path.as_str()).collect();
+        assert!(paths.contains("/etc/config/startwrt"), "should include startwrt");
+        assert!(paths.contains("/etc/config/network"), "should include network");
+        assert!(
+            paths.contains("/etc/config/subdir/nested"),
+            "should include nested files"
+        );
+        assert!(
+            !paths.contains("/etc/config/wireless"),
+            "wireless should be excluded"
+        );
+        assert_eq!(backup.len(), 3);
+
+        // Verify content
+        let startwrt = backup.iter().find(|f| f.path == "/etc/config/startwrt").unwrap();
+        assert_eq!(startwrt.contents, b"startwrt data\n");
     }
 
     #[test]
