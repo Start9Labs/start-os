@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0-beta.62 (2026-03-19)
+
+### Fixed
+
+- Fixed `Value.dynamicSelect` and `Value.dynamicMultiselect` crashing with `z.union([])` when `values` is empty (zod v4 compatibility)
+
+### Added
+
+- `FileHelper.xml`: file helper for XML files using `fast-xml-parser`
+- `smtpShape`: typed zod schema for persisting SMTP selection in store file models, replacing direct use of `smtpInputSpec.validator` which caused cross-zod-instance errors
+
 ## 0.4.0-beta.61 — StartOS v0.4.0-alpha.21 (2026-03-16)
 
 ### Fixed

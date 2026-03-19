@@ -2,6 +2,7 @@ import { GetSystemSmtp, Patterns } from '../../util'
 import { InputSpec } from './builder/inputSpec'
 import { Value } from './builder/value'
 import { Variants } from './builder/variants'
+import { z } from 'zod'
 
 const securityVariants = Variants.of({
   tls: {
@@ -182,3 +183,87 @@ export const smtpInputSpec = Value.dynamicUnion(async ({ effects }) => {
     variants: smtpVariants,
   }
 }, smtpVariants.validator)
+
+const securityShape = z
+  .object({
+    selection: z.enum(['tls', 'starttls']).catch('tls'),
+    value: z.object({ port: z.string().catch('465') }).catch({ port: '465' }),
+  })
+  .catch({ selection: 'tls' as const, value: { port: '465' } })
+
+const providerShape = z
+  .object({
+    selection: z.string().catch('other'),
+    value: z
+      .object({
+        host: z.string().catch(''),
+        from: z.string().catch(''),
+        username: z.string().catch(''),
+        password: z.string().nullable().optional().catch(null),
+        security: securityShape,
+      })
+      .catch({
+        host: '',
+        from: '',
+        username: '',
+        password: null,
+        security: securityShape.parse(undefined),
+      }),
+  })
+  .catch({
+    selection: 'other',
+    value: {
+      host: '',
+      from: '',
+      username: '',
+      password: null,
+      security: securityShape.parse(undefined),
+    },
+  })
+
+export type SmtpSelection =
+  | { selection: 'disabled'; value: Record<string, never> }
+  | { selection: 'system'; value: { customFrom?: string | null } }
+  | {
+      selection: 'custom'
+      value: {
+        provider: {
+          selection: string
+          value: {
+            host: string
+            from: string
+            username: string
+            password?: string | null
+            security: {
+              selection: 'tls' | 'starttls'
+              value: { port: string }
+            }
+          }
+        }
+      }
+    }
+
+/**
+ * Zod schema for persisting SMTP selection in a store file model.
+ * Use this instead of `smtpInputSpec.validator` to avoid cross-zod-instance issues.
+ */
+export const smtpShape: z.ZodCatch<z.ZodType<SmtpSelection>> = z
+  .discriminatedUnion('selection', [
+    z.object({
+      selection: z.literal('disabled'),
+      value: z.object({}).catch({}),
+    }),
+    z.object({
+      selection: z.literal('system'),
+      value: z
+        .object({ customFrom: z.string().nullable().optional().catch(null) })
+        .catch({ customFrom: null }),
+    }),
+    z.object({
+      selection: z.literal('custom'),
+      value: z
+        .object({ provider: providerShape })
+        .catch({ provider: providerShape.parse(undefined) }),
+    }),
+  ])
+  .catch({ selection: 'disabled' as const, value: {} })

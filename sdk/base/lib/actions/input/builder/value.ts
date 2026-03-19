@@ -15,6 +15,21 @@ import { _, once } from '../../../util'
 import { z } from 'zod'
 import { DeepPartial } from '../../../types'
 
+/** Build a union-of-literals validator from object keys, falling back to z.string() when empty */
+function literalKeysValidator(
+  values: Record<string, unknown>,
+): z.ZodType<string> {
+  const keys = Object.keys(values)
+  if (keys.length === 0) return z.string()
+  return z.union(
+    keys.map((x) => z.literal(x)) as [
+      z.ZodLiteral<string>,
+      z.ZodLiteral<string>,
+      ...z.ZodLiteral<string>[],
+    ],
+  )
+}
+
 /** Zod schema for a file upload result — validates `{ path, commitment: { hash, size } }`. */
 export const fileInfoParser = z.object({
   path: z.string(),
@@ -774,13 +789,7 @@ export class Value<
      */
     immutable?: boolean
   }) {
-    const validator = z.union(
-      Object.keys(a.values).map((x: keyof Values & string) => z.literal(x)) as [
-        z.ZodLiteral<string>,
-        z.ZodLiteral<string>,
-        ...z.ZodLiteral<string>[],
-      ],
-    )
+    const validator = literalKeysValidator(a.values)
     return new Value<keyof Values & string>(
       () => ({
         spec: {
@@ -825,15 +834,7 @@ export class Value<
             immutable: false,
             ...a,
           },
-          validator: z.union(
-            Object.keys(a.values).map((x: keyof Values & string) =>
-              z.literal(x),
-            ) as [
-              z.ZodLiteral<string>,
-              z.ZodLiteral<string>,
-              ...z.ZodLiteral<string>[],
-            ],
-          ),
+          validator: literalKeysValidator(a.values),
         }
       },
       z.string(),
@@ -891,15 +892,7 @@ export class Value<
      */
     immutable?: boolean
   }) {
-    const validator = z.array(
-      z.union(
-        Object.keys(a.values).map((x) => z.literal(x)) as [
-          z.ZodLiteral<string>,
-          z.ZodLiteral<string>,
-          ...z.ZodLiteral<string>[],
-        ],
-      ),
-    )
+    const validator = z.array(literalKeysValidator(a.values))
     return new Value<(keyof Values & string)[]>(
       () => ({
         spec: {
@@ -953,15 +946,7 @@ export class Value<
           immutable: false,
           ...a,
         },
-        validator: z.array(
-          z.union(
-            Object.keys(a.values).map((x) => z.literal(x)) as [
-              z.ZodLiteral<string>,
-              z.ZodLiteral<string>,
-              ...z.ZodLiteral<string>[],
-            ],
-          ),
-        ),
+        validator: z.array(literalKeysValidator(a.values)),
       }
     }, z.array(z.string()))
   }
