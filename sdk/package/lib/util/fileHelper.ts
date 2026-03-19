@@ -2,6 +2,12 @@ import { z } from 'zod'
 import * as YAML from 'yaml'
 import * as TOML from '@iarna/toml'
 import * as INI from 'ini'
+import {
+  XMLParser,
+  XMLBuilder,
+  type X2jOptions,
+  type XmlBuilderOptions,
+} from 'fast-xml-parser'
 import * as T from '../../../base/lib/types'
 import * as fs from 'node:fs/promises'
 import { asError, deepEqual } from '../../../base/lib/util'
@@ -614,6 +620,39 @@ export class FileHelper<A> {
               return [line.slice(0, pos), line.slice(pos + 1)]
             }),
         ),
+      (data) => shape.parse(data),
+      transformers,
+    )
+  }
+
+  /**
+   * Create a File Helper for an .xml file.
+   *
+   * Supports optional parser/builder options from `fast-xml-parser`.
+   */
+  static xml<A extends Record<string, unknown>>(
+    path: ToPath,
+    shape: Validator<Record<string, unknown>, A>,
+    options?: { parser?: X2jOptions; builder?: XmlBuilderOptions },
+  ): FileHelper<A>
+  static xml<A extends Transformed, Transformed = Record<string, unknown>>(
+    path: ToPath,
+    shape: Validator<Transformed, A>,
+    options: { parser?: X2jOptions; builder?: XmlBuilderOptions },
+    transformers: Transformers<Record<string, unknown>, Transformed, A>,
+  ): FileHelper<A>
+  static xml<A extends Transformed, Transformed = Record<string, unknown>>(
+    path: ToPath,
+    shape: Validator<Transformed, A>,
+    options?: { parser?: X2jOptions; builder?: XmlBuilderOptions },
+    transformers?: Transformers<Record<string, unknown>, Transformed, A>,
+  ): FileHelper<A> {
+    const parser = new XMLParser(options?.parser)
+    const builder = new XMLBuilder(options?.builder)
+    return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
+      path,
+      (inData) => builder.build(inData),
+      (inString) => parser.parse(inString),
       (data) => shape.parse(data),
       transformers,
     )
