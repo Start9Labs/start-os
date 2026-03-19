@@ -1456,7 +1456,8 @@ pub fn is_partial_of(partial: &Value, full: &Value) -> bool {
             if let Some(v_full) = full.get(k) {
                 is_partial_of(v, v_full)
             } else {
-                false
+                // null in partial matches a missing key in full (both represent absence)
+                v.is_null()
             }
         }),
         (Value::Array(partial), Value::Array(full)) => partial
