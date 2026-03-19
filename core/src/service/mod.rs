@@ -39,7 +39,6 @@ use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::S9pk;
-use crate::service::action::update_tasks;
 use crate::service::rpc::{ExitParams, InitKind};
 use crate::service::service_map::InstallProgressHandles;
 use crate::service::uninstall::cleanup;
@@ -238,8 +237,7 @@ impl Service {
     async fn recheck_tasks(&self) -> Result<(), Error> {
         let service_id = &self.seed.id;
         let peek = self.seed.ctx.db.peek().await;
-        let mut action_input: BTreeMap<ActionId, Value> = BTreeMap::new();
-        let tasks: BTreeSet<_> = peek
+        let action_ids: BTreeSet<_> = peek
             .as_public()
             .as_package_data()
             .as_entries()?
@@ -266,29 +264,16 @@ impl Service {
             .flatten_ok()
             .map(|a| a.and_then(|a| a))
             .try_collect()?;
-        let procedure_id = Guid::new();
-        for action_id in tasks {
-            if let Some(input) = self
-                .get_action_input(procedure_id.clone(), action_id.clone(), Value::Null)
-                .await
-                .log_err()
-                .flatten()
-                .and_then(|i| i.value)
-            {
-                action_input.insert(action_id, input);
-            }
+        drop(peek);
+        for action_id in action_ids {
+            self.seed.eval_action_tasks(&action_id, false).await?;
         }
+        // Defensive sweep: stop any package that still has an active critical task.
+        // This catches tasks that were already active before this init cycle.
         self.seed
             .ctx
             .db
             .mutate(|db| {
-                for (action_id, input) in &action_input {
-                    for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                        pde.as_tasks_mut().mutate(|tasks| {
-                            Ok(update_tasks(tasks, service_id, action_id, input, false))
-                        })?;
-                    }
-                }
                 for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
                     if pde
                         .as_tasks()

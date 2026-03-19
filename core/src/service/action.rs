@@ -9,7 +9,7 @@ use crate::db::model::package::{
 };
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
-use crate::service::{ProcedureName, Service, ServiceActor};
+use crate::service::{ProcedureName, Service, ServiceActor, ServiceActorSeed};
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::actor::{ConflictBuilder, Handler};
 use crate::util::serde::is_partial_of;
@@ -131,6 +131,51 @@ pub fn update_tasks(
     critical_activated
 }
 
+impl ServiceActorSeed {
+    /// Fetch the current action input and re-evaluate all tasks targeting this action.
+    ///
+    /// This is the single source of truth for task re-evaluation. Used both after
+    /// running an action and during service init (recheck_tasks).
+    pub(super) async fn eval_action_tasks(
+        &self,
+        action_id: &ActionId,
+        was_run: bool,
+    ) -> Result<(), Error> {
+        let package_id = &self.id;
+        let current_input = self
+            .persistent_container
+            .execute::<Option<ActionInput>>(
+                Guid::new(),
+                ProcedureName::GetActionInput(action_id.clone()),
+                json!({ "prefill": Value::Null }),
+                Some(Duration::from_secs(30)),
+            )
+            .await
+            .log_err()
+            .ok()
+            .flatten()
+            .and_then(|ai| ai.value);
+        let Some(input) = current_input else {
+            return Ok(());
+        };
+        self.ctx
+            .db
+            .mutate(|db| {
+                for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                    if pde.as_tasks_mut().mutate(|tasks| {
+                        Ok(update_tasks(tasks, package_id, action_id, &input, was_run))
+                    })? {
+                        pde.as_status_info_mut().stop()?;
+                    }
+                }
+                Ok(())
+            })
+            .await
+            .result?;
+        Ok(())
+    }
+}
+
 pub(super) struct RunAction {
     action_id: ActionId,
     input: Value,
@@ -203,22 +248,7 @@ impl Handler<RunAction> for ServiceActor {
             )
             .await
             .with_kind(ErrorKind::Action)?;
-        let package_id = package_id.clone();
-        self.0
-            .ctx
-            .db
-            .mutate(|db| {
-                for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                    if pde.as_tasks_mut().mutate(|tasks| {
-                        Ok(update_tasks(tasks, &package_id, action_id, &input, true))
-                    })? {
-                        pde.as_status_info_mut().stop()?;
-                    }
-                }
-                Ok(())
-            })
-            .await
-            .result?;
+        self.0.eval_action_tasks(action_id, true).await?;
         Ok(result)
     }
 }
