@@ -64,6 +64,9 @@ import {
   SshKeysDeleteRequest,
   ActivityListParams,
   ActivityListResponse,
+  BackupCreateRes,
+  BackupRestoreRes,
+  DiagnosticsCreateRes,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -357,11 +360,23 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'activity.list', params })
   }
 
-  async activityDelete(params: { id: string }): Promise<null> {
+  async activityDelete(params: { id: number }): Promise<null> {
     return this.rpc.request({ method: 'activity.delete', params })
   }
 
   async activityClear(): Promise<null> {
     return this.rpc.request({ method: 'activity.clear', params: {} })
+  }
+
+  async backupCreate(): Promise<BackupCreateRes> {
+    return this.rpc.request({ method: 'backup.create', params: {} })
+  }
+
+  async backupRestore(): Promise<BackupRestoreRes> {
+    return this.rpc.request({ method: 'backup.restore', params: {} })
+  }
+
+  async diagnosticsCreate(): Promise<DiagnosticsCreateRes> {
+    return this.rpc.request({ method: 'diagnostics.create', params: {} })
   }
 }

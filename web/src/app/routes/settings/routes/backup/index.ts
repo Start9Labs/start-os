@@ -102,15 +102,14 @@ export default class Backup {
   protected async download() {
     await this.actions.run(
       async () => {
-        const res = await fetch('/api/backup', { credentials: 'include' })
+        const { guid, filename } = await this.api.backupCreate()
+        const res = await fetch(`/rest/rpc/${guid}`)
         if (!res.ok) throw new Error(`Download failed: ${res.statusText}`)
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        const disposition = res.headers.get('content-disposition')
-        const match = disposition?.match(/filename="(.+)"/)
-        a.download = match?.[1] ?? 'backup.tar.gz'
+        a.download = filename
         a.click()
         URL.revokeObjectURL(url)
       },
@@ -140,12 +139,11 @@ export default class Backup {
     this.uploading.set(true)
     const success = await this.actions.run(
       async () => {
-        const formData = new FormData()
-        formData.append('file', file)
-        const res = await fetch('/api/restore', {
+        const { upload } = await this.api.backupRestore()
+        const arrayBuffer = await file.arrayBuffer()
+        const res = await fetch(`/rest/rpc/${upload}`, {
           method: 'POST',
-          body: formData,
-          credentials: 'include',
+          body: arrayBuffer,
         })
         if (!res.ok) {
           const text = await res.text()

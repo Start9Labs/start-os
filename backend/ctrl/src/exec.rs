@@ -46,7 +46,7 @@ mod tests {
     #[tokio::test]
     async fn test_exec_echo() {
         let result = exec_command(
-            ServerContext,
+            ServerContext::default(),
             ExecReq {
                 command: "echo".to_string(),
                 args: vec!["hello".to_string(), "world".to_string()],
@@ -65,7 +65,7 @@ mod tests {
     #[tokio::test]
     async fn test_exec_nonexistent_command() {
         let result = exec_command(
-            ServerContext,
+            ServerContext::default(),
             ExecReq {
                 command: "/nonexistent/command".to_string(),
                 args: vec![],
@@ -80,7 +80,7 @@ mod tests {
     #[tokio::test]
     async fn test_exec_with_exit_code() {
         let result = exec_command(
-            ServerContext,
+            ServerContext::default(),
             ExecReq {
                 command: "sh".to_string(),
                 args: vec!["-c".to_string(), "exit 42".to_string()],
@@ -97,7 +97,7 @@ mod tests {
     #[tokio::test]
     async fn test_exec_stderr() {
         let result = exec_command(
-            ServerContext,
+            ServerContext::default(),
             ExecReq {
                 command: "sh".to_string(),
                 args: vec!["-c".to_string(), "echo error >&2".to_string()],
@@ -115,7 +115,7 @@ mod tests {
     #[tokio::test]
     async fn test_exec_timeout() {
         let result = exec_command(
-            ServerContext,
+            ServerContext::default(),
             ExecReq {
                 command: "sleep".to_string(),
                 args: vec!["10".to_string()],

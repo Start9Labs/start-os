@@ -81,9 +81,17 @@ export abstract class ApiService {
   abstract activityList(
     params?: ActivityListParams,
   ): Promise<ActivityListResponse>
-  abstract activityDelete(params: { id: string }): Promise<null>
+  abstract activityDelete(params: { id: number }): Promise<null>
   abstract activityClear(): Promise<null>
+  abstract backupCreate(): Promise<BackupCreateRes>
+  abstract backupRestore(): Promise<BackupRestoreRes>
+  abstract diagnosticsCreate(): Promise<DiagnosticsCreateRes>
 }
+
+// Continuation types
+export type BackupCreateRes = { guid: string; filename: string }
+export type BackupRestoreRes = { upload: string }
+export type DiagnosticsCreateRes = { guid: string; filename: string }
 
 // Ethernet types
 export interface EthernetPort {
@@ -616,7 +624,7 @@ export interface OutboundVpnSetEnabledRequest {
 // Activity types
 
 export interface ActivityEntry {
-  id: string
+  id: number
   timestamp: string
   category: string
   action: string

@@ -312,10 +312,11 @@ pub struct LogoutParams {
 
 #[instrument(skip_all)]
 pub async fn logout(
-    _ctx: ServerContext,
+    ctx: ServerContext,
     LogoutParams { session_hash }: LogoutParams,
 ) -> Result<(), Error> {
     if let Some(hash) = session_hash {
+        ctx.open_authed_continuations.kill(&hash);
         remove_session(&hash).await?;
     }
     Ok(())

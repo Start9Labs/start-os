@@ -2,19 +2,36 @@ use crate::utils::HandlerExtSerde;
 use crate::{CliContext, Error, ServerContext};
 use clap::Parser;
 use rpc_toolkit::{from_fn_async, HandlerExt as _, ParentHandler};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::io;
-use std::path::Path;
+use std::sync::{LazyLock, Mutex};
 use tracing::instrument;
 
 const ACTIVITY_DIR: &str = "/etc/startwrt";
-const ACTIVITY_FILE: &str = "/etc/startwrt/activity.json";
-const MAX_ENTRIES: usize = 1000;
+const ACTIVITY_DB: &str = "/etc/startwrt/activity.db";
+const MAX_ENTRIES: usize = 500;
+
+static DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
+    let _ = std::fs::create_dir_all(ACTIVITY_DIR);
+    let conn = Connection::open(ACTIVITY_DB).expect("failed to open activity database");
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS activity (
+            id INTEGER PRIMARY KEY,
+            timestamp TEXT NOT NULL,
+            category TEXT NOT NULL,
+            action TEXT NOT NULL,
+            success INTEGER NOT NULL,
+            summary TEXT NOT NULL,
+            error TEXT
+        );",
+    )
+    .expect("failed to initialize activity table");
+    Mutex::new(conn)
+});
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActivityEntry {
-    pub id: String,
+    pub id: i64,
     pub timestamp: String,
     pub category: String,
     pub action: String,
@@ -48,25 +65,7 @@ pub struct ActivityListParams {
 #[command(rename_all = "kebab-case")]
 pub struct ActivityDeleteParams {
     #[clap(long)]
-    pub id: String,
-}
-
-fn read_log() -> Vec<ActivityEntry> {
-    fs::read(ACTIVITY_FILE)
-        .ok()
-        .and_then(|b| serde_json::from_slice(&b).ok())
-        .unwrap_or_default()
-}
-
-fn write_log(entries: &[ActivityEntry]) -> io::Result<()> {
-    let dir = Path::new(ACTIVITY_DIR);
-    if !dir.exists() {
-        fs::create_dir_all(dir)?;
-    }
-    let tmp = format!("{ACTIVITY_FILE}.tmp");
-    fs::write(&tmp, serde_json::to_vec(entries).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?)?;
-    fs::rename(&tmp, ACTIVITY_FILE)?;
-    Ok(())
+    pub id: i64,
 }
 
 /// Log an activity entry. Best-effort — never propagates errors.
@@ -80,24 +79,29 @@ fn log_inner(
     success: bool,
     summary: &str,
     error: Option<&str>,
-) -> io::Result<()> {
-    let mut entries = read_log();
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Emit to syslog via tracing
+    let err_suffix = error.map(|e| format!(": {e}")).unwrap_or_default();
+    tracing::info!(target: "activity", "[{category}.{action}] {summary}{err_suffix}");
 
-    entries.insert(
-        0,
-        ActivityEntry {
-            id: format!("{:x}", rand::random::<u128>()),
-            timestamp: chrono::Utc::now().to_rfc3339(),
-            category: category.to_string(),
-            action: action.to_string(),
-            success,
-            summary: summary.to_string(),
-            error: error.map(String::from),
-        },
-    );
+    // Insert into SQLite
+    let timestamp = chrono::Utc::now().to_rfc3339();
+    let conn = DB.lock().map_err(|e| format!("lock poisoned: {e}"))?;
+    conn.execute(
+        "INSERT INTO activity (timestamp, category, action, success, summary, error)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        rusqlite::params![timestamp, category, action, success, summary, error],
+    )?;
 
-    entries.truncate(MAX_ENTRIES);
-    write_log(&entries)
+    // Enforce cap
+    conn.execute(
+        "DELETE FROM activity WHERE id <= (
+            SELECT id FROM activity ORDER BY id DESC LIMIT 1 OFFSET ?1
+        )",
+        [MAX_ENTRIES],
+    )?;
+
+    Ok(())
 }
 
 /// Convenience: log success or failure from a Result, return it unchanged.
@@ -155,15 +159,41 @@ async fn list(
     _ctx: ServerContext,
     params: ActivityListParams,
 ) -> Result<ActivityListResponse, Error> {
-    let entries = read_log();
-    let total = entries.len();
     let offset = params.offset.unwrap_or(0);
     let limit = params.limit.unwrap_or(50);
-    let page = entries.into_iter().skip(offset).take(limit).collect();
-    Ok(ActivityListResponse {
-        entries: page,
-        total,
-    })
+
+    let conn = DB
+        .lock()
+        .map_err(|e| Error::other(format!("lock poisoned: {e}")))?;
+
+    let total: usize = conn
+        .query_row("SELECT COUNT(*) FROM activity", [], |row| row.get(0))
+        .map_err(|e| Error::other(format!("failed to count activity: {e}")))?;
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, timestamp, category, action, success, summary, error
+             FROM activity ORDER BY id DESC LIMIT ?1 OFFSET ?2",
+        )
+        .map_err(|e| Error::other(format!("failed to prepare query: {e}")))?;
+
+    let entries = stmt
+        .query_map(rusqlite::params![limit, offset], |row| {
+            Ok(ActivityEntry {
+                id: row.get(0)?,
+                timestamp: row.get(1)?,
+                category: row.get(2)?,
+                action: row.get(3)?,
+                success: row.get::<_, i32>(4)? != 0,
+                summary: row.get(5)?,
+                error: row.get(6)?,
+            })
+        })
+        .map_err(|e| Error::other(format!("failed to query activity: {e}")))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| Error::other(format!("failed to read activity row: {e}")))?;
+
+    Ok(ActivityListResponse { entries, total })
 }
 
 #[instrument(skip_all)]
@@ -171,19 +201,24 @@ async fn delete(
     _ctx: ServerContext,
     ActivityDeleteParams { id }: ActivityDeleteParams,
 ) -> Result<(), Error> {
-    let mut entries = read_log();
-    let before = entries.len();
-    entries.retain(|e| e.id != id);
-    if entries.len() == before {
+    let conn = DB
+        .lock()
+        .map_err(|e| Error::other(format!("lock poisoned: {e}")))?;
+    conn.execute("DELETE FROM activity WHERE id = ?1", [id])
+        .map_err(|e| Error::other(format!("failed to delete activity: {e}")))?;
+    if conn.changes() == 0 {
         return Err(Error::other("Activity entry not found"));
     }
-    write_log(&entries).map_err(|e| Error::other(format!("Failed to write activity log: {e}")))?;
     Ok(())
 }
 
 #[instrument(skip_all)]
 async fn clear(_ctx: ServerContext) -> Result<(), Error> {
-    write_log(&[]).map_err(|e| Error::other(format!("Failed to clear activity log: {e}")))?;
+    let conn = DB
+        .lock()
+        .map_err(|e| Error::other(format!("lock poisoned: {e}")))?;
+    conn.execute("DELETE FROM activity", [])
+        .map_err(|e| Error::other(format!("failed to clear activity: {e}")))?;
     Ok(())
 }
 

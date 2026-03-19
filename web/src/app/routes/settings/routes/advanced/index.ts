@@ -30,15 +30,14 @@ export default class Advanced {
   protected downloadDiagnostics() {
     this.actions.run(
       async () => {
-        const res = await fetch('/api/diagnostics', { credentials: 'include' })
+        const { guid, filename } = await this.api.diagnosticsCreate()
+        const res = await fetch(`/rest/rpc/${guid}`)
         if (!res.ok) throw new Error(`Download failed: ${res.statusText}`)
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        const disposition = res.headers.get('content-disposition')
-        const match = disposition?.match(/filename="(.+)"/)
-        a.download = match?.[1] ?? 'diagnostics.tar.gz'
+        a.download = filename
         a.click()
         URL.revokeObjectURL(url)
       },

@@ -741,7 +741,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                 }
             })?;
 
-            let lookup = Lookup::parse(ServerContext, &cfgs)?;
+            let lookup = Lookup::parse(ServerContext::default(), &cfgs)?;
             let profiles: HashMap<u16, String> = lookup
                 .list()
                 .iter()

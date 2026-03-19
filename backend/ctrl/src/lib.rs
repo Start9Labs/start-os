@@ -2,6 +2,7 @@ pub mod activity;
 pub mod auth;
 pub mod backup;
 pub mod captive;
+pub mod continuations;
 pub mod devices;
 pub mod diagnostics;
 pub mod dns;
@@ -50,7 +51,7 @@ use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
     call_remote_http, from_fn_async,
-    reqwest::{Client, Url},
+    reqwest::{self, Client, Url},
     CallRemote, Context, Empty, HandlerExt, ParentHandler,
 };
 
@@ -178,6 +179,46 @@ impl CliContext {
     pub fn client(&self) -> &Client {
         &self.client
     }
+
+    /// Build URL for a continuation endpoint.
+    pub fn rest_url(&self, guid: &str) -> Url {
+        let mut url = self.host.clone();
+        url.set_path(&format!("/rest/rpc/{guid}"));
+        url
+    }
+
+    /// GET a continuation, returning (bytes, filename).
+    pub async fn rest_download(&self, guid: &str) -> Result<(Vec<u8>, String), Error> {
+        let url = self.rest_url(guid);
+        let res = self.client.get(url).send().await
+            .map_err(|e| Error::other(format!("Download request failed: {e}")))?;
+        if !res.status().is_success() {
+            return Err(Error::other(format!("Download failed: {}", res.status())));
+        }
+        let filename = res.headers()
+            .get(reqwest::header::CONTENT_DISPOSITION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.split("filename=\"").nth(1))
+            .and_then(|v| v.strip_suffix('"'))
+            .unwrap_or("download")
+            .to_string();
+        let bytes = res.bytes().await
+            .map_err(|e| Error::other(format!("Failed to read response: {e}")))?
+            .to_vec();
+        Ok((bytes, filename))
+    }
+
+    /// POST data to a continuation.
+    pub async fn rest_upload(&self, guid: &str, data: Vec<u8>) -> Result<(), Error> {
+        let url = self.rest_url(guid);
+        let res = self.client.post(url).body(data).send().await
+            .map_err(|e| Error::other(format!("Upload request failed: {e}")))?;
+        if !res.status().is_success() {
+            let text = res.text().await.unwrap_or_default();
+            return Err(Error::other(format!("Upload failed: {text}")));
+        }
+        Ok(())
+    }
 }
 
 impl Context for CliContext {
@@ -220,7 +261,18 @@ impl CallRemote<ServerContext> for CliContext {
 }
 
 #[derive(Clone)]
-pub struct ServerContext;
+pub struct ServerContext {
+    pub continuations: continuations::RpcContinuations,
+    pub open_authed_continuations: continuations::OpenAuthedContinuations,
+}
+impl Default for ServerContext {
+    fn default() -> Self {
+        Self {
+            continuations: continuations::RpcContinuations::new(),
+            open_authed_continuations: continuations::OpenAuthedContinuations::new(),
+        }
+    }
+}
 impl Context for ServerContext {}
 impl CtrlContext for ServerContext {
     fn uci_root(&self) -> PathBuf {
@@ -259,6 +311,8 @@ pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
         .subcommand("published-ports", published_ports::published_ports::<C>())
         .subcommand("ssh-keys", ssh_keys::ssh_keys::<C>())
         .subcommand("activity", activity::activity::<C>())
+        .subcommand("backup", backup::backup::<C>())
+        .subcommand("diagnostics", diagnostics::diagnostics::<C>())
 }
 
 pub fn init_logging(name: &str) {

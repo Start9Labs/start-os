@@ -19,6 +19,7 @@ use tracing::instrument;
 
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
+use crate::continuations::{self, RpcContinuations};
 use crate::embedded_web::serve_embedded;
 use crate::luci_proxy::{self, ProxyClient};
 use crate::setup::{self, FlashMode, ResolvedPassword, SetupEvent};
@@ -148,6 +149,8 @@ fn init_ssl() -> bool {
 async fn inner_main() -> Result<(), Error> {
     let setup_mode = tokio::task::spawn_blocking(setup::is_setup_mode).await?;
 
+    let continuations = RpcContinuations::new();
+    let open_authed = crate::continuations::OpenAuthedContinuations::new();
     let app_state;
 
     if setup_mode {
@@ -204,7 +207,7 @@ async fn inner_main() -> Result<(), Error> {
             if let Err(e) = crate::profiles::bootstrap_admin_profile("/etc/config") {
                 tracing::error!("Admin profile bootstrap failed: {e}");
             }
-            if let Err(e) = crate::system::apply_remote_access(ServerContext) {
+            if let Err(e) = crate::system::apply_remote_access(ServerContext::default()) {
                 tracing::error!("Remote access rule apply failed: {e}");
             }
         })
@@ -223,7 +226,10 @@ async fn inner_main() -> Result<(), Error> {
     // Initialize SSL: ensure Root CA and server cert exist
     let tls_ready = tokio::task::spawn_blocking(init_ssl).await?;
 
-    let ctx = ServerContext;
+    let ctx = ServerContext {
+        continuations: continuations.clone(),
+        open_authed_continuations: open_authed,
+    };
     let handler = Server::new(move || ready(Ok(ctx.clone())), main_api())
         .middleware(SessionAuth::new());
 
@@ -247,16 +253,13 @@ async fn inner_main() -> Result<(), Error> {
     let app = Router::new()
         // RPC API at /rpc/v1 (matches frontend's RELATIVE_URL)
         .route("/rpc/v1", post(handler))
+        // RPC continuation endpoint (binary I/O for backup/restore/diagnostics)
+        .route("/rest/rpc/{guid}", any(continuations::continuation_handler)
+            .layer(DefaultBodyLimit::max(10 * 1024 * 1024)))
         // Streaming flash endpoint for setup wizard
         .route("/api/setup/flash", post(setup_flash_handler))
         // WebSocket endpoint for live log streaming
         .route("/api/logs", axum::routing::get(crate::logs::logs_ws_handler))
-        // Support diagnostics bundle
-        .route("/api/diagnostics", get(crate::diagnostics::diagnostics_handler))
-        // Config backup/restore
-        .route("/api/backup", get(crate::backup::backup_handler))
-        .route("/api/restore", post(crate::backup::restore_handler)
-            .layer(DefaultBodyLimit::max(10 * 1024 * 1024)))
         // Root CA download (no auth required)
         .route("/static/root-ca.crt", get(root_ca_handler))
         // LuCI reverse proxy — forwards to uhttpd on localhost:8080
@@ -275,6 +278,7 @@ async fn inner_main() -> Result<(), Error> {
         // Everything else serves the embedded web UI
         .fallback(axum::routing::any(serve_embedded))
         .layer(cors)
+        .layer(Extension(continuations))
         .layer(Extension(proxy_client))
         .layer(Extension(app_state));
 

@@ -495,7 +495,7 @@ pub fn list(_ctx: ServerContext) -> Result<VpnServers, Error> {
     let arena = Arena::new();
     let cfgs = parse_all("/etc/config", &arena, &["network", "startwrt", "firewall"])?;
 
-    let profile_lookup = profiles::Lookup::parse(ServerContext, &cfgs)?;
+    let profile_lookup = profiles::Lookup::parse(ServerContext::default(), &cfgs)?;
 
     let servers = cfgs["startwrt"]
         .sections
@@ -561,7 +561,7 @@ pub fn set(
         let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt", "firewall"])?;
 
         // Verify the profile exists and get its gateway IP
-        let profile_lookup = profiles::Lookup::parse(ServerContext, &cfgs)?;
+        let profile_lookup = profiles::Lookup::parse(ServerContext::default(), &cfgs)?;
         let profile_id = profile_lookup.from_interface(profile_interface)
             .ok_or_else(|| ErrorKind::MissingProfile {
                 id: ProfileIdOpt {
@@ -670,7 +670,7 @@ pub fn delete(_ctx: ServerContext, args: DeleteArgs) -> Result<(), Error> {
 
         // Resolve profile fullname before modifying configs
         let profile_name = {
-            let profile_lookup = profiles::Lookup::parse(ServerContext, &cfgs)?;
+            let profile_lookup = profiles::Lookup::parse(ServerContext::default(), &cfgs)?;
             profile_lookup.from_interface(profile_interface)
                 .map(|p| p.fullname.clone())
                 .unwrap_or_else(|| profile_interface.clone())
@@ -782,7 +782,7 @@ pub fn peer_add(
         let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt", "firewall", "dhcp"])?;
 
         // Verify the profile exists and get its gateway IP
-        let profile_lookup = profiles::Lookup::parse(ServerContext, &cfgs)?;
+        let profile_lookup = profiles::Lookup::parse(ServerContext::default(), &cfgs)?;
         let profile_id = profile_lookup.from_interface(profile_interface)
             .ok_or_else(|| ErrorKind::MissingProfile {
                 id: ProfileIdOpt {
@@ -939,7 +939,7 @@ pub fn peer_delete(_ctx: ServerContext, args: PeerDeleteArgs) -> Result<(), Erro
 
         // Resolve profile fullname before modifying configs
         let profile_name = {
-            let profile_lookup = profiles::Lookup::parse(ServerContext, &cfgs)?;
+            let profile_lookup = profiles::Lookup::parse(ServerContext::default(), &cfgs)?;
             profile_lookup.from_interface(profile_interface)
                 .map(|p| p.fullname.clone())
                 .unwrap_or_else(|| profile_interface.clone())

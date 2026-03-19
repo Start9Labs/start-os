@@ -409,7 +409,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<PublishedPort>, Error> {
             let arena = Arena::new();
             extract_ports(&arena, std::path::Path::new("/etc/config"))
         }),
-        devices::list(ServerContext),
+        devices::list(ServerContext::default()),
     );
 
     let raw_ports = ports_result
@@ -755,7 +755,7 @@ fn resolve_device_zones(
     };
 
     // Build VLAN tag → profile interface name
-    let Ok(lookup) = Lookup::parse(ServerContext, &cfgs) else {
+    let Ok(lookup) = Lookup::parse(ServerContext::default(), &cfgs) else {
         return mac_zones;
     };
 

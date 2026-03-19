@@ -68,6 +68,9 @@ import {
   ActivityEntry,
   ActivityListParams,
   ActivityListResponse,
+  BackupCreateRes,
+  BackupRestoreRes,
+  DiagnosticsCreateRes,
 } from './api.service'
 import {
   DhcpSection,
@@ -1370,7 +1373,7 @@ export class MockApiService extends ApiService {
   private mockActivity: ActivityEntry[] = Array.from(
     { length: 25 },
     (_, i) => ({
-      id: `mock-${i}`,
+      id: i,
       timestamp: new Date(Date.now() - i * 1000 * 60 * 60 * 24).toISOString(),
       category: ['profile', 'wifi', 'vpn-client', 'device', 'auth'][i % 5],
       action: ['created', 'updated', 'deleted', 'enabled', 'login'][i % 5],
@@ -1398,7 +1401,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async activityDelete(params: { id: string }): Promise<null> {
+  async activityDelete(params: { id: number }): Promise<null> {
     await pauseFor(100)
     this.mockActivity = this.mockActivity.filter(e => e.id !== params.id)
     return null
@@ -1408,6 +1411,27 @@ export class MockApiService extends ApiService {
     await pauseFor(100)
     this.mockActivity = []
     return null
+  }
+
+  async backupCreate(): Promise<BackupCreateRes> {
+    await pauseFor(500)
+    return {
+      guid: 'mock-backup-guid',
+      filename: 'backup-startwrt-2026-03-19.tar.gz',
+    }
+  }
+
+  async backupRestore(): Promise<BackupRestoreRes> {
+    await pauseFor(250)
+    return { upload: 'mock-restore-guid' }
+  }
+
+  async diagnosticsCreate(): Promise<DiagnosticsCreateRes> {
+    await pauseFor(500)
+    return {
+      guid: 'mock-diag-guid',
+      filename: 'diagnostics-startwrt-2026-03-19.log',
+    }
   }
 
   /**
