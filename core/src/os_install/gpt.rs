@@ -187,11 +187,32 @@ pub async fn partition(
         .invoke(crate::ErrorKind::DiskManagement)
         .await
         .ok();
-    Command::new("blockdev")
-        .arg("--rereadpt")
-        .arg(&disk_path)
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await?;
+    // BLKRRPART can fail with "Device or resource busy" if the kernel still
+    // holds references to old partitions.  Retry a few times with a delay.
+    let mut last_err = None;
+    for attempt in 0..5u32 {
+        if attempt > 0 {
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        }
+        match Command::new("blockdev")
+            .arg("--rereadpt")
+            .arg(&disk_path)
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await
+        {
+            Ok(_) => {
+                last_err = None;
+                break;
+            }
+            Err(e) => {
+                tracing::warn!("blockdev --rereadpt attempt {} failed: {e}", attempt + 1);
+                last_err = Some(e);
+            }
+        }
+    }
+    if let Some(e) = last_err {
+        return Err(e);
+    }
     Command::new("udevadm")
         .arg("settle")
         .invoke(crate::ErrorKind::DiskManagement)
