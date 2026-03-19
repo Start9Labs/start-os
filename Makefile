@@ -251,10 +251,10 @@ update-deb: results/$(BASENAME).deb # better than update, but only available fro
 
 update-squashfs: results/$(BASENAME).squashfs
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
-	$(eval SQFS_SUM := $(shell b3sum results/$(BASENAME).squashfs))
+	$(eval SQFS_SUM := $(shell b3sum results/$(BASENAME).squashfs | head -c 32))
 	$(eval SQFS_SIZE := $(shell du -s --bytes results/$(BASENAME).squashfs | awk '{print $$1}'))
-	$(call ssh,'/usr/lib/startos/scripts/prune-images $(SQFS_SIZE)')
-	$(call ssh,'/usr/lib/startos/scripts/prune-boot')
+	$(call ssh,'sudo /usr/lib/startos/scripts/prune-images $(SQFS_SIZE)')
+	$(call ssh,'sudo /usr/lib/startos/scripts/prune-boot')
 	$(call cp,results/$(BASENAME).squashfs,/media/startos/images/next.rootfs)
 	$(call ssh,'sudo CHECKSUM=$(SQFS_SUM) /usr/lib/startos/scripts/upgrade /media/startos/images/next.rootfs')
 
