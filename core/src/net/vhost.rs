@@ -734,19 +734,11 @@ where
         };
 
         let src = tcp.peer_addr.ip();
-        // Private: source is in a known subnet or is a private IP (e.g. VPN on a different VLAN)
-        let is_public =
-            !ip_info.subnets.iter().any(|s| s.contains(&src)) && !is_private_ip(src);
+        let dst = tcp.local_addr.ip();
 
-        if is_public {
-            self.public.contains(&gw.id)
-        } else {
-            // Private: accept if connection arrived on an interface with a matching IP
-            ip_info
-                .subnets
-                .iter()
-                .any(|s| self.private.contains(&s.addr()))
-        }
+        self.public.contains(&gw.id)
+            || (self.private.contains(&dst)
+                && (ip_info.subnets.iter().any(|s| s.contains(&src)) || is_private_ip(src)))
     }
     fn acme(&self) -> Option<&AcmeProvider> {
         self.acme.as_ref()
