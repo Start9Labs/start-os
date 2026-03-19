@@ -22,7 +22,7 @@ pub struct TunnelUpdateResult {
 }
 
 #[instrument(skip_all)]
-pub async fn check_update(_ctx: TunnelContext, _: Empty) -> Result<TunnelUpdateResult, Error> {
+pub async fn check_update(_ctx: TunnelContext) -> Result<TunnelUpdateResult, Error> {
     Command::new("apt-get")
         .arg("update")
         .invoke(ErrorKind::UpdateFailed)
@@ -52,7 +52,7 @@ pub async fn check_update(_ctx: TunnelContext, _: Empty) -> Result<TunnelUpdateR
 }
 
 #[instrument(skip_all)]
-pub async fn apply_update(_ctx: TunnelContext, _: Empty) -> Result<TunnelUpdateResult, Error> {
+pub async fn apply_update(_ctx: TunnelContext) -> Result<TunnelUpdateResult, Error> {
     let policy_output = Command::new("apt-cache")
         .arg("policy")
         .arg("start-tunnel")

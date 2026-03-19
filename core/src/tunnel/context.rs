@@ -41,6 +41,7 @@ use crate::util::io::read_file_to_string;
 use crate::util::sync::{SyncMutex, Watch};
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct TunnelConfig {
@@ -80,7 +81,7 @@ pub struct TunnelContextSeed {
     pub net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     pub forward: PortForwardController,
     pub active_forwards: SyncMutex<BTreeMap<SocketAddrV4, Arc<()>>>,
-    pub shutdown: Sender<()>,
+    pub shutdown: Sender<Option<bool>>,
 }
 
 #[derive(Clone)]
@@ -238,6 +239,7 @@ impl Deref for TunnelContext {
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
+#[group(skip)]
 pub struct TunnelAddrParams {
     #[arg(help = "help.arg.tunnel-ip-address")]
     pub tunnel: IpAddr,
@@ -305,6 +307,7 @@ impl CallRemote<TunnelContext> for CliContext {
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
+#[group(skip)]
 pub struct TunnelUrlParams {
     #[arg(help = "help.arg.tunnel-url")]
     pub tunnel: Url,

@@ -5275,6 +5275,13 @@ about.restart-service:
   fr_FR: "Redémarrer un service"
   pl_PL: "Uruchom ponownie usługę"
 
+about.restart-tunnel:
+  en_US: "Reboot the tunnel server"
+  de_DE: "Den Tunnel-Server neu starten"
+  es_ES: "Reiniciar el servidor del túnel"
+  fr_FR: "Redémarrer le serveur tunnel"
+  pl_PL: "Uruchom ponownie serwer tunelu"
+
 about.restore-packages-from-backup:
   en_US: "Restore packages from backup"
   de_DE: "Pakete aus Backup wiederherstellen"

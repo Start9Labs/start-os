@@ -72,6 +72,13 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
                 ),
         )
         .subcommand(
+            "restart",
+            from_fn_async(restart)
+                .no_display()
+                .with_about("about.restart-tunnel")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
             "update",
             ParentHandler::<C>::new()
                 .subcommand(
@@ -91,7 +98,13 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
+pub async fn restart(ctx: TunnelContext) -> Result<(), Error> {
+    ctx.shutdown.send(Some(true)).ok();
+    Ok(())
+}
+
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct SubnetParams {
     #[ts(type = "string")]
@@ -171,6 +184,7 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct AddSubnetParams {
     name: InternedString,
@@ -296,6 +310,7 @@ pub async fn remove_subnet(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct AddDeviceParams {
     #[ts(type = "string")]
@@ -359,6 +374,7 @@ pub async fn add_device(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDeviceParams {
     #[ts(type = "string")]
@@ -390,6 +406,7 @@ pub async fn remove_device(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct ListDevicesParams {
     #[ts(type = "string")]
@@ -411,6 +428,7 @@ pub async fn list_devices(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowConfigParams {
     #[ts(type = "string")]
@@ -477,6 +495,7 @@ pub async fn show_config(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct AddPortForwardParams {
     #[ts(type = "string")]
@@ -546,6 +565,7 @@ pub async fn add_forward(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct RemovePortForwardParams {
     #[ts(type = "string")]
@@ -568,6 +588,7 @@ pub async fn remove_forward(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdatePortForwardLabelParams {
     #[ts(type = "string")]
@@ -597,10 +618,12 @@ pub async fn update_forward_label(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct SetPortForwardEnabledParams {
     #[ts(type = "string")]
     source: SocketAddrV4,
+    #[arg(long)]
     enabled: bool,
 }
 
