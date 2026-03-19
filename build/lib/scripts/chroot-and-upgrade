@@ -55,8 +55,8 @@ mkdir -p /media/startos/next/sys
 mkdir -p /media/startos/next/proc
 mkdir -p /media/startos/next/boot
 mkdir -p /media/startos/next/media/startos/root
-mount --bind /run /media/startos/next/run
-mount --bind /tmp /media/startos/next/tmp
+mount -t tmpfs tmpfs /media/startos/next/run
+mount -t tmpfs tmpfs /media/startos/next/tmp
 mount --bind /dev /media/startos/next/dev
 mount -t sysfs sysfs /media/startos/next/sys
 mount -t proc proc /media/startos/next/proc
@@ -79,13 +79,13 @@ if mountpoint /media/startos/next/sys/firmware/efi/efivars 2>&1 > /dev/null; the
   umount /media/startos/next/sys/firmware/efi/efivars 
 fi
 
-umount /media/startos/next/run
-umount /media/startos/next/tmp
-umount /media/startos/next/dev
-umount /media/startos/next/sys
-umount /media/startos/next/proc
-umount /media/startos/next/boot
-umount /media/startos/next/media/startos/root
+umount -l /media/startos/next/run
+umount -l /media/startos/next/tmp
+umount -l /media/startos/next/dev
+umount -l /media/startos/next/sys
+umount -l /media/startos/next/proc
+umount -l /media/startos/next/boot
+umount -l /media/startos/next/media/startos/root
 
 if [ "$CHROOT_RES" -eq 0 ]; then
 
