@@ -280,9 +280,9 @@ async function runRsync(rsyncOptions: {
   spawned.stdout.on('data', (data: unknown) => {
     const lines = String(data).replace(/\r/g, '\n').split('\n')
     for (const line of lines) {
-      const parsed = /$([0-9.]+)%/.exec(line)?.[1]
+      const parsed = /([0-9.]+)%/.exec(line)?.[1]
       if (!parsed) {
-        console.log(line)
+        if (line) console.log(line)
         continue
       }
       percentage = Number.parseFloat(parsed)
