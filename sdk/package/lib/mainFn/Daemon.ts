@@ -1,5 +1,6 @@
 import * as T from '../../../base/lib/types'
 import { asError } from '../../../base/lib/util/asError'
+import { logErrorOnce } from '../../../base/lib/util/logErrorOnce'
 import { Drop } from '../util'
 import {
   SubContainer,
@@ -64,7 +65,7 @@ export class Daemon<
         )
       const res = new Daemon(subc, startCommand)
       effects.onLeaveContext(() => {
-        res.term({ destroySubcontainer: true }).catch((e) => console.error(e))
+        res.term({ destroySubcontainer: true }).catch((e) => logErrorOnce(e))
       })
       return res
     }
@@ -86,7 +87,7 @@ export class Daemon<
         if (this.commandController)
           await this.commandController
             .term({})
-            .catch((err) => console.error(err))
+            .catch((err) => logErrorOnce(err))
         try {
           this.commandController = await this.startCommand()
           if (!this.shouldBeRunning) {
@@ -97,7 +98,7 @@ export class Daemon<
           const success = await this.commandController.wait().then(
             (_) => true,
             (err) => {
-              console.error(err)
+              if (this.shouldBeRunning) logErrorOnce(err)
               return false
             },
           )
@@ -147,7 +148,7 @@ export class Daemon<
       this.onExitFns = []
     }
     if (this.exiting) {
-      await this.exiting.catch(console.error)
+      await this.exiting.catch(logErrorOnce)
       if (termOptions?.destroySubcontainer) {
         await this.subcontainer?.destroy()
       }
@@ -172,6 +173,6 @@ export class Daemon<
     this.onExitFns.push(fn)
   }
   onDrop(): void {
-    this.term().catch((e) => console.error(asError(e)))
+    this.term().catch((e) => logErrorOnce(asError(e)))
   }
 }

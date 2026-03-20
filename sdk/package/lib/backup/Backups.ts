@@ -2,7 +2,6 @@ import * as T from '../../../base/lib/types'
 import * as child_process from 'child_process'
 import * as fs from 'fs/promises'
 import { Affine, asError } from '../util'
-import { ExtendedVersion, VersionRange } from '../../../base/lib'
 import { InitKind, InitScript } from '../../../base/lib/inits'
 
 /** Default rsync options used for backup and restore operations */

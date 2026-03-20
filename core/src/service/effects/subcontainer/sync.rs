@@ -768,7 +768,7 @@ pub fn exec(
         stderr_thread.map(|t| t.join().unwrap());
         if let Some(code) = exit.code() {
             std::process::exit(code);
-        } else if exit.success() {
+        } else if exit.success() || exit.signal() == Some(15) {
             Ok(())
         } else {
             Err(Error::new(
