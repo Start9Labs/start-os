@@ -5,7 +5,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 set -e
 
 ARCH=$1
-VERSION="0.4.9.5:0-beta.0"
+VERSION="0.4.9.5:0-beta.1"
 
 if [ -z "$ARCH" ]; then
 	>&2 echo "usage: $0 <ARCH>"
