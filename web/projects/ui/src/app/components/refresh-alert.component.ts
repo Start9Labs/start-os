@@ -48,8 +48,12 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
         }}
         <ul>
           <li>
-            <b>On Mac</b>
+            <b>On Mac (Chrome/Firefox)</b>
             : cmd + shift + R
+          </li>
+          <li>
+            <b>On Mac (Safari)</b>
+            : option + cmd + R, or hold option and choose View > Reload Page from Origin
           </li>
           <li>
             <b>On Linux/Windows</b>
