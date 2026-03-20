@@ -171,7 +171,7 @@ export default class Profiles {
       ...p,
       dnsDisplay: this.getDnsDisplay(p),
       routingDisplay: this.getRoutingDisplay(p.outbound, vpns || []),
-      lanAccessDisplay: this.getLanAccessDisplay(p.lan_access),
+      lanAccessDisplay: this.getLanAccessDisplay(p.lan_access, profiles.length),
       wanAccessDisplay: this.getWanAccessDisplay(p.wan_access),
     }))
   })
@@ -209,9 +209,14 @@ export default class Profiles {
       : 'Unknown'
   }
 
-  private getLanAccessDisplay(access: SecurityProfile['lan_access']): string {
+  private getLanAccessDisplay(
+    access: SecurityProfile['lan_access'],
+    profileCount: number,
+  ): string {
     if (access === 'ALL') return 'All'
-    if (access === 'SAME_PROFILE') return 'Same profile'
+    if (access === 'SAME_PROFILE') {
+      return profileCount <= 1 ? 'All' : 'Same profile'
+    }
 
     return typeof access === 'object' && 'other_profiles' in access
       ? 'Whitelist'
