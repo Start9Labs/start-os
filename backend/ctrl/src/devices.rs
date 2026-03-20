@@ -552,7 +552,7 @@ fn non_wifi_probe_candidates(
     // Collect MACs that have any REACHABLE entry.
     let reachable_macs: std::collections::HashSet<&str> = arp_entries
         .iter()
-        .filter(|e| e.state == "REACHABLE")
+        .filter(|e| e.state == "REACHABLE" && !e.ip.contains(':'))
         .map(|e| e.mac.as_str())
         .collect();
 
