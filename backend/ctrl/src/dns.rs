@@ -130,20 +130,14 @@ pub fn regenerate_smartdns(ctx: &impl CtrlContext, cfgs: &Configs) -> Result<(),
         // prevents SmartDNS from starting. Without a bind directive, SmartDNS
         // defaults to 0.0.0.0:53 which steals port 53 from dnsmasq.
         let _ = std::fs::remove_file(SMARTDNS_CONF_PATH);
-        let _ = std::process::Command::new("/etc/init.d/smartdns")
-            .arg("stop")
-            .spawn()
-            .and_then(|mut c| c.wait());
+        let _ = crate::run_quiet(std::process::Command::new("/etc/init.d/smartdns").arg("stop"));
         return Ok(());
     }
 
     let conf = generate_smartdns_conf(&groups);
     std::fs::create_dir_all("/etc/smartdns")?;
     std::fs::write(SMARTDNS_CONF_PATH, &conf)?;
-    let _ = std::process::Command::new("/etc/init.d/smartdns")
-        .arg("restart")
-        .spawn()
-        .and_then(|mut c| c.wait());
+    let _ = crate::run_quiet(std::process::Command::new("/etc/init.d/smartdns").arg("restart"));
     Ok(())
 }
 

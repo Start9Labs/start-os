@@ -3,6 +3,7 @@ config samba
 	option workgroup 'WORKGROUP'
 	option charset 'UTF-8'
 	option description 'Samba on OpenWRT'
+	option disable_netbios '1'
 	#option enable_extra_tuning '0'
 
 ## example share

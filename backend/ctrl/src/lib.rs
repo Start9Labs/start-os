@@ -38,6 +38,7 @@ use std::io::BufReader;
 use std::ops::Deref;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::{Arc, OnceLock};
 
 use clap::Parser;
@@ -315,6 +316,20 @@ pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
         .subcommand("diagnostics", diagnostics::diagnostics::<C>())
 }
 
+/// Run a command with stdout/stderr redirected to /dev/null.
+///
+/// Child processes inherit the daemon's file descriptors, and procd logs
+/// anything on stderr as `daemon.err`. Service reload scripts write
+/// informational output to stderr (firewall rules, udhcpc status, etc.),
+/// which floods the syslog with false errors. Silencing child output
+/// keeps the syslog clean.
+pub fn run_quiet(cmd: &mut Command) -> std::io::Result<std::process::ExitStatus> {
+    cmd.stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .and_then(|mut c| c.wait())
+}
+
 pub fn init_logging(name: &str) {
     use tracing_rfc_5424::{
         rfc3164::Rfc3164, tracing::TrivialTracingFormatter, transport::UnixSocket,
@@ -326,7 +341,7 @@ pub fn init_logging(name: &str) {
     };
 
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+        .unwrap_or_else(|_| EnvFilter::new("warn,activity=info"));
 
     let syslog = tracing_rfc_5424::layer::Layer::<
         tracing_subscriber::Registry,

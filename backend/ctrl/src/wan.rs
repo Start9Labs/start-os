@@ -256,10 +256,7 @@ fn get_start9_hostname() -> Option<String> {
 }
 
 fn restart_network() {
-    let _ = Command::new("/etc/init.d/network")
-        .arg("restart")
-        .spawn()
-        .and_then(|mut c| c.wait());
+    let _ = crate::run_quiet(Command::new("/etc/init.d/network").arg("restart"));
 }
 
 // ── IPv4 handlers ───────────────────────────────────────────
@@ -558,10 +555,7 @@ pub fn ipv6_set<C: CtrlContext>(
                 crate::activity::log("wan", "ipv6-updated", true, &format!("Updated WAN IPv6 (mode: {})", serde_name(&req.mode)), None);
                 if ctx.effectful() {
                     restart_network();
-                    let _ = Command::new("/etc/init.d/odhcpd")
-                        .arg("restart")
-                        .spawn()
-                        .and_then(|mut c| c.wait());
+                    let _ = crate::run_quiet(Command::new("/etc/init.d/odhcpd").arg("restart"));
                 }
                 return Ok(());
             }
@@ -909,10 +903,8 @@ pub fn ddns_set<C: CtrlContext>(
             Ok(()) => {
                 crate::activity::log("wan", "ddns-updated", true, &format!("Updated DDNS (provider: {})", serde_name(&req.provider)), None);
                 if ctx.effectful() {
-                    let _ = Command::new("/etc/init.d/ddns")
-                        .arg(if req.enabled { "restart" } else { "stop" })
-                        .spawn()
-                        .and_then(|mut c| c.wait());
+                    let _ = crate::run_quiet(Command::new("/etc/init.d/ddns")
+                        .arg(if req.enabled { "restart" } else { "stop" }));
                 }
                 return Ok(());
             }

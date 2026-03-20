@@ -793,10 +793,7 @@ fn resolve_device_zones(
 
 fn restart_firewall() {
     std::thread::spawn(|| {
-        let result = std::process::Command::new("/etc/init.d/firewall")
-            .arg("restart")
-            .spawn()
-            .and_then(|mut c| c.wait());
+        let result = crate::run_quiet(std::process::Command::new("/etc/init.d/firewall").arg("restart"));
         if let Err(e) = result {
             tracing::error!("failed to restart firewall: {e}");
         }

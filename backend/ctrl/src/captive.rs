@@ -129,9 +129,7 @@ pub async fn ensure_captive_portal_state() -> Result<(), Error> {
 }
 
 fn restart_dnsmasq() -> Result<(), Error> {
-    let status = std::process::Command::new("/etc/init.d/dnsmasq")
-        .arg("restart")
-        .status()
+    let status = crate::run_quiet(std::process::Command::new("/etc/init.d/dnsmasq").arg("restart"))
         .map_err(|e| Error::other(format!("failed to restart dnsmasq: {e}")))?;
 
     if !status.success() {

@@ -162,7 +162,7 @@ pub fn run_init() -> Result<(), Error> {
     crate::profiles::bootstrap_admin_profile("/etc/config")?;
 
     // 7. Reload WiFi
-    let _ = Command::new("wifi").arg("reload").status();
+    let _ = crate::run_quiet(Command::new("wifi").arg("reload"));
 
     // 8. Success
     println!();
@@ -203,7 +203,7 @@ pub fn restore_wifi_if_needed() -> Result<bool, Error> {
     configure_wifi("/etc/config", &password, None)?;
 
     // 5. Reload WiFi
-    let _ = Command::new("wifi").arg("reload").status();
+    let _ = crate::run_quiet(Command::new("wifi").arg("reload"));
 
     Ok(true)
 }

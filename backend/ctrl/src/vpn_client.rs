@@ -119,15 +119,9 @@ pub fn vpn_client<C: rpc_toolkit::Context>() -> ParentHandler<C> {
 
 /// Restart a WireGuard interface (ifdown + ifup)
 fn restart_wireguard_interface(interface_name: &str) -> Result<(), Error> {
-    let _ = Command::new("ifdown")
-        .arg(interface_name)
-        .spawn()?
-        .wait();
+    let _ = crate::run_quiet(Command::new("ifdown").arg(interface_name));
 
-    let status = Command::new("ifup")
-        .arg(interface_name)
-        .spawn()?
-        .wait()?;
+    let status = crate::run_quiet(Command::new("ifup").arg(interface_name))?;
     if !status.success() {
         return Err(Error::other(format!(
             "ifup {} failed with exit code {:?}",
@@ -858,10 +852,7 @@ pub fn set_enabled(
                 if req.enabled {
                     restart_wireguard_interface(interface_name)?;
                 } else {
-                    let _ = Command::new("ifdown")
-                        .arg(interface_name)
-                        .spawn()
-                        .and_then(|mut c| c.wait());
+                    let _ = crate::run_quiet(Command::new("ifdown").arg(interface_name));
                 }
                 reload_system()?;
                 let action = if req.enabled { "enabled" } else { "disabled" };

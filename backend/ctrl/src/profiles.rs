@@ -541,10 +541,7 @@ pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
 
                     // Bring down the WireGuard interface before reloading services.
                     // reload_system() alone won't tear down an active WireGuard tunnel.
-                    let _ = Command::new("ifdown")
-                        .arg(&wg_interface_name)
-                        .spawn()
-                        .and_then(|mut c| c.wait());
+                    let _ = crate::run_quiet(Command::new("ifdown").arg(&wg_interface_name));
                     reload_system_and_wifi()?;
                 }
                 crate::activity::log("profile", "deleted", true, &format!("Deleted profile '{name}'"), None);
@@ -751,22 +748,10 @@ pub(crate) fn list_config(_ctx: impl CtrlContext, cfgs: &Configs) -> Result<Vec<
 }
 
 pub fn reload_system() -> Result<(), Error> {
-    let _ = Command::new("/etc/init.d/network")
-        .arg("reload")
-        .spawn()
-        .and_then(|mut c| c.wait());
-    let _ = Command::new("/etc/init.d/smartdns")
-        .arg("restart")
-        .spawn()
-        .and_then(|mut c| c.wait());
-    let _ = Command::new("/etc/init.d/firewall")
-        .arg("restart")
-        .spawn()
-        .and_then(|mut c| c.wait());
-    let _ = Command::new("/etc/init.d/dnsmasq")
-        .arg("restart")
-        .spawn()
-        .and_then(|mut c| c.wait());
+    let _ = crate::run_quiet(Command::new("/etc/init.d/network").arg("reload"));
+    let _ = crate::run_quiet(Command::new("/etc/init.d/smartdns").arg("restart"));
+    let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("restart"));
+    let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("restart"));
     Ok(())
 }
 
@@ -775,25 +760,11 @@ pub fn reload_system() -> Result<(), Error> {
 /// tears down and recreates wireless interfaces, which destabilizes the network if the
 /// firewall reloads concurrently.
 pub fn reload_system_and_wifi() -> Result<(), Error> {
-    let _ = Command::new("/etc/init.d/network")
-        .arg("reload")
-        .spawn()
-        .and_then(|mut c| c.wait());
-    let _ = Command::new("wifi")
-        .spawn()
-        .and_then(|mut c| c.wait());
-    let _ = Command::new("/etc/init.d/smartdns")
-        .arg("restart")
-        .spawn()
-        .and_then(|mut c| c.wait());
-    let _ = Command::new("/etc/init.d/firewall")
-        .arg("restart")
-        .spawn()
-        .and_then(|mut c| c.wait());
-    let _ = Command::new("/etc/init.d/dnsmasq")
-        .arg("restart")
-        .spawn()
-        .and_then(|mut c| c.wait());
+    let _ = crate::run_quiet(Command::new("/etc/init.d/network").arg("reload"));
+    let _ = crate::run_quiet(&mut Command::new("wifi"));
+    let _ = crate::run_quiet(Command::new("/etc/init.d/smartdns").arg("restart"));
+    let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("restart"));
+    let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("restart"));
     Ok(())
 }
 

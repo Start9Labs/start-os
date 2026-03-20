@@ -352,14 +352,8 @@ pub fn ipv6_set<C: CtrlContext>(
                     // (prefix lifetimes=0) while the network is still up.
                     // Without this, disabling IPv6 leaves clients with stale
                     // SLAAC addresses until they naturally expire.
-                    let _ = Command::new("/etc/init.d/odhcpd")
-                        .arg("restart")
-                        .spawn()
-                        .and_then(|mut c| c.wait());
-                    let _ = Command::new("/etc/init.d/network")
-                        .arg("restart")
-                        .spawn()
-                        .and_then(|mut c| c.wait());
+                    let _ = crate::run_quiet(Command::new("/etc/init.d/odhcpd").arg("restart"));
+                    let _ = crate::run_quiet(Command::new("/etc/init.d/network").arg("restart"));
                 }
                 return Ok(());
             }
@@ -496,10 +490,10 @@ pub fn restart_network_services(new_lan_ip: Ipv4Addr, interfaces: Vec<String>) {
     // Cycle only the changed interfaces — `network reload` restarts ALL
     // interfaces including WAN, causing its DHCP client to lose its lease.
     for iface in &interfaces {
-        let _ = Command::new("ifdown").arg(iface).spawn().and_then(|mut c| c.wait());
+        let _ = crate::run_quiet(Command::new("ifdown").arg(iface));
     }
     for iface in &interfaces {
-        let _ = Command::new("ifup").arg(iface).spawn().and_then(|mut c| c.wait());
+        let _ = crate::run_quiet(Command::new("ifup").arg(iface));
     }
     // Safety: wait for br-lan to have the new IP before reloading
     // dependent services. ifup should be synchronous for static
@@ -517,23 +511,15 @@ pub fn restart_network_services(new_lan_ip: Ipv4Addr, interfaces: Vec<String>) {
         std::thread::sleep(std::time::Duration::from_millis(500));
     }
     // Regenerate nftables rules so masquerade/NAT covers the new subnets.
-    let _ = Command::new("/etc/init.d/firewall")
-        .arg("reload")
-        .spawn()
-        .and_then(|mut c| c.wait());
+    let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("reload"));
     // Full restart (not reload) so dnsmasq rebinds to new interface IPs.
     // A reload (SIGHUP) re-reads config but doesn't rebind listeners.
-    let _ = Command::new("/etc/init.d/dnsmasq")
-        .arg("restart")
-        .spawn()
-        .and_then(|mut c| c.wait());
+    let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("restart"));
     // Bounce WiFi so all clients disassociate and reassociate,
     // triggering fresh DHCP on the new subnet. Without this,
     // clients that stay connected keep stale leases from the
     // old network block.
-    let _ = Command::new("wifi")
-        .spawn()
-        .and_then(|mut c| c.wait());
+    let _ = crate::run_quiet(&mut Command::new("wifi"));
 }
 
 #[cfg(test)]

@@ -180,7 +180,7 @@ async fn inner_main() -> Result<(), Error> {
                 if let Err(e) = crate::init::configure_wifi("/etc/config", &wifi_password, Some(1)) {
                     tracing::error!("WiFi AP setup failed: {e}");
                 }
-                let _ = std::process::Command::new("wifi").arg("reload").status();
+                let _ = crate::run_quiet(std::process::Command::new("wifi").arg("reload"));
             })
             .await?;
 

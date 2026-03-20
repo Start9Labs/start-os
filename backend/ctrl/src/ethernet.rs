@@ -219,14 +219,8 @@ pub fn set<C: CtrlContext>(
                     // interfaces whose new instances lose their bridge
                     // VLAN 1 entry, permanently breaking WiFi.
                     thread::spawn(move || {
-                        let _ = Command::new("/etc/init.d/network")
-                            .arg("reload")
-                            .spawn()
-                            .and_then(|mut c| c.wait());
-                        let _ = Command::new("/etc/init.d/firewall")
-                            .arg("restart")
-                            .spawn()
-                            .and_then(|mut c| c.wait());
+                        let _ = crate::run_quiet(Command::new("/etc/init.d/network").arg("reload"));
+                        let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("restart"));
                         bounce_changed_ports(&old_ports, &ethernet);
                     });
                 }

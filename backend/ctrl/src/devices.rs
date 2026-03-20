@@ -518,32 +518,20 @@ fn query_wg_active_peers(wg_interfaces: &[String]) -> Vec<(String, Vec<WgActiveP
 
 fn reload_firewall() {
     std::thread::spawn(|| {
-        let _ = Command::new("/etc/init.d/firewall")
-            .arg("reload")
-            .spawn()
-            .and_then(|mut c| c.wait());
+        let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("reload"));
     });
 }
 
 fn reload_dnsmasq() {
     std::thread::spawn(|| {
-        let _ = Command::new("/etc/init.d/dnsmasq")
-            .arg("reload")
-            .spawn()
-            .and_then(|mut c| c.wait());
+        let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("reload"));
     });
 }
 
 fn reload_firewall_and_dnsmasq() {
     std::thread::spawn(|| {
-        let _ = Command::new("/etc/init.d/firewall")
-            .arg("reload")
-            .spawn()
-            .and_then(|mut c| c.wait());
-        let _ = Command::new("/etc/init.d/dnsmasq")
-            .arg("reload")
-            .spawn()
-            .and_then(|mut c| c.wait());
+        let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("reload"));
+        let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("reload"));
     });
 }
 

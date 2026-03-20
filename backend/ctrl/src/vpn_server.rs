@@ -207,16 +207,10 @@ pub fn vpn_server<C: rpc_toolkit::Context>() -> ParentHandler<C> {
 /// This is more reliable than network reload for WireGuard peer updates.
 fn restart_wireguard_interface(interface_name: &str) -> Result<(), Error> {
     // ifdown may fail if interface isn't up yet — that's fine
-    let _ = Command::new("ifdown")
-        .arg(interface_name)
-        .spawn()?
-        .wait();
+    let _ = crate::run_quiet(Command::new("ifdown").arg(interface_name));
 
     // ifup must succeed for the new config to take effect
-    let status = Command::new("ifup")
-        .arg(interface_name)
-        .spawn()?
-        .wait()?;
+    let status = crate::run_quiet(Command::new("ifup").arg(interface_name))?;
     if !status.success() {
         return Err(Error::other(format!(
             "ifup {} failed with exit code {:?}",
@@ -641,10 +635,7 @@ pub fn set(
                 } else {
                     // Bring the WireGuard interface down to disconnect existing clients.
                     // reload_system() alone won't tear down an active WireGuard tunnel.
-                    let _ = Command::new("ifdown")
-                        .arg(&wg_interface_name)
-                        .spawn()
-                        .and_then(|mut c| c.wait());
+                    let _ = crate::run_quiet(Command::new("ifdown").arg(&wg_interface_name));
                 }
                 reload_system()?;
                 // Apply proxy_arp sysctl directly — netifd ignores the UCI option

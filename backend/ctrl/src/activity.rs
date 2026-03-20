@@ -83,9 +83,11 @@ fn log_inner(
     summary: &str,
     error: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Emit to syslog via tracing
+    // Emit to syslog via tracing.
+    // The startwrt-activity prefix makes these entries easy to find: `logread | grep startwrt-activity`
+    let status = if success { "OK" } else { "FAIL" };
     let err_suffix = error.map(|e| format!(": {e}")).unwrap_or_default();
-    tracing::info!(target: "activity", "[{category}.{action}] {summary}{err_suffix}");
+    tracing::info!(target: "activity", "startwrt-activity [{category}.{action}] {status} {summary}{err_suffix}");
 
     // Insert into SQLite
     let timestamp = chrono::Utc::now().to_rfc3339();

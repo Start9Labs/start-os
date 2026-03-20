@@ -360,10 +360,7 @@ fn kill_wan_ssh_sessions(wan_ipv4: Option<Ipv4Addr>, wan_ipv6s: &[Ipv6Addr]) {
 
 fn reload_firewall(wan_ipv4: Option<Ipv4Addr>, wan_ipv6s: Vec<Ipv6Addr>) {
     std::thread::spawn(move || {
-        let _ = StdCommand::new("/etc/init.d/firewall")
-            .arg("reload")
-            .spawn()
-            .and_then(|mut c| c.wait());
+        let _ = crate::run_quiet(StdCommand::new("/etc/init.d/firewall").arg("reload"));
         // Kill WAN-side SSH sessions so they don't survive firewall changes
         // via conntrack ESTABLISHED state. HTTP sessions disconnect naturally
         // on the next request. Only dropbear processes are killed.

@@ -434,11 +434,8 @@ pub fn set<C: CtrlContext>(
             }) if ctx.effectful() => {
                 // try recreating the config from scratch
                 let _ = std::fs::remove_file(ctx.uci_root().join("wireless"));
-                let _ = Command::new("wifi")
-                    .arg("config")
-                    .spawn()
-                    .context("executing `wifi config`")?
-                    .wait();
+                crate::run_quiet(Command::new("wifi").arg("config"))
+                    .context("executing `wifi config`")?;
                 crate::activity::log("wifi", "recovered", true, "Recovered corrupted WiFi config (auto-regenerated)", None);
                 continue;
             }
@@ -462,18 +459,13 @@ pub fn set<C: CtrlContext>(
                     match restart {
                         WifiRestart::Full => {
                             // SSID/channel/enabled/hidden changed or new VLANs — full restart
-                            let _ = Command::new("wifi")
-                                .spawn()
-                                .context("executing `wifi`")?
-                                .wait();
+                            crate::run_quiet(&mut Command::new("wifi"))
+                                .context("executing `wifi`")?;
                         }
                         WifiRestart::PskOnly => {
                             // PSK-only change — fast path, no client disconnection
-                            let _ = Command::new("wifi")
-                                .arg("reload")
-                                .spawn()
-                                .context("executing `wifi reload`")?
-                                .wait();
+                            crate::run_quiet(Command::new("wifi").arg("reload"))
+                                .context("executing `wifi reload`")?;
                         }
                     }
                 }
@@ -648,11 +640,8 @@ pub fn blackout_set<C: CtrlContext>(
     }
 
     if ctx.effectful() {
-        let _ = Command::new("/etc/init.d/cron")
-            .arg("restart")
-            .spawn()
-            .context("restarting cron")?
-            .wait();
+        crate::run_quiet(Command::new("/etc/init.d/cron").arg("restart"))
+            .context("restarting cron")?;
     }
 
     crate::activity::log("wifi", "blackout-updated", true, "Updated WiFi blackout schedule", None);
