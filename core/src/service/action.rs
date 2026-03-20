@@ -152,7 +152,6 @@ impl ServiceActorSeed {
             )
             .await
             .log_err()
-            .ok()
             .flatten()
             .and_then(|ai| ai.value);
         let Some(input) = current_input else {
