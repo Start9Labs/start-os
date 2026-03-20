@@ -69,7 +69,7 @@ Maps physical ports to profiles via bridge VLAN assignments on the LAN bridge (`
 
 ### auth.rs — Session Authentication
 
-- Sessions stored as JSON in `/var/run/startwrt/sessions.json`
+- Sessions stored as JSON in `/etc/startwrt/sessions.json`
 - Password validated against `/etc/shadow` (or `STARTWRT_DEV_PASSWORD` env var for dev)
 - Tokens: base32-encoded random bytes, stored as SHA-256 hashes
 - 1-day session expiry

@@ -21,7 +21,7 @@ use crate::captive;
 use crate::error::Error;
 use crate::{CliContext, ServerContext};
 
-const DEFAULT_SESSION_FILE_PATH: &str = "/var/run/startwrt/sessions.json";
+const DEFAULT_SESSION_FILE_PATH: &str = "/etc/startwrt/sessions.json";
 const SESSION_EXPIRY_DAYS: i64 = 1;
 
 static SESSION_FILE_PATH: LazyLock<String> = LazyLock::new(|| {
