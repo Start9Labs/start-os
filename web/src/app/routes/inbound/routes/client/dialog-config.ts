@@ -18,6 +18,15 @@ import { ModalHelp } from 'src/app/help/modal-help'
     <header tuiHeader [style.margin-block-start.rem]="-0.5">
       <h2 tuiTitle [id]="context.id">{{ context.data.name }}</h2>
       <aside tuiAccessories>
+        <button
+          tuiIconButton
+          appearance="icon"
+          size="s"
+          [iconStart]="masked() ? '@tui.eye' : '@tui.eye-off'"
+          (click)="masked.set(!masked())"
+        >
+          Toggle visibility
+        </button>
         <tui-segmented [(activeItemIndex)]="index">
           <button>
             <tui-icon icon="@tui.file" />
@@ -31,9 +40,13 @@ import { ModalHelp } from 'src/app/help/modal-help'
       </aside>
     </header>
     @if (index()) {
-      <qr-code [value]="context.data.config" size="352" />
+      <qr-code
+        [value]="context.data.config"
+        size="352"
+        [class.masked]="masked()"
+      />
     } @else {
-      <tui-textfield>
+      <tui-textfield [class.masked]="masked()">
         <textarea
           tuiTextarea
           [min]="19"
@@ -54,6 +67,13 @@ import { ModalHelp } from 'src/app/help/modal-help'
       </tui-textfield>
     }
   `,
+  styles: `
+    .masked {
+      filter: blur(8px);
+      pointer-events: none;
+      user-select: none;
+    }
+  `,
   hostDirectives: [ModalHelp],
   providers: [provideHelp('/inbound/client/dialog-config')],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -71,6 +91,7 @@ import { ModalHelp } from 'src/app/help/modal-help'
 })
 export class ClientConfigDialog {
   protected readonly index = signal(0)
+  protected readonly masked = signal(true)
   protected readonly context =
     injectContext<TuiDialogContext<void, { name: string; config: string }>>()
   protected readonly href = URL.createObjectURL(
