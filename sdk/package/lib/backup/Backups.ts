@@ -221,7 +221,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
    * @param effects - The effects context
    */
   async restoreBackup(effects: T.Effects) {
-    this.preRestore(effects as BackupEffects)
+    await this.preRestore(effects as BackupEffects)
 
     for (const item of this.backupSet) {
       const rsyncResults = await runRsync({
@@ -229,9 +229,9 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
         dstPath: item.dataPath,
         options: {
           ...this.options,
-          ...this.backupOptions,
+          ...this.restoreOptions,
           ...item.options,
-          ...item.backupOptions,
+          ...item.restoreOptions,
         },
       })
       await rsyncResults.wait()
@@ -242,7 +242,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       })
       .catch((_) => null)
     if (dataVersion) await effects.setDataVersion({ version: dataVersion })
-    this.postRestore(effects as BackupEffects)
+    await this.postRestore(effects as BackupEffects)
     return
   }
 }
@@ -268,7 +268,10 @@ async function runRsync(rsyncOptions: {
   for (const exclude of options.exclude) {
     args.push(`--exclude=${exclude}`)
   }
-  args.push('-rlptgocAXH')
+  args.push('-rlptgoAXH')
+  args.push('--partial')
+  args.push('--inplace')
+  args.push('--timeout=300')
   args.push('--info=progress2')
   args.push('--no-inc-recursive')
   args.push(srcPath)
