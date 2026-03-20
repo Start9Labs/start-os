@@ -15,8 +15,7 @@ IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo 
 WEB_UIS := web/dist/raw/ui/index.html web/dist/raw/setup-wizard/index.html
 COMPRESSED_WEB_UIS := web/dist/static/ui/index.html web/dist/static/setup-wizard/index.html
 FIRMWARE_ROMS := build/lib/firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./build/lib/firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
-TOR_S9PK := build/lib/tor_$(ARCH).s9pk
-BUILD_SRC := $(call ls-files, build/lib) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS) $(TOR_S9PK)
+BUILD_SRC := $(call ls-files, build/lib) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS)
 IMAGE_RECIPE_SRC := $(call ls-files, build/image-recipe/)
 STARTD_SRC := core/startd.service $(BUILD_SRC)
 CORE_SRC := $(call ls-files, core) $(shell git ls-files --recurse-submodules patch-db) $(GIT_HASH_FILE)
@@ -315,9 +314,6 @@ build/lib/depends build/lib/conflicts: $(ENVIRONMENT_FILE) $(PLATFORM_FILE) $(sh
 
 $(FIRMWARE_ROMS): build/lib/firmware.json ./build/download-firmware.sh $(PLATFORM_FILE)
 	./build/download-firmware.sh $(PLATFORM)
-
-$(TOR_S9PK): ./build/download-tor-s9pk.sh
-	./build/download-tor-s9pk.sh $(ARCH)
 
 core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox: $(CORE_SRC) $(COMPRESSED_WEB_UIS) web/patchdb-ui-seed.json $(ENVIRONMENT_FILE)
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build/build-startbox.sh

@@ -2656,6 +2656,13 @@ help.arg.allow-partial-backup:
   fr_FR: "Laisser le média monté même si backupfs échoue à monter"
   pl_PL: "Pozostaw nośnik zamontowany nawet jeśli backupfs nie może się zamontować"
 
+help.arg.architecture:
+  en_US: "Target CPU architecture (e.g. x86_64, aarch64)"
+  de_DE: "Ziel-CPU-Architektur (z.B. x86_64, aarch64)"
+  es_ES: "Arquitectura de CPU objetivo (ej. x86_64, aarch64)"
+  fr_FR: "Architecture CPU cible (ex. x86_64, aarch64)"
+  pl_PL: "Docelowa architektura CPU (np. x86_64, aarch64)"
+
 help.arg.architecture-mask:
   en_US: "Filter by CPU architecture"
   de_DE: "Nach CPU-Architektur filtern"
