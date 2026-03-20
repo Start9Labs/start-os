@@ -51,7 +51,12 @@ import UpdatesComponent from './updates.component'
     <tr (click)="expanded.set(!expanded())">
       <td>
         <div [style.gap.rem]="0.75" [style.padding-inline-end.rem]="1">
-          <span tuiAvatar appearance="action-grayscale" size="s">
+          <span
+            tuiAvatar
+            appearance="action-grayscale"
+            size="s"
+            [round]="false"
+          >
             <img alt="" [src]="item().icon" />
           </span>
           <span tuiTitle [style.margin]="'-0.125rem 0 0'">

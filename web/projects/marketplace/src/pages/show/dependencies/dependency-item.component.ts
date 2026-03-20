@@ -15,7 +15,13 @@ import { MarketplacePkgBase } from '../../../types'
   selector: 'marketplace-dep-item',
   template: `
     <div class="outer-container">
-      <span tuiAvatar appearance="action-grayscale" class="dep-img" size="l">
+      <span
+        tuiAvatar
+        appearance="action-grayscale"
+        class="dep-img"
+        size="l"
+        [round]="false"
+      >
         <img alt="" [src]="getImage(dep.key)" />
       </span>
       <div>

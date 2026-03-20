@@ -6,7 +6,9 @@
   <!-- darkening overlay -->
   <div class="overlay"></div>
   <!-- icon -->
-  <img [src]="determineIcon()" class="icon" alt="{{ pkg.title }} Icon" />
+  <span tuiAvatar class="icon" [round]="false">
+    <img [src]="determineIcon()" alt="{{ pkg.title }} Icon" />
+  </span>
   <div class="detail">
     <span class="detail-title" ticker>
       {{ pkg.title }}
