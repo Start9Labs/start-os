@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TickerComponent } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { TuiAvatar } from '@taiga-ui/kit'
 
 @Component({
   selector: 'marketplace-package-hero',
@@ -8,7 +9,9 @@ import { T } from '@start9labs/start-sdk'
     <div class="outer-container">
       <div class="inner-container box-shadow-lg">
         <!-- icon -->
-        <img [src]="determineIcon()" alt="{{ pkg.title }} Icon" />
+        <span tuiAvatar [round]="false">
+          <img [src]="determineIcon()" alt="{{ pkg.title }} Icon" />
+        </span>
         <!-- color background -->
         <div class="color-background">
           <img [src]="determineIcon()" alt="{{ pkg.title }} background image" />
@@ -51,12 +54,10 @@ import { T } from '@start9labs/start-sdk'
         min-height: 11rem;
       }
 
-      img {
+      [tuiAvatar] {
         width: 6rem;
         height: 6rem;
         pointer-events: none;
-        border-radius: 9999px;
-        object-fit: cover;
         position: absolute;
         top: -2.25rem;
         left: 1.75rem;
@@ -118,7 +119,7 @@ import { T } from '@start9labs/start-sdk'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TickerComponent],
+  imports: [TickerComponent, TuiAvatar],
 })
 export class MarketplacePackageHeroComponent {
   @Input({ required: true })
