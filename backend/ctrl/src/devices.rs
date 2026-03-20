@@ -310,9 +310,11 @@ fn parse_nlbw_json(output: &str) -> Vec<(String, u64, u64)> {
 
 /// Discover hostapd interfaces and their connected client MACs,
 /// along with radio band info.
-fn get_wifi_clients() -> HashMap<String, String> {
+/// Returns (MAC→band_label, set of WiFi bridge-port names).
+fn get_wifi_clients() -> (HashMap<String, String>, std::collections::HashSet<String>) {
     // Maps MAC → connection type ("Wi-Fi 2.4GHz" or "Wi-Fi 5GHz")
     let mut wifi_macs: HashMap<String, String> = HashMap::new();
+    let mut wifi_ports = std::collections::HashSet::new();
 
     // 1. List hostapd interfaces via ubus
     let ubus_list = run_cmd("ubus", &["list"]);
@@ -322,7 +324,7 @@ fn get_wifi_clients() -> HashMap<String, String> {
         .collect();
 
     if hostapd_ifaces.is_empty() {
-        return wifi_macs;
+        return (wifi_macs, wifi_ports);
     }
 
     // 2. Get wifi device → band mapping from UCI
@@ -362,6 +364,7 @@ fn get_wifi_clients() -> HashMap<String, String> {
     for hostapd in hostapd_ifaces {
         // hostapd.wlan0 → wlan0
         let wlan_name = hostapd.strip_prefix("hostapd.").unwrap_or(hostapd);
+        wifi_ports.insert(wlan_name.to_string());
         let band = iface_to_band
             .get(wlan_name)
             .cloned()
@@ -382,7 +385,32 @@ fn get_wifi_clients() -> HashMap<String, String> {
         }
     }
 
-    wifi_macs
+    (wifi_macs, wifi_ports)
+}
+
+/// Parse `bridge fdb show br br-lan` to map each MAC to its bridge port.
+/// Only dynamic (learned) entries are included — permanent/self-only entries
+/// (multicast groups, etc.) are skipped.
+fn get_bridge_fdb() -> HashMap<String, String> {
+    let output = run_cmd("bridge", &["fdb", "show", "br", "br-lan"]);
+    let mut fdb: HashMap<String, String> = HashMap::new();
+    for line in output.lines() {
+        if line.contains("permanent") {
+            continue;
+        }
+        // Only bridge-level entries (not lower-device "self" entries).
+        if !line.contains("master") {
+            continue;
+        }
+        // Format: MAC dev PORT [vlan VLAN] master BRIDGE [offloaded] [...]
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 4 && parts[1] == "dev" {
+            let mac = parts[0].to_uppercase();
+            let port = parts[2].to_string();
+            fdb.entry(mac).or_insert(port);
+        }
+    }
+    fdb
 }
 
 // --- VPN peer types and helpers ---
@@ -540,7 +568,9 @@ fn reload_firewall_and_dnsmasq() {
 /// Identify non-WiFi MACs that need reachability verification.
 ///
 /// Returns:
-/// - `probe_targets`: IPv4 (ip, mac) pairs to ping-probe
+/// - `probe_targets`: IPv4 (ip, mac, interface) triples to ping-probe.
+///   The interface is included so pings are bound to the correct LAN segment
+///   and can't leak to WAN when subnets overlap.
 /// - `ipv6_only_macs`: MACs with only IPv6 neighbor entries (no IPv4 to probe)
 ///    — these are treated as unreachable since we can't verify them
 ///
@@ -548,7 +578,7 @@ fn reload_firewall_and_dnsmasq() {
 fn non_wifi_probe_candidates(
     arp_entries: &[ArpEntry],
     wifi_clients: &HashMap<String, String>,
-) -> (Vec<(String, String)>, std::collections::HashSet<String>) {
+) -> (Vec<(String, String, String)>, std::collections::HashSet<String>) {
     // Collect MACs that have any REACHABLE entry.
     let reachable_macs: std::collections::HashSet<&str> = arp_entries
         .iter()
@@ -582,10 +612,19 @@ fn non_wifi_probe_candidates(
         }
         has_ipv4.insert(entry.mac.clone());
         match entry.state.as_str() {
-            // STALE non-WiFi entries need probing, unless they also have a
-            // REACHABLE entry (kernel already confirmed them).
-            "STALE" if reachable_macs.contains(entry.mac.as_str()) => continue,
-            "STALE" => {}
+            // STALE/DELAY/PROBE non-WiFi entries need probing, unless they
+            // also have a REACHABLE IPv4 entry (kernel already confirmed them).
+            // DELAY and PROBE are intermediate states triggered when the kernel
+            // attempts ARP resolution (e.g. from a previous ping probe). If we
+            // don't probe these, the device slips through as "Online Ethernet"
+            // because the status check counts them as alive but
+            // unreachable_macs never flagged them.
+            "STALE" | "DELAY" | "PROBE"
+                if reachable_macs.contains(entry.mac.as_str()) =>
+            {
+                continue
+            }
+            "STALE" | "DELAY" | "PROBE" => {}
             // REACHABLE entries are normally trusted, but if the MAC was
             // recently a WiFi client (not in hostapd anymore, not in
             // wifi_clients), the kernel's REACHABLE state is stale — probe it.
@@ -594,7 +633,7 @@ fn non_wifi_probe_candidates(
         }
         // One probe per IP is enough.
         if seen.insert(entry.ip.clone()) {
-            targets.push((entry.ip.clone(), entry.mac.clone()));
+            targets.push((entry.ip.clone(), entry.mac.clone(), entry.interface.clone()));
         }
     }
 
@@ -610,11 +649,13 @@ fn non_wifi_probe_candidates(
 
 /// Ping STALE IPs concurrently and return the set of MACs that did NOT reply.
 /// A MAC is only considered unreachable if ALL of its probed IPs failed.
-fn ping_unreachable_macs(targets: Vec<(String, String)>) -> std::collections::HashSet<String> {
+/// Each target includes the interface to bind to (`-I`), ensuring pings stay
+/// on the correct LAN segment and don't leak to WAN on overlapping subnets.
+fn ping_unreachable_macs(targets: Vec<(String, String, String)>) -> std::collections::HashSet<String> {
     let mut results: Vec<(String, std::process::Child)> = Vec::new();
-    for (ip, mac) in &targets {
+    for (ip, mac, iface) in &targets {
         if let Ok(child) = Command::new("ping")
-            .args(["-c", "1", "-W", "1", ip])
+            .args(["-c", "1", "-W", "1", "-I", iface, ip])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .spawn()
@@ -708,7 +749,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     // We need ARP + WiFi clients first to identify which STALE entries need
     // probing. UCI parsing has no dependency on any of these, so it runs in
     // parallel too.
-    let (arp_output, wifi_clients, uci_result) = tokio::join!(
+    let (arp_output, wifi_result, uci_result, fdb_result) = tokio::join!(
         tokio::task::spawn_blocking(|| run_cmd("ip", &["neigh", "show"])),
         tokio::task::spawn_blocking(get_wifi_clients),
         tokio::task::spawn_blocking(|| -> Result<_, Error> {
@@ -748,10 +789,12 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
 
             Ok::<_, Error>((hosts_by_mac, blocked_macs, profiles, vpn_peer_configs))
         }),
+        tokio::task::spawn_blocking(get_bridge_fdb),
     );
 
     let arp_output = arp_output.unwrap_or_default();
-    let wifi_clients = wifi_clients.unwrap_or_default();
+    let (wifi_clients, wifi_ports) = wifi_result.unwrap_or_default();
+    let fdb_by_mac = fdb_result.unwrap_or_default();
     let initial_arp = parse_arp_output(&arp_output);
 
     // --- Phase 2b: Probe non-WiFi entries + remaining data (parallel) ---
@@ -906,11 +949,17 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         let host = hosts_by_mac.get(mac);
         let is_blocked = blocked_macs.contains_key(mac);
 
-        // Status: STALE entries for devices that failed the ping probe are
-        // treated as offline. WiFi clients skip probing (hostapd is
-        // authoritative) so they remain online via their STALE entries.
+        // Status: hostapd is authoritative for WiFi — if the bridge FDB
+        // places a MAC on a WiFi port but hostapd doesn't list it, the
+        // device has disconnected even if its ARP entry or ping is alive
+        // (the WiFi driver hasn't fully cleaned up yet).
+        let on_wifi_port = fdb_by_mac
+            .get(mac)
+            .map_or(false, |port| wifi_ports.contains(port));
         let status = if is_blocked {
             DeviceStatus::Blocked
+        } else if on_wifi_port && !wifi_clients.contains_key(mac) {
+            DeviceStatus::Offline
         } else if unreachable_macs.contains(mac) {
             DeviceStatus::Offline
         } else if arp_list
@@ -961,13 +1010,15 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
             });
         let hostname = lease.map(|l| l.hostname.clone());
 
-        // Connection type
+        // Connection type — only label as "Ethernet" when the bridge FDB
+        // does NOT place the MAC on a WiFi port. This prevents recently
+        // disconnected WiFi clients from being mislabelled.
         let connection = if matches!(status, DeviceStatus::Online) {
             wifi_clients
                 .get(mac)
                 .cloned()
                 .or_else(|| {
-                    if !arp_list.is_empty() {
+                    if !on_wifi_port && !arp_list.is_empty() {
                         Some("Ethernet".to_string())
                     } else {
                         None
