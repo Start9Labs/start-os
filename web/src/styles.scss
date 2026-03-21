@@ -312,10 +312,12 @@ tui-data-list {
     font-weight: bold;
     list-style: none;
 
+    --chevron: url('data:image/svg+xml;charset=UTF-8,%3Csvg%0A%20%20%20%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%0A%20%20%20%20width%3D%2224%22%0A%20%20%20%20height%3D%2224%22%0A%20%20%20%20viewBox%3D%220%200%2024%2024%22%0A%20%20%20%20fill%3D%22none%22%0A%20%20%20%20stroke%3D%22currentColor%22%0A%20%20%20%20stroke-width%3D%22calc((100vw%20-%20100vh)%20%2F%2010)%22%0A%20%20%20%20stroke-linecap%3D%22round%22%0A%20%20%20%20stroke-linejoin%3D%22round%22%0A%3E%0A%20%20%20%20%3Cpath%20vector-effect%3D%22non-scaling-stroke%22%20d%3D%22m6%209%206%206%206-6%22%20%2F%3E%0A%3C%2Fsvg%3E%0A');
+
     &::after {
       content: '';
       background: currentColor;
-      mask: url('/assets/taiga-ui/icons/chevron-down.svg') no-repeat center /
+      mask: var(--chevron) no-repeat center /
         calc(min(1em, 100%) + 10 * var(--tui-stroke-width)) min(1em, 100%);
       transition: transform 0.3s ease-in-out;
       font-size: 1rem;
