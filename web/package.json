@@ -8,7 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "check": "tsc --project tsconfig.app.json --noEmit --skipLibCheck",
     "prepare": "cd .. && husky web/.husky",
-    "analyze": "ng build --stats-json --named-chunks && npx -yü @angular-experts/hawkeye dist/startwrt/stats.json"
+    "analyze": "ng build --stats-json --named-chunks && npx -y @angular-experts/hawkeye dist/startwrt/stats.json"
   },
   "dependencies": {
     "@angular/cdk": "^21.1.0",
