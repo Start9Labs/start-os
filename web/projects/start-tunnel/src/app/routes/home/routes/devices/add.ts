@@ -169,7 +169,7 @@ export class DevicesAdd {
         })
 
         this.dialogs
-          .open(DEVICES_CONFIG, { data: config, closable: false })
+          .open(DEVICES_CONFIG, { data: config, closable: false, size: 'm' })
           .subscribe()
       }
     } catch (e: any) {

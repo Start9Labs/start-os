@@ -9,13 +9,7 @@ import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, RouterLink } from '@angular/router'
 import { DialogService, DocsLinkDirective, i18nPipe } from '@start9labs/shared'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
-import {
-  TuiButton,
-  TuiLink,
-  TuiLoader,
-  TuiNotification,
-  TuiTitle,
-} from '@taiga-ui/core'
+import { TuiButton, TuiLoader, TuiNotification, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import {
@@ -35,12 +29,28 @@ import { BACKUP_RESTORE } from './restore.component'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
-        {{ 'Back' | i18n }}
-      </a>
-      {{
-        type === 'create' ? ('Create Backup' | i18n) : ('Restore Backup' | i18n)
-      }}
+      <div>
+        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+          {{ 'Back' | i18n }}
+        </a>
+        {{
+          type === 'create'
+            ? ('Create Backup' | i18n)
+            : ('Restore Backup' | i18n)
+        }}
+        <a
+          tuiIconButton
+          size="xs"
+          docsLink
+          [path]="
+            type === 'create'
+              ? '/start-os/backup-create.html'
+              : '/start-os/backup-restore.html'
+          "
+          appearance="icon"
+          iconStart="@tui.book-open-text"
+        ></a>
+      </div>
     </ng-container>
 
     <header tuiHeader>
@@ -51,36 +61,19 @@ import { BACKUP_RESTORE } from './restore.component'
               ? ('Create Backup' | i18n)
               : ('Restore Backup' | i18n)
           }}
+          <a
+            tuiIconButton
+            size="xs"
+            docsLink
+            [path]="
+              type === 'create'
+                ? '/start-os/backup-create.html'
+                : '/start-os/backup-restore.html'
+            "
+            appearance="icon"
+            iconStart="@tui.book-open-text"
+          ></a>
         </h3>
-        <p tuiSubtitle>
-          @if (type === 'create') {
-            {{
-              'Back up StartOS and service data by connecting to a device on your local network or a physical drive connected to your server.'
-                | i18n
-            }}
-            <a
-              tuiLink
-              docsLink
-              path="/start-os/backup-create.html"
-              appearance="action-grayscale"
-              iconEnd="@tui.external-link"
-              [textContent]="'View instructions' | i18n"
-            ></a>
-          } @else {
-            {{
-              'Restore StartOS and service data from a device on your local network or a physical drive connected to your server that contains an existing backup.'
-                | i18n
-            }}
-            <a
-              tuiLink
-              docsLink
-              path="/start-os/backup-restore.html"
-              appearance="action-grayscale"
-              iconEnd="@tui.external-link"
-              [textContent]="'View instructions' | i18n"
-            ></a>
-          }
-        </p>
       </hgroup>
     </header>
 
@@ -109,28 +102,14 @@ import { BACKUP_RESTORE } from './restore.component'
           [style.height.rem]="20"
         />
       } @else {
-        <section (networkFolders)="onTarget($event)">
-          {{
-            'A folder on another computer that is connected to the same network as your Start9 server.'
-              | i18n
-          }}
-          <a
-            tuiLink
-            docsLink
-            path="/start-os/backup-create.html"
-            fragment="#network-folder"
-            appearance="action-grayscale"
-            iconEnd="@tui.external-link"
-            [textContent]="'View instructions' | i18n"
-          ></a>
-        </section>
-        <section (physicalFolders)="onTarget($event)">
-          {{
-            'A physical drive that is plugged directly into your Start9 Server.'
-              | i18n
-          }}
-        </section>
+        <section (networkFolders)="onTarget($event)"></section>
+        <section (physicalFolders)="onTarget($event)"></section>
       }
+    }
+  `,
+  styles: `
+    :host-context(tui-root._mobile) [tuiHeader] {
+      display: none;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -140,7 +119,6 @@ import { BACKUP_RESTORE } from './restore.component'
     RouterLink,
     TuiButton,
     TuiLoader,
-    TuiLink,
     TuiHeader,
     TuiTitle,
     TuiNotification,
@@ -184,12 +162,22 @@ export default class SystemBackupComponent implements OnInit {
   }
 
   onTarget(target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>) {
-    const component = this.type === 'create' ? BACKUP : BACKUP_RESTORE
-    const label =
-      this.type === 'create'
-        ? 'Select Services to Back Up'
-        : 'Select server backup'
-
-    this.dialog.openComponent(component, { label, data: target }).subscribe()
+    if (this.type === 'create') {
+      this.dialog
+        .openComponent(BACKUP, {
+          label: 'Select services',
+          data: target,
+          size: 'm',
+        })
+        .subscribe()
+    } else {
+      this.dialog
+        .openComponent(BACKUP_RESTORE, {
+          label: 'Select server',
+          data: target,
+          size: 'l',
+        })
+        .subscribe()
+    }
   }
 }

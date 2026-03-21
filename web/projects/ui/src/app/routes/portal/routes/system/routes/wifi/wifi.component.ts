@@ -52,10 +52,20 @@ import { wifiSpec } from './wifi.const'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
-        {{ 'Back' | i18n }}
-      </a>
-      WiFi
+      <div>
+        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+          {{ 'Back' | i18n }}
+        </a>
+        WiFi
+        <a
+          tuiIconButton
+          size="xs"
+          docsLink
+          path="/start-os/wifi.html"
+          appearance="icon"
+          iconStart="@tui.book-open-text"
+        ></a>
+      </div>
     </ng-container>
     <section class="g-card">
       <header>
@@ -108,7 +118,7 @@ import { wifiSpec } from './wifi.const'
               <div tuiCardLarge="compact" [wifi]="data.available"></div>
             }
             <p>
-              <button tuiButton (click)="other(data)" appearance="flat">
+              <button tuiButton (click)="other(data)" appearance="grayscale">
                 + {{ 'Connect to hidden network' | i18n }}
               </button>
             </p>
@@ -130,6 +140,10 @@ import { wifiSpec } from './wifi.const'
   styles: `
     :host {
       max-width: 36rem;
+    }
+
+    :host-context(tui-root._mobile) header > [docsLink] {
+      display: none;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

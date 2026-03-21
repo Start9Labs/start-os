@@ -7,7 +7,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
-import { TuiDialogContext, TuiIcon, TuiTitle, TuiCell } from '@taiga-ui/core'
+import { TuiDialogContext, TuiIcon } from '@taiga-ui/core'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
@@ -17,41 +17,58 @@ import { DataModel } from '../services/patch-db/data-model'
 
 @Component({
   template: `
-    <h3 class="g-title">
-      {{ 'Completed' | i18n }}: {{ data.createdAt | date: 'medium' }}
-    </h3>
-    <div tuiCell>
-      <div tuiTitle>
-        <strong>{{ 'System data' | i18n }}</strong>
-        <div tuiSubtitle [style.color]="system().color">
-          {{ system().result | i18n }}
-        </div>
-      </div>
-      <tui-icon [icon]="system().icon" [style.color]="system().color" />
-    </div>
-    @if (pkgTitles(); as titles) {
-      @for (pkg of data.content.packages | keyvalue; track $index) {
-        <div tuiCell>
-          <div tuiTitle>
-            <strong>{{ titles[pkg.key] || pkg.key }}</strong>
-            <div tuiSubtitle [style.color]="getColor(pkg.value.error)">
-              {{
-                pkg.value.error
-                  ? ('Failed' | i18n) + ': ' + pkg.value.error
-                  : ('Succeeded' | i18n)
-              }}
-            </div>
-          </div>
-          <tui-icon
-            [icon]="getIcon(pkg.value.error)"
-            [style.color]="getColor(pkg.value.error)"
-          />
-        </div>
-      }
+    <p class="timestamp">{{ data.createdAt | date: 'medium' }}</p>
+    <table class="g-table">
+      <thead>
+        <tr>
+          <th>{{ 'Title' | i18n }}</th>
+          <th>{{ 'Result' | i18n }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{ 'System data' | i18n }}</td>
+          <td [style.color]="system().color">
+            <tui-icon [icon]="system().icon" />
+            {{ system().result | i18n }}
+          </td>
+        </tr>
+        @if (pkgTitles(); as titles) {
+          @for (pkg of data.content.packages | keyvalue; track $index) {
+            <tr>
+              <td>{{ titles[pkg.key] || pkg.key }}</td>
+              <td [style.color]="getColor(pkg.value.error)">
+                <tui-icon [icon]="getIcon(pkg.value.error)" />
+                {{
+                  pkg.value.error
+                    ? ('Failed' | i18n) + ': ' + pkg.value.error
+                    : ('Succeeded' | i18n)
+                }}
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  `,
+  styles: `
+    .timestamp {
+      color: var(--tui-text-secondary);
+      margin: 0 0 1rem;
+    }
+
+    td:first-child {
+      white-space: nowrap;
+    }
+
+    tui-icon {
+      font-size: 1rem;
+      vertical-align: sub;
+      margin-inline-end: 0.25rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiIcon, TuiCell, TuiTitle, i18nPipe],
+  imports: [CommonModule, TuiIcon, i18nPipe],
 })
 export class BackupsReportModal {
   private readonly i18n = inject(i18nPipe)

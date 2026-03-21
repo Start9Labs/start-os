@@ -159,7 +159,9 @@ export default class Devices {
     try {
       const data = await this.api.showDeviceConfig({ subnet: subnet.range, ip })
 
-      this.dialogs.open(DEVICES_CONFIG, { data, closable: false }).subscribe()
+      this.dialogs
+        .open(DEVICES_CONFIG, { data, closable: false, size: 'm' })
+        .subscribe()
     } catch (e: any) {
       console.log(e)
       this.errorService.handleError(e)

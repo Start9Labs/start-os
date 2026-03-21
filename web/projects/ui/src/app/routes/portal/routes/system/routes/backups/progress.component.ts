@@ -22,22 +22,40 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
           </span>
           <span tuiTitle>
             {{ (pkg.value | toManifest).title }}
-            <span tuiSubtitle>
-              @if (progress.complete) {
-                <tui-icon icon="@tui.check" class="g-positive" />
-                {{ 'complete' | i18n }}
+          </span>
+          <span class="status">
+            @if (progress.complete) {
+              <tui-icon icon="@tui.check" class="g-positive" />
+              {{ 'complete' | i18n }}
+            } @else {
+              @if ((pkg.key | tuiMapper: toStatus | async) === 'backing-up') {
+                <tui-loader size="s" />
+                {{ 'backing up' | i18n }}
               } @else {
-                @if ((pkg.key | tuiMapper: toStatus | async) === 'backing-up') {
-                  <tui-loader size="s" />
-                  {{ 'backing up' | i18n }}
-                } @else {
-                  {{ 'waiting' | i18n }}
-                }
+                <tui-icon icon="@tui.clock" />
+                {{ 'waiting' | i18n }}
               }
-            </span>
+            }
           </span>
         </div>
       }
+    }
+  `,
+  styles: `
+    :host {
+      max-width: 36rem;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin-inline-start: auto;
+      white-space: nowrap;
+    }
+
+    .status tui-icon {
+      font-size: 1rem;
     }
   `,
   host: { class: 'g-card' },

@@ -22,7 +22,7 @@ import { QrCodeComponent } from 'ng-qrcode'
         </tui-segmented>
       </aside>
     </header>
-    @if (segmented?.activeItemIndex) {
+    @if (segmented?.activeItemIndex()) {
       <qr-code [value]="config" size="352" />
     } @else {
       <tui-textfield>

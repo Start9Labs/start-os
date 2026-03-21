@@ -29,10 +29,20 @@ import { GatewaysTableComponent } from './table.component'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
-        {{ 'Back' | i18n }}
-      </a>
-      {{ 'Gateways' | i18n }}
+      <div>
+        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+          {{ 'Back' | i18n }}
+        </a>
+        {{ 'Gateways' | i18n }}
+        <a
+          tuiIconButton
+          size="xs"
+          docsLink
+          path="/start-os/gateways.html"
+          appearance="icon"
+          iconStart="@tui.book-open-text"
+        ></a>
+      </div>
     </ng-container>
 
     <section class="g-card">
@@ -121,6 +131,10 @@ import { GatewaysTableComponent } from './table.component'
     }
   `,
   styles: `
+    :host-context(tui-root._mobile) .g-card > header > [docsLink] {
+      display: none;
+    }
+
     .outbound {
       max-width: 24rem;
       margin-top: 2rem;

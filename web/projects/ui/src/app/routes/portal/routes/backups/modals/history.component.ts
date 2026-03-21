@@ -235,6 +235,7 @@ export class BackupsHistoryModal {
           content: report,
           createdAt: completedAt,
         },
+        size: 'l',
       })
       .subscribe()
   }
