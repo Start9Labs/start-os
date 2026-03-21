@@ -219,6 +219,7 @@ pub async fn attach(
             } else {
                 Some(DEFAULT_PASSWORD)
             },
+            Some(&*progress),
         )
         .await?;
         let _ = setup_ctx.disk_guid.set(disk_guid.clone());
@@ -396,8 +397,14 @@ pub async fn setup_data_drive(
         encryption_password,
     )
     .await?;
-    let _ = crate::disk::main::import(&*guid, DATA_DIR, RepairStrategy::Preen, encryption_password)
-        .await?;
+    let _ = crate::disk::main::import(
+        &*guid,
+        DATA_DIR,
+        RepairStrategy::Preen,
+        encryption_password,
+        None,
+    )
+    .await?;
     let _ = ctx.disk_guid.set(guid.clone());
     Ok(guid)
 }
@@ -726,6 +733,7 @@ async fn migrate(
         } else {
             Some(DEFAULT_PASSWORD)
         },
+        Some(&ctx.progress),
     )
     .await?;
 

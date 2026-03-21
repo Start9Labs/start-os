@@ -12,6 +12,7 @@ use super::util::pvscan;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::{FileSystem, ReadWrite};
 use crate::disk::mount::util::unmount;
+use crate::progress::FullProgressTracker;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -216,6 +217,7 @@ pub async fn import<P: AsRef<Path>>(
     datadir: P,
     repair: RepairStrategy,
     password: Option<&str>,
+    progress: Option<&FullProgressTracker>,
 ) -> Result<RequiresReboot, Error> {
     let scan = pvscan().await?;
     if scan
@@ -264,7 +266,7 @@ pub async fn import<P: AsRef<Path>>(
         .arg(guid)
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    mount_all_fs(guid, datadir, repair, password).await
+    mount_all_fs(guid, datadir, repair, password, progress).await
 }
 
 #[instrument(skip_all)]
@@ -274,6 +276,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
     name: &str,
     repair: RepairStrategy,
     password: Option<&str>,
+    progress: Option<&FullProgressTracker>,
 ) -> Result<RequiresReboot, Error> {
     let orig_path = Path::new("/dev").join(guid).join(name);
     let mut blockdev_path = orig_path.clone();
@@ -305,6 +308,11 @@ pub async fn mount_fs<P: AsRef<Path>>(
     // Convert ext4 → btrfs on the package-data partition if needed
     let fs_type = detect_filesystem(&blockdev_path).await?;
     if fs_type == "ext2" {
+        let mut convert_phase =
+            progress.map(|p| p.add_phase(t!("disk.main.converting-to-btrfs").into(), Some(50)));
+        if let Some(ref mut phase) = convert_phase {
+            phase.start();
+        }
         tracing::info!("Running e2fsck before converting {name} from ext4 to btrfs");
         Command::new("e2fsck")
             .arg("-fy")
@@ -330,6 +338,9 @@ pub async fn mount_fs<P: AsRef<Path>>(
             .await?;
         unmount(&tmp_mount, false).await?;
         tokio::fs::remove_dir(&tmp_mount).await?;
+        if let Some(ref mut phase) = convert_phase {
+            phase.complete();
+        }
     }
 
     let reboot = repair.fsck(&blockdev_path).await?;
@@ -367,10 +378,11 @@ pub async fn mount_all_fs<P: AsRef<Path>>(
     datadir: P,
     repair: RepairStrategy,
     password: Option<&str>,
+    progress: Option<&FullProgressTracker>,
 ) -> Result<RequiresReboot, Error> {
     let mut reboot = RequiresReboot(false);
-    reboot |= mount_fs(guid, &datadir, "main", repair, password).await?;
-    reboot |= mount_fs(guid, &datadir, "package-data", repair, password).await?;
+    reboot |= mount_fs(guid, &datadir, "main", repair, password, progress).await?;
+    reboot |= mount_fs(guid, &datadir, "package-data", repair, password, progress).await?;
     Ok(reboot)
 }
 
