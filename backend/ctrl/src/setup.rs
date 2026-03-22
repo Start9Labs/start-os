@@ -284,6 +284,23 @@ pub fn resolve_password() -> Result<Option<ResolvedPassword>, Error> {
     Ok(None)
 }
 
+/// Check whether the boot device's rootfs has a baked-in WiFi password.
+///
+/// Returns `true` if the squashfs rootfs partition contains a password written
+/// by `startwrt-bake-password`. Used by `startwrt-serial` to decide whether
+/// the web setup wizard is available or the serial `manufacture` flow is needed.
+pub fn has_baked_password() -> bool {
+    let boot_dev = match flash::boot_device() {
+        Ok(dev) => dev,
+        Err(_) => return false,
+    };
+    let sd_path = format!("/dev/{boot_dev}");
+    if let Ok(Some(rootfs_dev)) = find_partition_by_name(&sd_path, "rootfs") {
+        return read_raw_baked_password(&rootfs_dev).is_some();
+    }
+    false
+}
+
 // ---------------------------------------------------------------------------
 // Disk state detection
 // ---------------------------------------------------------------------------

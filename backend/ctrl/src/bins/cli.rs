@@ -32,6 +32,12 @@ pub fn main(args: VecDeque<OsString>) {
             }
             return;
         }
+        Some("has-baked-password") => {
+            // Exit 0 if the boot image has a baked-in WiFi password,
+            // exit 1 otherwise. Used by startwrt-serial to decide whether
+            // to run manufacture or defer to the web setup wizard.
+            std::process::exit(if crate::setup::has_baked_password() { 0 } else { 1 });
+        }
         _ => {}
     }
 

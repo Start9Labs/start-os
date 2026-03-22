@@ -119,15 +119,21 @@ if [ "$boot_type" = "MMC" ]; then
     exec /bin/login
 else
     # Booted from SD card, USB, or unknown — setup mode.
-    # The setup wizard runs over WiFi via startwrt-ctrld.
-    echo ""
-    echo "========================================"
-    echo "   StartWRT Setup Mode"
-    echo "========================================"
-    echo ""
-    echo "Connect to WiFi 'StartWRT' to run the setup wizard."
-    echo "Log in below for advanced options."
-    echo ""
+    if /usr/bin/startwrt-cli has-baked-password; then
+        # Image has a baked-in WiFi password — the web setup wizard is
+        # available over WiFi (started by startwrt-ctrld).
+        echo ""
+        echo "========================================"
+        echo "   StartWRT Setup Mode"
+        echo "========================================"
+        echo ""
+        echo "Connect to WiFi 'StartWRT' to run the setup wizard."
+        echo "Log in below for advanced options."
+        echo ""
+    else
+        # No baked-in password — run manufacturing flow on serial console.
+        /usr/bin/startwrt-cli manufacture || echo "WARNING: manufacture failed (exit $?)"
+    fi
     exec /bin/login
 fi
 SERIALEOF
