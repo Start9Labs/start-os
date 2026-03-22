@@ -176,6 +176,7 @@ Daemons.of({
 export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   implements T.DaemonBuildable
 {
+  private termPromise: Promise<void> | null = null
   private constructor(
     readonly effects: T.Effects,
     readonly ids: Ids[],
@@ -413,6 +414,13 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    * if a dependency cycle is detected.
    */
   async term() {
+    if (!this.termPromise) {
+      this.termPromise = this._term()
+    }
+    return this.termPromise
+  }
+
+  private async _term() {
     const remaining = new Set(this.healthDaemons)
 
     while (remaining.size > 0) {
@@ -459,7 +467,11 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    * @returns This `Daemons` instance, now running
    */
   async build() {
+    this.effects.onLeaveContext(() => {
+      this.term().catch((e) => console.error(e))
+    })
     for (const daemon of this.healthDaemons) {
+      daemon.daemon?.markManaged()
       await daemon.updateStatus()
     }
     return this

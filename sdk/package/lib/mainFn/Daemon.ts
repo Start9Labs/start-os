@@ -27,6 +27,7 @@ export class Daemon<
   protected exitedSuccess = false
   private onExitFns: ((success: boolean) => void)[] = []
   private loop: { abort: AbortController; done: Promise<void> } | null = null
+  private _managed = false
   protected constructor(
     private subcontainer: C,
     private startCommand: () => Promise<CommandController<Manifest, C>>,
@@ -42,7 +43,8 @@ export class Daemon<
    * Factory method to create a new Daemon.
    *
    * Returns a curried function: `(effects, subcontainer, exec) => Daemon`.
-   * The daemon auto-terminates when the effects context is left.
+   * Registers an `onLeaveContext` callback that terminates the daemon when the
+   * effects context is left.
    */
   static of<Manifest extends T.SDKManifest>() {
     return <C extends SubContainer<Manifest> | null>(
@@ -60,7 +62,9 @@ export class Daemon<
         )
       const res = new Daemon(subc, startCommand)
       effects.onLeaveContext(() => {
-        res.term({ destroySubcontainer: true }).catch((e) => logErrorOnce(e))
+        if (!res._managed) {
+          res.term({ destroySubcontainer: true }).catch((e) => logErrorOnce(e))
+        }
       })
       return res
     }
@@ -172,6 +176,14 @@ export class Daemon<
     if (termOptions?.destroySubcontainer) {
       await this.subcontainer?.destroy()
     }
+  }
+  /**
+   * Mark this daemon as managed by a {@link Daemons} instance.
+   * Suppresses the individual `onLeaveContext` termination since the
+   * `Daemons` instance handles ordered shutdown.
+   */
+  markManaged() {
+    this._managed = true
   }
   /** Get a reference-counted handle to the daemon's subcontainer, or null if there is none */
   subcontainerRc(): SubContainerRc<Manifest> | null {
