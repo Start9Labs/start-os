@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0-beta.63 — StartOS v0.4.0-alpha.22 (2026-03-22)
+
+### Fixed
+
+- Fixed `createTask` failing when input values are undefined
+- Fixed daemon lifecycle cleanup and error logging improvements
+- Replaced fire-and-forget restart loop in `Daemon` with tracked `AbortController`
+- Fixed graceful shutdown for subcontainer daemons
+- Fixed rsync progress regex never matching, spamming logs during backup
+- Fixed rsync backup bugs and optimized flags for encrypted CIFS targets
+- Fixed types in `inputSpecConstants`, `StartSdk`, and exports
+
 ## 0.4.0-beta.62 (2026-03-19)
 
 ### Fixed
