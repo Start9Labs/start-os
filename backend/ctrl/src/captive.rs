@@ -5,9 +5,9 @@ use crate::Error;
 
 const CAPTIVE_CONF_NAME: &str = "captive-portal.conf";
 const CAPTIVE_CONTENT: &str = "\
-    address=/#/192.168.1.1\n\
+    address=/#/192.168.0.1\n\
     address=/#/::\n\
-    dhcp-option=114,http://192.168.1.1/\n";
+    dhcp-option=114,http://192.168.0.1/\n";
 
 /// Find the dnsmasq instance conf-dir from the generated config.
 ///
