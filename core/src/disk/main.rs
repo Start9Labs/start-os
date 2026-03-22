@@ -314,11 +314,30 @@ pub async fn mount_fs<P: AsRef<Path>>(
             phase.start();
         }
         tracing::info!("Running e2fsck before converting {name} from ext4 to btrfs");
-        Command::new("e2fsck")
+        // e2fsck exit codes: 0 = no errors, 1 = errors corrected, 2 = corrected + reboot needed
+        // Only codes >= 4 indicate actual failure, so we can't use .invoke() which treats any
+        // non-zero exit as an error.
+        let e2fsck_output = Command::new("e2fsck")
             .arg("-fy")
             .arg(&blockdev_path)
-            .invoke(ErrorKind::DiskManagement)
-            .await?;
+            .kill_on_drop(true)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .output()
+            .await
+            .with_kind(ErrorKind::DiskManagement)?;
+        let e2fsck_exit = e2fsck_output.status.code().unwrap_or(4);
+        if e2fsck_exit >= 4 {
+            let msg = std::str::from_utf8(
+                if e2fsck_output.stderr.is_empty() {
+                    &e2fsck_output.stdout
+                } else {
+                    &e2fsck_output.stderr
+                },
+            )
+            .unwrap_or("e2fsck failed");
+            return Err(Error::new(eyre!("{msg}"), ErrorKind::DiskManagement));
+        }
         tracing::info!("Converting {name} from ext4 to btrfs");
         Command::new("btrfs-convert")
             .arg("--no-progress")
