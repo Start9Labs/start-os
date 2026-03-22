@@ -32,6 +32,13 @@ pub fn main(args: VecDeque<OsString>) {
             }
             return;
         }
+        Some("verify") => {
+            if let Err(e) = crate::verify::run_verify() {
+                eprintln!("{e}");
+                std::process::exit(1);
+            }
+            return;
+        }
         Some("has-baked-password") => {
             // Exit 0 if the boot image has a baked-in WiFi password,
             // exit 1 otherwise. Used by startwrt-serial to decide whether

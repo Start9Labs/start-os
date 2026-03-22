@@ -25,6 +25,7 @@ pub mod ssl;
 pub mod system;
 pub mod uci;
 pub mod utils;
+pub mod verify;
 pub mod wan;
 pub mod vpn_client;
 pub mod vpn_server;

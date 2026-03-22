@@ -1,0 +1,34 @@
+use std::process::Command;
+
+fn main() {
+    // Prefer STARTWRT_GIT_HASH from the environment (set by build-rust.sh on
+    // the host before entering the Docker container). Fall back to running git
+    // directly for local dev builds.
+    let hash = std::env::var("STARTWRT_GIT_HASH")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            let short = Command::new("git")
+                .args(["rev-parse", "--short", "HEAD"])
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                .unwrap_or_else(|| "unknown".into());
+
+            let dirty = Command::new("git")
+                .args(["diff-index", "--quiet", "HEAD", "--"])
+                .status()
+                .map(|s| !s.success())
+                .unwrap_or(false);
+
+            if dirty {
+                format!("{short}-dirty")
+            } else {
+                short
+            }
+        });
+
+    println!("cargo:rustc-env=STARTWRT_GIT_HASH={hash}");
+    println!("cargo:rerun-if-env-changed=STARTWRT_GIT_HASH");
+}
