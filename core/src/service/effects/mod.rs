@@ -125,6 +125,10 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
                         .with_call_remote::<ContainerCliContext>(),
                 ),
         )
+        .subcommand(
+            "pipe-wrap",
+            from_fn_blocking(subcontainer::pipe_wrap).no_display(),
+        )
         // net
         .subcommand("bind", from_fn_async(net::bind::bind).no_cli())
         .subcommand(
