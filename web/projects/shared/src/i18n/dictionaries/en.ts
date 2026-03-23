@@ -301,15 +301,11 @@ export const ENGLISH: Record<string, number> = {
   'Original Password': 317,
   'Enter original password': 318,
   'Beginning backup': 319,
-  'Back up StartOS and service data by connecting to a device on your local network or a physical drive connected to your server.': 320,
-  'Restore StartOS and service data from a device on your local network or a physical drive connected to your server that contains an existing backup.': 321,
   'Last Backup': 322, // as in, the last time the server was backed up
-  'A folder on another computer that is connected to the same network as your Start9 server.': 323,
-  'A physical drive that is plugged directly into your Start9 Server.': 324,
-  'Select Services to Back Up': 325,
-  'Select server backup': 326,
+  'Select services': 325,
+  'Select server': 326,
   'Network Folders': 327,
-  'Open New': 328,
+  'New': 328,
   'Hostname': 329,
   'Path': 330, // as in, a URL path
   'URL': 331,
@@ -354,7 +350,6 @@ export const ENGLISH: Record<string, number> = {
   'Password required': 372,
   'Enter the master password that was used to encrypt this backup. On the next screen, you will select the individual services you want to restore.': 373,
   'Decrypting drive': 374,
-  'Select services to restore': 375,
   'Available for backup': 376,
   'StartOS backups detected': 377,
   'No StartOS backups detected': 378,
@@ -726,4 +721,6 @@ export const ENGLISH: Record<string, number> = {
   'OS-level translations are already in effect. A restart is required for service-level translations to take effect.': 802,
   'This drive uses ext4 and will be automatically converted to btrfs. A backup is strongly recommended before proceeding.': 803,
   'I have a backup of my data': 804,
+  'Add Public Domain': 805,
+  'Result': 806,
 }

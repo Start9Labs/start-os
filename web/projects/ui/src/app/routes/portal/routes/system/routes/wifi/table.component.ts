@@ -16,7 +16,12 @@ import {
   TuiIcon,
   TuiTitle,
 } from '@taiga-ui/core'
-import { TuiBadge, TuiFade, TuiNotificationMiddleService } from '@taiga-ui/kit'
+import {
+  TuiBadge,
+  TuiBadgedContent,
+  TuiFade,
+  TuiNotificationMiddleService,
+} from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import {
   FormComponent,
@@ -32,19 +37,28 @@ import { wifiSpec } from './wifi.const'
   selector: '[wifi]',
   template: `
     <ng-template #row let-network>
-      @if (getSignal(network.strength); as signal) {
-        <tui-icon
-          background="@tui.wifi"
-          [icon]="signal.icon"
-          [style.background]="'var(--tui-background-neutral-2)'"
-          [style.color]="signal.color"
-        />
-      } @else {
-        <tui-icon icon="@tui.wifi-off" />
-      }
-      <tui-icon
-        [icon]="network.security.length ? '@tui.lock' : '@tui.lock-open'"
-      />
+      <tui-badged-content>
+        @if (getSignal(network.strength); as signal) {
+          <tui-icon
+            background="@tui.wifi"
+            [icon]="signal.icon"
+            [style.background]="'var(--tui-background-neutral-2)'"
+            [style.color]="signal.color"
+          />
+        } @else {
+          <tui-icon icon="@tui.wifi-off" />
+        }
+        @if (network.security.length) {
+          <tui-icon
+            appearance="action"
+            iconStart="@tui.lock"
+            size="s"
+            tuiBadge
+            tuiSlot="bottom"
+            [style.color]="getSignal(network.strength)?.color"
+          />
+        }
+      </tui-badged-content>
       <div tuiTitle>
         <strong tuiFade>
           {{ network.ssid }}
@@ -112,8 +126,16 @@ import { wifiSpec } from './wifi.const'
     }
 
     tui-icon {
-      width: 2rem;
       color: var(--tui-text-tertiary);
+    }
+
+    tui-badged-content {
+      margin-inline-start: 0.75rem;
+      color: transparent;
+    }
+
+    [tuiBadge] {
+      --tui-stroke-width: 1.5px;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -127,6 +149,7 @@ import { wifiSpec } from './wifi.const'
     TuiFade,
     TuiDropdown,
     TuiDataList,
+    TuiBadgedContent,
     i18nPipe,
   ],
 })

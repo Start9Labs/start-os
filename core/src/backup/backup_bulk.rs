@@ -30,6 +30,7 @@ use crate::util::serde::IoFormat;
 use crate::version::VersionT;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
@@ -277,22 +278,6 @@ async fn perform_backup(
                         timestamp: Utc::now(),
                     },
                 );
-
-                ctx.db
-                    .mutate(|db| {
-                        if let Some(progress) = db
-                            .as_public_mut()
-                            .as_server_info_mut()
-                            .as_status_info_mut()
-                            .as_backup_progress_mut()
-                            .transpose_mut()
-                        {
-                            progress.insert(&id, &BackupProgress { complete: true })?;
-                        }
-                        Ok(())
-                    })
-                    .await
-                    .result?;
             }
             backup_report.insert(
                 id.clone(),

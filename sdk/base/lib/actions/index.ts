@@ -74,6 +74,18 @@ const _validate: T.Task = {} as TaskOptions<any> & {
   severity: T.TaskSeverity
 }
 
+/** Recursively converts undefined values to null so they survive JSON serialization */
+function undefinedToNull(obj: unknown): unknown {
+  if (obj === undefined) return null
+  if (obj === null || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return obj.map(undefinedToNull)
+  const result: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(obj)) {
+    result[k] = undefinedToNull(v)
+  }
+  return result
+}
+
 export const createTask = <T extends ActionInfo<T.ActionId, any>>(options: {
   effects: T.Effects
   packageId: T.PackageId
@@ -83,8 +95,13 @@ export const createTask = <T extends ActionInfo<T.ActionId, any>>(options: {
 }) => {
   const request = options.options || {}
   const actionId = options.action.id
+  const input =
+    'input' in request && request.input
+      ? { ...request.input, value: undefinedToNull(request.input.value) }
+      : (request as any).input
   const req = {
     ...request,
+    input,
     actionId,
     packageId: options.packageId,
     action: undefined,

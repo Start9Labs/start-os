@@ -301,6 +301,7 @@ pub async fn list_bindings<Kind: HostApiKind>(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct BindingSetAddressEnabledParams {

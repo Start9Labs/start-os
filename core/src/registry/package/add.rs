@@ -123,6 +123,7 @@ pub async fn add_package(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddPackageParams {
@@ -218,6 +219,7 @@ pub async fn cli_add_package_impl(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RemovePackageParams {
@@ -378,6 +380,7 @@ pub async fn add_mirror(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddMirrorParams {
@@ -460,6 +463,7 @@ pub async fn cli_add_mirror(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RemoveMirrorParams {

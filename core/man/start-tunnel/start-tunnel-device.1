@@ -1,0 +1,26 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-tunnel-device 1  "device " 
+.SH NAME
+start\-tunnel\-device \- Add, remove, or list devices in subnets
+.SH SYNOPSIS
+\fBstart\-tunnel device\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Add, remove, or list devices in subnets
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-tunnel\-device\-add(1)
+Add a device to a subnet
+.TP
+start\-tunnel\-device\-list(1)
+List devices in a subnet
+.TP
+start\-tunnel\-device\-remove(1)
+Remove device from subnet
+.TP
+start\-tunnel\-device\-show\-config(1)
+Show WireGuard configuration for device

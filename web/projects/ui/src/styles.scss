@@ -247,10 +247,6 @@ ul {
     display: none;
   }
 
-  &:has(app-placeholder) thead {
-    display: none;
-  }
-
   tr:not(:last-child) {
     box-shadow: inset 0 -1px var(--tui-background-neutral-1);
   }
@@ -275,7 +271,8 @@ ul {
     padding: 1rem;
   }
 
-  tui-root._mobile & thead {
+  tui-root._mobile & thead,
+  &:has(app-placeholder) thead {
     display: none;
   }
 }
@@ -353,4 +350,8 @@ svg:not(:root) {
 
 .g-external-link {
   color: #50c8ff;
+}
+
+tui-root._mobile tui-action-bar {
+  bottom: 4rem;
 }

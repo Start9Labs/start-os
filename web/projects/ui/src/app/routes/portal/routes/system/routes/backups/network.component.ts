@@ -7,8 +7,8 @@ import {
 import { ActivatedRoute } from '@angular/router'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { ISB, T } from '@start9labs/start-sdk'
-import { TuiButton, TuiIcon } from '@taiga-ui/core'
-import { TuiNotificationMiddleService, TuiTooltip } from '@taiga-ui/kit'
+import { TuiButton, TuiDataList, TuiDropdown, TuiIcon } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
@@ -28,10 +28,14 @@ const ERROR =
   template: `
     <header>
       {{ 'Network Folders' | i18n }}
-      <tui-icon [tuiTooltip]="cifs" />
-      <ng-template #cifs><ng-content /></ng-template>
-      <button tuiButton size="xs" iconStart="@tui.plus" (click)="add()">
-        {{ 'Open New' | i18n }}
+      <button
+        tuiButton
+        size="xs"
+        iconStart="@tui.plus"
+        [style.margin-inline-start]="'auto'"
+        (click)="add()"
+      >
+        {{ 'New' | i18n }}
       </button>
     </header>
 
@@ -59,24 +63,29 @@ const ERROR =
           <td class="name">{{ target.entry.path.split('/').pop() }}</td>
           <td>{{ target.entry.hostname }}</td>
           <td>{{ target.entry.path }}</td>
-          <td>
+          <td (click)="$event.stopPropagation()">
             <button
               tuiIconButton
+              tuiDropdown
               size="s"
-              appearance="action-destructive"
-              iconStart="@tui.trash"
-              (click.stop)="forget(target, $index)"
+              appearance="flat-grayscale"
+              iconStart="@tui.ellipsis-vertical"
+              [tuiDropdownOpen]="!!opens[$index]"
+              (tuiDropdownOpenChange)="opens[$index] = $event"
             >
-              Forget
-            </button>
-            <button
-              tuiIconButton
-              appearance="icon"
-              size="xs"
-              iconStart="@tui.pencil"
-              (click.stop)="edit(target)"
-            >
-              Edit
+              {{ 'More' | i18n }}
+              <tui-data-list *tuiDropdown>
+                <button tuiOption (click)="edit(target)">
+                  {{ 'Edit' | i18n }}
+                </button>
+                <button
+                  tuiOption
+                  class="g-negative"
+                  (click)="forget(target, $index)"
+                >
+                  {{ 'Delete' | i18n }}
+                </button>
+              </tui-data-list>
             </button>
           </td>
         </tr>
@@ -106,16 +115,12 @@ const ERROR =
     }
 
     td:first-child {
-      width: 13rem;
+      width: 16rem;
     }
 
     td:last-child {
       white-space: nowrap;
       text-align: right;
-    }
-
-    [tuiButton] {
-      margin-inline-start: auto;
     }
 
     span {
@@ -166,8 +171,9 @@ const ERROR =
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
+    TuiDataList,
+    TuiDropdown,
     TuiIcon,
-    TuiTooltip,
     PlaceholderComponent,
     BackupStatusComponent,
     TableComponent,
@@ -185,6 +191,8 @@ export class BackupNetworkComponent {
 
   readonly service = inject(BackupService)
   readonly networkFolders = output<MappedBackupTarget<CifsBackupTarget>>()
+
+  opens: Record<number, boolean> = {}
 
   select(target: MappedBackupTarget<CifsBackupTarget>) {
     if (!target.entry.mountable) {
@@ -321,7 +329,6 @@ export class BackupNetworkComponent {
         ),
         required: true,
         default: null,
-        placeholder: 'My Network Folder',
       }),
       password: ISB.Value.text({
         name: this.i18n.transform('Password')!,
@@ -331,7 +338,6 @@ export class BackupNetworkComponent {
         required: false,
         default: null,
         masked: true,
-        placeholder: 'My Network Folder',
       }),
     })
   }

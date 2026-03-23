@@ -149,8 +149,8 @@ export class BackupsRecoverComponent {
 
   async restore(options: RecoverOption[]): Promise<void> {
     const ids = options.filter(({ checked }) => !!checked).map(({ id }) => id)
-    const { targetId, password } = this.context.data
-    const params = { ids, targetId, password }
+    const { targetId, serverId, password } = this.context.data
+    const params = { ids, targetId, password, serverId }
     const loader = this.loader.open('Initializing').subscribe()
 
     try {

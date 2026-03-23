@@ -45,6 +45,7 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliDumpParams {
@@ -79,6 +80,7 @@ async fn cli_dump(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DumpParams {
@@ -95,6 +97,7 @@ pub async fn dump(ctx: RegistryContext, DumpParams { pointer }: DumpParams) -> R
 }
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliApplyParams {
@@ -152,6 +155,7 @@ async fn cli_apply(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ApplyParams {

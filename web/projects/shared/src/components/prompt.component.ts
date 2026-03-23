@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
-import { TuiButton, TuiDialogContext, TuiInput } from '@taiga-ui/core'
+import { TuiButton, TuiDialogContext, TuiIcon, TuiInput } from '@taiga-ui/core'
+import { TuiPassword } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { i18nPipe } from '../i18n/i18n.pipe'
 import { i18nKey } from '../i18n/i18n.providers'
@@ -27,22 +28,12 @@ import { i18nKey } from '../i18n/i18n.providers'
           tuiAutoFocus
           [ngModelOptions]="{ standalone: true }"
           [(ngModel)]="value"
-          [class.masked]="options.useMask && masked && value"
           [placeholder]="options.placeholder || ''"
+          [type]="options.useMask ? 'password' : 'text'"
+          [autocomplete]="options.useMask ? 'off' : ''"
         />
         @if (options.useMask) {
-          <button
-            tuiIconButton
-            type="button"
-            appearance="icon"
-            title="Toggle masking"
-            size="xs"
-            class="button"
-            [iconStart]="masked ? '@tui.eye' : '@tui.eye-off'"
-            (click)="masked = !masked"
-          >
-            {{ 'Reveal/Hide' | i18n }}
-          </button>
+          <tui-icon tuiPassword />
         }
       </tui-textfield>
       @if (error) {
@@ -71,24 +62,22 @@ import { i18nKey } from '../i18n/i18n.providers'
     .error {
       color: var(--tui-status-negative);
     }
-
-    .button {
-      pointer-events: auto;
-      margin-left: 0.25rem;
-    }
-
-    .masked {
-      -webkit-text-security: disc;
-    }
   `,
-  imports: [FormsModule, TuiButton, TuiInput, TuiAutoFocus, i18nPipe],
+  imports: [
+    FormsModule,
+    TuiButton,
+    TuiIcon,
+    TuiInput,
+    TuiPassword,
+    TuiAutoFocus,
+    i18nPipe,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PromptModal {
   private readonly context =
     injectContext<TuiDialogContext<string, PromptOptions>>()
 
-  masked = this.options.useMask
   value = this.options.initialValue || ''
   error = ''
 

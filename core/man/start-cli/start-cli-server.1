@@ -1,0 +1,71 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-server 1  "server " 
+.SH NAME
+start\-cli\-server \- Commands related to the server i.e. restart, update, and shutdown
+.SH SYNOPSIS
+\fBstart\-cli server\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Commands related to the server i.e. restart, update, and shutdown
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-cli\-server\-clear\-smtp(1)
+Remove system smtp server and credentials
+.TP
+start\-cli\-server\-device\-info(1)
+about.get\-device\-info
+.TP
+start\-cli\-server\-experimental(1)
+Commands related to configuring experimental options such as zram and cpu governor
+.TP
+start\-cli\-server\-host(1)
+Commands for modifying the host for the system ui
+.TP
+start\-cli\-server\-kernel\-logs(1)
+Display kernel logs
+.TP
+start\-cli\-server\-logs(1)
+Display OS logs
+.TP
+start\-cli\-server\-metrics(1)
+Display server metrics
+.TP
+start\-cli\-server\-rebuild(1)
+Teardown and rebuild containers
+.TP
+start\-cli\-server\-restart(1)
+Restart the server
+.TP
+start\-cli\-server\-set\-echoip\-urls(1)
+Set the Echo IP service URLs
+.TP
+start\-cli\-server\-set\-hostname(1)
+Set the server hostname
+.TP
+start\-cli\-server\-set\-keyboard(1)
+Set the keyboard layout
+.TP
+start\-cli\-server\-set\-language(1)
+Set the system language
+.TP
+start\-cli\-server\-set\-smtp(1)
+Set SMTP configuration
+.TP
+start\-cli\-server\-shutdown(1)
+Shutdown the server
+.TP
+start\-cli\-server\-test\-smtp(1)
+Test SMTP configuration
+.TP
+start\-cli\-server\-time(1)
+Display server time and uptime
+.TP
+start\-cli\-server\-update(1)
+Check a given registry for StartOS updates and update if available
+.TP
+start\-cli\-server\-update\-firmware(1)
+Update firmware

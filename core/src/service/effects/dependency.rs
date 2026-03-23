@@ -192,6 +192,7 @@ impl ValueParserFactory for DependencyRequirement {
     }
 }
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "camelCase")]
 #[ts(export)]
@@ -294,6 +295,7 @@ pub async fn get_dependencies(context: EffectContext) -> Result<Vec<DependencyRe
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CheckDependenciesParam {
@@ -383,6 +385,7 @@ pub async fn check_dependencies(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct GetServiceManifestParams {

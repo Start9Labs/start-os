@@ -61,6 +61,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -87,6 +88,7 @@ pub async fn add_category(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -112,6 +114,7 @@ pub async fn remove_category(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -141,6 +144,7 @@ pub async fn add_package(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]

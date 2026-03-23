@@ -872,6 +872,13 @@ disk.main.disk-not-found:
   fr_FR: "Disque StartOS non trouvé."
   pl_PL: "Nie znaleziono dysku StartOS."
 
+disk.main.converting-to-btrfs:
+  en_US: "Performing file system conversion to btrfs. This can take many hours, please be patient and DO NOT unplug the server."
+  de_DE: "Dateisystemkonvertierung zu btrfs wird durchgeführt. Dies kann viele Stunden dauern, bitte haben Sie Geduld und trennen Sie den Server NICHT vom Strom."
+  es_ES: "Realizando conversión del sistema de archivos a btrfs. Esto puede tardar muchas horas, tenga paciencia y NO desconecte el servidor."
+  fr_FR: "Conversion du système de fichiers vers btrfs en cours. Cela peut prendre de nombreuses heures, soyez patient et NE débranchez PAS le serveur."
+  pl_PL: "Wykonywanie konwersji systemu plików na btrfs. To może potrwać wiele godzin, prosimy o cierpliwość i NIE odłączaj serwera od zasilania."
+
 disk.main.incorrect-disk:
   en_US: "A StartOS disk was found, but it is not the correct disk for this device."
   de_DE: "Eine StartOS-Festplatte wurde gefunden, aber es ist nicht die richtige Festplatte für dieses Gerät."
@@ -2655,6 +2662,13 @@ help.arg.allow-partial-backup:
   es_ES: "Dejar el medio montado incluso si backupfs falla al montar"
   fr_FR: "Laisser le média monté même si backupfs échoue à monter"
   pl_PL: "Pozostaw nośnik zamontowany nawet jeśli backupfs nie może się zamontować"
+
+help.arg.architecture:
+  en_US: "Target CPU architecture (e.g. x86_64, aarch64)"
+  de_DE: "Ziel-CPU-Architektur (z.B. x86_64, aarch64)"
+  es_ES: "Arquitectura de CPU objetivo (ej. x86_64, aarch64)"
+  fr_FR: "Architecture CPU cible (ex. x86_64, aarch64)"
+  pl_PL: "Docelowa architektura CPU (np. x86_64, aarch64)"
 
 help.arg.architecture-mask:
   en_US: "Filter by CPU architecture"
@@ -5274,6 +5288,13 @@ about.restart-service:
   es_ES: "Reiniciar un servicio"
   fr_FR: "Redémarrer un service"
   pl_PL: "Uruchom ponownie usługę"
+
+about.restart-tunnel:
+  en_US: "Reboot the tunnel server"
+  de_DE: "Den Tunnel-Server neu starten"
+  es_ES: "Reiniciar el servidor del túnel"
+  fr_FR: "Redémarrer le serveur tunnel"
+  pl_PL: "Uruchom ponownie serwer tunelu"
 
 about.restore-packages-from-backup:
   en_US: "Restore packages from backup"

@@ -26,15 +26,11 @@ import { SSHTableComponent } from './table.component'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
-        {{ 'Back' | i18n }}
-      </a>
-      SSH
-    </ng-container>
-    @let keys = keys$ | async;
-    <section class="g-card">
-      <header>
-        {{ 'SSH Keys' | i18n }}
+      <div>
+        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+          {{ 'Back' | i18n }}
+        </a>
+        SSH
         <a
           tuiIconButton
           size="xs"
@@ -42,9 +38,13 @@ import { SSHTableComponent } from './table.component'
           path="/start-os/ssh.html"
           appearance="icon"
           iconStart="@tui.book-open-text"
-        >
-          {{ 'Documentation' | i18n }}
-        </a>
+        ></a>
+      </div>
+    </ng-container>
+    @let keys = keys$ | async;
+    <section class="g-card">
+      <header>
+        {{ 'SSH Keys' | i18n }}
         <button
           tuiButton
           size="xs"

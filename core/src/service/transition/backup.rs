@@ -4,6 +4,7 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt};
 use rpc_toolkit::yajrc::RpcError;
 
+use crate::db::model::public::BackupProgress;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
@@ -29,6 +30,7 @@ impl ServiceActorSeed {
                         ErrorKind::Cancelled,
                     ))
                 };
+                let backup_succeeded = res.is_ok();
                 let id = &self.id;
                 self.ctx
                     .db
@@ -49,7 +51,19 @@ impl ServiceActorSeed {
                                     } => DesiredStatus::Stopped,
                                     x => x,
                                 })
-                            })
+                            })?;
+                        if backup_succeeded {
+                            if let Some(progress) = db
+                                .as_public_mut()
+                                .as_server_info_mut()
+                                .as_status_info_mut()
+                                .as_backup_progress_mut()
+                                .transpose_mut()
+                            {
+                                progress.insert(id, &BackupProgress { complete: true })?;
+                            }
+                        }
+                        Ok(())
                     })
                     .await
                     .result?;

@@ -357,6 +357,8 @@ mkdir -p /media/startos
 chmod 750 /media/startos
 chown root:startos /media/startos
 
+start-cli --registry=https://alpha-registry-x.start9.com registry package download tor -d /usr/lib/startos/tor_${QEMU_ARCH}.s9pk -a "${QEMU_ARCH}"
+
 EOF
 
 SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date '+%s')}"

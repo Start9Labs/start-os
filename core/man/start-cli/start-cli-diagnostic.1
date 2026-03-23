@@ -1,0 +1,32 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-diagnostic 1  "diagnostic " 
+.SH NAME
+start\-cli\-diagnostic \- Commands to display logs, restart the server, etc
+.SH SYNOPSIS
+\fBstart\-cli diagnostic\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Commands to display logs, restart the server, etc
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-cli\-diagnostic\-disk(1)
+Command to remove disk from filesystem
+.TP
+start\-cli\-diagnostic\-error(1)
+Display diagnostic error
+.TP
+start\-cli\-diagnostic\-kernel\-logs(1)
+Display kernel logs
+.TP
+start\-cli\-diagnostic\-logs(1)
+Display OS logs
+.TP
+start\-cli\-diagnostic\-rebuild(1)
+Teardown and rebuild containers
+.TP
+start\-cli\-diagnostic\-restart(1)
+Restart the server

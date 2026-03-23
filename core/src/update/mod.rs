@@ -40,6 +40,7 @@ use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::AtomicFile;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UpdateSystemParams {

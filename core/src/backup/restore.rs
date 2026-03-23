@@ -29,16 +29,19 @@ use crate::system::{save_language, sync_kiosk};
 use crate::util::serde::{IoFormat, Pem};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 #[ts(export)]
 pub struct RestorePackageParams {
-    #[arg(help = "help.arg.package-ids")]
-    pub ids: Vec<PackageId>,
     #[arg(help = "help.arg.backup-target-id")]
     pub target_id: BackupTargetId,
     #[arg(help = "help.arg.backup-password")]
     pub password: String,
+    #[arg(help = "help.arg.package-ids")]
+    pub ids: Vec<PackageId>,
+    #[arg(long, help = "help.arg.server-id")]
+    pub server_id: Option<String>,
 }
 
 // #[command(rename = "restore", display(display_none))]
@@ -49,13 +52,18 @@ pub async fn restore_packages_rpc(
         ids,
         target_id,
         password,
+        server_id,
     }: RestorePackageParams,
 ) -> Result<(), Error> {
     let peek = ctx.db.peek().await;
     let fs = target_id.load(&peek)?;
+    let server_id = match server_id {
+        Some(id) => id,
+        None => peek.as_public().as_server_info().as_id().de()?,
+    };
     let backup_guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&fs, ReadWrite).await?,
-        &peek.as_public().as_server_info().as_id().de()?,
+        &server_id,
         &password,
     )
     .await?;

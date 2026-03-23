@@ -144,7 +144,12 @@ pub struct Version;
 impl VersionT for Version {
     type Previous = v0_3_5_2::Version;
     /// (package_id, host_id, expanded_key)
-    type PreUpRes = (AccountInfo, SshKeys, CifsTargets, Vec<(String, String, [u8; 64])>);
+    type PreUpRes = (
+        AccountInfo,
+        SshKeys,
+        CifsTargets,
+        Vec<(String, String, [u8; 64])>,
+    );
     fn semver(self) -> exver::Version {
         V0_3_6_alpha_0.clone()
     }
@@ -169,7 +174,11 @@ impl VersionT for Version {
 
         Ok((account, ssh_keys, cifs, tor_keys))
     }
-    fn up(self, db: &mut Value, (account, ssh_keys, cifs, tor_keys): Self::PreUpRes) -> Result<Value, Error> {
+    fn up(
+        self,
+        db: &mut Value,
+        (account, ssh_keys, cifs, tor_keys): Self::PreUpRes,
+    ) -> Result<Value, Error> {
         let prev_package_data = db["package-data"].clone();
 
         let wifi = json!({
@@ -234,7 +243,7 @@ impl VersionT for Version {
 
         let private = {
             let mut value = json!({});
-            value["keyStore"] = crate::dbg!(to_value(&keystore)?);
+            value["keyStore"] = to_value(&keystore)?;
             // Preserve tor onion keys so later migrations (v0_4_0_alpha_20) can
             // include them in onion-migration.json for the tor service.
             if !tor_keys.is_empty() {

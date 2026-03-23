@@ -155,6 +155,7 @@ impl From<PackSource> for DynFileSource {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 pub struct PackParams {
     #[arg(help = "help.arg.input-path")]
     pub path: Option<PathBuf>,
@@ -166,7 +167,7 @@ pub struct PackParams {
     pub icon: Option<PathBuf>,
     #[arg(long, help = "help.arg.license-path")]
     pub license: Option<PathBuf>,
-    #[arg(long, conflicts_with = "no-assets", help = "help.arg.assets-path")]
+    #[arg(long, conflicts_with = "no_assets", help = "help.arg.assets-path")]
     pub assets: Option<PathBuf>,
     #[arg(long, conflicts_with = "assets", help = "help.arg.no-assets")]
     pub no_assets: bool,
@@ -281,12 +282,13 @@ pub struct ImageConfig {
 }
 
 #[derive(Parser)]
+#[group(skip)]
 struct CliImageConfig {
-    #[arg(long, conflicts_with("docker-tag"), help = "help.arg.docker-build")]
+    #[arg(long, conflicts_with("docker_tag"), help = "help.arg.docker-build")]
     docker_build: bool,
-    #[arg(long, requires("docker-build"), help = "help.arg.dockerfile-path")]
+    #[arg(long, requires("docker_build"), help = "help.arg.dockerfile-path")]
     dockerfile: Option<PathBuf>,
-    #[arg(long, requires("docker-build"), help = "help.arg.workdir-path")]
+    #[arg(long, requires("docker_build"), help = "help.arg.workdir-path")]
     workdir: Option<PathBuf>,
     #[arg(long, conflicts_with_all(["dockerfile", "workdir"]), help = "help.arg.docker-tag")]
     docker_tag: Option<String>,

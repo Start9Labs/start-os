@@ -179,6 +179,7 @@ pub async fn add_squashfs(ctx: RegistryContext, params: AddAssetParams) -> Resul
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddAssetParams {

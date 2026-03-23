@@ -36,7 +36,7 @@ export class NotificationService {
   getColor(notification: ServerNotification<number>): string {
     switch (notification.level) {
       case 'info':
-        return 'var(--tui-status-info)'
+        return 'var(--tui-text-secondary)'
       case 'success':
         return 'var(--tui-status-positive)'
       case 'warning':
@@ -62,26 +62,42 @@ export class NotificationService {
     }
   }
 
-  viewModal(notification: ServerNotification<number>, full = false) {
+  viewModal(notification: ServerNotification<number>) {
     const { data, createdAt, code, title, message } = notification
 
-    if (code === 1) {
-      // Backup Report
-      this.dialogs
-        .openComponent(full ? message : REPORT, {
-          label: 'Backup Report',
-          data: { content: data, createdAt },
-        })
-        .subscribe()
-    } else {
-      // Markdown viewer
-      this.dialogs
-        .openComponent(full ? message : MARKDOWN, {
-          label: title as i18nKey,
-          data: of(data),
-          size: 'l',
-        })
-        .subscribe()
+    switch (code) {
+      // Backup report - structured report with per-service results
+      case 1:
+        this.dialogs
+          .openComponent(REPORT, {
+            label: 'Backup Report',
+            data: { content: data, createdAt },
+            size: 'l',
+          })
+          .subscribe()
+        break
+
+      // OS update - data contains the full release notes markdown
+      case 2:
+        this.dialogs
+          .openComponent(MARKDOWN, {
+            label: title as i18nKey,
+            data: of(data),
+            size: 'l',
+          })
+          .subscribe()
+        break
+
+      // General notification - show the message text
+      default:
+        this.dialogs
+          .openComponent(MARKDOWN, {
+            label: title as i18nKey,
+            data: of(message),
+            size: 'l',
+          })
+          .subscribe()
+        break
     }
   }
 }

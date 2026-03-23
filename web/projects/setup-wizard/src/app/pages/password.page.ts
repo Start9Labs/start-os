@@ -7,7 +7,13 @@ import {
   Validators,
 } from '@angular/forms'
 import { Router } from '@angular/router'
-import { ErrorService, i18nPipe, normalizeHostname } from '@start9labs/shared'
+import {
+  ErrorService,
+  i18nPipe,
+  normalizeHostname,
+  randomServerName,
+  serverNameValidator,
+} from '@start9labs/shared'
 import { TuiAutoFocus, TuiMapperPipe, TuiValidator } from '@taiga-ui/cdk'
 import {
   TuiButton,
@@ -42,10 +48,17 @@ import { StateService } from '../services/state.service'
       @if (isFresh) {
         <tui-textfield>
           <label tuiLabel>{{ 'Server Name' | i18n }}</label>
-          <input tuiInput tuiAutoFocus formControlName="name" />
+          <input tuiInput formControlName="name" />
+          <button
+            tuiIconButton
+            type="button"
+            appearance="icon"
+            iconStart="@tui.refresh-cw"
+            (click)="randomizeName()"
+          ></button>
         </tui-textfield>
         <tui-error formControlName="name" />
-        @if (form.controls.name.value?.trim()) {
+        @if (form.controls.name.value?.trim() && !form.controls.name.errors) {
           <tui-error class="g-secondary" error="{{ derivedHostname }}.local" />
         }
       }
@@ -127,6 +140,8 @@ import { StateService } from '../services/state.service'
       minlength: 'Must be 12 characters or greater',
       maxlength: 'Must be 64 character or less',
       match: 'Passwords do not match',
+      hostnameMinLength: 'Hostname must be at least 4 characters',
+      hostnameMaxLength: 'Hostname must be 63 characters or less',
     }),
   ],
 })
@@ -147,13 +162,20 @@ export default class PasswordPage {
       Validators.maxLength(64),
     ]),
     confirm: new FormControl(''),
-    name: new FormControl('', this.isFresh ? [Validators.required] : []),
+    name: new FormControl(
+      this.isFresh ? randomServerName() : '',
+      this.isFresh ? [Validators.required, serverNameValidator] : [],
+    ),
   })
 
   readonly validator = (value: string) => (control: AbstractControl) =>
     value === control.value
       ? null
       : { match: this.i18n.transform('Passwords do not match') }
+
+  randomizeName() {
+    this.form.controls.name.setValue(randomServerName())
+  }
 
   get derivedHostname(): string {
     return normalizeHostname(this.form.controls.name.value || '')

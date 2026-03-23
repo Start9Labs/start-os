@@ -23,7 +23,6 @@ use crate::middleware::auth::local::LocalAuthContext;
 use crate::net::gateway::WildcardListener;
 use crate::net::net_controller::{NetController, NetService};
 use crate::net::socks::DEFAULT_SOCKS_LISTEN;
-use crate::net::utils::find_wifi_iface;
 use crate::net::web_server::WebServerAcceptorSetter;
 use crate::prelude::*;
 use crate::progress::{
@@ -280,20 +279,17 @@ pub async fn init(
     load_ca_cert.complete();
 
     load_wifi.start();
-    let wifi_interface = find_wifi_iface().await?;
-    let wifi = db
-        .mutate(|db| {
-            let wifi = db
-                .as_public_mut()
-                .as_server_info_mut()
-                .as_network_mut()
-                .as_wifi_mut();
-            wifi.as_interface_mut().ser(&wifi_interface)?;
-            wifi.de()
-        })
-        .await
-        .result?;
-    crate::net::wifi::synchronize_network_manager(MAIN_DATA, &wifi).await?;
+    crate::net::wifi::synchronize_network_manager(
+        MAIN_DATA,
+        &peek
+            .as_public()
+            .as_server_info()
+            .as_network()
+            .as_wifi()
+            .de()
+            .unwrap_or_default(),
+    )
+    .await?;
     load_wifi.complete();
 
     init_tmp.start();

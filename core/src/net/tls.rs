@@ -182,13 +182,14 @@ where
             let (metadata, stream) = ready!(self.accept.poll_accept(cx)?);
             let mut tls_handler = self.tls_handler.clone();
             let mut fut = async move {
-                let res = match tokio::time::timeout(Duration::from_secs(15), async {
+                let res = async {
+                    // Phase 1: Accept ClientHello
                     let mut acceptor =
                         LazyConfigAcceptor::new(Acceptor::default(), BackTrackingIO::new(stream));
                     let mut mid: tokio_rustls::StartHandshake<BackTrackingIO<AcceptStream>> =
-                        match (&mut acceptor).await {
-                            Ok(a) => a,
-                            Err(e) => {
+                        match tokio::time::timeout(Duration::from_secs(5), &mut acceptor).await {
+                            Ok(Ok(a)) => a,
+                            Ok(Err(e)) => {
                                 let mut stream = acceptor.take_io().or_not_found("acceptor io")?;
                                 let (_, buf) = stream.rewind();
                                 if std::str::from_utf8(buf)
@@ -212,40 +213,59 @@ where
                                     return Err(e).with_kind(ErrorKind::Network);
                                 }
                             }
+                            Err(_) => {
+                                tracing::debug!("TLS ClientHello timed out");
+                                return Ok(None);
+                            }
                         };
+
+                    // Phase 2: Resolve TLS config (scoped timeout so mid
+                    // remains accessible for sending a TLS alert on timeout)
                     let hello = mid.client_hello();
                     let sni = hello.server_name().map(InternedString::intern);
-                    match tls_handler.get_config(&hello, &metadata).await {
+                    let action = tls_handler.get_config(&hello, &metadata).await;
+                    drop(hello);
+
+                    match action {
                         Some(TlsHandlerAction::Tls(cfg)) => {
                             let buffered = mid.io.stop_buffering();
                             mid.io
                                 .write_all(&buffered)
                                 .await
                                 .with_kind(ErrorKind::Network)?;
-                            return Ok(match mid.into_stream(Arc::new(cfg)).await {
-                                Ok(stream) => {
-                                    let s = stream.get_ref().1;
-                                    Some((
-                                        TlsMetadata {
-                                            inner: metadata,
-                                            tls_info: TlsHandshakeInfo {
-                                                sni: s
-                                                    .server_name()
-                                                    .map(InternedString::intern),
-                                                alpn: s
-                                                    .alpn_protocol()
-                                                    .map(|a| MaybeUtf8String(a.to_vec())),
+                            return Ok(
+                                match tokio::time::timeout(
+                                    Duration::from_secs(15),
+                                    mid.into_stream(Arc::new(cfg)),
+                                )
+                                .await
+                                .with_kind(ErrorKind::Timeout)
+                                .and_then(|e| e.map_err(Error::from))
+                                {
+                                    Ok(stream) => {
+                                        let s = stream.get_ref().1;
+                                        Some((
+                                            TlsMetadata {
+                                                inner: metadata,
+                                                tls_info: TlsHandshakeInfo {
+                                                    sni: s
+                                                        .server_name()
+                                                        .map(InternedString::intern),
+                                                    alpn: s
+                                                        .alpn_protocol()
+                                                        .map(|a| MaybeUtf8String(a.to_vec())),
+                                                },
                                             },
-                                        },
-                                        Box::pin(stream) as AcceptStream,
-                                    ))
-                                }
-                                Err(e) => {
-                                    tracing::trace!("Error completing TLS handshake: {e}");
-                                    tracing::trace!("{e:?}");
-                                    None
-                                }
-                            });
+                                            Box::pin(stream) as AcceptStream,
+                                        ))
+                                    }
+                                    Err(e) => {
+                                        tracing::trace!("Error completing TLS handshake: {e}");
+                                        tracing::trace!("{e:?}");
+                                        None
+                                    }
+                                },
+                            );
                         }
                         Some(TlsHandlerAction::Passthrough) => {
                             let (dummy, _drop) = tokio::io::duplex(1);
@@ -263,19 +283,26 @@ where
                                 Box::pin(bt) as AcceptStream,
                             )));
                         }
-                        None => {}
+                        None => {
+                            tracing::debug!("no certificate for SNI {:?}", sni);
+                            let _ = mid
+                                .io
+                                .write_all(&[
+                                    0x15, // ContentType: Alert
+                                    0x03,
+                                    0x03, // ProtocolVersion: TLS 1.2 (also used by TLS 1.3)
+                                    0x00, 0x02, // Length: 2
+                                    0x02, // AlertLevel: Fatal
+                                    0x70, // AlertDescription: unrecognized_name (112)
+                                ])
+                                .await;
+                            let _ = mid.io.flush().await;
+                        }
                     }
 
                     Ok(None)
-                })
-                .await
-                {
-                    Ok(res) => res,
-                    Err(_) => {
-                        tracing::trace!("TLS handshake timed out");
-                        Ok(None)
-                    }
-                };
+                }
+                .await;
                 (tls_handler, res)
             }
             .boxed();

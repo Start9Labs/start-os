@@ -40,10 +40,20 @@ function detectProviderKey(host: string | undefined): string {
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
-        {{ 'Back' | i18n }}
-      </a>
-      SMTP
+      <div>
+        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+          {{ 'Back' | i18n }}
+        </a>
+        SMTP
+        <a
+          tuiIconButton
+          size="xs"
+          docsLink
+          path="/start-os/smtp.html"
+          appearance="icon"
+          iconStart="@tui.book-open-text"
+        ></a>
+      </div>
     </ng-container>
     @if (form$ | async; as data) {
       <form [formGroup]="data.form">
@@ -127,6 +137,10 @@ function detectProviderKey(host: string | undefined): string {
   styles: `
     :host {
       max-width: 36rem;
+    }
+
+    :host-context(tui-root._mobile) form:first-of-type > [tuiHeader] {
+      display: none;
     }
 
     form header,

@@ -47,6 +47,7 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -103,6 +104,7 @@ pub async fn add_package_signer(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -149,6 +151,7 @@ pub async fn remove_package_signer(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]

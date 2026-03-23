@@ -445,15 +445,14 @@ export class SystemForEmbassy implements System {
   }
   callCallback(_callback: number, _args: any[]): void {}
   async stop(): Promise<void> {
-    const { currentRunning } = this
-    this.currentRunning?.clean()
+    const clean = this.currentRunning?.clean({
+      timeout: fromDuration(
+        (this.manifest.main["sigterm-timeout"] as any) || "30s",
+      ),
+    })
     delete this.currentRunning
-    if (currentRunning) {
-      await currentRunning.clean({
-        timeout: fromDuration(
-          (this.manifest.main["sigterm-timeout"] as any) || "30s",
-        ),
-      })
+    if (clean) {
+      await clean
     }
   }
 

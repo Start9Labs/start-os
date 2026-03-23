@@ -34,6 +34,7 @@ use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceTyp
 use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::net::gateway::device::DeviceProxy;
 use crate::net::host::all_hosts;
+use crate::net::utils::find_wifi_iface;
 use crate::net::web_server::{Accept, AcceptStream, MetadataVisitor, TcpMetadata};
 use crate::prelude::*;
 use crate::util::Invoke;
@@ -142,6 +143,7 @@ async fn list_interfaces(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 struct ForgetGatewayParams {
     #[arg(help = "help.arg.gateway-id")]
@@ -156,6 +158,7 @@ async fn forget_iface(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 struct RenameGatewayParams {
     #[arg(help = "help.arg.gateway-id")]
@@ -172,6 +175,7 @@ async fn set_name(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CheckPortParams {
@@ -239,7 +243,9 @@ pub async fn check_port(
 
     let client = reqwest::Client::builder();
     #[cfg(target_os = "linux")]
-    let client = client.interface(gateway.as_str());
+    let client = client
+        .interface(gateway.as_str())
+        .local_address(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
     let client = client.build()?;
 
     let mut res = None;
@@ -293,6 +299,7 @@ pub async fn check_port(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CheckDnsParams {
@@ -372,6 +379,7 @@ pub async fn check_dns(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct SetDefaultOutboundParams {
@@ -407,6 +415,7 @@ async fn set_default_outbound(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetOutboundGatewayParams {
@@ -775,7 +784,9 @@ async fn watcher(
 async fn get_wan_ipv4(iface: &str, base_url: &Url) -> Result<Option<Ipv4Addr>, Error> {
     let client = reqwest::Client::builder();
     #[cfg(target_os = "linux")]
-    let client = client.interface(iface);
+    let client = client
+        .interface(iface)
+        .local_address(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
     let url = base_url.join("/ip").with_kind(ErrorKind::ParseUrl)?;
     let text = client
         .build()?
@@ -1289,14 +1300,15 @@ async fn poll_ip_info(
     };
     let mut wan_ip = None;
     for echoip_url in echoip_urls {
-        let wan_ip = if echoip_ratelimit_state
+        if echoip_ratelimit_state
             .get(&echoip_url)
             .map_or(true, |i| i.elapsed() > Duration::from_secs(300))
             && !subnets.is_empty()
             && !matches!(
                 device_type,
                 Some(NetworkInterfaceType::Bridge | NetworkInterfaceType::Loopback)
-            ) {
+            )
+        {
             match get_wan_ipv4(iface.as_str(), &echoip_url).await {
                 Ok(a) => {
                     wan_ip = a;
@@ -1458,12 +1470,27 @@ impl NetworkInterfaceController {
     ) -> Result<(), Error> {
         tracing::debug!("syncronizing {info:?} to db");
 
+        let mut wifi_iface = info
+            .iter()
+            .find(|(_, info)| {
+                info.ip_info.as_ref().map_or(false, |i| {
+                    i.device_type == Some(NetworkInterfaceType::Wireless)
+                })
+            })
+            .map(|(id, _)| id.clone());
+        if wifi_iface.is_none() {
+            wifi_iface = find_wifi_iface()
+                .await
+                .ok()
+                .and_then(|a| a)
+                .map(InternedString::from)
+                .map(GatewayId::from);
+        }
+
         db.mutate(|db| {
-            db.as_public_mut()
-                .as_server_info_mut()
-                .as_network_mut()
-                .as_gateways_mut()
-                .ser(info)?;
+            let network = db.as_public_mut().as_server_info_mut().as_network_mut();
+            network.as_gateways_mut().ser(info)?;
+            network.as_wifi_mut().as_interface_mut().ser(&wifi_iface)?;
             let hostname = crate::hostname::ServerHostname::load(db.as_public().as_server_info())?;
             let ports = db.as_private().as_available_ports().de()?;
             for host in all_hosts(db) {

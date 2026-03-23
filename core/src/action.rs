@@ -61,6 +61,7 @@ pub struct ActionInput {
 }
 
 #[derive(Deserialize, Serialize, TS, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct GetActionInputParams {
     #[arg(help = "help.arg.package-id")]
@@ -287,10 +288,11 @@ pub struct RunActionParams {
 }
 
 #[derive(Parser)]
+#[group(skip)]
 struct CliRunActionParams {
     #[arg(help = "help.arg.package-id")]
     pub package_id: PackageId,
-    #[arg(help = "help.arg.event-id")]
+    #[arg(long, help = "help.arg.event-id")]
     pub event_id: Option<Guid>,
     #[arg(help = "help.arg.action-id")]
     pub action_id: ActionId,
@@ -368,6 +370,7 @@ pub async fn run_action(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]

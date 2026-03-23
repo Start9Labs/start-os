@@ -117,6 +117,7 @@ impl SessionAuthContext for TunnelContext {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct SignerInfo {
@@ -182,6 +183,7 @@ pub fn auth_api<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct AddKeyParams {
     pub name: InternedString,
@@ -204,6 +206,7 @@ pub async fn add_key(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveKeyParams {
     pub key: AnyVerifyingKey,

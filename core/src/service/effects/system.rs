@@ -4,6 +4,7 @@ use crate::service::rpc::CallbackId;
 use crate::system::SmtpValue;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct GetSystemSmtpParams {

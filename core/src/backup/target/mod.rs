@@ -273,6 +273,7 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) -> Re
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
@@ -314,6 +315,7 @@ lazy_static::lazy_static! {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct MountParams {
@@ -396,6 +398,7 @@ pub async fn mount(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]

@@ -64,6 +64,7 @@ pub struct PassthroughInfo {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "kebab-case")]
 struct AddPassthroughParams {
     #[arg(long)]
@@ -79,6 +80,7 @@ struct AddPassthroughParams {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "kebab-case")]
 struct RemovePassthroughParams {
     #[arg(long)]
@@ -732,19 +734,11 @@ where
         };
 
         let src = tcp.peer_addr.ip();
-        // Private: source is in a known subnet or is a private IP (e.g. VPN on a different VLAN)
-        let is_public =
-            !ip_info.subnets.iter().any(|s| s.contains(&src)) && !is_private_ip(src);
+        let dst = tcp.local_addr.ip();
 
-        if is_public {
-            self.public.contains(&gw.id)
-        } else {
-            // Private: accept if connection arrived on an interface with a matching IP
-            ip_info
-                .subnets
-                .iter()
-                .any(|s| self.private.contains(&s.addr()))
-        }
+        self.public.contains(&gw.id)
+            || (self.private.contains(&dst)
+                && (ip_info.subnets.iter().any(|s| s.contains(&src)) || is_private_ip(src)))
     }
     fn acme(&self) -> Option<&AcmeProvider> {
         self.acme.as_ref()
@@ -959,7 +953,8 @@ where
         + DbAccessMut<AcmeCertStore>
         + DbAccessByKey<AcmeSettings, Key<'a> = &'a AcmeProvider>
         + Send
-        + Sync,
+        + Sync
+        + 'static,
     A: Accept + 'static,
     <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>
         + Visit<ExtractVisitor<GatewayInfo>>
@@ -1088,7 +1083,7 @@ impl<A: Accept> VHostServer<A> {
                                 acme_cache,
                                 crypto_provider: crypto_provider.clone(),
                                 get_provider: GetVHostAcmeProvider(mapping.clone()),
-                                in_progress: Watch::new(BTreeSet::new()),
+                                in_progress: Watch::new(BTreeMap::new()),
                             }),
                             RootCaTlsHandler {
                                 db,

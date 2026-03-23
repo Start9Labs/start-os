@@ -27,6 +27,7 @@ pub use sync::*;
 use sync_dummy as sync;
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct DestroySubcontainerFsParams {
@@ -74,6 +75,7 @@ pub async fn destroy_subcontainer_fs(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CreateSubcontainerFsParams {

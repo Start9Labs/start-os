@@ -120,5 +120,5 @@ export class BackupsBackupModal {
 export const BACKUP = new PolymorpheusComponent(BackupsBackupModal)
 
 export const BACKUP_OPTIONS: Partial<TuiDialogOptions<unknown>> = {
-  label: 'Select Services to Back Up',
+  label: 'Select services',
 }

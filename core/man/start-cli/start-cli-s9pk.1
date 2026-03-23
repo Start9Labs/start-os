@@ -1,0 +1,35 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-s9pk 1  "s9pk " 
+.SH NAME
+start\-cli\-s9pk \- Commands for interacting with s9pk files
+.SH SYNOPSIS
+\fBstart\-cli s9pk\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Commands for interacting with s9pk files
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-cli\-s9pk\-convert(1)
+Convert an s9pk from v1 to v2
+.TP
+start\-cli\-s9pk\-edit(1)
+Commands to add an image to an s9pk or edit the manifest
+.TP
+start\-cli\-s9pk\-inspect(1)
+Commands to display file paths, file contents, or manifest
+.TP
+start\-cli\-s9pk\-list\-ingredients(1)
+List paths of package ingredients
+.TP
+start\-cli\-s9pk\-pack(1)
+Package input files into a valid s9pk
+.TP
+start\-cli\-s9pk\-publish(1)
+Publish s9pk to S3 bucket and index on registry
+.TP
+start\-cli\-s9pk\-select(1)
+Select the best compatible s9pk for a target device

@@ -3,12 +3,12 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
   DialogService,
   ErrorService,
-  i18nPipe,
   StartOSDiskInfo,
 } from '@start9labs/shared'
-import { TuiCell, TuiTitle } from '@taiga-ui/core'
+import { TuiButton } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { verifyPassword } from 'src/app/utils/verify-password'
 import { BackupContext } from './backup.types'
@@ -16,31 +16,49 @@ import { RECOVER } from './recover.component'
 
 @Component({
   template: `
-    @for (server of target.entry.startOs | keyvalue; track $index) {
-      <button
-        tuiCell
-        class="g-stretch"
-        (click)="onClick(server.key, server.value)"
-      >
-        <span tuiTitle>
-          <span tuiSubtitle>
-            <b>{{ 'Local Hostname' | i18n }}</b>
-            : {{ server.value.hostname }}.local
-          </span>
-          <span tuiSubtitle>
-            <b>{{ 'StartOS Version' | i18n }}</b>
-            : {{ server.value.version }}
-          </span>
-          <span tuiSubtitle>
-            <b>{{ 'Created' | i18n }}</b>
-            : {{ server.value.timestamp | date: 'medium' }}
-          </span>
-        </span>
-      </button>
+    <table [appTable]="['Hostname', 'StartOS Version', 'Created', null]">
+      @for (server of target.entry.startOs | keyvalue; track $index) {
+        <tr>
+          <td class="name">{{ server.value.hostname }}.local</td>
+          <td>{{ server.value.version }}</td>
+          <td>{{ server.value.timestamp | date: 'medium' }}</td>
+          <td>
+            <button
+              tuiButton
+              size="s"
+              (click)="onClick(server.key, server.value)"
+            >
+              Select
+            </button>
+          </td>
+        </tr>
+      }
+    </table>
+  `,
+  styles: `
+    td:last-child {
+      text-align: right;
+    }
+
+    :host-context(tui-root._mobile) {
+      tr {
+        grid-template-columns: 1fr auto;
+      }
+
+      .name {
+        color: var(--tui-text-primary);
+        font: var(--tui-typography-body-m);
+        font-weight: bold;
+      }
+
+      td:last-child {
+        grid-area: 1 / 2 / 4 / 2;
+        align-self: center;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [KeyValuePipe, DatePipe, TuiCell, TuiTitle, i18nPipe],
+  imports: [KeyValuePipe, DatePipe, TuiButton, TableComponent],
 })
 export class BackupRestoreComponent {
   private readonly dialog = inject(DialogService)
@@ -82,7 +100,7 @@ export class BackupRestoreComponent {
 
       this.context.$implicit.complete()
       this.dialog
-        .openComponent(RECOVER, { label: 'Select services to restore', data })
+        .openComponent(RECOVER, { label: 'Select services', data })
         .subscribe()
     } finally {
       loader.unsubscribe()

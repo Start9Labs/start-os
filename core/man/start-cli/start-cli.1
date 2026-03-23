@@ -1,0 +1,120 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli 1  "start-cli 0.4.0-alpha.21" 
+.SH NAME
+start\-cli
+.SH SYNOPSIS
+\fBstart\-cli\fR [\fB\-c\fR|\fB\-\-config\fR] [\fB\-H\fR|\fB\-\-host\fR] [\fB\-r\fR|\fB\-\-registry\fR] [\fB\-\-registry\-hostname\fR] [\fB\-\-s9pk\-s3base\fR] [\fB\-\-s9pk\-s3bucket\fR] [\fB\-t\fR|\fB\-\-tunnel\fR] [\fB\-p\fR|\fB\-\-proxy\fR] [\fB\-\-cookie\-path\fR] [\fB\-\-developer\-key\-path\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
+.SH DESCRIPTION
+.SH OPTIONS
+.TP
+\fB\-c\fR, \fB\-\-config\fR \fI<CONFIG>\fR
+Path to configuration file
+.TP
+\fB\-H\fR, \fB\-\-host\fR \fI<HOST>\fR
+URL of the StartOS server
+.TP
+\fB\-r\fR, \fB\-\-registry\fR \fI<REGISTRY>\fR
+URL of the registry
+.TP
+\fB\-\-registry\-hostname\fR \fI<REGISTRY_HOSTNAME>\fR
+Registry server hostname
+.TP
+\fB\-\-s9pk\-s3base\fR \fI<S9PK_S3BASE>\fR
+Base URL for publishing s9pks
+.TP
+\fB\-\-s9pk\-s3bucket\fR \fI<S9PK_S3BUCKET>\fR
+S3 bucket to publish s9pks to (should correspond to s3base)
+.TP
+\fB\-t\fR, \fB\-\-tunnel\fR \fI<TUNNEL>\fR
+Tunnel server address
+.TP
+\fB\-p\fR, \fB\-\-proxy\fR \fI<PROXY>\fR
+HTTP/SOCKS proxy URL
+.TP
+\fB\-\-cookie\-path\fR \fI<COOKIE_PATH>\fR
+Path to cookie file
+.TP
+\fB\-\-developer\-key\-path\fR \fI<DEVELOPER_KEY_PATH>\fR
+Path to developer signing key
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.SH SUBCOMMANDS
+.TP
+start\-cli\-auth(1)
+Commands related to Authentication i.e. login, logout
+.TP
+start\-cli\-backup(1)
+Commands related to backup creation and backup targets
+.TP
+start\-cli\-db(1)
+Commands to interact with the db i.e. dump, put, apply
+.TP
+start\-cli\-diagnostic(1)
+Commands to display logs, restart the server, etc
+.TP
+start\-cli\-disk(1)
+Commands for listing disk info and repairing
+.TP
+start\-cli\-echo(1)
+Echo a message back
+.TP
+start\-cli\-flash\-os(1)
+Flash StartOS to a drive
+.TP
+start\-cli\-git\-info(1)
+Display the git hash of this build
+.TP
+start\-cli\-init(1)
+Commands for initialization
+.TP
+start\-cli\-init\-key(1)
+Create a new developer key
+.TP
+start\-cli\-kiosk(1)
+Commands for kiosk mode
+.TP
+start\-cli\-net(1)
+Network commands
+.TP
+start\-cli\-notification(1)
+Create, delete, or list notifications
+.TP
+start\-cli\-package(1)
+Commands related to packages
+.TP
+start\-cli\-pubkey(1)
+Get the developer public key
+.TP
+start\-cli\-registry(1)
+Commands related to the registry
+.TP
+start\-cli\-s9pk(1)
+Commands for interacting with s9pk files
+.TP
+start\-cli\-server(1)
+Commands related to the server i.e. restart, update, and shutdown
+.TP
+start\-cli\-setup(1)
+Commands related to the initial setup
+.TP
+start\-cli\-ssh(1)
+Commands for interacting with ssh keys i.e. add, delete, list
+.TP
+start\-cli\-state(1)
+Display the current api specification
+.TP
+start\-cli\-tunnel(1)
+Commands related to StartTunnel
+.TP
+start\-cli\-util(1)
+Command for calculating the blake3 hash of a file
+.TP
+start\-cli\-wifi(1)
+Commands related to wifi networks i.e. add, connect, delete
+.SH VERSION
+v0.4.0\-alpha.21

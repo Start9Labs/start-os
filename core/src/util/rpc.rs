@@ -22,6 +22,7 @@ pub fn util<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
+#[group(skip)]
 pub struct B3sumParams {
     #[arg(long = "no-mmap", action = clap::ArgAction::SetFalse, help = "help.arg.no-mmap")]
     allow_mmap: bool,

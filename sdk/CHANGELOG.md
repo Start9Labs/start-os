@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.4.0-beta.65 (2026-03-23)
+
+### Added
+
+- `Backups.withPgDump()`: dump-based PostgreSQL backup using `pg_dump`/`pg_restore`, replacing raw volume rsync of PG data directories
+- `Backups.withMysqlDump()`: dump-based MySQL/MariaDB backup using `mysqldump`/`mysql`
+- Password configs accept `string | (() => string | Promise<string>)` for deferred resolution during restore
+
+## 0.4.0-beta.63 — StartOS v0.4.0-alpha.22 (2026-03-22)
+
+### Fixed
+
+- Fixed `createTask` failing when input values are undefined
+- Fixed daemon lifecycle cleanup and error logging improvements
+- Replaced fire-and-forget restart loop in `Daemon` with tracked `AbortController`
+- Fixed graceful shutdown for subcontainer daemons
+- Fixed rsync progress regex never matching, spamming logs during backup
+- Fixed rsync backup bugs and optimized flags for encrypted CIFS targets
+- Fixed types in `inputSpecConstants`, `StartSdk`, and exports
+
+## 0.4.0-beta.62 (2026-03-19)
+
+### Fixed
+
+- Fixed `Value.dynamicSelect` and `Value.dynamicMultiselect` crashing with `z.union([])` when `values` is empty (zod v4 compatibility)
+
+### Added
+
+- `FileHelper.xml`: file helper for XML files using `fast-xml-parser`
+- `smtpShape`: typed zod schema for persisting SMTP selection in store file models, replacing direct use of `smtpInputSpec.validator` which caused cross-zod-instance errors
+
 ## 0.4.0-beta.61 — StartOS v0.4.0-alpha.21 (2026-03-16)
 
 ### Fixed

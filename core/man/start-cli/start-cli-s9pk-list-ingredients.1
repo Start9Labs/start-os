@@ -1,0 +1,37 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-s9pk-list-ingredients 1  "list-ingredients " 
+.SH NAME
+start\-cli\-s9pk\-list\-ingredients \- List paths of package ingredients
+.SH SYNOPSIS
+\fBstart\-cli s9pk list\-ingredients\fR [\fB\-o\fR|\fB\-\-output\fR] [\fB\-\-javascript\fR] [\fB\-\-icon\fR] [\fB\-\-license\fR] [\fB\-\-assets\fR] [\fB\-\-no\-assets\fR] [\fB\-\-arch\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fIPATH\fR] 
+.SH DESCRIPTION
+List paths of package ingredients
+.SH OPTIONS
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fI<OUTPUT>\fR
+Output file path
+.TP
+\fB\-\-javascript\fR \fI<JAVASCRIPT>\fR
+Path to JavaScript file
+.TP
+\fB\-\-icon\fR \fI<ICON>\fR
+Path to service icon file
+.TP
+\fB\-\-license\fR \fI<LICENSE>\fR
+Path to license file
+.TP
+\fB\-\-assets\fR \fI<ASSETS>\fR
+Path to assets directory
+.TP
+\fB\-\-no\-assets\fR
+Build without assets directory
+.TP
+\fB\-\-arch\fR \fI<ARCH>\fR
+Filter by CPU architecture
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+[\fIPATH\fR]
+Path to input file or directory

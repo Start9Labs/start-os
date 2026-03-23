@@ -79,10 +79,11 @@ pub async fn enable_zram() -> Result<(), Error> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ZramParams {
-    #[arg(help = "help.arg.enable-zram")]
+    #[arg(long, help = "help.arg.enable-zram")]
     enable: bool,
 }
 
@@ -147,6 +148,7 @@ fn display_governor_info(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct GovernorParams {
@@ -559,6 +561,7 @@ pub struct MetricsFollowResponse {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct MetricsFollowParams {
@@ -1117,6 +1120,7 @@ pub enum SmtpSecurity {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SmtpValue {
@@ -1163,6 +1167,7 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[group(skip)]
 pub struct SetEchoipUrlsParams {
     #[arg(help = "help.arg.echoip-urls")]
     pub urls: Vec<url::Url>,
@@ -1184,6 +1189,7 @@ pub async fn set_echoip_urls(
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct TestSmtpParams {
@@ -1242,6 +1248,7 @@ pub async fn test_smtp(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyboardOptions {
     #[arg(help = "help.arg.keyboard-layout")]
@@ -1316,6 +1323,7 @@ pub async fn set_keyboard(ctx: RpcContext, options: KeyboardOptions) -> Result<(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, Parser)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SetLanguageParams {

@@ -10,8 +10,8 @@ import {
 import { T } from '@start9labs/start-sdk'
 import * as jose from 'node-jose'
 import { interval, map, Observable } from 'rxjs'
-import { ApiService } from './api.service'
 import { InstallOsParams, InstallOsRes } from '../types'
+import { ApiService } from './api.service'
 
 @Injectable({
   providedIn: 'root',
@@ -127,7 +127,7 @@ export class MockApiService extends ApiService {
     return {
       '9876-5432-1234-5678': {
         hostname: 'adjective-noun',
-        version: '0.3.6',
+        version: '0.4.0',
         timestamp: new Date().toISOString(),
         passwordHash:
           '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
@@ -135,7 +135,7 @@ export class MockApiService extends ApiService {
       },
       '9876-5432-1234-5671': {
         hostname: 'adjective-noun',
-        version: '0.3.6',
+        version: '0.4.0',
         timestamp: new Date().toISOString(),
         passwordHash:
           '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
@@ -299,7 +299,7 @@ const MOCK_DISKS: DiskInfo[] = [
         startOs: {
           'small-server-id': {
             hostname: 'small-server',
-            version: '0.3.6',
+            version: '0.4.0',
             timestamp: new Date().toISOString(),
             passwordHash:
               '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
@@ -348,7 +348,7 @@ const MOCK_DISKS: DiskInfo[] = [
         startOs: {
           '1234-5678-9876-5432': {
             hostname: 'existing-server',
-            version: '0.3.6',
+            version: '0.4.0',
             timestamp: new Date().toISOString(),
             passwordHash:
               '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
