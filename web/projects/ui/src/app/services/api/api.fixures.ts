@@ -1,12 +1,12 @@
+import { GetPackagesRes } from '@start9labs/marketplace'
+import { ISB, IST, T } from '@start9labs/start-sdk'
 import {
   InstalledState,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { ActionRes } from './api.types'
-import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
-import { T, ISB, IST } from '@start9labs/start-sdk'
-import { GetPackagesRes } from '@start9labs/marketplace'
+import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
+import { ActionRes } from './api.types'
 
 import markdown from './md-sample.md'
 
@@ -33,14 +33,14 @@ export namespace Mock {
     '0.4.1': {
       headline: 'v0.4.1',
       releaseNotes: 'Testing some release notes',
-      sourceVersion: '>=0.3.5:0 <=0.3.6-alpha.17:0',
+      sourceVersion: '>=0.3.5:0 <=0.4.0-alpha.17:0',
       authorized: ['G24CSA5HNYEPIXJNMK7ZM4KD5SX5N6X4'],
       iso: {},
       squashfs: {
         aarch64: {
           publishedAt: '2025-03-21T23:55:29.583006392Z',
           urls: [
-            'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_aarch64.squashfs',
+            'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.17/startos-0.4.0-alpha.17-b8ff331~dev_aarch64.squashfs',
           ],
           commitment: {
             hash: 'OUnANnZePtf7rSbj38JESl+iJAV0z0aiZ4opCiwpGbo=',
@@ -54,7 +54,7 @@ export namespace Mock {
         'aarch64-nonfree': {
           publishedAt: '2025-03-21T23:56:38.299572946Z',
           urls: [
-            'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_aarch64-nonfree.squashfs',
+            'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.17/startos-0.4.0-alpha.17-b8ff331~dev_aarch64-nonfree.squashfs',
           ],
           commitment: {
             hash: '6k+0RcyRQV+5A+h06OqpHxd4IT6IlFkfdy9dfHIP90c=',
@@ -68,7 +68,7 @@ export namespace Mock {
         raspberrypi: {
           publishedAt: '2025-03-22T00:08:17.083064390Z',
           urls: [
-            'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_raspberrypi.squashfs',
+            'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.17/startos-0.4.0-alpha.17-b8ff331~dev_raspberrypi.squashfs',
           ],
           commitment: {
             hash: 'K+XuTZxo1KVsKjNSV8PPOMruCvAEZwerF9mbpFl53Gk=',
@@ -82,7 +82,7 @@ export namespace Mock {
         x86_64: {
           publishedAt: '2025-03-22T00:05:57.684319247Z',
           urls: [
-            'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_x86_64.squashfs',
+            'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.17/startos-0.4.0-alpha.17-b8ff331~dev_x86_64.squashfs',
           ],
           commitment: {
             hash: '3UVkx3TQMBPlSU1OnV48Om9vjjA3s+Nk6dX3auYGpBo=',
@@ -96,7 +96,7 @@ export namespace Mock {
         'x86_64-nonfree': {
           publishedAt: '2025-03-22T00:07:11.893777122Z',
           urls: [
-            'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_x86_64-nonfree.squashfs',
+            'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.17/startos-0.4.0-alpha.17-b8ff331~dev_x86_64-nonfree.squashfs',
           ],
           commitment: {
             hash: 'IS1gJ56n/HlQqFbl1upMOAtLxyxB0cY0H89Ha+9h1lE=',
@@ -454,7 +454,7 @@ export namespace Mock {
             marketingUrl: 'https://bitcoin.org',
             docsUrls: ['https://bitcoin.org'],
             releaseNotes: 'Even better support for Bitcoin and wallets!',
-            osVersion: '0.3.6',
+            osVersion: '0.4.0',
             sdkVersion: '0.4.0-beta.49',
             gitHash: 'fakehash',
             icon: BTC_ICON,
@@ -496,7 +496,7 @@ export namespace Mock {
             marketingUrl: 'https://bitcoinknots.org',
             docsUrls: ['https://bitcoinknots.org'],
             releaseNotes: 'Even better support for Bitcoin and wallets!',
-            osVersion: '0.3.6',
+            osVersion: '0.4.0',
             sdkVersion: '0.4.0-beta.49',
             gitHash: 'fakehash',
             icon: BTC_ICON,
@@ -548,7 +548,7 @@ export namespace Mock {
             marketingUrl: 'https://bitcoin.org',
             docsUrls: ['https://bitcoin.org'],
             releaseNotes: 'Even better support for Bitcoin and wallets!',
-            osVersion: '0.3.6',
+            osVersion: '0.4.0',
             sdkVersion: '0.4.0-beta.49',
             gitHash: 'fakehash',
             icon: BTC_ICON,
@@ -590,7 +590,7 @@ export namespace Mock {
             marketingUrl: 'https://bitcoinknots.org',
             docsUrls: ['https://bitcoinknots.org'],
             releaseNotes: 'Even better support for Bitcoin and wallets!',
-            osVersion: '0.3.6',
+            osVersion: '0.4.0',
             sdkVersion: '0.4.0-beta.49',
             gitHash: 'fakehash',
             icon: BTC_ICON,
@@ -644,7 +644,7 @@ export namespace Mock {
             marketingUrl: 'https://lightning.engineering/',
             docsUrls: ['https://lightning.engineering/'],
             releaseNotes: 'Upstream release to 0.17.5',
-            osVersion: '0.3.6',
+            osVersion: '0.4.0',
             sdkVersion: '0.4.0-beta.49',
             gitHash: 'fakehash',
             icon: LND_ICON,
@@ -699,7 +699,7 @@ export namespace Mock {
             marketingUrl: 'https://lightning.engineering/',
             docsUrls: ['https://lightning.engineering/'],
             releaseNotes: 'Upstream release to 0.17.4',
-            osVersion: '0.3.6',
+            osVersion: '0.4.0',
             sdkVersion: '0.4.0-beta.49',
             gitHash: 'fakehash',
             icon: LND_ICON,
@@ -758,7 +758,7 @@ export namespace Mock {
           marketingUrl: 'https://bitcoin.org',
           docsUrls: ['https://bitcoin.org'],
           releaseNotes: 'Even better support for Bitcoin and wallets!',
-          osVersion: '0.3.6',
+          osVersion: '0.4.0',
           sdkVersion: '0.4.0-beta.49',
           gitHash: 'fakehash',
           icon: BTC_ICON,
@@ -800,7 +800,7 @@ export namespace Mock {
           marketingUrl: 'https://bitcoinknots.org',
           docsUrls: [],
           releaseNotes: 'Even better support for Bitcoin and wallets!',
-          osVersion: '0.3.6',
+          osVersion: '0.4.0',
           sdkVersion: '0.4.0-beta.49',
           gitHash: 'fakehash',
           icon: BTC_ICON,
@@ -852,7 +852,7 @@ export namespace Mock {
           marketingUrl: 'https://lightning.engineering/',
           docsUrls: [],
           releaseNotes: 'Upstream release and minor fixes.',
-          osVersion: '0.3.6',
+          osVersion: '0.4.0',
           sdkVersion: '0.4.0-beta.49',
           gitHash: 'fakehash',
           icon: LND_ICON,
@@ -907,7 +907,7 @@ export namespace Mock {
           docsUrls: [],
           marketingUrl: '',
           releaseNotes: 'Upstream release and minor fixes.',
-          osVersion: '0.3.6',
+          osVersion: '0.4.0',
           sdkVersion: '0.4.0-beta.49',
           gitHash: 'fakehash',
           icon: PROXY_ICON,
@@ -1013,7 +1013,7 @@ export namespace Mock {
       createdAt: '2019-12-26T14:20:30.872Z',
       code: 2,
       level: 'success',
-      title: 'Welcome to StartOS 0.3.6!',
+      title: 'Welcome to StartOS 0.4.0!',
       message: 'Click "View Details" to learn all about the new version',
       data: markdown,
       seen: false,
@@ -1207,7 +1207,7 @@ export namespace Mock {
         '1234-5678-9876-5432': {
           hostname: 'adjective-noun',
           timestamp: new Date().toISOString(),
-          version: '0.3.6',
+          version: '0.4.0',
           passwordHash:
             // password is asdfasdf
             '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
@@ -1247,7 +1247,7 @@ export namespace Mock {
         '1234-5678-9876-5432': {
           hostname: 'adjective-noun',
           timestamp: new Date().toISOString(),
-          version: '0.3.6',
+          version: '0.4.0',
           passwordHash:
             // password is asdfasdf
             '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
@@ -1282,7 +1282,7 @@ export namespace Mock {
   //       startOs: {
   //         abcdefgh: {
   //           hostname: 'adjective-noun.local',
-  //           version: '0.3.6',
+  //           version: '0.4.0',
   //           timestamp: new Date().toISOString(),
   //           passwordHash:
   //             '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
@@ -1321,7 +1321,7 @@ export namespace Mock {
   //       startOs: {
   //         'different-server': {
   //           hostname: 'different-server.local',
-  //           version: '0.3.6',
+  //           version: '0.4.0',
   //           timestamp: new Date().toISOString(),
   //           passwordHash:
   //             '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
@@ -1387,19 +1387,19 @@ export namespace Mock {
   // ]
 
   export const BackupInfo: T.BackupInfo = {
-    version: '0.3.6',
+    version: '0.4.0',
     timestamp: new Date().toISOString(),
     packageBackups: {
       bitcoind: {
         title: 'Bitcoin Core',
         version: '0.21.0:0',
-        osVersion: '0.3.6',
+        osVersion: '0.4.0',
         timestamp: new Date().toISOString(),
       },
       'btc-rpc-proxy': {
         title: 'Bitcoin Proxy',
         version: '0.2.2:0',
-        osVersion: '0.3.6',
+        osVersion: '0.4.0',
         timestamp: new Date().toISOString(),
       },
     },

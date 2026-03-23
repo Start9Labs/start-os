@@ -1,6 +1,6 @@
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { Mock } from './api.fixures'
 import { knownAuthorities } from 'src/app/utils/acme'
+import { Mock } from './api.fixures'
 const version = require('../../../../../../package.json').version
 
 export const mockPatchData: DataModel = {

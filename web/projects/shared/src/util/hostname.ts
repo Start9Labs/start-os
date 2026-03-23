@@ -1,8 +1,8 @@
 /**
  * TS port of the Rust `normalize()` function from core/src/hostname.rs.
- * Converts a free-text name into a valid hostname.
+ * Strips non-alphanumeric characters and produces a raw hostname string.
  */
-export function normalizeHostname(name: string): string {
+export function normalizeHostnameRaw(name: string): string {
   let prevWasDash = true
   let normalized = ''
 
@@ -20,5 +20,12 @@ export function normalizeHostname(name: string): string {
     normalized = normalized.slice(0, -1)
   }
 
-  return normalized || 'start9'
+  return normalized
+}
+
+/**
+ * Converts a free-text name into a valid hostname, with 'start9' fallback.
+ */
+export function normalizeHostname(name: string): string {
+  return normalizeHostnameRaw(name) || 'start9'
 }
