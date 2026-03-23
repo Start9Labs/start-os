@@ -3,6 +3,7 @@ import {
   ChangeDetectorRef,
   Component,
   inject,
+  signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
@@ -15,10 +16,26 @@ import {
   pauseFor,
 } from '@start9labs/shared'
 import { TuiButton, TuiLoader, TuiNotificationService } from '@taiga-ui/core'
-import { TuiNotificationMiddleService, TuiSwitch } from '@taiga-ui/kit'
+import {
+  TuiButtonLoading,
+  TuiNotificationMiddleService,
+  TuiSwitch,
+} from '@taiga-ui/kit'
 import { TuiCardLarge } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
-import { catchError, defer, map, merge, Observable, of, Subject } from 'rxjs'
+import {
+  catchError,
+  defer,
+  finalize,
+  first,
+  map,
+  merge,
+  Observable,
+  of,
+  Subject,
+  switchMap,
+  tap,
+} from 'rxjs'
 import {
   FormComponent,
   FormContext,
@@ -35,34 +52,61 @@ import { wifiSpec } from './wifi.const'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
-        {{ 'Back' | i18n }}
-      </a>
-      WiFi
+      <div>
+        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+          {{ 'Back' | i18n }}
+        </a>
+        WiFi
+        <a
+          tuiIconButton
+          size="xs"
+          docsLink
+          path="/start-os/wifi.html"
+          appearance="icon"
+          iconStart="@tui.book-open-text"
+        ></a>
+      </div>
     </ng-container>
-    @if (status()?.interface) {
-      <section class="g-card">
-        <header>
-          Wi-Fi
-          <a
-            tuiIconButton
-            size="xs"
-            docsLink
-            path="/start-os/wifi.html"
-            appearance="icon"
-            iconStart="@tui.book-open-text"
-          >
-            {{ 'Documentation' | i18n }}
-          </a>
+    <section class="g-card">
+      <header>
+        Wi-Fi
+        <a
+          tuiIconButton
+          size="xs"
+          docsLink
+          path="/start-os/wifi.html"
+          appearance="icon"
+          iconStart="@tui.book-open-text"
+        >
+          {{ 'Documentation' | i18n }}
+        </a>
+
+        @if (status()?.interface) {
+          @if (status()?.enabled) {
+            <button
+              tuiIconButton
+              size="s"
+              appearance="icon"
+              iconStart="@tui.refresh-cw"
+              [style.margin-inline-start]="'auto'"
+              [loading]="refreshing()"
+              (click)="refresh()"
+            >
+              {{ 'Refresh' | i18n }}
+            </button>
+          }
           <input
             type="checkbox"
             tuiSwitch
-            [style.margin-inline-start]="'auto'"
+            [style.margin-inline-start]="status()?.enabled ? '' : 'auto'"
             [showIcons]="false"
             [ngModel]="status()?.enabled"
             (ngModelChange)="onToggle($event)"
           />
-        </header>
+        }
+      </header>
+
+      @if (status()?.interface) {
         @if (status()?.enabled) {
           @if (wifi(); as data) {
             @if (data.known.length) {
@@ -74,7 +118,7 @@ import { wifiSpec } from './wifi.const'
               <div tuiCardLarge="compact" [wifi]="data.available"></div>
             }
             <p>
-              <button tuiButton (click)="other(data)" appearance="flat">
+              <button tuiButton (click)="other(data)" appearance="grayscale">
                 + {{ 'Connect to hidden network' | i18n }}
               </button>
             </p>
@@ -86,22 +130,27 @@ import { wifiSpec } from './wifi.const'
             {{ 'WiFi is disabled' | i18n }}
           </app-placeholder>
         }
-      </section>
-    } @else {
-      <app-placeholder icon="@tui.wifi">
-        {{ 'No wireless interface detected' | i18n }}
-      </app-placeholder>
-    }
+      } @else {
+        <app-placeholder icon="@tui.wifi">
+          {{ 'No wireless interface detected' | i18n }}
+        </app-placeholder>
+      }
+    </section>
   `,
   styles: `
     :host {
       max-width: 36rem;
+    }
+
+    :host-context(tui-root._mobile) header > [docsLink] {
+      display: none;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
     TuiButton,
+    TuiButtonLoading,
     TuiSwitch,
     TuiCardLarge,
     TuiLoader,
@@ -119,13 +168,35 @@ export default class SystemWifiComponent {
   private readonly api = inject(ApiService)
   private readonly alerts = inject(TuiNotificationService)
   private readonly update$ = new Subject<WifiData>()
+  private readonly refresh$ = new Subject<void>()
   private readonly formDialog = inject(FormDialogService)
   private readonly cdr = inject(ChangeDetectorRef)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly i18n = inject(i18nPipe)
 
-  readonly status = toSignal(this.patch.watch$('serverInfo', 'network', 'wifi'))
-  readonly wifi = toSignal(merge(this.getWifi$(), this.update$))
+  private readonly status$ = this.patch.watch$('serverInfo', 'network', 'wifi')
+  readonly status = toSignal(this.status$)
+  readonly wifi = toSignal(
+    merge(
+      this.status$.pipe(
+        first(s => !!s?.interface),
+        switchMap(() => this.getWifi$()),
+      ),
+      this.refresh$.pipe(
+        tap(() => this.refreshing.set(true)),
+        switchMap(() =>
+          this.getWifi$().pipe(finalize(() => this.refreshing.set(false))),
+        ),
+      ),
+      this.update$,
+    ),
+  )
+
+  readonly refreshing = signal(false)
+
+  refresh() {
+    this.refresh$.next()
+  }
 
   async onToggle(enable: boolean) {
     const loader = this.loader

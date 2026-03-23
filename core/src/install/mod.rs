@@ -338,6 +338,7 @@ pub async fn sideload_url(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
@@ -358,6 +359,7 @@ pub fn cancel_install(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 pub struct QueryPackageParams {
     #[arg(help = "help.arg.package-id")]
     id: PackageId,
@@ -417,6 +419,7 @@ impl FromArgMatches for CliInstallParams {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 pub struct InstalledVersionParams {
     #[arg(help = "help.arg.package-id")]
@@ -576,6 +579,7 @@ pub async fn cli_install(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]

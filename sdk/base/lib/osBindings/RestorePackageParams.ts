@@ -3,7 +3,8 @@ import type { BackupTargetId } from './BackupTargetId'
 import type { PackageId } from './PackageId'
 
 export type RestorePackageParams = {
-  ids: Array<PackageId>
   targetId: BackupTargetId
   password: string
+  ids: Array<PackageId>
+  serverId: string | null
 }

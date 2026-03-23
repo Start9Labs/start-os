@@ -34,15 +34,15 @@ import { StateService } from '../services/state.service'
             <tui-icon icon="@tui.circle-check-big" class="g-positive" />
             {{ 'Setup Complete!' | i18n }}
           </h2>
+          @if (!stateService.kiosk) {
+            <p tuiSubtitle>
+              {{
+                'http://start.local was for setup only. It will no longer work.'
+                  | i18n
+              }}
+            </p>
+          }
         </hgroup>
-        @if (!stateService.kiosk) {
-          <p tuiSubtitle>
-            {{
-              'http://start.local was for setup only. It will no longer work.'
-                | i18n
-            }}
-          </p>
-        }
       </header>
 
       @if (!result) {

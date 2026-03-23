@@ -1,0 +1,41 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-registry-package 1  "package " 
+.SH NAME
+start\-registry\-package \- Commands to index, add, or get packages
+.SH SYNOPSIS
+\fBstart\-registry package\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Commands to index, add, or get packages
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-registry\-package\-add(1)
+Add package to registry index
+.TP
+start\-registry\-package\-add\-mirror(1)
+Add a mirror for an s9pk
+.TP
+start\-registry\-package\-category(1)
+Update categories in registry
+.TP
+start\-registry\-package\-download(1)
+Download s9pk package
+.TP
+start\-registry\-package\-get(1)
+List installation candidates
+.TP
+start\-registry\-package\-index(1)
+List packages and categories
+.TP
+start\-registry\-package\-remove(1)
+Remove package from registry
+.TP
+start\-registry\-package\-remove\-mirror(1)
+Remove mirror package
+.TP
+start\-registry\-package\-signer(1)
+Add, remove, and list package signers

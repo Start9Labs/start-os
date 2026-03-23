@@ -64,6 +64,7 @@ pub async fn shutdown(context: EffectContext) -> Result<(), Error> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct GetStatusParams {
@@ -134,6 +135,7 @@ impl ValueParserFactory for SetMainStatusStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetMainStatus {

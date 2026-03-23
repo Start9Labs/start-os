@@ -1,0 +1,69 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-tunnel 1  "start-tunnel 0.4.0-alpha.21" 
+.SH NAME
+start\-tunnel
+.SH SYNOPSIS
+\fBstart\-tunnel\fR [\fB\-c\fR|\fB\-\-config\fR] [\fB\-H\fR|\fB\-\-host\fR] [\fB\-r\fR|\fB\-\-registry\fR] [\fB\-\-registry\-hostname\fR] [\fB\-\-s9pk\-s3base\fR] [\fB\-\-s9pk\-s3bucket\fR] [\fB\-t\fR|\fB\-\-tunnel\fR] [\fB\-p\fR|\fB\-\-proxy\fR] [\fB\-\-cookie\-path\fR] [\fB\-\-developer\-key\-path\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
+.SH DESCRIPTION
+.SH OPTIONS
+.TP
+\fB\-c\fR, \fB\-\-config\fR \fI<CONFIG>\fR
+Path to configuration file
+.TP
+\fB\-H\fR, \fB\-\-host\fR \fI<HOST>\fR
+URL of the StartOS server
+.TP
+\fB\-r\fR, \fB\-\-registry\fR \fI<REGISTRY>\fR
+URL of the registry
+.TP
+\fB\-\-registry\-hostname\fR \fI<REGISTRY_HOSTNAME>\fR
+Registry server hostname
+.TP
+\fB\-\-s9pk\-s3base\fR \fI<S9PK_S3BASE>\fR
+Base URL for publishing s9pks
+.TP
+\fB\-\-s9pk\-s3bucket\fR \fI<S9PK_S3BUCKET>\fR
+S3 bucket to publish s9pks to (should correspond to s3base)
+.TP
+\fB\-t\fR, \fB\-\-tunnel\fR \fI<TUNNEL>\fR
+Tunnel server address
+.TP
+\fB\-p\fR, \fB\-\-proxy\fR \fI<PROXY>\fR
+HTTP/SOCKS proxy URL
+.TP
+\fB\-\-cookie\-path\fR \fI<COOKIE_PATH>\fR
+Path to cookie file
+.TP
+\fB\-\-developer\-key\-path\fR \fI<DEVELOPER_KEY_PATH>\fR
+Path to developer signing key
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.SH SUBCOMMANDS
+.TP
+start\-tunnel\-auth(1)
+Add or remove authorized clients
+.TP
+start\-tunnel\-db(1)
+Commands to interact with the db i.e. dump and apply
+.TP
+start\-tunnel\-device(1)
+Add, remove, or list devices in subnets
+.TP
+start\-tunnel\-port\-forward(1)
+.TP
+start\-tunnel\-restart(1)
+Reboot the tunnel server
+.TP
+start\-tunnel\-subnet(1)
+Add, remove, or modify subnets
+.TP
+start\-tunnel\-update(1)
+.TP
+start\-tunnel\-web(1)
+.SH VERSION
+v0.4.0\-alpha.21

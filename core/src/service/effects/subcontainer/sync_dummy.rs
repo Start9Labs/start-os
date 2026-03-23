@@ -28,3 +28,10 @@ pub fn exec_command(_: ContainerCliContext) -> Result<(), Error> {
         ErrorKind::InvalidRequest,
     ))
 }
+
+pub fn pipe_wrap(_: ContainerCliContext) -> Result<(), Error> {
+    Err(Error::new(
+        eyre!("requires feature container-runtime"),
+        ErrorKind::InvalidRequest,
+    ))
+}

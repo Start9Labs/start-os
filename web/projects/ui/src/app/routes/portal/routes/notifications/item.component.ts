@@ -50,16 +50,11 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       <td class="content">
         <tui-line-clamp
           style="pointer-events: none"
-          [linesLimit]="4"
+          [linesLimit]="3"
           [lineHeight]="21"
           [content]="item.message"
           (overflownChange)="overflow = $event"
         />
-        @if (overflow) {
-          <button tuiLink (click.stop)="onClick(item)">
-            {{ 'View full' | i18n }}
-          </button>
-        }
         @if ([1, 2].includes(item.code)) {
           <button tuiLink (click.stop)="onClick(item)">
             {{
@@ -67,6 +62,10 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
                 ? ('View report' | i18n)
                 : ('View details' | i18n)
             }}
+          </button>
+        } @else if (overflow) {
+          <button tuiLink (click.stop)="onClick(item)">
+            {{ 'View full' | i18n }}
           </button>
         }
       </td>
@@ -186,12 +185,7 @@ export class NotificationItemComponent {
   overflow = false
 
   onClick(item: ServerNotification<number>) {
-    if (this.overflow) {
-      this.service.viewModal(item, true)
-      item.seen = true
-    } else if ([1, 2].includes(item.code)) {
-      this.service.viewModal(item)
-      item.seen = true
-    }
+    this.service.viewModal(item)
+    item.seen = true
   }
 }

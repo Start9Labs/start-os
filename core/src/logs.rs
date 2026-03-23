@@ -235,6 +235,7 @@ pub enum LogSource {
 pub const SYSTEM_UNIT: &str = "startd";
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct PackageIdParams {
@@ -328,6 +329,7 @@ impl From<BootIdentifier> for String {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export, concrete(Extra = Empty), bound = "")]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
@@ -362,6 +364,7 @@ pub struct LogsParams<Extra: FromArgMatches + Args = Empty> {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliLogsParams<Extra: FromArgMatches + Args = Empty> {

@@ -23,6 +23,7 @@ fi
 
 BUCKET="${S3_BUCKET:-start9-debs}"
 ENDPOINT="${S3_ENDPOINT:-https://nyc3.digitaloceanspaces.com}"
+GPG_KEY_ID="${GPG_KEY_ID:-5259ADFC2D63C217}"
 SUITE="${SUITE:-stable}"
 COMPONENT="${COMPONENT:-main}"
 REPO_DIR="$(mktemp -d)"
@@ -98,7 +99,7 @@ for arch in amd64 arm64 riscv64; do
     mkdir -p "$BINARY_DIR"
     (
         cd "$REPO_DIR"
-        dpkg-scanpackages --arch "$arch" pool/ > "$BINARY_DIR/Packages"
+        dpkg-scanpackages --multiversion --arch "$arch" pool/ > "$BINARY_DIR/Packages"
         gzip -k -f "$BINARY_DIR/Packages"
     )
     echo "Generated Packages index for ${arch}"

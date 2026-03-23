@@ -7,7 +7,13 @@ import {
 } from '@angular/core'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
-import { TuiButton, TuiDataList, TuiDropdown, TuiInput } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiDataList,
+  TuiDropdown,
+  TuiIcon,
+  TuiInput,
+} from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
@@ -33,24 +39,46 @@ import { InterfaceAddressItemComponent } from './item.component'
   selector: 'section[gatewayGroup]',
   template: `
     <header>
-      {{ 'Gateway' | i18n }}: {{ gatewayGroup().gatewayName }}
-      <button
-        tuiDropdown
-        tuiButton
-        iconStart="@tui.plus"
-        [style.margin-inline-start]="'auto'"
-        [(tuiDropdownOpen)]="addOpen"
-      >
-        {{ 'Add Domain' | i18n }}
-        <tui-data-list *tuiDropdown (click)="addOpen.set(false)">
-          <button tuiOption (click)="addPublicDomain()">
-            {{ 'Public Domain' | i18n }}
-          </button>
-          <button tuiOption (click)="addPrivateDomain()">
-            {{ 'Private Domain' | i18n }}
-          </button>
-        </tui-data-list>
-      </button>
+      @switch (gatewayGroup().deviceType) {
+        @case ('ethernet') {
+          <tui-icon icon="@tui.ethernet-port" />
+        }
+        @case ('wireless') {
+          <tui-icon icon="@tui.wifi" />
+        }
+        @case ('wireguard') {
+          <tui-icon icon="@tui.shield" />
+        }
+      }
+      {{ gatewayGroup().gatewayName }}
+      @if (gatewayGroup().isWireguard) {
+        <button
+          tuiButton
+          iconStart="@tui.plus"
+          [style.margin-inline-start]="'auto'"
+          (click)="addPublicDomain()"
+        >
+          {{ 'Add Public Domain' | i18n }}
+        </button>
+      } @else {
+        <button
+          tuiDropdown
+          tuiButton
+          iconStart="@tui.plus"
+          [style.margin-inline-start]="'auto'"
+          [(tuiDropdownOpen)]="addOpen"
+        >
+          {{ 'Add Domain' | i18n }}
+          <tui-data-list *tuiDropdown (click)="addOpen.set(false)">
+            <button tuiOption (click)="addPublicDomain()">
+              {{ 'Public Domain' | i18n }}
+            </button>
+            <button tuiOption (click)="addPrivateDomain()">
+              {{ 'Private Domain' | i18n }}
+            </button>
+          </tui-data-list>
+        </button>
+      }
     </header>
     <table
       [appTable]="[
@@ -82,6 +110,11 @@ import { InterfaceAddressItemComponent } from './item.component'
     </table>
   `,
   styles: `
+    header tui-icon {
+      font-size: 1.25rem;
+      margin-inline-end: 0.375rem;
+    }
+
     :host ::ng-deep {
       th:first-child {
         width: 5rem;
@@ -93,6 +126,7 @@ import { InterfaceAddressItemComponent } from './item.component'
     TuiButton,
     TuiDropdown,
     TuiDataList,
+    TuiIcon,
     TuiInput,
     TableComponent,
     PlaceholderComponent,

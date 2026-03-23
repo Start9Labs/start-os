@@ -136,6 +136,7 @@ pub async fn sign_squashfs(ctx: RegistryContext, params: SignAssetParams) -> Res
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliSignAssetParams {

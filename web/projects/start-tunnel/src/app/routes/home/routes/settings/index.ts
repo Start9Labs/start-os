@@ -58,6 +58,22 @@ import { CHANGE_PASSWORD } from './change-password'
       </div>
       <div tuiCell>
         <span tuiTitle>
+          <strong>Restart</strong>
+          <span tuiSubtitle>Restart the VPS</span>
+        </span>
+        <button
+          tuiButton
+          size="s"
+          appearance="secondary"
+          iconStart="@tui.rotate-cw"
+          [loading]="restarting()"
+          (click)="onRestart()"
+        >
+          Restart
+        </button>
+      </div>
+      <div tuiCell>
+        <span tuiTitle>
           <strong>Logout</strong>
         </span>
         <button
@@ -95,6 +111,7 @@ export default class Settings {
   protected readonly update = inject(UpdateService)
   protected readonly checking = signal(false)
   protected readonly applying = signal(false)
+  protected readonly restarting = signal(false)
 
   protected onChangePassword(): void {
     this.dialogs.open(CHANGE_PASSWORD, { label: 'Change Password' }).subscribe()
@@ -121,6 +138,26 @@ export default class Settings {
       this.errorService.handleError(e)
     } finally {
       this.applying.set(false)
+    }
+  }
+
+  protected async onRestart() {
+    this.restarting.set(true)
+
+    try {
+      await this.api.restart()
+      this.dialogs
+        .open(
+          'The VPS is restarting. Please wait 1\u20132 minutes, then refresh the page.',
+          {
+            label: 'Restarting',
+          },
+        )
+        .subscribe()
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      this.restarting.set(false)
     }
   }
 

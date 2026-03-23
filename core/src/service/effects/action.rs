@@ -78,6 +78,7 @@ pub async fn export_action(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ClearActionsParams {
@@ -110,6 +111,7 @@ async fn clear_actions(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct GetActionInputParams {
@@ -118,7 +120,7 @@ pub struct GetActionInputParams {
     #[arg(skip)]
     procedure_id: Guid,
     #[ts(optional)]
-    #[arg(help = "help.arg.package-id")]
+    #[arg(short, long, help = "help.arg.package-id")]
     package_id: Option<PackageId>,
     #[arg(help = "help.arg.action-id")]
     action_id: ActionId,
@@ -158,6 +160,7 @@ async fn get_action_input(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, rename = "EffectsRunActionParams")]
 pub struct RunActionParams {
@@ -166,7 +169,7 @@ pub struct RunActionParams {
     #[arg(skip)]
     procedure_id: Guid,
     #[ts(optional)]
-    #[arg(help = "help.arg.package-id")]
+    #[arg(short, long, help = "help.arg.package-id")]
     package_id: Option<PackageId>,
     #[arg(help = "help.arg.action-id")]
     action_id: ActionId,
@@ -309,6 +312,7 @@ async fn create_task(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[group(skip)]
 #[ts(type = "{ only: string[] } | { except: string[] }")]
 #[ts(export)]
 pub struct ClearTasksParams {

@@ -1,5 +1,6 @@
 use std::ffi::OsString;
 use std::net::SocketAddr;
+use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -13,7 +14,6 @@ use tracing::instrument;
 use visit_rs::Visit;
 
 use crate::context::CliContext;
-use crate::version::{Current, VersionT};
 use crate::context::config::ClientConfig;
 use crate::net::tls::TlsListener;
 use crate::net::web_server::{Accept, Acceptor, MetadataVisitor, WebServer};
@@ -23,6 +23,7 @@ use crate::tunnel::tunnel_router;
 use crate::tunnel::web::TunnelCertHandler;
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::logger::LOGGER;
+use crate::version::{Current, VersionT};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum WebserverListener {
@@ -36,7 +37,9 @@ impl<V: MetadataVisitor> Visit<V> for WebserverListener {
 }
 
 #[instrument(skip_all)]
-async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
+async fn inner_main(config: &TunnelConfig) -> Result<Option<bool>, Error> {
+    let mut shutdown = None;
+
     let server = async {
         let ctx = TunnelContext::init(config).await?;
         let listen = ctx.listen;
@@ -133,13 +136,13 @@ async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
             .await;
             sig_handler_ctx
                 .shutdown
-                .send(())
+                .send(None)
                 .map_err(|_| ())
                 .expect("send shutdown signal");
         })
         .into();
 
-        shutdown_recv
+        shutdown = shutdown_recv
             .recv()
             .await
             .with_kind(crate::ErrorKind::Unknown)?;
@@ -152,7 +155,7 @@ async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
     .await?;
     server.shutdown().await;
 
-    Ok(())
+    Ok(shutdown)
 }
 
 pub fn main(args: impl IntoIterator<Item = OsString>) {
@@ -169,7 +172,13 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
     };
 
     match res {
-        Ok(()) => (),
+        Ok(None) => (),
+        Ok(Some(true)) => {
+            Command::new("reboot").status().unwrap();
+        }
+        Ok(Some(false)) => {
+            Command::new("poweroff").status().unwrap();
+        }
         Err(e) => {
             eprintln!("{}", e.source);
             tracing::debug!("{:?}", e.source);
@@ -179,10 +188,8 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
     }
 }
 
-pub fn cli(args: impl IntoIterator<Item = OsString>) {
-    LOGGER.enable();
-
-    if let Err(e) = CliApp::new(
+fn app() -> CliApp<CliContext, ClientConfig> {
+    CliApp::new(
         |cfg: ClientConfig| Ok(CliContext::init(cfg.load()?)?),
         crate::tunnel::api::tunnel_api(),
     )
@@ -191,8 +198,12 @@ pub fn cli(args: impl IntoIterator<Item = OsString>) {
         cmd.name("start-tunnel")
             .version(Current::default().semver().to_string())
     })
-    .run(args)
-    {
+}
+
+pub fn cli(args: impl IntoIterator<Item = OsString>) {
+    LOGGER.enable();
+
+    if let Err(e) = app().run(args) {
         match e.data {
             Some(serde_json::Value::String(s)) => eprintln!("{}: {}", e.message, s),
             Some(serde_json::Value::Object(o)) => {
@@ -209,4 +220,10 @@ pub fn cli(args: impl IntoIterator<Item = OsString>) {
 
         std::process::exit(e.code);
     }
+}
+
+#[test]
+fn export_manpage_start_tunnel() {
+    std::fs::create_dir_all("./man/start-tunnel").unwrap();
+    clap_mangen::generate_to(app().into_command(), "./man/start-tunnel").unwrap();
 }

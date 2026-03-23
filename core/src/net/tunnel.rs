@@ -36,6 +36,7 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AddTunnelParams {
@@ -46,8 +47,7 @@ pub struct AddTunnelParams {
     #[arg(help = "help.arg.gateway-type")]
     #[serde(default, rename = "type")]
     gateway_type: Option<GatewayType>,
-    #[arg(help = "help.arg.set-as-default-outbound")]
-    #[serde(default)]
+    #[arg(long, help = "help.arg.set-as-default-outbound")]
     set_as_default_outbound: bool,
 }
 
@@ -168,13 +168,20 @@ pub async fn add_tunnel(
     .await
     .is_err()
     {
-        tracing::warn!("{}", t!("net.tunnel.timeout-waiting-for-add", gateway = iface.as_str()));
+        tracing::warn!(
+            "{}",
+            t!(
+                "net.tunnel.timeout-waiting-for-add",
+                gateway = iface.as_str()
+            )
+        );
     }
 
     Ok(iface)
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 pub struct RemoveTunnelParams {
     #[arg(help = "help.arg.gateway-id")]
@@ -275,7 +282,13 @@ pub async fn remove_tunnel(
     .await
     .is_err()
     {
-        tracing::warn!("{}", t!("net.tunnel.timeout-waiting-for-remove", gateway = id.as_str()));
+        tracing::warn!(
+            "{}",
+            t!(
+                "net.tunnel.timeout-waiting-for-remove",
+                gateway = id.as_str()
+            )
+        );
     }
 
     Ok(())

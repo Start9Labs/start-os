@@ -94,9 +94,7 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'port-forward.add', params })
   }
 
-  async deleteForward(
-    params: T.Tunnel.RemovePortForwardParams,
-  ): Promise<null> {
+  async deleteForward(params: T.Tunnel.RemovePortForwardParams): Promise<null> {
     return this.rpcRequest({ method: 'port-forward.remove', params })
   }
 
@@ -110,6 +108,12 @@ export class LiveApiService extends ApiService {
     params: T.Tunnel.SetPortForwardEnabledParams,
   ): Promise<null> {
     return this.rpcRequest({ method: 'port-forward.set-enabled', params })
+  }
+
+  // system
+
+  async restart(): Promise<null> {
+    return this.rpcRequest({ method: 'restart', params: {} })
   }
 
   // update

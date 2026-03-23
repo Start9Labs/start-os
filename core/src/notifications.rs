@@ -75,6 +75,7 @@ pub fn notification<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
@@ -141,6 +142,7 @@ pub async fn list(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
@@ -177,6 +179,7 @@ pub async fn remove(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
@@ -300,10 +303,11 @@ pub async fn mark_unseen(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CreateParams {
-    #[arg(help = "help.arg.package-id")]
+    #[arg(long, short, help = "help.arg.package-id")]
     package: Option<PackageId>,
     #[arg(help = "help.arg.notification-level")]
     level: NotificationLevel,

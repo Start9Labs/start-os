@@ -53,6 +53,7 @@ pub trait ContextConfig: DeserializeOwned + Default {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 #[command(version = crate::version::Current::default().semver().to_string())]
@@ -114,6 +115,7 @@ impl ClientConfig {
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct ServerConfig {

@@ -7,6 +7,7 @@ import { Drop, splitCommand } from '../util'
 import * as cp from 'child_process'
 import * as fs from 'node:fs/promises'
 import { DaemonCommandType, ExecCommandOptions, ExecFnOptions } from './Daemons'
+import { logErrorOnce } from '../../../base/lib/util/logErrorOnce'
 
 /**
  * Low-level controller for a single running process inside a subcontainer (or as a JS function).
@@ -220,6 +221,6 @@ export class CommandController<
     }
   }
   onDrop(): void {
-    this.term().catch(console.error)
+    this.term().catch(logErrorOnce)
   }
 }

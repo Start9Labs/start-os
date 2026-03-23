@@ -13,7 +13,7 @@ import { TuiIcon } from '@taiga-ui/core'
   template: `
     @if (type === 'create') {
       <tui-icon
-        [icon]="physical() ? '@tui.ethernet-port' : '@tui.signal-high'"
+        [icon]="physical() ? '@tui.hard-drive' : '@tui.signal-high'"
         class="g-positive"
       />
       {{ 'Available for backup' | i18n }}
@@ -22,7 +22,7 @@ import { TuiIcon } from '@taiga-ui/core'
         <tui-icon icon="@tui.save" class="g-positive" />
         {{ 'StartOS backups detected' | i18n }}
       } @else {
-        <tui-icon icon="@tui.save-off" class="g-negative" />
+        <tui-icon icon="@tui.file-x" class="g-negative" />
         {{ 'No StartOS backups detected' | i18n }}
       }
     }
@@ -37,6 +37,8 @@ import { TuiIcon } from '@taiga-ui/core'
 
     tui-icon {
       font-size: 1rem;
+      min-width: 1.25rem;
+      text-align: center;
     }
 
     :host-context(tui-root._mobile) {

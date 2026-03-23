@@ -20,7 +20,7 @@ import { MarketplacePkg } from '../../types'
             [queryParams]="{ id: pkg.id, flavor: pkg.flavor }"
             queryParamsHandling="merge"
           >
-            <span tuiAvatar appearance="action-grayscale">
+            <span tuiAvatar appearance="action-grayscale" [round]="false">
               <img alt="" [src]="pkg.icon | trustUrl" />
             </span>
             <span tuiTitle>

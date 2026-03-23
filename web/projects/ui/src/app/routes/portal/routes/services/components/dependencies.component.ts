@@ -23,7 +23,7 @@ import { ToManifestPipe } from '../../../pipes/to-manifest'
         [queryParams]="services[d.key] ? {} : { search: d.key }"
         [class.error]="getError(d.key)"
       >
-        <span tuiAvatar appearance="action-grayscale">
+        <span tuiAvatar appearance="action-grayscale" [round]="false">
           <img
             alt=""
             [src]="

@@ -1,0 +1,19 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-tunnel-db-apply 1  "apply " 
+.SH NAME
+start\-cli\-tunnel\-db\-apply \- Update a database record
+.SH SYNOPSIS
+\fBstart\-cli tunnel db apply\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIEXPR\fR> [\fIPATH\fR] 
+.SH DESCRIPTION
+Update a database record
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIEXPR\fR>
+Database patch expression to apply
+.TP
+[\fIPATH\fR]
+Path to the database file

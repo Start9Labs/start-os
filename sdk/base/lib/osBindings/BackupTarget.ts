@@ -13,5 +13,6 @@ export type BackupTarget =
       used: number | null
       startOs: { [key: string]: StartOsRecoveryInfo }
       guid: string | null
+      filesystem: string | null
     }
   | ({ type: 'cifs' } & CifsBackupTarget)

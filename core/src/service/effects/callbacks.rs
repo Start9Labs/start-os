@@ -384,6 +384,7 @@ impl CallbackHandlers {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[group(skip)]
 #[ts(type = "{ only: number[] } | { except: number[] }")]
 #[ts(export)]
 pub struct ClearCallbacksParams {

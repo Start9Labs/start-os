@@ -159,6 +159,7 @@ async fn setup_or_init(
                 } else {
                     Some(DEFAULT_PASSWORD)
                 },
+                Some(&handle),
             )
             .await?;
             if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {

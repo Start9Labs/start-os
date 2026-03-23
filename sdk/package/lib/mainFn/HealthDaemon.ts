@@ -4,14 +4,6 @@ import { Ready } from './Daemons'
 import { Daemon } from './Daemon'
 import { SetHealth, Effects, SDKManifest } from '../../../base/lib/types'
 
-const oncePromise = <T>() => {
-  let resolve: (value: T) => void
-  const promise = new Promise<T>((res) => {
-    resolve = res
-  })
-  return { resolve: resolve!, promise }
-}
-
 export const EXIT_SUCCESS = 'EXIT_SUCCESS' as const
 
 /**
@@ -29,6 +21,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   private resolveReady: (() => void) | undefined
   private resolvedReady: boolean = false
   private readyPromise: Promise<void>
+  private session: { abort: AbortController; done: Promise<void> } | null = null
   constructor(
     readonly daemon: Daemon<Manifest> | null,
     readonly dependencies: HealthDaemon<Manifest>[],
@@ -54,7 +47,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }) {
     this.healthWatchers = []
     this.running = false
-    this.healthCheckCleanup?.()
+    await this.stopSession()
 
     await this.daemon?.term({
       ...termOptions,
@@ -77,20 +70,25 @@ export class HealthDaemon<Manifest extends SDKManifest> {
 
     if (newStatus) {
       console.debug(`Launching ${this.id}...`)
-      this.setupHealthCheck()
+      this.startSession()
       this.daemon?.start()
       this.started = performance.now()
     } else {
       console.debug(`Stopping ${this.id}...`)
-      this.daemon?.term()
-      await this.turnOffHealthCheck()
+      await this.stopSession()
+      await this.daemon?.term()
     }
   }
 
-  private healthCheckCleanup: (() => Promise<null>) | null = null
-  private async turnOffHealthCheck() {
-    await this.healthCheckCleanup?.()
+  private async stopSession() {
+    if (!this.session) return
+    this.session.abort.abort()
+    await this.session.done
+    this.session = null
+    this.resetReady()
+  }
 
+  private resetReady() {
     this.resolvedReady = false
     this.readyPromise = new Promise(
       (resolve) =>
@@ -100,8 +98,14 @@ export class HealthDaemon<Manifest extends SDKManifest> {
         }),
     )
   }
-  private async setupHealthCheck() {
+
+  private startSession() {
+    this.session?.abort.abort()
+
+    const abort = new AbortController()
+
     this.daemon?.onExit((success) => {
+      if (abort.signal.aborted) return
       if (success && this.ready === 'EXIT_SUCCESS') {
         this.setHealth({ result: 'success', message: null })
       } else if (!success) {
@@ -116,42 +120,49 @@ export class HealthDaemon<Manifest extends SDKManifest> {
         })
       }
     })
+
+    const done =
+      this.ready === 'EXIT_SUCCESS'
+        ? Promise.resolve()
+        : this.runHealthCheckLoop(abort.signal)
+
+    this.session = { abort, done }
+  }
+
+  private async runHealthCheckLoop(signal: AbortSignal): Promise<void> {
     if (this.ready === 'EXIT_SUCCESS') return
-    if (this.healthCheckCleanup) return
     const trigger = (this.ready.trigger ?? defaultTrigger)(() => ({
       lastResult: this._health.result,
     }))
 
-    const { promise: status, resolve: setStatus } = oncePromise<{
-      done: true
-    }>()
-    const { promise: exited, resolve: setExited } = oncePromise<null>()
-    new Promise(async () => {
-      if (this.ready === 'EXIT_SUCCESS') return
+    const aborted = new Promise<{ done: true }>((resolve) =>
+      signal.addEventListener('abort', () => resolve({ done: true }), {
+        once: true,
+      }),
+    )
+
+    try {
       for (
-        let res = await Promise.race([status, trigger.next()]);
+        let res = await Promise.race([aborted, trigger.next()]);
         !res.done;
-        res = await Promise.race([status, trigger.next()])
+        res = await Promise.race([aborted, trigger.next()])
       ) {
         const response: HealthCheckResult = await Promise.resolve(
           this.ready.fn(),
         ).catch((err) => {
           return {
-            result: 'failure',
+            result: 'failure' as const,
             message: 'message' in err ? err.message : String(err),
           }
         })
 
+        if (signal.aborted) break
         await this.setHealth(response)
       }
-      setExited(null)
-    }).catch((err) => console.error(`Daemon ${this.id} failed: ${err}`))
-
-    this.healthCheckCleanup = async () => {
-      setStatus({ done: true })
-      await exited
-      this.healthCheckCleanup = null
-      return null
+    } catch (err) {
+      if (!signal.aborted) {
+        console.error(`Daemon ${this.id} health check failed: ${err}`)
+      }
     }
   }
 

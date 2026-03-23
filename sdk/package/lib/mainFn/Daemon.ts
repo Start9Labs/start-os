@@ -1,11 +1,8 @@
 import * as T from '../../../base/lib/types'
 import { asError } from '../../../base/lib/util/asError'
+import { logErrorOnce } from '../../../base/lib/util/logErrorOnce'
 import { Drop } from '../util'
-import {
-  SubContainer,
-  SubContainerOwned,
-  SubContainerRc,
-} from '../util/SubContainer'
+import { SubContainer, SubContainerRc } from '../util/SubContainer'
 import { CommandController } from './CommandController'
 import { DaemonCommandType } from './Daemons'
 import { Oneshot } from './Oneshot'
@@ -27,10 +24,10 @@ export class Daemon<
   C extends SubContainer<Manifest> | null = SubContainer<Manifest> | null,
 > extends Drop {
   private commandController: CommandController<Manifest, C> | null = null
-  private shouldBeRunning = false
   protected exitedSuccess = false
-  private exiting: Promise<void> | null = null
   private onExitFns: ((success: boolean) => void)[] = []
+  private loop: { abort: AbortController; done: Promise<void> } | null = null
+  private _managed = false
   protected constructor(
     private subcontainer: C,
     private startCommand: () => Promise<CommandController<Manifest, C>>,
@@ -46,7 +43,8 @@ export class Daemon<
    * Factory method to create a new Daemon.
    *
    * Returns a curried function: `(effects, subcontainer, exec) => Daemon`.
-   * The daemon auto-terminates when the effects context is left.
+   * Registers an `onLeaveContext` callback that terminates the daemon when the
+   * effects context is left.
    */
   static of<Manifest extends T.SDKManifest>() {
     return <C extends SubContainer<Manifest> | null>(
@@ -64,7 +62,9 @@ export class Daemon<
         )
       const res = new Daemon(subc, startCommand)
       effects.onLeaveContext(() => {
-        res.term({ destroySubcontainer: true }).catch((e) => console.error(e))
+        if (!res._managed) {
+          res.term({ destroySubcontainer: true }).catch((e) => logErrorOnce(e))
+        }
       })
       return res
     }
@@ -76,31 +76,38 @@ export class Daemon<
    * until {@link term} is called.
    */
   async start() {
-    if (this.commandController) {
+    if (this.loop) {
       return
     }
-    this.shouldBeRunning = true
+    const abort = new AbortController()
+    const done = this.runLoop(abort.signal)
+    this.loop = { abort, done }
+  }
+
+  private async runLoop(signal: AbortSignal) {
     let timeoutCounter = 0
-    ;(async () => {
-      while (this.shouldBeRunning) {
-        if (this.commandController)
-          await this.commandController
-            .term({})
-            .catch((err) => console.error(err))
+    try {
+      while (!signal.aborted) {
+        if (this.commandController) {
+          await this.commandController.term({}).catch(logErrorOnce)
+          this.commandController = null
+        }
         try {
           this.commandController = await this.startCommand()
-          if (!this.shouldBeRunning) {
-            // handles race condition if stopped while starting
-            await this.term()
+          if (signal.aborted) {
+            await this.commandController.term({}).catch(logErrorOnce)
+            this.commandController = null
             break
           }
           const success = await this.commandController.wait().then(
             (_) => true,
             (err) => {
-              console.error(err)
+              if (!signal.aborted) logErrorOnce(err)
               return false
             },
           )
+          this.commandController = null
+          if (signal.aborted) break
           for (const fn of this.onExitFns) {
             try {
               fn(success)
@@ -113,16 +120,28 @@ export class Daemon<
             break
           }
         } catch (e) {
-          console.error(e)
+          if (!signal.aborted) console.error(e)
         }
-        await new Promise((resolve) => setTimeout(resolve, timeoutCounter))
+        if (signal.aborted) break
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, timeoutCounter)
+          signal.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(timer)
+              resolve()
+            },
+            { once: true },
+          )
+        })
         timeoutCounter += TIMEOUT_INCREMENT_MS
         timeoutCounter = Math.min(MAX_TIMEOUT_MS, timeoutCounter)
       }
-    })().catch((err) => {
-      console.error(asError(err))
-    })
+    } finally {
+      this.loop = null
+    }
   }
+
   /**
    * Terminate the daemon, stopping its underlying command.
    *
@@ -139,20 +158,32 @@ export class Daemon<
     timeout?: number | undefined
     destroySubcontainer?: boolean
   }) {
-    this.shouldBeRunning = false
     this.exitedSuccess = false
-    if (this.commandController) {
-      this.exiting = this.commandController.term({ ...termOptions })
-      this.commandController = null
-      this.onExitFns = []
+    this.onExitFns = []
+
+    if (this.loop) {
+      this.loop.abort.abort()
     }
-    if (this.exiting) {
-      await this.exiting.catch(console.error)
-      if (termOptions?.destroySubcontainer) {
-        await this.subcontainer?.destroy()
-      }
-      this.exiting = null
+
+    const exiting = this.commandController?.term({ ...termOptions })
+    this.commandController = null
+    if (exiting) await exiting.catch(logErrorOnce)
+
+    if (this.loop) {
+      await this.loop.done
     }
+
+    if (termOptions?.destroySubcontainer) {
+      await this.subcontainer?.destroy()
+    }
+  }
+  /**
+   * Mark this daemon as managed by a {@link Daemons} instance.
+   * Suppresses the individual `onLeaveContext` termination since the
+   * `Daemons` instance handles ordered shutdown.
+   */
+  markManaged() {
+    this._managed = true
   }
   /** Get a reference-counted handle to the daemon's subcontainer, or null if there is none */
   subcontainerRc(): SubContainerRc<Manifest> | null {
@@ -172,6 +203,6 @@ export class Daemon<
     this.onExitFns.push(fn)
   }
   onDrop(): void {
-    this.term().catch((e) => console.error(asError(e)))
+    this.term().catch((e) => logErrorOnce(asError(e)))
   }
 }

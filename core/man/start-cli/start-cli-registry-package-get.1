@@ -1,0 +1,40 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-registry-package-get 1  "get " 
+.SH NAME
+start\-cli\-registry\-package\-get \- List installation candidates
+.SH SYNOPSIS
+\fBstart\-cli registry package get\fR [\fB\-v\fR|\fB\-\-target\-version\fR] [\fB\-\-source\-version\fR] [\fB\-\-format\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fIID\fR] [\fIOTHER_VERSIONS\fR] 
+.SH DESCRIPTION
+List installation candidates
+.SH OPTIONS
+.TP
+\fB\-v\fR, \fB\-\-target\-version\fR \fI<TARGET_VERSION>\fR
+Target version range constraint
+.TP
+\fB\-\-source\-version\fR \fI<SOURCE_VERSION>\fR
+Source version to upgrade from
+.TP
+\fB\-\-format\fR
+
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+[\fIID\fR]
+Package identifier
+.TP
+[\fIOTHER_VERSIONS\fR] [default: none]
+Detail level for other versions
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+none
+.IP \(bu 2
+short
+.IP \(bu 2
+full
+.RE

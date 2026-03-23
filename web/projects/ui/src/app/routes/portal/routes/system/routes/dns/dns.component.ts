@@ -27,10 +27,20 @@ const ipv6 =
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
-        {{ 'Back' | i18n }}
-      </a>
-      {{ 'DNS Servers' | i18n }}
+      <div>
+        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+          {{ 'Back' | i18n }}
+        </a>
+        {{ 'DNS Servers' | i18n }}
+        <a
+          tuiIconButton
+          size="xs"
+          docsLink
+          path="/start-os/dns.html"
+          appearance="icon"
+          iconStart="@tui.book-open-text"
+        ></a>
+      </div>
     </ng-container>
     @if (data(); as d) {
       <form [formGroup]="d.form">
@@ -74,6 +84,10 @@ const ipv6 =
   styles: `
     :host {
       max-width: 36rem;
+    }
+
+    :host-context(tui-root._mobile) [tuiHeader] {
+      display: none;
     }
 
     form header,

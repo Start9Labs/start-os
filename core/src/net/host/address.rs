@@ -161,6 +161,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AddPublicDomainParams {
@@ -299,6 +300,7 @@ pub async fn add_public_domain<Kind: HostApiKind>(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 pub struct RemoveDomainParams {
     #[arg(help = "help.arg.fqdn")]
@@ -332,6 +334,7 @@ pub async fn remove_public_domain<Kind: HostApiKind>(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 pub struct AddPrivateDomainParams {
     #[arg(help = "help.arg.fqdn")]

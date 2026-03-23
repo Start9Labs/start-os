@@ -216,6 +216,7 @@ pub async fn add_signer(ctx: RegistryContext, signer: SignerInfo) -> Result<Guid
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 #[ts(export)]
@@ -276,6 +277,7 @@ pub async fn edit_signer(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddSignerParams {
@@ -352,6 +354,7 @@ pub async fn add_admin(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RemoveAdminParams {
@@ -374,6 +377,7 @@ pub async fn remove_admin(
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
+#[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddAdminParams {

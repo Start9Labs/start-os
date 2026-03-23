@@ -5,9 +5,8 @@ import {
   output,
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ConvertBytesPipe, DialogService, i18nPipe } from '@start9labs/shared'
-import { TuiButton, TuiIcon } from '@taiga-ui/core'
-import { TuiTooltip } from '@taiga-ui/kit'
+import { DialogService, i18nPipe } from '@start9labs/shared'
+import { TuiButton } from '@taiga-ui/core'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { DiskBackupTarget } from 'src/app/services/api/api.types'
@@ -19,11 +18,9 @@ import { BackupStatusComponent } from './status.component'
   template: `
     <header>
       {{ 'Physical Drives' | i18n }}
-      <tui-icon [tuiTooltip]="drives" />
-      <ng-template #drives><ng-content /></ng-template>
     </header>
 
-    <table [appTable]="['Status', 'Name', 'Model', 'Capacity']">
+    <table [appTable]="['Status', 'Logicalname', 'Name', 'Capacity']">
       @for (target of service.drives(); track $index) {
         <tr
           tabindex="0"
@@ -33,14 +30,9 @@ import { BackupStatusComponent } from './status.component'
           <td>
             <span [backupStatus]="target.hasAnyBackup" [physical]="true"></span>
           </td>
-          <td class="name">
-            {{ target.entry.label || target.entry.logicalname }}
-          </td>
-          <td>
-            {{ target.entry.vendor || 'Unknown Vendor' }} -
-            {{ target.entry.model || 'Unknown Model' }}
-          </td>
-          <td>{{ target.entry.capacity | convertBytes }}</td>
+          <td class="name">{{ target.entry.logicalname }}</td>
+          <td>{{ driveName(target.entry) }}</td>
+          <td>{{ formatCapacity(target.entry.capacity) }}</td>
         </tr>
       } @empty {
         <tr>
@@ -74,10 +66,6 @@ import { BackupStatusComponent } from './status.component'
       }
     }
 
-    td:first-child {
-      width: 13rem;
-    }
-
     :host-context(tui-root._mobile) {
       tr {
         grid-template-columns: min-content 1fr 4rem;
@@ -109,9 +97,6 @@ import { BackupStatusComponent } from './status.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
-    TuiIcon,
-    TuiTooltip,
-    ConvertBytesPipe,
     PlaceholderComponent,
     BackupStatusComponent,
     TableComponent,
@@ -122,8 +107,25 @@ export class BackupPhysicalComponent {
   private readonly dialog = inject(DialogService)
   private readonly type = inject(ActivatedRoute).snapshot.data['type']
 
+  private readonly i18n = inject(i18nPipe)
+
   readonly service = inject(BackupService)
   readonly physicalFolders = output<MappedBackupTarget<DiskBackupTarget>>()
+
+  driveName(entry: DiskBackupTarget): string {
+    return (
+      [entry.vendor, entry.model].filter(Boolean).join(' ') ||
+      this.i18n.transform('Unknown Drive')
+    )
+  }
+
+  formatCapacity(bytes: number): string {
+    const gb = bytes / 1e9
+    if (gb >= 1000) {
+      return `${(gb / 1000).toFixed(1)} TB`
+    }
+    return `${gb.toFixed(0)} GB`
+  }
 
   select(target: MappedBackupTarget<DiskBackupTarget>) {
     if (this.type === 'restore' && !target.hasAnyBackup) {

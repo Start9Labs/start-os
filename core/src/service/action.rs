@@ -83,6 +83,22 @@ impl Service {
     }
 }
 
+fn conflicts(left: &Value, right: &Value) -> bool {
+    match (left, right) {
+        (Value::Object(left), Value::Object(right)) => left.iter().any(|(k, v)| {
+            if let Some(v_right) = right.get(k) {
+                conflicts(v, v_right)
+            } else {
+                false
+            }
+        }),
+        (Value::Array(left), Value::Array(right)) => left
+            .iter()
+            .any(|v| right.iter().all(|v_right| conflicts(v, v_right))),
+        (_, _) => left != right,
+    }
+}
+
 pub fn update_tasks(
     tasks: &mut BTreeMap<ReplayId, TaskEntry>,
     package_id: &PackageId,
@@ -105,7 +121,7 @@ pub fn update_tasks(
                             } else {
                                 v.active = false;
                             }
-                        } else {
+                        } else if conflicts(value, input) {
                             v.active = true;
                             if v.task.severity == TaskSeverity::Critical {
                                 critical_activated = true;

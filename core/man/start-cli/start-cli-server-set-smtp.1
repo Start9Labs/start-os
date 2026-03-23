@@ -1,0 +1,41 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-server-set-smtp 1  "set-smtp " 
+.SH NAME
+start\-cli\-server\-set\-smtp \- Set SMTP configuration
+.SH SYNOPSIS
+\fBstart\-cli server set\-smtp\fR <\fB\-\-host\fR> <\fB\-\-port\fR> <\fB\-\-from\fR> <\fB\-\-username\fR> [\fB\-\-password\fR] <\fB\-\-security\fR> [\fB\-h\fR|\fB\-\-help\fR] 
+.SH DESCRIPTION
+Set SMTP configuration
+.SH OPTIONS
+.TP
+\fB\-\-host\fR \fI<HOST>\fR
+SMTP server hostname
+.TP
+\fB\-\-port\fR \fI<PORT>\fR
+SMTP server port
+.TP
+\fB\-\-from\fR \fI<FROM>\fR
+Email sender address
+.TP
+\fB\-\-username\fR \fI<USERNAME>\fR
+SMTP authentication username
+.TP
+\fB\-\-password\fR \fI<PASSWORD>\fR
+SMTP authentication password
+.TP
+\fB\-\-security\fR \fI<SECURITY>\fR
+Connection security mode (starttls or tls)
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+starttls
+.IP \(bu 2
+tls
+.RE
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help

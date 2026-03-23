@@ -209,7 +209,7 @@ import {
   styles: `
     .plugin-icon {
       height: 1.25rem;
-      margin-right: 0.25rem;
+      margin-inline-end: 0.375rem;
       border-radius: 100%;
     }
 

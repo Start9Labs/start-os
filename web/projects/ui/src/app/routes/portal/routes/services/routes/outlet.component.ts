@@ -33,14 +33,19 @@ import { getManifest } from 'src/app/utils/get-package-data'
         <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
           {{ 'Back' | i18n }}
         </a>
-        <span tuiAvatar size="xs" [style.margin-inline-end.rem]="0.75">
+        <span
+          tuiAvatar
+          size="xs"
+          [round]="false"
+          [style.margin-inline-end.rem]="0.75"
+        >
           <img alt="" [src]="service()?.icon" />
         </span>
         <span tuiFade>{{ manifest()?.title }}</span>
       </div>
       <aside class="g-aside">
         <header tuiCell routerLink="./">
-          <span tuiAvatar appearance="action-grayscale">
+          <span tuiAvatar appearance="action-grayscale" [round]="false">
             <img alt="" [src]="service()?.icon" />
           </span>
           <span tuiTitle>

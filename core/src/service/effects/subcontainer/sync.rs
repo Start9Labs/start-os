@@ -105,6 +105,7 @@ fn open_file_read(path: impl AsRef<Path>) -> Result<File, Error> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
+#[group(skip)]
 pub struct ExecParams {
     #[arg(long, help = "help.arg.force-tty")]
     force_tty: bool,
@@ -268,13 +269,6 @@ impl ExecParams {
 
         std::os::unix::fs::chroot(chroot)
             .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("chroot {chroot:?}")))?;
-        if let Ok(uid) = uid {
-            if uid != 0 {
-                std::os::unix::fs::chown("/proc/self/fd/0", Some(uid), gid.ok()).ok();
-                std::os::unix::fs::chown("/proc/self/fd/1", Some(uid), gid.ok()).ok();
-                std::os::unix::fs::chown("/proc/self/fd/2", Some(uid), gid.ok()).ok();
-            }
-        }
         // Handle credential changes in pre_exec to control the order:
         // setgroups must happen before setgid/setuid (requires CAP_SETGID)
         {
@@ -282,6 +276,10 @@ impl ExecParams {
             let set_gid = gid.ok();
             unsafe {
                 cmd.pre_exec(move || {
+                    // Create a new process group so entrypoint scripts that do
+                    // kill(0, SIGTERM) don't cascade to other subcontainers.
+                    nix::unistd::setsid()
+                        .map_err(|e| std::io::Error::from_raw_os_error(e as i32))?;
                     if !groups.is_empty() {
                         nix::unistd::setgroups(&groups)
                             .map_err(|e| std::io::Error::from_raw_os_error(e as i32))?;
@@ -294,6 +292,10 @@ impl ExecParams {
                         nix::unistd::setuid(nix::unistd::Uid::from_raw(uid))
                             .map_err(|e| std::io::Error::from_raw_os_error(e as i32))?;
                     }
+                    // Restore dumpable flag cleared by setuid so that
+                    // /proc/self/fd/* is owned by the current uid and
+                    // /dev/stderr works for the target user.
+                    libc::prctl(libc::PR_SET_DUMPABLE, 1, 0, 0, 0);
                     Ok(())
                 });
             }
@@ -485,30 +487,14 @@ pub fn launch(
         }
         cmd.arg(&chroot);
         cmd.args(&command);
-        cmd.stdin(Stdio::piped());
-        cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
         let mut child = cmd
             .spawn()
             .map_err(color_eyre::eyre::Report::msg)
             .with_ctx(|_| (ErrorKind::Filesystem, "spawning child process"))?;
         send_pid.send(child.id() as i32).unwrap_or_default();
-        stdin_send
-            .send(Box::new(child.stdin.take().unwrap()))
-            .unwrap_or_default();
-        stdout_send
-            .send(Box::new(child.stdout.take().unwrap()))
-            .unwrap_or_default();
-        stderr_send
-            .send(Box::new(child.stderr.take().unwrap()))
-            .unwrap_or_default();
-
-        // TODO: subreaping, signal handling
         let exit = child
             .wait()
             .with_ctx(|_| (ErrorKind::Filesystem, "waiting on child process"))?;
-        stdout_thread.join().unwrap();
-        stderr_thread.map(|t| t.join().unwrap());
         if let Some(code) = exit.code() {
             nix::mount::umount(&chroot.join("proc"))
                 .with_ctx(|_| (ErrorKind::Filesystem, "umount procfs"))?;
@@ -743,31 +729,17 @@ pub fn exec(
         }
         cmd.arg(&chroot);
         cmd.args(&command);
-        cmd.stdin(Stdio::piped());
-        cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
         let mut child = cmd
             .spawn()
             .map_err(color_eyre::eyre::Report::msg)
             .with_ctx(|_| (ErrorKind::Filesystem, "spawning child process"))?;
         send_pid.send(child.id() as i32).unwrap_or_default();
-        stdin_send
-            .send(Box::new(child.stdin.take().unwrap()))
-            .unwrap_or_default();
-        stdout_send
-            .send(Box::new(child.stdout.take().unwrap()))
-            .unwrap_or_default();
-        stderr_send
-            .send(Box::new(child.stderr.take().unwrap()))
-            .unwrap_or_default();
         let exit = child
             .wait()
             .with_ctx(|_| (ErrorKind::Filesystem, "waiting on child process"))?;
-        stdout_thread.join().unwrap();
-        stderr_thread.map(|t| t.join().unwrap());
         if let Some(code) = exit.code() {
             std::process::exit(code);
-        } else if exit.success() {
+        } else if exit.success() || exit.signal() == Some(15) {
             Ok(())
         } else {
             Err(Error::new(
@@ -780,4 +752,97 @@ pub fn exec(
 
 pub fn exec_command(_: ContainerCliContext, params: ExecParams) -> Result<(), Error> {
     params.exec()
+}
+
+/// Wrap a child process so that its stdout/stderr are always pipes, even when
+/// the wrapper's own FDs are sockets (e.g. systemd journal).  This lets
+/// descendants `open("/dev/stderr")` via `/proc/self/fd/2` without ENXIO.
+pub fn pipe_wrap(
+    _: ContainerCliContext,
+    PipeWrapParams { command }: PipeWrapParams,
+) -> Result<(), Error> {
+    use std::os::fd::AsRawFd;
+
+    let Some(([program], args)) = command.split_at_checked(1) else {
+        return Err(Error::new(
+            eyre!("pipe-wrap: command cannot be empty"),
+            ErrorKind::InvalidRequest,
+        ));
+    };
+
+    let mut cmd = StdCommand::new(program);
+    cmd.args(args);
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    let mut child = cmd
+        .spawn()
+        .with_ctx(|_| (ErrorKind::Filesystem, "pipe-wrap: spawning child process"))?;
+
+    let child_stdout = child.stdout.take().unwrap();
+    let child_stderr = child.stderr.take().unwrap();
+
+    let orig_stdout_fd = std::io::stdout().as_raw_fd();
+    let orig_stderr_fd = std::io::stderr().as_raw_fd();
+
+    // Relay child stdout → original stdout (which may be a socket)
+    std::thread::spawn(move || {
+        let mut reader = child_stdout;
+        let mut buf = [0u8; 8192];
+        loop {
+            match Read::read(&mut reader, &mut buf) {
+                Ok(0) | Err(_) => break,
+                Ok(n) => {
+                    let _ = nix::unistd::write(
+                        unsafe { std::os::fd::BorrowedFd::borrow_raw(orig_stdout_fd) },
+                        &buf[..n],
+                    );
+                }
+            }
+        }
+    });
+
+    // Relay child stderr → original stderr
+    std::thread::spawn(move || {
+        let mut reader = child_stderr;
+        let mut buf = [0u8; 8192];
+        loop {
+            match Read::read(&mut reader, &mut buf) {
+                Ok(0) | Err(_) => break,
+                Ok(n) => {
+                    let _ = nix::unistd::write(
+                        unsafe { std::os::fd::BorrowedFd::borrow_raw(orig_stderr_fd) },
+                        &buf[..n],
+                    );
+                }
+            }
+        }
+    });
+
+    // Forward signals to the child
+    let child_pid = child.id() as i32;
+    let mut sig = signal_hook::iterator::Signals::new(FWD_SIGNALS)?;
+    std::thread::spawn(move || {
+        for sig in sig.forever() {
+            match nix::sys::signal::kill(
+                Pid::from_raw(child_pid),
+                Some(nix::sys::signal::Signal::try_from(sig).unwrap()),
+            ) {
+                Err(Errno::ESRCH) => break,
+                _ => {}
+            }
+        }
+    });
+
+    let status = child
+        .wait()
+        .with_ctx(|_| (ErrorKind::Filesystem, "pipe-wrap: waiting on child"))?;
+    std::process::exit(status.code().unwrap_or(1))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Parser)]
+#[group(skip)]
+pub struct PipeWrapParams {
+    #[arg(trailing_var_arg = true, help = "help.arg.command-to-execute")]
+    command: Vec<OsString>,
 }

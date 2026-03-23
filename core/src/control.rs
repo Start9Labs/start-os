@@ -8,6 +8,7 @@ use crate::prelude::*;
 use crate::{Error, PackageId};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]

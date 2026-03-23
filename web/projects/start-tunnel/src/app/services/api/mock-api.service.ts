@@ -64,7 +64,9 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async addSubnet(params: T.Tunnel.SubnetParams & T.Tunnel.AddSubnetParams): Promise<null> {
+  async addSubnet(
+    params: T.Tunnel.SubnetParams & T.Tunnel.AddSubnetParams,
+  ): Promise<null> {
     await pauseFor(1000)
 
     const patch: AddOperation<T.Tunnel.WgSubnetConfig>[] = [
@@ -79,7 +81,9 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async editSubnet(params: T.Tunnel.SubnetParams & T.Tunnel.AddSubnetParams): Promise<null> {
+  async editSubnet(
+    params: T.Tunnel.SubnetParams & T.Tunnel.AddSubnetParams,
+  ): Promise<null> {
     await pauseFor(1000)
 
     const patch: ReplaceOperation<string>[] = [
@@ -177,7 +181,9 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async updateForwardLabel(params: T.Tunnel.UpdatePortForwardLabelParams): Promise<null> {
+  async updateForwardLabel(
+    params: T.Tunnel.UpdatePortForwardLabelParams,
+  ): Promise<null> {
     await pauseFor(1000)
 
     const patch: ReplaceOperation<string | null>[] = [
@@ -192,7 +198,9 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setForwardEnabled(params: T.Tunnel.SetPortForwardEnabledParams): Promise<null> {
+  async setForwardEnabled(
+    params: T.Tunnel.SetPortForwardEnabledParams,
+  ): Promise<null> {
     await pauseFor(1000)
 
     const patch: ReplaceOperation<boolean>[] = [
@@ -218,6 +226,11 @@ export class MockApiService extends ApiService {
     ]
     this.mockRevision(patch)
 
+    return null
+  }
+
+  async restart(): Promise<null> {
+    await pauseFor(1000)
     return null
   }
 

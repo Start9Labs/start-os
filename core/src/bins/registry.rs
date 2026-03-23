@@ -8,13 +8,13 @@ use tokio::signal::unix::signal;
 use tracing::instrument;
 
 use crate::context::CliContext;
-use crate::version::{Current, VersionT};
 use crate::context::config::ClientConfig;
 use crate::net::web_server::{Acceptor, WebServer};
 use crate::prelude::*;
 use crate::registry::context::{RegistryConfig, RegistryContext};
 use crate::registry::registry_router;
 use crate::util::logger::LOGGER;
+use crate::version::{Current, VersionT};
 
 #[instrument(skip_all)]
 async fn inner_main(config: &RegistryConfig) -> Result<(), Error> {
@@ -94,10 +94,8 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
     }
 }
 
-pub fn cli(args: impl IntoIterator<Item = OsString>) {
-    LOGGER.enable();
-
-    if let Err(e) = CliApp::new(
+fn app() -> CliApp<CliContext, ClientConfig> {
+    CliApp::new(
         |cfg: ClientConfig| Ok(CliContext::init(cfg.load()?)?),
         crate::registry::registry_api(),
     )
@@ -106,8 +104,12 @@ pub fn cli(args: impl IntoIterator<Item = OsString>) {
         cmd.name("start-registry")
             .version(Current::default().semver().to_string())
     })
-    .run(args)
-    {
+}
+
+pub fn cli(args: impl IntoIterator<Item = OsString>) {
+    LOGGER.enable();
+
+    if let Err(e) = app().run(args) {
         match e.data {
             Some(serde_json::Value::String(s)) => eprintln!("{}: {}", e.message, s),
             Some(serde_json::Value::Object(o)) => {
@@ -124,4 +126,10 @@ pub fn cli(args: impl IntoIterator<Item = OsString>) {
 
         std::process::exit(e.code);
     }
+}
+
+#[test]
+fn export_manpage_start_registry() {
+    std::fs::create_dir_all("./man/start-registry").unwrap();
+    clap_mangen::generate_to(app().into_command(), "./man/start-registry").unwrap();
 }

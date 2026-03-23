@@ -239,6 +239,7 @@ pub async fn sync_hostname(hostname: &ServerHostname) -> Result<(), Error> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 #[ts(export)]

@@ -47,6 +47,7 @@ pub struct PackageInfoShort {
 }
 
 #[derive(Debug, Deserialize, Serialize, TS, Parser, HasModel)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 #[ts(export)]
@@ -407,6 +408,7 @@ pub fn display_package_info(
 }
 
 #[derive(Debug, Deserialize, Serialize, TS, Parser)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct CliDownloadParams {
     #[arg(help = "help.arg.package-id")]
@@ -416,6 +418,9 @@ pub struct CliDownloadParams {
     pub target_version: Option<VersionRange>,
     #[arg(short, long, help = "help.arg.destination-path")]
     pub dest: Option<PathBuf>,
+    #[arg(long, short, help = "help.arg.architecture")]
+    #[ts(type = "string | null")]
+    pub arch: Option<InternedString>,
 }
 
 pub async fn cli_download(
@@ -424,6 +429,7 @@ pub async fn cli_download(
         ref id,
         target_version,
         dest,
+        arch,
     }: CliDownloadParams,
 ) -> Result<(), Error> {
     let progress_tracker = FullProgressTracker::new();
@@ -471,6 +477,13 @@ pub async fn cli_download(
             res.best.remove(version).unwrap()
         }
     };
+    if let Some(arch) = &arch {
+        s9pk.retain(|(hw, _)| {
+            hw.arch
+                .as_ref()
+                .map_or(true, |arches| arches.contains(arch))
+        });
+    }
     let s9pk = match s9pk.len() {
         0 => {
             return Err(Error::new(

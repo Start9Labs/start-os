@@ -73,7 +73,7 @@ base/node_modules: base/package-lock.json
 node_modules: package/node_modules base/node_modules
 
 publish: bundle package/package.json README.md LICENSE CHANGELOG.md
-	cd dist && npm publish --access=public --tag=latest
+	cd dist && npm publish --access=public --tag=latest $(if $(OTP),--otp=$(OTP))
 
 link: bundle
 	cd dist && npm link

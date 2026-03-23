@@ -6,6 +6,7 @@ import {
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
+import { TuiAvatar } from '@taiga-ui/kit'
 import { ServiceUptimeComponent } from 'src/app/routes/portal/routes/services/components/uptime.component'
 import { PkgDependencyErrors } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -16,7 +17,9 @@ import { StatusComponent } from './status.component'
   selector: 'tr[appService]',
   template: `
     <td [style.width.rem]="3" [style.grid-area]="'1 / 1 / 4'">
-      <img alt="logo" [src]="pkg().icon" />
+      <i tuiAvatar size="s" [round]="false">
+        <img alt="logo" [src]="pkg().icon" />
+      </i>
     </td>
     <td class="title">
       <a [routerLink]="'/services/' + manifest().id">{{ manifest().title }}</a>
@@ -48,13 +51,6 @@ import { StatusComponent } from './status.component'
 
     td::before {
       display: none;
-    }
-
-    img {
-      display: block;
-      height: 2rem;
-      width: 2rem;
-      border-radius: 100%;
     }
 
     a {
@@ -93,7 +89,7 @@ import { StatusComponent } from './status.component'
         background: none;
       }
 
-      img {
+      [tuiAvatar] {
         height: 3rem;
         width: 3rem;
       }
@@ -141,7 +137,13 @@ import { StatusComponent } from './status.component'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, StatusComponent, ServiceUptimeComponent, i18nPipe],
+  imports: [
+    RouterLink,
+    StatusComponent,
+    ServiceUptimeComponent,
+    i18nPipe,
+    TuiAvatar,
+  ],
 })
 export class ServiceComponent {
   readonly pkg = input.required<PackageDataEntry>()

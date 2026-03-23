@@ -30,9 +30,7 @@ export abstract class ApiService {
     params: T.Tunnel.RemoveDeviceParams,
   ): Promise<string> // device.show-config
   // forwards
-  abstract addForward(
-    params: T.Tunnel.AddPortForwardParams,
-  ): Promise<null> // port-forward.add
+  abstract addForward(params: T.Tunnel.AddPortForwardParams): Promise<null> // port-forward.add
   abstract deleteForward(
     params: T.Tunnel.RemovePortForwardParams,
   ): Promise<null> // port-forward.remove
@@ -42,6 +40,8 @@ export abstract class ApiService {
   abstract setForwardEnabled(
     params: T.Tunnel.SetPortForwardEnabledParams,
   ): Promise<null> // port-forward.set-enabled
+  // system
+  abstract restart(): Promise<null> // restart
   // update
   abstract checkUpdate(): Promise<T.Tunnel.TunnelUpdateResult> // update.check
   abstract applyUpdate(): Promise<T.Tunnel.TunnelUpdateResult> // update.apply

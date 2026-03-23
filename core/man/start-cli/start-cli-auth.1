@@ -1,0 +1,29 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-auth 1  "auth " 
+.SH NAME
+start\-cli\-auth \- Commands related to Authentication i.e. login, logout
+.SH SYNOPSIS
+\fBstart\-cli auth\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Commands related to Authentication i.e. login, logout
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-cli\-auth\-get\-pubkey(1)
+Get the public key from the server
+.TP
+start\-cli\-auth\-login(1)
+Login to a new auth session
+.TP
+start\-cli\-auth\-logout(1)
+Logout from current auth session
+.TP
+start\-cli\-auth\-reset\-password(1)
+Reset the password
+.TP
+start\-cli\-auth\-session(1)
+List or kill auth sessions

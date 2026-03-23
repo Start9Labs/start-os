@@ -1,0 +1,22 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-registry-package-download 1  "download " 
+.SH NAME
+start\-registry\-package\-download \- Download s9pk package
+.SH SYNOPSIS
+\fBstart\-registry package download\fR [\fB\-v\fR|\fB\-\-target\-version\fR] [\fB\-d\fR|\fB\-\-dest\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIID\fR> 
+.SH DESCRIPTION
+Download s9pk package
+.SH OPTIONS
+.TP
+\fB\-v\fR, \fB\-\-target\-version\fR \fI<TARGET_VERSION>\fR
+Target version range constraint
+.TP
+\fB\-d\fR, \fB\-\-dest\fR \fI<DEST>\fR
+Destination path for download
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIID\fR>
+Package identifier
