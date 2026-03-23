@@ -220,6 +220,10 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
           async (sub) => {
             console.log('[pg-dump] mounting backup target')
             await mountBackupTarget(sub.rootfs)
+            await sub.exec(['touch', dumpFile], { user: 'root' })
+            await sub.exec(['chown', 'postgres:postgres', dumpFile], {
+              user: 'root',
+            })
             await startPg(sub, 'pg-dump')
             console.log('[pg-dump] dumping database')
             await sub.execFail(
@@ -245,6 +249,10 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
           async (sub) => {
             await mountBackupTarget(sub.rootfs)
             await sub.execFail(
+              ['chown', '-R', 'postgres:postgres', pgMountpoint],
+              { user: 'root' },
+            )
+            await sub.execFail(
               ['initdb', '-D', pgdata, '-U', user, ...initdbArgs],
               { user: 'postgres' },
             )
@@ -260,6 +268,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
                 '-d',
                 database,
                 '--no-owner',
+                '--no-privileges',
                 dumpFile,
               ],
               { user: 'postgres' },
