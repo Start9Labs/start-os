@@ -32,6 +32,7 @@ export { setupManifest, buildManifest } from './manifest/setupManifest'
 export { FileHelper } from './util/fileHelper'
 export {
   smtpShape,
+  smtpPrefill,
   type SmtpSelection,
 } from '../../base/lib/actions/input/inputSpecConstants'
 

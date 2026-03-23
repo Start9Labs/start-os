@@ -267,3 +267,16 @@ export const smtpShape: z.ZodType<SmtpSelection> = z
     }),
   ])
   .catch({ selection: 'disabled' as const, value: {} }) as any
+
+/**
+ * Convert a stored SmtpSelection to a value suitable for prefilling smtpInputSpec.
+ *
+ * The stored type (SmtpSelection from smtpShape) uses flat unions for provider/security
+ * selection, while the input spec (smtpInputSpec) uses distributed discriminated unions
+ * (UnionRes). These are structurally incompatible in TypeScript's type system, even
+ * though the runtime values are identical. This function bridges the two types so that
+ * service code doesn't need `as any`.
+ */
+export function smtpPrefill(smtp: SmtpSelection | null | undefined): any {
+  return smtp || undefined
+}

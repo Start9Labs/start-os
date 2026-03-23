@@ -712,6 +712,18 @@ export class StartSdk<Manifest extends T.SDKManifest> {
          * @param options - Partial sync options to override defaults
          */
         withOptions: Backups.withOptions<Manifest>,
+        /**
+         * Create a Backups configuration that uses pg_dump/pg_restore instead of
+         * rsyncing the raw PostgreSQL data directory. Chain `.addVolume()` to include
+         * additional volumes in the backup.
+         */
+        withPgDump: Backups.withPgDump<Manifest>,
+        /**
+         * Create a Backups configuration that uses mysqldump/mysql instead of
+         * rsyncing the raw MySQL/MariaDB data directory. Chain `.addVolume()` to
+         * include additional volumes in the backup.
+         */
+        withMysqlDump: Backups.withMysqlDump<Manifest>,
       },
       InputSpec: {
         /**

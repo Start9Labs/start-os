@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0-beta.64 (2026-03-22)
+
+### Added
+
+- `Backups.withPgDump()`: dump-based PostgreSQL backup using `pg_dump`/`pg_restore`, replacing raw volume rsync of PG data directories
+- `Backups.withMysqlDump()`: dump-based MySQL/MariaDB backup using `mysqldump`/`mysql`
+- Password configs accept `string | (() => string | Promise<string>)` for deferred resolution during restore
+
 ## 0.4.0-beta.63 — StartOS v0.4.0-alpha.22 (2026-03-22)
 
 ### Fixed
