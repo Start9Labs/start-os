@@ -673,16 +673,8 @@ impl Service {
     #[instrument(skip_all)]
     pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<(), Error> {
         let id = &self.seed.id;
-        let mut file =
-            AtomicFile::new(guard.path().join(id).with_extension("s9pk"), None::<&str>).await?;
-        self.seed
-            .persistent_container
-            .s9pk
-            .clone()
-            .serialize(&mut *file, true)
-            .await?;
-        file.save().await?;
-        // TODO: reverify?
+        // Prepare the backup future in the actor first, so the cell is
+        // populated before the actor reacts to the DesiredStatus change.
         let backup = self
             .actor
             .send(
@@ -692,6 +684,8 @@ impl Service {
                 },
             )
             .await??;
+        // Set status early so the UI reflects "backing up" while the s9pk
+        // serialization and service stop happen concurrently.
         self.seed
             .ctx
             .db
@@ -706,6 +700,15 @@ impl Service {
             })
             .await
             .result?;
+        let mut file =
+            AtomicFile::new(guard.path().join(id).with_extension("s9pk"), None::<&str>).await?;
+        self.seed
+            .persistent_container
+            .s9pk
+            .clone()
+            .serialize(&mut *file, true)
+            .await?;
+        file.save().await?;
 
         backup.await
     }
