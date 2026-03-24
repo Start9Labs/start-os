@@ -269,6 +269,13 @@ impl ExecParams {
 
         std::os::unix::fs::chroot(chroot)
             .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("chroot {chroot:?}")))?;
+        if let Ok(uid) = uid {
+            if uid != 0 {
+                std::os::unix::fs::chown("/proc/self/fd/0", Some(uid), gid.ok()).ok();
+                std::os::unix::fs::chown("/proc/self/fd/1", Some(uid), gid.ok()).ok();
+                std::os::unix::fs::chown("/proc/self/fd/2", Some(uid), gid.ok()).ok();
+            }
+        }
         // Handle credential changes in pre_exec to control the order:
         // setgroups must happen before setgid/setuid (requires CAP_SETGID)
         {
