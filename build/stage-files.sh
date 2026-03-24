@@ -69,21 +69,6 @@ start_service() {
 SMARTDNSEOF
 chmod +x "${FILES_DIR}/etc/init.d/smartdns"
 
-# Comment out distfeeds entries for repos not hosted on downloads.openwrt.org.
-# The spacemit target packages and spacemit_openwrt_feeds are built locally
-# but have no upstream package repository, so opkg update fails for them.
-# TODO: Host our own package feeds and remove this workaround.
-#       See https://github.com/DC-DeepComputing/spacemit-openwrt-feeds
-mkdir -p "${FILES_DIR}/etc/uci-defaults"
-cat > "${FILES_DIR}/etc/uci-defaults/99-fix-distfeeds" << 'FIXEOF'
-#!/bin/sh
-sed -i \
-    -e '/^src\/gz.*_core.*targets/s/^/# /' \
-    -e '/^src\/gz.*_spacemit_openwrt_feeds/s/^/# /' \
-    /etc/opkg/distfeeds.conf
-FIXEOF
-chmod +x "${FILES_DIR}/etc/uci-defaults/99-fix-distfeeds"
-
 # Serial console dispatcher — routes ttyS0 to manufacture, init, or login
 mkdir -p "${FILES_DIR}/usr/sbin"
 cat > "${FILES_DIR}/usr/sbin/startwrt-serial" << 'SERIALEOF'

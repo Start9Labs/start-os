@@ -73,7 +73,7 @@ BUILD_SCRIPTS := $(shell git ls-files build/)
 RUST_BIN_DIR := backend/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)
 RUST_BIN := $(RUST_BIN_DIR)/startwrt
 WEB_DIST := web/dist/startwrt/browser/index.html
-OPENWRT_IMAGE_NAME := openwrt-spacemit-k1-sbc-debX-squashfs-pack-sdcard.img
+OPENWRT_IMAGE_NAME := openwrt-spacemit-k1-sbc-bananapi-f3-squashfs-pack-sdcard.img
 OPENWRT_IMAGE_SRC := openwrt/bin/targets/spacemit/$(OPENWRT_IMAGE_NAME)
 OPENWRT_IMAGE := out/$(OPENWRT_IMAGE_NAME)
 

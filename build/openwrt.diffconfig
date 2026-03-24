@@ -1,12 +1,7 @@
 CONFIG_TARGET_spacemit=y
 CONFIG_TARGET_spacemit_k1_sbc=y
-CONFIG_TARGET_spacemit_k1_sbc_DEVICE_debX=y
+CONFIG_TARGET_spacemit_k1_sbc_DEVICE_bananapi-f3=y
 CONFIG_DEVEL=y
-CONFIG_TOOLCHAINOPTS=y
-CONFIG_BINUTILS_USE_VERSION_2_40=y
-# CONFIG_BINUTILS_USE_VERSION_2_42 is not set
-CONFIG_BINUTILS_VERSION="2.40"
-CONFIG_BINUTILS_VERSION_2_40=y
 # CONFIG_BPF_TOOLCHAIN_BUILD_LLVM is not set
 CONFIG_BPF_TOOLCHAIN_NONE=y
 CONFIG_BUILD_LOG=y
@@ -71,7 +66,7 @@ CONFIG_PACKAGE_hostapd-common=y
 CONFIG_PACKAGE_hostapd-utils=y
 CONFIG_PACKAGE_ip-bridge=y
 CONFIG_PACKAGE_ip-full=y
-CONFIG_PACKAGE_ip-tiny=y
+# CONFIG_PACKAGE_ip-tiny is not set
 CONFIG_PACKAGE_iw=y
 CONFIG_PACKAGE_iwinfo=y
 # CONFIG_PACKAGE_jansson is not set
@@ -91,7 +86,7 @@ CONFIG_PACKAGE_kmod-crypto-null=y
 CONFIG_PACKAGE_kmod-crypto-rng=y
 CONFIG_PACKAGE_kmod-crypto-seqiv=y
 CONFIG_PACKAGE_kmod-crypto-sha3=y
-CONFIG_PACKAGE_kmod-crypto-sha512=y
+# CONFIG_PACKAGE_kmod-crypto-sha512 is not set
 CONFIG_PACKAGE_kmod-hwmon-core=y
 CONFIG_PACKAGE_kmod-input-core=y
 CONFIG_PACKAGE_kmod-ipt-conntrack=y
@@ -157,7 +152,7 @@ CONFIG_PACKAGE_libxtables=y
 CONFIG_PACKAGE_lsblk=y
 CONFIG_PACKAGE_luci=y
 CONFIG_PACKAGE_luci-app-firewall=y
-CONFIG_PACKAGE_luci-app-opkg=y
+# CONFIG_PACKAGE_luci-app-opkg is not set
 CONFIG_PACKAGE_luci-base=y
 CONFIG_PACKAGE_luci-light=y
 CONFIG_PACKAGE_luci-mod-admin-full=y
@@ -184,9 +179,9 @@ CONFIG_PACKAGE_rpcd-mod-rrdns=y
 CONFIG_PACKAGE_rpcd-mod-ucode=y
 CONFIG_PACKAGE_sfdisk=y
 CONFIG_PACKAGE_smartdns=y
-CONFIG_PACKAGE_tc-bpf=y
+# CONFIG_PACKAGE_tc-bpf is not set
 CONFIG_PACKAGE_tc-full=y
-CONFIG_PACKAGE_tc-tiny=y
+# CONFIG_PACKAGE_tc-tiny is not set
 CONFIG_PACKAGE_terminfo=y
 CONFIG_PACKAGE_ucode-mod-html=y
 CONFIG_PACKAGE_ucode-mod-math=y
