@@ -26,6 +26,7 @@ import { PatchDB } from 'patch-db-client'
 import {
   catchError,
   defer,
+  exhaustMap,
   finalize,
   first,
   map,
@@ -34,7 +35,10 @@ import {
   of,
   Subject,
   switchMap,
+  takeUntil,
+  takeWhile,
   tap,
+  timer,
 } from 'rxjs'
 import {
   FormComponent,
@@ -184,7 +188,7 @@ export default class SystemWifiComponent {
       ),
       this.refresh$.pipe(
         tap(() => this.refreshing.set(true)),
-        switchMap(() =>
+        exhaustMap(() =>
           this.getWifi$().pipe(finalize(() => this.refreshing.set(false))),
         ),
       ),
@@ -205,6 +209,10 @@ export default class SystemWifiComponent {
 
     try {
       await this.api.enableWifi({ enabled: enable })
+      if (enable) {
+        this.update$.next({ known: [], available: [] })
+        this.pollForNetworks()
+      }
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -257,6 +265,15 @@ export default class SystemWifiComponent {
     } finally {
       loader.unsubscribe()
     }
+  }
+
+  private pollForNetworks(): void {
+    timer(0, 500)
+      .pipe(
+        takeWhile(() => !this.wifi()?.available?.length),
+        takeUntil(timer(5000)),
+      )
+      .subscribe(() => this.refresh$.next())
   }
 
   private async confirmWifi(ssid: string): Promise<void> {

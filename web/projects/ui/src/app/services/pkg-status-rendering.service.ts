@@ -71,13 +71,16 @@ export function getInstalledPrimaryStatus({
   tasks,
   statusInfo,
 }: T.PackageDataEntry): PrimaryStatus {
+  const base = getInstalledBaseStatus(statusInfo)
+
   if (
+    !INACTIVE_STATUSES.includes(base) &&
     Object.values(tasks).some(t => t.active && t.task.severity === 'critical')
   ) {
     return 'task-required'
   }
 
-  return getInstalledBaseStatus(statusInfo)
+  return base
 }
 
 function getHealthStatus(statusInfo: T.StatusInfo): T.HealthStatus | null {

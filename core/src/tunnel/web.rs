@@ -521,7 +521,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 .or_not_found("certificate in chain")?;
                 println!("📝 Root CA:");
                 print!("{cert}\n");
-                println!("Follow instructions to trust your Root CA (recommended): https://docs.start9.com/start-tunnel/installing/index.html#trust-your-root-ca");
+                println!("Follow instructions to trust your Root CA (recommended): https://docs.start9.com/start-tunnel/installing.html#trust-your-root-ca");
 
                 return Ok(());
             }

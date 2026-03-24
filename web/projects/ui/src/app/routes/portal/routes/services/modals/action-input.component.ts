@@ -202,7 +202,7 @@ export class ActionInputModal {
 
     const message = `${this.i18n.transform('As a result of this change, the following services will no longer work properly and may crash')}:<ul>`
     const content =
-      `${message}${breakages.map(id => `<li><b>${getManifest(packages[id]!).title}</b></li>`)}</ul>` as i18nKey
+      `${message}${breakages.map(id => `<li><b>${getManifest(packages[id]!).title}</b></li>`).join('')}</ul>` as i18nKey
 
     return firstValueFrom(
       this.dialog

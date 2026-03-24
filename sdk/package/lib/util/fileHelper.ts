@@ -1,15 +1,15 @@
-import { z } from 'zod'
-import * as YAML from 'yaml'
 import * as TOML from '@iarna/toml'
-import * as INI from 'ini'
 import {
-  XMLParser,
   XMLBuilder,
+  XMLParser,
   type X2jOptions,
   type XmlBuilderOptions,
 } from 'fast-xml-parser'
-import * as T from '../../../base/lib/types'
+import * as INI from 'ini'
 import * as fs from 'node:fs/promises'
+import * as YAML from 'yaml'
+import { z } from 'zod'
+import * as T from '../../../base/lib/types'
 import { asError, deepEqual } from '../../../base/lib/util'
 import { Watchable } from '../../../base/lib/util/Watchable'
 import { PathBase } from './Volume'
@@ -382,7 +382,7 @@ export class FileHelper<A> {
     const mergeData = this.validate(fileMerge({}, fileData, data))
     const toWrite = this.writeData(mergeData)
     if (toWrite !== fileDataRaw) {
-      this.writeFile(mergeData)
+      await this.writeFile(mergeData)
       if (!options.allowWriteAfterConst && effects.constRetry) {
         const records = this.consts.filter(([c]) => c === effects.constRetry)
         for (const record of records) {

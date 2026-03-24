@@ -10,9 +10,10 @@ const BACKUP_HOST_PATH = '/media/startos/backup'
 const BACKUP_CONTAINER_MOUNT = '/backup-target'
 
 /** A password value, or a function that returns one. Functions are resolved lazily (only during restore). */
-export type LazyPassword = string | (() => string | Promise<string>)
+export type LazyPassword = string | (() => string | Promise<string>) | null
 
-async function resolvePassword(pw: LazyPassword): Promise<string> {
+async function resolvePassword(pw: LazyPassword): Promise<string | null> {
+  if (pw === null) return null
   return typeof pw === 'function' ? pw() : pw
 }
 
@@ -22,16 +23,20 @@ export type PgDumpConfig<M extends T.SDKManifest> = {
   imageId: keyof M['images'] & T.ImageId
   /** Volume ID containing the PostgreSQL data directory */
   dbVolume: M['volumes'][number]
-  /** Path to PGDATA within the container (e.g. '/var/lib/postgresql/data') */
-  pgdata: string
+  /** Volume mountpoint (e.g. '/var/lib/postgresql') */
+  mountpoint: string
+  /** Subpath from mountpoint to PGDATA (e.g. '/data', '/18/docker') */
+  pgdataPath: string
   /** PostgreSQL database name to dump */
   database: string
   /** PostgreSQL user */
   user: string
-  /** PostgreSQL password (for restore). Can be a string or a function that returns one — functions are resolved lazily after volumes are restored. */
+  /** PostgreSQL password (for restore). Can be a string, a function that returns one (resolved lazily after volumes are restored), or null for trust auth. */
   password: LazyPassword
   /** Additional initdb arguments (e.g. ['--data-checksums']) */
   initdbArgs?: string[]
+  /** Additional options passed to `pg_ctl start -o` (e.g. '-c shared_preload_libraries=vectorchord'). Appended after `-c listen_addresses=`. */
+  pgOptions?: string
 }
 
 /** Configuration for MySQL/MariaDB dump-based backup */
@@ -52,6 +57,8 @@ export type MysqlDumpConfig<M extends T.SDKManifest> = {
   engine: 'mysql' | 'mariadb'
   /** Custom readiness check command (default: ['mysqladmin', 'ping', ...]) */
   readyCommand?: string[]
+  /** Additional options passed to `mysqld` on startup (e.g. '--innodb-buffer-pool-size=256M'). Appended after `--bind-address=127.0.0.1`. */
+  mysqldOptions?: string[]
 }
 
 /** Bind-mount the backup target into a SubContainer's rootfs */
@@ -154,19 +161,21 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     const {
       imageId,
       dbVolume,
-      pgdata,
+      mountpoint,
+      pgdataPath,
       database,
       user,
       password,
       initdbArgs = [],
+      pgOptions,
     } = config
+    const pgdata = `${mountpoint}${pgdataPath}`
     const dumpFile = `${BACKUP_CONTAINER_MOUNT}/${database}-db.dump`
-    const pgMountpoint = pgdata.replace(/\/data$/, '') || pgdata
 
     function dbMounts() {
       return Mounts.of<M>().mountVolume({
         volumeId: dbVolume,
-        mountpoint: pgMountpoint,
+        mountpoint: mountpoint,
         readonly: false,
         subpath: null,
       })
@@ -193,10 +202,12 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
         user: 'root',
       })
       console.log(`[${label}] starting postgres`)
-      await sub.execFail(
-        ['pg_ctl', 'start', '-D', pgdata, '-o', '-c listen_addresses='],
-        { user: 'postgres' },
-      )
+      const pgStartOpts = pgOptions
+        ? `-c listen_addresses= ${pgOptions}`
+        : '-c listen_addresses='
+      await sub.execFail(['pg_ctl', 'start', '-D', pgdata, '-o', pgStartOpts], {
+        user: 'postgres',
+      })
       for (let i = 0; i < 60; i++) {
         const { exitCode } = await sub.exec(['pg_isready', '-U', user], {
           user: 'postgres',
@@ -249,7 +260,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
           async (sub) => {
             await mountBackupTarget(sub.rootfs)
             await sub.execFail(
-              ['chown', '-R', 'postgres:postgres', pgMountpoint],
+              ['chown', '-R', 'postgres:postgres', mountpoint],
               { user: 'root' },
             )
             await sub.execFail(
@@ -274,18 +285,20 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
               { user: 'postgres' },
               null,
             )
-            await sub.execFail(
-              [
-                'psql',
-                '-U',
-                user,
-                '-d',
-                database,
-                '-c',
-                `ALTER USER ${user} WITH PASSWORD '${resolvedPassword}'`,
-              ],
-              { user: 'postgres' },
-            )
+            if (resolvedPassword !== null) {
+              await sub.execFail(
+                [
+                  'psql',
+                  '-U',
+                  user,
+                  '-d',
+                  database,
+                  '-c',
+                  `ALTER USER ${user} WITH PASSWORD '${resolvedPassword}'`,
+                ],
+                { user: 'postgres' },
+              )
+            }
             await sub.execFail(['pg_ctl', 'stop', '-D', pgdata, '-w'], {
               user: 'postgres',
             })
@@ -318,6 +331,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       password,
       engine,
       readyCommand,
+      mysqldOptions = [],
     } = config
     const dumpFile = `${BACKUP_CONTAINER_MOUNT}/${database}-db.dump`
 
@@ -342,6 +356,42 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       throw new Error('MySQL/MariaDB failed to become ready within 30 seconds')
     }
 
+    async function startMysql(sub: {
+      exec(cmd: string[], opts?: any): Promise<{ exitCode: number | null }>
+      execFail(cmd: string[], opts?: any, timeout?: number | null): Promise<any>
+    }) {
+      if (engine === 'mariadb') {
+        // MariaDB doesn't support --daemonize; fire-and-forget the exec
+        sub
+          .exec(
+            [
+              'mysqld',
+              '--user=mysql',
+              `--datadir=${datadir}`,
+              '--bind-address=127.0.0.1',
+              ...mysqldOptions,
+            ],
+            { user: 'root' },
+          )
+          .catch((e) =>
+            console.error('[mysql-backup] mysqld exited unexpectedly:', e),
+          )
+      } else {
+        await sub.execFail(
+          [
+            'mysqld',
+            '--user=mysql',
+            `--datadir=${datadir}`,
+            '--bind-address=127.0.0.1',
+            '--daemonize',
+            ...mysqldOptions,
+          ],
+          { user: 'root' },
+          null,
+        )
+      }
+    }
+
     return new Backups<M>()
       .setPreBackup(async (effects) => {
         const pw = await resolvePassword(password)
@@ -350,7 +400,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
           'ping',
           '-u',
           user,
-          `-p${pw}`,
+          ...(pw !== null ? [`-p${pw}`] : []),
           '--silent',
         ]
         await SubContainerRc.withTemp<M, void, BackupEffects>(
@@ -371,24 +421,14 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
                 user: 'root',
               })
             }
-            await sub.execFail(
-              [
-                'mysqld',
-                '--user=mysql',
-                `--datadir=${datadir}`,
-                '--skip-networking',
-                '--daemonize',
-              ],
-              { user: 'root' },
-              null,
-            )
+            await startMysql(sub)
             await waitForMysql(sub, readyCmd)
             await sub.execFail(
               [
                 'mysqldump',
                 '-u',
                 user,
-                `-p${pw}`,
+                ...(pw !== null ? [`-p${pw}`] : []),
                 '--single-transaction',
                 `--result-file=${dumpFile}`,
                 database,
@@ -396,9 +436,15 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
               { user: 'root' },
               null,
             )
+            // Graceful shutdown via SIGTERM; wait for exit
             await sub.execFail(
-              ['mysqladmin', '-u', user, `-p${pw}`, 'shutdown'],
+              [
+                'sh',
+                '-c',
+                'PID=$(cat /var/run/mysqld/mysqld.pid) && kill $PID && tail --pid=$PID -f /dev/null',
+              ],
               { user: 'root' },
+              null,
             )
           },
         )
@@ -435,17 +481,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
                 { user: 'root' },
               )
             }
-            await sub.execFail(
-              [
-                'mysqld',
-                '--user=mysql',
-                `--datadir=${datadir}`,
-                '--skip-networking',
-                '--daemonize',
-              ],
-              { user: 'root' },
-              null,
-            )
+            await startMysql(sub)
             // After fresh init, root has no password
             await waitForMysql(sub, [
               'mysqladmin',
@@ -455,29 +491,32 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
               '--silent',
             ])
             // Create database, user, and set password
-            await sub.execFail(
-              [
-                'mysql',
-                '-u',
-                'root',
-                '-e',
-                `CREATE DATABASE IF NOT EXISTS \`${database}\`; CREATE USER IF NOT EXISTS '${user}'@'localhost' IDENTIFIED BY '${pw}'; GRANT ALL ON \`${database}\`.* TO '${user}'@'localhost'; ALTER USER 'root'@'localhost' IDENTIFIED BY '${pw}'; FLUSH PRIVILEGES;`,
-              ],
-              { user: 'root' },
-            )
+            const grantSql =
+              pw !== null
+                ? `CREATE DATABASE IF NOT EXISTS \`${database}\`; CREATE USER IF NOT EXISTS '${user}'@'localhost' IDENTIFIED BY '${pw}'; GRANT ALL ON \`${database}\`.* TO '${user}'@'localhost'; ALTER USER 'root'@'localhost' IDENTIFIED BY '${pw}'; FLUSH PRIVILEGES;`
+                : `CREATE DATABASE IF NOT EXISTS \`${database}\`; CREATE USER IF NOT EXISTS '${user}'@'localhost'; GRANT ALL ON \`${database}\`.* TO '${user}'@'localhost'; FLUSH PRIVILEGES;`
+            await sub.execFail(['mysql', '-u', 'root', '-e', grantSql], {
+              user: 'root',
+            })
             // Restore from dump
             await sub.execFail(
               [
                 'sh',
                 '-c',
-                `mysql -u root -p'${pw}' \`${database}\` < ${dumpFile}`,
+                `mysql -u root ${pw !== null ? `-p'${pw}'` : ''} ${database} < ${dumpFile}`,
               ],
               { user: 'root' },
               null,
             )
+            // Graceful shutdown via SIGTERM; wait for exit
             await sub.execFail(
-              ['mysqladmin', '-u', 'root', `-p${password}`, 'shutdown'],
+              [
+                'sh',
+                '-c',
+                'PID=$(cat /var/run/mysqld/mysqld.pid) && kill $PID && tail --pid=$PID -f /dev/null',
+              ],
               { user: 'root' },
+              null,
             )
           },
         )

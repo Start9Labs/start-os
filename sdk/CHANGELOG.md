@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0-beta.66 (2026-03-24)
+
+- **Breaking:** `withPgDump()` replaces `pgdata` with required `mountpoint` + `pgdataPath`
+- Passwordless/trust auth support for `withPgDump()` and `withMysqlDump()`
+- New options: `pgOptions` for postgres, `mysqldOptions` for mysql/mariadb
+- Fixed MariaDB backup/restore support
+
 ## 0.4.0-beta.65 (2026-03-23)
 
 ### Added
