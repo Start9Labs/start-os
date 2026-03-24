@@ -39,7 +39,7 @@ impl DiagnosticContext {
             shutdown,
             disk_guid,
             error: Arc::new(error.into()),
-            rpc_continuations: RpcContinuations::new(None),
+            rpc_continuations: RpcContinuations::new(),
         })))
     }
 }

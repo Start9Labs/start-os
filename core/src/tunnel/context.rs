@@ -202,7 +202,7 @@ impl TunnelContext {
             listen,
             db,
             datadir,
-            rpc_continuations: RpcContinuations::new(None),
+            rpc_continuations: RpcContinuations::new(),
             open_authed_continuations: OpenAuthedContinuations::new(),
             ephemeral_sessions: SyncMutex::new(Sessions::new()),
             net_iface,

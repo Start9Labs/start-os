@@ -142,7 +142,7 @@ impl RegistryContext {
             listen: config.registry_listen.unwrap_or(DEFAULT_REGISTRY_LISTEN),
             db,
             datadir,
-            rpc_continuations: RpcContinuations::new(None),
+            rpc_continuations: RpcContinuations::new(),
             client: Client::builder()
                 .proxy(Proxy::custom(move |url| {
                     if url.host_str().map_or(false, |h| h.ends_with(".onion")) {

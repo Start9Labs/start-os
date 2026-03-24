@@ -339,7 +339,7 @@ impl RpcContext {
             services,
             cancellable_installs: SyncMutex::new(BTreeMap::new()),
             metrics_cache,
-            rpc_continuations: RpcContinuations::new(Some(shutdown.clone())),
+            rpc_continuations: RpcContinuations::new(),
             shutdown,
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_continuations: OpenAuthedContinuations::new(),
