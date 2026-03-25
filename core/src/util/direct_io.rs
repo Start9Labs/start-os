@@ -8,7 +8,7 @@ use tokio::io::AsyncWrite;
 use tokio::task::JoinHandle;
 
 const BLOCK_SIZE: usize = 4096;
-const BUF_CAP: usize = 256 * 1024; // 256KB
+const BUF_CAP: usize = 1024 * 1024; // 1MiB
 
 /// Aligned buffer for O_DIRECT I/O.
 struct AlignedBuf {
