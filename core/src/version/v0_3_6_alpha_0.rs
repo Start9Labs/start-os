@@ -27,6 +27,7 @@ use crate::net::keys::KeyStore;
 use crate::notifications::Notifications;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::s9pk::v2::pack::CONTAINER_TOOL;
 use crate::ssh::{SshKeys, SshPubKey};
 use crate::util::Invoke;
 use crate::util::serde::Pem;
@@ -326,7 +327,41 @@ impl VersionT for Version {
             .await?;
         }
 
+        // Load bundled migration images (start9/compat, start9/utils,
+        // tonistiigi/binfmt) so the v1->v2 s9pk conversion doesn't need
+        // internet access.
+        let migration_images_dir = Path::new("/usr/lib/startos/migration-images");
+        if let Ok(mut entries) = tokio::fs::read_dir(migration_images_dir).await {
+            while let Some(entry) = entries.next_entry().await? {
+                let path = entry.path();
+                if path.extension() == Some(OsStr::new("tar")) {
+                    tracing::info!("Loading migration image: {}", path.display());
+                    Command::new(*CONTAINER_TOOL)
+                        .arg("load")
+                        .arg("-i")
+                        .arg(&path)
+                        .invoke(crate::ErrorKind::Docker)
+                        .await?;
+                }
+            }
+        }
+
         // Should be the name of the package
+        let current_package: std::sync::Arc<tokio::sync::watch::Sender<Option<PackageId>>> =
+            std::sync::Arc::new(tokio::sync::watch::channel(None).0);
+        let progress_logger = {
+            let current_package = current_package.clone();
+            tokio::spawn(async move {
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
+                interval.tick().await; // skip immediate first tick
+                loop {
+                    interval.tick().await;
+                    if let Some(ref id) = *current_package.borrow() {
+                        tracing::info!("{}", t!("migration.migrating-package", package = id.to_string()));
+                    }
+                }
+            })
+        };
         let mut paths = tokio::fs::read_dir(path).await?;
         while let Some(path) = paths.next_entry().await? {
             let Ok(id) = path.file_name().to_string_lossy().parse::<PackageId>() else {
@@ -366,6 +401,9 @@ impl VersionT for Version {
                     } else {
                         false
                     };
+
+                    tracing::info!("{}", t!("migration.migrating-package", package = id.to_string()));
+                    current_package.send_replace(Some(id.clone()));
 
                     if let Err(e) = async {
                         let package_s9pk = tokio::fs::File::open(path).await?;
@@ -411,6 +449,7 @@ impl VersionT for Version {
                 }
             }
         }
+        progress_logger.abort();
         Ok(())
     }
 }

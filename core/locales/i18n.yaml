@@ -1721,6 +1721,14 @@ lxc.mod.cleaned-up-containers:
   fr_FR: "Conteneurs LXC orphelins nettoyés avec succès"
   pl_PL: "Pomyślnie wyczyszczono wiszące kontenery LXC"
 
+# version/v0_3_6_alpha_0.rs
+migration.migrating-package:
+  en_US: "Migrating package %{package}..."
+  de_DE: "Paket %{package} wird migriert..."
+  es_ES: "Migrando paquete %{package}..."
+  fr_FR: "Migration du paquet %{package}..."
+  pl_PL: "Migracja pakietu %{package}..."
+
 # registry/admin.rs
 registry.admin.unknown-signer:
   en_US: "Unknown signer"
