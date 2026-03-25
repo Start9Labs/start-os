@@ -17,11 +17,13 @@ import {
   TuiButton,
   TuiDialogContext,
   TuiError,
-  TuiNotificationService,
+  TuiIcon,
   TuiInput,
+  TuiNotificationService,
+  TuiTextfield,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TuiButtonLoading } from '@taiga-ui/kit'
+import { TuiButtonLoading, TuiPassword } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { map } from 'rxjs'
@@ -32,16 +34,24 @@ import { ApiService } from 'src/app/services/api/api.service'
     <form tuiForm [formGroup]="form">
       <tui-textfield>
         <label tuiLabel>New password</label>
-        <input tuiInput tuiAutoFocus formControlName="password" />
+        <input
+          tuiInput
+          tuiAutoFocus
+          type="password"
+          formControlName="password"
+        />
+        <tui-icon tuiPassword />
       </tui-textfield>
       <tui-error formControlName="password" />
       <tui-textfield>
         <label tuiLabel>Confirm new password</label>
         <input
           tuiInput
+          type="password"
           formControlName="confirm"
           [tuiValidator]="matchValidator()"
         />
+        <tui-icon tuiPassword />
       </tui-textfield>
       <tui-error formControlName="confirm" />
       <footer>
@@ -72,7 +82,10 @@ import { ApiService } from 'src/app/services/api/api.service'
     TuiButtonLoading,
     TuiError,
     TuiForm,
+    TuiIcon,
     TuiInput,
+    TuiPassword,
+    TuiTextfield,
     TuiValidator,
   ],
 })
