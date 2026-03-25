@@ -283,10 +283,16 @@ impl ExecParams {
             let set_gid = gid.ok();
             unsafe {
                 cmd.pre_exec(move || {
-                    // Create a new process group so entrypoint scripts that do
+                    // Create a new session so entrypoint scripts that do
                     // kill(0, SIGTERM) don't cascade to other subcontainers.
-                    nix::unistd::setsid()
-                        .map_err(|e| std::io::Error::from_raw_os_error(e as i32))?;
+                    // EPERM means we're already a session leader (e.g. pty_process
+                    // called setsid() for us), which is fine.
+                    match nix::unistd::setsid() {
+                        Ok(_) | Err(Errno::EPERM) => {}
+                        Err(e) => {
+                            return Err(std::io::Error::from_raw_os_error(e as i32));
+                        }
+                    }
                     if !groups.is_empty() {
                         nix::unistd::setgroups(&groups)
                             .map_err(|e| std::io::Error::from_raw_os_error(e as i32))?;
