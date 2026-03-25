@@ -2657,6 +2657,13 @@ help.arg.add-signer-key:
   fr_FR: "Ajouter une clé publique au signataire"
   pl_PL: "Dodaj klucz publiczny do sygnatariusza"
 
+help.arg.address:
+  en_US: "Network address"
+  de_DE: "Netzwerkadresse"
+  es_ES: "Dirección de red"
+  fr_FR: "Adresse réseau"
+  pl_PL: "Adres sieciowy"
+
 help.arg.allow-model-mismatch:
   en_US: "Allow database model mismatch"
   de_DE: "Datenbankmodell-Abweichung erlauben"
@@ -3098,6 +3105,13 @@ help.arg.platform:
   fr_FR: "Identifiant de la plateforme cible"
   pl_PL: "Identyfikator platformy docelowej"
 
+help.arg.port:
+  en_US: "Port number"
+  de_DE: "Portnummer"
+  es_ES: "Número de puerto"
+  fr_FR: "Numéro de port"
+  pl_PL: "Numer portu"
+
 help.arg.postgres-connection-url:
   en_US: "PostgreSQL connection URL"
   de_DE: "PostgreSQL-Verbindungs-URL"
@@ -3181,6 +3195,13 @@ help.arg.server-id:
   es_ES: "Identificador único del servidor"
   fr_FR: "Identifiant unique du serveur"
   pl_PL: "Unikalny identyfikator serwera"
+
+help.arg.set-as-default-outbound:
+  en_US: "Set as the default outbound gateway"
+  de_DE: "Als Standard-Ausgangs-Gateway festlegen"
+  es_ES: "Establecer como puerta de enlace de salida predeterminada"
+  fr_FR: "Définir comme passerelle de sortie par défaut"
+  pl_PL: "Ustaw jako domyślną bramę wychodzącą"
 
 help.arg.set-signer-name:
   en_US: "Set the signer name"
@@ -3545,6 +3566,13 @@ help.arg.gateway-name:
   es_ES: "Nombre de la puerta de enlace"
   fr_FR: "Nom de la passerelle"
   pl_PL: "Nazwa bramy"
+
+help.arg.gateway-type:
+  en_US: "Type of gateway"
+  de_DE: "Typ des Gateways"
+  es_ES: "Tipo de puerta de enlace"
+  fr_FR: "Type de passerelle"
+  pl_PL: "Typ bramy"
 
 help.arg.governor-name:
   en_US: "CPU governor name"
@@ -4533,6 +4561,13 @@ about.display-s9pk-manifest:
   es_ES: "Mostrar el manifiesto s9pk"
   fr_FR: "Afficher le manifeste s9pk"
   pl_PL: "Wyświetl manifest s9pk"
+
+about.display-s9pk-root-sighash-and-maxsize:
+  en_US: "Display the s9pk root signature hash and max size"
+  de_DE: "Den s9pk-Root-Signaturhash und die maximale Größe anzeigen"
+  es_ES: "Mostrar el hash de firma raíz y el tamaño máximo del s9pk"
+  fr_FR: "Afficher le hachage de signature racine et la taille maximale du s9pk"
+  pl_PL: "Wyświetl hash podpisu głównego i maksymalny rozmiar s9pk"
 
 about.display-server-metrics:
   en_US: "Display server metrics"
