@@ -30,7 +30,6 @@ impl ServiceActorSeed {
                         ErrorKind::Cancelled,
                     ))
                 };
-                let backup_succeeded = res.is_ok();
                 let id = &self.id;
                 self.ctx
                     .db
@@ -52,16 +51,14 @@ impl ServiceActorSeed {
                                     x => x,
                                 })
                             })?;
-                        if backup_succeeded {
-                            if let Some(progress) = db
-                                .as_public_mut()
-                                .as_server_info_mut()
-                                .as_status_info_mut()
-                                .as_backup_progress_mut()
-                                .transpose_mut()
-                            {
-                                progress.insert(id, &BackupProgress { complete: true })?;
-                            }
+                        if let Some(progress) = db
+                            .as_public_mut()
+                            .as_server_info_mut()
+                            .as_status_info_mut()
+                            .as_backup_progress_mut()
+                            .transpose_mut()
+                        {
+                            progress.insert(id, &BackupProgress { complete: true })?;
                         }
                         Ok(())
                     })
