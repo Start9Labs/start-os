@@ -180,19 +180,14 @@ pub async fn set_enabled(
             .invoke(ErrorKind::Wifi)
             .await?;
     }
-    let iface = if let Some(man) = ctx.wifi_manager.read().await.as_ref().filter(|_| enabled) {
-        Some(man.interface.clone())
-    } else {
-        None
-    };
     ctx.db
         .mutate(|d| {
             d.as_public_mut()
                 .as_server_info_mut()
                 .as_network_mut()
                 .as_wifi_mut()
-                .as_interface_mut()
-                .ser(&iface)
+                .as_enabled_mut()
+                .ser(&enabled)
         })
         .await
         .result?;

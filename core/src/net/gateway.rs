@@ -765,7 +765,9 @@ async fn watcher(
                             }
                             changed
                         });
-                        futures::future::try_join_all(jobs).await?;
+                        for result in futures::future::join_all(jobs).await {
+                            result.log_err();
+                        }
 
                         Ok::<_, Error>(())
                     })
@@ -824,7 +826,7 @@ impl Drop for PolicyRoutingCleanup {
                 .arg("50")
                 .invoke(ErrorKind::Network)
                 .await
-                .log_err();
+                .ok();
             Command::new("ip")
                 .arg("route")
                 .arg("flush")
@@ -832,7 +834,7 @@ impl Drop for PolicyRoutingCleanup {
                 .arg(&table_str)
                 .invoke(ErrorKind::Network)
                 .await
-                .log_err();
+                .ok();
             Command::new("iptables")
                 .arg("-t")
                 .arg("mangle")
@@ -850,7 +852,7 @@ impl Drop for PolicyRoutingCleanup {
                 .arg(&table_str)
                 .invoke(ErrorKind::Network)
                 .await
-                .log_err();
+                .ok();
         });
     }
 }
@@ -1067,7 +1069,17 @@ async fn apply_policy_routing(
                 cmd.arg(part);
             }
             cmd.arg("table").arg(&table_str);
-            cmd.invoke(ErrorKind::Network).await.log_err();
+            if let Err(e) = cmd.invoke(ErrorKind::Network).await {
+                // Transient interfaces (podman, wg-quick, etc.) may
+                // vanish between reading the main table and replaying
+                // the route — demote to debug to avoid log noise.
+                if e.source.to_string().contains("No such file or directory") {
+                    tracing::trace!("ip route replace (transient device): {e}");
+                } else {
+                    tracing::error!("{e}");
+                    tracing::debug!("{e:?}");
+                }
+            }
         }
     }
 
@@ -1470,22 +1482,12 @@ impl NetworkInterfaceController {
     ) -> Result<(), Error> {
         tracing::debug!("syncronizing {info:?} to db");
 
-        let mut wifi_iface = info
-            .iter()
-            .find(|(_, info)| {
-                info.ip_info.as_ref().map_or(false, |i| {
-                    i.device_type == Some(NetworkInterfaceType::Wireless)
-                })
-            })
-            .map(|(id, _)| id.clone());
-        if wifi_iface.is_none() {
-            wifi_iface = find_wifi_iface()
-                .await
-                .ok()
-                .and_then(|a| a)
-                .map(InternedString::from)
-                .map(GatewayId::from);
-        }
+        let wifi_iface = find_wifi_iface()
+            .await
+            .ok()
+            .and_then(|a| a)
+            .map(InternedString::from)
+            .map(GatewayId::from);
 
         db.mutate(|db| {
             let network = db.as_public_mut().as_server_info_mut().as_network_mut();
