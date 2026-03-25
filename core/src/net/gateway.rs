@@ -1311,6 +1311,7 @@ async fn poll_ip_info(
         crate::db::model::public::default_echoip_urls()
     };
     let mut wan_ip = None;
+    let mut err = None;
     for echoip_url in echoip_urls {
         if echoip_ratelimit_state
             .get(&echoip_url)
@@ -1326,15 +1327,7 @@ async fn poll_ip_info(
                     wan_ip = a;
                 }
                 Err(e) => {
-                    tracing::error!(
-                        "{}",
-                        t!(
-                            "net.gateway.failed-to-determine-wan-ip",
-                            iface = iface.to_string(),
-                            error = e.to_string()
-                        )
-                    );
-                    tracing::debug!("{e:?}");
+                    err = Some(e);
                 }
             };
             echoip_ratelimit_state.insert(echoip_url, Instant::now());
@@ -1342,6 +1335,19 @@ async fn poll_ip_info(
                 break;
             }
         };
+    }
+    if wan_ip.is_none()
+        && let Some(e) = err
+    {
+        tracing::error!(
+            "{}",
+            t!(
+                "net.gateway.failed-to-determine-wan-ip",
+                iface = iface.to_string(),
+                error = e.to_string()
+            )
+        );
+        tracing::debug!("{e:?}");
     }
     let mut ip_info = IpInfo {
         name: name.clone(),
