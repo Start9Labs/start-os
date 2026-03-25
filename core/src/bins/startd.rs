@@ -148,6 +148,15 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
             .build()
             .expect(&t!("bins.startd.failed-to-initialize-runtime"));
         let res = rt.block_on(async {
+            // Periodically wake a worker thread from a non-tokio OS thread to
+            // prevent tokio I/O driver starvation (all workers parked on
+            // condvar with no driver).  See tokio-rs/tokio#4730.
+            let rt_handle = tokio::runtime::Handle::current();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(Duration::from_secs(30));
+                rt_handle.spawn(async {});
+            });
+
             let mut server = WebServer::new(Acceptor::new(WildcardListener::new(80)?), refresher());
             match inner_main(&mut server, &config).await {
                 Ok(a) => {

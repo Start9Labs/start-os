@@ -26,6 +26,30 @@ impl<'a> MakeWriter<'a> for LogFile {
             struct TeeWriter<'a>(MutexGuard<'a, Option<File>>);
             impl<'a> Write for TeeWriter<'a> {
                 fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+                    // Blocking file+stderr I/O on a tokio worker thread can
+                    // starve the I/O driver (tokio-rs/tokio#4730).
+                    // block_in_place tells the runtime to hand off driver
+                    // duties before we block.  Only available on the
+                    // multi-thread runtime; falls back to a direct write on
+                    // current-thread runtimes (CLI) or outside a runtime.
+                    if matches!(
+                        tokio::runtime::Handle::try_current().map(|h| h.runtime_flavor()),
+                        Ok(tokio::runtime::RuntimeFlavor::MultiThread),
+                    ) {
+                        tokio::task::block_in_place(|| self.write_inner(buf))
+                    } else {
+                        self.write_inner(buf)
+                    }
+                }
+                fn flush(&mut self) -> io::Result<()> {
+                    if let Some(f) = &mut *self.0 {
+                        f.flush()?;
+                    }
+                    Ok(())
+                }
+            }
+            impl<'a> TeeWriter<'a> {
+                fn write_inner(&mut self, buf: &[u8]) -> io::Result<usize> {
                     let n = if let Some(f) = &mut *self.0 {
                         f.write(buf)?
                     } else {
@@ -33,12 +57,6 @@ impl<'a> MakeWriter<'a> for LogFile {
                     };
                     io::stderr().write_all(&buf[..n])?;
                     Ok(n)
-                }
-                fn flush(&mut self) -> io::Result<()> {
-                    if let Some(f) = &mut *self.0 {
-                        f.flush()?;
-                    }
-                    Ok(())
                 }
             }
             Box::new(TeeWriter(f))
