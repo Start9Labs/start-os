@@ -1,8 +1,5 @@
-@if (config.isLanHttp()) {
-  <!-- Local HTTP -->
-  <ca-wizard />
-} @else {
-  <!-- not Local HTTP -->
+@if (config.isSecureContext()) {
+  <!-- Secure context -->
   <div tuiCardLarge class="card">
     <img alt="StartOS Icon" class="logo" src="assets/img/icon.png" />
     <h1 class="header">{{ 'Login to StartOS' | i18n }}</h1>
@@ -23,4 +20,7 @@
       <button tuiButton class="button">{{ 'Login' | i18n }}</button>
     </form>
   </div>
+} @else {
+  <!-- Insecure context -->
+  <ca-wizard />
 }
