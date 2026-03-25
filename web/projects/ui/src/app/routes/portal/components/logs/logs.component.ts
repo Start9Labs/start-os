@@ -52,7 +52,7 @@ export class LogsComponent {
   @Input({ required: true }) context!: string
 
   scrollTop = 0
-  startCursor?: string | null
+  startCursor?: string
   scroll = true
   loading = false
   previous: readonly string[] = []

@@ -45,7 +45,11 @@ export class LogsPipe implements PipeTransform {
         map(() => this.getMessage(true)),
       ),
       defer(() => followLogs(this.options)).pipe(
-        tap(r => this.logs.setCursor(r.startCursor)),
+        tap(r => {
+          if (r.startCursor) {
+            this.logs.setCursor(r.startCursor)
+          }
+        }),
         switchMap(r =>
           this.api.openWebsocket$<T.LogEntry>(r.guid, {
             openObserver: {

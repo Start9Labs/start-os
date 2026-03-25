@@ -24,7 +24,11 @@ export class LogsFetchDirective {
         }),
       ),
     ),
-    tap(res => this.component.setCursor(res.startCursor)),
+    tap(res => {
+      if (res.startCursor) {
+        this.component.setCursor(res.startCursor)
+      }
+    }),
     map(({ entries }) => convertAnsi(entries)),
     catchError(e => {
       this.errors.handleError(e)
