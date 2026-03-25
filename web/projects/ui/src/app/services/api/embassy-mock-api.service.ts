@@ -1201,7 +1201,8 @@ export class MockApiService extends ApiService {
               'chain-state': {
                 name: 'Chain State',
                 result: 'loading',
-                message: 'Bitcoin is syncing from genesis',
+                message:
+                  'Bitcoin is syncing from genesis. Downloading block headers and verifying chain integrity, please wait',
               },
               'p2p-interface': {
                 name: 'P2P Interface',
