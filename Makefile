@@ -15,7 +15,7 @@ IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo 
 WEB_UIS := web/dist/raw/ui/index.html web/dist/raw/setup-wizard/index.html
 COMPRESSED_WEB_UIS := web/dist/static/ui/index.html web/dist/static/setup-wizard/index.html
 FIRMWARE_ROMS := build/lib/firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./build/lib/firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
-BUILD_SRC := $(call ls-files, build/lib) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS)
+BUILD_SRC := $(call ls-files, build/lib) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS) build/lib/migration-images/.done
 IMAGE_RECIPE_SRC := $(call ls-files, build/image-recipe/)
 STARTD_SRC := core/startd.service $(BUILD_SRC)
 CORE_SRC := $(call ls-files, core) $(shell git ls-files --recurse-submodules patch-db) $(GIT_HASH_FILE)
@@ -89,6 +89,7 @@ clean:
 	rm -rf container-runtime/node_modules
 	rm -f container-runtime/*.squashfs
 	(cd sdk && make clean)
+	rm -rf build/lib/migration-images
 	rm -f env/*.txt
 
 format:
@@ -104,6 +105,10 @@ test-sdk: $(call ls-files, sdk) sdk/base/lib/osBindings/index.ts
 
 test-container-runtime: container-runtime/node_modules/.package-lock.json $(call ls-files, container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
 	cd container-runtime && npm test
+
+build/lib/migration-images/.done: build/save-migration-images.sh
+	ARCH=$(ARCH) ./build/save-migration-images.sh build/lib/migration-images
+	touch $@
 
 install-cli: $(GIT_HASH_FILE)
 	./core/build/build-cli.sh --install
