@@ -91,7 +91,8 @@ pub async fn get_data_version(id: &PackageId) -> Result<Option<String>, Error> {
         .join(id)
         .join("data")
         .join(".version");
-    maybe_read_file_to_string(&path).await
+    let s = maybe_read_file_to_string(&path).await?;
+    Ok(s.map(|s| s.trim().to_string()))
 }
 
 struct RootCommand(pub String);
