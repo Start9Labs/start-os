@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms'
 import { i18nPipe } from '@start9labs/shared'
 import {
   TuiButton,
+  TuiCell,
   TuiCheckbox,
   TuiDialogContext,
   TuiNotification,
@@ -19,6 +20,7 @@ export interface PreserveOverwriteData {
   imports: [
     FormsModule,
     TuiButton,
+    TuiCell,
     TuiCheckbox,
     TuiHeader,
     TuiNotification,
@@ -49,9 +51,9 @@ export interface PreserveOverwriteData {
             | i18n
         }}
       </p>
-      <label>
+      <label tuiCell>
         <input tuiCheckbox type="checkbox" [(ngModel)]="backupAck" />
-        {{ 'I have a backup of my data' | i18n }}
+        <span tuiTitle>{{ 'I have a backup of my data' | i18n }}</span>
       </label>
     }
     <footer>
