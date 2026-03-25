@@ -409,6 +409,18 @@ pub async fn mount_all_fs<P: AsRef<Path>>(
 /// filesystem type. Returns `None` if probing fails (e.g. LV doesn't exist).
 #[instrument(skip_all)]
 pub async fn probe_package_data_fs(guid: &str) -> Result<Option<String>, Error> {
+    // If the target block device is already accessible (e.g. this is the
+    // currently active system VG), probe it directly without any
+    // import/activate/open/cleanup steps.
+    let blockdev_path = if !guid.ends_with("_UNENC") {
+        PathBuf::from(format!("/dev/mapper/{guid}_package-data"))
+    } else {
+        Path::new("/dev").join(guid).join("package-data")
+    };
+    if tokio::fs::metadata(&blockdev_path).await.is_ok() {
+        return detect_filesystem(&blockdev_path).await.map(Some);
+    }
+
     // Import and activate the VG
     match Command::new("vgimport")
         .arg(guid)
