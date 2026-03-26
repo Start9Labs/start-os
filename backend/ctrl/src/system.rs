@@ -36,6 +36,7 @@ struct SystemInfoResponse {
     date: String,
     theme: String,
     remote_access: String,
+    timezone: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -65,12 +66,22 @@ fn info<C: CtrlContext>(ctx: C) -> Result<SystemInfoResponse, Error> {
         Ok::<_, Error>(())
     })?;
 
+    // Read timezone from system UCI config (spaces → underscores for IANA format)
+    let timezone = StdCommand::new("uci")
+        .args(["get", "system.@system[0].zonename"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().replace(' ', "_"))
+        .unwrap_or_default();
+
     Ok(SystemInfoResponse {
         version: env!("CARGO_PKG_VERSION").to_string(),
         language: prefs.language,
         date: Utc::now().to_rfc3339(),
         theme: prefs.theme,
         remote_access: prefs.remote_access,
+        timezone,
     })
 }
 
@@ -568,6 +579,71 @@ async fn restart(_ctx: ServerContext) -> Result<(), Error> {
     Ok(())
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SetTimezoneParams {
+    /// IANA timezone name, e.g. "America/New_York"
+    timezone: String,
+    /// POSIX TZ string, e.g. "EST5EDT,M3.2.0,M11.1.0"
+    posix_tz: String,
+}
+
+/// Set the system timezone using a POSIX TZ string.
+///
+/// The frontend sends both the IANA name (for display) and the POSIX TZ string
+/// (for the actual time conversion). OpenWrt writes the POSIX string to `/etc/TZ`
+/// on `system reload`, which makes `date`, `cron`, and all libc time functions
+/// use the correct local time. No `zoneinfo` package needed.
+fn set_timezone<C: CtrlContext>(
+    ctx: C,
+    DeserializeStdin(params): DeserializeStdin<SetTimezoneParams>,
+) -> Result<(), Error> {
+    if !ctx.effectful() {
+        return Ok(());
+    }
+
+    // Browser sends underscores (America/New_York), OpenWrt uses spaces
+    let zonename = params.timezone.replace('_', " ");
+
+    // Skip if unchanged
+    let current = StdCommand::new("uci")
+        .args(["get", "system.@system[0].zonename"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+    if current.trim() == zonename {
+        return Ok(());
+    }
+
+    // Set the display name (IANA)
+    crate::run_quiet(
+        StdCommand::new("uci").args([
+            "set",
+            &format!("system.@system[0].zonename={zonename}"),
+        ]),
+    )
+    .map_err(|e| Error::other(format!("setting zonename: {e}")))?;
+
+    // Set the POSIX TZ string — this is what actually controls time conversion
+    crate::run_quiet(
+        StdCommand::new("uci").args([
+            "set",
+            &format!("system.@system[0].timezone={}", params.posix_tz),
+        ]),
+    )
+    .map_err(|e| Error::other(format!("setting timezone: {e}")))?;
+
+    crate::run_quiet(StdCommand::new("uci").args(["commit", "system"]))
+        .map_err(|e| Error::other(format!("committing system config: {e}")))?;
+
+    // Reload writes the POSIX TZ string to /etc/TZ
+    crate::run_quiet(StdCommand::new("/etc/init.d/system").arg("reload"))
+        .map_err(|e| Error::other(format!("reloading system: {e}")))?;
+
+    Ok(())
+}
+
 pub fn system<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
@@ -605,6 +681,12 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
                 .no_display()
                 .with_about("Wipe overlay and reboot (factory reset)")
                 .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set-timezone",
+            from_fn(set_timezone::<C>)
+                .with_metadata("no_auth", Value::Bool(true))
+                .no_display(),
         )
         .subcommand(
             "logs",

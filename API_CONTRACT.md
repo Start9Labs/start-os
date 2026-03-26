@@ -107,6 +107,8 @@ struct SystemInfoResponse {
     language: String,
     date: String,  // ISO 8601
     theme: Theme,
+    remote_access: String,
+    timezone: String,  // IANA timezone name (e.g. "America/New_York")
 }
 ```
 
@@ -141,6 +143,22 @@ struct SetPreferencesRequest {
     remote_access: Option<RemoteAccess>,
 }
 // Response: null
+```
+
+### `system.set-timezone`
+
+No auth required — called during initial setup before login.
+
+```rust
+#[derive(Deserialize)]
+struct SetTimezoneRequest {
+    timezone: String,   // IANA timezone name (e.g. "America/New_York")
+    posix_tz: String,   // POSIX TZ string (e.g. "EST5EDT,M3.2.0,M11.1.0")
+}
+// Response: null
+// Backend: sets UCI system.@system[0].zonename and system.@system[0].timezone,
+//          then reloads system service which writes posix_tz to /etc/TZ.
+//          After this, `date`, `cron`, and all libc time functions use local time.
 ```
 
 ### `system.logs`

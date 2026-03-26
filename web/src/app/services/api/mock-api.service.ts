@@ -24,6 +24,7 @@ import {
   VpnServers,
   WifiConfig,
   BlackoutWindow,
+  ScheduleWindow,
   ProfileId,
   ProfileIdOpt,
   SecurityProfile,
@@ -103,6 +104,13 @@ export class MockApiService extends ApiService {
   async logout(): Promise<null> {
     await pauseFor(250)
 
+    return null
+  }
+
+  async setTimezone(_params: {
+    timezone: string
+    posixTz: string
+  }): Promise<null> {
     return null
   }
 
@@ -283,6 +291,7 @@ export class MockApiService extends ApiService {
       date: new Date().toISOString(),
       theme: 'system',
       remoteAccess: 'default',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     }
   }
 
@@ -693,6 +702,24 @@ export class MockApiService extends ApiService {
           (params.vlan_tag === undefined || p.vlan_tag === params.vlan_tag)
         ),
     )
+    return null
+  }
+
+  private mockSchedules: Record<string, ScheduleWindow[]> = {}
+
+  async profileScheduleGet(params: {
+    interface: string
+  }): Promise<ScheduleWindow[]> {
+    await pauseFor(100)
+    return this.mockSchedules[params.interface] || []
+  }
+
+  async profileScheduleSet(params: {
+    interface: string
+    windows: ScheduleWindow[]
+  }): Promise<null> {
+    await pauseFor(250)
+    this.mockSchedules[params.interface] = params.windows
     return null
   }
 

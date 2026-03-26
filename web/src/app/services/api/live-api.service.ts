@@ -22,6 +22,7 @@ import {
   VpnServers,
   WifiConfig,
   BlackoutWindow,
+  ScheduleWindow,
   ProfileId,
   ProfileIdOpt,
   SecurityProfile,
@@ -79,6 +80,13 @@ export class LiveApiService extends ApiService {
 
   async login(params: LoginReq): Promise<null> {
     return this.rpc.request({ method: 'auth.login', params })
+  }
+
+  async setTimezone(params: {
+    timezone: string
+    posixTz: string
+  }): Promise<null> {
+    return this.rpc.request({ method: 'system.set-timezone', params })
   }
 
   async logout(): Promise<null> {
@@ -186,6 +194,19 @@ export class LiveApiService extends ApiService {
 
   async profileDelete(params: ProfileIdOpt): Promise<null> {
     return this.rpc.request({ method: 'profiles.delete', params })
+  }
+
+  async profileScheduleGet(params: {
+    interface: string
+  }): Promise<ScheduleWindow[]> {
+    return this.rpc.request({ method: 'profiles.schedule-get', params })
+  }
+
+  async profileScheduleSet(params: {
+    interface: string
+    windows: ScheduleWindow[]
+  }): Promise<null> {
+    return this.rpc.request({ method: 'profiles.schedule-set', params })
   }
 
   async checkInitialized(): Promise<CheckInitializedRes> {

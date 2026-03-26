@@ -210,6 +210,10 @@ async fn inner_main() -> Result<(), Error> {
             if let Err(e) = crate::system::apply_remote_access(ServerContext::default()) {
                 tracing::error!("Remote access rule apply failed: {e}");
             }
+            // Apply WAN schedule enforcement (UCI firewall rules)
+            if let Err(e) = crate::profiles::evaluate_and_apply_schedules(&ServerContext::default()) {
+                tracing::error!("Failed to evaluate WAN schedules at boot: {e}");
+            }
         })
         .await?;
 

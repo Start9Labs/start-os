@@ -12,13 +12,14 @@ use std::cell::OnceCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Read;
 use std::net::Ipv4Addr;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use uciedit::openwrt::{
     DeviceType, Dhcp, FirewallForwarding, FirewallRedirect, FirewallRule, FirewallTarget,
     FirewallZone, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkRoute,
     NetworkRule, NetworkVlanPort, NetworkVlanPortTagging, ProfileDnsmasq, WifiStation, WifiVlan,
 };
-use uciedit::{dump_all, parse_all, Arena, Configs, Line, Token, TypedSection};
+use uciedit::{dump_all, parse_all, Arena, Configs, Line, LineComment, Token, TypedSection};
 
 pub const DEFAULT_WAN_ZONE: &str = "wan";
 pub const INTERFACE_NAME_LIMIT: usize = 5;
@@ -45,6 +46,20 @@ pub enum WanAccess {
     Blacklist(Vec<String>), // List of blocked destination IPs/CIDRs
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ScheduleWindow {
+    pub start_time: String,
+    pub end_time: String,
+    pub days: [bool; 7],
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ScheduleWindows {
+    pub interface: String,
+    pub windows: Vec<ScheduleWindow>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Profile<Id: Ord = ProfileId> {
     #[serde(flatten)]
@@ -69,6 +84,14 @@ pub fn profiles<C: CtrlContext>() -> ParentHandler<C> {
         .subcommand("list", from_fn(list::<C>).with_display_serializable())
         .subcommand("create", from_fn(create::<C>).with_display_serializable())
         .subcommand("edit", from_fn(edit::<C>).with_display_serializable())
+        .subcommand(
+            "schedule-get",
+            from_fn(schedule_get::<C>).with_display_serializable(),
+        )
+        .subcommand(
+            "schedule-set",
+            from_fn(schedule_set::<C>).no_display(),
+        )
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -131,6 +154,8 @@ pub(crate) struct UciProfile {
     pub wan_access_list: Vec<String>,
     #[uci(default)]
     pub dns_override: Vec<String>,
+    #[uci(default)]
+    pub wan_schedule: Vec<String>,
 }
 
 /// Snapshot of profile fields before an update, for activity log diffing.
@@ -544,6 +569,13 @@ pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
                     let _ = crate::run_quiet(Command::new("ifdown").arg(&wg_interface_name));
                     reload_system_and_wifi()?;
                 }
+                // Regenerate schedule crontab to remove deleted profile's entries
+                if let Err(e) = regenerate_schedule_crontab(&ctx) {
+                    tracing::error!("Failed to regenerate schedule crontab after profile delete: {e}");
+                }
+                if ctx.effectful() {
+                    let _ = crate::run_quiet(Command::new("/etc/init.d/cron").arg("restart"));
+                }
                 crate::activity::log("profile", "deleted", true, &format!("Deleted profile '{name}'"), None);
                 return Ok(());
             }
@@ -752,6 +784,8 @@ pub fn reload_system() -> Result<(), Error> {
     let _ = crate::run_quiet(Command::new("/etc/init.d/smartdns").arg("restart"));
     let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("restart"));
     let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("restart"));
+    // Re-apply WAN schedules — firewall restart flushes the iptables chain
+    reapply_schedules_after_reload();
     Ok(())
 }
 
@@ -765,7 +799,29 @@ pub fn reload_system_and_wifi() -> Result<(), Error> {
     let _ = crate::run_quiet(Command::new("/etc/init.d/smartdns").arg("restart"));
     let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("restart"));
     let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("restart"));
+    // Re-apply WAN schedules — firewall restart flushes the iptables chain
+    reapply_schedules_after_reload();
     Ok(())
+}
+
+/// Helper for reload functions (which have no CtrlContext) to re-apply WAN schedules
+/// after a firewall restart. The schedule rules are already in UCI, so this just
+/// ensures the current time-based state is correct.
+fn reapply_schedules_after_reload() {
+    #[derive(Clone)]
+    struct ReloadCtx;
+    impl rpc_toolkit::Context for ReloadCtx {}
+    impl CtrlContext for ReloadCtx {
+        fn uci_root(&self) -> PathBuf {
+            PathBuf::from("/etc/config/")
+        }
+        fn effectful(&self) -> bool {
+            true
+        }
+    }
+    if let Err(e) = evaluate_and_apply_schedules(&ReloadCtx) {
+        tracing::error!("Failed to re-apply WAN schedules after firewall reload: {e}");
+    }
 }
 
 /// When the first bridge-vlan is about to be created on a bridge, we must also create
@@ -1316,6 +1372,7 @@ fn create_config(
             wan_access: Some(wan_access_type_str(&profile.wan_access)),
             wan_access_list: wan_access_destinations(&profile.wan_access),
             dns_override: dns::serialize_dns_server_list(&profile.dns_override),
+            wan_schedule: Vec::new(),
         },
         Some(&interface),
     )?;
@@ -2059,6 +2116,7 @@ pub fn bootstrap_admin_profile(uci_root: &str) -> Result<(), Error> {
             wan_access: Some("all".into()),
             wan_access_list: Vec::new(),
             dns_override: Vec::new(),
+            wan_schedule: Vec::new(),
         },
         Some("lan"),
     )?;
@@ -2122,6 +2180,408 @@ pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> 
         };
         let modified_profile = crate::utils::edit_in_editor(&current_profile)?;
         set(ctx, DeserializeStdin(modified_profile))
+    }
+}
+
+// ── Schedule helpers ──────────────────────────────────────────────────
+
+const SCHEDULE_TAG: &str = "# start-wrt-wan-schedule";
+const CRONTAB_PATH: &str = "/etc/crontabs/root";
+const SCHEDULE_RULE_PREFIX: &str = "sched_";
+
+fn schedule_crontab_path(ctx: &impl CtrlContext) -> PathBuf {
+    if ctx.effectful() {
+        PathBuf::from(CRONTAB_PATH)
+    } else {
+        ctx.uci_root().join("crontab_root")
+    }
+}
+
+fn parse_hhmm(s: &str) -> Result<(u32, u32), Error> {
+    let parts: Vec<&str> = s.split(':').collect();
+    if parts.len() != 2 {
+        return Err(Error::other(format!("invalid time format: {s:?}")));
+    }
+    let h: u32 = parts[0]
+        .parse()
+        .map_err(|_| Error::other(format!("invalid hour: {}", parts[0])))?;
+    let m: u32 = parts[1]
+        .parse()
+        .map_err(|_| Error::other(format!("invalid minute: {}", parts[1])))?;
+    if h > 23 || m > 59 {
+        return Err(Error::other(format!("time out of range: {s:?}")));
+    }
+    Ok((h, m))
+}
+
+fn serialize_schedule_windows(windows: &[ScheduleWindow]) -> Vec<String> {
+    windows
+        .iter()
+        .map(|w| {
+            let days: String = w
+                .days
+                .iter()
+                .enumerate()
+                .filter(|(_, &on)| on)
+                .map(|(i, _)| i.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            format!("{}|{}|{}", w.start_time, w.end_time, days)
+        })
+        .collect()
+}
+
+fn parse_schedule_windows(raw: &[String]) -> Vec<ScheduleWindow> {
+    raw.iter()
+        .filter_map(|s| {
+            let parts: Vec<&str> = s.splitn(3, '|').collect();
+            if parts.len() != 3 {
+                return None;
+            }
+            let mut days = [false; 7];
+            if !parts[2].is_empty() {
+                for d in parts[2].split(',') {
+                    if let Ok(n) = d.parse::<usize>() {
+                        if n < 7 {
+                            days[n] = true;
+                        }
+                    }
+                }
+            }
+            Some(ScheduleWindow {
+                start_time: parts[0].to_string(),
+                end_time: parts[1].to_string(),
+                days,
+            })
+        })
+        .collect()
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ScheduleGetParams {
+    interface: String,
+}
+
+/// Read schedule data for a single profile from UCI.
+pub fn schedule_get<C: CtrlContext>(
+    ctx: C,
+    DeserializeStdin(params): DeserializeStdin<ScheduleGetParams>,
+) -> Result<Vec<ScheduleWindow>, Error> {
+    let arena = Arena::new();
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"])?;
+
+    for section in &cfgs["startwrt"].sections {
+        if let Some(profile) = section.get_typed::<UciProfile>()? {
+            if profile.interface == params.interface {
+                return Ok(parse_schedule_windows(&profile.wan_schedule));
+            }
+        }
+    }
+    Err(ErrorKind::MissingProfile {
+        id: ProfileIdOpt {
+            interface: Some(params.interface),
+            fullname: None,
+            vlan_tag: None,
+        },
+    }
+    .into())
+}
+
+/// Write schedule data for a single profile, regenerate crontab and iptables rules.
+pub fn schedule_set<C: CtrlContext>(
+    ctx: C,
+    DeserializeStdin(params): DeserializeStdin<ScheduleWindows>,
+) -> Result<(), Error> {
+    // Validate all times before writing to UCI
+    for window in &params.windows {
+        parse_hhmm(&window.start_time)?;
+        parse_hhmm(&window.end_time)?;
+    }
+
+    let serialized = serialize_schedule_windows(&params.windows);
+
+    let mut retries = 4;
+    loop {
+        let arena = Arena::new();
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"])?;
+
+        let mut found = false;
+        for section in &mut cfgs["startwrt"].sections {
+            if let Some(profile) = section.get_typed::<UciProfile>()? {
+                if profile.interface == params.interface {
+                    // Remove existing wan_schedule list entries
+                    section.lines.retain(|line| {
+                        !matches!(line, Line::List { list, .. } if list.as_str() == "wan_schedule")
+                    });
+                    // Add new entries
+                    let arena = section.arena;
+                    for val in &serialized {
+                        section.lines.push(Line::List {
+                            list: Token::from_string("wan_schedule".to_string(), arena),
+                            item: Token::from_string(val.clone(), arena),
+                            comment: LineComment::None,
+                        });
+                    }
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if !found {
+            return Err(ErrorKind::MissingProfile {
+                id: ProfileIdOpt {
+                    interface: Some(params.interface.clone()),
+                    fullname: None,
+                    vlan_tag: None,
+                },
+            }
+            .into());
+        }
+
+        match dump_all(ctx.uci_root(), cfgs) {
+            Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
+                retries -= 1;
+                continue;
+            }
+            Err(err) => {
+                crate::activity::log(
+                    "profile",
+                    "schedule-updated",
+                    false,
+                    "Failed to update WAN schedule",
+                    Some(&err.to_string()),
+                );
+                return Err(err.into());
+            }
+            Ok(()) => break,
+        }
+    }
+
+    // Regenerate crontab entries for all profile schedules
+    regenerate_schedule_crontab(&ctx)?;
+
+    // Evaluate current schedule state and apply UCI firewall rules
+    if ctx.effectful() {
+        evaluate_and_apply_schedules(&ctx)?;
+        crate::run_quiet(Command::new("/etc/init.d/cron").arg("restart"))
+            .map_err(|e| Error::other(format!("restarting cron: {e}")))?;
+    }
+
+    crate::activity::log(
+        "profile",
+        "schedule-updated",
+        true,
+        &format!("Updated WAN schedule for profile {}", params.interface),
+        None,
+    );
+    Ok(())
+}
+
+/// Regenerate all profile schedule crontab entries from UCI.
+pub(crate) fn regenerate_schedule_crontab(ctx: &impl CtrlContext) -> Result<(), Error> {
+    let path = schedule_crontab_path(ctx);
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+
+    // Remove old schedule entries
+    let filtered: Vec<&str> = content
+        .lines()
+        .filter(|l| !l.contains(SCHEDULE_TAG))
+        .collect();
+    let mut new_content = filtered.join("\n");
+    if !new_content.is_empty() && !new_content.ends_with('\n') {
+        new_content.push('\n');
+    }
+
+    // Read profiles and firewall config (for zone name resolution)
+    let arena = Arena::new();
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "firewall"])?;
+
+    for section in &cfgs["startwrt"].sections {
+        if let Some(profile) = section.get_typed::<UciProfile>()? {
+            let windows = parse_schedule_windows(&profile.wan_schedule);
+            if windows.is_empty() {
+                continue;
+            }
+            let iface = &profile.interface;
+            let zone = find_zone_for_interface(&cfgs, iface);
+            let sec = format!("{SCHEDULE_RULE_PREFIX}{iface}");
+
+            for window in &windows {
+                let days_str: String = window
+                    .days
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, &on)| on)
+                    .map(|(i, _)| i.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+
+                if days_str.is_empty() {
+                    continue;
+                }
+
+                let (start_h, start_m) = parse_hhmm(&window.start_time)?;
+                let (end_h, end_m) = parse_hhmm(&window.end_time)?;
+
+                // Block at start_time: add UCI firewall rule + reload
+                new_content.push_str(&format!(
+                    "{start_m} {start_h} * * {days_str} \
+                     uci set firewall.{sec}=rule; \
+                     uci set firewall.{sec}.name='WAN-Schedule-{iface}'; \
+                     uci set firewall.{sec}.src='{zone}'; \
+                     uci set firewall.{sec}.dest='wan'; \
+                     uci set firewall.{sec}.target='REJECT'; \
+                     uci commit firewall; \
+                     /etc/init.d/firewall reload \
+                     {SCHEDULE_TAG}\n"
+                ));
+                // Unblock at end_time: remove UCI section + reload
+                new_content.push_str(&format!(
+                    "{end_m} {end_h} * * {days_str} \
+                     uci -q delete firewall.{sec}; \
+                     uci commit firewall; \
+                     /etc/init.d/firewall reload \
+                     {SCHEDULE_TAG}\n"
+                ));
+            }
+        }
+    }
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&path, &new_content)?;
+    Ok(())
+}
+
+/// Find the firewall zone name for a profile's interface.
+fn find_zone_for_interface(cfgs: &Configs, interface: &str) -> String {
+    cfgs["firewall"]
+        .sections
+        .iter()
+        .find_map(|s| {
+            let zone = s.get::<FirewallZone>().ok()?;
+            zone.network
+                .iter()
+                .any(|n| n == interface)
+                .then(|| zone.name.clone())
+        })
+        .unwrap_or_else(|| format!("vlan_{interface}"))
+}
+
+/// Evaluate current time against all profile schedules and manage UCI firewall
+/// REJECT rules for currently-blocked profiles. Adds/removes named `sched_*`
+/// sections in the firewall config, then reloads fw3 if anything changed.
+pub(crate) fn evaluate_and_apply_schedules(ctx: &impl CtrlContext) -> Result<(), Error> {
+    let arena = Arena::new();
+    let mut cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "firewall"])?;
+
+    let now = chrono_now();
+    let current_day = now.0; // 0=Sun..6=Sat
+    let current_minutes = now.1; // minutes since midnight
+
+    // Collect interfaces that should be blocked right now
+    let mut should_block: BTreeSet<String> = BTreeSet::new();
+
+    for section in &cfgs["startwrt"].sections {
+        if let Some(profile) = section.get_typed::<UciProfile>()? {
+            let windows = parse_schedule_windows(&profile.wan_schedule);
+
+            for window in &windows {
+                if !window.days[current_day] {
+                    continue;
+                }
+                if let (Ok((sh, sm)), Ok((eh, em))) =
+                    (parse_hhmm(&window.start_time), parse_hhmm(&window.end_time))
+                {
+                    let start_min = sh * 60 + sm;
+                    let end_min = eh * 60 + em;
+                    let is_blocked = if start_min <= end_min {
+                        current_minutes >= start_min && current_minutes < end_min
+                    } else {
+                        current_minutes >= start_min || current_minutes < end_min
+                    };
+                    if is_blocked {
+                        should_block.insert(profile.interface.clone());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Determine which sched_ sections already exist
+    let existing: BTreeSet<String> = cfgs["firewall"]
+        .sections
+        .iter()
+        .filter_map(|s| {
+            let name = s.name()?;
+            name.strip_prefix(SCHEDULE_RULE_PREFIX)
+                .map(|iface| iface.to_string())
+        })
+        .collect();
+
+    let to_add: BTreeSet<&String> = should_block.difference(&existing).collect();
+    let to_remove: BTreeSet<&String> = existing.difference(&should_block).collect();
+
+    if to_add.is_empty() && to_remove.is_empty() {
+        return Ok(());
+    }
+
+    // Remove stale schedule rules
+    if !to_remove.is_empty() {
+        cfgs["firewall"].sections.retain(|s| {
+            s.name()
+                .and_then(|n| n.strip_prefix(SCHEDULE_RULE_PREFIX).map(String::from))
+                .map(|iface| !to_remove.contains(&iface))
+                .unwrap_or(true)
+        });
+    }
+
+    // Add missing schedule rules
+    for iface in &to_add {
+        let zone = find_zone_for_interface(&cfgs, iface);
+        let section_name = format!("{SCHEDULE_RULE_PREFIX}{iface}");
+        cfgs["firewall"].append(
+            &FirewallRule {
+                name: format!("WAN-Schedule-{iface}"),
+                src: zone,
+                dest: Some("wan".into()),
+                target: FirewallTarget::REJECT,
+                ..Default::default()
+            },
+            Some(&section_name),
+        )?;
+    }
+
+    dump_all(ctx.uci_root(), cfgs)?;
+
+    if ctx.effectful() {
+        crate::run_quiet(Command::new("/etc/init.d/firewall").arg("reload"))
+            .map_err(|e| Error::other(format!("reloading firewall: {e}")))?;
+    }
+
+    Ok(())
+}
+
+/// Returns (day_of_week 0=Sun..6=Sat, minutes_since_midnight).
+fn chrono_now() -> (usize, u32) {
+    // Use the `date` command for portability on OpenWrt (no chrono crate).
+    let output = Command::new("date")
+        .args(["+%w %H %M"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+    let parts: Vec<&str> = output.trim().split_whitespace().collect();
+    if parts.len() == 3 {
+        let dow = parts[0].parse::<usize>().unwrap_or(0);
+        let h = parts[1].parse::<u32>().unwrap_or(0);
+        let m = parts[2].parse::<u32>().unwrap_or(0);
+        (dow, h * 60 + m)
+    } else {
+        tracing::warn!("Failed to parse current time from `date` command");
+        (0, 0)
     }
 }
 

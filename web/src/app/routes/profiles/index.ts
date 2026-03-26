@@ -4,7 +4,7 @@ import {
   computed,
   inject,
 } from '@angular/core'
-import { RouterLink } from '@angular/router'
+import { RouterLink, Routes } from '@angular/router'
 import { WA_WINDOW } from '@ng-web-apis/common'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
@@ -89,6 +89,13 @@ import { ProfilesService } from './service'
                   </button>
                   <button
                     tuiOption
+                    iconStart="@tui.clock"
+                    [routerLink]="[item.interface, 'schedule']"
+                  >
+                    WAN Schedule
+                  </button>
+                  <button
+                    tuiOption
                     class="g-negative"
                     iconStart="@tui.trash"
                     [disabled]="item.owns_lan"
@@ -146,7 +153,7 @@ import { ProfilesService } from './service'
     RouterLink,
   ],
 })
-export default class Profiles {
+class Profiles {
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(ProfilesService)
   protected readonly outboundService = inject(OutboundService)
@@ -299,3 +306,12 @@ export default class Profiles {
       })
   }
 }
+
+export default [
+  { path: '', component: Profiles },
+  {
+    path: ':interface/schedule',
+    loadComponent: () => import('./routes/schedule'),
+  },
+  { path: '**', redirectTo: '' },
+] satisfies Routes

@@ -35,6 +35,17 @@ export abstract class ApiService {
   abstract profileCreate(params: ProfileCreateInput): Promise<ProfileId>
   abstract profileUpdate(params: ProfileUpdateInput): Promise<ProfileId>
   abstract profileDelete(params: ProfileIdOpt): Promise<null>
+  abstract profileScheduleGet(params: {
+    interface: string
+  }): Promise<ScheduleWindow[]>
+  abstract profileScheduleSet(params: {
+    interface: string
+    windows: ScheduleWindow[]
+  }): Promise<null>
+  abstract setTimezone(params: {
+    timezone: string
+    posixTz: string
+  }): Promise<null>
   abstract checkInitialized(): Promise<CheckInitializedRes>
   abstract setInitialPassword(params: SetInitialPasswordReq): Promise<null>
   abstract setupStatus(): Promise<SetupStatusRes>
@@ -193,6 +204,7 @@ export type SystemInfoRes = {
   date: string
   theme: 'dark' | 'light' | 'system'
   remoteAccess: RemoteAccess
+  timezone: string
 }
 
 export type VersionInfo = {
@@ -302,6 +314,12 @@ export interface WifiConfig {
 }
 
 export interface BlackoutWindow {
+  startTime: string
+  endTime: string
+  days: [boolean, boolean, boolean, boolean, boolean, boolean, boolean]
+}
+
+export interface ScheduleWindow {
   startTime: string
   endTime: string
   days: [boolean, boolean, boolean, boolean, boolean, boolean, boolean]

@@ -4,21 +4,35 @@ import {
   computed,
   inject,
   linkedSignal,
+  signal,
   WritableSignal,
 } from '@angular/core'
+import { ActivatedRoute } from '@angular/router'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiButton, TuiIcon } from '@taiga-ui/core'
+import { TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiAutoColorPipe, TuiTimeline } from '@taiga-ui/kit'
+import { TuiHeader } from '@taiga-ui/layout'
+import { provideHelp } from 'src/app/help/help'
+import { ApiService } from 'src/app/services/api/api.service'
+import {
+  provideFormService,
+  injectFormService,
+} from 'src/app/services/form.service'
 import {
   formatTime12h,
   quarterHourToTime,
   timeToQuarterHour,
 } from 'src/app/utils/schedule'
-import { ADD_BLACKOUT_WINDOW } from 'src/app/routes/wifi/routes/blackout-schedule/dialog'
-import { BlackoutService, BlackoutWindow } from './service'
+import { ADD_SCHEDULE_WINDOW } from './dialog'
+import { ProfileScheduleService, ScheduleWindow } from './service'
 
 @Component({
   template: `
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h2>WAN Schedule — {{ profileName() }}</h2>
+      </hgroup>
+    </header>
     <section (change)="save()">
       @for (day of order; track $index) {
         <tui-timeline
@@ -183,14 +197,36 @@ import { BlackoutService, BlackoutWindow } from './service'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
-  imports: [TuiTimeline, TuiIcon, TuiAutoColorPipe, TuiButton],
+  providers: [
+    provideFormService(ProfileScheduleService),
+    provideHelp('/profiles/schedule'),
+  ],
+  imports: [
+    TuiTimeline,
+    TuiIcon,
+    TuiAutoColorPipe,
+    TuiButton,
+    TuiHeader,
+    TuiTitle,
+  ],
 })
-export default class BlackoutScheduleComponent {
-  // Display order: Mon–Sun; data order: Sun(0)–Sat(6)
+export default class ProfileScheduleComponent {
   protected readonly order = [1, 2, 3, 4, 5, 6, 0] as const
   protected readonly labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   protected readonly dialogs = inject(TuiResponsiveDialogService)
-  protected readonly service = inject(BlackoutService)
+  protected readonly service = injectFormService<ScheduleWindow[]>()
+  private readonly api = inject(ApiService)
+  private readonly iface = inject(ActivatedRoute).snapshot.params['interface']
+
+  protected readonly profileName = signal(this.iface as string)
+
+  constructor() {
+    this.api.profilesList().then(profiles => {
+      const name = profiles.find(p => p.interface === this.iface)?.fullname
+      if (name) this.profileName.set(name)
+    })
+  }
+
   protected readonly source = computed(
     () =>
       this.service.data()?.map(({ startTime, endTime, days }) => ({
@@ -212,8 +248,8 @@ export default class BlackoutScheduleComponent {
 
   protected edit(index: number) {
     this.dialogs
-      .open<BlackoutWindow | null>(ADD_BLACKOUT_WINDOW, {
-        label: 'Edit Blackout Window',
+      .open<ScheduleWindow | null>(ADD_SCHEDULE_WINDOW, {
+        label: 'Edit WAN-Restricted Window',
         data: {
           startTime: to(this.windows()[index].range[0]),
           endTime: to(this.windows()[index].range[1]),
@@ -247,8 +283,8 @@ export default class BlackoutScheduleComponent {
 
     days[day] = true
     this.dialogs
-      .open<BlackoutWindow>(ADD_BLACKOUT_WINDOW, {
-        label: 'Add Blackout Window',
+      .open<ScheduleWindow>(ADD_SCHEDULE_WINDOW, {
+        label: 'Add WAN-Restricted Window',
         data: {
           startTime: to(start),
           endTime: to(start + 4),

@@ -42,6 +42,12 @@ import {
 } from 'src/app/services/api/api.service'
 import { SystemService } from 'src/app/services/system.service'
 import { getTranslatedName, Language, LANGUAGES } from 'src/app/utils/languages'
+import {
+  formatOffset,
+  getPosixTz,
+  resolveTimezone,
+  TIMEZONES,
+} from 'src/app/utils/timezones'
 
 const THEMES: Theme[] = ['system', 'dark', 'light']
 
@@ -101,6 +107,20 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
                   <span tuiTitle>
                     {{ lang.nativeName }}
                     <span tuiSubtitle>{{ getTranslatedName(lang.posix) }}</span>
+                  </span>
+                </button>
+              }
+            </tui-data-list>
+          </tui-textfield>
+          <tui-textfield tuiChevron [stringify]="stringifyTimezone">
+            <label tuiLabel>Timezone</label>
+            <input tuiSelect formControlName="timezone" />
+            <tui-data-list *tuiDropdown>
+              @for (tz of timezones; track tz.iana) {
+                <button tuiOption [value]="tz.iana">
+                  <span tuiTitle>
+                    ({{ formatOffset(tz.offsetMin) }}) {{ tz.label }}
+                    <span tuiSubtitle>{{ tz.iana }}</span>
                   </span>
                 </button>
               }
@@ -274,6 +294,7 @@ export default class General {
         : 'light') as Theme,
     language: 'en_US' as Language,
     remote: 'default',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   })
 
   constructor() {
@@ -284,18 +305,29 @@ export default class General {
           theme: info.theme,
           language: info.language as Language,
           remote: info.remoteAccess ?? 'default',
+          timezone: resolveTimezone(
+            info.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+          ),
         })
       }
     })
   }
 
   protected readonly themes = THEMES
+  protected readonly timezones = TIMEZONES
 
   protected readonly stringifyTheme = (t: Theme): string =>
     t ? t[0].toUpperCase() + t.slice(1) : ''
 
   protected readonly stringifyLanguage = (posix: Language): string =>
     LANGUAGES.find(l => l.posix === posix)?.nativeName || posix
+
+  protected readonly formatOffset = formatOffset
+
+  protected readonly stringifyTimezone = (iana: string): string => {
+    const tz = TIMEZONES.find(t => t.iana === iana)
+    return tz ? `(${formatOffset(tz.offsetMin)}) ${tz.label}` : iana
+  }
 
   protected getTranslatedName(posix: Language): string {
     return getTranslatedName(posix, this.form.getRawValue().language)
@@ -316,6 +348,8 @@ export default class General {
         theme: info.theme,
         language: info.language as Language,
         remote: info.remoteAccess ?? 'default',
+        timezone:
+          info.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       })
       this.onTheme(info.theme)
     }
@@ -323,12 +357,19 @@ export default class General {
 
   async onSubmit(): Promise<void> {
     await this.actions.run(
-      () =>
-        this.api.setPreferences({
+      async () => {
+        await this.api.setPreferences({
           theme: this.form.value.theme!,
           language: this.form.value.language,
           remoteAccess: this.form.value.remote as RemoteAccess,
-        }),
+        })
+
+        const timezone = this.form.value.timezone!
+        const posixTz = getPosixTz(timezone)
+        if (posixTz) {
+          await this.api.setTimezone({ timezone, posixTz })
+        }
+      },
       {
         fail: 'Failed to save preferences',
         success: 'Preferences saved',
