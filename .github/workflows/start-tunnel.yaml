@@ -59,7 +59,7 @@ jobs:
               "ALL": ["x86_64", "aarch64", "riscv64"]
             }')[github.event.inputs.platform || 'ALL']
           }}
-    runs-on: ${{ fromJson('["ubuntu-latest", "buildjet-32vcpu-ubuntu-2204"]')[github.event.inputs.runner == 'fast'] }}
+    runs-on: ${{ fromJson('["ubuntu-latest", "ubuntu-24.04-32-cores"]')[github.event.inputs.runner == 'fast'] }}
     steps:
       - name: Mount tmpfs
         if: ${{ github.event.inputs.runner == 'fast' }}
