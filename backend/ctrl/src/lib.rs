@@ -162,6 +162,17 @@ impl CliContext {
             CookieStore::default()
         }));
 
+        // If the local auth cookie exists (running on the router), inject it
+        // so the server's auth middleware trusts us without a session.
+        if let Ok(local_token) = std::fs::read_to_string(crate::auth::LOCAL_AUTH_COOKIE_PATH) {
+            let local_token = local_token.trim();
+            let domain = args.host.host_str().unwrap_or("localhost");
+            let cookie_value = format!("local={local_token}; Domain={domain}; Path=/; SameSite=Strict");
+            if let Ok(cookie) = cookie_store::RawCookie::parse(cookie_value) {
+                cookie_store.lock().unwrap().insert_raw(&cookie, &args.host).ok();
+            }
+        }
+
         let client = Client::builder()
             .cookie_provider(cookie_store.clone())
             .build()

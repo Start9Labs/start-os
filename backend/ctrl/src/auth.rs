@@ -24,6 +24,53 @@ use crate::{CliContext, ServerContext};
 const DEFAULT_SESSION_FILE_PATH: &str = "/etc/startwrt/sessions.json";
 const SESSION_EXPIRY_DAYS: i64 = 1;
 
+/// Path to the local auth cookie file. Any process that can read this file
+/// (i.e. is running on the router) is considered authenticated.
+pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/startwrt/rpc.authcookie";
+
+/// Generate a random local auth cookie and write it to disk.
+/// Called once at daemon startup.
+pub async fn init_local_auth_cookie() -> Result<(), Error> {
+    let token = base32::encode(
+        base32::Alphabet::Rfc4648 { padding: false },
+        &rand::random::<[u8; 32]>(),
+    )
+    .to_lowercase();
+
+    let path = std::path::Path::new(LOCAL_AUTH_COOKIE_PATH);
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| Error::other(format!("Failed to create {}: {e}", parent.display())))?;
+    }
+
+    let mut file = tokio::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o640)
+        .open(path)
+        .await
+        .map_err(|e| Error::other(format!("Failed to create local auth cookie: {e}")))?;
+    file.write_all(token.as_bytes()).await.map_err(|e| {
+        Error::other(format!("Failed to write local auth cookie: {e}"))
+    })?;
+    file.sync_all().await.map_err(|e| {
+        Error::other(format!("Failed to sync local auth cookie: {e}"))
+    })?;
+
+    tracing::info!("Local auth cookie initialized at {LOCAL_AUTH_COOKIE_PATH}");
+    Ok(())
+}
+
+/// Validate a local auth cookie value against the file on disk.
+pub async fn validate_local_auth_cookie(value: &str) -> bool {
+    match tokio::fs::read_to_string(LOCAL_AUTH_COOKIE_PATH).await {
+        Ok(token) => value == token.trim(),
+        Err(_) => false,
+    }
+}
+
 static SESSION_FILE_PATH: LazyLock<String> = LazyLock::new(|| {
     std::env::var("STARTWRT_SESSION_PATH").unwrap_or_else(|_| DEFAULT_SESSION_FILE_PATH.to_string())
 });

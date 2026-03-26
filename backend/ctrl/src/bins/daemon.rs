@@ -147,6 +147,9 @@ fn init_ssl() -> bool {
 
 #[instrument(skip_all)]
 async fn inner_main() -> Result<(), Error> {
+    // Generate local auth cookie so CLI commands over SSH bypass session auth
+    crate::auth::init_local_auth_cookie().await?;
+
     let setup_mode = tokio::task::spawn_blocking(setup::is_setup_mode).await?;
 
     let continuations = RpcContinuations::new();
