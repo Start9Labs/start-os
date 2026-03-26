@@ -122,6 +122,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
           <button
             tuiButton
             appearance="primary"
+            autofocus
             [loading]="flashing()"
             (click)="startFlash()"
           >
