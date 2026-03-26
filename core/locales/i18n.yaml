@@ -2818,6 +2818,13 @@ help.arg.echoip-urls:
   fr_FR: "URLs du service Echo IP pour la détection d'IP externe"
   pl_PL: "Adresy URL usługi Echo IP do wykrywania zewnętrznego IP"
 
+help.arg.ed25519:
+  en_US: "Use Ed25519 instead of NIST P-256"
+  de_DE: "Ed25519 anstelle von NIST P-256 verwenden"
+  es_ES: "Usar Ed25519 en lugar de NIST P-256"
+  fr_FR: "Utiliser Ed25519 au lieu de NIST P-256"
+  pl_PL: "Użyj Ed25519 zamiast NIST P-256"
+
 help.arg.emulate-missing-arch:
   en_US: "Emulate missing architecture using this one"
   de_DE: "Fehlende Architektur mit dieser emulieren"
@@ -2901,6 +2908,13 @@ help.arg.host-url:
   es_ES: "URL del servidor StartOS"
   fr_FR: "URL du serveur StartOS"
   pl_PL: "URL serwera StartOS"
+
+help.arg.hostnames:
+  en_US: "Hostnames to include in the certificate"
+  de_DE: "Hostnamen, die in das Zertifikat aufgenommen werden sollen"
+  es_ES: "Nombres de host para incluir en el certificado"
+  fr_FR: "Noms d'hôtes à inclure dans le certificat"
+  pl_PL: "Nazwy hostów do uwzględnienia w certyfikacie"
 
 help.arg.icon-path:
   en_US: "Path to service icon file"
@@ -5150,6 +5164,13 @@ about.manage-query-dns:
   fr_FR: "Gérer et interroger le DNS"
   pl_PL: "Zarządzaj i odpytuj DNS"
 
+about.manage-ssl-certificates:
+  en_US: "Manage SSL certificates"
+  de_DE: "SSL-Zertifikate verwalten"
+  es_ES: "Gestionar certificados SSL"
+  fr_FR: "Gérer les certificats SSL"
+  pl_PL: "Zarządzaj certyfikatami SSL"
+
 about.manage-ssl-vhost-proxy:
   en_US: "Manage SSL vhost proxy"
   de_DE: "SSL-vhost-Proxy verwalten"
@@ -5653,6 +5674,13 @@ about.stop-service:
   es_ES: "Detener un servicio"
   fr_FR: "Arrêter un service"
   pl_PL: "Zatrzymaj usługę"
+
+about.ssl-generate-certificate:
+  en_US: "Generate an SSL certificate from the system root CA"
+  de_DE: "SSL-Zertifikat von der System-Root-CA generieren"
+  es_ES: "Generar un certificado SSL desde la CA raíz del sistema"
+  fr_FR: "Générer un certificat SSL depuis l'autorité racine du système"
+  pl_PL: "Wygeneruj certyfikat SSL z głównego CA systemu"
 
 about.teardown-rebuild-containers:
   en_US: "Teardown and rebuild containers"

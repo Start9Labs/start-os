@@ -5,6 +5,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use clap::Parser;
 use futures::FutureExt;
 use imbl_value::InternedString;
 use libc::time_t;
@@ -21,16 +22,19 @@ use openssl::x509::extension::{
 use openssl::x509::{X509, X509Builder, X509NameBuilder, X509Ref};
 use openssl::*;
 use patch_db::HasModel;
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio_rustls::rustls::server::ClientHello;
 use tracing::instrument;
+use ts_rs::TS;
 use visit_rs::Visit;
 
 use crate::SOURCE_DATE;
 use crate::account::AccountInfo;
+use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::{DbAccess, DbAccessMut};
 use crate::hostname::ServerHostname;
@@ -39,7 +43,7 @@ use crate::net::gateway::GatewayInfo;
 use crate::net::tls::{TlsHandler, TlsHandlerAction};
 use crate::net::web_server::{Accept, ExtractVisitor, TcpMetadata, extract};
 use crate::prelude::*;
-use crate::util::serde::Pem;
+use crate::util::serde::{HandlerExtSerde, Pem};
 
 pub fn should_use_cert(cert: &X509Ref) -> Result<bool, ErrorStack> {
     Ok(cert
@@ -590,6 +594,85 @@ pub fn make_self_signed(applicant: (&PKey<Private>, &SANInfo)) -> Result<X509, E
 
     let cert = builder.build();
     Ok(cert)
+}
+
+pub fn ssl_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new().subcommand(
+        "generate-certificate",
+        from_fn_async(generate_certificate)
+            .with_display_serializable()
+            .with_custom_display_fn(|_, res: GenerateCertificateResponse| {
+                println!("Private Key:");
+                print!("{}", res.key);
+                println!("\nCertificate Chain:");
+                print!("{}", res.fullchain);
+                Ok(())
+            })
+            .with_about("about.ssl-generate-certificate")
+            .with_call_remote::<CliContext>(),
+    )
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+#[group(skip)]
+#[ts(export)]
+pub struct GenerateCertificateParams {
+    #[arg(help = "help.arg.hostnames")]
+    pub hostnames: Vec<String>,
+    #[arg(long, help = "help.arg.ed25519")]
+    #[serde(default)]
+    pub ed25519: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct GenerateCertificateResponse {
+    pub key: String,
+    pub fullchain: String,
+}
+
+pub async fn generate_certificate(
+    ctx: RpcContext,
+    GenerateCertificateParams { hostnames, ed25519 }: GenerateCertificateParams,
+) -> Result<GenerateCertificateResponse, Error> {
+    let peek = ctx.db.peek().await;
+    let cert_store = peek.as_private().as_key_store().as_local_certs();
+    let int_key = cert_store.as_int_key().de()?.0;
+    let int_cert = cert_store.as_int_cert().de()?.0;
+    let root_cert = cert_store.as_root_cert().de()?.0;
+    drop(peek);
+
+    let hostnames: BTreeSet<InternedString> = hostnames.into_iter().map(InternedString::from).collect();
+    let san_info = SANInfo::new(&hostnames);
+
+    let (key, cert) = if ed25519 {
+        let key = PKey::generate_ed25519()?;
+        let cert = make_leaf_cert((&int_key, &int_cert), (&key, &san_info))?;
+        (key, cert)
+    } else {
+        let key = gen_nistp256()?;
+        let cert = make_leaf_cert((&int_key, &int_cert), (&key, &san_info))?;
+        (key, cert)
+    };
+
+    let key_pem =
+        String::from_utf8(key.private_key_to_pem_pkcs8()?).with_kind(ErrorKind::Utf8)?;
+    let fullchain_pem = String::from_utf8(
+        [&cert, &int_cert, &root_cert]
+            .into_iter()
+            .map(|c| c.to_pem())
+            .collect::<Result<Vec<_>, _>>()?
+            .concat(),
+    )
+    .with_kind(ErrorKind::Utf8)?;
+
+    Ok(GenerateCertificateResponse {
+        key: key_pem,
+        fullchain: fullchain_pem,
+    })
 }
 
 pub struct RootCaTlsHandler<M: HasModel> {
