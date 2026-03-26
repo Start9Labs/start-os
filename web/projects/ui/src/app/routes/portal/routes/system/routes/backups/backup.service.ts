@@ -44,7 +44,9 @@ export class BackupService {
 
       this.drives.set(
         Object.entries(targets)
-          .filter(([_, target]) => target.type === 'disk')
+          .filter(
+            ([_, target]) => target.type === 'disk' && target.capacity > 0,
+          )
           .map(([id, drive]) => {
             return {
               id,
