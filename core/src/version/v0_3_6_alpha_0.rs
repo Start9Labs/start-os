@@ -144,12 +144,11 @@ pub struct Version;
 
 impl VersionT for Version {
     type Previous = v0_3_5_2::Version;
-    /// (package_id, host_id, expanded_key)
     type PreUpRes = (
         AccountInfo,
         SshKeys,
         CifsTargets,
-        Vec<(String, String, [u8; 64])>,
+        BTreeMap<(String, String), [u8; 64]>,
     );
     fn semver(self) -> exver::Version {
         V0_3_6_alpha_0.clone()
@@ -251,7 +250,7 @@ impl VersionT for Version {
                 let mut onion_map: Value = json!({});
                 let onion_obj = onion_map.as_object_mut().unwrap();
                 let mut tor_migration = imbl::Vector::<Value>::new();
-                for (package_id, host_id, key_bytes) in &tor_keys {
+                for ((package_id, host_id), key_bytes) in &tor_keys {
                     let onion_addr = onion_address_from_key(key_bytes);
                     let encoded_key =
                         base64::Engine::encode(&crate::util::serde::BASE64, key_bytes);
@@ -573,13 +572,16 @@ async fn previous_ssh_keys(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<SshKeys, E
     Ok(ssh_keys)
 }
 
-/// Returns `Vec<(package_id, host_id, expanded_key)>`.
+/// Returns deduplicated map of `(package_id, host_id) -> expanded_key`.
 /// Server key uses `("STARTOS", "STARTOS")`.
+/// When the same (package, interface) exists in both the `network_keys` and
+/// `tor` tables, the `tor` table entry wins because it contains the actual
+/// expanded key that was used by tor.
 #[tracing::instrument(skip_all)]
 async fn previous_tor_keys(
     pg: &sqlx::Pool<sqlx::Postgres>,
-) -> Result<Vec<(String, String, [u8; 64])>, Error> {
-    let mut keys = Vec::new();
+) -> Result<BTreeMap<(String, String), [u8; 64]>, Error> {
+    let mut keys = BTreeMap::new();
 
     // Server tor key from the account table.
     // Older installs have tor_key (64 bytes). Newer installs (post-NetworkKeys migration)
@@ -590,15 +592,14 @@ async fn previous_tor_keys(
         .with_kind(ErrorKind::Database)?;
     if let Ok(tor_key) = row.try_get::<Vec<u8>, _>("tor_key") {
         if let Ok(key) = <[u8; 64]>::try_from(tor_key) {
-            keys.push(("STARTOS".to_owned(), "STARTOS".to_owned(), key));
+            keys.insert(("STARTOS".to_owned(), "STARTOS".to_owned()), key);
         }
     } else if let Ok(net_key) = row.try_get::<Vec<u8>, _>("network_key") {
         if let Ok(seed) = <[u8; 32]>::try_from(net_key) {
-            keys.push((
-                "STARTOS".to_owned(),
-                "STARTOS".to_owned(),
+            keys.insert(
+                ("STARTOS".to_owned(), "STARTOS".to_owned()),
                 crate::util::crypto::ed25519_expand_key(&seed),
-            ));
+            );
         }
     }
 
@@ -618,16 +619,17 @@ async fn previous_tor_keys(
                 continue;
             };
             if let Ok(seed) = <[u8; 32]>::try_from(key_bytes) {
-                keys.push((
-                    package,
-                    interface,
+                keys.insert(
+                    (package, interface),
                     crate::util::crypto::ed25519_expand_key(&seed),
-                ));
+                );
             }
         }
     }
 
-    // Package tor keys from the tor table (already 64-byte expanded keys)
+    // Package tor keys from the tor table (already 64-byte expanded keys).
+    // These overwrite network_keys entries for the same (package, interface)
+    // because the tor table has the actual expanded key used by tor.
     if let Ok(rows) = sqlx::query(r#"SELECT package, interface, key FROM tor"#)
         .fetch_all(pg)
         .await
@@ -643,7 +645,7 @@ async fn previous_tor_keys(
                 continue;
             };
             if let Ok(key) = <[u8; 64]>::try_from(key_bytes) {
-                keys.push((package, interface, key));
+                keys.insert((package, interface), key);
             }
         }
     }
