@@ -12,7 +12,6 @@ import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { DevicesService } from 'src/app/routes/devices/service'
 import { DeviceTableItem } from 'src/app/routes/devices/utils'
-import { DevicesBlocked } from './blocked'
 import { DevicesOffline } from './offline'
 import { DevicesOnline } from './online'
 
@@ -34,11 +33,6 @@ import { DevicesOnline } from './online'
     <table
       tuiTable
       [devicesOffline]="offline()"
-      [tuiSkeleton]="loading()"
-    ></table>
-    <table
-      tuiTable
-      [devicesBlocked]="blocked()"
       [tuiSkeleton]="loading()"
     ></table>
   `,
@@ -79,7 +73,6 @@ import { DevicesOnline } from './online'
     TuiInput,
     DevicesOnline,
     DevicesOffline,
-    DevicesBlocked,
   ],
 })
 export default class DevicesTable {
@@ -98,13 +91,6 @@ export default class DevicesTable {
   protected readonly offline = computed(() =>
     this.filter(
       this.service.data()?.filter(d => d.status === 'offline') ?? [],
-      this.search(),
-    ),
-  )
-
-  protected readonly blocked = computed(() =>
-    this.filter(
-      this.service.data()?.filter(d => d.status === 'blocked') ?? [],
       this.search(),
     ),
   )

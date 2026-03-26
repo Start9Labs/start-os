@@ -37,14 +37,6 @@ export class DevicesApiService {
     })
   }
 
-  async block(mac: string): Promise<void> {
-    await this.api.devicesBlock({ mac })
-  }
-
-  async unblock(mac: string): Promise<void> {
-    await this.api.devicesUnblock({ mac })
-  }
-
   async forget(mac: string): Promise<void> {
     await this.api.devicesForget({ mac })
   }
@@ -127,38 +119,6 @@ export class DevicesService extends FormService<Device[]> {
           : d,
       )
     })
-  }
-
-  // Block device
-  block(mac: string) {
-    return this.actions.run(
-      async () => {
-        await this.devicesApi.block(mac)
-
-        // Update local cache
-        this.devices = this.devices.map(d =>
-          d.mac === mac
-            ? { ...d, status: 'blocked', ipv4Static: false, ipv6Static: false }
-            : d,
-        )
-      },
-      { loading: 'Blocking device' },
-    )
-  }
-
-  // Unblock device
-  unblock(mac: string) {
-    return this.actions.run(
-      async () => {
-        await this.devicesApi.unblock(mac)
-
-        // Update local cache - move to offline since we don't know if connected
-        this.devices = this.devices.map(d =>
-          d.mac === mac ? { ...d, status: 'offline' } : d,
-        )
-      },
-      { loading: 'Unblocking device' },
-    )
   }
 
   // Forget device - remove entirely

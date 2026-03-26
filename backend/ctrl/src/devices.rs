@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::process::Command;
 use std::sync::Mutex;
 use std::time::Instant;
-use uciedit::openwrt::{DhcpHost, FirewallRule, FirewallTarget, WifiDevice, WifiInterface};
+use uciedit::openwrt::{DhcpHost, WifiDevice, WifiInterface};
 use uciedit::{dump_all, parse_all, Arena, Configs, Line, TypedSection};
 
 pub fn devices<C: CtrlContext>() -> ParentHandler<C> {
@@ -19,8 +19,6 @@ pub fn devices<C: CtrlContext>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand("update", from_fn(update::<C>).no_display())
-        .subcommand("block", from_fn(block::<C>).no_display())
-        .subcommand("unblock", from_fn(unblock::<C>).no_display())
         .subcommand("forget", from_fn(forget::<C>).no_display())
         .subcommand(
             "data-usage",
@@ -37,7 +35,6 @@ pub fn devices<C: CtrlContext>() -> ParentHandler<C> {
 pub enum DeviceStatus {
     Online,
     Offline,
-    Blocked,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -754,20 +751,11 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         tokio::task::spawn_blocking(get_wifi_clients),
         tokio::task::spawn_blocking(|| -> Result<_, Error> {
             let arena = Arena::new();
-            let cfgs = parse_all("/etc/config", &arena, &["dhcp", "firewall", "startwrt", "network"])?;
+            let cfgs = parse_all("/etc/config", &arena, &["dhcp", "startwrt", "network"])?;
 
             let mut hosts_by_mac: HashMap<String, DhcpHost> = HashMap::new();
             cfgs["dhcp"].each::<DhcpHost, Error>(|_, host| {
                 hosts_by_mac.insert(host.mac.to_uppercase(), host);
-            })?;
-
-            let mut blocked_macs: HashMap<String, bool> = HashMap::new();
-            cfgs["firewall"].each::<FirewallRule, Error>(|_, rule| {
-                if matches!(rule.target, FirewallTarget::REJECT | FirewallTarget::DROP) {
-                    if let Some(mac) = rule.src_mac {
-                        blocked_macs.insert(mac.to_uppercase(), true);
-                    }
-                }
             })?;
 
             let lookup = Lookup::parse(ServerContext::default(), &cfgs)?;
@@ -787,7 +775,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                 })
                 .collect();
 
-            Ok::<_, Error>((hosts_by_mac, blocked_macs, profiles, vpn_peer_configs))
+            Ok::<_, Error>((hosts_by_mac, profiles, vpn_peer_configs))
         }),
         tokio::task::spawn_blocking(get_bridge_fdb),
     );
@@ -815,7 +803,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         .as_ref()
         .ok()
         .and_then(|r| r.as_ref().ok())
-        .map(|(_, _, _, vpn_peer_configs)| {
+        .map(|(_, _, vpn_peer_configs)| {
             vpn_peer_configs
                 .iter()
                 .map(|(server, _)| server.wg_interface.clone())
@@ -904,7 +892,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     }
 
     // Unpack UCI results
-    let (hosts_by_mac, blocked_macs, profile_by_vlan, vpn_peer_configs) = uci_result.unwrap_or_else(|_| {
+    let (hosts_by_mac, profile_by_vlan, vpn_peer_configs) = uci_result.unwrap_or_else(|_| {
         Err(Error::from(std::io::Error::new(
             std::io::ErrorKind::Other,
             "UCI parse failed in background task",
@@ -937,9 +925,6 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     for mac in hosts_by_mac.keys() {
         all_macs.insert(mac.clone());
     }
-    for mac in blocked_macs.keys() {
-        all_macs.insert(mac.clone());
-    }
 
     // --- Phase 4: Build device list ---
     let mut devices = Vec::new();
@@ -947,7 +932,6 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         let arp_list = arp_by_mac.get(mac).cloned().unwrap_or_default();
         let lease = lease_by_mac.get(mac);
         let host = hosts_by_mac.get(mac);
-        let is_blocked = blocked_macs.contains_key(mac);
 
         // Status: hostapd is authoritative for WiFi — if the bridge FDB
         // places a MAC on a WiFi port but hostapd doesn't list it, the
@@ -956,9 +940,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         let on_wifi_port = fdb_by_mac
             .get(mac)
             .map_or(false, |port| wifi_ports.contains(port));
-        let status = if is_blocked {
-            DeviceStatus::Blocked
-        } else if on_wifi_port && !wifi_clients.contains_key(mac) {
+        let status = if on_wifi_port && !wifi_clients.contains_key(mac) {
             DeviceStatus::Offline
         } else if unreachable_macs.contains(mac) {
             DeviceStatus::Offline
@@ -1253,135 +1235,6 @@ pub fn update<C: CtrlContext>(
     }
 }
 
-pub fn block<C: CtrlContext>(
-    ctx: C,
-    DeserializeStdin(req): DeserializeStdin<DeviceMacReq>,
-) -> Result<(), Error> {
-    let mac_upper = req.mac.to_uppercase();
-    let mut retries = 4;
-    loop {
-        let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp", "firewall"])?;
-
-        // Check if already blocked
-        let mut already_blocked = false;
-        cfgs["firewall"].each::<FirewallRule, Error>(|_, rule| {
-            if matches!(rule.target, FirewallTarget::REJECT | FirewallTarget::DROP) {
-                if let Some(ref src_mac) = rule.src_mac {
-                    if src_mac.to_uppercase() == mac_upper {
-                        already_blocked = true;
-                    }
-                }
-            }
-        })?;
-
-        if !already_blocked {
-            let rule_name = format!(
-                "block_{}",
-                req.mac.replace(':', "").to_lowercase()
-            );
-            let block_rule = FirewallRule {
-                name: format!("Block {}", req.mac),
-                src: "lan".to_string(),
-                dest: Some("wan".to_string()),
-                src_mac: Some(req.mac.clone()),
-                target: FirewallTarget::REJECT,
-                ..Default::default()
-            };
-            cfgs["firewall"].append(&block_rule, Some(&rule_name))?;
-        }
-
-        // Remove static IP from DHCP host (keep name)
-        for section in &mut cfgs["dhcp"].sections {
-            if let Ok(mut host) = section.get::<DhcpHost>() {
-                if host.mac.to_uppercase() == mac_upper {
-                    host.ip = None;
-                    host.hostid = None;
-                    section.set(&host)?;
-                    break;
-                }
-            }
-        }
-
-        match dump_all(ctx.uci_root(), cfgs) {
-            Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
-                retries -= 1;
-                continue;
-            }
-            Err(err) => {
-                crate::activity::log(
-                    "device", "blocked", false,
-                    &format!("Failed to block device {}", mac_upper),
-                    Some(&err.to_string()),
-                );
-                return Err(err.into());
-            }
-            Ok(()) => {
-                crate::activity::log(
-                    "device", "blocked", true,
-                    &format!("Blocked device {}", mac_upper),
-                    None,
-                );
-                if ctx.effectful() {
-                    reload_firewall_and_dnsmasq();
-                }
-                return Ok(());
-            }
-        }
-    }
-}
-
-pub fn unblock<C: CtrlContext>(
-    ctx: C,
-    DeserializeStdin(req): DeserializeStdin<DeviceMacReq>,
-) -> Result<(), Error> {
-    let mac_upper = req.mac.to_uppercase();
-    let mut retries = 4;
-    loop {
-        let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["firewall"])?;
-
-        cfgs["firewall"].sections.retain(|section| {
-            if let Ok(rule) = section.get::<FirewallRule>() {
-                if matches!(rule.target, FirewallTarget::REJECT | FirewallTarget::DROP) {
-                    if let Some(ref src_mac) = rule.src_mac {
-                        if src_mac.to_uppercase() == mac_upper {
-                            return false;
-                        }
-                    }
-                }
-            }
-            true
-        });
-
-        match dump_all(ctx.uci_root(), cfgs) {
-            Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
-                retries -= 1;
-                continue;
-            }
-            Err(err) => {
-                crate::activity::log(
-                    "device", "unblocked", false,
-                    &format!("Failed to unblock device {}", mac_upper),
-                    Some(&err.to_string()),
-                );
-                return Err(err.into());
-            }
-            Ok(()) => {
-                crate::activity::log(
-                    "device", "unblocked", true,
-                    &format!("Unblocked device {}", mac_upper),
-                    None,
-                );
-                if ctx.effectful() {
-                    reload_firewall();
-                }
-                return Ok(());
-            }
-        }
-    }
-}
-
 pub fn forget<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<DeviceMacReq>,
@@ -1390,27 +1243,13 @@ pub fn forget<C: CtrlContext>(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp", "firewall"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp"])?;
 
         // Remove DHCP host
         cfgs["dhcp"].sections.retain(|section| {
             if let Ok(host) = section.get::<DhcpHost>() {
                 if host.mac.to_uppercase() == mac_upper {
                     return false;
-                }
-            }
-            true
-        });
-
-        // Remove firewall block rules
-        cfgs["firewall"].sections.retain(|section| {
-            if let Ok(rule) = section.get::<FirewallRule>() {
-                if matches!(rule.target, FirewallTarget::REJECT | FirewallTarget::DROP) {
-                    if let Some(ref src_mac) = rule.src_mac {
-                        if src_mac.to_uppercase() == mac_upper {
-                            return false;
-                        }
-                    }
                 }
             }
             true
@@ -1436,7 +1275,7 @@ pub fn forget<C: CtrlContext>(
                     None,
                 );
                 if ctx.effectful() {
-                    reload_firewall_and_dnsmasq();
+                    reload_dnsmasq();
                 }
                 return Ok(());
             }

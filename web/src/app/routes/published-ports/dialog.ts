@@ -455,9 +455,7 @@ export class PublishPortDialog implements OnInit {
   }
 
   protected readonly deviceMacs = computed(() => {
-    return this.context.data.devices
-      .filter(d => d.status !== 'blocked' && d.mac)
-      .map(d => d.mac!)
+    return this.context.data.devices.filter(d => d.mac).map(d => d.mac!)
   })
 
   protected readonly deviceMap = computed(() => {

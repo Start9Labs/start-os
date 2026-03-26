@@ -531,7 +531,6 @@ Note: `ProfileId` and `ProfileIdOpt` are shared types defined at the top of the 
 enum DeviceStatus {
     Online,
     Offline,
-    Blocked,
 }
 
 #[derive(Serialize)]
@@ -570,28 +569,6 @@ struct DeviceUpdateRequest {
 // Backend: creates/updates DHCP host section, restarts dnsmasq
 ```
 
-### `devices.block`
-
-```rust
-#[derive(Deserialize)]
-struct DeviceBlockRequest {
-    mac: String,
-}
-// Response: null
-// Backend: creates firewall REJECT rule for src_mac, removes static IP, restarts firewall + dnsmasq
-```
-
-### `devices.unblock`
-
-```rust
-#[derive(Deserialize)]
-struct DeviceUnblockRequest {
-    mac: String,
-}
-// Response: null
-// Backend: removes firewall block rules for mac, restarts firewall
-```
-
 ### `devices.forget`
 
 ```rust
@@ -600,7 +577,7 @@ struct DeviceForgetRequest {
     mac: String,
 }
 // Response: null
-// Backend: removes DHCP host + firewall rules for mac, restarts firewall + dnsmasq
+// Backend: removes DHCP host for mac, restarts dnsmasq
 ```
 
 ### `devices.data-usage`
@@ -1146,8 +1123,6 @@ struct SshKeyDeleteRequest {
 | `ethernet.set` | **New** | Ethernet |
 | `devices.list` | **New** | Devices |
 | `devices.update` | **New** | Devices |
-| `devices.block` | **New** | Devices |
-| `devices.unblock` | **New** | Devices |
 | `devices.forget` | **New** | Devices |
 | `devices.data-usage` | **New** | Devices |
 | `published-ports.list` | **New** | Published Ports |
@@ -1175,7 +1150,7 @@ struct SshKeyDeleteRequest {
 | `ssh-keys.add` | **New** | SSH Keys |
 | `ssh-keys.delete` | **New** | SSH Keys |
 
-**Totals:** 53 endpoints (22 existing, 31 new)
+**Totals:** 51 endpoints (22 existing, 29 new)
 
 ---
 

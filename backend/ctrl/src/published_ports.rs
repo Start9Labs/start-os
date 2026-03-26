@@ -346,10 +346,6 @@ fn compute_status(
     if matches!(device.status, DeviceStatus::Offline) {
         return (PublishedPortStatus::Paused, Some("Device offline".into()));
     }
-    if matches!(device.status, DeviceStatus::Blocked) {
-        return (PublishedPortStatus::Paused, Some("Device blocked".into()));
-    }
-
     let has_ipv4 = device.ipv4.is_some();
     let has_ipv6 = device.ipv6.is_some();
 

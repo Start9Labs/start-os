@@ -53,8 +53,6 @@ export abstract class ApiService {
   abstract systemLogs(): Promise<LogsResponse>
   abstract devicesList(): Promise<DeviceFromApi[]>
   abstract devicesUpdate(params: DeviceUpdateReq): Promise<null>
-  abstract devicesBlock(params: { mac: string }): Promise<null>
-  abstract devicesUnblock(params: { mac: string }): Promise<null>
   abstract devicesForget(params: { mac: string }): Promise<null>
   abstract devicesDataUsage(
     params: DeviceDataUsageReq,
@@ -419,7 +417,7 @@ export interface DeviceFromApi {
   mac: string | null
   name: string | null
   hostname: string | null
-  status: 'online' | 'offline' | 'blocked'
+  status: 'online' | 'offline'
   connection: string | null
   ipv4: string | null
   ipv6: string | null

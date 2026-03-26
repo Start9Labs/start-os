@@ -83,7 +83,6 @@ import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/lan/routes/ipv6/uci/mocks'
 import {
   generateMockDataUsage,
   getMockArpOutput,
-  mockBlockedDevices,
   mockConnectionTypes,
   mockDataUsageTotals,
   mockDeviceSpeeds,
@@ -775,7 +774,6 @@ export class MockApiService extends ApiService {
   // --- Device smart endpoint mocks ---
 
   private mockDeviceHosts = structuredClone(mockDhcpHosts)
-  private mockDeviceBlocked = structuredClone(mockBlockedDevices)
 
   async devicesList(): Promise<DeviceFromApi[]> {
     await pauseFor(250)
@@ -819,21 +817,11 @@ export class MockApiService extends ApiService {
       this.mockDeviceHosts.map(h => [h.options.mac!.toUpperCase(), h]),
     )
 
-    // Blocked MACs
-    const blockedMacs = new Set(
-      this.mockDeviceBlocked
-        .filter(
-          r => r.options.target === 'REJECT' || r.options.target === 'DROP',
-        )
-        .map(r => r.options.src_mac!.toUpperCase()),
-    )
-
     // All MACs
     const allMacs = new Set([
       ...arpByMac.keys(),
       ...leaseByMac.keys(),
       ...hostByMac.keys(),
-      ...blockedMacs,
     ])
 
     const devices: DeviceFromApi[] = []
@@ -841,13 +829,12 @@ export class MockApiService extends ApiService {
       const arpList = arpByMac.get(mac) || []
       const lease = leaseByMac.get(mac)
       const host = hostByMac.get(mac)
-      const isBlocked = blockedMacs.has(mac)
 
-      const status: DeviceFromApi['status'] = isBlocked
-        ? 'blocked'
-        : arpList.some(e => e.state === 'REACHABLE' || e.state === 'STALE')
-          ? 'online'
-          : 'offline'
+      const status: DeviceFromApi['status'] = arpList.some(
+        e => e.state === 'REACHABLE' || e.state === 'STALE',
+      )
+        ? 'online'
+        : 'offline'
 
       const ipv4 =
         arpList.find(e => !e.ip.includes(':'))?.ip || lease?.ip || null
@@ -907,64 +894,11 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async devicesBlock(params: { mac: string }): Promise<null> {
-    await pauseFor(250)
-    const macUpper = params.mac.toUpperCase()
-    if (
-      !this.mockDeviceBlocked.some(
-        r => r.options.src_mac?.toUpperCase() === macUpper,
-      )
-    ) {
-      this.mockDeviceBlocked.push({
-        type: 'rule',
-        name: `block_${params.mac.replace(/:/g, '').toLowerCase()}`,
-        options: {
-          src: 'lan',
-          dest: 'wan',
-          src_mac: params.mac,
-          target: 'REJECT',
-          enabled: '1',
-          name: `Block ${params.mac}`,
-        },
-        lists: {},
-      })
-    }
-    // Remove static IPs
-    const host = this.mockDeviceHosts.find(
-      h => h.options.mac?.toUpperCase() === macUpper,
-    )
-    if (host) {
-      delete host.options.ip
-      delete host.options.hostid
-    }
-    return null
-  }
-
-  async devicesUnblock(params: { mac: string }): Promise<null> {
-    await pauseFor(250)
-    const macUpper = params.mac.toUpperCase()
-    this.mockDeviceBlocked = this.mockDeviceBlocked.filter(
-      r =>
-        !(
-          (r.options.target === 'REJECT' || r.options.target === 'DROP') &&
-          r.options.src_mac?.toUpperCase() === macUpper
-        ),
-    )
-    return null
-  }
-
   async devicesForget(params: { mac: string }): Promise<null> {
     await pauseFor(250)
     const macUpper = params.mac.toUpperCase()
     this.mockDeviceHosts = this.mockDeviceHosts.filter(
       h => h.options.mac?.toUpperCase() !== macUpper,
-    )
-    this.mockDeviceBlocked = this.mockDeviceBlocked.filter(
-      r =>
-        !(
-          (r.options.target === 'REJECT' || r.options.target === 'DROP') &&
-          r.options.src_mac?.toUpperCase() === macUpper
-        ),
     )
     return null
   }
@@ -1589,7 +1523,7 @@ export const mockUci: Record<string, UciFile<UciSection>> = {
     modified: new Date().toISOString(),
   },
   firewall: {
-    sections: [...mockBlockedDevices],
+    sections: [],
     modified: new Date().toISOString(),
   },
 }

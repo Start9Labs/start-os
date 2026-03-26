@@ -249,14 +249,6 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'devices.update', params })
   }
 
-  async devicesBlock(params: { mac: string }): Promise<null> {
-    return this.rpc.request({ method: 'devices.block', params })
-  }
-
-  async devicesUnblock(params: { mac: string }): Promise<null> {
-    return this.rpc.request({ method: 'devices.unblock', params })
-  }
-
   async devicesForget(params: { mac: string }): Promise<null> {
     return this.rpc.request({ method: 'devices.forget', params })
   }

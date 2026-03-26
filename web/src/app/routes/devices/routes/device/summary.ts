@@ -30,10 +30,6 @@ import { DataUsageChart } from './data-usage-chart'
               <tui-icon icon="@tui.circle-minus" />
               Offline
             }
-            @case ('blocked') {
-              <tui-icon icon="@tui.ban" class="g-negative" />
-              Blocked
-            }
           }
         </span>
       </div>
@@ -92,13 +88,11 @@ import { DataUsageChart } from './data-usage-chart'
         </span>
       </div>
     </section>
-    @if (parent.data()?.status !== 'blocked') {
-      <app-data-usage-chart
-        [mac]="parent.data()?.mac ?? ''"
-        [service]="parent.service"
-        [loading]="!parent.data()"
-      />
-    }
+    <app-data-usage-chart
+      [mac]="parent.data()?.mac ?? ''"
+      [service]="parent.service"
+      [loading]="!parent.data()"
+    />
   `,
   styles: `
     tui-icon {

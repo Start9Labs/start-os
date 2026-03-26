@@ -1,7 +1,4 @@
-import {
-  DhcpHostSection,
-  FirewallRuleSection,
-} from 'src/app/services/api/types'
+import { DhcpHostSection } from 'src/app/services/api/types'
 
 // Mock DHCP hosts - known devices with static reservations or custom names
 export const mockDhcpHosts: DhcpHostSection[] = [
@@ -45,23 +42,6 @@ export const mockDhcpHosts: DhcpHostSection[] = [
       mac: 'DE:AD:BE:EF:CA:FF',
       name: "Mariusz's Phone",
       dns: '1',
-    },
-    lists: {},
-  },
-]
-
-// Mock firewall rules for blocked devices
-export const mockBlockedDevices: FirewallRuleSection[] = [
-  {
-    type: 'rule',
-    name: 'block_bob',
-    options: {
-      src: 'lan',
-      dest: 'wan',
-      src_mac: '01:23:45:67:89:AB',
-      target: 'REJECT',
-      enabled: '1',
-      name: "Block Bob's Computer",
     },
     lists: {},
   },

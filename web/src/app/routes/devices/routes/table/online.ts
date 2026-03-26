@@ -1,15 +1,9 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
-import { TuiButton, TuiFormatNumberPipe, TuiLink } from '@taiga-ui/core'
+import { TuiFormatNumberPipe, TuiLink } from '@taiga-ui/core'
 import { TuiChip } from '@taiga-ui/kit'
 import { Placeholder } from 'src/app/components/placeholder'
-import { DevicesService } from 'src/app/routes/devices/service'
 import { DeviceTableItem } from 'src/app/routes/devices/utils'
 
 @Component({
@@ -100,18 +94,7 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
               </div>
             }
           </td>
-          <td tuiTd class="actions">
-            @if (item.mac) {
-              <button
-                appearance="secondary-destructive"
-                size="xs"
-                tuiButton
-                (click)="onBlock(item.mac)"
-              >
-                Block
-              </button>
-            }
-          </td>
+          <td tuiTd></td>
         </tr>
       } @empty {
         <tr>
@@ -124,19 +107,9 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
       }
     </tbody>
   `,
-  styles: `
-    .actions {
-      text-align: right;
-
-      button + button {
-        margin-left: 0.5rem;
-      }
-    }
-  `,
   imports: [
     RouterLink,
     TuiTable,
-    TuiButton,
     TuiFormatNumberPipe,
     TuiChip,
     TuiLink,
@@ -146,8 +119,6 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DevicesOnline {
-  private readonly service = inject(DevicesService)
-
   readonly devicesOnline = input<readonly DeviceTableItem[]>([])
 
   protected getConnectionIcon(connection?: string): string {
@@ -163,9 +134,5 @@ export class DevicesOnline {
       return '@tui.shield'
     }
     return '@tui.monitor'
-  }
-
-  async onBlock(mac: string) {
-    await this.service.block(mac)
   }
 }

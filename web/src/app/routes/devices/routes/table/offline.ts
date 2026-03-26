@@ -77,14 +77,6 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
               >
                 Forget
               </button>
-              <button
-                appearance="secondary-destructive"
-                size="xs"
-                tuiButton
-                (click)="onBlock(item.mac)"
-              >
-                Block
-              </button>
             }
           </td>
         </tr>
@@ -124,10 +116,6 @@ export class DevicesOffline {
   private readonly service = inject(DevicesService)
 
   readonly devicesOffline = input<readonly DeviceTableItem[]>([])
-
-  async onBlock(mac: string) {
-    await this.service.block(mac)
-  }
 
   async onForget(mac: string) {
     await this.service.forget(mac)

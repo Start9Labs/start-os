@@ -3,7 +3,7 @@ import { FormRawValue } from 'src/app/services/form.service'
 import { CustomValidators } from 'src/app/utils/validators'
 
 // Device status
-export type DeviceStatus = 'online' | 'offline' | 'blocked'
+export type DeviceStatus = 'online' | 'offline'
 
 // Device as shown in the table
 export interface DeviceTableItem {

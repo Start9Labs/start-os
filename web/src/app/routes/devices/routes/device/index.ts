@@ -63,26 +63,6 @@ import { DeviceSummary } from './summary'
             Forget
           </button>
         }
-        @if (data()?.status === 'blocked') {
-          <button
-            tuiButton
-            size="m"
-            appearance="secondary-destructive"
-            (click)="onUnblock()"
-          >
-            Unblock
-          </button>
-        }
-        @if (data() && data()?.status !== 'blocked') {
-          <button
-            tuiButton
-            size="m"
-            appearance="secondary-destructive"
-            (click)="onBlock()"
-          >
-            Block
-          </button>
-        }
       </aside>
     </header>
     <article deviceSummary [formLoading]="!data()"></article>
@@ -239,18 +219,6 @@ export default class DeviceDetail {
           ipv6: data.ipv6 ?? '',
         },
       })
-    }
-  }
-
-  async onBlock() {
-    if (await this.service.block(this.mac)) {
-      this.router.navigate(['..'], { relativeTo: this.route })
-    }
-  }
-
-  async onUnblock() {
-    if (await this.service.unblock(this.mac)) {
-      this.router.navigate(['..'], { relativeTo: this.route })
     }
   }
 
