@@ -4100,6 +4100,13 @@ about.add-version-signer:
   fr_FR: "Ajouter un signataire de version"
   pl_PL: "Dodaj sygnatariusza wersji"
 
+about.add-vhost-passthrough:
+  en_US: "Add vhost passthrough"
+  de_DE: "Vhost-Passthrough hinzufügen"
+  es_ES: "Agregar passthrough de vhost"
+  fr_FR: "Ajouter un passthrough vhost"
+  pl_PL: "Dodaj passthrough vhost"
+
 about.add-wifi-ssid-password:
   en_US: "Add wifi ssid and password"
   de_DE: "WLAN-SSID und Passwort hinzufügen"
@@ -4148,6 +4155,13 @@ about.check-for-updates:
   es_ES: "Buscar actualizaciones disponibles"
   fr_FR: "Vérifier les mises à jour disponibles"
   pl_PL: "Sprawdź dostępne aktualizacje"
+
+about.check-port-reachability:
+  en_US: "Check if a port is reachable from the WAN"
+  de_DE: "Prüfen, ob ein Port vom WAN erreichbar ist"
+  es_ES: "Comprobar si un puerto es accesible desde la WAN"
+  fr_FR: "Vérifier si un port est accessible depuis le WAN"
+  pl_PL: "Sprawdź, czy port jest osiągalny z WAN"
 
 about.check-update-startos:
   en_US: "Check a given registry for StartOS updates and update if available"
@@ -4247,6 +4261,13 @@ about.commands-authentication:
   fr_FR: "Commandes liées à l'authentification, comme connexion, déconnexion"
   pl_PL: "Polecenia związane z uwierzytelnianiem, np. logowanie, wylogowanie"
 
+about.commands-authorized-keys:
+  en_US: "Commands for managing authorized keys"
+  de_DE: "Befehle zur Verwaltung autorisierter Schlüssel"
+  es_ES: "Comandos para gestionar claves autorizadas"
+  fr_FR: "Commandes pour gérer les clés autorisées"
+  pl_PL: "Polecenia do zarządzania autoryzowanymi kluczami"
+
 about.commands-backup:
   en_US: "Commands related to backup creation and backup targets"
   de_DE: "Befehle zur Backup-Erstellung und Backup-Zielen"
@@ -4310,6 +4331,41 @@ about.commands-experimental:
   fr_FR: "Commandes liées à la configuration d'options expérimentales comme zram et le gouverneur CPU"
   pl_PL: "Polecenia konfiguracji opcji eksperymentalnych jak zram i regulator CPU"
 
+about.commands-host-address-domain:
+  en_US: "Commands for managing host address domains"
+  de_DE: "Befehle zur Verwaltung von Host-Adressdomänen"
+  es_ES: "Comandos para gestionar dominios de direcciones del host"
+  fr_FR: "Commandes pour gérer les domaines d'adresses de l'hôte"
+  pl_PL: "Polecenia do zarządzania domenami adresów hosta"
+
+about.commands-host-addresses:
+  en_US: "Commands for managing host addresses"
+  de_DE: "Befehle zur Verwaltung von Host-Adressen"
+  es_ES: "Comandos para gestionar direcciones del host"
+  fr_FR: "Commandes pour gérer les adresses de l'hôte"
+  pl_PL: "Polecenia do zarządzania adresami hosta"
+
+about.commands-host-bindings:
+  en_US: "Commands for managing host bindings"
+  de_DE: "Befehle zur Verwaltung von Host-Bindungen"
+  es_ES: "Comandos para gestionar vínculos del host"
+  fr_FR: "Commandes pour gérer les liaisons de l'hôte"
+  pl_PL: "Polecenia do zarządzania powiązaniami hosta"
+
+about.commands-host-private-domain:
+  en_US: "Commands for managing private domains for a host"
+  de_DE: "Befehle zur Verwaltung privater Domänen für einen Host"
+  es_ES: "Comandos para gestionar dominios privados de un host"
+  fr_FR: "Commandes pour gérer les domaines privés d'un hôte"
+  pl_PL: "Polecenia do zarządzania prywatnymi domenami hosta"
+
+about.commands-host-public-domain:
+  en_US: "Commands for managing public domains for a host"
+  de_DE: "Befehle zur Verwaltung öffentlicher Domänen für einen Host"
+  es_ES: "Comandos para gestionar dominios públicos de un host"
+  fr_FR: "Commandes pour gérer les domaines publics d'un hôte"
+  pl_PL: "Polecenia do zarządzania publicznymi domenami hosta"
+
 about.commands-host-system-ui:
   en_US: "Commands for modifying the host for the system ui"
   de_DE: "Befehle zum Ändern des Hosts für die System-UI"
@@ -4366,6 +4422,13 @@ about.commands-packages:
   fr_FR: "Commandes liées aux paquets"
   pl_PL: "Polecenia związane z pakietami"
 
+about.commands-port-forward:
+  en_US: "Commands for managing port forwards"
+  de_DE: "Befehle zur Verwaltung von Portweiterleitungen"
+  es_ES: "Comandos para gestionar reenvíos de puertos"
+  fr_FR: "Commandes pour gérer les redirections de ports"
+  pl_PL: "Polecenia do zarządzania przekierowaniami portów"
+
 about.commands-registry:
   en_US: "Commands related to the registry"
   de_DE: "Befehle zum Registry"
@@ -4379,6 +4442,13 @@ about.commands-registry-db:
   es_ES: "Comandos para interactuar con la base de datos, como dump y apply"
   fr_FR: "Commandes pour interagir avec la base de données, comme dump et apply"
   pl_PL: "Polecenia interakcji z bazą danych, np. dump i apply"
+
+about.commands-registry-info:
+  en_US: "View or edit registry information"
+  de_DE: "Registry-Informationen anzeigen oder bearbeiten"
+  es_ES: "Ver o editar información del registro"
+  fr_FR: "Afficher ou modifier les informations du registre"
+  pl_PL: "Wyświetl lub edytuj informacje rejestru"
 
 about.commands-restore-backup:
   en_US: "Commands for restoring package(s) from backup"
@@ -4421,6 +4491,20 @@ about.commands-tunnel:
   es_ES: "Comandos relacionados con StartTunnel"
   fr_FR: "Commandes liées à StartTunnel"
   pl_PL: "Polecenia związane z StartTunnel"
+
+about.commands-tunnel-update:
+  en_US: "Commands for checking and applying tunnel updates"
+  de_DE: "Befehle zum Prüfen und Anwenden von Tunnel-Updates"
+  es_ES: "Comandos para verificar y aplicar actualizaciones del túnel"
+  fr_FR: "Commandes pour vérifier et appliquer les mises à jour du tunnel"
+  pl_PL: "Polecenia do sprawdzania i stosowania aktualizacji tunelu"
+
+about.commands-tunnel-web:
+  en_US: "Commands for managing the tunnel web interface"
+  de_DE: "Befehle zur Verwaltung der Tunnel-Weboberfläche"
+  es_ES: "Comandos para gestionar la interfaz web del túnel"
+  fr_FR: "Commandes pour gérer l'interface web du tunnel"
+  pl_PL: "Polecenia do zarządzania interfejsem webowym tunelu"
 
 about.commands-wifi:
   en_US: "Commands related to wifi networks i.e. add, connect, delete"
@@ -4632,6 +4716,20 @@ about.dump-address-resolution-table:
   fr_FR: "Exporter la table de résolution d'adresses"
   pl_PL: "Zrzuć tabelę rozpoznawania adresów"
 
+about.dump-port-forward-table:
+  en_US: "Dump port forward table"
+  de_DE: "Portweiterleitungstabelle ausgeben"
+  es_ES: "Volcar tabla de reenvío de puertos"
+  fr_FR: "Exporter la table de redirection de ports"
+  pl_PL: "Zrzuć tabelę przekierowań portów"
+
+about.dump-vhost-proxy-table:
+  en_US: "Dump vhost proxy table"
+  de_DE: "Vhost-Proxy-Tabelle ausgeben"
+  es_ES: "Volcar tabla de proxy vhost"
+  fr_FR: "Exporter la table de proxy vhost"
+  pl_PL: "Zrzuć tabelę proxy vhost"
+
 about.echo-message:
   en_US: "Echo a message back"
   de_DE: "Eine Nachricht zurückgeben"
@@ -4666,6 +4764,13 @@ about.enable-kiosk-mode:
   es_ES: "Activar el modo kiosco"
   fr_FR: "Activer le mode kiosque"
   pl_PL: "Włącz tryb kiosku"
+
+about.enable-or-disable-port-forward:
+  en_US: "Enable or disable a port forward"
+  de_DE: "Portweiterleitung aktivieren oder deaktivieren"
+  es_ES: "Habilitar o deshabilitar un reenvío de puerto"
+  fr_FR: "Activer ou désactiver une redirection de port"
+  pl_PL: "Włącz lub wyłącz przekierowanie portu"
 
 about.enable-webserver:
   en_US: "Enable the webserver"
@@ -4757,6 +4862,13 @@ about.get-developer-pubkey:
   es_ES: "Obtener la clave pública del desarrollador"
   fr_FR: "Obtenir la clé publique du développeur"
   pl_PL: "Pobierz klucz publiczny dewelopera"
+
+about.get-device-info:
+  en_US: "Display device information"
+  de_DE: "Geräteinformationen anzeigen"
+  es_ES: "Mostrar información del dispositivo"
+  fr_FR: "Afficher les informations de l'appareil"
+  pl_PL: "Wyświetl informacje o urządzeniu"
 
 about.get-initialization-progress:
   en_US: "Get initialization progress"
@@ -4947,6 +5059,13 @@ about.list-paths-of-package-ingredients:
   fr_FR: "Lister les chemins des composants du package"
   pl_PL: "Wyświetl ścieżki składników pakietu"
 
+about.list-registry-categories:
+  en_US: "List registry categories"
+  de_DE: "Registry-Kategorien auflisten"
+  es_ES: "Listar categorías del registro"
+  fr_FR: "Lister les catégories du registre"
+  pl_PL: "Wyświetl kategorie rejestru"
+
 about.list-registry-info-packages:
   en_US: "List registry info and packages"
   de_DE: "Registry-Informationen und Pakete auflisten"
@@ -4974,6 +5093,13 @@ about.list-version-signers:
   es_ES: "Listar firmantes de versiones"
   fr_FR: "Lister les signataires de versions"
   pl_PL: "Wyświetl sygnatariuszy wersji"
+
+about.list-vhost-passthrough:
+  en_US: "List vhost passthroughs"
+  de_DE: "Vhost-Passthroughs auflisten"
+  es_ES: "Listar passthroughs de vhost"
+  fr_FR: "Lister les passthroughs vhost"
+  pl_PL: "Wyświetl passthrough vhost"
 
 about.list-wifi-info:
   en_US: "List wifi information"
@@ -5269,6 +5395,13 @@ about.remove-version-signer:
   fr_FR: "Supprimer le signataire de version"
   pl_PL: "Usuń sygnatariusza wersji"
 
+about.remove-vhost-passthrough:
+  en_US: "Remove vhost passthrough"
+  de_DE: "Vhost-Passthrough entfernen"
+  es_ES: "Eliminar passthrough de vhost"
+  fr_FR: "Supprimer un passthrough vhost"
+  pl_PL: "Usuń passthrough vhost"
+
 about.remove-wifi-network:
   en_US: "Remove a wifi network"
   de_DE: "Ein WLAN-Netzwerk entfernen"
@@ -5353,12 +5486,26 @@ about.run-service-action:
   fr_FR: "Exécuter une action de service"
   pl_PL: "Uruchom akcję usługi"
 
+about.set-address-enabled-for-binding:
+  en_US: "Set a gateway address enabled for a binding"
+  de_DE: "Gateway-Adresse für eine Bindung aktivieren"
+  es_ES: "Establecer una dirección de gateway habilitada para un vínculo"
+  fr_FR: "Définir une adresse de passerelle activée pour une liaison"
+  pl_PL: "Ustaw adres bramy jako włączony dla powiązania"
+
 about.set-country:
   en_US: "Set the country"
   de_DE: "Das Land festlegen"
   es_ES: "Establecer el país"
   fr_FR: "Définir le pays"
   pl_PL: "Ustaw kraj"
+
+about.set-default-outbound-gateway:
+  en_US: "Set the default outbound gateway"
+  de_DE: "Standard-Ausgangs-Gateway festlegen"
+  es_ES: "Establecer la puerta de enlace de salida predeterminada"
+  fr_FR: "Définir la passerelle sortante par défaut"
+  pl_PL: "Ustaw domyślną bramę wychodzącą"
 
 about.set-echoip-urls:
   en_US: "Set the Echo IP service URLs"
@@ -5401,6 +5548,13 @@ about.set-listen-address-for-webserver:
   es_ES: "Establecer la dirección de escucha del servidor web"
   fr_FR: "Définir l'adresse d'écoute du serveur web"
   pl_PL: "Ustaw adres nasłuchiwania serwera internetowego"
+
+about.set-outbound-gateway-package:
+  en_US: "Set the outbound gateway for a package"
+  de_DE: "Ausgangs-Gateway für ein Paket festlegen"
+  es_ES: "Establecer la puerta de enlace de salida para un paquete"
+  fr_FR: "Définir la passerelle sortante pour un package"
+  pl_PL: "Ustaw bramę wychodzącą dla pakietu"
 
 about.set-registry-icon:
   en_US: "Set the registry icon"
@@ -5569,6 +5723,13 @@ about.update-firmware:
   es_ES: "Actualizar firmware"
   fr_FR: "Mettre à jour le firmware"
   pl_PL: "Zaktualizuj oprogramowanie układowe"
+
+about.update-port-forward-label:
+  en_US: "Update the label of a port forward"
+  de_DE: "Bezeichnung einer Portweiterleitung aktualisieren"
+  es_ES: "Actualizar la etiqueta de un reenvío de puerto"
+  fr_FR: "Mettre à jour le libellé d'une redirection de port"
+  pl_PL: "Zaktualizuj etykietę przekierowania portu"
 
 about.view-edit-gateway-configs:
   en_US: "View and edit gateway configurations"

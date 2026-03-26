@@ -572,7 +572,9 @@ pub fn package<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "attach",
-            from_fn_async_local(service::cli_attach).no_display(),
+            from_fn_async_local(service::cli_attach)
+                .no_display()
+                .with_about("about.execute-commands-container"),
         )
         .subcommand(
             "host",

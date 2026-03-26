@@ -56,6 +56,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|params, categories| {
                     display_categories(params.params, categories)
                 })
+                .with_about("about.list-registry-categories")
                 .with_call_remote::<CliContext>(),
         )
 }

@@ -126,24 +126,28 @@ pub fn vhost_api<C: Context>() -> ParentHandler<C> {
 
                     Ok(())
                 })
+                .with_about("about.dump-vhost-proxy-table")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "add-passthrough",
             from_fn_async(add_passthrough)
                 .no_display()
+                .with_about("about.add-vhost-passthrough")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove-passthrough",
             from_fn_async(remove_passthrough)
                 .no_display()
+                .with_about("about.remove-vhost-passthrough")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "list-passthrough",
             from_fn(list_passthrough)
                 .with_display_serializable()
+                .with_about("about.list-vhost-passthrough")
                 .with_call_remote::<CliContext>(),
         )
 }

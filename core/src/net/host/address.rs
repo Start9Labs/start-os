@@ -108,6 +108,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
                                 .with_about("about.remove-public-domain-from-host")
                                 .with_call_remote::<CliContext>(),
                         )
+                        .with_about("about.commands-host-public-domain")
                         .with_inherited(|_, a| a),
                 )
                 .subcommand(
@@ -131,8 +132,10 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
                                 .with_about("about.remove-private-domain-from-host")
                                 .with_call_remote::<CliContext>(),
                         )
+                        .with_about("about.commands-host-private-domain")
                         .with_inherited(|_, a| a),
                 )
+                .with_about("about.commands-host-address-domain")
                 .with_inherited(Kind::inheritance),
         )
         .subcommand(

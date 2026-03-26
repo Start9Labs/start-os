@@ -79,7 +79,10 @@ pub fn registry_api<C: Context>() -> ParentHandler<C> {
                 .with_about("about.list-registry-info-packages")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("info", info::info_api::<C>())
+        .subcommand(
+            "info",
+            info::info_api::<C>().with_about("about.commands-registry-info"),
+        )
         // set info and categories
         .subcommand(
             "os",

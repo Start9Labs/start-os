@@ -117,6 +117,7 @@ pub fn forward_api<C: Context>() -> ParentHandler<C> {
 
             Ok(())
         })
+        .with_about("about.dump-port-forward-table")
         .with_call_remote::<CliContext>(),
     )
 }

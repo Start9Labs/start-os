@@ -178,7 +178,8 @@ pub fn auth_api<C: Context>() -> ParentHandler<C> {
                         })
                         .with_about("about.list-authorized-keys")
                         .with_call_remote::<CliContext>(),
-                ),
+                )
+                .with_about("about.commands-authorized-keys"),
         )
 }
 

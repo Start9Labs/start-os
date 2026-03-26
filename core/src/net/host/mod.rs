@@ -521,18 +521,27 @@ pub fn host_api<C: Context>() -> ParentHandler<C, RequiresPackageId> {
         .subcommand(
             "address",
             address_api::<C, ForPackage>()
-                .with_inherited(|RequiresPackageId { package }, _| package),
+                .with_inherited(|RequiresPackageId { package }, _| package)
+                .with_about("about.commands-host-addresses"),
         )
         .subcommand(
             "binding",
-            binding::<C, ForPackage>().with_inherited(|RequiresPackageId { package }, _| package),
+            binding::<C, ForPackage>()
+                .with_inherited(|RequiresPackageId { package }, _| package)
+                .with_about("about.commands-host-bindings"),
         )
 }
 
 pub fn server_host_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::<C>::new()
-        .subcommand("address", address_api::<C, ForServer>())
-        .subcommand("binding", binding::<C, ForServer>())
+        .subcommand(
+            "address",
+            address_api::<C, ForServer>().with_about("about.commands-host-addresses"),
+        )
+        .subcommand(
+            "binding",
+            binding::<C, ForServer>().with_about("about.commands-host-bindings"),
+        )
 }
 
 pub async fn list_hosts(

@@ -18,7 +18,10 @@ use crate::util::serde::{HandlerExtSerde, display_serializable};
 
 pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("web", super::web::web_api::<C>())
+        .subcommand(
+            "web",
+            super::web::web_api::<C>().with_about("about.commands-tunnel-web"),
+        )
         .subcommand(
             "db",
             super::db::db_api::<C>().with_about("about.commands-interact-with-db-dump-apply"),
@@ -69,7 +72,8 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
                         .no_display()
                         .with_about("about.enable-or-disable-port-forward")
                         .with_call_remote::<CliContext>(),
-                ),
+                )
+                .with_about("about.commands-port-forward"),
         )
         .subcommand(
             "restart",
@@ -94,7 +98,8 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
                         .with_display_serializable()
                         .with_about("about.apply-available-update")
                         .with_call_remote::<CliContext>(),
-                ),
+                )
+                .with_about("about.commands-tunnel-update"),
         )
 }
 
