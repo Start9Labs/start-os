@@ -104,15 +104,7 @@ import { StateService } from '../services/state.service'
             {{ 'Skip' | i18n }}
           </button>
         }
-        <button
-          tuiButton
-          size="m"
-          [disabled]="
-            isFresh
-              ? form.invalid
-              : form.controls.password.value && form.invalid
-          "
-        >
+        <button tuiButton size="m" [disabled]="form.invalid">
           {{ 'Finish' | i18n }}
         </button>
       </footer>
