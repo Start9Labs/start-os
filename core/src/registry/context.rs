@@ -123,7 +123,7 @@ impl RegistryContext {
             .tor_proxy
             .clone()
             .map(Ok)
-            .unwrap_or_else(|| "socks5h://localhost:9050".parse())?;
+            .unwrap_or_else(|| "socks5h://tor.startos:9050".parse())?;
         let pool: Option<PgPool> = match &config.pg_connection_url {
             Some(url) => match PgPool::connect(url.as_str()).await {
                 Ok(pool) => Some(pool),
