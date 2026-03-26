@@ -268,3 +268,108 @@ jobs:
           name: ${{ matrix.platform }}.img
           path: results/*.img
         if: ${{ matrix.platform == 'raspberrypi' }}
+
+  deploy:
+    name: Deploy
+    needs: [image]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy != 'NONE'
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: >-
+        ${{
+          fromJson('{
+            "alpha": "https://alpha-registry-x.start9.com",
+            "beta": "https://beta-registry.start9.com"
+          }')[github.event.inputs.deploy]
+        }}
+      S3_BUCKET: s3://startos-images
+      S3_CDN: https://startos-images.nyc3.cdn.digitaloceanspaces.com
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: web/package.json
+
+      - name: Determine version
+        id: version
+        run: |
+          VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' web/package.json | head -1)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Download squashfs artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "*.squashfs"
+          path: artifacts/
+          merge-multiple: true
+
+      - name: Download ISO artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "*.iso"
+          path: artifacts/
+          merge-multiple: true
+
+      - name: Install start-cli
+        run: |
+          ARCH=$(uname -m)
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          ASSET_NAME="start-cli_${ARCH}-${OS}"
+          DOWNLOAD_URL=$(curl -fsS \
+            -H "Authorization: token ${{ github.token }}" \
+            https://api.github.com/repos/Start9Labs/start-os/releases \
+            | jq -r '[.[].assets[] | select(.name=="'"$ASSET_NAME"'")] | first | .browser_download_url')
+          curl -fsSL \
+            -H "Authorization: token ${{ github.token }}" \
+            -H "Accept: application/octet-stream" \
+            "$DOWNLOAD_URL" -o /tmp/start-cli
+          sudo install -m 755 /tmp/start-cli /usr/local/bin/start-cli
+          echo "start-cli: $(start-cli --version)"
+
+      - name: Configure S3
+        run: |
+          sudo apt-get install -y -qq s3cmd > /dev/null
+          cat > ~/.s3cfg <<EOF
+          [default]
+          access_key = ${{ secrets.S3_ACCESS_KEY }}
+          secret_key = ${{ secrets.S3_SECRET_KEY }}
+          host_base = nyc3.digitaloceanspaces.com
+          host_bucket = %(bucket)s.nyc3.digitaloceanspaces.com
+          use_https = True
+          EOF
+
+      - name: Set up developer key
+        run: |
+          mkdir -p ~/.startos
+          printf '%s' "${{ secrets.DEV_KEY }}" > ~/.startos/developer.key.pem
+
+      - name: Upload to S3
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cd artifacts
+          for file in *.iso *.squashfs; do
+            [ -f "$file" ] || continue
+            echo "Uploading $file..."
+            s3cmd put -P "$file" "${{ env.S3_BUCKET }}/v${VERSION}/$file"
+          done
+
+      - name: Register OS version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          start-cli --registry="${{ env.REGISTRY }}" registry os version add \
+            "$VERSION" "v${VERSION}" '' ">=0.3.5 <=${VERSION}"
+
+      - name: Index assets in registry
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cd artifacts
+          for file in *.squashfs *.iso; do
+            [ -f "$file" ] || continue
+            PLATFORM=$(echo "$file" | sed 's/.*_\([^.]*\)\.\(squashfs\|iso\)$/\1/')
+            echo "Indexing $file for platform $PLATFORM..."
+            start-cli --registry="${{ env.REGISTRY }}" registry os asset add \
+              --platform="$PLATFORM" \
+              --version="$VERSION" \
+              "$file" \
+              "${{ env.S3_CDN }}/v${VERSION}/$file"
+          done
