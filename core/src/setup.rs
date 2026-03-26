@@ -557,6 +557,39 @@ pub async fn execute_inner(
     hostname: Option<ServerHostnameInfo>,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let progress = &ctx.progress;
+
+    if !crate::disk::mount::util::is_mountpoint(Path::new(DATA_DIR).join("main")).await? {
+        let mut disk_phase =
+            progress.add_phase(t!("setup.opening-data-drive").into(), Some(10));
+        disk_phase.start();
+        let requires_reboot = crate::disk::main::import(
+            &*guid,
+            DATA_DIR,
+            if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
+                RepairStrategy::Aggressive
+            } else {
+                RepairStrategy::Preen
+            },
+            if guid.ends_with("_UNENC") {
+                None
+            } else {
+                Some(DEFAULT_PASSWORD)
+            },
+            Some(progress),
+        )
+        .await?;
+        let _ = ctx.disk_guid.set(guid.clone());
+        crate::util::io::delete_file(REPAIR_DISK_PATH).await?;
+        if requires_reboot.0 {
+            crate::disk::main::export(&*guid, DATA_DIR).await?;
+            return Err(Error::new(
+                eyre!("{}", t!("setup.disk-errors-corrected-restart-required")),
+                ErrorKind::DiskManagement,
+            ));
+        }
+        disk_phase.complete();
+    }
+
     let restore_phase = match recovery_source.as_ref() {
         Some(RecoverySource::Backup { .. }) => {
             Some(progress.add_phase(t!("setup.restoring-backup").into(), Some(100)))
