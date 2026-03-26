@@ -13,7 +13,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::db::prelude::Map;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::HostApiKind;
-use crate::net::service_interface::HostnameInfo;
+use crate::net::service_interface::{HostnameInfo, HostnameMetadata};
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::util::FromStrParser;
@@ -344,6 +344,41 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
                         } else {
                             bind.addresses.enabled.remove(&sa);
                         }
+                        // Non-SSL Ipv4: cascade to PublicDomains on same gateway
+                        if !address.ssl {
+                            if let HostnameMetadata::Ipv4 { gateway } =
+                                &address.metadata
+                            {
+                                let port = sa.port();
+                                for a in &bind.addresses.available {
+                                    if a.ssl {
+                                        continue;
+                                    }
+                                    if let HostnameMetadata::PublicDomain {
+                                        gateway: gw,
+                                    } = &a.metadata
+                                    {
+                                        if gw == gateway
+                                            && a.port.unwrap_or(80) == port
+                                        {
+                                            let k = (
+                                                a.hostname.clone(),
+                                                a.port.unwrap_or(80),
+                                            );
+                                            if enabled {
+                                                bind.addresses
+                                                    .disabled
+                                                    .remove(&k);
+                                            } else {
+                                                bind.addresses
+                                                    .disabled
+                                                    .insert(k);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         // Domains and private IPs: toggle via (host, port) in `disabled` set
                         let port = address.port.unwrap_or(if address.ssl { 443 } else { 80 });
@@ -352,6 +387,61 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
                             bind.addresses.disabled.remove(&key);
                         } else {
                             bind.addresses.disabled.insert(key);
+                        }
+                        // Non-SSL PublicDomain: cascade to Ipv4 + other PublicDomains on same gateway
+                        if !address.ssl {
+                            if let HostnameMetadata::PublicDomain { gateway } =
+                                &address.metadata
+                            {
+                                for a in &bind.addresses.available {
+                                    if a.ssl {
+                                        continue;
+                                    }
+                                    match &a.metadata {
+                                        HostnameMetadata::Ipv4 { gateway: gw }
+                                            if a.public
+                                                && gw == gateway =>
+                                        {
+                                            if let Some(sa) =
+                                                a.to_socket_addr()
+                                            {
+                                                if sa.port() == port {
+                                                    if enabled {
+                                                        bind.addresses
+                                                            .enabled
+                                                            .insert(sa);
+                                                    } else {
+                                                        bind.addresses
+                                                            .enabled
+                                                            .remove(&sa);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        HostnameMetadata::PublicDomain {
+                                            gateway: gw,
+                                        } if gw == gateway => {
+                                            let dp = a.port.unwrap_or(80);
+                                            if dp == port {
+                                                let k = (
+                                                    a.hostname.clone(),
+                                                    dp,
+                                                );
+                                                if enabled {
+                                                    bind.addresses
+                                                        .disabled
+                                                        .remove(&k);
+                                                } else {
+                                                    bind.addresses
+                                                        .disabled
+                                                        .insert(k);
+                                                }
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
                         }
                     }
                     Ok(())

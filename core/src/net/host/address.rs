@@ -14,6 +14,7 @@ use crate::hostname::ServerHostname;
 use crate::net::acme::AcmeProvider;
 use crate::net::gateway::{CheckDnsParams, CheckPortParams, CheckPortRes, check_dns, check_port};
 use crate::net::host::{HostApiKind, all_hosts};
+use crate::net::service_interface::HostnameMetadata;
 use crate::prelude::*;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 
@@ -246,8 +247,50 @@ pub async fn add_public_domain<Kind: HostApiKind>(
                 .and_then(|a| a.port)
                 .ok_or_else(|| Error::new(eyre!("no public address found for {fqdn} on port {internal_port}"), ErrorKind::NotFound))?;
 
-            // Disable the domain on all other bindings
+            // On the target binding, enable the WAN IPv4 and all
+            // public domains on the same gateway+port (no SNI without SSL).
             host.as_bindings_mut().mutate(|b| {
+                if let Some(bind) = b.get_mut(&internal_port) {
+                    let non_ssl_port = bind.addresses.available.iter().find_map(|a| {
+                        if a.ssl || !a.public || a.hostname != fqdn {
+                            return None;
+                        }
+                        if let HostnameMetadata::PublicDomain { gateway: gw } = &a.metadata {
+                            if *gw == gateway {
+                                return a.port;
+                            }
+                        }
+                        None
+                    });
+                    if let Some(dp) = non_ssl_port {
+                        for a in &bind.addresses.available {
+                            if a.ssl || !a.public {
+                                continue;
+                            }
+                            if let HostnameMetadata::Ipv4 { gateway: gw } = &a.metadata {
+                                if *gw == gateway {
+                                    if let Some(sa) = a.to_socket_addr() {
+                                        if sa.port() == dp {
+                                            bind.addresses.enabled.insert(sa);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        for a in &bind.addresses.available {
+                            if a.ssl {
+                                continue;
+                            }
+                            if let HostnameMetadata::PublicDomain { gateway: gw } = &a.metadata {
+                                if *gw == gateway && a.port == Some(dp) {
+                                    bind.addresses.disabled.remove(&(a.hostname.clone(), dp));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Disable the domain on all other bindings
                 for (&port, bind) in b.iter_mut() {
                     if port == internal_port {
                         continue;
