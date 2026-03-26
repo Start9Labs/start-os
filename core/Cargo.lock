@@ -6439,7 +6439,7 @@ dependencies = [
 
 [[package]]
 name = "start-os"
-version = "0.4.0-alpha.22"
+version = "0.4.0-alpha.23"
 dependencies = [
  "aes",
  "async-acme",

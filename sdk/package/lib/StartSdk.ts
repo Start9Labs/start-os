@@ -70,7 +70,7 @@ import { createVolumes } from './util/Volume'
 import { getDataVersion, setDataVersion } from './version'
 
 /** The minimum StartOS version required by this SDK release */
-export const OSVersion = testTypeVersion('0.4.0-alpha.22')
+export const OSVersion = testTypeVersion('0.4.0-alpha.23')
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
