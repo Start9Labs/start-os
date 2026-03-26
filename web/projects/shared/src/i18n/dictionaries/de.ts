@@ -680,7 +680,7 @@ export default {
   755: 'Schnittstelle(n)',
   756: 'Keine Portweiterleitungsregeln',
   757: 'Portweiterleitungsregeln am Gateway erforderlich',
-  763: 'Sie sind derzeit über Ihre .local-Adresse verbunden. Das Ändern des Hostnamens erfordert einen Wechsel zur neuen .local-Adresse.',
+  763: 'Sie sind derzeit über Ihre .local-Adresse verbunden. Das Ändern des Hostnamens erfordert einen Wechsel zur neuen .local-Adresse. Ein Neustart des Servers ist ebenfalls erforderlich.',
   764: 'Hostname geändert',
   765: 'Neue Adresse öffnen',
   766: 'Ihr Server ist jetzt erreichbar unter',
@@ -722,4 +722,6 @@ export default {
   804: 'Ich habe ein Backup meiner Daten',
   805: 'Öffentliche Domain hinzufügen',
   806: 'Ergebnis',
+  807: 'Nach dem Öffnen der neuen Adresse werden Sie zum Neustart aufgefordert.',
+  808: 'Ein Neustart ist erforderlich, damit die Dienstschnittstellen den neuen Hostnamen verwenden.',
 } satisfies i18n

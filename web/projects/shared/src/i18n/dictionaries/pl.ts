@@ -680,7 +680,7 @@ export default {
   755: 'Interfejs(y)',
   756: 'Brak reguł przekierowania portów',
   757: 'Reguły przekierowania portów wymagane na bramce',
-  763: 'Jesteś obecnie połączony przez adres .local. Zmiana nazwy hosta będzie wymagać przełączenia na nowy adres .local.',
+  763: 'Jesteś obecnie połączony przez adres .local. Zmiana nazwy hosta będzie wymagać przełączenia na nowy adres .local. Konieczne będzie również ponowne uruchomienie serwera.',
   764: 'Nazwa hosta zmieniona',
   765: 'Otwórz nowy adres',
   766: 'Twój serwer jest teraz dostępny pod adresem',
@@ -722,4 +722,6 @@ export default {
   804: 'Mam kopię zapasową moich danych',
   805: 'Dodaj domenę publiczną',
   806: 'Wynik',
+  807: 'Po otwarciu nowego adresu zostaniesz poproszony o ponowne uruchomienie.',
+  808: 'Ponowne uruchomienie jest wymagane, aby interfejsy usług używały nowej nazwy hosta.',
 } satisfies i18n

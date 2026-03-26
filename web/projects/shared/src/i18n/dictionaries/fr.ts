@@ -680,7 +680,7 @@ export default {
   755: 'Interface(s)',
   756: 'Aucune règle de redirection de port',
   757: 'Règles de redirection de ports requises sur la passerelle',
-  763: "Vous êtes actuellement connecté via votre adresse .local. Changer le nom d'hôte nécessitera de passer à la nouvelle adresse .local.",
+  763: "Vous êtes actuellement connecté via votre adresse .local. Changer le nom d'hôte nécessitera de passer à la nouvelle adresse .local. Un redémarrage du serveur sera également nécessaire.",
   764: "Nom d'hôte modifié",
   765: 'Ouvrir la nouvelle adresse',
   766: 'Votre serveur est maintenant accessible à',
@@ -722,4 +722,6 @@ export default {
   804: "J'ai une sauvegarde de mes données",
   805: 'Ajouter un domaine public',
   806: 'Résultat',
+  807: 'Après avoir ouvert la nouvelle adresse, vous serez invité à redémarrer.',
+  808: "Un redémarrage est nécessaire pour que les interfaces de service utilisent le nouveau nom d'hôte.",
 } satisfies i18n

@@ -680,7 +680,7 @@ export const ENGLISH: Record<string, number> = {
   'Interface(s)': 755,
   'No port forwarding rules': 756,
   'Port forwarding rules required on gateway': 757,
-  'You are currently connected via your .local address. Changing the hostname will require you to switch to the new .local address.': 763,
+  'You are currently connected via your .local address. Changing the hostname will require you to switch to the new .local address. A server restart will also be needed.': 763,
   'Hostname Changed': 764,
   'Open new address': 765,
   'Your server is now reachable at': 766,
@@ -723,4 +723,6 @@ export const ENGLISH: Record<string, number> = {
   'I have a backup of my data': 804,
   'Add Public Domain': 805,
   'Result': 806,
+  'After opening the new address, you will be prompted to restart.': 807,
+  'A restart is required for service interfaces to use the new hostname.': 808,
 }

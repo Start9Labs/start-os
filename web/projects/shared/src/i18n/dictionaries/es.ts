@@ -680,7 +680,7 @@ export default {
   755: 'Interfaz/Interfaces',
   756: 'Sin reglas de redirección de puertos',
   757: 'Reglas de redirección de puertos requeridas en la puerta de enlace',
-  763: 'Actualmente está conectado a través de su dirección .local. Cambiar el nombre de host requerirá que cambie a la nueva dirección .local.',
+  763: 'Actualmente está conectado a través de su dirección .local. Cambiar el nombre de host requerirá que cambie a la nueva dirección .local. También será necesario reiniciar el servidor.',
   764: 'Nombre de host cambiado',
   765: 'Abrir nueva dirección',
   766: 'Su servidor ahora es accesible en',
@@ -722,4 +722,6 @@ export default {
   804: 'Tengo una copia de seguridad de mis datos',
   805: 'Agregar dominio público',
   806: 'Resultado',
+  807: 'Después de abrir la nueva dirección, se le pedirá que reinicie.',
+  808: 'Se requiere un reinicio para que las interfaces de servicio utilicen el nuevo nombre de host.',
 } satisfies i18n
