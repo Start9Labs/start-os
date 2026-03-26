@@ -14,7 +14,10 @@ else
     DOCKER_PLATFORM="linux/$ARCH"
 fi
 
-IMAGES=("start9/compat:latest" "start9/utils:latest" "tonistiigi/binfmt:latest")
+IMAGES=("tonistiigi/binfmt:latest")
+if [ "$ARCH" != "riscv64" ]; then
+    IMAGES=("start9/compat:latest" "start9/utils:latest" "${IMAGES[@]}")
+fi
 
 mkdir -p "$DESTDIR"
 
