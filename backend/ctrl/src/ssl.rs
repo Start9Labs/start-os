@@ -1,6 +1,7 @@
 use std::fs;
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use openssl::asn1::{Asn1Integer, Asn1Time};
@@ -40,6 +41,13 @@ const RENEWAL_THRESHOLD_DAYS: u32 = 30;
 
 /// X509 version 3 is encoded as 2.
 const X509_VERSION_3: i32 = 2;
+
+/// The IPv4 and optional IPv6 addresses to include in the server certificate SAN.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LanAddresses {
+    pub ipv4: Ipv4Addr,
+    pub ipv6: Option<Ipv6Addr>,
+}
 
 pub fn ca_cert_path() -> PathBuf {
     Path::new(SSL_CERT_DIR).join(CA_CERT_FILENAME)
@@ -287,13 +295,13 @@ fn generate_intermediate_ca(
 }
 
 /// Generate a leaf certificate signed by the intermediate CA.
-/// SANs include the given LAN IP and `router.lan`.
+/// SANs include the given LAN IPs and `router.lan`.
 /// Returns (leaf_cert_pem + int_cert_pem + ca_cert_pem chain, key_pem).
 fn generate_leaf_cert(
     int_cert_pem: &str,
     int_key_pem: &str,
     ca_cert_pem: &str,
-    lan_ip: Ipv4Addr,
+    addrs: &LanAddresses,
 ) -> Result<(String, String), Error> {
     let ca_cert = X509::from_pem(int_cert_pem.as_bytes())
         .map_err(|e| Error::other(format!("failed to parse intermediate cert: {e}")))?;
@@ -348,9 +356,13 @@ fn generate_leaf_cert(
         .map_err(|e| Error::other(format!("failed to build SKI: {e}")))?;
     let aki = AuthorityKeyIdentifier::new().keyid(true).issuer(false).build(&ctx)
         .map_err(|e| Error::other(format!("failed to build AKI: {e}")))?;
-    let san = SubjectAlternativeName::new()
-        .dns(ROUTER_HOSTNAME)
-        .ip(&lan_ip.to_string())
+    let mut san_builder = SubjectAlternativeName::new();
+    san_builder.dns(ROUTER_HOSTNAME);
+    san_builder.ip(&addrs.ipv4.to_string());
+    if let Some(ipv6) = addrs.ipv6 {
+        san_builder.ip(&ipv6.to_string());
+    }
+    let san = san_builder
         .build(&ctx)
         .map_err(|e| Error::other(format!("failed to build SAN: {e}")))?;
     let bc = BasicConstraints::new().build()
@@ -430,7 +442,7 @@ fn write_pem(path: &Path, content: &str, mode: u32) -> Result<(), Error> {
     Ok(())
 }
 
-/// Read the current LAN gateway IP from UCI config using the uciedit library.
+/// Read the current LAN gateway IPv4 from UCI config.
 pub fn read_lan_ip(uci_root: &Path) -> Ipv4Addr {
     let arena = Arena::new();
     let Ok(cfgs) = parse_all(uci_root, &arena, &["network"]) else {
@@ -448,6 +460,65 @@ pub fn read_lan_ip(uci_root: &Path) -> Ipv4Addr {
     }
 
     Ipv4Addr::new(192, 168, 0, 1)
+}
+
+/// Read the current LAN gateway IPv4 from UCI config and IPv6 from the live system.
+pub fn read_lan_addresses(uci_root: &Path) -> LanAddresses {
+    LanAddresses {
+        ipv4: read_lan_ip(uci_root),
+        ipv6: read_lan_ipv6_from_ubus(),
+    }
+}
+
+/// Read the LAN interface's IPv6 address from ubus.
+///
+/// Queries `network.interface.lan` for assigned IPv6 addresses, preferring
+/// ULA (fd00::/8) over other scopes. Returns None if IPv6 is not configured
+/// or the interface has no IPv6 address.
+pub fn read_lan_ipv6_from_ubus() -> Option<Ipv6Addr> {
+    let output = Command::new("ubus")
+        .args(["call", "network.interface.lan", "status"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+
+    let mut addrs: Vec<Ipv6Addr> = Vec::new();
+
+    // Collect from ipv6-address array
+    if let Some(arr) = json.get("ipv6-address").and_then(|v| v.as_array()) {
+        for entry in arr {
+            if let Some(addr) = entry
+                .get("address")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse().ok())
+            {
+                addrs.push(addr);
+            }
+        }
+    }
+
+    // Collect from ipv6-prefix-assignment local addresses
+    if let Some(arr) = json.get("ipv6-prefix-assignment").and_then(|v| v.as_array()) {
+        for entry in arr {
+            if let Some(addr) = entry
+                .pointer("/local-address/address")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse().ok())
+            {
+                addrs.push(addr);
+            }
+        }
+    }
+
+    // Prefer ULA (fd00::/8), then any non-link-local address
+    addrs
+        .iter()
+        .find(|a| (a.segments()[0] & 0xff00) == 0xfd00)
+        .or_else(|| addrs.iter().find(|a| (a.segments()[0] & 0xffc0) != 0xfe80))
+        .copied()
 }
 
 /// Check whether the server cert expires within the renewal threshold.
@@ -516,23 +587,55 @@ pub fn ensure_intermediate_ca() -> Result<String, Error> {
     Ok(cert_pem)
 }
 
-/// Ensure server leaf cert exists and is valid (generate if missing, corrupt, or expiring).
-pub fn ensure_server_cert(lan_ip: Ipv4Addr) -> Result<(), Error> {
+/// Read the IP addresses from the current server cert's SAN extension.
+fn read_cert_san_addresses() -> Option<LanAddresses> {
+    let pem_data = fs::read(server_cert_path()).ok()?;
+    let cert = X509::from_pem(&pem_data).ok()?;
+    let sans = cert.subject_alt_names()?;
+
+    let mut ipv4 = None;
+    let mut ipv6 = None;
+
+    for name in sans.iter() {
+        if let Some(bytes) = name.ipaddress() {
+            match bytes.len() {
+                4 => {
+                    ipv4 = Some(Ipv4Addr::new(bytes[0], bytes[1], bytes[2], bytes[3]));
+                }
+                16 => {
+                    let mut octets = [0u8; 16];
+                    octets.copy_from_slice(bytes);
+                    ipv6 = Some(Ipv6Addr::from(octets));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    Some(LanAddresses { ipv4: ipv4?, ipv6 })
+}
+
+/// Ensure server leaf cert exists and is valid (generate if missing, corrupt, expiring,
+/// or if the SAN addresses don't match the current LAN addresses).
+pub fn ensure_server_cert(addrs: &LanAddresses) -> Result<(), Error> {
     ensure_dirs()?;
 
     let cert_path = server_cert_path();
     let key_path = server_key_path();
 
-    let needs_gen = !cert_path.exists() || !key_path.exists() || cert_needs_renewal();
+    let needs_gen = !cert_path.exists()
+        || !key_path.exists()
+        || cert_needs_renewal()
+        || read_cert_san_addresses().as_ref() != Some(addrs);
     if !needs_gen {
         return Ok(());
     }
 
-    generate_and_write_server_cert(lan_ip)
+    generate_and_write_server_cert(addrs)
 }
 
-/// Force-regenerate the server leaf cert (e.g. after LAN IP change).
-fn generate_and_write_server_cert(lan_ip: Ipv4Addr) -> Result<(), Error> {
+/// Force-regenerate the server leaf cert (e.g. after LAN IP or IPv6 change).
+fn generate_and_write_server_cert(addrs: &LanAddresses) -> Result<(), Error> {
     let int_cert_pem = fs::read_to_string(int_cert_path())
         .map_err(|e| Error::other(format!("failed to read intermediate cert: {e}")))?;
     let int_key_pem = fs::read_to_string(int_key_path())
@@ -540,8 +643,12 @@ fn generate_and_write_server_cert(lan_ip: Ipv4Addr) -> Result<(), Error> {
     let ca_cert_pem = fs::read_to_string(ca_cert_path())
         .map_err(|e| Error::other(format!("failed to read CA cert: {e}")))?;
 
-    tracing::info!("generating server certificate for {} and {}", lan_ip, ROUTER_HOSTNAME);
-    let (cert_pem, key_pem) = generate_leaf_cert(&int_cert_pem, &int_key_pem, &ca_cert_pem, lan_ip)?;
+    if let Some(ipv6) = addrs.ipv6 {
+        tracing::info!("generating server certificate for {}, {}, and {}", addrs.ipv4, ipv6, ROUTER_HOSTNAME);
+    } else {
+        tracing::info!("generating server certificate for {} and {}", addrs.ipv4, ROUTER_HOSTNAME);
+    }
+    let (cert_pem, key_pem) = generate_leaf_cert(&int_cert_pem, &int_key_pem, &ca_cert_pem, addrs)?;
 
     write_pem(&server_cert_path(), &cert_pem, 0o644)?;
     write_pem(&server_key_path(), &key_pem, 0o600)?;
@@ -549,9 +656,9 @@ fn generate_and_write_server_cert(lan_ip: Ipv4Addr) -> Result<(), Error> {
     Ok(())
 }
 
-/// Regenerate the server leaf cert with a new LAN IP.
-pub fn regenerate_server_cert(lan_ip: Ipv4Addr) -> Result<(), Error> {
-    generate_and_write_server_cert(lan_ip)
+/// Regenerate the server leaf cert (e.g. after LAN IP or IPv6 change).
+pub fn regenerate_server_cert(addrs: &LanAddresses) -> Result<(), Error> {
+    generate_and_write_server_cert(addrs)
 }
 
 /// Validate that the server cert and key on disk form a valid TLS config.
@@ -633,8 +740,11 @@ mod tests {
     fn test_generate_leaf_cert_includes_ca_in_chain() {
         let (ca_cert, ca_key) = generate_root_ca().unwrap();
         let (int_cert, int_key) = generate_intermediate_ca(&ca_cert, &ca_key).unwrap();
-        let ip = Ipv4Addr::new(192, 168, 0, 1);
-        let (cert_pem, key_pem) = generate_leaf_cert(&int_cert, &int_key, &ca_cert, ip).unwrap();
+        let addrs = LanAddresses {
+            ipv4: Ipv4Addr::new(192, 168, 0, 1),
+            ipv6: None,
+        };
+        let (cert_pem, key_pem) = generate_leaf_cert(&int_cert, &int_key, &ca_cert, &addrs).unwrap();
         assert!(key_pem.contains("BEGIN PRIVATE KEY"));
         // Chain should contain three certificates: leaf + intermediate + root CA
         let cert_count = cert_pem.matches("BEGIN CERTIFICATE").count();
@@ -645,8 +755,11 @@ mod tests {
     fn test_leaf_cert_has_expected_extensions() {
         let (ca_cert, ca_key) = generate_root_ca().unwrap();
         let (int_cert, int_key) = generate_intermediate_ca(&ca_cert, &ca_key).unwrap();
-        let ip = Ipv4Addr::new(192, 168, 0, 1);
-        let (cert_pem, _) = generate_leaf_cert(&int_cert, &int_key, &ca_cert, ip).unwrap();
+        let addrs = LanAddresses {
+            ipv4: Ipv4Addr::new(192, 168, 0, 1),
+            ipv6: None,
+        };
+        let (cert_pem, _) = generate_leaf_cert(&int_cert, &int_key, &ca_cert, &addrs).unwrap();
 
         // Parse just the leaf cert (first in chain)
         let leaf = X509::from_pem(cert_pem.as_bytes()).unwrap();
@@ -655,6 +768,56 @@ mod tests {
         assert!(leaf.subject_alt_names().is_some(), "missing SAN");
         assert!(leaf.subject_key_id().is_some(), "missing SKI");
         assert!(leaf.authority_key_id().is_some(), "missing AKI");
+    }
+
+    #[test]
+    fn test_leaf_cert_with_ipv6_san() {
+        let (ca_cert, ca_key) = generate_root_ca().unwrap();
+        let (int_cert, int_key) = generate_intermediate_ca(&ca_cert, &ca_key).unwrap();
+        let addrs = LanAddresses {
+            ipv4: Ipv4Addr::new(192, 168, 0, 1),
+            ipv6: Some("fda7:5549:a8c::1".parse().unwrap()),
+        };
+        let (cert_pem, _) = generate_leaf_cert(&int_cert, &int_key, &ca_cert, &addrs).unwrap();
+
+        let leaf = X509::from_pem(cert_pem.as_bytes()).unwrap();
+        let sans = leaf.subject_alt_names().expect("missing SAN");
+
+        // Should have: router.lan (DNS), 192.168.0.1 (IP), fda7:5549:a8c::1 (IP)
+        let mut dns_names = Vec::new();
+        let mut ip_addrs = Vec::new();
+        for name in sans.iter() {
+            if let Some(dns) = name.dnsname() {
+                dns_names.push(dns.to_string());
+            }
+            if let Some(ip) = name.ipaddress() {
+                ip_addrs.push(ip.to_vec());
+            }
+        }
+
+        assert!(dns_names.contains(&ROUTER_HOSTNAME.to_string()), "missing router.lan DNS SAN");
+        assert_eq!(ip_addrs.len(), 2, "expected 2 IP SANs (IPv4 + IPv6), got {}", ip_addrs.len());
+        // IPv4 is 4 bytes, IPv6 is 16 bytes
+        assert!(ip_addrs.iter().any(|ip| ip.len() == 4), "missing IPv4 SAN");
+        assert!(ip_addrs.iter().any(|ip| ip.len() == 16), "missing IPv6 SAN");
+    }
+
+    #[test]
+    fn test_leaf_cert_without_ipv6_has_only_ipv4_san() {
+        let (ca_cert, ca_key) = generate_root_ca().unwrap();
+        let (int_cert, int_key) = generate_intermediate_ca(&ca_cert, &ca_key).unwrap();
+        let addrs = LanAddresses {
+            ipv4: Ipv4Addr::new(10, 0, 0, 1),
+            ipv6: None,
+        };
+        let (cert_pem, _) = generate_leaf_cert(&int_cert, &int_key, &ca_cert, &addrs).unwrap();
+
+        let leaf = X509::from_pem(cert_pem.as_bytes()).unwrap();
+        let sans = leaf.subject_alt_names().expect("missing SAN");
+
+        let ip_addrs: Vec<_> = sans.iter().filter_map(|n| n.ipaddress()).collect();
+        assert_eq!(ip_addrs.len(), 1, "expected only 1 IP SAN (IPv4), got {}", ip_addrs.len());
+        assert_eq!(ip_addrs[0].len(), 4, "expected IPv4 (4 bytes)");
     }
 
     #[test]
@@ -683,6 +846,70 @@ config interface 'lan'
 
         let ip = read_lan_ip(dir.path());
         assert_eq!(ip, Ipv4Addr::new(192, 168, 0, 1));
+    }
+
+    #[test]
+    fn test_read_cert_san_addresses_ipv4_only() {
+        let (ca_cert, ca_key) = generate_root_ca().unwrap();
+        let (int_cert, int_key) = generate_intermediate_ca(&ca_cert, &ca_key).unwrap();
+        let addrs = LanAddresses {
+            ipv4: Ipv4Addr::new(10, 0, 0, 1),
+            ipv6: None,
+        };
+        let (cert_pem, _) = generate_leaf_cert(&int_cert, &int_key, &ca_cert, &addrs).unwrap();
+
+        // Parse the leaf cert (first in chain) and extract SANs
+        let leaf = X509::from_pem(cert_pem.as_bytes()).unwrap();
+        let sans = leaf.subject_alt_names().unwrap();
+        let mut found_v4 = None;
+        let mut found_v6 = None;
+        for name in sans.iter() {
+            if let Some(bytes) = name.ipaddress() {
+                match bytes.len() {
+                    4 => found_v4 = Some(Ipv4Addr::new(bytes[0], bytes[1], bytes[2], bytes[3])),
+                    16 => {
+                        let mut octets = [0u8; 16];
+                        octets.copy_from_slice(bytes);
+                        found_v6 = Some(Ipv6Addr::from(octets));
+                    }
+                    _ => {}
+                }
+            }
+        }
+        assert_eq!(found_v4, Some(Ipv4Addr::new(10, 0, 0, 1)));
+        assert_eq!(found_v6, None);
+    }
+
+    #[test]
+    fn test_read_cert_san_addresses_with_ipv6() {
+        let (ca_cert, ca_key) = generate_root_ca().unwrap();
+        let (int_cert, int_key) = generate_intermediate_ca(&ca_cert, &ca_key).unwrap();
+        let expected_v6: Ipv6Addr = "fda7:5549:a8c::1".parse().unwrap();
+        let addrs = LanAddresses {
+            ipv4: Ipv4Addr::new(192, 168, 1, 1),
+            ipv6: Some(expected_v6),
+        };
+        let (cert_pem, _) = generate_leaf_cert(&int_cert, &int_key, &ca_cert, &addrs).unwrap();
+
+        let leaf = X509::from_pem(cert_pem.as_bytes()).unwrap();
+        let sans = leaf.subject_alt_names().unwrap();
+        let mut found_v4 = None;
+        let mut found_v6 = None;
+        for name in sans.iter() {
+            if let Some(bytes) = name.ipaddress() {
+                match bytes.len() {
+                    4 => found_v4 = Some(Ipv4Addr::new(bytes[0], bytes[1], bytes[2], bytes[3])),
+                    16 => {
+                        let mut octets = [0u8; 16];
+                        octets.copy_from_slice(bytes);
+                        found_v6 = Some(Ipv6Addr::from(octets));
+                    }
+                    _ => {}
+                }
+            }
+        }
+        assert_eq!(found_v4, Some(Ipv4Addr::new(192, 168, 1, 1)));
+        assert_eq!(found_v6, Some(expected_v6));
     }
 
     #[test]

@@ -122,8 +122,8 @@ fn init_ssl() -> bool {
         return false;
     }
 
-    let lan_ip = ssl::read_lan_ip(std::path::Path::new("/etc/config"));
-    if let Err(e) = ssl::ensure_server_cert(lan_ip) {
+    let addrs = ssl::read_lan_addresses(std::path::Path::new("/etc/config"));
+    if let Err(e) = ssl::ensure_server_cert(&addrs) {
         tracing::error!("server cert generation failed: {e}");
         return false;
     }
@@ -132,7 +132,7 @@ fn init_ssl() -> bool {
     // If they're corrupt, force-regenerate once.
     if ssl::build_tls_config().is_err() {
         tracing::warn!("TLS config build failed with existing certs, regenerating");
-        if let Err(e) = ssl::regenerate_server_cert(lan_ip) {
+        if let Err(e) = ssl::regenerate_server_cert(&addrs) {
             tracing::error!("cert regeneration failed: {e}");
             return false;
         }
