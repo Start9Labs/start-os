@@ -43,6 +43,10 @@ pub fn net_api<C: Context>() -> ParentHandler<C> {
             tunnel::tunnel_api::<C>().with_about("about.manage-tunnels"),
         )
         .subcommand(
+            "ssl",
+            ssl::ssl_api::<C>().with_about("about.manage-ssl-certificates"),
+        )
+        .subcommand(
             "vhost",
             vhost::vhost_api::<C>().with_about("about.manage-ssl-vhost-proxy"),
         )
