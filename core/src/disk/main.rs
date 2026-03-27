@@ -344,11 +344,16 @@ pub async fn mount_fs<P: AsRef<Path>>(
             .arg(&blockdev_path)
             .invoke(ErrorKind::DiskManagement)
             .await?;
-        // Defragment after conversion for optimal performance
+        // Delete ext2_saved subvolume and defragment after conversion
         let tmp_mount = datadir.as_ref().join(format!("{name}.convert-tmp"));
         tokio::fs::create_dir_all(&tmp_mount).await?;
         BlockDev::new(&blockdev_path)
             .mount(&tmp_mount, ReadWrite)
+            .await?;
+        Command::new("btrfs")
+            .args(["subvolume", "delete"])
+            .arg(tmp_mount.join("ext2_saved"))
+            .invoke(ErrorKind::DiskManagement)
             .await?;
         Command::new("btrfs")
             .args(["filesystem", "defragment", "-r"])
