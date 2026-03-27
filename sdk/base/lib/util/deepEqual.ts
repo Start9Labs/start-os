@@ -1,7 +1,10 @@
 /**
  * Performs a deep structural equality check across all provided arguments.
  * Returns true only if every argument is deeply equal to every other argument.
- * Handles primitives, arrays, and plain objects recursively.
+ * Handles primitives, arrays, and plain objects (JSON-like) recursively.
+ *
+ * Non-plain objects (Set, Map, Date, etc.) are compared by reference only,
+ * since Object.keys() does not enumerate their contents.
  *
  * @param args - Two or more values to compare for deep equality
  * @returns True if all arguments are deeply equal
@@ -23,6 +26,18 @@ export function deepEqual(...args: unknown[]) {
   }
   if (objects.length !== args.length) return false
   if (objects.some(Array.isArray) && !objects.every(Array.isArray)) return false
+  if (
+    objects.some(
+      (x) => !Array.isArray(x) && Object.getPrototypeOf(x) !== Object.prototype,
+    )
+  ) {
+    return (
+      objects.reduce<object | null>(
+        (a, b) => (a === b ? a : null),
+        objects[0],
+      ) !== null
+    )
+  }
   const allKeys = new Set(objects.flatMap((x) => Object.keys(x)))
   for (const key of allKeys) {
     for (const x of objects) {

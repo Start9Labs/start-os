@@ -494,7 +494,7 @@ export class SystemForEmbassy implements System {
       const host = new MultiHost({ effects, id })
       const internalPorts = new Set(
         Object.values(interfaceValue["tor-config"]?.["port-mapping"] ?? {})
-          .map(Number.parseInt)
+          .map((v) => parseInt(v))
           .concat(
             ...Object.values(interfaceValue["lan-config"] ?? {}).map(
               (c) => c.internal,

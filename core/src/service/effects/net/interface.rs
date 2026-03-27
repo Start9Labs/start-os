@@ -134,8 +134,7 @@ pub async fn list_service_interfaces(
         .expect("valid json pointer");
     let mut watch = context.seed.ctx.db.watch(ptr).await;
 
-    let res = imbl_value::from_value(watch.peek_and_mark_seen()?)
-        .unwrap_or_default();
+    let res = from_value(watch.peek_and_mark_seen()?)?;
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
@@ -174,9 +173,7 @@ pub async fn clear_service_interfaces(
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
                 .as_service_interfaces_mut()
-                .mutate(|s| {
-                    Ok(s.retain(|id, _| except.contains(id)))
-                })
+                .mutate(|s| Ok(s.retain(|id, _| except.contains(id))))
         })
         .await
         .result?;
