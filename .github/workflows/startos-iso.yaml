@@ -89,9 +89,9 @@ jobs:
               "riscv64": "ubuntu-latest"
             }')[matrix.arch],
             fromJson('{
-              "x86_64": "ubuntu-24.04-32-cores",
-              "aarch64": "ubuntu-24.04-arm-32-cores",
-              "riscv64": "ubuntu-24.04-32-cores"
+              "x86_64": "amd64-fast",
+              "aarch64": "aarch64-fast",
+              "riscv64": "amd64-fast"
             }')[matrix.arch]
           )
         )[github.event.inputs.runner == 'fast']
@@ -153,15 +153,15 @@ jobs:
               "riscv64-nonfree": "ubuntu-24.04-arm",
             }')[matrix.platform],
             fromJson('{
-              "x86_64": "ubuntu-24.04-8-cores",
-              "x86_64-nonfree": "ubuntu-24.04-8-cores",
-              "x86_64-nvidia": "ubuntu-24.04-8-cores",
-              "aarch64": "ubuntu-24.04-arm-8-cores",
-              "aarch64-nonfree": "ubuntu-24.04-arm-8-cores",
-              "aarch64-nvidia": "ubuntu-24.04-arm-8-cores",
-              "raspberrypi": "ubuntu-24.04-arm-8-cores",
-              "riscv64": "ubuntu-24.04-8-cores",
-              "riscv64-nonfree": "ubuntu-24.04-8-cores",
+              "x86_64": "amd64-fast",
+              "x86_64-nonfree": "amd64-fast",
+              "x86_64-nvidia": "amd64-fast",
+              "aarch64": "aarch64-fast",
+              "aarch64-nonfree": "aarch64-fast",
+              "aarch64-nvidia": "aarch64-fast",
+              "raspberrypi": "aarch64-fast",
+              "riscv64": "amd64-fast",
+              "riscv64-nonfree": "amd64-fast",
             }')[matrix.platform]
           )
         )[github.event.inputs.runner == 'fast']
