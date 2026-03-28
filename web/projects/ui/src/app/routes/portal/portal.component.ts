@@ -6,6 +6,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterOutlet } from '@angular/router'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
 import {
   TuiButton,
@@ -21,15 +22,17 @@ import {
   TuiProgress,
 } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
+import { PluginsComponent } from 'src/app/routes/portal/components/plugins.component'
 import { TabsComponent } from 'src/app/routes/portal/components/tabs.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { PluginsService } from 'src/app/services/plugins.service'
 import { HeaderComponent } from './components/header/header.component'
 
 @Component({
   template: `
-    <header appHeader>{{ name() }}</header>
+    <header appHeader><app-plugins /></header>
     <main>
       <tui-scrollbar [style.max-height.%]="100">
         <router-outlet />
@@ -91,18 +94,46 @@ import { HeaderComponent } from './components/header/header.component'
   styles: `
     @use '@taiga-ui/styles/utils' as taiga;
 
+    @keyframes open {
+      from {
+        inline-size: 100%;
+      }
+
+      to {
+        inline-size: calc(320px + (100% - 640px) * var(--plugins));
+      }
+    }
+
     :host {
-      height: 100%;
+      @include taiga.transition(inline-size);
+
+      block-size: 100%;
+      inline-size: 100%;
       display: flex;
       flex-direction: column;
-      // @TODO Theme
-      background: url(/assets/img/background_dark.jpeg) fixed center/cover;
 
-      &::before {
+      &._plugins {
+        inline-size: calc(320px + (100% - 640px) * var(--plugins));
+        animation: open var(--tui-duration) ease-in-out;
+        transition: none;
+
+        app-tabs {
+          inline-size: calc(100% - var(--bumper));
+        }
+      }
+
+      &::before,
+      &::after {
         content: '';
         position: fixed;
         inset: 0;
         backdrop-filter: blur(0.5rem);
+      }
+
+      &::after {
+        z-index: -1;
+        // @TODO Theme
+        background: url(/assets/img/background_dark.jpeg) fixed center/cover;
       }
     }
 
@@ -125,6 +156,10 @@ import { HeaderComponent } from './components/header/header.component'
       text-wrap: balance;
     }
   `,
+  host: {
+    '[class._plugins]': '!mobile && plugins.enabled()',
+    '[style.--plugins]': 'plugins.size() / 100',
+  },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterOutlet,
@@ -139,6 +174,7 @@ import { HeaderComponent } from './components/header/header.component'
     TuiPopup,
     TuiCell,
     i18nPipe,
+    PluginsComponent,
   ],
 })
 export class PortalComponent {
@@ -147,6 +183,8 @@ export class PortalComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
 
+  readonly mobile = inject(WA_IS_MOBILE)
+  readonly plugins = inject(PluginsService)
   readonly name = toSignal(this.patch.watch$('serverInfo', 'name'))
   readonly update = toSignal(inject(OSService).updating$)
   readonly restartReason = toSignal(
