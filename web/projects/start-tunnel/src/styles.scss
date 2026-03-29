@@ -14,7 +14,7 @@ body {
   isolation: isolate;
   overflow-x: hidden;
   background:
-    conic-gradient(var(--tui-background-base)),
+    linear-gradient(var(--tui-background-base, #171717), var(--tui-background-base, #171717)),
     radial-gradient(circle at top right, #5240a8, transparent 40%),
     radial-gradient(circle at bottom right, #9236c9, transparent),
     radial-gradient(circle at 25% 100%, #5b65d5, transparent 30%),
