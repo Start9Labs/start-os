@@ -84,7 +84,7 @@ pub async fn update_system(
         .into_status_info()
         .into_restart()
         .de()?
-        .is_some()
+        == Some(RestartReason::Update)
     {
         return Err(Error::new(
             eyre!("{}", t!("update.already-updated-restart-required")),
@@ -343,7 +343,10 @@ async fn maybe_do_update(
                             .as_status_info_mut()
                             .as_update_progress_mut()
                             .ser(&None)?;
-                        server_info.as_status_info_mut().as_restart_mut().ser(&Some(RestartReason::Update))
+                        server_info
+                            .as_status_info_mut()
+                            .as_restart_mut()
+                            .ser(&Some(RestartReason::Update))
                     })
                     .await
                     .result?;

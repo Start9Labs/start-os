@@ -220,7 +220,7 @@ pub struct ServerInfo {
     pub keyboard: Option<KeyboardOptions>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[serde(rename_all = "lowercase")]
 #[ts(export)]
 pub enum RestartReason {
