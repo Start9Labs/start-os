@@ -765,6 +765,7 @@ async fn watcher(
                             }
                             changed
                         });
+                        gc_policy_routing(&ifaces).await;
                         for result in futures::future::join_all(jobs).await {
                             result.log_err();
                         }
@@ -806,15 +807,43 @@ async fn get_wan_ipv4(iface: &str, base_url: &Url) -> Result<Option<Ipv4Addr>, E
     Ok(Some(trimmed.parse()?))
 }
 
-struct PolicyRoutingCleanup {
+struct PolicyRoutingGuard {
     table_id: u32,
-    iface: String,
 }
-impl Drop for PolicyRoutingCleanup {
-    fn drop(&mut self) {
-        let table_str = self.table_id.to_string();
-        let iface = std::mem::take(&mut self.iface);
-        tokio::spawn(async move {
+
+/// Remove stale per-interface policy-routing state (fwmark rules, routing
+/// tables, iptables CONNMARK rules) for interfaces that no longer exist.
+async fn gc_policy_routing(active_ifaces: &BTreeSet<GatewayId>) {
+    let active_tables: BTreeSet<u32> = active_ifaces
+        .iter()
+        .filter_map(|iface| if_nametoindex(iface.as_str()).ok().map(|idx| 1000 + idx))
+        .collect();
+
+    // GC fwmark ip rules at priority 50 and their routing tables.
+    if let Ok(rules) = Command::new("ip")
+        .arg("rule")
+        .arg("show")
+        .invoke(ErrorKind::Network)
+        .await
+        .and_then(|b| String::from_utf8(b).with_kind(ErrorKind::Utf8))
+    {
+        for line in rules.lines() {
+            let line = line.trim();
+            if !line.starts_with("50:") {
+                continue;
+            }
+            let Some(pos) = line.find("lookup ") else {
+                continue;
+            };
+            let token = line[pos + 7..].split_whitespace().next().unwrap_or("");
+            let Ok(table_id) = token.parse::<u32>() else {
+                continue;
+            };
+            if table_id < 1000 || active_tables.contains(&table_id) {
+                continue;
+            }
+            let table_str = table_id.to_string();
+            tracing::debug!("gc_policy_routing: removing stale table {table_id}");
             Command::new("ip")
                 .arg("rule")
                 .arg("del")
@@ -835,25 +864,46 @@ impl Drop for PolicyRoutingCleanup {
                 .invoke(ErrorKind::Network)
                 .await
                 .ok();
-            Command::new("iptables")
-                .arg("-t")
-                .arg("mangle")
-                .arg("-D")
-                .arg("PREROUTING")
-                .arg("-i")
-                .arg(&iface)
-                .arg("-m")
-                .arg("conntrack")
-                .arg("--ctstate")
-                .arg("NEW")
-                .arg("-j")
-                .arg("CONNMARK")
-                .arg("--set-mark")
-                .arg(&table_str)
-                .invoke(ErrorKind::Network)
-                .await
-                .ok();
-        });
+        }
+    }
+
+    // GC iptables CONNMARK set-mark rules for defunct interfaces.
+    if let Ok(rules) = Command::new("iptables")
+        .arg("-t")
+        .arg("mangle")
+        .arg("-S")
+        .arg("PREROUTING")
+        .invoke(ErrorKind::Network)
+        .await
+        .and_then(|b| String::from_utf8(b).with_kind(ErrorKind::Utf8))
+    {
+        // Rules look like:
+        //   -A PREROUTING -i wg0 -m conntrack --ctstate NEW -j CONNMARK --set-mark 1005
+        for line in rules.lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.first() != Some(&"-A") {
+                continue;
+            }
+            if !parts.contains(&"--set-mark") {
+                continue;
+            }
+            let Some(iface_idx) = parts.iter().position(|&p| p == "-i") else {
+                continue;
+            };
+            let Some(&iface) = parts.get(iface_idx + 1) else {
+                continue;
+            };
+            if active_ifaces.contains(&GatewayId::from(InternedString::intern(iface))) {
+                continue;
+            }
+            tracing::debug!("gc_policy_routing: removing stale iptables rule for {iface}");
+            let mut cmd = Command::new("iptables");
+            cmd.arg("-t").arg("mangle").arg("-D");
+            for &arg in &parts[1..] {
+                cmd.arg(arg);
+            }
+            cmd.invoke(ErrorKind::Network).await.ok();
+        }
     }
 }
 
@@ -985,11 +1035,8 @@ async fn watch_ip(
                             } else {
                                 None
                             };
-                            let policy_guard: Option<PolicyRoutingCleanup> =
-                                policy_table_id.map(|t| PolicyRoutingCleanup {
-                                    table_id: t,
-                                    iface: iface.as_str().to_owned(),
-                                });
+                            let policy_guard: Option<PolicyRoutingGuard> =
+                                policy_table_id.map(|t| PolicyRoutingGuard { table_id: t });
 
                             loop {
                                 until
@@ -1016,7 +1063,7 @@ async fn watch_ip(
 }
 
 async fn apply_policy_routing(
-    guard: &PolicyRoutingCleanup,
+    guard: &PolicyRoutingGuard,
     iface: &GatewayId,
     lan_ip: &OrdSet<IpAddr>,
 ) -> Result<(), Error> {
@@ -1250,7 +1297,7 @@ async fn poll_ip_info(
     ip4_proxy: &Ip4ConfigProxy<'_>,
     ip6_proxy: &Ip6ConfigProxy<'_>,
     dhcp4_proxy: &Option<Dhcp4ConfigProxy<'_>>,
-    policy_guard: &Option<PolicyRoutingCleanup>,
+    policy_guard: &Option<PolicyRoutingGuard>,
     iface: &GatewayId,
     echoip_ratelimit_state: &mut BTreeMap<Url, Instant>,
     db: Option<&TypedPatchDb<Database>>,
@@ -1299,6 +1346,49 @@ async fn poll_ip_info(
         apply_policy_routing(guard, iface, &lan_ip).await?;
     }
 
+    // Write IP info to the watch immediately so the gateway appears in the
+    // DB without waiting for the (slow) WAN IP fetch.  The echoip HTTP
+    // request has a 5-second timeout per URL and is easily cancelled by
+    // D-Bus signals via the Until mechanism, which would prevent the
+    // gateway from ever appearing if we waited.
+    let mut ip_info = IpInfo {
+        name: name.clone(),
+        scope_id,
+        device_type,
+        subnets: subnets.clone(),
+        lan_ip,
+        wan_ip: None,
+        ntp_servers,
+        dns_servers,
+    };
+
+    write_to.send_if_modified(|m: &mut OrdMap<GatewayId, NetworkInterfaceInfo>| {
+        let (name, secure, gateway_type, prev_wan_ip) =
+            m.get(iface).map_or((None, None, None, None), |i| {
+                (
+                    i.name.clone(),
+                    i.secure,
+                    i.gateway_type,
+                    i.ip_info.as_ref().and_then(|i| i.wan_ip),
+                )
+            });
+        ip_info.wan_ip = prev_wan_ip;
+        let ip_info = Arc::new(ip_info);
+        m.insert(
+            iface.clone(),
+            NetworkInterfaceInfo {
+                name,
+                secure,
+                ip_info: Some(ip_info.clone()),
+                gateway_type,
+            },
+        )
+        .filter(|old| &old.ip_info == &Some(ip_info))
+        .is_none()
+    });
+
+    // Now fetch the WAN IP in a second pass.  Even if this is slow or
+    // gets cancelled, the gateway already has valid ip_info above.
     let echoip_urls = if let Some(db) = db {
         db.peek()
             .await
@@ -1349,41 +1439,25 @@ async fn poll_ip_info(
         );
         tracing::debug!("{e:?}");
     }
-    let mut ip_info = IpInfo {
-        name: name.clone(),
-        scope_id,
-        device_type,
-        subnets,
-        lan_ip,
-        wan_ip,
-        ntp_servers,
-        dns_servers,
-    };
 
-    write_to.send_if_modified(|m: &mut OrdMap<GatewayId, NetworkInterfaceInfo>| {
-        let (name, secure, gateway_type, prev_wan_ip) =
-            m.get(iface).map_or((None, None, None, None), |i| {
-                (
-                    i.name.clone(),
-                    i.secure,
-                    i.gateway_type,
-                    i.ip_info.as_ref().and_then(|i| i.wan_ip),
-                )
-            });
-        ip_info.wan_ip = ip_info.wan_ip.or(prev_wan_ip);
-        let ip_info = Arc::new(ip_info);
-        m.insert(
-            iface.clone(),
-            NetworkInterfaceInfo {
-                name,
-                secure,
-                ip_info: Some(ip_info.clone()),
-                gateway_type,
-            },
-        )
-        .filter(|old| &old.ip_info == &Some(ip_info))
-        .is_none()
-    });
+    // Update with WAN IP if we obtained one
+    if wan_ip.is_some() {
+        write_to.send_if_modified(|m: &mut OrdMap<GatewayId, NetworkInterfaceInfo>| {
+            let Some(entry) = m.get_mut(iface) else {
+                return false;
+            };
+            let Some(ref existing_ip) = entry.ip_info else {
+                return false;
+            };
+            if existing_ip.wan_ip == wan_ip {
+                return false;
+            }
+            let mut updated = (**existing_ip).clone();
+            updated.wan_ip = wan_ip;
+            entry.ip_info = Some(Arc::new(updated));
+            true
+        });
+    }
 
     Ok(())
 }

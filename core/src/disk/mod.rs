@@ -103,7 +103,7 @@ impl OsPartitionInfo {
     }
 }
 
-const BIOS_BOOT_TYPE_GUID: &str = "21686148-6449-6e6f-744e-656564726548";
+const BIOS_BOOT_TYPE_GUID: &str = "21686148-6449-6E6F-744E-656564454649";
 
 /// Find the BIOS boot partition on the same disk as `known_part`.
 async fn find_bios_boot_partition(known_part: &Path) -> Result<Option<PathBuf>, Error> {
