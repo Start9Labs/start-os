@@ -125,7 +125,6 @@ impl Public {
                 },
                 status_info: ServerStatus {
                     backup_progress: None,
-                    updated: false,
                     update_progress: None,
                     shutting_down: false,
                     restarting: false,
@@ -152,6 +151,7 @@ impl Public {
                 kiosk: Some(kiosk).filter(|_| &*PLATFORM != "raspberrypi"),
                 language,
                 keyboard,
+                restart: None,
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(*DB_UI_SEED_CELL.get().unwrap_or(&"null"))
@@ -218,6 +218,18 @@ pub struct ServerInfo {
     pub kiosk: Option<bool>,
     pub language: Option<InternedString>,
     pub keyboard: Option<KeyboardOptions>,
+    #[serde(default)]
+    pub restart: Option<RestartReason>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum RestartReason {
+    Mdns,
+    Language,
+    Kiosk,
+    Update,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -364,7 +376,6 @@ pub struct BackupProgress {
 #[ts(export)]
 pub struct ServerStatus {
     pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
-    pub updated: bool,
     pub update_progress: Option<FullProgress>,
     #[serde(default)]
     pub shutting_down: bool,

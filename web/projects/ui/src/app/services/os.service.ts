@@ -28,7 +28,7 @@ export class OSService {
     .pipe(shareReplay({ bufferSize: 1, refCount: true }))
 
   readonly updating$ = this.statusInfo$.pipe(
-    map(status => status.updateProgress ?? status.updated),
+    map(status => status.updateProgress ?? false),
     distinctUntilChanged(),
   )
 

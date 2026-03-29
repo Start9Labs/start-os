@@ -28,7 +28,13 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     #[instrument(skip_all)]
-    fn up(self, _db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
+    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
+        db["public"]["serverInfo"]["statusInfo"]
+            .as_object_mut()
+            .map(|m| m.remove("updated"));
+
+        db["public"]["serverInfo"]["restart"] = Value::Null;
+
         Ok(Value::Null)
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {

@@ -3,6 +3,7 @@ import type { Governor } from './Governor'
 import type { KeyboardOptions } from './KeyboardOptions'
 import type { LshwDevice } from './LshwDevice'
 import type { NetworkInfo } from './NetworkInfo'
+import type { RestartReason } from './RestartReason'
 import type { ServerStatus } from './ServerStatus'
 import type { SmtpValue } from './SmtpValue'
 
@@ -32,4 +33,5 @@ export type ServerInfo = {
   kiosk: boolean | null
   language: string | null
   keyboard: KeyboardOptions | null
+  restart: RestartReason | null
 }

@@ -5,7 +5,6 @@ import type { PackageId } from './PackageId'
 
 export type ServerStatus = {
   backupProgress: { [key: PackageId]: BackupProgress } | null
-  updated: boolean
   updateProgress: FullProgress | null
   shuttingDown: boolean
   restarting: boolean

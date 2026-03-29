@@ -7,7 +7,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::RpcContext;
-use crate::db::model::public::ServerInfo;
+use crate::db::model::public::{RestartReason, ServerInfo};
 use crate::prelude::*;
 use crate::util::Invoke;
 
@@ -272,6 +272,7 @@ pub async fn set_hostname_rpc(
             }
             if let Some(hostname) = &hostname {
                 hostname.save(server_info)?;
+                server_info.as_restart_mut().ser(&Some(RestartReason::Mdns))?;
             }
             ServerHostnameInfo::load(server_info)
         })

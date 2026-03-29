@@ -6,7 +6,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterOutlet } from '@angular/router'
-import { ErrorService } from '@start9labs/shared'
+import { ErrorService, i18nPipe } from '@start9labs/shared'
 import {
   TuiButton,
   TuiCell,
@@ -39,10 +39,7 @@ import { HeaderComponent } from './components/header/header.component'
     @if (update(); as update) {
       <tui-action-bar *tuiPopup="bar()">
         <span tuiCell="m">
-          @if (update === true) {
-            <tui-icon icon="@tui.check" class="g-positive" />
-            Download complete, restart to apply changes
-          } @else if (
+          @if (
             update.overall && update.overall !== true && update.overall.total
           ) {
             <tui-progress-circle
@@ -58,9 +55,36 @@ import { HeaderComponent } from './components/header/header.component'
             Calculating download size
           }
         </span>
-        @if (update === true) {
-          <button tuiButton size="s" (click)="restart()">Restart</button>
-        }
+      </tui-action-bar>
+    }
+    @if (restartReason(); as reason) {
+      <tui-action-bar *tuiPopup="bar()">
+        <span tuiCell="m">
+          <tui-icon icon="@tui.refresh-cw" />
+          @switch (reason) {
+            @case ('update') {
+              {{ 'Download complete. Restart to apply.' | i18n }}
+            }
+            @case ('mdns') {
+              {{
+                'Hostname changed, restart for installed services to use the new address'
+                  | i18n
+              }}
+            }
+            @case ('language') {
+              {{
+                'Language changed, restart for installed services to use the new language'
+                  | i18n
+              }}
+            }
+            @case ('kiosk') {
+              {{ 'Kiosk mode changed, restart to apply' | i18n }}
+            }
+          }
+        </span>
+        <button tuiButton size="s" appearance="primary" (click)="restart()">
+          {{ 'Restart' | i18n }}
+        </button>
       </tui-action-bar>
     }
   `,
@@ -114,6 +138,7 @@ import { HeaderComponent } from './components/header/header.component'
     TuiButton,
     TuiPopup,
     TuiCell,
+    i18nPipe,
   ],
 })
 export class PortalComponent {
@@ -124,6 +149,7 @@ export class PortalComponent {
 
   readonly name = toSignal(this.patch.watch$('serverInfo', 'name'))
   readonly update = toSignal(inject(OSService).updating$)
+  readonly restartReason = toSignal(this.patch.watch$('serverInfo', 'restart'))
   readonly bar = signal(true)
 
   getProgress(size: number, downloaded: number): number {

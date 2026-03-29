@@ -16,7 +16,7 @@ use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
 use crate::context::{CliContext, InitContext, RpcContext};
 use crate::db::model::Database;
-use crate::db::model::public::ServerStatus;
+use crate::db::model::public::{RestartReason, ServerStatus};
 use crate::developer::OS_DEVELOPER_KEY_PATH;
 use crate::hostname::ServerHostname;
 use crate::middleware::auth::local::LocalAuthContext;
@@ -371,7 +371,6 @@ pub async fn init(
     let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
     let devices = lshw().await?;
     let status_info = ServerStatus {
-        updated: false,
         update_progress: None,
         backup_progress: None,
         shutting_down: false,
@@ -379,6 +378,7 @@ pub async fn init(
     };
     db.mutate(|v| {
         let server_info = v.as_public_mut().as_server_info_mut();
+        server_info.as_restart_mut().ser(&None::<RestartReason>)?;
         server_info.as_ntp_synced_mut().ser(&ntp_synced)?;
         server_info.as_ram_mut().ser(&ram)?;
         server_info.as_devices_mut().ser(&devices)?;
