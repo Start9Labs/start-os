@@ -149,7 +149,9 @@ export class PortalComponent {
 
   readonly name = toSignal(this.patch.watch$('serverInfo', 'name'))
   readonly update = toSignal(inject(OSService).updating$)
-  readonly restartReason = toSignal(this.patch.watch$('serverInfo', 'restart'))
+  readonly restartReason = toSignal(
+    this.patch.watch$('serverInfo', 'statusInfo', 'restart'),
+  )
   readonly bar = signal(true)
 
   getProgress(size: number, downloaded: number): number {

@@ -2,10 +2,12 @@
 import type { BackupProgress } from './BackupProgress'
 import type { FullProgress } from './FullProgress'
 import type { PackageId } from './PackageId'
+import type { RestartReason } from './RestartReason'
 
 export type ServerStatus = {
   backupProgress: { [key: PackageId]: BackupProgress } | null
   updateProgress: FullProgress | null
   shuttingDown: boolean
   restarting: boolean
+  restart: RestartReason | null
 }

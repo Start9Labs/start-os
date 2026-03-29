@@ -272,7 +272,7 @@ pub async fn set_hostname_rpc(
             }
             if let Some(hostname) = &hostname {
                 hostname.save(server_info)?;
-                server_info.as_restart_mut().ser(&Some(RestartReason::Mdns))?;
+                server_info.as_status_info_mut().as_restart_mut().ser(&Some(RestartReason::Mdns))?;
             }
             ServerHostnameInfo::load(server_info)
         })

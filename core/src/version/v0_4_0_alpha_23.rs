@@ -29,11 +29,12 @@ impl VersionT for Version {
     }
     #[instrument(skip_all)]
     fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
-        db["public"]["serverInfo"]["statusInfo"]
-            .as_object_mut()
-            .map(|m| m.remove("updated"));
-
-        db["public"]["serverInfo"]["restart"] = Value::Null;
+        let status_info = db["public"]["serverInfo"]["statusInfo"]
+            .as_object_mut();
+        if let Some(m) = status_info {
+            m.remove("updated");
+            m.insert("restart".into(), Value::Null);
+        }
 
         Ok(Value::Null)
     }

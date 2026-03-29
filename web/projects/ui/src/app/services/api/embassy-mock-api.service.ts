@@ -445,7 +445,7 @@ export class MockApiService extends ApiService {
     this.mockRevision([
       {
         op: PatchOp.REPLACE,
-        path: '/serverInfo/restart',
+        path: '/serverInfo/statusInfo/restart',
         value: 'kiosk',
       },
     ])
@@ -471,7 +471,7 @@ export class MockApiService extends ApiService {
     this.mockRevision([
       {
         op: PatchOp.REPLACE,
-        path: '/serverInfo/restart',
+        path: '/serverInfo/statusInfo/restart',
         value: 'mdns',
       },
     ])
@@ -507,7 +507,7 @@ export class MockApiService extends ApiService {
     this.mockRevision([
       {
         op: PatchOp.REPLACE,
-        path: '/serverInfo/restart',
+        path: '/serverInfo/statusInfo/restart',
         value: 'language',
       },
     ])
@@ -1852,7 +1852,7 @@ export class MockApiService extends ApiService {
       const patch3: Operation<string>[] = [
         {
           op: PatchOp.REPLACE,
-          path: '/serverInfo/restart',
+          path: '/serverInfo/statusInfo/restart',
           value: 'update',
         },
         {

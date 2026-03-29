@@ -26,6 +26,7 @@ export namespace Mock {
     updateProgress: null,
     restarting: false,
     shuttingDown: false,
+    restart: null,
   }
 
   export const RegistryOSUpdate: T.OsVersionInfoMap = {

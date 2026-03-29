@@ -81,6 +81,7 @@ pub async fn update_system(
         .await
         .into_public()
         .into_server_info()
+        .into_status_info()
         .into_restart()
         .de()?
         .is_some()
@@ -286,7 +287,7 @@ async fn maybe_do_update(
         .mutate(|db| {
             let server_info = db.as_public_mut().as_server_info_mut();
 
-            if server_info.as_restart().de()?.is_some() {
+            if server_info.as_status_info().as_restart().de()?.is_some() {
                 return Err(Error::new(
                     eyre!("{}", t!("update.already-updated-restart-required")),
                     crate::ErrorKind::InvalidRequest,
@@ -342,7 +343,7 @@ async fn maybe_do_update(
                             .as_status_info_mut()
                             .as_update_progress_mut()
                             .ser(&None)?;
-                        server_info.as_restart_mut().ser(&Some(RestartReason::Update))
+                        server_info.as_status_info_mut().as_restart_mut().ser(&Some(RestartReason::Update))
                     })
                     .await
                     .result?;

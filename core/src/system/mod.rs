@@ -354,7 +354,7 @@ pub fn kiosk<C: Context>() -> ParentHandler<C> {
                     .mutate(|db| {
                         let server_info = db.as_public_mut().as_server_info_mut();
                         server_info.as_kiosk_mut().ser(&Some(true))?;
-                        server_info.as_restart_mut().ser(&Some(RestartReason::Kiosk))
+                        server_info.as_status_info_mut().as_restart_mut().ser(&Some(RestartReason::Kiosk))
                     })
                     .await
                     .result?;
@@ -371,7 +371,7 @@ pub fn kiosk<C: Context>() -> ParentHandler<C> {
                     .mutate(|db| {
                         let server_info = db.as_public_mut().as_server_info_mut();
                         server_info.as_kiosk_mut().ser(&Some(false))?;
-                        server_info.as_restart_mut().ser(&Some(RestartReason::Kiosk))
+                        server_info.as_status_info_mut().as_restart_mut().ser(&Some(RestartReason::Kiosk))
                     })
                     .await
                     .result?;
@@ -1370,7 +1370,7 @@ pub async fn set_language(
             server_info
                 .as_language_mut()
                 .ser(&Some(language.clone()))?;
-            server_info.as_restart_mut().ser(&Some(RestartReason::Language))
+            server_info.as_status_info_mut().as_restart_mut().ser(&Some(RestartReason::Language))
         })
         .await
         .result?;

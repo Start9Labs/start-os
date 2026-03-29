@@ -128,6 +128,7 @@ impl Public {
                     update_progress: None,
                     shutting_down: false,
                     restarting: false,
+                    restart: None,
                 },
                 unread_notification_count: 0,
                 password_hash: account.password.clone(),
@@ -151,7 +152,6 @@ impl Public {
                 kiosk: Some(kiosk).filter(|_| &*PLATFORM != "raspberrypi"),
                 language,
                 keyboard,
-                restart: None,
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(*DB_UI_SEED_CELL.get().unwrap_or(&"null"))
@@ -218,8 +218,6 @@ pub struct ServerInfo {
     pub kiosk: Option<bool>,
     pub language: Option<InternedString>,
     pub keyboard: Option<KeyboardOptions>,
-    #[serde(default)]
-    pub restart: Option<RestartReason>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
@@ -381,6 +379,8 @@ pub struct ServerStatus {
     pub shutting_down: bool,
     #[serde(default)]
     pub restarting: bool,
+    #[serde(default)]
+    pub restart: Option<RestartReason>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
