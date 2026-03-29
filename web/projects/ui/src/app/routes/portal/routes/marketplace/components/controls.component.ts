@@ -31,7 +31,7 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
 
 import { MarketplaceAlertsService } from '../services/alerts.service'
 
-type KEYS = 'id' | 'version' | 'alerts' | 'flavor'
+type KEYS = 'id' | 'version' | 'alerts' | 'flavor' | 'satisfies'
 
 @Component({
   selector: 'marketplace-controls',
@@ -185,9 +185,13 @@ export class MarketplaceControlsComponent {
   }
 
   private async dryInstall(url: string | null) {
-    const { id, version } = this.pkg()
+    const { id, version, satisfies } = this.pkg()
     const packages = await getAllPackages(this.patch)
-    const breakages = dryUpdate({ id, version }, packages, this.exver)
+    const breakages = dryUpdate(
+      { id, version, satisfies: satisfies || [] },
+      packages,
+      this.exver,
+    )
 
     if (!breakages.length || (await this.alerts.alertBreakages(breakages))) {
       this.installOrUpload(url)

@@ -358,7 +358,7 @@ pub async fn check_dependencies(
         };
         let manifest = package.as_state_info().as_manifest(ManifestPreference::New);
         let installed_version = manifest.as_version().de()?.into_version();
-        let satisfies = manifest.as_satisfies().de()?;
+        let satisfies = manifest.as_metadata().as_satisfies().de()?;
         let installed_version = Some(installed_version.clone().into());
         let is_running = package
             .as_status_info()

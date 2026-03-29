@@ -615,6 +615,7 @@ fn check_matching_info_short() {
             sdk_version: None,
             hardware_acceleration: false,
             plugins: BTreeSet::new(),
+            satisfies: BTreeSet::new(),
         },
         icon: DataUrl::from_vec("image/png", vec![]),
         dependency_metadata: BTreeMap::new(),

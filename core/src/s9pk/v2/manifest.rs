@@ -32,7 +32,6 @@ pub(crate) fn current_version() -> Version {
 pub struct Manifest {
     pub id: PackageId,
     pub version: VersionString,
-    pub satisfies: BTreeSet<VersionString>,
     #[ts(type = "string")]
     pub can_migrate_to: VersionRange,
     #[ts(type = "string")]

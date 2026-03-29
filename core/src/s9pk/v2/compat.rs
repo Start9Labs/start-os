@@ -197,7 +197,6 @@ impl TryFrom<ManifestV1> for Manifest {
         Ok(Self {
             id: value.id,
             version: version.into(),
-            satisfies: BTreeSet::new(),
             can_migrate_from: VersionRange::any(),
             can_migrate_to: VersionRange::none(),
             metadata: PackageMetadata {
@@ -219,6 +218,7 @@ impl TryFrom<ManifestV1> for Manifest {
                     PackageProcedure::Script(_) => false,
                 },
                 plugins: BTreeSet::new(),
+                satisfies: BTreeSet::new(),
             },
             images: BTreeMap::new(),
             volumes: value

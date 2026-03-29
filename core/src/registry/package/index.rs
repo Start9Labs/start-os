@@ -110,6 +110,8 @@ pub struct PackageMetadata {
     pub hardware_acceleration: bool,
     #[serde(default)]
     pub plugins: BTreeSet<PluginId>,
+    #[serde(default)]
+    pub satisfies: BTreeSet<VersionString>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

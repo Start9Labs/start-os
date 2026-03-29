@@ -14,7 +14,6 @@ import {
   TuiNotification,
 } from '@taiga-ui/core'
 import { injectContext } from '@taiga-ui/polymorpheus'
-import * as json from 'fast-json-patch'
 import { compare } from 'fast-json-patch'
 import { PatchDB } from 'patch-db-client'
 import { catchError, EMPTY, endWith, firstValueFrom, from, map } from 'rxjs'
@@ -191,9 +190,7 @@ export class ActionInputModal {
               task.actionId === this.actionId &&
               task.when?.condition === 'input-not-matches' &&
               task.input &&
-              json
-                .compare(input, task.input.value)
-                .some(op => op.op === 'add' || op.op === 'replace'),
+              conflicts(task.input.value, input),
           ),
       )
       .map(id => id)
@@ -213,4 +210,27 @@ export class ActionInputModal {
         .pipe(endWith(false)),
     )
   }
+}
+
+// Mirrors the Rust backend's `conflicts()` function in core/src/service/action.rs.
+// A key in the partial that is missing from the full input is NOT a conflict.
+function conflicts(left: unknown, right: unknown): boolean {
+  if (
+    typeof left === 'object' &&
+    left !== null &&
+    !Array.isArray(left) &&
+    typeof right === 'object' &&
+    right !== null &&
+    !Array.isArray(right)
+  ) {
+    const l = left as Record<string, unknown>
+    const r = right as Record<string, unknown>
+    return Object.keys(l).some(k => (k in r ? conflicts(l[k], r[k]) : false))
+  }
+
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return left.some(v => right.every(vr => conflicts(v, vr)))
+  }
+
+  return left !== right
 }
