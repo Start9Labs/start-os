@@ -16,6 +16,7 @@ use ts_rs::TS;
 
 use crate::bins::set_locale;
 use crate::context::{CliContext, RpcContext};
+use crate::db::model::public::RestartReason;
 use crate::disk::util::{get_available, get_used};
 use crate::logs::{LogSource, LogsParams, SYSTEM_UNIT};
 use crate::prelude::*;
@@ -351,10 +352,9 @@ pub fn kiosk<C: Context>() -> ParentHandler<C> {
             from_fn_async(|ctx: RpcContext| async move {
                 ctx.db
                     .mutate(|db| {
-                        db.as_public_mut()
-                            .as_server_info_mut()
-                            .as_kiosk_mut()
-                            .ser(&Some(true))
+                        let server_info = db.as_public_mut().as_server_info_mut();
+                        server_info.as_kiosk_mut().ser(&Some(true))?;
+                        server_info.as_status_info_mut().as_restart_mut().ser(&Some(RestartReason::Kiosk))
                     })
                     .await
                     .result?;
@@ -369,10 +369,9 @@ pub fn kiosk<C: Context>() -> ParentHandler<C> {
             from_fn_async(|ctx: RpcContext| async move {
                 ctx.db
                     .mutate(|db| {
-                        db.as_public_mut()
-                            .as_server_info_mut()
-                            .as_kiosk_mut()
-                            .ser(&Some(false))
+                        let server_info = db.as_public_mut().as_server_info_mut();
+                        server_info.as_kiosk_mut().ser(&Some(false))?;
+                        server_info.as_status_info_mut().as_restart_mut().ser(&Some(RestartReason::Kiosk))
                     })
                     .await
                     .result?;
@@ -1367,10 +1366,11 @@ pub async fn set_language(
     save_language(&*language).await?;
     ctx.db
         .mutate(|db| {
-            db.as_public_mut()
-                .as_server_info_mut()
+            let server_info = db.as_public_mut().as_server_info_mut();
+            server_info
                 .as_language_mut()
-                .ser(&Some(language.clone()))
+                .ser(&Some(language.clone()))?;
+            server_info.as_status_info_mut().as_restart_mut().ser(&Some(RestartReason::Language))
         })
         .await
         .result?;

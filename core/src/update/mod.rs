@@ -19,6 +19,7 @@ use ts_rs::TS;
 
 use crate::PLATFORM;
 use crate::context::{CliContext, RpcContext};
+use crate::db::model::public::RestartReason;
 use crate::notifications::{NotificationLevel, notify};
 use crate::prelude::*;
 use crate::progress::{
@@ -81,8 +82,9 @@ pub async fn update_system(
         .into_public()
         .into_server_info()
         .into_status_info()
-        .into_updated()
+        .into_restart()
         .de()?
+        == Some(RestartReason::Update)
     {
         return Err(Error::new(
             eyre!("{}", t!("update.already-updated-restart-required")),
@@ -281,10 +283,18 @@ async fn maybe_do_update(
 
     let start_progress = progress.snapshot();
 
-    let status = ctx
-        .db
+    ctx.db
         .mutate(|db| {
-            let mut status = peeked.as_public().as_server_info().as_status_info().de()?;
+            let server_info = db.as_public_mut().as_server_info_mut();
+
+            if server_info.as_status_info().as_restart().de()?.is_some() {
+                return Err(Error::new(
+                    eyre!("{}", t!("update.already-updated-restart-required")),
+                    crate::ErrorKind::InvalidRequest,
+                ));
+            }
+
+            let mut status = server_info.as_status_info().de()?;
             if status.update_progress.is_some() {
                 return Err(Error::new(
                     eyre!("{}", t!("update.already-updating")),
@@ -293,21 +303,11 @@ async fn maybe_do_update(
             }
 
             status.update_progress = Some(start_progress);
-            db.as_public_mut()
-                .as_server_info_mut()
-                .as_status_info_mut()
-                .ser(&status)?;
-            Ok(status)
+            server_info.as_status_info_mut().ser(&status)?;
+            Ok(())
         })
         .await
         .result?;
-
-    if status.updated {
-        return Err(Error::new(
-            eyre!("{}", t!("update.already-updated-restart-required")),
-            crate::ErrorKind::InvalidRequest,
-        ));
-    }
 
     let progress_task = NonDetachingJoinHandle::from(tokio::spawn(progress.clone().sync_to_db(
         ctx.db.clone(),
@@ -338,10 +338,15 @@ async fn maybe_do_update(
             Ok(()) => {
                 ctx.db
                     .mutate(|db| {
-                        let status_info =
-                            db.as_public_mut().as_server_info_mut().as_status_info_mut();
-                        status_info.as_update_progress_mut().ser(&None)?;
-                        status_info.as_updated_mut().ser(&true)
+                        let server_info = db.as_public_mut().as_server_info_mut();
+                        server_info
+                            .as_status_info_mut()
+                            .as_update_progress_mut()
+                            .ser(&None)?;
+                        server_info
+                            .as_status_info_mut()
+                            .as_restart_mut()
+                            .ser(&Some(RestartReason::Update))
                     })
                     .await
                     .result?;

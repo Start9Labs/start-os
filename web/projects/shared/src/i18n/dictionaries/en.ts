@@ -484,7 +484,6 @@ export const ENGLISH: Record<string, number> = {
   'Kiosk Mode is unavailable on this device': 512,
   'Enable': 513,
   'Disable': 514,
-  'This change will take effect after the next boot': 515,
   'Recommended': 516, // as in, we recommend this
   'Are you sure you want to dismiss this task?': 517,
   'Dismiss': 518, // as in, dismiss or delete a task
@@ -718,11 +717,12 @@ export const ENGLISH: Record<string, number> = {
   'After clicking "Enroll MOK":': 799,
   'When prompted, enter your StartOS password': 800,
   'Your system has Secure Boot enabled, which requires all kernel modules to be signed with a trusted key. Some hardware drivers \u2014 such as those for NVIDIA GPUs \u2014 are not signed by the default distribution key. Enrolling the StartOS signing key allows your firmware to trust these modules so your hardware can be fully utilized.': 801,
-  'OS-level translations are already in effect. A restart is required for service-level translations to take effect.': 802,
   'This drive uses ext4 and will be automatically converted to btrfs. A backup is strongly recommended before proceeding.': 803,
   'I have a backup of my data': 804,
   'Add Public Domain': 805,
   'Result': 806,
-  'After opening the new address, you will be prompted to restart.': 807,
-  'A restart is required for service interfaces to use the new hostname.': 808,
+  'Download complete. Restart to apply.': 807,
+  'Hostname changed, restart for installed services to use the new address': 808,
+  'Language changed, restart for installed services to use the new language': 809,
+  'Kiosk mode changed, restart to apply': 810,
 }

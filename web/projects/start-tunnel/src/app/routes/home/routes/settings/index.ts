@@ -50,45 +50,32 @@ import { CHANGE_PASSWORD } from './change-password'
           </button>
         }
       </div>
-      <div tuiCell>
-        <span tuiTitle>
-          <strong>Change password</strong>
-        </span>
-        <button tuiButton size="s" (click)="onChangePassword()">Change</button>
-      </div>
-      <div tuiCell>
-        <span tuiTitle>
-          <strong>Restart</strong>
-          <span tuiSubtitle>Restart the VPS</span>
-        </span>
-        <button
-          tuiButton
-          size="s"
-          appearance="secondary"
-          iconStart="@tui.rotate-cw"
-          [loading]="restarting()"
-          (click)="onRestart()"
-        >
-          Restart
-        </button>
-      </div>
-      <div tuiCell>
-        <span tuiTitle>
-          <strong>Logout</strong>
-        </span>
-        <button
-          tuiButton
-          size="s"
-          appearance="secondary-destructive"
-          iconStart="@tui.log-out"
-          (click)="onLogout()"
-        >
-          Logout
-        </button>
-      </div>
+    </div>
+    <div tuiCardLarge [style.align-items]="'start'">
+      <button tuiButton size="s" (click)="onChangePassword()">
+        Change password
+      </button>
+      <button
+        tuiButton
+        size="s"
+        iconStart="@tui.rotate-cw"
+        [loading]="restarting()"
+        (click)="onRestart()"
+      >
+        Reboot VPS
+      </button>
+      <button tuiButton size="s" iconStart="@tui.log-out" (click)="onLogout()">
+        Logout
+      </button>
     </div>
   `,
   styles: `
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
     [tuiCardLarge] {
       background: var(--tui-background-neutral-1);
 
@@ -148,9 +135,9 @@ export default class Settings {
       await this.api.restart()
       this.dialogs
         .open(
-          'The VPS is restarting. Please wait 1\u20132 minutes, then refresh the page.',
+          'The VPS is rebooting. Please wait 1\u20132 minutes, then refresh the page.',
           {
-            label: 'Restarting',
+            label: 'Rebooting',
           },
         )
         .subscribe()

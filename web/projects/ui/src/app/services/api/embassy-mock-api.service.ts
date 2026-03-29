@@ -435,14 +435,20 @@ export class MockApiService extends ApiService {
   async toggleKiosk(enable: boolean): Promise<null> {
     await pauseFor(2000)
 
-    const patch = [
+    this.mockRevision([
       {
         op: PatchOp.REPLACE,
         path: '/serverInfo/kiosk',
         value: enable,
       },
-    ]
-    this.mockRevision(patch)
+    ])
+    this.mockRevision([
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/statusInfo/restart',
+        value: 'kiosk',
+      },
+    ])
 
     return null
   }
@@ -450,7 +456,7 @@ export class MockApiService extends ApiService {
   async setHostname(params: T.SetServerHostnameParams): Promise<null> {
     await pauseFor(1000)
 
-    const patch = [
+    this.mockRevision([
       {
         op: PatchOp.REPLACE,
         path: '/serverInfo/name',
@@ -461,8 +467,14 @@ export class MockApiService extends ApiService {
         path: '/serverInfo/hostname',
         value: params.hostname,
       },
-    ]
-    this.mockRevision(patch)
+    ])
+    this.mockRevision([
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/statusInfo/restart',
+        value: 'mdns',
+      },
+    ])
 
     return null
   }
@@ -485,14 +497,20 @@ export class MockApiService extends ApiService {
   async setLanguage(params: SetLanguageParams): Promise<null> {
     await pauseFor(1000)
 
-    const patch = [
+    this.mockRevision([
       {
         op: PatchOp.REPLACE,
         path: '/serverInfo/language',
         value: params.language,
       },
-    ]
-    this.mockRevision(patch)
+    ])
+    this.mockRevision([
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/statusInfo/restart',
+        value: 'language',
+      },
+    ])
 
     return null
   }
@@ -1831,11 +1849,11 @@ export class MockApiService extends ApiService {
     this.mockRevision(patch2)
 
     setTimeout(async () => {
-      const patch3: Operation<boolean>[] = [
+      const patch3: Operation<string>[] = [
         {
           op: PatchOp.REPLACE,
-          path: '/serverInfo/statusInfo/updated',
-          value: true,
+          path: '/serverInfo/statusInfo/restart',
+          value: 'update',
         },
         {
           op: PatchOp.REMOVE,

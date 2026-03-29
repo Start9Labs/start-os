@@ -125,10 +125,10 @@ impl Public {
                 },
                 status_info: ServerStatus {
                     backup_progress: None,
-                    updated: false,
                     update_progress: None,
                     shutting_down: false,
                     restarting: false,
+                    restart: None,
                 },
                 unread_notification_count: 0,
                 password_hash: account.password.clone(),
@@ -218,6 +218,16 @@ pub struct ServerInfo {
     pub kiosk: Option<bool>,
     pub language: Option<InternedString>,
     pub keyboard: Option<KeyboardOptions>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum RestartReason {
+    Mdns,
+    Language,
+    Kiosk,
+    Update,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -364,12 +374,13 @@ pub struct BackupProgress {
 #[ts(export)]
 pub struct ServerStatus {
     pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
-    pub updated: bool,
     pub update_progress: Option<FullProgress>,
     #[serde(default)]
     pub shutting_down: bool,
     #[serde(default)]
     pub restarting: bool,
+    #[serde(default)]
+    pub restart: Option<RestartReason>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]

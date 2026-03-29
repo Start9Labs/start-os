@@ -28,7 +28,14 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     #[instrument(skip_all)]
-    fn up(self, _db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
+    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
+        let status_info = db["public"]["serverInfo"]["statusInfo"]
+            .as_object_mut();
+        if let Some(m) = status_info {
+            m.remove("updated");
+            m.insert("restart".into(), Value::Null);
+        }
+
         Ok(Value::Null)
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {

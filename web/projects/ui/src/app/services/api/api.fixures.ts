@@ -24,9 +24,9 @@ export namespace Mock {
   export const ServerUpdated: T.ServerStatus = {
     backupProgress: null,
     updateProgress: null,
-    updated: true,
     restarting: false,
     shuttingDown: false,
+    restart: null,
   }
 
   export const RegistryOSUpdate: T.OsVersionInfoMap = {

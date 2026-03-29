@@ -4,11 +4,10 @@ import {
   Component,
   inject,
   INJECTOR,
-  OnInit,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
-import { ActivatedRoute, Router, RouterLink } from '@angular/router'
+import { RouterLink } from '@angular/router'
 import { WA_WINDOW } from '@ng-web-apis/common'
 import {
   DialogService,
@@ -48,6 +47,7 @@ import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
 import { ABOUT } from 'src/app/routes/portal/components/header/about.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ConfigService } from 'src/app/services/config.service'
 import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
@@ -96,14 +96,10 @@ import { UPDATE } from './update.component'
           [disabled]="os.updatingOrBackingUp$ | async"
           (click)="onUpdate()"
         >
-          @if (server.statusInfo.updated) {
-            {{ 'Restart to apply' | i18n }}
+          @if (os.showUpdate$ | async) {
+            {{ 'Update' | i18n }}
           } @else {
-            @if (os.showUpdate$ | async) {
-              {{ 'Update' | i18n }}
-            } @else {
-              {{ 'Check for updates' | i18n }}
-            }
+            {{ 'Check for updates' | i18n }}
           }
         </button>
       </div>
@@ -278,7 +274,7 @@ import { UPDATE } from './update.component'
     TuiAnimated,
   ],
 })
-export default class SystemGeneralComponent implements OnInit {
+export default class SystemGeneralComponent {
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
@@ -288,20 +284,7 @@ export default class SystemGeneralComponent implements OnInit {
   private readonly i18n = inject(i18nPipe)
   private readonly injector = inject(INJECTOR)
   private readonly win = inject(WA_WINDOW)
-  private readonly route = inject(ActivatedRoute)
-  private readonly router = inject(Router)
-
-  ngOnInit() {
-    this.route.queryParams
-      .pipe(filter(params => params['restart'] === 'hostname'))
-      .subscribe(async () => {
-        await this.router.navigate([], {
-          relativeTo: this.route,
-          queryParams: {},
-        })
-        this.promptHostnameRestart()
-      })
-  }
+  private readonly config = inject(ConfigService)
 
   count = 0
 
@@ -321,7 +304,6 @@ export default class SystemGeneralComponent implements OnInit {
 
   onLanguageChange(language: Language) {
     this.i18nService.setLang(language.name)
-    this.promptLanguageRestart()
   }
 
   // Expose shared utilities for template use
@@ -371,9 +353,7 @@ export default class SystemGeneralComponent implements OnInit {
   }
 
   onUpdate() {
-    if (this.server()?.statusInfo.updated) {
-      this.restart()
-    } else if (this.os.updateAvailable$.value) {
+    if (this.os.updateAvailable$.value) {
       this.update()
     } else {
       this.check()
@@ -400,7 +380,7 @@ export default class SystemGeneralComponent implements OnInit {
         ),
       )
       .subscribe(result => {
-        if (this.win.location.hostname.endsWith('.local')) {
+        if (this.config.accessType === 'mdns') {
           this.confirmNameChange(result)
         } else {
           this.saveName(result)
@@ -433,24 +413,18 @@ export default class SystemGeneralComponent implements OnInit {
       await this.api.setHostname({ name, hostname })
 
       if (wasLocal) {
-        const { protocol, port } = this.win.location
-        const portSuffix = port ? ':' + port : ''
-        const newUrl = `${protocol}//${hostname}.local${portSuffix}/system/general?restart=hostname`
-
         this.dialog
           .openConfirm({
             label: 'Hostname Changed',
             data: {
               content:
-                `${this.i18n.transform('Your server is now reachable at')} ${hostname}.local. ${this.i18n.transform('After opening the new address, you will be prompted to restart.')}` as i18nKey,
+                `${this.i18n.transform('Your server is now reachable at')} ${hostname}.local` as i18nKey,
               yes: 'Open new address',
               no: 'Dismiss',
             },
           })
           .pipe(filter(Boolean))
-          .subscribe(() => this.win.open(newUrl, '_blank'))
-      } else {
-        this.promptHostnameRestart()
+          .subscribe(() => this.win.open(`https://${hostname}.local`, '_blank'))
       }
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -526,7 +500,6 @@ export default class SystemGeneralComponent implements OnInit {
 
     try {
       await this.api.toggleKiosk(true)
-      this.promptRestart()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -546,7 +519,6 @@ export default class SystemGeneralComponent implements OnInit {
         options: [],
       })
       await this.api.toggleKiosk(true)
-      this.promptRestart()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -559,56 +531,11 @@ export default class SystemGeneralComponent implements OnInit {
 
     try {
       await this.api.toggleKiosk(false)
-      this.promptRestart()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
-  }
-
-  private promptRestart() {
-    this.dialog
-      .openConfirm({
-        label: 'Restart to apply',
-        data: {
-          content: 'This change will take effect after the next boot',
-          yes: 'Restart now',
-          no: 'Later',
-        },
-      })
-      .pipe(filter(Boolean))
-      .subscribe(() => this.restart())
-  }
-
-  private promptHostnameRestart() {
-    this.dialog
-      .openConfirm({
-        label: 'Restart to apply',
-        data: {
-          content:
-            'A restart is required for service interfaces to use the new hostname.',
-          yes: 'Restart now',
-          no: 'Later',
-        },
-      })
-      .pipe(filter(Boolean))
-      .subscribe(() => this.restart())
-  }
-
-  private promptLanguageRestart() {
-    this.dialog
-      .openConfirm({
-        label: 'Restart to apply',
-        data: {
-          content:
-            'OS-level translations are already in effect. A restart is required for service-level translations to take effect.',
-          yes: 'Restart now',
-          no: 'Later',
-        },
-      })
-      .pipe(filter(Boolean))
-      .subscribe(() => this.restart())
   }
 
   private update() {

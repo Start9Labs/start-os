@@ -227,11 +227,11 @@ export const mockPatchData: DataModel = {
     postInitMigrationTodos: {},
     statusInfo: {
       // currentBackup: null,
-      updated: false,
       updateProgress: null,
       restarting: false,
       shuttingDown: false,
       backupProgress: null,
+      restart: null,
     },
     name: 'Random Words',
     hostname: 'random-words',
