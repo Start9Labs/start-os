@@ -15,7 +15,6 @@ import type { VolumeId } from './VolumeId'
 export type Manifest = {
   id: PackageId
   version: Version
-  satisfies: Array<Version>
   canMigrateTo: string
   canMigrateFrom: string
   images: { [key: ImageId]: ImageConfig }
@@ -37,4 +36,5 @@ export type Manifest = {
   sdkVersion: string | null
   hardwareAcceleration: boolean
   plugins: Array<PluginId>
+  satisfies: Array<Version>
 }

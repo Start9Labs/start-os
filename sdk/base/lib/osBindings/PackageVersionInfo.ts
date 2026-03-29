@@ -10,6 +10,7 @@ import type { MerkleArchiveCommitment } from './MerkleArchiveCommitment'
 import type { PackageId } from './PackageId'
 import type { PluginId } from './PluginId'
 import type { RegistryAsset } from './RegistryAsset'
+import type { Version } from './Version'
 
 export type PackageVersionInfo = {
   icon: DataUrl
@@ -31,4 +32,5 @@ export type PackageVersionInfo = {
   sdkVersion: string | null
   hardwareAcceleration: boolean
   plugins: Array<PluginId>
+  satisfies: Array<Version>
 }

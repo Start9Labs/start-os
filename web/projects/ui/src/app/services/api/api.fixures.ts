@@ -459,6 +459,7 @@ export namespace Mock {
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
+            satisfies: [],
             dependencyMetadata: {},
             donationUrl: null,
             alerts: {
@@ -501,6 +502,7 @@ export namespace Mock {
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
+            satisfies: [],
             dependencyMetadata: {},
             donationUrl: null,
             alerts: {
@@ -553,6 +555,7 @@ export namespace Mock {
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
+            satisfies: [],
             dependencyMetadata: {},
             donationUrl: null,
             alerts: {
@@ -595,6 +598,7 @@ export namespace Mock {
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
+            satisfies: [],
             dependencyMetadata: {},
             donationUrl: null,
             alerts: {
@@ -649,6 +653,7 @@ export namespace Mock {
             gitHash: 'fakehash',
             icon: LND_ICON,
             sourceVersion: null,
+            satisfies: [],
             dependencyMetadata: {
               bitcoind: BitcoinDep,
               'btc-rpc-proxy': ProxyDep,
@@ -704,6 +709,7 @@ export namespace Mock {
             gitHash: 'fakehash',
             icon: LND_ICON,
             sourceVersion: null,
+            satisfies: [],
             dependencyMetadata: {
               bitcoind: BitcoinDep,
               'btc-rpc-proxy': ProxyDep,
@@ -763,6 +769,7 @@ export namespace Mock {
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
+          satisfies: [],
           dependencyMetadata: {},
           donationUrl: null,
           alerts: {
@@ -805,6 +812,7 @@ export namespace Mock {
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
+          satisfies: [],
           dependencyMetadata: {},
           donationUrl: null,
           alerts: {
@@ -857,6 +865,7 @@ export namespace Mock {
           gitHash: 'fakehash',
           icon: LND_ICON,
           sourceVersion: null,
+          satisfies: [],
           dependencyMetadata: {
             bitcoind: BitcoinDep,
             'btc-rpc-proxy': ProxyDep,
@@ -912,6 +921,7 @@ export namespace Mock {
           gitHash: 'fakehash',
           icon: PROXY_ICON,
           sourceVersion: null,
+          satisfies: [],
           dependencyMetadata: {
             bitcoind: BitcoinDep,
           },
