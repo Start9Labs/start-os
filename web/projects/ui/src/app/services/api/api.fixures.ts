@@ -763,7 +763,68 @@ export namespace Mock {
           upstreamRepo: 'https://github.com/bitcoin/bitcoin',
           marketingUrl: 'https://bitcoin.org',
           docsUrls: ['https://bitcoin.org'],
-          releaseNotes: 'Even better support for Bitcoin and wallets!',
+          releaseNotes: `# Bitcoin Core v27.0.0 Release Notes
+
+## Overview
+
+This is a major release of Bitcoin Core with significant performance improvements, new RPC methods, and critical security patches. We strongly recommend all users upgrade as soon as possible.
+
+## Breaking Changes
+
+- The deprecated \`getinfo\` RPC has been fully removed. Use \`getblockchaininfo\`, \`getnetworkinfo\`, and \`getwalletinfo\` instead.
+- Configuration option \`rpcallowip\` no longer accepts hostnames — only CIDR notation is supported (e.g. \`192.168.1.0/24\`).
+- The wallet database format has been migrated from BerkeleyDB to SQLite. Existing wallets will be automatically converted on first load. **This migration is irreversible.**
+
+## New Features
+
+- **Compact Block Filters (BIP 158):** Full support for serving compact block filters to light clients over the P2P network. Enable with \`-blockfilterindex=basic -peerblockfilters=1\`.
+- **Miniscript support in descriptors:** You can now use miniscript policies inside \`wsh()\` descriptors for more expressive spending conditions.
+- **New RPC: \`getdescriptoractivity\`:** Returns all wallet-relevant transactions for a given set of output descriptors within a block range.
+
+## Performance Improvements
+
+- Block validation is now 18% faster due to improved UTXO cache management and parallel script verification.
+- Initial block download (IBD) time reduced by approximately 25% on NVMe storage thanks to batched database writes.
+- Memory usage during reindex reduced from ~4.2 GB to ~2.8 GB peak.
+
+## Configuration Changes
+
+\`\`\`ini
+# New options added in this release
+blockfilterindex=basic       # Enable BIP 158 compact block filter index
+peerblockfilters=1           # Serve compact block filters to peers
+shutdownnotify=<cmd>         # Execute command on clean shutdown
+v2transport=1                # Prefer BIP 324 encrypted P2P connections
+\`\`\`
+
+## Bug Fixes
+
+1. Fixed a race condition in the mempool acceptance logic that could cause \`submitblock\` to return stale rejection reasons under high transaction throughput.
+2. Corrected fee estimation for transactions with many inputs where the estimator previously overestimated by up to 15%.
+3. Resolved an edge case where \`pruneblockchain\` could delete blocks still needed by an in-progress \`rescanblockchain\` operation.
+4. Fixed incorrect handling of \`OP_CHECKSIGADD\` in legacy script verification mode that could lead to consensus divergence on certain non-standard transactions.
+5. Patched a denial-of-service vector where a malicious peer could send specially crafted \`inv\` messages causing excessive memory allocation in the transaction request tracker.
+
+## Dependency Updates
+
+| Dependency | Old Version | New Version |
+|------------|-------------|-------------|
+| OpenSSL    | 1.1.1w      | 3.0.13      |
+| libevent   | 2.1.12      | 2.2.1       |
+| Boost      | 1.81.0      | 1.84.0      |
+| SQLite     | 3.38.5      | 3.45.1      |
+| miniupnpc  | 2.2.4       | 2.2.7       |
+
+## Migration Guide
+
+For users running Bitcoin Core as a service behind a reverse proxy, note that the default RPC authentication mechanism now uses cookie-based auth by default. If you previously relied on \`rpcuser\`/\`rpcpassword\`, you must explicitly set \`rpcauth\` in your configuration file. See https://github.com/bitcoin/bitcoin/blob/master/share/rpcauth/rpcauth.py for the auth string generator.
+
+## Known Issues
+
+- Wallet encryption with very long passphrases (>1024 characters) may cause the wallet to become temporarily unresponsive during unlock. A fix is planned for v27.0.1.
+- The \`listtransactions\` RPC may return duplicate entries when called with \`include_watchonly=true\` on descriptor wallets that share derivation paths across multiple descriptors.
+
+For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/release-notes/release-notes-27.0.0.md#full-changelog-with-detailed-descriptions-of-every-commit-and-pull-request-merged`,
           osVersion: '0.4.0',
           sdkVersion: '0.4.0-beta.49',
           gitHash: 'fakehash',

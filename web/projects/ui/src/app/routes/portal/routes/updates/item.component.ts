@@ -18,10 +18,10 @@ import {
 } from '@start9labs/shared'
 import {
   TuiButton,
+  TuiExpand,
   TuiIcon,
   TuiLink,
   TuiTitle,
-  TuiExpand,
 } from '@taiga-ui/core'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import {
@@ -199,6 +199,7 @@ import UpdatesComponent from './updates.component'
       &[colspan]:only-child {
         padding: 0 3rem;
         text-align: left;
+        white-space: normal;
       }
     }
 
