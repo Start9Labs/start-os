@@ -7,13 +7,7 @@ use uciedit::{dump_all, parse_all, Arena};
 use crate::emmc;
 use crate::Error;
 
-/// Characters allowed in the sticker password.
-///
-/// 67-char unambiguous charset:
-///   A-Z minus I,O (24)  +  a-z minus i,l,o (23)  +  2-9 (8)
-///   + special: !@#$%^&*-_+=  (12)
-const ALLOWED_CHARS: &str =
-    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*-_+=";
+use crate::PASSWORD_CHARS;
 const PASSWORD_LEN: usize = 12;
 
 /// Validate that a password meets the sticker password requirements.
@@ -25,7 +19,7 @@ fn validate_password(password: &str) -> Result<(), String> {
         ));
     }
     for ch in password.chars() {
-        if !ALLOWED_CHARS.contains(ch) {
+        if !PASSWORD_CHARS.contains(ch) {
             return Err(format!("invalid character '{ch}' in password"));
         }
     }

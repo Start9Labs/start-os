@@ -165,6 +165,10 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'wifi.set', params })
   }
 
+  async wifiGeneratePassword(): Promise<string> {
+    return this.rpc.request({ method: 'wifi.generate-password', params: {} })
+  }
+
   async wifiBlackoutGet(): Promise<BlackoutWindow[]> {
     return this.rpc.request({ method: 'wifi.blackout-get', params: {} })
   }

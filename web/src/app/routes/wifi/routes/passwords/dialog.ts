@@ -27,6 +27,7 @@ import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
+import { ApiService } from 'src/app/services/api/api.service'
 import type { ProfileId } from 'src/app/services/api/api.service'
 
 export interface WifiPasswordEntry {
@@ -144,6 +145,7 @@ class AddWifiPassword {
       TuiDialogContext<WifiPasswordDialogResult, WifiPasswordDialogData>
     >()
 
+  private readonly api = inject(ApiService)
   private readonly entry = this.context.data.entry
   protected readonly editing = !!this.entry
   protected readonly profiles = this.context.data.profiles
@@ -151,22 +153,22 @@ class AddWifiPassword {
   protected readonly form = inject(NonNullableFormBuilder).group({
     label: [this.entry?.label ?? '', Validators.required],
     password: [
-      this.entry?.password ?? this.generateRandomPassword(),
+      this.entry?.password ?? '',
       [Validators.required, Validators.minLength(8)],
     ],
     profile: [this.entry?.profile ?? '', Validators.required],
   })
 
-  protected generatePassword(): void {
-    this.form.controls.password.setValue(this.generateRandomPassword())
+  constructor() {
+    if (!this.entry) {
+      this.api.wifiGeneratePassword().then(password => {
+        this.form.controls.password.setValue(password)
+      })
+    }
   }
 
-  private generateRandomPassword(): string {
-    const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-    return Array.from(
-      { length: 16 },
-      () => chars[Math.floor(Math.random() * chars.length)],
-    ).join('')
+  protected async generatePassword(): Promise<void> {
+    this.form.controls.password.setValue(await this.api.wifiGeneratePassword())
   }
 
   protected save(): void {

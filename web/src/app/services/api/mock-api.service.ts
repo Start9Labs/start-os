@@ -542,6 +542,13 @@ export class MockApiService extends ApiService {
     },
   ]
 
+  async wifiGeneratePassword(): Promise<string> {
+    await pauseFor(100)
+    const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    const bytes = crypto.getRandomValues(new Uint8Array(16))
+    return Array.from(bytes, b => chars[b % chars.length]).join('')
+  }
+
   async wifiBlackoutGet(): Promise<BlackoutWindow[]> {
     await pauseFor(250)
     return structuredClone(this.mockBlackoutWindows)

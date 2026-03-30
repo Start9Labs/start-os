@@ -28,6 +28,7 @@ export abstract class ApiService {
   abstract vpnServerPeerDelete(params: VpnServerPeerDeleteArgs): Promise<null>
   abstract wifiGet(): Promise<WifiConfig>
   abstract wifiSet(params: WifiConfig): Promise<null>
+  abstract wifiGeneratePassword(): Promise<string>
   abstract wifiBlackoutGet(): Promise<BlackoutWindow[]>
   abstract wifiBlackoutSet(params: BlackoutWindow[]): Promise<null>
   abstract profilesList(): Promise<ProfileId[]>

@@ -48,6 +48,37 @@ use reqwest_cookie_store::CookieStoreMutex;
 use tokio::runtime::Runtime;
 
 pub use error::{Error, ErrorKind};
+
+/// Non-ambiguous character set for generated passwords.
+///
+/// 67 chars: A-Z minus I,O (24) + a-z minus l (25) + 2-9 (8) + !@#$%^&*=+? (10)
+pub const PASSWORD_CHARS: &str =
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*=+?";
+
+/// Non-ambiguous alphanumeric subset (no special characters).
+///
+/// 57 chars: A-Z minus I,O (24) + a-z minus l (25) + 2-9 (8)
+pub const PASSWORD_CHARS_ALNUM: &str =
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+
+/// Generate a random password from the given charset using rejection sampling.
+pub fn generate_password(charset: &[u8], len: usize) -> String {
+    let limit = 256 - (256 % charset.len());
+    let mut password = String::with_capacity(len);
+    while password.len() < len {
+        let mut buf = [0u8; 32];
+        rand::RngCore::fill_bytes(&mut rand::rng(), &mut buf);
+        for &b in &buf {
+            if (b as usize) < limit {
+                password.push(charset[b as usize % charset.len()] as char);
+                if password.len() == len {
+                    break;
+                }
+            }
+        }
+    }
+    password
+}
 use imbl_value::imbl::OrdMap;
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;

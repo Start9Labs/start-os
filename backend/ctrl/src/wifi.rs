@@ -86,6 +86,14 @@ pub fn wifi<C: CtrlContext + Clone>() -> ParentHandler<C> {
             "blackout-set",
             from_fn(blackout_set::<C>).with_display_serializable(),
         )
+        .subcommand(
+            "generate-password",
+            from_fn(generate_password::<C>).with_display_serializable(),
+        )
+}
+
+fn generate_password<C: CtrlContext>(_ctx: C) -> Result<String, Error> {
+    Ok(crate::generate_password(crate::PASSWORD_CHARS_ALNUM.as_bytes(), 16))
 }
 
 fn find_relevant_with_radios(
