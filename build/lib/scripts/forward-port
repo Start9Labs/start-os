@@ -58,15 +58,18 @@ iptables -t nat -A ${NAME}_OUTPUT -d "$sip" -p udp --dport "$sport" -j DNAT --to
 iptables -A ${NAME}_FORWARD -d $dip -p tcp --dport $dport -m state --state NEW -j ACCEPT
 iptables -A ${NAME}_FORWARD -d $dip -p udp --dport $dport -m state --state NEW -j ACCEPT
 
-# NAT hairpin: masquerade traffic from the bridge subnet or host to the DNAT
-# target, so replies route back through the host for proper NAT reversal.
-# Container-to-container hairpin (source is on the bridge subnet)
-if [ -n "$bridge_subnet" ]; then
-    iptables -t nat -A ${NAME}_POSTROUTING -s "$bridge_subnet" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
-    iptables -t nat -A ${NAME}_POSTROUTING -s "$bridge_subnet" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
-fi
-# Host-to-container hairpin (host connects to its own gateway IP, source is sip)
-iptables -t nat -A ${NAME}_POSTROUTING -s "$sip" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
-iptables -t nat -A ${NAME}_POSTROUTING -s "$sip" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
+# NAT hairpin: masquerade so replies route back through this host for proper
+# NAT reversal instead of taking a direct path that bypasses conntrack.
+# Host-to-target hairpin: locally-originated packets whose original destination
+# was sip (before OUTPUT DNAT rewrote it to dip).  Using --ctorigdst ties the
+# rule to this specific sip, so multiple WAN IPs forwarding the same port to
+# different targets each get their own masquerade.
+iptables -t nat -A ${NAME}_POSTROUTING -m addrtype --src-type LOCAL -m conntrack --ctorigdst "$sip" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
+iptables -t nat -A ${NAME}_POSTROUTING -m addrtype --src-type LOCAL -m conntrack --ctorigdst "$sip" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
+# Same-subnet hairpin: when traffic originates from the same subnet as the DNAT
+# target (e.g. a container reaching another container, or a WireGuard peer
+# connecting to itself via the tunnel's public IP).
+iptables -t nat -A ${NAME}_POSTROUTING -s "$dip/$dprefix" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
+iptables -t nat -A ${NAME}_POSTROUTING -s "$dip/$dprefix" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
 
 exit $err

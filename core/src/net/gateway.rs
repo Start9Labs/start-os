@@ -290,10 +290,19 @@ pub async fn check_port(
         ));
     };
 
-    let hairpinning = tokio::time::timeout(
-        Duration::from_secs(5),
-        tokio::net::TcpStream::connect(SocketAddr::new(ip.into(), port)),
-    )
+    let hairpinning = tokio::time::timeout(Duration::from_secs(5), async {
+        let dest = SocketAddr::new(ip.into(), port);
+        let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::STREAM, None)?;
+        socket.bind_device(Some(gateway.as_str().as_bytes()))?;
+        socket.bind(&SocketAddr::new(IpAddr::V4(local_ipv4), 0).into())?;
+        socket.set_nonblocking(true)?;
+        #[cfg(unix)]
+        let socket = unsafe {
+            use std::os::fd::{FromRawFd, IntoRawFd};
+            tokio::net::TcpSocket::from_raw_fd(socket.into_raw_fd())
+        };
+        socket.connect(dest).await.map(|_| ())
+    })
     .await
     .map_or(false, |r| r.is_ok());
 
