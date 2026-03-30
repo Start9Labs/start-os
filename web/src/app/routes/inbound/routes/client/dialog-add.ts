@@ -20,6 +20,7 @@ import {
   TuiTextfield,
   tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
+import { TuiSwitch } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { CustomValidators } from 'src/app/utils/validators'
@@ -30,6 +31,11 @@ import { VpnServerPeer } from 'src/app/routes/inbound/service'
 export interface ClientDialogData {
   serverAddress: string
   usedIps: string[]
+  defaults?: {
+    name?: string
+    ip?: string
+    route_all?: boolean
+  }
 }
 
 @Component({
@@ -53,6 +59,10 @@ export interface ClientDialogData {
         <label tuiLabel>Public Key (optional)</label>
         <input tuiInput formControlName="public_key" />
       </tui-textfield>
+      <label tuiLabel>
+        <input type="checkbox" tuiSwitch formControlName="route_all" />
+        Route all traffic through tunnel
+      </label>
       <footer>
         <button
           tuiButton
@@ -79,6 +89,7 @@ export interface ClientDialogData {
     TuiError,
     TuiButton,
     TuiInput,
+    TuiSwitch,
   ],
 })
 class AddClient {
@@ -87,11 +98,12 @@ class AddClient {
 
   private readonly serverAddress = this.context.data.serverAddress
   private readonly usedIps = this.context.data.usedIps
+  private readonly defaults = this.context.data.defaults
 
   protected readonly form = inject(NonNullableFormBuilder).group({
-    name: ['', Validators.required],
+    name: [this.defaults?.name ?? '', Validators.required],
     ip: [
-      this.nextAvailableIp(),
+      this.defaults?.ip ?? this.nextAvailableIp(),
       [
         Validators.required,
         CustomValidators.ipv4(),
@@ -100,6 +112,7 @@ class AddClient {
       ],
     ],
     public_key: [''],
+    route_all: [this.defaults?.route_all ?? false],
   })
 
   private nextAvailableIp(): string {
@@ -136,11 +149,12 @@ class AddClient {
     tuiMarkControlAsTouchedAndValidate(this.form)
 
     if (this.form.valid) {
-      const { name, ip, public_key } = this.form.getRawValue()
+      const { name, ip, public_key, route_all } = this.form.getRawValue()
       this.context.completeWith({
         name,
         ip,
         public_key: public_key || undefined,
+        route_all: route_all || undefined,
       })
     }
   }

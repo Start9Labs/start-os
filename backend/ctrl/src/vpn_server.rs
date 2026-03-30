@@ -75,6 +75,9 @@ pub struct VpnServerPeer {
     /// Pre-shared key (auto-generated if not provided)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preshared_key: Option<String>,
+    /// Route all traffic (LAN + WAN) through the tunnel. Default (false/absent) = split tunnel (LAN only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub route_all: Option<bool>,
 }
 
 /// VPN server configuration returned by list (excludes sensitive data)
@@ -877,6 +880,14 @@ pub fn peer_add(
                 restart_wireguard_interface(&wg_interface_name)?;
 
                 // Generate client config if we generated the keys
+                let route_all = peer.route_all == Some(true);
+                let allowed_ips = if route_all {
+                    "0.0.0.0/0, ::/0".to_string()
+                } else {
+                    let octets = gateway_ip.octets();
+                    format!("{}.{}.{}.0/24", octets[0], octets[1], octets[2])
+                };
+
                 let client_config = client_private_key.map(|private_key| {
                     let psk = peer.preshared_key.as_deref().unwrap_or("");
 
@@ -886,14 +897,14 @@ pub fn peer_add(
                          \n\
                          [Interface]\n\
                          PrivateKey = {privkey}\n\
-                         Address = {addr}/24\n\
+                         Address = {addr}/32\n\
                          DNS = {gateway}\n\
                          \n\
                          [Peer]\n\
                          PublicKey = {server_pubkey}\n\
                          PresharedKey = {psk}\n\
                          Endpoint = {endpoint}:{port}\n\
-                         AllowedIPs = 0.0.0.0/0, ::/0\n\
+                         AllowedIPs = {allowed_ips}\n\
                          PersistentKeepalive = 25\n",
                         name = peer.name,
                         privkey = private_key.to_base64(),
@@ -1061,6 +1072,15 @@ fn add_single_peer<'a>(
         comment: LineComment::None,
     });
 
+    // Store route_all flag (only when true, absence = split tunnel)
+    if peer.route_all == Some(true) {
+        lines.push(Line::Option {
+            option: Token::from_str("startwrt_route_all", arena),
+            value: Token::from_str("1", arena),
+            comment: LineComment::None,
+        });
+    }
+
     // Enable route creation for this peer's allowed_ips
     lines.push(Line::Option {
         option: Token::from_str("route_allowed_ips", arena),
@@ -1094,12 +1114,14 @@ fn get_peers_for_interface(cfgs: &Configs, interface_name: &str) -> Vec<VpnServe
             let mut public_key = String::new();
             let mut ip: Option<Ipv4Addr> = None;
             let mut description = None;
+            let mut route_all = false;
 
             for line in &section.lines {
                 match line {
                     Line::Option { option, value, .. } => match option.as_str().as_ref() {
                         "public_key" => public_key = value.as_str().to_string(),
                         "description" => description = Some(value.as_str().to_string()),
+                        "startwrt_route_all" => route_all = value.as_str() == "1",
                         _ => {}
                     },
                     Line::List { list, item, .. } => {
@@ -1126,6 +1148,7 @@ fn get_peers_for_interface(cfgs: &Configs, interface_name: &str) -> Vec<VpnServe
                 public_key: Some(public_key),
                 // Never expose PSK in list responses — it's only needed at peer creation time
                 preshared_key: None,
+                route_all: if route_all { Some(true) } else { None },
             })
         })
         .collect()
@@ -2054,6 +2077,7 @@ config dhcp 'guest'
             ip: Some(Ipv4Addr::new(192, 168, 101, 202)),
             public_key: Some(peer_key.clone()),
             preshared_key: Some(psk.clone()),
+            route_all: None,
         };
 
         add_single_peer(&mut cfgs, "wg_guest", &peer, &arena).unwrap();
@@ -2118,6 +2142,7 @@ config dhcp 'guest'
             ip: Some(Ipv4Addr::new(192, 168, 101, 202)),
             public_key: Some(gen_key()),
             preshared_key: None,
+            route_all: None,
         };
         add_single_peer(&mut cfgs, "wg_guest", &peer, &arena).unwrap();
 
@@ -2160,6 +2185,107 @@ config dhcp 'guest'
         assert_eq!(peers[1].name, "Laptop");
         assert_eq!(peers[1].ip, Some(Ipv4Addr::new(192, 168, 101, 201)));
         assert_eq!(peers[1].public_key.as_deref(), Some(peer1_key.as_str()));
+
+        // Peers from setup_with_vpn_server have route_all: None
+        assert_eq!(peers[0].route_all, None, "default peers should have route_all=None");
+        assert_eq!(peers[1].route_all, None, "default peers should have route_all=None");
+    }
+
+    #[test]
+    fn test_add_peer_route_all_stored_in_uci() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_vpn_server(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt", "firewall", "dhcp"]).unwrap();
+
+        // Add peer with route_all = true
+        let peer_key = gen_key();
+        let peer = VpnServerPeer {
+            name: "Full Tunnel".into(),
+            ip: Some(Ipv4Addr::new(192, 168, 101, 202)),
+            public_key: Some(peer_key.clone()),
+            preshared_key: None,
+            route_all: Some(true),
+        };
+        add_single_peer(&mut cfgs, "wg_guest", &peer, &arena).unwrap();
+
+        // Find the new peer section
+        let new_peer = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| {
+                s.lines.iter().any(|l| matches!(l, Line::Option { option, value, .. }
+                    if option.as_str() == "public_key" && value.as_str() == peer_key))
+            })
+            .expect("new peer should exist");
+
+        // Should have startwrt_route_all = 1
+        let has_route_all = new_peer.lines.iter().any(|l| matches!(l, Line::Option { option, value, .. }
+            if option.as_str() == "startwrt_route_all" && value.as_str() == "1"));
+        assert!(has_route_all, "route_all peer should have startwrt_route_all=1 in UCI");
+    }
+
+    #[test]
+    fn test_add_peer_route_all_absent_when_false() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_vpn_server(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt", "firewall", "dhcp"]).unwrap();
+
+        // Add peer with route_all = None (split tunnel default)
+        let peer_key = gen_key();
+        let peer = VpnServerPeer {
+            name: "Split Tunnel".into(),
+            ip: Some(Ipv4Addr::new(192, 168, 101, 202)),
+            public_key: Some(peer_key.clone()),
+            preshared_key: None,
+            route_all: None,
+        };
+        add_single_peer(&mut cfgs, "wg_guest", &peer, &arena).unwrap();
+
+        let new_peer = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| {
+                s.lines.iter().any(|l| matches!(l, Line::Option { option, value, .. }
+                    if option.as_str() == "public_key" && value.as_str() == peer_key))
+            })
+            .expect("new peer should exist");
+
+        // Should NOT have startwrt_route_all option
+        let has_route_all = new_peer.lines.iter().any(|l| matches!(l, Line::Option { option, .. }
+            if option.as_str() == "startwrt_route_all"));
+        assert!(!has_route_all, "split tunnel peer should not have startwrt_route_all in UCI");
+    }
+
+    #[test]
+    fn test_get_peers_reads_route_all() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_vpn_server(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt", "firewall", "dhcp"]).unwrap();
+
+        // Add a peer with route_all = true
+        let peer = VpnServerPeer {
+            name: "Full Tunnel".into(),
+            ip: Some(Ipv4Addr::new(192, 168, 101, 202)),
+            public_key: Some(gen_key()),
+            preshared_key: None,
+            route_all: Some(true),
+        };
+        add_single_peer(&mut cfgs, "wg_guest", &peer, &arena).unwrap();
+
+        let peers = get_peers_for_interface(&cfgs, "wg_guest");
+
+        assert_eq!(peers.len(), 3);
+        // First two peers from setup have no route_all
+        assert_eq!(peers[0].route_all, None);
+        assert_eq!(peers[1].route_all, None);
+        // Third peer has route_all = true
+        assert_eq!(peers[2].route_all, Some(true));
     }
 
     #[test]
@@ -2245,12 +2371,14 @@ config dhcp 'guest'
             ip: Some(Ipv4Addr::new(192, 168, 101, 200)),
             public_key: Some(gen_key()),
             preshared_key: Some(Base64::new(generate_psk()).to_base64()),
+            route_all: None,
         };
         let peer2 = VpnServerPeer {
             name: "Laptop".into(),
             ip: Some(Ipv4Addr::new(192, 168, 101, 201)),
             public_key: Some(gen_key()),
             preshared_key: Some(Base64::new(generate_psk()).to_base64()),
+            route_all: None,
         };
         add_single_peer(&mut cfgs, "wg_guest", &peer1, &arena).unwrap();
         add_single_peer(&mut cfgs, "wg_guest", &peer2, &arena).unwrap();

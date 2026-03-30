@@ -796,6 +796,8 @@ struct VpnServerPeer {
     ip: Option<String>,
     public_key: Option<String>,
     preshared_key: Option<String>,
+    /// Route all traffic (LAN + WAN) through tunnel. Default/absent = split tunnel (LAN only).
+    route_all: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -849,6 +851,8 @@ struct VpnServerPeerInput {
     ip: Option<String>,
     public_key: Option<String>,
     preshared_key: Option<String>,
+    /// Route all traffic (LAN + WAN) through tunnel. Default/absent = split tunnel (LAN only).
+    route_all: Option<bool>,
 }
 
 #[derive(Serialize)]

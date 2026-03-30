@@ -231,6 +231,7 @@ export interface VpnServerPeer {
   ip?: string
   public_key?: string
   preshared_key?: string
+  route_all?: boolean
 }
 
 export interface VpnServer {
