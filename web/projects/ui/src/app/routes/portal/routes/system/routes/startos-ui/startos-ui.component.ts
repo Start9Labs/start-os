@@ -54,7 +54,7 @@ export default class StartOsUiComponent {
   private readonly i18n = inject(i18nPipe)
 
   readonly iface: T.ServiceInterface = {
-    id: '',
+    id: 'startos-ui',
     name: 'StartOS UI',
     description: this.i18n.transform(
       'The web user interface for your StartOS server, accessible from any browser.',
