@@ -198,7 +198,7 @@ fn run_cmd(cmd: &str, args: &[&str]) -> String {
         .unwrap_or_default()
 }
 
-/// Parse /proc/net/nf_conntrack and sum bytes per MAC address.
+/// Parse conntrack output and sum bytes per MAC address.
 /// Returns HashMap<MAC, (rx_bytes, tx_bytes)>.
 ///
 /// Each conntrack line has two directions:
@@ -818,7 +818,12 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         }),
         tokio::task::spawn_blocking(|| run_cmd("nlbw", &["-c", "json", "-g", "mac"])),
         tokio::task::spawn_blocking(|| {
-            std::fs::read_to_string("/proc/net/nf_conntrack").unwrap_or_default()
+            Command::new("conntrack")
+                .args(&["-L", "-o", "extended"])
+                .output()
+                .ok()
+                .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                .unwrap_or_default()
         }),
         tokio::task::spawn_blocking(move || query_wg_active_peers(&wg_interfaces)),
     );
