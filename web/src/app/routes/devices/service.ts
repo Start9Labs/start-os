@@ -130,7 +130,7 @@ export class DevicesService extends FormService<Device[]> {
         // Remove from local cache
         this.devices = this.devices.filter(d => d.mac !== mac)
       },
-      { loading: 'Forgetting device' },
+      { loading: 'Forgetting device', success: 'Device forgotten' },
     )
   }
 

@@ -560,6 +560,52 @@ fn reload_firewall_and_dnsmasq() {
     });
 }
 
+/// Remove a device's ARP entries and DHCP lease so it disappears from
+/// `devices.list`. Also restarts dnsmasq to pick up UCI host removal and
+/// the edited lease file. If the device is still connected, it will
+/// reappear after its next network activity.
+///
+/// Dnsmasq owns `/tmp/dhcp.leases` and dumps in-memory state on exit, so
+/// we must stop it *first*, edit the file while it's down, then start it.
+fn flush_device_from_network(mac: &str) {
+    let mac = mac.to_uppercase();
+
+    // Delete ARP neighbor entries for this MAC
+    let arp_output = run_cmd("ip", &["neigh", "show"]);
+    for entry in parse_arp_output(&arp_output) {
+        if entry.mac == mac {
+            let _ = Command::new("ip")
+                .args(&["neigh", "del", &entry.ip, "dev", &entry.interface])
+                .output();
+        }
+    }
+
+    // Stop dnsmasq so it flushes in-memory leases to disk and exits.
+    let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("stop"));
+
+    // Remove the device's lease line from the now-stable file.
+    if let Ok(content) = std::fs::read_to_string("/tmp/dhcp.leases") {
+        let filtered: String = content
+            .lines()
+            .filter(|line| {
+                line.split_whitespace()
+                    .nth(1)
+                    .map_or(true, |m| m.to_uppercase() != mac)
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let filtered = if content.ends_with('\n') && !filtered.is_empty() {
+            filtered + "\n"
+        } else {
+            filtered
+        };
+        let _ = std::fs::write("/tmp/dhcp.leases", filtered);
+    }
+
+    // Start dnsmasq — picks up both the UCI host removal and edited leases.
+    let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("start"));
+}
+
 // --- Handlers ---
 
 /// Identify non-WiFi MACs that need reachability verification.
@@ -1280,7 +1326,7 @@ pub fn forget<C: CtrlContext>(
                     None,
                 );
                 if ctx.effectful() {
-                    reload_dnsmasq();
+                    flush_device_from_network(&mac_upper);
                 }
                 return Ok(());
             }
