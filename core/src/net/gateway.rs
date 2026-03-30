@@ -290,21 +290,7 @@ pub async fn check_port(
         ));
     };
 
-    let hairpinning = tokio::time::timeout(Duration::from_secs(5), async {
-        let dest = SocketAddr::new(ip.into(), port);
-        let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::STREAM, None)?;
-        socket.bind_device(Some(gateway.as_str().as_bytes()))?;
-        socket.bind(&SocketAddr::new(IpAddr::V4(local_ipv4), 0).into())?;
-        socket.set_nonblocking(true)?;
-        #[cfg(unix)]
-        let socket = unsafe {
-            use std::os::fd::{FromRawFd, IntoRawFd};
-            tokio::net::TcpSocket::from_raw_fd(socket.into_raw_fd())
-        };
-        socket.connect(dest).await.map(|_| ())
-    })
-    .await
-    .map_or(false, |r| r.is_ok());
+    let hairpinning = check_hairpin(gateway, local_ipv4, ip, port).await;
 
     Ok(CheckPortRes {
         ip,
@@ -313,6 +299,30 @@ pub async fn check_port(
         open_internally,
         hairpinning,
     })
+}
+
+#[cfg(target_os = "linux")]
+async fn check_hairpin(gateway: GatewayId, local_ipv4: Ipv4Addr, ip: Ipv4Addr, port: u16) -> bool {
+    let hairpinning = tokio::time::timeout(Duration::from_secs(5), async {
+        let dest = SocketAddr::new(ip.into(), port);
+        let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::STREAM, None)?;
+        socket.bind_device(Some(gateway.as_str().as_bytes()))?;
+        socket.bind(&SocketAddr::new(IpAddr::V4(local_ipv4), 0).into())?;
+        socket.set_nonblocking(true)?;
+        let socket = unsafe {
+            use std::os::fd::{FromRawFd, IntoRawFd};
+            tokio::net::TcpSocket::from_raw_fd(socket.into_raw_fd())
+        };
+        socket.connect(dest).await.map(|_| ())
+    })
+    .await
+    .map_or(false, |r| r.is_ok());
+    hairpinning
+}
+
+#[cfg(not(target_os = "linux"))]
+async fn check_hairpin(_: GatewayId, _: Ipv4Addr, _: Ipv4Addr, _: u16) -> bool {
+    false
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
