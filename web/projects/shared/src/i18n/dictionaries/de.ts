@@ -628,8 +628,8 @@ export default {
   697: 'Geben Sie das Passwort ein, das zum Verschlüsseln dieses Backups verwendet wurde.',
   698: 'Mehrere Backups gefunden. Wählen Sie aus, welches wiederhergestellt werden soll.',
   699: 'Backups',
-  700: 'Das Laufwerk, auf dem das StartOS-Betriebssystem installiert wird.',
-  701: 'Das Laufwerk, auf dem Ihre StartOS-Daten (Dienste, Einstellungen usw.) gespeichert werden. Dies kann dasselbe wie das OS-Laufwerk oder ein separates Laufwerk sein.',
+  700: 'Das Laufwerk, auf dem das StartOS-Betriebssystem installiert wird. Mindestens 18 GB.',
+  701: 'Das Laufwerk, auf dem Ihre StartOS-Daten (Dienste, Einstellungen usw.) gespeichert werden. Dies kann dasselbe wie das OS-Laufwerk oder ein separates Laufwerk sein. Mindestens 20 GB, oder 38 GB bei Verwendung eines einzelnen Laufwerks für OS und Daten.',
   702: 'Versuchen Sie nach der Datenübertragung von diesem Laufwerk nicht, erneut als Start9-Server davon zu booten. Dies kann zu Fehlfunktionen von Diensten, Datenbeschädigung oder Geldverlust führen.',
   703: 'Muss mindestens 12 Zeichen lang sein',
   704: 'Darf höchstens 64 Zeichen lang sein',
@@ -724,4 +724,7 @@ export default {
   808: 'Hostname geändert, Neustart damit installierte Dienste die neue Adresse verwenden',
   809: 'Sprache geändert, Neustart damit installierte Dienste die neue Sprache verwenden',
   810: 'Kioskmodus geändert, Neustart zum Anwenden',
+  811: 'OS-Laufwerk muss mindestens 18 GB groß sein',
+  812: 'Datenlaufwerk muss mindestens 20 GB groß sein',
+  813: 'OS + Daten zusammen erfordern mindestens 38 GB',
 } satisfies i18n

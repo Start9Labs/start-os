@@ -628,8 +628,8 @@ export default {
   697: 'Introduzca la contraseña que se utilizó para cifrar esta copia de seguridad.',
   698: 'Se encontraron varias copias de seguridad. Seleccione cuál restaurar.',
   699: 'Copias de seguridad',
-  700: 'La unidad donde se instalará el sistema operativo StartOS.',
-  701: 'La unidad donde se almacenarán sus datos de StartOS (servicios, ajustes, etc.). Puede ser la misma que la unidad del sistema operativo o una unidad separada.',
+  700: 'La unidad donde se instalará el sistema operativo StartOS. Mínimo 18 GB.',
+  701: 'La unidad donde se almacenarán sus datos de StartOS (servicios, ajustes, etc.). Puede ser la misma que la unidad del sistema operativo o una unidad separada. Mínimo 20 GB, o 38 GB si se usa una sola unidad para el sistema operativo y los datos.',
   702: 'Después de transferir datos desde esta unidad, no intente arrancar desde ella nuevamente como un servidor Start9. Esto puede provocar fallos en los servicios, corrupción de datos o pérdida de fondos.',
   703: 'Debe tener 12 caracteres o más',
   704: 'Debe tener 64 caracteres o menos',
@@ -724,4 +724,7 @@ export default {
   808: 'Nombre de host cambiado, reiniciar para que los servicios instalados usen la nueva dirección',
   809: 'Idioma cambiado, reiniciar para que los servicios instalados usen el nuevo idioma',
   810: 'Modo kiosco cambiado, reiniciar para aplicar',
+  811: 'La unidad del SO debe tener al menos 18 GB',
+  812: 'La unidad de datos debe tener al menos 20 GB',
+  813: 'SO + datos combinados requieren al menos 38 GB',
 } satisfies i18n

@@ -628,8 +628,8 @@ export default {
   697: 'Wprowadź hasło użyte do zaszyfrowania tej kopii zapasowej.',
   698: 'Znaleziono wiele kopii zapasowych. Wybierz, którą przywrócić.',
   699: 'Kopie zapasowe',
-  700: 'Dysk, na którym zostanie zainstalowany system operacyjny StartOS.',
-  701: 'Dysk, na którym będą przechowywane dane StartOS (usługi, ustawienia itp.). Może to być ten sam dysk co systemowy lub oddzielny dysk.',
+  700: 'Dysk, na którym zostanie zainstalowany system operacyjny StartOS. Minimum 18 GB.',
+  701: 'Dysk, na którym będą przechowywane dane StartOS (usługi, ustawienia itp.). Może to być ten sam dysk co systemowy lub oddzielny dysk. Minimum 20 GB lub 38 GB w przypadku jednego dysku na system i dane.',
   702: 'Po przeniesieniu danych z tego dysku nie próbuj ponownie uruchamiać z niego systemu jako serwer Start9. Może to spowodować nieprawidłowe działanie usług, uszkodzenie danych lub utratę środków.',
   703: 'Musi mieć co najmniej 12 znaków',
   704: 'Musi mieć maksymalnie 64 znaki',
@@ -724,4 +724,7 @@ export default {
   808: 'Nazwa hosta zmieniona, uruchom ponownie, aby zainstalowane usługi używały nowego adresu',
   809: 'Język zmieniony, uruchom ponownie, aby zainstalowane usługi używały nowego języka',
   810: 'Tryb kiosku zmieniony, uruchom ponownie, aby zastosować',
+  811: 'Dysk systemowy musi mieć co najmniej 18 GB',
+  812: 'Dysk danych musi mieć co najmniej 20 GB',
+  813: 'System + dane łącznie wymagają co najmniej 38 GB',
 } satisfies i18n

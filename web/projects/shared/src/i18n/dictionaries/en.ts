@@ -628,8 +628,8 @@ export const ENGLISH: Record<string, number> = {
   'Enter the password that was used to encrypt this backup.': 697,
   'Multiple backups found. Select which one to restore.': 698,
   'Backups': 699,
-  'The drive where the StartOS operating system will be installed.': 700,
-  'The drive where your StartOS data (services, settings, etc.) will be stored. This can be the same as the OS drive or a separate drive.': 701,
+  'The drive where the StartOS operating system will be installed. Minimum 18 GB.': 700,
+  'The drive where your StartOS data (services, settings, etc.) will be stored. This can be the same as the OS drive or a separate drive. Minimum 20 GB, or 38 GB if using a single drive for both OS and data.': 701,
   'After transferring data from this drive, do not attempt to boot into it again as a Start9 Server. This may result in services malfunctioning, data corruption, or loss of funds.': 702,
   'Must be 12 characters or greater': 703,
   'Must be 64 character or less': 704,
@@ -725,4 +725,7 @@ export const ENGLISH: Record<string, number> = {
   'Hostname changed, restart for installed services to use the new address': 808,
   'Language changed, restart for installed services to use the new language': 809,
   'Kiosk mode changed, restart to apply': 810,
+  'OS drive must be at least 18 GB': 811,
+  'Data drive must be at least 20 GB': 812,
+  'OS + data combined require at least 38 GB': 813,
 }

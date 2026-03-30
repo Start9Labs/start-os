@@ -628,8 +628,8 @@ export default {
   697: 'Saisissez le mot de passe utilisé pour chiffrer cette sauvegarde.',
   698: 'Plusieurs sauvegardes trouvées. Sélectionnez celle à restaurer.',
   699: 'Sauvegardes',
-  700: 'Le disque sur lequel le système d’exploitation StartOS sera installé.',
-  701: 'Le disque sur lequel vos données StartOS (services, paramètres, etc.) seront stockées. Il peut s’agir du même disque que le système ou d’un disque séparé.',
+  700: 'Le disque sur lequel le système d’exploitation StartOS sera installé. Minimum 18 Go.',
+  701: 'Le disque sur lequel vos données StartOS (services, paramètres, etc.) seront stockées. Il peut s’agir du même disque que le système ou d’un disque séparé. Minimum 20 Go, ou 38 Go si un seul disque est utilisé pour le système et les données.',
   702: 'Après le transfert des données depuis ce disque, n’essayez pas de démarrer dessus à nouveau en tant que serveur Start9. Cela peut entraîner des dysfonctionnements des services, une corruption des données ou une perte de fonds.',
   703: 'Doit comporter au moins 12 caractères',
   704: 'Doit comporter au maximum 64 caractères',
@@ -724,4 +724,7 @@ export default {
   808: "Nom d'hôte modifié, redémarrer pour que les services installés utilisent la nouvelle adresse",
   809: 'Langue modifiée, redémarrer pour que les services installés utilisent la nouvelle langue',
   810: 'Mode kiosque modifié, redémarrer pour appliquer',
+  811: 'Le disque système doit faire au moins 18 Go',
+  812: 'Le disque de données doit faire au moins 20 Go',
+  813: 'Système + données combinés nécessitent au moins 38 Go',
 } satisfies i18n

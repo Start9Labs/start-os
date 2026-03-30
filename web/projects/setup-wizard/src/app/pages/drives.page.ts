@@ -4,8 +4,16 @@ import {
   HostListener,
   inject,
 } from '@angular/core'
+import {
+  AbstractControl,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms'
 import { Router } from '@angular/router'
-import { FormsModule } from '@angular/forms'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
   DialogService,
   DiskInfo,
@@ -14,13 +22,14 @@ import {
   i18nPipe,
   toGuid,
 } from '@start9labs/shared'
-import { WA_IS_MOBILE } from '@ng-web-apis/platform'
+import { TuiMapperPipe, TuiValidator } from '@taiga-ui/cdk'
 import {
   TuiButton,
+  TuiError,
   TuiIcon,
   TuiLoader,
-  TuiInput,
   TuiNotification,
+  TUI_VALIDATION_ERRORS,
   TuiTitle,
 } from '@taiga-ui/core'
 import {
@@ -29,49 +38,55 @@ import {
   TuiSelect,
   TuiTooltip,
 } from '@taiga-ui/kit'
-import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { filter, Subscription } from 'rxjs'
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { distinctUntilChanged, filter, Subscription } from 'rxjs'
+import { PRESERVE_OVERWRITE } from '../components/preserve-overwrite.dialog'
 import { ApiService } from '../services/api.service'
 import { StateService } from '../services/state.service'
-import { PRESERVE_OVERWRITE } from '../components/preserve-overwrite.dialog'
 
 @Component({
   template: `
     @if (!shuttingDown) {
-      <section tuiCardLarge="compact">
-        <header tuiHeader>
-          <h2 tuiTitle>{{ 'Select Drives' | i18n }}</h2>
-        </header>
-
-        @if (loading) {
+      @if (loading) {
+        <section tuiCardLarge="compact">
+          <header tuiHeader>
+            <h2 tuiTitle>{{ 'Select Drives' | i18n }}</h2>
+          </header>
           <tui-loader />
-        } @else if (drives.length === 0) {
+        </section>
+      } @else if (drives.length === 0) {
+        <section tuiCardLarge="compact">
+          <header tuiHeader>
+            <h2 tuiTitle>{{ 'Select Drives' | i18n }}</h2>
+          </header>
           <p tuiNotification size="m" appearance="warning">
             {{
               'No drives found. Please connect a drive and click Refresh.'
                 | i18n
             }}
           </p>
-        } @else {
-          <tui-textfield
-            [stringify]="stringify"
-            [disabledItemHandler]="osDisabled"
-          >
+          <footer>
+            <button tuiButton appearance="secondary" (click)="refresh()">
+              {{ 'Refresh' | i18n }}
+            </button>
+          </footer>
+        </section>
+      } @else {
+        <form tuiCardLarge="compact" tuiForm [formGroup]="form">
+          <header tuiHeader>
+            <h2 tuiTitle>{{ 'Select Drives' | i18n }}</h2>
+          </header>
+
+          <tui-textfield [stringify]="stringify">
             <label tuiLabel>{{ 'OS Drive' | i18n }}</label>
             @if (mobile) {
               <select
                 tuiSelect
-                [ngModel]="selectedOsDrive"
-                (ngModelChange)="onOsDriveChange($event)"
+                formControlName="osDrive"
                 [items]="drives"
               ></select>
             } @else {
-              <input
-                tuiSelect
-                [ngModel]="selectedOsDrive"
-                (ngModelChange)="onOsDriveChange($event)"
-              />
+              <input tuiSelect formControlName="osDrive" />
             }
             @if (!mobile) {
               <tui-data-list-wrapper
@@ -82,24 +97,28 @@ import { PRESERVE_OVERWRITE } from '../components/preserve-overwrite.dialog'
             }
             <tui-icon [tuiTooltip]="osDriveTooltip" />
           </tui-textfield>
+          @if (form.controls.osDrive.touched && form.controls.osDrive.invalid) {
+            <tui-error formControlName="osDrive" />
+          }
 
-          <tui-textfield
-            [stringify]="stringify"
-            [disabledItemHandler]="dataDisabled"
-          >
+          <tui-textfield [stringify]="stringify">
             <label tuiLabel>{{ 'Data Drive' | i18n }}</label>
             @if (mobile) {
               <select
                 tuiSelect
-                [(ngModel)]="selectedDataDrive"
-                (ngModelChange)="onDataDriveChange($event)"
+                formControlName="dataDrive"
                 [items]="drives"
+                [tuiValidator]="
+                  form.controls.osDrive.value | tuiMapper: dataValidator
+                "
               ></select>
             } @else {
               <input
                 tuiSelect
-                [(ngModel)]="selectedDataDrive"
-                (ngModelChange)="onDataDriveChange($event)"
+                formControlName="dataDrive"
+                [tuiValidator]="
+                  form.controls.osDrive.value | tuiMapper: dataValidator
+                "
               />
             }
             @if (!mobile) {
@@ -117,6 +136,11 @@ import { PRESERVE_OVERWRITE } from '../components/preserve-overwrite.dialog'
             }
             <tui-icon [tuiTooltip]="dataDriveTooltip" />
           </tui-textfield>
+          @if (
+            form.controls.dataDrive.touched && form.controls.dataDrive.invalid
+          ) {
+            <tui-error formControlName="dataDrive" />
+          }
 
           <ng-template #driveContent let-drive>
             <span tuiTitle>
@@ -126,24 +150,14 @@ import { PRESERVE_OVERWRITE } from '../components/preserve-overwrite.dialog'
               </span>
             </span>
           </ng-template>
-        }
 
-        <footer>
-          @if (drives.length === 0) {
-            <button tuiButton appearance="secondary" (click)="refresh()">
-              {{ 'Refresh' | i18n }}
-            </button>
-          } @else {
-            <button
-              tuiButton
-              [disabled]="!selectedOsDrive || !selectedDataDrive"
-              (click)="continue()"
-            >
+          <footer>
+            <button tuiButton [disabled]="form.invalid" (click)="continue()">
               {{ 'Continue' | i18n }}
             </button>
-          }
-        </footer>
-      </section>
+          </footer>
+        </form>
+      }
     }
   `,
   styles: `
@@ -152,19 +166,33 @@ import { PRESERVE_OVERWRITE } from '../components/preserve-overwrite.dialog'
     }
   `,
   imports: [
-    FormsModule,
+    ReactiveFormsModule,
     TuiCardLarge,
+    TuiForm,
     TuiButton,
+    TuiError,
     TuiIcon,
     TuiLoader,
-    TuiInput,
     TuiNotification,
     TuiSelect,
     TuiDataListWrapper,
     TuiTooltip,
+    TuiValidator,
+    TuiMapperPipe,
     TuiHeader,
     TuiTitle,
     i18nPipe,
+  ],
+  providers: [
+    {
+      provide: TUI_VALIDATION_ERRORS,
+      useFactory: () => {
+        const i18n = inject(i18nPipe)
+        return {
+          required: i18n.transform('Required'),
+        }
+      },
+    },
   ],
 })
 export default class DrivesPage {
@@ -188,28 +216,62 @@ export default class DrivesPage {
   }
 
   readonly osDriveTooltip = this.i18n.transform(
-    'The drive where the StartOS operating system will be installed.',
+    'The drive where the StartOS operating system will be installed. Minimum 18 GB.',
   )
   readonly dataDriveTooltip = this.i18n.transform(
-    'The drive where your StartOS data (services, settings, etc.) will be stored. This can be the same as the OS drive or a separate drive.',
+    'The drive where your StartOS data (services, settings, etc.) will be stored. This can be the same as the OS drive or a separate drive. Minimum 20 GB, or 38 GB if using a single drive for both OS and data.',
   )
 
   private readonly MIN_OS = 18 * 2 ** 30 // 18 GiB
   private readonly MIN_DATA = 20 * 2 ** 30 // 20 GiB
   private readonly MIN_BOTH = 38 * 2 ** 30 // 38 GiB
 
+  private readonly osCapacityValidator: ValidatorFn = ({
+    value,
+  }: AbstractControl) => {
+    if (!value) return null
+    return value.capacity < this.MIN_OS
+      ? {
+          tooSmallOs: this.i18n.transform('OS drive must be at least 18 GB'),
+        }
+      : null
+  }
+
+  readonly form = new FormGroup({
+    osDrive: new FormControl<DiskInfo | null>(null, [
+      Validators.required,
+      this.osCapacityValidator,
+    ]),
+    dataDrive: new FormControl<DiskInfo | null>(null, [Validators.required]),
+  })
+
+  readonly dataValidator =
+    (osDrive: DiskInfo | null): ValidatorFn =>
+    ({ value }: AbstractControl) => {
+      if (!value) return null
+      const sameAsOs = osDrive && value.logicalname === osDrive.logicalname
+      const min = sameAsOs ? this.MIN_BOTH : this.MIN_DATA
+      if (value.capacity < min) {
+        return sameAsOs
+          ? {
+              tooSmallBoth: this.i18n.transform(
+                'OS + data combined require at least 38 GB',
+              ),
+            }
+          : {
+              tooSmallData: this.i18n.transform(
+                'Data drive must be at least 20 GB',
+              ),
+            }
+      }
+      return null
+    }
+
   drives: DiskInfo[] = []
   loading = true
   shuttingDown = false
   private dialogSub?: Subscription
-  selectedOsDrive: DiskInfo | null = null
-  selectedDataDrive: DiskInfo | null = null
   preserveData: boolean | null = null
-
-  readonly osDisabled = (drive: DiskInfo): boolean =>
-    drive.capacity < this.MIN_OS
-
-  dataDisabled = (drive: DiskInfo): boolean => drive.capacity < this.MIN_DATA
 
   readonly driveName = (drive: DiskInfo): string =>
     [drive.vendor, drive.model].filter(Boolean).join(' ') ||
@@ -228,51 +290,40 @@ export default class DrivesPage {
 
   async ngOnInit() {
     await this.loadDrives()
+
+    this.form.controls.osDrive.valueChanges.subscribe(drive => {
+      if (drive) {
+        this.form.controls.osDrive.markAsTouched()
+      }
+    })
+
+    this.form.controls.dataDrive.valueChanges
+      .pipe(distinctUntilChanged())
+      .subscribe(drive => {
+        this.preserveData = null
+        if (drive) {
+          this.form.controls.dataDrive.markAsTouched()
+          if (toGuid(drive)) {
+            this.showPreserveOverwriteDialog()
+          }
+        }
+      })
   }
 
   async refresh() {
     this.loading = true
-    this.selectedOsDrive = null
-    this.selectedDataDrive = null
+    this.form.reset()
     this.preserveData = null
     await this.loadDrives()
   }
 
-  onOsDriveChange(osDrive: DiskInfo | null) {
-    this.selectedOsDrive = osDrive
-    this.dataDisabled = (drive: DiskInfo) => {
-      if (osDrive && drive.logicalname === osDrive.logicalname) {
-        return drive.capacity < this.MIN_BOTH
-      }
-      return drive.capacity < this.MIN_DATA
-    }
-
-    // Clear data drive if it's now invalid
-    if (this.selectedDataDrive && this.dataDisabled(this.selectedDataDrive)) {
-      this.selectedDataDrive = null
-      this.preserveData = null
-    }
-  }
-
-  onDataDriveChange(drive: DiskInfo | null) {
-    this.preserveData = null
-
-    if (!drive) {
-      return
-    }
-
-    const hasStartOSData = !!toGuid(drive)
-    if (hasStartOSData) {
-      this.showPreserveOverwriteDialog()
-    }
-  }
-
   continue() {
-    if (!this.selectedOsDrive || !this.selectedDataDrive) return
+    const osDrive = this.form.controls.osDrive.value
+    const dataDrive = this.form.controls.dataDrive.value
+    if (!osDrive || !dataDrive) return
 
-    const sameDevice =
-      this.selectedOsDrive.logicalname === this.selectedDataDrive.logicalname
-    const dataHasStartOS = !!toGuid(this.selectedDataDrive)
+    const sameDevice = osDrive.logicalname === dataDrive.logicalname
+    const dataHasStartOS = !!toGuid(dataDrive)
 
     // Scenario 1: Same drive, has StartOS data, preserving → no warning
     if (sameDevice && dataHasStartOS && this.preserveData) {
@@ -292,7 +343,7 @@ export default class DrivesPage {
 
   private showPreserveOverwriteDialog() {
     let selectionMade = false
-    const drive = this.selectedDataDrive
+    const drive = this.form.controls.dataDrive.value
     const filesystem =
       drive?.filesystem ||
       drive?.partitions.find(p => p.guid)?.filesystem ||
@@ -304,20 +355,20 @@ export default class DrivesPage {
         data: { isExt4 },
       })
       .subscribe({
-      next: preserve => {
-        selectionMade = true
-        this.preserveData = preserve
-        this.cdr.markForCheck()
-      },
-      complete: () => {
-        if (!selectionMade) {
-          // Dialog was dismissed without selection - clear the data drive
-          this.selectedDataDrive = null
-          this.preserveData = null
+        next: preserve => {
+          selectionMade = true
+          this.preserveData = preserve
           this.cdr.markForCheck()
-        }
-      },
-    })
+        },
+        complete: () => {
+          if (!selectionMade) {
+            // Dialog was dismissed without selection - clear the data drive
+            this.form.controls.dataDrive.reset()
+            this.preserveData = null
+            this.cdr.markForCheck()
+          }
+        },
+      })
   }
 
   private showOsDriveWarning() {
@@ -360,13 +411,15 @@ export default class DrivesPage {
   }
 
   private async installOs(wipe: boolean) {
+    const osDrive = this.form.controls.osDrive.value!
+    const dataDrive = this.form.controls.dataDrive.value!
     const loader = this.loader.open('Installing StartOS').subscribe()
 
     try {
       const result = await this.api.installOs({
-        osDrive: this.selectedOsDrive!.logicalname,
+        osDrive: osDrive.logicalname,
         dataDrive: {
-          logicalname: this.selectedDataDrive!.logicalname,
+          logicalname: dataDrive.logicalname,
           wipe,
         },
       })
