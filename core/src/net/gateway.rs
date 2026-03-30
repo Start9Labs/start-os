@@ -241,11 +241,19 @@ pub async fn check_port(
     .await
     .map_or(false, |r| r.is_ok());
 
+    let local_ipv4 = ip_info
+        .subnets
+        .iter()
+        .find_map(|s| match s.addr() {
+            IpAddr::V4(v4) => Some(v4),
+            _ => None,
+        })
+        .unwrap_or(Ipv4Addr::UNSPECIFIED);
     let client = reqwest::Client::builder();
     #[cfg(target_os = "linux")]
     let client = client
         .interface(gateway.as_str())
-        .local_address(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+        .local_address(IpAddr::V4(local_ipv4));
     let client = client.build()?;
 
     let mut res = None;
@@ -784,12 +792,16 @@ async fn watcher(
     }
 }
 
-async fn get_wan_ipv4(iface: &str, base_url: &Url) -> Result<Option<Ipv4Addr>, Error> {
+async fn get_wan_ipv4(
+    iface: &str,
+    base_url: &Url,
+    local_ipv4: Ipv4Addr,
+) -> Result<Option<Ipv4Addr>, Error> {
     let client = reqwest::Client::builder();
     #[cfg(target_os = "linux")]
     let client = client
         .interface(iface)
-        .local_address(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+        .local_address(IpAddr::V4(local_ipv4));
     let url = base_url.join("/ip").with_kind(ErrorKind::ParseUrl)?;
     let text = client
         .build()?
@@ -1412,7 +1424,14 @@ async fn poll_ip_info(
                 Some(NetworkInterfaceType::Bridge | NetworkInterfaceType::Loopback)
             )
         {
-            match get_wan_ipv4(iface.as_str(), &echoip_url).await {
+            let local_ipv4 = subnets
+                .iter()
+                .find_map(|s| match s.addr() {
+                    IpAddr::V4(v4) => Some(v4),
+                    _ => None,
+                })
+                .unwrap_or(Ipv4Addr::UNSPECIFIED);
+            match get_wan_ipv4(iface.as_str(), &echoip_url, local_ipv4).await {
                 Ok(a) => {
                     wan_ip = a;
                 }
