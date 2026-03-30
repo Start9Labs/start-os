@@ -29,7 +29,7 @@ on:
           - aarch64
           - aarch64-nonfree
           - aarch64-nvidia
-          # - raspberrypi
+          - raspberrypi
           - riscv64
           - riscv64-nonfree
       deploy:
@@ -296,6 +296,18 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION"
 
+      - name: Determine platforms
+        id: platforms
+        run: |
+          INPUT="${{ github.event.inputs.platform }}"
+          if [ "$INPUT" = "ALL" ]; then
+            PLATFORMS="x86_64 x86_64-nonfree x86_64-nvidia aarch64 aarch64-nonfree aarch64-nvidia riscv64 riscv64-nonfree"
+          else
+            PLATFORMS="$INPUT"
+          fi
+          echo "list=$PLATFORMS" >> "$GITHUB_OUTPUT"
+          echo "Platforms: $PLATFORMS"
+
       - name: Download squashfs artifacts
         uses: actions/download-artifact@v8
         with:
@@ -347,10 +359,12 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           cd artifacts
-          for file in *.iso *.squashfs; do
-            [ -f "$file" ] || continue
-            echo "Uploading $file..."
-            s3cmd put -P "$file" "${{ env.S3_BUCKET }}/v${VERSION}/$file"
+          for PLATFORM in ${{ steps.platforms.outputs.list }}; do
+            for file in *_${PLATFORM}.squashfs *_${PLATFORM}.iso; do
+              [ -f "$file" ] || continue
+              echo "Uploading $file..."
+              s3cmd put -P "$file" "${{ env.S3_BUCKET }}/v${VERSION}/$file"
+            done
           done
 
       - name: Register OS version
@@ -363,13 +377,14 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           cd artifacts
-          for file in *.squashfs *.iso; do
-            [ -f "$file" ] || continue
-            PLATFORM=$(echo "$file" | sed 's/.*_\([^.]*\)\.\(squashfs\|iso\)$/\1/')
-            echo "Indexing $file for platform $PLATFORM..."
-            start-cli --registry="${{ env.REGISTRY }}" registry os asset add \
-              --platform="$PLATFORM" \
-              --version="$VERSION" \
-              "$file" \
-              "${{ env.S3_CDN }}/v${VERSION}/$file"
+          for PLATFORM in ${{ steps.platforms.outputs.list }}; do
+            for file in *_${PLATFORM}.squashfs *_${PLATFORM}.iso; do
+              [ -f "$file" ] || continue
+              echo "Indexing $file for platform $PLATFORM..."
+              start-cli --registry="${{ env.REGISTRY }}" registry os asset add \
+                --platform="$PLATFORM" \
+                --version="$VERSION" \
+                "$file" \
+                "${{ env.S3_CDN }}/v${VERSION}/$file"
+            done
           done
