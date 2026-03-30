@@ -212,8 +212,18 @@ export default class OutboundVPN {
   }
 
   onDelete() {
+    const usedBy = this.data()?.used_by ?? []
+    const label = usedBy.length ? 'Delete VPN?' : 'Are you sure?'
+    const data = usedBy.length
+      ? {
+          content: `The following profiles currently route through this VPN and will be switched to WAN: ${usedBy.join(', ')}.`,
+          yes: 'Delete',
+          no: 'Cancel',
+        }
+      : undefined
+
     this.dialogs
-      .open(TUI_CONFIRM, { label: 'Are you sure?' })
+      .open(TUI_CONFIRM, { label, data })
       .pipe(filter(Boolean))
       .subscribe(async () => {
         if (await this.service.remove(this.vpnId)) {
