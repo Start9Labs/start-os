@@ -141,6 +141,7 @@ export type LanIpv4Response = {
 
 export type LanIpv4SetRequest = {
   address: string
+  force?: boolean
 }
 
 export type LanIpv6Response = {
@@ -387,6 +388,7 @@ export interface ProfileUpdateInput {
   access_to_new_profiles: boolean
   owns_lan: boolean
   dns_override?: DnsServer[]
+  force?: boolean
 }
 export type CheckInitializedRes = { initialized: boolean }
 

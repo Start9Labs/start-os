@@ -76,6 +76,14 @@ pub struct Profile<Id: Ord = ProfileId> {
     pub owns_lan: bool,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ProfileSetRequest {
+    #[serde(flatten)]
+    pub profile: Profile<ProfileIdOpt>,
+    #[serde(default)]
+    pub force: bool,
+}
+
 pub fn profiles<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
@@ -885,8 +893,10 @@ fn ensure_vlan_filtering(cfgs: &mut Configs, bridge_name: &str) -> Result<(), Er
 
 pub fn set<C: CtrlContext>(
     ctx: C,
-    DeserializeStdin(profile): DeserializeStdin<Profile<ProfileIdOpt>>,
+    DeserializeStdin(req): DeserializeStdin<ProfileSetRequest>,
 ) -> Result<ProfileId, Error> {
+    let profile = req.profile;
+    let force = req.force;
     let name = profile.id.fullname.clone().unwrap_or_default();
     let mut retries = 4;
     loop {
@@ -943,6 +953,25 @@ pub fn set<C: CtrlContext>(
             vec![crate::lan::LAN_INTERFACE.to_string()]
         };
 
+        // Guard: check if IP change would break VPN peers
+        let ip_changed = old_state
+            .as_ref()
+            .and_then(|s| s.gateway_ip)
+            .map(|old| old != profile.gateway_ip)
+            .unwrap_or(false);
+        let removed_vpns = if ip_changed || block_changed {
+            let affected: Vec<&str> = if block_changed {
+                restart_ifaces.iter().map(|s| s.as_str()).collect()
+            } else if let Some(ref iface) = profile.id.interface {
+                vec![iface.as_str()]
+            } else {
+                vec![]
+            };
+            crate::vpn_server::guard_vpn_peers(&mut cfgs, &affected, force)?
+        } else {
+            Default::default()
+        };
+
         match dump_all(ctx.uci_root(), cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
@@ -965,6 +994,7 @@ pub fn set<C: CtrlContext>(
                     } else {
                         reload_system()?;
                     }
+                    removed_vpns.apply_post_reload();
                 }
                 let mut changes = Vec::new();
                 if let Some(ref old) = old_state {
@@ -2179,7 +2209,10 @@ pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> 
             owns_lan: current_profile.owns_lan,
         };
         let modified_profile = crate::utils::edit_in_editor(&current_profile)?;
-        set(ctx, DeserializeStdin(modified_profile))
+        set(ctx, DeserializeStdin(ProfileSetRequest {
+            profile: modified_profile,
+            force: false,
+        }))
     }
 }
 

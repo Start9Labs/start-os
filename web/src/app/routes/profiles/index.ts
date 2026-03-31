@@ -14,14 +14,18 @@ import {
   TuiDropdown,
   TuiHint,
   TuiLink,
+  TuiNotificationService,
   TuiTitle,
 } from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { filter } from 'rxjs'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { catchError, EMPTY, filter, firstValueFrom } from 'rxjs'
 import { Placeholder } from 'src/app/components/placeholder'
+import { ReconnectingDialog } from 'src/app/components/reconnecting-dialog'
 import { OutboundService } from 'src/app/routes/outbound/service'
 import { SecurityProfile } from 'src/app/services/api/api.service'
+import { NetworkRestartService } from 'src/app/services/network-restart.service'
 import { ADD_PROFILE, ProfileDialogResult } from './dialog'
 import { ProfilesService } from './service'
 
@@ -157,6 +161,8 @@ class Profiles {
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(ProfilesService)
   protected readonly outboundService = inject(OutboundService)
+  private readonly alerts = inject(TuiNotificationService)
+  private readonly networkRestart = inject(NetworkRestartService)
   private readonly window = inject(WA_WINDOW)
 
   private readonly lanSubnet = computed(() => {
@@ -261,10 +267,37 @@ class Profiles {
       })
       .subscribe(async result => {
         if (profile) {
-          const adminIpChanged = await this.service.updateProfile(
-            { ...profile, ...result },
-            profile.gateway_ip,
-          )
+          const params = { ...profile, ...result }
+          let adminIpChanged = false
+          try {
+            adminIpChanged = await this.service.updateProfile(
+              params,
+              profile.gateway_ip,
+            )
+          } catch (e: any) {
+            if (!e?.message?.includes('VPN client')) return
+            // IP change blocked by VPN peers — offer to force-delete them
+            const confirmed = await firstValueFrom(
+              this.dialogs.open(TUI_CONFIRM, {
+                label: 'Inbound VPN Will Be Deleted',
+                data: {
+                  content:
+                    "Changing this profile's subnet will invalidate all existing VPN client configurations. The inbound VPN server and its peers will be removed and must be re-created.",
+                  yes: 'Delete VPN & Continue',
+                  no: 'Cancel',
+                },
+              }),
+            ).catch(() => false)
+            if (!confirmed) return
+            try {
+              adminIpChanged = await this.service.updateProfile(
+                { ...params, force: true },
+                profile.gateway_ip,
+              )
+            } catch {
+              return
+            }
+          }
 
           if (adminIpChanged) {
             const newIp = result.gateway_ip
@@ -285,6 +318,21 @@ class Profiles {
                     this.window.location.href = `http://${newIp}`
                   },
                 })
+            } else {
+              await firstValueFrom(
+                this.dialogs
+                  .open(new PolymorpheusComponent(ReconnectingDialog), {
+                    label: 'Reconnecting',
+                    closable: false,
+                    dismissible: false,
+                    data: { message: 'Applying profile settings...' },
+                  })
+                  .pipe(catchError(() => EMPTY)),
+              )
+              this.networkRestart.recovered()
+              this.alerts
+                .open('Profile updated', { appearance: 'positive' })
+                .subscribe()
             }
           }
         } else {

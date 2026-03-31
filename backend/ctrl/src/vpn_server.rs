@@ -5,7 +5,7 @@ use crate::{CliContext, Error, ErrorKind, ServerContext};
 use clap::Parser;
 use rpc_toolkit::{from_fn, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::Ipv4Addr;
 use std::process::Command;
 use uciedit::openwrt::{DhcpHost, NetworkInterface, NetworkRoute};
@@ -389,6 +389,87 @@ pub(crate) fn sync_peer_policy_routes(
     Ok(())
 }
 
+/// Returns a map of profile_interface -> peer_count for profiles that have VPN peers.
+pub(crate) fn profiles_with_vpn_peers(
+    cfgs: &Configs,
+    profile_interfaces: &[&str],
+) -> BTreeMap<String, usize> {
+    let mut result = BTreeMap::new();
+    for section in &cfgs["startwrt"].sections {
+        let Ok(vpn_meta) = section.get::<UciVpnServer>() else {
+            continue;
+        };
+        if !profile_interfaces.contains(&vpn_meta.profile_interface.as_str()) {
+            continue;
+        }
+        let peers = get_peers_for_interface(cfgs, &vpn_meta.interface);
+        if !peers.is_empty() {
+            result.insert(vpn_meta.profile_interface.clone(), peers.len());
+        }
+    }
+    result
+}
+
+/// Fully remove the VPN server for a profile interface, including the WireGuard
+/// interface, all peers, metadata, firewall rules, policy routes, and proxy ARP UCI.
+/// Operates on already-parsed configs (caller handles dump_all and service reload).
+///
+/// Returns the profile's VLAN tag so the caller can call
+/// `apply_proxy_arp_sysctl(tag, false)` after dump (netifd ignores the UCI option).
+pub(crate) fn remove_vpn_server(
+    cfgs: &mut Configs,
+    profile_interface: &str,
+) -> Result<Option<u16>, Error> {
+    let wg_interface_name = format!("wg_{}", profile_interface);
+    let peer_type = format!("wireguard_{}", wg_interface_name);
+
+    // Read vlan_tag before modifying configs
+    let vlan_tag = {
+        use crate::profiles::UciProfile;
+        cfgs["startwrt"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<UciProfile>().ok())
+            .find(|p| p.interface == profile_interface)
+            .map(|p| p.vlan_tag)
+    };
+
+    // Remove WireGuard interface
+    cfgs["network"].sections.retain(|section| {
+        if section.name().as_deref() == Some(wg_interface_name.as_str()) {
+            if let Ok(iface) = section.get::<WgInterface>() {
+                if iface.is_wireguard() {
+                    return false;
+                }
+            }
+        }
+        true
+    });
+
+    // Remove all peers
+    cfgs["network"]
+        .sections
+        .retain(|section| section.ty() != peer_type);
+
+    // Remove VPN server metadata
+    cfgs["startwrt"].sections.retain(|section| {
+        if let Ok(meta) = section.get::<UciVpnServer>() {
+            return meta.interface != wg_interface_name;
+        }
+        true
+    });
+
+    // Clean up firewall
+    remove_from_firewall_zones(cfgs, &wg_interface_name)?;
+    remove_wireguard_firewall_rule(cfgs, &wg_interface_name)?;
+
+    // Clean up routing and proxy ARP UCI
+    sync_peer_policy_routes(cfgs, profile_interface)?;
+    sync_proxy_arp(cfgs, profile_interface)?;
+
+    Ok(vlan_tag)
+}
+
 /// Enable proxy_arp on the profile's bridge VLAN interface when a VPN server exists.
 ///
 /// VPN peers share the same /24 subnet as LAN clients. Without proxy ARP, LAN devices
@@ -442,9 +523,63 @@ pub(crate) fn sync_proxy_arp(
 ///
 /// netifd does not honor the UCI `proxy_arp` option on regular interfaces,
 /// so we write directly to `/proc/sys/net/ipv4/conf/<dev>/proxy_arp`.
-fn apply_proxy_arp_sysctl(vlan_tag: u16, enable: bool) {
+pub(crate) fn apply_proxy_arp_sysctl(vlan_tag: u16, enable: bool) {
     let path = format!("/proc/sys/net/ipv4/conf/br-lan.{}/proxy_arp", vlan_tag);
     let _ = std::fs::write(&path, if enable { "1" } else { "0" });
+}
+
+/// Tracks VPN servers removed by [`guard_vpn_peers`] so callers can tear down
+/// the live WireGuard interfaces and proxy ARP sysctls after dumping configs.
+#[derive(Default)]
+pub(crate) struct RemovedVpnServers {
+    pub wg_ifaces: Vec<String>,
+    pub proxy_arp_tags: Vec<u16>,
+}
+
+impl RemovedVpnServers {
+    /// Bring down orphaned WireGuard interfaces and clear proxy ARP sysctls.
+    /// Call AFTER `dump_all` and the main service reload.
+    pub fn apply_post_reload(&self) {
+        for wg in &self.wg_ifaces {
+            let _ = crate::run_quiet(Command::new("ifdown").arg(wg));
+        }
+        for tag in &self.proxy_arp_tags {
+            apply_proxy_arp_sysctl(*tag, false);
+        }
+    }
+}
+
+/// Check whether changing the IP/subnet of the given profile interfaces would
+/// break existing VPN peers. If `force` is false and peers exist, returns
+/// `VpnPeersWouldBreak`. If `force` is true, removes the affected VPN servers
+/// from the parsed configs (caller still needs to `dump_all`).
+pub(crate) fn guard_vpn_peers(
+    cfgs: &mut Configs,
+    affected_interfaces: &[&str],
+    force: bool,
+) -> Result<RemovedVpnServers, Error> {
+    let peers = profiles_with_vpn_peers(cfgs, affected_interfaces);
+    if peers.is_empty() {
+        return Ok(RemovedVpnServers::default());
+    }
+
+    let total: usize = peers.values().sum();
+    if !force {
+        return Err(crate::ErrorKind::VpnPeersWouldBreak {
+            profiles: peers.keys().cloned().collect(),
+            peer_count: total,
+        }
+        .into());
+    }
+
+    let mut removed = RemovedVpnServers::default();
+    for iface in peers.keys() {
+        if let Some(tag) = remove_vpn_server(cfgs, iface)? {
+            removed.proxy_arp_tags.push(tag);
+        }
+        removed.wg_ifaces.push(format!("wg_{}", iface));
+    }
+    Ok(removed)
 }
 
 /// Get IPs reserved by DHCP static leases that fall within the given subnet

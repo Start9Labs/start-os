@@ -1,11 +1,17 @@
 import { inject, Injectable } from '@angular/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { FormService } from 'src/app/services/form.service'
 import { ApiService } from 'src/app/services/api/api.service'
+import { isNetworkError } from 'src/app/services/network-restart.service'
+import { pauseFor } from 'src/app/utils/pauseFor'
 import { buildRouterIp, LanIpv4Form, parseIpToForm } from './utils'
+
+const RESTART_TIMEOUT_MS = 60_000
 
 @Injectable()
 export class LanIpv4Service extends FormService<LanIpv4Form> {
   private readonly api = inject(ApiService)
+  private readonly notifications = inject(TuiNotificationMiddleService)
 
   async load(): Promise<LanIpv4Form> {
     const res = await this.api.lanIpv4Get()
@@ -24,11 +30,30 @@ export class LanIpv4Service extends FormService<LanIpv4Form> {
     })
   }
 
-  saveForIpChange(data: LanIpv4Form): Promise<boolean> {
+  /**
+   * Save LAN IPv4 settings when the IP is changing.
+   * Shows a loading notification. Re-throws VPN errors for the caller
+   * to handle via a confirmation dialog. Swallows network errors
+   * (expected during the network restart).
+   */
+  async saveForIpChange(data: LanIpv4Form, force?: boolean): Promise<void> {
+    const loading = this.notifications
+      .open('Applying LAN settings...')
+      .subscribe()
     this.networkRestart.suppress()
-    return this.api.lanIpv4Set({ address: buildRouterIp(data.ip) }).then(
-      () => true,
-      () => false,
-    )
+    try {
+      await Promise.race([
+        this.api.lanIpv4Set({ address: buildRouterIp(data.ip), force }),
+        pauseFor(RESTART_TIMEOUT_MS).then(() => {
+          throw Object.assign(new Error('Network timeout'), { code: 0 })
+        }),
+      ])
+    } catch (e: any) {
+      if (isNetworkError(e)) return
+      this.networkRestart.recovered()
+      throw e
+    } finally {
+      loading.unsubscribe()
+    }
   }
 }

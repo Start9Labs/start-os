@@ -69,6 +69,11 @@ pub enum ErrorKind {
     VpnChainCycle { label: String, cycle: Vec<String> },
     #[error("a profile named {name:?} already exists")]
     DuplicateFullname { name: String },
+    #[error("changing the IP would break {peer_count} VPN client(s) across profiles: {profiles:?}")]
+    VpnPeersWouldBreak {
+        profiles: Vec<String>,
+        peer_count: usize,
+    },
     #[error("device {mac} has no {family} address for port forward \"{label}\"")]
     MissingDeviceAddress {
         mac: String,

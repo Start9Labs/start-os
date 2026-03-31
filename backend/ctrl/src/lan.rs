@@ -24,6 +24,9 @@ pub struct LanIpv4Response {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LanIpv4SetRequest {
     pub address: String,
+    /// When true, forcibly delete VPN peers that would break due to block change.
+    #[serde(default)]
+    pub force: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -134,6 +137,23 @@ pub fn ipv4_set<C: CtrlContext>(
             HashSet::new()
         };
 
+        // Guard: check if IP change would break VPN peers
+        let ip_changed = old_address.map(|old| old != address).unwrap_or(false);
+        let removed_vpns = if ip_changed {
+            let affected: Vec<&str> = if block_changed {
+                // Block change affects all profiles
+                profile_interfaces.iter().map(|s| s.as_str())
+                    .chain(std::iter::once(LAN_INTERFACE))
+                    .collect()
+            } else {
+                // Only the admin profile's subnet changed
+                vec![LAN_INTERFACE]
+            };
+            crate::vpn_server::guard_vpn_peers(&mut cfgs, &affected, req.force)?
+        } else {
+            Default::default()
+        };
+
         match dump_all(ctx.uci_root(), cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
@@ -179,6 +199,7 @@ pub fn ipv4_set<C: CtrlContext>(
                     let mut ifaces: Vec<String> = vec![LAN_INTERFACE.to_string()];
                     ifaces.extend(profile_interfaces.iter().filter(|i| *i != LAN_INTERFACE).cloned());
                     restart_network_services(address, ifaces);
+                    removed_vpns.apply_post_reload();
                 }
                 return Ok(());
             }
