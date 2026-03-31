@@ -40,99 +40,19 @@ lazy_static::lazy_static! {
     );
 }
 
-/// Detect the LC_COLLATE / LC_CTYPE the cluster was created with and generate
-/// those locales if they are missing from the running system.  Older installs
-/// may have been initialized with a locale (e.g. en_GB.UTF-8) that the current
-/// image does not ship.  Without it PostgreSQL starts but refuses
-/// connections, breaking the migration.
-async fn ensure_cluster_locale(pg_version: u32) -> Result<(), Error> {
-    let cluster_dir = format!("/var/lib/postgresql/{pg_version}/main");
-    let pg_controldata = format!("/usr/lib/postgresql/{pg_version}/bin/pg_controldata");
-
-    let output = Command::new(&pg_controldata)
-        .arg(&cluster_dir)
-        .kill_on_drop(true)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .output()
-        .await
-        .with_kind(crate::ErrorKind::Database)?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        tracing::warn!("pg_controldata failed, skipping locale check: {stderr}");
-        return Ok(());
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut locales_needed = Vec::new();
-    for line in stdout.lines() {
-        let locale = if let Some(rest) = line.strip_prefix("LC_COLLATE:") {
-            rest.trim()
-        } else if let Some(rest) = line.strip_prefix("LC_CTYPE:") {
-            rest.trim()
-        } else {
-            continue;
-        };
-        if !locale.is_empty() && locale != "C" && locale != "POSIX" {
-            locales_needed.push(locale.to_owned());
-        }
-    }
-    locales_needed.sort();
-    locales_needed.dedup();
-
-    if locales_needed.is_empty() {
-        return Ok(());
-    }
-
-    // Check which locales are already available.
-    let available = Command::new("locale")
-        .arg("-a")
-        .kill_on_drop(true)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .await
-        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
-        .unwrap_or_default();
-
-    let mut need_gen = false;
-    for locale in &locales_needed {
-        // locale -a normalizes e.g. "en_GB.UTF-8" → "en_GB.utf8"
-        let normalized = locale.replace("-", "").to_lowercase();
-        if available.lines().any(|l| l.replace("-", "").to_lowercase() == normalized) {
-            continue;
-        }
-        // Debian's locale-gen ignores positional args — the locale must be
-        // uncommented in /etc/locale.gen or appended to it.
-        tracing::info!("Enabling missing locale for PostgreSQL cluster: {locale}");
-        let locale_gen_path = Path::new("/etc/locale.gen");
-        let contents = tokio::fs::read_to_string(locale_gen_path)
-            .await
-            .unwrap_or_default();
-        // Try to uncomment an existing entry first, otherwise append.
-        let entry = format!("{locale} UTF-8");
-        let commented = format!("# {entry}");
-        if contents.contains(&commented) {
-            let updated = contents.replace(&commented, &entry);
-            tokio::fs::write(locale_gen_path, updated).await?;
-        } else if !contents.contains(&entry) {
-            use tokio::io::AsyncWriteExt;
-            let mut f = tokio::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(locale_gen_path)
-                .await?;
-            f.write_all(format!("\n{entry}\n").as_bytes()).await?;
-        }
-        need_gen = true;
-    }
-
-    if need_gen {
-        Command::new("locale-gen")
-            .invoke(crate::ErrorKind::Database)
-            .await?;
-    }
-
+/// All pre-0.4.0 StartOS images were initialized with the en_GB.UTF-8 locale.
+/// The current trixie image does not ship it.  Without it PostgreSQL starts
+/// but refuses connections, breaking the migration.
+async fn ensure_en_gb_locale() -> Result<(), Error> {
+    Command::new("localedef")
+        .arg("-i")
+        .arg("en_GB")
+        .arg("-c")
+        .arg("-f")
+        .arg("UTF-8")
+        .arg("en_GB.UTF-8")
+        .invoke(crate::ErrorKind::Database)
+        .await?;
     Ok(())
 }
 
@@ -191,7 +111,7 @@ async fn init_postgres(datadir: impl AsRef<Path>) -> Result<PgPool, Error> {
     // current image (e.g. en_GB.UTF-8 on a server that predates the trixie
     // image).  Detect and generate it before starting PostgreSQL, otherwise
     // PG will start but refuse connections.
-    ensure_cluster_locale(pg_version).await?;
+    ensure_en_gb_locale().await?;
 
     Command::new("systemctl")
         .arg("start")
