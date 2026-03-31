@@ -399,7 +399,6 @@ export default {
   425: 'Exécuter',
   426: 'Action possible uniquement lorsque le service est',
   427: 'Interdit',
-  428: 'peut rencontrer des problèmes temporaires',
   429: 'a des dépendances non satisfaites. Il ne fonctionnera pas comme prévu.',
   430: 'Reconstruction du conteneur',
   431: 'Désinstallation initiée',

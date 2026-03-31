@@ -399,7 +399,6 @@ export default {
   425: 'Ausführen',
   426: 'Aktion kann nur ausgeführt werden, wenn der Dienst',
   427: 'Verboten',
-  428: 'kann vorübergehend Probleme verursachen',
   429: 'hat unerfüllte Abhängigkeiten. Es wird nicht wie erwartet funktionieren.',
   430: 'Container wird neu gebaut',
   431: 'Deinstallation wird gestartet',

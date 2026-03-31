@@ -10,7 +10,6 @@ import { RouterLink } from '@angular/router'
 import { MarketplacePkg } from '@start9labs/marketplace'
 import {
   DialogService,
-  i18nKey,
   i18nPipe,
   LocalizePipe,
   MarkdownPipe,
@@ -32,7 +31,6 @@ import {
   TuiProgressCircle,
 } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { defaultIfEmpty, firstValueFrom } from 'rxjs'
 import { InstallingProgressPipe } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
@@ -41,8 +39,6 @@ import {
   PackageDataEntry,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
-import { getAllPackages } from 'src/app/utils/get-package-data'
-import { hasCurrentDeps } from 'src/app/utils/has-deps'
 import UpdatesComponent from './updates.component'
 
 @Component({
@@ -106,7 +102,7 @@ import UpdatesComponent from './updates.component'
             size="s"
             [loading]="!ready()"
             [appearance]="error() ? 'destructive' : 'primary'"
-            (click.stop)="onClick()"
+            (click.stop)="update()"
           >
             {{ error() ? ('Retry' | i18n) : ('Update' | i18n) }}
           </button>
@@ -274,22 +270,7 @@ export class UpdatesItemComponent {
   readonly local =
     input.required<PackageDataEntry<InstalledState | UpdatingState>>()
 
-  async onClick() {
-    this.ready.set(false)
-    this.error.set('')
-
-    if (hasCurrentDeps(this.item().id, await getAllPackages(this.patch))) {
-      if (await this.alert()) {
-        await this.update()
-      } else {
-        this.ready.set(true)
-      }
-    } else {
-      await this.update()
-    }
-  }
-
-  private async update() {
+  async update() {
     const { id, version } = this.item()
     const url = this.parent.current()?.url || ''
 
@@ -300,22 +281,5 @@ export class UpdatesItemComponent {
       this.ready.set(true)
       this.error.set(e.message)
     }
-  }
-
-  private async alert(): Promise<boolean> {
-    return firstValueFrom(
-      this.dialog
-        .openConfirm({
-          label: 'Warning',
-          size: 's',
-          data: {
-            content:
-              `${this.i18n.transform('Services that depend on')} ${this.local().stateInfo.manifest.title} ${this.i18n.transform('will no longer work properly and may crash.')}` as i18nKey,
-            yes: 'Continue',
-            no: 'Cancel',
-          },
-        })
-        .pipe(defaultIfEmpty(false)),
-    )
   }
 }

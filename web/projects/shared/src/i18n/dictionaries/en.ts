@@ -398,7 +398,6 @@ export const ENGLISH: Record<string, number> = {
   'Run': 425, // as in, run a piece of software
   'Action can only be executed when service is': 426,
   'Forbidden': 427,
-  'may temporarily experiences issues': 428,
   'has unmet dependencies. It will not work as expected.': 429,
   'Rebuilding container': 430,
   'Beginning uninstall': 431,
