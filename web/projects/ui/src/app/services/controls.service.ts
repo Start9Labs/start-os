@@ -84,35 +84,16 @@ export class ControlsService {
     })
   }
 
-  async restart({ id, title }: T.Manifest) {
-    const packages = await getAllPackages(this.patch)
+  async restart(id: string) {
+    const loader = this.loader.open('Restarting').subscribe()
 
-    defer(() =>
-      hasCurrentDeps(id, packages)
-        ? this.dialog
-            .openConfirm({
-              label: 'Warning',
-              size: 's',
-              data: {
-                content:
-                  `${this.i18n.transform('Services that depend on')} ${title} ${this.i18n.transform('may temporarily experiences issues')}` as i18nKey,
-                yes: 'Restart',
-                no: 'Cancel',
-              },
-            })
-            .pipe(filter(Boolean))
-        : of(null),
-    ).subscribe(async () => {
-      const loader = this.loader.open('Restarting').subscribe()
-
-      try {
-        await this.api.restartPackage({ id })
-      } catch (e: any) {
-        this.errorService.handleError(e)
-      } finally {
-        loader.unsubscribe()
-      }
-    })
+    try {
+      await this.api.restartPackage({ id })
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
   }
 
   private alert(content: T.LocaleString): Promise<boolean> {

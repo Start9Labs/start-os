@@ -399,7 +399,6 @@ export default {
   425: 'Ejecutar',
   426: 'La acción solo se puede ejecutar cuando el servicio está',
   427: 'Prohibido',
-  428: 'puede experimentar problemas temporales',
   429: 'tiene dependencias no satisfechas. No funcionará como se espera.',
   430: 'Reconstruyendo contenedor',
   431: 'Iniciando desinstalación',

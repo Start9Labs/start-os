@@ -399,7 +399,6 @@ export default {
   425: 'Uruchom',
   426: 'Akcja może być wykonana tylko gdy serwis jest',
   427: 'Zabronione',
-  428: 'może tymczasowo napotkać problemy',
   429: 'ma niespełnione zależności. Nie będzie działać zgodnie z oczekiwaniami.',
   430: 'Odbudowywanie kontenera',
   431: 'Rozpoczynanie odinstalowania',

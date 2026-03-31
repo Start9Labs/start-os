@@ -36,7 +36,7 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
         <button
           tuiButton
           iconStart="@tui.rotate-cw"
-          (click)="controls.restart(manifest())"
+          (click)="controls.restart(manifest().id)"
         >
           {{ 'Restart' | i18n }}
         </button>
