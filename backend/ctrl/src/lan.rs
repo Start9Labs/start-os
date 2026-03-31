@@ -693,6 +693,7 @@ config profile lan
             ctx.clone(),
             DeserializeStdin(LanIpv4SetRequest {
                 address: "10.0.0.1".to_string(),
+                force: false,
             }),
         )
         .unwrap();
@@ -713,6 +714,7 @@ config profile lan
             ctx,
             DeserializeStdin(LanIpv4SetRequest {
                 address: "10.0.0.1".to_string(),
+                force: false,
             }),
         )
         .unwrap_err();
@@ -820,6 +822,7 @@ config redirect 'dns_override_guest'
             ctx.clone(),
             DeserializeStdin(LanIpv4SetRequest {
                 address: "10.0.1.1".to_string(),
+                force: false,
             }),
         )
         .unwrap();
@@ -942,6 +945,7 @@ config profile guest
             ctx.clone(),
             DeserializeStdin(LanIpv4SetRequest {
                 address: "192.168.5.1".to_string(),
+                force: false,
             }),
         )
         .unwrap();

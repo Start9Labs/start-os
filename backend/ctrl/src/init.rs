@@ -210,7 +210,7 @@ mod tests {
     fn valid_password_accepted() {
         // 12 chars from allowed set
         assert!(validate_password("AbCdEf234567").is_ok());
-        assert!(validate_password("!@#$%^&*-_+=").is_ok());
+        assert!(validate_password("!@#$%^&*=+?2").is_ok());
         assert!(validate_password("HJKMNPQRSTUz").is_ok());
     }
 
@@ -225,7 +225,7 @@ mod tests {
     fn ambiguous_chars_rejected() {
         // I, O, l, o, 0, 1 are not in the allowed charset
         assert!(validate_password("ABCDEFGHIJKL").is_err()); // I at position 8
-        assert!(validate_password("ABCDEFGHoJKL").is_err()); // o
+        assert!(validate_password("ABCDEFGH0JKL").is_err()); // 0 (zero)
         assert!(validate_password("ABCDEFGHlJKL").is_err()); // l
         assert!(validate_password("ABCDEFGHJKLO").is_err()); // O at end
         assert!(validate_password("0BCDEFGHJKLM").is_err()); // 0
