@@ -1,0 +1,23 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-s9pk-edit 1  "edit " 
+.SH NAME
+start\-cli\-s9pk\-edit \- Commands to add an image to an s9pk or edit the manifest
+.SH SYNOPSIS
+\fBstart\-cli s9pk edit\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIS9PK\fR> <\fIsubcommands\fR>
+.SH DESCRIPTION
+Commands to add an image to an s9pk or edit the manifest
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIS9PK\fR>
+Path to s9pk package file
+.SH SUBCOMMANDS
+.TP
+start\-cli\-s9pk\-edit\-add\-image(1)
+Add image to s9pk
+.TP
+start\-cli\-s9pk\-edit\-manifest(1)
+Edit s9pk manifest

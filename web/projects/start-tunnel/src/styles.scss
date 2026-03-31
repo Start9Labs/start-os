@@ -1,0 +1,121 @@
+:root {
+  height: 100%;
+
+  --tui-text-action: #428bf9;
+  --tui-text-action-hover: #165eca;
+  --tui-background-accent-1: #428bf9;
+  --tui-background-accent-1-hover: #126df7;
+  --tui-background-accent-1-pressed: #156ed4;
+  --tui-stroke-width: 1.5px;
+}
+
+body {
+  height: 100%;
+  isolation: isolate;
+  overflow-x: hidden;
+  background:
+    linear-gradient(var(--tui-background-base, #171717), var(--tui-background-base, #171717)),
+    radial-gradient(circle at top right, #5240a8, transparent 40%),
+    radial-gradient(circle at bottom right, #9236c9, transparent),
+    radial-gradient(circle at 25% 100%, #5b65d5, transparent 30%),
+    radial-gradient(circle at bottom left, #0090c0, transparent 50%),
+    radial-gradient(circle at top left, #2a5ba8, transparent 50%),
+    linear-gradient(to bottom, #5654b2, transparent);
+  background-blend-mode: hard-light;
+
+  &:not([tuiTheme]) {
+    background-blend-mode: soft-light;
+
+    &::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: rgb(255 255 255 / 15%);
+      backdrop-filter: brightness(1.5);
+    }
+  }
+}
+
+tui-dropdown[data-appearance='start-9'] {
+  background: none;
+  backdrop-filter: blur(1rem);
+}
+
+[tuiTheme='dark'] tui-dialog[data-appearance~='start-9'],
+[tuiTheme='dark'] tui-sheet-dialog[data-appearance~='start-9'] .t-sheet {
+  background:
+    linear-gradient(45deg, #5240a89c, transparent),
+    linear-gradient(to bottom, #5240a854, transparent),
+    color-mix(in hsl, var(--tui-background-elevation-1) 90%, transparent 10%);
+  background-blend-mode: multiply;
+
+  header {
+    background: transparent;
+  }
+}
+
+tui-notification-middle {
+  --tui-background-accent-1: var(--tui-status-warning);
+}
+
+.g-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: var(--tui-radius-s);
+  background: var(--tui-background-neutral-1);
+  box-shadow: inset 0 0 0 1px var(--tui-background-neutral-1);
+
+  thead tr {
+    position: sticky;
+    top: 0;
+    background: var(--tui-background-neutral-1);
+    backdrop-filter: blur(5rem);
+    z-index: 1;
+  }
+
+  tr:nth-child(even) {
+    backdrop-filter: brightness(0.9);
+  }
+
+  th,
+  td {
+    height: var(--tui-height-m);
+    padding: 0 1rem;
+    text-align: start;
+    background: transparent;
+    border: none;
+    box-shadow: inset 0 1px var(--tui-background-neutral-1);
+
+    &:last-child {
+      text-align: end;
+    }
+  }
+}
+
+qr-code {
+  display: flex;
+  justify-content: center;
+}
+
+tui-data-list {
+  --tui-text-action: var(--tui-text-primary);
+}
+
+[tuiTheme='dark'] tui-notification-middle[style] {
+  &.tui-enter,
+  &.tui-leave {
+    --tui-scale: 0;
+    animation-name: tuiScale;
+  }
+
+  &::before {
+    background: var(--tui-background-neutral-1);
+    backdrop-filter: blur(1rem);
+    box-shadow: inset 0 1px 1px var(--tui-background-neutral-2);
+  }
+
+  tui-loader svg {
+    stroke: white;
+  }
+}

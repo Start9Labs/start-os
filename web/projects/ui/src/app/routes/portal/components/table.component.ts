@@ -1,0 +1,48 @@
+import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { i18nKey, i18nPipe } from '@start9labs/shared'
+import {
+  TuiComparator,
+  TuiTable,
+  TuiTableDirective,
+} from '@taiga-ui/addon-table'
+
+@Component({
+  selector: 'table[appTable]',
+  template: `
+    <thead>
+      <tr>
+        <ng-content select="th" />
+        @for (header of appTable(); track $index) {
+          <th
+            tuiTh
+            [requiredSort]="true"
+            [sorter]="appTableSorters()[$index] || null"
+          >
+            {{ header | i18n }}
+          </th>
+        }
+      </tr>
+    </thead>
+    <tbody><ng-content /></tbody>
+    <ng-content select="tbody" />
+    <ng-content select="caption" />
+  `,
+  styles: `
+    :host:has(app-placeholder) thead {
+      display: none;
+    }
+  `,
+  host: { class: 'g-table' },
+  hostDirectives: [
+    {
+      directive: TuiTableDirective,
+      inputs: ['sorter'],
+    },
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [i18nPipe, TuiTable],
+})
+export class TableComponent {
+  readonly appTable = input.required<ReadonlyArray<i18nKey | null>>()
+  readonly appTableSorters = input<ReadonlyArray<TuiComparator<any> | null>>([])
+}

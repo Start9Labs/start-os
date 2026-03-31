@@ -1,0 +1,31 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-registry-admin-signer-edit 1  "edit " 
+.SH NAME
+start\-cli\-registry\-admin\-signer\-edit \- Edit signer information
+.SH SYNOPSIS
+\fBstart\-cli registry admin signer edit\fR [\fB\-n\fR|\fB\-\-set\-name\fR] [\fB\-c\fR|\fB\-\-add\-contact\fR] [\fB\-k\fR|\fB\-\-add\-key\fR] [\fB\-C\fR|\fB\-\-remove\-contact\fR] [\fB\-K\fR|\fB\-\-remove\-key\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIID\fR> 
+.SH DESCRIPTION
+Edit signer information
+.SH OPTIONS
+.TP
+\fB\-n\fR, \fB\-\-set\-name\fR \fI<SET_NAME>\fR
+Set the signer name
+.TP
+\fB\-c\fR, \fB\-\-add\-contact\fR \fI<ADD_CONTACT>\fR
+Add contact information to signer
+.TP
+\fB\-k\fR, \fB\-\-add\-key\fR \fI<ADD_KEY>\fR
+Add a public key to signer
+.TP
+\fB\-C\fR, \fB\-\-remove\-contact\fR \fI<REMOVE_CONTACT>\fR
+Remove contact from signer
+.TP
+\fB\-K\fR, \fB\-\-remove\-key\fR \fI<REMOVE_KEY>\fR
+Remove public key from signer
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIID\fR>
+Signer identifier

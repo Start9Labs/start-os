@@ -1,0 +1,206 @@
+#!/bin/sh
+set -e
+
+SYSTEMCTL=systemctl
+if [ -n "$DPKG_MAINTSCRIPT_PACKAGE" ]; then
+	SYSTEMCTL=deb-systemd-helper
+fi
+
+if [ -f /usr/sbin/grub-probe ] && ! [ -L /usr/sbin/grub-probe ]; then
+	mv /usr/sbin/grub-probe /usr/sbin/grub-probe-default
+	ln -s /usr/lib/startos/scripts/grub-probe-eos /usr/sbin/grub-probe
+fi
+
+cp /usr/lib/startos/scripts/startos-initramfs-module /etc/initramfs-tools/scripts/startos
+
+if ! grep overlay /etc/initramfs-tools/modules > /dev/null; then
+	echo overlay >> /etc/initramfs-tools/modules
+fi
+
+update-initramfs -u -k all
+
+if [ -f /etc/default/grub ]; then
+	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos console=ttyS0,115200n8 console=tty0"' /etc/default/grub
+	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX_DEFAULT=/c\GRUB_CMDLINE_LINUX_DEFAULT=""' /etc/default/grub
+	sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
+	# Set a GRUB variable, replacing if it exists (even commented) or appending if not
+	grub_set() {
+		sed -i '/\(^\|#\)'"$1"'=/d' /etc/default/grub
+		printf '%s="%s"\n' "$1" "$2" >> /etc/default/grub
+	}
+	# Graphical terminal (serial added conditionally via /etc/grub.d/01_serial)
+	grub_set GRUB_TERMINAL_INPUT 'console'
+	grub_set GRUB_TERMINAL_OUTPUT 'gfxterm'
+	# Remove GRUB_TERMINAL and GRUB_SERIAL_COMMAND if present
+	sed -i '/^\(#\|\)GRUB_TERMINAL=/d' /etc/default/grub
+	sed -i '/^\(#\|\)GRUB_SERIAL_COMMAND=/d' /etc/default/grub
+	# Graphics mode and splash background
+	grub_set GRUB_GFXMODE 800x600
+	grub_set GRUB_GFXPAYLOAD_LINUX keep
+	grub_set GRUB_BACKGROUND '/boot/grub/splash.png'
+	grub_set GRUB_THEME '/boot/grub/startos-theme/theme.txt'
+	# Copy splash image and theme to boot partition
+	if [ -f /usr/lib/startos/splash.png ]; then
+		mkdir -p /boot/grub
+		cp /usr/lib/startos/splash.png /boot/grub/splash.png
+	fi
+	if [ -d /usr/lib/startos/grub-theme ]; then
+		mkdir -p /boot/grub/startos-theme
+		cp -r /usr/lib/startos/grub-theme/* /boot/grub/startos-theme/
+	fi
+	# Copy font to boot partition so GRUB can load it without accessing rootfs
+	if [ -f /usr/share/grub/unicode.pf2 ]; then
+		mkdir -p /boot/grub/fonts
+		cp /usr/share/grub/unicode.pf2 /boot/grub/fonts/unicode.pf2
+	fi
+	# Install conditional serial console script for GRUB
+	cat > /etc/grub.d/01_serial <<-'GRUBEOF'
+	#!/bin/sh
+	cat << 'EOF'
+	# Conditionally enable serial console (avoids breaking gfxterm on EFI
+	# systems where the serial port is unavailable)
+	if serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1; then
+	  terminal_input console serial
+	  terminal_output gfxterm serial
+	fi
+	EOF
+	GRUBEOF
+	chmod +x /etc/grub.d/01_serial
+	# Install GRUB script to boot from StartOS installer USB when present.
+	# At boot, GRUB searches for the .startos-installer marker and,
+	# if found, loads the USB's own grub.cfg as the default boot entry.
+	cat > /etc/grub.d/07_startos_installer <<-'GRUBEOF'
+	#!/bin/sh
+	cat << 'EOF'
+	search --no-floppy --file --set=installer_dev /.startos-installer
+	if [ -n "$installer_dev" ]; then
+	    menuentry "StartOS Installer" --id startos-installer {
+	        set root=$installer_dev
+	        configfile /boot/grub/grub.cfg
+	    }
+	    set default=startos-installer
+	    set timeout=5
+	fi
+	EOF
+	GRUBEOF
+	chmod +x /etc/grub.d/07_startos_installer
+fi
+
+VERSION="$(cat /usr/lib/startos/VERSION.txt)"
+ENVIRONMENT=$(cat /usr/lib/startos/ENVIRONMENT.txt)
+VERSION_ENV="${VERSION}"
+if [ -n "${ENVIRONMENT}" ]; then
+	VERSION_ENV="${VERSION} (${ENVIRONMENT})"
+fi
+
+# set /etc/os-release
+cat << EOF > /etc/os-release
+NAME=StartOS
+VERSION="${VERSION_ENV}"
+ID=start-os
+VERSION_ID="${VERSION}"
+PRETTY_NAME="StartOS v${VERSION_ENV}"
+HOME_URL="https://start9.com/"
+SUPPORT_URL="https://docs.start9.com/0.3.5.x/support"
+BUG_REPORT_URL="https://github.com/Start9Labs/start-os/issues"
+VARIANT="${ENVIRONMENT}"
+VARIANT_ID="${ENVIRONMENT}"
+EOF
+
+# set local and remote login prompt
+cat << EOF > /etc/issue
+StartOS v${VERSION} [\\m] on \\n.local (\\l)
+EOF
+cat << EOF > /etc/issue.net
+StartOS v${VERSION}
+EOF
+
+# change timezone
+ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
+
+rm /etc/resolv.conf
+echo "nameserver 127.0.0.1" > /etc/resolv.conf
+echo "nameserver 1.1.1.1" >> /etc/resolv.conf # Cloudflare DNS Fallback
+
+# switch to network-manager
+echo "#" > /etc/network/interfaces
+cat << EOF > /etc/NetworkManager/NetworkManager.conf
+[main]
+plugins=ifupdown,keyfile
+dns=systemd-resolved
+
+[ifupdown]
+managed=true
+EOF
+$SYSTEMCTL enable startd.service
+$SYSTEMCTL enable systemd-resolved.service
+$SYSTEMCTL enable ssh.service
+$SYSTEMCTL disable wpa_supplicant.service
+$SYSTEMCTL mask systemd-networkd-wait-online.service # currently use `NetworkManager-wait-online.service`
+
+$SYSTEMCTL disable postgresql.service
+$SYSTEMCTL disable tor.service
+$SYSTEMCTL disable bluetooth.service
+$SYSTEMCTL disable hciuart.service
+$SYSTEMCTL disable triggerhappy.service
+
+$SYSTEMCTL mask sleep.target
+$SYSTEMCTL mask suspend.target
+$SYSTEMCTL mask hibernate.target
+$SYSTEMCTL mask hybrid-sleep.target
+
+if which gsettings > /dev/null; then
+	gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout '0'
+	gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-timeout '0'
+fi
+
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
+sed -i '/\(^\|#\)entries-per-entry-group-max=/c\entries-per-entry-group-max=128' /etc/avahi/avahi-daemon.conf
+sed -i '/\(^\|#\)Storage=/c\Storage=persistent' /etc/systemd/journald.conf
+sed -i '/\(^\|#\)Compress=/c\Compress=yes' /etc/systemd/journald.conf
+sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
+sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.conf
+sed -i '/^\s*#\?\s*issue_discards\s*=\s*/c\issue_discards = 1' /etc/lvm/lvm.conf
+sed -i '/\(^\|#\)\s*unqualified-search-registries\s*=\s*/c\unqualified-search-registries = ["docker.io"]' /etc/containers/registries.conf
+sed -i 's/\(#\|\^\)\s*\([^=]\+\)=\(suspend\|hibernate\)\s*$/\2=ignore/g' /etc/systemd/logind.conf
+sed -i '/\(^\|#\)MulticastDNS=/c\MulticastDNS=no' /etc/systemd/resolved.conf
+sed -i '/\(^\|#\)DNSStubListener=/c\DNSStubListener=no' /etc/systemd/resolved.conf
+sed -i '/\(^\|#\)LXC_DHCP_CONFILE=/c\LXC_DHCP_CONFILE=/etc/dnsmasq.conf' /etc/default/lxc-net
+echo 'port=0' > /etc/dnsmasq.conf
+sed -i 's/\[Service\]/[Service]\nEnvironment=SYSTEMD_LOG_LEVEL=debug/' /lib/systemd/system/systemd-timesyncd.service
+sed -i "s/\.debian\./\./g;s/#FallbackNTP=/FallbackNTP=/"  /etc/systemd/timesyncd.conf
+sed -i '/\(^\|#\)RootDistanceMaxSec=/c\RootDistanceMaxSec=10' /etc/systemd/timesyncd.conf
+
+mkdir -p /etc/nginx/ssl
+
+rm -rf /var/lib/tor/*
+ln -sf /usr/lib/startos/scripts/chroot-and-upgrade /usr/bin/chroot-and-upgrade
+ln -sf /usr/lib/startos/scripts/tor-check /usr/bin/tor-check
+ln -sf /usr/lib/startos/scripts/gather-debug-info /usr/bin/gather-debug-info
+ln -sf /usr/lib/startos/scripts/wireguard-vps-proxy-setup /usr/bin/wireguard-vps-proxy-setup
+
+echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-startos.conf
+
+if ! getent group | grep '^startos:'; then
+	groupadd startos
+fi
+
+rm -f /etc/motd
+ln -sf /usr/lib/startos/motd /etc/update-motd.d/00-startos
+chmod -x /etc/update-motd.d/*
+chmod +x /etc/update-motd.d/00-startos
+
+# LXC
+cat /etc/subuid | grep -v '^root:' > /etc/subuid.tmp || true
+echo "root:100000:65536" >> /etc/subuid.tmp
+mv /etc/subuid.tmp /etc/subuid
+
+cat /etc/subgid | grep -v '^root:' > /etc/subgid.tmp || true
+echo "root:100000:65536" >> /etc/subgid.tmp
+mv /etc/subgid.tmp /etc/subgid
+
+cat /etc/lxc/default.conf | grep -v '^lxc\.idmap = [ug]' > /etc/lxc/default.conf.tmp || true
+echo "lxc.idmap = u 0 100000 65536" >> /etc/lxc/default.conf.tmp
+echo "lxc.idmap = g 0 100000 65536" >> /etc/lxc/default.conf.tmp
+mv /etc/lxc/default.conf.tmp /etc/lxc/default.conf

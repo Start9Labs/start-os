@@ -1,0 +1,22 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-registry-package-add-mirror 1  "add-mirror " 
+.SH NAME
+start\-cli\-registry\-package\-add\-mirror \- Add a mirror for an s9pk
+.SH SYNOPSIS
+\fBstart\-cli registry package add\-mirror\fR [\fB\-\-no\-verify\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIFILE\fR> <\fIURL\fR> 
+.SH DESCRIPTION
+Add a mirror for an s9pk
+.SH OPTIONS
+.TP
+\fB\-\-no\-verify\fR
+Skip signature verification
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIFILE\fR>
+Path to s9pk package file
+.TP
+<\fIURL\fR>
+URL of the mirror

@@ -1,119 +1,240 @@
 # Contributing to StartOS
 
-This guide is for contributing to the StartOS. If you are interested in packaging a service for StartOS, visit the [service packaging guide](https://docs.start9.com/latest/developer-docs/). If you are interested in promoting, providing technical support, creating tutorials, or helping in other ways, please visit the [Start9 website](https://start9.com/contribute).
-
+This guide is for contributing to the StartOS. If you are interested in packaging a service for StartOS, visit the [service packaging guide](https://github.com/Start9Labs/ai-service-packaging). If you are interested in promoting, providing technical support, creating tutorials, or helping in other ways, please visit the [Start9 website](https://start9.com/contribute).
 
 ## Collaboration
 
-- [Matrix](https://matrix.to/#/#community-dev:matrix.start9labs.com)
-- [Telegram](https://t.me/start9_labs/47471)
+- [Matrix](https://matrix.to/#/#dev-startos:matrix.start9labs.com)
 
-## Project Structure
-
-```bash
-/
-├── assets/
-├── core/
-├── build/
-├── debian/
-├── web/
-├── image-recipe/
-├── patch-db
-└── system-images/
-```
-#### assets
-screenshots for the StartOS README
-
-#### core
-An API, daemon (startd), CLI (start-cli), and SDK (start-sdk) that together provide the core functionality of StartOS.
-
-#### build
-Auxiliary files and scripts to include in deployed StartOS images
-
-#### debian
-Maintainer scripts for the StartOS Debian package
-
-#### web
-Web UIs served under various conditions and used to interact with StartOS APIs.
-
-#### image-recipe
-Scripts for building StartOS images
-
-#### patch-db (submodule)
-A diff based data store used to synchronize data between the web interfaces and server.
-
-#### system-images
-Docker images that assist with creating backups.
+For project structure and system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Environment Setup
 
-#### Clone the StartOS repository
+### Installing Dependencies (Debian/Ubuntu)
+
+> Debian/Ubuntu is the only officially supported build environment.
+> MacOS has limited build capabilities and Windows requires [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install).
+
 ```sh
-git clone https://github.com/Start9Labs/start-os.git
+sudo apt update
+sudo apt install -y ca-certificates curl gpg build-essential
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo "deb [arch=$(dpkg-architecture -q DEB_HOST_ARCH) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bookworm stable" | sudo tee /etc/apt/sources.list.d/docker.list
+sudo apt update
+sudo apt install -y sed grep gawk jq gzip brotli containerd.io docker-ce docker-ce-cli docker-compose-plugin qemu-user-static binfmt-support squashfs-tools git debspawn rsync b3sum
+sudo mkdir -p /etc/debspawn/
+echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
+sudo usermod -aG docker $USER
+sudo su $USER
+docker run --privileged --rm tonistiigi/binfmt --install all
+docker buildx create --use
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh # proceed with default installation
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
+source ~/.bashrc
+nvm install 24
+nvm use 24
+nvm alias default 24 # this prevents your machine from reverting back to another version
+```
+
+### Cloning the Repository
+
+```sh
+git clone --recursive https://github.com/Start9Labs/start-os.git --branch next/major
 cd start-os
 ```
 
-#### Load the PatchDB submodule
+### Development Mode
+
+For faster iteration during development:
+
 ```sh
-git submodule update --init --recursive
+. ./devmode.sh
 ```
 
-#### Continue to your project of interest for additional instructions:
-- [`core`](core/README.md)
-- [`web-interfaces`](web-interfaces/README.md)
-- [`build`](build/README.md)
-- [`patch-db`](https://github.com/Start9Labs/patch-db)
+This sets `ENVIRONMENT=dev` and `GIT_BRANCH_AS_HASH=1` to prevent rebuilds on every commit.
 
 ## Building
-This project uses [GNU Make](https://www.gnu.org/software/make/) to build its components. To build any specific component, simply run `make <TARGET>` replacing `<TARGET>` with the name of the target you'd like to build
+
+All builds can be performed on any operating system that can run Docker.
+
+This project uses [GNU Make](https://www.gnu.org/software/make/) to build its components.
 
 ### Requirements
+
 - [GNU Make](https://www.gnu.org/software/make/)
-- [Docker](https://docs.docker.com/get-docker/)
-- [NodeJS v18.15.0](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
-- [sed](https://www.gnu.org/software/sed/)
-- [grep](https://www.gnu.org/software/grep/)
-- [awk](https://www.gnu.org/software/gawk/)
+- [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/)
+- [NodeJS v20.16.0](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+- [Rust](https://rustup.rs/) (nightly for formatting)
+- [sed](https://www.gnu.org/software/sed/), [grep](https://www.gnu.org/software/grep/), [awk](https://www.gnu.org/software/gawk/)
 - [jq](https://jqlang.github.io/jq/)
-- [gzip](https://www.gnu.org/software/gzip/)
-- [brotli](https://github.com/google/brotli)
+- [gzip](https://www.gnu.org/software/gzip/), [brotli](https://github.com/google/brotli)
 
-### Environment variables
-- `PLATFORM`: which platform you would like to build for. Must be one of `x86_64`, `x86_64-nonfree`, `aarch64`, `aarch64-nonfree`, `raspberrypi`
-    - NOTE: `nonfree` images are for including `nonfree` firmware packages in the built ISO
-- `ENVIRONMENT`: a hyphen separated set of feature flags to enable
-    - `dev`: enables password ssh (INSECURE!) and does not compress frontends
-    - `unstable`: enables assertions that will cause errors on unexpected inconsistencies that are undesirable in production use either for performance or reliability reasons
-    - `docker`: use `docker` instead of `podman`
-- `GIT_BRANCH_AS_HASH`: set to `1` to use the current git branch name as the git hash so that the project does not need to be rebuilt on each commit
+### Environment Variables
 
-### Useful Make Targets
-- `iso`: Create a full `.iso` image
-    - Only possible from Debian
-    - Not available for `PLATFORM=raspberrypi`
-    - Additional Requirements:
-        - [debspawn](https://github.com/lkhq/debspawn)
-- `img`: Create a full `.img` image
-    - Only possible from Debian
-    - Only available for `PLATFORM=raspberrypi`
-    - Additional Requirements:
-        - [debspawn](https://github.com/lkhq/debspawn)
-- `format`: Run automatic code formatting for the project
-    - Additional Requirements:
-        - [rust](https://rustup.rs/)
-- `test`: Run automated tests for the project
-    - Additional Requirements:
-        - [rust](https://rustup.rs/)
-- `update`: Deploy the current working project to a device over ssh as if through an over-the-air update
-    - Requires an argument `REMOTE` which is the ssh address of the device, i.e. `start9@192.168.122.2`
-- `reflash`: Deploy the current working project to a device over ssh as if using a live `iso` image to reflash it
-    - Requires an argument `REMOTE` which is the ssh address of the device, i.e. `start9@192.168.122.2`
-- `update-overlay`: Deploy the current working project to a device over ssh to the in-memory overlay without restarting it
-    - WARNING: changes will be reverted after the device is rebooted
-    - WARNING: changes to `init` will not take effect as the device is already initialized
-    - Requires an argument `REMOTE` which is the ssh address of the device, i.e. `start9@192.168.122.2`
-- `wormhole`: Deploy the `startbox` to a device using [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole)
-    - When the build it complete will emit a command to paste into the shell of the device to upgrade it
-    - Additional Requirements:
-        - [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole)
-- `clean`: Delete all compiled artifacts
+| Variable             | Description                                                                                         |
+| -------------------- | --------------------------------------------------------------------------------------------------- |
+| `PLATFORM`           | Target platform: `x86_64`, `x86_64-nonfree`, `aarch64`, `aarch64-nonfree`, `riscv64`, `raspberrypi` |
+| `ENVIRONMENT`        | Hyphen-separated feature flags (see below)                                                          |
+| `PROFILE`            | Build profile: `release` (default) or `dev`                                                         |
+| `GIT_BRANCH_AS_HASH` | Set to `1` to use git branch name as version hash (avoids rebuilds)                                 |
+
+**ENVIRONMENT flags:**
+
+- `dev` - Enables password SSH before setup, skips frontend compression
+- `unstable` - Enables assertions and debugging with performance penalty
+- `console` - Enables tokio-console for async debugging
+
+**Platform notes:**
+
+- `-nonfree` variants include proprietary firmware and drivers
+- `raspberrypi` includes non-free components by necessity
+- Platform is remembered between builds if not specified
+
+### Make Targets
+
+#### Building
+
+| Target        | Description                                    |
+| ------------- | ---------------------------------------------- |
+| `iso`         | Create full `.iso` image (not for raspberrypi) |
+| `img`         | Create full `.img` image (raspberrypi only)    |
+| `deb`         | Build Debian package                           |
+| `all`         | Build all Rust binaries                        |
+| `uis`         | Build all web UIs                              |
+| `ui`          | Build main UI only                             |
+| `ts-bindings` | Generate TypeScript bindings from Rust types   |
+
+#### Deploying to Device
+
+For devices on the same network:
+
+| Target                               | Description                                     |
+| ------------------------------------ | ----------------------------------------------- |
+| `update-startbox REMOTE=start9@<ip>` | Deploy binary + UI only (fastest)               |
+| `update-deb REMOTE=start9@<ip>`      | Deploy full Debian package                      |
+| `update REMOTE=start9@<ip>`          | OTA-style update                                |
+| `reflash REMOTE=start9@<ip>`         | Reflash as if using live ISO                    |
+| `update-overlay REMOTE=start9@<ip>`  | Deploy to in-memory overlay (reverts on reboot) |
+
+For devices on different networks (uses [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole)):
+
+| Target              | Description          |
+| ------------------- | -------------------- |
+| `wormhole`          | Send startbox binary |
+| `wormhole-deb`      | Send Debian package  |
+| `wormhole-squashfs` | Send squashfs image  |
+
+### Creating a VM
+
+Install virt-manager:
+
+```sh
+sudo apt update
+sudo apt install -y virt-manager
+sudo usermod -aG libvirt $USER
+sudo su $USER
+virt-manager
+```
+
+Follow the screenshot walkthrough in [`assets/create-vm/`](assets/create-vm/) to create a new virtual machine. Key steps:
+
+1. Create a new virtual machine
+2. Browse for the ISO — create a storage pool pointing to your `results/` directory
+3. Select "Generic or unknown OS"
+4. Set memory and CPUs
+5. Create a disk and name the VM
+
+Build an ISO first:
+
+```sh
+PLATFORM=$(uname -m) ENVIRONMENT=dev make iso
+```
+
+#### Other
+
+| Target                   | Description                                 |
+| ------------------------ | ------------------------------------------- |
+| `format`                 | Run code formatting (Rust nightly required) |
+| `test`                   | Run all automated tests                     |
+| `test-core`              | Run Rust tests                              |
+| `test-sdk`               | Run SDK tests                               |
+| `test-container-runtime` | Run container runtime tests                 |
+| `clean`                  | Delete all compiled artifacts               |
+
+## Testing
+
+```bash
+make test                    # All tests
+make test-core               # Rust tests (via ./core/run-tests.sh)
+make test-sdk                # SDK tests
+make test-container-runtime  # Container runtime tests
+
+# Run specific Rust test
+cd core && cargo test <test_name> --features=test
+```
+
+## Code Formatting
+
+```bash
+# Rust (requires nightly)
+make format
+
+# TypeScript/HTML/SCSS (web)
+cd web && npm run format
+```
+
+## Code Style Guidelines
+
+### Formatting
+
+Run the formatters before committing. Configuration is handled by `rustfmt.toml` (Rust) and prettier configs (TypeScript).
+
+### Documentation & Comments
+
+**Rust:**
+
+- Add doc comments (`///`) to public APIs, structs, and non-obvious functions
+- Use `//` comments sparingly for complex logic that isn't self-evident
+- Prefer self-documenting code (clear naming, small functions) over comments
+
+**TypeScript:**
+
+- Document exported functions and complex types with JSDoc
+- Keep comments focused on "why" rather than "what"
+
+**General:**
+
+- Don't add comments that just restate the code
+- Update or remove comments when code changes
+- TODOs should include context: `// TODO(username): reason`
+
+### Commit Messages
+
+Use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+**Types:**
+
+- `feat` - New feature
+- `fix` - Bug fix
+- `docs` - Documentation only
+- `style` - Formatting, no code change
+- `refactor` - Code change that neither fixes a bug nor adds a feature
+- `test` - Adding or updating tests
+- `chore` - Build process, dependencies, etc.
+
+**Examples:**
+
+```
+feat(web): add dark mode toggle
+fix(core): resolve race condition in service startup
+docs: update CONTRIBUTING.md with style guidelines
+refactor(sdk): simplify package validation logic
+```

@@ -1,0 +1,103 @@
+import * as T from '../../../base/lib/types'
+import { ImageConfig, ImageId, VolumeId } from '../../../base/lib/types'
+import {
+  SDKManifest,
+  SDKImageInputSpec,
+} from '../../../base/lib/types/ManifestTypes'
+import { OSVersion } from '../StartSdk'
+import { VersionGraph } from '../version/VersionGraph'
+import { version as sdkVersion } from '../../package.json'
+
+/**
+ * @description Use this function to define critical information about your package
+ *
+ * @param manifest Static properties of the package
+ */
+export function setupManifest<
+  Id extends string,
+  VolumesTypes extends VolumeId,
+  Manifest extends {
+    id: Id
+    volumes: VolumesTypes[]
+  } & SDKManifest,
+>(manifest: Manifest & SDKManifest): Manifest {
+  return manifest
+}
+
+/**
+ * Build the final publishable manifest by combining the SDK manifest definition
+ * with version graph metadata, OS version, SDK version, and computed fields
+ * (migration ranges, hardware requirements, alerts, etc.).
+ *
+ * @param versions - The service's VersionGraph, used to extract the current version, release notes, and migration ranges
+ * @param manifest - The SDK manifest definition (from `setupManifest`)
+ * @returns A fully resolved Manifest ready for packaging
+ */
+export function buildManifest<
+  Id extends string,
+  Version extends string,
+  Dependencies extends Record<string, unknown>,
+  VolumesTypes extends VolumeId,
+  ImagesTypes extends ImageId,
+  Manifest extends {
+    dependencies: Dependencies
+    id: Id
+    images: Record<ImagesTypes, SDKImageInputSpec>
+    volumes: VolumesTypes[]
+  },
+>(
+  versions: VersionGraph<Version>,
+  manifest: SDKManifest & Manifest,
+): Manifest & T.Manifest {
+  const images = Object.entries(manifest.images).reduce(
+    (images, [k, v]) => {
+      v.arch = v.arch ?? ['aarch64', 'x86_64', 'riscv64']
+      if (v.emulateMissingAs === undefined)
+        v.emulateMissingAs = (v.arch as string[]).includes('x86_64')
+          ? 'x86_64'
+          : (v.arch[0] ?? null)
+      v.nvidiaContainer = !!v.nvidiaContainer
+      images[k] = v as ImageConfig
+      return images
+    },
+    {} as { [k: string]: ImageConfig },
+  )
+  return {
+    ...manifest,
+    gitHash: null,
+    osVersion: manifest.osVersion ?? OSVersion,
+    sdkVersion,
+    version: versions.current.options.version,
+    releaseNotes: versions.current.options.releaseNotes,
+    satisfies: versions.current.options.satisfies || [],
+    canMigrateTo: versions.canMigrateTo().toString(),
+    canMigrateFrom: versions.canMigrateFrom().toString(),
+    images,
+    alerts: {
+      install: manifest.alerts?.install || null,
+      update: manifest.alerts?.update || null,
+      uninstall: manifest.alerts?.uninstall || null,
+      restore: manifest.alerts?.restore || null,
+      start: manifest.alerts?.start || null,
+      stop: manifest.alerts?.stop || null,
+    },
+    hardwareRequirements: {
+      device: manifest.hardwareRequirements?.device || [],
+      ram: manifest.hardwareRequirements?.ram || null,
+      arch: Object.values(images).reduce(
+        (arch, inputSpec) => {
+          if (inputSpec.emulateMissingAs) {
+            return arch
+          }
+          if (arch === null) {
+            return inputSpec.arch
+          }
+          return arch.filter((a) => inputSpec.arch.includes(a))
+        },
+        null as string[] | null,
+      ),
+    },
+    hardwareAcceleration: manifest.hardwareAcceleration ?? false,
+    plugins: manifest.plugins ?? [],
+  }
+}

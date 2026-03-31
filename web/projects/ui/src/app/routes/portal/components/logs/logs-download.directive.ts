@@ -1,0 +1,50 @@
+import { Directive, HostListener, inject, Input } from '@angular/core'
+import {
+  convertAnsi,
+  DownloadHTMLService,
+  ErrorService,
+} from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
+import { LogsComponent } from './logs.component'
+
+@Directive({
+  selector: 'button[logsDownload]',
+})
+export class LogsDownloadDirective {
+  private readonly component = inject(LogsComponent)
+  private readonly loader = inject(TuiNotificationMiddleService)
+  private readonly errorService = inject(ErrorService)
+  private readonly downloadHtml = inject(DownloadHTMLService)
+
+  @Input({ required: true })
+  logsDownload!: (params: T.LogsParams) => Promise<T.LogResponse>
+
+  @HostListener('click')
+  async download() {
+    const loader = this.loader.open('Processing 10,000 logs').subscribe()
+
+    try {
+      const { entries } = await this.logsDownload({
+        before: true,
+        limit: 10000,
+      })
+
+      this.downloadHtml.download(
+        `${this.component.context}-logs.html`,
+        convertAnsi(entries),
+        STYLES,
+      )
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+}
+
+const STYLES = {
+  'background-color': '#222428',
+  color: '#e0e0e0',
+  'font-family': 'monospace',
+}

@@ -10,22 +10,29 @@ on:
       - master
       - next/*
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 env:
-  NODEJS_VERSION: "18.15.0"
+  NODEJS_VERSION: "24.11.0"
   ENVIRONMENT: dev-unstable
 
 jobs:
   test:
     name: Run Automated Tests
-    runs-on: ubuntu-22.04
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup-build
         with:
-          node-version: ${{ env.NODEJS_VERSION }}
+          nodejs-version: ${{ env.NODEJS_VERSION }}
+          free-space: "false"
+          setup-docker: "false"
+          setup-sccache: "false"
 
       - name: Build And Run Tests
         run: make test

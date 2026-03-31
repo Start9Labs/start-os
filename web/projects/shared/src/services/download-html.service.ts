@@ -1,7 +1,8 @@
-import { DOCUMENT } from '@angular/common'
-import { Inject, Injectable } from '@angular/core'
+import { Inject, Injectable, DOCUMENT } from '@angular/core'
 
-@Injectable()
+@Injectable({
+  providedIn: 'root',
+})
 export class DownloadHTMLService {
   constructor(@Inject(DOCUMENT) private readonly document: Document) {}
 
@@ -16,7 +17,9 @@ export class DownloadHTMLService {
     const elem = this.document.createElement('a')
     elem.setAttribute(
       'href',
-      'data:text/plain;charset=utf-8,' + encodeURIComponent(html),
+      URL.createObjectURL(
+        new Blob([html], { type: 'application/octet-stream' }),
+      ),
     )
     elem.setAttribute('download', filename)
     elem.style.display = 'none'

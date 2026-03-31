@@ -1,0 +1,11 @@
++ gdisk
++ parted
++ u-boot-rpi
++ raspberrypi-net-mods
++ raspberrypi-sys-mods
++ raspi-config
++ raspi-firmware
++ raspi-utils
++ rpi-eeprom
++ rpi-update
++ rpi.gpio-common

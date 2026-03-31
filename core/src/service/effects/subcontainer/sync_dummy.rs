@@ -1,0 +1,37 @@
+use crate::service::effects::ContainerCliContext;
+use crate::service::effects::prelude::*;
+
+pub fn launch(_: ContainerCliContext) -> Result<(), Error> {
+    Err(Error::new(
+        eyre!("requires feature container-runtime"),
+        ErrorKind::InvalidRequest,
+    ))
+}
+
+pub fn launch_init(_: ContainerCliContext) -> Result<(), Error> {
+    Err(Error::new(
+        eyre!("requires feature container-runtime"),
+        ErrorKind::InvalidRequest,
+    ))
+}
+
+pub fn exec(_: ContainerCliContext) -> Result<(), Error> {
+    Err(Error::new(
+        eyre!("requires feature container-runtime"),
+        ErrorKind::InvalidRequest,
+    ))
+}
+
+pub fn exec_command(_: ContainerCliContext) -> Result<(), Error> {
+    Err(Error::new(
+        eyre!("requires feature container-runtime"),
+        ErrorKind::InvalidRequest,
+    ))
+}
+
+pub fn pipe_wrap(_: ContainerCliContext) -> Result<(), Error> {
+    Err(Error::new(
+        eyre!("requires feature container-runtime"),
+        ErrorKind::InvalidRequest,
+    ))
+}

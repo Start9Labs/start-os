@@ -12,9 +12,6 @@ on:
           - dev
           - unstable
           - dev-unstable
-          - docker
-          - dev-docker
-          - dev-unstable-docker
       runner:
         type: choice
         description: Runner
@@ -28,9 +25,13 @@ on:
           - ALL
           - x86_64
           - x86_64-nonfree
+          - x86_64-nvidia
           - aarch64
           - aarch64-nonfree
+          - aarch64-nvidia
           - raspberrypi
+          - riscv64
+          - riscv64-nonfree
       deploy:
         type: choice
         description: Deploy
@@ -47,13 +48,18 @@ on:
       - master
       - next/*
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 env:
-  NODEJS_VERSION: "18.15.0"
+  NODEJS_VERSION: "24.11.0"
   ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''NONE''] }}'
 
 jobs:
   compile:
     name: Compile Base Binaries
+    if: github.event.pull_request.draft != true
     strategy:
       fail-fast: true
       matrix:
@@ -62,36 +68,53 @@ jobs:
             fromJson('{
               "x86_64": ["x86_64"],
               "x86_64-nonfree": ["x86_64"],
+              "x86_64-nvidia": ["x86_64"],
               "aarch64": ["aarch64"],
               "aarch64-nonfree": ["aarch64"],
+              "aarch64-nvidia": ["aarch64"],
               "raspberrypi": ["aarch64"],
-              "ALL": ["x86_64", "aarch64"]
+              "riscv64": ["riscv64"],
+              "riscv64-nonfree": ["riscv64"],
+              "ALL": ["x86_64", "aarch64", "riscv64"]
             }')[github.event.inputs.platform || 'ALL']
           }}
-    runs-on: ${{ fromJson('["ubuntu-22.04", "buildjet-32vcpu-ubuntu-2204"]')[github.event.inputs.runner == 'fast'] }}
+    runs-on: >-
+      ${{
+        fromJson(
+          format(
+            '["{0}", "{1}"]',
+            fromJson('{
+              "x86_64": "ubuntu-latest",
+              "aarch64": "ubuntu-24.04-arm",
+              "riscv64": "ubuntu-latest"
+            }')[matrix.arch],
+            fromJson('{
+              "x86_64": "amd64-fast",
+              "aarch64": "aarch64-fast",
+              "riscv64": "amd64-fast"
+            }')[matrix.arch]
+          )
+        )[github.event.inputs.runner == 'fast']
+      }}
     steps:
-      - run: |
-          sudo mount -t tmpfs tmpfs .
+      - name: Mount tmpfs
         if: ${{ github.event.inputs.runner == 'fast' }}
-
-      - uses: actions/checkout@v4
+        run: sudo mount -t tmpfs tmpfs .
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup-build
         with:
-          node-version: ${{ env.NODEJS_VERSION }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+          nodejs-version: ${{ env.NODEJS_VERSION }}
+          setup-python: "true"
 
       - name: Make
         run: make ARCH=${{ matrix.arch }} compiled-${{ matrix.arch }}.tar
+        env:
+          SCCACHE_GHA_ENABLED: on
+          SCCACHE_GHA_VERSION: 0
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: compiled-${{ matrix.arch }}.tar
           path: compiled-${{ matrix.arch }}.tar
@@ -107,7 +130,7 @@ jobs:
               format(
                 '[
                   ["{0}"],
-                  ["x86_64", "x86_64-nonfree", "aarch64", "aarch64-nonfree", "raspberrypi"]
+                  ["x86_64", "x86_64-nonfree", "x86_64-nvidia", "aarch64", "aarch64-nonfree", "aarch64-nvidia", "raspberrypi", "riscv64", "riscv64-nonfree"]
                 ]',
                 github.event.inputs.platform || 'ALL'
               )
@@ -117,13 +140,28 @@ jobs:
       ${{
         fromJson(
           format(
-            '["ubuntu-22.04", "{0}"]',
+            '["{0}", "{1}"]',
             fromJson('{
-              "x86_64": "buildjet-8vcpu-ubuntu-2204",
-              "x86_64-nonfree": "buildjet-8vcpu-ubuntu-2204",
-              "aarch64": "buildjet-8vcpu-ubuntu-2204-arm",
-              "aarch64-nonfree": "buildjet-8vcpu-ubuntu-2204-arm",
-              "raspberrypi": "buildjet-8vcpu-ubuntu-2204-arm",
+              "x86_64": "ubuntu-latest",
+              "x86_64-nonfree": "ubuntu-latest",
+              "x86_64-nvidia": "ubuntu-latest",
+              "aarch64": "ubuntu-24.04-arm",
+              "aarch64-nonfree": "ubuntu-24.04-arm",
+              "aarch64-nvidia": "ubuntu-24.04-arm",
+              "raspberrypi": "ubuntu-24.04-arm",
+              "riscv64": "ubuntu-24.04-arm",
+              "riscv64-nonfree": "ubuntu-24.04-arm",
+            }')[matrix.platform],
+            fromJson('{
+              "x86_64": "amd64-fast",
+              "x86_64-nonfree": "amd64-fast",
+              "x86_64-nvidia": "amd64-fast",
+              "aarch64": "aarch64-fast",
+              "aarch64-nonfree": "aarch64-fast",
+              "aarch64-nvidia": "aarch64-fast",
+              "raspberrypi": "aarch64-fast",
+              "riscv64": "amd64-fast",
+              "riscv64-nonfree": "amd64-fast",
             }')[matrix.platform]
           )
         )[github.event.inputs.runner == 'fast']
@@ -134,35 +172,50 @@ jobs:
           fromJson('{
             "x86_64": "x86_64",
             "x86_64-nonfree": "x86_64",
+            "x86_64-nvidia": "x86_64",
             "aarch64": "aarch64",
             "aarch64-nonfree": "aarch64",
+            "aarch64-nvidia": "aarch64",
             "raspberrypi": "aarch64",
+            "riscv64": "riscv64",
+            "riscv64-nonfree": "riscv64",
           }')[matrix.platform]
         }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Free space
+        run: |
+          sudo apt-get remove --purge -y azure-cli || true
+          sudo apt-get remove --purge -y firefox || true
+          sudo apt-get remove --purge -y ghc-* || true
+          sudo apt-get remove --purge -y google-cloud-sdk || true
+          sudo apt-get remove --purge -y google-chrome-stable || true
+          sudo apt-get remove --purge -y powershell || true
+          sudo apt-get remove --purge -y php* || true
+          sudo apt-get remove --purge -y ruby* || true
+          sudo apt-get remove --purge -y mono-* || true
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          sudo rm -rf /usr/lib/jvm               # All JDKs
+          sudo rm -rf /usr/local/.ghcup          # Haskell toolchain
+          sudo rm -rf /usr/local/lib/android     # Android SDK/NDK, emulator
+          sudo rm -rf /usr/share/dotnet          # .NET SDKs
+          sudo rm -rf /usr/share/swift           # Swift toolchain (if present)
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"    # Pre-cached tool cache (Go, Node, etc.)
+        if: ${{ github.event.inputs.runner != 'fast' }}
+
+      # Some runners lack /opt/hostedtoolcache, which setup-qemu expects
+      - name: Ensure hostedtoolcache exists
+        run: sudo mkdir -p /opt/hostedtoolcache && sudo chown $USER:$USER /opt/hostedtoolcache
+
+      - name: Set up docker QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-user-static
-          wget https://deb.debian.org/debian/pool/main/d/debspawn/debspawn_0.6.2-1_all.deb
-          sha256sum ./debspawn_0.6.2-1_all.deb | grep 37ef27458cb1e35e8bce4d4f639b06b4b3866fc0b9191ec6b9bd157afd06a817
-          sudo apt-get install -y ./debspawn_0.6.2-1_all.deb
-
-      - name: Configure debspawn
-        run: |
-          sudo mkdir -p /etc/debspawn/
-          echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
-          sudo mkdir -p /var/tmp/debspawn
-
-      - run: sudo mount -t tmpfs tmpfs /var/tmp/debspawn
-        if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree') }}
-
       - name: Download compiled artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: compiled-${{ env.ARCH }}.tar
 
@@ -171,8 +224,25 @@ jobs:
 
       - name: Prevent rebuild of compiled artifacts
         run: |
+          mkdir -p web/node_modules
           mkdir -p web/dist/raw
+          mkdir -p core/bindings
+          mkdir -p sdk/base/lib/osBindings
+          mkdir -p container-runtime/node_modules
+          mkdir -p container-runtime/dist
+          mkdir -p container-runtime/dist/node_modules
+          mkdir -p sdk/dist
+          mkdir -p sdk/baseDist
+          mkdir -p patch-db/client/node_modules
+          mkdir -p patch-db/client/dist
+          mkdir -p web/.angular
+          mkdir -p web/dist/raw/ui
+          mkdir -p web/dist/raw/setup-wizard
+          mkdir -p web/dist/static/ui
+          mkdir -p web/dist/static/setup-wizard
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
+
+      - run: git status
 
       - name: Run iso build
         run: PLATFORM=${{ matrix.platform }} make iso
@@ -182,56 +252,139 @@ jobs:
         run: PLATFORM=${{ matrix.platform }} make img
         if: ${{ matrix.platform == 'raspberrypi' }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform }}.squashfs
           path: results/*.squashfs
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform }}.iso
           path: results/*.iso
         if: ${{ matrix.platform != 'raspberrypi' }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform }}.img
           path: results/*.img
         if: ${{ matrix.platform == 'raspberrypi' }}
 
-      - name: Upload OTA to registry
-        run: >-
-          PLATFORM=${{ matrix.platform }} make upload-ota TARGET="${{
-            fromJson('{
-              "alpha": "alpha-registry-x.start9.com",
-              "beta": "beta-registry.start9.com",
-            }')[github.event.inputs.deploy]
-          }}" KEY="${{
-            fromJson(
-              format('{{
-                "alpha": "{0}",
-                "beta": "{1}",
-              }}', secrets.ALPHA_INDEX_KEY, secrets.BETA_INDEX_KEY)
-            )[github.event.inputs.deploy]
-          }}"
-        if: ${{ github.event.inputs.deploy != '' && github.event.inputs.deploy != 'NONE' }}
-
-  index:
-    if: ${{ github.event.inputs.deploy != '' && github.event.inputs.deploy != 'NONE' }}
+  deploy:
+    name: Deploy
     needs: [image]
-    runs-on: ubuntu-22.04
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy != 'NONE'
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: >-
+        ${{
+          fromJson('{
+            "alpha": "https://alpha-registry-x.start9.com",
+            "beta": "https://beta-registry.start9.com"
+          }')[github.event.inputs.deploy]
+        }}
+      S3_BUCKET: s3://startos-images
+      S3_CDN: https://startos-images.nyc3.cdn.digitaloceanspaces.com
     steps:
-      - run: >-
-          curl "https://${{
-            fromJson('{
-              "alpha": "alpha-registry-x.start9.com",
-              "beta": "beta-registry.start9.com",
-            }')[github.event.inputs.deploy]
-          }}:8443/resync.cgi?key=${{
-            fromJson(
-              format('{{
-                "alpha": "{0}",
-                "beta": "{1}",
-              }}', secrets.ALPHA_INDEX_KEY, secrets.BETA_INDEX_KEY)
-            )[github.event.inputs.deploy]
-          }}"
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: web/package.json
+
+      - name: Determine version
+        id: version
+        run: |
+          VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' web/package.json | head -1)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Determine platforms
+        id: platforms
+        run: |
+          INPUT="${{ github.event.inputs.platform }}"
+          if [ "$INPUT" = "ALL" ]; then
+            PLATFORMS="x86_64 x86_64-nonfree x86_64-nvidia aarch64 aarch64-nonfree aarch64-nvidia riscv64 riscv64-nonfree"
+          else
+            PLATFORMS="$INPUT"
+          fi
+          echo "list=$PLATFORMS" >> "$GITHUB_OUTPUT"
+          echo "Platforms: $PLATFORMS"
+
+      - name: Download squashfs artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "*.squashfs"
+          path: artifacts/
+          merge-multiple: true
+
+      - name: Download ISO artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "*.iso"
+          path: artifacts/
+          merge-multiple: true
+
+      - name: Install start-cli
+        run: |
+          ARCH=$(uname -m)
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          ASSET_NAME="start-cli_${ARCH}-${OS}"
+          DOWNLOAD_URL=$(curl -fsS \
+            -H "Authorization: token ${{ github.token }}" \
+            https://api.github.com/repos/Start9Labs/start-os/releases \
+            | jq -r '[.[].assets[] | select(.name=="'"$ASSET_NAME"'")] | first | .browser_download_url')
+          curl -fsSL \
+            -H "Authorization: token ${{ github.token }}" \
+            -H "Accept: application/octet-stream" \
+            "$DOWNLOAD_URL" -o /tmp/start-cli
+          sudo install -m 755 /tmp/start-cli /usr/local/bin/start-cli
+          echo "start-cli: $(start-cli --version)"
+
+      - name: Configure S3
+        run: |
+          sudo apt-get install -y -qq s3cmd > /dev/null
+          cat > ~/.s3cfg <<EOF
+          [default]
+          access_key = ${{ secrets.S3_ACCESS_KEY }}
+          secret_key = ${{ secrets.S3_SECRET_KEY }}
+          host_base = nyc3.digitaloceanspaces.com
+          host_bucket = %(bucket)s.nyc3.digitaloceanspaces.com
+          use_https = True
+          EOF
+
+      - name: Set up developer key
+        run: |
+          mkdir -p ~/.startos
+          printf '%s' "${{ secrets.DEV_KEY }}" > ~/.startos/developer.key.pem
+
+      - name: Upload to S3
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cd artifacts
+          for PLATFORM in ${{ steps.platforms.outputs.list }}; do
+            for file in *_${PLATFORM}.squashfs *_${PLATFORM}.iso; do
+              [ -f "$file" ] || continue
+              echo "Uploading $file..."
+              s3cmd put -P "$file" "${{ env.S3_BUCKET }}/v${VERSION}/$file"
+            done
+          done
+
+      - name: Register OS version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          start-cli --registry="${{ env.REGISTRY }}" registry os version add \
+            "$VERSION" "v${VERSION}" '' ">=0.3.5 <=${VERSION}"
+
+      - name: Index assets in registry
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cd artifacts
+          for PLATFORM in ${{ steps.platforms.outputs.list }}; do
+            for file in *_${PLATFORM}.squashfs *_${PLATFORM}.iso; do
+              [ -f "$file" ] || continue
+              echo "Indexing $file for platform $PLATFORM..."
+              start-cli --registry="${{ env.REGISTRY }}" registry os asset add \
+                --platform="$PLATFORM" \
+                --version="$VERSION" \
+                "$file" \
+                "${{ env.S3_CDN }}/v${VERSION}/$file"
+            done
+          done

@@ -1,0 +1,12 @@
+# StartTunnel config for {name}
+
+[Interface]
+Address = {addr}
+PrivateKey = {privkey}
+
+[Peer]
+PublicKey = {server_pubkey}
+PresharedKey = {psk}
+AllowedIPs = {subnet}
+Endpoint = {server_addr}
+PersistentKeepalive = 25

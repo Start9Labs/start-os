@@ -1,9 +1,8 @@
 import { HttpHeaders, HttpResponse } from '@angular/common/http'
 
-export enum Method {
-  GET = 'GET',
-  POST = 'POST',
-}
+export type Method = 'GET' | 'POST'
+
+type ParamPrimitive = string | number | boolean
 
 export interface HttpOptions {
   method: Method
@@ -12,7 +11,7 @@ export interface HttpOptions {
     [header: string]: string | string[]
   }
   params?: {
-    [param: string]: string | string[]
+    [param: string]: ParamPrimitive | ParamPrimitive[]
   }
   responseType?: 'json' | 'text' | 'arrayBuffer'
   body?: any
@@ -28,7 +27,7 @@ export interface HttpAngularOptions {
         [header: string]: string | string[]
       }
   params?: {
-    [param: string]: string | string[]
+    [param: string]: ParamPrimitive | ParamPrimitive[]
   }
   responseType?: 'json' | 'text' | 'arrayBuffer'
 }

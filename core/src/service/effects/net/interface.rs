@@ -1,0 +1,182 @@
+use std::collections::BTreeMap;
+
+use crate::net::service_interface::{AddressInfo, ServiceInterface, ServiceInterfaceType};
+use crate::service::effects::callbacks::CallbackHandler;
+use crate::service::effects::prelude::*;
+use crate::service::rpc::CallbackId;
+use crate::{PackageId, ServiceInterfaceId};
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportServiceInterfaceParams {
+    id: ServiceInterfaceId,
+    name: String,
+    description: String,
+    masked: bool,
+    address_info: AddressInfo,
+    r#type: ServiceInterfaceType,
+}
+pub async fn export_service_interface(
+    context: EffectContext,
+    ExportServiceInterfaceParams {
+        id,
+        name,
+        description,
+        masked,
+        address_info,
+        r#type,
+    }: ExportServiceInterfaceParams,
+) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.seed.id.clone();
+
+    let service_interface = ServiceInterface {
+        id: id.clone(),
+        name,
+        description,
+        masked,
+        address_info,
+        interface_type: r#type,
+    };
+
+    context
+        .seed
+        .ctx
+        .db
+        .mutate(|db| {
+            let ifaces = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_service_interfaces_mut();
+            ifaces.insert(&id, &service_interface)?;
+            Ok(())
+        })
+        .await
+        .result?;
+
+    Ok(())
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct GetServiceInterfaceParams {
+    #[ts(optional)]
+    package_id: Option<PackageId>,
+    service_interface_id: ServiceInterfaceId,
+    #[ts(optional)]
+    callback: Option<CallbackId>,
+}
+pub async fn get_service_interface(
+    context: EffectContext,
+    GetServiceInterfaceParams {
+        package_id,
+        service_interface_id,
+        callback,
+    }: GetServiceInterfaceParams,
+) -> Result<Option<ServiceInterface>, Error> {
+    let context = context.deref()?;
+    let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
+
+    let ptr = format!(
+        "/public/packageData/{}/serviceInterfaces/{}",
+        package_id, service_interface_id
+    )
+    .parse()
+    .expect("valid json pointer");
+    let mut watch = context
+        .seed
+        .ctx
+        .db
+        .watch(ptr)
+        .await
+        .typed::<ServiceInterface>();
+
+    let res = watch.peek_and_mark_seen()?.de().ok();
+
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        context.seed.ctx.callbacks.add_get_service_interface(
+            package_id.clone(),
+            service_interface_id.clone(),
+            watch,
+            CallbackHandler::new(&context, callback),
+        );
+    }
+
+    Ok(res)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ListServiceInterfacesParams {
+    #[ts(optional)]
+    package_id: Option<PackageId>,
+    #[ts(optional)]
+    callback: Option<CallbackId>,
+}
+pub async fn list_service_interfaces(
+    context: EffectContext,
+    ListServiceInterfacesParams {
+        package_id,
+        callback,
+    }: ListServiceInterfacesParams,
+) -> Result<BTreeMap<ServiceInterfaceId, ServiceInterface>, Error> {
+    let context = context.deref()?;
+    let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
+
+    let ptr = format!("/public/packageData/{}/serviceInterfaces", package_id)
+        .parse()
+        .expect("valid json pointer");
+    let mut watch = context.seed.ctx.db.watch(ptr).await;
+
+    let res = from_value(watch.peek_and_mark_seen()?)?;
+
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        context.seed.ctx.callbacks.add_list_service_interfaces(
+            package_id.clone(),
+            watch.typed::<BTreeMap<ServiceInterfaceId, ServiceInterface>>(),
+            CallbackHandler::new(&context, callback),
+        );
+    }
+
+    Ok(res)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[group(skip)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ClearServiceInterfacesParams {
+    pub except: Vec<ServiceInterfaceId>,
+}
+
+pub async fn clear_service_interfaces(
+    context: EffectContext,
+    ClearServiceInterfacesParams { except }: ClearServiceInterfacesParams,
+) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.seed.id.clone();
+
+    context
+        .seed
+        .ctx
+        .db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_service_interfaces_mut()
+                .mutate(|s| Ok(s.retain(|id, _| except.contains(id))))
+        })
+        .await
+        .result?;
+
+    Ok(())
+}

@@ -1,17 +1,12 @@
-import { DOCUMENT } from '@angular/common'
-import { Inject, Injectable } from '@angular/core'
-import { WorkspaceConfig } from '@start9labs/shared'
-import {
-  InterfaceDef,
-  PackageDataEntry,
-  PackageMainStatus,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
+import { Inject, Injectable, DOCUMENT } from '@angular/core'
+import { AccessType, WorkspaceConfig } from '@start9labs/shared'
+import { T, utils } from '@start9labs/start-sdk'
 
 const {
   gitHash,
   useMocks,
-  ui: { api, marketplace, mocks },
+  ui: { api, mocks },
+  defaultRegistry,
 } = require('../../../../../config.json') as WorkspaceConfig
 
 @Injectable({
@@ -30,116 +25,36 @@ export class ConfigService {
   mocks = mocks
   gitHash = gitHash
   api = api
-  marketplace = marketplace
   skipStartupAlerts = useMocks && mocks.skipStartupAlerts
-  isConsulate = (window as any)['platform'] === 'ios'
-  supportsWebSockets = !!window.WebSocket || this.isConsulate
+  supportsWebSockets = !!window.WebSocket
+  defaultRegistry = defaultRegistry
 
-  isTor(): boolean {
-    return useMocks ? mocks.maskAs === 'tor' : this.hostname.endsWith('.onion')
-  }
-
-  isLocal(): boolean {
-    return useMocks
-      ? mocks.maskAs === 'local'
-      : this.hostname.endsWith('.local')
-  }
-
-  isTorHttp(): boolean {
-    return this.isTor() && !this.isHttps()
-  }
-
-  isLanHttp(): boolean {
-    return !this.isTor() && !this.isLocalhost() && !this.isHttps()
-  }
-
-  isSecure(): boolean {
-    return window.isSecureContext || this.isTor()
-  }
-
-  isLaunchable(
-    state: PackageState,
-    status: PackageMainStatus,
-    interfaces: Record<string, InterfaceDef>,
-  ): boolean {
-    return (
-      state === PackageState.Installed &&
-      status === PackageMainStatus.Running &&
-      hasUi(interfaces)
-    )
-  }
-
-  launchableURL(pkg: PackageDataEntry): string {
-    if (!this.isTor() && hasLocalUi(pkg.manifest.interfaces)) {
-      return `https://${lanUiAddress(pkg)}`
-    } else {
-      return `http://${torUiAddress(pkg)}`
+  private getAccessType = utils.once(() => {
+    if (useMocks) return mocks.maskAs
+    if (this.hostname === 'localhost') return 'localhost'
+    if (this.hostname.endsWith('.onion')) return 'tor'
+    if (this.hostname.endsWith('.local')) return 'mdns'
+    let ip = null
+    try {
+      ip = utils.IpAddress.parse(this.hostname.replace(/[\[\]]/g, ''))
+    } catch {}
+    if (ip) {
+      if (utils.IPV4_LOOPBACK.contains(ip) || utils.IPV6_LOOPBACK.contains(ip))
+        return 'localhost'
+      if (ip.isIpv4()) return ip.isPublic() ? 'wan-ipv4' : 'ipv4'
+      return 'ipv6'
     }
+    return 'domain'
+  })
+  get accessType(): AccessType {
+    return this.getAccessType()
   }
 
-  getHost(): string {
-    return this.host
-  }
-
-  private isLocalhost(): boolean {
+  isSecureContext(): boolean {
     return useMocks
-      ? mocks.maskAs === 'localhost'
-      : this.hostname === 'localhost'
+      ? mocks.maskAsHttps ||
+          mocks.maskAs === 'localhost' ||
+          mocks.maskAs === 'tor'
+      : window.isSecureContext
   }
-
-  private isHttps(): boolean {
-    return useMocks ? mocks.maskAsHttps : this.protocol === 'https:'
-  }
-}
-
-export function hasTorUi(interfaces: Record<string, InterfaceDef>): boolean {
-  const int = getUiInterfaceValue(interfaces)
-  return !!int?.['tor-config']
-}
-
-export function hasLocalUi(interfaces: Record<string, InterfaceDef>): boolean {
-  const int = getUiInterfaceValue(interfaces)
-  return !!int?.['lan-config']
-}
-
-export function torUiAddress({
-  manifest,
-  installed,
-}: PackageDataEntry): string {
-  const key = getUiInterfaceKey(manifest.interfaces)
-  return installed ? installed['interface-addresses'][key]['tor-address'] : ''
-}
-
-export function lanUiAddress({
-  manifest,
-  installed,
-}: PackageDataEntry): string {
-  const key = getUiInterfaceKey(manifest.interfaces)
-  return installed ? installed['interface-addresses'][key]['lan-address'] : ''
-}
-
-export function hasUi(interfaces: Record<string, InterfaceDef>): boolean {
-  return hasTorUi(interfaces) || hasLocalUi(interfaces)
-}
-
-export function removeProtocol(str: string): string {
-  if (str.startsWith('http://')) return str.slice(7)
-  if (str.startsWith('https://')) return str.slice(8)
-  return str
-}
-
-export function removePort(str: string): string {
-  return str.split(':')[0]
-}
-
-export function getUiInterfaceKey(
-  interfaces: Record<string, InterfaceDef>,
-): string {
-  return Object.keys(interfaces).find(key => interfaces[key].ui) || ''
-}
-
-export function getUiInterfaceValue(
-  interfaces: Record<string, InterfaceDef>,
-): InterfaceDef | null {
-  return Object.values(interfaces).find(i => i.ui) || null
 }

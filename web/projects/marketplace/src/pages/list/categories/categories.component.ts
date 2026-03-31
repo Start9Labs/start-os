@@ -1,3 +1,4 @@
+import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -5,19 +6,44 @@ import {
   Input,
   Output,
 } from '@angular/core'
+import { RouterModule } from '@angular/router'
+import { LocalizePipe } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { TuiAppearance, TuiIcon } from '@taiga-ui/core'
+import { TuiSkeleton } from '@taiga-ui/kit'
+
+const ICONS: Record<string, string> = {
+  all: '@tui.layout-grid',
+  bitcoin: '@tui.bitcoin',
+  messaging: '@tui.message-circle',
+  communications: '@tui.message-circle',
+  data: '@tui.file-text',
+  'developer tools': '@tui.table-split',
+  featured: '@tui.star',
+  lightning: '@tui.zap',
+  media: '@tui.circle-play',
+  networking: '@tui.globe',
+  social: '@tui.users',
+  ai: '@tui.cpu',
+}
 
 @Component({
   selector: 'marketplace-categories',
   templateUrl: 'categories.component.html',
   styleUrls: ['categories.component.scss'],
-  host: {
-    class: 'hidden-scrollbar ion-text-center',
-  },
+  imports: [
+    RouterModule,
+    CommonModule,
+    TuiAppearance,
+    TuiIcon,
+    TuiSkeleton,
+    LocalizePipe,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CategoriesComponent {
   @Input()
-  categories: readonly string[] = []
+  categories?: Record<string, T.Category>
 
   @Input()
   category = ''
@@ -25,8 +51,24 @@ export class CategoriesComponent {
   @Output()
   readonly categoryChange = new EventEmitter<string>()
 
+  readonly fallback: Record<string, T.Category> = {
+    a: { name: '' },
+    b: { name: '' },
+    c: { name: '' },
+    d: { name: '' },
+    e: { name: '' },
+  }
+
   switchCategory(category: string): void {
     this.category = category
     this.categoryChange.emit(category)
+  }
+
+  determineIcon(category: string): string {
+    return ICONS[category.toLowerCase()] || '@tui.box'
+  }
+
+  asIsOrder(a: any, b: any) {
+    return 0
   }
 }

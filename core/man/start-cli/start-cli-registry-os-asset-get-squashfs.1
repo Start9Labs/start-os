@@ -1,0 +1,25 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-registry-os-asset-get-squashfs 1  "squashfs " 
+.SH NAME
+start\-cli\-registry\-os\-asset\-get\-squashfs \- Download squashfs file
+.SH SYNOPSIS
+\fBstart\-cli registry os asset get squashfs\fR [\fB\-d\fR|\fB\-\-download\fR] [\fB\-r\fR|\fB\-\-reverify\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIVERSION\fR> <\fIPLATFORM\fR> 
+.SH DESCRIPTION
+Download squashfs file
+.SH OPTIONS
+.TP
+\fB\-d\fR, \fB\-\-download\fR \fI<DOWNLOAD>\fR
+Directory path to download to
+.TP
+\fB\-r\fR, \fB\-\-reverify\fR
+Verify hash after download completes
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIVERSION\fR>
+StartOS version number
+.TP
+<\fIPLATFORM\fR>
+Target platform identifier

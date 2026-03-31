@@ -1,20 +1,3 @@
-export type ServerLogsReq = {
-  before: boolean
-  cursor?: string
-  limit?: number
-}
-
-export type LogsRes = {
-  entries: Log[]
-  'start-cursor'?: string
-  'end-cursor'?: string
-}
-
-export interface Log {
-  timestamp: string
-  message: string
-}
-
 export type DiskListResponse = DiskInfo[]
 
 export interface DiskInfo {
@@ -24,6 +7,7 @@ export interface DiskInfo {
   partitions: PartitionInfo[]
   capacity: number
   guid: string | null
+  filesystem: string | null
 }
 
 export interface PartitionInfo {
@@ -31,13 +15,15 @@ export interface PartitionInfo {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': StartOSDiskInfo | null
+  startOs: Record<string, StartOSDiskInfo>
   guid: string | null
+  filesystem: string | null
 }
 
 export type StartOSDiskInfo = {
+  hostname: string
   version: string
-  full: boolean
-  'password-hash': string | null
-  'wrapped-key': string | null
+  timestamp: string
+  passwordHash: string | null
+  wrappedKey: string | null
 }

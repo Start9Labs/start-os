@@ -1,5 +1,4 @@
-import { DOCUMENT } from '@angular/common'
-import { Inject, Injectable } from '@angular/core'
+import { Inject, Injectable, DOCUMENT } from '@angular/core'
 import { HttpClient } from '@angular/common/http'
 import {
   firstValueFrom,
@@ -17,7 +16,6 @@ import {
   HttpAngularOptions,
   HttpOptions,
   LocalHttpResponse,
-  Method,
 } from '../types/http.types'
 import { RPCResponse, RPCOptions } from '../types/rpc.types'
 import { RELATIVE_URL } from '../tokens/relative-url'
@@ -43,7 +41,7 @@ export class HttpService {
     const { method, headers, params, timeout } = opts
 
     return this.httpRequest<RPCResponse<T>>({
-      method: Method.POST,
+      method: 'POST',
       url: fullUrl || this.relativeUrl,
       headers,
       body: { method, params },
@@ -74,7 +72,7 @@ export class HttpService {
     }
 
     let req: Observable<LocalHttpResponse<T>>
-    if (method === Method.GET) {
+    if (method === 'GET') {
       req = this.http.get(url, options as any) as any
     } else {
       req = this.http.post(url, body, options as any) as any

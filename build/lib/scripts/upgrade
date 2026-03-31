@@ -1,0 +1,86 @@
+#!/bin/bash
+
+set -e
+
+SOURCE_DIR="$(dirname $(realpath "${BASH_SOURCE[0]}"))"
+
+if [ "$UID" -ne 0 ]; then
+    >&2 echo 'Must be run as root'
+    exit 1
+fi
+
+if ! [ -f "$1" ]; then
+    >&2 echo "usage: $0 <SQUASHFS>"
+    exit 1
+fi
+
+echo 'Upgrading...'
+
+hash=$(b3sum $1 | head -c 32)
+if [ -n "$2" ] && [ "$hash" != "$CHECKSUM" ]; then
+    >&2 echo 'Checksum mismatch'
+    exit 2
+fi
+
+unsquashfs -f -d / $1 boot
+
+umount -l /media/startos/next 2> /dev/null || true
+umount /media/startos/upper 2> /dev/null || true
+umount /media/startos/lower 2> /dev/null || true
+
+mkdir -p /media/startos/upper
+mount -t tmpfs tmpfs /media/startos/upper
+mkdir -p /media/startos/lower /media/startos/upper/data /media/startos/upper/work /media/startos/next
+mount $1 /media/startos/lower
+mount -t overlay \
+      -olowerdir=/media/startos/lower,upperdir=/media/startos/upper/data,workdir=/media/startos/upper/work \
+	    overlay /media/startos/next
+
+mkdir -p /media/startos/next/run
+mkdir -p /media/startos/next/dev
+mkdir -p /media/startos/next/sys
+mkdir -p /media/startos/next/proc
+mkdir -p /media/startos/next/boot
+mkdir -p /media/startos/next/media/startos/root
+mount --bind /run /media/startos/next/run
+mount --bind /tmp /media/startos/next/tmp
+mount --bind /dev /media/startos/next/dev
+mount -t sysfs sysfs /media/startos/next/sys
+mount -t proc proc /media/startos/next/proc
+mount --rbind /boot /media/startos/next/boot
+mount --bind /media/startos/root /media/startos/next/media/startos/root
+
+if mountpoint /sys/firmware/efi/efivars 2>&1 > /dev/null; then
+    mount -t efivarfs efivarfs /media/startos/next/sys/firmware/efi/efivars
+fi
+
+chroot /media/startos/next bash -e << "EOF"
+
+if [ -f /boot/grub/grub.cfg ]; then
+    grub-install /dev/$(eval $(lsblk -o MOUNTPOINT,PKNAME -P | grep 'MOUNTPOINT="/media/startos/root"') && echo $PKNAME)
+    update-grub
+fi
+
+EOF
+
+# Sign unsigned kernel modules for Secure Boot
+SIGN_FILE="$(ls -1 /media/startos/next/usr/lib/linux-kbuild-*/scripts/sign-file 2>/dev/null | head -1)"
+/media/startos/next/usr/lib/startos/scripts/sign-unsigned-modules \
+    --source /media/startos/lower \
+    --dest /media/startos/config/overlay \
+    --sign-file "$SIGN_FILE" \
+    --mok-key /media/startos/config/overlay/var/lib/dkms/mok.key \
+    --mok-pub /media/startos/config/overlay/var/lib/dkms/mok.pub
+
+sync
+
+umount -l /media/startos/next
+umount /media/startos/upper
+umount /media/startos/lower
+
+mv $1 /media/startos/images/${hash}.rootfs
+ln -rsf /media/startos/images/${hash}.rootfs /media/startos/config/current.rootfs
+
+sync
+
+echo 'System upgrade complete. Reboot to apply changes...'

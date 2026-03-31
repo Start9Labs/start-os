@@ -1,0 +1,66 @@
+<tui-scrollbar class="scrollbar">
+  <section
+    class="top"
+    waIntersectionObserver
+    (waIntersectionObservee)="onLoading(!!$event[0]?.isIntersecting)"
+    (logsFetch)="onPrevious($event)"
+  >
+    @if (loading) {
+      <tui-loader [textContent]="'Loading older logs' | i18n" />
+    }
+  </section>
+
+  <section #el childList (waMutationObserver)="restoreScroll(el)">
+    @for (log of previous; track log) {
+      <pre [innerHTML]="log | dompurify"></pre>
+    }
+  </section>
+
+  @if (followLogs | logs | async; as logs) {
+    <section childList (waMutationObserver)="scrollToBottom()">
+      @for (log of logs; track $index) {
+        <pre [innerHTML]="log | dompurify"></pre>
+      }
+
+      @if ((status$ | async) !== 'connected') {
+        <div class="loading-dots" [attr.data-status]="status$.value">
+          {{
+            status$.value === 'reconnecting'
+              ? ('Reconnecting' | i18n)
+              : ('Waiting for network connectivity' | i18n)
+          }}
+        </div>
+      }
+    </section>
+  } @else {
+    <tui-loader class="loader" [textContent]="'Loading logs' | i18n" />
+  }
+
+  <section
+    #bottom
+    class="bottom"
+    waIntersectionObserver
+    (waIntersectionObservee)="
+      setScroll(!!$event[$event.length - 1]?.isIntersecting)
+    "
+  ></section>
+</tui-scrollbar>
+
+<footer class="footer">
+  <button
+    tuiButton
+    appearance="flat-grayscale"
+    iconStart="@tui.circle-arrow-down"
+    (click)="setScroll(true); scrollToBottom()"
+  >
+    {{ 'Scroll to bottom' | i18n }}
+  </button>
+  <button
+    tuiButton
+    appearance="flat-grayscale"
+    iconStart="@tui.download"
+    [logsDownload]="fetchLogs"
+  >
+    {{ 'Download' | i18n }}
+  </button>
+</footer>

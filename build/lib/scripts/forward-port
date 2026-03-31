@@ -1,0 +1,75 @@
+#!/bin/bash
+
+if [ -z "$sip" ] || [ -z "$dip" ] || [ -z "$dprefix" ] || [ -z "$sport" ] || [ -z "$dport" ]; then
+    >&2 echo 'missing required env var'
+    exit 1
+fi
+
+NAME="F$(echo "$sip:$sport -> $dip/$dprefix:$dport ${src_subnet:-any}" | sha256sum | head -c 15)"
+
+for kind in INPUT FORWARD ACCEPT; do
+    if ! iptables -C $kind -j "${NAME}_${kind}" 2> /dev/null; then
+        iptables -N "${NAME}_${kind}" 2> /dev/null
+        iptables -A $kind -j "${NAME}_${kind}"
+    fi
+done
+for kind in PREROUTING OUTPUT POSTROUTING; do
+    if ! iptables -t nat -C $kind -j "${NAME}_${kind}" 2> /dev/null; then
+        iptables -t nat -N "${NAME}_${kind}" 2> /dev/null
+        iptables -t nat -A $kind -j "${NAME}_${kind}"
+    fi
+done
+
+err=0
+trap 'err=1' ERR
+
+for kind in INPUT FORWARD ACCEPT; do
+    iptables -F "${NAME}_${kind}" 2> /dev/null
+done
+for kind in PREROUTING OUTPUT POSTROUTING; do
+    iptables -t nat -F "${NAME}_${kind}" 2> /dev/null
+done
+if [ "$UNDO" = 1 ]; then
+    conntrack -D -p tcp -d $sip --dport $sport || true # conntrack returns exit 1 if no connections are active
+    conntrack -D -p udp -d $sip --dport $sport || true # conntrack returns exit 1 if no connections are active
+    exit $err
+fi
+
+# DNAT: rewrite destination for incoming packets (external traffic)
+# When src_subnet is set, only forward traffic from that subnet (private forwards)
+if [ -n "$src_subnet" ]; then
+    iptables -t nat -A ${NAME}_PREROUTING -s "$src_subnet" -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+    iptables -t nat -A ${NAME}_PREROUTING -s "$src_subnet" -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+    # Also allow containers on the bridge subnet to reach this forward
+    if [ -n "$bridge_subnet" ]; then
+        iptables -t nat -A ${NAME}_PREROUTING -s "$bridge_subnet" -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+        iptables -t nat -A ${NAME}_PREROUTING -s "$bridge_subnet" -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+    fi
+else
+    iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+    iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+fi
+
+# DNAT: rewrite destination for locally-originated packets (hairpin from host itself)
+iptables -t nat -A ${NAME}_OUTPUT -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+iptables -t nat -A ${NAME}_OUTPUT -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
+
+# Allow new connections to be forwarded to the destination
+iptables -A ${NAME}_FORWARD -d $dip -p tcp --dport $dport -m state --state NEW -j ACCEPT
+iptables -A ${NAME}_FORWARD -d $dip -p udp --dport $dport -m state --state NEW -j ACCEPT
+
+# NAT hairpin: masquerade so replies route back through this host for proper
+# NAT reversal instead of taking a direct path that bypasses conntrack.
+# Host-to-target hairpin: locally-originated packets whose original destination
+# was sip (before OUTPUT DNAT rewrote it to dip).  Using --ctorigdst ties the
+# rule to this specific sip, so multiple WAN IPs forwarding the same port to
+# different targets each get their own masquerade.
+iptables -t nat -A ${NAME}_POSTROUTING -m addrtype --src-type LOCAL -m conntrack --ctorigdst "$sip" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
+iptables -t nat -A ${NAME}_POSTROUTING -m addrtype --src-type LOCAL -m conntrack --ctorigdst "$sip" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
+# Same-subnet hairpin: when traffic originates from the same subnet as the DNAT
+# target (e.g. a container reaching another container, or a WireGuard peer
+# connecting to itself via the tunnel's public IP).
+iptables -t nat -A ${NAME}_POSTROUTING -s "$dip/$dprefix" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
+iptables -t nat -A ${NAME}_POSTROUTING -s "$dip/$dprefix" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
+
+exit $err

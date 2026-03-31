@@ -1,0 +1,25 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-registry-package-signer-add 1  "add " 
+.SH NAME
+start\-registry\-package\-signer\-add \- Add package signer
+.SH SYNOPSIS
+\fBstart\-registry package signer add\fR [\fB\-\-versions\fR] [\fB\-\-merge\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIID\fR> <\fISIGNER\fR> 
+.SH DESCRIPTION
+Add package signer
+.SH OPTIONS
+.TP
+\fB\-\-versions\fR \fI<VERSIONS>\fR
+Version range constraint
+.TP
+\fB\-\-merge\fR
+Merge with existing version range instead of replacing
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIID\fR>
+Package identifier
+.TP
+<\fISIGNER\fR>
+Signer identifier

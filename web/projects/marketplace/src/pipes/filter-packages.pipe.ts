@@ -8,8 +8,8 @@ import Fuse from 'fuse.js'
 export class FilterPackagesPipe implements PipeTransform {
   transform(
     packages: MarketplacePkg[],
-    query: string,
-    category: string,
+    query: string | null,
+    category: string | null,
   ): MarketplacePkg[] {
     // query
     if (query) {
@@ -26,11 +26,11 @@ export class FilterPackagesPipe implements PipeTransform {
           distance: 16,
           keys: [
             {
-              name: 'manifest.title',
+              name: 'title',
               weight: 1,
             },
             {
-              name: 'manifest.id',
+              name: 'id',
               weight: 0.5,
             },
           ],
@@ -42,19 +42,19 @@ export class FilterPackagesPipe implements PipeTransform {
           useExtendedSearch: true,
           keys: [
             {
-              name: 'manifest.title',
+              name: 'title',
               weight: 1,
             },
             {
-              name: 'manifest.id',
+              name: 'id',
               weight: 0.5,
             },
             {
-              name: 'manifest.description.short',
+              name: 'description.short',
               weight: 0.4,
             },
             {
-              name: 'manifest.description.long',
+              name: 'description.long',
               weight: 0.1,
             },
           ],
@@ -68,18 +68,13 @@ export class FilterPackagesPipe implements PipeTransform {
 
     // category
     return packages
-      .filter(p => category === 'all' || p.categories.includes(category))
+      .filter(p => category === 'all' || p.categories.includes(category!))
       .sort((a, b) => {
         return (
-          new Date(b['published-at']).valueOf() -
-          new Date(a['published-at']).valueOf()
+          new Date(b.s9pks[0]?.[1].publishedAt!).valueOf() -
+          new Date(a.s9pks[0]?.[1].publishedAt!).valueOf()
         )
       })
+      .map(a => ({ ...a }))
   }
 }
-
-@NgModule({
-  declarations: [FilterPackagesPipe],
-  exports: [FilterPackagesPipe],
-})
-export class FilterPackagesPipeModule {}

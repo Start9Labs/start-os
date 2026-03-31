@@ -1,0 +1,88 @@
+name: start-cli
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: Environment
+        options:
+          - NONE
+          - dev
+          - unstable
+          - dev-unstable
+      runner:
+        type: choice
+        description: Runner
+        options:
+          - standard
+          - fast
+      arch:
+        type: choice
+        description: Architecture
+        options:
+          - ALL
+          - x86_64
+          - x86_64-apple
+          - aarch64
+          - aarch64-apple
+          - riscv64
+  push:
+    branches:
+      - master
+      - next/*
+  pull_request:
+    branches:
+      - master
+      - next/*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODEJS_VERSION: "24.11.0"
+  ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''NONE''] }}'
+
+jobs:
+  compile:
+    name: Build Debian Package
+    if: github.event.pull_request.draft != true
+    strategy:
+      fail-fast: true
+      matrix:
+        triple: >-
+          ${{
+            fromJson('{
+              "x86_64": ["x86_64-unknown-linux-musl"],
+              "x86_64-apple": ["x86_64-apple-darwin"],
+              "aarch64": ["aarch64-unknown-linux-musl"],
+              "x86_64-apple": ["aarch64-apple-darwin"],
+              "riscv64": ["riscv64gc-unknown-linux-musl"],
+              "ALL": ["x86_64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-unknown-linux-musl", "aarch64-apple-darwin", "riscv64gc-unknown-linux-musl"]
+            }')[github.event.inputs.platform || 'ALL']
+          }}
+    runs-on: ${{ fromJson('["ubuntu-latest", "ubuntu-24.04-32-cores"]')[github.event.inputs.runner == 'fast'] }}
+    steps:
+      - name: Mount tmpfs
+        if: ${{ github.event.inputs.runner == 'fast' }}
+        run: sudo mount -t tmpfs tmpfs .
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-build
+        with:
+          nodejs-version: ${{ env.NODEJS_VERSION }}
+
+      - name: Make
+        run: TARGET=${{ matrix.triple }} make cli
+        env:
+          PLATFORM: ${{ matrix.arch }}
+          SCCACHE_GHA_ENABLED: on
+          SCCACHE_GHA_VERSION: 0
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: start-cli_${{ matrix.triple }}
+          path: core/target/${{ matrix.triple }}/release/start-cli

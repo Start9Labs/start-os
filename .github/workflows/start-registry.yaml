@@ -1,0 +1,173 @@
+name: start-registry
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: Environment
+        options:
+          - NONE
+          - dev
+          - unstable
+          - dev-unstable
+      runner:
+        type: choice
+        description: Runner
+        options:
+          - standard
+          - fast
+      arch:
+        type: choice
+        description: Architecture
+        options:
+          - ALL
+          - x86_64
+          - aarch64
+          - riscv64
+  push:
+    branches:
+      - master
+      - next/*
+  pull_request:
+    branches:
+      - master
+      - next/*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODEJS_VERSION: "24.11.0"
+  ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''NONE''] }}'
+
+jobs:
+  compile:
+    name: Build Debian Package
+    if: github.event.pull_request.draft != true
+    strategy:
+      fail-fast: true
+      matrix:
+        arch: >-
+          ${{
+            fromJson('{
+              "x86_64": ["x86_64"],
+              "aarch64": ["aarch64"],
+              "riscv64": ["riscv64"],
+              "ALL": ["x86_64", "aarch64", "riscv64"]
+            }')[github.event.inputs.platform || 'ALL']
+          }}
+    runs-on: ${{ fromJson('["ubuntu-latest", "ubuntu-24.04-32-cores"]')[github.event.inputs.runner == 'fast'] }}
+    steps:
+      - name: Mount tmpfs
+        if: ${{ github.event.inputs.runner == 'fast' }}
+        run: sudo mount -t tmpfs tmpfs .
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-build
+        with:
+          nodejs-version: ${{ env.NODEJS_VERSION }}
+
+      - name: Make
+        run: make registry-deb
+        env:
+          PLATFORM: ${{ matrix.arch }}
+          SCCACHE_GHA_ENABLED: on
+          SCCACHE_GHA_VERSION: 0
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: start-registry_${{ matrix.arch }}.deb
+          path: results/start-registry-*_${{ matrix.arch }}.deb
+
+  create-image:
+    name: Create Docker Image
+    needs: [compile]
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ${{ fromJson('["ubuntu-latest", "ubuntu-24.04-32-cores"]')[github.event.inputs.runner == 'fast'] }}
+    steps:
+      - name: Cleaning up unnecessary files
+        run: |
+          sudo apt-get remove --purge -y google-chrome-stable firefox mono-devel
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+
+      - run: |
+          sudo mount -t tmpfs tmpfs .
+        if: ${{ github.event.inputs.runner == 'fast' }}
+
+      - name: Set up docker QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: "Login to GitHub Container Registry"
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/Start9Labs/startos-registry
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+
+      - name: Download debian package
+        uses: actions/download-artifact@v8
+        with:
+          pattern: start-registry_*.deb
+
+      - name: Map matrix.arch to docker platform
+        run: |
+          platforms=""
+          for deb in *.deb; do
+            filename=$(basename "$deb" .deb)
+            arch="${filename#*_}"
+            case "$arch" in
+              x86_64)
+                platform="linux/amd64"
+                ;;
+              aarch64)
+                platform="linux/arm64"
+                ;;
+              riscv64)
+                platform="linux/riscv64"
+                ;;
+              *)
+                echo "Unknown architecture: $arch" >&2
+                exit 1
+                ;;
+            esac
+            if [ -z "$platforms" ]; then
+              platforms="$platform"
+            else
+              platforms="$platforms,$platform"
+            fi
+          done
+          echo "DOCKER_PLATFORM=$platforms" >> "$GITHUB_ENV"
+
+      - run: |
+          cat | docker buildx build --platform "$DOCKER_PLATFORM" --push -t ${{ steps.meta.outputs.tags }} -f - . << 'EOF'
+          FROM debian:trixie
+
+          ADD *.deb .
+
+          RUN apt-get update && apt-get install -y ./*_$(uname -m).deb && rm -rf *.deb /var/lib/apt/lists/*
+
+          VOLUME /var/lib/startos
+
+          ENV RUST_LOG=startos=debug
+
+          ENTRYPOINT ["start-registryd"]
+
+          EOF

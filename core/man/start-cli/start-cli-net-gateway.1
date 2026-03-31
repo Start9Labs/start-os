@@ -1,0 +1,32 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-net-gateway 1  "gateway " 
+.SH NAME
+start\-cli\-net\-gateway \- View and edit gateway configurations
+.SH SYNOPSIS
+\fBstart\-cli net gateway\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+View and edit gateway configurations
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-cli\-net\-gateway\-check\-dns(1)
+Check DNS configuration for a gateway
+.TP
+start\-cli\-net\-gateway\-check\-port(1)
+about.check\-port\-reachability
+.TP
+start\-cli\-net\-gateway\-forget(1)
+Forget a disconnected gateway
+.TP
+start\-cli\-net\-gateway\-list(1)
+Show gateways StartOS can listen on
+.TP
+start\-cli\-net\-gateway\-set\-default\-outbound(1)
+about.set\-default\-outbound\-gateway
+.TP
+start\-cli\-net\-gateway\-set\-name(1)
+Rename a gateway

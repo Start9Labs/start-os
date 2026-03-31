@@ -1,30 +1,33 @@
-import { Inject, Injectable } from '@angular/core'
-import { DOCUMENT } from '@angular/common'
+import { inject, Injectable } from '@angular/core'
+import { WA_LOCAL_STORAGE } from '@ng-web-apis/common'
 
-const PREFIX = '_embassystorage/_embassykv/'
+const PREFIX = '_startos/'
 
 @Injectable({
   providedIn: 'root',
 })
 export class StorageService {
-  private readonly storage = this.document.defaultView!.localStorage
-
-  constructor(@Inject(DOCUMENT) private readonly document: Document) {}
+  private readonly storage = inject(WA_LOCAL_STORAGE)
 
   get<T>(key: string): T {
-    return JSON.parse(String(this.storage.getItem(`${PREFIX}${key}`)))
+    return JSON.parse(String(this.storage?.getItem(`${PREFIX}${key}`) || null))
   }
 
-  set<T>(key: string, value: T) {
-    this.storage.setItem(`${PREFIX}${key}`, JSON.stringify(value))
+  set(key: string, value: any) {
+    this.storage?.setItem(`${PREFIX}${key}`, JSON.stringify(value))
   }
 
   clear() {
-    Array.from(
-      { length: this.storage.length },
-      (_, i) => this.storage.key(i) || '',
-    )
-      .filter(key => key.startsWith(PREFIX))
-      .forEach(key => this.storage.removeItem(key))
+    this.storage?.clear()
+  }
+
+  migrate036() {
+    const oldPrefix = '_embassystorage/_embassykv/'
+    if (this.storage?.getItem(`${oldPrefix}loggedInKey`)) {
+      const cache = this.storage.getItem(`${oldPrefix}patch-db-cache`)
+      this.clear()
+      this.set('loggedIn', true)
+      this.set('patchDB', cache)
+    }
   }
 }

@@ -1,0 +1,25 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-backup-create 1  "create " 
+.SH NAME
+start\-cli\-backup\-create \- Create a backup for all packages
+.SH SYNOPSIS
+\fBstart\-cli backup create\fR [\fB\-\-old\-password\fR] [\fB\-\-package\-ids\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fITARGET_ID\fR> <\fIPASSWORD\fR> 
+.SH DESCRIPTION
+Create a backup for all packages
+.SH OPTIONS
+.TP
+\fB\-\-old\-password\fR \fI<OLD_PASSWORD>\fR
+Previous backup password
+.TP
+\fB\-\-package\-ids\fR \fI<PACKAGE_IDS>\fR
+Package IDs to include in backup
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fITARGET_ID\fR>
+Backup target identifier
+.TP
+<\fIPASSWORD\fR>
+Password for backup encryption

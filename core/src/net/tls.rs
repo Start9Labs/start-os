@@ -1,0 +1,346 @@
+use std::sync::Arc;
+use std::task::{Poll, ready};
+use std::time::Duration;
+
+use futures::future::BoxFuture;
+use futures::stream::FuturesUnordered;
+use futures::{FutureExt, StreamExt};
+use imbl_value::InternedString;
+use openssl::x509::X509Ref;
+use tokio::io::AsyncWriteExt;
+use tokio_rustls::LazyConfigAcceptor;
+use tokio_rustls::rustls::crypto::CryptoProvider;
+use tokio_rustls::rustls::pki_types::CertificateDer;
+use tokio_rustls::rustls::server::{Acceptor, ClientHello, ResolvesServerCert};
+use tokio_rustls::rustls::sign::CertifiedKey;
+use tokio_rustls::rustls::{ClientConfig, RootCertStore, ServerConfig};
+use visit_rs::{Visit, VisitFields};
+
+/// Result of a TLS handler's decision about how to handle a connection.
+pub enum TlsHandlerAction {
+    /// Complete the TLS handshake with this ServerConfig.
+    Tls(ServerConfig),
+    /// Don't complete TLS — rewind the BackTrackingIO and return the raw stream.
+    Passthrough,
+}
+
+use crate::net::http::handle_http_on_https;
+use crate::net::web_server::{Accept, AcceptStream, MetadataVisitor};
+use crate::prelude::*;
+use crate::util::io::BackTrackingIO;
+use crate::util::serde::MaybeUtf8String;
+use crate::util::sync::SyncMutex;
+
+#[derive(Debug, Clone, VisitFields)]
+pub struct TlsMetadata<M> {
+    pub inner: M,
+    pub tls_info: TlsHandshakeInfo,
+}
+impl<V: MetadataVisitor<Result = ()>, M: Visit<V>> Visit<V> for TlsMetadata<M> {
+    fn visit(&self, visitor: &mut V) -> <V as visit_rs::Visitor>::Result {
+        self.visit_fields(visitor).collect()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TlsHandshakeInfo {
+    pub sni: Option<InternedString>,
+    pub alpn: Option<MaybeUtf8String>,
+}
+impl<V: MetadataVisitor> Visit<V> for TlsHandshakeInfo {
+    fn visit(&self, visitor: &mut V) -> <V as visit_rs::Visitor>::Result {
+        visitor.visit(self)
+    }
+}
+
+pub trait TlsHandler<'a, A: Accept> {
+    fn get_config(
+        &'a mut self,
+        hello: &'a ClientHello<'a>,
+        metadata: &'a A::Metadata,
+    ) -> impl Future<Output = Option<TlsHandlerAction>> + Send + 'a;
+}
+
+#[derive(Clone)]
+pub struct ChainedHandler<H0, H1>(pub H0, pub H1);
+impl<'a, A, H0, H1> TlsHandler<'a, A> for ChainedHandler<H0, H1>
+where
+    A: Accept + 'a,
+    <A as Accept>::Metadata: Send + Sync,
+    H0: TlsHandler<'a, A> + Send,
+    H1: TlsHandler<'a, A> + Send,
+{
+    async fn get_config(
+        &'a mut self,
+        hello: &'a ClientHello<'a>,
+        metadata: &'a <A as Accept>::Metadata,
+    ) -> Option<TlsHandlerAction> {
+        if let Some(config) = self.0.get_config(hello, metadata).await {
+            return Some(config);
+        }
+        self.1.get_config(hello, metadata).await
+    }
+}
+
+#[derive(Clone)]
+pub struct TlsHandlerWrapper<I, W> {
+    pub inner: I,
+    pub wrapper: W,
+}
+
+pub trait WrapTlsHandler<A: Accept> {
+    fn wrap<'a>(
+        &'a mut self,
+        prev: ServerConfig,
+        hello: &'a ClientHello<'a>,
+        metadata: &'a <A as Accept>::Metadata,
+    ) -> impl Future<Output = Option<TlsHandlerAction>> + Send + 'a
+    where
+        Self: 'a;
+}
+
+impl<'a, A, I, W> TlsHandler<'a, A> for TlsHandlerWrapper<I, W>
+where
+    A: Accept + 'a,
+    <A as Accept>::Metadata: Send + Sync,
+    I: TlsHandler<'a, A> + Send,
+    W: WrapTlsHandler<A> + Send,
+{
+    async fn get_config(
+        &'a mut self,
+        hello: &'a ClientHello<'a>,
+        metadata: &'a <A as Accept>::Metadata,
+    ) -> Option<TlsHandlerAction> {
+        let action = self.inner.get_config(hello, metadata).await?;
+        match action {
+            TlsHandlerAction::Tls(cfg) => self.wrapper.wrap(cfg, hello, metadata).await,
+            other => Some(other),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct SingleCertResolver(pub Arc<CertifiedKey>);
+impl ResolvesServerCert for SingleCertResolver {
+    fn resolve(&self, _: ClientHello) -> Option<Arc<CertifiedKey>> {
+        Some(self.0.clone())
+    }
+}
+
+pub struct TlsListener<A: Accept, H: for<'a> TlsHandler<'a, A>> {
+    pub accept: A,
+    pub tls_handler: H,
+    in_progress: SyncMutex<
+        FuturesUnordered<
+            BoxFuture<
+                'static,
+                (
+                    H,
+                    Result<Option<(TlsMetadata<A::Metadata>, AcceptStream)>, Error>,
+                ),
+            >,
+        >,
+    >,
+}
+impl<A: Accept, H: for<'a> TlsHandler<'a, A>> TlsListener<A, H> {
+    pub fn new(accept: A, cert_handler: H) -> Self {
+        Self {
+            accept,
+            tls_handler: cert_handler,
+            in_progress: SyncMutex::new(FuturesUnordered::new()),
+        }
+    }
+}
+impl<A, H> Accept for TlsListener<A, H>
+where
+    A: Accept + 'static,
+    A::Metadata: Send + 'static,
+    for<'a> H: TlsHandler<'a, A> + Clone + Send + 'static,
+{
+    type Metadata = TlsMetadata<A::Metadata>;
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
+        self.in_progress.mutate(|in_progress| {
+            // First, check if any in-progress handshakes have completed
+            if !in_progress.is_empty() {
+                if let Poll::Ready(Some((handler, res))) = in_progress.poll_next_unpin(cx) {
+                    if let Some(res) = res.transpose() {
+                        self.tls_handler = handler;
+                        return Poll::Ready(res);
+                    }
+                    // Connection was rejected (preprocess returned None).
+                    // Yield to the runtime to avoid busy-looping, but wake
+                    // immediately to continue processing.
+                    cx.waker().wake_by_ref();
+                    return Poll::Pending;
+                }
+            }
+
+            // Try to accept a new connection
+            let (metadata, stream) = ready!(self.accept.poll_accept(cx)?);
+            let mut tls_handler = self.tls_handler.clone();
+            let mut fut = async move {
+                let res = async {
+                    // Phase 1: Accept ClientHello
+                    let mut acceptor =
+                        LazyConfigAcceptor::new(Acceptor::default(), BackTrackingIO::new(stream));
+                    let mut mid: tokio_rustls::StartHandshake<BackTrackingIO<AcceptStream>> =
+                        match tokio::time::timeout(Duration::from_secs(5), &mut acceptor).await {
+                            Ok(Ok(a)) => a,
+                            Ok(Err(e)) => {
+                                let mut stream = acceptor.take_io().or_not_found("acceptor io")?;
+                                let (_, buf) = stream.rewind();
+                                if std::str::from_utf8(buf)
+                                    .ok()
+                                    .and_then(|buf| {
+                                        buf.lines()
+                                            .map(|l| l.trim())
+                                            .filter(|l| !l.is_empty())
+                                            .next()
+                                    })
+                                    .map_or(false, |buf| {
+                                        regex::Regex::new("[A-Z]+ (.+) HTTP/1")
+                                            .unwrap()
+                                            .is_match(buf)
+                                    })
+                                {
+                                    handle_http_on_https(stream).await.log_err();
+
+                                    return Ok(None);
+                                } else {
+                                    return Err(e).with_kind(ErrorKind::Network);
+                                }
+                            }
+                            Err(_) => {
+                                tracing::debug!("TLS ClientHello timed out");
+                                return Ok(None);
+                            }
+                        };
+
+                    // Phase 2: Resolve TLS config (scoped timeout so mid
+                    // remains accessible for sending a TLS alert on timeout)
+                    let hello = mid.client_hello();
+                    let sni = hello.server_name().map(InternedString::intern);
+                    let action = tls_handler.get_config(&hello, &metadata).await;
+                    drop(hello);
+
+                    match action {
+                        Some(TlsHandlerAction::Tls(cfg)) => {
+                            let buffered = mid.io.stop_buffering();
+                            mid.io
+                                .write_all(&buffered)
+                                .await
+                                .with_kind(ErrorKind::Network)?;
+                            return Ok(
+                                match tokio::time::timeout(
+                                    Duration::from_secs(15),
+                                    mid.into_stream(Arc::new(cfg)),
+                                )
+                                .await
+                                .with_kind(ErrorKind::Timeout)
+                                .and_then(|e| e.map_err(Error::from))
+                                {
+                                    Ok(stream) => {
+                                        let s = stream.get_ref().1;
+                                        Some((
+                                            TlsMetadata {
+                                                inner: metadata,
+                                                tls_info: TlsHandshakeInfo {
+                                                    sni: s
+                                                        .server_name()
+                                                        .map(InternedString::intern),
+                                                    alpn: s
+                                                        .alpn_protocol()
+                                                        .map(|a| MaybeUtf8String(a.to_vec())),
+                                                },
+                                            },
+                                            Box::pin(stream) as AcceptStream,
+                                        ))
+                                    }
+                                    Err(e) => {
+                                        tracing::trace!("Error completing TLS handshake: {e}");
+                                        tracing::trace!("{e:?}");
+                                        None
+                                    }
+                                },
+                            );
+                        }
+                        Some(TlsHandlerAction::Passthrough) => {
+                            let (dummy, _drop) = tokio::io::duplex(1);
+                            let mut bt = std::mem::replace(
+                                &mut mid.io,
+                                BackTrackingIO::new(Box::pin(dummy) as AcceptStream),
+                            );
+                            drop(mid);
+                            bt.rewind();
+                            return Ok(Some((
+                                TlsMetadata {
+                                    inner: metadata,
+                                    tls_info: TlsHandshakeInfo { sni, alpn: None },
+                                },
+                                Box::pin(bt) as AcceptStream,
+                            )));
+                        }
+                        None => {
+                            tracing::debug!("no certificate for SNI {:?}", sni);
+                            let _ = mid
+                                .io
+                                .write_all(&[
+                                    0x15, // ContentType: Alert
+                                    0x03,
+                                    0x03, // ProtocolVersion: TLS 1.2 (also used by TLS 1.3)
+                                    0x00, 0x02, // Length: 2
+                                    0x02, // AlertLevel: Fatal
+                                    0x70, // AlertDescription: unrecognized_name (112)
+                                ])
+                                .await;
+                            let _ = mid.io.flush().await;
+                        }
+                    }
+
+                    Ok(None)
+                }
+                .await;
+                (tls_handler, res)
+            }
+            .boxed();
+            match fut.poll_unpin(cx) {
+                Poll::Pending => {
+                    in_progress.push(fut);
+                    cx.waker().wake_by_ref();
+                    Poll::Pending
+                }
+                Poll::Ready((handler, res)) => {
+                    if let Some(res) = res.transpose() {
+                        self.tls_handler = handler;
+                        return Poll::Ready(res);
+                    }
+                    // Connection was rejected (preprocess returned None).
+                    // Yield to the runtime to avoid busy-looping, but wake
+                    // immediately to continue processing.
+                    cx.waker().wake_by_ref();
+                    Poll::Pending
+                }
+            }
+        })
+    }
+}
+
+pub fn client_config<'a, I: IntoIterator<Item = &'a X509Ref>>(
+    crypto_provider: Arc<CryptoProvider>,
+    root_certs: I,
+) -> Result<ClientConfig, Error> {
+    let mut certs = RootCertStore::empty();
+    for cert in root_certs {
+        certs
+            .add(CertificateDer::from_slice(&cert.to_der()?))
+            .with_kind(ErrorKind::OpenSsl)?;
+    }
+    Ok(ClientConfig::builder_with_provider(crypto_provider.clone())
+        .with_safe_default_protocol_versions()
+        .with_kind(ErrorKind::OpenSsl)?
+        .with_root_certificates(certs)
+        .with_no_client_auth())
+}

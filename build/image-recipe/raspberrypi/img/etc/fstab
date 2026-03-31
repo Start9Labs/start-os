@@ -1,0 +1,4 @@
+PARTUUID=cb15ae4d-0001-4000-8000-000000000001  /boot/firmware  vfat    umask=0077  0   2
+PARTUUID=cb15ae4d-0002-4000-8000-000000000002  /boot/efi       vfat    umask=0077  0   1
+PARTUUID=cb15ae4d-0003-4000-8000-000000000003  /boot           vfat    umask=0077  0   2
+PARTUUID=cb15ae4d-0004-4000-8000-000000000004  /               btrfs   defaults    0   1

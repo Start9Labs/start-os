@@ -1,32 +1,63 @@
-import { Component } from '@angular/core'
-import { NavController } from '@ionic/angular'
-import { ApiService } from './services/api/api.service'
-import { ErrorToastService } from '@start9labs/shared'
+import { Component, DOCUMENT, inject, OnInit } from '@angular/core'
+import { Router, RouterOutlet } from '@angular/router'
+import { ErrorService } from '@start9labs/shared'
+import { TuiRoot } from '@taiga-ui/core'
+
+import { ApiService } from './services/api.service'
+import { StateService } from './services/state.service'
 
 @Component({
   selector: 'app-root',
-  templateUrl: 'app.component.html',
-  styleUrls: ['app.component.scss'],
+  template: '<tui-root><router-outlet /></tui-root>',
+  imports: [TuiRoot, RouterOutlet],
 })
-export class AppComponent {
-  constructor(
-    private readonly apiService: ApiService,
-    private readonly errorToastService: ErrorToastService,
-    private readonly navCtrl: NavController,
-  ) {}
+export class AppComponent implements OnInit {
+  private readonly api = inject(ApiService)
+  private readonly errorService = inject(ErrorService)
+  private readonly router = inject(Router)
+  private readonly stateService = inject(StateService)
+  private readonly document = inject(DOCUMENT)
 
   async ngOnInit() {
     try {
-      const inProgress = await this.apiService.getStatus()
+      // Determine if we're in kiosk mode
+      this.stateService.kiosk = ['localhost', '127.0.0.1'].includes(
+        this.document.location.hostname,
+      )
 
-      let route = '/home'
-      if (inProgress) {
-        route = inProgress.complete ? '/success' : '/loading'
+      // Get pubkey for encryption
+      await this.api.getPubKey()
+
+      // Check setup status to determine initial route
+      const status = await this.api.getStatus()
+
+      switch (status.status) {
+        case 'needs-install':
+          await this.router.navigate(['/language'])
+          break
+
+        case 'incomplete':
+          // Store the data drive info from status
+          if (status.guid) {
+            this.stateService.dataDriveGuid = status.guid
+          }
+          this.stateService.attach = status.attach
+          this.stateService.mokEnrolled = status.mokEnrolled
+          await this.router.navigate(['/language'])
+          break
+
+        case 'running':
+          // Setup is in progress, show loading page
+          await this.router.navigate(['/loading'])
+          break
+
+        case 'complete':
+          // Setup execution finished, show success page
+          await this.router.navigate(['/success'])
+          break
       }
-
-      await this.navCtrl.navigateForward(route)
     } catch (e: any) {
-      this.errorToastService.present(e)
+      this.errorService.handleError(e)
     }
   }
 }

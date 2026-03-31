@@ -1,34 +1,123 @@
 #!/bin/sh
-printf "\n"
-printf "Welcome to\n"
-cat << "ASCII"
 
-           ███████        
-         █    █    █      
-       █     █ █     █    
-      █     █   █     █   
-      █    █     █    █   
-       █  █       █  █    
-         █         █      
-           ███████        
+parse_essential_db_info() {
+    DB_DUMP="/tmp/startos_db.json"
 
-    _____     __ ___  __  __
-   (_  |  /\ |__) |  /  \(_
-   __) | /  \|  \ |  \__/__)
-ASCII
-printf "                            v$(cat /usr/lib/startos/VERSION.txt)\n\n"
-printf "   %s (%s %s)\n" "$(uname -o)" "$(uname -r)" "$(uname -m)"
-printf "   Git Hash: $(cat /usr/lib/startos/GIT_HASH.txt)"
-if [ -n "$(cat /usr/lib/startos/ENVIRONMENT.txt)" ]; then
-    printf " ~ $(cat /usr/lib/startos/ENVIRONMENT.txt)\n"
-else
-    printf "\n"
+    if command -v start-cli >/dev/null 2>&1; then
+        timeout 30 start-cli db dump > "$DB_DUMP" 2>/dev/null || return 1
+    else
+        return 1
+    fi
+
+    if command -v jq >/dev/null 2>&1 && [ -f "$DB_DUMP" ]; then
+        HOSTNAME=$(jq -r '.value.serverInfo.hostname // "unknown"' "$DB_DUMP" 2>/dev/null)
+        VERSION=$(jq -r '.value.serverInfo.version // "unknown"' "$DB_DUMP" 2>/dev/null)
+        RAM_BYTES=$(jq -r '.value.serverInfo.ram // 0' "$DB_DUMP" 2>/dev/null)
+        WAN_IP=$(jq -r '.value.serverInfo.network.gateways[].ipInfo.wanIp // "unknown"' "$DB_DUMP" 2>/dev/null | head -1)
+        NTP_SYNCED=$(jq -r '.value.serverInfo.ntpSynced // false' "$DB_DUMP" 2>/dev/null)
+
+        if [ "$RAM_BYTES" != "0" ] && [ "$RAM_BYTES" != "null" ]; then
+            RAM_GB=$(echo "scale=1; $RAM_BYTES / 1073741824" | bc 2>/dev/null || echo "unknown")
+        else
+            RAM_GB="unknown"
+        fi
+
+        RUNNING_SERVICES=$(jq -r '[.value.packageData[] | select(.statusInfo.started != null)] | length' "$DB_DUMP" 2>/dev/null)
+        TOTAL_SERVICES=$(jq -r '.value.packageData | length' "$DB_DUMP" 2>/dev/null)
+
+        rm -f "$DB_DUMP"
+        return 0
+    else
+        rm -f "$DB_DUMP" 2>/dev/null
+        return 1
+    fi
+}
+
+DB_INFO_AVAILABLE=0
+if parse_essential_db_info; then
+    DB_INFO_AVAILABLE=1
 fi
 
-printf "\n"
-printf " * Documentation:  https://docs.start9.com\n"
-printf " * Management:     https://%s.local\n" "$(hostname)"
-printf " * Support:        https://start9.com/contact\n"
-printf " * Source Code:    https://github.com/Start9Labs/start-os\n"
-printf " * License:        MIT\n"
-printf "\n"
+if [ "$DB_INFO_AVAILABLE" -eq 1 ] && [ "$VERSION" != "unknown" ]; then
+    version_display="v$VERSION"
+else
+    version_display="v$(cat /usr/lib/startos/VERSION.txt 2>/dev/null || echo 'unknown')"
+fi
+
+printf "\n\033[1;37m    ▄▄▀▀▀▀▀▄▄\033[0m\n"
+printf "\033[1;37m  ▄▀    ▄    ▀▄      ▄▄▄▄▄  ▄▄▄▄▄▄▄    ▄      ▄▄▄▄▄   ▄▄▄▄▄▄▄ \033[1;31m▄██████▄ ▄██████\033[0m\n"
+printf "\033[1;37m █     █ █     █    █          █      █ █     █    ▀▄    █    \033[1;31m██    ██ ██     \033[0m\n"
+printf "\033[1;37m█     █   █     █   ▀▄▄▄▄      █     █   █    █ ▄▄▄▀     █    \033[1;31m██    ██ ▀█████▄\033[0m\n"
+printf "\033[1;37m█    █     █    █        █     █    █     █   █  ▀▄      █    \033[1;31m██    ██      ██\033[0m\n"
+printf "\033[1;37m █  █       █  █    ▄▄▄▄▄▀     █   █       █  █    ▀▄    █    \033[1;31m▀██████▀ ██████▀\033[0m\n"
+printf "\033[1;37m   █         █\033[0m\n"
+printf "\033[1;37m     ▀▀▄▄▄▀▀                                                  $version_display\033[0m\n\n"
+
+uptime_str=$(uptime | awk -F'up ' '{print $2}' | awk -F',' '{print $1}' | sed 's/^ *//')
+
+if [ "$DB_INFO_AVAILABLE" -eq 1 ] && [ "$RAM_GB" != "unknown" ]; then
+    memory_used=$(free -m | awk 'NR==2{printf "%.0fMB", $3}')
+    memory_display="$memory_used / ${RAM_GB}GB"
+else
+    memory_display=$(free -m | awk 'NR==2{printf "%.0fMB / %.0fMB", $3, $2}')
+fi
+
+root_usage=$(df -h / | awk 'NR==2{printf "%s (%s free)", $5, $4}')
+
+if [ -d "/media/startos/data/package-data" ]; then
+    data_usage=$(df -h /media/startos/data/package-data | awk 'NR==2{printf "%s (%s free)", $5, $4}')
+else
+    data_usage="N/A"
+fi
+
+if [ "$DB_INFO_AVAILABLE" -eq 1 ]; then
+    services_text="$RUNNING_SERVICES/$TOTAL_SERVICES running"
+else
+    services_text="Unknown"
+fi
+
+local_ip=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1)
+if [ -z "$local_ip" ]; then local_ip="N/A"; fi
+
+if [ "$DB_INFO_AVAILABLE" -eq 1 ] && [ "$WAN_IP" != "unknown" ]; then
+    wan_ip="$WAN_IP"
+else
+    wan_ip="N/A"
+fi
+
+printf "    \033[1;37m┌─ SYSTEM STATUS ───────────────────────────────────────────────────┐\033[0m\n"
+printf "    \033[1;37m│\033[0m %-8s  \033[0;33m%-22s\033[0m %-8s \033[0;33m%-23s\033[0m \033[1;37m│\033[0m\n" "Uptime:" "$uptime_str" "Memory:" "$memory_display"
+printf "    \033[1;37m│\033[0m %-8s  \033[0;33m%-22s\033[0m %-8s \033[0;33m%-23s\033[0m \033[1;37m│\033[0m\n" "Root:" "$root_usage" "Data:" "$data_usage"
+
+if [ "$DB_INFO_AVAILABLE" -eq 1 ]; then
+    if [ "$RUNNING_SERVICES" -eq "$TOTAL_SERVICES" ] && [ "$TOTAL_SERVICES" -gt 0 ]; then
+        printf "    \033[1;37m│\033[0m %-8s \033[0;32m%-22s\033[0m %-8s \033[0;33m%-23s\033[0m \033[1;37m│\033[0m\n" "Services:" "$services_text" "WAN:" "$wan_ip"
+    elif [ "$RUNNING_SERVICES" -gt 0 ]; then
+        printf "    \033[1;37m│\033[0m %-8s \033[0;33m%-22s\033[0m %-8s \033[0;33m%-23s\033[0m \033[1;37m│\033[0m\n" "Services:" "$services_text" "WAN:" "$wan_ip"
+    else
+        printf "    \033[1;37m│\033[0m %-8s \033[0;31m%-22s\033[0m %-8s \033[0;33m%-23s\033[0m \033[1;37m│\033[0m\n" "Services:" "$services_text" "WAN:" "$wan_ip"
+    fi
+else
+    printf "    \033[1;37m│\033[0m %-8s \033[0;37m%-22s\033[0m %-8s \033[0;33m%-23s\033[0m \033[1;37m│\033[0m\n" "Services:" "$services_text" "WAN:" "$wan_ip"
+fi
+
+if [ "$DB_INFO_AVAILABLE" -eq 1 ] && [ "$NTP_SYNCED" = "true" ]; then
+    printf "    \033[1;37m│\033[0m %-8s  \033[0;33m%-22s\033[0m %-8s \033[0;32m%-23s\033[0m \033[1;37m│\033[0m\n" "Local:" "$local_ip" "NTP:" "Synced"
+elif [ "$DB_INFO_AVAILABLE" -eq 1 ] && [ "$NTP_SYNCED" = "false" ]; then
+    printf "    \033[1;37m│\033[0m %-8s  \033[0;33m%-22s\033[0m %-8s \033[0;31m%-23s\033[0m \033[1;37m│\033[0m\n" "Local:" "$local_ip" "NTP:" "Not Synced"
+else
+    printf "    \033[1;37m│\033[0m %-8s  \033[0;33m%-22s\033[0m %-8s \033[0;37m%-23s\033[0m \033[1;37m│\033[0m\n" "Local:" "$local_ip" "NTP:" "Unknown"
+fi
+
+printf "    \033[1;37m└───────────────────────────────────────────────────────────────────┘\033[0m"
+
+if [ "$DB_INFO_AVAILABLE" -eq 1 ] && [ "$HOSTNAME" != "unknown" ]; then
+    web_url="https://$HOSTNAME.local"
+else
+    web_url="https://$(hostname).local"
+fi
+printf "\n    \033[1;37m┌──────────────────────────────────────────────────── QUICK ACCESS ─┐\033[0m\n"
+printf "    \033[1;37m│\033[0m Web Interface: \033[0;36m%-50s\033[0m \033[1;37m│\033[0m\n" "$web_url"
+printf "    \033[1;37m│\033[0m Documentation: \033[0;36m%-50s\033[0m \033[1;37m│\033[0m\n" "https://docs.start9.com"
+printf "    \033[1;37m│\033[0m Support:       \033[0;36m%-50s\033[0m \033[1;37m│\033[0m\n" "https://start9.com/contact"
+printf "    \033[1;37m└───────────────────────────────────────────────────────────────────┘\033[0m\n\n"

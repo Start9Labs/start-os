@@ -7,76 +7,64 @@
   <a href="https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml">
     <img src="https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml/badge.svg">
   </a>
-    <a href="https://heyapollo.com/product/startos">
+  <a href="https://heyapollo.com/product/startos">
     <img alt="Static Badge" src="https://img.shields.io/badge/apollo-review%20%E2%AD%90%E2%AD%90%E2%AD%90%E2%AD%90%E2%AD%90%20-slateblue">
   </a>
   <a href="https://twitter.com/start9labs">
     <img alt="X (formerly Twitter) Follow" src="https://img.shields.io/twitter/follow/start9labs">
   </a>
-  <a href="https://matrix.to/#/#community:matrix.start9labs.com">
-    <img alt="Static Badge" src="https://img.shields.io/badge/community-matrix-yellow?logo=matrix">
-  </a>
-  <a href="https://t.me/start9_labs">
-    <img alt="Static Badge" src="https://img.shields.io/badge/community-telegram-blue?logo=telegram">
-  </a>
   <a href="https://docs.start9.com">
     <img alt="Static Badge" src="https://img.shields.io/badge/docs-orange?label=%F0%9F%91%A4%20support">
   </a>
-  <a href="https://matrix.to/#/#community-dev:matrix.start9labs.com">
+  <a href="https://matrix.to/#/#dev-startos:matrix.start9labs.com">
     <img alt="Static Badge" src="https://img.shields.io/badge/developer-matrix-darkcyan?logo=matrix">
   </a>
   <a href="https://start9.com">
     <img alt="Website" src="https://img.shields.io/website?up_message=online&down_message=offline&url=https%3A%2F%2Fstart9.com&logo=website&label=%F0%9F%8C%90%20website">
   </a>
 </div>
-<br />
-<div align="center">
-  <h3>
-    Welcome to the era of Sovereign Computing
-  </h3>
-  <p>
-    StartOS is an open source Linux distribution optimized for running a personal server. It facilitates the discovery, installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services.
-  </p>
-</div>
-<br />
-<p align="center">
-<img src="assets/StartOS.png" alt="StartOS" width="85%">
-</p>
-<br />
 
-## Running StartOS
-> [!WARNING]
-> StartOS is in beta. It lacks features. It doesn't always work perfectly. Start9 servers are not plug and play. Using them properly requires some effort and patience. Please do not use StartOS or purchase a server if you are unable or unwilling to follow instructions and learn new concepts.
+## What is StartOS?
 
-### 💰 Buy a Start9 server
-This is the most convenient option. Simply [buy a server](https://store.start9.com) from Start9 and plug it in.
+StartOS is an open-source Linux distribution for running a personal server. It handles discovery, installation, network configuration, data backup, dependency management, and health monitoring of self-hosted services.
 
-### 👷 Build your own server
-This option is easier than you might imagine, and there are 4 reasons why you might prefer it:
-1. You already have hardware
-1. You want to save on shipping costs
-1. You prefer not to divulge your physical address
-1. You just like building things
+**Tech stack:** Rust backend (Tokio/Axum), Angular frontend, Node.js container runtime with LXC, and a custom diff-based database ([Patch-DB](https://github.com/Start9Labs/patch-db)) for reactive state synchronization.
 
-To pursue this option, follow one of our [DIY guides](https://start9.com/latest/diy).
+Services run in isolated LXC containers, packaged as [S9PKs](https://github.com/Start9Labs/start-os/blob/master/core/s9pk-structure.md) — a signed, merkle-archived format that supports partial downloads and cryptographic verification.
 
-## ❤️ Contributing
-There are multiple ways to contribute: work directly on StartOS, package a service for the marketplace, or help with documentation and guides. To learn more about contributing, see [here](https://start9.com/contribute/).
+## What can you do with it?
 
-To report security issues, please email our security team - security@start9.com.
+StartOS lets you self-host services that would otherwise depend on third-party cloud providers — giving you full ownership of your data and infrastructure.
 
-## 🌎 Marketplace
-There are dozens of services available for StartOS, and new ones are being added all the time. Check out the full list of available services [here](https://marketplace.start9.com/marketplace). To read more about the Marketplace ecosystem, check out this [blog post](https://blog.start9.com/start9-marketplace-strategy/)
+Browse available services on the [Start9 Marketplace](https://marketplace.start9.com/), including:
 
-## 🖥️ User Interface Screenshots
+- **Bitcoin & Lightning** — Run a full Bitcoin node, Lightning node, BTCPay Server, and other payment infrastructure
+- **Communication** — Self-host Matrix, SimpleX, or other messaging platforms
+- **Cloud Storage** — Run Nextcloud, Vaultwarden, and other productivity tools
 
-<p align="center">
-<img src="assets/registry.png" alt="StartOS Marketplace" width="49%">
-<img src="assets/community.png" alt="StartOS Community Registry" width="49%">
-<img src="assets/c-lightning.png" alt="StartOS NextCloud Service" width="49%">
-<img src="assets/btcpay.png" alt="StartOS BTCPay Service" width="49%">
-<img src="assets/nextcloud.png" alt="StartOS System Settings" width="49%">
-<img src="assets/system.png" alt="StartOS System Settings" width="49%">
-<img src="assets/welcome.png" alt="StartOS System Settings" width="49%">
-<img src="assets/logs.png" alt="StartOS System Settings" width="49%">
-</p>
+Services are added by the community. If a service you want isn't available, you can [package it yourself](https://github.com/Start9Labs/ai-service-packaging/).
+
+## Getting StartOS
+
+### Buy a Start9 server
+
+The easiest path. [Buy a server](https://store.start9.com) from Start9 and plug it in.
+
+### Build your own
+
+Follow the [install guide](https://docs.start9.com/start-os/installing.html) to install StartOS on your own hardware. . Reasons to go this route:
+
+1. You already have compatible hardware
+2. You want to save on shipping costs
+3. You prefer not to share your physical address
+4. You enjoy building things
+
+### Build from source
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, build instructions, and development workflow.
+
+## Contributing
+
+There are multiple ways to contribute: work directly on StartOS, package a service for the marketplace, or help with documentation and guides. See [CONTRIBUTING.md](CONTRIBUTING.md) or visit [start9.com/contribute](https://start9.com/contribute/).
+
+To report security issues, email [security@start9.com](mailto:security@start9.com).
