@@ -1870,6 +1870,20 @@ registry.package.add-mirror.unauthorized:
   fr_FR: "Non autorisé"
   pl_PL: "Brak autoryzacji"
 
+registry.package.promote.need-from-or-to:
+  en_US: "At least one of --from or --to must be specified"
+  de_DE: "Mindestens --from oder --to muss angegeben werden"
+  es_ES: "Se debe especificar al menos --from o --to"
+  fr_FR: "Au moins --from ou --to doit être spécifié"
+  pl_PL: "Należy podać przynajmniej --from lub --to"
+
+registry.package.promote.version-not-found:
+  en_US: "Version %{version} of %{id} not found on source registry"
+  de_DE: "Version %{version} von %{id} nicht in der Quell-Registry gefunden"
+  es_ES: "Versión %{version} de %{id} no encontrada en el registro de origen"
+  fr_FR: "Version %{version} de %{id} introuvable dans le registre source"
+  pl_PL: "Wersja %{version} pakietu %{id} nie znaleziona w rejestrze źródłowym"
+
 registry.package.cannot-remove-last-mirror:
   en_US: "Cannot remove last mirror from an s9pk"
   de_DE: "Letzter Spiegel kann nicht aus einem s9pk entfernt werden"
@@ -2902,6 +2916,13 @@ help.arg.force-uninstall:
   fr_FR: "Ignorer les erreurs dans le script de désinitialisation du service"
   pl_PL: "Ignoruj błędy w skrypcie deinicjalizacji usługi"
 
+help.arg.from-registry-url:
+  en_US: "Source registry URL to promote from"
+  de_DE: "Quell-Registry-URL zum Heraufstufen"
+  es_ES: "URL del registro de origen para promover"
+  fr_FR: "URL du registre source pour la promotion"
+  pl_PL: "URL rejestru źródłowego do promowania"
+
 help.arg.host-url:
   en_US: "URL of the StartOS server"
   de_DE: "URL des StartOS-Servers"
@@ -3377,6 +3398,13 @@ help.arg.target-version-range:
   es_ES: "Restricción de rango de versión objetivo"
   fr_FR: "Contrainte de plage de version cible"
   pl_PL: "Ograniczenie zakresu wersji docelowej"
+
+help.arg.to-registry-url:
+  en_US: "Destination registry URL to promote to"
+  de_DE: "Ziel-Registry-URL zum Heraufstufen"
+  es_ES: "URL del registro de destino para promover"
+  fr_FR: "URL du registre de destination pour la promotion"
+  pl_PL: "URL rejestru docelowego do promowania"
 
 help.arg.tor-proxy-url:
   en_US: "Tor SOCKS proxy URL"
@@ -5282,6 +5310,13 @@ about.persist-new-notification:
   es_ES: "Persistir una nueva notificación"
   fr_FR: "Persister une nouvelle notification"
   pl_PL: "Utrwal nowe powiadomienie"
+
+about.promote-package-registry:
+  en_US: "Promote a package from one registry to another"
+  de_DE: "Ein Paket von einer Registry in eine andere heraufstufen"
+  es_ES: "Promover un paquete de un registro a otro"
+  fr_FR: "Promouvoir un paquet d'un registre à un autre"
+  pl_PL: "Promuj pakiet z jednego rejestru do drugiego"
 
 about.publish-s9pk:
   en_US: "Publish s9pk to S3 bucket and index on registry"

@@ -8,6 +8,7 @@ pub mod add;
 pub mod category;
 pub mod get;
 pub mod index;
+pub mod promote;
 pub mod signer;
 
 pub fn package_api<C: Context>() -> ParentHandler<C> {
@@ -97,6 +98,12 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
             from_fn_async_local(get::cli_download)
                 .no_display()
                 .with_about("about.download-s9pk"),
+        )
+        .subcommand(
+            "promote",
+            from_fn_async(promote::cli_promote)
+                .no_display()
+                .with_about("about.promote-package-registry"),
         )
         .subcommand(
             "category",
