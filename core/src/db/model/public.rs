@@ -55,8 +55,6 @@ impl Public {
     ) -> Result<Self, Error> {
         Ok(Self {
             server_info: ServerInfo {
-                arch: get_arch(),
-                platform: get_platform(),
                 id: account.server_id.clone(),
                 version: Current::default().semver(),
                 name: account.hostname.name.clone(),
@@ -160,14 +158,6 @@ impl Public {
     }
 }
 
-fn get_arch() -> InternedString {
-    (*ARCH).into()
-}
-
-fn get_platform() -> InternedString {
-    (&*PLATFORM).into()
-}
-
 pub fn default_echoip_urls() -> Vec<Url> {
     vec![
         "https://ipconfig.io".parse().unwrap(),
@@ -180,10 +170,6 @@ pub fn default_echoip_urls() -> Vec<Url> {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct ServerInfo {
-    #[serde(default = "get_arch")]
-    pub arch: InternedString,
-    #[serde(default = "get_platform")]
-    pub platform: InternedString,
     pub id: String,
     pub name: InternedString,
     pub hostname: InternedString,

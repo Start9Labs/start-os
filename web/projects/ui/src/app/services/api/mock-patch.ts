@@ -14,7 +14,6 @@ export const mockPatchData: DataModel = {
     snakeHighScore: 0,
   },
   serverInfo: {
-    arch: 'x86_64',
     id: 'abcdefgh',
     version,
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
@@ -240,7 +239,6 @@ export const mockPatchData: DataModel = {
     ntpSynced: false,
     smtp: null,
     echoipUrls: ['https://ipconfig.me', 'https://ifconfig.co'],
-    platform: 'x86_64-nonfree',
     zram: true,
     governor: 'performance',
     ram: 8 * 1024 * 1024 * 1024,

@@ -7,8 +7,6 @@ import type { ServerStatus } from './ServerStatus'
 import type { SmtpValue } from './SmtpValue'
 
 export type ServerInfo = {
-  arch: string
-  platform: string
   id: string
   name: string
   hostname: string

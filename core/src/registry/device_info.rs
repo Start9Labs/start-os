@@ -233,7 +233,7 @@ impl HardwareInfo {
     pub async fn load(ctx: &RpcContext) -> Result<Self, Error> {
         let s = ctx.db.peek().await.into_public().into_server_info();
         Ok(Self {
-            arch: s.as_arch().de()?,
+            arch: InternedString::intern(&*crate::ARCH),
             ram: s.as_ram().de()?,
             devices: Some(s.as_devices().de()?),
         })
