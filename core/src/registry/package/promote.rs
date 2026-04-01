@@ -28,7 +28,7 @@ pub struct CliPromoteParams {
     pub version: VersionString,
 }
 
-fn registry_rpc_url(url: &Url) -> Result<Url, Error> {
+pub fn registry_rpc_url(url: &Url) -> Result<Url, Error> {
     let mut url = url.clone();
     url.path_segments_mut()
         .map_err(|_| eyre!("Url cannot be base"))
@@ -38,7 +38,7 @@ fn registry_rpc_url(url: &Url) -> Result<Url, Error> {
     Ok(url)
 }
 
-fn resolve_registry_url(explicit: Option<&Url>, ctx: &CliContext) -> Result<Url, Error> {
+pub fn resolve_registry_url(explicit: Option<&Url>, ctx: &CliContext) -> Result<Url, Error> {
     if let Some(url) = explicit {
         registry_rpc_url(url)
     } else if let Some(url) = &ctx.registry_url {
@@ -51,7 +51,7 @@ fn resolve_registry_url(explicit: Option<&Url>, ctx: &CliContext) -> Result<Url,
     }
 }
 
-async fn call_registry(
+pub async fn call_registry(
     ctx: &CliContext,
     url: Url,
     method: &str,

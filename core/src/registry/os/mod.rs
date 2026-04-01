@@ -8,6 +8,7 @@ pub const SIG_CONTEXT: &str = "startos";
 
 pub mod asset;
 pub mod index;
+pub mod promote;
 pub mod version;
 
 pub fn os_api<C: Context>() -> ParentHandler<C> {
@@ -27,5 +28,11 @@ pub fn os_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "version",
             version::version_api::<C>().with_about("about.commands-add-remove-list-versions"),
+        )
+        .subcommand(
+            "promote",
+            from_fn_async(promote::cli_os_promote)
+                .no_display()
+                .with_about("about.promote-os-registry"),
         )
 }

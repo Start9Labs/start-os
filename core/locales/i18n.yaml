@@ -1826,6 +1826,21 @@ registry.os.version.signer-not-authorized:
   fr_FR: "Le signataire %{signer} n'est pas autorisé à signer pour v%{version}"
   pl_PL: "Sygnatariusz %{signer} nie jest autoryzowany do podpisywania v%{version}"
 
+# registry/os/promote.rs
+registry.os.promote.need-from-or-to:
+  en_US: "At least one of --from or --to must be specified"
+  de_DE: "Mindestens --from oder --to muss angegeben werden"
+  es_ES: "Se debe especificar al menos --from o --to"
+  fr_FR: "Au moins --from ou --to doit être spécifié"
+  pl_PL: "Należy podać przynajmniej --from lub --to"
+
+registry.os.promote.version-not-found:
+  en_US: "OS version %{version} not found on source registry"
+  de_DE: "OS-Version %{version} nicht in der Quell-Registry gefunden"
+  es_ES: "Versión del SO %{version} no encontrada en el registro de origen"
+  fr_FR: "Version OS %{version} introuvable dans le registre source"
+  pl_PL: "Wersja OS %{version} nie znaleziona w rejestrze źródłowym"
+
 # registry/package/mod.rs
 registry.package.remove-not-exist:
   en_US: "%{id}@%{version}%{sighash} does not exist, so not removed"
@@ -5310,6 +5325,13 @@ about.persist-new-notification:
   es_ES: "Persistir una nueva notificación"
   fr_FR: "Persister une nouvelle notification"
   pl_PL: "Utrwal nowe powiadomienie"
+
+about.promote-os-registry:
+  en_US: "Promote an OS version from one registry to another"
+  de_DE: "Eine OS-Version von einer Registry in eine andere heraufstufen"
+  es_ES: "Promover una versión del SO de un registro a otro"
+  fr_FR: "Promouvoir une version OS d'un registre à un autre"
+  pl_PL: "Promuj wersję OS z jednego rejestru do drugiego"
 
 about.promote-package-registry:
   en_US: "Promote a package from one registry to another"
