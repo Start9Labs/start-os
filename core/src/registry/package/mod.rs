@@ -56,7 +56,11 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                             t!(
                                 "registry.package.remove-not-exist",
                                 id = args.params.id,
-                                version = args.params.version,
+                                version = args
+                                    .params
+                                    .version
+                                    .as_ref()
+                                    .map_or(String::new(), |v| format!("@{v}")),
                                 sighash = args
                                     .params
                                     .sighash

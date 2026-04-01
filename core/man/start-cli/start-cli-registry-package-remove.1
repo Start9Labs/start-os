@@ -4,7 +4,7 @@
 .SH NAME
 start\-cli\-registry\-package\-remove \- Remove package from registry
 .SH SYNOPSIS
-\fBstart\-cli registry package remove\fR [\fB\-\-sighash\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIID\fR> <\fIVERSION\fR> 
+\fBstart\-cli registry package remove\fR [\fB\-\-sighash\fR] [\fB\-\-force\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIID\fR> [\fIVERSION\fR] 
 .SH DESCRIPTION
 Remove package from registry
 .SH OPTIONS
@@ -12,11 +12,14 @@ Remove package from registry
 \fB\-\-sighash\fR \fI<SIGHASH>\fR
 Hash for signature verification
 .TP
+\fB\-\-force\fR
+Force removal even if the package has versions
+.TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
 <\fIID\fR>
 Package identifier
 .TP
-<\fIVERSION\fR>
+[\fIVERSION\fR]
 Package version

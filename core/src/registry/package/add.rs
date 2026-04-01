@@ -226,9 +226,12 @@ pub struct RemovePackageParams {
     #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
     #[arg(help = "help.arg.package-version")]
-    pub version: VersionString,
+    pub version: Option<VersionString>,
     #[arg(long, help = "help.arg.signature-hash")]
     pub sighash: Option<Base64<[u8; 32]>>,
+    #[arg(long, help = "help.arg.force-remove-package")]
+    #[serde(default)]
+    pub force: bool,
     #[ts(skip)]
     #[arg(skip)]
     #[serde(rename = "__Auth_signer")]
@@ -241,6 +244,7 @@ pub async fn remove_package(
         id,
         version,
         sighash,
+        force,
         signer,
     }: RemovePackageParams,
 ) -> Result<bool, Error> {
@@ -256,7 +260,8 @@ pub async fn remove_package(
     let rev = ctx
         .db
         .mutate(|db| {
-            if db.as_admins().de()?.contains(&signer_guid)
+            let is_admin = db.as_admins().de()?.contains(&signer_guid);
+            let is_authorized = is_admin
                 || db
                     .as_index()
                     .as_package()
@@ -266,28 +271,61 @@ pub async fn remove_package(
                     .as_authorized()
                     .de()?
                     .get(&signer_guid)
-                    .map_or(false, |v| version.satisfies(v))
-            {
-                if let Some(package) = db
-                    .as_index_mut()
-                    .as_package_mut()
-                    .as_packages_mut()
-                    .as_idx_mut(&id)
-                {
-                    if let Some(sighash) = sighash {
-                        if if let Some(package) = package.as_versions_mut().as_idx_mut(&version) {
-                            package.as_s9pks_mut().mutate(|s| {
-                                s.retain(|(_, asset)| asset.commitment.root_sighash != sighash);
-                                Ok(s.is_empty())
-                            })?
+                    .map_or(false, |v| {
+                        version
+                            .as_ref()
+                            .map_or(true, |version| version.satisfies(v))
+                    });
+            if is_authorized {
+                if let Some(version) = &version {
+                    if let Some(package) = db
+                        .as_index_mut()
+                        .as_package_mut()
+                        .as_packages_mut()
+                        .as_idx_mut(&id)
+                    {
+                        if let Some(sighash) = sighash {
+                            if if let Some(package) =
+                                package.as_versions_mut().as_idx_mut(version)
+                            {
+                                package.as_s9pks_mut().mutate(|s| {
+                                    s.retain(|(_, asset)| {
+                                        asset.commitment.root_sighash != sighash
+                                    });
+                                    Ok(s.is_empty())
+                                })?
+                            } else {
+                                false
+                            } {
+                                package.as_versions_mut().remove(version)?;
+                            }
                         } else {
-                            false
-                        } {
-                            package.as_versions_mut().remove(&version)?;
+                            package.as_versions_mut().remove(version)?;
                         }
-                    } else {
-                        package.as_versions_mut().remove(&version)?;
                     }
+                } else {
+                    let has_versions = db
+                        .as_index()
+                        .as_package()
+                        .as_packages()
+                        .as_idx(&id)
+                        .map(|p| {
+                            p.as_versions()
+                                .as_entries()
+                                .map(|e| !e.is_empty())
+                                .unwrap_or(false)
+                        })
+                        .unwrap_or(false);
+                    if has_versions && !force {
+                        return Err(Error::new(
+                            eyre!("{}", t!("registry.package.remove-has-versions", id = id)),
+                            ErrorKind::InvalidRequest,
+                        ));
+                    }
+                    db.as_index_mut()
+                        .as_package_mut()
+                        .as_packages_mut()
+                        .remove(&id)?;
                 }
                 Ok(())
             } else {

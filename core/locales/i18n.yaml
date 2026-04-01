@@ -1843,11 +1843,11 @@ registry.os.promote.version-not-found:
 
 # registry/package/mod.rs
 registry.package.remove-not-exist:
-  en_US: "%{id}@%{version}%{sighash} does not exist, so not removed"
-  de_DE: "%{id}@%{version}%{sighash} existiert nicht, daher nicht entfernt"
-  es_ES: "%{id}@%{version}%{sighash} no existe, por lo que no se eliminó"
-  fr_FR: "%{id}@%{version}%{sighash} n'existe pas, donc non supprimé"
-  pl_PL: "%{id}@%{version}%{sighash} nie istnieje, więc nie usunięto"
+  en_US: "%{id}%{version}%{sighash} does not exist, so not removed"
+  de_DE: "%{id}%{version}%{sighash} existiert nicht, daher nicht entfernt"
+  es_ES: "%{id}%{version}%{sighash} no existe, por lo que no se eliminó"
+  fr_FR: "%{id}%{version}%{sighash} n'existe pas, donc non supprimé"
+  pl_PL: "%{id}%{version}%{sighash} nie istnieje, więc nie usunięto"
 
 # registry/package/add.rs
 registry.package.add.must-specify-url:
@@ -1870,6 +1870,13 @@ registry.package.missing-signer:
   es_ES: "Falta firmante"
   fr_FR: "Signataire manquant"
   pl_PL: "Brak sygnatariusza"
+
+registry.package.remove-has-versions:
+  en_US: "Package %{id} has versions; use --force to remove"
+  de_DE: "Paket %{id} hat Versionen; verwenden Sie --force zum Entfernen"
+  es_ES: "El paquete %{id} tiene versiones; use --force para eliminar"
+  fr_FR: "Le paquet %{id} a des versions ; utilisez --force pour supprimer"
+  pl_PL: "Pakiet %{id} ma wersje; użyj --force aby usunąć"
 
 registry.package.unauthorized:
   en_US: "Unauthorized"
@@ -2909,6 +2916,13 @@ help.arg.force-clear-task:
   es_ES: "Forzar la limpieza de la tarea aunque esté ejecutándose"
   fr_FR: "Forcer la suppression de la tâche même si elle est en cours"
   pl_PL: "Wymuś wyczyszczenie zadania nawet jeśli jest uruchomione"
+
+help.arg.force-remove-package:
+  en_US: "Force removal even if the package has versions"
+  de_DE: "Entfernung erzwingen, auch wenn das Paket Versionen hat"
+  es_ES: "Forzar la eliminación aunque el paquete tenga versiones"
+  fr_FR: "Forcer la suppression même si le paquet a des versions"
+  pl_PL: "Wymuś usunięcie nawet jeśli pakiet ma wersje"
 
 help.arg.force-stderr-tty:
   en_US: "Force stderr to be treated as a TTY"
