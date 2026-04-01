@@ -27,6 +27,7 @@ pub mod context;
 pub mod db;
 pub mod device_info;
 pub mod info;
+pub mod metrics;
 mod migrations;
 pub mod os;
 pub mod package;
@@ -99,6 +100,10 @@ pub fn registry_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "db",
             db::db_api::<C>().with_about("about.commands-registry-db"),
+        )
+        .subcommand(
+            "metrics",
+            metrics::metrics_api::<C>().with_about("about.commands-registry-metrics"),
         )
 }
 

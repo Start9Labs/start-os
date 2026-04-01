@@ -1,12 +1,14 @@
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use chrono::Utc;
 use clap::Parser;
 use exver::{Version, VersionRange};
 use imbl_value::InternedString;
 use itertools::Itertools;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
+use rusqlite::params;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 use ts_rs::TS;
 
 use crate::context::CliContext;
@@ -159,33 +161,6 @@ pub struct GetOsVersionParams {
     pub device_info: Option<DeviceInfo>,
 }
 
-struct PgDateTime(DateTime<Utc>);
-impl sqlx::Type<sqlx::Postgres> for PgDateTime {
-    fn type_info() -> <sqlx::Postgres as sqlx::Database>::TypeInfo {
-        sqlx::postgres::PgTypeInfo::with_oid(sqlx::postgres::types::Oid(1184))
-    }
-}
-impl sqlx::Encode<'_, sqlx::Postgres> for PgDateTime {
-    fn encode_by_ref(
-        &self,
-        buf: &mut <sqlx::Postgres as sqlx::Database>::ArgumentBuffer<'_>,
-    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
-        fn postgres_epoch_datetime() -> NaiveDateTime {
-            NaiveDate::from_ymd_opt(2000, 1, 1)
-                .expect("expected 2000-01-01 to be a valid NaiveDate")
-                .and_hms_opt(0, 0, 0)
-                .expect("expected 2000-01-01T00:00:00 to be a valid NaiveDateTime")
-        }
-        let micros = (self.0.naive_utc() - postgres_epoch_datetime())
-            .num_microseconds()
-            .ok_or_else(|| format!("NaiveDateTime out of range for Postgres: {:?}", self.0))?;
-        micros.encode(buf)
-    }
-    fn size_hint(&self) -> usize {
-        std::mem::size_of::<i64>()
-    }
-}
-
 pub async fn get_version(
     ctx: RegistryContext,
     GetOsVersionParams {
@@ -199,16 +174,28 @@ pub async fn get_version(
 {
     let source = source.or_else(|| device_info.as_ref().map(|d| d.os.version.clone()));
     let platform = platform.or_else(|| device_info.as_ref().map(|d| d.os.platform.clone()));
-    if let (Some(pool), Some(server_id), Some(arch)) = (&ctx.pool, server_id, &platform) {
-        let created_at = Utc::now();
-
-        sqlx::query("INSERT INTO user_activity (created_at, server_id, arch) VALUES ($1, $2, $3)")
-            .bind(PgDateTime(created_at))
-            .bind(server_id)
-            .bind(&**arch)
-            .execute(pool)
-            .await
-            .with_kind(ErrorKind::Database)?;
+    if let (Some(server_id), Some(arch)) = (server_id, &platform) {
+        const MAX_SERVER_ID_LEN: usize = 256;
+        if server_id.len() <= MAX_SERVER_ID_LEN {
+            let created_at = Utc::now().to_rfc3339();
+            let arch = arch.to_string();
+            let os_version = source.as_ref().map(|v| v.to_string());
+            let ctx = ctx.clone();
+            tokio::task::spawn_blocking(move || {
+                ctx.metrics_db.mutate(|conn| {
+                    if let Err(e) = conn.execute(
+                        concat!(
+                            "INSERT INTO user_activity ",
+                            "(created_at, server_id, arch, os_version) ",
+                            "VALUES (?1, ?2, ?3, ?4)"
+                        ),
+                        params![created_at, server_id, arch, os_version],
+                    ) {
+                        warn!("failed to record user activity metric: {e}");
+                    }
+                });
+            });
+        }
     }
     let target = target.unwrap_or(VersionRange::Any);
     let mut res = to_value::<BTreeMap<Version, OsVersionInfo>>(

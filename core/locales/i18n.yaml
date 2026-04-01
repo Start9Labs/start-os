@@ -3007,6 +3007,34 @@ help.arg.merge:
   fr_FR: "Fusionner avec la plage de versions existante au lieu de remplacer"
   pl_PL: "Połącz z istniejącym zakresem wersji zamiast zastępować"
 
+help.arg.metrics-after:
+  en_US: "Start of time range (RFC 3339 timestamp)"
+  de_DE: "Beginn des Zeitraums (RFC 3339 Zeitstempel)"
+  es_ES: "Inicio del rango de tiempo (marca de tiempo RFC 3339)"
+  fr_FR: "Début de la plage temporelle (horodatage RFC 3339)"
+  pl_PL: "Początek zakresu czasu (znacznik czasu RFC 3339)"
+
+help.arg.metrics-before:
+  en_US: "End of time range (RFC 3339 timestamp)"
+  de_DE: "Ende des Zeitraums (RFC 3339 Zeitstempel)"
+  es_ES: "Fin del rango de tiempo (marca de tiempo RFC 3339)"
+  fr_FR: "Fin de la plage temporelle (horodatage RFC 3339)"
+  pl_PL: "Koniec zakresu czasu (znacznik czasu RFC 3339)"
+
+help.arg.metrics-pkg-id:
+  en_US: "Filter by package ID"
+  de_DE: "Nach Paket-ID filtern"
+  es_ES: "Filtrar por ID de paquete"
+  fr_FR: "Filtrer par identifiant de paquet"
+  pl_PL: "Filtruj według identyfikatora pakietu"
+
+help.arg.metrics-version:
+  en_US: "Filter by version"
+  de_DE: "Nach Version filtern"
+  es_ES: "Filtrar por versión"
+  fr_FR: "Filtrer par version"
+  pl_PL: "Filtruj według wersji"
+
 help.arg.mirror-url:
   en_US: "URL of the mirror"
   de_DE: "URL des Spiegels"
@@ -3125,13 +3153,6 @@ help.arg.port:
   es_ES: "Número de puerto"
   fr_FR: "Numéro de port"
   pl_PL: "Numer portu"
-
-help.arg.postgres-connection-url:
-  en_US: "PostgreSQL connection URL"
-  de_DE: "PostgreSQL-Verbindungs-URL"
-  es_ES: "URL de conexión PostgreSQL"
-  fr_FR: "URL de connexion PostgreSQL"
-  pl_PL: "URL połączenia PostgreSQL"
 
 help.arg.proxy-url:
   en_US: "HTTP/SOCKS proxy URL"
@@ -4457,6 +4478,13 @@ about.commands-registry-db:
   fr_FR: "Commandes pour interagir avec la base de données, comme dump et apply"
   pl_PL: "Polecenia interakcji z bazą danych, np. dump i apply"
 
+about.commands-registry-metrics:
+  en_US: "Query registry usage metrics"
+  de_DE: "Registry-Nutzungsmetriken abfragen"
+  es_ES: "Consultar métricas de uso del registro"
+  fr_FR: "Consulter les métriques d'utilisation du registre"
+  pl_PL: "Zapytaj o metryki użycia rejestru"
+
 about.commands-registry-info:
   en_US: "View or edit registry information"
   de_DE: "Registry-Informationen anzeigen oder bearbeiten"
@@ -4897,6 +4925,27 @@ about.get-listen-address-for-webserver:
   es_ES: "Obtener la dirección de escucha del servidor web"
   fr_FR: "Obtenir l'adresse d'écoute du serveur web"
   pl_PL: "Pobierz adres nasłuchiwania serwera internetowego"
+
+about.get-metrics-downloads:
+  en_US: "Count package download requests with optional filters"
+  de_DE: "Paket-Download-Anfragen mit optionalen Filtern zählen"
+  es_ES: "Contar solicitudes de descarga de paquetes con filtros opcionales"
+  fr_FR: "Compter les demandes de téléchargement de paquets avec filtres optionnels"
+  pl_PL: "Zlicz żądania pobrania pakietów z opcjonalnymi filtrami"
+
+about.get-metrics-summary:
+  en_US: "Get a summary of registry usage metrics"
+  de_DE: "Zusammenfassung der Registry-Nutzungsmetriken abrufen"
+  es_ES: "Obtener un resumen de las métricas de uso del registro"
+  fr_FR: "Obtenir un résumé des métriques d'utilisation du registre"
+  pl_PL: "Pobierz podsumowanie metryk użycia rejestru"
+
+about.get-metrics-users:
+  en_US: "Count unique active users within a time range"
+  de_DE: "Eindeutige aktive Benutzer in einem Zeitraum zählen"
+  es_ES: "Contar usuarios activos únicos dentro de un rango de tiempo"
+  fr_FR: "Compter les utilisateurs actifs uniques dans un intervalle de temps"
+  pl_PL: "Zlicz unikalnych aktywnych użytkowników w zakresie czasu"
 
 about.get-os-versions-info:
   en_US: "Get OS versions info"

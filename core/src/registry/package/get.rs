@@ -8,6 +8,10 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use chrono::Utc;
+use rusqlite::params;
+use tracing::warn;
+
 use crate::PackageId;
 use crate::context::CliContext;
 use crate::prelude::*;
@@ -233,6 +237,25 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
         }
     }
     if let Some(id) = &params.id {
+        if params.target_version.is_some() {
+            let created_at = Utc::now().to_rfc3339();
+            let pkg_id = id.to_string();
+            let version = best
+                .get(id)
+                .and_then(|b| b.keys().last())
+                .map(|v| v.to_string());
+            let ctx = ctx.clone();
+            tokio::task::spawn_blocking(move || {
+                ctx.metrics_db.mutate(|conn| {
+                    if let Err(e) = conn.execute(
+                        "INSERT INTO package_request (created_at, pkg_id, version) VALUES (?1, ?2, ?3)",
+                        params![created_at, pkg_id, version],
+                    ) {
+                        warn!("failed to record package request metric: {e}");
+                    }
+                });
+            });
+        }
         let categories = peek
             .as_index()
             .as_package()

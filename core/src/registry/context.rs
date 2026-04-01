@@ -14,8 +14,8 @@ use patch_db::json_ptr::ROOT;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty, RpcRequest};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;
 use ts_rs::TS;
@@ -34,6 +34,7 @@ use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::RpcContinuations;
 use crate::sign::AnyVerifyingKey;
 use crate::util::io::{append_file, read_file_to_string};
+use crate::util::sync::SyncMutex;
 
 const DEFAULT_REGISTRY_LISTEN: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 5959);
@@ -57,12 +58,6 @@ pub struct RegistryConfig {
     pub tor_proxy: Option<Url>,
     #[arg(short = 'd', long = "datadir", help = "help.arg.data-directory")]
     pub datadir: Option<PathBuf>,
-    #[arg(
-        short = 'u',
-        long = "pg-connection-url",
-        help = "help.arg.postgres-connection-url"
-    )]
-    pub pg_connection_url: Option<String>,
 }
 impl ContextConfig for RegistryConfig {
     fn next(&mut self) -> Option<PathBuf> {
@@ -93,7 +88,7 @@ pub struct RegistryContextSeed {
     pub rpc_continuations: RpcContinuations,
     pub client: Client,
     pub shutdown: Sender<()>,
-    pub pool: Option<PgPool>,
+    pub metrics_db: SyncMutex<Connection>,
 }
 
 #[derive(Clone)]
@@ -124,13 +119,29 @@ impl RegistryContext {
             .clone()
             .map(Ok)
             .unwrap_or_else(|| "socks5h://tor.startos:9050".parse())?;
-        let pool: Option<PgPool> = match &config.pg_connection_url {
-            Some(url) => match PgPool::connect(url.as_str()).await {
-                Ok(pool) => Some(pool),
-                Err(_) => None,
-            },
-            None => None,
-        };
+        let metrics_db_path = datadir.join("metrics.db");
+        let metrics_db = Connection::open(&metrics_db_path).with_kind(ErrorKind::Database)?;
+        metrics_db
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS user_activity (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    created_at TEXT NOT NULL,
+                    server_id TEXT NOT NULL,
+                    arch TEXT,
+                    os_version TEXT
+                );
+                CREATE TABLE IF NOT EXISTS package_request (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    created_at TEXT NOT NULL,
+                    pkg_id TEXT NOT NULL,
+                    version TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_user_activity_created_at ON user_activity(created_at);
+                CREATE INDEX IF NOT EXISTS idx_package_request_created_at ON package_request(created_at);
+                CREATE INDEX IF NOT EXISTS idx_package_request_pkg_id ON package_request(pkg_id);",
+            )
+            .with_kind(ErrorKind::Database)?;
+        let metrics_db = SyncMutex::new(metrics_db);
         if config.registry_hostname.is_empty() {
             return Err(Error::new(
                 eyre!("{}", t!("registry.context.missing-hostname")),
@@ -154,7 +165,7 @@ impl RegistryContext {
                 .build()
                 .with_kind(crate::ErrorKind::ParseUrl)?,
             shutdown,
-            pool,
+            metrics_db,
         })))
     }
 }
