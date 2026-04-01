@@ -1,9 +1,11 @@
-# Contributing — Backend
+# Contributing to Backend
+
+For general setup and build system, see the root [CONTRIBUTING.md](../CONTRIBUTING.md). For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Tech Stack
 
 - **Rust** (2021 edition) with a 3-crate workspace
-- **axum** + **tokio** for the HTTP server
+- **axum** + **axum-server** + **tokio** for the HTTP/HTTPS server
 - **[rpc-toolkit](https://github.com/Start9Labs/rpc-toolkit)** for JSON-RPC 2.0 (Start9Labs library)
 - **uciedit** for parsing/writing OpenWrt UCI config files (workspace crate)
 - **clap** for CLI argument parsing
@@ -14,23 +16,118 @@
 ```bash
 cargo build                          # Build all crates
 cargo build -p startwrt-ctrl         # Build ctrl only
-cargo build -p uciedit               # Build UCI library only
 cargo test -p uciedit                # Run UCI parser tests
+cargo check                          # Type-check without building
 ```
+
+Cross-compilation for the router target (riscv64gc-unknown-linux-musl) is handled by `build/build-rust.sh`.
+
+For dev authentication, set `STARTWRT_DEV_PASSWORD` to bypass `/etc/shadow` validation.
 
 ### Crates
 
-| Crate | Description |
-|-------|-------------|
-| `ctrl` | RPC server (`startwrt-ctrld`) and CLI (`startwrt-cli`) |
-| `uciedit` | UCI config parser/serializer with atomic writes and conflict detection |
-| `uciedit_macros` | `#[derive(TypedSection)]` proc macro for typed UCI sections |
+| Crate | Package | Description |
+|-------|---------|-------------|
+| `ctrl` | `startwrt-ctrl` | RPC server (`startwrt-ctrld`) and CLI (`startwrt-cli`) |
+| `uciedit` | `uciedit` | UCI config parser/serializer with atomic writes and conflict detection |
+| `uciedit_macros` | `uciedit_macros` | `#[derive(TypedSection)]` proc macro for typed UCI sections |
 
 ### Other Directories
 
-- `firstboot_config/` — Template UCI configs applied on factory reset. Useful reference for expected config structure.
-- `config_experiments/` — Historical UCI configs from manual testing on hardware.
+- `firstboot_config/` — Factory-default UCI configs embedded in the binary via `include_dir`
+- `config_experiments/` — Reference UCI configs for manual testing
 
-## Architecture & Patterns
+## Adding a New RPC Endpoint
 
-See [CLAUDE.md](CLAUDE.md) for detailed module documentation, UCI library internals, and backend conventions.
+1. **Define param/response types** in your module:
+
+```rust
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MyParams {
+    name: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MyResponse {
+    success: bool,
+}
+```
+
+2. **Write the handler function:**
+
+```rust
+pub async fn my_handler<C: CtrlContext>(ctx: C, args: MyParams) -> Result<MyResponse, Error> {
+    let arena = Arena::new();
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["network"])?;
+    // ... read/modify UCI configs ...
+    dump_all(&mut cfgs)?;
+    if ctx.effectful() {
+        run_quiet(Command::new("/etc/init.d/network").arg("reload"))?;
+    }
+    Ok(MyResponse { success: true })
+}
+```
+
+3. **Register in the module's parent handler:**
+
+```rust
+pub fn my_module<C: CtrlContext + Clone>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand("my-method", from_fn_async(my_handler).with_display_serializable())
+}
+```
+
+4. **Register the module in `main_api()`** in `ctrl/src/lib.rs`:
+
+```rust
+.subcommand("my-module", my_module::my_module::<C>())
+```
+
+5. **Add to `ApiService`** in the frontend (`web/src/app/services/api/api.service.ts`) and both implementations (`live-api.service.ts`, `mock-api.service.ts`).
+
+6. **Add to [API_CONTRACT.md](../API_CONTRACT.md)** with Rust types.
+
+## Adding a Typed UCI Section
+
+1. **Define the struct** in `uciedit/src/openwrt.rs`:
+
+```rust
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "mytype")]
+pub struct MySection {
+    pub name: String,
+    #[uci(default)]
+    pub enabled: bool,
+    #[uci(rename = "type")]
+    pub kind: String,
+}
+```
+
+Macro attributes:
+- `#[uci(ty = "name")]` — UCI section type
+- `#[uci(rename = "option")]` — field name differs from UCI option name
+- `#[uci(default)]` — use `Default::default()` if option missing
+- `#[uci(default_value = expr)]` — custom default value
+- `#[uci(inpt)]` — use `inpt` parser instead of `FromStr`
+
+2. **Use it** in handler code:
+
+```rust
+let arena = Arena::new();
+let cfg = Config::parse("myconfig", ctx.uci_root(), &arena)?;
+cfg.try_each(|section_name, section: MySection| {
+    // process each section of this type
+    Ok(())
+})?;
+```
+
+## Testing
+
+```bash
+cargo test -p uciedit                # UCI parser tests (most coverage here)
+cargo test -p startwrt-ctrl          # Handler tests (if any)
+```
+
+UCI parser tests use inline config strings. See `uciedit/src/tests.rs` for examples of testing parsing, writing, conflict detection, and typed section access.
