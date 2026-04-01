@@ -83,11 +83,16 @@ if [ ${#DEB_FILES[@]} -eq 0 ]; then
     exit 1
 fi
 
-# Copy each deb to the pool, renaming to standard format
+# Copy each deb to the pool, removing old versions of the same package+arch
 for deb in "${DEB_FILES[@]}"; do
     PKG_NAME="$(dpkg-deb --field "$deb" Package)"
+    PKG_ARCH="$(dpkg-deb --field "$deb" Architecture)"
     POOL_DIR="$REPO_DIR/pool/${COMPONENT}/${PKG_NAME:0:1}/${PKG_NAME}"
     mkdir -p "$POOL_DIR"
+    # Remove old versions for the same architecture
+    for old in "$POOL_DIR"/${PKG_NAME}_*_${PKG_ARCH}.deb; do
+        [ -f "$old" ] && rm -v "$old"
+    done
     cp "$deb" "$POOL_DIR/"
     dpkg-name -o "$POOL_DIR/$(basename "$deb")" 2>/dev/null || true
     echo "Added: $(basename "$deb") -> pool/${COMPONENT}/${PKG_NAME:0:1}/${PKG_NAME}/"

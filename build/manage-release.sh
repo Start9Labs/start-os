@@ -8,6 +8,7 @@ S3_BUCKET="s3://startos-images"
 S3_CDN="https://startos-images.nyc3.cdn.digitaloceanspaces.com"
 START9_GPG_KEY="2D63C217"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ARCHES="aarch64 aarch64-nonfree aarch64-nvidia riscv64 riscv64-nonfree x86_64 x86_64-nonfree x86_64-nvidia"
 CLI_ARCHES="aarch64 riscv64 x86_64"
 
@@ -83,15 +84,20 @@ resolve_gh_user() {
     GH_GPG_KEY=$(git config user.signingkey 2>/dev/null || true)
 }
 
+# Fetch the URL for an OS asset from the registry index.
+# Usage: registry_url <iso|squashfs|img> <platform>
+registry_url() {
+    local ext=$1 platform=$2
+    if [ -z "${_REGISTRY_INDEX:-}" ]; then
+        _REGISTRY_INDEX=$(start-cli --registry=$REGISTRY registry os index)
+    fi
+    echo "$_REGISTRY_INDEX" | jq -r ".versions[\"$VERSION\"].$ext[\"$platform\"].urls[0]"
+}
+
 # --- Subcommands ---
 
 cmd_download() {
     require_version
-
-    if [ -z "${RUN_ID:-}" ]; then
-        read -rp "RUN_ID (OS images, leave blank to skip): " RUN_ID
-    fi
-    RUN_ID=$(parse_run_id "${RUN_ID:-}")
 
     if [ -z "${ST_RUN_ID:-}" ]; then
         read -rp "ST_RUN_ID (start-tunnel, leave blank to skip): " ST_RUN_ID
@@ -105,14 +111,14 @@ cmd_download() {
 
     ensure_release_dir
 
-    if [ -n "$RUN_ID" ]; then
-        for arch in $ARCHES; do
-            while ! gh run download -R $REPO "$RUN_ID" -n "$arch.squashfs" -D "$(pwd)"; do sleep 1; done
+    # Download OS images from registry (deployed by GitHub workflow)
+    echo "Downloading OS images from registry..."
+    for arch in $ARCHES; do
+        for ext in squashfs iso; do
+            echo "  $ext $arch"
+            start-cli --registry=$REGISTRY registry os asset get "$ext" "$VERSION" "$arch" -d "$(pwd)"
         done
-        for arch in $ARCHES; do
-            while ! gh run download -R $REPO "$RUN_ID" -n "$arch.iso" -D "$(pwd)"; do sleep 1; done
-        done
-    fi
+    done
 
     if [ -n "$ST_RUN_ID" ]; then
         for arch in $CLI_ARCHES; do
@@ -143,19 +149,12 @@ cmd_pull() {
         gh release download -R $REPO "v$VERSION" -p "$file" -D "$(pwd)" --clobber
     done
 
-    # Download ISOs and squashfs from S3 CDN
+    # Download ISOs and squashfs from registry
+    echo "Downloading OS images from registry..."
     for arch in $ARCHES; do
         for ext in squashfs iso; do
-            # Get the actual filename from the GH release asset list or body
-            local filename
-            filename=$(gh release view -R $REPO "v$VERSION" --json assets -q ".assets[].name" | grep "_${arch}\\.${ext}$" || true)
-            if [ -z "$filename" ]; then
-                filename=$(gh release view -R $REPO "v$VERSION" --json body -q .body | grep -oP "[^ ]*_${arch}\\.${ext}" | head -1 || true)
-            fi
-            if [ -n "$filename" ]; then
-                echo "Downloading $filename from S3..."
-                curl -fSL -o "$filename" "$S3_CDN/v$VERSION/$filename"
-            fi
+            echo "  $ext $arch"
+            start-cli --registry=$REGISTRY registry os asset get "$ext" "$VERSION" "$arch" -d "$(pwd)"
         done
     done
 }
@@ -170,14 +169,12 @@ cmd_upload() {
     require_version
     enter_release_dir
 
+    # OS images (iso/squashfs) are already on S3 via the GitHub workflow.
+    # Upload only debs and CLI binaries to the GitHub Release.
     for file in $(release_files); do
         case "$file" in
-            *.iso|*.squashfs)
-                s3cmd put -P "$file" "$S3_BUCKET/v$VERSION/$file"
-                ;;
-            *)
-                gh release upload -R $REPO "v$VERSION" "$file"
-                ;;
+            *.iso|*.squashfs) ;;
+            *) gh release upload -R $REPO "v$VERSION" "$file" ;;
         esac
     done
 }
@@ -248,6 +245,24 @@ cmd_cosign() {
     echo "Done. Personal signatures for $GH_USER added to v$VERSION."
 }
 
+cmd_publish_tunnel() {
+    require_version
+    enter_release_dir
+
+    local tunnel_debs=()
+    for file in start-tunnel*.deb; do
+        [ -f "$file" ] && tunnel_debs+=("$file")
+    done
+
+    if [ ${#tunnel_debs[@]} -eq 0 ]; then
+        >&2 echo "No start-tunnel .deb files found in release directory"
+        exit 1
+    fi
+
+    echo "Publishing start-tunnel debs to apt repository..."
+    "$SCRIPT_DIR/apt/publish-deb.sh" "${tunnel_debs[@]}"
+}
+
 cmd_notes() {
     require_version
     enter_release_dir
@@ -255,14 +270,14 @@ cmd_notes() {
     cat << EOF
 # ISO Downloads
 
-- [x86_64/AMD64]($S3_CDN/v$VERSION/$(ls *_x86_64-nonfree.iso))
-- [x86_64/AMD64 + NVIDIA]($S3_CDN/v$VERSION/$(ls *_x86_64-nvidia.iso))
-- [x86_64/AMD64-slim (FOSS-only)]($S3_CDN/v$VERSION/$(ls *_x86_64.iso) "Without proprietary software or drivers")
-- [aarch64/ARM64]($S3_CDN/v$VERSION/$(ls *_aarch64-nonfree.iso))
-- [aarch64/ARM64 + NVIDIA]($S3_CDN/v$VERSION/$(ls *_aarch64-nvidia.iso))
-- [aarch64/ARM64-slim (FOSS-Only)]($S3_CDN/v$VERSION/$(ls *_aarch64.iso) "Without proprietary software or drivers")
-- [RISCV64 (RVA23)]($S3_CDN/v$VERSION/$(ls *_riscv64-nonfree.iso))
-- [RISCV64 (RVA23)-slim (FOSS-only)]($S3_CDN/v$VERSION/$(ls *_riscv64.iso) "Without proprietary software or drivers")
+- [x86_64/AMD64]($(registry_url iso x86_64-nonfree))
+- [x86_64/AMD64 + NVIDIA]($(registry_url iso x86_64-nvidia))
+- [x86_64/AMD64-slim (FOSS-only)]($(registry_url iso x86_64) "Without proprietary software or drivers")
+- [aarch64/ARM64]($(registry_url iso aarch64-nonfree))
+- [aarch64/ARM64 + NVIDIA]($(registry_url iso aarch64-nvidia))
+- [aarch64/ARM64-slim (FOSS-Only)]($(registry_url iso aarch64) "Without proprietary software or drivers")
+- [RISCV64 (RVA23)]($(registry_url iso riscv64-nonfree))
+- [RISCV64 (RVA23)-slim (FOSS-only)]($(registry_url iso riscv64) "Without proprietary software or drivers")
 
 EOF
     cat << 'EOF'
@@ -318,9 +333,8 @@ EOF
 
 cmd_full_release() {
     cmd_download
-    cmd_register
     cmd_upload
-    cmd_index
+    cmd_publish_tunnel
     cmd_sign
     cmd_notes
 }
@@ -330,22 +344,23 @@ usage() {
 Usage: manage-release.sh <subcommand>
 
 Subcommands:
-  download      Download artifacts from GitHub Actions runs
-                Requires: RUN_ID, ST_RUN_ID, CLI_RUN_ID (any combination)
-  pull          Download an existing release from the GH tag and S3
-  register      Register the version in the Start9 registry
-  upload        Upload artifacts to GitHub Releases and S3
-  index         Add assets to the registry index
-  sign          Sign all artifacts with Start9 org key (+ personal key if available)
-                and upload signatures.tar.gz
-  cosign        Add personal GPG signature to an existing release's signatures
-                (requires 'pull' first so you can verify assets before signing)
-  notes         Print release notes with download links and checksums
-  full-release  Run: download → register → upload → index → sign → notes
+  download        Download OS images from registry + other artifacts from GH Actions
+                  OS images are pulled via start-cli from the registry (deployed by GH workflow)
+                  Requires: ST_RUN_ID, CLI_RUN_ID (any combination)
+  pull            Download an existing release from the GH tag and S3
+  register        Register the version in the Start9 registry
+  upload          Upload artifacts to GitHub Releases and S3
+  index           Add assets to the registry index
+  publish-tunnel  Publish start-tunnel .deb files to the apt repository
+  sign            Sign all artifacts with Start9 org key (+ personal key if available)
+                  and upload signatures.tar.gz
+  cosign          Add personal GPG signature to an existing release's signatures
+                  (requires 'pull' first so you can verify assets before signing)
+  notes           Print release notes with download links and checksums
+  full-release    Run: download → register → upload → publish-tunnel → sign → notes
 
 Environment variables:
   VERSION     (required) Release version
-  RUN_ID      GitHub Actions run ID for OS images (download subcommand)
   ST_RUN_ID   GitHub Actions run ID for start-tunnel (download subcommand)
   CLI_RUN_ID  GitHub Actions run ID for start-cli (download subcommand)
   GH_USER     Override GitHub username (default: autodetected via gh cli)
@@ -354,14 +369,15 @@ EOF
 }
 
 case "${1:-}" in
-    download) cmd_download ;;
-    pull)     cmd_pull ;;
-    register) cmd_register ;;
-    upload)   cmd_upload ;;
-    index)    cmd_index ;;
-    sign)     cmd_sign ;;
-    cosign)   cmd_cosign ;;
-    notes)    cmd_notes ;;
-    full-release) cmd_full_release ;;
-    *)            usage; exit 1 ;;
+    download)       cmd_download ;;
+    pull)           cmd_pull ;;
+    register)       cmd_register ;;
+    upload)         cmd_upload ;;
+    index)          cmd_index ;;
+    publish-tunnel) cmd_publish_tunnel ;;
+    sign)           cmd_sign ;;
+    cosign)         cmd_cosign ;;
+    notes)          cmd_notes ;;
+    full-release)   cmd_full_release ;;
+    *)              usage; exit 1 ;;
 esac
