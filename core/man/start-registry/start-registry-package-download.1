@@ -4,7 +4,7 @@
 .SH NAME
 start\-registry\-package\-download \- Download s9pk package
 .SH SYNOPSIS
-\fBstart\-registry package download\fR [\fB\-v\fR|\fB\-\-target\-version\fR] [\fB\-d\fR|\fB\-\-dest\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIID\fR> 
+\fBstart\-registry package download\fR [\fB\-v\fR|\fB\-\-target\-version\fR] [\fB\-d\fR|\fB\-\-dest\fR] [\fB\-a\fR|\fB\-\-arch\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIID\fR> 
 .SH DESCRIPTION
 Download s9pk package
 .SH OPTIONS
@@ -14,6 +14,9 @@ Target version range constraint
 .TP
 \fB\-d\fR, \fB\-\-dest\fR \fI<DEST>\fR
 Destination path for download
+.TP
+\fB\-a\fR, \fB\-\-arch\fR \fI<ARCH>\fR
+Target CPU architecture (e.g. x86_64, aarch64)
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

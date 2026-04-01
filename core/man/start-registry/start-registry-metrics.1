@@ -1,0 +1,23 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-registry-metrics 1  "metrics " 
+.SH NAME
+start\-registry\-metrics \- Query registry usage metrics
+.SH SYNOPSIS
+\fBstart\-registry metrics\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Query registry usage metrics
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+start\-registry\-metrics\-downloads(1)
+Count package download requests with optional filters
+.TP
+start\-registry\-metrics\-summary(1)
+Get a summary of registry usage metrics
+.TP
+start\-registry\-metrics\-users(1)
+Count unique active users within a time range

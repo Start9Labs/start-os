@@ -138,7 +138,7 @@ fi
 
 # Upload to S3
 echo "Uploading to s3://${BUCKET}/ ..."
-s3 sync --acl-public --no-mime-magic "$REPO_DIR/" "s3://${BUCKET}/"
+s3 sync --acl-public --no-mime-magic --delete-removed "$REPO_DIR/" "s3://${BUCKET}/"
 
 [ -n "$S3CMD_CONFIG" ] && rm -f "$S3CMD_CONFIG"
 echo "Done."

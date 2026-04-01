@@ -59,7 +59,7 @@ impl<Commitment> RegistryAsset<Commitment> {
         progress: PhaseProgressTrackerHandle,
     ) -> Result<BufferedHttpSource, Error> {
         for url in &self.urls {
-            if let Ok(response) = client.get(url.clone()).send().await {
+            if let Some(response) = client.get(url.clone()).send().await.log_err() {
                 return BufferedHttpSource::from_response(response, progress).await;
             }
         }

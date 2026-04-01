@@ -303,7 +303,7 @@ async fn publish(ctx: CliContext, S9pkPath { s9pk: s9pk_path }: S9pkPath) -> Res
     let manifest = s9pk.as_manifest();
     let path = [
         manifest.id.deref(),
-        manifest.version.as_str(),
+        manifest.version.as_str().trim_start_matches('#'),
         filename.deref(),
     ];
     let mut s3url = ctx

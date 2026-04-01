@@ -5480,6 +5480,13 @@ about.remove-package-signer:
   fr_FR: "Supprimer le signataire du package"
   pl_PL: "Usuń sygnatariusza pakietu"
 
+about.remove-signer:
+  en_US: "Remove signer and all their authorizations"
+  de_DE: "Unterzeichner und alle Autorisierungen entfernen"
+  es_ES: "Eliminar firmante y todas sus autorizaciones"
+  fr_FR: "Supprimer le signataire et toutes ses autorisations"
+  pl_PL: "Usuń sygnatariusza i wszystkie jego autoryzacje"
+
 about.remove-port-forward:
   en_US: "Remove port forward"
   de_DE: "Portweiterleitung entfernen"

@@ -129,7 +129,7 @@ pub async fn remove_package_signer(
                 .or_not_found(&id)?
                 .as_authorized_mut()
                 .remove(&signer)?
-                .is_some()
+                .is_none()
             {
                 return Err(Error::new(
                     eyre!(

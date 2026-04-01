@@ -83,6 +83,14 @@ fn signers_api<C: Context>() -> ParentHandler<C> {
                 .with_about("about.edit-signer")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "remove",
+            from_fn_async(remove_signer)
+                .with_metadata("admin", Value::Bool(true))
+                .no_display()
+                .with_about("about.remove-signer")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 impl Model<BTreeMap<Guid, SignerInfo>> {
@@ -271,6 +279,62 @@ pub async fn edit_signer(
                     }
                     Ok(())
                 })
+        })
+        .await
+        .result
+}
+
+#[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+#[ts(export)]
+pub struct RemoveSignerParams {
+    #[arg(help = "help.arg.signer-id")]
+    pub id: Guid,
+}
+
+pub async fn remove_signer(
+    ctx: RegistryContext,
+    RemoveSignerParams { id }: RemoveSignerParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            if db
+                .as_index_mut()
+                .as_signers_mut()
+                .remove(&id)?
+                .is_none()
+            {
+                return Err(Error::new(
+                    eyre!("{}", t!("registry.admin.unknown-signer")),
+                    ErrorKind::NotFound,
+                ));
+            }
+
+            for (_, pkg) in db
+                .as_index_mut()
+                .as_package_mut()
+                .as_packages_mut()
+                .as_entries_mut()?
+            {
+                pkg.as_authorized_mut().remove(&id)?;
+            }
+
+            for (_, version) in db
+                .as_index_mut()
+                .as_os_mut()
+                .as_versions_mut()
+                .as_entries_mut()?
+            {
+                version
+                    .as_authorized_mut()
+                    .mutate(|s| Ok(s.remove(&id)))?;
+            }
+
+            db.as_admins_mut().mutate(|a| Ok(a.remove(&id)))?;
+
+            Ok(())
         })
         .await
         .result
