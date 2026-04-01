@@ -71,13 +71,7 @@ import { InboundService, VpnServer } from 'src/app/routes/inbound/service'
           <tr>
             <td tuiTd>{{ item.enabled ? '🟢' : '⚪' }}</td>
             <td tuiTd>
-              <a
-                tuiLink
-                routerLink="client"
-                [queryParams]="{ port: item.listen_port.toString() }"
-              >
-                <b>{{ item.label }}</b>
-              </a>
+              <b>{{ item.label }}</b>
             </td>
             <td tuiTd>{{ item.endpoint }}</td>
             <td tuiTd>{{ item.listen_port }}</td>
@@ -111,15 +105,11 @@ import { InboundService, VpnServer } from 'src/app/routes/inbound/service'
                   >
                     {{ item.enabled ? 'Disable' : 'Enable' }}
                   </button>
-                  <!-- @TODO matt - This "Manage clients" link navigates to /inbound/<port>,
-                       which doesn't match any route and falls through to WAN.
-                       The label link on the server name already navigates to the
-                       clients page via routerLink="client" with a port query param.
-                       Is this intended to be a duplicate path to managing clients? -->
                   <a
                     tuiOption
                     iconStart="@tui.monitor-smartphone"
-                    [routerLink]="item.listen_port.toString()"
+                    routerLink="client"
+                    [queryParams]="{ port: item.listen_port.toString() }"
                   >
                     Manage clients
                   </a>
