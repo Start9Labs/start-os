@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use clap::Parser;
 use imbl_value::InternedString;
@@ -107,8 +106,8 @@ pub async fn set_icon(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CliSetIconParams {
-    #[arg(help = "help.arg.icon-path")]
-    pub icon: PathBuf,
+    #[arg(help = "help.arg.icon-source")]
+    pub icon: String,
 }
 
 pub async fn cli_set_icon(
@@ -120,7 +119,23 @@ pub async fn cli_set_icon(
         ..
     }: HandlerArgs<CliContext, CliSetIconParams>,
 ) -> Result<(), Error> {
-    let data_url = DataUrl::from_path(icon).await?;
+    let data_url = if icon.starts_with("data:") {
+        icon.parse::<DataUrl<'static>>()
+            .with_kind(ErrorKind::ParseUrl)?
+    } else if icon.starts_with("https://") || icon.starts_with("http://") {
+        let res = ctx
+            .client
+            .get(&icon)
+            .send()
+            .await
+            .with_kind(ErrorKind::Network)?;
+        DataUrl::from_response(res).await?
+    } else {
+        let path = icon
+            .strip_prefix("file://")
+            .unwrap_or(&icon);
+        DataUrl::from_path(path).await?
+    };
     ctx.call_remote::<RegistryContext>(
         &parent_method.into_iter().chain(method).join("."),
         imbl_value::json!({

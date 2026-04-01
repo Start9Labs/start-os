@@ -2959,6 +2959,13 @@ help.arg.icon-path:
   fr_FR: "Chemin vers le fichier d'icône du service"
   pl_PL: "Ścieżka do pliku ikony usługi"
 
+help.arg.icon-source:
+  en_US: "Icon source: file path, file:// URL, http(s):// URL, or data: URL"
+  de_DE: "Icon-Quelle: Dateipfad, file://-URL, http(s)://-URL oder data:-URL"
+  es_ES: "Fuente del icono: ruta de archivo, URL file://, URL http(s):// o URL data:"
+  fr_FR: "Source de l'icône : chemin de fichier, URL file://, URL http(s):// ou URL data:"
+  pl_PL: "Źródło ikony: ścieżka pliku, URL file://, URL http(s):// lub URL data:"
+
 help.arg.image-id:
   en_US: "Docker image identifier"
   de_DE: "Docker-Image-Kennung"
