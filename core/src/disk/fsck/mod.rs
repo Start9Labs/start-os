@@ -4,7 +4,7 @@ use color_eyre::eyre::eyre;
 use tokio::process::Command;
 
 use crate::Error;
-use crate::disk::fsck::btrfs::{btrfs_check_readonly, btrfs_check_repair};
+use crate::disk::fsck::btrfs::btrfs_check_repair;
 use crate::disk::fsck::ext4::{e2fsck_aggressive, e2fsck_preen};
 use crate::util::Invoke;
 
@@ -71,7 +71,7 @@ impl RepairStrategy {
         logicalname: impl AsRef<Path> + std::fmt::Debug,
     ) -> Result<RequiresReboot, Error> {
         match self {
-            RepairStrategy::Preen => btrfs_check_readonly(logicalname).await,
+            RepairStrategy::Preen => Ok(RequiresReboot(false)),
             RepairStrategy::Aggressive => btrfs_check_repair(logicalname).await,
         }
     }
