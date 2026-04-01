@@ -134,7 +134,9 @@ pub async fn list_service_interfaces(
         .expect("valid json pointer");
     let mut watch = context.seed.ctx.db.watch(ptr).await;
 
-    let res = from_value(watch.peek_and_mark_seen()?)?;
+    let Some(res) = from_value(watch.peek_and_mark_seen()?)? else {
+        return Ok(BTreeMap::new());
+    };
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
