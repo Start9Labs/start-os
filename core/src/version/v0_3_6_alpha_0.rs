@@ -400,7 +400,10 @@ impl VersionT for Version {
                 loop {
                     interval.tick().await;
                     if let Some(ref id) = *current_package.borrow() {
-                        tracing::info!("{}", t!("migration.migrating-package", package = id.to_string()));
+                        tracing::info!(
+                            "{}",
+                            t!("migration.migrating-package", package = id.to_string())
+                        );
                     }
                 }
             })
@@ -445,7 +448,10 @@ impl VersionT for Version {
                         false
                     };
 
-                    tracing::info!("{}", t!("migration.migrating-package", package = id.to_string()));
+                    tracing::info!(
+                        "{}",
+                        t!("migration.migrating-package", package = id.to_string())
+                    );
                     current_package.send_replace(Some(id.clone()));
 
                     if let Err(e) = async {
