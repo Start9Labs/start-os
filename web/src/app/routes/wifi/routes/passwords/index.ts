@@ -67,7 +67,6 @@ import {
                   >
                     Edit
                   </button>
-                  <button tuiOption iconStart="@tui.radio">Start WPS</button>
                   <button
                     tuiOption
                     class="g-negative"
