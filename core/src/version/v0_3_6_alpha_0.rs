@@ -348,6 +348,28 @@ impl VersionT for Version {
             .await?;
         }
 
+        if tokio::fs::metadata("/media/startos/data/package-data/volumes/ghost")
+            .await
+            .is_ok()
+        {
+            tokio::fs::rename(
+                "/media/startos/data/package-data/volumes/ghost",
+                "/media/startos/data/package-data/volumes/ghost-legacy",
+            )
+            .await?;
+        }
+
+        if tokio::fs::metadata("/media/startos/data/package-data/volumes/synapse")
+            .await
+            .is_ok()
+        {
+            tokio::fs::rename(
+                "/media/startos/data/package-data/volumes/synapse",
+                "/media/startos/data/package-data/volumes/synapse-legacy",
+            )
+            .await?;
+        }
+
         // Load bundled migration images (start9/compat, start9/utils,
         // tonistiigi/binfmt) so the v1->v2 s9pk conversion doesn't need
         // internet access.

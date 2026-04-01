@@ -194,6 +194,12 @@ impl TryFrom<ManifestV1> for Manifest {
         if &*value.id == "nostr" {
             value.id = "nostr-rs-relay".parse()?;
         }
+        if &*value.id == "ghost" {
+            value.id = "ghost-legacy".parse()?;
+        }
+        if &*value.id == "synapse" {
+            value.id = "synapse-legacy".parse()?;
+        }
         Ok(Self {
             id: value.id,
             version: version.into(),

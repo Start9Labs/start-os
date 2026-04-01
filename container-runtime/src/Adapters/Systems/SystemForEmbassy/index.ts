@@ -396,6 +396,12 @@ export class SystemForEmbassy implements System {
     if (this.manifest.id === "nostr") {
       this.manifest.id = "nostr-rs-relay"
     }
+    if (this.manifest.id === "ghost") {
+      this.manifest.id = "ghost-legacy"
+    }
+    if (this.manifest.id === "synapse") {
+      this.manifest.id = "synapse-legacy"
+    }
   }
 
   async init(
