@@ -10,3 +10,8 @@ within the VPN network, allowing it to communicate with other devices.
 The WireGuard public key for the client device. If left empty, a key pair will
 be generated automatically. Enter an existing public key if the client device
 already has one configured.
+<h3>Route all traffic through tunnel</h3>
+When enabled, all of the client's internet traffic is routed through the VPN
+tunnel. When disabled (the default), only traffic destined for the local network
+passes through the tunnel and the client uses its own internet connection for
+everything else.

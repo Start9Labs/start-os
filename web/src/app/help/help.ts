@@ -23,6 +23,7 @@ import publishedPortsDialog from './published-ports/dialog.html?raw'
 import publishedPorts from './published-ports/index.html?raw'
 import settingsActivity from './settings/activity.html?raw'
 import settingsAdvanced from './settings/advanced.html?raw'
+import settingsBackup from './settings/backup.html?raw'
 import settingsGeneral from './settings/general.html?raw'
 import settingsLogs from './settings/logs.html?raw'
 import settingsPassword from './settings/password.html?raw'
@@ -72,6 +73,7 @@ export const HELP = new InjectionToken<Record<string, string>>(
       '/wan/dynamic-dns': wanDdns,
       '/settings/activity': settingsActivity,
       '/settings/advanced': settingsAdvanced,
+      '/settings/backup': settingsBackup,
       '/settings/general': settingsGeneral,
       '/settings/logs': settingsLogs,
       '/settings/password': settingsPassword,
