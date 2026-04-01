@@ -6476,7 +6476,7 @@ dependencies = [
 
 [[package]]
 name = "start-os"
-version = "0.4.0-alpha.23"
+version = "0.4.0-beta.0"
 dependencies = [
  "aes",
  "async-acme",
