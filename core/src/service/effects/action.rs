@@ -74,6 +74,7 @@ pub async fn export_action(
         })
         .await
         .result?;
+    context.recheck_tasks().await?;
     Ok(())
 }
 
@@ -247,7 +248,7 @@ async fn create_task(
                         ErrorKind::InvalidRequest,
                     ));
                 };
-                if let Some(service) = context
+                let prev = if let Some(service) = context
                     .seed
                     .ctx
                     .services
@@ -256,22 +257,19 @@ async fn create_task(
                     .as_ref()
                     .filter(|s| s.is_initialized())
                 {
-                    let prev = service
-                        .get_action_input(procedure_id.clone(), task.action_id.clone(), Value::Null)
-                        .await?;
-                    let Some(prev) = prev else {
-                        return Err(Error::new(
-                            eyre!(
-                                "{}",
-                                t!(
-                                    "service.effects.action.action-has-no-input",
-                                    action_id = task.action_id,
-                                    package_id = task.package_id
-                                )
-                            ),
-                            ErrorKind::InvalidRequest,
-                        ));
-                    };
+                    service
+                        .get_action_input(
+                            procedure_id.clone(),
+                            task.action_id.clone(),
+                            Value::Null,
+                        )
+                        .await
+                        .log_err()
+                        .flatten()
+                } else {
+                    None
+                };
+                if let Some(prev) = prev {
                     if input.matches(prev.value.as_ref()) {
                         if *once {
                             return Ok(());
@@ -282,8 +280,9 @@ async fn create_task(
                         true
                     }
                 } else {
-                    // Service not installed or not yet initialized — assume active.
-                    // Will be retested when service init completes (Service::recheck_tasks).
+                    // Action or service not available — assume active.
+                    // Will be retested when the action is exported (export_action)
+                    // or service init completes (Service::recheck_tasks).
                     true
                 }
             }

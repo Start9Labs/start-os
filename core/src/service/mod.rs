@@ -236,7 +236,7 @@ impl Service {
     /// Re-evaluate all tasks that reference this service's actions.
     /// Called after every service init to update task active state.
     #[instrument(skip_all)]
-    async fn recheck_tasks(&self) -> Result<(), Error> {
+    pub async fn recheck_tasks(&self) -> Result<(), Error> {
         let service_id = &self.seed.id;
         let peek = self.seed.ctx.db.peek().await;
         let mut action_input: BTreeMap<ActionId, Value> = BTreeMap::new();
