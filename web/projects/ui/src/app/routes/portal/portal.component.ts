@@ -185,7 +185,6 @@ export class PortalComponent {
 
   readonly mobile = inject(WA_IS_MOBILE)
   readonly plugins = inject(PluginsService)
-  readonly name = toSignal(this.patch.watch$('serverInfo', 'name'))
   readonly update = toSignal(inject(OSService).updating$)
   readonly restartReason = toSignal(
     this.patch.watch$('serverInfo', 'statusInfo', 'restart'),
