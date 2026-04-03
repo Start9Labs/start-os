@@ -584,14 +584,12 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                     }
                 }
                 let options = vec![Choice::Generate, Choice::Provide];
-                let choice = choose(
-                    concat!(
-                        "Select whether to generate an SSL certificate ",
-                        "or provide your own certificate (and key):"
-                    ),
-                    &options,
-                )
-                .await?;
+                println!(concat!(
+                    "An SSL certificate is required. ",
+                    "You can have StartTunnel generate a certificate signed by its own Root CA, ",
+                    "or provide your own certificate (and key)."
+                ));
+                let choice = choose("SSL Certificate:", &options).await?;
 
                 match choice {
                     Choice::Generate => {

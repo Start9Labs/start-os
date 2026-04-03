@@ -260,7 +260,7 @@ cmd_publish_tunnel() {
     fi
 
     echo "Publishing start-tunnel debs to apt repository..."
-    "$SCRIPT_DIR/apt/publish-deb.sh" "${tunnel_debs[@]}"
+    "$SCRIPT_DIR/publish-deb.sh" "${tunnel_debs[@]}"
 }
 
 cmd_notes() {

@@ -6,9 +6,9 @@ import {
   AbstractCategoryService,
   FilterPackagesPipe,
 } from '@start9labs/marketplace'
-import { i18nPipe } from '@start9labs/shared'
+import { i18nPipe, LocalizePipe } from '@start9labs/shared'
 import { TuiScrollbar } from '@taiga-ui/core'
-import { tap } from 'rxjs'
+import { combineLatest, map, tap } from 'rxjs'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { MarketplaceMenuComponent } from './components/menu.component'
@@ -26,7 +26,7 @@ import { ConfigService } from 'src/app/services/config.service'
         <div class="marketplace-content-inner">
           <marketplace-notification [url]="(url$ | async) || ''" />
           <div class="title-wrapper">
-            <h1>{{ category$ | async | titlecase }}</h1>
+            <h1>{{ categoryName$ | async }}</h1>
           </div>
           @if (registry$ | async; as registry) {
             <section class="marketplace-content-list">
@@ -187,8 +187,16 @@ export default class MarketplaceComponent {
     )
     .subscribe()
 
+  private readonly localize = inject(LocalizePipe)
+
   readonly url$ = this.marketplaceService.currentRegistryUrl$
   readonly category$ = this.categoryService.getCategory$()
   readonly query$ = this.categoryService.getQuery$()
   readonly registry$ = this.marketplaceService.currentRegistry$
+  readonly categoryName$ = combineLatest([this.category$, this.registry$]).pipe(
+    map(([key, registry]) => {
+      const cat = registry?.info?.categories?.[key]
+      return cat?.name ? this.localize.transform(cat.name) : key
+    }),
+  )
 }

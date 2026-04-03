@@ -551,6 +551,14 @@ impl ServiceRefReloadInfo {
             .await?;
         if let Some(error) = error {
             let error_string = error.to_string();
+            let title = match self.operation {
+                "Installing" => t!("service.service-map.installing-failed"),
+                "Updating" => t!("service.service-map.updating-failed"),
+                "Restoring" => t!("service.service-map.restoring-failed"),
+                "Uninstall" => t!("service.service-map.uninstall-failed"),
+                other => t!("service.service-map.operation-failed", operation = other),
+            }
+            .to_string();
             self.ctx
                 .db
                 .mutate(|db| {
@@ -558,7 +566,7 @@ impl ServiceRefReloadInfo {
                         db,
                         Some(self.id.clone()),
                         NotificationLevel::Error,
-                        format!("{} Failed", self.operation),
+                        title,
                         error_string,
                         (),
                     )

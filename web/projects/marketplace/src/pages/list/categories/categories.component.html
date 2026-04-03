@@ -7,9 +7,7 @@
       <tui-icon tuiAppearance="icon" [icon]="determineIcon(cat.key)" />
     </div>
     <span class="category-title" [tuiSkeleton]="categories ? false : 3">
-      {{
-        cat.key === 'ai' ? (cat.key | uppercase) : (cat.value.name | localize | titlecase)
-      }}
+      {{ cat.value.name ? (cat.value.name | localize) : cat.key }}
     </span>
   </button>
 }

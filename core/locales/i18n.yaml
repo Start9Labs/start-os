@@ -872,6 +872,20 @@ disk.main.disk-not-found:
   fr_FR: "Disque StartOS non trouvé."
   pl_PL: "Nie znaleziono dysku StartOS."
 
+disk.main.clearing-duplicate-files:
+  en_US: "Clearing up duplicate files"
+  de_DE: "Doppelte Dateien werden bereinigt"
+  es_ES: "Eliminando archivos duplicados"
+  fr_FR: "Suppression des fichiers en double"
+  pl_PL: "Usuwanie zduplikowanych plików"
+
+disk.main.converting-ext4-to-btrfs:
+  en_US: "Converting %{name} from ext4 to btrfs"
+  de_DE: "%{name} wird von ext4 nach btrfs konvertiert"
+  es_ES: "Convirtiendo %{name} de ext4 a btrfs"
+  fr_FR: "Conversion de %{name} d'ext4 vers btrfs"
+  pl_PL: "Konwertowanie %{name} z ext4 na btrfs"
+
 disk.main.converting-to-btrfs:
   en_US: "Performing file system conversion to btrfs. This can take many hours, please be patient and DO NOT unplug the server."
   de_DE: "Dateisystemkonvertierung zu btrfs wird durchgeführt. Dies kann viele Stunden dauern, bitte haben Sie Geduld und trennen Sie den Server NICHT vom Strom."
@@ -879,12 +893,40 @@ disk.main.converting-to-btrfs:
   fr_FR: "Conversion du système de fichiers vers btrfs en cours. Cela peut prendre de nombreuses heures, soyez patient et NE débranchez PAS le serveur."
   pl_PL: "Wykonywanie konwersji systemu plików na btrfs. To może potrwać wiele godzin, prosimy o cierpliwość i NIE odłączaj serwera od zasilania."
 
+disk.main.could-not-activate-vg:
+  en_US: "Could not activate VG %{guid} for filesystem probe: %{error}"
+  de_DE: "VG %{guid} konnte für die Dateisystemprüfung nicht aktiviert werden: %{error}"
+  es_ES: "No se pudo activar VG %{guid} para la comprobación del sistema de archivos: %{error}"
+  fr_FR: "Impossible d'activer le VG %{guid} pour la vérification du système de fichiers : %{error}"
+  pl_PL: "Nie udało się aktywować VG %{guid} do sprawdzenia systemu plików: %{error}"
+
+disk.main.could-not-import-vg:
+  en_US: "Could not import VG %{guid} for filesystem probe: %{error}"
+  de_DE: "VG %{guid} konnte für die Dateisystemprüfung nicht importiert werden: %{error}"
+  es_ES: "No se pudo importar VG %{guid} para la comprobación del sistema de archivos: %{error}"
+  fr_FR: "Impossible d'importer le VG %{guid} pour la vérification du système de fichiers : %{error}"
+  pl_PL: "Nie udało się zaimportować VG %{guid} do sprawdzenia systemu plików: %{error}"
+
 disk.main.incorrect-disk:
   en_US: "A StartOS disk was found, but it is not the correct disk for this device."
   de_DE: "Eine StartOS-Festplatte wurde gefunden, aber es ist nicht die richtige Festplatte für dieses Gerät."
   es_ES: "Se encontró un disco StartOS, pero no es el disco correcto para este dispositivo."
   fr_FR: "Un disque StartOS a été trouvé, mais ce n'est pas le bon disque pour cet appareil."
   pl_PL: "Znaleziono dysk StartOS, ale nie jest to właściwy dysk dla tego urządzenia."
+
+disk.main.optimizing-filesystem:
+  en_US: "Optimizing filesystem"
+  de_DE: "Dateisystem wird optimiert"
+  es_ES: "Optimizando sistema de archivos"
+  fr_FR: "Optimisation du système de fichiers"
+  pl_PL: "Optymalizacja systemu plików"
+
+disk.main.running-e2fsck:
+  en_US: "Running e2fsck before converting %{name} from ext4 to btrfs"
+  de_DE: "e2fsck wird vor der Konvertierung von %{name} von ext4 nach btrfs ausgeführt"
+  es_ES: "Ejecutando e2fsck antes de convertir %{name} de ext4 a btrfs"
+  fr_FR: "Exécution de e2fsck avant la conversion de %{name} d'ext4 vers btrfs"
+  pl_PL: "Uruchamianie e2fsck przed konwersją %{name} z ext4 na btrfs"
 
 # disk/util.rs
 disk.util.not-canonical-block-device:
@@ -1729,6 +1771,20 @@ migration.migrating-package:
   fr_FR: "Migration du paquet %{package}..."
   pl_PL: "Migracja pakietu %{package}..."
 
+migration.services-failed-title:
+  en_US: "Services Failed To Migrate"
+  de_DE: "Dienste konnten nicht migriert werden"
+  es_ES: "Los servicios no pudieron migrarse"
+  fr_FR: "Échec de la migration des services"
+  pl_PL: "Migracja usług nie powiodła się"
+
+migration.services-failed-message:
+  en_US: "Failed to migrate the following services from 0.3.5.1: %{services}\nYOUR DATA IS SAFE. Simply re-install these services from the marketplace."
+  de_DE: "Die folgenden Dienste konnten nicht von 0.3.5.1 migriert werden: %{services}\nIHRE DATEN SIND SICHER. Installieren Sie diese Dienste einfach erneut über den Marktplatz."
+  es_ES: "No se pudieron migrar los siguientes servicios desde 0.3.5.1: %{services}\nSUS DATOS ESTÁN SEGUROS. Simplemente reinstale estos servicios desde el marketplace."
+  fr_FR: "Échec de la migration des services suivants depuis 0.3.5.1 : %{services}\nVOS DONNÉES SONT EN SÉCURITÉ. Réinstallez simplement ces services depuis le marketplace."
+  pl_PL: "Nie udało się zmigrować następujących usług z 0.3.5.1: %{services}\nTWOJE DANE SĄ BEZPIECZNE. Po prostu zainstaluj ponownie te usługi z marketplace."
+
 # registry/admin.rs
 registry.admin.unknown-signer:
   en_US: "Unknown signer"
@@ -2145,6 +2201,42 @@ service.persistent-container.service-exited:
   es_ES: "El servicio para %{id} terminó"
   fr_FR: "Le service pour %{id} s'est terminé"
   pl_PL: "Usługa dla %{id} zakończyła działanie"
+
+# service/service_map.rs
+service.service-map.installing-failed:
+  en_US: "Installing Failed"
+  de_DE: "Installation fehlgeschlagen"
+  es_ES: "Instalación fallida"
+  fr_FR: "Échec de l'installation"
+  pl_PL: "Instalacja nie powiodła się"
+
+service.service-map.operation-failed:
+  en_US: "%{operation} Failed"
+  de_DE: "%{operation} fehlgeschlagen"
+  es_ES: "%{operation} falló"
+  fr_FR: "Échec de %{operation}"
+  pl_PL: "%{operation} nie powiodło się"
+
+service.service-map.restoring-failed:
+  en_US: "Restoring Failed"
+  de_DE: "Wiederherstellung fehlgeschlagen"
+  es_ES: "Restauración fallida"
+  fr_FR: "Échec de la restauration"
+  pl_PL: "Przywracanie nie powiodło się"
+
+service.service-map.uninstall-failed:
+  en_US: "Uninstall Failed"
+  de_DE: "Deinstallation fehlgeschlagen"
+  es_ES: "Desinstalación fallida"
+  fr_FR: "Échec de la désinstallation"
+  pl_PL: "Dezinstalacja nie powiodła się"
+
+service.service-map.updating-failed:
+  en_US: "Updating Failed"
+  de_DE: "Aktualisierung fehlgeschlagen"
+  es_ES: "Actualización fallida"
+  fr_FR: "Échec de la mise à jour"
+  pl_PL: "Aktualizacja nie powiodła się"
 
 # service/uninstall.rs
 service.uninstall.invalid-package-state-for-cleanup:
