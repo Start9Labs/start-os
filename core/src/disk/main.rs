@@ -313,7 +313,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
         if let Some(ref mut phase) = convert_phase {
             phase.start();
         }
-        tracing::info!("Running e2fsck before converting {name} from ext4 to btrfs");
+        tracing::info!("{}", t!("disk.main.running-e2fsck", name = name));
         // e2fsck exit codes: 0 = no errors, 1 = errors corrected, 2 = corrected + reboot needed
         // Only codes >= 4 indicate actual failure, so we can't use .invoke() which treats any
         // non-zero exit as an error.
@@ -336,7 +336,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
             .unwrap_or("e2fsck failed");
             return Err(Error::new(eyre!("{msg}"), ErrorKind::DiskManagement));
         }
-        tracing::info!("Converting {name} from ext4 to btrfs");
+        tracing::info!("{}", t!("disk.main.converting-ext4-to-btrfs", name = name));
         Command::new("btrfs-convert")
             .arg(&blockdev_path)
             .capture(false)
@@ -348,11 +348,13 @@ pub async fn mount_fs<P: AsRef<Path>>(
         BlockDev::new(&blockdev_path)
             .mount(&tmp_mount, ReadWrite)
             .await?;
+        tracing::info!("{}", t!("disk.main.clearing-duplicate-files"));
         Command::new("btrfs")
             .args(["subvolume", "delete"])
             .arg(tmp_mount.join("ext2_saved"))
             .invoke(ErrorKind::DiskManagement)
             .await?;
+        tracing::info!("{}", t!("disk.main.optimizing-filesystem"));
         Command::new("btrfs")
             .args(["filesystem", "defragment", "-r"])
             .arg(&tmp_mount)
@@ -439,7 +441,7 @@ pub async fn probe_package_data_fs(guid: &str) -> Result<Option<String>, Error> 
             // Already imported, that's fine
         }
         Err(e) => {
-            tracing::warn!("Could not import VG {guid} for filesystem probe: {e}");
+            tracing::warn!("{}", t!("disk.main.could-not-import-vg", guid = guid, error = e));
             return Ok(None);
         }
     }
@@ -449,7 +451,7 @@ pub async fn probe_package_data_fs(guid: &str) -> Result<Option<String>, Error> 
         .invoke(ErrorKind::DiskManagement)
         .await
     {
-        tracing::warn!("Could not activate VG {guid} for filesystem probe: {e}");
+        tracing::warn!("{}", t!("disk.main.could-not-activate-vg", guid = guid, error = e));
         return Ok(None);
     }
 

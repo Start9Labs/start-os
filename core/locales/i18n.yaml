@@ -872,6 +872,20 @@ disk.main.disk-not-found:
   fr_FR: "Disque StartOS non trouvé."
   pl_PL: "Nie znaleziono dysku StartOS."
 
+disk.main.clearing-duplicate-files:
+  en_US: "Clearing up duplicate files"
+  de_DE: "Doppelte Dateien werden bereinigt"
+  es_ES: "Eliminando archivos duplicados"
+  fr_FR: "Suppression des fichiers en double"
+  pl_PL: "Usuwanie zduplikowanych plików"
+
+disk.main.converting-ext4-to-btrfs:
+  en_US: "Converting %{name} from ext4 to btrfs"
+  de_DE: "%{name} wird von ext4 nach btrfs konvertiert"
+  es_ES: "Convirtiendo %{name} de ext4 a btrfs"
+  fr_FR: "Conversion de %{name} d'ext4 vers btrfs"
+  pl_PL: "Konwertowanie %{name} z ext4 na btrfs"
+
 disk.main.converting-to-btrfs:
   en_US: "Performing file system conversion to btrfs. This can take many hours, please be patient and DO NOT unplug the server."
   de_DE: "Dateisystemkonvertierung zu btrfs wird durchgeführt. Dies kann viele Stunden dauern, bitte haben Sie Geduld und trennen Sie den Server NICHT vom Strom."
@@ -879,12 +893,40 @@ disk.main.converting-to-btrfs:
   fr_FR: "Conversion du système de fichiers vers btrfs en cours. Cela peut prendre de nombreuses heures, soyez patient et NE débranchez PAS le serveur."
   pl_PL: "Wykonywanie konwersji systemu plików na btrfs. To może potrwać wiele godzin, prosimy o cierpliwość i NIE odłączaj serwera od zasilania."
 
+disk.main.could-not-activate-vg:
+  en_US: "Could not activate VG %{guid} for filesystem probe: %{error}"
+  de_DE: "VG %{guid} konnte für die Dateisystemprüfung nicht aktiviert werden: %{error}"
+  es_ES: "No se pudo activar VG %{guid} para la comprobación del sistema de archivos: %{error}"
+  fr_FR: "Impossible d'activer le VG %{guid} pour la vérification du système de fichiers : %{error}"
+  pl_PL: "Nie udało się aktywować VG %{guid} do sprawdzenia systemu plików: %{error}"
+
+disk.main.could-not-import-vg:
+  en_US: "Could not import VG %{guid} for filesystem probe: %{error}"
+  de_DE: "VG %{guid} konnte für die Dateisystemprüfung nicht importiert werden: %{error}"
+  es_ES: "No se pudo importar VG %{guid} para la comprobación del sistema de archivos: %{error}"
+  fr_FR: "Impossible d'importer le VG %{guid} pour la vérification du système de fichiers : %{error}"
+  pl_PL: "Nie udało się zaimportować VG %{guid} do sprawdzenia systemu plików: %{error}"
+
 disk.main.incorrect-disk:
   en_US: "A StartOS disk was found, but it is not the correct disk for this device."
   de_DE: "Eine StartOS-Festplatte wurde gefunden, aber es ist nicht die richtige Festplatte für dieses Gerät."
   es_ES: "Se encontró un disco StartOS, pero no es el disco correcto para este dispositivo."
   fr_FR: "Un disque StartOS a été trouvé, mais ce n'est pas le bon disque pour cet appareil."
   pl_PL: "Znaleziono dysk StartOS, ale nie jest to właściwy dysk dla tego urządzenia."
+
+disk.main.optimizing-filesystem:
+  en_US: "Optimizing filesystem"
+  de_DE: "Dateisystem wird optimiert"
+  es_ES: "Optimizando sistema de archivos"
+  fr_FR: "Optimisation du système de fichiers"
+  pl_PL: "Optymalizacja systemu plików"
+
+disk.main.running-e2fsck:
+  en_US: "Running e2fsck before converting %{name} from ext4 to btrfs"
+  de_DE: "e2fsck wird vor der Konvertierung von %{name} von ext4 nach btrfs ausgeführt"
+  es_ES: "Ejecutando e2fsck antes de convertir %{name} de ext4 a btrfs"
+  fr_FR: "Exécution de e2fsck avant la conversion de %{name} d'ext4 vers btrfs"
+  pl_PL: "Uruchamianie e2fsck przed konwersją %{name} z ext4 na btrfs"
 
 # disk/util.rs
 disk.util.not-canonical-block-device:
