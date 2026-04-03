@@ -1729,6 +1729,20 @@ migration.migrating-package:
   fr_FR: "Migration du paquet %{package}..."
   pl_PL: "Migracja pakietu %{package}..."
 
+migration.services-failed-title:
+  en_US: "Services Failed To Migrate"
+  de_DE: "Dienste konnten nicht migriert werden"
+  es_ES: "Los servicios no pudieron migrarse"
+  fr_FR: "Échec de la migration des services"
+  pl_PL: "Migracja usług nie powiodła się"
+
+migration.services-failed-message:
+  en_US: "Failed to migrate the following services from 0.3.5.1: %{services}\nYOUR DATA IS SAFE. Simply re-install these services from the marketplace."
+  de_DE: "Die folgenden Dienste konnten nicht von 0.3.5.1 migriert werden: %{services}\nIHRE DATEN SIND SICHER. Installieren Sie diese Dienste einfach erneut über den Marktplatz."
+  es_ES: "No se pudieron migrar los siguientes servicios desde 0.3.5.1: %{services}\nSUS DATOS ESTÁN SEGUROS. Simplemente reinstale estos servicios desde el marketplace."
+  fr_FR: "Échec de la migration des services suivants depuis 0.3.5.1 : %{services}\nVOS DONNÉES SONT EN SÉCURITÉ. Réinstallez simplement ces services depuis le marketplace."
+  pl_PL: "Nie udało się zmigrować następujących usług z 0.3.5.1: %{services}\nTWOJE DANE SĄ BEZPIECZNE. Po prostu zainstaluj ponownie te usługi z marketplace."
+
 # registry/admin.rs
 registry.admin.unknown-signer:
   en_US: "Unknown signer"
@@ -2145,6 +2159,42 @@ service.persistent-container.service-exited:
   es_ES: "El servicio para %{id} terminó"
   fr_FR: "Le service pour %{id} s'est terminé"
   pl_PL: "Usługa dla %{id} zakończyła działanie"
+
+# service/service_map.rs
+service.service-map.installing-failed:
+  en_US: "Installing Failed"
+  de_DE: "Installation fehlgeschlagen"
+  es_ES: "Instalación fallida"
+  fr_FR: "Échec de l'installation"
+  pl_PL: "Instalacja nie powiodła się"
+
+service.service-map.operation-failed:
+  en_US: "%{operation} Failed"
+  de_DE: "%{operation} fehlgeschlagen"
+  es_ES: "%{operation} falló"
+  fr_FR: "Échec de %{operation}"
+  pl_PL: "%{operation} nie powiodło się"
+
+service.service-map.restoring-failed:
+  en_US: "Restoring Failed"
+  de_DE: "Wiederherstellung fehlgeschlagen"
+  es_ES: "Restauración fallida"
+  fr_FR: "Échec de la restauration"
+  pl_PL: "Przywracanie nie powiodło się"
+
+service.service-map.uninstall-failed:
+  en_US: "Uninstall Failed"
+  de_DE: "Deinstallation fehlgeschlagen"
+  es_ES: "Desinstalación fallida"
+  fr_FR: "Échec de la désinstallation"
+  pl_PL: "Dezinstalacja nie powiodła się"
+
+service.service-map.updating-failed:
+  en_US: "Updating Failed"
+  de_DE: "Aktualisierung fehlgeschlagen"
+  es_ES: "Actualización fallida"
+  fr_FR: "Échec de la mise à jour"
+  pl_PL: "Aktualizacja nie powiodła się"
 
 # service/uninstall.rs
 service.uninstall.invalid-package-state-for-cleanup:

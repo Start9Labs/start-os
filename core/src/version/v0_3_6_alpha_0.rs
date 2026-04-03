@@ -7,6 +7,7 @@ use const_format::formatcp;
 use ed25519_dalek::SigningKey;
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::{InternedString, json};
+use itertools::Itertools;
 use openssl::pkey::PKey;
 use openssl::x509::X509;
 use sqlx::postgres::PgConnectOptions;
@@ -24,13 +25,15 @@ use crate::disk::mount::util::unmount;
 use crate::hostname::{ServerHostname, ServerHostnameInfo};
 use crate::net::forward::AvailablePorts;
 use crate::net::keys::KeyStore;
-use crate::notifications::Notifications;
+use crate::notifications::{NotificationLevel, Notifications, notify};
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::v2::pack::CONTAINER_TOOL;
 use crate::ssh::{SshKeys, SshPubKey};
 use crate::util::Invoke;
+use crate::util::io::write_file_atomic;
 use crate::util::serde::Pem;
+use crate::volume::PKG_VOLUME_DIR;
 use crate::{DATA_DIR, PACKAGE_DATA, PackageId, ReplayId};
 
 lazy_static::lazy_static! {
@@ -389,6 +392,8 @@ impl VersionT for Version {
             }
         }
 
+        let mut failures = BTreeMap::new();
+
         // Should be the name of the package
         let current_package: std::sync::Arc<tokio::sync::watch::Sender<Option<PackageId>>> =
             std::sync::Arc::new(tokio::sync::watch::channel(None).0);
@@ -454,6 +459,27 @@ impl VersionT for Version {
                     );
                     current_package.send_replace(Some(id.clone()));
 
+                    // Write the data version from the old DB to disk so the
+                    // install process detects existing data and uses
+                    // InitKind::Update instead of InitKind::Install.
+                    if let Some(data_version) = input
+                        .get(&*id)
+                        .and_then(|pde| pde.get("stateInfo"))
+                        .and_then(|si| si.get("manifest"))
+                        .and_then(|m| m.get("version"))
+                        .and_then(|v| v.as_str())
+                    {
+                        let version_path = Path::new(DATA_DIR)
+                            .join(PKG_VOLUME_DIR)
+                            .join(&*id)
+                            .join("data")
+                            .join(".version");
+                        if let Some(parent) = version_path.parent() {
+                            tokio::fs::create_dir_all(parent).await?;
+                        }
+                        write_file_atomic(&version_path, data_version.as_bytes()).await?;
+                    }
+
                     if let Err(e) = async {
                         let package_s9pk = tokio::fs::File::open(path).await?;
                         let file = MultiCursorFile::open(&package_s9pk).await?;
@@ -492,12 +518,36 @@ impl VersionT for Version {
                     }
                     .await
                     {
+                        failures.insert(
+                            id.clone(),
+                            input
+                                .get(&*id)
+                                .and_then(|pde| pde.get("stateInfo"))
+                                .and_then(|si| si.get("manifest"))
+                                .and_then(|m| m.get("title"))
+                                .and_then(|v| v.as_str()),
+                        );
                         tracing::error!("Error reinstalling {id}: {e}");
                         tracing::debug!("{e:?}");
                     }
                 }
             }
         }
+
+        if !failures.is_empty() {
+            ctx.db.mutate(|db| {
+                let services = failures.iter().map(|(id, title)| title.as_ref().copied().unwrap_or(id)).join(", ");
+                notify(
+                    db,
+                    None,
+                    NotificationLevel::Error,
+                    t!("migration.services-failed-title").to_string(),
+                    t!("migration.services-failed-message", services = services).to_string(),
+                    (),
+                )
+            }).await.result?;
+        }
+
         progress_logger.abort();
         Ok(())
     }
