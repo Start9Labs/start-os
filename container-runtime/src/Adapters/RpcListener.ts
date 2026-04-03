@@ -156,6 +156,7 @@ export class RpcListener {
 
     this.unixSocketServer.on("connection", (s) => {
       let id: IdType = null
+      let lineBuffer = ""
       const captureId = <X>(x: X) => {
         if (hasId(x)) id = x.id
         return x
@@ -190,32 +191,31 @@ export class RpcListener {
           )
         }
       }
-      s.on("data", (a) =>
-        Promise.resolve(a)
-          .then((b) => b.toString())
-          .then((buf) => {
-            for (let s of buf.split("\n")) {
-              if (s)
-                Promise.resolve(s)
-                  .then(logData("dataIn"))
-                  .then(jsonParse)
-                  .then(captureId)
-                  .then((x) => this.dealWithInput(x))
-                  .catch(mapError)
-                  .then(logData("response"))
-                  .then(writeDataToSocket)
-                  .then((_) => {
-                    if (this.shouldExit) {
-                      process.exit(0)
-                    }
-                  })
-                  .catch((e) => {
-                    console.error(`Major error in socket handling: ${e}`)
-                    console.debug(`Data in: ${a.toString()}`)
-                  })
-            }
-          }),
-      )
+      s.on("data", (a) => {
+        lineBuffer += a.toString()
+        const lines = lineBuffer.split("\n")
+        lineBuffer = lines.pop()! // keep incomplete trailing chunk in buffer
+        for (const line of lines) {
+          if (line)
+            Promise.resolve(line)
+              .then(logData("dataIn"))
+              .then(jsonParse)
+              .then(captureId)
+              .then((x) => this.dealWithInput(x))
+              .catch(mapError)
+              .then(logData("response"))
+              .then(writeDataToSocket)
+              .then((_) => {
+                if (this.shouldExit) {
+                  process.exit(0)
+                }
+              })
+              .catch((e) => {
+                console.error(`Major error in socket handling: ${e}`)
+                console.debug(`Data in: ${line}`)
+              })
+        }
+      })
     })
   }
 
