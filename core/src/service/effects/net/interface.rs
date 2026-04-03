@@ -134,20 +134,18 @@ pub async fn list_service_interfaces(
         .expect("valid json pointer");
     let mut watch = context.seed.ctx.db.watch(ptr).await;
 
-    let Some(res) = from_value(watch.peek_and_mark_seen()?)? else {
-        return Ok(BTreeMap::new());
-    };
+    let res: Option<_> = from_value(watch.peek_and_mark_seen()?)?;
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
         context.seed.ctx.callbacks.add_list_service_interfaces(
             package_id.clone(),
-            watch.typed::<BTreeMap<ServiceInterfaceId, ServiceInterface>>(),
+            watch.typed::<Option<BTreeMap<ServiceInterfaceId, ServiceInterface>>>(),
             CallbackHandler::new(&context, callback),
         );
     }
 
-    Ok(res)
+    Ok(res.unwrap_or_default())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
