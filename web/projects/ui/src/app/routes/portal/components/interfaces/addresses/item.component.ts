@@ -77,10 +77,8 @@ import { DomainHealthService } from './domain-health.service'
             <span>{{ address.url | tuiObfuscate: 'mask' }}</span>
           } @else {
             <span [title]="address.url">
-              @if (urlParts(); as parts) {
-                {{ parts.prefix }}
-                <b>{{ parts.hostname }}</b>
-                {{ parts.suffix }}
+              @if (urlHtml(); as html) {
+                <span [innerHTML]="html"></span>
               } @else {
                 {{ address.url }}
               }
@@ -246,15 +244,14 @@ export class InterfaceAddressItemComponent {
     this.address()?.masked && this.currentlyMasked() ? 'mask' : 'none',
   )
 
-  readonly urlParts = computed(() => {
+  readonly urlHtml = computed(() => {
     const { url, hostnameInfo } = this.address()
     const idx = url.indexOf(hostnameInfo.hostname)
     if (idx === -1) return null
-    return {
-      prefix: url.slice(0, idx),
-      hostname: hostnameInfo.hostname,
-      suffix: url.slice(idx + hostnameInfo.hostname.length),
-    }
+    const prefix = url.slice(0, idx)
+    const hostname = hostnameInfo.hostname
+    const suffix = url.slice(idx + hostname.length)
+    return `${prefix}<b>${hostname}</b>${suffix}`
   })
 
   typeAppearance(kind: string): string {

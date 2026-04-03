@@ -1224,8 +1224,8 @@ export class MockApiService extends ApiService {
               },
               'p2p-interface': {
                 name: 'P2P Interface',
-                result: 'waiting',
-                message: 'Chain State',
+                result: 'success',
+                message: null,
               },
               'rpc-interface': {
                 name: 'RPC Interface',
