@@ -328,20 +328,18 @@ pub async fn mount_fs<P: AsRef<Path>>(
             .with_kind(ErrorKind::DiskManagement)?;
         let e2fsck_exit = e2fsck_output.status.code().unwrap_or(4);
         if e2fsck_exit >= 4 {
-            let msg = std::str::from_utf8(
-                if e2fsck_output.stderr.is_empty() {
-                    &e2fsck_output.stdout
-                } else {
-                    &e2fsck_output.stderr
-                },
-            )
+            let msg = std::str::from_utf8(if e2fsck_output.stderr.is_empty() {
+                &e2fsck_output.stdout
+            } else {
+                &e2fsck_output.stderr
+            })
             .unwrap_or("e2fsck failed");
             return Err(Error::new(eyre!("{msg}"), ErrorKind::DiskManagement));
         }
         tracing::info!("Converting {name} from ext4 to btrfs");
         Command::new("btrfs-convert")
-            .arg("--no-progress")
             .arg(&blockdev_path)
+            .capture(false)
             .invoke(ErrorKind::DiskManagement)
             .await?;
         // Delete ext2_saved subvolume and defragment after conversion
