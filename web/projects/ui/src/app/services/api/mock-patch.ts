@@ -14,8 +14,6 @@ export const mockPatchData: DataModel = {
     snakeHighScore: 0,
   },
   serverInfo: {
-    arch: 'x86_64',
-    platform: 'unknown',
     id: 'abcdefgh',
     version,
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
