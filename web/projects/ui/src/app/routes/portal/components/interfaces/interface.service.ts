@@ -291,11 +291,25 @@ export class InterfaceService {
         matching = mdns.format('urlstring')[0]
         onLan = true
         break
+      case 'domain':
+        matching = publicDomains.format('urlstring')[0]
+        break
+      case 'tor':
+        matching = addresses
+          .filter({
+            pluginId: 'tor',
+          })
+          .format('urlstring')[0]
+        break
+      case 'wan-ipv4':
+        matching = wanIp.format('urlstring')[0]
+        break
     }
 
     if (matching) return matching
     if (onLan && bestPrivate) return bestPrivate
     if (bestPublic) return bestPublic
+    if (bestPrivate) return bestPrivate
     return ''
   }
 }

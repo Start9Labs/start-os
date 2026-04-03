@@ -49,6 +49,7 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
             tuiChevron
             tuiDropdownAuto
             tuiDropdownLimitWidth="fixed"
+            [disabled]="!hasAnyHref()"
             [tuiDropdown]="content"
           >
             {{ 'Open UI' | i18n }}
@@ -62,6 +63,7 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
                   rel="noreferrer"
                   iconEnd="@tui.external-link"
                   [attr.href]="getHref(i)"
+                  [class.disabled]="!getHref(i)"
                   (click)="close()"
                 >
                   {{ i.name }}
@@ -69,12 +71,13 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
               }
             </tui-data-list>
           </ng-template>
-        } @else if (interfaces()[0]) {
+        } @else if (interfaces()[0]; as ui) {
           <button
             tuiButton
             appearance="primary-grayscale"
             iconStart="@tui.external-link"
-            (click)="openUI(interfaces()[0]!)"
+            [disabled]="!getHref(ui)"
+            (click)="openUI(ui)"
           >
             {{ 'Open UI' | i18n }}
           </button>
@@ -163,6 +166,10 @@ export class ServiceControlsComponent {
     ),
   )
 
+  readonly hasAnyHref = computed(() =>
+    this.interfaces().some(i => !!this.getHref(i)),
+  )
+
   getHref(ui: T.ServiceInterface): string {
     const host = this.pkg().hosts[ui.addressInfo.hostId]
     if (!host) return ''
@@ -170,6 +177,9 @@ export class ServiceControlsComponent {
   }
 
   openUI(ui: T.ServiceInterface) {
-    this.document.defaultView?.open(this.getHref(ui), '_blank', 'noreferrer')
+    const href = this.getHref(ui)
+    if (href) {
+      this.document.defaultView?.open(href, '_blank', 'noreferrer')
+    }
   }
 }

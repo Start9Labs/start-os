@@ -497,6 +497,21 @@ export const mockPatchData: DataModel = {
             suffix: '',
           },
         },
+        'admin-ui': {
+          id: 'admin-ui',
+          masked: false,
+          name: 'Admin UI',
+          description: 'An admin panel for managing your Bitcoin node',
+          type: 'ui',
+          addressInfo: {
+            username: null,
+            hostId: 'abcdefg',
+            internalPort: 80,
+            scheme: 'http',
+            sslScheme: 'https',
+            suffix: '/admin',
+          },
+        },
         rpc: {
           id: 'rpc',
           masked: true,
