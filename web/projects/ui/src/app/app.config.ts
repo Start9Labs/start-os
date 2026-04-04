@@ -37,7 +37,7 @@ import {
   VERSION,
   WorkspaceConfig,
 } from '@start9labs/shared'
-import { tuiObfuscateOptionsProvider } from '@taiga-ui/cdk'
+import { TUI_WINDOW_SIZE, tuiObfuscateOptionsProvider } from '@taiga-ui/cdk'
 import {
   provideTaiga,
   TUI_DIALOGS_CLOSE,
@@ -67,11 +67,12 @@ import {
   PATCH_CACHE,
   PatchDbSource,
 } from 'src/app/services/patch-db/patch-db-source'
+import { PluginsService } from 'src/app/services/plugins.service'
 import { StateService } from 'src/app/services/state.service'
 import { StorageService } from 'src/app/services/storage.service'
 import {
-  DateTransformer,
   DatetimeTransformer,
+  DateTransformer,
 } from 'src/app/utils/value-transformers'
 import { environment } from 'src/environments/environment'
 
@@ -184,6 +185,10 @@ export const APP_CONFIG: ApplicationConfig = {
         desktopSmall: 1280,
         desktopLarge: Infinity,
       },
+    },
+    {
+      provide: TUI_WINDOW_SIZE,
+      useExisting: PluginsService,
     },
   ],
 }
