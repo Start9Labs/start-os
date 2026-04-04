@@ -23,6 +23,7 @@ The crate produces a single binary `startbox` that is symlinked under different 
 - `src/context/` — Context types (RpcContext, CliContext, InitContext, DiagnosticContext)
 - `src/service/` — Service lifecycle management with actor pattern (`service_actor.rs`)
 - `src/db/model/` — Patch-DB models (`public.rs` synced to frontend, `private.rs` backend-only)
+- `src/mcp/` — MCP server for LLM agents (see [MCP Server](#mcp-server) below)
 - `src/net/` — Networking (DNS, ACME, WiFi, Tor via Arti, WireGuard)
 - `src/s9pk/` — S9PK package format (merkle archive)
 - `src/registry/` — Package registry management
@@ -38,16 +39,19 @@ See [rpc-toolkit.md](rpc-toolkit.md) for full handler patterns and configuration
 Patch-DB provides diff-based state synchronization. Changes to `db/model/public.rs` automatically sync to the frontend.
 
 **Key patterns:**
+
 - `db.peek().await` — Get a read-only snapshot of the database state
 - `db.mutate(|db| { ... }).await` — Apply mutations atomically, returns `MutateResult`
 - `#[derive(HasModel)]` — Derive macro for types stored in the database, generates typed accessors
 
 **Generated accessor types** (from `HasModel` derive):
+
 - `as_field()` — Immutable reference: `&Model<T>`
 - `as_field_mut()` — Mutable reference: `&mut Model<T>`
 - `into_field()` — Owned value: `Model<T>`
 
 **`Model<T>` APIs** (from `db/prelude.rs`):
+
 - `.de()` — Deserialize to `T`
 - `.ser(&value)` — Serialize from `T`
 - `.mutate(|v| ...)` — Deserialize, mutate, reserialize
@@ -62,6 +66,12 @@ See [i18n-patterns.md](i18n-patterns.md) for internationalization key convention
 ## Rust Utilities & Patterns
 
 See [core-rust-patterns.md](core-rust-patterns.md) for common utilities (Invoke trait, Guard pattern, mount guards, Apply trait, etc.).
+
+## MCP Server
+
+The MCP (Model Context Protocol) server at `src/mcp/` exposes the StartOS RPC API to LLM agents via the Streamable HTTP transport at `/mcp`. Tools wrap the existing RPC handlers; resources expose Patch-DB state with debounced SSE subscriptions; auth reuses the UI session cookie.
+
+See [src/mcp/ARCHITECTURE.md](src/mcp/ARCHITECTURE.md) for transport details, session lifecycle, tool dispatch, resource subscriptions, CORS, and body size limits.
 
 ## Related Documentation
 

@@ -8,7 +8,7 @@ StartOS is an open-source Linux distribution for running personal servers. It ma
 - Frontend: Angular 21 + TypeScript + Taiga UI 5
 - Container runtime: Node.js/TypeScript with LXC
 - Database/State: Patch-DB (git submodule) - storage layer with reactive frontend sync
-- API: JSON-RPC via rpc-toolkit (see `core/rpc-toolkit.md`)
+- API: JSON-RPC via rpc-toolkit (see `core/rpc-toolkit.md`), MCP for LLM agents (see `core/mcp/ARCHITECTURE.md`)
 - Auth: Password + session cookie, public/private key signatures, local authcookie (see `core/src/middleware/auth/`)
 
 ## Project Structure
@@ -28,7 +28,7 @@ StartOS is an open-source Linux distribution for running personal servers. It ma
 
 ## Components
 
-- **`core/`** — Rust backend daemon. Produces a single binary `startbox` that is symlinked as `startd` (main daemon), `start-cli` (CLI), `start-container` (runs inside LXC containers), `registrybox` (package registry), and `tunnelbox` (VPN/tunnel). Handles all backend logic: RPC API, service lifecycle, networking (DNS, ACME, WiFi, Tor, WireGuard), backups, and database state management. See [core/ARCHITECTURE.md](core/ARCHITECTURE.md).
+- **`core/`** — Rust backend daemon. Produces a single binary `startbox` that is symlinked as `startd` (main daemon), `start-cli` (CLI), `start-container` (runs inside LXC containers), `registrybox` (package registry), and `tunnelbox` (VPN/tunnel). Handles all backend logic: RPC API, MCP server for LLM agents, service lifecycle, networking (DNS, ACME, WiFi, Tor, WireGuard), backups, and database state management. See [core/ARCHITECTURE.md](core/ARCHITECTURE.md).
 
 - **`web/`** — Angular 21 + TypeScript workspace using Taiga UI 5. Contains three applications (admin UI, setup wizard, VPN management) and two shared libraries (common components/services, marketplace). Communicates with the backend exclusively via JSON-RPC. See [web/ARCHITECTURE.md](web/ARCHITECTURE.md).
 
@@ -53,13 +53,13 @@ Rust (core/)
 
 Key make targets along this chain:
 
-| Step | Command | What it does |
-|---|---|---|
-| 1 | `cargo check -p start-os` | Verify Rust compiles |
-| 2 | `make ts-bindings` | Export ts-rs types → rsync to SDK |
-| 3 | `cd sdk && make baseDist dist` | Build SDK packages |
-| 4 | `cd web && npm run check` | Type-check Angular projects |
-| 5 | `cd container-runtime && npm run check` | Type-check runtime |
+| Step | Command                                 | What it does                      |
+| ---- | --------------------------------------- | --------------------------------- |
+| 1    | `cargo check -p start-os`               | Verify Rust compiles              |
+| 2    | `make ts-bindings`                      | Export ts-rs types → rsync to SDK |
+| 3    | `cd sdk && make baseDist dist`          | Build SDK packages                |
+| 4    | `cd web && npm run check`               | Type-check Angular projects       |
+| 5    | `cd container-runtime && npm run check` | Type-check runtime                |
 
 **Important**: Editing `sdk/base/lib/osBindings/*.ts` alone is NOT sufficient — you must rebuild the SDK bundle (step 3) before web/container-runtime can see the changes.
 
@@ -89,6 +89,17 @@ StartOS uses Patch-DB for reactive state synchronization:
 4. Components watch specific database paths via `PatchDB.watch$()`, receiving updates reactively
 
 This means the UI is always eventually consistent with the backend — after any mutating API call, the frontend waits for the corresponding PatchDB diff before resolving, so the UI reflects the result immediately.
+
+## MCP Server (LLM Agent Interface)
+
+StartOS includes an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server at `/mcp`, enabling LLM agents to discover and invoke the same operations available through the UI and CLI. The MCP server runs inside the StartOS server process alongside the RPC API.
+
+- **Tools**: Every RPC method is exposed as an MCP tool with LLM-optimized descriptions and JSON Schema inputs. Agents call `tools/list` to discover what's available and `tools/call` to invoke operations.
+- **Resources**: System state is exposed via MCP resources backed by Patch-DB. Agents subscribe to `startos:///public` and receive debounced revision diffs over SSE, maintaining a local state cache without polling.
+- **Auth**: Same session cookie auth as the UI — no separate credentials.
+- **Transport**: MCP Streamable HTTP — POST for requests, GET for SSE notification stream, DELETE for session teardown.
+
+See [core/ARCHITECTURE.md](core/ARCHITECTURE.md#mcp-server) for implementation details.
 
 ## Further Reading
 
