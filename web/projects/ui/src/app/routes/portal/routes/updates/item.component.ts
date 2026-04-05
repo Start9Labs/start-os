@@ -9,7 +9,6 @@ import {
 import { RouterLink } from '@angular/router'
 import { MarketplacePkg } from '@start9labs/marketplace'
 import {
-  DialogService,
   i18nPipe,
   LocalizePipe,
   MarkdownPipe,
@@ -30,11 +29,9 @@ import {
   TuiFade,
   TuiProgressCircle,
 } from '@taiga-ui/kit'
-import { PatchDB } from 'patch-db-client'
 import { InstallingProgressPipe } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
-  DataModel,
   InstalledState,
   PackageDataEntry,
   UpdatingState,
@@ -256,10 +253,7 @@ import UpdatesComponent from './updates.component'
   ],
 })
 export class UpdatesItemComponent {
-  private readonly dialog = inject(DialogService)
-  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly service = inject(MarketplaceService)
-  private readonly i18n = inject(i18nPipe)
 
   readonly parent = inject(UpdatesComponent)
   readonly expanded = signal(false)
@@ -274,12 +268,14 @@ export class UpdatesItemComponent {
     const { id, version } = this.item()
     const url = this.parent.current()?.url || ''
 
+    this.ready.set(false)
+
     try {
       await this.service.installPackage(id, version, url)
-      this.ready.set(true)
     } catch (e: any) {
-      this.ready.set(true)
       this.error.set(e.message)
+    } finally {
+      this.ready.set(true)
     }
   }
 }
