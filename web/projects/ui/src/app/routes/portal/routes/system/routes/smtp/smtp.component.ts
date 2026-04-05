@@ -121,6 +121,7 @@ function detectProviderKey(host: string | undefined): string {
           <footer>
             <button
               tuiButton
+              type="button"
               size="l"
               [disabled]="
                 !testEmailControl.value || isEmailInvalid || data.form.invalid
