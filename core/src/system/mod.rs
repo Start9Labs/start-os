@@ -1233,12 +1233,15 @@ pub async fn test_smtp(
         .header(ContentType::TEXT_PLAIN)
         .body("This is a test email sent from your StartOS Server".to_owned())?;
 
+    let tls_parameters = TlsParameters::new(host.clone())?;
     let transport = match security {
-        SmtpSecurity::Starttls => AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&host)?,
-        SmtpSecurity::Tls => AsyncSmtpTransport::<Tokio1Executor>::relay(&host)?,
+        SmtpSecurity::Starttls => AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&host)?
+            .port(port)
+            .tls(Tls::Required(tls_parameters)),
+        SmtpSecurity::Tls => AsyncSmtpTransport::<Tokio1Executor>::relay(&host)?
+            .port(port)
+            .tls(Tls::Wrapper(tls_parameters)),
     }
-    .port(port)
-    .tls(Tls::Wrapper(TlsParameters::new(host.clone())?))
     .credentials(creds)
     .build();
 
