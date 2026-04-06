@@ -182,6 +182,23 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     async fn pre_up(self) -> Result<Self::PreUpRes, Error> {
+        // Contingency for customers with corrupted PostgreSQL databases:
+        // if this sentinel file exists, skip the database entirely and
+        // regenerate fresh account data.  Tor keys, SSH keys, and CIFS
+        // backup targets will be lost.
+        if tokio::fs::metadata("/home/start9/PGDB_DO_NOT_MIGRATE")
+            .await
+            .is_ok()
+        {
+            tracing::warn!(
+                "Found /home/start9/PGDB_DO_NOT_MIGRATE — \
+                 skipping PostgreSQL migration, generating fresh account data"
+            );
+            let account =
+                AccountInfo::new("embassy", std::time::SystemTime::now(), None)?;
+            return Ok((account, SshKeys::new(), CifsTargets::default(), BTreeMap::new()));
+        }
+
         let pg = init_postgres(DATA_DIR).await?;
         let account = previous_account_info(&pg).await?;
 
