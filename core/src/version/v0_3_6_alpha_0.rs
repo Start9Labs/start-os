@@ -288,10 +288,13 @@ impl VersionT for Version {
             value["keyStore"] = to_value(&keystore)?;
             // Preserve tor onion keys so later migrations (v0_4_0_alpha_20) can
             // include them in onion-migration.json for the tor service.
+            // Always write torMigration (even if empty) so that
+            // v0_4_0_alpha_20 takes the pre-built path and doesn't fall
+            // back to looking up keys in the onion store.
+            let mut onion_map: Value = json!({});
+            let mut tor_migration = imbl::Vector::<Value>::new();
             if !tor_keys.is_empty() {
-                let mut onion_map: Value = json!({});
                 let onion_obj = onion_map.as_object_mut().unwrap();
-                let mut tor_migration = imbl::Vector::<Value>::new();
                 for ((package_id, host_id), key_bytes) in &tor_keys {
                     let onion_addr = onion_address_from_key(key_bytes);
                     let encoded_key =
@@ -308,8 +311,8 @@ impl VersionT for Version {
                     }));
                 }
                 value["keyStore"]["onion"] = onion_map;
-                value["torMigration"] = Value::Array(tor_migration);
             }
+            value["torMigration"] = Value::Array(tor_migration);
             value["password"] = to_value(&account.password)?;
             value["compatS9pkKey"] =
                 to_value(&crate::db::model::private::generate_developer_key())?;
