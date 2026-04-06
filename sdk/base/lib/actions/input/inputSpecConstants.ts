@@ -120,7 +120,7 @@ export const smtpProviderVariants = Variants.of({
     name: 'Proton Mail',
     spec: smtpFields({
       host: 'smtp.protonmail.ch',
-      security: 'tls',
+      security: 'starttls',
       hostDisabled: true,
     }),
   },
