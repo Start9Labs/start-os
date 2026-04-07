@@ -3,6 +3,7 @@ import {
   Component,
   inject,
   input,
+  model,
   signal,
 } from '@angular/core'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
@@ -23,7 +24,7 @@ import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { QRModal } from 'src/app/routes/portal/modals/qr.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { GatewayAddress, MappedServiceInterface } from '../interface.service'
+import { GatewayAddress, MappedServiceInterface } from '../../interface.service'
 import { DomainHealthService } from './domain-health.service'
 
 @Component({
@@ -115,6 +116,24 @@ import { DomainHealthService } from './domain-health.service'
       >
         {{ 'Actions' | i18n }}
         <tui-data-list *tuiDropdown (click)="open.set(false)">
+          <button
+            tuiOption
+            [iconStart]="
+              address().enabled ? '@tui.toggle-right' : '@tui.toggle-left'
+            "
+            (click)="toggleEnabled()"
+          >
+            {{ (address().enabled ? 'Disable' : 'Enable') | i18n }}
+          </button>
+          @if (address().masked) {
+            <button
+              tuiOption
+              [iconStart]="currentlyMasked() ? '@tui.eye' : '@tui.eye-off'"
+              (click)="currentlyMasked.set(!currentlyMasked())"
+            >
+              {{ (currentlyMasked() ? 'Reveal' : 'Hide') | i18n }}
+            </button>
+          }
           @if (address().ui) {
             <a
               tuiOption
@@ -127,15 +146,6 @@ import { DomainHealthService } from './domain-health.service'
               {{ 'Open UI' | i18n }}
             </a>
           }
-          <button
-            tuiOption
-            [iconStart]="
-              address().enabled ? '@tui.toggle-right' : '@tui.toggle-left'
-            "
-            (click)="toggleEnabled()"
-          >
-            {{ (address().enabled ? 'Disable' : 'Enable') | i18n }}
-          </button>
           <button tuiOption iconStart="@tui.qr-code" (click)="showQR()">
             {{ 'Show QR' | i18n }}
           </button>
@@ -217,7 +227,7 @@ import { DomainHealthService } from './domain-health.service'
   providers: [tuiButtonOptionsProvider({ appearance: 'icon' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AddressActionsComponent {
+export class GatewayActionsComponent {
   private readonly isMobile = inject(WA_IS_MOBILE)
   private readonly dialog = inject(DialogService)
   private readonly api = inject(ApiService)
@@ -225,6 +235,7 @@ export class AddressActionsComponent {
   private readonly errorService = inject(ErrorService)
   private readonly domainHealth = inject(DomainHealthService)
   readonly copyService = inject(CopyService)
+  readonly currentlyMasked = model(true)
   readonly open = signal(false)
 
   readonly address = input.required<GatewayAddress>()

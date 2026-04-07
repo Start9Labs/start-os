@@ -31,9 +31,9 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import {
   GatewayAddressGroup,
   MappedServiceInterface,
-} from '../interface.service'
+} from '../../interface.service'
 import { DomainHealthService } from './domain-health.service'
-import { InterfaceAddressItemComponent } from './item.component'
+import { GatewayItemComponent } from './item.component'
 
 @Component({
   selector: 'section[gatewayGroup]',
@@ -131,11 +131,11 @@ import { InterfaceAddressItemComponent } from './item.component'
     TableComponent,
     PlaceholderComponent,
     i18nPipe,
-    InterfaceAddressItemComponent,
+    GatewayItemComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class InterfaceAddressesComponent {
+export class GatewayComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly formDialog = inject(FormDialogService)
   private readonly loader = inject(TuiNotificationMiddleService)

@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { MappedServiceInterface } from './interface.service'
-import { InterfaceAddressesComponent } from './addresses/addresses.component'
-import { PluginAddressesComponent } from './addresses/plugin.component'
+import { GatewayComponent } from './addresses/gateway/gateway.component'
+import { PluginAddressesComponent } from './addresses/plugin/plugin.component'
 
 @Component({
   selector: 'service-interface',
@@ -40,7 +40,7 @@ import { PluginAddressesComponent } from './addresses/plugin.component'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [tuiButtonOptionsProvider({ size: 'xs' })],
-  imports: [InterfaceAddressesComponent, PluginAddressesComponent],
+  imports: [GatewayComponent, PluginAddressesComponent],
 })
 export class InterfaceComponent {
   readonly packageId = input('')
