@@ -130,9 +130,11 @@ Remove `// VERSION_BUMP`, add new match arm, add comment:
             Version::Other(x) => x.clone(),
 ```
 
-### 4. SDK TypeScript Version
+### 4. SDK TypeScript Version (only on breaking SDK changes)
 
 **File: `sdk/package/lib/StartSdk.ts`**
+
+**Only update this when the version bump includes breaking changes to the SDK.** The SDK `OSVersion` tracks compatibility for service developers, not the OS release cadence. Routine version bumps should skip this file.
 
 Update the OSVersion constant (~line 64):
 
@@ -180,7 +182,7 @@ This pattern helps you quickly find all the places that need updating in the nex
 - [ ] Create new `core/src/version/vX_Y_Z_alpha_N+1.rs` file
 - [ ] Update `core/src/version/mod.rs` in 5 locations
 - [ ] Run `cargo check` to update `core/Cargo.lock`
-- [ ] Update `sdk/package/lib/StartSdk.ts` OSVersion
+- [ ] Update `sdk/package/lib/StartSdk.ts` OSVersion (only if breaking SDK changes)
 - [ ] Update `web/package.json` and `web/package-lock.json` version
 - [ ] Verify all changes compile/build successfully
 
