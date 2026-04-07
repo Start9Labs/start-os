@@ -34,9 +34,38 @@ export type PrivateDnsValidationData = {
       {{ 'as its DNS server' | i18n }}.
     </p>
 
-    <table [appTable]="[null, 'Gateway', 'DNS Server', null]">
-      <tr>
-        <td class="status">
+    <div class="desktop">
+      <table [appTable]="[null, 'Gateway', 'DNS Server', null]">
+        <tr>
+          <td class="status">
+            @if (loading()) {
+              <tui-loader size="s" />
+            } @else if (pass() === true) {
+              <tui-icon class="g-positive" icon="@tui.check" />
+            } @else if (pass() === false) {
+              <tui-icon class="g-negative" icon="@tui.x" />
+            } @else {
+              <tui-icon class="g-secondary" icon="@tui.minus" />
+            }
+          </td>
+          <td>{{ gatewayName }}</td>
+          <td>{{ internalIp }}</td>
+          <td>
+            <button
+              tuiButton
+              size="s"
+              [loading]="loading()"
+              (click)="testDns()"
+            >
+              {{ 'Test' | i18n }}
+            </button>
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div class="mobile">
+      <div class="card">
+        <div class="card-status">
           @if (loading()) {
             <tui-loader size="s" />
           } @else if (pass() === true) {
@@ -46,16 +75,22 @@ export type PrivateDnsValidationData = {
           } @else {
             <tui-icon class="g-secondary" icon="@tui.minus" />
           }
-        </td>
-        <td>{{ gatewayName }}</td>
-        <td>{{ internalIp }}</td>
-        <td>
-          <button tuiButton size="s" [loading]="loading()" (click)="testDns()">
-            {{ 'Test' | i18n }}
-          </button>
-        </td>
-      </tr>
-    </table>
+        </div>
+        <div class="card-fields">
+          <div class="field">
+            <span class="field-label">{{ 'Gateway' | i18n }}</span>
+            <span>{{ gatewayName }}</span>
+          </div>
+          <div class="field">
+            <span class="field-label">{{ 'DNS Server' | i18n }}</span>
+            <span>{{ internalIp }}</span>
+          </div>
+        </div>
+        <button tuiButton size="s" [loading]="loading()" (click)="testDns()">
+          {{ 'Test' | i18n }}
+        </button>
+      </div>
+    </div>
 
     @if (!isManualMode) {
       <footer class="g-buttons padding-top">
@@ -107,26 +142,52 @@ export type PrivateDnsValidationData = {
       margin-top: 1.5rem;
     }
 
-    :host-context(tui-root._mobile) table {
-      thead {
-        display: table-header-group !important;
+    .mobile {
+      display: none;
+    }
+
+    .card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--tui-border-normal);
+      border-radius: var(--tui-radius-l);
+      margin-top: 1rem;
+    }
+
+    .card-status {
+      flex-shrink: 0;
+      width: 1.5rem;
+      text-align: center;
+    }
+
+    .card-fields {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .field {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .field-label {
+      color: var(--tui-text-secondary);
+      font: var(--tui-typography-body-s);
+
+      &::after {
+        content: ':';
+      }
+    }
+
+    :host-context(tui-root._mobile) {
+      .desktop {
+        display: none;
       }
 
-      tr {
-        display: table-row !important;
-        box-shadow: none !important;
-      }
-
-      td,
-      th {
-        padding: 0.5rem 0.5rem !important;
-        font: var(--tui-typography-body-s) !important;
-        color: var(--tui-text-primary) !important;
-        font-weight: normal !important;
-      }
-
-      th {
-        font-weight: bold !important;
+      .mobile {
+        display: block;
       }
     }
   `,

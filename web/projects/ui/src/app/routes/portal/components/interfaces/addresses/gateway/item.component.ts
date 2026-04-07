@@ -8,7 +8,6 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
-import { TuiObfuscatePipe } from '@taiga-ui/cdk'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import {
   TuiBadge,
@@ -16,8 +15,8 @@ import {
   TuiSwitch,
 } from '@taiga-ui/kit'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { GatewayAddress, MappedServiceInterface } from '../interface.service'
-import { AddressActionsComponent } from './actions.component'
+import { GatewayAddress, MappedServiceInterface } from '../../interface.service'
+import { GatewayActionsComponent } from './actions.component'
 import { DomainHealthService } from './domain-health.service'
 
 @Component({
@@ -74,7 +73,7 @@ import { DomainHealthService } from './domain-health.service'
       <td>
         <div class="url">
           @if (address.masked && currentlyMasked()) {
-            <span>{{ address.url | tuiObfuscate: 'mask' }}</span>
+            <span>••••••••••••••••••••••••••••••••••••••••••••••••••••</span>
           } @else {
             <span [title]="address.url">
               @if (urlHtml(); as html) {
@@ -104,6 +103,7 @@ import { DomainHealthService } from './domain-health.service'
         [value]="value()"
         [disabled]="!isRunning()"
         [gatewayId]="gatewayId()"
+        [(currentlyMasked)]="currentlyMasked"
         [style.width.rem]="5"
       ></td>
     }
@@ -153,6 +153,10 @@ import { DomainHealthService } from './domain-health.service'
     :host-context(tui-root._mobile) {
       padding-inline-start: 0.75rem !important;
       row-gap: 0.25rem;
+
+      .url button {
+        display: none;
+      }
 
       &::before {
         content: '';
@@ -216,17 +220,16 @@ import { DomainHealthService } from './domain-health.service'
   `,
   imports: [
     i18nPipe,
-    AddressActionsComponent,
+    GatewayActionsComponent,
     TuiBadge,
     TuiButton,
     TuiIcon,
-    TuiObfuscatePipe,
     TuiSwitch,
     FormsModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class InterfaceAddressItemComponent {
+export class GatewayItemComponent {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(TuiNotificationMiddleService)
@@ -240,10 +243,6 @@ export class InterfaceAddressItemComponent {
 
   readonly toggling = signal(false)
   readonly currentlyMasked = signal(true)
-  readonly recipe = computed(() =>
-    this.address()?.masked && this.currentlyMasked() ? 'mask' : 'none',
-  )
-
   readonly urlHtml = computed(() => {
     const { url, hostnameInfo } = this.address()
     const idx = url.indexOf(hostnameInfo.hostname)

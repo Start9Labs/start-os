@@ -713,6 +713,20 @@ export const mockPatchData: DataModel = {
                     port: 48332,
                     metadata: { kind: 'ipv4', gateway: 'eth0' },
                   },
+                  {
+                    ssl: false,
+                    public: false,
+                    hostname:
+                      'abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc.onion',
+                    port: 48332,
+                    metadata: {
+                      kind: 'plugin',
+                      packageId: 'tor',
+                      removeAction: 'delete-onion-service',
+                      overflowActions: ['regenerate-key'],
+                      info: null,
+                    },
+                  },
                 ],
               },
               options: {
