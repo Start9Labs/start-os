@@ -5,15 +5,19 @@ import {
   Input,
 } from '@angular/core'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
-import { TuiButton, TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
-import { TuiCarousel } from '@taiga-ui/kit'
+import {
+  TuiButton,
+  TuiCarousel,
+  TuiDialogContext,
+  TuiDialogService,
+} from '@taiga-ui/core'
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
 import { MarketplacePkg } from '../../types'
 
 @Component({
   selector: 'marketplace-package-screenshots',
   template: `
-    <!--@TODO future release-->
+    <!--@TODO future release, refactor for new Carousel -->
     @if ($any(pkg).screenshots; as screenshots) {
       <div tuiCarouselButtons class="outer-container">
         <button
@@ -24,12 +28,7 @@ import { MarketplacePkg } from '../../types'
           type="button"
           (click)="carousel.prev()"
         ></button>
-        <tui-carousel
-          #carousel
-          [itemsCount]="isMobile ? 1 : 2"
-          [(index)]="index"
-          class="carousel"
-        >
+        <tui-carousel #carousel [(index)]="index" class="carousel">
           @for (item of screenshots; track item; let i = $index) {
             <div
               *tuiItem

@@ -5,6 +5,7 @@ import {
 } from '@angular/common/http'
 import {
   ApplicationConfig,
+  computed,
   inject,
   provideAppInitializer,
   provideZoneChangeDetection,
@@ -22,7 +23,7 @@ import {
   withRouterConfig,
 } from '@angular/router'
 import { provideServiceWorker } from '@angular/service-worker'
-import { WA_LOCATION } from '@ng-web-apis/common'
+import { WA_LOCATION, WA_WINDOW } from '@ng-web-apis/common'
 import initArgon from '@start9labs/argon2'
 import {
   AbstractCategoryService,
@@ -37,9 +38,14 @@ import {
   VERSION,
   WorkspaceConfig,
 } from '@start9labs/shared'
-import { TUI_WINDOW_SIZE, tuiObfuscateOptionsProvider } from '@taiga-ui/cdk'
+import {
+  TUI_WINDOW_SIZE,
+  tuiObfuscateOptionsProvider,
+  tuiWindowSize,
+} from '@taiga-ui/cdk'
 import {
   provideTaiga,
+  TUI_BREAKPOINT,
   TUI_DIALOGS_CLOSE,
   TUI_MEDIA,
   tuiButtonOptionsProvider,
@@ -187,8 +193,21 @@ export const APP_CONFIG: ApplicationConfig = {
       },
     },
     {
-      provide: TUI_WINDOW_SIZE,
-      useExisting: PluginsService,
+      provide: TUI_BREAKPOINT,
+      useFactory: () => {
+        const media = inject(TUI_MEDIA)
+        const window = tuiWindowSize(inject(WA_WINDOW))
+        const plugins = inject(PluginsService)
+
+        return computed(() => {
+          const { width } = window()
+          const value = plugins.enabled()
+            ? 320 + (width - 640) * (plugins.size() / 100)
+            : width
+
+          return value < media.mobile ? 'mobile' : 'desktopLarge'
+        })
+      },
     },
   ],
 }
