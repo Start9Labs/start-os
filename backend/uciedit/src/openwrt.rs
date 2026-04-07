@@ -58,6 +58,10 @@ pub struct FirewallRule {
     pub family: Option<String>,
     #[uci(default)]
     pub enabled: Option<String>,
+    #[uci(default)]
+    pub set_mark: Option<String>,
+    #[uci(default)]
+    pub extra: Option<String>,
     /// Published-port metadata: links IPv4 redirect + IPv6 rule
     #[uci(default)]
     pub _pp_id: Option<String>,
@@ -325,8 +329,13 @@ pub struct NetworkRoute {
 #[derive(Debug, TypedSection, Default)]
 #[uci(ty = "rule")]
 pub struct NetworkRule {
-    pub src: String,
+    #[uci(default)]
+    pub src: Option<String>,
     pub lookup: u32,
+    #[uci(default)]
+    pub mark: Option<String>,
+    #[uci(default)]
+    pub priority: Option<u32>,
 }
 
 #[derive(Debug, TypedSection)]

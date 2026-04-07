@@ -457,13 +457,15 @@ pub fn update_profile_ips_for_block_change(
             if let Some(iface_name) = name.strip_prefix("prr_") {
                 if profile_interfaces.contains(iface_name) {
                     if let Some(mut rule) = section.get_typed::<NetworkRule>()? {
-                        if let Some(ip_part) = rule.src.split('/').next() {
-                            if let Ok(src) = ip_part.parse::<Ipv4Addr>() {
-                                rule.src = format!(
-                                    "{}.{}.{}.0/24",
-                                    new_oct[0], new_oct[1], src.octets()[2]
-                                );
-                                section.set(&rule)?;
+                        if let Some(ref src) = rule.src {
+                            if let Some(ip_part) = src.split('/').next() {
+                                if let Ok(src_ip) = ip_part.parse::<Ipv4Addr>() {
+                                    rule.src = Some(format!(
+                                        "{}.{}.{}.0/24",
+                                        new_oct[0], new_oct[1], src_ip.octets()[2]
+                                    ));
+                                    section.set(&rule)?;
+                                }
                             }
                         }
                     }
@@ -847,7 +849,7 @@ config redirect 'dns_override_guest'
             if section.name().as_deref() == Some("prr_guest") {
                 let rule = section.get_typed::<NetworkRule>().unwrap().unwrap();
                 assert_eq!(
-                    rule.src, "10.0.2.0/24",
+                    rule.src.as_deref(), Some("10.0.2.0/24"),
                     "Guest routing rule src should be updated to new block"
                 );
             }

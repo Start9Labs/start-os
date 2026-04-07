@@ -1798,14 +1798,18 @@ pub(crate) fn rewrite_routing(
     let route_name = format!("prt_{}", profile.id.interface);
     let local_route_name = format!("plr_{}", profile.id.interface);
     let rule_name = format!("prr_{}", profile.id.interface);
+    let mark_rule_name = format!("dnat_mark_{}", profile.id.interface);
 
-    // 1. Remove old route/rule for this profile
+    // 1. Remove old route/rule/mark for this profile
     cfgs["network"].sections.retain(|s| {
         let n = s.name();
         n.as_deref() != Some(route_name.as_str())
             && n.as_deref() != Some(local_route_name.as_str())
             && n.as_deref() != Some(rule_name.as_str())
     });
+    cfgs["firewall"]
+        .sections
+        .retain(|s| s.name().as_deref() != Some(mark_rule_name.as_str()));
 
     // 2. If outbound is "wan", main table suffices — no policy routing needed
     if profile.outbound == "wan" {
@@ -1852,15 +1856,38 @@ pub(crate) fn rewrite_routing(
     //    config rule 'prr_<interface>'
     //      option src '<network_addr>/24'
     //      option lookup '<vlan_tag>'
+    //      option priority '200'
     cfgs["network"].append(
         &NetworkRule {
-            src: network_addr,
+            src: Some(network_addr),
             lookup: profile.id.vlan_tag as u32,
+            priority: Some(VPN_ROUTING_PRIORITY),
+            ..Default::default()
         },
         Some(&rule_name),
     )?;
 
-    // 6. Ensure VPN interface is in WAN zone (for masquerading)
+    // 6. Create mangle MARK rule so that DNAT reply traffic gets routed via
+    //    the main table instead of the VPN tunnel.  fw3 places MARK rules
+    //    with src=<zone> + dest='*' into mangle PREROUTING (rules.c:313).
+    //    The matching ip rule (dnat_return) is created by ensure_dnat_return_rule().
+    let zone_name = resolve_profile_zone(cfgs, &profile.id.interface);
+    cfgs["firewall"].append(
+        &FirewallRule {
+            name: "Mark-DNAT-Return".to_string(),
+            src: zone_name,
+            dest: Some("*".to_string()),
+            proto: vec!["all".into()],
+            target: FirewallTarget::MARK,
+            set_mark: Some(DNAT_RETURN_MARK.to_string()),
+            extra: Some("-m conntrack --ctstate DNAT".to_string()),
+            ..Default::default()
+        },
+        Some(&mark_rule_name),
+    )?;
+    ensure_dnat_return_rule(cfgs)?;
+
+    // 7. Ensure VPN interface is in WAN zone (for masquerading)
     for section in &mut cfgs["firewall"].sections {
         if let Ok(mut zone) = section.get::<FirewallZone>() {
             if zone.name == DEFAULT_WAN_ZONE {
@@ -1873,10 +1900,57 @@ pub(crate) fn rewrite_routing(
         }
     }
 
-    // 7. Add /32 peer routes so locally-generated responses (DNS, HTTP) reach
+    // 8. Add /32 peer routes so locally-generated responses (DNS, HTTP) reach
     //    VPN clients via wg_X instead of being caught by the /24 subnet route
     crate::vpn_server::sync_peer_policy_routes(cfgs, &profile.id.interface)?;
 
+    Ok(())
+}
+
+const DNAT_RETURN_RULE: &str = "dnat_return";
+const DNAT_RETURN_MARK: &str = "0x80/0x80";
+/// Must be lower (higher priority) than VPN_ROUTING_PRIORITY so that the
+/// fwmark rule is evaluated before source-based VPN routing rules.
+const DNAT_RETURN_PRIORITY: u32 = 100;
+/// Explicit priority for source-based VPN ip rules, ensuring they don't
+/// collide with DNAT_RETURN_PRIORITY through netifd auto-assignment.
+const VPN_ROUTING_PRIORITY: u32 = 200;
+
+/// Find the firewall zone name for a profile's interface.
+fn resolve_profile_zone(cfgs: &Configs, interface: &str) -> String {
+    for section in &cfgs["firewall"].sections {
+        if let Ok(zone) = section.get::<FirewallZone>() {
+            if zone.name == DEFAULT_WAN_ZONE {
+                continue;
+            }
+            if zone.network.iter().any(|n| n == interface) {
+                return zone.name;
+            }
+        }
+    }
+    format!("vlan_{interface}")
+}
+
+/// Ensure a single `ip rule` exists that routes fwmark 0x80 packets via the
+/// main routing table.  This cooperates with the per-profile mangle MARK rules
+/// (dnat_mark_<interface>) to prevent DNAT reply traffic from being captured by
+/// source-based VPN policy routing rules.
+fn ensure_dnat_return_rule(cfgs: &mut Configs) -> Result<(), Error> {
+    let exists = cfgs["network"]
+        .sections
+        .iter()
+        .any(|s| s.name().as_deref() == Some(DNAT_RETURN_RULE));
+    if !exists {
+        cfgs["network"].append(
+            &NetworkRule {
+                src: None,
+                lookup: 254, // main table
+                mark: Some(DNAT_RETURN_MARK.to_string()),
+                priority: Some(DNAT_RETURN_PRIORITY),
+            },
+            Some(DNAT_RETURN_RULE),
+        )?;
+    }
     Ok(())
 }
 
@@ -3464,8 +3538,34 @@ config dhcp 'lan'
             .find(|s| s.name().as_deref() == Some("prr_guest"))
             .expect("rule section prr_guest should exist");
         let rule_data = rule.get::<NetworkRule>().unwrap();
-        assert_eq!(rule_data.src, "192.168.101.0/24");
+        assert_eq!(rule_data.src.as_deref(), Some("192.168.101.0/24"));
         assert_eq!(rule_data.lookup, 101);
+        assert_eq!(rule_data.priority, Some(200));
+
+        // Verify dnat_return ip rule was created for port-forward reply routing
+        let dnat_rule = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("dnat_return"))
+            .expect("dnat_return rule should exist when VPN routing is active");
+        let dnat_data = dnat_rule.get::<NetworkRule>().unwrap();
+        assert_eq!(dnat_data.mark.as_deref(), Some("0x80/0x80"));
+        assert_eq!(dnat_data.lookup, 254);
+        assert_eq!(dnat_data.priority, Some(100));
+        assert!(dnat_data.src.is_none());
+
+        // Verify mangle MARK rule was created for the profile's zone
+        let mark_rule = cfgs["firewall"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("dnat_mark_guest"))
+            .expect("dnat_mark_guest firewall rule should exist");
+        let mark_data = mark_rule.get::<FirewallRule>().unwrap();
+        assert_eq!(mark_data.src, "vlan_guest");
+        assert_eq!(mark_data.dest.as_deref(), Some("*"));
+        assert_eq!(mark_data.target, FirewallTarget::MARK);
+        assert_eq!(mark_data.set_mark.as_deref(), Some("0x80/0x80"));
+        assert_eq!(mark_data.extra.as_deref(), Some("-m conntrack --ctstate DNAT"));
     }
 
     #[test]
