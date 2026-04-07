@@ -1,4 +1,3 @@
-import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,6 +5,7 @@ import {
   input,
   signal,
 } from '@angular/core'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { CopyService, DialogService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton, TuiDataList, TuiDropdown, TuiInput } from '@taiga-ui/core'
@@ -132,11 +132,12 @@ import {
                 tuiIconButton
                 appearance="flat-grayscale"
                 iconStart="@tui.ellipsis-vertical"
-                [tuiAppearanceState]="open() ? 'hover' : null"
-                [(tuiDropdownOpen)]="open"
+                [tuiAppearanceState]="mobileOpen() === i ? 'hover' : null"
+                [tuiDropdownOpen]="mobileOpen() === i"
+                (tuiDropdownOpenChange)="mobileOpen.set($event ? i : null)"
               >
                 {{ 'Actions' | i18n }}
-                <tui-data-list *tuiDropdown (click)="open.set(false)">
+                <tui-data-list *tuiDropdown (click)="mobileOpen.set(null)">
                   @if (address.hostnameInfo.metadata.kind === 'plugin') {
                     @if (address.hostnameInfo.metadata.removeAction) {
                       @if (
@@ -273,7 +274,7 @@ export class PluginAddressesComponent {
   private readonly dialog = inject(DialogService)
   private readonly actionService = inject(ActionService)
   readonly copyService = inject(CopyService)
-  readonly open = signal(false)
+  readonly mobileOpen = signal<number | null>(null)
   readonly overflowOpen = signal<number | null>(null)
 
   readonly pluginGroup = input.required<PluginAddressGroup>()
