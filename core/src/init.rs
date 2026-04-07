@@ -501,8 +501,10 @@ pub async fn init_progress(ctx: InitContext) -> Result<InitProgressRes, Error> {
                     );
 
                     if let Err(e) = ws.close_result(res.map(|_| "complete")).await {
-                        tracing::error!("{}", t!("init.error-closing-websocket", error = e));
-                        tracing::debug!("{e:?}");
+                        if !crate::util::net::is_ws_reset_without_close(&e) {
+                            tracing::error!("{}", t!("init.error-closing-websocket", error = e));
+                            tracing::debug!("{e:?}");
+                        }
                     }
                 },
                 Duration::from_secs(30),

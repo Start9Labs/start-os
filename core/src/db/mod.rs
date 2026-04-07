@@ -248,8 +248,10 @@ pub async fn subscribe(
                     }
                     .await
                     {
-                        tracing::error!("Error in db websocket: {e}");
-                        tracing::debug!("{e:?}");
+                        if !crate::util::net::is_ws_reset_without_close(&e) {
+                            tracing::error!("Error in db websocket: {e}");
+                            tracing::debug!("{e:?}");
+                        }
                     }
                 },
                 Duration::from_secs(30),

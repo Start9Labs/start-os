@@ -1141,8 +1141,10 @@ pub async fn attach(
                     )
                     .await
                     {
-                        tracing::error!("Error in attach websocket: {e}");
-                        tracing::debug!("{e:?}");
+                        if !crate::util::net::is_ws_reset_without_close(&e) {
+                            tracing::error!("Error in attach websocket: {e}");
+                            tracing::debug!("{e:?}");
+                        }
                         ws.close_result(Err::<&str, _>(e)).await.log_err();
                     } else {
                         ws.normal_close("exit").await.log_err();

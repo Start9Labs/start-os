@@ -205,6 +205,15 @@ impl Sink<Message> for WebSocket {
     }
 }
 
+/// Check if an error is a benign websocket "connection reset without closing handshake"
+/// error from tungstenite. This happens normally when clients disconnect without
+/// sending a close frame (e.g. closing a browser tab).
+pub fn is_ws_reset_without_close(e: &Error) -> bool {
+    e.source
+        .to_string()
+        .contains("Connection reset without closing handshake")
+}
+
 pub struct SyncBody(Mutex<axum::body::BodyDataStream>);
 impl From<axum::body::Body> for SyncBody {
     fn from(value: axum::body::Body) -> Self {
