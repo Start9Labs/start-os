@@ -17,6 +17,7 @@ export class WanIpv6Service extends FormService<WanIpv6Form> {
         wan: res.address || '',
         prefix: res.prefix || '',
         gateway: res.gateway || '',
+        lan_prefix: res.lan_prefix || '',
         ip6prefix: res.ip6prefix || '',
         ip6prefixlen: res.ip6prefixlen || '',
         ip4prefixlen: res.ip4prefixlen || '',
@@ -32,6 +33,8 @@ export class WanIpv6Service extends FormService<WanIpv6Form> {
       address: ip.mode === 'static' ? ip.wan : undefined,
       prefix: ip.mode === 'static' ? ip.prefix : undefined,
       gateway: ip.mode === 'static' ? ip.gateway : undefined,
+      lan_prefix:
+        ip.mode === 'static' && ip.lan_prefix ? ip.lan_prefix : undefined,
       ip6prefix: ip.mode === '6rd' ? ip.ip6prefix : undefined,
       ip6prefixlen: ip.mode === '6rd' ? ip.ip6prefixlen : undefined,
       ip4prefixlen: ip.mode === '6rd' ? ip.ip4prefixlen : undefined,

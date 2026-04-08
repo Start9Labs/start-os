@@ -81,6 +81,8 @@ pub struct WanIpv6Response {
     pub ip4prefixlen: Option<String>,
     pub border_relay: Option<String>,
     pub assigned_ipv6: Option<String>,
+    /// Static mode: LAN prefix pool for sub-delegation, e.g. "2001:db8:abcd::/48"
+    pub lan_prefix: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -93,6 +95,8 @@ pub struct WanIpv6SetRequest {
     pub ip6prefixlen: Option<String>,
     pub ip4prefixlen: Option<String>,
     pub border_relay: Option<String>,
+    /// Static mode: LAN prefix pool for sub-delegation, e.g. "2001:db8:abcd::/48"
+    pub lan_prefix: Option<String>,
 }
 
 // ── MAC types ───────────────────────────────────────────────
@@ -404,6 +408,7 @@ pub fn ipv6_get<C: CtrlContext>(ctx: C) -> Result<WanIpv6Response, Error> {
             ip4prefixlen: None,
             border_relay: None,
             assigned_ipv6: None,
+            lan_prefix: None,
         });
     };
 
@@ -449,16 +454,30 @@ pub fn ipv6_get<C: CtrlContext>(ctx: C) -> Result<WanIpv6Response, Error> {
         None
     };
 
+    // For Static mode, ip6prefix is the LAN delegation prefix.
+    // For 6RD, ip6prefix is the tunnel parameter.
+    let lan_prefix = if mode == WanIpv6Mode::Static {
+        iface.ip6prefix.clone()
+    } else {
+        None
+    };
+    let sixrd_ip6prefix = if mode == WanIpv6Mode::SixRd {
+        iface.ip6prefix
+    } else {
+        None
+    };
+
     Ok(WanIpv6Response {
         mode,
         address,
         prefix,
         gateway: iface.ip6gw,
-        ip6prefix: iface.ip6prefix,
+        ip6prefix: sixrd_ip6prefix,
         ip6prefixlen: iface.ip6prefixlen.map(|p| format!("/{}", p)),
         ip4prefixlen: iface.ip4prefixlen.map(|p| format!("/{}", p)),
         border_relay: iface.peeraddr,
         assigned_ipv6,
+        lan_prefix,
     })
 }
 
@@ -506,11 +525,14 @@ pub fn ipv6_set<C: CtrlContext>(
                         (Some(addr), None) => Some(addr.clone()),
                         _ => None,
                     };
+                    // Parse lan_prefix "addr/len" into ip6prefix for odhcpd distribution
+                    let ip6prefix = req.lan_prefix.clone();
                     NetworkInterface {
                         device: "@wan".to_string(),
                         proto: InterfaceProto::STATIC,
                         ip6addr,
                         ip6gw: req.gateway.clone(),
+                        ip6prefix,
                         ..Default::default()
                     }
                 }

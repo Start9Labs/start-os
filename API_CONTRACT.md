@@ -273,10 +273,14 @@ struct WanIpv6Response {
     address: Option<String>,
     prefix: Option<String>,    // e.g. "/64"
     gateway: Option<String>,
+    /// Static mode: LAN prefix pool for sub-delegation, e.g. "2001:db8::/48"
+    lan_prefix: Option<String>,
     /// 6RD mode
     peer_ipv4: Option<String>,
     mask: Option<String>,      // e.g. "/32"
     border_relay: Option<String>,
+    /// Runtime: assigned IPv6 address
+    assigned_ipv6: Option<String>,
 }
 ```
 
@@ -289,6 +293,8 @@ struct WanIpv6SetRequest {
     address: Option<String>,
     prefix: Option<String>,
     gateway: Option<String>,
+    /// Static mode: LAN prefix pool, e.g. "2001:db8::/48"
+    lan_prefix: Option<String>,
     peer_ipv4: Option<String>,
     mask: Option<String>,
     border_relay: Option<String>,

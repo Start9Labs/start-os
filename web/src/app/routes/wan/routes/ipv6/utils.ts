@@ -12,7 +12,12 @@ export const IPV6_MODES = [
 
 export const IPV6_SLAAC_CONTROLS = ['prefix'] as const
 export const IPV6_DHCPV6_CONTROLS = ['prefix'] as const
-export const IPV6_STATIC_CONTROLS = ['wan', 'prefix', 'gateway'] as const
+export const IPV6_STATIC_CONTROLS = [
+  'wan',
+  'prefix',
+  'gateway',
+  'lan_prefix',
+] as const
 export const IPV6_SIXRD_CONTROLS = [
   'ip6prefix',
   'ip6prefixlen',
@@ -45,6 +50,7 @@ export const IPV6_LABELS: Record<
   wan: 'WAN IP',
   prefix: 'IPv6 Prefix',
   gateway: 'Gateway IP',
+  lan_prefix: 'LAN Prefix',
   ip6prefix: 'IPv6 Prefix',
   ip6prefixlen: 'IPv6 Prefix Length',
   ip4prefixlen: 'IPv4 Prefix Length',
@@ -69,6 +75,8 @@ export function getWanIpv6Form(builder: NonNullableFormBuilder) {
       wan: builder.control('', [CustomValidators.ipv6()]),
       prefix: builder.control('', [CustomValidators.prefix(0, 128)]),
       gateway: builder.control('', [CustomValidators.ipv6()]),
+      // Static mode LAN prefix (e.g. "2001:db8::/48")
+      lan_prefix: builder.control(''),
       // 6RD fields
       ip6prefix: builder.control('', [CustomValidators.ipv6()]),
       ip6prefixlen: builder.control('', [CustomValidators.prefix(0, 128)]),
@@ -90,6 +98,7 @@ export function updateIpv6Validators(
   ip.wan.clearValidators()
   ip.prefix.clearValidators()
   ip.gateway.clearValidators()
+  ip.lan_prefix.clearValidators()
   ip.ip6prefix.clearValidators()
   ip.ip6prefixlen.clearValidators()
   ip.ip4prefixlen.clearValidators()
@@ -109,6 +118,7 @@ export function updateIpv6Validators(
     ip.wan.addValidators([Validators.required])
     ip.prefix.addValidators([Validators.required])
     ip.gateway.addValidators([Validators.required])
+    // lan_prefix is optional for static mode
   } else if (mode === '6rd') {
     ip.ip6prefix.addValidators([Validators.required])
     ip.ip6prefixlen.addValidators([Validators.required])
@@ -120,6 +130,7 @@ export function updateIpv6Validators(
   ip.wan.updateValueAndValidity()
   ip.prefix.updateValueAndValidity()
   ip.gateway.updateValueAndValidity()
+  ip.lan_prefix.updateValueAndValidity()
   ip.ip6prefix.updateValueAndValidity()
   ip.ip6prefixlen.updateValueAndValidity()
   ip.ip4prefixlen.updateValueAndValidity()

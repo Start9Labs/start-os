@@ -53,7 +53,8 @@ import {
         <section tuiAnimated>
           @for (name of all; track name) {
             @let auto = ['slaac', 'dhcpv6'].includes(parent.ipMode());
-            @let optional = name === 'prefix' && auto;
+            @let optional =
+              (name === 'prefix' && auto) || name === 'lan_prefix';
 
             @if (controls[parent.ipMode()]?.includes(name)) {
               <div>

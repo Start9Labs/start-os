@@ -491,6 +491,7 @@ export type WanIpv6Response = {
   ip4prefixlen?: string | null
   border_relay?: string | null
   assigned_ipv6?: string | null
+  lan_prefix?: string | null
 }
 
 export type WanIpv6SetRequest = {
@@ -502,6 +503,7 @@ export type WanIpv6SetRequest = {
   ip6prefixlen?: string
   ip4prefixlen?: string
   border_relay?: string
+  lan_prefix?: string
 }
 
 export type WanMacStrategy = 'router' | 'custom'

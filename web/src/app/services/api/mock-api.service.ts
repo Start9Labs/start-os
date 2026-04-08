@@ -1000,6 +1000,7 @@ export class MockApiService extends ApiService {
     ip4prefixlen: null,
     assigned_ipv6: '2001:db8::1',
     border_relay: null,
+    lan_prefix: null,
   }
 
   async wanIpv6Get(): Promise<WanIpv6Response> {
@@ -1018,6 +1019,7 @@ export class MockApiService extends ApiService {
       ip6prefixlen: params.ip6prefixlen ?? null,
       ip4prefixlen: params.ip4prefixlen ?? null,
       border_relay: params.border_relay ?? null,
+      lan_prefix: params.lan_prefix ?? null,
     }
     return null
   }

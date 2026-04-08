@@ -264,6 +264,7 @@ pub fn ipv6_get<C: CtrlContext>(ctx: C) -> Result<LanIpv6Response, Error> {
         crate::ssl::read_lan_ipv6_from_ubus().map(|a| a.to_string())
     });
 
+    // Runtime delegation status
     Ok(LanIpv6Response {
         slaac,
         dhcpv6,
@@ -327,6 +328,9 @@ pub fn ipv6_set<C: CtrlContext>(
         }
 
         // Update all profile DHCP/network sections to match global IPv6 state.
+        // Only the admin LAN interface gets ip6assign (the full delegated
+        // prefix). Profile interfaces do NOT get ip6assign — until multi-prefix
+        // delegation is implemented, only admin devices receive GUA addresses.
         // Profiles routed through a VPN that lacks IPv6 addresses always get
         // IPv6 disabled to prevent leaking traffic outside the tunnel.
         let ipv6_requested = req.slaac || req.dhcpv6;
@@ -340,16 +344,15 @@ pub fn ipv6_set<C: CtrlContext>(
             }
         }
 
+        // Remove ip6assign from profile interfaces (only lan gets it)
         for section in &mut cfgs["network"].sections {
             if let Some(name) = section.name() {
-                if let Some(&profile_ipv6) = profile_ipv6_map.get(name.as_ref()) {
+                if profile_ipv6_map.contains_key(name.as_ref()) {
                     if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
-                        iface.ip6assign = if profile_ipv6 {
-                            Some(req.prefix.to_string())
-                        } else {
-                            None
-                        };
-                        section.set(&iface)?;
+                        if iface.ip6assign.is_some() {
+                            iface.ip6assign = None;
+                            section.set(&iface)?;
+                        }
                     }
                 }
             }

@@ -90,6 +90,14 @@ fn protocol_to_uci(proto: &Protocol) -> Vec<String> {
     }
 }
 
+/// Check whether an IPv6 address is a Global Unicast Address (routable from the internet).
+fn is_gua(ip: &str) -> bool {
+    !ip.starts_with("fe80:")
+        && !ip.starts_with("fd")
+        && !ip.starts_with("fc")
+        && !ip.starts_with("::")
+}
+
 /// Convert UCI proto list to our Protocol enum
 fn uci_to_protocol(proto: &[String]) -> Protocol {
     let has_tcp = proto.iter().any(|p| p == "tcp");
@@ -485,14 +493,10 @@ pub fn set<C: CtrlContext>(
                     }
                     .into());
                 }
-                if port.ipv6 && ipv6_addr.is_none() {
-                    return Err(ErrorKind::MissingDeviceAddress {
-                        mac: port.device_mac.clone(),
-                        family: "IPv6".into(),
-                        label: port.label.clone(),
-                    }
-                    .into());
-                }
+                // IPv6 validation is handled at rule-creation time: the GUA
+                // guard silently skips the IPv6 rule when the device has no
+                // globally routable address. No hard error here — that would
+                // block the IPv4 redirect from being saved.
             }
         }
 
@@ -576,8 +580,8 @@ pub fn set<C: CtrlContext>(
                 cfgs["firewall"].append(&redirect, Some(&section_name))?;
             }
 
-            // IPv6 rule (ACCEPT)
-            if port.ipv6 {
+            // IPv6 rule (ACCEPT) — only for globally routable addresses
+            if port.ipv6 && ipv6_addr.as_ref().map_or(false, |a| is_gua(a)) {
                 let rule = FirewallRule {
                     name: port.label.clone(),
                     src: "wan".into(),

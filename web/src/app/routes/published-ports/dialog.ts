@@ -155,6 +155,11 @@ const IP: Record<string, string> = {
         <small class="g-secondary">
           IPv6 options require WAN IPv6 and LAN IPv6 to be enabled
         </small>
+      } @else if (deviceHasOnlyUla()) {
+        <div tuiNotification appearance="warning" size="s">
+          This device only has a local (ULA) IPv6 address. IPv6 port forwarding
+          requires a global address from ISP prefix delegation.
+        </div>
       } @else if (ipVersionHint()) {
         <small class="g-secondary">{{ ipVersionHint() }}</small>
       }
@@ -314,6 +319,12 @@ export class PublishPortDialog implements OnInit {
   protected readonly selectedDevice = computed(() =>
     this.deviceMap().get(this.selectedDeviceMac()),
   )
+
+  protected readonly deviceHasOnlyUla = computed(() => {
+    const device = this.selectedDevice()
+    if (!device?.ipv6) return false
+    return device.ipv6.startsWith('fd') || device.ipv6.startsWith('fc')
+  })
 
   protected readonly ipVersionHint = computed(() => {
     const device = this.selectedDevice()

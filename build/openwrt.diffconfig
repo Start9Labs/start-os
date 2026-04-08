@@ -89,6 +89,7 @@ CONFIG_PACKAGE_kmod-crypto-sha3=y
 # CONFIG_PACKAGE_kmod-crypto-sha512 is not set
 CONFIG_PACKAGE_kmod-hwmon-core=y
 CONFIG_PACKAGE_kmod-input-core=y
+CONFIG_PACKAGE_kmod-ip6tables=y
 CONFIG_PACKAGE_kmod-ipt-conntrack=y
 CONFIG_PACKAGE_kmod-ipt-core=y
 CONFIG_PACKAGE_kmod-ipt-nat=y
