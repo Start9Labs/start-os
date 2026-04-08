@@ -166,18 +166,15 @@ const IP: Record<string, string> = {
 
       <tui-elastic-container>
         @if (['ipv4', 'both'].includes(form.value.ipVersion || '')) {
-          <!-- TODO: Remove <div tuiForm> after Taiga 5.0 -->
-          <div tuiForm>
-            <fieldset tuiAnimated>
-              <legend [style.padding-top.rem]="0.5">IPv4 External Port</legend>
-              <tui-radio-list
-                size="s"
-                formControlName="ipv4PublicPortType"
-                [items]="publicPortTypeValues"
-                [itemContent]="port"
-              />
-            </fieldset>
-          </div>
+          <fieldset>
+            <legend [style.padding-top.rem]="0.5">IPv4 External Port</legend>
+            <tui-radio-list
+              size="s"
+              formControlName="ipv4PublicPortType"
+              [items]="publicPortTypeValues"
+              [itemContent]="port"
+            />
+          </fieldset>
         }
       </tui-elastic-container>
       <tui-elastic-container>

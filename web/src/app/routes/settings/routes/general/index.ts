@@ -60,8 +60,8 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
         [style.border-radius.rem]="1"
       >
         <button tuiAccordion appearance="">
-          <header tuiHeader="h6" [style.left]="0">
-            <tui-icon icon="@tui.rocket" />
+          <tui-icon icon="@tui.rocket" />
+          <header tuiHeader="h6">
             <h2 tuiTitle>v{{ latestVersion() }} released!</h2>
           </header>
         </button>
