@@ -4,7 +4,7 @@ OnFailure=container-runtime-failure.service
 
 [Service]
 Type=simple
-Environment=RUST_LOG=startos=debug
+Environment=RUST_LOG=warn,startos=debug
 ExecStart=/usr/bin/start-container pipe-wrap /usr/bin/node --experimental-detect-module --trace-warnings /usr/lib/startos/init/index.js
 Restart=no
 

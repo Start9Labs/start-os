@@ -190,8 +190,10 @@ impl SetupContext {
                         }
                         .await
                         {
-                            tracing::error!("{}", t!("context.setup.error-in-setup-progress-websocket", error = e));
-                            tracing::debug!("{e:?}");
+                            if !crate::util::net::is_ws_reset_without_close(&e) {
+                                tracing::error!("{}", t!("context.setup.error-in-setup-progress-websocket", error = e));
+                                tracing::debug!("{e:?}");
+                            }
                         }
                     },
                     Duration::from_secs(30),

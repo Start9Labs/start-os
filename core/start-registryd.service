@@ -3,7 +3,7 @@ Description=StartOS Registry
 
 [Service]
 Type=simple
-Environment=RUST_LOG=startos=debug,patch_db=warn
+Environment=RUST_LOG=warn,startos=debug
 ExecStart=/usr/bin/start-registryd
 Restart=always
 RestartSec=3

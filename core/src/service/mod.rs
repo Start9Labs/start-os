@@ -701,17 +701,21 @@ impl Service {
             })
             .await
             .result?;
-        let mut file =
-            AtomicFile::new(guard.path().join(id).with_extension("s9pk"), None::<&str>).await?;
-        self.seed
-            .persistent_container
-            .s9pk
-            .clone()
-            .serialize(&mut *file, true)
-            .await?;
-        file.save().await?;
+        let s9pk_res = async {
+            let mut file =
+                AtomicFile::new(guard.path().join(id).with_extension("s9pk"), None::<&str>).await?;
+            self.seed
+                .persistent_container
+                .s9pk
+                .clone()
+                .serialize(&mut *file, true)
+                .await?;
+            file.save().await
+        }
+        .await;
 
-        backup.await
+        backup.await?;
+        s9pk_res
     }
 
     pub fn container_id(&self) -> Result<ContainerId, Error> {
@@ -1141,8 +1145,10 @@ pub async fn attach(
                     )
                     .await
                     {
-                        tracing::error!("Error in attach websocket: {e}");
-                        tracing::debug!("{e:?}");
+                        if !crate::util::net::is_ws_reset_without_close(&e) {
+                            tracing::error!("Error in attach websocket: {e}");
+                            tracing::debug!("{e:?}");
+                        }
                         ws.close_result(Err::<&str, _>(e)).await.log_err();
                     } else {
                         ws.normal_close("exit").await.log_err();
