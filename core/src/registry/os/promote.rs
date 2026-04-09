@@ -45,22 +45,15 @@ pub async fn cli_os_promote(
     let os_index: OsIndex = from_value(res)?;
 
     // Find the target version
-    let version_info = os_index
-        .versions
-        .0
-        .get(&version)
-        .ok_or_else(|| {
-            Error::new(
-                eyre!(
-                    "{}",
-                    t!(
-                        "registry.os.promote.version-not-found",
-                        version = &version
-                    )
-                ),
-                ErrorKind::NotFound,
-            )
-        })?;
+    let version_info = os_index.versions.0.get(&version).ok_or_else(|| {
+        Error::new(
+            eyre!(
+                "{}",
+                t!("registry.os.promote.version-not-found", version = &version)
+            ),
+            ErrorKind::NotFound,
+        )
+    })?;
 
     // Add the version to the target registry
     call_registry(
@@ -77,9 +70,30 @@ pub async fn cli_os_promote(
     .await?;
 
     // Promote all assets for each type and platform
-    promote_assets(&ctx, &to_url, &version, &version_info.iso, "os.asset.add.iso").await?;
-    promote_assets(&ctx, &to_url, &version, &version_info.squashfs, "os.asset.add.squashfs").await?;
-    promote_assets(&ctx, &to_url, &version, &version_info.img, "os.asset.add.img").await?;
+    promote_assets(
+        &ctx,
+        &to_url,
+        &version,
+        &version_info.iso,
+        "os.asset.add.iso",
+    )
+    .await?;
+    promote_assets(
+        &ctx,
+        &to_url,
+        &version,
+        &version_info.squashfs,
+        "os.asset.add.squashfs",
+    )
+    .await?;
+    promote_assets(
+        &ctx,
+        &to_url,
+        &version,
+        &version_info.img,
+        "os.asset.add.img",
+    )
+    .await?;
 
     Ok(())
 }
@@ -88,13 +102,19 @@ async fn promote_assets(
     ctx: &CliContext,
     to_url: &Url,
     version: &Version,
-    assets: &std::collections::BTreeMap<InternedString, crate::registry::asset::RegistryAsset<Blake3Commitment>>,
+    assets: &std::collections::BTreeMap<
+        InternedString,
+        crate::registry::asset::RegistryAsset<Blake3Commitment>,
+    >,
     method: &str,
 ) -> Result<(), Error> {
     for (platform, asset) in assets {
         let commitment = &asset.commitment;
-        let signature =
-            AnySignature::Ed25519(Ed25519.sign_commitment(ctx.developer_key()?, commitment, SIG_CONTEXT)?);
+        let signature = AnySignature::Ed25519(Ed25519.sign_commitment(
+            ctx.developer_key()?,
+            commitment,
+            SIG_CONTEXT,
+        )?);
 
         call_registry(
             ctx,

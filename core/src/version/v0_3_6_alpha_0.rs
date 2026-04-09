@@ -194,9 +194,13 @@ impl VersionT for Version {
                 "Found /home/start9/PGDB_DO_NOT_MIGRATE — \
                  skipping PostgreSQL migration, generating fresh account data"
             );
-            let account =
-                AccountInfo::new("embassy", std::time::SystemTime::now(), None)?;
-            return Ok((account, SshKeys::new(), CifsTargets::default(), BTreeMap::new()));
+            let account = AccountInfo::new("embassy", std::time::SystemTime::now(), None)?;
+            return Ok((
+                account,
+                SshKeys::new(),
+                CifsTargets::default(),
+                BTreeMap::new(),
+            ));
         }
 
         let pg = init_postgres(DATA_DIR).await?;
@@ -555,17 +559,23 @@ impl VersionT for Version {
         }
 
         if !failures.is_empty() {
-            ctx.db.mutate(|db| {
-                let services = failures.iter().map(|(id, title)| title.as_ref().copied().unwrap_or(id)).join(", ");
-                notify(
-                    db,
-                    None,
-                    NotificationLevel::Error,
-                    t!("migration.services-failed-title").to_string(),
-                    t!("migration.services-failed-message", services = services).to_string(),
-                    (),
-                )
-            }).await.result?;
+            ctx.db
+                .mutate(|db| {
+                    let services = failures
+                        .iter()
+                        .map(|(id, title)| title.as_ref().copied().unwrap_or(id))
+                        .join(", ");
+                    notify(
+                        db,
+                        None,
+                        NotificationLevel::Error,
+                        t!("migration.services-failed-title").to_string(),
+                        t!("migration.services-failed-message", services = services).to_string(),
+                        (),
+                    )
+                })
+                .await
+                .result?;
         }
 
         progress_logger.abort();

@@ -28,13 +28,7 @@ pub async fn get_host_info(
     let ptr = format!("/public/packageData/{}/hosts/{}", package_id, host_id)
         .parse()
         .expect("valid json pointer");
-    let mut watch = context
-        .seed
-        .ctx
-        .db
-        .watch(ptr)
-        .await
-        .typed::<Host>();
+    let mut watch = context.seed.ctx.db.watch(ptr).await.typed::<Host>();
 
     let res = watch.peek_and_mark_seen()?.de().ok();
 

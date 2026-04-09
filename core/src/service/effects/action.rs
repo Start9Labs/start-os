@@ -258,11 +258,7 @@ async fn create_task(
                     .filter(|s| s.is_initialized())
                 {
                     service
-                        .get_action_input(
-                            procedure_id.clone(),
-                            task.action_id.clone(),
-                            Value::Null,
-                        )
+                        .get_action_input(procedure_id.clone(), task.action_id.clone(), Value::Null)
                         .await
                         .log_err()
                         .flatten()

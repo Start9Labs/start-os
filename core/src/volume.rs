@@ -2,12 +2,10 @@ use std::path::{Path, PathBuf};
 
 use tokio::process::Command;
 
-use crate::PackageId;
 pub use crate::VolumeId;
 use crate::prelude::*;
-use crate::util::Invoke;
-use crate::util::VersionString;
-use crate::DATA_DIR;
+use crate::util::{Invoke, VersionString};
+use crate::{DATA_DIR, PackageId};
 
 pub const PKG_VOLUME_DIR: &str = "package-data/volumes";
 pub const BACKUP_DIR: &str = "/media/startos/backups";

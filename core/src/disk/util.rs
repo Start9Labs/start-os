@@ -377,13 +377,12 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
                 if let Some(g) = disk_guids.get(&disk_info.logicalname) {
                     disk_info.guid = g.clone();
                     if let Some(guid) = g {
-                        disk_info.filesystem =
-                            crate::disk::main::probe_package_data_fs(guid)
-                                .await
-                                .unwrap_or_else(|e| {
-                                    tracing::warn!("Failed to probe filesystem for {guid}: {e}");
-                                    None
-                                });
+                        disk_info.filesystem = crate::disk::main::probe_package_data_fs(guid)
+                            .await
+                            .unwrap_or_else(|e| {
+                                tracing::warn!("Failed to probe filesystem for {guid}: {e}");
+                                None
+                            });
                     }
                 } else {
                     disk_info.partitions = vec![part_info];
@@ -396,13 +395,12 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
             if let Some(g) = disk_guids.get(&disk_info.logicalname) {
                 disk_info.guid = g.clone();
                 if let Some(guid) = g {
-                    disk_info.filesystem =
-                        crate::disk::main::probe_package_data_fs(guid)
-                            .await
-                            .unwrap_or_else(|e| {
-                                tracing::warn!("Failed to probe filesystem for {guid}: {e}");
-                                None
-                            });
+                    disk_info.filesystem = crate::disk::main::probe_package_data_fs(guid)
+                        .await
+                        .unwrap_or_else(|e| {
+                            tracing::warn!("Failed to probe filesystem for {guid}: {e}");
+                            None
+                        });
                 }
             } else {
                 for part in index.parts {
@@ -410,15 +408,12 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
                     if let Some(g) = disk_guids.get(&part_info.logicalname) {
                         part_info.guid = g.clone();
                         if let Some(guid) = g {
-                            part_info.filesystem =
-                                crate::disk::main::probe_package_data_fs(guid)
-                                    .await
-                                    .unwrap_or_else(|e| {
-                                        tracing::warn!(
-                                            "Failed to probe filesystem for {guid}: {e}"
-                                        );
-                                        None
-                                    });
+                            part_info.filesystem = crate::disk::main::probe_package_data_fs(guid)
+                                .await
+                                .unwrap_or_else(|e| {
+                                    tracing::warn!("Failed to probe filesystem for {guid}: {e}");
+                                    None
+                                });
                         }
                     }
                     disk_info.partitions.push(part_info);

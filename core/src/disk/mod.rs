@@ -7,12 +7,12 @@ use rpc_toolkit::{CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler, 
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
-use crate::{Error, ErrorKind};
 use crate::context::{CliContext, RpcContext};
 use crate::disk::util::DiskInfo;
 use crate::prelude::*;
 use crate::util::Invoke;
 use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
+use crate::{Error, ErrorKind};
 
 pub mod fsck;
 pub mod main;
@@ -150,11 +150,9 @@ async fn find_bios_boot_partition(known_part: &Path) -> Result<Option<PathBuf>, 
 /// canonical device path.
 async fn resolve_fstab_source(source: &str) -> Result<PathBuf, Error> {
     if source.starts_with('/') {
-        return Ok(
-            tokio::fs::canonicalize(source)
-                .await
-                .unwrap_or_else(|_| PathBuf::from(source)),
-        );
+        return Ok(tokio::fs::canonicalize(source)
+            .await
+            .unwrap_or_else(|_| PathBuf::from(source)));
     }
     // PARTUUID=, UUID=, LABEL= — resolve via blkid
     let output = Command::new("blkid")

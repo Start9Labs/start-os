@@ -572,7 +572,7 @@ impl NetService {
                     // Handle host updates
                     if hosts_changed {
                         if let Err(e) = async {
-                            let hosts = watch.peek()?.de()?;
+                            let hosts = watch.peek()?.de().unwrap_or_default();
                             let mut data = thread_data.lock().await;
                             let ctrl = data.net_controller()?;
                             for (host_id, host) in hosts.0 {

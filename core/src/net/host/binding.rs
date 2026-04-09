@@ -346,33 +346,21 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
                         }
                         // Non-SSL Ipv4: cascade to PublicDomains on same gateway
                         if !address.ssl {
-                            if let HostnameMetadata::Ipv4 { gateway } =
-                                &address.metadata
-                            {
+                            if let HostnameMetadata::Ipv4 { gateway } = &address.metadata {
                                 let port = sa.port();
                                 for a in &bind.addresses.available {
                                     if a.ssl {
                                         continue;
                                     }
-                                    if let HostnameMetadata::PublicDomain {
-                                        gateway: gw,
-                                    } = &a.metadata
+                                    if let HostnameMetadata::PublicDomain { gateway: gw } =
+                                        &a.metadata
                                     {
-                                        if gw == gateway
-                                            && a.port.unwrap_or(80) == port
-                                        {
-                                            let k = (
-                                                a.hostname.clone(),
-                                                a.port.unwrap_or(80),
-                                            );
+                                        if gw == gateway && a.port.unwrap_or(80) == port {
+                                            let k = (a.hostname.clone(), a.port.unwrap_or(80));
                                             if enabled {
-                                                bind.addresses
-                                                    .disabled
-                                                    .remove(&k);
+                                                bind.addresses.disabled.remove(&k);
                                             } else {
-                                                bind.addresses
-                                                    .disabled
-                                                    .insert(k);
+                                                bind.addresses.disabled.insert(k);
                                             }
                                         }
                                     }
@@ -390,51 +378,35 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
                         }
                         // Non-SSL PublicDomain: cascade to Ipv4 + other PublicDomains on same gateway
                         if !address.ssl {
-                            if let HostnameMetadata::PublicDomain { gateway } =
-                                &address.metadata
-                            {
+                            if let HostnameMetadata::PublicDomain { gateway } = &address.metadata {
                                 for a in &bind.addresses.available {
                                     if a.ssl {
                                         continue;
                                     }
                                     match &a.metadata {
                                         HostnameMetadata::Ipv4 { gateway: gw }
-                                            if a.public
-                                                && gw == gateway =>
+                                            if a.public && gw == gateway =>
                                         {
-                                            if let Some(sa) =
-                                                a.to_socket_addr()
-                                            {
+                                            if let Some(sa) = a.to_socket_addr() {
                                                 if sa.port() == port {
                                                     if enabled {
-                                                        bind.addresses
-                                                            .enabled
-                                                            .insert(sa);
+                                                        bind.addresses.enabled.insert(sa);
                                                     } else {
-                                                        bind.addresses
-                                                            .enabled
-                                                            .remove(&sa);
+                                                        bind.addresses.enabled.remove(&sa);
                                                     }
                                                 }
                                             }
                                         }
-                                        HostnameMetadata::PublicDomain {
-                                            gateway: gw,
-                                        } if gw == gateway => {
+                                        HostnameMetadata::PublicDomain { gateway: gw }
+                                            if gw == gateway =>
+                                        {
                                             let dp = a.port.unwrap_or(80);
                                             if dp == port {
-                                                let k = (
-                                                    a.hostname.clone(),
-                                                    dp,
-                                                );
+                                                let k = (a.hostname.clone(), dp);
                                                 if enabled {
-                                                    bind.addresses
-                                                        .disabled
-                                                        .remove(&k);
+                                                    bind.addresses.disabled.remove(&k);
                                                 } else {
-                                                    bind.addresses
-                                                        .disabled
-                                                        .insert(k);
+                                                    bind.addresses.disabled.insert(k);
                                                 }
                                             }
                                         }

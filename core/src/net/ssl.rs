@@ -645,7 +645,8 @@ pub async fn generate_certificate(
     let root_cert = cert_store.as_root_cert().de()?.0;
     drop(peek);
 
-    let hostnames: BTreeSet<InternedString> = hostnames.into_iter().map(InternedString::from).collect();
+    let hostnames: BTreeSet<InternedString> =
+        hostnames.into_iter().map(InternedString::from).collect();
     let san_info = SANInfo::new(&hostnames);
 
     let (key, cert) = if ed25519 {
@@ -658,8 +659,7 @@ pub async fn generate_certificate(
         (key, cert)
     };
 
-    let key_pem =
-        String::from_utf8(key.private_key_to_pem_pkcs8()?).with_kind(ErrorKind::Utf8)?;
+    let key_pem = String::from_utf8(key.private_key_to_pem_pkcs8()?).with_kind(ErrorKind::Utf8)?;
     let fullchain_pem = String::from_utf8(
         [&cert, &int_cert, &root_cert]
             .into_iter()

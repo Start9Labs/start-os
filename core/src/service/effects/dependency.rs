@@ -409,13 +409,7 @@ pub async fn get_service_manifest(
     let ptr = format!("/public/packageData/{}/stateInfo", package_id)
         .parse()
         .expect("valid json pointer");
-    let mut watch = context
-        .seed
-        .ctx
-        .db
-        .watch(ptr)
-        .await
-        .typed::<PackageState>();
+    let mut watch = context.seed.ctx.db.watch(ptr).await.typed::<PackageState>();
 
     let manifest = watch
         .peek_and_mark_seen()?
@@ -424,15 +418,11 @@ pub async fn get_service_manifest(
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
-        context
-            .seed
-            .ctx
-            .callbacks
-            .add_get_service_manifest(
-                package_id.clone(),
-                watch,
-                CallbackHandler::new(&context, callback),
-            );
+        context.seed.ctx.callbacks.add_get_service_manifest(
+            package_id.clone(),
+            watch,
+            CallbackHandler::new(&context, callback),
+        );
     }
 
     Ok(manifest)

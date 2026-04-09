@@ -131,9 +131,7 @@ pub async fn cli_set_icon(
             .with_kind(ErrorKind::Network)?;
         DataUrl::from_response(res).await?
     } else {
-        let path = icon
-            .strip_prefix("file://")
-            .unwrap_or(&icon);
+        let path = icon.strip_prefix("file://").unwrap_or(&icon);
         DataUrl::from_path(path).await?
     };
     ctx.call_remote::<RegistryContext>(
