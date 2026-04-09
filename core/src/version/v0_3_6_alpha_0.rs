@@ -484,8 +484,8 @@ impl VersionT for Version {
                     // InitKind::Update instead of InitKind::Install.
                     if let Some(data_version) = input
                         .get(&*id)
-                        .and_then(|pde| pde.get("stateInfo"))
-                        .and_then(|si| si.get("manifest"))
+                        .and_then(|pde| pde.get("installed"))
+                        .and_then(|i| i.get("manifest"))
                         .and_then(|m| m.get("version"))
                         .and_then(|v| v.as_str())
                     {
@@ -542,8 +542,8 @@ impl VersionT for Version {
                             id.clone(),
                             input
                                 .get(&*id)
-                                .and_then(|pde| pde.get("stateInfo"))
-                                .and_then(|si| si.get("manifest"))
+                                .and_then(|pde| pde.get("installed"))
+                                .and_then(|i| i.get("manifest"))
                                 .and_then(|m| m.get("title"))
                                 .and_then(|v| v.as_str()),
                         );
