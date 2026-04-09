@@ -33,9 +33,7 @@ pub fn metrics_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(get_downloads)
                 .with_metadata("admin", Value::Bool(true))
                 .with_display_serializable()
-                .with_custom_display_fn(|handle, result| {
-                    display_downloads(handle.params, result)
-                })
+                .with_custom_display_fn(|handle, result| display_downloads(handle.params, result))
                 .with_about("about.get-metrics-downloads")
                 .with_call_remote::<CliContext>(),
         )
@@ -350,10 +348,7 @@ fn display_downloads(
 
 // --- helpers ---
 
-fn query_count_entries(
-    conn: &rusqlite::Connection,
-    sql: &str,
-) -> Result<Vec<CountEntry>, Error> {
+fn query_count_entries(conn: &rusqlite::Connection, sql: &str) -> Result<Vec<CountEntry>, Error> {
     query_count_entries_with_params(conn, sql, &[])
 }
 
@@ -371,14 +366,10 @@ fn query_count_entries_with_params(
             })
         })
         .with_kind(ErrorKind::Database)?;
-    rows.map(|r| r.with_kind(ErrorKind::Database))
-        .collect()
+    rows.map(|r| r.with_kind(ErrorKind::Database)).collect()
 }
 
-fn time_range_where(
-    after: &Option<String>,
-    before: &Option<String>,
-) -> (String, Vec<String>) {
+fn time_range_where(after: &Option<String>, before: &Option<String>) -> (String, Vec<String>) {
     let mut conditions = Vec::new();
     let mut params = Vec::new();
 

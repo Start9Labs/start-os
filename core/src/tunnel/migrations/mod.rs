@@ -13,9 +13,7 @@ pub trait TunnelMigration {
     fn action(&self, db: &mut Value) -> Result<(), Error>;
 }
 
-pub const MIGRATIONS: &[&dyn TunnelMigration] = &[
-    &m_00_port_forward_entry::PortForwardEntry,
-];
+pub const MIGRATIONS: &[&dyn TunnelMigration] = &[&m_00_port_forward_entry::PortForwardEntry];
 
 #[instrument(skip_all)]
 pub fn run_migrations(db: &mut Model<TunnelDatabase>) -> Result<(), Error> {

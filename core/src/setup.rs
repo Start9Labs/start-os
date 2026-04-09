@@ -559,8 +559,7 @@ pub async fn execute_inner(
     let progress = &ctx.progress;
 
     if !crate::disk::mount::util::is_mountpoint(Path::new(DATA_DIR).join("main")).await? {
-        let mut disk_phase =
-            progress.add_phase(t!("setup.opening-data-drive").into(), Some(10));
+        let mut disk_phase = progress.add_phase(t!("setup.opening-data-drive").into(), Some(10));
         disk_phase.start();
         let requires_reboot = crate::disk::main::import(
             &*guid,

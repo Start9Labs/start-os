@@ -289,9 +289,7 @@ async fn perform_backup(
             backup_report.insert(
                 id.clone(),
                 PackageBackupReport {
-                    error: Some(
-                        t!("backup.bulk.service-not-ready").to_string(),
-                    ),
+                    error: Some(t!("backup.bulk.service-not-ready").to_string()),
                 },
             );
         }

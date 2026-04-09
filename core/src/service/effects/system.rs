@@ -27,14 +27,10 @@ pub async fn get_system_smtp(
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
-        context
-            .seed
-            .ctx
-            .callbacks
-            .add_get_system_smtp(
-                watch.typed::<Option<SmtpValue>>(),
-                CallbackHandler::new(&context, callback),
-            );
+        context.seed.ctx.callbacks.add_get_system_smtp(
+            watch.typed::<Option<SmtpValue>>(),
+            CallbackHandler::new(&context, callback),
+        );
     }
 
     Ok(res)

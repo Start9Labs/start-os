@@ -300,12 +300,7 @@ pub async fn remove_signer(
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            if db
-                .as_index_mut()
-                .as_signers_mut()
-                .remove(&id)?
-                .is_none()
-            {
+            if db.as_index_mut().as_signers_mut().remove(&id)?.is_none() {
                 return Err(Error::new(
                     eyre!("{}", t!("registry.admin.unknown-signer")),
                     ErrorKind::NotFound,
@@ -327,9 +322,7 @@ pub async fn remove_signer(
                 .as_versions_mut()
                 .as_entries_mut()?
             {
-                version
-                    .as_authorized_mut()
-                    .mutate(|s| Ok(s.remove(&id)))?;
+                version.as_authorized_mut().mutate(|s| Ok(s.remove(&id)))?;
             }
 
             db.as_admins_mut().mutate(|a| Ok(a.remove(&id)))?;

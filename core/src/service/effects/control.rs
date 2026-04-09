@@ -88,13 +88,7 @@ pub async fn get_status(
     let ptr = format!("/public/packageData/{}/statusInfo", id)
         .parse()
         .expect("valid json pointer");
-    let mut watch = context
-        .seed
-        .ctx
-        .db
-        .watch(ptr)
-        .await
-        .typed::<StatusInfo>();
+    let mut watch = context.seed.ctx.db.watch(ptr).await.typed::<StatusInfo>();
 
     let status = watch.peek_and_mark_seen()?.de().ok();
 

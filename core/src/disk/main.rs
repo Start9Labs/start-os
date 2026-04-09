@@ -441,7 +441,10 @@ pub async fn probe_package_data_fs(guid: &str) -> Result<Option<String>, Error> 
             // Already imported, that's fine
         }
         Err(e) => {
-            tracing::warn!("{}", t!("disk.main.could-not-import-vg", guid = guid, error = e));
+            tracing::warn!(
+                "{}",
+                t!("disk.main.could-not-import-vg", guid = guid, error = e)
+            );
             return Ok(None);
         }
     }
@@ -451,7 +454,10 @@ pub async fn probe_package_data_fs(guid: &str) -> Result<Option<String>, Error> 
         .invoke(ErrorKind::DiskManagement)
         .await
     {
-        tracing::warn!("{}", t!("disk.main.could-not-activate-vg", guid = guid, error = e));
+        tracing::warn!(
+            "{}",
+            t!("disk.main.could-not-activate-vg", guid = guid, error = e)
+        );
         return Ok(None);
     }
 

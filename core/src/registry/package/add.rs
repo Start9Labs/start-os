@@ -285,13 +285,10 @@ pub async fn remove_package(
                         .as_idx_mut(&id)
                     {
                         if let Some(sighash) = sighash {
-                            if if let Some(package) =
-                                package.as_versions_mut().as_idx_mut(version)
+                            if if let Some(package) = package.as_versions_mut().as_idx_mut(version)
                             {
                                 package.as_s9pks_mut().mutate(|s| {
-                                    s.retain(|(_, asset)| {
-                                        asset.commitment.root_sighash != sighash
-                                    });
+                                    s.retain(|(_, asset)| asset.commitment.root_sighash != sighash);
                                     Ok(s.is_empty())
                                 })?
                             } else {

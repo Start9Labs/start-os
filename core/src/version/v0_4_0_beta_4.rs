@@ -1,13 +1,13 @@
 use exver::{PreReleaseSegment, VersionRange};
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{VersionT, v0_4_0_alpha_22};
+use super::{VersionT, v0_4_0_beta_3};
 use crate::prelude::*;
 
 lazy_static::lazy_static! {
-    static ref V0_4_0_alpha_23: exver::Version = exver::Version::new(
+    static ref V0_4_0_beta_4: exver::Version = exver::Version::new(
         [0, 4, 0],
-        [PreReleaseSegment::String("alpha".into()), 23.into()]
+        [PreReleaseSegment::String("beta".into()), 4.into()]
     );
 }
 
@@ -15,26 +15,20 @@ lazy_static::lazy_static! {
 pub struct Version;
 
 impl VersionT for Version {
-    type Previous = v0_4_0_alpha_22::Version;
+    type Previous = v0_4_0_beta_3::Version;
     type PreUpRes = ();
 
     async fn pre_up(self) -> Result<Self::PreUpRes, Error> {
         Ok(())
     }
     fn semver(self) -> exver::Version {
-        V0_4_0_alpha_23.clone()
+        V0_4_0_beta_4.clone()
     }
     fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
     #[instrument(skip_all)]
-    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
-        let status_info = db["public"]["serverInfo"]["statusInfo"].as_object_mut();
-        if let Some(m) = status_info {
-            m.remove("updated");
-            m.insert("restart".into(), Value::Null);
-        }
-
+    fn up(self, _db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
         Ok(Value::Null)
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {

@@ -359,7 +359,9 @@ pub async fn install_os_to(
 
         crate::util::mok::sign_unsigned_modules(overlay.path()).await?;
 
-        let mok_pub = overlay.path().join(crate::util::mok::DKMS_MOK_PUB.trim_start_matches('/'));
+        let mok_pub = overlay
+            .path()
+            .join(crate::util::mok::DKMS_MOK_PUB.trim_start_matches('/'));
         match crate::util::mok::enroll_mok(&mok_pub).await {
             Ok(enrolled) => mok_enrolled = enrolled,
             Err(e) => tracing::warn!("MOK enrollment failed: {e}"),
