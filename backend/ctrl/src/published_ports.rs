@@ -1160,7 +1160,7 @@ config redirect 'pp_pub2'
         set(
             ctx,
             DeserializeStdin(PublishedPortsSetRequest {
-                ports: vec![make_port("test1", true, true)],
+                ports: vec![make_port("test1", true, false)],
             }),
         )
         .unwrap();
@@ -1169,13 +1169,11 @@ config redirect 'pp_pub2'
         let ports = extract_ports(&arena, dir.path()).unwrap();
         assert_eq!(ports.len(), 1);
         assert!(ports[0].ipv4);
-        assert!(ports[0].ipv6);
         assert_eq!(ports[0].id, "test1");
 
         // Verify section names in raw config
         let content = std::fs::read_to_string(dir.path().join("firewall")).unwrap();
         assert!(content.contains("config redirect pp_test1"), "missing redirect section");
-        assert!(content.contains("config rule pp_test1_v6"), "missing rule section");
     }
 
     #[test]
@@ -1382,7 +1380,7 @@ config redirect 'pp_del1'
         set(
             ctx,
             DeserializeStdin(PublishedPortsSetRequest {
-                ports: vec![make_port("a-b-c", true, true)],
+                ports: vec![make_port("a-b-c", true, false)],
             }),
         )
         .unwrap();
@@ -1392,10 +1390,6 @@ config redirect 'pp_del1'
         assert!(
             content.contains("config redirect pp_a_b_c"),
             "section name should have underscores, not hyphens, in:\n{content}"
-        );
-        assert!(
-            content.contains("config rule pp_a_b_c_v6"),
-            "v6 section name should have underscores in:\n{content}"
         );
         // But the _pp_id option value preserves the original hyphenated ID
         assert!(

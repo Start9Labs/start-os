@@ -1088,6 +1088,7 @@ config service 'wan'
                 ip6prefixlen: None,
                 ip4prefixlen: None,
                 border_relay: None,
+                lan_prefix: None,
             }),
         )
         .unwrap();
@@ -1475,6 +1476,7 @@ config zone
                 mode: WanIpv6Mode::Disabled,
                 address: None, prefix: None, gateway: None,
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
+                lan_prefix: None,
             }),
         )
         .unwrap();
@@ -1485,6 +1487,7 @@ config zone
                 mode: WanIpv6Mode::Slaac,
                 address: None, prefix: None, gateway: None,
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
+                lan_prefix: None,
             }),
         )
         .unwrap();
@@ -1505,6 +1508,7 @@ config zone
                 mode: WanIpv6Mode::Dhcpv6,
                 address: None, prefix: None, gateway: None,
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
+                lan_prefix: None,
             }),
         )
         .unwrap();
@@ -1527,6 +1531,7 @@ config zone
                 prefix: Some("/64".to_string()),
                 gateway: Some("fd00::1".to_string()),
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
+                lan_prefix: None,
             }),
         )
         .unwrap();
@@ -1555,6 +1560,7 @@ config zone
                 ip6prefixlen: Some("/32".to_string()),
                 ip4prefixlen: Some("/0".to_string()),
                 border_relay: Some("203.0.113.1".to_string()),
+                lan_prefix: None,
             }),
         )
         .unwrap();
@@ -1583,6 +1589,7 @@ config zone
                 prefix: Some("/64".to_string()),
                 gateway: Some("fd00::1".to_string()),
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
+                lan_prefix: None,
             }),
         )
         .unwrap();
@@ -1593,6 +1600,7 @@ config zone
                 mode: WanIpv6Mode::Slaac,
                 address: None, prefix: None, gateway: None,
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
+                lan_prefix: None,
             }),
         )
         .unwrap();
@@ -1620,6 +1628,7 @@ config zone
                 ip6prefixlen: Some("/32".to_string()),
                 ip4prefixlen: Some("/0".to_string()),
                 border_relay: Some("203.0.113.1".to_string()),
+                lan_prefix: None,
             }),
         )
         .unwrap();
@@ -1630,6 +1639,7 @@ config zone
                 mode: WanIpv6Mode::Disabled,
                 address: None, prefix: None, gateway: None,
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
+                lan_prefix: None,
             }),
         )
         .unwrap();

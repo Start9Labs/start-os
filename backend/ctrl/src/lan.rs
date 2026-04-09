@@ -347,7 +347,7 @@ pub fn ipv6_set<C: CtrlContext>(
         // Remove ip6assign from profile interfaces (only lan gets it)
         for section in &mut cfgs["network"].sections {
             if let Some(name) = section.name() {
-                if profile_ipv6_map.contains_key(name.as_ref()) {
+                if name.as_ref() != LAN_INTERFACE && profile_ipv6_map.contains_key(name.as_ref()) {
                     if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
                         if iface.ip6assign.is_some() {
                             iface.ip6assign = None;
