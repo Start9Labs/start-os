@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiButton, TuiDialogContext, TuiTitle } from '@taiga-ui/core'
 import {
@@ -11,7 +11,7 @@ import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
 
-import type { EthernetPort } from './service'
+import type { EthernetPortView } from './service'
 
 @Component({
   template: `
@@ -19,8 +19,8 @@ import type { EthernetPort } from './service'
       <hgroup tuiTitle>
         <h2>Change WAN Port</h2>
         <p>
-          Select which port should become the WAN port. This will break your
-          current Internet connection and restart the router.
+          Select which port should become the WAN port. This will restart the
+          network and may briefly interrupt your connection.
         </p>
       </hgroup>
     </header>
@@ -61,7 +61,9 @@ import type { EthernetPort } from './service'
 })
 export class ChangeWanDialog {
   readonly context =
-    injectContext<TuiDialogContext<EthernetPort | undefined, EthernetPort[]>>()
+    injectContext<
+      TuiDialogContext<EthernetPortView | undefined, EthernetPortView[]>
+    >()
 
   current = this.context.data.find(p => p.wan)
   selected = this.current

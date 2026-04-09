@@ -24,6 +24,7 @@ import {
   VpnServers,
   WifiConfig,
   BlackoutWindow,
+  ScheduleWindow,
   ProfileId,
   ProfileIdOpt,
   SecurityProfile,
@@ -32,6 +33,45 @@ import {
   CheckInitializedRes,
   SetInitialPasswordReq,
   SetupStatusRes,
+  LogEntry,
+  LogsResponse,
+  DeviceFromApi,
+  DeviceUpdateReq,
+  DeviceDataUsageReq,
+  DataUsagePointFromApi,
+  LanIpv4Response,
+  LanIpv4SetRequest,
+  LanIpv6Response,
+  LanIpv6SetRequest,
+  WanIpv4Response,
+  WanIpv4SetRequest,
+  WanIpv6Response,
+  WanIpv6SetRequest,
+  WanMacResponse,
+  WanMacSetRequest,
+  WanDnsResponse,
+  WanDnsSetRequest,
+  WanDdnsResponse,
+  WanDdnsSetRequest,
+  PublishedPortFromApi,
+  PublishedPortsSetRequest,
+  OutboundVpn,
+  OutboundVpnCreateRequest,
+  OutboundVpnCreateResponse,
+  OutboundVpnUpdateRequest,
+  OutboundVpnDeleteRequest,
+  OutboundVpnSetEnabledRequest,
+  EthernetConfig,
+  EthernetSetConfig,
+  SshKeyFromApi,
+  SshKeysAddRequest,
+  SshKeysDeleteRequest,
+  ActivityEntry,
+  ActivityListParams,
+  ActivityListResponse,
+  BackupCreateRes,
+  BackupRestoreRes,
+  DiagnosticsCreateRes,
 } from './api.service'
 import {
   DhcpSection,
@@ -39,22 +79,16 @@ import {
   UciFile,
   UciSection,
 } from './types'
-import { wanIpv4Dhcp } from 'src/app/routes/wan/routes/ipv4/uci/mocks'
-import { wanIpv6Slaac } from 'src/app/routes/wan/routes/ipv6/uci/mock'
-import { ddnsDyndns } from 'src/app/routes/wan/routes/ddns/uci/mocks'
-import { macRouterDevice } from 'src/app/routes/wan/routes/mac/uci/mocks'
-import { lanDefault } from 'src/app/routes/lan/routes/ipv4/uci/mocks'
 import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/lan/routes/ipv6/uci/mocks'
-import { mockWireGuardSections } from 'src/app/routes/outbound/uci/mocks'
 import {
   generateMockDataUsage,
   getMockArpOutput,
-  mockBlockedDevices,
+  mockConnectionTypes,
+  mockDataUsageTotals,
+  mockDeviceSpeeds,
   mockDhcpHosts,
   mockDhcpLeasesOutput,
 } from 'src/app/routes/devices/uci/mocks'
-import { mockPublishedPorts } from 'src/app/routes/published-ports/uci/mocks'
-import { mockBrLan, mockWanDevice } from 'src/app/routes/ethernet/uci/mocks'
 
 @Injectable({
   providedIn: 'root',
@@ -69,6 +103,13 @@ export class MockApiService extends ApiService {
   async logout(): Promise<null> {
     await pauseFor(250)
 
+    return null
+  }
+
+  async setTimezone(_params: {
+    timezone: string
+    posixTz: string
+  }): Promise<null> {
     return null
   }
 
@@ -189,19 +230,8 @@ export class MockApiService extends ApiService {
     }
   }
 
-  private mockAuthorizedKeys = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl matt@macbook
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa lucy@desktop`
-
   async getFile(params: GetFileReq): Promise<GetFileRes> {
     await pauseFor(250)
-
-    if (params.path === '/root/.ssh/authorized_keys') {
-      return {
-        modified: new Date().toISOString(),
-        contents: this.mockAuthorizedKeys,
-      }
-    }
-
     return {
       modified: new Date().toISOString(),
       contents: '',
@@ -210,11 +240,6 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
 
   async setFile(params: SetFileReq): Promise<null> {
     await pauseFor(250)
-
-    if (params.path === '/root/.ssh/authorized_keys') {
-      this.mockAuthorizedKeys = params.contents
-    }
-
     return null
   }
 
@@ -261,9 +286,11 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
 
     return {
       version: '1.0.0',
-      language: 'English',
+      language: 'en_US',
       date: new Date().toISOString(),
       theme: 'system',
+      remoteAccess: 'default',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     }
   }
 
@@ -438,7 +465,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
       ip,
       client_config: params.peer.public_key
         ? undefined
-        : `[Interface]\nPrivateKey = MOCK_PRIVATE_KEY\nAddress = ${ip}/32\n\n[Peer]\nPublicKey = ${server?.public_key ?? 'mockServerKey'}\nEndpoint = ${server?.endpoint ?? 'mock'}:${server?.listen_port ?? 51820}\nAllowedIPs = 0.0.0.0/0`,
+        : `[Interface]\nPrivateKey = MOCK_PRIVATE_KEY\nAddress = ${ip}/32\nDNS = ${server?.server_address.replace(/\.\d+$/, '.1') ?? '192.168.1.1'}\n\n[Peer]\nPublicKey = ${server?.public_key ?? 'mockServerKey'}\nEndpoint = ${server?.endpoint ?? 'mock'}:${server?.listen_port ?? 51820}\nAllowedIPs = ${params.peer.route_all ? '0.0.0.0/0, ::/0' : (server?.server_address.replace(/\.\d+$/, '.0/24') ?? '192.168.1.0/24')}`,
     }
   }
 
@@ -458,6 +485,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
 
   private mockWifi: WifiConfig = {
     ssid: 'StartOS',
+    broadcastSeparately: false,
     radios: {
       default_radio0: {
         band: '2g',
@@ -514,6 +542,13 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
     },
   ]
 
+  async wifiGeneratePassword(): Promise<string> {
+    await pauseFor(100)
+    const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    const bytes = crypto.getRandomValues(new Uint8Array(16))
+    return Array.from(bytes, b => chars[b % chars.length]).join('')
+  }
+
   async wifiBlackoutGet(): Promise<BlackoutWindow[]> {
     await pauseFor(250)
     return structuredClone(this.mockBlackoutWindows)
@@ -536,6 +571,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
       wan_access: 'ALL',
       access_to_new_profiles: true,
       owns_lan: true,
+      dns_source: 'system',
     },
     {
       fullname: 'Guest',
@@ -547,7 +583,11 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
       wan_access: { whitelist: ['1.1.1.1', '8.8.8.8', '9.9.9.9'] },
       access_to_new_profiles: false,
       owns_lan: false,
-      dns_override: ['1.1.1.1', '8.8.8.8'],
+      dns_override: [
+        { address: '1.1.1.1', ssl: true },
+        { address: '8.8.8.8', ssl: false },
+      ],
+      dns_source: 'custom',
     },
     {
       fullname: 'IoT',
@@ -559,6 +599,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
       wan_access: { blacklist: ['192.0.2.0/24', '198.51.100.0/24'] },
       access_to_new_profiles: false,
       owns_lan: false,
+      dns_source: 'system',
     },
   ]
 
@@ -616,6 +657,11 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
       wan_access: params.wan_access,
       access_to_new_profiles: params.access_to_new_profiles,
       owns_lan: params.owns_lan,
+      dns_source: params.dns_override?.length
+        ? 'custom'
+        : params.outbound !== 'wan'
+          ? 'vpn'
+          : 'system',
     }
 
     this.mockProfiles = [...this.mockProfiles, newProfile]
@@ -665,6 +711,24 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
     return null
   }
 
+  private mockSchedules: Record<string, ScheduleWindow[]> = {}
+
+  async profileScheduleGet(params: {
+    interface: string
+  }): Promise<ScheduleWindow[]> {
+    await pauseFor(100)
+    return this.mockSchedules[params.interface] || []
+  }
+
+  async profileScheduleSet(params: {
+    interface: string
+    windows: ScheduleWindow[]
+  }): Promise<null> {
+    await pauseFor(250)
+    this.mockSchedules[params.interface] = params.windows
+    return null
+  }
+
   private mockInitialized = true
 
   async checkInitialized(): Promise<CheckInitializedRes> {
@@ -686,6 +750,658 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
   async systemFactoryReset(): Promise<null> {
     await pauseFor(2000)
     return null
+  }
+
+  async systemLogs(): Promise<LogsResponse> {
+    await pauseFor(250)
+    const messages = [
+      'daemon.info dnsmasq[1]: read /etc/hosts - 3 names',
+      'kern.info kernel: [12345.678] br-lan: port 1(eth0) entered forwarding state',
+      'daemon.notice odhcpd[1]: Got a DHCPv6 request',
+      'daemon.info dnsmasq-dhcp[1]: DHCPACK(br-lan) 192.168.1.100 aa:bb:cc:dd:ee:ff laptop',
+      'daemon.info hostapd: wlan0: STA aa:bb:cc:dd:ee:ff IEEE 802.11: authenticated',
+      'daemon.info dnsmasq[1]: query[A] example.com from 192.168.1.100',
+      'daemon.info dnsmasq[1]: forwarded example.com to 1.1.1.1',
+      'daemon.info dnsmasq[1]: reply example.com is 93.184.216.34',
+      'kern.warn kernel: [12400.123] nf_conntrack: table full, dropping packet',
+      'daemon.notice netifd: Interface "wan" is now up',
+    ]
+    const entries: LogEntry[] = []
+    for (let i = 0; i < 50; i++) {
+      const hour = String(8 + Math.floor(i / 6)).padStart(2, '0')
+      const min = String((i * 10) % 60).padStart(2, '0')
+      entries.push({
+        timestamp: `Mon Mar  3 ${hour}:${min}:00 2026`,
+        message: messages[i % messages.length],
+      })
+    }
+    return { entries }
+  }
+
+  // --- Device smart endpoint mocks ---
+
+  private mockDeviceHosts = structuredClone(mockDhcpHosts)
+
+  async devicesList(): Promise<DeviceFromApi[]> {
+    await pauseFor(250)
+
+    const wanIpv6 = this.isWanIpv6Enabled()
+    const lanIpv6 = this.isLanIpv6Enabled()
+    const arpOutput = getMockArpOutput(wanIpv6, lanIpv6)
+
+    // Parse ARP entries
+    const arpByMac = new Map<
+      string,
+      { ip: string; iface: string; state: string }[]
+    >()
+    for (const line of arpOutput.split('\n')) {
+      const match = line.match(
+        /^(\S+)\s+dev\s+(\S+)\s+lladdr\s+([0-9a-fA-F:]+)\s+(\S+)/,
+      )
+      if (match && match[2].startsWith('br-lan')) {
+        const mac = match[3].toUpperCase()
+        if (!arpByMac.has(mac)) arpByMac.set(mac, [])
+        arpByMac
+          .get(mac)!
+          .push({ ip: match[1], iface: match[2], state: match[4] })
+      }
+    }
+
+    // Parse DHCP leases
+    const leaseByMac = new Map<string, { ip: string; hostname: string }>()
+    for (const line of mockDhcpLeasesOutput.split('\n')) {
+      const parts = line.split(/\s+/)
+      if (parts.length >= 4) {
+        leaseByMac.set(parts[1].toUpperCase(), {
+          ip: parts[2],
+          hostname: parts[3],
+        })
+      }
+    }
+
+    // Build host map
+    const hostByMac = new Map(
+      this.mockDeviceHosts.map(h => [h.options.mac!.toUpperCase(), h]),
+    )
+
+    // All MACs
+    const allMacs = new Set([
+      ...arpByMac.keys(),
+      ...leaseByMac.keys(),
+      ...hostByMac.keys(),
+    ])
+
+    const devices: DeviceFromApi[] = []
+    for (const mac of allMacs) {
+      const arpList = arpByMac.get(mac) || []
+      const lease = leaseByMac.get(mac)
+      const host = hostByMac.get(mac)
+
+      const status: DeviceFromApi['status'] = arpList.some(
+        e => e.state === 'REACHABLE' || e.state === 'STALE',
+      )
+        ? 'online'
+        : 'offline'
+
+      const ipv4 =
+        arpList.find(e => !e.ip.includes(':'))?.ip || lease?.ip || null
+      const ipv6 =
+        arpList.find(e => e.ip.includes(':') && !e.ip.startsWith('fe80:'))
+          ?.ip ||
+        arpList.find(e => e.ip.startsWith('fe80:'))?.ip ||
+        null
+
+      devices.push({
+        mac,
+        name: host?.options.name || null,
+        hostname: lease?.hostname || null,
+        status,
+        connection:
+          status === 'online' ? (mockConnectionTypes[mac] ?? 'Ethernet') : null,
+        ipv4,
+        ipv6,
+        ipv4_static: !!host?.options.ip,
+        ipv6_static: !!host?.options.hostid,
+        security_profile: 'Admin',
+        speed: status === 'online' ? (mockDeviceSpeeds[mac] ?? null) : null,
+        data_usage: mockDataUsageTotals[mac] ?? null,
+      })
+    }
+    return devices
+  }
+
+  async devicesUpdate(params: DeviceUpdateReq): Promise<null> {
+    await pauseFor(250)
+    const macUpper = params.mac.toUpperCase()
+    const existing = this.mockDeviceHosts.find(
+      h => h.options.mac?.toUpperCase() === macUpper,
+    )
+    if (existing) {
+      existing.options.name = params.name
+      existing.options.ip = params.ipv4_static ? params.ipv4 : undefined
+      existing.options.hostid = params.ipv6_static
+        ? params.ipv6.split(':').slice(-4).join(':')
+        : undefined
+    } else {
+      this.mockDeviceHosts.push({
+        type: 'host',
+        name: `host_${params.mac.replace(/:/g, '').toLowerCase()}`,
+        options: {
+          mac: params.mac,
+          name: params.name,
+          ip: params.ipv4_static ? params.ipv4 : undefined,
+          hostid: params.ipv6_static
+            ? params.ipv6.split(':').slice(-4).join(':')
+            : undefined,
+          dns: '1',
+        },
+        lists: {},
+      })
+    }
+    return null
+  }
+
+  async devicesForget(params: { mac: string }): Promise<null> {
+    await pauseFor(250)
+    const macUpper = params.mac.toUpperCase()
+    this.mockDeviceHosts = this.mockDeviceHosts.filter(
+      h => h.options.mac?.toUpperCase() !== macUpper,
+    )
+    return null
+  }
+
+  async devicesDataUsage(
+    params: DeviceDataUsageReq,
+  ): Promise<DataUsagePointFromApi[]> {
+    await pauseFor(250)
+    return generateMockDataUsage(params.mac, params.period)
+  }
+
+  private mockLanIpv4: LanIpv4Response = {
+    address: '192.168.0.1',
+    netmask: '255.255.0.0',
+  }
+
+  async lanIpv4Get(): Promise<LanIpv4Response> {
+    await pauseFor(250)
+    return structuredClone(this.mockLanIpv4)
+  }
+
+  async lanIpv4Set(params: LanIpv4SetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockLanIpv4 = { ...this.mockLanIpv4, address: params.address }
+    return null
+  }
+
+  private mockLanIpv6: LanIpv6Response = {
+    slaac: true,
+    dhcpv6: true,
+    prefix: 64,
+    ip6addr: 'fd00::1',
+    wan_prefix: 48,
+  }
+
+  async lanIpv6Get(): Promise<LanIpv6Response> {
+    await pauseFor(250)
+    return structuredClone(this.mockLanIpv6)
+  }
+
+  async lanIpv6Set(params: LanIpv6SetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockLanIpv6 = {
+      ...this.mockLanIpv6,
+      slaac: params.slaac,
+      dhcpv6: params.dhcpv6,
+      prefix: params.prefix,
+    }
+    return null
+  }
+
+  // --- WAN smart endpoint mocks ---
+
+  private mockWanIpv4: WanIpv4Response = {
+    mode: 'dhcp',
+    assigned_ip: '203.0.113.45',
+    address: null,
+    netmask: null,
+    gateway: null,
+    username: null,
+    password: null,
+    device: 'eth1',
+  }
+
+  async wanIpv4Get(): Promise<WanIpv4Response> {
+    await pauseFor(250)
+    return structuredClone(this.mockWanIpv4)
+  }
+
+  async wanIpv4Set(params: WanIpv4SetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockWanIpv4 = {
+      ...this.mockWanIpv4,
+      mode: params.mode,
+      address: params.address ?? null,
+      netmask: params.netmask ?? null,
+      gateway: params.gateway ?? null,
+      username: params.username ?? null,
+      password: params.password ?? null,
+      device: params.device ?? this.mockWanIpv4.device,
+    }
+    return null
+  }
+
+  private mockWanIpv6: WanIpv6Response = {
+    mode: 'slaac',
+    address: null,
+    prefix: null,
+    gateway: null,
+    ip6prefix: null,
+    ip6prefixlen: null,
+    ip4prefixlen: null,
+    assigned_ipv6: '2001:db8::1',
+    border_relay: null,
+    lan_prefix: null,
+  }
+
+  async wanIpv6Get(): Promise<WanIpv6Response> {
+    await pauseFor(250)
+    return structuredClone(this.mockWanIpv6)
+  }
+
+  async wanIpv6Set(params: WanIpv6SetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockWanIpv6 = {
+      mode: params.mode,
+      address: params.address ?? null,
+      prefix: params.prefix ?? null,
+      gateway: params.gateway ?? null,
+      ip6prefix: params.ip6prefix ?? null,
+      ip6prefixlen: params.ip6prefixlen ?? null,
+      ip4prefixlen: params.ip4prefixlen ?? null,
+      border_relay: params.border_relay ?? null,
+      lan_prefix: params.lan_prefix ?? null,
+    }
+    return null
+  }
+
+  private mockWanMac: WanMacResponse = {
+    strategy: 'router',
+    mac: 'AA:BB:CC:DD:EE:01',
+    default_mac: 'AA:BB:CC:DD:EE:01',
+  }
+
+  async wanMacGet(): Promise<WanMacResponse> {
+    await pauseFor(250)
+    return structuredClone(this.mockWanMac)
+  }
+
+  async wanMacSet(params: WanMacSetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockWanMac = {
+      ...this.mockWanMac,
+      strategy: params.strategy,
+      mac:
+        params.strategy === 'custom'
+          ? (params.mac ?? this.mockWanMac.mac)
+          : this.mockWanMac.default_mac,
+    }
+    return null
+  }
+
+  private mockWanDns: WanDnsResponse = {
+    mode: 'isp',
+    servers: [],
+  }
+
+  async wanDnsGet(): Promise<WanDnsResponse> {
+    await pauseFor(250)
+    return structuredClone(this.mockWanDns)
+  }
+
+  async wanDnsSet(params: WanDnsSetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockWanDns = {
+      mode: params.mode,
+      servers: params.servers ?? [],
+    }
+    return null
+  }
+
+  private mockWanDdns: WanDdnsResponse = {
+    enabled: true,
+    provider: 'dyndns',
+    hostname: 'myhost.dyndns.org',
+    username: 'myuser',
+    password: 'mypass',
+    token: null,
+    zone: null,
+  }
+
+  async wanDdnsGet(): Promise<WanDdnsResponse> {
+    await pauseFor(250)
+    return structuredClone(this.mockWanDdns)
+  }
+
+  async wanDdnsSet(params: WanDdnsSetRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockWanDdns = {
+      enabled: params.enabled,
+      provider: params.provider,
+      hostname: params.hostname ?? null,
+      username: params.username ?? null,
+      password: params.password ?? null,
+      token: params.token ?? null,
+      zone: params.zone ?? null,
+    }
+    return null
+  }
+
+  // --- Published Ports smart endpoint mocks ---
+
+  private mockPublishedPorts: PublishedPortFromApi[] = [
+    {
+      id: 'home_assistant',
+      enabled: true,
+      label: 'Home Assistant',
+      device_mac: '00:1A:2B:3C:4D:5E',
+      ports: '8123',
+      protocol: 'tcp',
+      ipv4: true,
+      ipv6: true,
+      ipv4_public_port: null,
+      source: 'any',
+      status: 'active',
+      status_reason: null,
+      device_name: 'Home Server',
+      device_ipv4: '192.168.1.100',
+      device_ipv6: '2001:db8:abcd:1::100',
+    },
+    {
+      id: 'minecraft',
+      enabled: true,
+      label: 'Minecraft Server',
+      device_mac: '00:1A:2B:3C:4D:5F',
+      ports: '25565',
+      protocol: 'tcp+udp',
+      ipv4: true,
+      ipv6: false,
+      ipv4_public_port: null,
+      source: 'any',
+      status: 'active',
+      status_reason: null,
+      device_name: 'Gaming PC',
+      device_ipv4: '192.168.1.101',
+      device_ipv6: null,
+    },
+    {
+      id: 'ssh_access',
+      enabled: false,
+      label: 'SSH Access',
+      device_mac: 'DE:AD:BE:EF:CA:FF',
+      ports: '22',
+      protocol: 'tcp',
+      ipv4: true,
+      ipv6: true,
+      ipv4_public_port: '2222',
+      source: '203.0.113.0/24',
+      status: 'disabled',
+      status_reason: null,
+      device_name: null,
+      device_ipv4: '192.168.1.103',
+      device_ipv6: '2001:db8:abcd:1::103',
+    },
+  ]
+
+  async publishedPortsList(): Promise<PublishedPortFromApi[]> {
+    await pauseFor(250)
+    return structuredClone(this.mockPublishedPorts)
+  }
+
+  async publishedPortsSet(params: PublishedPortsSetRequest): Promise<null> {
+    await pauseFor(250)
+    // Update the mock data — enrich inputs with existing display data
+    this.mockPublishedPorts = params.ports.map(input => {
+      const existing = this.mockPublishedPorts.find(p => p.id === input.id)
+      return {
+        ...input,
+        ipv4_public_port: input.ipv4_public_port ?? null,
+        status: input.enabled
+          ? (existing?.status ?? 'active')
+          : ('disabled' as const),
+        status_reason: input.enabled ? null : null,
+        device_name: existing?.device_name ?? null,
+        device_ipv4: existing?.device_ipv4 ?? null,
+        device_ipv6: existing?.device_ipv6 ?? null,
+      }
+    })
+    return null
+  }
+
+  // --- Outbound VPN (WireGuard Client) smart endpoint mocks ---
+
+  private mockVpnClients: OutboundVpn[] = [
+    {
+      id: 'wg_proton',
+      label: 'Proton',
+      target: 'Internet',
+      enabled: true,
+      used_by: [],
+    },
+    {
+      id: 'wg_mullvad',
+      label: 'Mullvad',
+      target: 'Proton',
+      enabled: true,
+      used_by: [],
+    },
+  ]
+
+  async vpnClientList(): Promise<OutboundVpn[]> {
+    await pauseFor(250)
+    return structuredClone(this.mockVpnClients)
+  }
+
+  async vpnClientCreate(
+    params: OutboundVpnCreateRequest,
+  ): Promise<OutboundVpnCreateResponse> {
+    await pauseFor(250)
+    const id = `wg_${params.label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+    this.mockVpnClients = [
+      ...this.mockVpnClients,
+      {
+        id,
+        label: params.label,
+        target: params.target,
+        enabled: true,
+        used_by: [],
+      },
+    ]
+    return { id }
+  }
+
+  async vpnClientUpdate(params: OutboundVpnUpdateRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockVpnClients = this.mockVpnClients.map(c =>
+      c.id === params.id
+        ? { ...c, label: params.label, target: params.target }
+        : c,
+    )
+    return null
+  }
+
+  async vpnClientDelete(params: OutboundVpnDeleteRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockVpnClients = this.mockVpnClients.filter(c => c.id !== params.id)
+    return null
+  }
+
+  async vpnClientSetEnabled(
+    params: OutboundVpnSetEnabledRequest,
+  ): Promise<null> {
+    await pauseFor(250)
+    this.mockVpnClients = this.mockVpnClients.map(c =>
+      c.id === params.id ? { ...c, enabled: params.enabled } : c,
+    )
+    return null
+  }
+
+  // --- Ethernet smart endpoint mocks ---
+
+  private mockEthernet: EthernetConfig = {
+    wan_ipv6: true,
+    wan_port: 'eth0',
+    ports: {
+      eth0: { profile: null },
+      eth1: {
+        profile: { fullname: 'Admin', interface: 'lan', vlan_tag: 1 },
+      },
+      eth2: {
+        profile: { fullname: 'Admin', interface: 'lan', vlan_tag: 1 },
+      },
+      eth3: {
+        profile: { fullname: 'Guest', interface: 'guest', vlan_tag: 100 },
+      },
+    },
+  }
+
+  async ethernetGet(): Promise<EthernetConfig> {
+    await pauseFor(250)
+    return structuredClone(this.mockEthernet)
+  }
+
+  async ethernetSet(params: EthernetSetConfig): Promise<null> {
+    await pauseFor(250)
+    this.mockEthernet = {
+      wan_ipv6: params.wan_ipv6,
+      wan_port: params.wan_port,
+      ports: Object.fromEntries(
+        Object.entries(params.ports).map(([name, port]) => [
+          name,
+          {
+            profile: port.profile
+              ? (this.mockProfiles.find(
+                  p =>
+                    (port.profile!.fullname === undefined ||
+                      p.fullname === port.profile!.fullname) &&
+                    (port.profile!.interface === undefined ||
+                      p.interface === port.profile!.interface) &&
+                    (port.profile!.vlan_tag === undefined ||
+                      p.vlan_tag === port.profile!.vlan_tag),
+                ) ?? null)
+              : null,
+          },
+        ]),
+      ),
+    }
+    return null
+  }
+
+  // --- SSH Keys smart endpoint mocks ---
+
+  private mockSshKeys: SshKeyFromApi[] = [
+    {
+      algorithm: 'ssh-ed25519',
+      fingerprint: 'ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89',
+      hostname: 'matt@macbook',
+    },
+    {
+      algorithm: 'ssh-ed25519',
+      fingerprint: '12:34:56:78:9a:bc:de:f0:12:34:56:78:9a:bc:de:f0',
+      hostname: 'lucy@desktop',
+    },
+  ]
+
+  async sshKeysList(): Promise<SshKeyFromApi[]> {
+    await pauseFor(250)
+    return structuredClone(this.mockSshKeys)
+  }
+
+  async sshKeysAdd(params: SshKeysAddRequest): Promise<SshKeyFromApi> {
+    await pauseFor(250)
+    const parts = params.key.trim().split(/\s+/)
+    const newKey: SshKeyFromApi = {
+      algorithm: parts[0] || 'ssh-ed25519',
+      fingerprint: Array.from({ length: 16 }, () =>
+        Math.floor(Math.random() * 256)
+          .toString(16)
+          .padStart(2, '0'),
+      ).join(':'),
+      hostname: parts.slice(2).join(' ') || '',
+    }
+    this.mockSshKeys = [...this.mockSshKeys, newKey]
+    return newKey
+  }
+
+  async sshKeysDelete(params: SshKeysDeleteRequest): Promise<null> {
+    await pauseFor(250)
+    this.mockSshKeys = this.mockSshKeys.filter(
+      k => k.fingerprint !== params.fingerprint,
+    )
+    return null
+  }
+
+  private mockActivity: ActivityEntry[] = Array.from(
+    { length: 25 },
+    (_, i) => ({
+      id: i,
+      timestamp: new Date(Date.now() - i * 1000 * 60 * 60 * 24).toISOString(),
+      category: ['profile', 'wifi', 'vpn-client', 'device', 'auth'][i % 5],
+      action: ['created', 'updated', 'deleted', 'enabled', 'login'][i % 5],
+      success: i !== 3,
+      summary: [
+        "Created profile 'Guest'",
+        "Updated WiFi settings (SSID: 'MyNetwork')",
+        "Deleted outbound VPN 'Mullvad US'",
+        "Failed to enable outbound VPN 'NordVPN'",
+        'Logged in',
+      ][i % 5],
+      error: i === 3 ? 'VpnChainCycle: would create a loop' : null,
+    }),
+  )
+
+  async activityList(
+    params: ActivityListParams = {},
+  ): Promise<ActivityListResponse> {
+    await pauseFor(100)
+    const offset = params.offset ?? 0
+    const limit = params.limit ?? 50
+    return {
+      entries: this.mockActivity.slice(offset, offset + limit),
+      total: this.mockActivity.length,
+    }
+  }
+
+  async activityDelete(params: { id: number }): Promise<null> {
+    await pauseFor(100)
+    this.mockActivity = this.mockActivity.filter(e => e.id !== params.id)
+    return null
+  }
+
+  async activityClear(): Promise<null> {
+    await pauseFor(100)
+    this.mockActivity = []
+    return null
+  }
+
+  async backupCreate(): Promise<BackupCreateRes> {
+    await pauseFor(500)
+    return {
+      guid: 'mock-backup-guid',
+      filename: 'backup-startwrt-2026-03-19.tar.gz',
+    }
+  }
+
+  async backupRestore(): Promise<BackupRestoreRes> {
+    await pauseFor(250)
+    return { upload: 'mock-restore-guid' }
+  }
+
+  async diagnosticsCreate(): Promise<DiagnosticsCreateRes> {
+    await pauseFor(500)
+    return {
+      guid: 'mock-diag-guid',
+      filename: 'diagnostics-startwrt-2026-03-19.log',
+    }
   }
 
   /**
@@ -726,18 +1442,89 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf3LQXK5m7dZtQgkVwMYxPragThKvOHPrLwfCfMR7fa
 export const mockUci: Record<string, UciFile<UciSection>> = {
   network: {
     sections: [
-      wanIpv4Dhcp,
-      wanIpv6Slaac,
-      macRouterDevice,
-      lanDefault,
-      mockBrLan,
-      mockWanDevice,
-      ...mockWireGuardSections,
+      {
+        type: 'interface',
+        name: 'wan',
+        options: {
+          proto: 'dhcp',
+          device: 'eth0.2',
+          peerdns: '1',
+        },
+        lists: { dns: [] },
+      },
+      {
+        type: 'interface',
+        name: 'wan6',
+        options: {
+          proto: 'dhcpv6',
+          reqaddress: 'try',
+          reqprefix: 'auto',
+          device: '@wan',
+        },
+        lists: {},
+      },
+      {
+        type: 'device',
+        name: null,
+        options: {
+          name: 'eth0.2',
+          macaddr: 'AA:BB:CC:DD:EE:01',
+        },
+        lists: {},
+      },
+      {
+        type: 'interface',
+        name: 'lan',
+        options: {
+          proto: 'static',
+          device: 'br-lan',
+          ipaddr: '192.168.0.1',
+          netmask: '255.255.0.0',
+          ip6assign: '64',
+          ip6addr: 'fd00::1/64',
+        },
+        lists: {},
+      },
+      {
+        type: 'device',
+        name: 'br_lan',
+        options: {
+          name: 'br-lan',
+          type: 'bridge',
+        },
+        lists: {
+          ports: ['eth1', 'eth2', 'eth3'],
+        },
+      },
+      {
+        type: 'device',
+        name: 'wan_eth0',
+        options: {
+          name: 'eth0',
+        },
+        lists: {},
+      },
     ],
     modified: new Date().toISOString(),
   },
   ddns: {
-    sections: [ddnsDyndns],
+    sections: [
+      {
+        type: 'service',
+        name: 'wan',
+        options: {
+          enabled: '1',
+          service_name: 'dyndns.org',
+          username: 'myuser',
+          password: 'mypass',
+          domain: 'myhost.dyndns.org',
+          lookup_host: 'myhost.dyndns.org',
+          ip_source: 'network',
+          ip_network: 'wan',
+        },
+        lists: {},
+      },
+    ],
     modified: new Date().toISOString(),
   },
   dhcp: {
@@ -745,7 +1532,7 @@ export const mockUci: Record<string, UciFile<UciSection>> = {
     modified: new Date().toISOString(),
   },
   firewall: {
-    sections: [...mockBlockedDevices, ...mockPublishedPorts],
+    sections: [],
     modified: new Date().toISOString(),
   },
 }

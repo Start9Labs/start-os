@@ -8,11 +8,33 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
 use std::process::Command;
 use uciedit::openwrt::{
-    WifiChannel, WifiDevice, WifiDynamicVlan, WifiInterface, WifiMode, WifiStation, WifiVlan,
+    NetworkBridgeVlan, WifiChannel, WifiDevice, WifiDynamicVlan, WifiInterface, WifiMode,
+    WifiStation, WifiVlan,
 };
 use uciedit::{dump_all, parse_all, Arena, Configs};
 
 pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
+
+/// Whether wifi needs a full restart or just a PSK hot-reload.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WifiRestart {
+    /// New VLANs or interface config changes — full restart needed
+    Full,
+    /// Only PSK entries changed — hot reload sufficient
+    PskOnly,
+}
+
+/// Returns the UCI section names of all wifi-iface sections in AP mode.
+pub fn find_ap_interface_names(cfgs: &Configs) -> Result<Vec<String>, Error> {
+    let mut names = Vec::new();
+    cfgs["wireless"].try_each(|name, iface: WifiInterface| {
+        if iface.mode == WifiMode::AP {
+            names.push(name.ok_or(ErrorKind::UnnamedWirelessInterface)?.to_string());
+        }
+        Ok::<_, Error>(())
+    })?;
+    Ok(names)
+}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Password<Id: Ord> {
@@ -30,8 +52,10 @@ pub struct WifiRadio {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Wifi<Id: Ord = ProfileId> {
     pub ssid: String,
+    pub broadcast_separately: bool,
     pub radios: BTreeMap<String, WifiRadio>,
     pub passwords: BTreeSet<Password<Id>>,
 }
@@ -62,9 +86,15 @@ pub fn wifi<C: CtrlContext + Clone>() -> ParentHandler<C> {
             "blackout-set",
             from_fn(blackout_set::<C>).with_display_serializable(),
         )
+        .subcommand(
+            "generate-password",
+            from_fn(generate_password::<C>).with_display_serializable(),
+        )
 }
 
-type Relevant = (String, WifiInterface, WifiDevice, Option<WifiRadio>);
+fn generate_password<C: CtrlContext>(_ctx: C) -> Result<String, Error> {
+    Ok(crate::generate_password(crate::PASSWORD_CHARS_ALNUM.as_bytes(), 16))
+}
 
 fn find_relevant_with_radios(
     cfgs: &Configs,
@@ -115,11 +145,6 @@ fn find_relevant(cfgs: &Configs) -> Result<Vec<(String, WifiInterface, WifiDevic
             return Ok(());
         };
         let name = name.ok_or(ErrorKind::UnnamedWirelessInterface)?.to_string();
-        if let Some(first_interface) = relevant_interfaces.first() {
-            if first_interface.1.ssid != iface.ssid {
-                return Ok(());
-            }
-        };
         relevant_interfaces.push((name, iface, device.clone()));
         Ok::<_, Error>(())
     })?;
@@ -150,10 +175,15 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
             }
         }
         let profile = station.vid.and_then(|vid| lookup.from_vlan(vid)).cloned();
-        let label = profile
-            .as_ref()
-            .map(|p| p.fullname.clone())
-            .unwrap_or_default();
+        let label = station
+            .label
+            .filter(|l| !l.is_empty())
+            .unwrap_or_else(|| {
+                profile
+                    .as_ref()
+                    .map(|p| p.fullname.clone())
+                    .unwrap_or_default()
+            });
         passwords.insert(Password {
             label,
             profile,
@@ -174,42 +204,65 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
         );
         if iface.dynamic_vlan != WifiDynamicVlan::REQUIRED {
             if let Some(key) = &iface.key {
-                passwords.insert(Password {
-                    label: String::new(),
-                    profile: None,
-                    password: key.clone(),
-                });
+                if !passwords.iter().any(|p| p.profile.is_none()) {
+                    passwords.insert(Password {
+                        label: "Default".to_string(),
+                        profile: None,
+                        password: key.clone(),
+                    });
+                }
             }
         }
     }
+    let all_ssids_match = relevant_interfaces
+        .iter()
+        .all(|(_, iface, _)| iface.ssid == first_interface.1.ssid);
+    let broadcast_separately = !all_ssids_match;
+    // Use the 2.4GHz radio's SSID as the base name, falling back to first
+    let ssid = relevant_interfaces
+        .iter()
+        .find(|(_, _, dev)| dev.band == "2g")
+        .map(|(_, iface, _)| iface.ssid.clone())
+        .unwrap_or_else(|| first_interface.1.ssid.clone());
+
     Ok(Wifi {
-        ssid: first_interface.1.ssid.clone(),
+        ssid,
+        broadcast_separately,
         radios,
         passwords,
     })
 }
 
+/// Determines whether a full wifi restart or PSK-only reload is needed.
 fn set_config(
     _ctx: &impl CtrlContext,
     cfgs: &mut Configs,
     wifi: &Wifi,
     _lookup: &profiles::Lookup,
-) -> Result<(), Error> {
-    let mut remaining_admin_passwords = wifi.passwords.iter().filter(|p| p.profile.is_none());
-    let first_admin_password = remaining_admin_passwords.next();
+) -> Result<WifiRestart, Error> {
+    let first_admin_password = wifi.passwords.iter().find(|p| p.profile.is_none());
 
     let relevant_interfaces = find_relevant_with_radios(cfgs, &wifi.radios)?;
+    let mut iface_config_changed = false;
     for s in &mut cfgs["wireless"].sections {
         if let Some(mut device) = s.get_typed::<WifiDevice>()? {
             let name = s.name().ok_or(ErrorKind::UnnamedWirelessDevice)?;
             for (_, rel_iface, _, rel_radio) in &relevant_interfaces {
                 if rel_iface.device == name {
-                    device.disabled = !rel_radio.enabled;
-                    device.band = rel_radio.band.clone();
-                    device.channel = match rel_radio.channel.as_str() {
+                    let new_disabled = !rel_radio.enabled;
+                    let new_channel = match rel_radio.channel.as_str() {
                         "auto" | "Auto" => WifiChannel::Auto,
                         n => n.parse::<u32>().map(WifiChannel::Int).unwrap_or(WifiChannel::Auto),
                     };
+                    if device.disabled != new_disabled
+                        || device.channel != new_channel
+                        || device.band != rel_radio.band
+                    {
+                        iface_config_changed = true;
+                    }
+                    device.disabled = new_disabled;
+                    device.band = rel_radio.band.clone();
+                    device.channel = new_channel;
                     s.set(&device)?;
                     break;
                 }
@@ -217,18 +270,32 @@ fn set_config(
         }
         if let Some(mut iface) = s.get_typed::<WifiInterface>()? {
             let name = s.name().ok_or(ErrorKind::UnnamedWirelessInterface)?;
-            for (rel_name, _, _, rel_radio) in &relevant_interfaces {
+            for (rel_name, _, rel_device, rel_radio) in &relevant_interfaces {
                 if rel_name == &*name {
-                    iface.encryption = "psk2".into();
-                    iface.ssid = wifi.ssid.clone();
-                    if let Some(key) = first_admin_password {
-                        iface.key = Some(key.password.clone());
-                        iface.dynamic_vlan = WifiDynamicVlan::ALLOWED;
+                    let new_ssid = if wifi.broadcast_separately && rel_device.band == "5g" {
+                        format!("{}-5G", wifi.ssid)
                     } else {
-                        iface.key = None;
-                        iface.dynamic_vlan = WifiDynamicVlan::REQUIRED;
+                        wifi.ssid.clone()
+                    };
+                    let new_hidden = !rel_radio.broadcast;
+                    let (new_key, new_dynamic_vlan) = if let Some(key) = first_admin_password {
+                        (Some(key.password.clone()), WifiDynamicVlan::ALLOWED)
+                    } else {
+                        (None, WifiDynamicVlan::REQUIRED)
+                    };
+                    if iface.ssid != new_ssid
+                        || iface.hidden != new_hidden
+                        || iface.encryption != "psk2"
+                        || iface.key != new_key
+                        || iface.dynamic_vlan != new_dynamic_vlan
+                    {
+                        iface_config_changed = true;
                     }
-                    iface.hidden = !rel_radio.broadcast;
+                    iface.encryption = "psk2".into();
+                    iface.ssid = new_ssid;
+                    iface.key = new_key;
+                    iface.dynamic_vlan = new_dynamic_vlan;
+                    iface.hidden = new_hidden;
                     s.set(&iface)?;
                     break;
                 }
@@ -245,24 +312,18 @@ fn set_config(
             }
             return false;
         }
-        if let Ok(vlan) = s.get::<WifiVlan>() {
-            if let Some(iface) = &vlan.iface {
-                if !relevant_interfaces.iter().any(|(n, _, _, _)| n == iface) {
-                    return true;
-                }
-            }
-            return false;
-        }
+        // wifi-vlan sections are managed by profiles — don't remove them here
         true
     });
 
-    for psswd in remaining_admin_passwords {
+    for psswd in wifi.passwords.iter().filter(|p| p.profile.is_none()) {
         for (niface, _, _, _) in &relevant_interfaces {
             cfgs["wireless"].append(
                 &WifiStation {
                     key: psswd.password.clone(),
                     vid: None,
                     iface: Some(niface.clone()),
+                    label: Some(psswd.label.clone()),
                 },
                 None,
             )?;
@@ -270,31 +331,64 @@ fn set_config(
     }
     for psswd in &wifi.passwords {
         let Some(profile) = &psswd.profile else {
-            // admin passwords are handeled above
+            // admin passwords are handled above
             continue;
         };
         for (niface, _, _, _) in &relevant_interfaces {
-            cfgs["wireless"].append(
-                &WifiVlan {
-                    name: profile.interface.clone(),
-                    network: profile.interface.clone(),
-                    vid: profile.vlan_tag,
-                    iface: Some(niface.clone()),
-                },
-                None,
-            )?;
             cfgs["wireless"].append(
                 &WifiStation {
                     key: psswd.password.clone(),
                     vid: Some(profile.vlan_tag),
                     iface: Some(niface.clone()),
+                    label: Some(psswd.label.clone()),
                 },
                 None,
             )?;
         }
     }
 
-    Ok(())
+    // Fallback: create missing wifi-vlans (e.g., profile created before this code existed)
+    let mut existing_wifi_vlans: BTreeSet<(u16, String)> = cfgs["wireless"]
+        .sections
+        .iter()
+        .filter_map(|s| {
+            let vlan = s.get::<WifiVlan>().ok()?;
+            Some((vlan.vid, vlan.iface?.clone()))
+        })
+        .collect();
+
+    let bridge_vlan_tags: BTreeSet<u16> = cfgs["network"]
+        .sections
+        .iter()
+        .filter_map(|s| s.get::<NetworkBridgeVlan>().ok().map(|v| v.vlan))
+        .collect();
+
+    let mut vlans_created = false;
+    for psswd in &wifi.passwords {
+        let Some(profile) = &psswd.profile else { continue; };
+        if !bridge_vlan_tags.contains(&profile.vlan_tag) { continue; }
+        for (niface, _, _, _) in &relevant_interfaces {
+            let key = (profile.vlan_tag, niface.clone());
+            if existing_wifi_vlans.insert(key) {
+                cfgs["wireless"].append(
+                    &WifiVlan {
+                        name: profile.interface.clone(),
+                        network: profile.interface.clone(),
+                        vid: profile.vlan_tag,
+                        iface: Some(niface.clone()),
+                    },
+                    None,
+                )?;
+                vlans_created = true;
+            }
+        }
+    }
+
+    if vlans_created || iface_config_changed {
+        Ok(WifiRestart::Full)
+    } else {
+        Ok(WifiRestart::PskOnly)
+    }
 }
 
 pub fn set<C: CtrlContext>(
@@ -312,6 +406,7 @@ pub fn set<C: CtrlContext>(
         let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs)?;
         let wifi = Wifi {
             ssid: wifi.ssid.clone(),
+            broadcast_separately: wifi.broadcast_separately,
             radios: wifi.radios.clone(),
             passwords: wifi
                 .passwords
@@ -332,43 +427,63 @@ pub fn set<C: CtrlContext>(
         let mut seen_labels = std::collections::HashSet::new();
         for pass in &wifi.passwords {
             if !seen_passwords.insert(&pass.password) {
+                crate::activity::log("wifi", "updated", false, "Failed to update WiFi: duplicate password", Some("DuplicatePassword"));
                 return Err(ErrorKind::DuplicatePassword.into());
             }
-            if !seen_labels.insert(&pass.label) {
+            if !pass.label.is_empty() && !seen_labels.insert(&pass.label) {
+                crate::activity::log("wifi", "updated", false, "Failed to update WiFi: duplicate password label", Some("DuplicatePasswordLabel"));
                 return Err(ErrorKind::DuplicatePasswordLabel.into());
             }
         }
-        let res = set_config(&ctx, &mut cfgs, &wifi, &lookup);
-        match res {
+        let restart = match set_config(&ctx, &mut cfgs, &wifi, &lookup) {
             Err(Error {
                 kind: ErrorKind::CorruptedWifi,
                 ..
             }) if ctx.effectful() => {
                 // try recreating the config from scratch
                 let _ = std::fs::remove_file(ctx.uci_root().join("wireless"));
-                let _ = Command::new("wifi")
-                    .arg("config")
-                    .spawn()
-                    .context("executing `wifi config`")?
-                    .wait();
+                crate::run_quiet(Command::new("wifi").arg("config"))
+                    .context("executing `wifi config`")?;
+                crate::activity::log("wifi", "recovered", true, "Recovered corrupted WiFi config (auto-regenerated)", None);
                 continue;
             }
-            Err(err) => return Err(err),
-            Ok(()) => (),
-        }
+            Err(err) => {
+                crate::activity::log("wifi", "updated", false, "Failed to update WiFi settings", Some(&err.to_string()));
+                return Err(err);
+            }
+            Ok(v) => v,
+        };
         match dump_all(ctx.uci_root(), cfgs) {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                crate::activity::log("wifi", "updated", false, "Failed to write WiFi config", Some(&err.to_string()));
+                return Err(err.into());
+            }
             Ok(()) => {
                 if ctx.effectful() {
-                    let _ = Command::new("wifi")
-                        .arg("reload")
-                        .spawn()
-                        .context("executing `wifi reload`")?
-                        .wait();
+                    match restart {
+                        WifiRestart::Full => {
+                            // SSID/channel/enabled/hidden changed or new VLANs — full restart
+                            crate::run_quiet(&mut Command::new("wifi"))
+                                .context("executing `wifi`")?;
+                        }
+                        WifiRestart::PskOnly => {
+                            // PSK-only change — fast path, no client disconnection
+                            crate::run_quiet(Command::new("wifi").arg("reload"))
+                                .context("executing `wifi reload`")?;
+                        }
+                    }
+                }
+                match restart {
+                    WifiRestart::Full => {
+                        crate::activity::log("wifi", "updated", true, &format!("Updated WiFi settings (SSID: '{}')", wifi.ssid), None);
+                    }
+                    WifiRestart::PskOnly => {
+                        crate::activity::log("wifi", "passwords-updated", true, "Updated WiFi passwords (PSK hot-reload)", None);
+                    }
                 }
                 return Ok(());
             }
@@ -380,6 +495,7 @@ pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
     let current_wifi = get(ctx.clone())?;
     let current_wifi = Wifi {
         ssid: current_wifi.ssid,
+        broadcast_separately: current_wifi.broadcast_separately,
         radios: current_wifi.radios.clone(),
         passwords: current_wifi
             .passwords
@@ -526,15 +642,700 @@ pub fn blackout_set<C: CtrlContext>(
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&path, &new_content)?;
-
-    if ctx.effectful() {
-        let _ = Command::new("/etc/init.d/cron")
-            .arg("restart")
-            .spawn()
-            .context("restarting cron")?
-            .wait();
+    if let Err(err) = std::fs::write(&path, &new_content) {
+        crate::activity::log("wifi", "blackout-updated", false, "Failed to write blackout schedule", Some(&err.to_string()));
+        return Err(err.into());
     }
 
+    if ctx.effectful() {
+        crate::run_quiet(Command::new("/etc/init.d/cron").arg("restart"))
+            .context("restarting cron")?;
+    }
+
+    crate::activity::log("wifi", "blackout-updated", true, "Updated WiFi blackout schedule", None);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rpc_toolkit::Context;
+    use std::sync::Arc;
+    use tokio::runtime::Runtime;
+
+    #[derive(Clone)]
+    struct TestContext(PathBuf);
+
+    impl Context for TestContext {
+        fn runtime(&self) -> Option<Arc<Runtime>> {
+            None
+        }
+    }
+
+    impl CtrlContext for TestContext {
+        fn uci_root(&self) -> PathBuf {
+            self.0.clone()
+        }
+        fn effectful(&self) -> bool {
+            false
+        }
+    }
+
+    fn setup_test_configs(dir: &std::path::Path) {
+        // startwrt: two profiles — Admin (lan, vlan 99) and Guest (guest, vlan 101)
+        std::fs::write(
+            dir.join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '99'
+\toption access_to_new_profiles '1'
+
+config profile guest
+\toption fullname 'Guest'
+\toption interface 'guest'
+\toption vlan_tag '101'
+",
+        )
+        .unwrap();
+
+        // network: bridge device + lan + guest interfaces
+        std::fs::write(
+            dir.join("network"),
+            "\
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth0'
+
+config interface 'lan'
+\toption device 'br-lan.99'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+
+config interface 'guest'
+\toption device 'br-lan.101'
+\toption proto 'static'
+\toption ipaddr '192.168.101.1'
+\toption netmask '255.255.255.0'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '99'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '101'
+",
+        )
+        .unwrap();
+
+        // firewall: lan + wan zones + forwarding
+        std::fs::write(
+            dir.join("firewall"),
+            "\
+config zone
+\toption name 'lan'
+\tlist network 'lan'
+\toption input 'ACCEPT'
+\toption output 'ACCEPT'
+\toption forward 'ACCEPT'
+
+config zone
+\toption name 'wan'
+\tlist network 'wan'
+\toption input 'REJECT'
+\toption output 'ACCEPT'
+\toption forward 'REJECT'
+
+config forwarding
+\toption src 'lan'
+\toption dest 'wan'
+",
+        )
+        .unwrap();
+    }
+
+    fn write_wireless_config(dir: &std::path::Path, stations: &str) {
+        std::fs::write(
+            dir.join("wireless"),
+            format!(
+                "\
+config wifi-device 'radio0'
+\toption type 'mac80211'
+\toption band '2g'
+\toption channel '1'
+
+config wifi-iface 'default_radio0'
+\toption device 'radio0'
+\toption mode 'ap'
+\toption ssid 'TestNet'
+\toption encryption 'psk2'
+\toption key 'adminpass1'
+\toption dynamic_vlan '1'
+
+{stations}"
+            ),
+        )
+        .unwrap();
+    }
+
+    fn make_radios() -> BTreeMap<String, WifiRadio> {
+        let mut radios = BTreeMap::new();
+        radios.insert(
+            "default_radio0".into(),
+            WifiRadio {
+                band: "2g".into(),
+                channel: "1".into(),
+                enabled: true,
+                broadcast: true,
+            },
+        );
+        radios
+    }
+
+    fn write_wireless_config_dual_radio(dir: &std::path::Path, ssid_2g: &str, ssid_5g: &str, stations: &str) {
+        std::fs::write(
+            dir.join("wireless"),
+            format!(
+                "\
+config wifi-device 'radio0'
+\toption type 'mac80211'
+\toption band '2g'
+\toption channel '1'
+
+config wifi-device 'radio1'
+\toption type 'mac80211'
+\toption band '5g'
+\toption channel '36'
+
+config wifi-iface 'default_radio0'
+\toption device 'radio0'
+\toption mode 'ap'
+\toption ssid '{ssid_2g}'
+\toption encryption 'psk2'
+\toption key 'adminpass1'
+\toption dynamic_vlan '1'
+
+config wifi-iface 'default_radio1'
+\toption device 'radio1'
+\toption mode 'ap'
+\toption ssid '{ssid_5g}'
+\toption encryption 'psk2'
+\toption key 'adminpass1'
+\toption dynamic_vlan '1'
+
+{stations}"
+            ),
+        )
+        .unwrap();
+    }
+
+    fn make_dual_radios() -> BTreeMap<String, WifiRadio> {
+        let mut radios = BTreeMap::new();
+        radios.insert(
+            "default_radio0".into(),
+            WifiRadio {
+                band: "2g".into(),
+                channel: "1".into(),
+                enabled: true,
+                broadcast: true,
+            },
+        );
+        radios.insert(
+            "default_radio1".into(),
+            WifiRadio {
+                band: "5g".into(),
+                channel: "36".into(),
+                enabled: true,
+                broadcast: true,
+            },
+        );
+        radios
+    }
+
+    #[test]
+    fn test_get_reads_label_from_uci() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config(
+            dir.path(),
+            "\
+config wifi-station
+\toption key 'guestpass1'
+\toption vid '101'
+\toption iface 'default_radio0'
+\toption label 'My Label'
+",
+        );
+
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let wifi = get_config(ctx, &cfgs).unwrap();
+
+        let labeled = wifi
+            .passwords
+            .iter()
+            .find(|p| p.password == "guestpass1")
+            .unwrap();
+        assert_eq!(labeled.label, "My Label");
+    }
+
+    #[test]
+    fn test_get_falls_back_to_profile_name_when_no_label() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config(
+            dir.path(),
+            "\
+config wifi-station
+\toption key 'guestpass1'
+\toption vid '101'
+\toption iface 'default_radio0'
+",
+        );
+
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let wifi = get_config(ctx, &cfgs).unwrap();
+
+        let fallback = wifi
+            .passwords
+            .iter()
+            .find(|p| p.password == "guestpass1")
+            .unwrap();
+        assert_eq!(fallback.label, "Guest");
+    }
+
+    #[test]
+    fn test_set_persists_label() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config(dir.path(), "");
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs).unwrap();
+
+        let guest_id = lookup.from_fullname("Guest").unwrap().clone();
+        let mut passwords = BTreeSet::new();
+        passwords.insert(Password {
+            label: "Main Admin".into(),
+            profile: None,
+            password: "adminpass1".into(),
+        });
+        passwords.insert(Password {
+            label: "Kids WiFi".into(),
+            profile: Some(guest_id.clone()),
+            password: "kidspass1".into(),
+        });
+
+        let wifi = Wifi {
+            ssid: "TestNet".into(),
+            broadcast_separately: false,
+            radios: make_radios(),
+            passwords,
+        };
+        set_config(&ctx, &mut cfgs, &wifi, &lookup).unwrap();
+        dump_all(ctx.uci_root(), cfgs).unwrap();
+
+        // Re-parse and check label was written
+        let arena2 = Arena::new();
+        let cfgs2 = parse_all(
+            ctx.uci_root(),
+            &arena2,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+
+        let mut found_kids = false;
+        cfgs2["wireless"].try_each(|_, station: WifiStation| {
+            if station.key == "kidspass1" {
+                assert_eq!(station.label.as_deref(), Some("Kids WiFi"));
+                found_kids = true;
+            }
+            Ok::<_, Error>(())
+        })
+        .unwrap();
+
+        assert!(found_kids, "did not find station with key 'kidspass1'");
+    }
+
+    #[test]
+    fn test_set_round_trip_preserves_label() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config(
+            dir.path(),
+            "\
+config wifi-station
+\toption key 'guestpass1'
+\toption vid '101'
+\toption iface 'default_radio0'
+\toption label 'Custom Name'
+",
+        );
+
+        // GET
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let wifi = get_config(ctx.clone(), &cfgs).unwrap();
+
+        let labeled = wifi
+            .passwords
+            .iter()
+            .find(|p| p.password == "guestpass1")
+            .unwrap();
+        assert_eq!(labeled.label, "Custom Name");
+
+        // SET (round-trip the same data)
+        drop(cfgs);
+        drop(arena);
+
+        let arena2 = Arena::new();
+        let mut cfgs2 = parse_all(
+            ctx.uci_root(),
+            &arena2,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let lookup2 = profiles::Lookup::parse(ctx.clone(), &cfgs2).unwrap();
+        set_config(&ctx, &mut cfgs2, &wifi, &lookup2).unwrap();
+        dump_all(ctx.uci_root(), cfgs2).unwrap();
+
+        // GET again
+        let arena3 = Arena::new();
+        let cfgs3 = parse_all(
+            ctx.uci_root(),
+            &arena3,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let wifi2 = get_config(ctx, &cfgs3).unwrap();
+
+        let preserved = wifi2
+            .passwords
+            .iter()
+            .find(|p| p.password == "guestpass1")
+            .unwrap();
+        assert_eq!(preserved.label, "Custom Name");
+    }
+
+    #[test]
+    fn test_set_allows_duplicate_empty_labels() {
+        // Two admin passwords both with empty label should not trigger DuplicatePasswordLabel
+        let mut seen_passwords = std::collections::HashSet::new();
+        let mut seen_labels = std::collections::HashSet::new();
+        let passwords = vec![
+            Password::<ProfileId> {
+                label: "".into(),
+                profile: None,
+                password: "pass1".into(),
+            },
+            Password {
+                label: "".into(),
+                profile: None,
+                password: "pass2".into(),
+            },
+        ];
+        for pass in &passwords {
+            assert!(seen_passwords.insert(&pass.password));
+            // This is the actual validation logic from set()
+            if !pass.label.is_empty() && !seen_labels.insert(&pass.label) {
+                panic!("should not reject duplicate empty labels");
+            }
+        }
+    }
+
+    #[test]
+    fn test_set_rejects_duplicate_nonempty_labels() {
+        let mut seen_labels = std::collections::HashSet::new();
+        let passwords = vec![
+            Password::<ProfileId> {
+                label: "Same Name".into(),
+                profile: None,
+                password: "pass1".into(),
+            },
+            Password {
+                label: "Same Name".into(),
+                profile: None,
+                password: "pass2".into(),
+            },
+        ];
+        let mut found_dup = false;
+        for pass in &passwords {
+            if !pass.label.is_empty() && !seen_labels.insert(&pass.label) {
+                found_dup = true;
+            }
+        }
+        assert!(found_dup, "should reject duplicate non-empty labels");
+    }
+
+    #[test]
+    fn test_dual_radio_broadcast_separately_detected() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config_dual_radio(dir.path(), "TestNet", "TestNet-5G", "");
+
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let wifi = get_config(ctx, &cfgs).unwrap();
+
+        assert!(wifi.broadcast_separately);
+        assert_eq!(wifi.ssid, "TestNet"); // 2.4GHz SSID used as base
+    }
+
+    #[test]
+    fn test_dual_radio_same_ssid_not_broadcast_separately() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config_dual_radio(dir.path(), "TestNet", "TestNet", "");
+
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let wifi = get_config(ctx, &cfgs).unwrap();
+
+        assert!(!wifi.broadcast_separately);
+        assert_eq!(wifi.ssid, "TestNet");
+    }
+
+    #[test]
+    fn test_dual_radio_broadcast_separately_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        // Start with same SSID on both radios
+        write_wireless_config_dual_radio(dir.path(), "TestNet", "TestNet", "");
+
+        // SET with broadcast_separately = true
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs).unwrap();
+
+        let mut passwords = BTreeSet::new();
+        passwords.insert(Password {
+            label: "Main Admin".into(),
+            profile: None,
+            password: "adminpass1".into(),
+        });
+
+        let wifi = Wifi {
+            ssid: "TestNet".into(),
+            broadcast_separately: true,
+            radios: make_dual_radios(),
+            passwords,
+        };
+        set_config(&ctx, &mut cfgs, &wifi, &lookup).unwrap();
+        dump_all(ctx.uci_root(), cfgs).unwrap();
+
+        // GET — verify 5GHz got "-5G" suffix and broadcast_separately is detected
+        let arena2 = Arena::new();
+        let cfgs2 = parse_all(
+            ctx.uci_root(),
+            &arena2,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let wifi2 = get_config(ctx.clone(), &cfgs2).unwrap();
+
+        assert!(wifi2.broadcast_separately);
+        assert_eq!(wifi2.ssid, "TestNet");
+
+        // SET with broadcast_separately = false — both should get same SSID
+        drop(cfgs2);
+        drop(arena2);
+
+        let arena3 = Arena::new();
+        let mut cfgs3 = parse_all(
+            ctx.uci_root(),
+            &arena3,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let lookup3 = profiles::Lookup::parse(ctx.clone(), &cfgs3).unwrap();
+
+        let mut passwords3 = BTreeSet::new();
+        passwords3.insert(Password {
+            label: "Main Admin".into(),
+            profile: None,
+            password: "adminpass1".into(),
+        });
+
+        let wifi3 = Wifi {
+            ssid: "TestNet".into(),
+            broadcast_separately: false,
+            radios: make_dual_radios(),
+            passwords: passwords3,
+        };
+        set_config(&ctx, &mut cfgs3, &wifi3, &lookup3).unwrap();
+        dump_all(ctx.uci_root(), cfgs3).unwrap();
+
+        // GET — verify both radios have same SSID
+        let arena4 = Arena::new();
+        let cfgs4 = parse_all(
+            ctx.uci_root(),
+            &arena4,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let wifi4 = get_config(ctx, &cfgs4).unwrap();
+
+        assert!(!wifi4.broadcast_separately);
+        assert_eq!(wifi4.ssid, "TestNet");
+    }
+
+    #[test]
+    fn test_set_config_returns_full_when_ssid_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config_dual_radio(dir.path(), "TestNet", "TestNet", "");
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs).unwrap();
+
+        let mut passwords = BTreeSet::new();
+        passwords.insert(Password {
+            label: "Admin".into(),
+            profile: None,
+            password: "adminpass1".into(),
+        });
+
+        // Toggle broadcast_separately — changes 5GHz SSID from "TestNet" to "TestNet-5G"
+        let wifi = Wifi {
+            ssid: "TestNet".into(),
+            broadcast_separately: true,
+            radios: make_dual_radios(),
+            passwords,
+        };
+        let restart = set_config(&ctx, &mut cfgs, &wifi, &lookup).unwrap();
+        assert_eq!(restart, WifiRestart::Full, "SSID change should require full restart");
+    }
+
+    #[test]
+    fn test_set_config_returns_psk_only_when_passwords_change() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config(dir.path(), "\
+config wifi-station
+\toption key 'guestpass1'
+\toption vid '101'
+\toption iface 'default_radio0'
+\toption label 'Guest'
+");
+
+        // First set to establish baseline
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs).unwrap();
+
+        let guest_id = lookup.from_fullname("Guest").unwrap().clone();
+        let mut passwords = BTreeSet::new();
+        passwords.insert(Password {
+            label: "Admin".into(),
+            profile: None,
+            password: "adminpass1".into(),
+        });
+        passwords.insert(Password {
+            label: "Guest".into(),
+            profile: Some(guest_id.clone()),
+            password: "guestpass1".into(),
+        });
+
+        let wifi = Wifi {
+            ssid: "TestNet".into(),
+            broadcast_separately: false,
+            radios: make_radios(),
+            passwords,
+        };
+        set_config(&ctx, &mut cfgs, &wifi, &lookup).unwrap();
+        dump_all(ctx.uci_root(), cfgs).unwrap();
+
+        // Now change only passwords — should be PskOnly
+        let arena2 = Arena::new();
+        let mut cfgs2 = parse_all(
+            ctx.uci_root(),
+            &arena2,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .unwrap();
+        let lookup2 = profiles::Lookup::parse(ctx.clone(), &cfgs2).unwrap();
+        let guest_id2 = lookup2.from_fullname("Guest").unwrap().clone();
+
+        let mut passwords2 = BTreeSet::new();
+        passwords2.insert(Password {
+            label: "Admin".into(),
+            profile: None,
+            password: "adminpass1".into(),
+        });
+        passwords2.insert(Password {
+            label: "Guest".into(),
+            profile: Some(guest_id2),
+            password: "newguestpass".into(),
+        });
+
+        let wifi2 = Wifi {
+            ssid: "TestNet".into(),
+            broadcast_separately: false,
+            radios: make_radios(),
+            passwords: passwords2,
+        };
+        let restart = set_config(&ctx, &mut cfgs2, &wifi2, &lookup2).unwrap();
+        assert_eq!(restart, WifiRestart::PskOnly, "password-only change should use PSK reload");
+    }
 }

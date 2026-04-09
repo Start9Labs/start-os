@@ -30,10 +30,6 @@ import { DataUsageChart } from './data-usage-chart'
               <tui-icon icon="@tui.circle-minus" />
               Offline
             }
-            @case ('blocked') {
-              <tui-icon icon="@tui.ban" class="g-negative" />
-              Blocked
-            }
           }
         </span>
       </div>
@@ -78,29 +74,25 @@ import { DataUsageChart } from './data-usage-chart'
           </span>
         </div>
       }
-      @if (parent.data()?.speed) {
-        <div appSummary>
-          Speed
-          <span tuiSubtitle>
-            <tui-icon icon="@tui.arrow-up" />
-            {{ parent.data()?.speed?.up ?? 0 | tuiFormatNumber }}
-            <small>MB/s</small>
-          </span>
-          <span tuiSubtitle>
-            <tui-icon icon="@tui.arrow-down" />
-            {{ parent.data()?.speed?.down ?? 0 | tuiFormatNumber }}
-            <small>MB/s</small>
-          </span>
-        </div>
-      }
+      <div appSummary>
+        Speed
+        <span tuiSubtitle>
+          <tui-icon icon="@tui.arrow-up" />
+          {{ parent.data()?.speed?.up ?? 0 | tuiFormatNumber }}
+          <small>MB/s</small>
+        </span>
+        <span tuiSubtitle>
+          <tui-icon icon="@tui.arrow-down" />
+          {{ parent.data()?.speed?.down ?? 0 | tuiFormatNumber }}
+          <small>MB/s</small>
+        </span>
+      </div>
     </section>
-    @if (parent.data()?.status !== 'blocked') {
-      <app-data-usage-chart
-        [mac]="parent.data()?.mac ?? ''"
-        [service]="parent.service"
-        [loading]="!parent.data()"
-      />
-    }
+    <app-data-usage-chart
+      [mac]="parent.data()?.mac ?? ''"
+      [service]="parent.service"
+      [loading]="!parent.data()"
+    />
   `,
   styles: `
     tui-icon {
@@ -125,6 +117,9 @@ export class DeviceSummary {
     }
     if (connection.includes('wi-fi') || connection.includes('wifi')) {
       return '@tui.wifi'
+    }
+    if (connection.startsWith('vpn')) {
+      return '@tui.shield'
     }
     return '@tui.monitor'
   })

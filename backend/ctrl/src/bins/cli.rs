@@ -32,10 +32,23 @@ pub fn main(args: VecDeque<OsString>) {
             }
             return;
         }
+        Some("verify") => {
+            if let Err(e) = crate::verify::run_verify() {
+                eprintln!("{e}");
+                std::process::exit(1);
+            }
+            return;
+        }
+        Some("has-baked-password") => {
+            // Exit 0 if the boot image has a baked-in WiFi password,
+            // exit 1 otherwise. Used by startwrt-serial to decide whether
+            // to run manufacture or defer to the web setup wizard.
+            std::process::exit(if crate::setup::has_baked_password() { 0 } else { 1 });
+        }
         _ => {}
     }
 
-    let _guard = init_logging("startwrt-cli");
+    init_logging("startwrt-cli");
 
     // Reconstruct args with synthetic argv[0] for clap/rpc-toolkit
     let full_args = std::iter::once(OsString::from("startwrt-cli")).chain(args);

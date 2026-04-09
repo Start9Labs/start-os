@@ -3,7 +3,9 @@ import { toSignal } from '@angular/core/rxjs-interop'
 import { TuiNotificationService } from '@taiga-ui/core'
 import {
   catchError,
+  EMPTY,
   firstValueFrom,
+  from,
   merge,
   share,
   Subject,
@@ -11,15 +13,31 @@ import {
   timer,
 } from 'rxjs'
 import { ActionService } from 'src/app/services/action.service'
+import {
+  isNetworkError,
+  NetworkRestartService,
+} from 'src/app/services/network-restart.service'
 
 export type FormRawValue<T> = T extends { getRawValue(): infer R } ? R : never
 
 export abstract class FormService<T> {
   private readonly load$ = new Subject<void>()
   private readonly alerts = inject(TuiNotificationService)
+  protected readonly networkRestart = inject(NetworkRestartService)
   private readonly value$ = merge(this.load$, timer(0, 5000)).pipe(
-    switchMap(() => this.load()),
-    catchError(e => this.alerts.open<never>(e, { appearance: 'negative' })),
+    switchMap(() =>
+      from(this.load()).pipe(
+        catchError(e => {
+          if (isNetworkError(e) && this.networkRestart.isSuppressed) {
+            return EMPTY
+          }
+          console.error(e)
+          return this.alerts.open<never>(e.message || e, {
+            appearance: 'negative',
+          })
+        }),
+      ),
+    ),
     share(),
   )
 
@@ -33,10 +51,15 @@ export abstract class FormService<T> {
     this.load$.next()
   }
 
+  protected async refreshAndWait(): Promise<void> {
+    this.refresh()
+    await firstValueFrom(this.value$)
+  }
+
   async save(data: T): Promise<boolean> {
     return this.actions.run(async () => {
-      await this.store(data).then(() => this.refresh())
-      await firstValueFrom(this.value$)
+      await this.store(data)
+      await this.refreshAndWait()
     })
   }
 }

@@ -12,7 +12,7 @@ use rpc_toolkit::{Context, Middleware, RpcRequest, RpcResponse};
 use serde::Deserialize;
 use std::net::SocketAddr;
 
-use crate::auth::{error_code, validate_session, HashSessionToken, LoginRes};
+use crate::auth::{error_code, validate_local_auth_cookie, validate_session, HashSessionToken, LoginRes};
 use crate::error::Error;
 
 /// Simple synchronous mutex wrapper with mutate helper
@@ -63,14 +63,48 @@ impl SessionAuth {
     }
 
     fn extract_session_from_cookie(&self) -> Option<HashSessionToken> {
-        let cookie_header = self.cookie.as_ref()?;
-        let cookie_str = cookie_header.to_str().ok()?;
-        let cookies = Cookie::parse(cookie_str).ok()?;
-        let session_cookie = cookies.iter().find(|c| c.get_name() == "session")?;
-        Some(HashSessionToken::from_token(
-            session_cookie.get_value().to_string(),
-        ))
+        extract_session_token(self.cookie.as_ref()?)
     }
+
+    fn extract_local_cookie(&self) -> Option<String> {
+        extract_local_cookie_value(self.cookie.as_ref()?)
+    }
+}
+
+/// Validate auth from HTTP headers. For use by non-RPC handlers
+/// (backup, logs, etc.) that can't use the SessionAuth RPC middleware.
+/// Accepts either a valid session cookie or a valid local auth cookie.
+pub async fn validate_session_from_headers(headers: &axum::http::HeaderMap) -> bool {
+    match headers.get(COOKIE) {
+        Some(cookie) => {
+            if let Some(token) = extract_session_token(cookie) {
+                return validate_session(token.hashed()).await.is_ok();
+            }
+            if let Some(ref local) = extract_local_cookie_value(cookie) {
+                return validate_local_auth_cookie(local).await;
+            }
+            false
+        }
+        None => false,
+    }
+}
+
+/// Extract the session token from a Cookie header value.
+pub fn extract_session_token(cookie_header: &HeaderValue) -> Option<HashSessionToken> {
+    let cookie_str = cookie_header.to_str().ok()?;
+    let cookies = Cookie::parse(cookie_str).ok()?;
+    let session_cookie = cookies.iter().find(|c| c.get_name() == "session")?;
+    Some(HashSessionToken::from_token(
+        session_cookie.get_value().to_string(),
+    ))
+}
+
+/// Extract the local auth cookie value from a Cookie header.
+pub fn extract_local_cookie_value(cookie_header: &HeaderValue) -> Option<String> {
+    let cookie_str = cookie_header.to_str().ok()?;
+    let cookies = Cookie::parse(cookie_str).ok()?;
+    let local_cookie = cookies.iter().find(|c| c.get_name() == "local")?;
+    Some(local_cookie.get_value().to_string())
 }
 
 impl<C: Context> Middleware<C> for SessionAuth {
@@ -86,7 +120,16 @@ impl<C: Context> Middleware<C> for SessionAuth {
         self.is_loopback = request
             .extensions()
             .get::<ConnectInfo<SocketAddr>>()
-            .map_or(false, |ci| ci.0.ip().is_loopback());
+            .map_or(false, |ci| {
+                let ip = match ci.0.ip() {
+                    std::net::IpAddr::V6(v6) => v6
+                        .to_ipv4_mapped()
+                        .map(std::net::IpAddr::V4)
+                        .unwrap_or(std::net::IpAddr::V6(v6)),
+                    other => other,
+                };
+                ip.is_loopback()
+            });
         Ok(())
     }
 
@@ -97,11 +140,18 @@ impl<C: Context> Middleware<C> for SessionAuth {
         request: &mut RpcRequest,
     ) -> Result<(), RpcResponse> {
         let result: Result<(), Error> = async {
+            // Bypass auth for: no_auth endpoints, loopback requests, or valid local auth cookie.
+            // The local cookie is written by the daemon at startup to /run/startwrt/rpc.authcookie.
+            // Any process that can read that file (i.e. running on the router via SSH) is trusted.
             if metadata.no_auth || self.is_loopback {
-                // Bypass auth for read-only status endpoints and loopback
-                // requests (CLI via SSH is already authenticated)
                 return Ok(());
-            } else if metadata.login {
+            }
+            if let Some(ref local) = self.extract_local_cookie() {
+                if validate_local_auth_cookie(local).await {
+                    return Ok(());
+                }
+            }
+            if metadata.login {
                 self.is_login = true;
                 // Rate limit login attempts: 3 per 20 seconds
                 self.rate_limiter.mutate(|(count, time)| {

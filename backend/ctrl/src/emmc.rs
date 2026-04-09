@@ -6,7 +6,7 @@ use std::path::Path;
 use crate::Error;
 
 pub const PERSISTENT_MOUNT: &str = "/key_backup";
-pub const WIFI_PMK_PATH: &str = "/key_backup/wifi_pmk";
+pub const WIFI_PASSWORD_PATH: &str = "/key_backup/wifi_password";
 
 /// Check if /key_backup is already mounted by scanning /proc/mounts.
 pub fn is_persistent_mounted() -> bool {
@@ -81,26 +81,26 @@ pub fn ensure_persistent_mounted() -> Result<(), Error> {
 
 /// Check whether manufacturing init has already been performed.
 pub fn is_initialized() -> bool {
-    Path::new(WIFI_PMK_PATH).exists()
+    Path::new(WIFI_PASSWORD_PATH).exists()
 }
 
-/// Read the 64-char hex PMK from the key_backup partition.
-pub fn read_pmk() -> Result<String, Error> {
-    let pmk = fs::read_to_string(WIFI_PMK_PATH)
-        .map_err(|e| Error::other(format!("failed to read {WIFI_PMK_PATH}: {e}")))?;
-    Ok(pmk.trim().to_string())
+/// Read the plaintext WiFi password from the key_backup partition.
+pub fn read_password() -> Result<String, Error> {
+    let password = fs::read_to_string(WIFI_PASSWORD_PATH)
+        .map_err(|e| Error::other(format!("failed to read {WIFI_PASSWORD_PATH}: {e}")))?;
+    Ok(password.trim().to_string())
 }
 
-/// Write a 64-char hex PMK to the key_backup partition atomically.
+/// Write a plaintext WiFi password to the key_backup partition atomically.
 ///
 /// Uses the temp-file → mode 0o600 → write → flush → sync → rename pattern
 /// from auth.rs to avoid partial writes.
-pub fn write_pmk(pmk_hex: &str) -> Result<(), Error> {
-    let path = Path::new(WIFI_PMK_PATH);
+pub fn write_password(password: &str) -> Result<(), Error> {
+    let path = Path::new(WIFI_PASSWORD_PATH);
     let tmp_path = path
         .parent()
         .unwrap_or(Path::new("/key_backup"))
-        .join(".wifi_pmk.tmp");
+        .join(".wifi_password.tmp");
 
     let mut file = OpenOptions::new()
         .write(true)
@@ -108,19 +108,19 @@ pub fn write_pmk(pmk_hex: &str) -> Result<(), Error> {
         .truncate(true)
         .mode(0o600)
         .open(&tmp_path)
-        .map_err(|e| Error::other(format!("failed to create temp PMK file: {e}")))?;
+        .map_err(|e| Error::other(format!("failed to create temp password file: {e}")))?;
 
-    file.write_all(pmk_hex.as_bytes())
-        .map_err(|e| Error::other(format!("failed to write PMK: {e}")))?;
+    file.write_all(password.as_bytes())
+        .map_err(|e| Error::other(format!("failed to write password: {e}")))?;
 
     file.flush()
-        .map_err(|e| Error::other(format!("failed to flush PMK file: {e}")))?;
+        .map_err(|e| Error::other(format!("failed to flush password file: {e}")))?;
 
     file.sync_all()
-        .map_err(|e| Error::other(format!("failed to sync PMK file: {e}")))?;
+        .map_err(|e| Error::other(format!("failed to sync password file: {e}")))?;
 
     fs::rename(&tmp_path, path)
-        .map_err(|e| Error::other(format!("failed to persist PMK file: {e}")))?;
+        .map_err(|e| Error::other(format!("failed to persist password file: {e}")))?;
 
     // fsync the directory to ensure the rename's directory entry is durable.
     // Without this, the rename is only in the journal's page cache and may be

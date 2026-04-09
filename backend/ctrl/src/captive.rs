@@ -5,9 +5,9 @@ use crate::Error;
 
 const CAPTIVE_CONF_NAME: &str = "captive-portal.conf";
 const CAPTIVE_CONTENT: &str = "\
-    address=/#/192.168.1.1\n\
+    address=/#/192.168.0.1\n\
     address=/#/::\n\
-    dhcp-option=114,http://192.168.1.1/\n";
+    dhcp-option=114,http://192.168.0.1/\n";
 
 /// Find the dnsmasq instance conf-dir from the generated config.
 ///
@@ -129,9 +129,7 @@ pub async fn ensure_captive_portal_state() -> Result<(), Error> {
 }
 
 fn restart_dnsmasq() -> Result<(), Error> {
-    let status = std::process::Command::new("/etc/init.d/dnsmasq")
-        .arg("restart")
-        .status()
+    let status = crate::run_quiet(std::process::Command::new("/etc/init.d/dnsmasq").arg("restart"))
         .map_err(|e| Error::other(format!("failed to restart dnsmasq: {e}")))?;
 
     if !status.success() {

@@ -1,13 +1,16 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
-import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
-import { TuiSkeleton } from '@taiga-ui/kit'
+import { TuiButton, TuiHint, TuiLink, TuiTitle } from '@taiga-ui/core'
+import { TUI_CONFIRM, TuiSkeleton, TuiSwitch } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
+import { filter } from 'rxjs'
 import { Placeholder } from 'src/app/components/placeholder'
 import { ADD_CLIENT } from 'src/app/routes/outbound/dialog'
 import { OutboundService } from 'src/app/routes/outbound/service'
+import { OutboundVpn } from 'src/app/services/api/api.service'
 
 @Component({
   template: `
@@ -22,16 +25,15 @@ import { OutboundService } from 'src/app/routes/outbound/service'
     <table tuiTable size="m" class="g-table" [tuiSkeleton]="!service.data()">
       <thead tuiThead>
         <tr>
-          <th tuiTh [sorter]="'enabled' | tuiSorter" [style.width.rem]="3"></th>
           <th tuiTh [sorter]="'label' | tuiSorter">Label</th>
           <th tuiTh [sorter]="'target' | tuiSorter">Connects to</th>
           <th tuiTh>Used by</th>
+          <th tuiTh [sorter]="'enabled' | tuiSorter">Enable</th>
         </tr>
       </thead>
       <tbody>
         @for (item of service.data() | tuiTableSort; track item.id) {
           <tr>
-            <td tuiTd>{{ item.enabled ? '🟢' : '⚪' }}</td>
             <td tuiTd>
               <a tuiLink routerLink="vpn" [queryParams]="{ id: item.id }">
                 <b>{{ item.label }}</b>
@@ -39,13 +41,25 @@ import { OutboundService } from 'src/app/routes/outbound/service'
             </td>
             <td tuiTd>{{ item.target }}</td>
             <td tuiTd>
-              @if (item.usedBy) {
-                <button tuiLink iconStart="@tui.scroll-text">
-                  {{ item.usedBy }}
-                </button>
+              @if (item.used_by.length) {
+                <a tuiLink routerLink="/profiles">
+                  {{ item.used_by.join(', ') }}
+                </a>
               } @else {
                 -
               }
+            </td>
+            <td tuiTd>
+              <input
+                type="checkbox"
+                tuiSwitch
+                size="s"
+                [showIcons]="false"
+                [ngModel]="item.enabled"
+                [disabled]="hasDependentVpns(item)"
+                [tuiHint]="getDependentVpnHint(item)"
+                (click)="$event.preventDefault(); onToggle(item)"
+              />
             </td>
           </tr>
         } @empty {
@@ -65,7 +79,7 @@ import { OutboundService } from 'src/app/routes/outbound/service'
       max-width: 50rem;
     }
 
-    td:first-child {
+    td:last-child {
       text-align: center;
     }
   `,
@@ -73,12 +87,15 @@ import { OutboundService } from 'src/app/routes/outbound/service'
   host: { class: 'g-page' },
   imports: [
     RouterLink,
+    FormsModule,
     TuiHeader,
     TuiTitle,
     TuiTable,
     TuiButton,
+    TuiHint,
     TuiLink,
     TuiSkeleton,
+    TuiSwitch,
     Placeholder,
   ],
 })
@@ -86,9 +103,56 @@ export default class OutboundTable {
   private readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(OutboundService)
 
+  protected hasDependentVpns(item: OutboundVpn): boolean {
+    const allVpns = this.service.data() ?? []
+    return allVpns.some(v => v.target === item.label)
+  }
+
+  protected getDependentVpnHint(item: OutboundVpn): string | null {
+    const allVpns = this.service.data() ?? []
+    const dependents = allVpns
+      .filter(v => v.target === item.label)
+      .map(v => v.label)
+    if (!dependents.length) return null
+    return (
+      'Cannot disable: ' +
+      dependents.join(', ') +
+      ' ' +
+      (dependents.length === 1 ? 'uses' : 'use') +
+      ' this VPN as a target. Change ' +
+      (dependents.length === 1 ? 'its' : 'their') +
+      ' target first.'
+    )
+  }
+
+  protected onToggle(item: OutboundVpn) {
+    if (!item.enabled || !item.used_by.length) {
+      this.service.setEnabled(item.id, !item.enabled)
+      return
+    }
+
+    const profiles = item.used_by.join(', ')
+    this.dialogs
+      .open(TUI_CONFIRM, {
+        label: 'Disable VPN?',
+        data: {
+          content: `The following profiles currently route through this VPN and will be switched to WAN: ${profiles}.`,
+          yes: 'Disable',
+          no: 'Cancel',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => {
+        this.service.setEnabled(item.id, false)
+      })
+  }
+
   protected add() {
     const existing = this.service.data() ?? []
-    const data = ['Internet', ...existing.map(v => v.label)]
+    const data = {
+      targets: ['Internet', ...existing.map(v => v.label)],
+      existingLabels: existing.map(v => v.label),
+    }
 
     this.dialogs
       .open<any>(ADD_CLIENT, { label: 'Add Outbound VPN', data })

@@ -26,11 +26,20 @@ import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
-import { getAddOutboundVpnForm, OUTBOUND_VALIDATION_ERRORS } from './utils'
+import {
+  AddClientDialogData,
+  getAddOutboundVpnForm,
+  OUTBOUND_VALIDATION_ERRORS,
+} from './utils'
 
 @Component({
   template: `
-    <form tuiForm="m" [style.margin-top.rem]="1" [formGroup]="form">
+    <form
+      tuiForm="m"
+      [style.margin-top.rem]="1"
+      [formGroup]="form"
+      (submit.prevent)="save()"
+    >
       <tui-textfield>
         <label tuiLabel>Label</label>
         <input
@@ -62,7 +71,7 @@ import { getAddOutboundVpnForm, OUTBOUND_VALIDATION_ERRORS } from './utils'
       <tui-textfield tuiChevron>
         <label tuiLabel>Target</label>
         <input tuiSelect formControlName="target" />
-        <tui-data-list-wrapper *tuiDropdown [items]="context.data" />
+        <tui-data-list-wrapper *tuiDropdown [items]="context.data.targets" />
       </tui-textfield>
       <footer>
         <button
@@ -73,7 +82,7 @@ import { getAddOutboundVpnForm, OUTBOUND_VALIDATION_ERRORS } from './utils'
         >
           Cancel
         </button>
-        <button tuiButton (click)="save()">Add VPN</button>
+        <button tuiButton>Add VPN</button>
       </footer>
     </form>
   `,
@@ -104,9 +113,11 @@ import { getAddOutboundVpnForm, OUTBOUND_VALIDATION_ERRORS } from './utils'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 class AddClient {
-  protected readonly context = injectContext<TuiDialogContext<any, string[]>>()
+  protected readonly context =
+    injectContext<TuiDialogContext<any, AddClientDialogData>>()
   protected readonly form = getAddOutboundVpnForm(
     inject(NonNullableFormBuilder),
+    this.context.data.existingLabels,
   )
 
   constructor() {

@@ -26,7 +26,7 @@ import OutboundVPN from 'src/app/routes/outbound/routes/vpn/index'
       </label>
       <label appSummary>
         Used by
-        <span tuiSubtitle>-</span>
+        <span tuiSubtitle>{{ parent.data()?.used_by?.join(', ') || '-' }}</span>
       </label>
     </section>
     <section>

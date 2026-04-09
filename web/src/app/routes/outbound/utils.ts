@@ -5,34 +5,14 @@ import {
   Validators,
 } from '@angular/forms'
 import { FormRawValue } from 'src/app/services/form.service'
+import { OutboundVpn } from 'src/app/services/api/api.service'
+import { CustomValidators } from 'src/app/utils/validators'
 
 export const OUTBOUND_VALIDATION_ERRORS = {
   required: 'Required',
   invalidExtension: 'Please upload a .conf file',
-}
-
-export interface OutboundVpn {
-  id: string // Interface name (e.g., 'wg_proton')
-  label: string
-  target: string // 'Internet' or another VPN label
-  enabled: boolean
-  // WireGuard config
-  privateKey: string
-  addresses: string[]
-  dns: string[]
-  // Peer config
-  publicKey: string
-  endpoint: string
-  allowedIps: string[]
-  persistentKeepalive: number
-}
-
-export interface OutboundVpnTableItem {
-  id: string
-  label: string
-  target: string
-  enabled: boolean
-  usedBy: string // Stub for now - will come from security profiles later
+  duplicateName: 'A VPN with this label already exists',
+  interfaceNameLength: 'Label is too long (max ~12 characters)',
 }
 
 function fileExtensionValidator(
@@ -50,22 +30,39 @@ function fileExtensionValidator(
   }
 }
 
-export function getOutboundVpnForm(builder: NonNullableFormBuilder) {
+const labelValidators = (existingLabels: string[]) => [
+  Validators.required,
+  CustomValidators.duplicateName(existingLabels),
+  CustomValidators.interfaceNameLength('wg_', 15),
+]
+
+export function getOutboundVpnForm(
+  builder: NonNullableFormBuilder,
+  existingLabels: string[],
+) {
   return builder.group({
-    label: builder.control('', [Validators.required]),
+    label: builder.control('', labelValidators(existingLabels)),
     target: builder.control('Internet', [Validators.required]),
   })
 }
 
-export function getAddOutboundVpnForm(builder: NonNullableFormBuilder) {
+export function getAddOutboundVpnForm(
+  builder: NonNullableFormBuilder,
+  existingLabels: string[],
+) {
   return builder.group({
-    label: builder.control('', [Validators.required]),
+    label: builder.control('', labelValidators(existingLabels)),
     config: builder.control<File | null>(null, [
       Validators.required,
       fileExtensionValidator(['conf']),
     ]),
     target: builder.control('Internet', [Validators.required]),
   })
+}
+
+export interface AddClientDialogData {
+  targets: string[]
+  existingLabels: string[]
 }
 
 export type OutboundVpnForm = FormRawValue<
@@ -76,12 +73,38 @@ export type AddOutboundVpnForm = FormRawValue<
 >
 
 /**
+ * Compute which VPN labels are safe targets for a given VPN.
+ * A target T is unsafe if following T's chain eventually reaches selfLabel (cycle).
+ */
+export function getSafeTargets(
+  selfLabel: string,
+  allVpns: OutboundVpn[],
+): string[] {
+  return [
+    'Internet',
+    ...allVpns
+      .filter(v => v.label !== selfLabel)
+      .filter(v => {
+        const visited = new Set<string>([selfLabel])
+        let current: OutboundVpn | undefined = v
+        while (current && current.target !== 'Internet') {
+          if (visited.has(current.target)) return false
+          visited.add(current.target)
+          current = allVpns.find(x => x.label === current!.target)
+        }
+        return true
+      })
+      .map(v => v.label),
+  ]
+}
+
+/**
  * Build the full connection path for a VPN
  * e.g., ['Mullvad', 'Proton', 'Internet']
  */
 export function buildConnectionPath(
   vpnLabel: string,
-  allVpns: OutboundVpnTableItem[],
+  allVpns: OutboundVpn[],
 ): string[] {
   const path: string[] = [vpnLabel]
   let current = allVpns.find(v => v.label === vpnLabel)

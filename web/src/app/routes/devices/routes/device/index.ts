@@ -28,7 +28,7 @@ import {
   getDeviceForm,
   updateDeviceValidators,
 } from 'src/app/routes/devices/utils'
-import { PublishedPortsUciService } from 'src/app/routes/published-ports/uci/service'
+import { ApiService } from 'src/app/services/api/api.service'
 import { DeviceSummary } from './summary'
 
 @Component({
@@ -61,26 +61,6 @@ import { DeviceSummary } from './summary'
             (click)="onForget()"
           >
             Forget
-          </button>
-        }
-        @if (data()?.status === 'blocked') {
-          <button
-            tuiButton
-            size="m"
-            appearance="secondary-destructive"
-            (click)="onUnblock()"
-          >
-            Unblock
-          </button>
-        }
-        @if (data() && data()?.status !== 'blocked') {
-          <button
-            tuiButton
-            size="m"
-            appearance="secondary-destructive"
-            (click)="onBlock()"
-          >
-            Block
           </button>
         }
       </aside>
@@ -154,7 +134,7 @@ import { DeviceSummary } from './summary'
 export default class DeviceDetail {
   private readonly route = inject(ActivatedRoute)
   private readonly router = inject(Router)
-  private readonly publishedPortsUci = inject(PublishedPortsUciService)
+  private readonly api = inject(ApiService)
 
   readonly service = inject(DevicesService)
   readonly mac = this.route.snapshot.queryParams['mac']
@@ -202,7 +182,12 @@ export default class DeviceDetail {
   }
 
   private async loadDependencies() {
-    if ((await this.publishedPortsUci.getDevicePortUsage(this.mac)).usesIpv4) {
+    const ports = await this.api.publishedPortsList()
+    const macUpper = this.mac.toUpperCase()
+    const devicePorts = ports.filter(
+      p => p.device_mac.toUpperCase() === macUpper && p.enabled,
+    )
+    if (devicePorts.some(p => p.ipv4)) {
       this.form.controls.ip.controls.ipv4Static.disable()
     }
   }
@@ -234,18 +219,6 @@ export default class DeviceDetail {
           ipv6: data.ipv6 ?? '',
         },
       })
-    }
-  }
-
-  async onBlock() {
-    if (await this.service.block(this.mac)) {
-      this.router.navigate(['..'], { relativeTo: this.route })
-    }
-  }
-
-  async onUnblock() {
-    if (await this.service.unblock(this.mac)) {
-      this.router.navigate(['..'], { relativeTo: this.route })
     }
   }
 

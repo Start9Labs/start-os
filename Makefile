@@ -73,7 +73,7 @@ BUILD_SCRIPTS := $(shell git ls-files build/)
 RUST_BIN_DIR := backend/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)
 RUST_BIN := $(RUST_BIN_DIR)/startwrt
 WEB_DIST := web/dist/startwrt/browser/index.html
-OPENWRT_IMAGE_NAME := openwrt-spacemit-k1-sbc-debX-squashfs-pack-sdcard.img
+OPENWRT_IMAGE_NAME := openwrt-spacemit-k1-sbc-bananapi-f3-squashfs-pack-sdcard.img
 OPENWRT_IMAGE_SRC := openwrt/bin/targets/spacemit/$(OPENWRT_IMAGE_NAME)
 OPENWRT_IMAGE := out/$(OPENWRT_IMAGE_NAME)
 
@@ -85,10 +85,8 @@ OPENWRT_IMAGE := out/$(OPENWRT_IMAGE_NAME)
 # Usage:  make update
 #         make update REMOTE=root@10.0.0.1   # override target device
 # ---------------------------------------------------------------------------
-REMOTE ?= root@192.168.1.1
-PV := $(shell command -v pv 2>/dev/null || \
-        (dd bs=1 count=0 status=progress </dev/null 2>/dev/null && echo 'dd bs=65536 status=progress') || \
-        echo 'dd bs=65536')
+REMOTE ?= root@192.168.0.1
+PV := $(shell command -v pv 2>/dev/null || echo cat)
 
 .PHONY: all clean openwrt-setup stage image image-quick update
 

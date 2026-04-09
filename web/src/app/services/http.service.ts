@@ -27,7 +27,7 @@ export class HttpService {
     }
 
     try {
-      return firstValueFrom(
+      return await firstValueFrom(
         this.http.post<T>(this.url, body, {
           observe: 'response',
           withCredentials: true,

@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core'
@@ -41,12 +42,14 @@ import {
 } from 'src/app/services/api/api.service'
 import { SystemService } from 'src/app/services/system.service'
 import { getTranslatedName, Language, LANGUAGES } from 'src/app/utils/languages'
+import {
+  formatOffset,
+  getPosixTz,
+  resolveTimezone,
+  TIMEZONES,
+} from 'src/app/utils/timezones'
 
-const THEMES: Record<string, Theme> = {
-  System: 'system',
-  Dark: 'dark',
-  Light: 'light',
-}
+const THEMES: Theme[] = ['system', 'dark', 'light']
 
 @Component({
   template: `
@@ -77,21 +80,23 @@ const THEMES: Record<string, Theme> = {
         </tui-expand>
       </tui-accordion>
     }
-    <form [formGroup]="form" [formLoading]="false" (ngSubmit)="onSubmit()">
+    <form
+      [formGroup]="form"
+      [formLoading]="false"
+      (reset.prevent)="onCancel()"
+      (ngSubmit)="onSubmit()"
+    >
       <fieldset>
         <legend>Preferences</legend>
         <section>
-          <tui-textfield tuiChevron>
+          <tui-textfield tuiChevron [stringify]="stringifyTheme">
             <label tuiLabel>Theme</label>
             <input
               tuiSelect
               formControlName="theme"
               (tuiValueChanges)="onTheme($event)"
             />
-            <tui-data-list-wrapper
-              *tuiDropdown
-              [items]="['System', 'Dark', 'Light']"
-            />
+            <tui-data-list-wrapper *tuiDropdown [items]="themes" />
           </tui-textfield>
           <tui-textfield tuiChevron [stringify]="stringifyLanguage">
             <label tuiLabel>Language</label>
@@ -102,6 +107,20 @@ const THEMES: Record<string, Theme> = {
                   <span tuiTitle>
                     {{ lang.nativeName }}
                     <span tuiSubtitle>{{ getTranslatedName(lang.posix) }}</span>
+                  </span>
+                </button>
+              }
+            </tui-data-list>
+          </tui-textfield>
+          <tui-textfield tuiChevron [stringify]="stringifyTimezone">
+            <label tuiLabel>Timezone</label>
+            <input tuiSelect formControlName="timezone" />
+            <tui-data-list *tuiDropdown>
+              @for (tz of timezones; track tz.iana) {
+                <button tuiOption [value]="tz.iana">
+                  <span tuiTitle>
+                    ({{ formatOffset(tz.offsetMin) }}) {{ tz.label }}
+                    <span tuiSubtitle>{{ tz.iana }}</span>
                   </span>
                 </button>
               }
@@ -122,6 +141,24 @@ const THEMES: Record<string, Theme> = {
             {{ $index ? value : 'When behind NAT (Default)' }}
           </label>
         }
+      </fieldset>
+      <fieldset>
+        <legend>Security</legend>
+        <section class="ca-section">
+          <p>
+            Download your Root CA to trust HTTPS connections from additional
+            devices.
+          </p>
+          <a
+            tuiButton
+            size="s"
+            iconEnd="@tui.download"
+            href="/static/root-ca.crt"
+            download="startwrt-ca.crt"
+          >
+            Download Root CA
+          </a>
+        </section>
       </fieldset>
       <tui-elastic-container>
         @if (form.value.remote === 'always') {
@@ -187,6 +224,19 @@ const THEMES: Record<string, Theme> = {
       label {
         text-transform: capitalize;
       }
+
+      .ca-section {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+
+        p {
+          margin: 0;
+          color: var(--tui-text-secondary);
+          font: var(--tui-typography-text-s);
+        }
+      }
     }
   `,
   host: { class: 'g-page' },
@@ -237,34 +287,89 @@ export default class General {
   })
 
   protected readonly form = inject(NonNullableFormBuilder).group({
-    theme: this.systemTheme() ? 'System' : this.mode() ? 'Dark' : 'Light',
+    theme: (this.systemTheme()
+      ? 'system'
+      : this.mode()
+        ? 'dark'
+        : 'light') as Theme,
     language: 'en_US' as Language,
     remote: 'default',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   })
+
+  constructor() {
+    effect(() => {
+      const info = this.system.info()
+      if (info && this.form.pristine) {
+        this.form.reset({
+          theme: info.theme,
+          language: info.language as Language,
+          remote: info.remoteAccess ?? 'default',
+          timezone: resolveTimezone(
+            info.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+          ),
+        })
+      }
+    })
+  }
+
+  protected readonly themes = THEMES
+  protected readonly timezones = TIMEZONES
+
+  protected readonly stringifyTheme = (t: Theme): string =>
+    t ? t[0].toUpperCase() + t.slice(1) : ''
 
   protected readonly stringifyLanguage = (posix: Language): string =>
     LANGUAGES.find(l => l.posix === posix)?.nativeName || posix
+
+  protected readonly formatOffset = formatOffset
+
+  protected readonly stringifyTimezone = (iana: string): string => {
+    const tz = TIMEZONES.find(t => t.iana === iana)
+    return tz ? `(${formatOffset(tz.offsetMin)}) ${tz.label}` : iana
+  }
 
   protected getTranslatedName(posix: Language): string {
     return getTranslatedName(posix, this.form.getRawValue().language)
   }
 
-  protected onTheme(theme: string): void {
-    if (theme === 'System') {
+  protected onTheme(theme: Theme): void {
+    if (theme === 'system') {
       this.mode.reset()
     } else {
-      this.mode.set(theme === 'Dark')
+      this.mode.set(theme === 'dark')
+    }
+  }
+
+  protected onCancel(): void {
+    const info = this.system.info()
+    if (info) {
+      this.form.reset({
+        theme: info.theme,
+        language: info.language as Language,
+        remote: info.remoteAccess ?? 'default',
+        timezone:
+          info.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      })
+      this.onTheme(info.theme)
     }
   }
 
   async onSubmit(): Promise<void> {
     await this.actions.run(
-      () =>
-        this.api.setPreferences({
-          theme: THEMES[this.form.value.theme!],
+      async () => {
+        await this.api.setPreferences({
+          theme: this.form.value.theme!,
           language: this.form.value.language,
           remoteAccess: this.form.value.remote as RemoteAccess,
-        }),
+        })
+
+        const timezone = this.form.value.timezone!
+        const posixTz = getPosixTz(timezone)
+        if (posixTz) {
+          await this.api.setTimezone({ timezone, posixTz })
+        }
+      },
       {
         fail: 'Failed to save preferences',
         success: 'Preferences saved',

@@ -74,7 +74,7 @@ import {
                   tuiSwitch
                   [formControlName]="'custom' + ($index + 1) + 'Tls'"
                 />
-                TLS
+                Secure (DoH)
               </label>
             </section>
             <tui-error [formControlName]="'custom' + ($index + 1)" />

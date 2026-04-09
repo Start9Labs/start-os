@@ -233,9 +233,20 @@ export class Header {
   }
 
   protected async restart(): Promise<void> {
-    await this.actions.run(() => this.api.systemRestart(), {
-      loading: 'Restarting...',
-      success: 'Router is restarting',
-    })
+    await this.actions.run(
+      async () => {
+        await this.api.systemRestart()
+        // Poll until device goes down — the network error propagates
+        // to ActionService, which opens the generic reconnect dialog
+        while (true) {
+          await this.api.systemInfo()
+        }
+      },
+      {
+        loading: 'Restarting...',
+        success: 'Router is back online',
+        restart: true,
+      },
+    )
   }
 }

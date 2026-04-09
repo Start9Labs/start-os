@@ -85,15 +85,6 @@ li {
     border: 0;
   }
 
-  // TODO: Remove after Taiga UI 5.0
-  fieldset {
-    flex-wrap: wrap;
-
-    &:first-child > legend {
-      padding-top: 0 !important;
-    }
-  }
-
   section {
     display: flex;
     gap: inherit;

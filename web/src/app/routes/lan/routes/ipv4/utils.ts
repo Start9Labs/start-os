@@ -26,10 +26,17 @@ export function getLanIpv4Form(builder: NonNullableFormBuilder) {
   return builder.group({
     ip: builder.group({
       firstOctet: builder.control<FirstOctet>(192),
-      // Third octet is fixed at 0 for router (default /24 within the /16)
+      // TODO @matt - remove routerOctet? The 4th octet in ip.ts was changed
+      // from configurable to a static "1" — it's always 1 by convention, and
+      // making it configurable would complicate DHCP ranges and break user
+      // expectations. That leaves routerOctet (3rd octet) as the only
+      // editable part of the gateway IP here, but it duplicates the Admin
+      // Security Profile's subnet field which sets the same value. It likely
+      // makes sense to remove this form entirely and let the Admin Profile
+      // be the single source of truth for the 3rd octet.
       routerOctet: builder.control(1, [
         Validators.required,
-        Validators.min(1),
+        Validators.min(0),
         Validators.max(254),
       ]),
     }),
@@ -45,18 +52,18 @@ export function buildNetworkBlock(ip: LanIpv4Form['ip']): string {
 
 export function buildRouterIp(ip: LanIpv4Form['ip']): string {
   const second = getSecondOctet(ip.firstOctet)
-  return `${ip.firstOctet}.${second}.0.${ip.routerOctet}`
+  return `${ip.firstOctet}.${second}.${ip.routerOctet}.1`
 }
 
 export function parseIpToForm(ipAddr: string): LanIpv4Form {
-  const [first, , , fourth] = ipAddr.split('.').map(Number)
+  const [first, , third] = ipAddr.split('.').map(Number)
 
   return {
     ip: {
       firstOctet: (FIRST_OCTETS.includes(first as FirstOctet)
         ? first
         : 192) as FirstOctet,
-      routerOctet: fourth ?? 1,
+      routerOctet: third ?? 1,
     },
   }
 }

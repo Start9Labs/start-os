@@ -6,12 +6,17 @@ import {
   inject,
   signal,
 } from '@angular/core'
-import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
+import {
+  NonNullableFormBuilder,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms'
 import { ActivatedRoute, Router, RouterLink } from '@angular/router'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
   TuiButton,
   TuiError,
+  TuiHint,
   TuiInput,
   TuiLink,
   TuiTextfield,
@@ -19,6 +24,7 @@ import {
   TuiTitle,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
   TUI_CONFIRM,
   TuiChevron,
@@ -33,8 +39,10 @@ import { Form } from 'src/app/components/form'
 import { OutboundService } from 'src/app/routes/outbound/service'
 import {
   getOutboundVpnForm,
+  getSafeTargets,
   OUTBOUND_VALIDATION_ERRORS,
 } from 'src/app/routes/outbound/utils'
+import { CustomValidators } from 'src/app/utils/validators'
 import { VPNSummary } from './summary'
 
 @Component({
@@ -90,6 +98,18 @@ import { VPNSummary } from './summary'
             type="button"
             appearance="secondary-destructive"
             class="g-delete"
+            [disabled]="dependentVpns().length"
+            [tuiHint]="
+              dependentVpns().length
+                ? 'Cannot delete: ' +
+                  dependentVpns().join(', ') +
+                  ' ' +
+                  (dependentVpns().length === 1 ? 'uses' : 'use') +
+                  ' this VPN as a target. Change ' +
+                  (dependentVpns().length === 1 ? 'its' : 'their') +
+                  ' target first.'
+                : null
+            "
             (click)="onDelete()"
           >
             Delete
@@ -116,6 +136,7 @@ import { VPNSummary } from './summary'
     TuiSelect,
     TuiDataListWrapper,
     TuiButton,
+    TuiHint,
     TuiInput,
     Footer,
     Form,
@@ -130,31 +151,48 @@ export default class OutboundVPN {
 
   readonly service = inject(OutboundService)
   readonly vpnId = this.route.snapshot.queryParams['id']
-  readonly form = getOutboundVpnForm(inject(NonNullableFormBuilder))
+  private readonly otherLabels = computed(() => {
+    const allVpns = this.service.data() ?? []
+    return allVpns.filter(v => v.id !== this.vpnId).map(v => v.label)
+  })
+  readonly form = getOutboundVpnForm(inject(NonNullableFormBuilder), [])
   readonly data = computed(
     () => this.service.data()?.find(v => v.id === this.vpnId) ?? null,
   )
 
+  readonly dependentVpns = computed(() => {
+    const allVpns = this.service.data() ?? []
+    const thisLabel = this.data()?.label
+    if (!thisLabel) return []
+    return allVpns.filter(v => v.target === thisLabel).map(v => v.label)
+  })
+
   readonly targetOptions = computed(() => {
     const currentLabel = this.data()?.label
-    const allVpns = this.service.data() ?? []
-    const otherVpns = allVpns
-      .filter(v => v.label !== currentLabel)
-      .map(v => v.label)
-    return ['Internet', ...otherVpns]
+    if (!currentLabel) return ['Internet']
+    return getSafeTargets(currentLabel, this.service.data() ?? [])
   })
 
   constructor() {
     effect(() => {
       const data = this.data()
+      const otherLabels = this.otherLabels()
       if (data && this.form.pristine) {
+        this.form.controls.label.setValidators([
+          Validators.required,
+          CustomValidators.duplicateName(otherLabels),
+          CustomValidators.interfaceNameLength('wg_', 15),
+        ])
         this.form.reset({ ...data })
       }
     })
   }
 
   async onSave() {
-    if (this.form.invalid) return
+    if (this.form.invalid) {
+      tuiMarkControlAsTouchedAndValidate(this.form)
+      return
+    }
 
     const success = await this.service.update(
       this.vpnId,
@@ -174,8 +212,18 @@ export default class OutboundVPN {
   }
 
   onDelete() {
+    const usedBy = this.data()?.used_by ?? []
+    const label = usedBy.length ? 'Delete VPN?' : 'Are you sure?'
+    const data = usedBy.length
+      ? {
+          content: `The following profiles currently route through this VPN and will be switched to WAN: ${usedBy.join(', ')}.`,
+          yes: 'Delete',
+          no: 'Cancel',
+        }
+      : undefined
+
     this.dialogs
-      .open(TUI_CONFIRM, { label: 'Are you sure?' })
+      .open(TUI_CONFIRM, { label, data })
       .pipe(filter(Boolean))
       .subscribe(async () => {
         if (await this.service.remove(this.vpnId)) {

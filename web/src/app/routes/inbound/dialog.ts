@@ -29,11 +29,13 @@ import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
+import { ProfileId, VpnServerEndpoint } from 'src/app/services/api/api.service'
 import { VpnServer } from 'src/app/routes/inbound/service'
 
 export interface ServerDialogData {
   server?: VpnServer
-  profiles: string[]
+  profiles: ProfileId[]
+  endpoints: VpnServerEndpoint[]
   usedPorts: number[]
 }
 
@@ -62,12 +64,10 @@ export interface ServerDialogResult {
         <label tuiLabel>Endpoint</label>
         <input tuiSelect formControlName="endpoint" />
         <tui-data-list *tuiDropdown>
-          @for (item of endpointKeys; track $index) {
-            <button tuiOption [value]="item">
-              {{ item }}
-              @if (endpoints[item]) {
-                <span class="g-secondary">({{ endpoints[item] }})</span>
-              }
+          @for (item of endpoints; track $index) {
+            <button tuiOption [value]="item.address">
+              {{ item.address }}
+              <span class="g-secondary">({{ item.label }})</span>
             </button>
           }
         </tui-data-list>
@@ -79,7 +79,9 @@ export interface ServerDialogResult {
         <tui-data-list *tuiDropdown>
           <tui-opt-group>
             @for (item of profiles; track $index) {
-              <button tuiOption [value]="item">{{ item }}</button>
+              <button tuiOption [value]="item.fullname">
+                {{ item.fullname }}
+              </button>
             }
           </tui-opt-group>
           <tui-opt-group>
@@ -147,6 +149,11 @@ class AddServer {
 
   private readonly server = this.context.data?.server
   private readonly usedPorts = this.context.data?.usedPorts ?? []
+  protected readonly endpoints = this.context.data?.endpoints ?? []
+  protected readonly profiles = this.context.data?.profiles ?? []
+
+  private readonly profileToInterface: Record<string, string> =
+    Object.fromEntries(this.profiles.map(p => [p.fullname, p.interface]))
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     label: [this.server?.label ?? '', Validators.required],
@@ -160,7 +167,11 @@ class AddServer {
         this.uniquePortValidator(),
       ],
     ],
-    profile: [this.server?.profile ?? '', Validators.required],
+    profile: [
+      this.profiles.find(p => p.interface === this.server?.profile)?.fullname ??
+        '',
+      Validators.required,
+    ],
   })
 
   private nextAvailablePort(): number {
@@ -179,24 +190,14 @@ class AddServer {
     }
   }
 
-  protected readonly endpoints: Record<string, string> = {
-    '100.65.227.234': 'WAN IPv4',
-    '2001:db8:abcd:1234::2': 'WAN IPv6',
-    'agf5d.start9.me': 'DDNS',
-  }
-
-  protected readonly endpointKeys = Object.keys(this.endpoints)
-  protected readonly profiles = this.context.data?.profiles ?? [
-    'Admin',
-    'Guest',
-  ]
-
   protected save(): void {
     tuiMarkControlAsTouchedAndValidate(this.form)
 
     if (this.form.valid) {
+      const raw = this.form.getRawValue()
       this.context.completeWith({
-        ...this.form.getRawValue(),
+        ...raw,
+        profile: this.profileToInterface[raw.profile],
         enabled: this.server?.enabled ?? true,
       })
     }

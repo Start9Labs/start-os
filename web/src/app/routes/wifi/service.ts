@@ -32,25 +32,33 @@ export class WifiService extends FormService<WifiConfig> {
     })
   }
 
-  async updatePassword(
-    index: number,
-    update: { label?: string; profile: string | null },
-  ) {
+  // @TODO matt review
+  async updatePassword(index: number, update: Partial<WifiPassword>) {
     await this.actions.run(async () => {
       const current = this.data()
       if (!current) return
       const passwords = current.passwords.map((p, i) =>
-        i === index
-          ? {
-              ...p,
-              ...update,
-              profile: update.profile ? current.passwords[i].profile : null,
-            }
-          : p,
+        i === index ? { ...p, ...update } : p,
       )
       await this.api.wifiSet({ ...current, passwords })
       this.refresh()
     })
+  }
+
+  async saveWithRestart(data: WifiConfig): Promise<boolean> {
+    return this.actions.run(() => this.store(data), {
+      loading: 'Restarting WiFi...',
+      success: 'WiFi settings saved',
+      restart: true,
+    })
+  }
+
+  saveForSsidChange(data: WifiConfig): Promise<boolean> {
+    this.networkRestart.suppress()
+    return this.api.wifiSet(data).then(
+      () => true,
+      () => false,
+    )
   }
 
   async deletePassword(index: number) {

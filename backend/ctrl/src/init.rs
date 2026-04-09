@@ -1,24 +1,14 @@
 use std::io::{self, BufRead, Write};
 use std::process::Command;
 
-use pbkdf2::pbkdf2_hmac;
-use sha1::Sha1;
 use uciedit::openwrt::{WifiDevice, WifiDynamicVlan, WifiInterface, WifiMode};
 use uciedit::{dump_all, parse_all, Arena};
 
 use crate::emmc;
 use crate::Error;
 
-/// Characters allowed in the sticker password.
-///
-/// 67-char unambiguous charset:
-///   A-Z minus I,O (24)  +  a-z minus i,l,o (23)  +  2-9 (8)
-///   + special: !@#$%^&*-_+=  (12)
-const ALLOWED_CHARS: &str =
-    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*-_+=";
+use crate::PASSWORD_CHARS;
 const PASSWORD_LEN: usize = 12;
-const PBKDF2_ITERATIONS: u32 = 4096;
-const PBKDF2_SALT: &[u8] = b"StartWRT";
 
 /// Validate that a password meets the sticker password requirements.
 fn validate_password(password: &str) -> Result<(), String> {
@@ -29,28 +19,14 @@ fn validate_password(password: &str) -> Result<(), String> {
         ));
     }
     for ch in password.chars() {
-        if !ALLOWED_CHARS.contains(ch) {
+        if !PASSWORD_CHARS.contains(ch) {
             return Err(format!("invalid character '{ch}' in password"));
         }
     }
     Ok(())
 }
 
-/// Derive a WPA-PSK PMK from a password using PBKDF2-SHA1.
-///
-/// Returns a 64-character lowercase hex string (256-bit key).
-fn derive_pmk(password: &str) -> String {
-    let mut pmk = [0u8; 32];
-    pbkdf2_hmac::<Sha1>(
-        password.as_bytes(),
-        PBKDF2_SALT,
-        PBKDF2_ITERATIONS,
-        &mut pmk,
-    );
-    hex::encode(pmk)
-}
-
-/// Configure WiFi: set SSID, encryption, PMK key, and enable all radios.
+/// Configure WiFi: set SSID, encryption, password, and enable all radios.
 ///
 /// Follows the UCI parse/modify/dump pattern from wifi.rs with conflict retry.
 /// `uci_root` is typically "/etc/config" but can be a mounted eMMC path for
@@ -59,7 +35,7 @@ fn derive_pmk(password: &str) -> String {
 /// `max_stations` optionally limits the number of associated stations per
 /// interface (UCI `maxassoc`). Pass `Some(1)` in setup mode to restrict the
 /// AP to a single client during reflash. Pass `None` for normal operation.
-pub fn configure_wifi(uci_root: &str, pmk_hex: &str, max_stations: Option<u32>) -> Result<(), Error> {
+pub fn configure_wifi(uci_root: &str, password: &str, max_stations: Option<u32>) -> Result<(), Error> {
     let mut retries = 4;
     loop {
         let arena = Arena::new();
@@ -76,7 +52,7 @@ pub fn configure_wifi(uci_root: &str, pmk_hex: &str, max_stations: Option<u32>) 
                 }
                 iface.ssid = "StartWRT".into();
                 iface.encryption = "psk2".into();
-                iface.key = Some(pmk_hex.to_string());
+                iface.key = Some(password.to_string());
                 iface.dynamic_vlan = WifiDynamicVlan::ALLOWED;
                 if let Some(max) = max_stations {
                     iface.maxassoc = Some(max);
@@ -116,11 +92,11 @@ fn read_line(prompt: &str) -> Result<String, Error> {
     Ok(line.trim_end().to_string())
 }
 
-/// Prompt for the sticker password, validate, confirm, and derive the PMK.
+/// Prompt for the sticker password, validate, and confirm.
 ///
-/// Returns a 64-character lowercase hex PMK string. This performs no disk I/O
-/// — it's pure computation plus terminal interaction.
-pub fn prompt_and_derive_pmk() -> Result<String, Error> {
+/// Returns the plaintext password. This performs no disk I/O — it's pure
+/// terminal interaction.
+pub fn prompt_password() -> Result<String, Error> {
     println!("Enter the password from the device sticker.");
     println!();
 
@@ -142,7 +118,7 @@ pub fn prompt_and_derive_pmk() -> Result<String, Error> {
         break pw;
     };
 
-    Ok(derive_pmk(&password))
+    Ok(password)
 }
 
 /// Manufacturing initialization entry point.
@@ -166,18 +142,21 @@ pub fn run_init() -> Result<(), Error> {
     println!("========================================");
     println!();
 
-    // 4. Prompt, validate, confirm, derive PMK
-    let pmk_hex = prompt_and_derive_pmk()?;
+    // 4. Prompt, validate, confirm
+    let password = prompt_password()?;
 
-    // 5. Write PMK to key_backup partition
-    emmc::write_pmk(&pmk_hex)?;
+    // 5. Write password to key_backup partition
+    emmc::write_password(&password)?;
 
     // 6. Configure WiFi
     println!("Configuring WiFi...");
-    configure_wifi("/etc/config", &pmk_hex, None)?;
+    configure_wifi("/etc/config", &password, None)?;
+
+    // 6b. Bootstrap Admin profile
+    crate::profiles::bootstrap_admin_profile("/etc/config")?;
 
     // 7. Reload WiFi
-    let _ = Command::new("wifi").arg("reload").status();
+    let _ = crate::run_quiet(Command::new("wifi").arg("reload"));
 
     // 8. Success
     println!();
@@ -186,7 +165,7 @@ pub fn run_init() -> Result<(), Error> {
     Ok(())
 }
 
-/// Restore WiFi credentials from key_backup PMK at boot time.
+/// Restore WiFi credentials from key_backup password at boot time.
 ///
 /// Called by the daemon during startup to recover WiFi after a factory reset
 /// (overlay wipe). Returns `Ok(true)` if WiFi was restored, `Ok(false)` if
@@ -195,7 +174,7 @@ pub fn restore_wifi_if_needed() -> Result<bool, Error> {
     // 1. Mount key_backup if needed
     emmc::ensure_persistent_mounted()?;
 
-    // 2. Check if PMK exists on key_backup
+    // 2. Check if password exists on key_backup
     if !emmc::is_initialized() {
         return Ok(false);
     }
@@ -213,12 +192,12 @@ pub fn restore_wifi_if_needed() -> Result<bool, Error> {
         }
     }
 
-    // 4. Read PMK and configure WiFi
-    let pmk_hex = emmc::read_pmk()?;
-    configure_wifi("/etc/config", &pmk_hex, None)?;
+    // 4. Read password and configure WiFi
+    let password = emmc::read_password()?;
+    configure_wifi("/etc/config", &password, None)?;
 
     // 5. Reload WiFi
-    let _ = Command::new("wifi").arg("reload").status();
+    let _ = crate::run_quiet(Command::new("wifi").arg("reload"));
 
     Ok(true)
 }
@@ -231,7 +210,7 @@ mod tests {
     fn valid_password_accepted() {
         // 12 chars from allowed set
         assert!(validate_password("AbCdEf234567").is_ok());
-        assert!(validate_password("!@#$%^&*-_+=").is_ok());
+        assert!(validate_password("!@#$%^&*=+?2").is_ok());
         assert!(validate_password("HJKMNPQRSTUz").is_ok());
     }
 
@@ -246,31 +225,10 @@ mod tests {
     fn ambiguous_chars_rejected() {
         // I, O, l, o, 0, 1 are not in the allowed charset
         assert!(validate_password("ABCDEFGHIJKL").is_err()); // I at position 8
-        assert!(validate_password("ABCDEFGHoJKL").is_err()); // o
+        assert!(validate_password("ABCDEFGH0JKL").is_err()); // 0 (zero)
         assert!(validate_password("ABCDEFGHlJKL").is_err()); // l
         assert!(validate_password("ABCDEFGHJKLO").is_err()); // O at end
         assert!(validate_password("0BCDEFGHJKLM").is_err()); // 0
         assert!(validate_password("1BCDEFGHJKLM").is_err()); // 1
-    }
-
-    #[test]
-    fn pmk_is_deterministic() {
-        let pmk1 = derive_pmk("AbCdEf234567");
-        let pmk2 = derive_pmk("AbCdEf234567");
-        assert_eq!(pmk1, pmk2);
-    }
-
-    #[test]
-    fn pmk_is_64_hex_chars() {
-        let pmk = derive_pmk("AbCdEf234567");
-        assert_eq!(pmk.len(), 64);
-        assert!(pmk.chars().all(|c| c.is_ascii_hexdigit()));
-    }
-
-    #[test]
-    fn different_passwords_give_different_pmks() {
-        let pmk1 = derive_pmk("AbCdEf234567");
-        let pmk2 = derive_pmk("ZyXwVu987654");
-        assert_ne!(pmk1, pmk2);
     }
 }

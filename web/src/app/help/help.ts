@@ -17,10 +17,13 @@ import outbound from './outbound/index.html?raw'
 import outboundVpn from './outbound/vpn.html?raw'
 import profilesDialog from './profiles/dialog.html?raw'
 import profiles from './profiles/index.html?raw'
+import profilesSchedule from './profiles/schedule.html?raw'
+import profilesScheduleDialog from './profiles/schedule-dialog.html?raw'
 import publishedPortsDialog from './published-ports/dialog.html?raw'
 import publishedPorts from './published-ports/index.html?raw'
 import settingsActivity from './settings/activity.html?raw'
 import settingsAdvanced from './settings/advanced.html?raw'
+import settingsBackup from './settings/backup.html?raw'
 import settingsGeneral from './settings/general.html?raw'
 import settingsLogs from './settings/logs.html?raw'
 import settingsPassword from './settings/password.html?raw'
@@ -59,6 +62,8 @@ export const HELP = new InjectionToken<Record<string, string>>(
       '/outbound/dialog': outboundDialog,
       '/profiles': profiles,
       '/profiles/dialog': profilesDialog,
+      '/profiles/schedule': profilesSchedule,
+      '/profiles/schedule/dialog': profilesScheduleDialog,
       '/published-ports': publishedPorts,
       '/published-ports/dialog': publishedPortsDialog,
       '/wan/ipv4': wanIpv4,
@@ -68,6 +73,7 @@ export const HELP = new InjectionToken<Record<string, string>>(
       '/wan/dynamic-dns': wanDdns,
       '/settings/activity': settingsActivity,
       '/settings/advanced': settingsAdvanced,
+      '/settings/backup': settingsBackup,
       '/settings/general': settingsGeneral,
       '/settings/logs': settingsLogs,
       '/settings/password': settingsPassword,

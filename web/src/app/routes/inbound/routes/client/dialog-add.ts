@@ -5,8 +5,10 @@ import {
   signal,
 } from '@angular/core'
 import {
+  AbstractControl,
   NonNullableFormBuilder,
   ReactiveFormsModule,
+  ValidatorFn,
   Validators,
 } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
@@ -18,8 +20,10 @@ import {
   TuiTextfield,
   tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
+import { TuiSwitch } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { CustomValidators } from 'src/app/utils/validators'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
 import { VpnServerPeer } from 'src/app/routes/inbound/service'
@@ -27,6 +31,11 @@ import { VpnServerPeer } from 'src/app/routes/inbound/service'
 export interface ClientDialogData {
   serverAddress: string
   usedIps: string[]
+  defaults?: {
+    name?: string
+    ip?: string
+    route_all?: boolean
+  }
 }
 
 @Component({
@@ -50,6 +59,10 @@ export interface ClientDialogData {
         <label tuiLabel>Public Key (optional)</label>
         <input tuiInput formControlName="public_key" />
       </tui-textfield>
+      <label tuiLabel>
+        <input type="checkbox" tuiSwitch formControlName="route_all" />
+        Route all traffic through tunnel
+      </label>
       <footer>
         <button
           tuiButton
@@ -76,6 +89,7 @@ export interface ClientDialogData {
     TuiError,
     TuiButton,
     TuiInput,
+    TuiSwitch,
   ],
 })
 class AddClient {
@@ -84,32 +98,63 @@ class AddClient {
 
   private readonly serverAddress = this.context.data.serverAddress
   private readonly usedIps = this.context.data.usedIps
+  private readonly defaults = this.context.data.defaults
 
   protected readonly form = inject(NonNullableFormBuilder).group({
-    name: ['', Validators.required],
-    ip: [this.nextAvailableIp(), Validators.required],
+    name: [this.defaults?.name ?? '', Validators.required],
+    ip: [
+      this.defaults?.ip ?? this.nextAvailableIp(),
+      [
+        Validators.required,
+        CustomValidators.ipv4(),
+        this.peerIpRange(),
+        this.uniqueIp(),
+      ],
+    ],
     public_key: [''],
+    route_all: [this.defaults?.route_all ?? false],
   })
 
   private nextAvailableIp(): string {
     const prefix = this.serverAddress.replace(/\.\d+$/, '')
-    const startOctet = parseInt(this.serverAddress.split('.').pop()!, 10) + 1
-    for (let i = startOctet; i <= 254; i++) {
+    for (let i = 200; i <= 253; i++) {
       const candidate = `${prefix}.${i}`
       if (!this.usedIps.includes(candidate)) return candidate
     }
-    return `${prefix}.${startOctet}`
+    return `${prefix}.200`
+  }
+
+  private peerIpRange(): ValidatorFn {
+    return (control: AbstractControl) => {
+      if (!control.value) return null
+      const prefix = this.serverAddress.replace(/\.\d+$/, '')
+      const match = control.value.match(/^(.+)\.(\d+)$/)
+      if (!match) return { peerIpRange: true }
+      const octet = parseInt(match[2], 10)
+      if (match[1] !== prefix || octet < 200 || octet > 253) {
+        return { peerIpRange: true }
+      }
+      return null
+    }
+  }
+
+  private uniqueIp(): ValidatorFn {
+    return (control: AbstractControl) => {
+      if (!control.value) return null
+      return this.usedIps.includes(control.value) ? { uniqueIp: true } : null
+    }
   }
 
   protected save(): void {
     tuiMarkControlAsTouchedAndValidate(this.form)
 
     if (this.form.valid) {
-      const { name, ip, public_key } = this.form.getRawValue()
+      const { name, ip, public_key, route_all } = this.form.getRawValue()
       this.context.completeWith({
         name,
         ip,
         public_key: public_key || undefined,
+        route_all: route_all || undefined,
       })
     }
   }

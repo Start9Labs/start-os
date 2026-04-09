@@ -28,10 +28,19 @@ config dnsmasq
 
 config dhcp lan
 	option interface	lan
-	option start 	100
-	option limit	150
+	option start 	2
+	option limit	198
 	option leasetime	12h
+	option ra		server
+	option dhcpv6		server
+	option ra_management	1
 
 config dhcp wan
 	option interface	wan
 	option ignore	1
+
+config odhcpd 'odhcpd'
+	option maindhcp		0
+	option leasefile	'/tmp/hosts/odhcpd'
+	option leasetrigger	'/usr/sbin/odhcpd-update'
+	option loglevel		4

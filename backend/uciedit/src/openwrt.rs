@@ -40,14 +40,61 @@ pub struct FirewallRule {
     */
     pub name: String,
     pub src: String,
+    #[uci(default)]
     pub src_ip: Option<String>,
+    #[uci(default)]
     pub src_mac: Option<String>,
+    #[uci(default)]
     pub src_port: Option<String>,
+    #[uci(default)]
     pub dest: Option<String>,
+    #[uci(default)]
     pub dest_ip: Option<String>,
+    #[uci(default)]
     pub dest_port: Option<String>,
     pub proto: Vec<String>,
     pub target: FirewallTarget,
+    #[uci(default)]
+    pub family: Option<String>,
+    #[uci(default)]
+    pub enabled: Option<String>,
+    #[uci(default)]
+    pub set_mark: Option<String>,
+    #[uci(default)]
+    pub extra: Option<String>,
+    /// Published-port metadata: links IPv4 redirect + IPv6 rule
+    #[uci(default)]
+    pub _pp_id: Option<String>,
+    /// Published-port metadata: device MAC
+    #[uci(default)]
+    pub _pp_mac: Option<String>,
+}
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "redirect")]
+pub struct FirewallRedirect {
+    pub name: String,
+    pub src: String,
+    #[uci(default)]
+    pub dest: Option<String>,
+    pub proto: Vec<String>,
+    #[uci(default)]
+    pub src_dport: Option<String>,
+    #[uci(default)]
+    pub src_ip: Option<String>,
+    #[uci(default)]
+    pub dest_ip: Option<String>,
+    #[uci(default)]
+    pub dest_port: Option<String>,
+    pub target: String,
+    #[uci(default)]
+    pub enabled: Option<String>,
+    /// Published-port metadata: links IPv4 redirect + IPv6 rule
+    #[uci(default)]
+    pub _pp_id: Option<String>,
+    /// Published-port metadata: device MAC
+    #[uci(default)]
+    pub _pp_mac: Option<String>,
 }
 
 #[derive(Debug, TypedSection)]
@@ -65,16 +112,57 @@ pub enum InterfaceProto {
     STATIC,
     DHCP,
     DHCPV6,
+    PPPOE,
+    #[strum(serialize = "6rd")]
+    SIXRD,
+    WIREGUARD,
 }
 
-#[derive(Debug, TypedSection)]
+#[derive(Debug, Default, TypedSection)]
 #[uci(ty = "interface")]
 pub struct NetworkInterface {
+    #[uci(default)]
     pub device: String,
     #[uci(default)]
     pub proto: InterfaceProto,
     pub ipaddr: Option<Ipv4Addr>,
     pub netmask: Option<Ipv4Addr>,
+    #[uci(default)]
+    pub gateway: Option<String>,
+    // PPPoE fields
+    #[uci(default)]
+    pub username: Option<String>,
+    #[uci(default)]
+    pub password: Option<String>,
+    // MAC override
+    #[uci(default)]
+    pub macaddr: Option<String>,
+    // DNS fields
+    #[uci(default)]
+    pub peerdns: Option<String>,
+    pub dns: Vec<String>,
+    // IPv6 fields
+    #[uci(default)]
+    pub ip6assign: Option<String>,
+    #[uci(default)]
+    pub ip6addr: Option<String>,
+    #[uci(default)]
+    pub ip6gw: Option<String>,
+    #[uci(default)]
+    pub reqaddress: Option<String>,
+    #[uci(default)]
+    pub reqprefix: Option<String>,
+    // 6RD fields
+    #[uci(default)]
+    pub peeraddr: Option<String>,
+    #[uci(default)]
+    pub ip6prefix: Option<String>,
+    #[uci(default)]
+    pub ip6prefixlen: Option<String>,
+    #[uci(default)]
+    pub ip4prefixlen: Option<String>,
+    #[uci(default)]
+    pub proxy_arp: Option<String>,
 }
 
 #[derive(strum::EnumString, strum::Display, PartialEq, Eq, Debug)]
@@ -90,6 +178,8 @@ pub struct NetworkDevice {
     #[uci(rename = "type")]
     pub ty: Option<DeviceType>,
     pub ports: Vec<String>,
+    #[uci(default)]
+    pub macaddr: Option<String>,
 }
 
 #[derive(Inpt, Debug)]
@@ -157,7 +247,7 @@ pub enum WifiMode {
     MESH,
 }
 
-#[derive(Clone, Copy, Inpt, Debug, Default)]
+#[derive(Clone, Copy, Inpt, Debug, Default, PartialEq, Eq)]
 pub enum WifiChannel {
     #[default]
     #[inpt(regex = "auto")]
@@ -219,6 +309,33 @@ pub struct WifiStation {
     pub key: String,
     pub vid: Option<u16>,
     pub iface: Option<String>,
+    #[uci(default)]
+    pub label: Option<String>,
+}
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "route")]
+pub struct NetworkRoute {
+    pub interface: String,
+    pub target: String,
+    #[uci(default)]
+    pub gateway: Option<String>,
+    #[uci(default)]
+    pub netmask: Option<String>,
+    #[uci(default)]
+    pub table: Option<u32>,
+}
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "rule")]
+pub struct NetworkRule {
+    #[uci(default)]
+    pub src: Option<String>,
+    pub lookup: u32,
+    #[uci(default)]
+    pub mark: Option<String>,
+    #[uci(default)]
+    pub priority: Option<u32>,
 }
 
 #[derive(Debug, TypedSection)]
@@ -228,4 +345,90 @@ pub struct Dhcp {
     pub start: u32,
     pub limit: u32,
     pub leasetime: String,
+    // IPv6 fields
+    #[uci(default)]
+    pub ra: Option<String>,
+    #[uci(default)]
+    pub dhcpv6: Option<String>,
+    #[uci(default)]
+    pub ra_management: Option<String>,
 }
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "dnsmasq")]
+pub struct ProfileDnsmasq {
+    #[uci(default)]
+    pub server: Vec<String>,
+    #[uci(default)]
+    pub noresolv: Option<String>,
+    #[uci(default)]
+    pub interface: Vec<String>,
+    #[uci(default)]
+    pub localservice: Option<String>,
+    #[uci(default)]
+    pub nonwildcard: Option<String>,
+    #[uci(default)]
+    pub listen_address: Vec<String>,
+    #[uci(default)]
+    pub notinterface: Vec<String>,
+    #[uci(default)]
+    pub rebind_domain: Vec<String>,
+    #[uci(default)]
+    pub rebind_protection: Option<String>,
+    #[uci(default)]
+    pub localuse: Option<String>,
+    #[uci(default)]
+    pub leasefile: Option<String>,
+    #[uci(default)]
+    pub domain: Option<String>,
+    #[uci(default)]
+    pub expandhosts: Option<String>,
+    #[uci(default)]
+    pub boguspriv: Option<String>,
+    #[uci(default)]
+    pub local: Option<String>,
+}
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "host")]
+pub struct DhcpHost {
+    #[uci(default)]
+    pub mac: String,
+    #[uci(default)]
+    pub name: Option<String>,
+    #[uci(default)]
+    pub ip: Option<String>,
+    #[uci(default)]
+    pub hostid: Option<String>,
+    #[uci(default)]
+    pub dns: Option<String>,
+}
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "system_dns")]
+pub struct UciSystemDns {
+    #[uci(default)]
+    pub servers: Vec<String>, // JSON-encoded DnsServer entries
+}
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "service")]
+pub struct DdnsService {
+    #[uci(default)]
+    pub enabled: Option<String>,
+    #[uci(default)]
+    pub service_name: Option<String>,
+    #[uci(default)]
+    pub ip_source: Option<String>,
+    #[uci(default)]
+    pub ip_network: Option<String>,
+    #[uci(default)]
+    pub username: Option<String>,
+    #[uci(default)]
+    pub password: Option<String>,
+    #[uci(default)]
+    pub domain: Option<String>,
+    #[uci(default)]
+    pub lookup_host: Option<String>,
+}
+

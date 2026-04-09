@@ -25,6 +25,11 @@ import {
 import { TuiButtonLoading, TuiPassword } from '@taiga-ui/kit'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
+import {
+  getBrowserTimezone,
+  getPosixTz,
+  resolveTimezone,
+} from 'src/app/utils/timezones'
 
 function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   const password = control.get('password')?.value
@@ -159,6 +164,11 @@ export default class Setup {
       await this.api.setInitialPassword({
         password: this.form.value.password!,
       })
+      const timezone = resolveTimezone(getBrowserTimezone())
+      const posixTz = getPosixTz(timezone)
+      if (posixTz) {
+        this.api.setTimezone({ timezone, posixTz }).catch(() => {})
+      }
       this.auth.initialized.set(true)
       this.complete.set(true)
     } catch (e: any) {

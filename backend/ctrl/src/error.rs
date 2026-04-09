@@ -44,6 +44,8 @@ pub enum ErrorKind {
     UnnamedWirelessDevice,
     #[error("multiple vlans with tag {tag}")]
     DuplicateVlanTag { tag: u16 },
+    #[error("cannot delete the LAN owner profile")]
+    CannotDeleteLanOwner,
     #[error("no lan bridge device found")]
     MissingLanBridge,
     #[error("no wan interface found")]
@@ -58,6 +60,28 @@ pub enum ErrorKind {
     DuplicatePassword,
     #[error("duplicate wifi password label")]
     DuplicatePasswordLabel,
+    #[error("VPN {label:?} cannot be removed or disabled because it is used as a target by: {dependents:?}")]
+    VpnHasDependents {
+        label: String,
+        dependents: Vec<String>,
+    },
+    #[error("VPN chain cycle detected: {label:?} would create a loop through {cycle:?}")]
+    VpnChainCycle { label: String, cycle: Vec<String> },
+    #[error("a profile named {name:?} already exists")]
+    DuplicateFullname { name: String },
+    #[error("changing the IP would break {peer_count} VPN client(s) across profiles: {profiles:?}")]
+    VpnPeersWouldBreak {
+        profiles: Vec<String>,
+        peer_count: usize,
+    },
+    #[error("device {mac} has no {family} address for port forward \"{label}\"")]
+    MissingDeviceAddress {
+        mac: String,
+        family: String,
+        label: String,
+    },
+    #[error("invalid value for {field}: {value:?}")]
+    InvalidValue { field: String, value: String },
     #[error(transparent)]
     Other(
         #[serde(serialize_with = "serialize_eyre_err")]

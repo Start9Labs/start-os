@@ -70,7 +70,13 @@ The interface is organized around the router's feature areas:
 | **Points of Entry** | Ethernet, Wi-Fi, Inbound VPNs | How devices join the network and get profiled |
 | **System** | Settings | General, advanced, password, SSH keys, logs, activity |
 
-See [web/](web/) for frontend documentation and [web/CONTRIBUTING.md](web/CONTRIBUTING.md) to get started with development.
+## Documentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — System architecture, data flow, build pipeline
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Development setup and build commands
+- [API_CONTRACT.md](API_CONTRACT.md) — Complete RPC endpoint contract with Rust types
+- [backend/](backend/) — Rust backend documentation
+- [web/](web/) — Angular frontend documentation
 
 ## License
 

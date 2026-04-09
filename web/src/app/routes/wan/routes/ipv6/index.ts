@@ -13,7 +13,7 @@ import { TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
-import { PublishedPortsUciService } from 'src/app/routes/published-ports/uci/service'
+import { ApiService } from 'src/app/services/api/api.service'
 import {
   injectFormService,
   provideFormService,
@@ -54,8 +54,8 @@ import { getWanIpv6Form, updateIpv6Validators, WanIpv6Form } from './utils'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class WanIpv6 {
-  private readonly builder = inject(NonNullableFormBuilder)
-  private readonly publishedPortsUci = inject(PublishedPortsUciService)
+  protected readonly builder = inject(NonNullableFormBuilder)
+  private readonly api = inject(ApiService)
 
   protected readonly service = injectFormService<WanIpv6Form>()
   protected readonly form = getWanIpv6Form(this.builder)
@@ -92,7 +92,8 @@ export default class WanIpv6 {
   }
 
   private async loadIpv6PortUsage() {
-    this.hasIpv6Ports.set(await this.publishedPortsUci.hasIpv6Ports())
+    const ports = await this.api.publishedPortsList()
+    this.hasIpv6Ports.set(ports.some(p => p.ipv6 && p.enabled))
   }
 
   async onSave() {

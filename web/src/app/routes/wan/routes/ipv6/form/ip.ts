@@ -53,7 +53,8 @@ import {
         <section tuiAnimated>
           @for (name of all; track name) {
             @let auto = ['slaac', 'dhcpv6'].includes(parent.ipMode());
-            @let optional = name === 'prefix' && auto;
+            @let optional =
+              (name === 'prefix' && auto) || name === 'lan_prefix';
 
             @if (controls[parent.ipMode()]?.includes(name)) {
               <div>
@@ -64,7 +65,11 @@ import {
                   <input
                     tuiInput
                     [formControlName]="name"
-                    [maskito]="['prefix', 'mask'].includes(name) ? mask : null"
+                    [maskito]="
+                      ['prefix', 'ip6prefixlen', 'ip4prefixlen'].includes(name)
+                        ? mask
+                        : null
+                    "
                     [placeholder]="optional ? 'Auto' : ''"
                   />
                 </tui-textfield>
@@ -109,7 +114,7 @@ export class WanIpv6Ip {
   protected readonly mask = PREFIX
   protected readonly handler = computed(() =>
     this.parent.hasIpv6Ports()
-      ? (item: string) => item === 'ddisabled'
+      ? (item: string) => item === 'disabled'
       : TUI_FALSE_HANDLER,
   )
 }

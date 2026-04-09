@@ -227,7 +227,7 @@ mod tests {
         fs::write(temp_file.path(), "hello world").unwrap();
 
         let result = get(
-            ServerContext,
+            ServerContext::default(),
             GetFileArgs {
                 path: temp_file.path().to_path_buf(),
             },
@@ -241,7 +241,7 @@ mod tests {
     #[test]
     fn test_get_returns_error_for_missing_file() {
         let result = get(
-            ServerContext,
+            ServerContext::default(),
             GetFileArgs {
                 path: PathBuf::from("/nonexistent/file.txt"),
             },
@@ -258,7 +258,7 @@ mod tests {
         let file_path = temp_dir.path().join("new_file.txt");
 
         let result = set(
-            ServerContext,
+            ServerContext::default(),
             SetFileArgs {
                 path: file_path.clone(),
                 contents: "new content".to_string(),
@@ -277,7 +277,7 @@ mod tests {
         fs::write(&path, "original").unwrap();
 
         let result = set(
-            ServerContext,
+            ServerContext::default(),
             SetFileArgs {
                 path: path.clone(),
                 contents: "updated".to_string(),
@@ -299,7 +299,7 @@ mod tests {
         let modified = get_modified_time(&path).unwrap();
 
         let result = set(
-            ServerContext,
+            ServerContext::default(),
             SetFileArgs {
                 path: path.clone(),
                 contents: "updated".to_string(),
@@ -326,7 +326,7 @@ mod tests {
 
         // Try to set with the old modified time
         let result = set(
-            ServerContext,
+            ServerContext::default(),
             SetFileArgs {
                 path: path.clone(),
                 contents: "my update".to_string(),
@@ -345,7 +345,7 @@ mod tests {
         let nested_path = temp_dir.path().join("a/b/c/file.txt");
 
         let result = set(
-            ServerContext,
+            ServerContext::default(),
             SetFileArgs {
                 path: nested_path.clone(),
                 contents: "nested content".to_string(),
@@ -375,7 +375,7 @@ mod tests {
         let handle1 = thread::spawn(move || {
             for i in 0..10 {
                 set(
-                    ServerContext,
+                    ServerContext::default(),
                     SetFileArgs {
                         path: path1.clone(),
                         contents: format!("thread1-{}", i),
@@ -389,7 +389,7 @@ mod tests {
         let handle2 = thread::spawn(move || {
             for i in 0..10 {
                 set(
-                    ServerContext,
+                    ServerContext::default(),
                     SetFileArgs {
                         path: path2.clone(),
                         contents: format!("thread2-{}", i),
@@ -436,7 +436,7 @@ mod tests {
         let handle1 = thread::spawn(move || {
             barrier1.wait(); // Synchronize start
             set(
-                ServerContext,
+                ServerContext::default(),
                 SetFileArgs {
                     path: path1,
                     contents: "thread1".to_string(),
@@ -449,7 +449,7 @@ mod tests {
         let handle2 = thread::spawn(move || {
             barrier2.wait(); // Synchronize start
             set(
-                ServerContext,
+                ServerContext::default(),
                 SetFileArgs {
                     path: path2,
                     contents: "thread2".to_string(),
@@ -485,7 +485,7 @@ mod tests {
         fs::create_dir(temp_dir.path().join("subdir")).unwrap();
 
         let result = dir_get(
-            ServerContext,
+            ServerContext::default(),
             DirGetArgs {
                 path: temp_dir.path().to_path_buf(),
             },
@@ -508,7 +508,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
 
         let result = dir_get(
-            ServerContext,
+            ServerContext::default(),
             DirGetArgs {
                 path: temp_dir.path().to_path_buf(),
             },
@@ -521,7 +521,7 @@ mod tests {
     #[test]
     fn test_dir_get_returns_error_for_missing_directory() {
         let result = dir_get(
-            ServerContext,
+            ServerContext::default(),
             DirGetArgs {
                 path: PathBuf::from("/nonexistent/directory"),
             },

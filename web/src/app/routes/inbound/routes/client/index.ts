@@ -15,11 +15,11 @@ import {
   TuiLink,
   TuiTitle,
 } from '@taiga-ui/core'
-import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
+import { TUI_CONFIRM, TuiBadge, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { Placeholder } from 'src/app/components/placeholder'
-import { DevicesUciService } from 'src/app/routes/devices/uci/service'
+import { DevicesApiService } from 'src/app/routes/devices/service'
 import { InboundService, VpnServerPeer } from '../../service'
 
 import { CLIENT_CONFIG } from './dialog-config'
@@ -61,6 +61,7 @@ import { RENAME_CLIENT } from './dialog-rename'
         <tr>
           <th tuiTh [sorter]="'name' | tuiSorter">Name</th>
           <th tuiTh [sorter]="'ip' | tuiSorter">LAN IP Address</th>
+          <th tuiTh>Routing</th>
           <th tuiTh></th>
         </tr>
       </thead>
@@ -69,6 +70,11 @@ import { RENAME_CLIENT } from './dialog-rename'
           <tr>
             <td tuiTd>{{ item.name }}</td>
             <td tuiTd>{{ item.ip }}</td>
+            <td tuiTd>
+              <span tuiBadge [appearance]="item.route_all ? 'info' : 'neutral'">
+                {{ item.route_all ? 'All traffic' : 'LAN only' }}
+              </span>
+            </td>
             <td tuiTd>
               <button
                 tuiIconButton
@@ -94,6 +100,17 @@ import { RENAME_CLIENT } from './dialog-rename'
                   </button>
                   <button
                     tuiOption
+                    iconStart="@tui.repeat"
+                    (click)="changeRouting(item)"
+                  >
+                    {{
+                      item.route_all
+                        ? 'Switch to LAN only'
+                        : 'Switch to all traffic'
+                    }}
+                  </button>
+                  <button
+                    tuiOption
                     iconStart="@tui.file-text"
                     (click)="viewConfig(item)"
                   >
@@ -113,7 +130,7 @@ import { RENAME_CLIENT } from './dialog-rename'
           </tr>
         } @empty {
           <tr>
-            <td tuiTd colspan="3">
+            <td tuiTd colspan="4">
               <app-placeholder icon="@tui.monitor-smartphone">
                 No clients configured
               </app-placeholder>
@@ -150,12 +167,13 @@ import { RENAME_CLIENT } from './dialog-rename'
     TuiSkeleton,
     TuiDataList,
     TuiDropdown,
+    TuiBadge,
     Placeholder,
   ],
 })
 export default class InboundClients {
   private readonly service = inject(InboundService)
-  private readonly devices = inject(DevicesUciService)
+  private readonly devices = inject(DevicesApiService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly listenPort = Number(
     inject(ActivatedRoute).snapshot.queryParams['port'],
@@ -198,8 +216,10 @@ export default class InboundClients {
         if (response?.client_config) {
           this.dialogs
             .open(CLIENT_CONFIG, {
-              label: peer.name,
-              data: response.client_config,
+              data: {
+                name: peer.name,
+                config: response.client_config,
+              },
             })
             .subscribe()
         }
@@ -224,15 +244,20 @@ export default class InboundClients {
     const server = this.server()
     if (!server) return
 
+    const subnet = server.server_address.replace(/\.\d+$/, '')
+    const gateway = `${subnet}.1`
+    const allowedIPs = peer.route_all ? '0.0.0.0/0, ::/0' : `${subnet}.0/24`
+
     const config = [
       '[Interface]',
       'PrivateKey = <PRIVATE_KEY>',
       `Address = ${peer.ip}/32`,
+      `DNS = ${gateway}`,
       '',
       '[Peer]',
       `PublicKey = ${server.public_key}`,
       `Endpoint = ${server.endpoint}:${server.listen_port}`,
-      'AllowedIPs = 0.0.0.0/0',
+      `AllowedIPs = ${allowedIPs}`,
     ].join('\n')
 
     this.dialogs
@@ -243,6 +268,70 @@ export default class InboundClients {
         },
       })
       .subscribe()
+  }
+
+  changeRouting(peer: VpnServerPeer) {
+    const server = this.server()
+    if (!server || !peer.public_key) return
+
+    const newRouteAll = !peer.route_all
+
+    this.dialogs
+      .open(TUI_CONFIRM, {
+        label: 'Change routing mode?',
+        data: {
+          content: `This will delete the existing peer and create a new one with ${newRouteAll ? 'all traffic' : 'LAN only'} routing. You will need to reconfigure your device with the new config.`,
+          yes: 'Continue',
+          no: 'Cancel',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(async () => {
+        await this.service.deletePeer(server.profile, peer.public_key!)
+
+        // Refresh device IPs so the deleted peer's IP is no longer reserved
+        const devices = await this.devices.get()
+        this.deviceIps.set(devices.map(d => d.ipv4).filter(Boolean) as string[])
+
+        const peerIps = server.peers
+          .filter(p => p.public_key !== peer.public_key)
+          .map(p => p.ip)
+          .filter(Boolean) as string[]
+        const usedIps = [
+          ...new Set([
+            server.server_address,
+            ...(this.deviceIps() ?? []),
+            ...peerIps,
+          ]),
+        ]
+
+        this.dialogs
+          .open<VpnServerPeer>(ADD_CLIENT, {
+            label: 'Reconfigure client device',
+            data: {
+              serverAddress: server.server_address,
+              usedIps,
+              defaults: {
+                name: peer.name,
+                ip: peer.ip,
+                route_all: newRouteAll,
+              },
+            } satisfies ClientDialogData,
+          })
+          .subscribe(async newPeer => {
+            const response = await this.service.addPeer(server.profile, newPeer)
+            if (response?.client_config) {
+              this.dialogs
+                .open(CLIENT_CONFIG, {
+                  data: {
+                    name: newPeer.name,
+                    config: response.client_config,
+                  },
+                })
+                .subscribe()
+            }
+          })
+      })
   }
 
   delete(peer: VpnServerPeer) {

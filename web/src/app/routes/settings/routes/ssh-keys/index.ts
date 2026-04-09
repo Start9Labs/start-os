@@ -12,34 +12,8 @@ import { TuiButton } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
 import { Placeholder } from 'src/app/components/placeholder'
 import { ActionService } from 'src/app/services/action.service'
-import { ApiService } from 'src/app/services/api/api.service'
+import { ApiService, SshKeyFromApi } from 'src/app/services/api/api.service'
 import { ADD_SSH_KEY } from './dialog'
-
-const AUTHORIZED_KEYS_PATH = '/root/.ssh/authorized_keys'
-
-interface SshKey {
-  raw: string
-  algorithm: string
-  publicKey: string
-  hostname: string
-}
-
-function parseAuthorizedKey(line: string): SshKey {
-  const trimmed = line.trim()
-  const parts = trimmed.split(/\s+/)
-  const algorithm = parts[0] || ''
-  const publicKey = parts[1] || ''
-  const hostname = parts.slice(2).join(' ') || ''
-  return { raw: trimmed, algorithm, publicKey, hostname }
-}
-
-function parseAuthorizedKeys(contents: string): SshKey[] {
-  return contents
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line && !line.startsWith('#'))
-    .map(parseAuthorizedKey)
-}
 
 @Component({
   template: `
@@ -49,7 +23,7 @@ function parseAuthorizedKeys(contents: string): SshKey[] {
           <th tuiTh>Hostname</th>
           <th tuiTh>Algorithm</th>
           <th tuiTh colspan="2">
-            Public Key
+            Fingerprint
             <button tuiButton size="xs" iconStart="@tui.plus" (click)="add()">
               Add SSH key
             </button>
@@ -57,11 +31,11 @@ function parseAuthorizedKeys(contents: string): SshKey[] {
         </tr>
       </thead>
       <tbody>
-        @for (item of keys(); track item.raw; let i = $index) {
+        @for (item of keys(); track item.fingerprint) {
           <tr>
             <td tuiTd>{{ item.hostname || '—' }}</td>
             <td tuiTd>{{ item.algorithm }}</td>
-            <td tuiTd>{{ item.publicKey }}</td>
+            <td tuiTd>{{ item.fingerprint }}</td>
             <td tuiTd>
               <button
                 tuiIconButton
@@ -69,7 +43,7 @@ function parseAuthorizedKeys(contents: string): SshKey[] {
                 size="xs"
                 appearance="icon"
                 iconStart="@tui.trash"
-                (click)="remove(i)"
+                (click)="remove(item)"
               >
                 Delete
               </button>
@@ -109,28 +83,17 @@ export default class SshKeys implements OnInit {
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly actions = inject(ActionService)
 
-  private modified = ''
-
-  protected readonly keys = signal<SshKey[] | null>(null)
+  protected readonly keys = signal<SshKeyFromApi[] | null>(null)
   protected readonly loading = computed(() => !this.keys())
 
   async ngOnInit() {
-    const file = await this.api.getFile({ path: AUTHORIZED_KEYS_PATH })
-    this.modified = file.modified
-    this.keys.set(parseAuthorizedKeys(file.contents))
+    this.keys.set(await this.api.sshKeysList())
   }
 
-  protected async remove(index: number) {
-    const updated = this.keys()?.filter((_, i) => i !== index) ?? []
-
+  protected async remove(key: SshKeyFromApi) {
     if (
       await this.actions.run(
-        () =>
-          this.api.setFile({
-            path: AUTHORIZED_KEYS_PATH,
-            contents: updated.map(k => k.raw).join('\n'),
-            modified: this.modified,
-          }),
+        () => this.api.sshKeysDelete({ fingerprint: key.fingerprint }),
         {
           loading: '',
           success: 'SSH key removed',
@@ -138,7 +101,7 @@ export default class SshKeys implements OnInit {
         },
       )
     ) {
-      this.keys.set(updated)
+      this.keys.set(await this.api.sshKeysList())
     }
   }
 
@@ -146,21 +109,14 @@ export default class SshKeys implements OnInit {
     this.dialogs
       .open<string>(ADD_SSH_KEY, { label: 'Add SSH Key' })
       .subscribe(async rawKey => {
-        const newKey = parseAuthorizedKey(rawKey)
-        const updated = [...(this.keys() ?? []), newKey]
-
         if (
-          await this.actions.run(
-            () =>
-              this.api.setFile({
-                path: AUTHORIZED_KEYS_PATH,
-                contents: updated.map(k => k.raw).join('\n'),
-                modified: this.modified,
-              }),
-            { success: 'SSH key added', fail: 'Failed to add SSH key' },
-          )
+          await this.actions.run(() => this.api.sshKeysAdd({ key: rawKey }), {
+            loading: '',
+            success: 'SSH key added',
+            fail: 'Failed to add SSH key',
+          })
         ) {
-          this.keys.set(updated)
+          this.keys.set(await this.api.sshKeysList())
         }
       })
   }

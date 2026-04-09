@@ -71,6 +71,49 @@ export class CustomValidators {
     }
   }
 
+  static hostname(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null
+
+      // RFC 1123: letters, digits, hyphens; no leading/trailing hyphen; max 63 chars
+      const hostnameRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/
+
+      return hostnameRegex.test(control.value) ? null : { hostname: true }
+    }
+  }
+
+  static duplicateName(existing: string[]): ValidatorFn {
+    const names = new Set(existing.map(n => n.trim().toLowerCase()))
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null
+      return names.has(control.value.trim().toLowerCase())
+        ? { duplicateName: true }
+        : null
+    }
+  }
+
+  /**
+   * Linux interface names are limited to 15 chars (IFNAMSIZ = 16 including NUL).
+   * The backend prefixes with "wg_" (3 chars), leaving 12 for the sanitized label.
+   * Sanitization: lowercase, non-alphanumeric → underscore.
+   */
+  static interfaceNameLength(prefix: string, maxTotal: number): ValidatorFn {
+    const maxSanitized = maxTotal - prefix.length
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null
+      const sanitized = control.value.toLowerCase().replace(/[^a-z0-9]/g, '_')
+      return sanitized.length > maxSanitized
+        ? {
+            interfaceNameLength: {
+              max: maxTotal,
+              prefix,
+              current: prefix.length + sanitized.length,
+            },
+          }
+        : null
+    }
+  }
+
   static ipv4List(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       if (!control.value) return null

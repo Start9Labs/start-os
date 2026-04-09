@@ -49,7 +49,7 @@ export const routes: Routes = [
           },
           {
             path: 'profiles',
-            loadComponent: () => import('./routes/profiles'),
+            loadChildren: () => import('./routes/profiles'),
           },
           {
             path: 'lan',

@@ -71,7 +71,7 @@ impl<'a> Config<'a> {
         let text = match fs::read_to_string(path) {
             Ok(text) => text,
             Err(err) if err.kind() == io::ErrorKind::NotFound => {
-                modified = Some(DateTime::<Utc>::MIN_UTC);
+                modified = None;
                 String::new()
             }
             Err(cause) => {
@@ -256,7 +256,6 @@ impl<'a> Section<'a> {
 }
 
 #[derive(Debug, Inpt, Clone, Copy)]
-#[inpt(trim = "")] // TODO: trim isn't working?
 pub enum LineComment<'a> {
     #[inpt(regex = r"\s*")]
     None,
@@ -491,7 +490,6 @@ impl<'a> Token<'a> {
     }
 
     pub fn as_str(&self) -> Cow<'a, str> {
-        // TODO: inpt doesn't currently do unescaping
         match self {
             Token::Q(x) => unescape(x.inner),
             Token::Sq(x) => unescape(x.inner),
@@ -511,16 +509,15 @@ impl<'a> Token<'a> {
     }
 
     pub fn from_string(s: String, arena: &'a Arena) -> Self {
-        if s.is_empty()
-            || s.contains(|c: char| !(c.is_alphanumeric() || ['_', '-', '.'].contains(&c)))
-        {
+        if s.contains('\'') {
+            // Value contains single quote — must use double-quoting with escapes
             let q = arena.alloc(format!("{:?}", s));
             Token::Q(Quoted {
                 inner: &q[1..q.len() - 1],
             })
         } else {
             let s = arena.alloc(s);
-            Token::W(Spaced { inner: s })
+            Token::Sq(SingleQuoted { inner: s })
         }
     }
 
@@ -537,8 +534,8 @@ impl<'a> Token<'a> {
 
     pub fn from_bool(s: bool) -> Self {
         match s {
-            false => Token::W(Spaced { inner: "0" }),
-            true => Token::W(Spaced { inner: "1" }),
+            false => Token::Sq(SingleQuoted { inner: "0" }),
+            true => Token::Sq(SingleQuoted { inner: "1" }),
         }
     }
 

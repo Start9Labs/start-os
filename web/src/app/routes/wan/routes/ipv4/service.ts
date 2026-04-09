@@ -1,17 +1,47 @@
-import { inject, Injectable } from '@angular/core'
+import { inject, Injectable, signal } from '@angular/core'
 import { FormService } from 'src/app/services/form.service'
-import { WanIpv4Form } from './utils'
-import { WanIpv4UciService } from './uci/service'
+import { ApiService } from 'src/app/services/api/api.service'
+import { prefixFromNetmask, netmaskFromPrefix, WanIpv4Form } from './utils'
 
 @Injectable()
 export class WanIpv4Service extends FormService<WanIpv4Form> {
-  private readonly uci = inject(WanIpv4UciService)
-
-  async store(data: WanIpv4Form) {
-    await this.uci.set(data)
-  }
+  private readonly api = inject(ApiService)
+  readonly assignedIp = signal<string | null>(null)
 
   async load(): Promise<WanIpv4Form> {
-    return this.uci.get()
+    const res = await this.api.wanIpv4Get()
+    this.assignedIp.set(res.assigned_ip)
+    return {
+      ip: {
+        mode: res.mode,
+        wan: res.address || '',
+        prefix: res.netmask ? prefixFromNetmask(res.netmask) : '',
+        gateway: res.gateway || '',
+        username: res.username || '',
+        password: res.password || '',
+        device: res.device || '',
+      },
+    }
+  }
+
+  async store(data: WanIpv4Form): Promise<void> {
+    const { ip } = data
+    await this.api.wanIpv4Set({
+      mode: ip.mode,
+      address: ip.mode === 'static' ? ip.wan : undefined,
+      netmask: ip.mode === 'static' ? netmaskFromPrefix(ip.prefix) : undefined,
+      gateway: ip.mode === 'static' ? ip.gateway : undefined,
+      username: ip.mode === 'pppoe' ? ip.username : undefined,
+      password: ip.mode === 'pppoe' ? ip.password : undefined,
+      device: ip.mode === 'pppoe' && ip.device ? ip.device : undefined,
+    })
+  }
+
+  override async save(data: WanIpv4Form): Promise<boolean> {
+    return this.actions.run(() => this.store(data), {
+      loading: 'Applying WAN settings...',
+      success: 'WAN settings applied',
+      restart: true,
+    })
   }
 }

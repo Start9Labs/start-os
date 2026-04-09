@@ -41,7 +41,7 @@ function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
 
 @Component({
   template: `
-    <form tuiForm="m" [formGroup]="form">
+    <form tuiForm="m" [formGroup]="form" (submit.prevent)="save()">
       <tui-textfield>
         <label tuiLabel>Public Key</label>
         <textarea
@@ -61,7 +61,7 @@ function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
         >
           Cancel
         </button>
-        <button tuiButton (click)="save()">Add Key</button>
+        <button tuiButton>Add Key</button>
       </footer>
     </form>
   `,

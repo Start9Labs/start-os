@@ -9,6 +9,11 @@ source build/builder-alias.sh
 ARCH=${ARCH:-riscv64}
 RUST_ARCH=${RUST_ARCH:-riscv64gc}
 PROFILE=${PROFILE:-release}
+if [ -z "$STARTWRT_GIT_HASH" ]; then
+    STARTWRT_GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+    git diff-index --quiet HEAD -- 2>/dev/null || STARTWRT_GIT_HASH="${STARTWRT_GIT_HASH}-dirty"
+fi
+export STARTWRT_GIT_HASH
 
 if [ "${PROFILE}" = "release" ]; then
 	BUILD_FLAGS="--release"

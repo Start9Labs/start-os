@@ -4,8 +4,8 @@ import {
   computed,
   inject,
 } from '@angular/core'
-import { toSignal } from '@angular/core/rxjs-interop'
-import { RouterLink } from '@angular/router'
+import { RouterLink, Routes } from '@angular/router'
+import { WA_WINDOW } from '@ng-web-apis/common'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
 import {
@@ -14,15 +14,18 @@ import {
   TuiDropdown,
   TuiHint,
   TuiLink,
+  TuiNotificationService,
   TuiTitle,
 } from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { filter, from } from 'rxjs'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { catchError, EMPTY, filter, firstValueFrom } from 'rxjs'
 import { Placeholder } from 'src/app/components/placeholder'
+import { ReconnectingDialog } from 'src/app/components/reconnecting-dialog'
 import { OutboundService } from 'src/app/routes/outbound/service'
-import { ApiService, SecurityProfile } from 'src/app/services/api/api.service'
-import { NetworkInterfaceSection, UciFile } from 'src/app/services/api/types'
+import { SecurityProfile } from 'src/app/services/api/api.service'
+import { NetworkRestartService } from 'src/app/services/network-restart.service'
 import { ADD_PROFILE, ProfileDialogResult } from './dialog'
 import { ProfilesService } from './service'
 
@@ -54,7 +57,11 @@ import { ProfilesService } from './service'
               @if (item.outbound === 'wan') {
                 {{ item.routingDisplay }}
               } @else {
-                <a tuiLink [routerLink]="'/outbound/' + item.outbound">
+                <a
+                  tuiLink
+                  routerLink="/outbound/vpn"
+                  [queryParams]="{ id: item.outbound }"
+                >
                   {{ item.routingDisplay }}
                 </a>
               }
@@ -83,6 +90,13 @@ import { ProfilesService } from './service'
                     (click)="edit(item)"
                   >
                     Edit
+                  </button>
+                  <button
+                    tuiOption
+                    iconStart="@tui.clock"
+                    [routerLink]="[item.interface, 'schedule']"
+                  >
+                    WAN Schedule
                   </button>
                   <button
                     tuiOption
@@ -143,16 +157,22 @@ import { ProfilesService } from './service'
     RouterLink,
   ],
 })
-export default class Profiles {
+class Profiles {
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(ProfilesService)
   protected readonly outboundService = inject(OutboundService)
+  private readonly alerts = inject(TuiNotificationService)
+  private readonly networkRestart = inject(NetworkRestartService)
+  private readonly window = inject(WA_WINDOW)
 
-  private readonly api = inject(ApiService)
-
-  // Load LAN subnet configuration
-  private readonly lanSubnet = toSignal(from(this.loadLanSubnetBase()), {
-    initialValue: { firstOctet: 192, secondOctet: 168 },
+  private readonly lanSubnet = computed(() => {
+    const profiles = this.service.data()
+    const lan = profiles?.find(p => p.owns_lan)
+    if (lan) {
+      const [first, second] = lan.gateway_ip.split('.').map(Number)
+      return { firstOctet: first ?? 192, secondOctet: second ?? 168 }
+    }
+    return { firstOctet: 192, secondOctet: 168 }
   })
 
   protected readonly tableData = computed(() => {
@@ -164,40 +184,20 @@ export default class Profiles {
       ...p,
       dnsDisplay: this.getDnsDisplay(p),
       routingDisplay: this.getRoutingDisplay(p.outbound, vpns || []),
-      lanAccessDisplay: this.getLanAccessDisplay(p.lan_access),
+      lanAccessDisplay: this.getLanAccessDisplay(p.lan_access, profiles.length),
       wanAccessDisplay: this.getWanAccessDisplay(p.wan_access),
     }))
   })
 
-  private async loadLanSubnetBase(): Promise<{
-    firstOctet: number
-    secondOctet: number
-  }> {
-    try {
-      const uci = await this.api.getUci<{ network: UciFile<any> }>({
-        names: ['network'],
-      })
-
-      const lanSection = uci.network.sections.find(
-        (s): s is NetworkInterfaceSection =>
-          s.type === 'interface' && s.name === 'lan',
-      )
-
-      if (lanSection?.options?.ipaddr) {
-        const [first, second] = lanSection.options.ipaddr.split('.').map(Number)
-        return { firstOctet: first || 192, secondOctet: second || 168 }
-      }
-    } catch (error) {
-      console.error('Failed to load LAN subnet configuration:', error)
-    }
-
-    return { firstOctet: 192, secondOctet: 168 }
-  }
-
   private getDnsDisplay(profile: SecurityProfile): string {
-    return profile.dns_override && profile.dns_override.length
-      ? 'Custom'
-      : 'System'
+    switch (profile.dns_source) {
+      case 'vpn':
+        return 'VPN'
+      case 'custom':
+        return 'Custom'
+      default:
+        return 'System'
+    }
   }
 
   private getRoutingDisplay(
@@ -222,9 +222,14 @@ export default class Profiles {
       : 'Unknown'
   }
 
-  private getLanAccessDisplay(access: SecurityProfile['lan_access']): string {
+  private getLanAccessDisplay(
+    access: SecurityProfile['lan_access'],
+    profileCount: number,
+  ): string {
     if (access === 'ALL') return 'All'
-    if (access === 'SAME_PROFILE') return 'Same profile'
+    if (access === 'SAME_PROFILE') {
+      return profileCount <= 1 ? 'All' : 'Same profile'
+    }
 
     return typeof access === 'object' && 'other_profiles' in access
       ? 'Whitelist'
@@ -260,12 +265,76 @@ export default class Profiles {
           },
         },
       })
-      .subscribe(result => {
+      .subscribe(async result => {
         if (profile) {
-          this.service.updateProfile({
-            ...profile,
-            ...result,
-          })
+          const params = { ...profile, ...result }
+          let adminIpChanged = false
+          try {
+            adminIpChanged = await this.service.updateProfile(
+              params,
+              profile.gateway_ip,
+            )
+          } catch (e: any) {
+            if (!e?.message?.includes('VPN client')) return
+            // IP change blocked by VPN peers — offer to force-delete them
+            const confirmed = await firstValueFrom(
+              this.dialogs.open(TUI_CONFIRM, {
+                label: 'Inbound VPN Will Be Deleted',
+                data: {
+                  content:
+                    "Changing this profile's subnet will invalidate all existing VPN client configurations. The inbound VPN server and its peers will be removed and must be re-created.",
+                  yes: 'Delete VPN & Continue',
+                  no: 'Cancel',
+                },
+              }),
+            ).catch(() => false)
+            if (!confirmed) return
+            try {
+              adminIpChanged = await this.service.updateProfile(
+                { ...params, force: true },
+                profile.gateway_ip,
+              )
+            } catch {
+              return
+            }
+          }
+
+          if (adminIpChanged) {
+            const newIp = result.gateway_ip
+            const currentHost = this.window.location.hostname
+
+            if (currentHost === profile.gateway_ip) {
+              this.dialogs
+                .open(
+                  "Your router's IP address has changed. The UI is now available at the new address.",
+                  {
+                    label: 'IP Address Changed',
+                    dismissible: false,
+                    data: 'Open',
+                  },
+                )
+                .subscribe({
+                  complete: () => {
+                    this.window.location.href = `http://${newIp}`
+                  },
+                })
+            } else {
+              await firstValueFrom(
+                this.dialogs
+                  .open(new PolymorpheusComponent(ReconnectingDialog), {
+                    label: 'Reconnecting',
+                    closable: false,
+                    dismissible: false,
+                    data: { message: 'Applying profile settings...' },
+                  })
+                  .pipe(catchError(() => EMPTY)),
+              )
+              this.networkRestart.recovered()
+              this.alerts
+                .open('Profile updated', { appearance: 'positive' })
+                .subscribe()
+            }
+          }
         } else {
           this.service.createProfile(result)
         }
@@ -285,3 +354,12 @@ export default class Profiles {
       })
   }
 }
+
+export default [
+  { path: '', component: Profiles },
+  {
+    path: ':interface/schedule',
+    loadComponent: () => import('./routes/schedule'),
+  },
+  { path: '**', redirectTo: '' },
+] satisfies Routes

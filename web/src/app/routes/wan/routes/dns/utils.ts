@@ -1,5 +1,5 @@
 import { NonNullableFormBuilder, ValidatorFn, Validators } from '@angular/forms'
-import { NetworkInterfaceSection } from 'src/app/services/api/types'
+import { DnsServer } from 'src/app/services/api/api.service'
 import { FormRawValue } from 'src/app/services/form.service'
 
 export const DNS_MODES = ['isp', 'custom'] as const
@@ -38,87 +38,43 @@ export function updateDnsValidators(
   mode: DnsMode,
   formatValidators: ValidatorFn[],
 ): void {
-  const { custom1 } = form.controls
+  const { custom1, custom2, custom3 } = form.controls
 
-  custom1.clearValidators()
-  custom1.addValidators(formatValidators)
+  for (const control of [custom1, custom2, custom3]) {
+    control.clearValidators()
+    if (mode === 'custom') {
+      control.addValidators(formatValidators)
+    }
+    control.updateValueAndValidity()
+  }
 
   if (mode === 'custom') {
     custom1.addValidators([Validators.required])
+    custom1.updateValueAndValidity()
   }
-
-  custom1.updateValueAndValidity()
 }
 
 export type DnsForm = FormRawValue<ReturnType<typeof getDnsForm>>
 
-export function parseDnsServer(server: string): { ip: string; tls: boolean } {
-  if (server.includes('@853') || server.includes('#853')) {
-    return {
-      ip: server.split(/[@#]/)[0],
-      tls: true,
-    }
-  }
+export function dnsServersToForm(servers: DnsServer[]): Partial<DnsForm> {
+  const s = (i: number) => servers[i] || { address: '', ssl: false }
   return {
-    ip: server,
-    tls: false,
+    custom1: s(0).address,
+    custom1Tls: s(0).ssl,
+    custom2: s(1).address,
+    custom2Tls: s(1).ssl,
+    custom3: s(2).address,
+    custom3Tls: s(2).ssl,
   }
 }
 
-export function parseDnsFromInterface(iface: NetworkInterfaceSection): DnsForm {
-  const dnsServers = iface.lists.dns || []
-  const peerdns = iface.options.peerdns
-
-  if (peerdns === '0' && dnsServers.length > 0) {
-    const server1 = parseDnsServer(dnsServers[0])
-    const server2 = dnsServers[1]
-      ? parseDnsServer(dnsServers[1])
-      : { ip: '', tls: false }
-    const server3 = dnsServers[2]
-      ? parseDnsServer(dnsServers[2])
-      : { ip: '', tls: false }
-
-    return {
-      mode: 'custom',
-      custom1: server1.ip,
-      custom2: server2.ip,
-      custom3: server3.ip,
-      custom1Tls: server1.tls,
-      custom2Tls: server2.tls,
-      custom3Tls: server3.tls,
-    }
-  }
-
-  return {
-    mode: 'isp',
-    custom1: '',
-    custom2: '',
-    custom3: '',
-    custom1Tls: false,
-    custom2Tls: false,
-    custom3Tls: false,
-  }
-}
-
-export function applyDnsToInterface(
-  dns: DnsForm,
-  iface: NetworkInterfaceSection,
-): void {
-  if (dns.mode === 'isp') {
-    iface.options.peerdns = '1'
-    iface.lists.dns = []
-  } else if (dns.mode === 'custom') {
-    iface.options.peerdns = '0'
-    const servers: string[] = []
-    if (dns.custom1) {
-      servers.push(dns.custom1Tls ? `${dns.custom1}@853` : dns.custom1)
-    }
-    if (dns.custom2) {
-      servers.push(dns.custom2Tls ? `${dns.custom2}@853` : dns.custom2)
-    }
-    if (dns.custom3) {
-      servers.push(dns.custom3Tls ? `${dns.custom3}@853` : dns.custom3)
-    }
-    iface.lists.dns = servers
-  }
+export function formToDnsServers(form: DnsForm): DnsServer[] {
+  const servers: DnsServer[] = []
+  if (form.custom1)
+    servers.push({ address: form.custom1, ssl: form.custom1Tls })
+  if (form.custom2)
+    servers.push({ address: form.custom2, ssl: form.custom2Tls })
+  if (form.custom3)
+    servers.push({ address: form.custom3, ssl: form.custom3Tls })
+  return servers
 }

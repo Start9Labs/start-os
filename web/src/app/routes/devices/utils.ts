@@ -3,15 +3,15 @@ import { FormRawValue } from 'src/app/services/form.service'
 import { CustomValidators } from 'src/app/utils/validators'
 
 // Device status
-export type DeviceStatus = 'online' | 'offline' | 'blocked'
+export type DeviceStatus = 'online' | 'offline'
 
 // Device as shown in the table
 export interface DeviceTableItem {
-  mac: string // Unique ID
+  mac: string | null // Unique ID (null for VPN peers)
   name: string // Custom name or hostname
   hostname: string // Original hostname from device
   status: DeviceStatus
-  connection?: string // e.g., 'Ethernet', 'Wi-Fi 5GHz', 'Wi-Fi 2.4GHz'
+  connection?: string // e.g., 'Ethernet', 'Wi-Fi 5GHz', 'Wi-Fi 2.4GHz', 'VPN Home'
   securityProfile?: string // e.g., 'Default', 'Kids', 'Guest'
   ipv4?: string
   ipv6?: string
@@ -30,7 +30,7 @@ export interface Device extends DeviceTableItem {
 // Form for editing a device
 export function getDeviceForm(builder: NonNullableFormBuilder) {
   return builder.group({
-    name: builder.control(''),
+    name: builder.control('', [CustomValidators.hostname()]),
     ip: builder.group({
       ipv4Static: builder.control(false),
       ipv4: builder.control('', [CustomValidators.ipv4()]),
@@ -77,6 +77,7 @@ export function updateDeviceValidators(
 
 export const DEVICE_VALIDATION_ERRORS = {
   required: 'Required',
+  hostname: 'Letters, digits, and hyphens only',
   ipv4: 'Invalid IPv4 address',
   ipv6: 'Invalid IPv6 address',
 }

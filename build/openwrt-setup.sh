@@ -4,16 +4,13 @@ set -eo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 echo "==> Copying feeds.conf to openwrt..."
-cp build/feeds.conf openwrt/feeds.conf.default
+cp build/feeds.conf openwrt/feeds.conf
 
 echo "==> Updating feeds..."
 cd openwrt
 ./scripts/feeds update -a
 
-echo "==> Installing spacemit feeds..."
-./scripts/feeds install -f -p spacemit_openwrt_feeds -a
-
-echo "==> Installing remaining feeds..."
+echo "==> Installing feeds..."
 ./scripts/feeds install -a
 
 cd ..

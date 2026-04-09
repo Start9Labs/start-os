@@ -1,6 +1,8 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
+  DOCUMENT,
   inject,
   linkedSignal,
   signal,
@@ -11,32 +13,37 @@ import { TuiButton, TuiError, TuiInput, TuiTextfield } from '@taiga-ui/core'
 import { TuiButtonLoading } from '@taiga-ui/kit'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
+import { CaWizard } from 'src/app/components/ca-wizard'
 
 @Component({
   template: `
-    <img alt="Start9" src="assets/favicon.svg" />
-    <form (ngSubmit)="login()">
-      <tui-textfield>
-        <input
-          tuiInput
-          type="password"
-          placeholder="Enter password"
-          [disabled]="loading()"
-          [ngModelOptions]="{ standalone: true }"
-          [(ngModel)]="password"
-        />
-        <button
-          tuiIconButton
-          appearance="action"
-          iconStart="@tui.log-in"
-          [disabled]="!password().length"
-          [loading]="loading()"
-        >
-          Login
-        </button>
-      </tui-textfield>
-      <tui-error [error]="error() ? 'Password is invalid' : null" />
-    </form>
+    @if (showWizard()) {
+      <app-ca-wizard />
+    } @else {
+      <img alt="Start9" src="assets/favicon.svg" />
+      <form (ngSubmit)="login()">
+        <tui-textfield>
+          <input
+            tuiInput
+            type="password"
+            placeholder="Enter password"
+            [disabled]="loading()"
+            [ngModelOptions]="{ standalone: true }"
+            [(ngModel)]="password"
+          />
+          <button
+            tuiIconButton
+            appearance="action"
+            iconStart="@tui.log-in"
+            [disabled]="!password().length"
+            [loading]="loading()"
+          >
+            Login
+          </button>
+        </tui-textfield>
+        <tui-error [error]="error() ? 'Password is invalid' : null" />
+      </form>
+    }
   `,
   styles: `
     :host {
@@ -71,12 +78,21 @@ import { AuthService } from 'src/app/services/auth.service'
     TuiError,
     TuiButtonLoading,
     TuiInput,
+    CaWizard,
   ],
 })
 export default class Login {
   private readonly auth = inject(AuthService)
   private readonly router = inject(Router)
   private readonly api = inject(ApiService)
+  private readonly document = inject(DOCUMENT)
+
+  private readonly isLanHttp = computed(() => {
+    const loc = this.document.location
+    return loc.protocol === 'http:' && loc.hostname !== 'localhost'
+  })
+
+  protected readonly showWizard = this.isLanHttp
 
   protected readonly password = signal('')
   protected readonly loading = signal(false)

@@ -9,6 +9,11 @@ import {
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiAutoColorPipe, TuiTimeline } from '@taiga-ui/kit'
+import {
+  formatTime12h,
+  quarterHourToTime,
+  timeToQuarterHour,
+} from 'src/app/utils/schedule'
 import { ADD_BLACKOUT_WINDOW } from 'src/app/routes/wifi/routes/blackout-schedule/dialog'
 import { BlackoutService, BlackoutWindow } from './service'
 
@@ -269,24 +274,6 @@ export default class BlackoutScheduleComponent {
   }
 }
 
-function to(quarterHours: number): string {
-  return `${Math.floor(quarterHours / 4)
-    .toString()
-    .padStart(2, '0')}:${(quarterHours % 4) * 15}`
-}
-
-function from(formatted: string): number {
-  const [h, m] = formatted.split(':').map(Number)
-
-  return h * 4 + Math.round(m / 15)
-}
-
-function format(time: string): string {
-  const [h, m] = time.split(':').map(Number)
-  const period = h >= 12 ? 'pm' : 'am'
-  const hour = h % 12 || 12
-
-  return h === 24
-    ? `11:59pm`
-    : `${hour}:${m.toString().padStart(2, '0')}${period}`
-}
+const to = quarterHourToTime
+const from = timeToQuarterHour
+const format = formatTime12h

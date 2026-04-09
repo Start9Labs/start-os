@@ -10,8 +10,10 @@ import { ApiService } from 'src/app/services/api/api.service'
 @Component({
   template: `
     <section class="g-form" tuiCardLarge [style.align-items]="'start'">
-      <button tuiButton>Launch LuCI Interface</button>
-      <button tuiButton>Download Support Diagnostics</button>
+      <a tuiButton [href]="luciUrl" target="_blank">Launch LuCI Interface</a>
+      <button tuiButton (click)="downloadDiagnostics()">
+        Download Support Diagnostics
+      </button>
       <button tuiButton (click)="factoryReset()">Factory Reset</button>
     </section>
   `,
@@ -23,6 +25,28 @@ export default class Advanced {
   private readonly api = inject(ApiService)
   private readonly actions = inject(ActionService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
+  protected readonly luciUrl = '/cgi-bin/luci'
+
+  protected downloadDiagnostics() {
+    this.actions.run(
+      async () => {
+        const { guid, filename } = await this.api.diagnosticsCreate()
+        const res = await fetch(`/rest/rpc/${guid}`)
+        if (!res.ok) throw new Error(`Download failed: ${res.statusText}`)
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        a.click()
+        URL.revokeObjectURL(url)
+      },
+      {
+        loading: 'Creating diagnostics bundle...',
+        success: 'Diagnostics downloaded',
+      },
+    )
+  }
 
   protected factoryReset() {
     this.dialogs
@@ -37,10 +61,20 @@ export default class Advanced {
       })
       .pipe(filter(Boolean))
       .subscribe(() => {
-        this.actions.run(() => this.api.systemFactoryReset(), {
-          loading: 'Resetting device...',
-          success: 'Factory reset initiated. Device is rebooting...',
-        })
+        this.actions.run(
+          async () => {
+            await this.api.systemFactoryReset()
+            // Device is rebooting — poll until it goes down
+            while (true) {
+              await this.api.systemInfo()
+            }
+          },
+          {
+            loading: 'Resetting device...',
+            success: 'Factory reset complete',
+            restart: true,
+          },
+        )
       })
   }
 }

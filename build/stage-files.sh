@@ -47,20 +47,27 @@ start_service() {
 INITEOF
 chmod +x "${FILES_DIR}/etc/init.d/startwrt"
 
-# Comment out distfeeds entries for repos not hosted on downloads.openwrt.org.
-# The spacemit target packages and spacemit_openwrt_feeds are built locally
-# but have no upstream package repository, so opkg update fails for them.
-# TODO: Host our own package feeds and remove this workaround.
-#       See https://github.com/DC-DeepComputing/spacemit-openwrt-feeds
-mkdir -p "${FILES_DIR}/etc/uci-defaults"
-cat > "${FILES_DIR}/etc/uci-defaults/99-fix-distfeeds" << 'FIXEOF'
-#!/bin/sh
-sed -i \
-    -e '/^src\/gz.*_core.*targets/s/^/# /' \
-    -e '/^src\/gz.*_spacemit_openwrt_feeds/s/^/# /' \
-    /etc/opkg/distfeeds.conf
-FIXEOF
-chmod +x "${FILES_DIR}/etc/uci-defaults/99-fix-distfeeds"
+# Custom SmartDNS init script — uses our generated config instead of the
+# stock UCI-generated one. The stock init script generates its own config
+# from UCI at /var/etc/smartdns/smartdns.conf, ignoring ours.
+cat > "${FILES_DIR}/etc/init.d/smartdns" << 'SMARTDNSEOF'
+#!/bin/sh /etc/rc.common
+# StartWRT SmartDNS service — uses our generated config instead of UCI.
+START=19
+STOP=82
+USE_PROCD=1
+
+CONF="/etc/smartdns/smartdns.conf"
+
+start_service() {
+    [ -f "$CONF" ] || return
+    procd_open_instance
+    procd_set_param command /usr/sbin/smartdns -f -c "$CONF"
+    procd_set_param respawn
+    procd_close_instance
+}
+SMARTDNSEOF
+chmod +x "${FILES_DIR}/etc/init.d/smartdns"
 
 # Serial console dispatcher — routes ttyS0 to manufacture, init, or login
 mkdir -p "${FILES_DIR}/usr/sbin"
@@ -97,15 +104,21 @@ if [ "$boot_type" = "MMC" ]; then
     exec /bin/login
 else
     # Booted from SD card, USB, or unknown — setup mode.
-    # The setup wizard runs over WiFi via startwrt-ctrld.
-    echo ""
-    echo "========================================"
-    echo "   StartWRT Setup Mode"
-    echo "========================================"
-    echo ""
-    echo "Connect to WiFi 'StartWRT' to run the setup wizard."
-    echo "Log in below for advanced options."
-    echo ""
+    if /usr/bin/startwrt-cli has-baked-password; then
+        # Image has a baked-in WiFi password — the web setup wizard is
+        # available over WiFi (started by startwrt-ctrld).
+        echo ""
+        echo "========================================"
+        echo "   StartWRT Setup Mode"
+        echo "========================================"
+        echo ""
+        echo "Connect to WiFi 'StartWRT' to run the setup wizard."
+        echo "Log in below for advanced options."
+        echo ""
+    else
+        # No baked-in password — run manufacturing flow on serial console.
+        /usr/bin/startwrt-cli manufacture || echo "WARNING: manufacture failed (exit $?)"
+    fi
     exec /bin/login
 fi
 SERIALEOF
@@ -123,6 +136,25 @@ cat > "${FILES_DIR}/etc/inittab" << 'INITTABEOF'
 ::shutdown:/etc/init.d/rcS K shutdown
 ::respawnlate:/usr/sbin/startwrt-serial
 INITTABEOF
+
+# Hotplug script for remote access re-evaluation on WAN IP change
+mkdir -p "${FILES_DIR}/etc/hotplug.d/iface"
+cp backend/hotplug/99-startwrt-remote-access "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-remote-access"
+chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-remote-access"
+cp backend/hotplug/99-startwrt-proxy-arp "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-proxy-arp"
+chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-proxy-arp"
+
+# sysupgrade keep.d — additional files to include in config backups
+mkdir -p "${FILES_DIR}/lib/upgrade/keep.d"
+cat > "${FILES_DIR}/lib/upgrade/keep.d/startwrt" << 'KEEPEOF'
+/etc/ssl/certs/startwrt-ca.pem
+/etc/ssl/certs/startwrt-int.pem
+/etc/ssl/certs/startwrt-server.pem
+/etc/ssl/private/startwrt-ca.key
+/etc/ssl/private/startwrt-int.key
+/etc/ssl/private/startwrt-server.key
+/key_backup/
+KEEPEOF
 
 # Key backup partition mount point
 mkdir -p "${FILES_DIR}/key_backup"

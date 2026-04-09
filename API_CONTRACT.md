@@ -25,6 +25,15 @@ struct ProfileIdOpt {
     vlan_tag: Option<u16>,
 }
 
+/// A single DNS server entry with protocol info.
+#[derive(Serialize, Deserialize)]
+struct DnsServer {
+    /// IPv4 address of the DNS server
+    address: String,
+    /// false = plain UDP (port 53), true = DNS-over-HTTPS via SmartDNS
+    ssl: bool,
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum Protocol {
@@ -98,6 +107,8 @@ struct SystemInfoResponse {
     language: String,
     date: String,  // ISO 8601
     theme: Theme,
+    remote_access: String,
+    timezone: String,  // IANA timezone name (e.g. "America/New_York")
 }
 ```
 
@@ -133,6 +144,57 @@ struct SetPreferencesRequest {
 }
 // Response: null
 ```
+
+### `system.set-timezone`
+
+No auth required — called during initial setup before login.
+
+```rust
+#[derive(Deserialize)]
+struct SetTimezoneRequest {
+    timezone: String,   // IANA timezone name (e.g. "America/New_York")
+    posix_tz: String,   // POSIX TZ string (e.g. "EST5EDT,M3.2.0,M11.1.0")
+}
+// Response: null
+// Backend: sets UCI system.@system[0].zonename and system.@system[0].timezone,
+//          then reloads system service which writes posix_tz to /etc/TZ.
+//          After this, `date`, `cron`, and all libc time functions use local time.
+```
+
+### `system.logs`
+
+Non-streaming endpoint for CLI usage. Returns all current log entries.
+
+```rust
+// Request: {}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LogEntry {
+    timestamp: String,
+    message: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LogsResponse {
+    entries: Vec<LogEntry>,
+}
+// Response: LogsResponse
+// Backend: runs `logread`, parses syslog lines
+```
+
+### `/api/logs` (WebSocket)
+
+Live-streaming endpoint for the web UI.
+
+1. Client opens WebSocket to `/api/logs`
+2. Server spawns `logread -f` (dumps historical entries then follows new ones)
+3. Each line is parsed into `LogEntry` and sent as a JSON text frame
+4. Connection closes when either side disconnects; child process is killed on drop
+5. **Session auth required** — the session cookie is validated before the WebSocket upgrade (returns 401 if invalid)
+6. Each message is a single `LogEntry` JSON object (not wrapped in `LogsResponse`)
+7. Unparseable lines are silently dropped (same as the RPC endpoint)
 
 ---
 
@@ -211,10 +273,14 @@ struct WanIpv6Response {
     address: Option<String>,
     prefix: Option<String>,    // e.g. "/64"
     gateway: Option<String>,
+    /// Static mode: LAN prefix pool for sub-delegation, e.g. "2001:db8::/48"
+    lan_prefix: Option<String>,
     /// 6RD mode
     peer_ipv4: Option<String>,
     mask: Option<String>,      // e.g. "/32"
     border_relay: Option<String>,
+    /// Runtime: assigned IPv6 address
+    assigned_ipv6: Option<String>,
 }
 ```
 
@@ -227,6 +293,8 @@ struct WanIpv6SetRequest {
     address: Option<String>,
     prefix: Option<String>,
     gateway: Option<String>,
+    /// Static mode: LAN prefix pool, e.g. "2001:db8::/48"
+    lan_prefix: Option<String>,
     peer_ipv4: Option<String>,
     mask: Option<String>,
     border_relay: Option<String>,
@@ -286,7 +354,7 @@ enum DnsMode {
 struct WanDnsResponse {
     mode: DnsMode,
     /// Populated when mode = Custom
-    servers: Vec<String>,
+    servers: Vec<DnsServer>,
 }
 ```
 
@@ -296,8 +364,8 @@ struct WanDnsResponse {
 #[derive(Deserialize)]
 struct WanDnsSetRequest {
     mode: DnsMode,
-    /// Required when mode = Custom. DNS server addresses (may include @853 suffix for DoT).
-    servers: Option<Vec<String>>,
+    /// Required when mode = Custom. Each entry specifies address and protocol.
+    servers: Option<Vec<DnsServer>>,
 }
 // Response: null
 // Backend: updates UCI network wan+wan6 DNS settings, restarts network
@@ -420,28 +488,40 @@ struct LanIpv6SetRequest {
 ```rust
 // Request: {}
 
-#[derive(Serialize)]
-struct EthernetPort {
-    /// Physical port name (e.g. "eth0")
-    name: String,
-    /// Security profile assigned to this port
-    profile: String,
-    /// Whether this port is currently the WAN uplink
-    wan: bool,
+#[derive(Serialize, Deserialize)]
+struct Port<Id = ProfileId> {
+    /// Security profile assigned to this port, if any
+    profile: Option<Id>,
 }
-// Response: Vec<EthernetPort>
+
+#[derive(Serialize)]
+struct Ethernet {
+    /// Whether WAN has a DHCPv6 interface
+    wan_ipv6: bool,
+    /// Which port is the WAN uplink, if any
+    wan_port: Option<String>,
+    /// Map of physical port name → port config
+    ports: BTreeMap<String, Port>,
+}
+// Response: Ethernet
 ```
 
 ### `ethernet.set`
 
 ```rust
+// Request:
 #[derive(Deserialize)]
-struct EthernetSetRequest {
-    ports: Vec<EthernetPort>,
+struct Ethernet {
+    wan_ipv6: bool,
+    wan_port: Option<String>,
+    /// Uses ProfileIdOpt for lookup flexibility
+    ports: BTreeMap<String, Port<ProfileIdOpt>>,
 }
 // Response: null
-// Backend: updates UCI network interfaces/devices, restarts network
+// Backend: updates UCI network (bridge VLANs, WAN interfaces), restarts network
 ```
+
+Note: `ProfileId` and `ProfileIdOpt` are shared types defined at the top of the contract.
 
 ---
 
@@ -457,7 +537,6 @@ struct EthernetSetRequest {
 enum DeviceStatus {
     Online,
     Offline,
-    Blocked,
 }
 
 #[derive(Serialize)]
@@ -496,28 +575,6 @@ struct DeviceUpdateRequest {
 // Backend: creates/updates DHCP host section, restarts dnsmasq
 ```
 
-### `devices.block`
-
-```rust
-#[derive(Deserialize)]
-struct DeviceBlockRequest {
-    mac: String,
-}
-// Response: null
-// Backend: creates firewall REJECT rule for src_mac, removes static IP, restarts firewall + dnsmasq
-```
-
-### `devices.unblock`
-
-```rust
-#[derive(Deserialize)]
-struct DeviceUnblockRequest {
-    mac: String,
-}
-// Response: null
-// Backend: removes firewall block rules for mac, restarts firewall
-```
-
 ### `devices.forget`
 
 ```rust
@@ -526,7 +583,7 @@ struct DeviceForgetRequest {
     mac: String,
 }
 // Response: null
-// Backend: removes DHCP host + firewall rules for mac, restarts firewall + dnsmasq
+// Backend: removes DHCP host for mac, restarts dnsmasq
 ```
 
 ### `devices.data-usage`
@@ -745,6 +802,8 @@ struct VpnServerPeer {
     ip: Option<String>,
     public_key: Option<String>,
     preshared_key: Option<String>,
+    /// Route all traffic (LAN + WAN) through tunnel. Default/absent = split tunnel (LAN only).
+    route_all: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -798,6 +857,8 @@ struct VpnServerPeerInput {
     ip: Option<String>,
     public_key: Option<String>,
     preshared_key: Option<String>,
+    /// Route all traffic (LAN + WAN) through tunnel. Default/absent = split tunnel (LAN only).
+    route_all: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -847,8 +908,10 @@ struct WifiPassword {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct WifiConfig {
     ssid: String,
+    broadcast_separately: bool,
     radios: HashMap<String, WifiRadio>,
     passwords: Vec<WifiPassword>,
 }
@@ -935,7 +998,9 @@ struct SecurityProfile {
     wan_access: WanAccess,
     access_to_new_profiles: bool,
     owns_lan: bool,
-    dns_override: Option<Vec<String>>,
+    dns_override: Option<Vec<DnsServer>>,
+    /// "system", "custom", or "vpn"
+    dns_source: String,
 }
 // Response: SecurityProfile
 ```
@@ -954,7 +1019,7 @@ struct ProfileCreateRequest {
     wan_access: WanAccess,
     access_to_new_profiles: bool,
     owns_lan: bool,
-    dns_override: Option<Vec<String>>,
+    dns_override: Option<Vec<DnsServer>>,
 }
 // Response: ProfileId
 ```
@@ -975,7 +1040,7 @@ struct ProfileUpdateRequest {
     wan_access: WanAccess,
     access_to_new_profiles: bool,
     owns_lan: bool,
-    dns_override: Option<Vec<String>>,
+    dns_override: Option<Vec<DnsServer>>,
 }
 // Response: ProfileId
 ```
@@ -997,18 +1062,17 @@ struct ProfileUpdateRequest {
 // Request: {}
 
 #[derive(Serialize)]
-struct SshKey {
-    /// Full raw line from authorized_keys
-    raw: String,
+#[serde(rename_all = "camelCase")]
+struct SshKeyResponse {
     /// e.g. "ssh-ed25519", "ssh-rsa"
     algorithm: String,
-    /// Base64-encoded public key
-    public_key: String,
+    /// MD5 fingerprint of the public key (unique identifier)
+    fingerprint: String,
     /// Comment/hostname portion
     hostname: String,
 }
-// Response: Vec<SshKey>
-// Backend: reads /root/.ssh/authorized_keys, parses lines
+// Response: Vec<SshKeyResponse>
+// Backend: reads /etc/dropbear/authorized_keys, parses with openssh_keys crate
 ```
 
 ### `ssh-keys.add`
@@ -1019,8 +1083,9 @@ struct SshKeyAddRequest {
     /// Full SSH public key line (e.g. "ssh-ed25519 AAAA... user@host")
     key: String,
 }
-// Response: null
-// Backend: appends to /root/.ssh/authorized_keys
+// Response: SshKeyResponse (the newly added key)
+// Backend: validates with openssh_keys, checks for duplicates via fingerprint,
+//          appends to /root/.ssh/authorized_keys, creates ~/.ssh dir if needed
 ```
 
 ### `ssh-keys.delete`
@@ -1028,11 +1093,11 @@ struct SshKeyAddRequest {
 ```rust
 #[derive(Deserialize)]
 struct SshKeyDeleteRequest {
-    /// The full raw line to remove
-    raw: String,
+    /// MD5 fingerprint of the key to remove
+    fingerprint: String,
 }
 // Response: null
-// Backend: removes matching line from /root/.ssh/authorized_keys
+// Backend: removes line matching fingerprint from /root/.ssh/authorized_keys
 ```
 
 ---
@@ -1048,6 +1113,8 @@ struct SshKeyDeleteRequest {
 | `system.newer-versions` | Exists | System |
 | `system.restart` | Exists | System |
 | `system.set-preferences` | Exists | System |
+| `system.logs` | Exists | System |
+| `/api/logs` (WebSocket) | Exists | System |
 | `wan.ipv4-get` | **New** | WAN |
 | `wan.ipv4-set` | **New** | WAN |
 | `wan.ipv6-get` | **New** | WAN |
@@ -1066,8 +1133,6 @@ struct SshKeyDeleteRequest {
 | `ethernet.set` | **New** | Ethernet |
 | `devices.list` | **New** | Devices |
 | `devices.update` | **New** | Devices |
-| `devices.block` | **New** | Devices |
-| `devices.unblock` | **New** | Devices |
 | `devices.forget` | **New** | Devices |
 | `devices.data-usage` | **New** | Devices |
 | `published-ports.list` | **New** | Published Ports |
@@ -1095,7 +1160,7 @@ struct SshKeyDeleteRequest {
 | `ssh-keys.add` | **New** | SSH Keys |
 | `ssh-keys.delete` | **New** | SSH Keys |
 
-**Totals:** 51 endpoints (20 existing, 31 new)
+**Totals:** 51 endpoints (22 existing, 29 new)
 
 ---
 
