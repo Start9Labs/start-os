@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::path::Path;
+use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 use const_format::formatcp;
@@ -485,23 +486,57 @@ impl VersionT for Version {
 
                     // Write the data version from the old DB to disk so the
                     // install process detects existing data and uses
-                    // InitKind::Update instead of InitKind::Install.
-                    if let Some(data_version) = input
+                    // InitKind::Update instead of InitKind::Install. The old
+                    // DB stores versions in emver format (e.g. `0.21.1.0`),
+                    // but callers parse `.version` as `exver::ExtendedVersion`
+                    // (e.g. `0.21.1:0`), so convert before writing — and also
+                    // apply the same package-specific flavor/prerelease/id
+                    // rewrites that the v1→v2 s9pk conversion in
+                    // `s9pk::v2::compat` applies, so the on-disk version and
+                    // volume path match what the install will look up.
+                    let installed_manifest = input
                         .get(&*id)
                         .and_then(|pde| pde.get("installed"))
-                        .and_then(|i| i.get("manifest"))
+                        .and_then(|i| i.get("manifest"));
+                    if let Some(emver_str) = installed_manifest
                         .and_then(|m| m.get("version"))
                         .and_then(|v| v.as_str())
                     {
-                        let version_path = Path::new(DATA_DIR)
-                            .join(PKG_VOLUME_DIR)
-                            .join(&*id)
-                            .join("data")
-                            .join(".version");
-                        if let Some(parent) = version_path.parent() {
-                            tokio::fs::create_dir_all(parent).await?;
+                        if let Ok(emver) = exver::emver::Version::from_str(emver_str) {
+                            let title = installed_manifest
+                                .and_then(|m| m.get("title"))
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
+                            let mut version = exver::ExtendedVersion::from(emver);
+                            if &*id == "bitcoind" && title.to_ascii_lowercase().contains("knots") {
+                                version = version.with_flavor("knots");
+                            } else if &*id == "lnd"
+                                || &*id == "ride-the-lightning"
+                                || &*id == "datum"
+                            {
+                                version =
+                                    version.map_upstream(|v| v.with_prerelease(["beta".into()]));
+                            } else if &*id == "lightning-terminal" || &*id == "robosats" {
+                                version =
+                                    version.map_upstream(|v| v.with_prerelease(["alpha".into()]));
+                            }
+                            // The rename pass at the top of post_up has
+                            // already moved the volume dirs to their new
+                            // names, so we must write under the new id.
+                            let new_package_id: &str = match &*id {
+                                "nostr" => "nostr-rs-relay",
+                                "ghost" => "ghost-legacy",
+                                "synapse" => "synapse-legacy",
+                                other => other,
+                            };
+                            let version_path = Path::new(DATA_DIR)
+                                .join(PKG_VOLUME_DIR)
+                                .join(new_package_id)
+                                .join("data")
+                                .join(".version");
+                            write_file_atomic(&version_path, version.to_string().as_bytes())
+                                .await?;
                         }
-                        write_file_atomic(&version_path, data_version.as_bytes()).await?;
                     }
 
                     if let Err(e) = async {
