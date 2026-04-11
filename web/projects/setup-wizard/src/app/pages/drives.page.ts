@@ -430,12 +430,14 @@ export default class DrivesPage {
 
       loader.unsubscribe()
 
+      console.log('Ctrl+Shift+X to shutdown')
+
       // Show success dialog
       this.dialogSub = this.dialogs
         .openAlert('StartOS has been installed successfully.', {
           label: 'Installation Complete!',
           dismissible: false,
-          closable: true,
+          closable: false,
           data: this.i18n.transform('Continue to Setup'),
         })
         .subscribe({
