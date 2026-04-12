@@ -50,30 +50,44 @@ export type VersionOptions<Version extends string> = {
  *
  * @typeParam Version - The string literal exver version number
  */
-export class VersionInfo<Version extends string> {
-  private _version: null | Version = null
-  private constructor(
-    readonly options: VersionOptions<Version> & { satisfies: string[] },
-  ) {}
-  /**
-   * @description Use this function to define a new version of the service. By convention, each version should receive its own file.
-   * @property {string} version
-   * @property {string} releaseNotes
-   * @property {object} migrations
-   * @returns A VersionInfo class instance that is exported, then imported into versions/index.ts.
-   */
-  static of<Version extends string>(options: VersionOptions<Version>) {
-    return new VersionInfo<Version>({ ...options, satisfies: [] })
-  }
+export interface VersionInfo<Version extends string> {
+  /** Brand to preserve type parameter distinction across structural checks */
+  readonly _version: Version
+  readonly options: VersionOptions<Version> & { satisfies: string[] }
   /** Specify a version that this version is 100% backwards compatible to */
   satisfies<V extends string>(
     version: V & ValidateExVer<V>,
+  ): VersionInfo<Version>
+}
+
+class VersionInfoImpl<Version extends string> implements VersionInfo<Version> {
+  readonly _version: Version = null as any as Version
+  constructor(
+    readonly options: VersionOptions<Version> & { satisfies: string[] },
+  ) {}
+  satisfies<V extends string>(
+    version: V & ValidateExVer<V>,
   ): VersionInfo<Version> {
-    return new VersionInfo({
+    return new VersionInfoImpl({
       ...this.options,
       satisfies: [...this.options.satisfies, version],
     })
   }
+}
+
+/**
+ * @description Use this function to define a new version of the service. By convention, each version should receive its own file.
+ * @property {string} version
+ * @property {string} releaseNotes
+ * @property {object} migrations
+ * @returns A VersionInfo instance that is exported, then imported into versions/index.ts.
+ */
+export const VersionInfo = {
+  of<Version extends string>(
+    options: VersionOptions<Version>,
+  ): VersionInfo<Version> {
+    return new VersionInfoImpl<Version>({ ...options, satisfies: [] })
+  },
 }
 
 function __type_tests() {

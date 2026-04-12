@@ -48,15 +48,28 @@ export interface ActionInfo<
   readonly _INPUT: Type
 }
 
-export class Action<Id extends T.ActionId, Type extends Record<string, any>>
-  implements ActionInfo<Id, Type>
+export interface Action<Id extends T.ActionId, Type extends Record<string, any>>
+  extends ActionInfo<Id, Type> {
+  exportMetadata(options: { effects: T.Effects }): Promise<T.ActionMetadata>
+  getInput(options: {
+    effects: T.Effects
+    prefill: T.DeepPartial<Type> | null
+  }): Promise<T.ActionInput>
+  run(options: {
+    effects: T.Effects
+    input: Type
+  }): Promise<T.ActionResult | null>
+}
+
+class ActionImpl<Id extends T.ActionId, Type extends Record<string, any>>
+  implements Action<Id, Type>
 {
   readonly _INPUT: Type = null as any as Type
   private prevInputSpec: Record<
     string,
     { spec: T.inputSpecTypes.InputSpec; validator: z.ZodType<Type> }
   > = {}
-  private constructor(
+  constructor(
     readonly id: Id,
     private readonly metadataFn: MaybeFn<T.ActionMetadata>,
     private readonly inputSpec: MaybeFn<
@@ -69,43 +82,6 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
     private readonly getInputFn: GetInput<Type>,
     private readonly runFn: Run<Type>,
   ) {}
-  static withInput<
-    Id extends T.ActionId,
-    InputSpecType extends InputSpec<Record<string, any>>,
-  >(
-    id: Id,
-    metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput'>>,
-    inputSpec: MaybeFn<
-      InputSpecType,
-      {
-        effects: T.Effects
-        prefill: unknown | null
-      }
-    >,
-    getInput: GetInput<ExtractInputSpecType<InputSpecType>>,
-    run: Run<ExtractInputSpecType<InputSpecType>>,
-  ): Action<Id, ExtractInputSpecType<InputSpecType>> {
-    return new Action<Id, ExtractInputSpecType<InputSpecType>>(
-      id,
-      mapMaybeFn(metadata, (m) => ({ ...m, hasInput: true })),
-      inputSpec as any,
-      getInput,
-      run,
-    )
-  }
-  static withoutInput<Id extends T.ActionId>(
-    id: Id,
-    metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput'>>,
-    run: Run<{}>,
-  ): Action<Id, {}> {
-    return new Action(
-      id,
-      mapMaybeFn(metadata, (m) => ({ ...m, hasInput: false })),
-      null,
-      async () => null,
-      run,
-    )
-  }
   async exportMetadata(options: {
     effects: T.Effects
   }): Promise<T.ActionMetadata> {
@@ -167,18 +143,65 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
   }
 }
 
-export class Actions<
+export const Action = {
+  withInput<
+    Id extends T.ActionId,
+    InputSpecType extends InputSpec<Record<string, any>>,
+  >(
+    id: Id,
+    metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput'>>,
+    inputSpec: MaybeFn<
+      InputSpecType,
+      {
+        effects: T.Effects
+        prefill: unknown | null
+      }
+    >,
+    getInput: GetInput<ExtractInputSpecType<InputSpecType>>,
+    run: Run<ExtractInputSpecType<InputSpecType>>,
+  ): Action<Id, ExtractInputSpecType<InputSpecType>> {
+    return new ActionImpl<Id, ExtractInputSpecType<InputSpecType>>(
+      id,
+      mapMaybeFn(metadata, (m) => ({ ...m, hasInput: true })),
+      inputSpec as any,
+      getInput,
+      run,
+    )
+  },
+  withoutInput<Id extends T.ActionId>(
+    id: Id,
+    metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput'>>,
+    run: Run<{}>,
+  ): Action<Id, {}> {
+    return new ActionImpl(
+      id,
+      mapMaybeFn(metadata, (m) => ({ ...m, hasInput: false })),
+      null,
+      async () => null,
+      run,
+    )
+  },
+}
+
+export interface Actions<
   AllActions extends Record<T.ActionId, Action<T.ActionId, any>>,
-> implements InitScript
-{
-  private constructor(private readonly actions: AllActions) {}
-  static of(): Actions<{}> {
-    return new Actions({})
-  }
+> extends InitScript {
   addAction<A extends Action<T.ActionId, any>>(
-    action: A, // TODO: prevent duplicates
+    action: A,
+  ): Actions<AllActions & { [id in A['id']]: A }>
+  init(effects: T.Effects): Promise<void>
+  get<Id extends T.ActionId>(actionId: Id): AllActions[Id]
+}
+
+class ActionsImpl<
+  AllActions extends Record<T.ActionId, Action<T.ActionId, any>>,
+> implements Actions<AllActions>
+{
+  constructor(private readonly actions: AllActions) {}
+  addAction<A extends Action<T.ActionId, any>>(
+    action: A,
   ): Actions<AllActions & { [id in A['id']]: A }> {
-    return new Actions({ ...this.actions, [action.id]: action })
+    return new ActionsImpl({ ...this.actions, [action.id]: action })
   }
   async init(effects: T.Effects): Promise<void> {
     for (let action of Object.values(this.actions)) {
@@ -204,4 +227,10 @@ export class Actions<
   get<Id extends T.ActionId>(actionId: Id): AllActions[Id] {
     return this.actions[actionId]
   }
+}
+
+export const Actions = {
+  of(): Actions<{}> {
+    return new ActionsImpl({})
+  },
 }

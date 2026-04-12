@@ -514,7 +514,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         export const actions = sdk.Actions.of().addAction(config).addAction(nameToLogs)
        * ```
        */
-      Actions: Actions<{}>,
+      Actions,
       /**
        * @description Use this function to determine which volumes are backed up when a user creates a backup, including advanced options.
        * @example
