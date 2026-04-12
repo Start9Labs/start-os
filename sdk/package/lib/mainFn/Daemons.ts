@@ -23,52 +23,102 @@ export const cpExecFile = promisify(CP.execFile)
 /**
  * Configuration for a daemon's health-check readiness probe.
  *
- * Determines how the system knows when a daemon is healthy and ready to serve.
+ * Every daemon and standalone health check requires a `Ready` configuration
+ * that tells StartOS how to determine whether the daemon is healthy.
+ *
+ * The `fn` is called on a recurring interval controlled by `trigger` (defaults
+ * to 1 s before the first non-pending result, then 30 s). During the initial
+ * `gracePeriod` window, `failure` results are softened to `starting` so the
+ * UI doesn't flash red while a daemon is still booting.
+ *
+ * ### Health check result states
+ *
+ * | Result      | Meaning                                              | UI treatment     |
+ * |-------------|------------------------------------------------------|------------------|
+ * | `success`   | Healthy and fully operational                        | Green / ready    |
+ * | `loading`   | Operational but still catching up (e.g. syncing)     | Progress / amber |
+ * | `disabled`  | Intentionally inactive (excluded by configuration)   | Grey / skipped   |
+ * | `starting`  | Not yet ready, still initializing                    | Spinner          |
+ * | `waiting`   | Blocked on an external dependency                    | Spinner          |
+ * | `failure`   | Unhealthy — something is wrong                       | Red / error      |
  */
 export type Ready = {
-  /** A human-readable display name for the health check. If null, the health check itself will be from the UI */
+  /**
+   * Human-readable label shown in the StartOS health-check UI.
+   * Set to `null` to hide this check from the UI entirely.
+   */
   display: string | null
   /**
-   * @description The function to determine the health status of the daemon
-   * 
-   *   The SDK provides some built-in health checks. To see them, type sdk.healthCheck.
-   * 
+   * The function called on each polling interval to determine the daemon's health.
+   *
+   * Return a {@link HealthCheckResult} with a `result` field (`success`, `loading`,
+   * `failure`, etc.) and an optional `message` string shown in the UI.
+   *
+   * The SDK ships several built-in helpers on `sdk.healthCheck`:
+   * - `checkPortListening` — checks whether a TCP/UDP port is bound
+   * - `checkWebUrl` — fetches a URL and succeeds on any HTTP response
+   * - `runHealthScript` — runs a command in a subcontainer and succeeds on exit 0
+   *
    * @example
+   * ```ts
+   * fn: () =>
+   *   sdk.healthCheck.checkPortListening(effects, 80, {
+   *     successMessage: 'Web server is ready',
+   *     errorMessage: 'Web server is not listening',
+   *   })
    * ```
-    fn: () =>
-      sdk.healthCheck.checkPortListening(effects, 80, {
-        successMessage: 'service listening on port 80',
-        errorMessage: 'service is unreachable',
-      })
-  * ```
-  */
+   */
   fn: () => Promise<HealthCheckResult> | HealthCheckResult
   /**
-   * A duration in milliseconds to treat a failing health check as "starting"
+   * Duration in milliseconds during which `failure` results are reported
+   * as `starting` instead, giving the daemon time to initialize without
+   * showing errors in the UI.
    *
-   * defaults to 5000
+   * @default 10_000
    */
   gracePeriod?: number
+  /**
+   * Controls the polling interval for this health check.
+   *
+   * Use one of the built-in triggers from `sdk.trigger`:
+   * - `cooldownTrigger(ms)` — fixed interval between checks
+   * - `statusTrigger({ success, loading, failure, ... })` — per-status
+   *   polling intervals
+   *
+   * If omitted, uses the default trigger: 1 s before the first non-pending
+   * result, then 30 s afterward.
+   */
   trigger?: Trigger
 }
 
 /**
  * Options for running a daemon as a shell command inside a subcontainer.
- * Includes the command to run, optional signal/timeout, environment, user, and stdio callbacks.
  */
 export type ExecCommandOptions = {
+  /** The command and arguments to execute (e.g. `['bitcoind', '-conf=/etc/bitcoin.conf']`) */
   command: T.CommandType
-  // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
+  /**
+   * How long (ms) to wait for the process to exit after sending SIGTERM
+   * before force-killing it.
+   *
+   * @default 30_000
+   */
   sigtermTimeout?: number
+  /** Run the command as PID 1 inside the container (init process) */
   runAsInit?: boolean
+  /** Environment variables to set for the process */
   env?:
     | {
         [variable in string]?: string
       }
     | undefined
+  /** Working directory for the process */
   cwd?: string | undefined
+  /** Run the process as this user inside the container */
   user?: string | undefined
+  /** Callback invoked with each chunk written to stdout */
   onStdout?: (chunk: Buffer | string | any) => void
+  /** Callback invoked with each chunk written to stderr */
   onStderr?: (chunk: Buffer | string | any) => void
 }
 
@@ -124,7 +174,10 @@ type AddDaemonParams<
     }
 ) & {
   ready: Ready
-  /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
+  /**
+   * IDs of prior daemons/oneshots/health checks that must be ready before
+   * this daemon starts. Enforces startup ordering in the daemon chain.
+   */
   requires: Exclude<Ids, Id>[]
 }
 
@@ -135,13 +188,19 @@ type AddOneshotParams<
   C extends SubContainer<Manifest> | null,
 > = NewDaemonParams<Manifest, C> & {
   exec: DaemonCommandType<Manifest, C>
-  /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
+  /**
+   * IDs of prior daemons/oneshots/health checks that must be ready before
+   * this oneshot runs.
+   */
   requires: Exclude<Ids, Id>[]
 }
 
 type AddHealthCheckParams<Ids extends string, Id extends string> = {
   ready: Ready
-  /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
+  /**
+   * IDs of prior daemons/oneshots/health checks that must be ready before
+   * this health check starts polling.
+   */
   requires: Exclude<Ids, Id>[]
 }
 
@@ -221,10 +280,18 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   }
 
   /**
-   * Returns the complete list of daemons, including the one defined here
-   * @param id
-   * @param options
-   * @returns a new Daemons object
+   * Register a long-running daemon process.
+   *
+   * The daemon starts in its subcontainer and is monitored by its `ready`
+   * health check. Other daemons and health checks can depend on it via
+   * `requires`.
+   *
+   * Pass a static options object, a sync/async factory that returns options
+   * (or `null` to conditionally skip the daemon), or an object with a
+   * pre-built `daemon` instance.
+   *
+   * @param id - Unique string identifier for this daemon
+   * @param options - Daemon configuration, or a factory returning it (return `null` to skip)
    */
   addDaemon<Id extends string, C extends SubContainer<Manifest> | null>(
     // prettier-ignore
@@ -272,11 +339,14 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   }
 
   /**
-   * Returns the complete list of daemons, including a "oneshot" daemon one defined here
-   * a oneshot daemon is a command that executes once when started, and is considered "running" once it exits successfully
-   * @param id
-   * @param options
-   * @returns a new Daemons object
+   * Register a one-shot command that runs to completion before dependents start.
+   *
+   * Common uses: `chown` for file ownership, database migrations, config
+   * generation, wallet unlocking. The oneshot is considered "ready" as soon
+   * as the command exits successfully (exit code 0).
+   *
+   * @param id - Unique string identifier for this oneshot
+   * @param options - Oneshot configuration, or a factory returning it (return `null` to skip)
    */
   addOneshot<Id extends string, C extends SubContainer<Manifest> | null>(
     // prettier-ignore
@@ -321,10 +391,14 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   }
 
   /**
-   * Returns the complete list of daemons, including a new HealthCheck defined here
-   * @param id
-   * @param options
-   * @returns a new Daemons object
+   * Register a standalone health check with no associated process.
+   *
+   * Use this for ongoing conditions that don't map to a single daemon, such
+   * as blockchain sync progress or network reachability. Dependent services
+   * can reference standalone health check IDs in their dependency config.
+   *
+   * @param id - Unique string identifier for this health check
+   * @param options - Health check configuration, or a factory returning it (return `null` to skip)
    */
   addHealthCheck<Id extends string>(
     // prettier-ignore
@@ -364,10 +438,15 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   }
 
   /**
-   * Runs the entire system until all daemons have returned `ready`.
-   * @param id
-   * @param options
-   * @returns a new Daemons object
+   * Start all registered daemons and wait until every one passes its ready
+   * check, then tear everything down.
+   *
+   * Used for bootstrapping via a temporary daemon chain — e.g. starting a
+   * service to call its API (create admin users, register apps), then
+   * shutting it down before the real daemon chain starts.
+   *
+   * @param timeout - Maximum time (ms) to wait for all daemons to become ready, or `null` for no limit
+   * @throws If the timeout is reached before all daemons are ready
    */
   async runUntilSuccess(timeout: number | null) {
     let resolve = (_: void) => {}

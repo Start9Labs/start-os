@@ -5,10 +5,16 @@ import { timeoutPromise } from './index'
 import 'isomorphic-fetch'
 
 /**
- * This is a helper function to check if a web url is reachable.
- * @param url
- * @param createSuccess
- * @returns
+ * Check whether a URL is reachable by performing an HTTP fetch.
+ *
+ * Succeeds on any HTTP response (regardless of status code). Fails if the
+ * request errors out or exceeds the timeout.
+ *
+ * @param effects - The effects context
+ * @param url - The URL to fetch
+ * @param options.timeout - Maximum time (ms) to wait for a response (defaults to 1000)
+ * @param options.successMessage - Message shown in the UI on success
+ * @param options.errorMessage - Message shown in the UI on failure
  */
 export const checkWebUrl = async (
   effects: Effects,
