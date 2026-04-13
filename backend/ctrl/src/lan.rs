@@ -2,14 +2,14 @@ use crate::profiles;
 use crate::utils::DeserializeStdin;
 use crate::utils::HandlerExtSerde;
 use crate::CtrlContext;
-use crate::Error;
+use crate::{Error, ErrorKind};
 use rpc_toolkit::{from_fn, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::net::Ipv4Addr;
 use std::process::Command;
-use uciedit::openwrt::{Dhcp, FirewallRedirect, NetworkInterface, NetworkRoute, NetworkRule, ProfileDnsmasq};
-use uciedit::{dump_all, parse_all, Arena};
+use uciedit::openwrt::{Dhcp, DhcpHost, FirewallRedirect, NetworkInterface, NetworkRoute, NetworkRule, ProfileDnsmasq};
+use uciedit::{dump_all, parse_all, Arena, Configs};
 
 pub const LAN_INTERFACE: &str = "lan";
 pub const WAN6_INTERFACE: &str = "wan6";
@@ -137,8 +137,19 @@ pub fn ipv4_set<C: CtrlContext>(
             HashSet::new()
         };
 
-        // Guard: check if IP change would break VPN peers
+        // Guard: reject subnet change when DHCP static hosts exist in the old subnet
         let ip_changed = old_address.map(|old| old != address).unwrap_or(false);
+        if block_changed {
+            let old = old_address.unwrap().octets();
+            guard_dhcp_static_hosts(&cfgs, &[old[0], old[1]])?;
+        } else if ip_changed {
+            if let Some(old) = old_address {
+                let o = old.octets();
+                guard_dhcp_static_hosts(&cfgs, &[o[0], o[1], o[2]])?;
+            }
+        }
+
+        // Guard: check if IP change would break VPN peers
         let removed_vpns = if ip_changed {
             let affected: Vec<&str> = if block_changed {
                 // Block change affects all profiles
@@ -424,6 +435,35 @@ pub fn ipv6_set<C: CtrlContext>(
             }
         }
     }
+}
+
+/// Guard: reject subnet changes when DHCP static hosts exist in the affected subnet.
+/// `old_prefix` is 2 bytes for a block change (first two octets) or 3 bytes for a
+/// single-profile subnet change (first three octets).
+///
+/// Note: this must run after `update_profile_ips_for_block_change` is safe because
+/// that function does not touch DHCP host sections — the old static IPs are still present.
+pub(crate) fn guard_dhcp_static_hosts(cfgs: &Configs, old_prefix: &[u8]) -> Result<(), Error> {
+    let affected: Vec<String> = cfgs["dhcp"]
+        .sections
+        .iter()
+        .filter_map(|section| section.get::<DhcpHost>().ok())
+        .filter_map(|host| {
+            let ip: Ipv4Addr = host.ip.as_deref()?.parse().ok()?;
+            let octets = ip.octets();
+            if old_prefix.iter().enumerate().all(|(i, &p)| octets[i] == p) {
+                let label = host.name.as_deref().unwrap_or(&host.mac);
+                Some(format!("{} ({})", label, ip))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if !affected.is_empty() {
+        return Err(ErrorKind::DhcpStaticHostsInSubnet { devices: affected }.into());
+    }
+    Ok(())
 }
 
 /// Update all profile network interface IPs and routing rules when the network

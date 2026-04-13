@@ -26,6 +26,7 @@ import {
   TuiDialogContext,
   TuiError,
   TuiGroup,
+  TuiHint,
   TuiInput,
   TuiLabel,
   TuiSelectLike,
@@ -63,6 +64,7 @@ export interface ProfileDialogData {
   outboundVpns: Array<{ interface: string; label: string }>
   usedSubnets: number[]
   subnetBase: { firstOctet: number; secondOctet: number }
+  hasStaticIpsInSubnet?: boolean
 }
 
 export interface ProfileDialogResult {
@@ -236,7 +238,9 @@ export interface ProfileDialogResult {
         >
           Cancel
         </button>
-        <button tuiButton>Save</button>
+        <button tuiButton [disabled]="saveBlocked()" [tuiHint]="saveBlocked()">
+          Save
+        </button>
       </footer>
     </form>
   `,
@@ -250,6 +254,7 @@ export interface ProfileDialogResult {
       max: 'Must be at most 254',
       ipv4: 'Enter a valid IPv4 address',
       duplicateName: 'A profile with this name already exists',
+      duplicateSubnet: 'This subnet is already in use by another profile',
       ipv4List:
         'Enter valid IPv4 addresses or CIDRs (e.g. 1.1.1.1, 8.8.8.8/24)',
     }),
@@ -278,6 +283,7 @@ export interface ProfileDialogResult {
     TuiStringifyPipe,
     TuiElasticContainer,
     TuiAnimated,
+    TuiHint,
   ],
 })
 class AddProfile {
@@ -304,7 +310,12 @@ class AddProfile {
     ],
     subnet: [
       this.nextAvailableSubnet(),
-      [Validators.required, Validators.min(0), Validators.max(254)],
+      [
+        Validators.required,
+        Validators.min(0),
+        Validators.max(254),
+        CustomValidators.duplicateSubnet(this.usedSubnets),
+      ],
     ],
     outbound: [this.getOutbound()],
     useCustomDns: [this.dnsConfig.useCustomDns],
@@ -348,6 +359,21 @@ class AddProfile {
     ),
     { requireSync: true },
   )
+
+  private readonly subnetValue = toSignal(
+    this.form.controls.subnet.valueChanges.pipe(
+      startWith(this.form.controls.subnet.value),
+    ),
+    { requireSync: true },
+  )
+
+  protected readonly saveBlocked = computed(() => {
+    if (!this.context.data.hasStaticIpsInSubnet) return null
+    if (this.subnetValue() !== this.nextAvailableSubnet()) {
+      return 'Cannot change subnet while devices have static IP reservations in this subnet'
+    }
+    return null
+  })
 
   constructor() {
     // Update dns field validators when custom DNS toggle changes

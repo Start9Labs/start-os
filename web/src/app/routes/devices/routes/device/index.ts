@@ -99,6 +99,18 @@ import { DeviceSummary } from './summary'
           Reserve
           <i tuiHint="Required by a published port rule"></i>
         </label>
+        <div>
+          <tui-textfield>
+            <label tuiLabel>IPv6 address</label>
+            <input tuiInput formControlName="ipv6" [readOnly]="!ipv6Static()" />
+          </tui-textfield>
+          <tui-error formControlName="ipv6" />
+        </div>
+        <label tuiLabel>
+          <input tuiSwitch type="checkbox" formControlName="ipv6Static" />
+          Reserve
+          <i tuiHint="Required by a published port rule"></i>
+        </label>
       </section>
       @if (data()) {
         <footer appFooter></footer>
@@ -151,6 +163,13 @@ export default class DeviceDetail {
     { requireSync: true },
   )
 
+  readonly ipv6Static = toSignal(
+    this.form.controls.ip.controls.ipv6Static.valueChanges.pipe(
+      startWith(this.form.controls.ip.controls.ipv6Static.value),
+    ),
+    { requireSync: true },
+  )
+
   constructor() {
     // Refresh device data to get latest info
     this.service.refresh()
@@ -177,7 +196,7 @@ export default class DeviceDetail {
 
     // Update validators when static toggles change
     effect(() => {
-      updateDeviceValidators(this.form, this.ipv4Static(), false)
+      updateDeviceValidators(this.form, this.ipv4Static(), this.ipv6Static())
     })
   }
 
@@ -189,6 +208,9 @@ export default class DeviceDetail {
     )
     if (devicePorts.some(p => p.ipv4)) {
       this.form.controls.ip.controls.ipv4Static.disable()
+    }
+    if (devicePorts.some(p => p.ipv6)) {
+      this.form.controls.ip.controls.ipv6Static.disable()
     }
   }
 

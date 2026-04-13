@@ -238,7 +238,12 @@ export default class WifiSettings {
               dismissible: false,
               data: { ssid: config.ssid, done },
             })
-            .subscribe()
+            .subscribe({
+              complete: () => {
+                this.service.refresh()
+                this.form.markAsPristine()
+              },
+            })
         })
       return
     }
@@ -250,8 +255,8 @@ export default class WifiSettings {
 
   private toFormValue(config: WifiConfig) {
     const radios = Object.entries(config.radios)
-    const radio2g = radios.find(([, r]) => r.band === '2g')
-    const radio5g = radios.find(([, r]) => r.band === '5g')
+    const radio2g = radios.find(([, r]) => r.band === '2g' && r.enabled)
+    const radio5g = radios.find(([, r]) => r.band === '5g' && r.enabled)
     const anyEnabled = radios.some(([, r]) => r.enabled)
     const anyBroadcast = radios.some(([, r]) => r.broadcast)
     const channelToOption = (ch: string) => (ch === 'auto' ? 'Auto' : ch)

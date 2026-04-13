@@ -24,7 +24,7 @@ import { catchError, EMPTY, filter, firstValueFrom } from 'rxjs'
 import { Placeholder } from 'src/app/components/placeholder'
 import { ReconnectingDialog } from 'src/app/components/reconnecting-dialog'
 import { OutboundService } from 'src/app/routes/outbound/service'
-import { SecurityProfile } from 'src/app/services/api/api.service'
+import { ApiService, SecurityProfile } from 'src/app/services/api/api.service'
 import { NetworkRestartService } from 'src/app/services/network-restart.service'
 import { ADD_PROFILE, ProfileDialogResult } from './dialog'
 import { ProfilesService } from './service'
@@ -161,6 +161,7 @@ class Profiles {
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(ProfilesService)
   protected readonly outboundService = inject(OutboundService)
+  private readonly api = inject(ApiService)
   private readonly alerts = inject(TuiNotificationService)
   private readonly networkRestart = inject(NetworkRestartService)
   private readonly window = inject(WA_WINDOW)
@@ -236,7 +237,7 @@ class Profiles {
       : 'Unknown'
   }
 
-  edit(profile?: SecurityProfile) {
+  async edit(profile?: SecurityProfile) {
     const profiles = this.service.data() || []
     const otherProfiles = profiles.filter(
       p => p.interface !== profile?.interface,
@@ -251,6 +252,25 @@ class Profiles {
     }))
     const subnet = this.lanSubnet()
 
+    // Check if editing a profile that has static IPs in its subnet
+    let hasStaticIpsInSubnet = false
+    if (profile) {
+      try {
+        const devices = await this.api.devicesList()
+        const profileSubnet = profile.gateway_ip
+          .split('.')
+          .slice(0, 3)
+          .join('.')
+        hasStaticIpsInSubnet = devices.some(
+          d =>
+            d.ipv4_static &&
+            d.ipv4?.split('.').slice(0, 3).join('.') === profileSubnet,
+        )
+      } catch {
+        // If we can't check, leave the form enabled — backend validates anyway
+      }
+    }
+
     this.dialogs
       .open<ProfileDialogResult>(ADD_PROFILE, {
         label: profile ? 'Edit Security Profile' : 'Add Security Profile',
@@ -263,6 +283,7 @@ class Profiles {
             firstOctet: subnet.firstOctet,
             secondOctet: subnet.secondOctet,
           },
+          hasStaticIpsInSubnet,
         },
       })
       .subscribe(async result => {
@@ -275,7 +296,14 @@ class Profiles {
               profile.gateway_ip,
             )
           } catch (e: any) {
-            if (!e?.message?.includes('VPN client')) return
+            if (!e?.message?.includes('VPN client')) {
+              this.alerts
+                .open(e?.message || 'Failed to save', {
+                  appearance: 'negative',
+                })
+                .subscribe()
+              return
+            }
             // IP change blocked by VPN peers — offer to force-delete them
             const confirmed = await firstValueFrom(
               this.dialogs.open(TUI_CONFIRM, {

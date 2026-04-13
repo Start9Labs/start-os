@@ -25,4 +25,9 @@ export class SystemService {
       console.error('Failed to fetch system info:', e)
     }
   }
+
+  async refresh(): Promise<void> {
+    const info = await this.api.systemInfo()
+    this.info.set(info)
+  }
 }

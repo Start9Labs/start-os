@@ -82,6 +82,13 @@ export class CustomValidators {
     }
   }
 
+  static duplicateSubnet(used: number[]): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (control.value == null) return null
+      return used.includes(control.value) ? { duplicateSubnet: true } : null
+    }
+  }
+
   static duplicateName(existing: string[]): ValidatorFn {
     const names = new Set(existing.map(n => n.trim().toLowerCase()))
     return (control: AbstractControl): ValidationErrors | null => {

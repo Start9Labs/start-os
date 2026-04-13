@@ -32,6 +32,7 @@ import { PublishedPortDialogResult, PublishedPortDisplay } from './types'
       [style.min-height.rem]="loading() ? 10 : 0"
       [publishedPorts]="loading() ? [] : service.data() || []"
       [ipv4EndpointHost]="ipv4EndpointHost()"
+      [ipv6Available]="ipv6Available()"
       [tuiSkeleton]="loading()"
       (edit)="edit($event)"
     ></table>
@@ -89,11 +90,15 @@ export default class PublishedPorts {
         },
       )
       .subscribe(result => {
-        const { port: value, reserveIpv4 } = result
+        const { port: value, reserveIpv4, reserveIpv6 } = result
 
-        // Handle IPv4 reservation if needed
-        if (reserveIpv4) {
-          this.service.reserveDeviceIps(value.deviceMac, true, false)
+        // Handle IP reservation if needed
+        if (reserveIpv4 || reserveIpv6) {
+          this.service.reserveDeviceIps(
+            value.deviceMac,
+            reserveIpv4,
+            reserveIpv6,
+          )
         }
 
         // Update/enrich the port

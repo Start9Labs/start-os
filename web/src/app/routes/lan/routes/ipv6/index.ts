@@ -52,7 +52,7 @@ import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
           <i
             [tuiHint]="
               slaacLocked()
-                ? 'Cannot disable: published ports using IPv6 exist'
+                ? 'Cannot disable: devices with static IPv6 reservations exist'
                 : ''
             "
           ></i>
@@ -143,8 +143,8 @@ export default class LanIpv6 {
   }
 
   private async loadIpv6Dependencies() {
-    const ports = await this.api.publishedPortsList()
-    if (ports.some(p => p.ipv6 && p.enabled)) {
+    const devices = await this.api.devicesList()
+    if (devices.some(d => d.ipv6_static)) {
       this.slaacLocked.set(true)
       if (this.slaacEnabled()) {
         this.form.controls.strategy.controls.slaac.disable()

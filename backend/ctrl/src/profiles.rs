@@ -953,6 +953,18 @@ pub fn set<C: CtrlContext>(
             vec![crate::lan::LAN_INTERFACE.to_string()]
         };
 
+        // Guard: reject subnet change when DHCP static hosts exist in the old subnet
+        if let Some(old_gw) = old_state.as_ref().and_then(|s| s.gateway_ip) {
+            if old_gw != profile.gateway_ip {
+                let o = old_gw.octets();
+                if block_changed {
+                    crate::lan::guard_dhcp_static_hosts(&cfgs, &[o[0], o[1]])?;
+                } else {
+                    crate::lan::guard_dhcp_static_hosts(&cfgs, &[o[0], o[1], o[2]])?;
+                }
+            }
+        }
+
         // Guard: check if IP change would break VPN peers
         let ip_changed = old_state
             .as_ref()

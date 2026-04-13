@@ -69,6 +69,8 @@ pub enum ErrorKind {
     VpnChainCycle { label: String, cycle: Vec<String> },
     #[error("a profile named {name:?} already exists")]
     DuplicateFullname { name: String },
+    #[error("cannot change subnet while devices have static IP reservations: {devices:?}")]
+    DhcpStaticHostsInSubnet { devices: Vec<String> },
     #[error("changing the IP would break {peer_count} VPN client(s) across profiles: {profiles:?}")]
     VpnPeersWouldBreak {
         profiles: Vec<String>,

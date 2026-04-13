@@ -13,6 +13,7 @@ import {
   isNetworkError,
   NetworkRestartService,
 } from 'src/app/services/network-restart.service'
+import { IS_MOCK } from 'src/app/utils/workspace-config'
 
 @Component({
   template: `
@@ -40,6 +41,7 @@ export class ReconnectDialog implements OnInit, OnDestroy {
     >()
   private readonly api = inject(ApiService)
   private readonly networkRestart = inject(NetworkRestartService)
+  private readonly isMock = inject(IS_MOCK)
   private intervalId?: ReturnType<typeof setInterval>
   private networkDropped = false
 
@@ -67,7 +69,7 @@ export class ReconnectDialog implements OnInit, OnDestroy {
       await this.api.systemInfo()
       if (this.ssidConfirmed() || this.networkDropped) {
         this.cleanup()
-        window.location.reload()
+        this.reloadOrClose()
       }
     } catch (e) {
       if (isNetworkError(e)) {
@@ -75,8 +77,16 @@ export class ReconnectDialog implements OnInit, OnDestroy {
         this.ssidConfirmed.set(true)
       } else {
         this.cleanup()
-        window.location.reload()
+        this.reloadOrClose()
       }
+    }
+  }
+
+  private reloadOrClose(): void {
+    if (this.isMock) {
+      this.context.completeWith()
+    } else {
+      window.location.reload()
     }
   }
 

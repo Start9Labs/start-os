@@ -501,7 +501,51 @@ pub fn set<C: CtrlContext>(
         }
 
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["firewall"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["firewall", "dhcp"])?;
+
+        // Auto-reserve static DHCP IPs for enabled IPv4 ports that lack reservations
+        let mut dhcp_modified = false;
+        if ctx.effectful() {
+            let mut host_indices: HashMap<String, usize> = HashMap::new();
+            for (i, section) in cfgs["dhcp"].sections.iter().enumerate() {
+                if let Ok(host) = section.get::<DhcpHost>() {
+                    host_indices.insert(host.mac.to_uppercase(), i);
+                }
+            }
+
+            for port in &req.ports {
+                if !port.enabled || !port.ipv4 {
+                    continue;
+                }
+                let mac = port.device_mac.to_uppercase();
+                let info = match device_info.get(&mac) {
+                    Some(i) if !i.has_static_ipv4 && i.ipv4.is_some() => i,
+                    _ => continue,
+                };
+                let ip = info.ipv4.clone().unwrap();
+
+                if let Some(&idx) = host_indices.get(&mac) {
+                    // Existing host entry without IP — add the reservation
+                    if let Ok(mut host) = cfgs["dhcp"].sections[idx].get::<DhcpHost>() {
+                        host.ip = Some(ip);
+                        cfgs["dhcp"].sections[idx].set(&host)?;
+                        dhcp_modified = true;
+                    }
+                } else {
+                    // No host entry at all — create one
+                    let host = DhcpHost {
+                        mac: mac.clone(),
+                        ip: Some(ip),
+                        dns: Some("1".to_string()),
+                        ..Default::default()
+                    };
+                    let section_name =
+                        format!("host_{}", mac.replace(':', "").to_lowercase());
+                    cfgs["dhcp"].append(&host, Some(&section_name))?;
+                    dhcp_modified = true;
+                }
+            }
+        }
 
         // Build MAC → zone lookup from profiles and firewall zones
         let mac_zones = if ctx.effectful() {
@@ -618,6 +662,9 @@ pub fn set<C: CtrlContext>(
             Ok(()) => {
                 if ctx.effectful() {
                     restart_firewall();
+                    if dhcp_modified {
+                        reload_dnsmasq();
+                    }
                 }
                 crate::activity::log("published-ports", "updated", true, &format!("Updated published ports ({} rules)", req.ports.len()), None);
                 return Ok(());
@@ -631,6 +678,8 @@ struct DeviceNetInfo {
     ipv6: Option<String>,
     /// ARP interface name (e.g. "br-lan.101") for zone resolution
     arp_interface: Option<String>,
+    /// Whether the device already has a static DHCP IPv4 reservation
+    has_static_ipv4: bool,
 }
 
 /// Resolve IPv4/IPv6 addresses and ARP interface for devices referenced by published ports.
@@ -729,6 +778,7 @@ fn resolve_device_info(
 
     // Merge: prefer static > ARP > lease
     for mac in &macs {
+        let has_static_ipv4 = static_ips.get(mac).and_then(|ip| ip.as_ref()).is_some();
         let ipv4 = static_ips
             .get(mac)
             .and_then(|ip| ip.clone())
@@ -736,7 +786,7 @@ fn resolve_device_info(
             .or_else(|| lease_ipv4.get(mac).cloned());
         let ipv6 = arp_ipv6.get(mac).cloned();
         let arp_interface = arp_iface.get(mac).cloned();
-        result.insert(mac.clone(), DeviceNetInfo { ipv4, ipv6, arp_interface });
+        result.insert(mac.clone(), DeviceNetInfo { ipv4, ipv6, arp_interface, has_static_ipv4 });
     }
 
     result
@@ -796,6 +846,15 @@ fn restart_firewall() {
         let result = crate::run_quiet(std::process::Command::new("/etc/init.d/firewall").arg("restart"));
         if let Err(e) = result {
             tracing::error!("failed to restart firewall: {e}");
+        }
+    });
+}
+
+fn reload_dnsmasq() {
+    std::thread::spawn(|| {
+        let result = crate::run_quiet(std::process::Command::new("/etc/init.d/dnsmasq").arg("reload"));
+        if let Err(e) = result {
+            tracing::error!("failed to reload dnsmasq: {e}");
         }
     });
 }

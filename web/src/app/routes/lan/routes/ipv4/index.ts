@@ -1,9 +1,12 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   inject,
+  signal,
 } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { WA_WINDOW } from '@ng-web-apis/common'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
@@ -16,10 +19,11 @@ import {
 import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { catchError, EMPTY, firstValueFrom } from 'rxjs'
+import { catchError, EMPTY, firstValueFrom, startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
 import { ReconnectingDialog } from 'src/app/components/reconnecting-dialog'
+import { ApiService } from 'src/app/services/api/api.service'
 import { provideFormService } from 'src/app/services/form.service'
 import { NetworkRestartService } from 'src/app/services/network-restart.service'
 import { LanIpv4Ip } from './form/ip'
@@ -40,7 +44,7 @@ import { buildRouterIp, getLanIpv4Form, LanIpv4Form } from './utils'
     >
       <lan-ipv4-ip formGroupName="ip" />
       @if (service.data()) {
-        <footer appFooter></footer>
+        <footer appFooter [blocked]="saveBlocked()"></footer>
       }
     </form>
   `,
@@ -63,12 +67,14 @@ import { buildRouterIp, getLanIpv4Form, LanIpv4Form } from './utils'
 export default class LanIpv4 {
   protected readonly builder = inject(NonNullableFormBuilder)
   protected readonly service = inject(LanIpv4Service)
+  private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly alerts = inject(TuiNotificationService)
   private readonly networkRestart = inject(NetworkRestartService)
   private readonly window = inject(WA_WINDOW)
 
   readonly form = getLanIpv4Form(this.builder)
+  readonly hasStaticIps = signal(false)
 
   constructor() {
     effect(() => {
@@ -77,6 +83,37 @@ export default class LanIpv4 {
         this.form.reset(data)
       }
     })
+    this.loadDependencies()
+  }
+
+  private readonly formValue = toSignal(
+    this.form.valueChanges.pipe(startWith(this.form.getRawValue())),
+    { requireSync: true },
+  )
+
+  readonly saveBlocked = computed(() => {
+    if (!this.hasStaticIps()) return null
+    const data = this.service.data()
+    if (!data) return null
+    const current = this.formValue()
+    if (
+      current.ip?.firstOctet !== data.ip.firstOctet ||
+      current.ip?.routerOctet !== data.ip.routerOctet
+    ) {
+      return 'Cannot change subnet while devices have static IP reservations'
+    }
+    return null
+  })
+
+  private async loadDependencies() {
+    try {
+      const devices = await this.api.devicesList()
+      if (devices.some(d => d.ipv4_static)) {
+        this.hasStaticIps.set(true)
+      }
+    } catch {
+      // If we can't check, leave the form enabled — backend validates anyway
+    }
   }
 
   async onSave() {
@@ -96,7 +133,12 @@ export default class LanIpv4 {
       try {
         await this.service.saveForIpChange(this.form.getRawValue())
       } catch (e: any) {
-        if (!e?.message?.includes('VPN client')) return
+        if (!e?.message?.includes('VPN client')) {
+          this.alerts
+            .open(e?.message || 'Failed to save', { appearance: 'negative' })
+            .subscribe()
+          return
+        }
         const confirmed = await firstValueFrom(
           this.dialogs.open(TUI_CONFIRM, {
             label: 'Inbound VPN Will Be Deleted',

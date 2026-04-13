@@ -8,7 +8,7 @@ export const mockDhcpHosts: DhcpHostSection[] = [
     options: {
       mac: '00:1A:2B:3C:4D:5E',
       ip: '192.168.1.100',
-      hostid: '1a2b:3c4d:5e00:0001', // IPv6 reservation for published port
+      hostid: '1::100',
       name: 'humble-weeds',
       dns: '1',
     },
@@ -107,29 +107,60 @@ export const mockDhcp6LeasesOutput = `# humble-weeds fe80::1a:2bff:fe3c:4d5e 000
 # iPhone13 fe80::dead:beef:cafe:0001 00010003 0 iPhone13
 # android-abc123 fe80::dead:beef:cafe:0002 00010004 0 android-abc123`
 
-// Helper to get connection type based on interface
-// In a real scenario, we'd check which interface the device is on
-export const mockConnectionTypes: Record<string, string> = {
-  '00:1A:2B:3C:4D:5E': 'Ethernet',
-  '00:1A:2B:3C:4D:5F': 'Wi-Fi 5GHz',
-  'DE:AD:BE:EF:CA:FE': 'Wi-Fi 2.4GHz',
-  'DE:AD:BE:EF:CA:FF': 'Wi-Fi 5GHz',
+// Mock device definitions — IPs are computed dynamically from profile gateways
+export interface MockDeviceDef {
+  mac: string
+  hostname: string
+  hostOctet: number // last octet for IPv4, used for IPv6 too
+  profileInterface: string // which profile this device belongs to
+  connection: string
+  status: 'online' | 'offline'
+  speed: { up: number; down: number } | null
+  dataUsage: number
 }
 
-// Mock current speed data (MB/s) - only for online devices
-export const mockDeviceSpeeds: Record<string, { up: number; down: number }> = {
-  '00:1A:2B:3C:4D:5E': { up: 2.3, down: 45.7 },
-  '00:1A:2B:3C:4D:5F': { up: 0.8, down: 12.4 },
-  'DE:AD:BE:EF:CA:FF': { up: 0.1, down: 3.2 },
-}
-
-// Mock data usage totals (GB) - cumulative usage
-export const mockDataUsageTotals: Record<string, number> = {
-  '00:1A:2B:3C:4D:5E': 156.3,
-  '00:1A:2B:3C:4D:5F': 42.8,
-  'DE:AD:BE:EF:CA:FE': 18.2,
-  'DE:AD:BE:EF:CA:FF': 87.5,
-}
+export const MOCK_DEVICE_DEFS: MockDeviceDef[] = [
+  {
+    mac: '00:1A:2B:3C:4D:5E',
+    hostname: 'humble-weeds',
+    hostOctet: 100,
+    profileInterface: 'lan',
+    connection: 'Ethernet',
+    status: 'online',
+    speed: { up: 2.3, down: 45.7 },
+    dataUsage: 156.3,
+  },
+  {
+    mac: '00:1A:2B:3C:4D:5F',
+    hostname: 'Pixel',
+    hostOctet: 101,
+    profileInterface: 'lan',
+    connection: 'Wi-Fi 5GHz',
+    status: 'online',
+    speed: { up: 0.8, down: 12.4 },
+    dataUsage: 42.8,
+  },
+  {
+    mac: 'DE:AD:BE:EF:CA:FE',
+    hostname: 'iPhone13',
+    hostOctet: 102,
+    profileInterface: 'lan',
+    connection: 'Wi-Fi 2.4GHz',
+    status: 'online',
+    speed: null,
+    dataUsage: 18.2,
+  },
+  {
+    mac: 'DE:AD:BE:EF:CA:FF',
+    hostname: 'android-abc123',
+    hostOctet: 103,
+    profileInterface: 'lan',
+    connection: 'Wi-Fi 5GHz',
+    status: 'online',
+    speed: { up: 0.1, down: 3.2 },
+    dataUsage: 87.5,
+  },
+]
 
 // Mock nlbwmon data generator
 // Generates realistic-looking bandwidth data for a given period

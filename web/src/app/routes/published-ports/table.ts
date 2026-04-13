@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  inject,
   input,
   output,
 } from '@angular/core'
@@ -16,8 +17,8 @@ import {
 } from '@taiga-ui/core'
 import { Copy } from 'src/app/components/copy'
 import { Placeholder } from 'src/app/components/placeholder'
-import { injectFormService } from 'src/app/services/form.service'
 import { PublishedPortDisplay } from './types'
+import { PublishedPortsService } from './service'
 
 const PROTOCOL_LABELS = {
   tcp: 'TCP',
@@ -192,10 +193,11 @@ const PROTOCOL_LABELS = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PublishedPortsTable {
-  private readonly service = injectFormService<PublishedPortDisplay[]>()
+  private readonly service = inject(PublishedPortsService)
 
   public readonly publishedPorts = input<PublishedPortDisplay[]>([])
   public readonly ipv4EndpointHost = input<string | null>(null)
+  public readonly ipv6Available = input(true)
   public readonly edit = output<PublishedPortDisplay>()
 
   protected readonly ipSorter: TuiComparator<PublishedPortDisplay> = (a, b) =>
@@ -253,6 +255,16 @@ export class PublishedPortsTable {
   protected toggleEnabled(item: PublishedPortDisplay) {
     item.enabled = !item.enabled
     item.status = item.enabled ? 'active' : 'disabled'
+
+    // Clear IPv6 if no longer available
+    if (item.enabled && item.ipv6 && !this.ipv6Available()) {
+      item.ipv6 = false
+    }
+
+    if (item.enabled && (item.ipv4 || item.ipv6)) {
+      this.service.reserveDeviceIps(item.deviceMac, item.ipv4, item.ipv6)
+    }
+
     this.service.save([...this.publishedPorts()])
   }
 

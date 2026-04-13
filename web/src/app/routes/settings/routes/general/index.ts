@@ -369,6 +369,8 @@ export default class General {
         if (posixTz) {
           await this.api.setTimezone({ timezone, posixTz })
         }
+
+        await this.system.refresh()
       },
       {
         fail: 'Failed to save preferences',

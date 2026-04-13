@@ -193,9 +193,15 @@ const IP: Record<string, string> = {
         }
       </tui-elastic-container>
 
-      @if (reservationNeeds()) {
+      @if (reserveIpv4() || reserveIpv6()) {
         <div tuiNotification appearance="info">
-          Device IPv4 address will be reserved
+          @if (reserveIpv4() && reserveIpv6()) {
+            Device IPv4 and IPv6 addresses will be reserved
+          } @else if (reserveIpv4()) {
+            Device IPv4 address will be reserved
+          } @else {
+            Device IPv6 address will be reserved
+          }
         </div>
       }
 
@@ -293,7 +299,7 @@ export class PublishPortDialog implements OnInit {
   )
 
   // Compute if IPv4 reservation is needed
-  protected readonly reservationNeeds = computed(() => {
+  protected readonly reserveIpv4 = computed(() => {
     const mac = this.selectedDeviceMac()
     const ipVersion = this.selectedIpVersion()
     const device = this.deviceMap().get(mac)
@@ -301,6 +307,17 @@ export class PublishPortDialog implements OnInit {
     if (!device) return false
 
     return (ipVersion === 'ipv4' || ipVersion === 'both') && !device.ipv4Static
+  })
+
+  // Compute if IPv6 reservation is needed
+  protected readonly reserveIpv6 = computed(() => {
+    const mac = this.selectedDeviceMac()
+    const ipVersion = this.selectedIpVersion()
+    const device = this.deviceMap().get(mac)
+
+    if (!device) return false
+
+    return (ipVersion === 'ipv6' || ipVersion === 'both') && !device.ipv6Static
   })
 
   protected readonly protocolValues: Protocol[] = ['tcp', 'udp', 'tcp+udp']
@@ -545,7 +562,8 @@ export class PublishPortDialog implements OnInit {
 
     const result: PublishedPortDialogResult = {
       port,
-      reserveIpv4: this.reservationNeeds(),
+      reserveIpv4: this.reserveIpv4(),
+      reserveIpv6: this.reserveIpv6(),
     }
 
     this.context.completeWith(result)

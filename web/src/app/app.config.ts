@@ -37,7 +37,7 @@ import { LiveApiService } from './services/api/live-api.service'
 import { MockApiService } from './services/api/mock-api.service'
 import { AuthService } from './services/auth.service'
 import { RELATIVE_URL } from './services/http.service'
-import { WorkspaceConfig } from './utils/workspace-config'
+import { IS_MOCK, WorkspaceConfig } from './utils/workspace-config'
 
 const { useMocks, api } = require('../../config.json') as WorkspaceConfig
 
@@ -70,6 +70,10 @@ export const appConfig: ApplicationConfig = {
     {
       provide: ApiService,
       useClass: useMocks ? MockApiService : LiveApiService,
+    },
+    {
+      provide: IS_MOCK,
+      useValue: useMocks,
     },
     {
       provide: RELATIVE_URL,

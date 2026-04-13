@@ -73,19 +73,12 @@ import {
   BackupRestoreRes,
   DiagnosticsCreateRes,
 } from './api.service'
-import {
-  DhcpSection,
-  NetworkInterfaceSection,
-  UciFile,
-  UciSection,
-} from './types'
+import { UciFile, UciSection } from './types'
 import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/lan/routes/ipv6/uci/mocks'
 import {
   generateMockDataUsage,
   getMockArpOutput,
-  mockConnectionTypes,
-  mockDataUsageTotals,
-  mockDeviceSpeeds,
+  MOCK_DEVICE_DEFS,
   mockDhcpHosts,
   mockDhcpLeasesOutput,
 } from 'src/app/routes/devices/uci/mocks'
@@ -106,10 +99,11 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setTimezone(_params: {
+  async setTimezone(params: {
     timezone: string
     posixTz: string
   }): Promise<null> {
+    this.mockSystemInfo.timezone = params.timezone
     return null
   }
 
@@ -169,8 +163,12 @@ export class MockApiService extends ApiService {
       return {
         exitCode: 0,
         stdout: JSON.stringify({
-          'ipv4-address': [{ address: '203.0.113.45', mask: 24 }],
-          'ipv6-address': [],
+          'ipv4-address': this.mockWanIpv4.assigned_ip
+            ? [{ address: this.mockWanIpv4.assigned_ip, mask: 24 }]
+            : [],
+          'ipv6-address': this.mockWanIpv6.assigned_ipv6
+            ? [{ address: this.mockWanIpv6.assigned_ipv6, mask: 64 }]
+            : [],
         }),
         stderr: '',
       }
@@ -281,17 +279,18 @@ export class MockApiService extends ApiService {
     )
   }
 
+  private mockSystemInfo: SystemInfoRes = {
+    version: '1.0.0',
+    language: 'en_US',
+    date: new Date().toISOString(),
+    theme: 'system',
+    remoteAccess: 'default',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  }
+
   async systemInfo(): Promise<SystemInfoRes> {
     await pauseFor(250)
-
-    return {
-      version: '1.0.0',
-      language: 'en_US',
-      date: new Date().toISOString(),
-      theme: 'system',
-      remoteAccess: 'default',
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    }
+    return { ...this.mockSystemInfo, date: new Date().toISOString() }
   }
 
   async systemNewerVersions(): Promise<VersionInfo[]> {
@@ -339,6 +338,17 @@ export class MockApiService extends ApiService {
 
   async setPreferences(params: SetPreferencesReq): Promise<null> {
     await pauseFor(250)
+    if (params.language !== undefined)
+      this.mockSystemInfo.language = params.language
+    if (params.theme !== undefined) this.mockSystemInfo.theme = params.theme
+    if (params.remoteAccess !== undefined) {
+      this.mockSystemInfo.remoteAccess = params.remoteAccess
+      this.logActivity(
+        'system',
+        'remote-access',
+        `Updated remote access to '${params.remoteAccess}'`,
+      )
+    }
     return null
   }
 
@@ -420,27 +430,42 @@ export class MockApiService extends ApiService {
           : s,
       )
     } else {
+      const profile = this.mockProfiles.find(
+        p => p.interface === params.profile,
+      )
       this.mockVpnServers = [
         ...this.mockVpnServers,
         {
           profile: params.profile,
           ...params.config,
           public_key: 'mock' + btoa(String(Date.now())).slice(0, 40) + '=',
-          server_address: '192.168.1.1',
+          server_address: profile?.gateway_ip ?? '192.168.1.1',
           peers: [],
         },
       ]
     }
     this.persistVpnServers()
+    this.logActivity(
+      'vpn-server',
+      existingIndex >= 0 ? 'updated' : 'created',
+      `${existingIndex >= 0 ? 'Updated' : 'Created'} inbound VPN '${params.config.label}'`,
+    )
     return null
   }
 
   async vpnServerDelete(params: VpnServerDeleteArgs): Promise<null> {
     await pauseFor(250)
+    const deleted = this.mockVpnServers.find(s => s.profile === params.profile)
     this.mockVpnServers = this.mockVpnServers.filter(
       s => s.profile !== params.profile,
     )
     this.persistVpnServers()
+    if (deleted)
+      this.logActivity(
+        'vpn-server',
+        'deleted',
+        `Deleted inbound VPN '${deleted.label}'`,
+      )
     return null
   }
 
@@ -460,6 +485,11 @@ export class MockApiService extends ApiService {
       s.profile === params.profile ? { ...s, peers: [...s.peers, peer] } : s,
     )
     this.persistVpnServers()
+    this.logActivity(
+      'vpn-server',
+      'updated',
+      `Added peer '${params.peer.name}' to inbound VPN`,
+    )
     return {
       public_key: generatedKey,
       ip,
@@ -471,6 +501,8 @@ export class MockApiService extends ApiService {
 
   async vpnServerPeerDelete(params: VpnServerPeerDeleteArgs): Promise<null> {
     await pauseFor(250)
+    const server = this.mockVpnServers.find(s => s.profile === params.profile)
+    const peer = server?.peers.find(p => p.public_key === params.public_key)
     this.mockVpnServers = this.mockVpnServers.map(s =>
       s.profile === params.profile
         ? {
@@ -480,6 +512,12 @@ export class MockApiService extends ApiService {
         : s,
     )
     this.persistVpnServers()
+    if (peer)
+      this.logActivity(
+        'vpn-server',
+        'updated',
+        `Removed peer '${peer.name}' from inbound VPN`,
+      )
     return null
   }
 
@@ -526,6 +564,11 @@ export class MockApiService extends ApiService {
   async wifiSet(params: WifiConfig): Promise<null> {
     await pauseFor(250)
     this.mockWifi = structuredClone(params)
+    this.logActivity(
+      'wifi',
+      'updated',
+      `Updated WiFi settings (SSID: '${params.ssid}')`,
+    )
     return null
   }
 
@@ -557,6 +600,11 @@ export class MockApiService extends ApiService {
   async wifiBlackoutSet(params: BlackoutWindow[]): Promise<null> {
     await pauseFor(250)
     this.mockBlackoutWindows = structuredClone(params)
+    this.logActivity(
+      'wifi',
+      'updated',
+      `Updated WiFi blackout schedule (${params.length} window${params.length !== 1 ? 's' : ''})`,
+    )
     return null
   }
 
@@ -657,6 +705,7 @@ export class MockApiService extends ApiService {
       wan_access: params.wan_access,
       access_to_new_profiles: params.access_to_new_profiles,
       owns_lan: params.owns_lan,
+      dns_override: params.dns_override,
       dns_source: params.dns_override?.length
         ? 'custom'
         : params.outbound !== 'wan'
@@ -665,6 +714,11 @@ export class MockApiService extends ApiService {
     }
 
     this.mockProfiles = [...this.mockProfiles, newProfile]
+    this.logActivity(
+      'profile',
+      'created',
+      `Created profile '${newProfile.fullname}'`,
+    )
 
     return {
       fullname: newProfile.fullname,
@@ -676,22 +730,67 @@ export class MockApiService extends ApiService {
   async profileUpdate(params: ProfileUpdateInput): Promise<ProfileId> {
     await pauseFor(250)
 
+    const old = this.mockProfiles.find(
+      p => p.interface === params.interface && p.vlan_tag === params.vlan_tag,
+    )
+    const newFullname = params.fullname || old?.fullname || ''
+
     this.mockProfiles = this.mockProfiles.map(p =>
       p.interface === params.interface && p.vlan_tag === params.vlan_tag
         ? {
             ...p,
-            fullname: params.fullname || p.fullname,
+            fullname: newFullname,
             gateway_ip: params.gateway_ip,
             outbound: params.outbound,
             lan_access: params.lan_access as any,
             wan_access: params.wan_access,
             access_to_new_profiles: params.access_to_new_profiles,
+            owns_lan: params.owns_lan,
+            dns_override: params.dns_override,
+            dns_source: params.dns_override?.length
+              ? 'custom'
+              : params.outbound !== 'wan'
+                ? 'vpn'
+                : 'system',
           }
         : p,
     )
 
+    // Cascade fullname change to WiFi passwords and ethernet ports
+    if (old && newFullname !== old.fullname) {
+      this.mockWifi = {
+        ...this.mockWifi,
+        passwords: this.mockWifi.passwords.map(pw =>
+          pw.profile?.interface === params.interface
+            ? { ...pw, profile: { ...pw.profile, fullname: newFullname } }
+            : pw,
+        ),
+      }
+      this.mockEthernet = {
+        ...this.mockEthernet,
+        ports: Object.fromEntries(
+          Object.entries(this.mockEthernet.ports).map(([name, port]) => [
+            name,
+            {
+              profile:
+                port.profile?.interface === params.interface
+                  ? { ...port.profile, fullname: newFullname }
+                  : port.profile,
+            },
+          ]),
+        ),
+      }
+    }
+
+    // Keep LAN IP in sync if this is the LAN-owning profile
+    if (params.owns_lan) {
+      this.mockLanIpv4 = { ...this.mockLanIpv4, address: params.gateway_ip }
+    }
+
+    this.logActivity('profile', 'updated', `Updated profile '${newFullname}'`)
+
     return {
-      fullname: params.fullname || '',
+      fullname: newFullname,
       interface: params.interface,
       vlan_tag: params.vlan_tag,
     }
@@ -700,14 +799,73 @@ export class MockApiService extends ApiService {
   async profileDelete(params: ProfileIdOpt): Promise<null> {
     await pauseFor(250)
 
-    this.mockProfiles = this.mockProfiles.filter(
+    const deleted = this.mockProfiles.find(
       p =>
-        !(
-          (!params.fullname || p.fullname === params.fullname) &&
-          (!params.interface || p.interface === params.interface) &&
-          (params.vlan_tag === undefined || p.vlan_tag === params.vlan_tag)
-        ),
+        (!params.fullname || p.fullname === params.fullname) &&
+        (!params.interface || p.interface === params.interface) &&
+        (params.vlan_tag === undefined || p.vlan_tag === params.vlan_tag),
     )
+
+    this.mockProfiles = this.mockProfiles.filter(p => p !== deleted)
+
+    if (deleted) {
+      // Cascade: clear WiFi password profile references
+      this.mockWifi = {
+        ...this.mockWifi,
+        passwords: this.mockWifi.passwords.map(pw =>
+          pw.profile?.interface === deleted.interface
+            ? { ...pw, profile: null }
+            : pw,
+        ),
+      }
+
+      // Cascade: reset ethernet ports to null
+      this.mockEthernet = {
+        ...this.mockEthernet,
+        ports: Object.fromEntries(
+          Object.entries(this.mockEthernet.ports).map(([name, port]) => [
+            name,
+            {
+              profile:
+                port.profile?.interface === deleted.interface
+                  ? null
+                  : port.profile,
+            },
+          ]),
+        ),
+      }
+
+      // Cascade: remove VPN servers for this profile
+      this.mockVpnServers = this.mockVpnServers.filter(
+        s => s.profile !== deleted.interface,
+      )
+      this.persistVpnServers()
+
+      // Cascade: reset any profiles using this one in lan_access other_profiles
+      this.mockProfiles = this.mockProfiles.map(p => {
+        if (
+          typeof p.lan_access === 'object' &&
+          'other_profiles' in p.lan_access
+        ) {
+          const filtered = p.lan_access.other_profiles.filter(
+            op => op.interface !== deleted.interface,
+          )
+          return {
+            ...p,
+            lan_access: filtered.length
+              ? { other_profiles: filtered }
+              : 'SAME_PROFILE',
+          }
+        }
+        return p
+      })
+
+      this.logActivity(
+        'profile',
+        'deleted',
+        `Deleted profile '${deleted.fullname}'`,
+      )
+    }
     return null
   }
 
@@ -785,89 +943,31 @@ export class MockApiService extends ApiService {
   async devicesList(): Promise<DeviceFromApi[]> {
     await pauseFor(250)
 
-    const wanIpv6 = this.isWanIpv6Enabled()
-    const lanIpv6 = this.isLanIpv6Enabled()
-    const arpOutput = getMockArpOutput(wanIpv6, lanIpv6)
-
-    // Parse ARP entries
-    const arpByMac = new Map<
-      string,
-      { ip: string; iface: string; state: string }[]
-    >()
-    for (const line of arpOutput.split('\n')) {
-      const match = line.match(
-        /^(\S+)\s+dev\s+(\S+)\s+lladdr\s+([0-9a-fA-F:]+)\s+(\S+)/,
+    return MOCK_DEVICE_DEFS.map(def => {
+      const mac = def.mac.toUpperCase()
+      const host = this.mockDeviceHosts.find(
+        h => h.options.mac?.toUpperCase() === mac,
       )
-      if (match && match[2].startsWith('br-lan')) {
-        const mac = match[3].toUpperCase()
-        if (!arpByMac.has(mac)) arpByMac.set(mac, [])
-        arpByMac
-          .get(mac)!
-          .push({ ip: match[1], iface: match[2], state: match[4] })
-      }
-    }
-
-    // Parse DHCP leases
-    const leaseByMac = new Map<string, { ip: string; hostname: string }>()
-    for (const line of mockDhcpLeasesOutput.split('\n')) {
-      const parts = line.split(/\s+/)
-      if (parts.length >= 4) {
-        leaseByMac.set(parts[1].toUpperCase(), {
-          ip: parts[2],
-          hostname: parts[3],
-        })
-      }
-    }
-
-    // Build host map
-    const hostByMac = new Map(
-      this.mockDeviceHosts.map(h => [h.options.mac!.toUpperCase(), h]),
-    )
-
-    // All MACs
-    const allMacs = new Set([
-      ...arpByMac.keys(),
-      ...leaseByMac.keys(),
-      ...hostByMac.keys(),
-    ])
-
-    const devices: DeviceFromApi[] = []
-    for (const mac of allMacs) {
-      const arpList = arpByMac.get(mac) || []
-      const lease = leaseByMac.get(mac)
-      const host = hostByMac.get(mac)
-
-      const status: DeviceFromApi['status'] = arpList.some(
-        e => e.state === 'REACHABLE' || e.state === 'STALE',
+      const device = this.lookupDeviceByMac(mac)
+      const profile = this.mockProfiles.find(
+        p => p.interface === def.profileInterface,
       )
-        ? 'online'
-        : 'offline'
 
-      const ipv4 =
-        arpList.find(e => !e.ip.includes(':'))?.ip || lease?.ip || null
-      const ipv6 =
-        arpList.find(e => e.ip.includes(':') && !e.ip.startsWith('fe80:'))
-          ?.ip ||
-        arpList.find(e => e.ip.startsWith('fe80:'))?.ip ||
-        null
-
-      devices.push({
+      return {
         mac,
-        name: host?.options.name || null,
-        hostname: lease?.hostname || null,
-        status,
-        connection:
-          status === 'online' ? (mockConnectionTypes[mac] ?? 'Ethernet') : null,
-        ipv4,
-        ipv6,
+        name: device.name,
+        hostname: def.hostname,
+        status: def.status,
+        connection: def.status === 'online' ? def.connection : null,
+        ipv4: device.ipv4,
+        ipv6: device.ipv6,
         ipv4_static: !!host?.options.ip,
         ipv6_static: !!host?.options.hostid,
-        security_profile: 'Admin',
-        speed: status === 'online' ? (mockDeviceSpeeds[mac] ?? null) : null,
-        data_usage: mockDataUsageTotals[mac] ?? null,
-      })
-    }
-    return devices
+        security_profile: profile?.fullname ?? null,
+        speed: def.status === 'online' ? def.speed : null,
+        data_usage: def.dataUsage,
+      }
+    })
   }
 
   async devicesUpdate(params: DeviceUpdateReq): Promise<null> {
@@ -880,7 +980,7 @@ export class MockApiService extends ApiService {
       existing.options.name = params.name
       existing.options.ip = params.ipv4_static ? params.ipv4 : undefined
       existing.options.hostid = params.ipv6_static
-        ? params.ipv6.split(':').slice(-4).join(':')
+        ? `1::${parseInt(params.ipv6.split(':').pop() || '0', 16)}`
         : undefined
     } else {
       this.mockDeviceHosts.push({
@@ -891,21 +991,30 @@ export class MockApiService extends ApiService {
           name: params.name,
           ip: params.ipv4_static ? params.ipv4 : undefined,
           hostid: params.ipv6_static
-            ? params.ipv6.split(':').slice(-4).join(':')
+            ? `1::${parseInt(params.ipv6.split(':').pop() || '0', 16)}`
             : undefined,
           dns: '1',
         },
         lists: {},
       })
     }
+    this.logActivity('device', 'updated', `Updated device '${params.name}'`)
     return null
   }
 
   async devicesForget(params: { mac: string }): Promise<null> {
     await pauseFor(250)
     const macUpper = params.mac.toUpperCase()
+    const deleted = this.mockDeviceHosts.find(
+      h => h.options.mac?.toUpperCase() === macUpper,
+    )
     this.mockDeviceHosts = this.mockDeviceHosts.filter(
       h => h.options.mac?.toUpperCase() !== macUpper,
+    )
+    this.logActivity(
+      'device',
+      'deleted',
+      `Forgot device '${deleted?.options.name || params.mac}'`,
     )
     return null
   }
@@ -918,8 +1027,8 @@ export class MockApiService extends ApiService {
   }
 
   private mockLanIpv4: LanIpv4Response = {
-    address: '192.168.0.1',
-    netmask: '255.255.0.0',
+    address: '192.168.1.1',
+    netmask: '255.255.255.0',
   }
 
   async lanIpv4Get(): Promise<LanIpv4Response> {
@@ -930,6 +1039,15 @@ export class MockApiService extends ApiService {
   async lanIpv4Set(params: LanIpv4SetRequest): Promise<null> {
     await pauseFor(250)
     this.mockLanIpv4 = { ...this.mockLanIpv4, address: params.address }
+    // Keep Admin profile gateway in sync with LAN IP
+    this.mockProfiles = this.mockProfiles.map(p =>
+      p.owns_lan ? { ...p, gateway_ip: params.address } : p,
+    )
+    this.logActivity(
+      'lan',
+      'ipv4-updated',
+      `Updated LAN IPv4 address to ${params.address}`,
+    )
     return null
   }
 
@@ -954,6 +1072,11 @@ export class MockApiService extends ApiService {
       dhcpv6: params.dhcpv6,
       prefix: params.prefix,
     }
+    this.logActivity(
+      'lan',
+      'ipv6-updated',
+      `Updated LAN IPv6 (SLAAC: ${params.slaac ? 'on' : 'off'}, DHCPv6: ${params.dhcpv6 ? 'on' : 'off'})`,
+    )
     return null
   }
 
@@ -980,6 +1103,12 @@ export class MockApiService extends ApiService {
     this.mockWanIpv4 = {
       ...this.mockWanIpv4,
       mode: params.mode,
+      assigned_ip:
+        params.mode === 'static'
+          ? (params.address ?? null)
+          : params.mode === 'dhcp'
+            ? '203.0.113.45'
+            : (params.address ?? null),
       address: params.address ?? null,
       netmask: params.netmask ?? null,
       gateway: params.gateway ?? null,
@@ -987,6 +1116,11 @@ export class MockApiService extends ApiService {
       password: params.password ?? null,
       device: params.device ?? this.mockWanIpv4.device,
     }
+    this.logActivity(
+      'wan',
+      'ipv4-updated',
+      `Updated WAN IPv4 (mode: ${params.mode})`,
+    )
     return null
   }
 
@@ -1020,7 +1154,18 @@ export class MockApiService extends ApiService {
       ip4prefixlen: params.ip4prefixlen ?? null,
       border_relay: params.border_relay ?? null,
       lan_prefix: params.lan_prefix ?? null,
+      assigned_ipv6:
+        params.mode === 'disabled'
+          ? null
+          : params.mode === 'static'
+            ? (params.address ?? null)
+            : (this.mockWanIpv6.assigned_ipv6 ?? '2001:db8::1'),
     }
+    this.logActivity(
+      'wan',
+      'ipv6-updated',
+      `Updated WAN IPv6 (mode: ${params.mode})`,
+    )
     return null
   }
 
@@ -1084,15 +1229,30 @@ export class MockApiService extends ApiService {
 
   async wanDdnsSet(params: WanDdnsSetRequest): Promise<null> {
     await pauseFor(250)
+    // Only store fields relevant to the selected provider (matches real backend)
+    const providerFields: Record<string, readonly string[]> = {
+      start9: [],
+      dyndns: ['username', 'password', 'hostname'],
+      noip: ['username', 'password', 'hostname'],
+      cloudflare: ['token', 'zone', 'hostname'],
+      duckdns: ['token', 'hostname'],
+      freedns: ['token', 'hostname'],
+    }
+    const fields = providerFields[params.provider] ?? []
     this.mockWanDdns = {
       enabled: params.enabled,
       provider: params.provider,
-      hostname: params.hostname ?? null,
-      username: params.username ?? null,
-      password: params.password ?? null,
-      token: params.token ?? null,
-      zone: params.zone ?? null,
+      hostname: fields.includes('hostname') ? (params.hostname ?? null) : null,
+      username: fields.includes('username') ? (params.username ?? null) : null,
+      password: fields.includes('password') ? (params.password ?? null) : null,
+      token: fields.includes('token') ? (params.token ?? null) : null,
+      zone: fields.includes('zone') ? (params.zone ?? null) : null,
     }
+    this.logActivity(
+      'wan',
+      'ddns-updated',
+      `Updated DDNS (provider: ${params.provider}, ${params.enabled ? 'enabled' : 'disabled'})`,
+    )
     return null
   }
 
@@ -1154,26 +1314,98 @@ export class MockApiService extends ApiService {
 
   async publishedPortsList(): Promise<PublishedPortFromApi[]> {
     await pauseFor(250)
-    return structuredClone(this.mockPublishedPorts)
+    // Re-enrich device info on every fetch to reflect device changes
+    return this.mockPublishedPorts.map(p => {
+      const device = this.lookupDeviceByMac(p.device_mac)
+      return {
+        ...p,
+        device_name: device.name,
+        device_ipv4: device.ipv4,
+        device_ipv6: device.ipv6,
+      }
+    })
+  }
+
+  private lookupDeviceByMac(mac: string): {
+    name: string | null
+    ipv4: string | null
+    ipv6: string | null
+  } {
+    const macUpper = mac.toUpperCase()
+    const host = this.mockDeviceHosts.find(
+      h => h.options.mac?.toUpperCase() === macUpper,
+    )
+    const def = MOCK_DEVICE_DEFS.find(d => d.mac.toUpperCase() === macUpper)
+
+    // Compute IPv4 from profile gateway + host octet
+    let ipv4: string | null = null
+    if (host?.options.ip) {
+      ipv4 = host.options.ip
+    } else if (def) {
+      const gateway = this.mockProfiles.find(
+        p => p.interface === def.profileInterface,
+      )?.gateway_ip
+      const subnet = gateway?.split('.').slice(0, 3).join('.') ?? '192.168.1'
+      ipv4 = `${subnet}.${def.hostOctet}`
+    }
+
+    // Compute IPv6
+    let ipv6: string | null = null
+    if (def && this.isLanIpv6Enabled()) {
+      ipv6 = this.isWanIpv6Enabled()
+        ? `2001:db8:abcd:1::${def.hostOctet}`
+        : `fd00:1234:5678::${def.hostOctet}`
+    }
+
+    return { name: host?.options.name ?? null, ipv4, ipv6 }
   }
 
   async publishedPortsSet(params: PublishedPortsSetRequest): Promise<null> {
     await pauseFor(250)
+
+    // Auto-reserve static IPs for enabled ports (matches real backend behavior)
+    for (const input of params.ports) {
+      if (!input.enabled) continue
+      const macUpper = input.device_mac.toUpperCase()
+      const existing = this.mockDeviceHosts.find(
+        h => h.options.mac?.toUpperCase() === macUpper,
+      )
+
+      // Reserve IPv4 static if port uses IPv4 and no reservation exists
+      if (input.ipv4 && existing && !existing.options.ip) {
+        const leaseIp = mockDhcpLeasesOutput
+          .split('\n')
+          .find(l => l.includes(input.device_mac.toLowerCase()))
+          ?.split(/\s+/)[2]
+        if (leaseIp) existing.options.ip = leaseIp
+      }
+
+      // Reserve IPv6 static if port uses IPv6 and no reservation exists
+      if (input.ipv6 && existing && !existing.options.hostid) {
+        const def = MOCK_DEVICE_DEFS.find(d => d.mac.toUpperCase() === macUpper)
+        if (def) existing.options.hostid = `1::${def.hostOctet}`
+      }
+    }
+
     // Update the mock data — enrich inputs with existing display data
     this.mockPublishedPorts = params.ports.map(input => {
       const existing = this.mockPublishedPorts.find(p => p.id === input.id)
+      const device = this.lookupDeviceByMac(input.device_mac)
       return {
         ...input,
         ipv4_public_port: input.ipv4_public_port ?? null,
-        status: input.enabled
-          ? (existing?.status ?? 'active')
-          : ('disabled' as const),
+        status: input.enabled ? ('active' as const) : ('disabled' as const),
         status_reason: input.enabled ? null : null,
-        device_name: existing?.device_name ?? null,
-        device_ipv4: existing?.device_ipv4 ?? null,
-        device_ipv6: existing?.device_ipv6 ?? null,
+        device_name: device.name,
+        device_ipv4: device.ipv4,
+        device_ipv6: device.ipv6,
       }
     })
+    this.logActivity(
+      'port-forward',
+      'updated',
+      `Updated published ports (${params.ports.length} rule${params.ports.length !== 1 ? 's' : ''})`,
+    )
     return null
   }
 
@@ -1198,7 +1430,14 @@ export class MockApiService extends ApiService {
 
   async vpnClientList(): Promise<OutboundVpn[]> {
     await pauseFor(250)
-    return structuredClone(this.mockVpnClients)
+    return structuredClone(
+      this.mockVpnClients.map(c => ({
+        ...c,
+        used_by: this.mockProfiles
+          .filter(p => p.outbound === c.id)
+          .map(p => p.interface),
+      })),
+    )
   }
 
   async vpnClientCreate(
@@ -1216,6 +1455,11 @@ export class MockApiService extends ApiService {
         used_by: [],
       },
     ]
+    this.logActivity(
+      'vpn-client',
+      'created',
+      `Created outbound VPN '${params.label}'`,
+    )
     return { id }
   }
 
@@ -1226,12 +1470,36 @@ export class MockApiService extends ApiService {
         ? { ...c, label: params.label, target: params.target }
         : c,
     )
+    this.logActivity(
+      'vpn-client',
+      'updated',
+      `Updated outbound VPN '${params.label}'`,
+    )
     return null
   }
 
   async vpnClientDelete(params: OutboundVpnDeleteRequest): Promise<null> {
     await pauseFor(250)
+    const deleted = this.mockVpnClients.find(c => c.id === params.id)
     this.mockVpnClients = this.mockVpnClients.filter(c => c.id !== params.id)
+
+    if (deleted) {
+      // Cascade: reset VPN clients that targeted the deleted VPN
+      this.mockVpnClients = this.mockVpnClients.map(c =>
+        c.target === deleted.label ? { ...c, target: 'Internet' } : c,
+      )
+      // Cascade: switch profiles routed through this VPN to WAN
+      this.mockProfiles = this.mockProfiles.map(p =>
+        p.outbound === deleted.id
+          ? { ...p, outbound: 'wan', dns_source: 'system' as const }
+          : p,
+      )
+      this.logActivity(
+        'vpn-client',
+        'deleted',
+        `Deleted outbound VPN '${deleted.label}'`,
+      )
+    }
     return null
   }
 
@@ -1239,9 +1507,26 @@ export class MockApiService extends ApiService {
     params: OutboundVpnSetEnabledRequest,
   ): Promise<null> {
     await pauseFor(250)
+    const vpn = this.mockVpnClients.find(c => c.id === params.id)
     this.mockVpnClients = this.mockVpnClients.map(c =>
       c.id === params.id ? { ...c, enabled: params.enabled } : c,
     )
+
+    // When disabling, switch all profiles routed through this VPN back to WAN
+    if (!params.enabled) {
+      this.mockProfiles = this.mockProfiles.map(p =>
+        p.outbound === params.id
+          ? { ...p, outbound: 'wan', dns_source: 'system' as const }
+          : p,
+      )
+    }
+
+    if (vpn)
+      this.logActivity(
+        'vpn-client',
+        params.enabled ? 'enabled' : 'disabled',
+        `${params.enabled ? 'Enabled' : 'Disabled'} outbound VPN '${vpn.label}'`,
+      )
     return null
   }
 
@@ -1293,6 +1578,12 @@ export class MockApiService extends ApiService {
         ]),
       ),
     }
+    const changedPorts = Object.keys(params.ports).join(', ')
+    this.logActivity(
+      'ethernet',
+      'updated',
+      `Updated ethernet ports (${changedPorts})`,
+    )
     return null
   }
 
@@ -1329,15 +1620,49 @@ export class MockApiService extends ApiService {
       hostname: parts.slice(2).join(' ') || '',
     }
     this.mockSshKeys = [...this.mockSshKeys, newKey]
+    this.logActivity(
+      'ssh',
+      'created',
+      `Added SSH key '${newKey.hostname || newKey.algorithm}'`,
+    )
     return newKey
   }
 
   async sshKeysDelete(params: SshKeysDeleteRequest): Promise<null> {
     await pauseFor(250)
+    const deleted = this.mockSshKeys.find(
+      k => k.fingerprint === params.fingerprint,
+    )
     this.mockSshKeys = this.mockSshKeys.filter(
       k => k.fingerprint !== params.fingerprint,
     )
+    if (deleted)
+      this.logActivity(
+        'ssh',
+        'deleted',
+        `Removed SSH key '${deleted.hostname || deleted.algorithm}'`,
+      )
     return null
+  }
+
+  private mockActivityNextId = 25
+
+  private logActivity(
+    category: string,
+    action: string,
+    summary: string,
+    success = true,
+    error: string | null = null,
+  ): void {
+    this.mockActivity.unshift({
+      id: this.mockActivityNextId++,
+      timestamp: new Date().toISOString(),
+      category,
+      action,
+      success,
+      summary,
+      error,
+    })
   }
 
   private mockActivity: ActivityEntry[] = Array.from(
@@ -1408,34 +1733,14 @@ export class MockApiService extends ApiService {
    * Check if WAN IPv6 is enabled in mock UCI data
    */
   private isWanIpv6Enabled(): boolean {
-    const network = mockUci['network']
-    if (!network) return false
-
-    const wan6 = network.sections.find(
-      s => s.type === 'interface' && s.name === 'wan6',
-    ) as NetworkInterfaceSection | undefined
-    if (!wan6) return false
-
-    // Check if proto is not 'none' or disabled
-    const proto = wan6.options?.proto
-    return !!proto && proto !== 'none'
+    return this.mockEthernet.wan_ipv6
   }
 
   /**
    * Check if LAN IPv6 is enabled in mock UCI data
    */
   private isLanIpv6Enabled(): boolean {
-    const dhcp = mockUci['dhcp']
-    if (!dhcp) return false
-
-    const lan = dhcp.sections.find(
-      s => s.type === 'dhcp' && s.name === 'lan',
-    ) as DhcpSection | undefined
-    if (!lan) return false
-
-    // Check ra (router advertisement) setting
-    const ra = lan.options?.ra
-    return !!ra && ra !== 'disabled'
+    return this.mockLanIpv6.slaac
   }
 }
 
