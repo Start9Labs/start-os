@@ -16,6 +16,7 @@ import { HeaderStatusComponent } from './status.component'
   template: `
     <header-navigation />
     <div class="item item_center">
+      <ng-content />
       <div class="mobile"><ng-container #vcr /></div>
     </div>
     <header-status class="item item_connection" />
