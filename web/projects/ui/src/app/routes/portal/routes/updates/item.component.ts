@@ -9,6 +9,7 @@ import {
 import { RouterLink } from '@angular/router'
 import { MarketplacePkg } from '@start9labs/marketplace'
 import {
+  DialogService,
   i18nPipe,
   LocalizePipe,
   MarkdownPipe,
@@ -29,7 +30,9 @@ import {
   TuiFade,
   TuiProgressCircle,
 } from '@taiga-ui/kit'
+import { filter } from 'rxjs'
 import { InstallingProgressPipe } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
+import { HiddenUpdatesService } from 'src/app/services/hidden-updates.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   InstalledState,
@@ -93,10 +96,24 @@ import UpdatesComponent from './updates.component'
                 | installingProgress) || 0
             "
           />
+        } @else if (pending()) {
+          <span class="g-secondary pending">
+            {{ 'Finding suitable version...' | i18n }}
+          </span>
         } @else {
           <button
-            tuiButton
+            tuiIconButton
             size="s"
+            appearance="secondary"
+            iconStart="@tui.x"
+            (click.stop)="hide()"
+          >
+            {{ 'Hide' | i18n }}
+          </button>
+          <button
+            tuiIconButton
+            size="s"
+            iconStart="@tui.download"
             [loading]="!ready()"
             [appearance]="error() ? 'destructive' : 'primary'"
             (click.stop)="update()"
@@ -187,6 +204,10 @@ import UpdatesComponent from './updates.component'
       &:last-child {
         white-space: nowrap;
         text-align: right;
+
+        [tuiIconButton] + [tuiIconButton] {
+          margin-inline-start: 0.375rem;
+        }
       }
 
       &[colspan]:only-child {
@@ -198,6 +219,11 @@ import UpdatesComponent from './updates.component'
 
     [tuiTitle] {
       margin: 1rem 0;
+    }
+
+    .pending {
+      margin-right: 0.5rem;
+      font-style: italic;
     }
 
     .mobile {
@@ -254,6 +280,8 @@ import UpdatesComponent from './updates.component'
 })
 export class UpdatesItemComponent {
   private readonly service = inject(MarketplaceService)
+  private readonly dialog = inject(DialogService)
+  private readonly hiddenUpdates = inject(HiddenUpdatesService)
 
   readonly parent = inject(UpdatesComponent)
   readonly expanded = signal(false)
@@ -263,6 +291,7 @@ export class UpdatesItemComponent {
   readonly item = input.required<MarketplacePkg>()
   readonly local =
     input.required<PackageDataEntry<InstalledState | UpdatingState>>()
+  readonly pending = input.required<boolean>()
 
   async update() {
     const { id, version } = this.item()
@@ -277,5 +306,24 @@ export class UpdatesItemComponent {
     } finally {
       this.ready.set(true)
     }
+  }
+
+  hide() {
+    this.dialog
+      .openConfirm({
+        label: 'Hide Update?',
+        size: 's',
+        data: {
+          content:
+            'This update will be hidden. You can still install this version from the Marketplace.',
+          yes: 'Hide',
+          no: 'Cancel',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => {
+        const { id, version } = this.item()
+        this.hiddenUpdates.hide(id, version)
+      })
   }
 }

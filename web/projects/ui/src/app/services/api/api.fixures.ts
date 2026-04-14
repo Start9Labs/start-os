@@ -829,7 +829,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           sdkVersion: '0.4.0-beta.49',
           gitHash: 'fakehash',
           icon: BTC_ICON,
-          sourceVersion: null,
+          sourceVersion: '>=26.0.0:0',
           satisfies: [],
           dependencyMetadata: {},
           donationUrl: null,

@@ -1,4 +1,3 @@
-import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,21 +5,25 @@ import {
   signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
   Marketplace,
+  MarketplacePkg,
   StoreIconComponent,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { TuiButton, TuiNotification, TuiTitle, TuiCell } from '@taiga-ui/core'
+import { i18nPipe } from '@start9labs/shared'
+import { TuiButton, TuiCell, TuiNotification, TuiTitle } from '@taiga-ui/core'
 import {
   TuiAvatar,
   TuiBadgeNotification,
   TuiFade,
   TuiSkeleton,
 } from '@taiga-ui/kit'
-import { combineLatest, tap } from 'rxjs'
+import { combineLatest, map, tap } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
+import { HiddenUpdatesService } from 'src/app/services/hidden-updates.service'
 import { LocalPackagesService } from 'src/app/services/local-packages.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
@@ -29,15 +32,20 @@ import {
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
+import {
+  refinementKey,
+  UpdatesRefinementService,
+} from 'src/app/services/updates-refinement.service'
 import { FilterUpdatesPipe } from './filter-updates.pipe'
 import { UpdatesItemComponent } from './item.component'
-import { i18nPipe } from '@start9labs/shared'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
   marketplace: Marketplace
   localPkgs: Record<string, PackageDataEntry<InstalledState | UpdatingState>>
   errors: string[]
+  hidden: Record<string, string[]>
+  pending: Set<string>
 }
 
 @Component({
@@ -78,7 +86,7 @@ interface UpdatesData {
           @if (
             (
               data()?.marketplace?.[registry.url]?.packages || []
-              | filterUpdates: data()?.localPkgs
+              | filterUpdates: data()?.localPkgs : data()?.hidden
             ).length;
             as length
           ) {
@@ -108,11 +116,15 @@ interface UpdatesData {
             data()?.marketplace?.[current()?.url || '']?.packages;
             as packages
           ) {
-            @if (packages | filterUpdates: data()?.localPkgs; as updates) {
+            @if (
+              packages | filterUpdates: data()?.localPkgs : data()?.hidden;
+              as updates
+            ) {
               @for (pkg of updates; track $index) {
                 <updates-item
                   [item]="pkg"
                   [local]="data()?.localPkgs?.[pkg.id]!"
+                  [pending]="isPending(pkg)"
                 />
               } @empty {
                 <tr>
@@ -242,9 +254,18 @@ interface UpdatesData {
 export default class UpdatesComponent {
   private readonly isMobile = inject(WA_IS_MOBILE)
   private readonly marketplaceService = inject(MarketplaceService)
+  private readonly hiddenUpdatesService = inject(HiddenUpdatesService)
+  private readonly refinementService = inject(UpdatesRefinementService)
 
   readonly current = signal<StoreIdentity | null>(null)
 
+  // The registry's "best" version can be unreachable from the user's installed
+  // version — e.g. NextCloud major updates must be sequential, so v30 users
+  // can't jump straight to v32. UpdatesRefinementService runs this resolution
+  // in the background (kept warm by BadgeService's navbar subscription) so by
+  // the time the user opens this tab the refined state is usually already
+  // resolved and replayed via shareReplay — no "Finding suitable version..."
+  // flash on each navigation.
   readonly data = toSignal<UpdatesData>(
     combineLatest({
       hosts: this.marketplaceService.registries$.pipe(
@@ -253,13 +274,31 @@ export default class UpdatesComponent {
             !this.isMobile && registry && this.current.set(registry),
         ),
       ),
-      marketplace: this.marketplaceService.marketplace$,
+      refined: this.refinementService.refined$,
       localPkgs: inject(LocalPackagesService),
       errors: this.marketplaceService.requestErrors$,
-    }),
+      hidden: this.hiddenUpdatesService.effective$,
+    }).pipe(
+      map(({ hosts, refined, localPkgs, errors, hidden }) => ({
+        hosts,
+        marketplace: refined.marketplace,
+        pending: refined.pending,
+        localPkgs,
+        errors,
+        hidden,
+      })),
+    ),
   )
 
   clear(url: string): string {
     return url.replace(/https?:\/\//, '').replace(/\/$/, '')
+  }
+
+  isPending(pkg: MarketplacePkg): boolean {
+    const url = this.current()?.url
+    if (!url) return false
+    return (
+      this.data()?.pending?.has(refinementKey(url, pkg.id, pkg.flavor)) ?? false
+    )
   }
 }

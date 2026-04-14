@@ -726,4 +726,7 @@ export default {
   811: 'La unidad del SO debe tener al menos 18 GB',
   812: 'La unidad de datos debe tener al menos 20 GB',
   813: 'SO + datos combinados requieren al menos 38 GB',
+  814: '¿Ocultar actualización?',
+  815: 'Esta actualización se ocultará. Aún puede instalar esta versión desde el Marketplace.',
+  816: 'Buscando versión adecuada...',
 } satisfies i18n

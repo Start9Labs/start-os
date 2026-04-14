@@ -726,4 +726,7 @@ export default {
   811: 'OS-Laufwerk muss mindestens 18 GB groß sein',
   812: 'Datenlaufwerk muss mindestens 20 GB groß sein',
   813: 'OS + Daten zusammen erfordern mindestens 38 GB',
+  814: 'Update ausblenden?',
+  815: 'Dieses Update wird ausgeblendet. Sie können diese Version weiterhin aus dem Marketplace installieren.',
+  816: 'Passende Version wird gesucht...',
 } satisfies i18n

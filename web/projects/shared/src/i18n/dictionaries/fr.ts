@@ -726,4 +726,7 @@ export default {
   811: 'Le disque système doit faire au moins 18 Go',
   812: 'Le disque de données doit faire au moins 20 Go',
   813: 'Système + données combinés nécessitent au moins 38 Go',
+  814: 'Masquer la mise à jour ?',
+  815: 'Cette mise à jour sera masquée. Vous pouvez toujours installer cette version depuis le Marketplace.',
+  816: "Recherche d'une version compatible...",
 } satisfies i18n

@@ -24,3 +24,5 @@ web/.i18n-checked
 docs/USER.md
 *.s9pk
 /build/lib/migration-images
+.claude/*
+!.claude/settings.json

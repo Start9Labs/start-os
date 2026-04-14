@@ -726,4 +726,7 @@ export default {
   811: 'Dysk systemowy musi mieć co najmniej 18 GB',
   812: 'Dysk danych musi mieć co najmniej 20 GB',
   813: 'System + dane łącznie wymagają co najmniej 38 GB',
+  814: 'Ukryć aktualizację?',
+  815: 'Ta aktualizacja zostanie ukryta. Nadal możesz zainstalować tę wersję z Marketplace.',
+  816: 'Wyszukiwanie odpowiedniej wersji...',
 } satisfies i18n

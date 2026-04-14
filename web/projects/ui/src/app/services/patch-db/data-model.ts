@@ -11,10 +11,10 @@ export type DataModel = {
 }
 
 export type UIData = {
-  name: string | null
   registries: Record<string, string | null>
   snakeHighScore: number
   startosRegistry: string
+  hiddenUpdates: Record<string, string[]>
 }
 
 export type PackageDataEntry<T extends StateInfo = StateInfo> =

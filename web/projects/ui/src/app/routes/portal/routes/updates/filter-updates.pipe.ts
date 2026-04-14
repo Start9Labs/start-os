@@ -1,6 +1,6 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
-import { Exver } from '@start9labs/shared'
 import { MarketplacePkg } from '@start9labs/marketplace'
+import { Exver } from '@start9labs/shared'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
 @Pipe({
@@ -12,6 +12,7 @@ export class FilterUpdatesPipe implements PipeTransform {
   transform(
     pkgs: MarketplacePkg[],
     local: Record<string, PackageDataEntry> = {},
+    hidden: Record<string, string[]> = {},
   ): MarketplacePkg[] {
     return pkgs.filter(({ id, flavor, version }) => {
       const localPkg = local[id]
@@ -23,7 +24,8 @@ export class FilterUpdatesPipe implements PipeTransform {
         this.exver.compareExver(
           version,
           localPkg.stateInfo.manifest.version,
-        ) === 1
+        ) === 1 &&
+        !hidden[id]?.includes(version)
       )
     })
   }

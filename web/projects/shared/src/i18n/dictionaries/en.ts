@@ -727,4 +727,7 @@ export const ENGLISH: Record<string, number> = {
   'OS drive must be at least 18 GB': 811,
   'Data drive must be at least 20 GB': 812,
   'OS + data combined require at least 38 GB': 813,
+  'Hide Update?': 814,
+  'This update will be hidden. You can still install this version from the Marketplace.': 815,
+  'Finding suitable version...': 816,
 }
