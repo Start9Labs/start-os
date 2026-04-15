@@ -34,7 +34,7 @@ import {
 
 @Component({
   template: `
-    <form tuiForm [formGroup]="form">
+    <form tuiForm="m" [formGroup]="form">
       <tui-textfield>
         <label tuiLabel>Name</label>
         <input tuiInput tuiAutoFocus formControlName="name" />

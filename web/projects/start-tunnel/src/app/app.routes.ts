@@ -12,6 +12,7 @@ export const routes: Routes = [
     path: '',
     loadComponent: () => import('./routes/login'),
     canMatch: [() => !inject(AuthService).authenticated()],
+    title: 'Login',
   },
   { path: '**', redirectTo: '' },
 ]

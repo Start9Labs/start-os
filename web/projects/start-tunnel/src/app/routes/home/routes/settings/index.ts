@@ -21,7 +21,7 @@ import { CHANGE_PASSWORD } from './change-password'
 
 @Component({
   template: `
-    <div tuiCardLarge>
+    <div tuiCardLarge="compact">
       <div tuiCell>
         <span tuiTitle>
           <strong>
@@ -51,7 +51,7 @@ import { CHANGE_PASSWORD } from './change-password'
         }
       </div>
     </div>
-    <div tuiCardLarge [style.align-items]="'start'">
+    <div tuiCardLarge="compact" [style.align-items]="'start'">
       <button tuiButton size="s" (click)="onChangePassword()">
         Change password
       </button>
@@ -74,6 +74,7 @@ import { CHANGE_PASSWORD } from './change-password'
       display: flex;
       flex-direction: column;
       gap: 1rem;
+      max-inline-size: 50rem;
     }
 
     [tuiCardLarge] {

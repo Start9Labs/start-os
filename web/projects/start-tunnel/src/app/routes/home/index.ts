@@ -9,18 +9,22 @@ export default [
       {
         path: 'subnets',
         loadComponent: () => import('./routes/subnets'),
+        title: 'Subnets',
       },
       {
         path: 'devices',
         loadComponent: () => import('./routes/devices'),
+        title: 'Devices',
       },
       {
         path: 'port-forwards',
         loadComponent: () => import('./routes/port-forwards'),
+        title: 'Port forwards',
       },
       {
         path: 'settings',
         loadComponent: () => import('./routes/settings'),
+        title: 'Settings',
       },
       { path: '**', redirectTo: 'subnets' },
     ],

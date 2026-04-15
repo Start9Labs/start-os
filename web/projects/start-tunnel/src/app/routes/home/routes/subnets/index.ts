@@ -78,6 +78,11 @@ import { SUBNETS_ADD } from './add'
       </tbody>
     </table>
   `,
+  styles: `
+    :host {
+      max-inline-size: 50rem;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
