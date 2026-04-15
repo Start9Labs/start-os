@@ -3,17 +3,10 @@ import {
   Component,
   inject,
   input,
-  signal,
 } from '@angular/core'
-import { ErrorService, i18nPipe } from '@start9labs/shared'
+import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
-import {
-  TuiButton,
-  TuiDataList,
-  TuiDropdown,
-  TuiIcon,
-  TuiInput,
-} from '@taiga-ui/core'
+import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
@@ -33,6 +26,7 @@ import {
   MappedServiceInterface,
 } from '../../interface.service'
 import { DomainHealthService } from './domain-health.service'
+import { DOMAIN_TYPE_PICKER, DomainType } from './domain-type-picker.component'
 import { GatewayItemComponent } from './item.component'
 
 @Component({
@@ -62,21 +56,12 @@ import { GatewayItemComponent } from './item.component'
         </button>
       } @else {
         <button
-          tuiDropdown
           tuiButton
           iconStart="@tui.plus"
           [style.margin-inline-start]="'auto'"
-          [(tuiDropdownOpen)]="addOpen"
+          (click)="openDomainTypePicker()"
         >
           {{ 'Add Domain' | i18n }}
-          <tui-data-list *tuiDropdown (click)="addOpen.set(false)">
-            <button tuiOption (click)="addPublicDomain()">
-              {{ 'Public Domain' | i18n }}
-            </button>
-            <button tuiOption (click)="addPrivateDomain()">
-              {{ 'Private Domain' | i18n }}
-            </button>
-          </tui-data-list>
         </button>
       }
     </header>
@@ -124,10 +109,7 @@ import { GatewayItemComponent } from './item.component'
   host: { class: 'g-card' },
   imports: [
     TuiButton,
-    TuiDropdown,
-    TuiDataList,
     TuiIcon,
-    TuiInput,
     TableComponent,
     PlaceholderComponent,
     i18nPipe,
@@ -138,6 +120,7 @@ import { GatewayItemComponent } from './item.component'
 export class GatewayComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly formDialog = inject(FormDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
@@ -149,7 +132,20 @@ export class GatewayComponent {
   readonly value = input<MappedServiceInterface | undefined>()
   readonly isRunning = input.required<boolean>()
 
-  readonly addOpen = signal(false)
+  openDomainTypePicker() {
+    this.dialog
+      .openComponent<DomainType>(DOMAIN_TYPE_PICKER, {
+        label: 'Add Domain',
+        size: 'l',
+      })
+      .subscribe(type => {
+        if (type === 'public') {
+          this.addPublicDomain()
+        } else if (type === 'private') {
+          this.addPrivateDomain()
+        }
+      })
+  }
 
   async addPrivateDomain() {
     this.formDialog.open<FormContext<{ fqdn: string }>>(FormComponent, {
