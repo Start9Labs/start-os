@@ -16,55 +16,35 @@ import { MarketplaceItemComponent } from './item.component'
 @Component({
   selector: 'marketplace-versions',
   template: `
-    <div class="background-border shadow-color-light box-shadow-lg">
-      <div class="box-container">
-        <h2 class="additional-detail-title">{{ 'Versions' | i18n }}</h2>
-        <marketplace-item
-          (click)="promptSelectVersion(versionSelect)"
-          [data]="'Select another version' | i18n"
-          icon="@tui.chevron-right"
-          [label]="null"
-          class="select"
-        />
-        <ng-template
-          #versionSelect
-          let-data="data"
-          let-completeWith="completeWith"
+    <marketplace-item
+      (click)="promptSelectVersion(versionSelect)"
+      [data]="version()"
+      label="Version"
+      icon="@tui.chevron-right"
+      class="item-pointer"
+    />
+    <ng-template #versionSelect let-data="data" let-completeWith="completeWith">
+      <tui-radio-list [items]="versions()" [(ngModel)]="data.version" />
+      <footer class="g-buttons">
+        <button tuiButton appearance="secondary" (click)="completeWith(null)">
+          {{ 'Cancel' | i18n }}
+        </button>
+        <button
+          tuiButton
+          appearance="secondary"
+          (click)="completeWith(data.version)"
         >
-          <tui-radio-list [items]="versions()" [(ngModel)]="data.version" />
-          <footer class="g-buttons">
-            <button
-              tuiButton
-              appearance="secondary"
-              (click)="completeWith(null)"
-            >
-              {{ 'Cancel' | i18n }}
-            </button>
-            <button
-              tuiButton
-              appearance="secondary"
-              (click)="completeWith(data.version)"
-            >
-              {{ 'Ok' | i18n }}
-            </button>
-          </footer>
-        </ng-template>
-      </div>
-    </div>
+          {{ 'Ok' | i18n }}
+        </button>
+      </footer>
+    </ng-template>
   `,
   styles: `
-    .box-container {
-      background-color: rgb(39 39 42);
-      border-radius: 0.75rem;
-      padding: 1.25rem 1.75rem;
+    :host {
+      display: contents;
     }
 
-    .select {
-      border: 0;
-      // border-top-width: 1px;
-      border-bottom-width: 1px;
-      border-color: rgb(113 113 122);
-      border-style: solid;
+    .item-pointer:hover {
       cursor: pointer;
 
       ::ng-deep label {
@@ -83,7 +63,7 @@ import { MarketplaceItemComponent } from './item.component'
 })
 export class MarketplaceVersionsComponent {
   private readonly dialog = inject(DialogService)
-  readonly version = input.required<string | null>()
+  readonly version = input.required<string>()
   readonly versions = input.required<string[]>()
 
   onVersion = output<string>()
