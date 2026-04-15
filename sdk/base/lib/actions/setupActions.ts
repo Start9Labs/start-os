@@ -1,9 +1,9 @@
-import { InputSpec } from './input/builder'
-import { ExtractInputSpecType } from './input/builder/inputSpec'
+import { z } from 'zod'
+import { InitScript } from '../inits'
 import * as T from '../types'
 import { once } from '../util'
-import { InitScript } from '../inits'
-import { z } from 'zod'
+import { InputSpec } from './input/builder'
+import { ExtractInputSpecType } from './input/builder/inputSpec'
 
 type MaybeInputSpec<Type> = {} extends Type ? null : InputSpec<Type>
 export type Run<A extends Record<string, any>> = (options: {
@@ -48,8 +48,10 @@ export interface ActionInfo<
   readonly _INPUT: Type
 }
 
-export interface Action<Id extends T.ActionId, Type extends Record<string, any>>
-  extends ActionInfo<Id, Type> {
+export interface Action<
+  Id extends T.ActionId,
+  Type extends Record<string, any>,
+> extends ActionInfo<Id, Type> {
   exportMetadata(options: { effects: T.Effects }): Promise<T.ActionMetadata>
   getInput(options: {
     effects: T.Effects
@@ -61,9 +63,10 @@ export interface Action<Id extends T.ActionId, Type extends Record<string, any>>
   }): Promise<T.ActionResult | null>
 }
 
-class ActionImpl<Id extends T.ActionId, Type extends Record<string, any>>
-  implements Action<Id, Type>
-{
+class ActionImpl<
+  Id extends T.ActionId,
+  Type extends Record<string, any>,
+> implements Action<Id, Type> {
   readonly _INPUT: Type = null as any as Type
   private prevInputSpec: Record<
     string,
@@ -195,8 +198,7 @@ export interface Actions<
 
 class ActionsImpl<
   AllActions extends Record<T.ActionId, Action<T.ActionId, any>>,
-> implements Actions<AllActions>
-{
+> implements Actions<AllActions> {
   constructor(private readonly actions: AllActions) {}
   addAction<A extends Action<T.ActionId, any>>(
     action: A,

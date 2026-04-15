@@ -226,8 +226,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
        * @returns An object describing which dependencies are satisfied and which are not
        */
       checkDependencies: checkDependencies as <
-        DependencyId extends keyof Manifest['dependencies'] &
-          T.PackageId = keyof Manifest['dependencies'] & T.PackageId,
+        DependencyId extends keyof Manifest['dependencies'] & T.PackageId =
+          keyof Manifest['dependencies'] & T.PackageId,
       >(
         effects: Effects,
         packageIds?: DependencyId[],

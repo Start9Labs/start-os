@@ -23,7 +23,7 @@ describe('inMs', () => {
     expect(inMs('1d')).toBe(1000 * 60 * 60 * 24)
   })
   test('123', () => {
-    expect(() => inMs('123')).toThrowError('Invalid time format: 123')
+    expect(() => inMs('123')).toThrow('Invalid time format: 123')
   })
   test('123 as number', () => {
     expect(inMs(123)).toBe(123)
