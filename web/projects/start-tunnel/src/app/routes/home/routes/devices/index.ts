@@ -38,14 +38,7 @@ import { MappedDevice } from './utils'
         </tr>
       </thead>
       <tbody>
-        @for (
-          device of devices()
-            ?.concat(devices() || [])
-            ?.concat(devices() || [])
-            ?.concat(devices() || [])
-            ?.concat(devices() || []);
-          track $index
-        ) {
+        @for (device of devices(); track $index) {
           <tr>
             <td>{{ device.name }}</td>
             <td>{{ device.subnet.name }}</td>
