@@ -176,7 +176,8 @@ pub async fn install_os_to(
                 delete_file(guard.path().join("config/upgrade")).await?;
                 delete_file(guard.path().join("config/overlay/etc/hostname")).await?;
                 delete_file(guard.path().join("config/disk.guid")).await?;
-                delete_dir(guard.path().join("config/lib/modules")).await?;
+                delete_dir(guard.path().join("config/overlay/lib")).await?;
+                delete_dir(guard.path().join("config/overlay/usr/lib")).await?;
                 Command::new("cp")
                     .arg("-r")
                     .arg(guard.path().join("config"))

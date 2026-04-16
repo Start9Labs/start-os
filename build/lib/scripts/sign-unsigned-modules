@@ -49,12 +49,17 @@ fi
 COUNT=0
 
 if [ -n "$SOURCE" ] && [ -n "$DEST" ]; then
-    # Overlay mode: find unsigned in source, copy to dest, sign in dest
-    rm -rf "${DEST}"/lib/modules
+    # Overlay mode: find unsigned in source, copy to dest, sign in dest.
+    # Clean both sides of the /lib -> usr/lib symlink; a leftover /lib
+    # directory in DEST would shadow the symlink in the merged overlay.
+    rm -rf "${DEST}/lib" "${DEST}/usr/lib/modules"
+
+    SOURCE="$(realpath "$SOURCE")"
 
     for ko in $(find "${SOURCE}"/lib/modules -name '*.ko' 2>/dev/null); do
         if ! modinfo "$ko" 2>/dev/null | grep -q '^sig_id:'; then
-            rel_path="${ko#${SOURCE}}"
+            rel_path="$(realpath "$ko")"
+            rel_path="${rel_path#${SOURCE}}"
             mkdir -p "${DEST}$(dirname "$rel_path")"
             cp "$ko" "${DEST}${rel_path}"
             "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_PUB" "${DEST}${rel_path}"
