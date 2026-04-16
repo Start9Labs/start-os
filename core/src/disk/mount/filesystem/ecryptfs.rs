@@ -4,7 +4,6 @@ use std::path::Path;
 
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
-use lazy_format::lazy_format;
 use sha2::Sha256;
 use tokio::process::Command;
 
@@ -33,10 +32,7 @@ impl<EncryptedDir: AsRef<Path> + Send + Sync, Key: AsRef<str> + Send + Sync> Fil
     }
     fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
         [
-            Box::new(lazy_format!(
-                "key=passphrase:passphrase_passwd={}",
-                self.key.as_ref()
-            )) as Box<dyn Display>,
+            Box::new("key=passphrase") as Box<dyn Display>,
             Box::new("ecryptfs_cipher=aes"),
             Box::new("ecryptfs_key_bytes=32"),
             Box::new("ecryptfs_passthrough=n"),
@@ -50,13 +46,16 @@ impl<EncryptedDir: AsRef<Path> + Send + Sync, Key: AsRef<str> + Send + Sync> Fil
         mount_type: super::MountType,
     ) -> Result<(), Error> {
         self.pre_mount(mountpoint.as_ref(), mount_type).await?;
+        let mut passphrase = std::io::Cursor::new(
+            format!("{}\n{}\n", self.key.as_ref(), self.key.as_ref()).into_bytes(),
+        );
         Command::new("mount")
             .args(
                 default_mount_command(self, mountpoint, mount_type)
                     .await?
                     .get_args(),
             )
-            .input(Some(&mut std::io::Cursor::new(b"\n")))
+            .input(Some(&mut passphrase))
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
         Ok(())
