@@ -114,6 +114,6 @@ export class DocumentationComponent {
   @Input({ required: true }) lanAddress!: string
 
   get crtName(): string {
-    return `${new URL(this.lanAddress).hostname}.crt`
+    return `${new URL(this.lanAddress).hostname.replace(/\.local$/, '')}.crt`
   }
 }

@@ -20,8 +20,18 @@ export function containsAddress(x: string, port: number, address?: bigint) {
 }
 
 /**
- * This is used to check if a port is listening on the system.
- * Used during the health check fn or the check main fn.
+ * Check whether a TCP or UDP port is currently bound and listening.
+ *
+ * Reads `/proc/net/tcp{,6}` and `/proc/net/udp{,6}` to determine if any
+ * socket is bound to the given port. This is a lightweight, non-intrusive
+ * check — it does not open a connection or send any data.
+ *
+ * @param effects - The effects context
+ * @param port - Port number to check
+ * @param options.successMessage - Message shown in the UI when the port is listening
+ * @param options.errorMessage - Message shown in the UI when the port is not listening
+ * @param options.timeoutMessage - Message shown if the check exceeds the timeout (defaults to `"Timeout trying to check port {port}"`)
+ * @param options.timeout - Maximum time (ms) to wait before reporting failure (defaults to 1000)
  */
 export async function checkPortListening(
   effects: Effects,

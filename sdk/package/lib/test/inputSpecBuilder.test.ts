@@ -67,7 +67,7 @@ describe('values', () => {
     const validator = value.validator
     const rawIs = value.spec
     validator.parse('test text')
-    expect(() => validator.parse(null)).toThrowError()
+    expect(() => validator.parse(null)).toThrow()
     testOutput<typeof validator._output, string>()(null)
   })
   test('text with default', async () => {
@@ -79,7 +79,7 @@ describe('values', () => {
     const validator = value.validator
     const rawIs = value.spec
     validator.parse('test text')
-    expect(() => validator.parse(null)).toThrowError()
+    expect(() => validator.parse(null)).toThrow()
     testOutput<typeof validator._output, string>()(null)
   })
   test('optional text', async () => {
@@ -203,7 +203,7 @@ describe('values', () => {
     const validator = value.validator
     validator.parse('a')
     validator.parse('b')
-    expect(() => validator.parse('c')).toThrowError()
+    expect(() => validator.parse('c')).toThrow()
     testOutput<typeof validator._output, 'a' | 'b'>()(null)
   })
   test('nullable select', async () => {
@@ -239,8 +239,8 @@ describe('values', () => {
     validator.parse([])
     validator.parse(['a', 'b'])
 
-    expect(() => validator.parse(['e'])).toThrowError()
-    expect(() => validator.parse([4])).toThrowError()
+    expect(() => validator.parse(['e'])).toThrow()
+    expect(() => validator.parse([4])).toThrow()
     testOutput<typeof validator._output, Array<'a' | 'b'>>()(null)
   })
   test('object', async () => {
@@ -312,7 +312,7 @@ describe('values', () => {
       })).build({} as any)
       const validator = value.validator
       validator.parse(false)
-      expect(() => validator.parse(null)).toThrowError()
+      expect(() => validator.parse(null)).toThrow()
       testOutput<typeof validator._output, boolean>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
@@ -487,7 +487,7 @@ describe('values', () => {
       const validator = value.validator
       validator.parse(2)
       validator.parse(null)
-      expect(() => validator.parse('null')).toThrowError()
+      expect(() => validator.parse('null')).toThrow()
       testOutput<typeof validator._output, number | null>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
@@ -530,8 +530,8 @@ describe('values', () => {
       validator.parse([])
       validator.parse(['a', 'b'])
 
-      expect(() => validator.parse([4])).toThrowError()
-      expect(() => validator.parse(null)).toThrowError()
+      expect(() => validator.parse([4])).toThrow()
+      expect(() => validator.parse(null)).toThrow()
       testOutput<typeof validator._output, Array<'a' | 'b'>>()(null)
       expect(value.spec).toMatchObject({
         name: 'Testing',
@@ -759,8 +759,8 @@ describe('Builder List', () => {
       ).build({} as any)
       const validator = value.validator
       validator.parse(['test', 'text'])
-      expect(() => validator.parse([3, 4])).toThrowError()
-      expect(() => validator.parse(null)).toThrowError()
+      expect(() => validator.parse([3, 4])).toThrow()
+      expect(() => validator.parse(null)).toThrow()
       testOutput<typeof validator._output, string[]>()(null)
       expect(value.spec).toMatchObject({
         name: 'test',
@@ -784,7 +784,7 @@ describe('Nested nullable values', () => {
     const validator = value.validator
     validator.parse({ a: null })
     validator.parse({ a: 'test' })
-    expect(() => validator.parse({ a: 4 })).toThrowError()
+    expect(() => validator.parse({ a: 4 })).toThrow()
     testOutput<typeof validator._output, { a: string | null }>()(null)
   })
   test('Testing number', async () => {
@@ -807,7 +807,7 @@ describe('Nested nullable values', () => {
     const validator = value.validator
     validator.parse({ a: null })
     validator.parse({ a: 5 })
-    expect(() => validator.parse({ a: '4' })).toThrowError()
+    expect(() => validator.parse({ a: '4' })).toThrow()
     testOutput<typeof validator._output, { a: number | null }>()(null)
   })
   test('Testing color', async () => {
@@ -824,7 +824,7 @@ describe('Nested nullable values', () => {
     const validator = value.validator
     validator.parse({ a: null })
     validator.parse({ a: '5' })
-    expect(() => validator.parse({ a: 4 })).toThrowError()
+    expect(() => validator.parse({ a: 4 })).toThrow()
     testOutput<typeof validator._output, { a: string | null }>()(null)
   })
   test('Testing select', async () => {
@@ -853,7 +853,7 @@ describe('Nested nullable values', () => {
 
     const validator = value.validator
     validator.parse({ a: 'a' })
-    expect(() => validator.parse({ a: '4' })).toThrowError()
+    expect(() => validator.parse({ a: '4' })).toThrow()
     testOutput<typeof validator._output, { a: 'a' }>()(null)
   })
   test('Testing multiselect', async () => {
@@ -875,8 +875,8 @@ describe('Nested nullable values', () => {
     const validator = value.validator
     validator.parse({ a: [] })
     validator.parse({ a: ['a'] })
-    expect(() => validator.parse({ a: ['4'] })).toThrowError()
-    expect(() => validator.parse({ a: '4' })).toThrowError()
+    expect(() => validator.parse({ a: ['4'] })).toThrow()
+    expect(() => validator.parse({ a: '4' })).toThrow()
     testOutput<typeof validator._output, { a: 'a'[] }>()(null)
   })
 })

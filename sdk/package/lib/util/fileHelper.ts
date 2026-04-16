@@ -178,14 +178,37 @@ type ReadType<A> = {
  * )
  * ```
  */
-export class FileHelper<A> {
+export interface FileHelper<A> {
+  readonly path: string
+  readonly writeData: (dataIn: A) => string
+  readonly readData: (stringValue: string) => unknown
+  readonly validate: (value: unknown) => A
+  read(): ReadType<A>
+  read<B>(
+    map: (value: A) => B,
+    eq?: (left: B | null, right: B | null) => boolean,
+  ): ReadType<B>
+  write(
+    effects: T.Effects,
+    data: T.AllowReadonly<A> | A,
+    options?: { allowWriteAfterConst?: boolean },
+  ): Promise<null>
+  merge(
+    effects: T.Effects,
+    data: T.AllowReadonly<T.DeepPartial<A>>,
+    options?: { allowWriteAfterConst?: boolean },
+  ): Promise<null>
+  withPath(path: ToPath): FileHelper<A>
+}
+
+class FileHelperImpl<A> implements FileHelper<A> {
   private consts: [
     () => void,
     any,
     (a: any) => any,
     (left: any, right: any) => any,
   ][] = []
-  protected constructor(
+  constructor(
     readonly path: string,
     readonly writeData: (dataIn: A) => string,
     readonly readData: (stringValue: string) => unknown,
@@ -400,73 +423,146 @@ export class FileHelper<A> {
    * We wanted to be able to have a fileHelper, and just modify the path later in time.
    * Like one behavior of another dependency or something similar.
    */
-  withPath(path: ToPath) {
-    return new FileHelper<A>(
+  withPath(path: ToPath): FileHelper<A> {
+    return new FileHelperImpl<A>(
       toPath(path),
       this.writeData,
       this.readData,
       this.validate,
     )
   }
+}
 
-  /**
-   * Create a File Helper for an arbitrary file type.
-   *
-   * Provide custom functions for translating data to/from the file format.
-   */
-  static raw<A>(
+function rawTransformed<A extends Transformed, Raw, Transformed>(
+  path: ToPath,
+  toFile: (dataIn: Raw) => string,
+  fromFile: (rawData: string) => Raw,
+  validate: (data: Transformed) => A,
+  transformers: Transformers<Raw, Transformed, A> | undefined,
+): FileHelper<A> {
+  return FileHelper.raw<A>(
+    path,
+    (inData) => {
+      if (transformers) {
+        return toFile(transformers.onWrite(inData))
+      }
+      return toFile(inData as any as Raw)
+    },
+    (fileData) => {
+      if (transformers) {
+        return transformers.onRead(fromFile(fileData))
+      }
+      return fromFile(fileData)
+    },
+    validate as (a: unknown) => A,
+  )
+}
+
+interface FileHelperStatic {
+  /** Create a File Helper for an arbitrary file type. */
+  raw<A>(
     path: ToPath,
     toFile: (dataIn: A) => string,
     fromFile: (rawData: string) => unknown,
     validate: (data: unknown) => A,
-  ) {
-    return new FileHelper<A>(toPath(path), toFile, fromFile, validate)
-  }
+  ): FileHelper<A>
 
-  private static rawTransformed<A extends Transformed, Raw, Transformed>(
-    path: ToPath,
-    toFile: (dataIn: Raw) => string,
-    fromFile: (rawData: string) => Raw,
-    validate: (data: Transformed) => A,
-    transformers: Transformers<Raw, Transformed, A> | undefined,
-  ) {
-    return FileHelper.raw<A>(
-      path,
-      (inData) => {
-        if (transformers) {
-          return toFile(transformers.onWrite(inData))
-        }
-        return toFile(inData as any as Raw)
-      },
-      (fileData) => {
-        if (transformers) {
-          return transformers.onRead(fromFile(fileData))
-        }
-        return fromFile(fileData)
-      },
-      validate as (a: unknown) => A,
-    )
-  }
-
-  /**
-   * Create a File Helper for a text file
-   */
-  static string(path: ToPath): FileHelper<string>
-  static string<A extends string>(
+  /** Create a File Helper for a text file */
+  string(path: ToPath): FileHelper<string>
+  string<A extends string>(
     path: ToPath,
     shape: Validator<string, A>,
   ): FileHelper<A>
-  static string<A extends Transformed, Transformed = string>(
+  string<A extends Transformed, Transformed = string>(
     path: ToPath,
     shape: Validator<Transformed, A>,
     transformers: Transformers<string, Transformed, A>,
   ): FileHelper<A>
-  static string<A extends Transformed, Transformed = string>(
+
+  /** Create a File Helper for a .json file. */
+  json<A>(path: ToPath, shape: Validator<unknown, A>): FileHelper<A>
+  json<A extends Transformed, Transformed = unknown>(
+    path: ToPath,
+    shape: Validator<unknown, A>,
+    transformers: Transformers<unknown, Transformed, A>,
+  ): FileHelper<A>
+
+  /** Create a File Helper for a .yaml file */
+  yaml<A extends Record<string, unknown>>(
+    path: ToPath,
+    shape: Validator<Record<string, unknown>, A>,
+  ): FileHelper<A>
+  yaml<A extends Transformed, Transformed = Record<string, unknown>>(
+    path: ToPath,
+    shape: Validator<Transformed, A>,
+    transformers: Transformers<Record<string, unknown>, Transformed, A>,
+  ): FileHelper<A>
+
+  /** Create a File Helper for a .toml file */
+  toml<A extends Record<string, unknown>>(
+    path: ToPath,
+    shape: Validator<Record<string, unknown>, A>,
+  ): FileHelper<A>
+  toml<A extends Transformed, Transformed = Record<string, unknown>>(
+    path: ToPath,
+    shape: Validator<Transformed, A>,
+    transformers: Transformers<Record<string, unknown>, Transformed, A>,
+  ): FileHelper<A>
+
+  /** Create a File Helper for a .ini file. */
+  ini<A extends Record<string, unknown>>(
+    path: ToPath,
+    shape: Validator<Record<string, unknown>, A>,
+    options?: INI.EncodeOptions & INI.DecodeOptions,
+  ): FileHelper<A>
+  ini<A extends Transformed, Transformed = Record<string, unknown>>(
+    path: ToPath,
+    shape: Validator<Transformed, A>,
+    options: INI.EncodeOptions & INI.DecodeOptions,
+    transformers: Transformers<Record<string, unknown>, Transformed, A>,
+  ): FileHelper<A>
+
+  /** Create a File Helper for a .env file (KEY=VALUE format, one per line). */
+  env<A extends Record<string, string>>(
+    path: ToPath,
+    shape: Validator<Record<string, string>, A>,
+  ): FileHelper<A>
+  env<A extends Transformed, Transformed = Record<string, string>>(
+    path: ToPath,
+    shape: Validator<Transformed, A>,
+    transformers: Transformers<Record<string, string>, Transformed, A>,
+  ): FileHelper<A>
+
+  /** Create a File Helper for an .xml file. */
+  xml<A extends Record<string, unknown>>(
+    path: ToPath,
+    shape: Validator<Record<string, unknown>, A>,
+    options?: { parser?: X2jOptions; builder?: XmlBuilderOptions },
+  ): FileHelper<A>
+  xml<A extends Transformed, Transformed = Record<string, unknown>>(
+    path: ToPath,
+    shape: Validator<Transformed, A>,
+    options: { parser?: X2jOptions; builder?: XmlBuilderOptions },
+    transformers: Transformers<Record<string, unknown>, Transformed, A>,
+  ): FileHelper<A>
+}
+
+export const FileHelper: FileHelperStatic = {
+  raw<A>(
+    path: ToPath,
+    toFile: (dataIn: A) => string,
+    fromFile: (rawData: string) => unknown,
+    validate: (data: unknown) => A,
+  ): FileHelper<A> {
+    return new FileHelperImpl<A>(toPath(path), toFile, fromFile, validate)
+  },
+
+  string<A extends Transformed, Transformed = string>(
     path: ToPath,
     shape?: Validator<Transformed, A>,
     transformers?: Transformers<string, Transformed, A>,
-  ) {
-    return FileHelper.rawTransformed<A, string, Transformed>(
+  ): FileHelper<A> {
+    return rawTransformed<A, string, Transformed>(
       path,
       (inData) => inData,
       (inString) => inString,
@@ -476,134 +572,71 @@ export class FileHelper<A> {
         ),
       transformers,
     )
-  }
+  },
 
-  /**
-   * Create a File Helper for a .json file.
-   */
-  static json<A>(path: ToPath, shape: Validator<unknown, A>): FileHelper<A>
-  static json<A extends Transformed, Transformed = unknown>(
-    path: ToPath,
-    shape: Validator<unknown, A>,
-    transformers: Transformers<unknown, Transformed, A>,
-  ): FileHelper<A>
-  static json<A extends Transformed, Transformed = unknown>(
+  json<A extends Transformed, Transformed = unknown>(
     path: ToPath,
     shape: Validator<unknown, A>,
     transformers?: Transformers<unknown, Transformed, A>,
-  ) {
-    return FileHelper.rawTransformed(
+  ): FileHelper<A> {
+    return rawTransformed<A, unknown, Transformed>(
       path,
       (inData) => JSON.stringify(inData, null, 2),
       (inString) => JSON.parse(inString),
       (data) => shape.parse(data),
       transformers,
     )
-  }
+  },
 
-  /**
-   * Create a File Helper for a .yaml file
-   */
-  static yaml<A extends Record<string, unknown>>(
-    path: ToPath,
-    shape: Validator<Record<string, unknown>, A>,
-  ): FileHelper<A>
-  static yaml<A extends Transformed, Transformed = Record<string, unknown>>(
-    path: ToPath,
-    shape: Validator<Transformed, A>,
-    transformers: Transformers<Record<string, unknown>, Transformed, A>,
-  ): FileHelper<A>
-  static yaml<A extends Transformed, Transformed = Record<string, unknown>>(
+  yaml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
     transformers?: Transformers<Record<string, unknown>, Transformed, A>,
-  ) {
-    return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
+  ): FileHelper<A> {
+    return rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
       (inData) => YAML.stringify(inData, null, 2),
       (inString) => YAML.parse(inString),
       (data) => shape.parse(data),
       transformers,
     )
-  }
+  },
 
-  /**
-   * Create a File Helper for a .toml file
-   */
-  static toml<A extends Record<string, unknown>>(
-    path: ToPath,
-    shape: Validator<Record<string, unknown>, A>,
-  ): FileHelper<A>
-  static toml<A extends Transformed, Transformed = Record<string, unknown>>(
-    path: ToPath,
-    shape: Validator<Transformed, A>,
-    transformers: Transformers<Record<string, unknown>, Transformed, A>,
-  ): FileHelper<A>
-  static toml<A extends Transformed, Transformed = Record<string, unknown>>(
+  toml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
     transformers?: Transformers<Record<string, unknown>, Transformed, A>,
-  ) {
-    return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
+  ): FileHelper<A> {
+    return rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
       (inData) => TOML.stringify(inData as TOML.JsonMap),
       (inString) => TOML.parse(inString),
       (data) => shape.parse(data),
       transformers,
     )
-  }
+  },
 
-  /**
-   * Create a File Helper for a .ini file.
-   *
-   * Supports optional encode/decode options and custom transformers.
-   */
-  static ini<A extends Record<string, unknown>>(
-    path: ToPath,
-    shape: Validator<Record<string, unknown>, A>,
-    options?: INI.EncodeOptions & INI.DecodeOptions,
-  ): FileHelper<A>
-  static ini<A extends Transformed, Transformed = Record<string, unknown>>(
-    path: ToPath,
-    shape: Validator<Transformed, A>,
-    options: INI.EncodeOptions & INI.DecodeOptions,
-    transformers: Transformers<Record<string, unknown>, Transformed, A>,
-  ): FileHelper<A>
-  static ini<A extends Transformed, Transformed = Record<string, unknown>>(
+  ini<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
     options?: INI.EncodeOptions & INI.DecodeOptions,
     transformers?: Transformers<Record<string, unknown>, Transformed, A>,
   ): FileHelper<A> {
-    return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
+    return rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
       (inData) => INI.stringify(filterUndefined(inData), options),
       (inString) => INI.parse(inString, options),
       (data) => shape.parse(data),
       transformers,
     )
-  }
+  },
 
-  /**
-   * Create a File Helper for a .env file (KEY=VALUE format, one per line).
-   *
-   * Lines starting with `#` are treated as comments and ignored on read.
-   */
-  static env<A extends Record<string, string>>(
-    path: ToPath,
-    shape: Validator<Record<string, string>, A>,
-  ): FileHelper<A>
-  static env<A extends Transformed, Transformed = Record<string, string>>(
-    path: ToPath,
-    shape: Validator<Transformed, A>,
-    transformers: Transformers<Record<string, string>, Transformed, A>,
-  ): FileHelper<A>
-  static env<A extends Transformed, Transformed = Record<string, string>>(
+  env<A extends Transformed, Transformed = Record<string, string>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
     transformers?: Transformers<Record<string, string>, Transformed, A>,
-  ) {
-    return FileHelper.rawTransformed<A, Record<string, string>, Transformed>(
+  ): FileHelper<A> {
+    return rawTransformed<A, Record<string, string>, Transformed>(
       path,
       (inData) =>
         Object.entries(inData)
@@ -623,25 +656,9 @@ export class FileHelper<A> {
       (data) => shape.parse(data),
       transformers,
     )
-  }
+  },
 
-  /**
-   * Create a File Helper for an .xml file.
-   *
-   * Supports optional parser/builder options from `fast-xml-parser`.
-   */
-  static xml<A extends Record<string, unknown>>(
-    path: ToPath,
-    shape: Validator<Record<string, unknown>, A>,
-    options?: { parser?: X2jOptions; builder?: XmlBuilderOptions },
-  ): FileHelper<A>
-  static xml<A extends Transformed, Transformed = Record<string, unknown>>(
-    path: ToPath,
-    shape: Validator<Transformed, A>,
-    options: { parser?: X2jOptions; builder?: XmlBuilderOptions },
-    transformers: Transformers<Record<string, unknown>, Transformed, A>,
-  ): FileHelper<A>
-  static xml<A extends Transformed, Transformed = Record<string, unknown>>(
+  xml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
     options?: { parser?: X2jOptions; builder?: XmlBuilderOptions },
@@ -649,14 +666,14 @@ export class FileHelper<A> {
   ): FileHelper<A> {
     const parser = new XMLParser(options?.parser)
     const builder = new XMLBuilder(options?.builder)
-    return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
+    return rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
       (inData) => builder.build(inData),
       (inString) => parser.parse(inString),
       (data) => shape.parse(data),
       transformers,
     )
-  }
+  },
 }
 
 export default FileHelper

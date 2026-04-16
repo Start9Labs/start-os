@@ -34,7 +34,7 @@ async function prepBind(
   const toMeta = await fs.stat(to).catch((_) => null)
 
   if (type === 'file' || (type === 'infer' && from && fromMeta?.isFile())) {
-    if (toMeta && toMeta.isDirectory()) await fs.rmdir(to, { recursive: false })
+    if (toMeta && toMeta.isDirectory()) await fs.rmdir(to)
     if (from && !fromMeta) {
       await fs.mkdir(from.replace(/\/[^\/]*\/?$/, ''), { recursive: true })
       await fs.writeFile(from, '')
@@ -80,8 +80,8 @@ async function bind(
 export interface SubContainer<
   Manifest extends T.SDKManifest,
   Effects extends T.Effects = T.Effects,
-> extends Drop,
-    PathBase {
+>
+  extends Drop, PathBase {
   readonly imageId: keyof Manifest['images'] & T.ImageId
   readonly rootfs: string
   readonly guid: T.Guid
@@ -201,9 +201,9 @@ export interface SubContainer<
  * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
  */
 export class SubContainerOwned<
-    Manifest extends T.SDKManifest,
-    Effects extends T.Effects = T.Effects,
-  >
+  Manifest extends T.SDKManifest,
+  Effects extends T.Effects = T.Effects,
+>
   extends Drop
   implements SubContainer<Manifest, Effects>
 {
@@ -716,9 +716,9 @@ export class SubContainerOwned<
  * The subcontainer is destroyed only when the last reference is released via `destroy()`.
  */
 export class SubContainerRc<
-    Manifest extends T.SDKManifest,
-    Effects extends T.Effects = T.Effects,
-  >
+  Manifest extends T.SDKManifest,
+  Effects extends T.Effects = T.Effects,
+>
   extends Drop
   implements SubContainer<Manifest, Effects>
 {

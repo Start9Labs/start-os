@@ -47,9 +47,8 @@ import { checkPortListening } from './health/checkFns/checkPortListening'
 import { setupMain } from './mainFn'
 import { Daemon, Daemons } from './mainFn/Daemons'
 import { Mounts } from './mainFn/Mounts'
-import { changeOnFirstSuccess, cooldownTrigger } from './trigger'
+import { cooldownTrigger, statusTrigger } from './trigger'
 import { defaultTrigger } from './trigger/defaultTrigger'
-import { successFailure } from './trigger/successFailure'
 import {
   GetOutboundGateway,
   GetSslCertificate,
@@ -227,8 +226,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
        * @returns An object describing which dependencies are satisfied and which are not
        */
       checkDependencies: checkDependencies as <
-        DependencyId extends keyof Manifest['dependencies'] &
-          T.PackageId = keyof Manifest['dependencies'] & T.PackageId,
+        DependencyId extends keyof Manifest['dependencies'] & T.PackageId =
+          keyof Manifest['dependencies'] & T.PackageId,
       >(
         effects: Effects,
         packageIds?: DependencyId[],
@@ -485,9 +484,18 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       ) => new GetSslCertificate(effects, { hostnames, algorithm }),
       /** Retrieve the manifest of any installed service package by its ID */
       getServiceManifest,
+      /**
+       * Built-in health check functions for use in `ready.fn`.
+       *
+       * These cover the most common readiness patterns. For custom logic,
+       * write your own async function returning a {@link HealthCheckResult}.
+       */
       healthCheck: {
+        /** Check whether a TCP/UDP port is bound and listening (reads /proc/net) */
         checkPortListening,
+        /** Check whether a URL is reachable via HTTP fetch */
         checkWebUrl,
+        /** Run a command in a subcontainer and succeed on exit code 0 */
         runHealthScript,
       },
       /** Common utility patterns (e.g. hostname regex, port validators) */
@@ -506,7 +514,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         export const actions = sdk.Actions.of().addAction(config).addAction(nameToLogs)
        * ```
        */
-      Actions: Actions<{}>,
+      Actions,
       /**
        * @description Use this function to determine which volumes are backed up when a user creates a backup, including advanced options.
        * @example
@@ -678,16 +686,28 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       setupMain: (
         fn: (o: { effects: Effects }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest>(fn),
-      /** Built-in trigger strategies for controlling health-check polling intervals */
+      /**
+       * Built-in trigger strategies that control how often a health check polls.
+       *
+       * Pass any of these to the `trigger` field on a {@link Ready} config.
+       * If omitted, health checks use `defaultTrigger` (1 s while pending, 30 s
+       * once healthy).
+       */
       trigger: {
-        /** Default trigger: polls at a fixed interval */
+        /**
+         * The default trigger: 1 s while the daemon is still pending
+         * (`starting`/`waiting`/`failure`), then 30 s once the first
+         * non-pending result (`success`, `loading`, `disabled`) is observed.
+         */
         defaultTrigger,
-        /** Trigger with a cooldown period between checks */
+        /** Fixed interval between checks. Use for a simple, constant polling rate. */
         cooldownTrigger,
-        /** Switches to a different interval after the first successful check */
-        changeOnFirstSuccess,
-        /** Uses different intervals based on success vs failure results */
-        successFailure,
+        /**
+         * Per-status polling intervals. Map each health status (`success`,
+         * `loading`, `starting`, `failure`, etc.) to a cooldown in
+         * milliseconds. Unspecified statuses fall back to 30 s.
+         */
+        statusTrigger,
       },
       Mounts: {
         /**

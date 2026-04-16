@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.1.0 — StartOS 0.4.0-beta.4 (2026-04-15)
+
+### Added
+
+- `trigger.statusTrigger(defaultMs, overrides?)`: single trigger that maps each `HealthStatus` to a polling interval, replacing `changeOnFirstSuccess`, `successFailure`, and `lastStatus`
+- TSDocs across the public daemon/health-check surface: `Ready`, `addDaemon`, `addOneshot`, `addHealthCheck`, `runUntilSuccess`, the `trigger` namespace, `healthCheck` helpers, and `HealthCheckResult`
+
+### Changed
+
+- Converted `VersionInfo`, `Action`, `Actions`, and `FileHelper` from classes to interfaces with companion objects, so services importing types across differing SDK versions no longer hit "type X does not match type X" nominal-typing errors
+
+### Fixed
+
+- Default daemon trigger now polls quickly for `starting`/`waiting`/`failure` and slowly for `success`/`loading`/`disabled`; previously `changeOnFirstSuccess` only transitioned on `success`, so a daemon stuck in `loading` (e.g. during Bitcoin IBD) was polled every 1s indefinitely
+
+### Removed
+
+- `trigger.changeOnFirstSuccess`, `trigger.successFailure`, `trigger.lastStatus` (use `statusTrigger` instead)
+
+## 1.0.0 — StartOS 0.4.0-beta.0 (2026-03-31)
+
+### Changed
+
+- **Breaking:** Minimum StartOS version bumped to `0.4.0-beta.0` (from `0.4.0-alpha.23`) — marks the transition out of alpha
+
+### Added
+
+- `GenerateCertificateParams` / `GenerateCertificateResponse` bindings for certificates signed by the root CA
+- `RestartReason` binding and `ServerStatus.restart` field for unified, reason-specific restart notifications
+- `PackageVersionInfo.satisfies` field so dependency breakage checks can match flavored package versions against flavorless ranges
+
+### Fixed
+
+- `deepEqual` now handles non-plain objects by reference instead of walking them as structural values
+
 ## 0.4.0-beta.66 (2026-03-24)
 
 - **Breaking:** `withPgDump()` replaces `pgdata` with required `mountpoint` + `pgdataPath`

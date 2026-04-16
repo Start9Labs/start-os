@@ -208,7 +208,7 @@ The `.build()` method returns an object containing the entire SDK surface area, 
 | **Init/Uninit** | `setupInit`, `setupUninit`, `setupOnInit`, `setupOnUninit` | Lifecycle hooks |
 | **Containers** | `SubContainer.of`, `SubContainer.withTemp`, `Mounts.of` | Container execution with mounts |
 | **Forms** | `InputSpec.of`, `Value`, `Variants`, `List` | Form input builders |
-| **Triggers** | `trigger.defaultTrigger`, `.cooldownTrigger`, `.changeOnFirstSuccess`, `.successFailure` | Health check polling strategies |
+| **Triggers** | `trigger.defaultTrigger`, `.cooldownTrigger`, `.statusTrigger` | Health check polling strategies |
 | **Reactive** | `getContainerIp`, `getStatus`, `getSystemSmtp`, `getOutboundGateway`, `getSslCertificate`, `getServiceManifest` | Subscription-based data access |
 | **Plugins** | `plugin.url.register`, `plugin.url.exportUrl` | Plugin system (gated by manifest `plugins` field) |
 | **Effects** | `restart`, `shutdown`, `setHealth`, `mount`, `clearBindings`, ... | Direct effect wrappers |
@@ -264,10 +264,9 @@ health/
 ```
 
 Health checks are paired with **triggers** that control polling behavior:
-- `defaultTrigger` — Fixed interval (e.g. every 30s)
-- `cooldownTrigger` — Wait longer after failures
-- `changeOnFirstSuccess` — Rapid polling until first success, then slow down
-- `successFailure` — Different intervals for healthy vs unhealthy states
+- `defaultTrigger` — 1 s while pending (`starting`/`waiting`/`failure`), 30 s otherwise
+- `cooldownTrigger` — Fixed interval between checks
+- `statusTrigger` — Per-status polling intervals with a default fallback
 
 ### Backup System (`package/lib/backup/`)
 
@@ -362,10 +361,9 @@ Supports locale fallback and Intl-based formatting.
 Polling strategy functions that determine when health checks run:
 
 ```typescript
-sdk.trigger.defaultTrigger({ timeout: 30_000 })
-sdk.trigger.cooldownTrigger({ timeout: 30_000, cooldown: 60_000 })
-sdk.trigger.changeOnFirstSuccess({ first: 5_000, then: 30_000 })
-sdk.trigger.successFailure({ success: 60_000, failure: 10_000 })
+sdk.trigger.defaultTrigger
+sdk.trigger.cooldownTrigger(30_000)
+sdk.trigger.statusTrigger(30_000, { starting: 5_000, failure: 5_000 })
 ```
 
 ## Build Pipeline
