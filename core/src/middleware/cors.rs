@@ -10,21 +10,12 @@ pub struct Cors {
 }
 impl Cors {
     pub fn new() -> Self {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            "Access-Control-Allow-Credentials",
-            HeaderValue::from_static("true"),
-        );
+        let headers = HeaderMap::new();
         Self { headers }
     }
     fn get_cors_headers(&mut self, req: &Request) {
-        if let Some(origin) = req.headers().get("Origin") {
-            self.headers
-                .insert("Access-Control-Allow-Origin", origin.clone());
-        } else {
-            self.headers
-                .insert("Access-Control-Allow-Origin", HeaderValue::from_static("*"));
-        }
+        self.headers
+            .insert("Access-Control-Allow-Origin", HeaderValue::from_static("*"));
         if let Some(method) = req.headers().get("Access-Control-Request-Method") {
             self.headers
                 .insert("Access-Control-Allow-Methods", method.clone());
