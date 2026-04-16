@@ -27,12 +27,18 @@ import { UpdateService } from 'src/app/services/update.service'
     <section>
       <aside [tuiNavigationAside]="open()">
         @for (route of routes; track $index) {
-          <a tuiAsideItem [iconStart]="route.icon" [routerLink]="route.link">
+          <a
+            tuiAsideItem
+            tuiHintAppearance="primary-grayscale"
+            [iconStart]="route.icon"
+            [routerLink]="route.link"
+          >
             {{ route.name }}
           </a>
         }
         <a
           tuiAsideItem
+          tuiHintAppearance="primary-grayscale"
           iconStart="@tui.settings"
           routerLink="settings"
           [iconEnd]="update.hasUpdate() ? '@tui.rocket' : ''"
@@ -42,6 +48,7 @@ import { UpdateService } from 'src/app/services/update.service'
         <footer>
           <button
             tuiAsideItem
+            tuiHintAppearance="primary-grayscale"
             type="button"
             [iconStart]="open() ? '@tui.chevron-left' : '@tui.chevron-right'"
             (click)="open.set(!open())"
