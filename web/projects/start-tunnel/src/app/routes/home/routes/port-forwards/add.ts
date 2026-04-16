@@ -33,7 +33,7 @@ import { MappedDevice, PortForwardsData } from './utils'
 
 @Component({
   template: `
-    <form tuiForm [formGroup]="form">
+    <form tuiForm="m" [formGroup]="form">
       <tui-textfield>
         <label tuiLabel>Label</label>
         <input tuiInput formControlName="label" />
