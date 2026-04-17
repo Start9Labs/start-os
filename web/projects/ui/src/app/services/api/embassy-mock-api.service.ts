@@ -574,7 +574,15 @@ export class MockApiService extends ApiService {
   ): Promise<GetPackageRes> {
     await pauseFor(2000)
 
-    const { targetVersion, id } = params
+    const { targetVersion, sourceVersion, id } = params
+
+    if (sourceVersion) {
+      // Mock registry refinement: return a reachable stepping-stone version
+      if (id === 'bitcoind') {
+        return Mock.OtherPackageVersions['bitcoind']!['=26.1.0:0.1.0']!
+      }
+      return Mock.RegistryPackages[id]!
+    }
 
     if (!targetVersion || targetVersion === '=*') {
       return Mock.RegistryPackages[id]!
@@ -1061,8 +1069,47 @@ export class MockApiService extends ApiService {
   async installPackage(params: T.InstallParams): Promise<null> {
     await pauseFor(2000)
 
+    const existing = mockPatchData.packageData[params.id]
+
+    let value: PackageDataEntry<InstallingState | UpdatingState>
+    let finalManifest: T.Manifest
+    if (existing && existing.stateInfo.state === 'installed') {
+      // Updating: preserve the installed manifest so LocalPackagesService
+      // keeps the row visible and the item component renders its progress
+      // circle. Previously we always used the 'installing' state here, which
+      // dropped the row out of localPkgs mid-update and left the Updates tab
+      // briefly showing "Finding suitable version..." before the row vanished.
+      const manifest = existing.stateInfo.manifest
+      finalManifest = { ...manifest, version: params.version }
+      value = {
+        ...existing,
+        stateInfo: {
+          state: 'updating',
+          manifest,
+          s9pk: existing.s9pk,
+          installingInfo: {
+            newManifest: finalManifest,
+            progress: PROGRESS,
+          },
+        },
+      }
+    } else {
+      // Fresh install: no prior manifest to preserve.
+      finalManifest = Mock.LocalPkgs[params.id]?.stateInfo.manifest!
+      value = {
+        ...Mock.LocalPkgs[params.id]!,
+        stateInfo: {
+          state: 'installing',
+          installingInfo: {
+            newManifest: finalManifest,
+            progress: PROGRESS,
+          },
+        },
+      }
+    }
+
     setTimeout(async () => {
-      this.installProgress(params.id)
+      this.installProgress(params.id, finalManifest)
     }, 1000)
 
     const patch: AddOperation<
@@ -1071,23 +1118,7 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.ADD,
         path: `/packageData/${params.id}`,
-        value: {
-          ...Mock.LocalPkgs[params.id]!,
-          stateInfo: {
-            // if installing
-            state: 'installing',
-
-            // if updating
-            // state: 'updating',
-            // manifest: mockPatchData.packageData[params.id]?.stateInfo.manifest!,
-
-            // both
-            installingInfo: {
-              newManifest: Mock.LocalPkgs[params.id]?.stateInfo.manifest!,
-              progress: PROGRESS,
-            },
-          },
-        },
+        value,
       },
     ]
     this.mockRevision(patch)
@@ -1708,7 +1739,10 @@ export class MockApiService extends ApiService {
     return progress
   }
 
-  private async installProgress(id: string): Promise<void> {
+  private async installProgress(
+    id: string,
+    finalManifest?: T.Manifest,
+  ): Promise<void> {
     const progress = JSON.parse(JSON.stringify(PROGRESS))
 
     for (let [i, phase] of progress.phases.entries()) {
@@ -1806,7 +1840,7 @@ export class MockApiService extends ApiService {
         path: `/packageData/${id}/stateInfo`,
         value: {
           state: 'installed',
-          manifest: Mock.LocalPkgs[id]?.stateInfo.manifest!,
+          manifest: finalManifest ?? Mock.LocalPkgs[id]?.stateInfo.manifest!,
         },
       },
     ]

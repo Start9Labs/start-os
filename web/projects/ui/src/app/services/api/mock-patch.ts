@@ -5,13 +5,13 @@ const version = require('../../../../../../package.json').version
 
 export const mockPatchData: DataModel = {
   ui: {
-    name: `Matt's Server`,
     registries: {
       'https://registry.start9.com/': 'Start9 Registry',
       'https://community-registry.start9.com/': 'Community Registry',
     },
     startosRegistry: 'https://registry.start9.com/',
     snakeHighScore: 0,
+    hiddenUpdates: {},
   },
   serverInfo: {
     id: 'abcdefgh',

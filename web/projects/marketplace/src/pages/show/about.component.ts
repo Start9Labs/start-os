@@ -9,6 +9,7 @@ import { MarketplacePkgBase } from '../../types'
 import { CopyService, i18nPipe, LocalizePipe } from '@start9labs/shared'
 import { DatePipe } from '@angular/common'
 import { MarketplaceItemComponent } from './item.component'
+import { MarketplaceVersionsComponent } from './versions.component'
 
 @Component({
   selector: 'marketplace-about',
@@ -17,12 +18,20 @@ import { MarketplaceItemComponent } from './item.component'
       <div class="box-container">
         <div class="detail-container">
           <!-- version -->
-          <marketplace-item
-            [style.pointer-events]="'none'"
-            [data]="pkg().version"
-            label="Version"
-            icon=""
-          />
+          @if ((versions()?.length || 0) > 1) {
+            <marketplace-versions
+              [version]="pkg().version"
+              [versions]="versions() || []"
+              (onVersion)="onVersion.emit($event)"
+            />
+          } @else {
+            <marketplace-item
+              [style.pointer-events]="'none'"
+              [data]="pkg().version"
+              label="Version"
+              icon=""
+            />
+          }
           <!-- release date -->
           @if (pkg().s9pks[0]?.[1]?.publishedAt; as published) {
             <marketplace-item
@@ -129,12 +138,20 @@ import { MarketplaceItemComponent } from './item.component'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MarketplaceItemComponent, DatePipe, i18nPipe, LocalizePipe],
+  imports: [
+    MarketplaceItemComponent,
+    MarketplaceVersionsComponent,
+    DatePipe,
+    i18nPipe,
+    LocalizePipe,
+  ],
 })
 export class MarketplaceAboutComponent {
   readonly copyService = inject(CopyService)
 
   readonly pkg = input.required<MarketplacePkgBase>()
+  readonly versions = input<string[] | null>(null)
 
   readonly static = output<'license'>()
+  readonly onVersion = output<string>()
 }

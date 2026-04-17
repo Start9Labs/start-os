@@ -38,7 +38,7 @@ The backend pushes state diffs to the frontend via WebSocket. This is the primar
 private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
 // Watch a specific path — returns Observable, convert to Signal with toSignal()
-readonly name = toSignal(this.patch.watch$('ui', 'name'))
+readonly registry = toSignal(this.patch.watch$('ui', 'startosRegistry'))
 readonly status = toSignal(this.patch.watch$('serverInfo', 'statusInfo'))
 readonly packages = toSignal(this.patch.watch$('packageData'))
 ```

@@ -177,6 +177,7 @@ export class MarketplaceService {
         registry: url,
         id: null,
         targetVersion: null,
+        sourceVersion: null,
         otherVersions: 'short',
       }),
     ).pipe(
@@ -195,17 +196,19 @@ export class MarketplaceService {
     )
   }
 
-  private fetchPackage$(
+  fetchPackage$(
     url: string,
     id: string,
     version: string | null,
     flavor: string | null,
+    sourceVersion: string | null = null,
   ): Observable<MarketplacePkg> {
     return from(
       this.api.getRegistryPackage({
         registry: url,
         id,
         targetVersion: version ? `=${version}` : null,
+        sourceVersion,
         otherVersions: 'short',
       }),
     ).pipe(

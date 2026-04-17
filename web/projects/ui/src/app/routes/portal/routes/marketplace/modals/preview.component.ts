@@ -13,7 +13,6 @@ import {
   MarketplaceLinksComponent,
   MarketplacePackageHeroComponent,
   MarketplaceReleaseNotesComponent,
-  MarketplaceVersionsComponent,
 } from '@start9labs/marketplace'
 import { DialogService, EmptyPipe, Exver, MARKDOWN } from '@start9labs/shared'
 import { TuiLoader } from '@taiga-ui/core'
@@ -40,7 +39,12 @@ import { MarketplaceControlsComponent } from '../components/controls.component'
           <marketplace-controls [pkg]="pkg" />
         </marketplace-package-hero>
         <div class="inner-container">
-          <marketplace-about [pkg]="pkg" (static)="onStatic()" />
+          <marketplace-about
+            [pkg]="pkg"
+            [versions]="versions$ | async"
+            (static)="onStatic()"
+            (onVersion)="selectedVersion$.next($event)"
+          />
           <marketplace-release-notes [pkg]="pkg" />
           @if (flavors$ | async; as flavors) {
             <marketplace-flavors [pkgs]="flavors" />
@@ -49,13 +53,6 @@ import { MarketplaceControlsComponent } from '../components/controls.component'
             <marketplace-dependencies [pkg]="pkg" (open)="open($event)" />
           }
           <marketplace-links [pkg]="pkg" />
-          @if (versions$ | async; as versions) {
-            <marketplace-versions
-              [version]="pkg.version"
-              [versions]="versions"
-              (onVersion)="selectedVersion$.next($event)"
-            />
-          }
         </div>
       } @else {
         <tui-loader textContent="Loading" [style.height.%]="100" />
@@ -100,10 +97,6 @@ import { MarketplaceControlsComponent } from '../components/controls.component'
         height: 0.8em;
       }
     }
-
-    marketplace-versions {
-      padding-bottom: 2rem;
-    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -116,7 +109,6 @@ import { MarketplaceControlsComponent } from '../components/controls.component'
     MarketplaceFlavorsComponent,
     MarketplaceAboutComponent,
     MarketplaceControlsComponent,
-    MarketplaceVersionsComponent,
     MarketplaceReleaseNotesComponent,
   ],
 })

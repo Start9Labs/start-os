@@ -1,9 +1,9 @@
-import { OptionalProperty } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
 export type GetPackageReq = {
   id: string
   targetVersion: string | null
+  sourceVersion: string | null
   otherVersions: 'short'
 }
 export type GetPackageRes = T.GetPackageResponse & {
@@ -13,6 +13,7 @@ export type GetPackageRes = T.GetPackageResponse & {
 export type GetPackagesReq = {
   id: null
   targetVersion: null
+  sourceVersion: null
   otherVersions: 'short'
 }
 
