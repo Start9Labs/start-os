@@ -1,6 +1,6 @@
 {
   "name": "@start9labs/start-sdk",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Software development kit to facilitate packaging services for StartOS",
   "main": "./package/lib/index.js",
   "types": "./package/lib/index.d.ts",
@@ -36,7 +36,7 @@
     "@noble/hashes": "^1.8.0",
     "@types/ini": "^4.1.1",
     "deep-equality-data-structures": "^2.0.0",
-    "fast-xml-parser": "^5.6.0",
+    "fast-xml-parser": "~5.6.0",
     "ini": "^5.0.0",
     "isomorphic-fetch": "^3.0.0",
     "mime": "^4.1.0",
