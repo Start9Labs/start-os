@@ -221,6 +221,7 @@ export class MarketplaceRegistryModal {
           placeholder: 'e.g. https://example.org',
           default: null,
           warning: null,
+          footnote: null,
           disabled: false,
           immutable: false,
           generate: null,

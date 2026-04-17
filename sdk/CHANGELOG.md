@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 — StartOS 0.4.0-beta.4 (2026-04-17)
+
+### Added
+
+- `footnote: string | null` on all scalar value specs (`text`, `textarea`, `number`, `color`, `datetime`, `toggle`, `select`, `multiselect`) — supplementary text rendered persistently beneath the field. Useful for showing upstream defaults, units, or any dev-authored clarification
+- `Value.triState(...)` / `Value.dynamicTriState(...)` — a three-state toggle (boolean toggle with a neutral middle position), rendered as three icon buttons (✕ / — / ✓). Left outputs `false`, right outputs `true`, middle outputs `null`
+
 ## 1.1.0 — StartOS 0.4.0-beta.4 (2026-04-15)
 
 ### Added

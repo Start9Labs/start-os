@@ -112,6 +112,8 @@ export class Value<
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
+    /** Supplementary text rendered persistently beneath the field. */
+    footnote?: string | null
     default: boolean
     /**
      * @description Once set, the value can never be changed.
@@ -125,6 +127,7 @@ export class Value<
         spec: {
           description: null,
           warning: null,
+          footnote: null,
           type: 'toggle' as const,
           disabled: false,
           immutable: a.immutable ?? false,
@@ -142,6 +145,7 @@ export class Value<
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: boolean
         disabled?: false | string
       },
@@ -154,7 +158,95 @@ export class Value<
         spec: {
           description: null,
           warning: null,
+          footnote: null,
           type: 'toggle' as const,
+          disabled: false,
+          immutable: false,
+          ...(await a(options)),
+        },
+        validator,
+      }),
+      validator,
+    )
+  }
+  /**
+   * @description Displays a three-state toggle — a boolean toggle with a neutral middle
+   * position, rendered as three icon buttons (✕ / — / ✓). The left icon outputs `false`, the
+   * right outputs `true`, and the middle outputs `null` (meaning "no opinion, use the default").
+   * @example
+   * ```
+    triStateExample: Value.triState({
+      // required
+      name: 'Allow Uploads',
+      default: null,        // null = middle; or true / false
+
+      // optional
+      description: null,
+      warning: null,
+      footnote: null,
+      immutable: false,
+    }),
+    * ```
+   */
+  static triState(a: {
+    name: string
+    description?: string | null
+    /** Presents a warning prompt before permitting the value to change. */
+    warning?: string | null
+    /** Supplementary text rendered persistently beneath the field. */
+    footnote?: string | null
+    /**
+     * @description Initial selection.
+     * - `false` → left (✕)
+     * - `true` → right (✓)
+     * - `null` → middle (—)
+     */
+    default: boolean | null
+    /**
+     * @description Once set, the value can never be changed.
+     * @default false
+     */
+    immutable?: boolean
+  }) {
+    const validator = z.boolean().nullable()
+    return new Value<boolean | null>(
+      async () => ({
+        spec: {
+          type: 'triState' as const,
+          description: null,
+          warning: null,
+          footnote: null,
+          disabled: false,
+          immutable: a.immutable ?? false,
+          ...a,
+        },
+        validator,
+      }),
+      validator,
+    )
+  }
+  /** Like {@link Value.triState} but options are resolved lazily at runtime via a builder function. */
+  static dynamicTriState<OuterType = unknown>(
+    a: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        footnote?: string | null
+        default: boolean | null
+        disabled?: false | string
+      },
+      OuterType
+    >,
+  ) {
+    const validator = z.boolean().nullable()
+    return new Value<boolean | null, boolean | null, OuterType>(
+      async (options) => ({
+        spec: {
+          type: 'triState' as const,
+          description: null,
+          warning: null,
+          footnote: null,
           disabled: false,
           immutable: false,
           ...(await a(options)),
@@ -193,6 +285,8 @@ export class Value<
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
+    /** Supplementary text rendered persistently beneath the field. */
+    footnote?: string | null
     /**
      * provide a default value.
      * @type { string | RandomString | null }
@@ -246,6 +340,7 @@ export class Value<
           type: 'text' as const,
           description: null,
           warning: null,
+          footnote: null,
           masked: false,
           placeholder: null,
           minLength: null,
@@ -269,6 +364,7 @@ export class Value<
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: DefaultString | null
         required: Required
         masked?: boolean
@@ -291,6 +387,7 @@ export class Value<
             type: 'text' as const,
             description: null,
             warning: null,
+            footnote: null,
             masked: false,
             placeholder: null,
             minLength: null,
@@ -335,6 +432,8 @@ export class Value<
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
+    /** Supplementary text rendered persistently beneath the field. */
+    footnote?: string | null
     default: string | null
     required: Required
     minLength?: number | null
@@ -369,6 +468,7 @@ export class Value<
       const built: ValueSpecTextarea = {
         description: null,
         warning: null,
+        footnote: null,
         minLength: null,
         maxLength: null,
         patterns: [],
@@ -390,6 +490,7 @@ export class Value<
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: string | null
         required: Required
         minLength?: number | null
@@ -410,6 +511,7 @@ export class Value<
           spec: {
             description: null,
             warning: null,
+            footnote: null,
             minLength: null,
             maxLength: null,
             patterns: [],
@@ -455,6 +557,8 @@ export class Value<
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
+    /** Supplementary text rendered persistently beneath the field. */
+    footnote?: string | null
     /**
      * @description optionally provide a default value.
      * @type { default: number | null }
@@ -492,6 +596,7 @@ export class Value<
           type: 'number' as const,
           description: null,
           warning: null,
+          footnote: null,
           min: null,
           max: null,
           step: null,
@@ -513,6 +618,7 @@ export class Value<
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: number | null
         required: Required
         min?: number | null
@@ -534,6 +640,7 @@ export class Value<
             type: 'number' as const,
             description: null,
             warning: null,
+            footnote: null,
             min: null,
             max: null,
             step: null,
@@ -550,7 +657,7 @@ export class Value<
     )
   }
   /**
-   * @description Displays a browser-native color selector.
+   * @description Displays a color field with a clickable swatch that opens the browser-native color picker, plus a text area for typing a hex value.
    * @example
    * ```
     colorExample: Value.color({
@@ -571,6 +678,8 @@ export class Value<
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
+    /** Supplementary text rendered persistently beneath the field. */
+    footnote?: string | null
     /**
      * @description optionally provide a default value.
      * @type { default: string | null }
@@ -592,6 +701,7 @@ export class Value<
           type: 'color' as const,
           description: null,
           warning: null,
+          footnote: null,
           disabled: false,
           immutable: a.immutable ?? false,
           ...a,
@@ -609,6 +719,7 @@ export class Value<
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: string | null
         required: Required
         disabled?: false | string
@@ -624,6 +735,7 @@ export class Value<
             type: 'color' as const,
             description: null,
             warning: null,
+            footnote: null,
             disabled: false,
             immutable: false,
             ...a,
@@ -659,6 +771,8 @@ export class Value<
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
+    /** Supplementary text rendered persistently beneath the field. */
+    footnote?: string | null
     /**
      * @description optionally provide a default value.
      * @type { default: string | null }
@@ -687,6 +801,7 @@ export class Value<
           type: 'datetime' as const,
           description: null,
           warning: null,
+          footnote: null,
           inputmode: 'datetime-local',
           min: null,
           max: null,
@@ -707,6 +822,7 @@ export class Value<
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: string | null
         required: Required
         inputmode?: ValueSpecDatetime['inputmode']
@@ -725,6 +841,7 @@ export class Value<
             type: 'datetime' as const,
             description: null,
             warning: null,
+            footnote: null,
             inputmode: 'datetime-local',
             min: null,
             max: null,
@@ -764,6 +881,8 @@ export class Value<
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
+    /** Supplementary text rendered persistently beneath the field. */
+    footnote?: string | null
     /**
      * @description Determines if the field is required. If so, optionally provide a default value from the list of values.
      * @type { (keyof Values & string) | null }
@@ -795,6 +914,7 @@ export class Value<
         spec: {
           description: null,
           warning: null,
+          footnote: null,
           type: 'select' as const,
           disabled: false,
           immutable: a.immutable ?? false,
@@ -815,6 +935,7 @@ export class Value<
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: string
         values: Values
         disabled?: false | string | string[]
@@ -829,6 +950,7 @@ export class Value<
           spec: {
             description: null,
             warning: null,
+            footnote: null,
             type: 'select' as const,
             disabled: false,
             immutable: false,
@@ -868,6 +990,8 @@ export class Value<
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
+    /** Supplementary text rendered persistently beneath the field. */
+    footnote?: string | null
     /**
      * @description A simple list of which options should be checked by default.
      */
@@ -901,6 +1025,7 @@ export class Value<
           maxLength: null,
           warning: null,
           description: null,
+          footnote: null,
           disabled: false,
           immutable: a.immutable ?? false,
           ...a,
@@ -920,6 +1045,7 @@ export class Value<
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: string[]
         values: Values
         minLength?: number | null
@@ -942,6 +1068,7 @@ export class Value<
           maxLength: null,
           warning: null,
           description: null,
+          footnote: null,
           disabled: false,
           immutable: false,
           ...a,

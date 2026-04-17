@@ -747,4 +747,7 @@ export default {
   832: 'Client-Geräte im selben LAN',
   833: 'Client-Geräte müssen Ihrer Root-CA vertrauen',
   834: 'Private Domain hinzufügen',
+  835: 'Standard',
+  836: 'Aus',
+  837: 'An',
 } satisfies i18n

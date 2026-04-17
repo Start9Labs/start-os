@@ -747,4 +747,7 @@ export default {
   832: 'Urządzenia klienckie podłączone do tej samej sieci LAN',
   833: 'Urządzenia klienckie muszą ufać Twojemu głównemu CA',
   834: 'Dodaj domenę prywatną',
+  835: 'Domyślnie',
+  836: 'Wył.',
+  837: 'Wł.',
 } satisfies i18n

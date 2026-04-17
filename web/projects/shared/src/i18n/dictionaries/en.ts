@@ -748,4 +748,7 @@ export const ENGLISH: Record<string, number> = {
   'Client devices connected to the same LAN': 832,
   'Client devices to trust your Root CA': 833,
   'Add Private Domain': 834,
+  'Default': 835,
+  'Off': 836,
+  'On': 837,
 }

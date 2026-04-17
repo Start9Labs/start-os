@@ -14,6 +14,7 @@ export type ValueType =
   | 'color'
   | 'datetime'
   | 'toggle'
+  | 'triState'
   | 'select'
   | 'multiselect'
   | 'list'
@@ -25,19 +26,20 @@ export type ValueType =
 export type ValueSpec = ValueSpecOf<ValueType>
 /** core spec types. These types provide the metadata for performing validations */
 // prettier-ignore
-export type ValueSpecOf<T extends ValueType> = 
-  T extends "text" ? ValueSpecText : 
-  T extends "textarea" ? ValueSpecTextarea : 
-  T extends "number" ? ValueSpecNumber : 
-  T extends "color" ? ValueSpecColor : 
-  T extends "datetime" ? ValueSpecDatetime : 
-  T extends "toggle" ? ValueSpecToggle : 
-  T extends "select" ? ValueSpecSelect : 
-  T extends "multiselect" ? ValueSpecMultiselect : 
-  T extends "list" ? ValueSpecList : 
-  T extends "object" ? ValueSpecObject : 
-  T extends "file" ? ValueSpecFile : 
-  T extends "union" ? ValueSpecUnion : 
+export type ValueSpecOf<T extends ValueType> =
+  T extends "text" ? ValueSpecText :
+  T extends "textarea" ? ValueSpecTextarea :
+  T extends "number" ? ValueSpecNumber :
+  T extends "color" ? ValueSpecColor :
+  T extends "datetime" ? ValueSpecDatetime :
+  T extends "toggle" ? ValueSpecToggle :
+  T extends "triState" ? ValueSpecTriState :
+  T extends "select" ? ValueSpecSelect :
+  T extends "multiselect" ? ValueSpecMultiselect :
+  T extends "list" ? ValueSpecList :
+  T extends "object" ? ValueSpecObject :
+  T extends "file" ? ValueSpecFile :
+  T extends "union" ? ValueSpecUnion :
   T extends "hidden" ? ValueSpecHidden :
   never
 
@@ -49,6 +51,8 @@ export type ValueSpecText = {
   description: string | null
   /** Optional warning message displayed to the user. */
   warning: string | null
+  /** Optional supplementary text rendered persistently beneath the field. */
+  footnote: string | null
 
   type: 'text'
   /** Regex patterns used to validate the input value. */
@@ -81,6 +85,8 @@ export type ValueSpecTextarea = {
   name: string
   description: string | null
   warning: string | null
+  /** Optional supplementary text rendered persistently beneath the field. */
+  footnote: string | null
 
   type: 'textarea'
   /** Regex patterns used to validate the input value. */
@@ -115,6 +121,8 @@ export type ValueSpecNumber = {
   name: string
   description: string | null
   warning: string | null
+  /** Optional supplementary text rendered persistently beneath the field. */
+  footnote: string | null
   required: boolean
   default: number | null
   disabled: false | string
@@ -125,6 +133,8 @@ export type ValueSpecColor = {
   name: string
   description: string | null
   warning: string | null
+  /** Optional supplementary text rendered persistently beneath the field. */
+  footnote: string | null
 
   type: 'color'
   required: boolean
@@ -138,6 +148,8 @@ export type ValueSpecDatetime = {
   name: string
   description: string | null
   warning: string | null
+  /** Optional supplementary text rendered persistently beneath the field. */
+  footnote: string | null
   type: 'datetime'
   required: boolean
   /** Controls which kind of picker is displayed. */
@@ -157,6 +169,8 @@ export type ValueSpecSelect = {
   name: string
   description: string | null
   warning: string | null
+  /** Optional supplementary text rendered persistently beneath the field. */
+  footnote: string | null
   type: 'select'
   default: string | null
   /** `false` if all enabled, a string disabling the whole field, or an array of disabled option keys. */
@@ -171,6 +185,8 @@ export type ValueSpecMultiselect = {
   name: string
   description: string | null
   warning: string | null
+  /** Optional supplementary text rendered persistently beneath the field. */
+  footnote: string | null
 
   type: 'multiselect'
   /** Minimum number of selections required, or `null`. */
@@ -188,8 +204,28 @@ export type ValueSpecToggle = {
   name: string
   description: string | null
   warning: string | null
+  /** Optional supplementary text rendered persistently beneath the field. */
+  footnote: string | null
 
   type: 'toggle'
+  default: boolean | null
+  disabled: false | string
+  immutable: boolean
+}
+/**
+ * Spec for a three-state toggle — a boolean toggle with an additional neutral
+ * middle position. Left outputs `false`, right outputs `true`, middle outputs `null`.
+ * Rendered as three icon buttons (✕ / — / ✓).
+ */
+export type ValueSpecTriState = {
+  name: string
+  description: string | null
+  warning: string | null
+  /** Optional supplementary text rendered persistently beneath the field. */
+  footnote: string | null
+
+  type: 'triState'
+  /** Initial selection: `false` (left), `true` (right), or `null` (middle). */
   default: boolean | null
   disabled: false | string
   immutable: boolean

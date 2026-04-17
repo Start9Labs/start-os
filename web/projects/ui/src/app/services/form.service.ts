@@ -32,6 +32,7 @@ export class FormService {
       ...spec,
       type: 'select',
       default: selection,
+      footnote: null,
       values: Object.fromEntries(
         Object.entries(spec.variants).map(([key, { name }]) => [key, name]),
       ),

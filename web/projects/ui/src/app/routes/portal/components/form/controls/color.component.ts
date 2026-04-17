@@ -1,11 +1,10 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { IST } from '@start9labs/start-sdk'
-import { TuiIcon, TuiInput } from '@taiga-ui/core'
+import { TuiIcon } from '@taiga-ui/core'
 import { TuiInputColor, TuiTooltip } from '@taiga-ui/kit'
-
-import { Control } from './control'
 import { HintPipe } from '../pipes/hint.pipe'
+import { Control } from './control'
 
 @Component({
   selector: 'form-color',
@@ -33,14 +32,13 @@ import { HintPipe } from '../pipes/hint.pipe'
       }
     </tui-textfield>
   `,
-  imports: [
-    FormsModule,
-    TuiInput,
-    TuiInputColor,
-    TuiIcon,
-    TuiTooltip,
-    HintPipe,
-  ],
+  styles: `
+    :host ::ng-deep .tui-input-color_picker {
+      position: relative;
+      z-index: 2;
+    }
+  `,
+  imports: [FormsModule, TuiInputColor, TuiIcon, TuiTooltip, HintPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormColorComponent extends Control<IST.ValueSpecColor, string> {}

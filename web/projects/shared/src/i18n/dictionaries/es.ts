@@ -747,4 +747,7 @@ export default {
   832: 'Dispositivos cliente conectados a la misma LAN',
   833: 'Dispositivos cliente que confíen en tu CA raíz',
   834: 'Agregar dominio privado',
+  835: 'Predeterminado',
+  836: 'Desactivado',
+  837: 'Activado',
 } satisfies i18n

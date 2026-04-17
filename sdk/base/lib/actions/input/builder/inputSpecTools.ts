@@ -22,6 +22,7 @@ export interface InputSpecTools<OuterType> {
 export interface BoundValue<OuterType> {
   // Static (non-dynamic) methods — no OuterType involved
   toggle: typeof Value.toggle
+  triState: typeof Value.triState
   text: typeof Value.text
   textarea: typeof Value.textarea
   number: typeof Value.number
@@ -42,6 +43,7 @@ export interface BoundValue<OuterType> {
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: boolean
         disabled?: false | string
       },
@@ -49,12 +51,27 @@ export interface BoundValue<OuterType> {
     >,
   ): Value<boolean, boolean, OuterType>
 
+  dynamicTriState(
+    a: LazyBuild<
+      {
+        name: string
+        description?: string | null
+        warning?: string | null
+        footnote?: string | null
+        default: boolean | null
+        disabled?: false | string
+      },
+      OuterType
+    >,
+  ): Value<boolean | null, boolean | null, OuterType>
+
   dynamicText<Required extends boolean>(
     getA: LazyBuild<
       {
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: DefaultString | null
         required: Required
         masked?: boolean
@@ -76,6 +93,7 @@ export interface BoundValue<OuterType> {
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: string | null
         required: Required
         minLength?: number | null
@@ -96,6 +114,7 @@ export interface BoundValue<OuterType> {
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: number | null
         required: Required
         min?: number | null
@@ -116,6 +135,7 @@ export interface BoundValue<OuterType> {
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: string | null
         required: Required
         disabled?: false | string
@@ -130,6 +150,7 @@ export interface BoundValue<OuterType> {
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: string | null
         required: Required
         inputmode?: ValueSpecDatetime['inputmode']
@@ -147,6 +168,7 @@ export interface BoundValue<OuterType> {
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: string
         values: Values
         disabled?: false | string | string[]
@@ -161,6 +183,7 @@ export interface BoundValue<OuterType> {
         name: string
         description?: string | null
         warning?: string | null
+        footnote?: string | null
         default: string[]
         values: Values
         minLength?: number | null
