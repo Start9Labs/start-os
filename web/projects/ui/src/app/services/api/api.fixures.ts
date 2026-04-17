@@ -1635,12 +1635,27 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           name: 'Color',
           required: false,
           default: null,
-          immutable: true,
         }),
         datetime: ISB.Value.datetime({
           name: 'Datetime',
           required: false,
           default: null,
+        }),
+        notifications: ISB.Value.triState({
+          name: 'Push Notifications',
+          default: null,
+          description:
+            'Three-state toggle with a neutral "Default" middle position',
+          footnote: 'Leave on Default to use the upstream configuration',
+        }),
+        maxConnections: ISB.Value.number({
+          name: 'Max Connections',
+          required: false,
+          default: null,
+          integer: true,
+          footnote: 'Defaults to 1024 upstream if left blank',
+          min: 1,
+          max: 65535,
         }),
         // file: ISB.Value.file({
         //   name: 'File',

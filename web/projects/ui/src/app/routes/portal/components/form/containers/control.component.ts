@@ -14,6 +14,7 @@ import { PolymorpheusOutlet } from '@taiga-ui/polymorpheus'
 
 import { ControlSpec } from '../controls/control'
 import { CONTROLS } from '../controls/controls'
+import { FootnotePipe } from '../pipes/footnote.pipe'
 import { ControlDirective } from './control.directive'
 
 export const ERRORS = [
@@ -32,6 +33,9 @@ export const ERRORS = [
   template: `
     <ng-container *polymorpheusOutlet="controls[spec.type]" />
     <tui-error [formControl]="$any(control.control)" [order]="order" />
+    @if (spec | footnote; as footnote) {
+      <tui-error class="g-secondary" [error]="footnote" />
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
@@ -49,7 +53,7 @@ export const ERRORS = [
     },
   ],
   hostDirectives: [ControlDirective],
-  imports: [PolymorpheusOutlet, TuiError, ReactiveFormsModule],
+  imports: [PolymorpheusOutlet, TuiError, ReactiveFormsModule, FootnotePipe],
 })
 export class FormControlComponent<
   T extends ControlSpec,

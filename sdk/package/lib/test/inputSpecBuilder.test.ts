@@ -58,6 +58,24 @@ describe('values', () => {
     validator.parse(false)
     testOutput<typeof validator._output, boolean>()(null)
   })
+  test('triState', async () => {
+    const value = await Value.triState({
+      name: 'Testing',
+      default: null,
+    }).build({} as any)
+    const validator = value.validator
+    validator.parse(true)
+    validator.parse(false)
+    validator.parse(null)
+    expect(() => validator.parse('on')).toThrow()
+    testOutput<typeof validator._output, boolean | null>()(null)
+    expect(value.spec).toMatchObject({
+      type: 'triState',
+      name: 'Testing',
+      default: null,
+      footnote: null,
+    })
+  })
   test('text', async () => {
     const value = await Value.text({
       name: 'Testing',
@@ -81,6 +99,26 @@ describe('values', () => {
     validator.parse('test text')
     expect(() => validator.parse(null)).toThrow()
     testOutput<typeof validator._output, string>()(null)
+  })
+  test('text footnote propagates to spec', async () => {
+    const value = await Value.text({
+      name: 'Testing',
+      required: false,
+      default: null,
+      footnote: 'Defaults to 1024 upstream',
+    }).build({} as any)
+    expect(value.spec).toMatchObject({
+      type: 'text',
+      footnote: 'Defaults to 1024 upstream',
+    })
+  })
+  test('text footnote defaults to null', async () => {
+    const value = await Value.text({
+      name: 'Testing',
+      required: false,
+      default: null,
+    }).build({} as any)
+    expect(value.spec).toMatchObject({ type: 'text', footnote: null })
   })
   test('optional text', async () => {
     const value = await Value.text({
@@ -319,6 +357,24 @@ describe('values', () => {
         description: null,
         warning: null,
         default: false,
+      })
+    })
+    test('triState', async () => {
+      const value = await Value.dynamicTriState(async () => ({
+        name: 'Testing',
+        default: null,
+        footnote: 'Leave unset to use upstream default',
+      })).build({} as any)
+      const validator = value.validator
+      validator.parse(true)
+      validator.parse(false)
+      validator.parse(null)
+      testOutput<typeof validator._output, boolean | null>()(null)
+      expect(value.spec).toMatchObject({
+        type: 'triState',
+        name: 'Testing',
+        default: null,
+        footnote: 'Leave unset to use upstream default',
       })
     })
     test('text', async () => {
