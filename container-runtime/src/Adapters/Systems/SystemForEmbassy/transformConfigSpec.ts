@@ -11,6 +11,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): IST.InputSpec {
         default: oldVal.default,
         description: oldVal.description || null,
         warning: oldVal.warning || null,
+        footnote: null,
         disabled: false,
         immutable: false,
       }
@@ -20,6 +21,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): IST.InputSpec {
         name: oldVal.name,
         description: oldVal.description || null,
         warning: oldVal.warning || null,
+        footnote: null,
         default: oldVal.default,
         values: oldVal.values.reduce(
           (obj, curr) => ({
@@ -43,6 +45,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): IST.InputSpec {
         default: oldVal.default || null,
         description: oldVal.description || null,
         warning: oldVal.warning || null,
+        footnote: null,
         disabled: false,
         immutable: false,
         required: !oldVal.nullable,
@@ -76,6 +79,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): IST.InputSpec {
         default: oldVal.default || null,
         description: oldVal.description || null,
         warning: oldVal.warning || null,
+        footnote: null,
         disabled: false,
         immutable: false,
         required: !oldVal.nullable,
@@ -252,6 +256,7 @@ function getListSpec(
       type: "multiselect",
       default: oldVal.default as string[],
       immutable: false,
+      footnote: null,
       values: oldVal.spec.values.reduce(
         (obj, curr) => ({
           ...obj,
