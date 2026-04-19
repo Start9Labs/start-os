@@ -1,15 +1,15 @@
 use std::io::{self, Write};
-use std::process::Command;
-use std::thread;
 use std::time::Duration;
 
 use uciedit::openwrt::{WifiInterface, WifiMode};
 use uciedit::{parse_all, Arena};
 
-use crate::{flash, Error};
+use crate::invoke::Invoke;
+use crate::prelude::*;
+use crate::flash;
 
 /// Run all factory QC verification checks.
-pub fn run_verify() -> Result<(), Error> {
+pub async fn run_verify() -> Result<(), Error> {
     println!();
     println!("========================================");
     println!("   StartWRT Verification");
@@ -19,12 +19,12 @@ pub fn run_verify() -> Result<(), Error> {
     let mut passed = true;
 
     // Step 1: Firmware integrity
-    if !verify_firmware_integrity()? {
+    if !verify_firmware_integrity().await? {
         passed = false;
     }
 
     // Step 2: WiFi SSID broadcast
-    if !verify_wifi_broadcast()? {
+    if !verify_wifi_broadcast().await? {
         passed = false;
     }
 
@@ -43,7 +43,7 @@ pub fn run_verify() -> Result<(), Error> {
         println!("========================================");
         println!("   VERIFICATION FAILED");
         println!("========================================");
-        return Err(Error::other("one or more checks failed"));
+        return Err(Error::new(eyre!("one or more checks failed"), ErrorKind::Filesystem));
     }
     println!();
 
@@ -54,21 +54,21 @@ pub fn run_verify() -> Result<(), Error> {
 ///
 /// Validates that the squashfs magic is present and `bytes_used` is sane,
 /// confirming the image was not truncated during flash.
-fn verify_firmware_integrity() -> Result<bool, Error> {
+async fn verify_firmware_integrity() -> Result<bool, Error> {
     print!("[1/2] Firmware integrity... ");
     io::stdout().flush().ok();
 
     // Find the eMMC device — works whether booted from eMMC or SD.
-    let emmc_dev = find_emmc_device()?;
+    let emmc_dev = find_emmc_device().await?;
     let emmc_path = format!("/dev/{emmc_dev}");
 
-    let sfdisk = flash::read_partition_table(&emmc_path)?;
+    let sfdisk = flash::read_partition_table(&emmc_path).await?;
     let partitions = &sfdisk.partition_table.partitions;
 
     let rootfs = partitions
         .iter()
         .find(|p| p.name.as_deref() == Some("rootfs"))
-        .ok_or_else(|| Error::other("no rootfs partition found on eMMC"))?;
+        .ok_or_else(|| Error::new(eyre!("no rootfs partition found on eMMC"), ErrorKind::NotFound))?;
 
     let rootfs_start_bytes = rootfs.start * flash::SECTOR_SIZE;
     let rootfs_size_bytes = rootfs.size * flash::SECTOR_SIZE;
@@ -102,13 +102,13 @@ fn verify_firmware_integrity() -> Result<bool, Error> {
 /// Checks for hostapd interfaces in ubus and confirms the SSID from UCI.
 /// Retries up to 3 times with a 2-second delay since hostapd may still be
 /// starting after init/manufacture.
-fn verify_wifi_broadcast() -> Result<bool, Error> {
+async fn verify_wifi_broadcast() -> Result<bool, Error> {
     print!("[2/2] WiFi SSID broadcast... ");
     io::stdout().flush().ok();
 
     // Only meaningful when booted from eMMC
-    let boot_dev = flash::boot_device()?;
-    if flash::mmc_device_type(&boot_dev).as_deref() != Some("MMC") {
+    let boot_dev = flash::boot_device().await?;
+    if flash::mmc_device_type(&boot_dev).await.as_deref() != Some("MMC") {
         println!("SKIPPED");
         println!("  reboot from eMMC to verify WiFi broadcast");
         return Ok(true);
@@ -117,15 +117,14 @@ fn verify_wifi_broadcast() -> Result<bool, Error> {
     let mut hostapd_ifaces = Vec::new();
     for attempt in 0..3 {
         if attempt > 0 {
-            thread::sleep(Duration::from_secs(2));
+            tokio::time::sleep(Duration::from_secs(2)).await;
         }
-        let output = Command::new("ubus")
+        if let Ok(output) = tokio::process::Command::new("ubus")
             .arg("list")
-            .output()
-            .map_err(|e| Error::other(format!("failed to run ubus list: {e}")))?;
-
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
+            .invoke(ErrorKind::Filesystem.into())
+            .await
+        {
+            let stdout = String::from_utf8_lossy(&output);
             hostapd_ifaces = stdout
                 .lines()
                 .filter(|l| l.starts_with("hostapd."))
@@ -144,7 +143,7 @@ fn verify_wifi_broadcast() -> Result<bool, Error> {
     }
 
     // Read SSID from UCI to confirm it's "StartWRT"
-    let ssid = read_configured_ssid().unwrap_or_default();
+    let ssid = read_configured_ssid().await.unwrap_or_default();
 
     if ssid != "StartWRT" {
         println!("FAIL");
@@ -164,9 +163,9 @@ fn verify_wifi_broadcast() -> Result<bool, Error> {
 }
 
 /// Read the configured SSID from the first AP wifi-iface in UCI.
-fn read_configured_ssid() -> Option<String> {
+async fn read_configured_ssid() -> Option<String> {
     let arena = Arena::new();
-    let cfgs = parse_all("/etc/config", &arena, &["wireless"]).ok()?;
+    let cfgs = parse_all("/etc/config", &arena, &["wireless"]).await.ok()?;
 
     for section in &cfgs["wireless"].sections {
         if let Ok(Some(iface)) = section.get_typed::<WifiInterface>() {
@@ -179,13 +178,13 @@ fn read_configured_ssid() -> Option<String> {
 }
 
 /// Find the eMMC block device, whether booted from eMMC or SD.
-fn find_emmc_device() -> Result<String, Error> {
-    let boot_dev = flash::boot_device()?;
-    if flash::mmc_device_type(&boot_dev).as_deref() == Some("MMC") {
+async fn find_emmc_device() -> Result<String, Error> {
+    let boot_dev = flash::boot_device().await?;
+    if flash::mmc_device_type(&boot_dev).await.as_deref() == Some("MMC") {
         // Booted from eMMC — the boot device is the eMMC
         Ok(boot_dev)
     } else {
         // Booted from SD — find the eMMC
-        flash::find_emmc(&boot_dev)
+        flash::find_emmc(&boot_dev).await
     }
 }

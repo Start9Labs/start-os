@@ -8,7 +8,7 @@ use axum::http::{Response, header};
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{any, get, post};
 use axum::{Extension, Json, Router};
-use color_eyre::eyre::Error;
+use crate::prelude::*;
 use rpc_toolkit::Server;
 use serde::Deserialize;
 use std::future::ready;
@@ -74,9 +74,18 @@ async fn setup_flash_handler(
     let flash_flag = state.flash_in_progress.clone();
     let (tx, rx) = mpsc::channel::<SetupEvent>(32);
 
-    tokio::task::spawn_blocking(move || {
-        setup::run_setup_flash(params.mode, &params.password, &pwd.password, &tx);
-        flash_flag.store(false, Ordering::SeqCst);
+    // run_setup_flash holds uciedit Arena across .await points, so its future
+    // is !Send and cannot be `tokio::spawn`ed. Run it on a dedicated thread
+    // with its own single-threaded runtime (which permits !Send futures).
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("failed to create setup-flash runtime");
+        rt.block_on(async move {
+            setup::run_setup_flash(params.mode, &params.password, &pwd.password, &tx).await;
+            flash_flag.store(false, Ordering::SeqCst);
+        });
     });
 
     let stream = futures::stream::unfold(rx, |mut rx| async move {
@@ -111,19 +120,19 @@ async fn root_ca_handler() -> Response<Body> {
 }
 
 /// Initialize SSL certificates. Returns true if HTTPS is ready.
-fn init_ssl() -> bool {
-    if let Err(e) = ssl::ensure_root_ca() {
+async fn init_ssl() -> bool {
+    if let Err(e) = ssl::ensure_root_ca().await {
         tracing::error!("Root CA generation failed: {e}");
         return false;
     }
 
-    if let Err(e) = ssl::ensure_intermediate_ca() {
+    if let Err(e) = ssl::ensure_intermediate_ca().await {
         tracing::error!("intermediate CA generation failed: {e}");
         return false;
     }
 
-    let addrs = ssl::read_lan_addresses(std::path::Path::new("/etc/config"));
-    if let Err(e) = ssl::ensure_server_cert(&addrs) {
+    let addrs = ssl::read_lan_addresses(std::path::Path::new("/etc/config")).await;
+    if let Err(e) = ssl::ensure_server_cert(&addrs).await {
         tracing::error!("server cert generation failed: {e}");
         return false;
     }
@@ -132,7 +141,7 @@ fn init_ssl() -> bool {
     // If they're corrupt, force-regenerate once.
     if ssl::build_tls_config().is_err() {
         tracing::warn!("TLS config build failed with existing certs, regenerating");
-        if let Err(e) = ssl::regenerate_server_cert(&addrs) {
+        if let Err(e) = ssl::regenerate_server_cert(&addrs).await {
             tracing::error!("cert regeneration failed: {e}");
             return false;
         }
@@ -150,7 +159,7 @@ async fn inner_main() -> Result<(), Error> {
     // Generate local auth cookie so CLI commands over SSH bypass session auth
     crate::auth::init_local_auth_cookie().await?;
 
-    let setup_mode = tokio::task::spawn_blocking(setup::is_setup_mode).await?;
+    let setup_mode = setup::is_setup_mode().await;
 
     let continuations = RpcContinuations::new();
     let open_authed = crate::continuations::OpenAuthedContinuations::new();
@@ -160,7 +169,7 @@ async fn inner_main() -> Result<(), Error> {
         tracing::info!("setup mode detected (booted from removable media)");
 
         // Resolve WiFi password: SD baked-in → eMMC key_backup → None
-        let pwd = tokio::task::spawn_blocking(|| match setup::resolve_password() {
+        let pwd = match setup::resolve_password().await {
             Ok(Some(pwd)) => {
                 tracing::info!("WiFi password resolved (baked_in={})", pwd.baked_in);
                 Some(pwd)
@@ -173,24 +182,23 @@ async fn inner_main() -> Result<(), Error> {
                 tracing::error!("WiFi password resolution failed: {e}");
                 None
             }
-        })
-        .await?;
+        };
 
         if let Some(ref pwd) = pwd {
-            // Configure WiFi AP with resolved password (single-client limit)
+            // Configure WiFi AP with resolved password (single-client limit).
             let wifi_password = pwd.password.clone();
-            tokio::task::spawn_blocking(move || {
-                if let Err(e) = crate::init::configure_wifi("/etc/config", &wifi_password, Some(1)) {
-                    tracing::error!("WiFi AP setup failed: {e}");
-                }
-                let _ = crate::run_quiet(std::process::Command::new("wifi").arg("reload"));
-            })
-            .await?;
+            if let Err(e) =
+                crate::init::configure_wifi("/etc/config", &wifi_password, Some(1)).await
+            {
+                tracing::error!("WiFi AP setup failed: {e}");
+            }
+            let _ = crate::run_quiet_async(
+                tokio::process::Command::new("wifi").arg("reload"),
+            )
+            .await;
 
             // Enable captive portal only when WiFi AP can start
-            if let Err(e) =
-                tokio::task::spawn_blocking(crate::captive::enable_captive_portal).await?
-            {
+            if let Err(e) = crate::captive::enable_captive_portal().await {
                 tracing::error!("captive portal setup failed: {e}");
             }
         } else {
@@ -203,22 +211,19 @@ async fn inner_main() -> Result<(), Error> {
         };
     } else {
         // Normal mode: restore WiFi + manage captive portal state
-        tokio::task::spawn_blocking(|| {
-            if let Err(e) = crate::init::restore_wifi_if_needed() {
-                tracing::error!("WiFi auto-restore failed: {e}");
-            }
-            if let Err(e) = crate::profiles::bootstrap_admin_profile("/etc/config") {
-                tracing::error!("Admin profile bootstrap failed: {e}");
-            }
-            if let Err(e) = crate::system::apply_remote_access(ServerContext::default()) {
-                tracing::error!("Remote access rule apply failed: {e}");
-            }
-            // Apply WAN schedule enforcement (UCI firewall rules)
-            if let Err(e) = crate::profiles::evaluate_and_apply_schedules(&ServerContext::default()) {
-                tracing::error!("Failed to evaluate WAN schedules at boot: {e}");
-            }
-        })
-        .await?;
+        if let Err(e) = crate::init::restore_wifi_if_needed().await {
+            tracing::error!("WiFi auto-restore failed: {e}");
+        }
+        if let Err(e) = crate::profiles::bootstrap_admin_profile("/etc/config").await {
+            tracing::error!("Admin profile bootstrap failed: {e}");
+        }
+        if let Err(e) = crate::system::apply_remote_access(ServerContext::default()).await {
+            tracing::error!("Remote access rule apply failed: {e}");
+        }
+        // Apply WAN schedule enforcement (UCI firewall rules)
+        if let Err(e) = crate::profiles::evaluate_and_apply_schedules(&ServerContext::default()).await {
+            tracing::error!("Failed to evaluate WAN schedules at boot: {e}");
+        }
 
         if let Err(e) = crate::captive::ensure_captive_portal_state().await {
             tracing::error!("captive portal setup failed: {e}");
@@ -231,7 +236,7 @@ async fn inner_main() -> Result<(), Error> {
     }
 
     // Initialize SSL: ensure Root CA and server cert exist
-    let tls_ready = tokio::task::spawn_blocking(init_ssl).await?;
+    let tls_ready = init_ssl().await;
 
     let ctx = ServerContext {
         continuations: continuations.clone(),
@@ -309,7 +314,7 @@ async fn inner_main() -> Result<(), Error> {
             ssl::server_key_path(),
         )
         .await
-        .map_err(|e| color_eyre::eyre::eyre!("failed to load TLS config: {e}"))?;
+        .map_err(|e| Error::new(eyre!("failed to load TLS config: {e}"), ErrorKind::OpenSsl))?;
 
         let https_app = app.clone();
 
@@ -342,6 +347,14 @@ async fn inner_main() -> Result<(), Error> {
 pub fn main(_args: VecDeque<OsString>) {
     init_logging("startwrt-ctrld");
     tracing::info!("startwrt-ctrld starting (luci proxy v10)");
+
+    // The start-os dep transitively enables rustls's `aws-lc-rs` feature
+    // (via lettre), so rustls is compiled with both `ring` and `aws-lc-rs`
+    // and its auto-select panics. Install ring explicitly before anything
+    // touches rustls.
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("failed to install rustls crypto provider");
 
     let res = {
         let rt = tokio::runtime::Builder::new_multi_thread()

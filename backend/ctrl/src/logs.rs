@@ -6,7 +6,8 @@ use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-use crate::error::Error;
+use crate::invoke::Invoke;
+use crate::prelude::*;
 use crate::ServerContext;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -100,11 +101,10 @@ async fn handle_ws(mut ws: WebSocket) {
 
 pub async fn get_logs(_ctx: ServerContext) -> Result<LogsResponse, Error> {
     let output = Command::new("logread")
-        .output()
-        .await
-        .map_err(|e| Error::other(format!("failed to run logread: {e}")))?;
+        .invoke(ErrorKind::Filesystem.into())
+        .await?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = String::from_utf8_lossy(&output);
     let entries = stdout.lines().filter_map(parse_logread_line).collect();
 
     Ok(LogsResponse { entries })

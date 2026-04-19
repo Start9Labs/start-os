@@ -1,13 +1,19 @@
 [package]
-name = "startwrt-ctrl"
+name = "startwrt-core"
 version = "0.1.0"
 edition = "2021"
+
+[lib]
+name = "startwrt"
+path = "src/lib.rs"
 
 [[bin]]
 name = "startwrt"
 path = "src/bin/startwrt.rs"
 
 [dependencies]
+num_enum = "0.7"
+start-os = { path = "../../start-os/core" }
 async_cell = "0.2.2"
 color-eyre = "0.6.3"
 futures = "0.3.31"

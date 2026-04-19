@@ -9,7 +9,7 @@ use rpc_toolkit::{from_fn_async, CallRemote, Context, Empty, HandlerArgs, Handle
 use serde::{Deserialize, Serialize};
 
 use crate::continuations::{self, Guid, RpcContinuation};
-use crate::error::Error;
+use crate::prelude::*;
 use crate::{CliContext, ServerContext};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,6 +19,7 @@ pub struct DiagnosticsCreateRes {
 }
 
 /// RPC handler: read syslog, register download continuation, return guid + filename.
+#[instrument(skip_all)]
 async fn create(ctx: ServerContext) -> Result<DiagnosticsCreateRes, Error> {
     let date = chrono::Utc::now().format("%Y-%m-%d");
     let filename = format!("diagnostics-startwrt-{date}.log");
@@ -35,7 +36,7 @@ async fn create(ctx: ServerContext) -> Result<DiagnosticsCreateRes, Error> {
                 "Failed to read diagnostics log",
                 Some(&format!("logread exited with {}: {stderr}", o.status)),
             );
-            return Err(Error::other(format!("logread failed: {stderr}")));
+            return Err(Error::new(eyre!("logread failed: {stderr}"), ErrorKind::Filesystem));
         }
         Err(e) => {
             tracing::warn!("failed to run logread: {e}");
@@ -46,7 +47,7 @@ async fn create(ctx: ServerContext) -> Result<DiagnosticsCreateRes, Error> {
                 "Failed to read diagnostics log",
                 Some(&e.to_string()),
             );
-            return Err(Error::other(format!("Failed to run logread: {e}")));
+            return Err(Error::new(eyre!("Failed to run logread: {e}"), ErrorKind::Filesystem));
         }
     };
     let body = output.stdout;
@@ -82,6 +83,7 @@ async fn create(ctx: ServerContext) -> Result<DiagnosticsCreateRes, Error> {
 }
 
 /// CLI handler: call diagnostics.create via RPC, download the file, write to ~/Downloads.
+#[instrument(skip_all)]
 async fn cli_download(
     HandlerArgs {
         context: ctx,
@@ -99,15 +101,15 @@ async fn cli_download(
         )
         .await?,
     )
-    .map_err(|e| Error::other(format!("Failed to parse response: {e}")))?;
+    .map_err(|e| Error::new(eyre!("Failed to parse response: {e}"), ErrorKind::Deserialization))?;
 
     let (bytes, _) = ctx.rest_download(res.guid.as_ref()).await?;
 
     let download_dir = dirs::download_dir()
         .unwrap_or_else(|| PathBuf::from("."));
     let path = download_dir.join(&res.filename);
-    std::fs::write(&path, &bytes).map_err(|e| {
-        crate::Error::other(format!("Failed to write {}: {e}", path.display()))
+    tokio::fs::write(&path, &bytes).await.map_err(|e| {
+        Error::new(eyre!("Failed to write {}: {e}", path.display()), ErrorKind::Filesystem)
     })?;
 
     println!("{}", path.display());

@@ -1,10 +1,12 @@
+use crate::prelude::*;
 use crate::profiles::Lookup;
 use crate::utils::{DeserializeStdin, HandlerExtSerde};
+use crate::error::ErrorKind;
 use crate::{CliContext, CtrlContext, Error, ServerContext};
-use rpc_toolkit::{from_fn, from_fn_async, HandlerExt as _, ParentHandler};
+use rpc_toolkit::{from_fn_async, from_fn_async_local, HandlerExt as _, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::process::Command;
+use crate::invoke::Invoke;
 use std::sync::Mutex;
 use std::time::Instant;
 use uciedit::openwrt::{DhcpHost, WifiDevice, WifiInterface};
@@ -14,12 +16,12 @@ pub fn devices<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "list",
-            from_fn_async(list)
+            from_fn_async_local(list)
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("update", from_fn(update::<C>).no_display())
-        .subcommand("forget", from_fn(forget::<C>).no_display())
+        .subcommand("update", from_fn_async_local(update::<C>).no_display())
+        .subcommand("forget", from_fn_async_local(forget::<C>).no_display())
         .subcommand(
             "data-usage",
             from_fn_async(data_usage)
@@ -188,13 +190,13 @@ fn parse_dhcp_leases(output: &str) -> Vec<DhcpLease> {
 }
 
 /// Run a command and return its stdout, or empty string on failure.
-fn run_cmd(cmd: &str, args: &[&str]) -> String {
-    Command::new(cmd)
+async fn run_cmd(cmd: &str, args: &[&str]) -> String {
+    tokio::process::Command::new(cmd)
         .args(args)
-        .output()
+        .invoke(ErrorKind::Network.into())
+        .await
         .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .and_then(|out| String::from_utf8(out).ok())
         .unwrap_or_default()
 }
 
@@ -308,13 +310,13 @@ fn parse_nlbw_json(output: &str) -> Vec<(String, u64, u64)> {
 /// Discover hostapd interfaces and their connected client MACs,
 /// along with radio band info.
 /// Returns (MAC→band_label, set of WiFi bridge-port names).
-fn get_wifi_clients() -> (HashMap<String, String>, std::collections::HashSet<String>) {
+async fn get_wifi_clients() -> (HashMap<String, String>, std::collections::HashSet<String>) {
     // Maps MAC → connection type ("Wi-Fi 2.4GHz" or "Wi-Fi 5GHz")
     let mut wifi_macs: HashMap<String, String> = HashMap::new();
     let mut wifi_ports = std::collections::HashSet::new();
 
     // 1. List hostapd interfaces via ubus
-    let ubus_list = run_cmd("ubus", &["list"]);
+    let ubus_list = run_cmd("ubus", &["list"]).await;
     let hostapd_ifaces: Vec<&str> = ubus_list
         .lines()
         .filter(|l| l.starts_with("hostapd."))
@@ -330,7 +332,7 @@ fn get_wifi_clients() -> (HashMap<String, String>, std::collections::HashSet<Str
 
     // Read UCI wireless config for device bands
     let arena = Arena::new();
-    if let Ok(cfgs) = parse_all("/etc/config", &arena, &["wireless"]) {
+    if let Ok(cfgs) = parse_all("/etc/config", &arena, &["wireless"]).await {
         // Build radio → band map
         let mut radio_band: HashMap<String, String> = HashMap::new();
         cfgs["wireless"].each::<WifiDevice, Error>(|name, dev| {
@@ -367,7 +369,7 @@ fn get_wifi_clients() -> (HashMap<String, String>, std::collections::HashSet<Str
             .cloned()
             .unwrap_or_else(|| "Wi-Fi".to_string());
 
-        let output = run_cmd("ubus", &["call", hostapd, "get_clients"]);
+        let output = run_cmd("ubus", &["call", hostapd, "get_clients"]).await;
         if output.is_empty() {
             continue;
         }
@@ -388,8 +390,8 @@ fn get_wifi_clients() -> (HashMap<String, String>, std::collections::HashSet<Str
 /// Parse `bridge fdb show br br-lan` to map each MAC to its bridge port.
 /// Only dynamic (learned) entries are included — permanent/self-only entries
 /// (multicast groups, etc.) are skipped.
-fn get_bridge_fdb() -> HashMap<String, String> {
-    let output = run_cmd("bridge", &["fdb", "show", "br", "br-lan"]);
+async fn get_bridge_fdb() -> HashMap<String, String> {
+    let output = run_cmd("bridge", &["fdb", "show", "br", "br-lan"]).await;
     let mut fdb: HashMap<String, String> = HashMap::new();
     for line in output.lines() {
         if line.contains("permanent") {
@@ -530,33 +532,36 @@ fn parse_wg_show_dump(output: &str) -> Vec<WgActivePeer> {
 
 /// Query all WireGuard interfaces and return active peer data.
 /// Returns Vec<(wg_interface_name, Vec<WgActivePeer>)>.
-fn query_wg_active_peers(wg_interfaces: &[String]) -> Vec<(String, Vec<WgActivePeer>)> {
-    wg_interfaces
-        .iter()
-        .map(|iface| {
-            let output = run_cmd("wg", &["show", iface, "dump"]);
-            let peers = parse_wg_show_dump(&output);
-            (iface.clone(), peers)
-        })
-        .collect()
-}
-
-fn reload_firewall() {
-    std::thread::spawn(|| {
-        let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("reload"));
-    });
+async fn query_wg_active_peers(wg_interfaces: &[String]) -> Vec<(String, Vec<WgActivePeer>)> {
+    let mut results = Vec::new();
+    for iface in wg_interfaces {
+        let output = run_cmd("wg", &["show", iface, "dump"]).await;
+        let peers = parse_wg_show_dump(&output);
+        results.push((iface.clone(), peers));
+    }
+    results
 }
 
 fn reload_dnsmasq() {
-    std::thread::spawn(|| {
-        let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("reload"));
+    tokio::spawn(async {
+        let _ = crate::run_quiet_async(
+            tokio::process::Command::new("/etc/init.d/dnsmasq").arg("reload"),
+        )
+        .await;
     });
 }
 
+#[allow(dead_code)]
 fn reload_firewall_and_dnsmasq() {
-    std::thread::spawn(|| {
-        let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("reload"));
-        let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("reload"));
+    tokio::spawn(async {
+        let _ = crate::run_quiet_async(
+            tokio::process::Command::new("/etc/init.d/firewall").arg("reload"),
+        )
+        .await;
+        let _ = crate::run_quiet_async(
+            tokio::process::Command::new("/etc/init.d/dnsmasq").arg("reload"),
+        )
+        .await;
     });
 }
 
@@ -567,24 +572,28 @@ fn reload_firewall_and_dnsmasq() {
 ///
 /// Dnsmasq owns `/tmp/dhcp.leases` and dumps in-memory state on exit, so
 /// we must stop it *first*, edit the file while it's down, then start it.
-fn flush_device_from_network(mac: &str) {
+async fn flush_device_from_network(mac: &str) {
     let mac = mac.to_uppercase();
 
     // Delete ARP neighbor entries for this MAC
-    let arp_output = run_cmd("ip", &["neigh", "show"]);
+    let arp_output = run_cmd("ip", &["neigh", "show"]).await;
     for entry in parse_arp_output(&arp_output) {
         if entry.mac == mac {
-            let _ = Command::new("ip")
-                .args(&["neigh", "del", &entry.ip, "dev", &entry.interface])
-                .output();
+            let _ = tokio::process::Command::new("ip")
+                .args(["neigh", "del", &entry.ip, "dev", &entry.interface])
+                .invoke(ErrorKind::Network.into())
+                .await;
         }
     }
 
     // Stop dnsmasq so it flushes in-memory leases to disk and exits.
-    let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("stop"));
+    let _ = crate::run_quiet_async(
+        tokio::process::Command::new("/etc/init.d/dnsmasq").arg("stop"),
+    )
+    .await;
 
     // Remove the device's lease line from the now-stable file.
-    if let Ok(content) = std::fs::read_to_string("/tmp/dhcp.leases") {
+    if let Ok(content) = tokio::fs::read_to_string("/tmp/dhcp.leases").await {
         let filtered: String = content
             .lines()
             .filter(|line| {
@@ -599,11 +608,14 @@ fn flush_device_from_network(mac: &str) {
         } else {
             filtered
         };
-        let _ = std::fs::write("/tmp/dhcp.leases", filtered);
+        let _ = tokio::fs::write("/tmp/dhcp.leases", filtered).await;
     }
 
     // Start dnsmasq — picks up both the UCI host removal and edited leases.
-    let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("start"));
+    let _ = crate::run_quiet_async(
+        tokio::process::Command::new("/etc/init.d/dnsmasq").arg("start"),
+    )
+    .await;
 }
 
 // --- Handlers ---
@@ -694,13 +706,16 @@ fn non_wifi_probe_candidates(
 /// A MAC is only considered unreachable if ALL of its probed IPs failed.
 /// Each target includes the interface to bind to (`-I`), ensuring pings stay
 /// on the correct LAN segment and don't leak to WAN on overlapping subnets.
-fn ping_unreachable_macs(targets: Vec<(String, String, String)>) -> std::collections::HashSet<String> {
-    let mut results: Vec<(String, std::process::Child)> = Vec::new();
+async fn ping_unreachable_macs(targets: Vec<(String, String, String)>) -> std::collections::HashSet<String> {
+    use std::process::Stdio;
+
+    let mut results: Vec<(String, tokio::process::Child)> = Vec::new();
     for (ip, mac, iface) in &targets {
-        if let Ok(child) = Command::new("ping")
-            .args(["-c", "1", "-W", "1", "-I", iface, ip])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
+        if let Ok(child) = tokio::process::Command::new("ping")
+            .args(["-c", "1", "-W", "1", "-I", iface, ip.as_str()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
             .spawn()
         {
             results.push((mac.clone(), child));
@@ -711,7 +726,7 @@ fn ping_unreachable_macs(targets: Vec<(String, String, String)>) -> std::collect
     let mut responded = std::collections::HashSet::new();
     for (mac, mut child) in results {
         probed.insert(mac.clone());
-        let ok = child.wait().map(|s| s.success()).unwrap_or(false);
+        let ok = child.wait().await.map(|s| s.success()).unwrap_or(false);
         if ok {
             responded.insert(mac);
         }
@@ -719,21 +734,24 @@ fn ping_unreachable_macs(targets: Vec<(String, String, String)>) -> std::collect
     probed.difference(&responded).cloned().collect()
 }
 
+#[instrument(skip_all)]
 pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     // --- Phase 1: IPv6 multicast discovery (all pings concurrent, ~1s) ---
     //
     // Ping ff02::1 to populate the NDP neighbor table. SLAAC is stateless —
     // the router never learns which addresses clients configured. All pings
     // fire concurrently so wall-clock time is 1s regardless of interface count.
-    let _ = tokio::task::spawn_blocking(|| {
+    {
+        use std::process::Stdio;
+
         // When bridge VLAN filtering is active, br-lan.X interfaces exist for
         // each profile VLAN — use those exclusively. Multicast on the bridge
         // master (br-lan) leaks out ALL member ports including WAN, which
         // causes upstream devices to appear as LAN clients.
         // When no VLANs exist (single admin profile), fall back to br-lan.
         let mut ifaces = Vec::new();
-        if let Ok(entries) = std::fs::read_dir("/sys/class/net") {
-            for entry in entries.flatten() {
+        if let Ok(mut entries) = tokio::fs::read_dir("/sys/class/net").await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
                 let name = entry.file_name().to_string_lossy().to_string();
                 if name.starts_with("br-lan.") {
                     ifaces.push(name);
@@ -744,14 +762,15 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
             ifaces.push("br-lan".to_string());
         }
 
-        let mut children = Vec::new();
+        let mut children: Vec<tokio::process::Child> = Vec::new();
 
         // Link-local discovery on each LAN VLAN interface.
         for iface in &ifaces {
-            if let Ok(child) = Command::new("ping6")
-                .args(["-c", "1", "-W", "1", "-I", iface, "ff02::1"])
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
+            if let Ok(child) = tokio::process::Command::new("ping6")
+                .args(["-c", "1", "-W", "1", "-I", iface.as_str(), "ff02::1"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .kill_on_drop(true)
                 .spawn()
             {
                 children.push(child);
@@ -760,7 +779,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
 
         // ULA/global discovery — ping from each interface's global IPv6
         // address so clients respond from their ULA addresses (RFC 6724).
-        if let Ok(content) = std::fs::read_to_string("/proc/net/if_inet6") {
+        if let Ok(content) = tokio::fs::read_to_string("/proc/net/if_inet6").await {
             for line in content.lines() {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 // Format: addr_hex ifindex prefix_len scope flags ifname
@@ -768,10 +787,11 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                 if parts.len() >= 6 && parts[3] == "00" && ifaces.iter().any(|i| i == parts[5]) {
                     if let Some(addr) = parse_proc_ipv6_addr(parts[0]) {
                         let dest = format!("ff02::1%{}", parts[5]);
-                        if let Ok(child) = Command::new("ping6")
+                        if let Ok(child) = tokio::process::Command::new("ping6")
                             .args(["-c", "1", "-W", "1", "-I", &addr, &dest])
-                            .stdout(std::process::Stdio::null())
-                            .stderr(std::process::Stdio::null())
+                            .stdout(Stdio::null())
+                            .stderr(Stdio::null())
+                            .kill_on_drop(true)
                             .spawn()
                         {
                             children.push(child);
@@ -782,10 +802,9 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         }
 
         for mut child in children {
-            let _ = child.wait();
+            let _ = child.wait().await;
         }
-    })
-    .await;
+    }
 
     // --- Phase 2a: Initial data gather (parallel) ---
     //
@@ -793,11 +812,11 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     // probing. UCI parsing has no dependency on any of these, so it runs in
     // parallel too.
     let (arp_output, wifi_result, uci_result, fdb_result) = tokio::join!(
-        tokio::task::spawn_blocking(|| run_cmd("ip", &["neigh", "show"])),
-        tokio::task::spawn_blocking(get_wifi_clients),
-        tokio::task::spawn_blocking(|| -> Result<_, Error> {
+        run_cmd("ip", &["neigh", "show"]),
+        get_wifi_clients(),
+        async {
             let arena = Arena::new();
-            let cfgs = parse_all("/etc/config", &arena, &["dhcp", "startwrt", "network"])?;
+            let cfgs = parse_all("/etc/config", &arena, &["dhcp", "startwrt", "network"]).await?;
 
             let mut hosts_by_mac: HashMap<String, DhcpHost> = HashMap::new();
             cfgs["dhcp"].each::<DhcpHost, Error>(|_, host| {
@@ -822,13 +841,12 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                 .collect();
 
             Ok::<_, Error>((hosts_by_mac, profiles, vpn_peer_configs))
-        }),
-        tokio::task::spawn_blocking(get_bridge_fdb),
+        },
+        get_bridge_fdb(),
     );
 
-    let arp_output = arp_output.unwrap_or_default();
-    let (wifi_clients, wifi_ports) = wifi_result.unwrap_or_default();
-    let fdb_by_mac = fdb_result.unwrap_or_default();
+    let (wifi_clients, wifi_ports) = wifi_result;
+    let fdb_by_mac = fdb_result;
     let initial_arp = parse_arp_output(&arp_output);
 
     // --- Phase 2b: Probe non-WiFi entries + remaining data (parallel) ---
@@ -848,7 +866,6 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     let wg_interfaces: Vec<String> = uci_result
         .as_ref()
         .ok()
-        .and_then(|r| r.as_ref().ok())
         .map(|(_, _, vpn_peer_configs)| {
             vpn_peer_configs
                 .iter()
@@ -858,28 +875,16 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         .unwrap_or_default();
 
     let (unreachable_macs, leases_output, nlbw_output, conntrack_output, wg_active_peers) = tokio::join!(
-        tokio::task::spawn_blocking(move || ping_unreachable_macs(probe_targets)),
-        tokio::task::spawn_blocking(|| {
-            std::fs::read_to_string("/tmp/dhcp.leases").unwrap_or_default()
-        }),
-        tokio::task::spawn_blocking(|| run_cmd("nlbw", &["-c", "json", "-g", "mac"])),
-        tokio::task::spawn_blocking(|| {
-            Command::new("conntrack")
-                .args(&["-L", "-o", "extended"])
-                .output()
-                .ok()
-                .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
-                .unwrap_or_default()
-        }),
-        tokio::task::spawn_blocking(move || query_wg_active_peers(&wg_interfaces)),
+        ping_unreachable_macs(probe_targets),
+        async { tokio::fs::read_to_string("/tmp/dhcp.leases").await.unwrap_or_default() },
+        run_cmd("nlbw", &["-c", "json", "-g", "mac"]),
+        run_cmd("conntrack", &["-L", "-o", "extended"]),
+        query_wg_active_peers(&wg_interfaces),
     );
 
-    let mut unreachable_macs = unreachable_macs.unwrap_or_default();
+    let mut unreachable_macs = unreachable_macs;
     unreachable_macs.extend(ipv6_only_macs);
-    let leases_output = leases_output.unwrap_or_default();
-    let nlbw_output = nlbw_output.unwrap_or_default();
-    let conntrack_output = conntrack_output.unwrap_or_default();
-    let wg_active_peers = wg_active_peers.unwrap_or_default();
+    let leases_output = leases_output;
 
     // Use the initial ARP snapshot — no need to re-read since we use ping
     // exit codes (not kernel NUD state) to determine reachability.
@@ -943,12 +948,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     }
 
     // Unpack UCI results
-    let (hosts_by_mac, profile_by_vlan, vpn_peer_configs) = uci_result.unwrap_or_else(|_| {
-        Err(Error::from(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "UCI parse failed in background task",
-        )))
-    })?;
+    let (hosts_by_mac, profile_by_vlan, vpn_peer_configs) = uci_result?;
 
     // Build ARP index
     let mut arp_by_mac: HashMap<String, Vec<&ArpEntry>> = HashMap::new();
@@ -1186,7 +1186,8 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     Ok(devices)
 }
 
-pub fn update<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn update<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<DeviceUpdateReq>,
 ) -> Result<(), Error> {
@@ -1194,7 +1195,7 @@ pub fn update<C: CtrlContext>(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp"]).await?;
 
         let mut found = false;
         for section in &mut cfgs["dhcp"].sections {
@@ -1242,7 +1243,7 @@ pub fn update<C: CtrlContext>(
             cfgs["dhcp"].append(&new_host, Some(&section_name))?;
         }
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        match dump_all(ctx.uci_root(), cfgs).await {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -1286,7 +1287,8 @@ pub fn update<C: CtrlContext>(
     }
 }
 
-pub fn forget<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn forget<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<DeviceMacReq>,
 ) -> Result<(), Error> {
@@ -1294,7 +1296,7 @@ pub fn forget<C: CtrlContext>(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp"]).await?;
 
         // Remove DHCP host
         cfgs["dhcp"].sections.retain(|section| {
@@ -1306,7 +1308,7 @@ pub fn forget<C: CtrlContext>(
             true
         });
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        match dump_all(ctx.uci_root(), cfgs).await {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -1326,7 +1328,7 @@ pub fn forget<C: CtrlContext>(
                     None,
                 );
                 if ctx.effectful() {
-                    flush_device_from_network(&mac_upper);
+                    flush_device_from_network(&mac_upper).await;
                 }
                 return Ok(());
             }
@@ -1334,6 +1336,7 @@ pub fn forget<C: CtrlContext>(
     }
 }
 
+#[instrument(skip_all)]
 pub async fn data_usage(
     _ctx: ServerContext,
     DeserializeStdin(req): DeserializeStdin<DataUsageReq>,
@@ -1362,11 +1365,7 @@ pub async fn data_usage(
         format!("{:04}-{:02}-{:02}", y, m, d)
     };
 
-    let output = tokio::task::spawn_blocking(move || {
-        run_cmd("nlbw", &["-c", "json", "-g", "mac,interval", "-t", &start_date])
-    })
-    .await
-    .unwrap_or_default();
+    let output = run_cmd("nlbw", &["-c", "json", "-g", "mac,interval", "-t", &start_date]).await;
 
     if output.is_empty() {
         return Ok(Vec::new());

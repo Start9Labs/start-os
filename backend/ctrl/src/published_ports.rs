@@ -1,9 +1,11 @@
 use crate::devices::{self, Device, DeviceStatus};
 use crate::error::ErrorKind;
+use crate::invoke::Invoke;
+use crate::prelude::*;
 use crate::profiles::Lookup;
 use crate::utils::{DeserializeStdin, HandlerExtSerde};
 use crate::{CliContext, CtrlContext, Error, ServerContext};
-use rpc_toolkit::{from_fn, from_fn_async, HandlerExt as _, ParentHandler};
+use rpc_toolkit::{from_fn_async_local, HandlerExt as _, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uciedit::openwrt::{DhcpHost, FirewallRedirect, FirewallRule, FirewallTarget, FirewallZone};
@@ -13,11 +15,11 @@ pub fn published_ports<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "list",
-            from_fn_async(list)
+            from_fn_async_local(list)
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("set", from_fn(set::<C>).no_display())
+        .subcommand("set", from_fn_async_local(set::<C>).no_display())
 }
 
 // ── Types ──────────────────────────────────────────────
@@ -148,48 +150,24 @@ fn validate_id(s: &str) -> bool {
 fn validate_inputs(ports: &[PublishedPortInput]) -> Result<(), Error> {
     for port in ports {
         if !validate_id(&port.id) {
-            return Err(ErrorKind::InvalidValue {
-                field: "id".into(),
-                value: port.id.clone(),
-            }
-            .into());
+            return Err(Error::new(eyre!("invalid id: {}", port.id), ErrorKind::InvalidValue));
         }
         if port.label.trim().is_empty() {
-            return Err(ErrorKind::InvalidValue {
-                field: "label".into(),
-                value: port.label.clone(),
-            }
-            .into());
+            return Err(Error::new(eyre!("invalid label: {}", port.label), ErrorKind::InvalidValue));
         }
         if !port.device_mac.is_empty() && !validate_mac(&port.device_mac) {
-            return Err(ErrorKind::InvalidValue {
-                field: "device_mac".into(),
-                value: port.device_mac.clone(),
-            }
-            .into());
+            return Err(Error::new(eyre!("invalid device_mac: {}", port.device_mac), ErrorKind::InvalidValue));
         }
         if !validate_port_or_range(&port.ports) {
-            return Err(ErrorKind::InvalidValue {
-                field: "ports".into(),
-                value: port.ports.clone(),
-            }
-            .into());
+            return Err(Error::new(eyre!("invalid ports: {}", port.ports), ErrorKind::InvalidValue));
         }
         if let Some(ref pub_port) = port.ipv4_public_port {
             if !validate_port_or_range(pub_port) {
-                return Err(ErrorKind::InvalidValue {
-                    field: "ipv4_public_port".into(),
-                    value: pub_port.clone(),
-                }
-                .into());
+                return Err(Error::new(eyre!("invalid ipv4_public_port: {pub_port}"), ErrorKind::InvalidValue));
             }
         }
         if port.source != "any" && !validate_source(&port.source) {
-            return Err(ErrorKind::InvalidValue {
-                field: "source".into(),
-                value: port.source.clone(),
-            }
-            .into());
+            return Err(Error::new(eyre!("invalid source: {}", port.source), ErrorKind::InvalidValue));
         }
     }
     Ok(())
@@ -209,8 +187,8 @@ struct RawPort {
 }
 
 /// Extract raw published ports from firewall config sections.
-fn extract_ports(arena: &Arena, uci_root: &std::path::Path) -> Result<Vec<RawPort>, Error> {
-    let cfgs = parse_all(uci_root, arena, &["firewall"])?;
+async fn extract_ports(arena: &Arena, uci_root: &std::path::Path) -> Result<Vec<RawPort>, Error> {
+    let cfgs = parse_all(uci_root, arena, &["firewall"]).await?;
 
     // Collect redirects and rules with _pp_id metadata
     let mut redirects_by_id: HashMap<String, FirewallRedirect> = HashMap::new();
@@ -387,6 +365,7 @@ fn compute_status(
 }
 
 /// Generate a v4-style UUID from random bytes
+#[cfg(test)]
 fn uuid_v4() -> String {
     use rand::Rng;
     let mut bytes = [0u8; 16];
@@ -406,19 +385,18 @@ fn uuid_v4() -> String {
 
 // ── Handlers ──────────────────────────────────────────────
 
+#[instrument(skip_all)]
 pub async fn list(_ctx: ServerContext) -> Result<Vec<PublishedPort>, Error> {
     // Read firewall config and device list in parallel
     let (ports_result, devices_result) = tokio::join!(
-        tokio::task::spawn_blocking(|| {
+        async {
             let arena = Arena::new();
-            extract_ports(&arena, std::path::Path::new("/etc/config"))
-        }),
+            extract_ports(&arena, std::path::Path::new("/etc/config")).await
+        },
         devices::list(ServerContext::default()),
     );
 
-    let raw_ports = ports_result
-        .map_err(|e| Error::other(format!("firewall parse task panicked: {e}")))?
-        ?;
+    let raw_ports = ports_result?;
     let devices = devices_result?;
 
     // Index devices by MAC (skip VPN devices which have no MAC)
@@ -460,7 +438,8 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<PublishedPort>, Error> {
     Ok(ports)
 }
 
-pub fn set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<PublishedPortsSetRequest>,
 ) -> Result<(), Error> {
@@ -470,7 +449,7 @@ pub fn set<C: CtrlContext>(
     loop {
         // Resolve device IPs and interfaces inside the retry loop so they stay fresh
         let device_info: HashMap<String, DeviceNetInfo> = if ctx.effectful() {
-            resolve_device_info(&req.ports)
+            resolve_device_info(&req.ports).await
         } else {
             HashMap::new()
         };
@@ -482,16 +461,11 @@ pub fn set<C: CtrlContext>(
                     continue;
                 }
                 let info = device_info.get(&port.device_mac.to_uppercase());
-                let (ipv4_addr, ipv6_addr) = info
+                let (ipv4_addr, _ipv6_addr) = info
                     .map(|i| (i.ipv4.as_ref(), i.ipv6.as_ref()))
                     .unwrap_or((None, None));
                 if port.ipv4 && ipv4_addr.is_none() {
-                    return Err(ErrorKind::MissingDeviceAddress {
-                        mac: port.device_mac.clone(),
-                        family: "IPv4".into(),
-                        label: port.label.clone(),
-                    }
-                    .into());
+                    return Err(Error::new(eyre!("missing IPv4 address for device {} (port forward '{}')", port.device_mac, port.label), ErrorKind::MissingDeviceAddress));
                 }
                 // IPv6 validation is handled at rule-creation time: the GUA
                 // guard silently skips the IPv6 rule when the device has no
@@ -501,7 +475,7 @@ pub fn set<C: CtrlContext>(
         }
 
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["firewall", "dhcp"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["firewall", "dhcp"]).await?;
 
         // Auto-reserve static DHCP IPs for enabled IPv4 ports that lack reservations
         let mut dhcp_modified = false;
@@ -549,7 +523,7 @@ pub fn set<C: CtrlContext>(
 
         // Build MAC → zone lookup from profiles and firewall zones
         let mac_zones = if ctx.effectful() {
-            resolve_device_zones(ctx.uci_root().as_path(), &device_info)
+            resolve_device_zones(ctx.uci_root().as_path(), &device_info).await
         } else {
             HashMap::new()
         };
@@ -650,7 +624,7 @@ pub fn set<C: CtrlContext>(
             }
         }
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        match dump_all(ctx.uci_root(), cfgs).await {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -683,7 +657,7 @@ struct DeviceNetInfo {
 }
 
 /// Resolve IPv4/IPv6 addresses and ARP interface for devices referenced by published ports.
-fn resolve_device_info(
+async fn resolve_device_info(
     ports: &[PublishedPortInput],
 ) -> HashMap<String, DeviceNetInfo> {
     let mut result: HashMap<String, DeviceNetInfo> = HashMap::new();
@@ -701,7 +675,7 @@ fn resolve_device_info(
     // Read DHCP hosts for static IPs
     let arena = Arena::new();
     let mut static_ips: HashMap<String, Option<String>> = HashMap::new();
-    if let Ok(cfgs) = parse_all(std::path::Path::new("/etc/config"), &arena, &["dhcp"]) {
+    if let Ok(cfgs) = parse_all(std::path::Path::new("/etc/config"), &arena, &["dhcp"]).await {
         cfgs["dhcp"]
             .each::<DhcpHost, Error>(|_, host| {
                 let mac = host.mac.to_uppercase();
@@ -713,12 +687,12 @@ fn resolve_device_info(
     }
 
     // Read ARP/neighbor table for dynamic IPs and interface names
-    let neigh_output = std::process::Command::new("ip")
+    let neigh_output = tokio::process::Command::new("ip")
         .args(["neigh", "show"])
-        .output()
+        .invoke(ErrorKind::Network.into())
+        .await
         .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .and_then(|out| String::from_utf8(out).ok())
         .unwrap_or_default();
 
     let mut arp_ipv4: HashMap<String, String> = HashMap::new();
@@ -764,7 +738,7 @@ fn resolve_device_info(
         .collect();
 
     // Read DHCP leases as fallback for IPv4
-    let leases = std::fs::read_to_string("/tmp/dhcp.leases").unwrap_or_default();
+    let leases = tokio::fs::read_to_string("/tmp/dhcp.leases").await.unwrap_or_default();
     let mut lease_ipv4: HashMap<String, String> = HashMap::new();
     for line in leases.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
@@ -793,14 +767,14 @@ fn resolve_device_info(
 }
 
 /// Resolve MAC addresses to firewall zone names via ARP interface → VLAN tag → profile → zone.
-fn resolve_device_zones(
+async fn resolve_device_zones(
     uci_root: &std::path::Path,
     device_info: &HashMap<String, DeviceNetInfo>,
 ) -> HashMap<String, String> {
     let mut mac_zones: HashMap<String, String> = HashMap::new();
 
     let arena = Arena::new();
-    let Ok(cfgs) = parse_all(uci_root, &arena, &["startwrt", "firewall"]) else {
+    let Ok(cfgs) = parse_all(uci_root, &arena, &["startwrt", "firewall"]).await else {
         return mac_zones;
     };
 
@@ -842,18 +816,24 @@ fn resolve_device_zones(
 }
 
 fn restart_firewall() {
-    std::thread::spawn(|| {
-        let result = crate::run_quiet(std::process::Command::new("/etc/init.d/firewall").arg("restart"));
-        if let Err(e) = result {
+    tokio::spawn(async {
+        if let Err(e) = crate::run_quiet_async(
+            tokio::process::Command::new("/etc/init.d/firewall").arg("restart"),
+        )
+        .await
+        {
             tracing::error!("failed to restart firewall: {e}");
         }
     });
 }
 
 fn reload_dnsmasq() {
-    std::thread::spawn(|| {
-        let result = crate::run_quiet(std::process::Command::new("/etc/init.d/dnsmasq").arg("reload"));
-        if let Err(e) = result {
+    tokio::spawn(async {
+        if let Err(e) = crate::run_quiet_async(
+            tokio::process::Command::new("/etc/init.d/dnsmasq").arg("reload"),
+        )
+        .await
+        {
             tracing::error!("failed to reload dnsmasq: {e}");
         }
     });
@@ -893,8 +873,8 @@ mod tests {
 
     // ── extract_ports tests ──
 
-    #[test]
-    fn extract_empty_firewall() {
+    #[tokio::test]
+    async fn extract_empty_firewall() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -904,12 +884,12 @@ config defaults
 ",
         );
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert!(ports.is_empty());
     }
 
-    #[test]
-    fn extract_ipv4_only() {
+    #[tokio::test]
+    async fn extract_ipv4_only() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -928,7 +908,7 @@ config redirect 'pp_abc123'
 ",
         );
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert_eq!(ports.len(), 1);
         assert!(ports[0].ipv4);
         assert!(!ports[0].ipv6);
@@ -937,8 +917,8 @@ config redirect 'pp_abc123'
         assert_eq!(ports[0].device_mac, "AA:BB:CC:DD:EE:FF");
     }
 
-    #[test]
-    fn extract_ipv6_only() {
+    #[tokio::test]
+    async fn extract_ipv6_only() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -957,15 +937,15 @@ config rule 'pp_abc123_v6'
 ",
         );
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert_eq!(ports.len(), 1);
         assert!(!ports[0].ipv4);
         assert!(ports[0].ipv6);
         assert_eq!(ports[0].id, "abc123");
     }
 
-    #[test]
-    fn extract_paired_ipv4_ipv6() {
+    #[tokio::test]
+    async fn extract_paired_ipv4_ipv6() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -996,15 +976,15 @@ config rule 'pp_abc123_v6'
 ",
         );
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert_eq!(ports.len(), 1);
         assert!(ports[0].ipv4);
         assert!(ports[0].ipv6);
         assert_eq!(ports[0].id, "abc123");
     }
 
-    #[test]
-    fn extract_legacy_no_pp_id() {
+    #[tokio::test]
+    async fn extract_legacy_no_pp_id() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -1020,13 +1000,13 @@ config redirect 'pp_foo'
 ",
         );
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert_eq!(ports.len(), 1);
         assert_eq!(ports[0].id, "foo");
     }
 
-    #[test]
-    fn extract_legacy_unnamed_ignored() {
+    #[tokio::test]
+    async fn extract_legacy_unnamed_ignored() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -1042,13 +1022,13 @@ config redirect
 ",
         );
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         // Redirects without pp_ prefix or _pp_id are not published ports
         assert!(ports.is_empty());
     }
 
-    #[test]
-    fn extract_ignores_standard_firewall_rules() {
+    #[tokio::test]
+    async fn extract_ignores_standard_firewall_rules() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -1078,12 +1058,12 @@ config rule 'Allow_ICMPv6_Forward'
 ",
         );
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert!(ports.is_empty(), "standard firewall rules should not appear as published ports");
     }
 
-    #[test]
-    fn extract_ignores_ghost_entries_with_empty_mac() {
+    #[tokio::test]
+    async fn extract_ignores_ghost_entries_with_empty_mac() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -1114,12 +1094,12 @@ config rule 'cfg0b0b0b'
 ",
         );
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert!(ports.is_empty(), "ghost entries with empty _pp_mac should be ignored");
     }
 
-    #[test]
-    fn extract_disabled() {
+    #[tokio::test]
+    async fn extract_disabled() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -1138,13 +1118,13 @@ config redirect 'pp_dis1'
 ",
         );
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert_eq!(ports.len(), 1);
         assert!(!ports[0].enabled);
     }
 
-    #[test]
-    fn extract_public_port_differs() {
+    #[tokio::test]
+    async fn extract_public_port_differs() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -1163,13 +1143,13 @@ config redirect 'pp_pub1'
 ",
         );
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert_eq!(ports.len(), 1);
         assert_eq!(ports[0].ipv4_public_port.as_deref(), Some("9090"));
     }
 
-    #[test]
-    fn extract_public_port_same() {
+    #[tokio::test]
+    async fn extract_public_port_same() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -1188,7 +1168,7 @@ config redirect 'pp_pub2'
 ",
         );
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert_eq!(ports.len(), 1);
         assert!(ports[0].ipv4_public_port.is_none());
     }
@@ -1210,8 +1190,8 @@ config redirect 'pp_pub2'
         }
     }
 
-    #[test]
-    fn set_creates_redirect_and_rule() {
+    #[tokio::test]
+    async fn set_creates_redirect_and_rule() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(dir.path(), "");
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1221,11 +1201,11 @@ config redirect 'pp_pub2'
             DeserializeStdin(PublishedPortsSetRequest {
                 ports: vec![make_port("test1", true, false)],
             }),
-        )
+        ).await
         .unwrap();
 
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert_eq!(ports.len(), 1);
         assert!(ports[0].ipv4);
         assert_eq!(ports[0].id, "test1");
@@ -1235,8 +1215,8 @@ config redirect 'pp_pub2'
         assert!(content.contains("config redirect pp_test1"), "missing redirect section");
     }
 
-    #[test]
-    fn set_replaces_existing() {
+    #[tokio::test]
+    async fn set_replaces_existing() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -1260,11 +1240,11 @@ config redirect 'pp_old1'
             DeserializeStdin(PublishedPortsSetRequest {
                 ports: vec![make_port("new1", true, false)],
             }),
-        )
+        ).await
         .unwrap();
 
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert_eq!(ports.len(), 1);
         assert_eq!(ports[0].id, "new1");
 
@@ -1272,8 +1252,8 @@ config redirect 'pp_old1'
         assert!(!content.contains("pp_old1"), "old section should be removed");
     }
 
-    #[test]
-    fn set_clears_all() {
+    #[tokio::test]
+    async fn set_clears_all() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(
             dir.path(),
@@ -1295,16 +1275,16 @@ config redirect 'pp_del1'
         set(
             ctx,
             DeserializeStdin(PublishedPortsSetRequest { ports: vec![] }),
-        )
+        ).await
         .unwrap();
 
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert!(ports.is_empty());
     }
 
-    #[test]
-    fn set_disabled_port() {
+    #[tokio::test]
+    async fn set_disabled_port() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(dir.path(), "");
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1317,11 +1297,11 @@ config redirect 'pp_del1'
             DeserializeStdin(PublishedPortsSetRequest {
                 ports: vec![port],
             }),
-        )
+        ).await
         .unwrap();
 
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert_eq!(ports.len(), 1);
         assert!(!ports[0].enabled);
 
@@ -1329,8 +1309,8 @@ config redirect 'pp_del1'
         assert!(content.contains("option enabled '0'"), "expected 'option enabled 0' in:\n{content}");
     }
 
-    #[test]
-    fn set_custom_public_port() {
+    #[tokio::test]
+    async fn set_custom_public_port() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(dir.path(), "");
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1343,7 +1323,7 @@ config redirect 'pp_del1'
             DeserializeStdin(PublishedPortsSetRequest {
                 ports: vec![port],
             }),
-        )
+        ).await
         .unwrap();
 
         let content = std::fs::read_to_string(dir.path().join("firewall")).unwrap();
@@ -1351,12 +1331,12 @@ config redirect 'pp_del1'
         assert!(content.contains("option dest_port '80'"), "internal port should be 80");
 
         let arena = Arena::new();
-        let ports = extract_ports(&arena, dir.path()).unwrap();
+        let ports = extract_ports(&arena, dir.path()).await.unwrap();
         assert_eq!(ports[0].ipv4_public_port.as_deref(), Some("9090"));
     }
 
-    #[test]
-    fn set_source_restriction() {
+    #[tokio::test]
+    async fn set_source_restriction() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(dir.path(), "");
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1369,7 +1349,7 @@ config redirect 'pp_del1'
             DeserializeStdin(PublishedPortsSetRequest {
                 ports: vec![port],
             }),
-        )
+        ).await
         .unwrap();
 
         let content = std::fs::read_to_string(dir.path().join("firewall")).unwrap();
@@ -1383,7 +1363,7 @@ config redirect 'pp_del1'
             DeserializeStdin(PublishedPortsSetRequest {
                 ports: vec![port_any],
             }),
-        )
+        ).await
         .unwrap();
 
         let content = std::fs::read_to_string(dir.path().join("firewall")).unwrap();
@@ -1430,8 +1410,8 @@ config redirect 'pp_del1'
         );
     }
 
-    #[test]
-    fn set_sanitizes_section_name() {
+    #[tokio::test]
+    async fn set_sanitizes_section_name() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(dir.path(), "");
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1441,7 +1421,7 @@ config redirect 'pp_del1'
             DeserializeStdin(PublishedPortsSetRequest {
                 ports: vec![make_port("a-b-c", true, false)],
             }),
-        )
+        ).await
         .unwrap();
 
         let content = std::fs::read_to_string(dir.path().join("firewall")).unwrap();
@@ -1467,7 +1447,7 @@ config redirect 'pp_del1'
 
     fn assert_validation_fails(port: PublishedPortInput, expected_field: &str) {
         let err = validate_inputs(&[port]).unwrap_err();
-        let msg = err.kind.to_string();
+        let msg = err.to_string();
         assert!(
             msg.contains(expected_field),
             "expected error about '{expected_field}', got: {msg}"
@@ -1563,8 +1543,8 @@ config redirect 'pp_del1'
         validate_inputs(&[make_input(|p| p.source = "192.168.1.1".into())]).unwrap();
     }
 
-    #[test]
-    fn set_rejects_invalid_input() {
+    #[tokio::test]
+    async fn set_rejects_invalid_input() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall(dir.path(), "");
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1574,7 +1554,7 @@ config redirect 'pp_del1'
             DeserializeStdin(PublishedPortsSetRequest {
                 ports: vec![make_input(|p| p.ports = "0".into())],
             }),
-        );
+        ).await;
         assert!(result.is_err());
     }
 }

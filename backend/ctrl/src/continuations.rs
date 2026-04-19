@@ -12,18 +12,18 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, oneshot};
 
-use crate::error::Error;
+use crate::prelude::*;
 
 // ── Guid ──────────────────────────────────────────────────────────────
 
-/// 128-bit random hex string (32 chars), unguessable, used as one-time auth token.
+/// Unguessable random token, used as a one-time REST endpoint path segment.
+/// Wraps `startos::util::new_guid()` (160-bit, base32-encoded, 32 chars).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Guid(String);
 
 impl Guid {
     pub fn new() -> Self {
-        let bytes: [u8; 16] = rand::random();
-        Self(bytes.iter().map(|b| format!("{b:02x}")).collect())
+        Self(startos::util::new_guid().to_string())
     }
 }
 
@@ -92,7 +92,7 @@ impl Future for RestFuture {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
         if self.kill.as_ref().map_or(false, |k| !k.is_empty()) {
-            std::task::Poll::Ready(Err(Error::other("session killed")))
+            std::task::Poll::Ready(Err(Error::new(eyre!("session killed"), ErrorKind::Cancelled)))
         } else {
             self.fut.as_mut().poll(cx)
         }

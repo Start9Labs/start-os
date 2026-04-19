@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use tracing::instrument;
 
 use crate::captive;
-use crate::error::Error;
+use crate::prelude::*;
 use crate::{CliContext, ServerContext};
 
 const DEFAULT_SESSION_FILE_PATH: &str = "/etc/startwrt/sessions.json";
@@ -41,7 +41,7 @@ pub async fn init_local_auth_cookie() -> Result<(), Error> {
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent)
             .await
-            .map_err(|e| Error::other(format!("Failed to create {}: {e}", parent.display())))?;
+            .map_err(|e| Error::new(eyre!("Failed to create {}: {e}", parent.display()), ErrorKind::Filesystem))?;
     }
 
     let mut file = tokio::fs::OpenOptions::new()
@@ -51,12 +51,12 @@ pub async fn init_local_auth_cookie() -> Result<(), Error> {
         .mode(0o640)
         .open(path)
         .await
-        .map_err(|e| Error::other(format!("Failed to create local auth cookie: {e}")))?;
+        .map_err(|e| Error::new(eyre!("Failed to create local auth cookie: {e}"), ErrorKind::Filesystem))?;
     file.write_all(token.as_bytes()).await.map_err(|e| {
-        Error::other(format!("Failed to write local auth cookie: {e}"))
+        Error::new(eyre!("Failed to write local auth cookie: {e}"), ErrorKind::Filesystem)
     })?;
     file.sync_all().await.map_err(|e| {
-        Error::other(format!("Failed to sync local auth cookie: {e}"))
+        Error::new(eyre!("Failed to sync local auth cookie: {e}"), ErrorKind::Filesystem)
     })?;
 
     tracing::info!("Local auth cookie initialized at {LOCAL_AUTH_COOKIE_PATH}");
@@ -150,7 +150,7 @@ pub struct LoginParams {
 async fn get_shadow_hash(username: &str) -> Result<Option<String>, Error> {
     let shadow_content = tokio::fs::read_to_string("/etc/shadow")
         .await
-        .map_err(|e| Error::other(format!("Failed to read /etc/shadow: {}", e)))?;
+        .map_err(|e| Error::new(eyre!("Failed to read /etc/shadow: {}", e), ErrorKind::Filesystem))?;
 
     for line in shadow_content.lines() {
         let parts: Vec<&str> = line.split(':').collect();
@@ -175,7 +175,7 @@ pub async fn check_password(password: &str) -> Result<(), Error> {
         if password == dev_password {
             return Ok(());
         }
-        return Err(Error::other("Incorrect password"));
+        return Err(Error::new(eyre!("Incorrect password"), ErrorKind::IncorrectPassword));
     }
 
     let hash = get_shadow_hash("root").await?;
@@ -195,7 +195,7 @@ pub async fn check_password(password: &str) -> Result<(), Error> {
             if pwhash::unix::verify(password, &hash) {
                 Ok(())
             } else {
-                Err(Error::other("Incorrect password"))
+                Err(Error::new(eyre!("Incorrect password"), ErrorKind::IncorrectPassword))
             }
         }
     }
@@ -228,39 +228,18 @@ async fn persist_sessions() {
     drop(sessions);
 
     let path = Path::new(&*SESSION_FILE_PATH);
-    let parent = match path.parent() {
-        Some(p) => p,
-        None => {
-            tracing::warn!("Invalid session file path");
-            return;
-        }
-    };
-    let file_name = match path.file_name().and_then(|f| f.to_str()) {
-        Some(f) => f,
-        None => {
-            tracing::warn!("Invalid session file name");
-            return;
-        }
-    };
-    let tmp_path = parent.join(format!(".{file_name}.tmp"));
-
-    if let Err(e) = tokio::fs::create_dir_all(parent).await {
-        tracing::warn!("Failed to create session directory: {e}");
-        return;
-    }
-
-    let write_result: Result<(), std::io::Error> = async {
-        let mut file = tokio::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(&tmp_path)
-            .await?;
-        file.write_all(content.as_bytes()).await?;
-        file.flush().await?;
-        file.sync_all().await?;
-        tokio::fs::rename(&tmp_path, path).await?;
+    let write_result: Result<(), Error> = async {
+        use std::os::unix::fs::PermissionsExt;
+        let mut file = startos::util::io::AtomicFile::new(path, None::<&Path>)
+            .await
+            .map_err(Error::from)?;
+        file.set_permissions(std::fs::Permissions::from_mode(0o600))
+            .await
+            .map_err(|e| Error::new(eyre!("Failed to set session file permissions: {e}"), ErrorKind::Filesystem))?;
+        file.write_all(content.as_bytes())
+            .await
+            .map_err(|e| Error::new(eyre!("Failed to write sessions: {e}"), ErrorKind::Filesystem))?;
+        file.save().await.map_err(Error::from)?;
         Ok(())
     }
     .await;
@@ -295,7 +274,7 @@ pub async fn validate_session(token_hash: &str) -> Result<(), Error> {
 
     let session = sessions
         .get(token_hash)
-        .ok_or_else(|| Error::other("Invalid session token"))?;
+        .ok_or_else(|| Error::new(eyre!("Invalid session token"), ErrorKind::Authorization))?;
 
     // Check if session has expired
     if let Some(expiry) = TimeDelta::try_days(SESSION_EXPIRY_DAYS) {
@@ -308,7 +287,7 @@ pub async fn validate_session(token_hash: &str) -> Result<(), Error> {
                 let _ = sessions_clone; // ensure removal is reflected if we persist later
                 persist_sessions().await;
             });
-            return Err(Error::other("Session expired"));
+            return Err(Error::new(eyre!("Session expired"), ErrorKind::Authorization));
         }
     }
 
@@ -394,14 +373,10 @@ pub struct ResetPasswordParams {
 async fn update_shadow_hash(username: &str, new_hash: &str) -> Result<(), Error> {
     const SHADOW_PATH: &str = "/etc/shadow";
     let shadow_path = Path::new(SHADOW_PATH);
-    let tmp_path = shadow_path
-        .parent()
-        .unwrap_or(Path::new("/etc"))
-        .join(".shadow.tmp");
 
     let shadow_content = tokio::fs::read_to_string(SHADOW_PATH)
         .await
-        .map_err(|e| Error::other(format!("Failed to read /etc/shadow: {e}")))?;
+        .map_err(|e| Error::new(eyre!("Failed to read /etc/shadow: {e}"), ErrorKind::Filesystem))?;
 
     // Update the user's hash line
     let mut found = false;
@@ -423,7 +398,7 @@ async fn update_shadow_hash(username: &str, new_hash: &str) -> Result<(), Error>
         .join("\n");
 
     if !found {
-        return Err(Error::other(format!("User '{username}' not found in /etc/shadow")));
+        return Err(Error::new(eyre!("User '{username}' not found in /etc/shadow"), ErrorKind::NotFound));
     }
 
     // Ensure file ends with newline
@@ -434,30 +409,17 @@ async fn update_shadow_hash(username: &str, new_hash: &str) -> Result<(), Error>
     };
 
     // Write atomically with restricted permissions (0600)
-    let mut file = tokio::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(&tmp_path)
+    use std::os::unix::fs::PermissionsExt;
+    let mut file = startos::util::io::AtomicFile::new(shadow_path, None::<&Path>)
         .await
-        .map_err(|e| Error::other(format!("Failed to create temp shadow file: {e}")))?;
-
+        .map_err(Error::from)?;
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))
+        .await
+        .map_err(|e| Error::new(eyre!("Failed to set shadow file permissions: {e}"), ErrorKind::Filesystem))?;
     file.write_all(new_content.as_bytes())
         .await
-        .map_err(|e| Error::other(format!("Failed to write shadow file: {e}")))?;
-
-    file.flush()
-        .await
-        .map_err(|e| Error::other(format!("Failed to flush shadow file: {e}")))?;
-
-    file.sync_all()
-        .await
-        .map_err(|e| Error::other(format!("Failed to sync shadow file: {e}")))?;
-
-    tokio::fs::rename(&tmp_path, shadow_path)
-        .await
-        .map_err(|e| Error::other(format!("Failed to rename shadow file: {e}")))?;
+        .map_err(|e| Error::new(eyre!("Failed to write shadow file: {e}"), ErrorKind::Filesystem))?;
+    file.save().await.map_err(Error::from)?;
 
     Ok(())
 }
@@ -475,7 +437,7 @@ pub async fn reset_password_impl(
 
     // Generate new password hash using SHA-512 crypt
     let new_hash = pwhash::sha512_crypt::hash(&new_password)
-        .map_err(|e| Error::other(format!("Failed to hash password: {e}")))?;
+        .map_err(|e| Error::new(eyre!("Failed to hash password: {e}"), ErrorKind::PasswordHashGeneration))?;
 
     // Update /etc/shadow directly
     let result = update_shadow_hash("root", &new_hash).await;
@@ -531,7 +493,7 @@ async fn cli_reset_password(
     let confirm = rpassword::prompt_password("Confirm Password: ")?;
 
     if new_password != confirm {
-        return Err(Error::other("Passwords do not match").into());
+        return Err(Error::new(eyre!("Passwords do not match"), ErrorKind::InvalidRequest).into());
     }
 
     ctx.call_remote(
@@ -578,23 +540,22 @@ pub async fn set_initial_password_impl(
 ) -> Result<LoginRes, Error> {
     // Reject if password already set
     if get_shadow_hash("root").await?.is_some() {
-        return Err(Error::other("admin password is already set"));
+        return Err(Error::new(eyre!("admin password is already set"), ErrorKind::InvalidRequest));
     }
 
     // Validate minimum length
     if password.len() < 12 {
-        return Err(Error::other("password must be at least 12 characters"));
+        return Err(Error::new(eyre!("password must be at least 12 characters"), ErrorKind::InvalidRequest));
     }
 
     // Hash and write to shadow
     let new_hash = pwhash::sha512_crypt::hash(&password)
-        .map_err(|e| Error::other(format!("failed to hash password: {e}")))?;
+        .map_err(|e| Error::new(eyre!("failed to hash password: {e}"), ErrorKind::PasswordHashGeneration))?;
     update_shadow_hash("root", &new_hash).await?;
 
     // Disable captive portal now that password is set
-    tokio::task::spawn_blocking(|| captive::disable_captive_portal())
+    captive::disable_captive_portal()
         .await
-        .map_err(|e| Error::other(format!("captive portal task panicked: {e}")))?
         .map_err(|e| {
             tracing::error!("failed to disable captive portal: {e}");
             e

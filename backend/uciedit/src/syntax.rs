@@ -5,7 +5,7 @@ use inpt::{inpt, inpt_step, Inpt, InptStep};
 use std::borrow::Cow;
 use std::path::Path;
 use std::str::FromStr;
-use std::{fmt, fs, io};
+use std::{fmt, io};
 
 pub type Arena = typed_arena::Arena<String>;
 
@@ -62,13 +62,14 @@ impl<'a> Config<'a> {
         Ok(())
     }
 
-    pub fn parse(arena: &'a Arena, path: impl AsRef<Path>) -> Result<Self, Error> {
+    pub async fn parse(arena: &'a Arena, path: impl AsRef<Path>) -> Result<Self, Error> {
         let path = path.as_ref();
-        let mut modified = std::fs::metadata(path)
+        let mut modified = tokio::fs::metadata(path)
+            .await
             .and_then(|m| m.modified())
             .map(DateTime::<Utc>::from)
             .ok();
-        let text = match fs::read_to_string(path) {
+        let text = match tokio::fs::read_to_string(path).await {
             Ok(text) => text,
             Err(err) if err.kind() == io::ErrorKind::NotFound => {
                 modified = None;
@@ -146,12 +147,12 @@ impl<'a> Config<'a> {
         })
     }
 
-    pub fn dump(&self, path: impl AsRef<Path>) -> Result<(), Error> {
-        let mut w = super::LockedConfig::open(path.as_ref().to_path_buf())?;
+    pub async fn dump(&self, path: impl AsRef<Path>) -> Result<(), Error> {
+        let mut w = super::LockedConfig::open(path.as_ref().to_path_buf()).await?;
         if let Some(expected) = self.modified {
-            w.check_modified(expected)?;
+            w.check_modified(expected).await?;
         }
-        w.dump(self)
+        w.dump(self).await
     }
 
     pub fn dump_io(&self, mut writer: impl io::Write) -> Result<(), Error> {

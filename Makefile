@@ -89,6 +89,7 @@ REMOTE ?= root@192.168.0.1
 PV := $(shell command -v pv 2>/dev/null || echo cat)
 
 .PHONY: all clean openwrt-setup stage image image-quick update
+.DELETE_ON_ERROR:
 
 all: image
 

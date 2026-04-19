@@ -3,17 +3,16 @@ use crate::ethernet::find_lan_bridge;
 use crate::system::UciPreferences;
 use crate::utils::DeserializeStdin;
 use crate::CtrlContext;
-use crate::{utils::HandlerExtSerde, Error, ErrorKind};
+use crate::prelude::*;
+use crate::utils::HandlerExtSerde;
 use clap::Parser;
-use color_eyre::eyre::{eyre, OptionExt};
-use rpc_toolkit::{from_fn, HandlerExt as _, ParentHandler};
+use rpc_toolkit::{from_fn_async_local, HandlerExt as _, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::cell::OnceCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::io::Read;
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use crate::invoke::Invoke;
 use uciedit::openwrt::{
     DeviceType, Dhcp, FirewallForwarding, FirewallRedirect, FirewallRule, FirewallTarget,
     FirewallZone, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkRoute,
@@ -86,19 +85,19 @@ pub struct ProfileSetRequest {
 
 pub fn profiles<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("get", from_fn(get::<C>).with_display_serializable())
-        .subcommand("set", from_fn(set::<C>).with_display_serializable())
-        .subcommand("delete", from_fn(delete::<C>).no_display())
-        .subcommand("list", from_fn(list::<C>).with_display_serializable())
-        .subcommand("create", from_fn(create::<C>).with_display_serializable())
-        .subcommand("edit", from_fn(edit::<C>).with_display_serializable())
+        .subcommand("get", from_fn_async_local(get::<C>).with_display_serializable())
+        .subcommand("set", from_fn_async_local(set::<C>).with_display_serializable())
+        .subcommand("delete", from_fn_async_local(delete::<C>).no_display())
+        .subcommand("list", from_fn_async_local(list::<C>).with_display_serializable())
+        .subcommand("create", from_fn_async_local(create::<C>).with_display_serializable())
+        .subcommand("edit", from_fn_async_local(edit::<C>).with_display_serializable())
         .subcommand(
             "schedule-get",
-            from_fn(schedule_get::<C>).with_display_serializable(),
+            from_fn_async_local(schedule_get::<C>).with_display_serializable(),
         )
         .subcommand(
             "schedule-set",
-            from_fn(schedule_set::<C>).no_display(),
+            from_fn_async_local(schedule_set::<C>).no_display(),
         )
 }
 
@@ -419,9 +418,10 @@ pub(crate) fn rewrite_dns_forwarding(cfgs: &mut Configs, profile: &Profile) -> R
     Ok(())
 }
 
-pub fn get<C: CtrlContext>(ctx: C, query: ProfileIdOpt) -> Result<Profile, Error> {
+#[instrument(skip_all)]
+pub async fn get<C: CtrlContext>(ctx: C, query: ProfileIdOpt) -> Result<Profile, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "network", "firewall"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "network", "firewall"]).await?;
     get_config(ctx, &cfgs, query)
 }
 
@@ -464,12 +464,12 @@ fn get_config(
             let Some(name) = section.name() else { continue };
             if name == id.interface {
                 if iface.proto != InterfaceProto::STATIC {
-                    return Err(ErrorKind::CorruptedProfile { id: query.clone() }.into());
+                    return Err(Error::new(eyre!("corrupted profile: {query:?}"), ErrorKind::CorruptedProfile));
                 }
                 if let Some(ip) = iface.ipaddr {
                     wip_profile.gateway_ip = ip;
                 } else {
-                    return Err(ErrorKind::CorruptedProfile { id: query.clone() }.into());
+                    return Err(Error::new(eyre!("corrupted profile: {query:?}"), ErrorKind::CorruptedProfile));
                 }
                 found = true;
                 break;
@@ -477,7 +477,7 @@ fn get_config(
         }
     }
     if !found {
-        return Err(ErrorKind::CorruptedProfile { id: query.clone() }.into());
+        return Err(Error::new(eyre!("corrupted profile: {query:?}"), ErrorKind::CorruptedProfile));
     }
     let mut this_zone_name = format!("vlan_{}", id.interface);
     cfgs["firewall"].each::<FirewallZone, Error>(|_, zone| {
@@ -530,14 +530,15 @@ fn get_config(
     Ok(wip_profile)
 }
 
-pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
+#[instrument(skip_all)]
+pub async fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
     let name = id.fullname.clone().unwrap_or_default();
 
     // Resolve the profile interface name before the retry loop so we can
     // use it for ifdown after dump_all succeeds (delete_config consumes the query).
     let interface_name = {
         let arena = Arena::new();
-        let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"])?;
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"]).await?;
         let lookup = Lookup::parse(ctx.clone(), &cfgs)?;
         lookup.resolve(&id)?.interface.clone()
     };
@@ -550,12 +551,14 @@ pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
             ctx.uci_root(),
             &arena,
             &["startwrt", "network", "firewall", "dhcp", "wireless"],
-        )?;
+        ).await?;
         if let Err(e) = delete_config(ctx.clone(), &mut cfgs, &id) {
             crate::activity::log("profile", "deleted", false, &format!("Failed to delete profile '{name}'"), Some(&e.to_string()));
             return Err(e);
         }
-        match dump_all(ctx.uci_root(), cfgs) {
+        let dump_result = dump_all(ctx.uci_root(), cfgs).await;
+        drop(arena);
+        match dump_result {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -568,21 +571,24 @@ pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
                 if ctx.effectful() {
                     // Regenerate SmartDNS config after UCI dump so the deleted
                     // profile's group is removed.
-                    let arena2 = Arena::new();
-                    let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"])?;
-                    dns::regenerate_smartdns(&ctx, &cfgs2)?;
+                    let smartdns_groups = {
+                        let arena2 = Arena::new();
+                        let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"]).await?;
+                        dns::collect_smartdns_groups(&cfgs2)
+                    };
+                    dns::apply_smartdns_groups(smartdns_groups).await?;
 
                     // Bring down the WireGuard interface before reloading services.
                     // reload_system() alone won't tear down an active WireGuard tunnel.
-                    let _ = crate::run_quiet(Command::new("ifdown").arg(&wg_interface_name));
-                    reload_system_and_wifi()?;
+                    let _ = crate::run_quiet_async(tokio::process::Command::new("ifdown").arg(&wg_interface_name)).await;
+                    reload_system_and_wifi().await?;
                 }
                 // Regenerate schedule crontab to remove deleted profile's entries
-                if let Err(e) = regenerate_schedule_crontab(&ctx) {
+                if let Err(e) = regenerate_schedule_crontab(&ctx).await {
                     tracing::error!("Failed to regenerate schedule crontab after profile delete: {e}");
                 }
                 if ctx.effectful() {
-                    let _ = crate::run_quiet(Command::new("/etc/init.d/cron").arg("restart"));
+                    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/cron").arg("restart")).await;
                 }
                 crate::activity::log("profile", "deleted", true, &format!("Deleted profile '{name}'"), None);
                 return Ok(());
@@ -601,7 +607,7 @@ fn delete_config(
 
     // Prevent deleting the LAN owner profile
     if id.interface == "lan" {
-        return Err(ErrorKind::CannotDeleteLanOwner.into());
+        return Err(Error::new(eyre!("cannot delete LAN owner profile"), ErrorKind::CannotDeleteLanOwner));
     }
 
     // Remove profile and its VPN server metadata from startwrt config
@@ -760,9 +766,10 @@ fn delete_config(
     Ok(())
 }
 
-pub fn list<C: CtrlContext>(ctx: C) -> Result<Vec<ProfileId>, Error> {
+#[instrument(skip_all)]
+pub async fn list<C: CtrlContext>(ctx: C) -> Result<Vec<ProfileId>, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"]).await?;
     list_config(ctx, &cfgs)
 }
 
@@ -787,13 +794,13 @@ pub(crate) fn list_config(_ctx: impl CtrlContext, cfgs: &Configs) -> Result<Vec<
     Ok(found)
 }
 
-pub fn reload_system() -> Result<(), Error> {
-    let _ = crate::run_quiet(Command::new("/etc/init.d/network").arg("reload"));
-    let _ = crate::run_quiet(Command::new("/etc/init.d/smartdns").arg("restart"));
-    let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("restart"));
-    let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("restart"));
+pub async fn reload_system() -> Result<(), Error> {
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/network").arg("reload")).await;
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/smartdns").arg("restart")).await;
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/firewall").arg("restart")).await;
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/dnsmasq").arg("restart")).await;
     // Re-apply WAN schedules — firewall restart flushes the iptables chain
-    reapply_schedules_after_reload();
+    reapply_schedules_after_reload().await;
     Ok(())
 }
 
@@ -801,21 +808,21 @@ pub fn reload_system() -> Result<(), Error> {
 /// Runs everything sequentially in one thread to avoid race conditions — the `wifi` command
 /// tears down and recreates wireless interfaces, which destabilizes the network if the
 /// firewall reloads concurrently.
-pub fn reload_system_and_wifi() -> Result<(), Error> {
-    let _ = crate::run_quiet(Command::new("/etc/init.d/network").arg("reload"));
-    let _ = crate::run_quiet(&mut Command::new("wifi"));
-    let _ = crate::run_quiet(Command::new("/etc/init.d/smartdns").arg("restart"));
-    let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("restart"));
-    let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("restart"));
+pub async fn reload_system_and_wifi() -> Result<(), Error> {
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/network").arg("reload")).await;
+    let _ = crate::run_quiet_async(&mut tokio::process::Command::new("wifi")).await;
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/smartdns").arg("restart")).await;
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/firewall").arg("restart")).await;
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/dnsmasq").arg("restart")).await;
     // Re-apply WAN schedules — firewall restart flushes the iptables chain
-    reapply_schedules_after_reload();
+    reapply_schedules_after_reload().await;
     Ok(())
 }
 
 /// Helper for reload functions (which have no CtrlContext) to re-apply WAN schedules
 /// after a firewall restart. The schedule rules are already in UCI, so this just
 /// ensures the current time-based state is correct.
-fn reapply_schedules_after_reload() {
+async fn reapply_schedules_after_reload() {
     #[derive(Clone)]
     struct ReloadCtx;
     impl rpc_toolkit::Context for ReloadCtx {}
@@ -827,7 +834,7 @@ fn reapply_schedules_after_reload() {
             true
         }
     }
-    if let Err(e) = evaluate_and_apply_schedules(&ReloadCtx) {
+    if let Err(e) = evaluate_and_apply_schedules(&ReloadCtx).await {
         tracing::error!("Failed to re-apply WAN schedules after firewall reload: {e}");
     }
 }
@@ -891,7 +898,8 @@ fn ensure_vlan_filtering(cfgs: &mut Configs, bridge_name: &str) -> Result<(), Er
     Ok(())
 }
 
-pub fn set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<ProfileSetRequest>,
 ) -> Result<ProfileId, Error> {
@@ -905,7 +913,7 @@ pub fn set<C: CtrlContext>(
             ctx.uci_root(),
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
-        )?;
+        ).await?;
 
         // Capture old LAN IP before set_config modifies it
         let old_lan_ip = if profile.owns_lan {
@@ -984,7 +992,9 @@ pub fn set<C: CtrlContext>(
             Default::default()
         };
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        let dump_result = dump_all(ctx.uci_root(), cfgs).await;
+        drop(arena);
+        match dump_result {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -997,16 +1007,19 @@ pub fn set<C: CtrlContext>(
                 if ctx.effectful() {
                     // Regenerate SmartDNS config after UCI dump so it reflects
                     // any dns_override changes on this profile.
-                    let arena2 = Arena::new();
-                    let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"])?;
-                    dns::regenerate_smartdns(&ctx, &cfgs2)?;
+                    let smartdns_groups = {
+                        let arena2 = Arena::new();
+                        let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"]).await?;
+                        dns::collect_smartdns_groups(&cfgs2)
+                    };
+                    dns::apply_smartdns_groups(smartdns_groups).await?;
 
                     if admin_ip_changed {
-                        crate::lan::restart_network_services(profile.gateway_ip, restart_ifaces);
+                        crate::lan::restart_network_services(profile.gateway_ip, restart_ifaces).await;
                     } else {
-                        reload_system()?;
+                        reload_system().await?;
                     }
-                    removed_vpns.apply_post_reload();
+                    removed_vpns.apply_post_reload().await;
                 }
                 let mut changes = Vec::new();
                 if let Some(ref old) = old_state {
@@ -1069,10 +1082,7 @@ fn set_config<C: CtrlContext>(
         if let Some(existing) = pre_lookup.from_fullname(given_fullname) {
             // Only error if the name belongs to a different profile
             if !profile.id.matches(&existing.clone().into()) {
-                return Err(ErrorKind::DuplicateFullname {
-                    name: given_fullname.clone(),
-                }
-                .into());
+                return Err(Error::new(eyre!("duplicate profile name: {given_fullname}"), ErrorKind::DuplicateFullname));
             }
         }
     }
@@ -1150,7 +1160,7 @@ fn set_config<C: CtrlContext>(
         }
     }
     if !found_interface {
-        let found_bridge = found_bridge.clone().ok_or(ErrorKind::MissingLanBridge)?;
+        let found_bridge = found_bridge.clone().ok_or_else(|| Error::new(eyre!("missing LAN bridge"), ErrorKind::MissingLanBridge))?;
         cfgs["network"].append(
             &NetworkInterface {
                 device: format!("{}.{}", found_bridge, profile.id.vlan_tag),
@@ -1165,7 +1175,7 @@ fn set_config<C: CtrlContext>(
     }
     // Ensure a portless bridge-vlan exists for this profile's VLAN
     if !profile.owns_lan {
-        let bridge_name = found_bridge.as_ref().ok_or(ErrorKind::MissingLanBridge)?;
+        let bridge_name = found_bridge.as_ref().ok_or_else(|| Error::new(eyre!("missing LAN bridge"), ErrorKind::MissingLanBridge))?;
         // Transition to VLAN filtering: ensure VLAN 1 exists for existing bridge ports
         ensure_vlan_filtering(cfgs, bridge_name)?;
         let has_bridge_vlan = cfgs["network"]
@@ -1196,11 +1206,26 @@ fn set_config<C: CtrlContext>(
     Ok((profile.id, old_state))
 }
 
-pub fn create<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn create<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(profile): DeserializeStdin<Profile<ProfileIdOpt>>,
 ) -> Result<ProfileId, Error> {
     let name = profile.id.fullname.clone().unwrap_or_default();
+    // Pre-allocate the interface name before the retry loop to avoid holding
+    // the !Send Arena across an .await point.
+    let pre_allocated_interface = if !profile.owns_lan {
+        Some(allocate_interface_name(
+            &ctx,
+            profile
+                .id
+                .interface
+                .as_deref()
+                .or(profile.id.fullname.as_deref()),
+        ).await?)
+    } else {
+        None
+    };
     let mut retries = 4;
     loop {
         let arena = Arena::new();
@@ -1208,15 +1233,17 @@ pub fn create<C: CtrlContext>(
             ctx.uci_root(),
             &arena,
             &["startwrt", "network", "firewall", "dhcp", "wireless"],
-        )?;
-        let out = match create_config(ctx.clone(), &mut cfgs, &profile) {
+        ).await?;
+        let out = match create_config(ctx.clone(), &mut cfgs, &profile, pre_allocated_interface.clone()) {
             Ok(out) => out,
             Err(e) => {
                 crate::activity::log("profile", "created", false, &format!("Failed to create profile '{name}'"), Some(&e.to_string()));
                 return Err(e);
             }
         };
-        match dump_all(ctx.uci_root(), cfgs) {
+        let dump_result = dump_all(ctx.uci_root(), cfgs).await;
+        drop(arena);
+        match dump_result {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -1229,11 +1256,14 @@ pub fn create<C: CtrlContext>(
                 if ctx.effectful() {
                     // Regenerate SmartDNS config after UCI dump so it reflects
                     // any dns_override on the new profile.
-                    let arena2 = Arena::new();
-                    let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"])?;
-                    dns::regenerate_smartdns(&ctx, &cfgs2)?;
+                    let smartdns_groups = {
+                        let arena2 = Arena::new();
+                        let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"]).await?;
+                        dns::collect_smartdns_groups(&cfgs2)
+                    };
+                    dns::apply_smartdns_groups(smartdns_groups).await?;
 
-                    reload_system_and_wifi()?;
+                    reload_system_and_wifi().await?;
                 }
                 crate::activity::log("profile", "created", true, &format!("Created profile '{name}'"), None);
                 return Ok(out);
@@ -1246,23 +1276,19 @@ fn create_config(
     ctx: impl CtrlContext,
     cfgs: &mut Configs,
     profile: &Profile<ProfileIdOpt>,
+    pre_allocated_interface: Option<String>,
 ) -> Result<ProfileId, Error> {
     let ipv6 = is_ipv6_enabled(cfgs)
         && outbound_supports_ipv6(cfgs, &profile.outbound);
     let interface = if profile.owns_lan {
         if Lookup::parse(ctx.clone(), cfgs)?.lan_owner.is_some() {
-            return Err(ErrorKind::LanOwnerExists.into());
+            return Err(Error::new(eyre!("LAN owner already exists"), ErrorKind::LanOwnerExists));
         }
         "lan".into()
     } else {
-        allocate_interface_name(
-            &ctx,
-            profile
-                .id
-                .interface
-                .as_deref()
-                .or(profile.id.fullname.as_deref()),
-        )?
+        pre_allocated_interface.ok_or_else(|| {
+            Error::new(eyre!("missing pre-allocated interface name"), ErrorKind::Filesystem)
+        })?
     };
     let fullname = profile
         .id
@@ -1273,10 +1299,7 @@ fn create_config(
     {
         let lookup = Lookup::parse(ctx.clone(), cfgs)?;
         if lookup.from_fullname(&fullname).is_some() {
-            return Err(ErrorKind::DuplicateFullname {
-                name: fullname,
-            }
-            .into());
+            return Err(Error::new(eyre!("duplicate profile name: {fullname}"), ErrorKind::DuplicateFullname));
         }
     }
     let mut all_interfaces = BTreeSet::<String>::new();
@@ -1286,10 +1309,7 @@ fn create_config(
             NetworkInterface::TY => {
                 let Some(name) = section.name() else { continue };
                 if name == interface && !profile.owns_lan {
-                    return Err(ErrorKind::InterfaceNameConflict {
-                        name: interface.clone(),
-                    }
-                    .into());
+                    return Err(Error::new(eyre!("interface name conflict: {interface}"), ErrorKind::InterfaceNameConflict));
                 }
                 if let Ok(iface) = section.get::<NetworkInterface>() {
                     if iface.proto == InterfaceProto::STATIC {
@@ -1307,11 +1327,11 @@ fn create_config(
     }
     let found_bridge = find_lan_bridge(cfgs)?
         .map(|dev| dev.name)
-        .ok_or(Error::from(ErrorKind::MissingLanBridge))?;
+        .ok_or_else(|| Error::new(eyre!("missing LAN bridge"), ErrorKind::MissingLanBridge))?;
     let vlan_tag = match profile.id.vlan_tag {
         Some(chosen_tag) => {
             if existing_tags.contains(&chosen_tag) {
-                return Err(ErrorKind::DuplicateVlanTag { tag: chosen_tag }.into());
+                return Err(Error::new(eyre!("duplicate VLAN tag: {chosen_tag}"), ErrorKind::DuplicateVlanTag));
             }
             chosen_tag
         }
@@ -1332,7 +1352,7 @@ fn create_config(
             }
         }
         if !found_lan_interface {
-            return Err(ErrorKind::MissingLanInterface.into());
+            return Err(Error::new(eyre!("missing LAN interface"), ErrorKind::MissingLanInterface));
         }
         // Create bridge-vlan with all bridge ports so ethernet devices reach the LAN owner
         let bridge_ports: Vec<String> = cfgs["network"]
@@ -1485,7 +1505,7 @@ fn rewrite_firewall(
         }
     }
     if !found_wan {
-        return Err(ErrorKind::MissingWanInterface.into());
+        return Err(Error::new(eyre!("missing WAN interface"), ErrorKind::MissingWanInterface));
     }
     if remake_zone || existing_zone_index.is_none() {
         if let Some(index) = existing_zone_index {
@@ -1606,10 +1626,7 @@ fn rewrite_firewall(
                         None,
                     )?,
                     None => {
-                        return Err(ErrorKind::MissingFirewallZone {
-                            interface: other_profile.interface.clone(),
-                        }
-                        .into());
+                        return Err(Error::new(eyre!("missing firewall zone for interface: {}", other_profile.interface), ErrorKind::MissingFirewallZone));
                     }
                 }
             }
@@ -1625,10 +1642,7 @@ fn rewrite_firewall(
                 None,
             )?,
             None => {
-                return Err(ErrorKind::MissingFirewallZone {
-                    interface: other_profile.interface.clone(),
-                }
-                .into());
+                return Err(Error::new(eyre!("missing firewall zone for interface: {}", other_profile.interface), ErrorKind::MissingFirewallZone));
             }
         }
     }
@@ -2074,7 +2088,7 @@ pub(crate) fn cleanup_orphaned_wan_vpns(cfgs: &mut Configs) {
     }
 }
 
-pub fn allocate_interface_name(
+pub async fn allocate_interface_name(
     ctx: &impl CtrlContext,
     hint: Option<&str>,
 ) -> Result<String, Error> {
@@ -2096,23 +2110,27 @@ pub fn allocate_interface_name(
         return Ok(name);
     }
     for _ in 0..100 {
-        let ip = Command::new("ip")
+        // `ip link show <name>` exits non-zero when the device doesn't exist.
+        // Use invoke and treat an error containing the expected message as "available".
+        match tokio::process::Command::new("ip")
             .arg("link")
             .arg("show")
             .arg(&name)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
-        let mut ip_out = String::new();
-        ip.stderr
-            .ok_or_eyre("ip did not produce output")?
-            .read_to_string(&mut ip_out)?;
-        if ip_out.contains("can't find device") || ip_out.contains("does not exist") {
-            return Ok(name);
+            .invoke(ErrorKind::Network.into())
+            .await
+        {
+            Err(e) if e.to_string().contains("can't find device")
+                || e.to_string().contains("does not exist") =>
+            {
+                return Ok(name);
+            }
+            Err(_) | Ok(_) => {
+                // Device exists or unexpected error — try another name
+                name = random();
+            }
         }
-        name = random();
     }
-    Err(eyre!("gave up looking for a new interface name").into())
+    Err(Error::new(eyre!("gave up looking for a new interface name"), ErrorKind::InterfaceNameConflict))
 }
 
 pub struct Lookup {
@@ -2163,7 +2181,7 @@ impl Lookup {
                 return Ok(o);
             }
         }
-        Err(ErrorKind::MissingProfile { id: q.clone() }.into())
+        Err(Error::new(eyre!("missing profile: {q:?}"), ErrorKind::MissingProfile))
     }
 
     pub fn from_vlan(&self, vlan_tag: u16) -> Option<&ProfileId> {
@@ -2208,9 +2226,9 @@ impl Lookup {
 /// not create VLANs, bridge-vlans, or modify network topology.
 ///
 /// Idempotent: returns `Ok(())` immediately if a LAN owner profile already exists.
-pub fn bootstrap_admin_profile(uci_root: &str) -> Result<(), Error> {
+pub async fn bootstrap_admin_profile(uci_root: &str) -> Result<(), Error> {
     let arena = Arena::new();
-    let mut cfgs = parse_all(uci_root, &arena, &["startwrt"])?;
+    let mut cfgs = parse_all(uci_root, &arena, &["startwrt"]).await?;
 
     // Check if a LAN owner profile already exists
     for section in &cfgs["startwrt"].sections {
@@ -2247,7 +2265,7 @@ pub fn bootstrap_admin_profile(uci_root: &str) -> Result<(), Error> {
         Some("preferences"),
     )?;
 
-    dump_all(uci_root, cfgs)?;
+    dump_all(uci_root, cfgs).await?;
     Ok(())
 }
 
@@ -2259,7 +2277,8 @@ pub struct EditArgs {
     pub create: bool,
 }
 
-pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> {
+#[instrument(skip_all)]
+pub async fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> {
     if args.create {
         let template = Profile {
             id: args.get.clone(),
@@ -2270,13 +2289,13 @@ pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> 
             dns_override: Vec::new(),
             dns_source: String::new(),
             access_to_new_profiles: true,
-            owns_lan: list(ctx.clone())?.is_empty(),
+            owns_lan: list(ctx.clone()).await?.is_empty(),
         };
         let modified_profile: Profile<ProfileIdOpt> = crate::utils::edit_in_editor(&template)?;
-        create(ctx, DeserializeStdin(modified_profile))
+        create(ctx, DeserializeStdin(modified_profile)).await
     } else {
         // Edit mode: get existing profile, edit, then set
-        let current_profile = get(ctx.clone(), args.get)?;
+        let current_profile = get(ctx.clone(), args.get).await?;
         let current_profile = Profile {
             id: current_profile.id.into(),
             gateway_ip: current_profile.gateway_ip,
@@ -2298,7 +2317,7 @@ pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> 
         set(ctx, DeserializeStdin(ProfileSetRequest {
             profile: modified_profile,
             force: false,
-        }))
+        })).await
     }
 }
 
@@ -2319,16 +2338,16 @@ fn schedule_crontab_path(ctx: &impl CtrlContext) -> PathBuf {
 fn parse_hhmm(s: &str) -> Result<(u32, u32), Error> {
     let parts: Vec<&str> = s.split(':').collect();
     if parts.len() != 2 {
-        return Err(Error::other(format!("invalid time format: {s:?}")));
+        return Err(Error::new(eyre!("invalid time format: {s:?}"), ErrorKind::InvalidValue));
     }
     let h: u32 = parts[0]
         .parse()
-        .map_err(|_| Error::other(format!("invalid hour: {}", parts[0])))?;
+        .map_err(|_| Error::new(eyre!("invalid hour: {}", parts[0]), ErrorKind::InvalidValue))?;
     let m: u32 = parts[1]
         .parse()
-        .map_err(|_| Error::other(format!("invalid minute: {}", parts[1])))?;
+        .map_err(|_| Error::new(eyre!("invalid minute: {}", parts[1]), ErrorKind::InvalidValue))?;
     if h > 23 || m > 59 {
-        return Err(Error::other(format!("time out of range: {s:?}")));
+        return Err(Error::new(eyre!("time out of range: {s:?}"), ErrorKind::InvalidValue));
     }
     Ok((h, m))
 }
@@ -2377,17 +2396,18 @@ fn parse_schedule_windows(raw: &[String]) -> Vec<ScheduleWindow> {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct ScheduleGetParams {
+pub struct ScheduleGetParams {
     interface: String,
 }
 
 /// Read schedule data for a single profile from UCI.
-pub fn schedule_get<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn schedule_get<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(params): DeserializeStdin<ScheduleGetParams>,
 ) -> Result<Vec<ScheduleWindow>, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"]).await?;
 
     for section in &cfgs["startwrt"].sections {
         if let Some(profile) = section.get_typed::<UciProfile>()? {
@@ -2396,18 +2416,12 @@ pub fn schedule_get<C: CtrlContext>(
             }
         }
     }
-    Err(ErrorKind::MissingProfile {
-        id: ProfileIdOpt {
-            interface: Some(params.interface),
-            fullname: None,
-            vlan_tag: None,
-        },
-    }
-    .into())
+    Err(Error::new(eyre!("missing profile: {}", params.interface), ErrorKind::MissingProfile))
 }
 
 /// Write schedule data for a single profile, regenerate crontab and iptables rules.
-pub fn schedule_set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn schedule_set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(params): DeserializeStdin<ScheduleWindows>,
 ) -> Result<(), Error> {
@@ -2422,7 +2436,7 @@ pub fn schedule_set<C: CtrlContext>(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"]).await?;
 
         let mut found = false;
         for section in &mut cfgs["startwrt"].sections {
@@ -2447,17 +2461,12 @@ pub fn schedule_set<C: CtrlContext>(
             }
         }
         if !found {
-            return Err(ErrorKind::MissingProfile {
-                id: ProfileIdOpt {
-                    interface: Some(params.interface.clone()),
-                    fullname: None,
-                    vlan_tag: None,
-                },
-            }
-            .into());
+            return Err(Error::new(eyre!("missing profile: {}", params.interface), ErrorKind::MissingProfile));
         }
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        let dump_result = dump_all(ctx.uci_root(), cfgs).await;
+        drop(arena);
+        match dump_result {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -2477,13 +2486,14 @@ pub fn schedule_set<C: CtrlContext>(
     }
 
     // Regenerate crontab entries for all profile schedules
-    regenerate_schedule_crontab(&ctx)?;
+    regenerate_schedule_crontab(&ctx).await?;
 
     // Evaluate current schedule state and apply UCI firewall rules
     if ctx.effectful() {
-        evaluate_and_apply_schedules(&ctx)?;
-        crate::run_quiet(Command::new("/etc/init.d/cron").arg("restart"))
-            .map_err(|e| Error::other(format!("restarting cron: {e}")))?;
+        evaluate_and_apply_schedules(&ctx).await?;
+        crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/cron").arg("restart"))
+            .await
+            .map_err(|e| Error::new(eyre!("restarting cron: {e}"), ErrorKind::Filesystem))?;
     }
 
     crate::activity::log(
@@ -2497,9 +2507,9 @@ pub fn schedule_set<C: CtrlContext>(
 }
 
 /// Regenerate all profile schedule crontab entries from UCI.
-pub(crate) fn regenerate_schedule_crontab(ctx: &impl CtrlContext) -> Result<(), Error> {
+pub(crate) async fn regenerate_schedule_crontab(ctx: &impl CtrlContext) -> Result<(), Error> {
     let path = schedule_crontab_path(ctx);
-    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let content = tokio::fs::read_to_string(&path).await.unwrap_or_default();
 
     // Remove old schedule entries
     let filtered: Vec<&str> = content
@@ -2513,7 +2523,7 @@ pub(crate) fn regenerate_schedule_crontab(ctx: &impl CtrlContext) -> Result<(), 
 
     // Read profiles and firewall config (for zone name resolution)
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "firewall"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "firewall"]).await?;
 
     for section in &cfgs["startwrt"].sections {
         if let Some(profile) = section.get_typed::<UciProfile>()? {
@@ -2567,9 +2577,9 @@ pub(crate) fn regenerate_schedule_crontab(ctx: &impl CtrlContext) -> Result<(), 
     }
 
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
+        tokio::fs::create_dir_all(parent).await?;
     }
-    std::fs::write(&path, &new_content)?;
+    tokio::fs::write(&path, &new_content).await?;
     Ok(())
 }
 
@@ -2591,11 +2601,11 @@ fn find_zone_for_interface(cfgs: &Configs, interface: &str) -> String {
 /// Evaluate current time against all profile schedules and manage UCI firewall
 /// REJECT rules for currently-blocked profiles. Adds/removes named `sched_*`
 /// sections in the firewall config, then reloads fw3 if anything changed.
-pub(crate) fn evaluate_and_apply_schedules(ctx: &impl CtrlContext) -> Result<(), Error> {
-    let arena = Arena::new();
-    let mut cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "firewall"])?;
+pub(crate) async fn evaluate_and_apply_schedules(ctx: &impl CtrlContext) -> Result<(), Error> {
+    let now = chrono_now().await;
 
-    let now = chrono_now();
+    let arena = Arena::new();
+    let mut cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "firewall"]).await?;
     let current_day = now.0; // 0=Sun..6=Sat
     let current_minutes = now.1; // minutes since midnight
 
@@ -2673,24 +2683,27 @@ pub(crate) fn evaluate_and_apply_schedules(ctx: &impl CtrlContext) -> Result<(),
         )?;
     }
 
-    dump_all(ctx.uci_root(), cfgs)?;
+    dump_all(ctx.uci_root(), cfgs).await?;
+    drop(arena);
 
     if ctx.effectful() {
-        crate::run_quiet(Command::new("/etc/init.d/firewall").arg("reload"))
-            .map_err(|e| Error::other(format!("reloading firewall: {e}")))?;
+        crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/firewall").arg("reload"))
+            .await
+            .map_err(|e| Error::new(eyre!("reloading firewall: {e}"), ErrorKind::Network))?;
     }
 
     Ok(())
 }
 
 /// Returns (day_of_week 0=Sun..6=Sat, minutes_since_midnight).
-fn chrono_now() -> (usize, u32) {
+async fn chrono_now() -> (usize, u32) {
     // Use the `date` command for portability on OpenWrt (no chrono crate).
-    let output = Command::new("date")
+    let output = tokio::process::Command::new("date")
         .args(["+%w %H %M"])
-        .output()
+        .invoke(ErrorKind::Filesystem.into())
+        .await
         .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|o| String::from_utf8(o).ok())
         .unwrap_or_default();
     let parts: Vec<&str> = output.trim().split_whitespace().collect();
     if parts.len() == 3 {
@@ -2876,8 +2889,8 @@ config wifi-vlan
         .unwrap();
     }
 
-    #[test]
-    fn test_delete_removes_wireless_sections() {
+    #[tokio::test]
+    async fn test_delete_removes_wireless_sections() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -2888,6 +2901,7 @@ config wifi-vlan
             &arena,
             &["startwrt", "network", "firewall", "dhcp", "wireless"],
         )
+        .await
         .unwrap();
 
         // Verify wireless sections exist before delete
@@ -2950,8 +2964,8 @@ config wifi-vlan
         );
     }
 
-    #[test]
-    fn test_delete_preserves_other_profile_wireless() {
+    #[tokio::test]
+    async fn test_delete_preserves_other_profile_wireless() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3057,6 +3071,7 @@ config interface 'kids'
             &arena,
             &["startwrt", "network", "firewall", "dhcp", "wireless"],
         )
+        .await
         .unwrap();
 
         // Delete guest (vlan 101)
@@ -3092,8 +3107,8 @@ config interface 'kids'
         assert!(found_kids_vlan, "kids WifiVlan (vid=102) should survive");
     }
 
-    #[test]
-    fn test_delete_cannot_delete_lan_owner() {
+    #[tokio::test]
+    async fn test_delete_cannot_delete_lan_owner() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3104,6 +3119,7 @@ config interface 'kids'
             &arena,
             &["startwrt", "network", "firewall", "dhcp", "wireless"],
         )
+        .await
         .unwrap();
 
         let result = delete_config(
@@ -3118,8 +3134,8 @@ config interface 'kids'
         assert!(result.is_err(), "deleting lan owner should fail");
     }
 
-    #[test]
-    fn test_set_config_prefers_br_lan_bridge() {
+    #[tokio::test]
+    async fn test_set_config_prefers_br_lan_bridge() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
 
@@ -3205,6 +3221,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         // set_config for "newp" — interface doesn't exist yet, so it must
@@ -3241,8 +3258,8 @@ config dhcp 'lan'
         );
     }
 
-    #[test]
-    fn test_whitelist_firewall_rules() {
+    #[tokio::test]
+    async fn test_whitelist_firewall_rules() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3253,6 +3270,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         let profile = Profile {
@@ -3311,8 +3329,8 @@ config dhcp 'lan'
         assert!(reject_rule.is_some(), "whitelist should have a catch-all REJECT rule");
     }
 
-    #[test]
-    fn test_blacklist_firewall_rules() {
+    #[tokio::test]
+    async fn test_blacklist_firewall_rules() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3323,6 +3341,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         let profile = Profile {
@@ -3380,8 +3399,8 @@ config dhcp 'lan'
         assert!(catchall_reject.is_none(), "blacklist should NOT have a catch-all REJECT");
     }
 
-    #[test]
-    fn test_wan_access_round_trip() {
+    #[tokio::test]
+    async fn test_wan_access_round_trip() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3392,6 +3411,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         // Set guest profile with whitelist
@@ -3414,13 +3434,14 @@ config dhcp 'lan'
         set_config(ctx.clone(), &mut cfgs, &profile).unwrap();
 
         // Dump and re-parse to simulate a real round-trip
-        dump_all(ctx.uci_root(), cfgs).unwrap();
+        dump_all(ctx.uci_root(), cfgs).await.unwrap();
         let arena2 = Arena::new();
         let cfgs2 = parse_all(
             ctx.uci_root(),
             &arena2,
             &["startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
 
         let result = get_config(
@@ -3442,8 +3463,8 @@ config dhcp 'lan'
         }
     }
 
-    #[test]
-    fn test_set_persists_outbound() {
+    #[tokio::test]
+    async fn test_set_persists_outbound() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3454,6 +3475,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         // Set guest profile with non-default outbound
@@ -3476,13 +3498,14 @@ config dhcp 'lan'
         set_config(ctx.clone(), &mut cfgs, &profile).unwrap();
 
         // Dump and re-parse
-        dump_all(ctx.uci_root(), cfgs).unwrap();
+        dump_all(ctx.uci_root(), cfgs).await.unwrap();
         let arena2 = Arena::new();
         let cfgs2 = parse_all(
             ctx.uci_root(),
             &arena2,
             &["startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
 
         let result = get_config(
@@ -3499,8 +3522,8 @@ config dhcp 'lan'
         assert_eq!(result.outbound, "wg0", "outbound should persist through set_config");
     }
 
-    #[test]
-    fn test_outbound_vpn_creates_routing() {
+    #[tokio::test]
+    async fn test_outbound_vpn_creates_routing() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3511,6 +3534,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         // Set guest profile with VPN outbound
@@ -3580,8 +3604,8 @@ config dhcp 'lan'
         assert_eq!(mark_data.extra.as_deref(), Some("-m conntrack --ctstate DNAT"));
     }
 
-    #[test]
-    fn test_outbound_wan_no_routing() {
+    #[tokio::test]
+    async fn test_outbound_wan_no_routing() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3592,6 +3616,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         // Set guest profile with WAN outbound
@@ -3626,8 +3651,8 @@ config dhcp 'lan'
         assert!(!has_rule, "WAN outbound should not create rule");
     }
 
-    #[test]
-    fn test_outbound_change_cleans_up() {
+    #[tokio::test]
+    async fn test_outbound_change_cleans_up() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3638,6 +3663,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         // First: set guest to VPN
@@ -3702,8 +3728,8 @@ config dhcp 'lan'
         );
     }
 
-    #[test]
-    fn test_outbound_vpn_adds_to_wan_zone() {
+    #[tokio::test]
+    async fn test_outbound_vpn_adds_to_wan_zone() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3714,6 +3740,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         let profile = Profile {
@@ -3748,8 +3775,8 @@ config dhcp 'lan'
         );
     }
 
-    #[test]
-    fn test_delete_profile_removes_routing() {
+    #[tokio::test]
+    async fn test_delete_profile_removes_routing() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3761,6 +3788,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         let profile = Profile {
@@ -3779,7 +3807,7 @@ config dhcp 'lan'
             owns_lan: false,
         };
         set_config(ctx.clone(), &mut cfgs, &profile).unwrap();
-        dump_all(ctx.uci_root(), cfgs).unwrap();
+        dump_all(ctx.uci_root(), cfgs).await.unwrap();
 
         // Now delete the guest profile
         let arena2 = Arena::new();
@@ -3788,6 +3816,7 @@ config dhcp 'lan'
             &arena2,
             &["startwrt", "network", "firewall", "dhcp", "wireless"],
         )
+        .await
         .unwrap();
 
         delete_config(
@@ -3818,8 +3847,8 @@ config dhcp 'lan'
         );
     }
 
-    #[test]
-    fn test_dns_override_creates_redirect() {
+    #[tokio::test]
+    async fn test_dns_override_creates_redirect() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3830,6 +3859,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         let profile = Profile {
@@ -3865,8 +3895,8 @@ config dhcp 'lan'
         assert_eq!(redirects[0].proto, vec!["tcp", "udp"]);
     }
 
-    #[test]
-    fn test_dns_override_round_trip() {
+    #[tokio::test]
+    async fn test_dns_override_round_trip() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3877,6 +3907,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         let profile = Profile {
@@ -3899,7 +3930,7 @@ config dhcp 'lan'
         };
 
         set_config(ctx.clone(), &mut cfgs, &profile).unwrap();
-        dump_all(ctx.uci_root(), cfgs).unwrap();
+        dump_all(ctx.uci_root(), cfgs).await.unwrap();
 
         // Re-parse and read back via get_config
         let arena2 = Arena::new();
@@ -3908,6 +3939,7 @@ config dhcp 'lan'
             &arena2,
             &["startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
 
         let got = get_config(
@@ -3931,8 +3963,8 @@ config dhcp 'lan'
         );
     }
 
-    #[test]
-    fn test_dns_override_empty_no_redirect() {
+    #[tokio::test]
+    async fn test_dns_override_empty_no_redirect() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3943,6 +3975,7 @@ config dhcp 'lan'
             &arena,
             &["startwrt", "network", "firewall", "dhcp"],
         )
+        .await
         .unwrap();
 
         let profile = Profile {
@@ -3978,8 +4011,8 @@ config dhcp 'lan'
         );
     }
 
-    #[test]
-    fn test_delete_removes_vpn_server_resources() {
+    #[tokio::test]
+    async fn test_delete_removes_vpn_server_resources() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
 
@@ -4153,6 +4186,7 @@ config wifi-iface 'default_radio0'
             &arena,
             &["startwrt", "network", "firewall", "dhcp", "wireless"],
         )
+        .await
         .unwrap();
 
         // Delete Guest profile
@@ -4213,8 +4247,8 @@ config wifi-iface 'default_radio0'
         assert!(admin_iface, "Admin network interface should survive");
     }
 
-    #[test]
-    fn test_collect_smartdns_groups_with_profile_dns() {
+    #[tokio::test]
+    async fn test_collect_smartdns_groups_with_profile_dns() {
         let dir = tempfile::tempdir().unwrap();
         // Create startwrt config with a profile that has dns_override
         std::fs::write(
@@ -4239,7 +4273,7 @@ config system_dns system_dns
         .unwrap();
 
         let arena = Arena::new();
-        let cfgs = parse_all(dir.path(), &arena, &["startwrt"]).unwrap();
+        let cfgs = parse_all(dir.path(), &arena, &["startwrt"]).await.unwrap();
         let groups = dns::collect_smartdns_groups(&cfgs);
 
         // Should have both system and profile groups
@@ -4251,8 +4285,8 @@ config system_dns system_dns
         assert_eq!(groups[1].servers.len(), 2);
     }
 
-    #[test]
-    fn test_collect_smartdns_groups_no_profile_dns() {
+    #[tokio::test]
+    async fn test_collect_smartdns_groups_no_profile_dns() {
         let dir = tempfile::tempdir().unwrap();
         // Profile without dns_override should not produce a SmartDNS group
         std::fs::write(
@@ -4267,14 +4301,14 @@ config profile lan
         .unwrap();
 
         let arena = Arena::new();
-        let cfgs = parse_all(dir.path(), &arena, &["startwrt"]).unwrap();
+        let cfgs = parse_all(dir.path(), &arena, &["startwrt"]).await.unwrap();
         let groups = dns::collect_smartdns_groups(&cfgs);
 
         assert!(groups.is_empty(), "No groups when no system or profile DNS");
     }
 
-    #[test]
-    fn test_rewrite_all_dns_forwarding_creates_dnsmasq_for_system_dns() {
+    #[tokio::test]
+    async fn test_rewrite_all_dns_forwarding_creates_dnsmasq_for_system_dns() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(
             dir.path().join("startwrt"),
@@ -4351,7 +4385,7 @@ config zone
 
         let arena = Arena::new();
         let mut cfgs =
-            parse_all(dir.path(), &arena, &["startwrt", "network", "dhcp", "firewall"]).unwrap();
+            parse_all(dir.path(), &arena, &["startwrt", "network", "dhcp", "firewall"]).await.unwrap();
         rewrite_all_dns_forwarding(&mut cfgs).unwrap();
 
         // Both profiles should get per-profile dnsmasq sections pointing to SmartDNS

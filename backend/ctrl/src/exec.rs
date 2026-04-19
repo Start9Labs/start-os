@@ -4,7 +4,8 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
-use crate::{Error, ServerContext};
+use crate::prelude::*;
+use crate::ServerContext;
 
 #[derive(Parser, Serialize, Deserialize)]
 pub struct ExecReq {
@@ -23,14 +24,15 @@ pub struct ExecRes {
     pub exit_code: i32,
 }
 
+#[instrument(skip_all)]
 pub async fn exec_command(_ctx: ServerContext, req: ExecReq) -> Result<ExecRes, Error> {
     let output = tokio::time::timeout(
         Duration::from_millis(req.timeout),
         Command::new(&req.command).args(&req.args).output(),
     )
     .await
-    .map_err(|_| Error::other(format!("command {} timed out after {}ms", req.command, req.timeout)))?
-    .map_err(|e| Error::other(format!("failed to execute {}: {}", req.command, e)))?;
+    .map_err(|_| Error::new(eyre!("command {} timed out after {}ms", req.command, req.timeout), ErrorKind::Timeout))?
+    .map_err(|e| Error::new(eyre!("failed to execute {}: {}", req.command, e), ErrorKind::Filesystem))?;
 
     Ok(ExecRes {
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),

@@ -1,4 +1,4 @@
-use startwrt_ctrl::bins::MultiExecutable;
+use startwrt::bins::MultiExecutable;
 
 fn main() {
     MultiExecutable::default()

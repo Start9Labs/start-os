@@ -19,21 +19,24 @@ pub fn main(args: VecDeque<OsString>) {
             return;
         }
         Some("flash") => {
-            if let Err(e) = crate::flash::run_flash().map(|_| ()) {
+            let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+            if let Err(e) = rt.block_on(crate::flash::run_flash()).map(|_| ()) {
                 eprintln!("flash failed: {e}");
                 std::process::exit(1);
             }
             return;
         }
         Some("manufacture") => {
-            if let Err(e) = crate::flash::run_manufacture() {
+            let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+            if let Err(e) = rt.block_on(crate::flash::run_manufacture()) {
                 eprintln!("manufacture failed: {e}");
                 std::process::exit(1);
             }
             return;
         }
         Some("verify") => {
-            if let Err(e) = crate::verify::run_verify() {
+            let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+            if let Err(e) = rt.block_on(crate::verify::run_verify()) {
                 eprintln!("{e}");
                 std::process::exit(1);
             }
@@ -43,7 +46,8 @@ pub fn main(args: VecDeque<OsString>) {
             // Exit 0 if the boot image has a baked-in WiFi password,
             // exit 1 otherwise. Used by startwrt-serial to decide whether
             // to run manufacture or defer to the web setup wizard.
-            std::process::exit(if crate::setup::has_baked_password() { 0 } else { 1 });
+            let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+            std::process::exit(if rt.block_on(crate::setup::has_baked_password()) { 0 } else { 1 });
         }
         _ => {}
     }

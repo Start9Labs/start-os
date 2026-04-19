@@ -1,6 +1,6 @@
 use crate::profiles::UciProfile;
 use crate::CtrlContext;
-use crate::Error;
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use uciedit::Configs;
 
@@ -118,26 +118,42 @@ pub fn collect_smartdns_groups(cfgs: &Configs) -> Vec<SmartDnsGroup> {
 }
 
 /// Regenerate `/etc/smartdns/smartdns.conf` from current config state and restart SmartDNS.
-pub fn regenerate_smartdns(ctx: &impl CtrlContext, cfgs: &Configs) -> Result<(), Error> {
+///
+/// Collects SmartDNS groups from the given configs (sync), then writes the
+/// config file and restarts the service (async). The `Configs` reference is
+/// NOT held across any `.await` point.
+pub async fn regenerate_smartdns(ctx: &impl CtrlContext, cfgs: &Configs<'_>) -> Result<(), Error> {
     if !ctx.effectful() {
         return Ok(());
     }
-
     let groups = collect_smartdns_groups(cfgs);
+    apply_smartdns_groups(groups).await
+}
 
+/// Write the SmartDNS config and restart the service from pre-collected groups.
+///
+/// This function does NOT borrow any `!Send` types (like `Arena` / `Configs`)
+/// across `.await` points, so it can be called from `Send` futures.
+pub async fn apply_smartdns_groups(groups: Vec<SmartDnsGroup>) -> Result<(), Error> {
     if groups.is_empty() {
         // Remove the config file so the init script's `[ -f "$CONF" ]` guard
         // prevents SmartDNS from starting. Without a bind directive, SmartDNS
         // defaults to 0.0.0.0:53 which steals port 53 from dnsmasq.
-        let _ = std::fs::remove_file(SMARTDNS_CONF_PATH);
-        let _ = crate::run_quiet(std::process::Command::new("/etc/init.d/smartdns").arg("stop"));
+        let _ = tokio::fs::remove_file(SMARTDNS_CONF_PATH).await;
+        let _ = crate::run_quiet_async(
+            tokio::process::Command::new("/etc/init.d/smartdns").arg("stop"),
+        )
+        .await;
         return Ok(());
     }
 
     let conf = generate_smartdns_conf(&groups);
-    std::fs::create_dir_all("/etc/smartdns")?;
-    std::fs::write(SMARTDNS_CONF_PATH, &conf)?;
-    let _ = crate::run_quiet(std::process::Command::new("/etc/init.d/smartdns").arg("restart"));
+    tokio::fs::create_dir_all("/etc/smartdns").await?;
+    tokio::fs::write(SMARTDNS_CONF_PATH, &conf).await?;
+    let _ = crate::run_quiet_async(
+        tokio::process::Command::new("/etc/init.d/smartdns").arg("restart"),
+    )
+    .await;
     Ok(())
 }
 

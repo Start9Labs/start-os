@@ -4,7 +4,7 @@ use base64::Engine;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use x25519_dalek::{PublicKey, StaticSecret};
 
-use crate::Error;
+use crate::prelude::*;
 
 /// WireGuard private key wrapper with native key generation.
 #[derive(Clone)]
@@ -36,7 +36,7 @@ impl TryFrom<Vec<u8>> for WgKey {
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         let bytes: [u8; 32] = value
             .try_into()
-            .map_err(|_| Error::other("invalid key length: expected 32 bytes"))?;
+            .map_err(|_| Error::new(eyre!("invalid key length: expected 32 bytes"), ErrorKind::InvalidValue))?;
         Ok(Self(bytes.into()))
     }
 }
@@ -46,7 +46,7 @@ impl TryFrom<&str> for WgKey {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(value)
-            .map_err(|e| Error::other(format!("invalid base64: {}", e)))?;
+            .map_err(|e| Error::new(eyre!("invalid base64: {}", e), ErrorKind::Deserialization))?;
         Self::try_from(bytes)
     }
 }
@@ -73,7 +73,7 @@ impl TryFrom<Vec<u8>> for WgPublicKey {
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         let bytes: [u8; 32] = value
             .try_into()
-            .map_err(|_| Error::other("invalid public key length: expected 32 bytes"))?;
+            .map_err(|_| Error::new(eyre!("invalid public key length: expected 32 bytes"), ErrorKind::InvalidValue))?;
         Ok(Self(PublicKey::from(bytes)))
     }
 }
@@ -113,8 +113,8 @@ where
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(s)
-            .map_err(|e| Error::other(format!("invalid base64: {}", e)))?;
-        let value = T::try_from(bytes).map_err(|e| Error::other(format!("{}", e)))?;
+            .map_err(|e| Error::new(eyre!("invalid base64: {}", e), ErrorKind::Deserialization))?;
+        let value = T::try_from(bytes).map_err(|e| Error::new(eyre!("{}", e), ErrorKind::InvalidValue))?;
         Ok(Self(value))
     }
 }

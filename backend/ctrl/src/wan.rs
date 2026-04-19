@@ -4,10 +4,10 @@ use crate::system::get_wan_ipv6s;
 use crate::utils::DeserializeStdin;
 use crate::utils::HandlerExtSerde;
 use crate::CtrlContext;
-use crate::Error;
-use rpc_toolkit::{from_fn, ParentHandler};
+use crate::prelude::*;
+use rpc_toolkit::{from_fn_async_local, ParentHandler};
 use serde::{Deserialize, Serialize};
-use std::process::Command;
+use crate::invoke::Invoke;
 use uciedit::openwrt::{DdnsService, InterfaceProto, NetworkDevice, NetworkInterface, UciSystemDns};
 use uciedit::{dump_all, parse_all, Arena};
 
@@ -205,42 +205,41 @@ fn service_to_provider(s: &str) -> DdnsProvider {
 
 pub fn wan<C: CtrlContext + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("ipv4-get", from_fn(ipv4_get::<C>).with_display_serializable())
-        .subcommand("ipv4-set", from_fn(ipv4_set::<C>).with_display_serializable())
-        .subcommand("ipv6-get", from_fn(ipv6_get::<C>).with_display_serializable())
-        .subcommand("ipv6-set", from_fn(ipv6_set::<C>).with_display_serializable())
-        .subcommand("mac-get", from_fn(mac_get::<C>).with_display_serializable())
-        .subcommand("mac-set", from_fn(mac_set::<C>).with_display_serializable())
-        .subcommand("dns-get", from_fn(dns_get::<C>).with_display_serializable())
-        .subcommand("dns-set", from_fn(dns_set::<C>).with_display_serializable())
-        .subcommand("ddns-get", from_fn(ddns_get::<C>).with_display_serializable())
-        .subcommand("ddns-set", from_fn(ddns_set::<C>).with_display_serializable())
+        .subcommand("ipv4-get", from_fn_async_local(ipv4_get::<C>).with_display_serializable())
+        .subcommand("ipv4-set", from_fn_async_local(ipv4_set::<C>).with_display_serializable())
+        .subcommand("ipv6-get", from_fn_async_local(ipv6_get::<C>).with_display_serializable())
+        .subcommand("ipv6-set", from_fn_async_local(ipv6_set::<C>).with_display_serializable())
+        .subcommand("mac-get", from_fn_async_local(mac_get::<C>).with_display_serializable())
+        .subcommand("mac-set", from_fn_async_local(mac_set::<C>).with_display_serializable())
+        .subcommand("dns-get", from_fn_async_local(dns_get::<C>).with_display_serializable())
+        .subcommand("dns-set", from_fn_async_local(dns_set::<C>).with_display_serializable())
+        .subcommand("ddns-get", from_fn_async_local(ddns_get::<C>).with_display_serializable())
+        .subcommand("ddns-set", from_fn_async_local(ddns_set::<C>).with_display_serializable())
 }
 
 // ── Helpers ─────────────────────────────────────────────────
 
-fn get_assigned_wan_ip() -> Option<String> {
-    let output = Command::new("ubus")
+async fn get_assigned_wan_ip() -> Option<String> {
+    let output = tokio::process::Command::new("ubus")
         .args(["call", "network.interface.wan", "status"])
-        .output()
+        .invoke(ErrorKind::Network.into())
+        .await
         .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+    let json: serde_json::Value = serde_json::from_slice(&output).ok()?;
     json.pointer("/ipv4-address/0/address")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
 }
 
-fn get_default_mac(dev_name: &str) -> String {
+async fn get_default_mac(dev_name: &str) -> String {
     // Read the hardware MAC from the WAN device via ip link
-    let output = Command::new("ip")
+    let output = tokio::process::Command::new("ip")
         .args(["link", "show", dev_name])
-        .output()
+        .invoke(ErrorKind::Network.into())
+        .await
         .ok();
     if let Some(out) = output {
-        let stdout = String::from_utf8_lossy(&out.stdout);
+        let stdout = String::from_utf8_lossy(&out);
         for line in stdout.lines() {
             if let Some(mac_line) = line.strip_prefix("    link/ether ") {
                 if let Some(mac) = mac_line.split_whitespace().next() {
@@ -252,63 +251,78 @@ fn get_default_mac(dev_name: &str) -> String {
     "00:00:00:00:00:00".to_string()
 }
 
-fn get_start9_hostname() -> Option<String> {
-    std::fs::read_to_string("/etc/start9/hostname")
+async fn get_start9_hostname() -> Option<String> {
+    tokio::fs::read_to_string("/etc/start9/hostname")
+        .await
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
 }
 
-fn restart_network() {
-    let _ = crate::run_quiet(Command::new("/etc/init.d/network").arg("restart"));
+async fn restart_network() {
+    let _ = crate::run_quiet_async(
+        tokio::process::Command::new("/etc/init.d/network").arg("restart"),
+    )
+    .await;
 }
 
 // ── IPv4 handlers ───────────────────────────────────────────
 
-pub fn ipv4_get<C: CtrlContext>(ctx: C) -> Result<WanIpv4Response, Error> {
-    let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["network"])?;
+#[instrument(skip_all)]
+pub async fn ipv4_get<C: CtrlContext>(ctx: C) -> Result<WanIpv4Response, Error> {
+    let effectful = ctx.effectful();
+    let result = {
+        let arena = Arena::new();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await?;
 
-    for section in &cfgs["network"].sections {
-        if section.name().as_deref() == Some(WAN_INTERFACE) {
-            if let Some(iface) = section.get_typed::<NetworkInterface>()? {
-                let mode = match iface.proto {
-                    InterfaceProto::STATIC => WanIpv4Mode::Static,
-                    InterfaceProto::PPPOE => WanIpv4Mode::Pppoe,
-                    _ => WanIpv4Mode::Dhcp,
-                };
-
-                let assigned_ip = if ctx.effectful() {
-                    get_assigned_wan_ip()
-                } else {
-                    None
-                };
-
-                return Ok(WanIpv4Response {
-                    mode,
-                    assigned_ip,
-                    address: iface.ipaddr.map(|ip| ip.to_string()),
-                    netmask: iface.netmask.map(|m| m.to_string()),
-                    gateway: iface.gateway,
-                    username: iface.username,
-                    password: iface.password,
-                    device: Some(iface.device),
-                });
+        let mut found = None;
+        for section in &cfgs["network"].sections {
+            if section.name().as_deref() == Some(WAN_INTERFACE) {
+                if let Some(iface) = section.get_typed::<NetworkInterface>()? {
+                    let mode = match iface.proto {
+                        InterfaceProto::STATIC => WanIpv4Mode::Static,
+                        InterfaceProto::PPPOE => WanIpv4Mode::Pppoe,
+                        _ => WanIpv4Mode::Dhcp,
+                    };
+                    found = Some((mode, iface));
+                    break;
+                }
             }
         }
-    }
+        found
+    };
 
-    Err(Error::other("WAN interface not found"))
+    match result {
+        Some((mode, iface)) => {
+            let assigned_ip = if effectful {
+                get_assigned_wan_ip().await
+            } else {
+                None
+            };
+            Ok(WanIpv4Response {
+                mode,
+                assigned_ip,
+                address: iface.ipaddr.map(|ip| ip.to_string()),
+                netmask: iface.netmask.map(|m| m.to_string()),
+                gateway: iface.gateway,
+                username: iface.username,
+                password: iface.password,
+                device: Some(iface.device),
+            })
+        }
+        None => Err(Error::new(eyre!("WAN interface not found"), ErrorKind::MissingWanInterface)),
+    }
 }
 
-pub fn ipv4_set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn ipv4_set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<WanIpv4SetRequest>,
 ) -> Result<(), Error> {
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await?;
 
         let mut found = false;
         for section in &mut cfgs["network"].sections {
@@ -358,10 +372,12 @@ pub fn ipv4_set<C: CtrlContext>(
             }
         }
         if !found {
-            return Err(Error::other("WAN interface not found"));
+            return Err(Error::new(eyre!("WAN interface not found"), ErrorKind::MissingWanInterface));
         }
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        let dump_result = dump_all(ctx.uci_root(), cfgs).await;
+        drop(arena);
+        match dump_result {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -373,7 +389,7 @@ pub fn ipv4_set<C: CtrlContext>(
             Ok(()) => {
                 crate::activity::log("wan", "ipv4-updated", true, &format!("Updated WAN IPv4 (mode: {})", serde_name(&req.mode)), None);
                 if ctx.effectful() {
-                    restart_network();
+                    restart_network().await;
                 }
                 return Ok(());
             }
@@ -383,9 +399,10 @@ pub fn ipv4_set<C: CtrlContext>(
 
 // ── IPv6 handlers ───────────────────────────────────────────
 
-pub fn ipv6_get<C: CtrlContext>(ctx: C) -> Result<WanIpv6Response, Error> {
+#[instrument(skip_all)]
+pub async fn ipv6_get<C: CtrlContext>(ctx: C) -> Result<WanIpv6Response, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["network"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await?;
 
     let mut wan6: Option<NetworkInterface> = None;
     for section in &cfgs["network"].sections {
@@ -445,8 +462,13 @@ pub fn ipv6_get<C: CtrlContext>(ctx: C) -> Result<WanIpv6Response, Error> {
         },
     };
 
+    // Drop arena before any .await — Arena is !Send
+    drop(cfgs);
+    drop(arena);
+
     let assigned_ipv6 = if ctx.effectful() {
         get_wan_ipv6s()
+            .await
             .ok()
             .and_then(|addrs| addrs.into_iter().next())
             .map(|a| a.to_string())
@@ -481,14 +503,15 @@ pub fn ipv6_get<C: CtrlContext>(ctx: C) -> Result<WanIpv6Response, Error> {
     })
 }
 
-pub fn ipv6_set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn ipv6_set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<WanIpv6SetRequest>,
 ) -> Result<(), Error> {
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await?;
 
         let wan6_idx = cfgs["network"]
             .sections
@@ -564,7 +587,9 @@ pub fn ipv6_set<C: CtrlContext>(
             }
         }
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        let dump_result = dump_all(ctx.uci_root(), cfgs).await;
+        drop(arena);
+        match dump_result {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -576,8 +601,11 @@ pub fn ipv6_set<C: CtrlContext>(
             Ok(()) => {
                 crate::activity::log("wan", "ipv6-updated", true, &format!("Updated WAN IPv6 (mode: {})", serde_name(&req.mode)), None);
                 if ctx.effectful() {
-                    restart_network();
-                    let _ = crate::run_quiet(Command::new("/etc/init.d/odhcpd").arg("restart"));
+                    restart_network().await;
+                    let _ = crate::run_quiet_async(
+                        tokio::process::Command::new("/etc/init.d/odhcpd").arg("restart"),
+                    )
+                    .await;
                 }
                 return Ok(());
             }
@@ -587,9 +615,10 @@ pub fn ipv6_set<C: CtrlContext>(
 
 // ── MAC handlers ────────────────────────────────────────────
 
-pub fn mac_get<C: CtrlContext>(ctx: C) -> Result<WanMacResponse, Error> {
+#[instrument(skip_all)]
+pub async fn mac_get<C: CtrlContext>(ctx: C) -> Result<WanMacResponse, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["network"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await?;
 
     let mut wan_device_name: Option<String> = None;
     let mut device_macaddr: Option<String> = None;
@@ -614,8 +643,12 @@ pub fn mac_get<C: CtrlContext>(ctx: C) -> Result<WanMacResponse, Error> {
         }
     }
 
+    // Drop arena before any .await — Arena is !Send
+    drop(cfgs);
+    drop(arena);
+
     let default_mac = if ctx.effectful() {
-        get_default_mac(wan_device_name.as_deref().unwrap_or("eth1"))
+        get_default_mac(wan_device_name.as_deref().unwrap_or("eth1")).await
     } else {
         "00:00:00:00:00:00".to_string()
     };
@@ -631,14 +664,15 @@ pub fn mac_get<C: CtrlContext>(ctx: C) -> Result<WanMacResponse, Error> {
     })
 }
 
-pub fn mac_set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn mac_set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<WanMacSetRequest>,
 ) -> Result<(), Error> {
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await?;
 
         // Find the WAN interface's device name
         let mut wan_device_name: Option<String> = None;
@@ -650,7 +684,7 @@ pub fn mac_set<C: CtrlContext>(
             }
         }
         let dev_name =
-            wan_device_name.ok_or_else(|| Error::other("WAN interface not found"))?;
+            wan_device_name.ok_or_else(|| Error::new(eyre!("WAN interface not found"), ErrorKind::MissingWanInterface))?;
 
         // Set macaddr on the device section, creating it if needed
         let mut found = false;
@@ -684,7 +718,9 @@ pub fn mac_set<C: CtrlContext>(
             // Router strategy with no device section = already using hardware default
         }
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        let dump_result = dump_all(ctx.uci_root(), cfgs).await;
+        drop(arena);
+        match dump_result {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -696,7 +732,7 @@ pub fn mac_set<C: CtrlContext>(
             Ok(()) => {
                 crate::activity::log("wan", "mac-updated", true, "Updated WAN MAC address", None);
                 if ctx.effectful() {
-                    restart_network();
+                    restart_network().await;
                 }
                 return Ok(());
             }
@@ -706,9 +742,10 @@ pub fn mac_set<C: CtrlContext>(
 
 // ── DNS handlers ────────────────────────────────────────────
 
-pub fn dns_get<C: CtrlContext>(ctx: C) -> Result<WanDnsResponse, Error> {
+#[instrument(skip_all)]
+pub async fn dns_get<C: CtrlContext>(ctx: C) -> Result<WanDnsResponse, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"]).await?;
 
     let servers = dns::get_system_dns_servers(&cfgs);
     if !servers.is_empty() {
@@ -724,7 +761,8 @@ pub fn dns_get<C: CtrlContext>(ctx: C) -> Result<WanDnsResponse, Error> {
     }
 }
 
-pub fn dns_set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn dns_set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<WanDnsSetRequest>,
 ) -> Result<(), Error> {
@@ -735,7 +773,7 @@ pub fn dns_set<C: CtrlContext>(
             ctx.uci_root(),
             &arena,
             &["startwrt", "network", "dhcp", "firewall"],
-        )?;
+        ).await?;
 
         // Remove existing system_dns section
         cfgs["startwrt"]
@@ -785,7 +823,9 @@ pub fn dns_set<C: CtrlContext>(
         // so they pick up the new system DNS setting.
         profiles::rewrite_all_dns_forwarding(&mut cfgs)?;
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        let dump_result = dump_all(ctx.uci_root(), cfgs).await;
+        drop(arena);
+        match dump_result {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -798,11 +838,14 @@ pub fn dns_set<C: CtrlContext>(
                 crate::activity::log("wan", "dns-updated", true, &format!("Updated WAN DNS (mode: {})", serde_name(&req.mode)), None);
                 if ctx.effectful() {
                     // Re-read configs to regenerate SmartDNS with the updated state
-                    let arena2 = Arena::new();
-                    let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"])?;
-                    dns::regenerate_smartdns(&ctx, &cfgs2)?;
+                    let smartdns_groups = {
+                        let arena2 = Arena::new();
+                        let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"]).await?;
+                        dns::collect_smartdns_groups(&cfgs2)
+                    };
+                    dns::apply_smartdns_groups(smartdns_groups).await?;
                     // Use reload_system() which restarts network + smartdns + firewall + dnsmasq
-                    profiles::reload_system()?;
+                    profiles::reload_system().await?;
                 }
                 return Ok(());
             }
@@ -812,9 +855,10 @@ pub fn dns_set<C: CtrlContext>(
 
 // ── DDNS handlers ───────────────────────────────────────────
 
-pub fn ddns_get<C: CtrlContext>(ctx: C) -> Result<WanDdnsResponse, Error> {
+#[instrument(skip_all)]
+pub async fn ddns_get<C: CtrlContext>(ctx: C) -> Result<WanDdnsResponse, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["ddns"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["ddns"]).await?;
 
     for section in &cfgs["ddns"].sections {
         if section.name().as_deref() == Some(DDNS_SECTION) {
@@ -824,7 +868,7 @@ pub fn ddns_get<C: CtrlContext>(ctx: C) -> Result<WanDdnsResponse, Error> {
 
                 let hostname = if provider == DdnsProvider::Start9 && enabled {
                     if ctx.effectful() {
-                        get_start9_hostname()
+                        get_start9_hostname().await
                     } else {
                         None
                     }
@@ -865,14 +909,15 @@ pub fn ddns_get<C: CtrlContext>(ctx: C) -> Result<WanDdnsResponse, Error> {
     })
 }
 
-pub fn ddns_set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn ddns_set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<WanDdnsSetRequest>,
 ) -> Result<(), Error> {
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["ddns"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["ddns"]).await?;
 
         let ddns_idx = cfgs["ddns"]
             .sections
@@ -913,7 +958,9 @@ pub fn ddns_set<C: CtrlContext>(
             cfgs["ddns"].append(&new_svc, Some(DDNS_SECTION))?;
         }
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        let dump_result = dump_all(ctx.uci_root(), cfgs).await;
+        drop(arena);
+        match dump_result {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -925,8 +972,11 @@ pub fn ddns_set<C: CtrlContext>(
             Ok(()) => {
                 crate::activity::log("wan", "ddns-updated", true, &format!("Updated DDNS (provider: {})", serde_name(&req.provider)), None);
                 if ctx.effectful() {
-                    let _ = crate::run_quiet(Command::new("/etc/init.d/ddns")
-                        .arg(if req.enabled { "restart" } else { "stop" }));
+                    let _ = crate::run_quiet_async(
+                        tokio::process::Command::new("/etc/init.d/ddns")
+                            .arg(if req.enabled { "restart" } else { "stop" }),
+                    )
+                    .await;
                 }
                 return Ok(());
             }
@@ -996,19 +1046,19 @@ config service 'wan'
 
     // ── IPv4 ──
 
-    #[test]
-    fn ipv4_get_dhcp() {
+    #[tokio::test]
+    async fn ipv4_get_dhcp() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let res = ipv4_get(ctx).unwrap();
+        let res = ipv4_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv4Mode::Dhcp);
         assert!(res.assigned_ip.is_none()); // effectful=false
     }
 
-    #[test]
-    fn ipv4_set_static() {
+    #[tokio::test]
+    async fn ipv4_set_static() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1024,17 +1074,17 @@ config service 'wan'
                 password: None,
                 device: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv4_get(ctx).unwrap();
+        let res = ipv4_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv4Mode::Static);
         assert_eq!(res.address.as_deref(), Some("10.0.0.2"));
         assert_eq!(res.gateway.as_deref(), Some("10.0.0.1"));
     }
 
-    #[test]
-    fn ipv4_set_pppoe() {
+    #[tokio::test]
+    async fn ipv4_set_pppoe() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1050,29 +1100,29 @@ config service 'wan'
                 password: Some("secret".to_string()),
                 device: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv4_get(ctx).unwrap();
+        let res = ipv4_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv4Mode::Pppoe);
         assert_eq!(res.username.as_deref(), Some("user@isp"));
     }
 
     // ── IPv6 ──
 
-    #[test]
-    fn ipv6_get_slaac() {
+    #[tokio::test]
+    async fn ipv6_get_slaac() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let res = ipv6_get(ctx).unwrap();
+        let res = ipv6_get(ctx).await.unwrap();
         // Default wan6 proto=dhcpv6 with no reqaddress → SLAAC
         assert_eq!(res.mode, WanIpv6Mode::Slaac);
     }
 
-    #[test]
-    fn ipv6_set_disabled() {
+    #[tokio::test]
+    async fn ipv6_set_disabled() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1090,27 +1140,27 @@ config service 'wan'
                 border_relay: None,
                 lan_prefix: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv6_get(ctx).unwrap();
+        let res = ipv6_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv6Mode::Disabled);
     }
 
     // ── MAC ──
 
-    #[test]
-    fn mac_get_router_default() {
+    #[tokio::test]
+    async fn mac_get_router_default() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let res = mac_get(ctx).unwrap();
+        let res = mac_get(ctx).await.unwrap();
         assert_eq!(res.strategy, MacStrategy::Router);
     }
 
-    #[test]
-    fn mac_set_custom() {
+    #[tokio::test]
+    async fn mac_set_custom() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1121,10 +1171,10 @@ config service 'wan'
                 strategy: MacStrategy::Custom,
                 mac: Some("AA:BB:CC:DD:EE:FF".to_string()),
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = mac_get(ctx).unwrap();
+        let res = mac_get(ctx).await.unwrap();
         assert_eq!(res.strategy, MacStrategy::Custom);
         assert_eq!(res.mac, "AA:BB:CC:DD:EE:FF");
     }
@@ -1178,20 +1228,20 @@ config zone
         }
     }
 
-    #[test]
-    fn dns_get_isp_default() {
+    #[tokio::test]
+    async fn dns_get_isp_default() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         setup_startwrt(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let res = dns_get(ctx).unwrap();
+        let res = dns_get(ctx).await.unwrap();
         assert_eq!(res.mode, DnsMode::Isp);
         assert!(res.servers.is_empty());
     }
 
-    #[test]
-    fn dns_set_custom() {
+    #[tokio::test]
+    async fn dns_set_custom() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         setup_startwrt(dir.path());
@@ -1206,10 +1256,10 @@ config zone
                     DnsServer { address: "8.8.8.8".into(), ssl: true },
                 ]),
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = dns_get(ctx).unwrap();
+        let res = dns_get(ctx).await.unwrap();
         assert_eq!(res.mode, DnsMode::Custom);
         assert_eq!(res.servers, vec![
             DnsServer { address: "1.1.1.1".into(), ssl: false },
@@ -1219,32 +1269,32 @@ config zone
 
     // ── DDNS ──
 
-    #[test]
-    fn ddns_get_existing() {
+    #[tokio::test]
+    async fn ddns_get_existing() {
         let dir = tempfile::tempdir().unwrap();
         setup_ddns(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let res = ddns_get(ctx).unwrap();
+        let res = ddns_get(ctx).await.unwrap();
         assert!(res.enabled);
         assert_eq!(res.provider, DdnsProvider::Dyndns);
         assert_eq!(res.username.as_deref(), Some("myuser"));
         assert_eq!(res.hostname.as_deref(), Some("myhost.dyndns.org"));
     }
 
-    #[test]
-    fn ddns_get_empty() {
+    #[tokio::test]
+    async fn ddns_get_empty() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("ddns"), "").unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let res = ddns_get(ctx).unwrap();
+        let res = ddns_get(ctx).await.unwrap();
         assert!(!res.enabled);
         assert_eq!(res.provider, DdnsProvider::Start9);
     }
 
-    #[test]
-    fn ddns_set_cloudflare() {
+    #[tokio::test]
+    async fn ddns_set_cloudflare() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("ddns"), "").unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1260,18 +1310,18 @@ config zone
                 token: Some("cf-api-token-123".to_string()),
                 zone: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ddns_get(ctx).unwrap();
+        let res = ddns_get(ctx).await.unwrap();
         assert!(res.enabled);
         assert_eq!(res.provider, DdnsProvider::Cloudflare);
         assert_eq!(res.token.as_deref(), Some("cf-api-token-123"));
         assert_eq!(res.hostname.as_deref(), Some("mysite.example.com"));
     }
 
-    #[test]
-    fn ipv4_static_auto_sets_gateway_as_wan_dns() {
+    #[tokio::test]
+    async fn ipv4_static_auto_sets_gateway_as_wan_dns() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         setup_startwrt(dir.path());
@@ -1288,17 +1338,17 @@ config zone
                 password: None,
                 device: None,
             }),
-        )
+        ).await
         .unwrap();
 
         // ipv4_set sets peerdns=0 and dns=gateway on the WAN interface,
         // but system DNS (dns_get) reads from startwrt config
-        let res = dns_get(ctx).unwrap();
+        let res = dns_get(ctx).await.unwrap();
         assert_eq!(res.mode, DnsMode::Isp);
     }
 
-    #[test]
-    fn ipv4_static_preserves_custom_dns() {
+    #[tokio::test]
+    async fn ipv4_static_preserves_custom_dns() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         setup_startwrt(dir.path());
@@ -1311,7 +1361,7 @@ config zone
                 mode: DnsMode::Custom,
                 servers: Some(vec![DnsServer { address: "1.1.1.1".into(), ssl: false }]),
             }),
-        )
+        ).await
         .unwrap();
 
         // Switch to static — should NOT overwrite system DNS
@@ -1326,18 +1376,18 @@ config zone
                 password: None,
                 device: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = dns_get(ctx).unwrap();
+        let res = dns_get(ctx).await.unwrap();
         assert_eq!(res.mode, DnsMode::Custom);
         assert_eq!(res.servers, vec![DnsServer { address: "1.1.1.1".into(), ssl: false }]);
     }
 
     // ── IPv4 mode switching ──
 
-    #[test]
-    fn ipv4_static_to_dhcp_clears_fields() {
+    #[tokio::test]
+    async fn ipv4_static_to_dhcp_clears_fields() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1354,7 +1404,7 @@ config zone
                 password: None,
                 device: None,
             }),
-        )
+        ).await
         .unwrap();
 
         // Switch back to DHCP
@@ -1369,18 +1419,18 @@ config zone
                 password: None,
                 device: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv4_get(ctx).unwrap();
+        let res = ipv4_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv4Mode::Dhcp);
         assert!(res.address.is_none(), "ipaddr should be cleared");
         assert!(res.netmask.is_none(), "netmask should be cleared");
         assert!(res.gateway.is_none(), "gateway should be cleared");
     }
 
-    #[test]
-    fn ipv4_pppoe_to_dhcp_clears_fields() {
+    #[tokio::test]
+    async fn ipv4_pppoe_to_dhcp_clears_fields() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1396,7 +1446,7 @@ config zone
                 password: Some("secret".to_string()),
                 device: None,
             }),
-        )
+        ).await
         .unwrap();
 
         ipv4_set(
@@ -1410,17 +1460,17 @@ config zone
                 password: None,
                 device: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv4_get(ctx).unwrap();
+        let res = ipv4_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv4Mode::Dhcp);
         assert!(res.username.is_none(), "username should be cleared");
         assert!(res.password.is_none(), "password should be cleared");
     }
 
-    #[test]
-    fn ipv4_static_to_pppoe_clears_static_fields() {
+    #[tokio::test]
+    async fn ipv4_static_to_pppoe_clears_static_fields() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1436,7 +1486,7 @@ config zone
                 password: None,
                 device: None,
             }),
-        )
+        ).await
         .unwrap();
 
         ipv4_set(
@@ -1450,10 +1500,10 @@ config zone
                 password: Some("secret".to_string()),
                 device: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv4_get(ctx).unwrap();
+        let res = ipv4_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv4Mode::Pppoe);
         assert_eq!(res.username.as_deref(), Some("user@isp"));
         assert!(res.address.is_none(), "ipaddr should be cleared");
@@ -1463,8 +1513,8 @@ config zone
 
     // ── IPv6 all modes ──
 
-    #[test]
-    fn ipv6_set_slaac() {
+    #[tokio::test]
+    async fn ipv6_set_slaac() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1478,7 +1528,7 @@ config zone
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
                 lan_prefix: None,
             }),
-        )
+        ).await
         .unwrap();
 
         ipv6_set(
@@ -1489,15 +1539,15 @@ config zone
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
                 lan_prefix: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv6_get(ctx).unwrap();
+        let res = ipv6_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv6Mode::Slaac);
     }
 
-    #[test]
-    fn ipv6_set_dhcpv6() {
+    #[tokio::test]
+    async fn ipv6_set_dhcpv6() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1510,15 +1560,15 @@ config zone
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
                 lan_prefix: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv6_get(ctx).unwrap();
+        let res = ipv6_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv6Mode::Dhcpv6);
     }
 
-    #[test]
-    fn ipv6_set_static() {
+    #[tokio::test]
+    async fn ipv6_set_static() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1533,18 +1583,18 @@ config zone
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
                 lan_prefix: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv6_get(ctx).unwrap();
+        let res = ipv6_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv6Mode::Static);
         assert_eq!(res.address.as_deref(), Some("fd00::2"));
         assert_eq!(res.prefix.as_deref(), Some("/64"));
         assert_eq!(res.gateway.as_deref(), Some("fd00::1"));
     }
 
-    #[test]
-    fn ipv6_set_6rd() {
+    #[tokio::test]
+    async fn ipv6_set_6rd() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1562,10 +1612,10 @@ config zone
                 border_relay: Some("203.0.113.1".to_string()),
                 lan_prefix: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv6_get(ctx).unwrap();
+        let res = ipv6_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv6Mode::SixRd);
         assert_eq!(res.ip6prefix.as_deref(), Some("2001:db8::"));
         assert_eq!(res.ip6prefixlen.as_deref(), Some("/32"));
@@ -1575,8 +1625,8 @@ config zone
 
     // ── IPv6 mode switching ──
 
-    #[test]
-    fn ipv6_static_to_slaac_clears_fields() {
+    #[tokio::test]
+    async fn ipv6_static_to_slaac_clears_fields() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1591,7 +1641,7 @@ config zone
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
                 lan_prefix: None,
             }),
-        )
+        ).await
         .unwrap();
 
         ipv6_set(
@@ -1602,17 +1652,17 @@ config zone
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
                 lan_prefix: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv6_get(ctx).unwrap();
+        let res = ipv6_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv6Mode::Slaac);
         assert!(res.address.is_none(), "address should be cleared");
         assert!(res.gateway.is_none(), "gateway should be cleared");
     }
 
-    #[test]
-    fn ipv6_6rd_to_disabled_clears_fields() {
+    #[tokio::test]
+    async fn ipv6_6rd_to_disabled_clears_fields() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1630,7 +1680,7 @@ config zone
                 border_relay: Some("203.0.113.1".to_string()),
                 lan_prefix: None,
             }),
-        )
+        ).await
         .unwrap();
 
         ipv6_set(
@@ -1641,10 +1691,10 @@ config zone
                 ip6prefix: None, ip6prefixlen: None, ip4prefixlen: None, border_relay: None,
                 lan_prefix: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv6_get(ctx).unwrap();
+        let res = ipv6_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv6Mode::Disabled);
         assert!(res.border_relay.is_none(), "border relay should be cleared");
         assert!(res.ip6prefix.is_none(), "ip6prefix should be cleared");
@@ -1652,8 +1702,8 @@ config zone
 
     // ── MAC revert ──
 
-    #[test]
-    fn mac_custom_to_router_clears_macaddr() {
+    #[tokio::test]
+    async fn mac_custom_to_router_clears_macaddr() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1664,7 +1714,7 @@ config zone
                 strategy: MacStrategy::Custom,
                 mac: Some("AA:BB:CC:DD:EE:FF".to_string()),
             }),
-        )
+        ).await
         .unwrap();
 
         mac_set(
@@ -1673,17 +1723,17 @@ config zone
                 strategy: MacStrategy::Router,
                 mac: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = mac_get(ctx).unwrap();
+        let res = mac_get(ctx).await.unwrap();
         assert_eq!(res.strategy, MacStrategy::Router);
     }
 
     // ── DNS revert + dual interface ──
 
-    #[test]
-    fn dns_custom_to_isp_clears_servers() {
+    #[tokio::test]
+    async fn dns_custom_to_isp_clears_servers() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         setup_startwrt(dir.path());
@@ -1695,7 +1745,7 @@ config zone
                 mode: DnsMode::Custom,
                 servers: Some(vec![DnsServer { address: "1.1.1.1".into(), ssl: false }]),
             }),
-        )
+        ).await
         .unwrap();
 
         dns_set(
@@ -1704,16 +1754,16 @@ config zone
                 mode: DnsMode::Isp,
                 servers: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = dns_get(ctx).unwrap();
+        let res = dns_get(ctx).await.unwrap();
         assert_eq!(res.mode, DnsMode::Isp);
         assert!(res.servers.is_empty(), "servers should be cleared");
     }
 
-    #[test]
-    fn dns_set_custom_rewrites_profile_dnsmasq() {
+    #[tokio::test]
+    async fn dns_set_custom_rewrites_profile_dnsmasq() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         setup_startwrt(dir.path());
@@ -1726,12 +1776,12 @@ config zone
                 mode: DnsMode::Custom,
                 servers: Some(vec![DnsServer { address: "9.9.9.9".into(), ssl: false }]),
             }),
-        )
+        ).await
         .unwrap();
 
         // Verify that a per-profile dnsmasq section was created for the Admin profile
         let arena = Arena::new();
-        let cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp", "network"]).unwrap();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp", "network"]).await.unwrap();
         let has_dns_lan = cfgs["dhcp"]
             .sections
             .iter()
@@ -1754,8 +1804,8 @@ config zone
         }
     }
 
-    #[test]
-    fn dns_set_isp_removes_profile_dnsmasq() {
+    #[tokio::test]
+    async fn dns_set_isp_removes_profile_dnsmasq() {
         let dir = tempfile::tempdir().unwrap();
         setup_network(dir.path());
         setup_startwrt(dir.path());
@@ -1768,7 +1818,7 @@ config zone
                 mode: DnsMode::Custom,
                 servers: Some(vec![DnsServer { address: "9.9.9.9".into(), ssl: false }]),
             }),
-        )
+        ).await
         .unwrap();
 
         // Switch back to ISP
@@ -1778,12 +1828,12 @@ config zone
                 mode: DnsMode::Isp,
                 servers: None,
             }),
-        )
+        ).await
         .unwrap();
 
         // Verify that the per-profile dnsmasq section was removed
         let arena = Arena::new();
-        let cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp", "network"]).unwrap();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["dhcp", "network"]).await.unwrap();
         let has_dns_lan = cfgs["dhcp"]
             .sections
             .iter()
@@ -1808,8 +1858,8 @@ config zone
 
     // ── DDNS revert + provider switching ──
 
-    #[test]
-    fn ddns_enable_then_disable() {
+    #[tokio::test]
+    async fn ddns_enable_then_disable() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("ddns"), "").unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1825,7 +1875,7 @@ config zone
                 token: Some("tok123".to_string()),
                 zone: None,
             }),
-        )
+        ).await
         .unwrap();
 
         ddns_set(
@@ -1839,15 +1889,15 @@ config zone
                 token: None,
                 zone: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ddns_get(ctx).unwrap();
+        let res = ddns_get(ctx).await.unwrap();
         assert!(!res.enabled);
     }
 
-    #[test]
-    fn ddns_switch_provider_dyndns_to_duckdns() {
+    #[tokio::test]
+    async fn ddns_switch_provider_dyndns_to_duckdns() {
         let dir = tempfile::tempdir().unwrap();
         setup_ddns(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1864,10 +1914,10 @@ config zone
                 token: Some("duck-token".to_string()),
                 zone: None,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ddns_get(ctx).unwrap();
+        let res = ddns_get(ctx).await.unwrap();
         assert_eq!(res.provider, DdnsProvider::Duckdns);
         assert_eq!(res.token.as_deref(), Some("duck-token"));
         assert_eq!(res.hostname.as_deref(), Some("myhost.duckdns.org"));

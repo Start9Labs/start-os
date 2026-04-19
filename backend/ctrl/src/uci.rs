@@ -1,18 +1,19 @@
+use crate::prelude::*;
 use crate::utils::DeserializeStdin;
 use crate::CtrlContext;
-use crate::{utils::HandlerExtSerde, Error};
+use crate::utils::HandlerExtSerde;
 use chrono::{offset::Utc, DateTime};
 use clap::Parser;
-use rpc_toolkit::{from_fn, ParentHandler};
+use rpc_toolkit::{from_fn_async_local, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use uciedit::{parse_all, Arena, Line, LockedConfig, Token};
 
 pub fn uci<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("get", from_fn(get::<C>).with_display_serializable())
-        .subcommand("set", from_fn(set::<C>).with_display_serializable())
-        .subcommand("edit", from_fn(edit::<C>).with_display_serializable())
+        .subcommand("get", from_fn_async_local(get::<C>).with_display_serializable())
+        .subcommand("set", from_fn_async_local(set::<C>).with_display_serializable())
+        .subcommand("edit", from_fn_async_local(edit::<C>).with_display_serializable())
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,9 +37,10 @@ pub struct GetArgs {
     names: Vec<String>,
 }
 
-pub fn get<C: CtrlContext>(ctx: C, GetArgs { names }: GetArgs) -> Result<UciFiles, Error> {
+#[instrument(skip_all)]
+pub async fn get<C: CtrlContext>(ctx: C, GetArgs { names }: GetArgs) -> Result<UciFiles, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &names)?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &names).await?;
     let mut files = UciFiles::new();
     for (name, cfg) in cfgs.iter() {
         let mut sections = Vec::new();
@@ -79,24 +81,24 @@ pub fn get<C: CtrlContext>(ctx: C, GetArgs { names }: GetArgs) -> Result<UciFile
     Ok(files)
 }
 
-pub fn set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(files): DeserializeStdin<UciFiles>,
 ) -> Result<BTreeMap<String, DateTime<Utc>>, Error> {
     // Lock all the files at once.
     // We do it in lexicographic order so that deadlocks are impossible.
-    let mut files = files
-        .into_iter()
-        .map(|(name, input)| {
-            let path = ctx.uci_root().join(&name);
-            Ok::<_, Error>((name, input, LockedConfig::open(path)?))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    let mut locked_files = Vec::new();
+    for (name, input) in files {
+        let path = ctx.uci_root().join(&name);
+        locked_files.push((name, input, LockedConfig::open(path).await?));
+    }
+    let mut files = locked_files;
 
     // Check all the modified times.
     for (_, input, file) in &mut files {
         if let Some(expected) = input.modified {
-            file.check_modified(expected)?;
+            file.check_modified(expected).await?;
         }
     }
 
@@ -107,6 +109,7 @@ pub fn set<C: CtrlContext>(
         let arena = Arena::new();
         let mut cfg = file
             .parse(&arena)
+            .await
             .unwrap_or_else(|_| uciedit::Config::new(&arena));
         cfg.sections.clear();
         for input_section in input.sections {
@@ -134,8 +137,8 @@ pub fn set<C: CtrlContext>(
             }
             cfg.sections.push(section);
         }
-        result = result.and(file.dump(&cfg));
-        if let Ok(modified) = file.get_modified() {
+        result = result.and(file.dump(&cfg).await);
+        if let Ok(modified) = file.get_modified().await {
             output.insert(name, modified);
         }
     }
@@ -144,11 +147,12 @@ pub fn set<C: CtrlContext>(
     Ok(output)
 }
 
-pub fn edit<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn edit<C: CtrlContext>(
     ctx: C,
     args: GetArgs,
 ) -> Result<BTreeMap<String, DateTime<Utc>>, Error> {
-    let current_files = get(ctx.clone(), args)?;
+    let current_files = get(ctx.clone(), args).await?;
     let modified_files = crate::utils::edit_in_editor(&current_files)?;
-    set(ctx, DeserializeStdin(modified_files))
+    set(ctx, DeserializeStdin(modified_files)).await
 }

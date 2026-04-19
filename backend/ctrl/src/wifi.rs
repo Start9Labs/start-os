@@ -1,12 +1,11 @@
 use crate::profiles::{self, ProfileId, ProfileIdOpt};
 use crate::utils::{DeserializeStdin, HandlerExtSerde as _};
-use crate::{CtrlContext, Error, ErrorKind};
-use color_eyre::eyre::Context;
-use rpc_toolkit::{from_fn, ParentHandler};
+use crate::prelude::*;
+use crate::CtrlContext;
+use rpc_toolkit::{from_fn, from_fn_async_local, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
-use std::process::Command;
 use uciedit::openwrt::{
     NetworkBridgeVlan, WifiChannel, WifiDevice, WifiDynamicVlan, WifiInterface, WifiMode,
     WifiStation, WifiVlan,
@@ -29,7 +28,7 @@ pub fn find_ap_interface_names(cfgs: &Configs) -> Result<Vec<String>, Error> {
     let mut names = Vec::new();
     cfgs["wireless"].try_each(|name, iface: WifiInterface| {
         if iface.mode == WifiMode::AP {
-            names.push(name.ok_or(ErrorKind::UnnamedWirelessInterface)?.to_string());
+            names.push(name.ok_or_else(|| Error::new(eyre!("unnamed wireless interface"), ErrorKind::UnnamedWirelessInterface))?.to_string());
         }
         Ok::<_, Error>(())
     })?;
@@ -75,16 +74,16 @@ pub struct BlackoutWindows {
 
 pub fn wifi<C: CtrlContext + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("get", from_fn(get::<C>).with_display_serializable())
-        .subcommand("set", from_fn(set::<C>).with_display_serializable())
-        .subcommand("edit", from_fn(edit::<C>).with_display_serializable())
+        .subcommand("get", from_fn_async_local(get::<C>).with_display_serializable())
+        .subcommand("set", from_fn_async_local(set::<C>).with_display_serializable())
+        .subcommand("edit", from_fn_async_local(edit::<C>).with_display_serializable())
         .subcommand(
             "blackout-get",
-            from_fn(blackout_get::<C>).with_display_serializable(),
+            from_fn_async_local(blackout_get::<C>).with_display_serializable(),
         )
         .subcommand(
             "blackout-set",
-            from_fn(blackout_set::<C>).with_display_serializable(),
+            from_fn_async_local(blackout_set::<C>).with_display_serializable(),
         )
         .subcommand(
             "generate-password",
@@ -103,7 +102,7 @@ fn find_relevant_with_radios(
     let mut devices = HashMap::new();
     cfgs["wireless"].try_each(|name, device: WifiDevice| {
         devices.insert(
-            name.ok_or(ErrorKind::UnnamedWirelessDevice)?.to_string(),
+            name.ok_or_else(|| Error::new(eyre!("unnamed wireless device"), ErrorKind::UnnamedWirelessDevice))?.to_string(),
             device,
         );
         Ok::<_, Error>(())
@@ -116,7 +115,7 @@ fn find_relevant_with_radios(
         let Some(device) = devices.get(&*iface.device) else {
             return Ok(());
         };
-        let name = name.ok_or(ErrorKind::UnnamedWirelessInterface)?.to_string();
+        let name = name.ok_or_else(|| Error::new(eyre!("unnamed wireless interface"), ErrorKind::UnnamedWirelessInterface))?.to_string();
         let radio = match radios.get(&name) {
             None => return Ok(()),
             Some(r) => r.clone(),
@@ -131,7 +130,7 @@ fn find_relevant(cfgs: &Configs) -> Result<Vec<(String, WifiInterface, WifiDevic
     let mut devices = HashMap::new();
     cfgs["wireless"].try_each(|name, device: WifiDevice| {
         devices.insert(
-            name.ok_or(ErrorKind::UnnamedWirelessDevice)?.to_string(),
+            name.ok_or_else(|| Error::new(eyre!("unnamed wireless device"), ErrorKind::UnnamedWirelessDevice))?.to_string(),
             device,
         );
         Ok::<_, Error>(())
@@ -144,20 +143,21 @@ fn find_relevant(cfgs: &Configs) -> Result<Vec<(String, WifiInterface, WifiDevic
         let Some(device) = devices.get(&*iface.device) else {
             return Ok(());
         };
-        let name = name.ok_or(ErrorKind::UnnamedWirelessInterface)?.to_string();
+        let name = name.ok_or_else(|| Error::new(eyre!("unnamed wireless interface"), ErrorKind::UnnamedWirelessInterface))?.to_string();
         relevant_interfaces.push((name, iface, device.clone()));
         Ok::<_, Error>(())
     })?;
     return Ok(relevant_interfaces);
 }
 
-pub fn get<C: CtrlContext>(ctx: C) -> Result<Wifi, Error> {
+#[instrument(skip_all)]
+pub async fn get<C: CtrlContext>(ctx: C) -> Result<Wifi, Error> {
     let arena = Arena::new();
     let cfgs = parse_all(
         ctx.uci_root(),
         &arena,
         &["wireless", "startwrt", "network", "firewall"],
-    )?;
+    ).await?;
     get_config(ctx, &cfgs)
 }
 
@@ -165,7 +165,7 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
     let lookup = profiles::Lookup::parse(ctx.clone(), cfgs)?;
     let relevant_interfaces = find_relevant(cfgs)?;
     let Some(first_interface) = relevant_interfaces.first() else {
-        return Err(ErrorKind::CorruptedWifi.into());
+        return Err(Error::new(eyre!("corrupted WiFi configuration"), ErrorKind::CorruptedWifi));
     };
     let mut passwords = BTreeSet::new();
     cfgs["wireless"].try_each(|_, station: WifiStation| {
@@ -246,7 +246,7 @@ fn set_config(
     let mut iface_config_changed = false;
     for s in &mut cfgs["wireless"].sections {
         if let Some(mut device) = s.get_typed::<WifiDevice>()? {
-            let name = s.name().ok_or(ErrorKind::UnnamedWirelessDevice)?;
+            let name = s.name().ok_or_else(|| Error::new(eyre!("unnamed wireless device"), ErrorKind::UnnamedWirelessDevice))?;
             for (_, rel_iface, _, rel_radio) in &relevant_interfaces {
                 if rel_iface.device == name {
                     let new_disabled = !rel_radio.enabled;
@@ -269,7 +269,7 @@ fn set_config(
             }
         }
         if let Some(mut iface) = s.get_typed::<WifiInterface>()? {
-            let name = s.name().ok_or(ErrorKind::UnnamedWirelessInterface)?;
+            let name = s.name().ok_or_else(|| Error::new(eyre!("unnamed wireless interface"), ErrorKind::UnnamedWirelessInterface))?;
             for (rel_name, _, rel_device, rel_radio) in &relevant_interfaces {
                 if rel_name == &*name {
                     let new_ssid = if wifi.broadcast_separately && rel_device.band == "5g" {
@@ -391,7 +391,8 @@ fn set_config(
     }
 }
 
-pub fn set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(wifi): DeserializeStdin<Wifi<ProfileIdOpt>>,
 ) -> Result<(), Error> {
@@ -402,7 +403,7 @@ pub fn set<C: CtrlContext>(
             ctx.uci_root(),
             &arena,
             &["wireless", "startwrt", "network", "firewall"],
-        )?;
+        ).await?;
         let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs)?;
         let wifi = Wifi {
             ssid: wifi.ssid.clone(),
@@ -428,11 +429,11 @@ pub fn set<C: CtrlContext>(
         for pass in &wifi.passwords {
             if !seen_passwords.insert(&pass.password) {
                 crate::activity::log("wifi", "updated", false, "Failed to update WiFi: duplicate password", Some("DuplicatePassword"));
-                return Err(ErrorKind::DuplicatePassword.into());
+                return Err(Error::new(eyre!("duplicate WiFi password"), ErrorKind::DuplicatePassword));
             }
             if !pass.label.is_empty() && !seen_labels.insert(&pass.label) {
                 crate::activity::log("wifi", "updated", false, "Failed to update WiFi: duplicate password label", Some("DuplicatePasswordLabel"));
-                return Err(ErrorKind::DuplicatePasswordLabel.into());
+                return Err(Error::new(eyre!("duplicate WiFi password label"), ErrorKind::DuplicatePasswordLabel));
             }
         }
         let restart = match set_config(&ctx, &mut cfgs, &wifi, &lookup) {
@@ -440,10 +441,13 @@ pub fn set<C: CtrlContext>(
                 kind: ErrorKind::CorruptedWifi,
                 ..
             }) if ctx.effectful() => {
-                // try recreating the config from scratch
-                let _ = std::fs::remove_file(ctx.uci_root().join("wireless"));
-                crate::run_quiet(Command::new("wifi").arg("config"))
-                    .context("executing `wifi config`")?;
+                // try recreating the config from scratch — drop arena before await
+                let _ = tokio::fs::remove_file(ctx.uci_root().join("wireless")).await;
+                drop(cfgs);
+                drop(arena);
+                crate::run_quiet_async(tokio::process::Command::new("wifi").arg("config"))
+                    .await
+                    .map_err(|e| Error::new(eyre!("wifi config: {e}"), ErrorKind::Filesystem))?;
                 crate::activity::log("wifi", "recovered", true, "Recovered corrupted WiFi config (auto-regenerated)", None);
                 continue;
             }
@@ -453,7 +457,9 @@ pub fn set<C: CtrlContext>(
             }
             Ok(v) => v,
         };
-        match dump_all(ctx.uci_root(), cfgs) {
+        let dump_result = dump_all(ctx.uci_root(), cfgs).await;
+        drop(arena);
+        match dump_result {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -467,13 +473,17 @@ pub fn set<C: CtrlContext>(
                     match restart {
                         WifiRestart::Full => {
                             // SSID/channel/enabled/hidden changed or new VLANs — full restart
-                            crate::run_quiet(&mut Command::new("wifi"))
-                                .context("executing `wifi`")?;
+                            crate::run_quiet_async(&mut tokio::process::Command::new("wifi"))
+                                .await
+                                .map_err(|e| Error::new(eyre!("wifi restart: {e}"), ErrorKind::Network))?;
                         }
                         WifiRestart::PskOnly => {
                             // PSK-only change — fast path, no client disconnection
-                            crate::run_quiet(Command::new("wifi").arg("reload"))
-                                .context("executing `wifi reload`")?;
+                            crate::run_quiet_async(
+                                tokio::process::Command::new("wifi").arg("reload"),
+                            )
+                            .await
+                            .map_err(|e| Error::new(eyre!("wifi reload: {e}"), ErrorKind::Network))?;
                         }
                     }
                 }
@@ -491,8 +501,9 @@ pub fn set<C: CtrlContext>(
     }
 }
 
-pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
-    let current_wifi = get(ctx.clone())?;
+#[instrument(skip_all)]
+pub async fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
+    let current_wifi = get(ctx.clone()).await?;
     let current_wifi = Wifi {
         ssid: current_wifi.ssid,
         broadcast_separately: current_wifi.broadcast_separately,
@@ -508,7 +519,7 @@ pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
             .collect(),
     };
     let modified_wifi = crate::utils::edit_in_editor(&current_wifi)?;
-    set(ctx, DeserializeStdin(modified_wifi))
+    set(ctx, DeserializeStdin(modified_wifi)).await
 }
 
 const BLACKOUT_TAG: &str = "# start-wrt-wifi-blackout";
@@ -525,20 +536,21 @@ fn crontab_path(ctx: &impl CtrlContext) -> PathBuf {
 fn parse_hhmm(s: &str) -> Result<(u32, u32), Error> {
     let parts: Vec<&str> = s.split(':').collect();
     if parts.len() != 2 {
-        return Err(Error::other(format!("invalid time format: {s:?}")));
+        return Err(Error::new(eyre!("invalid time format: {s:?}"), ErrorKind::InvalidValue));
     }
     let h: u32 = parts[0]
         .parse()
-        .map_err(|_| Error::other(format!("invalid hour: {}", parts[0])))?;
+        .map_err(|_| Error::new(eyre!("invalid hour: {}", parts[0]), ErrorKind::InvalidValue))?;
     let m: u32 = parts[1]
         .parse()
-        .map_err(|_| Error::other(format!("invalid minute: {}", parts[1])))?;
+        .map_err(|_| Error::new(eyre!("invalid minute: {}", parts[1]), ErrorKind::InvalidValue))?;
     Ok((h, m))
 }
 
-pub fn blackout_get<C: CtrlContext>(ctx: C) -> Result<Vec<BlackoutWindow>, Error> {
+#[instrument(skip_all)]
+pub async fn blackout_get<C: CtrlContext>(ctx: C) -> Result<Vec<BlackoutWindow>, Error> {
     let path = crontab_path(&ctx);
-    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let content = tokio::fs::read_to_string(&path).await.unwrap_or_default();
 
     let tagged: Vec<&str> = content
         .lines()
@@ -595,12 +607,13 @@ pub fn blackout_get<C: CtrlContext>(ctx: C) -> Result<Vec<BlackoutWindow>, Error
     Ok(windows)
 }
 
-pub fn blackout_set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn blackout_set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(input): DeserializeStdin<BlackoutWindows>,
 ) -> Result<(), Error> {
     let path = crontab_path(&ctx);
-    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let content = tokio::fs::read_to_string(&path).await.unwrap_or_default();
 
     let filtered: Vec<&str> = content
         .lines()
@@ -640,16 +653,17 @@ pub fn blackout_set<C: CtrlContext>(
     }
 
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
+        tokio::fs::create_dir_all(parent).await?;
     }
-    if let Err(err) = std::fs::write(&path, &new_content) {
+    if let Err(err) = tokio::fs::write(&path, &new_content).await {
         crate::activity::log("wifi", "blackout-updated", false, "Failed to write blackout schedule", Some(&err.to_string()));
         return Err(err.into());
     }
 
     if ctx.effectful() {
-        crate::run_quiet(Command::new("/etc/init.d/cron").arg("restart"))
-            .context("restarting cron")?;
+        crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/cron").arg("restart"))
+            .await
+            .map_err(|e| Error::new(eyre!("restarting cron: {e}"), ErrorKind::Filesystem))?;
     }
 
     crate::activity::log("wifi", "blackout-updated", true, "Updated WiFi blackout schedule", None);
@@ -856,8 +870,8 @@ config wifi-iface 'default_radio1'
         radios
     }
 
-    #[test]
-    fn test_get_reads_label_from_uci() {
+    #[tokio::test]
+    async fn test_get_reads_label_from_uci() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_test_configs(dir.path());
@@ -878,6 +892,7 @@ config wifi-station
             &arena,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let wifi = get_config(ctx, &cfgs).unwrap();
 
@@ -889,8 +904,8 @@ config wifi-station
         assert_eq!(labeled.label, "My Label");
     }
 
-    #[test]
-    fn test_get_falls_back_to_profile_name_when_no_label() {
+    #[tokio::test]
+    async fn test_get_falls_back_to_profile_name_when_no_label() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_test_configs(dir.path());
@@ -910,6 +925,7 @@ config wifi-station
             &arena,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let wifi = get_config(ctx, &cfgs).unwrap();
 
@@ -921,8 +937,8 @@ config wifi-station
         assert_eq!(fallback.label, "Guest");
     }
 
-    #[test]
-    fn test_set_persists_label() {
+    #[tokio::test]
+    async fn test_set_persists_label() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_test_configs(dir.path());
@@ -934,6 +950,7 @@ config wifi-station
             &arena,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs).unwrap();
 
@@ -957,7 +974,7 @@ config wifi-station
             passwords,
         };
         set_config(&ctx, &mut cfgs, &wifi, &lookup).unwrap();
-        dump_all(ctx.uci_root(), cfgs).unwrap();
+        dump_all(ctx.uci_root(), cfgs).await.unwrap();
 
         // Re-parse and check label was written
         let arena2 = Arena::new();
@@ -966,6 +983,7 @@ config wifi-station
             &arena2,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
 
         let mut found_kids = false;
@@ -981,8 +999,8 @@ config wifi-station
         assert!(found_kids, "did not find station with key 'kidspass1'");
     }
 
-    #[test]
-    fn test_set_round_trip_preserves_label() {
+    #[tokio::test]
+    async fn test_set_round_trip_preserves_label() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_test_configs(dir.path());
@@ -1004,6 +1022,7 @@ config wifi-station
             &arena,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let wifi = get_config(ctx.clone(), &cfgs).unwrap();
 
@@ -1024,10 +1043,11 @@ config wifi-station
             &arena2,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let lookup2 = profiles::Lookup::parse(ctx.clone(), &cfgs2).unwrap();
         set_config(&ctx, &mut cfgs2, &wifi, &lookup2).unwrap();
-        dump_all(ctx.uci_root(), cfgs2).unwrap();
+        dump_all(ctx.uci_root(), cfgs2).await.unwrap();
 
         // GET again
         let arena3 = Arena::new();
@@ -1036,6 +1056,7 @@ config wifi-station
             &arena3,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let wifi2 = get_config(ctx, &cfgs3).unwrap();
 
@@ -1047,8 +1068,8 @@ config wifi-station
         assert_eq!(preserved.label, "Custom Name");
     }
 
-    #[test]
-    fn test_set_allows_duplicate_empty_labels() {
+    #[tokio::test]
+    async fn test_set_allows_duplicate_empty_labels() {
         // Two admin passwords both with empty label should not trigger DuplicatePasswordLabel
         let mut seen_passwords = std::collections::HashSet::new();
         let mut seen_labels = std::collections::HashSet::new();
@@ -1073,8 +1094,8 @@ config wifi-station
         }
     }
 
-    #[test]
-    fn test_set_rejects_duplicate_nonempty_labels() {
+    #[tokio::test]
+    async fn test_set_rejects_duplicate_nonempty_labels() {
         let mut seen_labels = std::collections::HashSet::new();
         let passwords = vec![
             Password::<ProfileId> {
@@ -1097,8 +1118,8 @@ config wifi-station
         assert!(found_dup, "should reject duplicate non-empty labels");
     }
 
-    #[test]
-    fn test_dual_radio_broadcast_separately_detected() {
+    #[tokio::test]
+    async fn test_dual_radio_broadcast_separately_detected() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_test_configs(dir.path());
@@ -1110,6 +1131,7 @@ config wifi-station
             &arena,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let wifi = get_config(ctx, &cfgs).unwrap();
 
@@ -1117,8 +1139,8 @@ config wifi-station
         assert_eq!(wifi.ssid, "TestNet"); // 2.4GHz SSID used as base
     }
 
-    #[test]
-    fn test_dual_radio_same_ssid_not_broadcast_separately() {
+    #[tokio::test]
+    async fn test_dual_radio_same_ssid_not_broadcast_separately() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_test_configs(dir.path());
@@ -1130,6 +1152,7 @@ config wifi-station
             &arena,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let wifi = get_config(ctx, &cfgs).unwrap();
 
@@ -1137,8 +1160,8 @@ config wifi-station
         assert_eq!(wifi.ssid, "TestNet");
     }
 
-    #[test]
-    fn test_dual_radio_broadcast_separately_round_trip() {
+    #[tokio::test]
+    async fn test_dual_radio_broadcast_separately_round_trip() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_test_configs(dir.path());
@@ -1152,6 +1175,7 @@ config wifi-station
             &arena,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs).unwrap();
 
@@ -1169,7 +1193,7 @@ config wifi-station
             passwords,
         };
         set_config(&ctx, &mut cfgs, &wifi, &lookup).unwrap();
-        dump_all(ctx.uci_root(), cfgs).unwrap();
+        dump_all(ctx.uci_root(), cfgs).await.unwrap();
 
         // GET — verify 5GHz got "-5G" suffix and broadcast_separately is detected
         let arena2 = Arena::new();
@@ -1178,6 +1202,7 @@ config wifi-station
             &arena2,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let wifi2 = get_config(ctx.clone(), &cfgs2).unwrap();
 
@@ -1194,6 +1219,7 @@ config wifi-station
             &arena3,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let lookup3 = profiles::Lookup::parse(ctx.clone(), &cfgs3).unwrap();
 
@@ -1211,7 +1237,7 @@ config wifi-station
             passwords: passwords3,
         };
         set_config(&ctx, &mut cfgs3, &wifi3, &lookup3).unwrap();
-        dump_all(ctx.uci_root(), cfgs3).unwrap();
+        dump_all(ctx.uci_root(), cfgs3).await.unwrap();
 
         // GET — verify both radios have same SSID
         let arena4 = Arena::new();
@@ -1220,6 +1246,7 @@ config wifi-station
             &arena4,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let wifi4 = get_config(ctx, &cfgs4).unwrap();
 
@@ -1227,8 +1254,8 @@ config wifi-station
         assert_eq!(wifi4.ssid, "TestNet");
     }
 
-    #[test]
-    fn test_set_config_returns_full_when_ssid_changes() {
+    #[tokio::test]
+    async fn test_set_config_returns_full_when_ssid_changes() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_test_configs(dir.path());
@@ -1240,6 +1267,7 @@ config wifi-station
             &arena,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs).unwrap();
 
@@ -1261,8 +1289,8 @@ config wifi-station
         assert_eq!(restart, WifiRestart::Full, "SSID change should require full restart");
     }
 
-    #[test]
-    fn test_set_config_returns_psk_only_when_passwords_change() {
+    #[tokio::test]
+    async fn test_set_config_returns_psk_only_when_passwords_change() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_test_configs(dir.path());
@@ -1281,6 +1309,7 @@ config wifi-station
             &arena,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs).unwrap();
 
@@ -1304,7 +1333,7 @@ config wifi-station
             passwords,
         };
         set_config(&ctx, &mut cfgs, &wifi, &lookup).unwrap();
-        dump_all(ctx.uci_root(), cfgs).unwrap();
+        dump_all(ctx.uci_root(), cfgs).await.unwrap();
 
         // Now change only passwords — should be PskOnly
         let arena2 = Arena::new();
@@ -1313,6 +1342,7 @@ config wifi-station
             &arena2,
             &["wireless", "startwrt", "network", "firewall"],
         )
+        .await
         .unwrap();
         let lookup2 = profiles::Lookup::parse(ctx.clone(), &cfgs2).unwrap();
         let guest_id2 = lookup2.from_fullname("Guest").unwrap().clone();

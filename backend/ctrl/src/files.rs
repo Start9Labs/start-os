@@ -1,14 +1,14 @@
 use crate::utils::HandlerExtSerde;
-use crate::{CliContext, Error, ServerContext};
+use crate::prelude::*;
+use crate::{CliContext, ServerContext};
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use fd_lock_rs::{FdLock, LockType};
-use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
-use std::fs::{self, File};
-use std::io::{Read as _, Seek, Write};
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 // === File namespace (file.get, file.set) ===
 
@@ -16,13 +16,13 @@ pub fn file<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "get",
-            from_fn(get)
+            from_fn_async(get)
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "set",
-            from_fn(set)
+            from_fn_async(set)
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
@@ -46,23 +46,29 @@ pub struct SetFileArgs {
     pub modified: Option<DateTime<Utc>>,
 }
 
-fn get_modified_time(path: &PathBuf) -> Result<DateTime<Utc>, Error> {
-    fs::metadata(path)?
+async fn get_modified_time(path: &PathBuf) -> Result<DateTime<Utc>, Error> {
+    tokio::fs::metadata(path)
+        .await?
         .modified()
         .map(DateTime::<Utc>::from)
         .map_err(Into::into)
 }
 
-pub fn get(_ctx: ServerContext, GetFileArgs { path }: GetFileArgs) -> Result<FileContents, Error> {
-    let mut file = File::open(&path)?;
+#[instrument(skip_all)]
+pub async fn get(
+    _ctx: ServerContext,
+    GetFileArgs { path }: GetFileArgs,
+) -> Result<FileContents, Error> {
+    let mut file = tokio::fs::File::open(&path).await?;
     let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-    let modified = get_modified_time(&path)?;
+    file.read_to_string(&mut contents).await?;
+    let modified = get_modified_time(&path).await?;
 
     Ok(FileContents { contents, modified })
 }
 
-pub fn set(
+#[instrument(skip_all)]
+pub async fn set(
     _ctx: ServerContext,
     SetFileArgs {
         path,
@@ -72,40 +78,48 @@ pub fn set(
 ) -> Result<(), Error> {
     // Create parent directories if they don't exist
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
+        tokio::fs::create_dir_all(parent).await?;
     }
 
     // Open the file with exclusive lock to prevent races
-    let file = File::options()
+    let file = tokio::fs::OpenOptions::new()
         .create(true)
         .write(true)
+        .read(true)
         .truncate(false)
-        .open(&path)?;
+        .open(&path)
+        .await?;
 
-    let mut locked = FdLock::lock(file, LockType::Exclusive, true)
-        .map_err(|e| Error::other(format!("failed to lock file: {e}")))?;
+    // flock is a blocking syscall — run it on the blocking pool
+    let mut locked = tokio::task::spawn_blocking(move || {
+        FdLock::lock(file, LockType::Exclusive, true)
+    })
+    .await
+    .map_err(|e| Error::new(eyre!("lock task panicked: {e}"), ErrorKind::Incoherent))?
+    .map_err(|e| Error::new(eyre!("failed to lock file: {e}"), ErrorKind::Filesystem))?;
 
     // Check if file was modified since client last read it (while holding lock)
     if let Some(expected) = modified {
         let found = locked
             .metadata()
-            .and_then(|m| m.modified())
-            .map(DateTime::<Utc>::from)
-            .ok();
+            .await
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .map(DateTime::<Utc>::from);
         if found.is_some_and(|found| found > expected) {
-            return Err(Error::other(format!(
+            return Err(Error::new(eyre!(
                 "file was modified: expected {}, found {}",
                 expected,
                 found.unwrap()
-            )));
+            ), ErrorKind::Filesystem));
         }
     }
 
     // Write contents while holding the lock
-    locked.set_len(0)?;
-    locked.seek(std::io::SeekFrom::Start(0))?;
-    locked.write_all(contents.as_bytes())?;
-    locked.flush()?;
+    locked.set_len(0).await?;
+    locked.seek(std::io::SeekFrom::Start(0)).await?;
+    locked.write_all(contents.as_bytes()).await?;
+    locked.flush().await?;
 
     Ok(())
 }
@@ -115,7 +129,7 @@ pub fn set(
 pub fn dir<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand(
         "get",
-        from_fn(dir_get)
+        from_fn_async(dir_get)
             .with_display_serializable()
             .with_call_remote::<CliContext>(),
     )
@@ -182,32 +196,37 @@ fn timestamp_to_datetime(secs: i64) -> DateTime<Utc> {
     DateTime::from_timestamp(secs, 0).unwrap_or_default()
 }
 
-pub fn dir_get(_ctx: ServerContext, DirGetArgs { path }: DirGetArgs) -> Result<Vec<DirEntry>, Error> {
-    let entries = fs::read_dir(&path)?
-        .filter_map(|entry| {
-            let entry = entry.ok()?;
-            let name = entry.file_name().to_string_lossy().into_owned();
-            let metadata = entry.metadata().ok()?;
-            let mode = metadata.mode();
+#[instrument(skip_all)]
+pub async fn dir_get(
+    _ctx: ServerContext,
+    DirGetArgs { path }: DirGetArgs,
+) -> Result<Vec<DirEntry>, Error> {
+    let mut read_dir = tokio::fs::read_dir(&path).await?;
+    let mut entries = Vec::new();
+    while let Some(entry) = read_dir.next_entry().await? {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let Ok(metadata) = entry.metadata().await else {
+            continue;
+        };
+        let mode = metadata.mode();
 
-            Some(DirEntry {
-                name,
-                size: metadata.size(),
-                blocks: metadata.blocks(),
-                io_block: metadata.blksize(),
-                file_type: file_type_from_mode(mode),
-                device: metadata.dev(),
-                inode: metadata.ino(),
-                links: metadata.nlink(),
-                mode: mode & 0o7777, // permission bits only
-                uid: metadata.uid(),
-                gid: metadata.gid(),
-                access: timestamp_to_datetime(metadata.atime()),
-                modify: timestamp_to_datetime(metadata.mtime()),
-                change: timestamp_to_datetime(metadata.ctime()),
-            })
-        })
-        .collect();
+        entries.push(DirEntry {
+            name,
+            size: metadata.size(),
+            blocks: metadata.blocks(),
+            io_block: metadata.blksize(),
+            file_type: file_type_from_mode(mode),
+            device: metadata.dev(),
+            inode: metadata.ino(),
+            links: metadata.nlink(),
+            mode: mode & 0o7777, // permission bits only
+            uid: metadata.uid(),
+            gid: metadata.gid(),
+            access: timestamp_to_datetime(metadata.atime()),
+            modify: timestamp_to_datetime(metadata.mtime()),
+            change: timestamp_to_datetime(metadata.ctime()),
+        });
+    }
 
     Ok(entries)
 }
@@ -215,14 +234,15 @@ pub fn dir_get(_ctx: ServerContext, DirGetArgs { path }: DirGetArgs) -> Result<V
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use std::thread;
     use std::time::Duration;
     use tempfile::{tempdir, NamedTempFile};
 
     // === file::get tests ===
 
-    #[test]
-    fn test_get_reads_file_contents() {
+    #[tokio::test]
+    async fn test_get_reads_file_contents() {
         let temp_file = NamedTempFile::new().unwrap();
         fs::write(temp_file.path(), "hello world").unwrap();
 
@@ -231,29 +251,29 @@ mod tests {
             GetFileArgs {
                 path: temp_file.path().to_path_buf(),
             },
-        );
+        ).await;
 
         assert!(result.is_ok());
         let file_contents = result.unwrap();
         assert_eq!(file_contents.contents, "hello world");
     }
 
-    #[test]
-    fn test_get_returns_error_for_missing_file() {
+    #[tokio::test]
+    async fn test_get_returns_error_for_missing_file() {
         let result = get(
             ServerContext::default(),
             GetFileArgs {
                 path: PathBuf::from("/nonexistent/file.txt"),
             },
-        );
+        ).await;
 
         assert!(result.is_err());
     }
 
     // === file::set tests ===
 
-    #[test]
-    fn test_set_creates_new_file() {
+    #[tokio::test]
+    async fn test_set_creates_new_file() {
         let temp_dir = tempdir().unwrap();
         let file_path = temp_dir.path().join("new_file.txt");
 
@@ -264,14 +284,14 @@ mod tests {
                 contents: "new content".to_string(),
                 modified: None,
             },
-        );
+        ).await;
 
         assert!(result.is_ok());
         assert_eq!(fs::read_to_string(&file_path).unwrap(), "new content");
     }
 
-    #[test]
-    fn test_set_overwrites_existing_file() {
+    #[tokio::test]
+    async fn test_set_overwrites_existing_file() {
         let temp_file = NamedTempFile::new().unwrap();
         let path = temp_file.path().to_path_buf();
         fs::write(&path, "original").unwrap();
@@ -283,20 +303,20 @@ mod tests {
                 contents: "updated".to_string(),
                 modified: None,
             },
-        );
+        ).await;
 
         assert!(result.is_ok());
         assert_eq!(fs::read_to_string(&path).unwrap(), "updated");
     }
 
-    #[test]
-    fn test_set_succeeds_with_matching_modified_time() {
+    #[tokio::test]
+    async fn test_set_succeeds_with_matching_modified_time() {
         let temp_file = NamedTempFile::new().unwrap();
         let path = temp_file.path().to_path_buf();
         fs::write(&path, "original").unwrap();
 
         // Get the current modified time
-        let modified = get_modified_time(&path).unwrap();
+        let modified = get_modified_time(&path).await.unwrap();
 
         let result = set(
             ServerContext::default(),
@@ -305,20 +325,20 @@ mod tests {
                 contents: "updated".to_string(),
                 modified: Some(modified),
             },
-        );
+        ).await;
 
         assert!(result.is_ok());
         assert_eq!(fs::read_to_string(&path).unwrap(), "updated");
     }
 
-    #[test]
-    fn test_set_fails_with_mismatched_modified_time() {
+    #[tokio::test]
+    async fn test_set_fails_with_mismatched_modified_time() {
         let temp_file = NamedTempFile::new().unwrap();
         let path = temp_file.path().to_path_buf();
         fs::write(&path, "original").unwrap();
 
         // Get the current modified time
-        let old_modified = get_modified_time(&path).unwrap();
+        let old_modified = get_modified_time(&path).await.unwrap();
 
         // Wait and modify the file to change its timestamp
         thread::sleep(Duration::from_millis(10));
@@ -332,15 +352,15 @@ mod tests {
                 contents: "my update".to_string(),
                 modified: Some(old_modified),
             },
-        );
+        ).await;
 
         assert!(result.is_err());
         // File should still have the "changed by someone else" content
         assert_eq!(fs::read_to_string(&path).unwrap(), "changed by someone else");
     }
 
-    #[test]
-    fn test_set_creates_parent_directories() {
+    #[tokio::test]
+    async fn test_set_creates_parent_directories() {
         let temp_dir = tempdir().unwrap();
         let nested_path = temp_dir.path().join("a/b/c/file.txt");
 
@@ -351,7 +371,7 @@ mod tests {
                 contents: "nested content".to_string(),
                 modified: None,
             },
-        );
+        ).await;
 
         assert!(result.is_ok());
         assert!(nested_path.exists());
@@ -360,8 +380,8 @@ mod tests {
 
     // === file::set locking tests ===
 
-    #[test]
-    fn test_set_concurrent_writes_are_serialized() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_set_concurrent_writes_are_serialized() {
         let temp_dir = tempdir().unwrap();
         let path = temp_dir.path().join("concurrent.txt");
 
@@ -371,8 +391,8 @@ mod tests {
         let path1 = path.clone();
         let path2 = path.clone();
 
-        // Spawn two threads that write to the same file concurrently
-        let handle1 = thread::spawn(move || {
+        // Spawn two tasks that write to the same file concurrently
+        let handle1 = tokio::spawn(async move {
             for i in 0..10 {
                 set(
                     ServerContext::default(),
@@ -382,11 +402,12 @@ mod tests {
                         modified: None,
                     },
                 )
+                .await
                 .unwrap();
             }
         });
 
-        let handle2 = thread::spawn(move || {
+        let handle2 = tokio::spawn(async move {
             for i in 0..10 {
                 set(
                     ServerContext::default(),
@@ -396,12 +417,13 @@ mod tests {
                         modified: None,
                     },
                 )
+                .await
                 .unwrap();
             }
         });
 
-        handle1.join().unwrap();
-        handle2.join().unwrap();
+        handle1.await.unwrap();
+        handle2.await.unwrap();
 
         // File should contain a complete write from one thread, not corrupted/interleaved
         let contents = fs::read_to_string(&path).unwrap();
@@ -412,8 +434,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_set_lock_prevents_race_between_check_and_write() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_set_lock_prevents_race_between_check_and_write() {
         use std::sync::{Arc, Barrier};
 
         let temp_dir = tempdir().unwrap();
@@ -421,7 +443,7 @@ mod tests {
 
         // Create initial file
         fs::write(&path, "initial").unwrap();
-        let original_mtime = get_modified_time(&path).unwrap();
+        let original_mtime = get_modified_time(&path).await.unwrap();
 
         // Wait to ensure mtime will differ
         thread::sleep(Duration::from_millis(10));
@@ -432,8 +454,8 @@ mod tests {
         let barrier1 = Arc::clone(&barrier);
         let barrier2 = Arc::clone(&barrier);
 
-        // Thread 1: tries to write with the original mtime
-        let handle1 = thread::spawn(move || {
+        // Task 1: tries to write with the original mtime
+        let handle1 = tokio::spawn(async move {
             barrier1.wait(); // Synchronize start
             set(
                 ServerContext::default(),
@@ -443,10 +465,11 @@ mod tests {
                     modified: Some(original_mtime),
                 },
             )
+            .await
         });
 
-        // Thread 2: writes without mtime check (simulating another writer)
-        let handle2 = thread::spawn(move || {
+        // Task 2: writes without mtime check (simulating another writer)
+        let handle2 = tokio::spawn(async move {
             barrier2.wait(); // Synchronize start
             set(
                 ServerContext::default(),
@@ -456,10 +479,11 @@ mod tests {
                     modified: None,
                 },
             )
+            .await
         });
 
-        let _result1 = handle1.join().unwrap();
-        let result2 = handle2.join().unwrap();
+        let _result1 = handle1.await.unwrap();
+        let result2 = handle2.await.unwrap();
 
         // Both operations should complete (one succeeds, possibly one fails due to mtime)
         // The key is no panic or data corruption
@@ -476,8 +500,8 @@ mod tests {
 
     // === dir::get tests ===
 
-    #[test]
-    fn test_dir_get_lists_entries() {
+    #[tokio::test]
+    async fn test_dir_get_lists_entries() {
         let temp_dir = tempdir().unwrap();
 
         // Create a file and a subdirectory
@@ -489,7 +513,7 @@ mod tests {
             DirGetArgs {
                 path: temp_dir.path().to_path_buf(),
             },
-        );
+        ).await;
 
         assert!(result.is_ok());
         let entries = result.unwrap();
@@ -503,8 +527,8 @@ mod tests {
         assert_eq!(dir_entry.file_type, FileType::Directory);
     }
 
-    #[test]
-    fn test_dir_get_empty_directory() {
+    #[tokio::test]
+    async fn test_dir_get_empty_directory() {
         let temp_dir = tempdir().unwrap();
 
         let result = dir_get(
@@ -512,20 +536,20 @@ mod tests {
             DirGetArgs {
                 path: temp_dir.path().to_path_buf(),
             },
-        );
+        ).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
     }
 
-    #[test]
-    fn test_dir_get_returns_error_for_missing_directory() {
+    #[tokio::test]
+    async fn test_dir_get_returns_error_for_missing_directory() {
         let result = dir_get(
             ServerContext::default(),
             DirGetArgs {
                 path: PathBuf::from("/nonexistent/directory"),
             },
-        );
+        ).await;
 
         assert!(result.is_err());
     }

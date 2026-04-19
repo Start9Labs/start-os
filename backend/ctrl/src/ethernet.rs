@@ -2,12 +2,11 @@ use crate::profiles::{self, ProfileId, ProfileIdOpt};
 use crate::utils::DeserializeStdin;
 use crate::utils::HandlerExtSerde;
 use crate::CtrlContext;
-use crate::{Error, ErrorKind};
-use rpc_toolkit::{from_fn, ParentHandler};
+use crate::prelude::*;
+use rpc_toolkit::{from_fn_async_local, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::process::Command;
-use std::thread;
+use crate::invoke::Invoke;
 use std::time::Duration;
 use uciedit::openwrt::{
     DeviceType, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface,
@@ -49,20 +48,21 @@ pub struct Ethernet<Id: Ord = ProfileId> {
 
 pub fn ethernet<C: CtrlContext + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("get", from_fn(get::<C>).with_display_serializable())
-        .subcommand("set", from_fn(set::<C>).with_display_serializable())
-        .subcommand("edit", from_fn(edit::<C>).with_display_serializable())
+        .subcommand("get", from_fn_async_local(get::<C>).with_display_serializable())
+        .subcommand("set", from_fn_async_local(set::<C>).with_display_serializable())
+        .subcommand("edit", from_fn_async_local(edit::<C>).with_display_serializable())
 }
 
-pub fn get<C: CtrlContext>(ctx: C) -> Result<Ethernet, Error> {
+#[instrument(skip_all)]
+pub async fn get<C: CtrlContext>(ctx: C) -> Result<Ethernet, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).await?;
     get_config(ctx, &cfgs)
 }
 
 fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Ethernet, Error> {
     let lookup = profiles::Lookup::parse(ctx.clone(), cfgs)?;
-    let found_bridge = find_lan_bridge(cfgs)?.ok_or(Error::from(ErrorKind::MissingLanBridge))?;
+    let found_bridge = find_lan_bridge(cfgs)?.ok_or_else(|| Error::new(eyre!("missing LAN bridge"), ErrorKind::MissingLanBridge))?;
 
     let mut wan_ipv6 = false;
     let mut wan_port = None;
@@ -134,13 +134,15 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Ethernet, Error> 
 /// to provide margin above the 1.5 s maximum.
 const PORT_BOUNCE_DOWN_SECS: u64 = 2;
 
-pub fn set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(ethernet): DeserializeStdin<Ethernet<ProfileIdOpt>>,
 ) -> Result<(), Error> {
     // Snapshot current port→profile mapping so we can detect changes after write.
     let old_ports = if ctx.effectful() {
         get(ctx.clone())
+            .await
             .ok()
             .map(|e| {
                 e.ports
@@ -156,7 +158,7 @@ pub fn set<C: CtrlContext>(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).await?;
         let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs)?;
         let ethernet = Ethernet::<ProfileId> {
             wan_ipv6: ethernet.wan_ipv6,
@@ -181,7 +183,7 @@ pub fn set<C: CtrlContext>(
             crate::activity::log("ethernet", "updated", false, "Failed to update Ethernet port assignments", Some(&err.to_string()));
             return Err(err);
         }
-        match dump_all(ctx.uci_root(), cfgs) {
+        match dump_all(ctx.uci_root(), cfgs).await {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -218,10 +220,10 @@ pub fn set<C: CtrlContext>(
                     // `wifi` would destroy and recreate wireless
                     // interfaces whose new instances lose their bridge
                     // VLAN 1 entry, permanently breaking WiFi.
-                    thread::spawn(move || {
-                        let _ = crate::run_quiet(Command::new("/etc/init.d/network").arg("reload"));
-                        let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("restart"));
-                        bounce_changed_ports(&old_ports, &ethernet);
+                    tokio::spawn(async move {
+                        let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/network").arg("reload")).await;
+                        let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/firewall").arg("restart")).await;
+                        bounce_changed_ports(&old_ports, &ethernet).await;
                     });
                 }
                 return Ok(());
@@ -232,7 +234,7 @@ pub fn set<C: CtrlContext>(
 
 /// Bounce (link down/up) any ports whose VLAN assignment changed, so that
 /// connected clients detect carrier loss and re-run DHCP on the new subnet.
-fn bounce_changed_ports(
+async fn bounce_changed_ports(
     old_ports: &HashMap<String, Option<u16>>,
     new_ethernet: &Ethernet,
 ) {
@@ -254,19 +256,21 @@ fn bounce_changed_ports(
     }
     // Bring changed ports down
     for port in &to_bounce {
-        let _ = Command::new("ip")
+        let _ = tokio::process::Command::new("ip")
             .args(["link", "set", port, "down"])
-            .spawn()
-            .and_then(|mut c| c.wait());
+            .capture(false)
+            .invoke(ErrorKind::Network.into())
+            .await;
     }
     // IEEE 802.3 break_link_timer: hold down for ≥1.5 s
-    thread::sleep(Duration::from_secs(PORT_BOUNCE_DOWN_SECS));
+    tokio::time::sleep(Duration::from_secs(PORT_BOUNCE_DOWN_SECS)).await;
     // Bring them back up
     for port in &to_bounce {
-        let _ = Command::new("ip")
+        let _ = tokio::process::Command::new("ip")
             .args(["link", "set", port, "up"])
-            .spawn()
-            .and_then(|mut c| c.wait());
+            .capture(false)
+            .invoke(ErrorKind::Network.into())
+            .await;
     }
 }
 
@@ -297,10 +301,7 @@ fn set_config(
     for (port_name, port) in &ethernet.ports {
         if Some(port_name) == ethernet.wan_port.as_ref() {
             if port.profile.is_some() {
-                return Err(ErrorKind::WanPortWithProfile {
-                    port: port_name.clone(),
-                }
-                .into());
+                return Err(Error::new(eyre!("WAN port cannot have profile: {port_name}"), ErrorKind::WanPortWithProfile));
             }
         } else {
             bridge.ports.push(port_name.clone());
@@ -462,8 +463,9 @@ fn set_from_config(
     set_config(ctx, cfgs, ethernet, &lookup)
 }
 
-pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
-    let current_ethernet = get(ctx.clone())?;
+#[instrument(skip_all)]
+pub async fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
+    let current_ethernet = get(ctx.clone()).await?;
     let current_ethernet = Ethernet {
         wan_ipv6: current_ethernet.wan_ipv6,
         wan_port: current_ethernet.wan_port,
@@ -481,7 +483,7 @@ pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
             .collect(),
     };
     let modified_ethernet = crate::utils::edit_in_editor(&current_ethernet)?;
-    set(ctx, DeserializeStdin(modified_ethernet))
+    set(ctx, DeserializeStdin(modified_ethernet)).await
 }
 
 #[cfg(test)]
@@ -634,66 +636,66 @@ config interface 'wan'
 
     // ── get tests ──────────────────────────────────────────────
 
-    #[test]
-    fn get_returns_all_bridge_ports() {
+    #[tokio::test]
+    async fn get_returns_all_bridge_ports() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let result = get(ctx).unwrap();
+        let result = get(ctx).await.unwrap();
         assert_eq!(result.ports.len(), 2);
         assert!(result.ports.contains_key("eth0"));
         assert!(result.ports.contains_key("eth1"));
     }
 
-    #[test]
-    fn get_resolves_profile_from_vlan() {
+    #[tokio::test]
+    async fn get_resolves_profile_from_vlan() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let result = get(ctx).unwrap();
+        let result = get(ctx).await.unwrap();
         // Both ports are untagged+primary on VLAN 1 → Admin profile
         let eth0_profile = result.ports["eth0"].profile.as_ref().unwrap();
         assert_eq!(eth0_profile.interface, "lan");
         assert_eq!(eth0_profile.vlan_tag, 1);
     }
 
-    #[test]
-    fn get_no_wan_when_no_wan_interface() {
+    #[tokio::test]
+    async fn get_no_wan_when_no_wan_interface() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let result = get(ctx).unwrap();
+        let result = get(ctx).await.unwrap();
         assert!(result.wan_port.is_none());
         assert!(!result.wan_ipv6);
     }
 
-    #[test]
-    fn get_detects_wan_port() {
+    #[tokio::test]
+    async fn get_detects_wan_port() {
         let dir = tempfile::tempdir().unwrap();
         setup_with_wan(dir.path(), false);
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let result = get(ctx).unwrap();
+        let result = get(ctx).await.unwrap();
         assert_eq!(result.wan_port.as_deref(), Some("eth2"));
         assert!(!result.wan_ipv6);
     }
 
-    #[test]
-    fn get_detects_wan_ipv6() {
+    #[tokio::test]
+    async fn get_detects_wan_ipv6() {
         let dir = tempfile::tempdir().unwrap();
         setup_with_wan(dir.path(), true);
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let result = get(ctx).unwrap();
+        let result = get(ctx).await.unwrap();
         assert_eq!(result.wan_port.as_deref(), Some("eth2"));
         assert!(result.wan_ipv6);
     }
 
-    #[test]
-    fn get_detects_wan_ipv6_with_at_wan_alias() {
+    #[tokio::test]
+    async fn get_detects_wan_ipv6_with_at_wan_alias() {
         // Real firstboot config uses `@wan` device alias, not the raw port name.
         // This must still be detected as wan_ipv6 = true.
         let dir = tempfile::tempdir().unwrap();
@@ -709,27 +711,27 @@ config interface 'wan'
         .unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let result = get(ctx).unwrap();
+        let result = get(ctx).await.unwrap();
         assert!(result.wan_ipv6, "wan_ipv6 should be true even with @wan device alias");
     }
 
-    #[test]
-    fn get_errors_when_no_bridge() {
+    #[tokio::test]
+    async fn get_errors_when_no_bridge() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("network"), "").unwrap();
         std::fs::write(dir.path().join("startwrt"), "").unwrap();
         std::fs::write(dir.path().join("firewall"), "").unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let err = get(ctx).unwrap_err();
+        let err = get(ctx).await.unwrap_err();
         assert!(
             err.to_string().contains("bridge"),
             "unexpected error: {err}"
         );
     }
 
-    #[test]
-    fn get_port_with_no_vlan_assignment_has_none_profile() {
+    #[tokio::test]
+    async fn get_port_with_no_vlan_assignment_has_none_profile() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         // Rewrite network: eth1 has no VLAN assignment (not in any bridge-vlan)
@@ -757,13 +759,13 @@ config interface 'lan'
         .unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let result = get(ctx).unwrap();
+        let result = get(ctx).await.unwrap();
         assert!(result.ports["eth0"].profile.is_some());
         assert!(result.ports["eth1"].profile.is_none());
     }
 
-    #[test]
-    fn get_filters_wifi_interfaces() {
+    #[tokio::test]
+    async fn get_filters_wifi_interfaces() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         // Add wlan0 to bridge ports
@@ -793,7 +795,7 @@ config interface 'lan'
         .unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let result = get(ctx).unwrap();
+        let result = get(ctx).await.unwrap();
         assert!(result.ports.contains_key("eth0"));
         assert!(result.ports.contains_key("eth1"));
         assert!(
@@ -802,8 +804,8 @@ config interface 'lan'
         );
     }
 
-    #[test]
-    fn get_detects_wan_port_not_in_bridge() {
+    #[tokio::test]
+    async fn get_detects_wan_port_not_in_bridge() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         // WAN on eth1, which is NOT in the bridge
@@ -834,7 +836,7 @@ config interface 'wan'
         .unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let result = get(ctx).unwrap();
+        let result = get(ctx).await.unwrap();
         assert_eq!(
             result.wan_port.as_deref(),
             Some("eth1"),
@@ -848,13 +850,13 @@ config interface 'wan'
 
     // ── set tests ──────────────────────────────────────────────
 
-    #[test]
-    fn set_round_trip_preserves_state() {
+    #[tokio::test]
+    async fn set_round_trip_preserves_state() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let original = get(ctx.clone()).unwrap();
+        let original = get(ctx.clone()).await.unwrap();
         set(
             ctx.clone(),
             DeserializeStdin(Ethernet {
@@ -877,10 +879,10 @@ config interface 'wan'
                     })
                     .collect(),
             }),
-        )
+        ).await
         .unwrap();
 
-        let after = get(ctx).unwrap();
+        let after = get(ctx).await.unwrap();
         assert_eq!(original.wan_ipv6, after.wan_ipv6);
         assert_eq!(original.wan_port, after.wan_port);
         assert_eq!(original.ports.len(), after.ports.len());
@@ -893,8 +895,8 @@ config interface 'wan'
         }
     }
 
-    #[test]
-    fn set_assigns_port_to_guest_profile() {
+    #[tokio::test]
+    async fn set_assigns_port_to_guest_profile() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -928,10 +930,10 @@ config interface 'wan'
                     ),
                 ]),
             }),
-        )
+        ).await
         .unwrap();
 
-        let after = get(ctx).unwrap();
+        let after = get(ctx).await.unwrap();
         assert_eq!(
             after.ports["eth1"].profile.as_ref().unwrap().interface,
             "guest"
@@ -942,8 +944,8 @@ config interface 'wan'
         );
     }
 
-    #[test]
-    fn set_designates_wan_port() {
+    #[tokio::test]
+    async fn set_designates_wan_port() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -968,10 +970,10 @@ config interface 'wan'
                     ("eth1".into(), Port { profile: None }),
                 ]),
             }),
-        )
+        ).await
         .unwrap();
 
-        let after = get(ctx).unwrap();
+        let after = get(ctx).await.unwrap();
         assert_eq!(after.wan_port.as_deref(), Some("eth1"));
         assert!(!after.wan_ipv6);
         assert!(
@@ -980,8 +982,8 @@ config interface 'wan'
         );
     }
 
-    #[test]
-    fn set_enables_wan_ipv6() {
+    #[tokio::test]
+    async fn set_enables_wan_ipv6() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1005,22 +1007,22 @@ config interface 'wan'
                     ("eth1".into(), Port { profile: None }),
                 ]),
             }),
-        )
+        ).await
         .unwrap();
 
-        let after = get(ctx).unwrap();
+        let after = get(ctx).await.unwrap();
         assert_eq!(after.wan_port.as_deref(), Some("eth1"));
         assert!(after.wan_ipv6);
     }
 
-    #[test]
-    fn set_removes_wan_when_unset() {
+    #[tokio::test]
+    async fn set_removes_wan_when_unset() {
         let dir = tempfile::tempdir().unwrap();
         setup_with_wan(dir.path(), true);
         let ctx = TestContext(dir.path().to_path_buf());
 
         // Verify WAN exists first
-        let before = get(ctx.clone()).unwrap();
+        let before = get(ctx.clone()).await.unwrap();
         assert!(before.wan_port.is_some());
 
         // Remove WAN
@@ -1044,16 +1046,16 @@ config interface 'wan'
                     ("eth2".into(), Port { profile: None }),
                 ]),
             }),
-        )
+        ).await
         .unwrap();
 
-        let after = get(ctx).unwrap();
+        let after = get(ctx).await.unwrap();
         assert!(after.wan_port.is_none());
         assert!(!after.wan_ipv6);
     }
 
-    #[test]
-    fn set_errors_wan_port_with_profile() {
+    #[tokio::test]
+    async fn set_errors_wan_port_with_profile() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1077,7 +1079,7 @@ config interface 'wan'
                     ),
                 ]),
             }),
-        )
+        ).await
         .unwrap_err();
 
         assert!(
@@ -1086,13 +1088,13 @@ config interface 'wan'
         );
     }
 
-    #[test]
-    fn set_moves_wan_to_different_port() {
+    #[tokio::test]
+    async fn set_moves_wan_to_different_port() {
         let dir = tempfile::tempdir().unwrap();
         setup_with_wan(dir.path(), false);
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let before = get(ctx.clone()).unwrap();
+        let before = get(ctx.clone()).await.unwrap();
         assert_eq!(before.wan_port.as_deref(), Some("eth2"));
 
         // Move WAN from eth2 to eth0
@@ -1125,12 +1127,12 @@ config interface 'wan'
                     ),
                 ]),
             }),
-        )
+        ).await
         .unwrap();
 
         // Verify WAN moved to eth0 in UCI config
         let arena = Arena::new();
-        let cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).unwrap();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).await.unwrap();
         for section in &cfgs["network"].sections {
             if let Some(iface) = section.get_typed::<NetworkInterface>().unwrap() {
                 if section.name().as_deref() == Some("wan") && iface.proto == InterfaceProto::DHCP {
@@ -1153,13 +1155,13 @@ config interface 'wan'
         }
     }
 
-    #[test]
-    fn set_wan_round_trip() {
+    #[tokio::test]
+    async fn set_wan_round_trip() {
         let dir = tempfile::tempdir().unwrap();
         setup_with_wan(dir.path(), true);
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let before = get(ctx.clone()).unwrap();
+        let before = get(ctx.clone()).await.unwrap();
         assert_eq!(before.wan_port.as_deref(), Some("eth2"));
         assert!(before.wan_ipv6);
 
@@ -1186,10 +1188,10 @@ config interface 'wan'
                     })
                     .collect(),
             }),
-        )
+        ).await
         .unwrap();
 
-        let after = get(ctx).unwrap();
+        let after = get(ctx).await.unwrap();
         assert_eq!(
             after.wan_port.as_deref(),
             Some("eth2"),
@@ -1202,8 +1204,8 @@ config interface 'wan'
         );
     }
 
-    #[test]
-    fn set_unassigned_ports_default_to_admin_when_vlan_filtering() {
+    #[tokio::test]
+    async fn set_unassigned_ports_default_to_admin_when_vlan_filtering() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
@@ -1228,10 +1230,10 @@ config interface 'wan'
                     ("eth1".into(), Port { profile: None }),
                 ]),
             }),
-        )
+        ).await
         .unwrap();
 
-        let after = get(ctx).unwrap();
+        let after = get(ctx).await.unwrap();
         assert_eq!(
             after.ports["eth0"].profile.as_ref().unwrap().interface,
             "guest"
@@ -1246,14 +1248,14 @@ config interface 'wan'
 
     // ── set_config unit tests (in-memory, no disk I/O) ─────────
 
-    #[test]
-    fn set_config_removes_old_bridge_vlans() {
+    #[tokio::test]
+    async fn set_config_removes_old_bridge_vlans() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).unwrap();
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).await.unwrap();
 
         // Count bridge-vlan sections before
         let before_count = cfgs["network"]
@@ -1288,14 +1290,14 @@ config interface 'wan'
         }
     }
 
-    #[test]
-    fn set_config_creates_wan_interfaces() {
+    #[tokio::test]
+    async fn set_config_creates_wan_interfaces() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).unwrap();
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).await.unwrap();
 
         let ethernet = Ethernet {
             wan_ipv6: true,
@@ -1328,14 +1330,14 @@ config interface 'wan'
         assert!(found_wan6, "WAN6 interface should be created");
     }
 
-    #[test]
-    fn set_config_excludes_wan_port_from_bridge() {
+    #[tokio::test]
+    async fn set_config_excludes_wan_port_from_bridge() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).unwrap();
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).await.unwrap();
 
         let ethernet = Ethernet {
             wan_ipv6: false,
@@ -1366,8 +1368,8 @@ config interface 'wan'
 
     // ── find_lan_bridge tests ──────────────────────────────────
 
-    #[test]
-    fn set_preserves_wifi_bridge_ports() {
+    #[tokio::test]
+    async fn set_preserves_wifi_bridge_ports() {
         let dir = tempfile::tempdir().unwrap();
         setup_basic(dir.path());
         // Add wlan0 to bridge ports
@@ -1436,13 +1438,13 @@ config interface 'guest'
                     ),
                 ]),
             }),
-        )
+        ).await
         .unwrap();
 
         // Verify wlan0 is still in the bridge
         let arena = Arena::new();
         let cfgs =
-            parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).unwrap();
+            parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).await.unwrap();
         for section in &cfgs["network"].sections {
             if let Some(dev) = section.get_typed::<NetworkDevice>().unwrap() {
                 if dev.name == "br-lan" {
@@ -1460,8 +1462,8 @@ config interface 'guest'
         panic!("br-lan bridge device not found");
     }
 
-    #[test]
-    fn find_lan_bridge_prefers_br_lan() {
+    #[tokio::test]
+    async fn find_lan_bridge_prefers_br_lan() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(
             dir.path().join("network"),
@@ -1481,13 +1483,13 @@ config device
         let ctx = TestContext(dir.path().to_path_buf());
 
         let arena = Arena::new();
-        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).unwrap();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await.unwrap();
         let bridge = find_lan_bridge(&cfgs).unwrap().unwrap();
         assert_eq!(bridge.name, "br-lan");
     }
 
-    #[test]
-    fn find_lan_bridge_falls_back_to_any_bridge() {
+    #[tokio::test]
+    async fn find_lan_bridge_falls_back_to_any_bridge() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(
             dir.path().join("network"),
@@ -1502,19 +1504,19 @@ config device
         let ctx = TestContext(dir.path().to_path_buf());
 
         let arena = Arena::new();
-        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).unwrap();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await.unwrap();
         let bridge = find_lan_bridge(&cfgs).unwrap().unwrap();
         assert_eq!(bridge.name, "br-custom");
     }
 
-    #[test]
-    fn find_lan_bridge_returns_none_when_no_bridge() {
+    #[tokio::test]
+    async fn find_lan_bridge_returns_none_when_no_bridge() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("network"), "").unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
 
         let arena = Arena::new();
-        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).unwrap();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await.unwrap();
         assert!(find_lan_bridge(&cfgs).unwrap().is_none());
     }
 }

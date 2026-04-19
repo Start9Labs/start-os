@@ -1,7 +1,7 @@
 use std::collections::HashSet;
-use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Seek, SeekFrom, Write};
-use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
+use std::fs::{self, File};
+use std::io::{Read, Seek, SeekFrom};
+use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
 use imbl_value::Value;
@@ -9,7 +9,8 @@ use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
-use crate::{emmc, flash, init, Error, ServerContext};
+use crate::prelude::*;
+use crate::{emmc, flash, init, ServerContext};
 
 const EMMC_ROOTFS_MOUNT: &str = "/mnt/emmc_rootfs";
 const EMMC_OVERLAY_MOUNT: &str = "/mnt/emmc_overlay";
@@ -23,9 +24,9 @@ const CONFFILES_EXCLUDE: &[&str] = &["/etc/shadow", "/etc/config/wireless"];
 // ---------------------------------------------------------------------------
 
 /// Check if the system booted from removable media (setup mode).
-pub fn is_setup_mode() -> bool {
-    match flash::boot_device() {
-        Ok(dev) => flash::mmc_device_type(&dev).as_deref() != Some("MMC"),
+pub async fn is_setup_mode() -> bool {
+    match flash::boot_device().await {
+        Ok(dev) => flash::mmc_device_type(&dev).await.as_deref() != Some("MMC"),
         Err(_) => false,
     }
 }
@@ -47,8 +48,8 @@ pub struct ResolvedPassword {
 const BAKE_MAGIC: &[u8; 8] = b"SWRTPWD\0";
 
 /// Find a partition named `name` on block device `dev_path` and return its node.
-fn find_partition_by_name(dev_path: &str, name: &str) -> Result<Option<String>, Error> {
-    let sfdisk = flash::read_partition_table(dev_path)?;
+async fn find_partition_by_name(dev_path: &str, name: &str) -> Result<Option<String>, Error> {
+    let sfdisk = flash::read_partition_table(dev_path).await?;
     Ok(sfdisk
         .partition_table
         .partitions
@@ -109,13 +110,17 @@ fn read_raw_baked_password(dev: &str) -> Option<String> {
 }
 
 /// Mount a partition at a given mount point (read-only by default).
-fn mount_ro(dev: &str, mount_point: &str) -> Result<(), Error> {
+async fn mount_ro(dev: &str, mount_point: &str) -> Result<(), Error> {
     let mp = Path::new(mount_point);
     if !mp.exists() {
-        fs::create_dir_all(mp)
-            .map_err(|e| Error::other(format!("failed to create {mount_point}: {e}")))?;
+        fs::create_dir_all(mp).map_err(|e| {
+            Error::new(
+                eyre!("failed to create {mount_point}: {e}"),
+                ErrorKind::Filesystem,
+            )
+        })?;
     }
-    flash::run_cmd("mount", &["-o", "ro", dev, mount_point])
+    flash::run_cmd("mount", &["-o", "ro", dev, mount_point]).await
 }
 
 /// Mount the three-layer SquashFS + ext4 overlay stack.
@@ -125,44 +130,68 @@ fn mount_ro(dev: &str, mount_point: &str) -> Result<(), Error> {
 /// 3. overlayfs → EMMC_MERGED_MOUNT (merged view)
 ///
 /// On failure, any layers already mounted are cleaned up before returning.
-fn mount_emmc_overlayfs(rootfs_dev: &str, rootfs_data_dev: &str) -> Result<(), Error> {
+async fn mount_emmc_overlayfs(rootfs_dev: &str, rootfs_data_dev: &str) -> Result<(), Error> {
     // 1. Mount squashfs (read-only)
-    fs::create_dir_all(EMMC_ROOTFS_MOUNT)
-        .map_err(|e| Error::other(format!("mkdir {EMMC_ROOTFS_MOUNT}: {e}")))?;
-    flash::run_cmd("mount", &["-t", "squashfs", rootfs_dev, EMMC_ROOTFS_MOUNT])?;
+    fs::create_dir_all(EMMC_ROOTFS_MOUNT).map_err(|e| {
+        Error::new(
+            eyre!("mkdir {EMMC_ROOTFS_MOUNT}: {e}"),
+            ErrorKind::Filesystem,
+        )
+    })?;
+    flash::run_cmd("mount", &["-t", "squashfs", rootfs_dev, EMMC_ROOTFS_MOUNT]).await?;
 
     // 2. Mount ext4 overlay (read-write)
-    fs::create_dir_all(EMMC_OVERLAY_MOUNT)
-        .map_err(|e| Error::other(format!("mkdir {EMMC_OVERLAY_MOUNT}: {e}")))?;
-    if let Err(e) = flash::run_cmd("mount", &["-t", "ext4", rootfs_data_dev, EMMC_OVERLAY_MOUNT]) {
-        let _ = flash::run_cmd("umount", &[EMMC_ROOTFS_MOUNT]);
+    fs::create_dir_all(EMMC_OVERLAY_MOUNT).map_err(|e| {
+        Error::new(
+            eyre!("mkdir {EMMC_OVERLAY_MOUNT}: {e}"),
+            ErrorKind::Filesystem,
+        )
+    })?;
+    if let Err(e) = flash::run_cmd(
+        "mount",
+        &["-t", "ext4", rootfs_data_dev, EMMC_OVERLAY_MOUNT],
+    )
+    .await
+    {
+        let _ = flash::run_cmd("umount", &[EMMC_ROOTFS_MOUNT]).await;
         return Err(e);
     }
 
     // 3. Create upper/work dirs on the overlay
     let upper = format!("{EMMC_OVERLAY_MOUNT}/upper");
     let work = format!("{EMMC_OVERLAY_MOUNT}/work");
-    if let Err(e) = fs::create_dir_all(&upper)
-        .and_then(|_| fs::create_dir_all(&work))
-    {
-        let _ = flash::run_cmd("umount", &[EMMC_OVERLAY_MOUNT]);
-        let _ = flash::run_cmd("umount", &[EMMC_ROOTFS_MOUNT]);
-        return Err(Error::other(format!("mkdir overlay dirs: {e}")));
+    if let Err(e) = fs::create_dir_all(&upper).and_then(|_| fs::create_dir_all(&work)) {
+        let _ = flash::run_cmd("umount", &[EMMC_OVERLAY_MOUNT]).await;
+        let _ = flash::run_cmd("umount", &[EMMC_ROOTFS_MOUNT]).await;
+        return Err(Error::new(
+            eyre!("mkdir overlay dirs: {e}"),
+            ErrorKind::Filesystem,
+        ));
     }
 
     // 4. Mount overlayfs
-    fs::create_dir_all(EMMC_MERGED_MOUNT)
-        .map_err(|e| Error::other(format!("mkdir {EMMC_MERGED_MOUNT}: {e}")))?;
-    let overlay_opts = format!(
-        "lowerdir={EMMC_ROOTFS_MOUNT},upperdir={upper},workdir={work}"
-    );
-    if let Err(e) = flash::run_cmd("mount", &[
-        "-t", "overlay", "overlay",
-        "-o", &overlay_opts,
-        EMMC_MERGED_MOUNT,
-    ]) {
-        let _ = flash::run_cmd("umount", &[EMMC_OVERLAY_MOUNT]);
-        let _ = flash::run_cmd("umount", &[EMMC_ROOTFS_MOUNT]);
+    fs::create_dir_all(EMMC_MERGED_MOUNT).map_err(|e| {
+        Error::new(
+            eyre!("mkdir {EMMC_MERGED_MOUNT}: {e}"),
+            ErrorKind::Filesystem,
+        )
+    })?;
+    let overlay_opts = format!("lowerdir={EMMC_ROOTFS_MOUNT},upperdir={upper},workdir={work}");
+    if let Err(e) = flash::run_cmd(
+        "mount",
+        &[
+            "-t",
+            "overlay",
+            "overlay",
+            "-o",
+            &overlay_opts,
+            EMMC_MERGED_MOUNT,
+        ],
+    )
+    .await
+    {
+        let _ = flash::run_cmd("umount", &[EMMC_OVERLAY_MOUNT]).await;
+        let _ = flash::run_cmd("umount", &[EMMC_ROOTFS_MOUNT]).await;
         return Err(e);
     }
 
@@ -175,11 +204,11 @@ fn mount_emmc_overlayfs(rootfs_dev: &str, rootfs_data_dev: &str) -> Result<(), E
 /// references to the underlying mounts, keeping them temporarily busy. A sync
 /// ensures all data is on disk, then lazy unmount is used as a fallback for the
 /// underlying layers.
-fn umount_emmc_overlayfs() -> Result<(), Error> {
-    flash::run_cmd("sync", &[])?;
+async fn umount_emmc_overlayfs() -> Result<(), Error> {
+    flash::run_cmd("sync", &[]).await?;
 
     let mut errors = Vec::new();
-    if let Err(e) = flash::run_cmd("umount", &[EMMC_MERGED_MOUNT]) {
+    if let Err(e) = flash::run_cmd("umount", &[EMMC_MERGED_MOUNT]).await {
         errors.push(format!("{EMMC_MERGED_MOUNT}: {e}"));
     }
 
@@ -188,8 +217,8 @@ fn umount_emmc_overlayfs() -> Result<(), Error> {
     let _ = fs::write("/proc/sys/vm/drop_caches", b"3");
 
     for mount in [EMMC_OVERLAY_MOUNT, EMMC_ROOTFS_MOUNT] {
-        if flash::run_cmd("umount", &[mount]).is_err() {
-            if flash::run_cmd("umount", &["-l", mount]).is_err() && is_mounted(mount) {
+        if flash::run_cmd("umount", &[mount]).await.is_err() {
+            if flash::run_cmd("umount", &["-l", mount]).await.is_err() && is_mounted(mount) {
                 errors.push(format!("{mount}: still mounted after umount -l"));
             }
         }
@@ -197,7 +226,10 @@ fn umount_emmc_overlayfs() -> Result<(), Error> {
     if errors.is_empty() {
         Ok(())
     } else {
-        Err(Error::other(format!("umount errors: {}", errors.join("; "))))
+        Err(Error::new(
+            eyre!("umount errors: {}", errors.join("; ")),
+            ErrorKind::Filesystem,
+        ))
     }
 }
 
@@ -218,27 +250,33 @@ fn mark_overlay_ready(overlay_mount: &str) -> Result<(), Error> {
     let fs_state_path = format!("{overlay_mount}/.fs_state");
     // Remove if it already exists (e.g. from a previous flash attempt)
     let _ = fs::remove_file(&fs_state_path);
-    std::os::unix::fs::symlink("2", &fs_state_path)
-        .map_err(|e| Error::other(format!("create .fs_state symlink: {e}")))?;
+    std::os::unix::fs::symlink("2", &fs_state_path).map_err(|e| {
+        Error::new(
+            eyre!("create .fs_state symlink: {e}"),
+            ErrorKind::Filesystem,
+        )
+    })?;
     Ok(())
 }
 
 /// Try reading a password from an ext4 partition (mount, read file, unmount).
-fn read_ext4_password(dev: &str, mount_point: &str) -> Option<String> {
+async fn read_ext4_password(dev: &str, mount_point: &str) -> Option<String> {
     // If block mount already mounted the device (e.g., via fstab label match),
     // unmount it first to avoid "Resource busy" when we mount at our own path.
-    let _ = flash::run_cmd("umount", &[dev]);
+    let _ = flash::run_cmd("umount", &[dev]).await;
 
-    if mount_ro(dev, mount_point).is_err() {
+    if mount_ro(dev, mount_point).await.is_err() {
         return None;
     }
     let password_path = format!("{mount_point}/wifi_password");
     let result = if Path::new(&password_path).exists() {
-        fs::read_to_string(&password_path).ok().map(|s| s.trim().to_string())
+        fs::read_to_string(&password_path)
+            .ok()
+            .map(|s| s.trim().to_string())
     } else {
         None
     };
-    let _ = flash::run_cmd("umount", &[mount_point]);
+    let _ = flash::run_cmd("umount", &[mount_point]).await;
     result
 }
 
@@ -251,12 +289,12 @@ fn read_ext4_password(dev: &str, mount_point: &str) -> Option<String> {
 /// find `bytes_used`, then checks for the `SWRTPWD` magic at the next
 /// 4096-aligned offset (written by `startwrt-bake-password`).
 /// The eMMC key_backup partition always uses ext4.
-pub fn resolve_password() -> Result<Option<ResolvedPassword>, Error> {
-    let boot_dev = flash::boot_device()?;
+pub async fn resolve_password() -> Result<Option<ResolvedPassword>, Error> {
+    let boot_dev = flash::boot_device().await?;
     let sd_path = format!("/dev/{boot_dev}");
 
     // 1. Check SD card's rootfs partition for a baked-in password
-    if let Ok(Some(sd_rootfs_dev)) = find_partition_by_name(&sd_path, "rootfs") {
+    if let Ok(Some(sd_rootfs_dev)) = find_partition_by_name(&sd_path, "rootfs").await {
         if let Some(password) = read_raw_baked_password(&sd_rootfs_dev) {
             return Ok(Some(ResolvedPassword {
                 password,
@@ -266,14 +304,16 @@ pub fn resolve_password() -> Result<Option<ResolvedPassword>, Error> {
     }
 
     // 2. Check eMMC's key_backup partition (always ext4)
-    let emmc_dev = match flash::find_emmc(&boot_dev) {
+    let emmc_dev = match flash::find_emmc(&boot_dev).await {
         Ok(dev) => dev,
         Err(_) => return Ok(None),
     };
     let emmc_path = format!("/dev/{emmc_dev}");
 
-    if let Ok(Some(emmc_persistent_dev)) = find_partition_by_name(&emmc_path, "key_backup") {
-        if let Some(password) = read_ext4_password(&emmc_persistent_dev, "/mnt/emmc_persistent") {
+    if let Ok(Some(emmc_persistent_dev)) = find_partition_by_name(&emmc_path, "key_backup").await {
+        if let Some(password) =
+            read_ext4_password(&emmc_persistent_dev, "/mnt/emmc_persistent").await
+        {
             return Ok(Some(ResolvedPassword {
                 password,
                 baked_in: false,
@@ -289,13 +329,13 @@ pub fn resolve_password() -> Result<Option<ResolvedPassword>, Error> {
 /// Returns `true` if the squashfs rootfs partition contains a password written
 /// by `startwrt-bake-password`. Used by `startwrt-serial` to decide whether
 /// the web setup wizard is available or the serial `manufacture` flow is needed.
-pub fn has_baked_password() -> bool {
-    let boot_dev = match flash::boot_device() {
+pub async fn has_baked_password() -> bool {
+    let boot_dev = match flash::boot_device().await {
         Ok(dev) => dev,
         Err(_) => return false,
     };
     let sd_path = format!("/dev/{boot_dev}");
-    if let Ok(Some(rootfs_dev)) = find_partition_by_name(&sd_path, "rootfs") {
+    if let Ok(Some(rootfs_dev)) = find_partition_by_name(&sd_path, "rootfs").await {
         return read_raw_baked_password(&rootfs_dev).is_some();
     }
     false
@@ -314,8 +354,8 @@ pub struct DiskState {
     pub has_firmware: bool,
 }
 
-pub fn detect_disk_state() -> Result<DiskState, Error> {
-    let boot_dev = match flash::boot_device() {
+pub async fn detect_disk_state() -> Result<DiskState, Error> {
+    let boot_dev = match flash::boot_device().await {
         Ok(dev) => dev,
         Err(_) => {
             return Ok(DiskState {
@@ -325,7 +365,7 @@ pub fn detect_disk_state() -> Result<DiskState, Error> {
         }
     };
 
-    let emmc_dev = match flash::find_emmc(&boot_dev) {
+    let emmc_dev = match flash::find_emmc(&boot_dev).await {
         Ok(dev) => dev,
         Err(_) => {
             return Ok(DiskState {
@@ -337,7 +377,7 @@ pub fn detect_disk_state() -> Result<DiskState, Error> {
 
     let emmc_path = format!("/dev/{emmc_dev}");
 
-    let has_firmware = match flash::read_partition_table(&emmc_path) {
+    let has_firmware = match flash::read_partition_table(&emmc_path).await {
         Ok(sfdisk) => sfdisk
             .partition_table
             .partitions
@@ -508,30 +548,31 @@ fn backup_conffiles(rootfs_mount: &str) -> Vec<BackedUpFile> {
 }
 
 /// Restore backed-up conffiles to a mounted rootfs.
-fn restore_conffiles(rootfs_mount: &str, files: &[BackedUpFile]) -> Result<(), Error> {
+async fn restore_conffiles(rootfs_mount: &str, files: &[BackedUpFile]) -> Result<(), Error> {
+    use std::os::unix::fs::PermissionsExt;
+    use tokio::io::AsyncWriteExt;
+
     for file in files {
         let full_path = format!("{rootfs_mount}{}", file.path);
         if let Some(parent) = Path::new(&full_path).parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| Error::other(format!("mkdir {}: {e}", parent.display())))?;
+            tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                Error::new(
+                    eyre!("mkdir {}: {e}", parent.display()),
+                    ErrorKind::Filesystem,
+                )
+            })?;
         }
 
-        // Atomic write: tmp file → sync → rename to avoid partial writes on
-        // power loss between truncate and write completion.
-        let tmp_path = format!("{full_path}.tmp");
-        let mut f = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(file.mode)
-            .open(&tmp_path)
-            .map_err(|e| Error::other(format!("create {tmp_path}: {e}")))?;
+        let mut f = startos::util::io::AtomicFile::new(&full_path, None::<&Path>)
+            .await
+            .map_err(Error::from)?;
+        f.set_permissions(std::fs::Permissions::from_mode(file.mode))
+            .await
+            .map_err(|e| Error::new(eyre!("chmod {full_path}: {e}"), ErrorKind::Filesystem))?;
         f.write_all(&file.contents)
-            .map_err(|e| Error::other(format!("write {tmp_path}: {e}")))?;
-        f.sync_all()
-            .map_err(|e| Error::other(format!("sync {tmp_path}: {e}")))?;
-        fs::rename(&tmp_path, &full_path)
-            .map_err(|e| Error::other(format!("rename {tmp_path} -> {full_path}: {e}")))?;
+            .await
+            .map_err(|e| Error::new(eyre!("write {full_path}: {e}"), ErrorKind::Filesystem))?;
+        f.save().await.map_err(Error::from)?;
     }
     Ok(())
 }
@@ -541,13 +582,18 @@ fn restore_conffiles(rootfs_mount: &str, files: &[BackedUpFile]) -> Result<(), E
 // ---------------------------------------------------------------------------
 
 /// Write the admin password hash to /etc/shadow on a mounted rootfs.
-fn write_admin_password(rootfs_mount: &str, password: &str) -> Result<(), Error> {
+async fn write_admin_password(rootfs_mount: &str, password: &str) -> Result<(), Error> {
     let shadow_path = format!("{rootfs_mount}/etc/shadow");
-    let shadow = fs::read_to_string(&shadow_path)
-        .map_err(|e| Error::other(format!("read {shadow_path}: {e}")))?;
+    let shadow = tokio::fs::read_to_string(&shadow_path)
+        .await
+        .map_err(|e| Error::new(eyre!("read {shadow_path}: {e}"), ErrorKind::Filesystem))?;
 
-    let new_hash = pwhash::sha512_crypt::hash(password)
-        .map_err(|e| Error::other(format!("hash password: {e}")))?;
+    let new_hash = pwhash::sha512_crypt::hash(password).map_err(|e| {
+        Error::new(
+            eyre!("hash password: {e}"),
+            ErrorKind::PasswordHashGeneration,
+        )
+    })?;
 
     let mut found = false;
     let new_content: String = shadow
@@ -557,8 +603,7 @@ fn write_admin_password(rootfs_mount: &str, password: &str) -> Result<(), Error>
                 found = true;
                 let parts: Vec<&str> = line.split(':').collect();
                 if parts.len() >= 2 {
-                    let mut owned: Vec<String> =
-                        parts.iter().map(|s| s.to_string()).collect();
+                    let mut owned: Vec<String> = parts.iter().map(|s| s.to_string()).collect();
                     owned[1] = new_hash.clone();
                     return owned.join(":");
                 }
@@ -569,7 +614,10 @@ fn write_admin_password(rootfs_mount: &str, password: &str) -> Result<(), Error>
         .join("\n");
 
     if !found {
-        return Err(Error::other("root user not found in /etc/shadow"));
+        return Err(Error::new(
+            eyre!("root user not found in /etc/shadow"),
+            ErrorKind::NotFound,
+        ));
     }
 
     let new_content = if new_content.ends_with('\n') {
@@ -579,20 +627,18 @@ fn write_admin_password(rootfs_mount: &str, password: &str) -> Result<(), Error>
     };
 
     // Atomic write
-    let tmp_path = format!("{shadow_path}.tmp");
-    let mut f = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(&tmp_path)
-        .map_err(|e| Error::other(format!("create {tmp_path}: {e}")))?;
+    use std::os::unix::fs::PermissionsExt;
+    use tokio::io::AsyncWriteExt;
+    let mut f = startos::util::io::AtomicFile::new(&shadow_path, None::<&Path>)
+        .await
+        .map_err(Error::from)?;
+    f.set_permissions(std::fs::Permissions::from_mode(0o600))
+        .await
+        .map_err(|e| Error::new(eyre!("chmod {shadow_path}: {e}"), ErrorKind::Filesystem))?;
     f.write_all(new_content.as_bytes())
-        .map_err(|e| Error::other(format!("write {tmp_path}: {e}")))?;
-    f.sync_all()
-        .map_err(|e| Error::other(format!("sync {tmp_path}: {e}")))?;
-    fs::rename(&tmp_path, &shadow_path)
-        .map_err(|e| Error::other(format!("rename {tmp_path}: {e}")))?;
+        .await
+        .map_err(|e| Error::new(eyre!("write {shadow_path}: {e}"), ErrorKind::Filesystem))?;
+    f.save().await.map_err(Error::from)?;
 
     Ok(())
 }
@@ -610,7 +656,11 @@ pub enum FlashMode {
 
 /// Streaming event sent to the frontend during flash.
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "phase", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "phase",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum SetupEvent {
     Copying {
         copied: u64,
@@ -633,20 +683,22 @@ pub enum SetupEvent {
 ///
 /// Sends progress events through `tx`. On error, sends an Error event
 /// before returning.
-pub fn run_setup_flash(
+pub async fn run_setup_flash(
     mode: FlashMode,
     admin_password: &str,
     wifi_password: &str,
     tx: &mpsc::Sender<SetupEvent>,
 ) {
-    if let Err(e) = run_setup_flash_inner(mode, admin_password, wifi_password, tx) {
-        let _ = tx.blocking_send(SetupEvent::Error {
-            message: e.to_string(),
-        });
+    if let Err(e) = run_setup_flash_inner(mode, admin_password, wifi_password, tx).await {
+        let _ = tx
+            .send(SetupEvent::Error {
+                message: e.to_string(),
+            })
+            .await;
     }
 }
 
-fn run_setup_flash_inner(
+async fn run_setup_flash_inner(
     mode: FlashMode,
     admin_password: &str,
     wifi_password: &str,
@@ -655,38 +707,57 @@ fn run_setup_flash_inner(
     let total_steps: u32 = 3;
 
     // ── Step 1: Preparing ──────────────────────────────────────────────
-    let _ = tx.blocking_send(SetupEvent::Status {
-        message: "Validating password...".into(),
-        step: 1,
-        total_steps,
-    });
+    let _ = tx
+        .send(SetupEvent::Status {
+            message: "Validating password...".into(),
+            step: 1,
+            total_steps,
+        })
+        .await;
 
     if admin_password.len() < 12 {
-        return Err(Error::other("password must be at least 12 characters"));
+        return Err(Error::new(
+            eyre!("password must be at least 12 characters"),
+            ErrorKind::InvalidRequest,
+        ));
     }
 
     // Update: backup conffiles before flash (mount old eMMC squashfs + overlay)
     let conffiles_backup = if mode == FlashMode::Update {
-        let _ = tx.blocking_send(SetupEvent::Status {
-            message: "Backing up configuration...".into(),
-            step: 1,
-            total_steps,
-        });
+        let _ = tx
+            .send(SetupEvent::Status {
+                message: "Backing up configuration...".into(),
+                step: 1,
+                total_steps,
+            })
+            .await;
 
-        let boot_dev = flash::boot_device()?;
-        let emmc_dev = flash::find_emmc(&boot_dev)?;
+        let boot_dev = flash::boot_device().await?;
+        let emmc_dev = flash::find_emmc(&boot_dev).await?;
         let emmc_path = format!("/dev/{emmc_dev}");
 
         // Find eMMC rootfs and rootfs_data
-        let rootfs_dev = find_partition_by_name(&emmc_path, "rootfs")?
-            .ok_or_else(|| Error::other("rootfs partition not found on eMMC"))?;
-        let rootfs_data_dev = find_partition_by_name(&emmc_path, "rootfs_data")?
-            .ok_or_else(|| Error::other("rootfs_data partition not found on eMMC"))?;
+        let rootfs_dev = find_partition_by_name(&emmc_path, "rootfs")
+            .await?
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("rootfs partition not found on eMMC"),
+                    ErrorKind::NotFound,
+                )
+            })?;
+        let rootfs_data_dev = find_partition_by_name(&emmc_path, "rootfs_data")
+            .await?
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("rootfs_data partition not found on eMMC"),
+                    ErrorKind::NotFound,
+                )
+            })?;
 
         // Mount squashfs + overlay to get merged view of old config
-        mount_emmc_overlayfs(&rootfs_dev, &rootfs_data_dev)?;
+        mount_emmc_overlayfs(&rootfs_dev, &rootfs_data_dev).await?;
         let backup = backup_conffiles(EMMC_MERGED_MOUNT);
-        if let Err(e) = umount_emmc_overlayfs() {
+        if let Err(e) = umount_emmc_overlayfs().await {
             eprintln!("WARNING: first umount_emmc_overlayfs failed: {e}");
         }
 
@@ -710,52 +781,60 @@ fn run_setup_flash_inner(
                 total_steps,
             },
         };
-        let _ = tx.blocking_send(setup_event);
+        let _ = tx.try_send(setup_event);
     };
-    let result = flash::run_flash_unattended(&on_progress)?;
+    let result = flash::run_flash_unattended(&on_progress).await?;
 
     // ── Step 3: Applying settings ──────────────────────────────────────
-    let _ = tx.blocking_send(SetupEvent::Status {
-        message: "Configuring system...".into(),
-        step: 3,
-        total_steps,
-    });
+    let _ = tx
+        .send(SetupEvent::Status {
+            message: "Configuring system...".into(),
+            step: 3,
+            total_steps,
+        })
+        .await;
 
     // Mount SquashFS + ext4 overlay to get a writable merged view
-    mount_emmc_overlayfs(&result.rootfs_dev, &result.rootfs_data_dev)?;
+    mount_emmc_overlayfs(&result.rootfs_dev, &result.rootfs_data_dev).await?;
 
     // Restore conffiles (Update only)
     if let Some(ref files) = conffiles_backup {
-        let _ = tx.blocking_send(SetupEvent::Status {
-            message: "Restoring configuration...".into(),
-            step: 3,
-            total_steps,
-        });
-        restore_conffiles(EMMC_MERGED_MOUNT, files)?;
+        let _ = tx
+            .send(SetupEvent::Status {
+                message: "Restoring configuration...".into(),
+                step: 3,
+                total_steps,
+            })
+            .await;
+        restore_conffiles(EMMC_MERGED_MOUNT, files).await?;
     }
 
     // Write admin password
-    let _ = tx.blocking_send(SetupEvent::Status {
-        message: "Setting admin password...".into(),
-        step: 3,
-        total_steps,
-    });
-    write_admin_password(EMMC_MERGED_MOUNT, admin_password)?;
+    let _ = tx
+        .send(SetupEvent::Status {
+            message: "Setting admin password...".into(),
+            step: 3,
+            total_steps,
+        })
+        .await;
+    write_admin_password(EMMC_MERGED_MOUNT, admin_password).await?;
 
     // Write WiFi config
-    let _ = tx.blocking_send(SetupEvent::Status {
-        message: "Configuring WiFi...".into(),
-        step: 3,
-        total_steps,
-    });
+    let _ = tx
+        .send(SetupEvent::Status {
+            message: "Configuring WiFi...".into(),
+            step: 3,
+            total_steps,
+        })
+        .await;
     let uci_root = format!("{EMMC_MERGED_MOUNT}/etc/config");
-    init::configure_wifi(&uci_root, wifi_password, None)?;
+    init::configure_wifi(&uci_root, wifi_password, None).await?;
 
     // Mark overlay as FS_STATE_READY so mount_root doesn't wipe it on first boot
     mark_overlay_ready(EMMC_OVERLAY_MOUNT)?;
 
     // Unmount the overlayfs stack (non-fatal — mounts are cleaned up on reboot)
-    if let Err(e) = umount_emmc_overlayfs() {
+    if let Err(e) = umount_emmc_overlayfs().await {
         eprintln!("WARNING: umount_emmc_overlayfs failed (non-fatal, cleaned up on reboot): {e}");
     }
 
@@ -767,21 +846,23 @@ fn run_setup_flash_inner(
     // using the known eMMC device so we don't write to the rootfs directory.
     if !emmc::is_persistent_mounted() {
         eprintln!("WARNING: /key_backup was unmounted (likely by hotplug); remounting");
-        flash::run_cmd("mount", &[&result.persistent_dev, emmc::PERSISTENT_MOUNT])?;
+        flash::run_cmd("mount", &[&result.persistent_dev, emmc::PERSISTENT_MOUNT]).await?;
     }
 
-    let _ = tx.blocking_send(SetupEvent::Status {
-        message: "Writing WiFi credentials...".into(),
-        step: 3,
-        total_steps,
-    });
-    emmc::write_password(wifi_password)?;
+    let _ = tx
+        .send(SetupEvent::Status {
+            message: "Writing WiFi credentials...".into(),
+            step: 3,
+            total_steps,
+        })
+        .await;
+    emmc::write_password(wifi_password).await?;
 
     // Unmount key_backup to flush all data to disk and guarantee durability
     // before the Complete event tells the client it's safe to reboot.
-    flash::run_cmd("umount", &[emmc::PERSISTENT_MOUNT])?;
+    flash::run_cmd("umount", &[emmc::PERSISTENT_MOUNT]).await?;
 
-    let _ = tx.blocking_send(SetupEvent::Complete);
+    let _ = tx.send(SetupEvent::Complete).await;
 
     Ok(())
 }
@@ -797,16 +878,13 @@ pub struct SetupStatusRes {
     pub disk: DiskState,
 }
 
+#[instrument(skip_all)]
 async fn setup_status_impl(_ctx: ServerContext) -> Result<SetupStatusRes, Error> {
-    tokio::task::spawn_blocking(|| {
-        let disk = detect_disk_state()?;
-        Ok(SetupStatusRes {
-            setup_mode: is_setup_mode(),
-            disk,
-        })
+    let disk = detect_disk_state().await?;
+    Ok(SetupStatusRes {
+        setup_mode: is_setup_mode().await,
+        disk,
     })
-    .await
-    .map_err(|e| Error::other(format!("setup status task panicked: {e}")))?
 }
 
 pub fn setup<C: Context>() -> ParentHandler<C> {
@@ -1124,8 +1202,8 @@ Conffiles:
 
     // ── backup / restore round-trip ──────────────────────────────────
 
-    #[test]
-    fn backup_restore_round_trip() {
+    #[tokio::test]
+    async fn backup_restore_round_trip() {
         let dir = TempDir::new().unwrap();
         let root = dir.path();
 
@@ -1144,8 +1222,7 @@ Conffiles:
         .unwrap();
 
         fs::write(root.join("etc/hosts"), "127.0.0.1 localhost\n").unwrap();
-        fs::set_permissions(root.join("etc/hosts"), fs::Permissions::from_mode(0o644))
-            .unwrap();
+        fs::set_permissions(root.join("etc/hosts"), fs::Permissions::from_mode(0o644)).unwrap();
 
         // Backup
         let rootfs = root.to_str().unwrap();
@@ -1159,7 +1236,9 @@ Conffiles:
         // Restore to a fresh location
         let restore_dir = TempDir::new().unwrap();
         let restore_root = restore_dir.path();
-        restore_conffiles(restore_root.to_str().unwrap(), &backup).unwrap();
+        restore_conffiles(restore_root.to_str().unwrap(), &backup)
+            .await
+            .unwrap();
 
         // Verify content
         let network = fs::read_to_string(restore_root.join("etc/config/network")).unwrap();
@@ -1169,8 +1248,10 @@ Conffiles:
         assert_eq!(hosts, "127.0.0.1 localhost\n");
 
         // Verify mode bits (mask to permission bits only)
-        let network_mode =
-            fs::metadata(restore_root.join("etc/config/network")).unwrap().mode() & 0o7777;
+        let network_mode = fs::metadata(restore_root.join("etc/config/network"))
+            .unwrap()
+            .mode()
+            & 0o7777;
         assert_eq!(network_mode, 0o644);
     }
 
@@ -1210,8 +1291,14 @@ Conffiles:
         let backup = backup_conffiles(rootfs);
 
         let paths: HashSet<&str> = backup.iter().map(|f| f.path.as_str()).collect();
-        assert!(paths.contains("/etc/config/startwrt"), "should include startwrt");
-        assert!(paths.contains("/etc/config/network"), "should include network");
+        assert!(
+            paths.contains("/etc/config/startwrt"),
+            "should include startwrt"
+        );
+        assert!(
+            paths.contains("/etc/config/network"),
+            "should include network"
+        );
         assert!(
             paths.contains("/etc/config/subdir/nested"),
             "should include nested files"
@@ -1223,12 +1310,15 @@ Conffiles:
         assert_eq!(backup.len(), 3);
 
         // Verify content
-        let startwrt = backup.iter().find(|f| f.path == "/etc/config/startwrt").unwrap();
+        let startwrt = backup
+            .iter()
+            .find(|f| f.path == "/etc/config/startwrt")
+            .unwrap();
         assert_eq!(startwrt.contents, b"startwrt data\n");
     }
 
-    #[test]
-    fn restore_creates_parent_dirs() {
+    #[tokio::test]
+    async fn restore_creates_parent_dirs() {
         let dir = TempDir::new().unwrap();
         let root = dir.path();
 
@@ -1238,17 +1328,18 @@ Conffiles:
             contents: b"content".to_vec(),
         }];
 
-        restore_conffiles(root.to_str().unwrap(), &files).unwrap();
+        restore_conffiles(root.to_str().unwrap(), &files)
+            .await
+            .unwrap();
 
-        let restored =
-            fs::read_to_string(root.join("etc/config/deep/nested/file.conf")).unwrap();
+        let restored = fs::read_to_string(root.join("etc/config/deep/nested/file.conf")).unwrap();
         assert_eq!(restored, "content");
     }
 
     // ── write_admin_password ─────────────────────────────────────────
 
-    #[test]
-    fn write_password_replaces_root_hash() {
+    #[tokio::test]
+    async fn write_password_replaces_root_hash() {
         let dir = TempDir::new().unwrap();
         let root = dir.path();
         fs::create_dir_all(root.join("etc")).unwrap();
@@ -1258,17 +1349,22 @@ Conffiles:
         )
         .unwrap();
 
-        write_admin_password(root.to_str().unwrap(), "mysecurepassword").unwrap();
+        write_admin_password(root.to_str().unwrap(), "mysecurepassword")
+            .await
+            .unwrap();
 
         let shadow = fs::read_to_string(root.join("etc/shadow")).unwrap();
         let root_line = shadow.lines().find(|l| l.starts_with("root:")).unwrap();
         let hash = root_line.split(':').nth(1).unwrap();
-        assert!(hash.starts_with("$6$"), "hash should be sha512_crypt, got: {hash}");
+        assert!(
+            hash.starts_with("$6$"),
+            "hash should be sha512_crypt, got: {hash}"
+        );
         assert_ne!(hash, "*", "hash should have been replaced");
     }
 
-    #[test]
-    fn write_password_preserves_other_fields() {
+    #[tokio::test]
+    async fn write_password_preserves_other_fields() {
         let dir = TempDir::new().unwrap();
         let root = dir.path();
         fs::create_dir_all(root.join("etc")).unwrap();
@@ -1278,7 +1374,9 @@ Conffiles:
         )
         .unwrap();
 
-        write_admin_password(root.to_str().unwrap(), "mysecurepassword").unwrap();
+        write_admin_password(root.to_str().unwrap(), "mysecurepassword")
+            .await
+            .unwrap();
 
         let shadow = fs::read_to_string(root.join("etc/shadow")).unwrap();
 
@@ -1297,28 +1395,30 @@ Conffiles:
         assert_eq!(nobody_line, "nobody:!:19000:0:99999:7:::");
     }
 
-    #[test]
-    fn write_password_no_root_entry() {
+    #[tokio::test]
+    async fn write_password_no_root_entry() {
         let dir = TempDir::new().unwrap();
         let root = dir.path();
         fs::create_dir_all(root.join("etc")).unwrap();
         fs::write(root.join("etc/shadow"), "nobody:!:0:0:99999:7:::\n").unwrap();
 
-        let result = write_admin_password(root.to_str().unwrap(), "mysecurepassword");
+        let result = write_admin_password(root.to_str().unwrap(), "mysecurepassword").await;
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
         assert!(err.contains("root"), "error should mention root: {err}");
     }
 
-    #[test]
-    fn write_password_trailing_newline() {
+    #[tokio::test]
+    async fn write_password_trailing_newline() {
         let dir = TempDir::new().unwrap();
         let root = dir.path();
         fs::create_dir_all(root.join("etc")).unwrap();
         // Input without trailing newline
         fs::write(root.join("etc/shadow"), "root:*:0:0:99999:7:::").unwrap();
 
-        write_admin_password(root.to_str().unwrap(), "mysecurepassword").unwrap();
+        write_admin_password(root.to_str().unwrap(), "mysecurepassword")
+            .await
+            .unwrap();
 
         let shadow = fs::read_to_string(root.join("etc/shadow")).unwrap();
         assert!(shadow.ends_with('\n'), "output should end with newline");
@@ -1326,10 +1426,10 @@ Conffiles:
 
     // ── run_setup_flash event protocol ───────────────────────────────
 
-    #[test]
-    fn flash_rejects_short_password() {
+    #[tokio::test]
+    async fn flash_rejects_short_password() {
         let (tx, mut rx) = mpsc::channel(16);
-        run_setup_flash(FlashMode::FreshStart, "short", "AbCdEf234567", &tx);
+        run_setup_flash(FlashMode::FreshStart, "short", "AbCdEf234567", &tx).await;
         drop(tx);
 
         let mut events = Vec::new();
@@ -1357,7 +1457,10 @@ Conffiles:
         // Last event: Error about password length
         match events.last().unwrap() {
             SetupEvent::Error { message } => {
-                assert!(message.contains("12"), "error should mention 12 chars: {message}");
+                assert!(
+                    message.contains("12"),
+                    "error should mention 12 chars: {message}"
+                );
             }
             other => panic!("expected Error event, got: {other:?}"),
         }

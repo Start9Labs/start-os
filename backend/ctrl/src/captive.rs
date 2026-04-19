@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::Error;
+use crate::prelude::*;
 
 const CAPTIVE_CONF_NAME: &str = "captive-portal.conf";
 const CAPTIVE_CONTENT: &str = "\
@@ -17,23 +17,24 @@ const CAPTIVE_CONTENT: &str = "\
 fn find_dnsmasq_conf_dir() -> Result<String, Error> {
     let var_etc = Path::new("/var/etc");
     for entry in fs::read_dir(var_etc)
-        .map_err(|e| Error::other(format!("failed to read /var/etc: {e}")))?
+        .map_err(|e| Error::new(eyre!("failed to read /var/etc: {e}"), ErrorKind::Filesystem))?
     {
-        let entry = entry.map_err(|e| Error::other(format!("readdir: {e}")))?;
+        let entry = entry.map_err(|e| Error::new(eyre!("readdir: {e}"), ErrorKind::Filesystem))?;
         let name = entry.file_name();
         if !name.to_string_lossy().starts_with("dnsmasq.conf.") {
             continue;
         }
         let contents = fs::read_to_string(entry.path())
-            .map_err(|e| Error::other(format!("read {}: {e}", entry.path().display())))?;
+            .map_err(|e| Error::new(eyre!("read {}: {e}", entry.path().display()), ErrorKind::Filesystem))?;
         for line in contents.lines() {
             if let Some(dir) = line.strip_prefix("conf-dir=") {
                 return Ok(dir.to_string());
             }
         }
     }
-    Err(Error::other(
-        "no dnsmasq conf-dir found in /var/etc/dnsmasq.conf.*",
+    Err(Error::new(
+        eyre!("no dnsmasq conf-dir found in /var/etc/dnsmasq.conf.*"),
+        ErrorKind::NotFound,
     ))
 }
 
@@ -48,34 +49,34 @@ pub fn is_captive_portal_active() -> bool {
 ///
 /// Drops a dnsmasq conf file that redirects all DNS queries to the router's
 /// IP, then restarts dnsmasq to pick up the change.
-pub fn enable_captive_portal() -> Result<(), Error> {
+pub async fn enable_captive_portal() -> Result<(), Error> {
     let dir = find_dnsmasq_conf_dir()?;
     let conf = Path::new(&dir).join(CAPTIVE_CONF_NAME);
 
     if !Path::new(&dir).exists() {
         fs::create_dir_all(&dir)
-            .map_err(|e| Error::other(format!("failed to create {dir}: {e}")))?;
+            .map_err(|e| Error::new(eyre!("failed to create {dir}: {e}"), ErrorKind::Filesystem))?;
     }
 
     fs::write(&conf, CAPTIVE_CONTENT)
-        .map_err(|e| Error::other(format!("failed to write {}: {e}", conf.display())))?;
+        .map_err(|e| Error::new(eyre!("failed to write {}: {e}", conf.display()), ErrorKind::Filesystem))?;
 
-    restart_dnsmasq()
+    restart_dnsmasq().await
 }
 
 /// Disable captive portal DNS hijacking.
 ///
 /// Removes the dnsmasq conf file and restarts dnsmasq to resume normal DNS.
-pub fn disable_captive_portal() -> Result<(), Error> {
+pub async fn disable_captive_portal() -> Result<(), Error> {
     let dir = find_dnsmasq_conf_dir()?;
     let conf = Path::new(&dir).join(CAPTIVE_CONF_NAME);
 
     if conf.exists() {
         fs::remove_file(&conf)
-            .map_err(|e| Error::other(format!("failed to remove {}: {e}", conf.display())))?;
+            .map_err(|e| Error::new(eyre!("failed to remove {}: {e}", conf.display()), ErrorKind::Filesystem))?;
     }
 
-    restart_dnsmasq()
+    restart_dnsmasq().await
 }
 
 /// Check if the admin (root) password has been set in /etc/shadow.
@@ -83,7 +84,7 @@ pub fn disable_captive_portal() -> Result<(), Error> {
 /// Synchronous version of the check in auth.rs — reads /etc/shadow directly.
 pub fn is_admin_password_set() -> Result<bool, Error> {
     let shadow = fs::read_to_string("/etc/shadow")
-        .map_err(|e| Error::other(format!("failed to read /etc/shadow: {e}")))?;
+        .map_err(|e| Error::new(eyre!("failed to read /etc/shadow: {e}"), ErrorKind::Filesystem))?;
 
     for line in shadow.lines() {
         let parts: Vec<&str> = line.split(':').collect();
@@ -107,36 +108,35 @@ pub fn is_admin_password_set() -> Result<bool, Error> {
 ///
 /// This is an async wrapper for use from the daemon's boot sequence.
 pub async fn ensure_captive_portal_state() -> Result<(), Error> {
-    tokio::task::spawn_blocking(|| {
-        let password_set = is_admin_password_set()?;
+    let password_set = is_admin_password_set()?;
 
-        if password_set {
-            if is_captive_portal_active() {
-                tracing::info!("admin password set, disabling captive portal");
-                disable_captive_portal()?;
-            }
-        } else {
-            if !is_captive_portal_active() {
-                tracing::info!("no admin password set, enabling captive portal");
-                enable_captive_portal()?;
-            }
+    if password_set {
+        if is_captive_portal_active() {
+            tracing::info!("admin password set, disabling captive portal");
+            disable_captive_portal().await?;
         }
+    } else {
+        if !is_captive_portal_active() {
+            tracing::info!("no admin password set, enabling captive portal");
+            enable_captive_portal().await?;
+        }
+    }
 
-        Ok(())
-    })
-    .await
-    .map_err(|e| Error::other(format!("captive portal task panicked: {e}")))?
+    Ok(())
 }
 
-fn restart_dnsmasq() -> Result<(), Error> {
-    let status = crate::run_quiet(std::process::Command::new("/etc/init.d/dnsmasq").arg("restart"))
-        .map_err(|e| Error::other(format!("failed to restart dnsmasq: {e}")))?;
+async fn restart_dnsmasq() -> Result<(), Error> {
+    let status = crate::run_quiet_async(
+        tokio::process::Command::new("/etc/init.d/dnsmasq").arg("restart"),
+    )
+    .await
+    .map_err(|e| Error::new(eyre!("failed to restart dnsmasq: {e}"), ErrorKind::Network))?;
 
     if !status.success() {
-        return Err(Error::other(format!(
-            "dnsmasq restart failed (exit {})",
-            status.code().unwrap_or(-1)
-        )));
+        return Err(Error::new(
+            eyre!("dnsmasq restart failed (exit {})", status.code().unwrap_or(-1)),
+            ErrorKind::Network,
+        ));
     }
     Ok(())
 }

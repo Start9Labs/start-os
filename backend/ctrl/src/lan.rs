@@ -2,12 +2,12 @@ use crate::profiles;
 use crate::utils::DeserializeStdin;
 use crate::utils::HandlerExtSerde;
 use crate::CtrlContext;
-use crate::{Error, ErrorKind};
-use rpc_toolkit::{from_fn, ParentHandler};
+use crate::prelude::*;
+use crate::invoke::Invoke;
+use rpc_toolkit::{from_fn_async_local, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::net::Ipv4Addr;
-use std::process::Command;
 use uciedit::openwrt::{Dhcp, DhcpHost, FirewallRedirect, NetworkInterface, NetworkRoute, NetworkRule, ProfileDnsmasq};
 use uciedit::{dump_all, parse_all, Arena, Configs};
 
@@ -50,15 +50,16 @@ pub struct LanIpv6SetRequest {
 
 pub fn lan<C: CtrlContext + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("ipv4-get", from_fn(ipv4_get::<C>).with_display_serializable())
-        .subcommand("ipv4-set", from_fn(ipv4_set::<C>).with_display_serializable())
-        .subcommand("ipv6-get", from_fn(ipv6_get::<C>).with_display_serializable())
-        .subcommand("ipv6-set", from_fn(ipv6_set::<C>).with_display_serializable())
+        .subcommand("ipv4-get", from_fn_async_local(ipv4_get::<C>).with_display_serializable())
+        .subcommand("ipv4-set", from_fn_async_local(ipv4_set::<C>).with_display_serializable())
+        .subcommand("ipv6-get", from_fn_async_local(ipv6_get::<C>).with_display_serializable())
+        .subcommand("ipv6-set", from_fn_async_local(ipv6_set::<C>).with_display_serializable())
 }
 
-pub fn ipv4_get<C: CtrlContext>(ctx: C) -> Result<LanIpv4Response, Error> {
+#[instrument(skip_all)]
+pub async fn ipv4_get<C: CtrlContext>(ctx: C) -> Result<LanIpv4Response, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["network"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await?;
 
     for section in &cfgs["network"].sections {
         if section.name().as_deref() == Some(LAN_INTERFACE) {
@@ -83,19 +84,20 @@ pub fn ipv4_get<C: CtrlContext>(ctx: C) -> Result<LanIpv4Response, Error> {
     })
 }
 
-pub fn ipv4_set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn ipv4_set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<LanIpv4SetRequest>,
 ) -> Result<(), Error> {
     let address: Ipv4Addr = req
         .address
         .parse()
-        .map_err(|_| Error::other(format!("Invalid IPv4 address: {}", req.address)))?;
+        .map_err(|_| Error::new(eyre!("Invalid IPv4 address: {}", req.address), ErrorKind::ParseNetAddress))?;
 
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "dhcp", "firewall"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "dhcp", "firewall"]).await?;
 
         // Update LAN interface, capturing old IP to detect network block changes
         let mut old_address: Option<Ipv4Addr> = None;
@@ -113,7 +115,7 @@ pub fn ipv4_set<C: CtrlContext>(
             }
         }
         if !found {
-            return Err(Error::other("LAN interface not found in network config"));
+            return Err(Error::new(eyre!("LAN interface not found in network config"), ErrorKind::MissingLanInterface));
         }
 
         // Detect network block change (first two octets differ)
@@ -165,7 +167,9 @@ pub fn ipv4_set<C: CtrlContext>(
             Default::default()
         };
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        let dump_result = dump_all(ctx.uci_root(), cfgs).await;
+        drop(arena);
+        match dump_result {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -200,17 +204,17 @@ pub fn ipv4_set<C: CtrlContext>(
                         let addrs = crate::ssl::LanAddresses {
                             ipv4: address,
                             // IPv6 hasn't changed, carry it forward from the live system
-                            ipv6: crate::ssl::read_lan_ipv6_from_ubus(),
+                            ipv6: crate::ssl::read_lan_ipv6_from_ubus().await,
                         };
-                        if let Err(e) = crate::ssl::regenerate_server_cert(&addrs) {
+                        if let Err(e) = crate::ssl::regenerate_server_cert(&addrs).await {
                             tracing::error!("failed to regenerate server cert: {e}");
                         }
                     }
 
                     let mut ifaces: Vec<String> = vec![LAN_INTERFACE.to_string()];
                     ifaces.extend(profile_interfaces.iter().filter(|i| *i != LAN_INTERFACE).cloned());
-                    restart_network_services(address, ifaces);
-                    removed_vpns.apply_post_reload();
+                    restart_network_services(address, ifaces).await;
+                    removed_vpns.apply_post_reload().await;
                 }
                 return Ok(());
             }
@@ -218,9 +222,10 @@ pub fn ipv4_set<C: CtrlContext>(
     }
 }
 
-pub fn ipv6_get<C: CtrlContext>(ctx: C) -> Result<LanIpv6Response, Error> {
+#[instrument(skip_all)]
+pub async fn ipv6_get<C: CtrlContext>(ctx: C) -> Result<LanIpv6Response, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["network", "dhcp"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["network", "dhcp"]).await?;
 
     // Read LAN interface for ip6assign and ip6addr
     let mut ip6assign: Option<String> = None;
@@ -269,11 +274,16 @@ pub fn ipv6_get<C: CtrlContext>(ctx: C) -> Result<LanIpv6Response, Error> {
         .and_then(|s| s.parse::<u8>().ok())
         .unwrap_or(64);
 
+    // Drop arena before any .await — Arena is !Send
+    drop(cfgs);
+    drop(arena);
+
     // Prefer the UCI static address; fall back to the runtime ULA address
     // assigned by odhcpd (which isn't written to UCI).
-    let ip6addr = ip6addr.or_else(|| {
-        crate::ssl::read_lan_ipv6_from_ubus().map(|a| a.to_string())
-    });
+    let ip6addr = match ip6addr {
+        Some(v) => Some(v),
+        None => crate::ssl::read_lan_ipv6_from_ubus().await.map(|a| a.to_string()),
+    };
 
     // Runtime delegation status
     Ok(LanIpv6Response {
@@ -285,7 +295,8 @@ pub fn ipv6_get<C: CtrlContext>(ctx: C) -> Result<LanIpv6Response, Error> {
     })
 }
 
-pub fn ipv6_set<C: CtrlContext>(
+#[instrument(skip_all)]
+pub async fn ipv6_set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<LanIpv6SetRequest>,
 ) -> Result<(), Error> {
@@ -298,7 +309,7 @@ pub fn ipv6_set<C: CtrlContext>(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "dhcp", "startwrt"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "dhcp", "startwrt"]).await?;
 
         // Update LAN network interface ip6assign
         let mut found_network = false;
@@ -317,7 +328,7 @@ pub fn ipv6_set<C: CtrlContext>(
             }
         }
         if !found_network {
-            return Err(Error::other("LAN interface not found in network config"));
+            return Err(Error::new(eyre!("LAN interface not found in network config"), ErrorKind::MissingLanInterface));
         }
 
         // Update DHCP LAN section RA/DHCPv6
@@ -335,7 +346,7 @@ pub fn ipv6_set<C: CtrlContext>(
             }
         }
         if !found_dhcp {
-            return Err(Error::other("LAN section not found in DHCP config"));
+            return Err(Error::new(eyre!("LAN section not found in DHCP config"), ErrorKind::MissingLanInterface));
         }
 
         // Update all profile DHCP/network sections to match global IPv6 state.
@@ -382,7 +393,9 @@ pub fn ipv6_set<C: CtrlContext>(
             }
         }
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        let dump_result = dump_all(ctx.uci_root(), cfgs).await;
+        drop(arena);
+        match dump_result {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -400,8 +413,8 @@ pub fn ipv6_set<C: CtrlContext>(
                     // (prefix lifetimes=0) while the network is still up.
                     // Without this, disabling IPv6 leaves clients with stale
                     // SLAAC addresses until they naturally expire.
-                    let _ = crate::run_quiet(Command::new("/etc/init.d/odhcpd").arg("restart"));
-                    let _ = crate::run_quiet(Command::new("/etc/init.d/network").arg("restart"));
+                    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/odhcpd").arg("restart")).await;
+                    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/network").arg("restart")).await;
 
                     // Regenerate server cert to include/remove IPv6 SAN.
                     // When enabling IPv6, poll for the address to appear on
@@ -410,11 +423,11 @@ pub fn ipv6_set<C: CtrlContext>(
                     let ipv6 = if ipv6_enabled {
                         let mut found = None;
                         for _ in 0..30 {
-                            if let Some(addr) = crate::ssl::read_lan_ipv6_from_ubus() {
+                            if let Some(addr) = crate::ssl::read_lan_ipv6_from_ubus().await {
                                 found = Some(addr);
                                 break;
                             }
-                            std::thread::sleep(std::time::Duration::from_millis(500));
+                            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                         }
                         if found.is_none() {
                             tracing::warn!("IPv6 address not yet available on LAN after network restart");
@@ -424,10 +437,10 @@ pub fn ipv6_set<C: CtrlContext>(
                         None
                     };
                     let addrs = crate::ssl::LanAddresses {
-                        ipv4: crate::ssl::read_lan_ip(&ctx.uci_root()),
+                        ipv4: crate::ssl::read_lan_ip(&ctx.uci_root()).await,
                         ipv6,
                     };
-                    if let Err(e) = crate::ssl::regenerate_server_cert(&addrs) {
+                    if let Err(e) = crate::ssl::regenerate_server_cert(&addrs).await {
                         tracing::error!("failed to regenerate server cert after IPv6 change: {e}");
                     }
                 }
@@ -461,7 +474,12 @@ pub(crate) fn guard_dhcp_static_hosts(cfgs: &Configs, old_prefix: &[u8]) -> Resu
         .collect();
 
     if !affected.is_empty() {
-        return Err(ErrorKind::DhcpStaticHostsInSubnet { devices: affected }.into());
+        return Err(Error::new(
+            eyre!(
+                "cannot change subnet while devices have static IP reservations: {affected:?}"
+            ),
+            ErrorKind::DhcpStaticHostsInSubnet,
+        ));
     }
     Ok(())
 }
@@ -590,43 +608,44 @@ pub fn update_profile_ips_for_block_change(
 /// `network reload` which restarts ALL interfaces including WAN, causing
 /// its DHCP client to lose its lease and breaking internet).
 /// Then reloads firewall and restarts dnsmasq once br-lan has the new IP.
-pub fn restart_network_services(new_lan_ip: Ipv4Addr, interfaces: Vec<String>) {
+pub async fn restart_network_services(new_lan_ip: Ipv4Addr, interfaces: Vec<String>) {
     // Clear DHCP leases — old leases reference the previous
     // subnet and would cause clients to receive stale IPs.
-    let _ = std::fs::remove_file("/tmp/dhcp.leases");
+    let _ = tokio::fs::remove_file("/tmp/dhcp.leases").await;
     // Cycle only the changed interfaces — `network reload` restarts ALL
     // interfaces including WAN, causing its DHCP client to lose its lease.
     for iface in &interfaces {
-        let _ = crate::run_quiet(Command::new("ifdown").arg(iface));
+        let _ = crate::run_quiet_async(tokio::process::Command::new("ifdown").arg(iface)).await;
     }
     for iface in &interfaces {
-        let _ = crate::run_quiet(Command::new("ifup").arg(iface));
+        let _ = crate::run_quiet_async(tokio::process::Command::new("ifup").arg(iface)).await;
     }
     // Safety: wait for br-lan to have the new IP before reloading
     // dependent services. ifup should be synchronous for static
     // interfaces, but poll as a safety net.
     let expected = new_lan_ip.to_string();
     for _ in 0..30 {
-        if let Ok(out) = Command::new("ip")
+        if let Ok(out) = tokio::process::Command::new("ip")
             .args(["-4", "-o", "addr", "show", "br-lan"])
-            .output()
+            .invoke(ErrorKind::Network.into())
+            .await
         {
-            if String::from_utf8_lossy(&out.stdout).contains(&expected) {
+            if String::from_utf8_lossy(&out).contains(&expected) {
                 break;
             }
         }
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
     // Regenerate nftables rules so masquerade/NAT covers the new subnets.
-    let _ = crate::run_quiet(Command::new("/etc/init.d/firewall").arg("reload"));
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/firewall").arg("reload")).await;
     // Full restart (not reload) so dnsmasq rebinds to new interface IPs.
     // A reload (SIGHUP) re-reads config but doesn't rebind listeners.
-    let _ = crate::run_quiet(Command::new("/etc/init.d/dnsmasq").arg("restart"));
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/dnsmasq").arg("restart")).await;
     // Bounce WiFi so all clients disassociate and reassociate,
     // triggering fresh DHCP on the new subnet. Without this,
     // clients that stay connected keep stale leases from the
     // old network block.
-    let _ = crate::run_quiet(&mut Command::new("wifi"));
+    let _ = crate::run_quiet_async(&mut tokio::process::Command::new("wifi")).await;
 }
 
 #[cfg(test)]
@@ -705,30 +724,30 @@ config profile lan
 
     // ── IPv4 tests ──────────────────────────────────────────────
 
-    #[test]
-    fn ipv4_get_returns_address() {
+    #[tokio::test]
+    async fn ipv4_get_returns_address() {
         let dir = tempfile::tempdir().unwrap();
         setup_fixtures(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let res = ipv4_get(ctx).unwrap();
+        let res = ipv4_get(ctx).await.unwrap();
         assert_eq!(res.address, "192.168.1.1");
         assert_eq!(res.netmask, "255.255.0.0");
     }
 
-    #[test]
-    fn ipv4_get_defaults_when_missing() {
+    #[tokio::test]
+    async fn ipv4_get_defaults_when_missing() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("network"), "").unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let res = ipv4_get(ctx).unwrap();
+        let res = ipv4_get(ctx).await.unwrap();
         assert_eq!(res.address, "192.168.1.1");
         assert_eq!(res.netmask, "255.255.255.0");
     }
 
-    #[test]
-    fn ipv4_set_updates_address() {
+    #[tokio::test]
+    async fn ipv4_set_updates_address() {
         let dir = tempfile::tempdir().unwrap();
         setup_fixtures(dir.path());
         setup_startwrt(dir.path());
@@ -741,15 +760,16 @@ config profile lan
                 force: false,
             }),
         )
+        .await
         .unwrap();
 
-        let res = ipv4_get(ctx).unwrap();
+        let res = ipv4_get(ctx).await.unwrap();
         assert_eq!(res.address, "10.0.0.1");
         assert_eq!(res.netmask, "255.255.255.0");
     }
 
-    #[test]
-    fn ipv4_set_errors_when_lan_missing() {
+    #[tokio::test]
+    async fn ipv4_set_errors_when_lan_missing() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("network"), "").unwrap();
         setup_startwrt(dir.path());
@@ -762,6 +782,7 @@ config profile lan
                 force: false,
             }),
         )
+        .await
         .unwrap_err();
 
         assert!(
@@ -770,8 +791,8 @@ config profile lan
         );
     }
 
-    #[test]
-    fn ipv4_set_propagates_block_change_to_profiles() {
+    #[tokio::test]
+    async fn ipv4_set_propagates_block_change_to_profiles() {
         let dir = tempfile::tempdir().unwrap();
         // Network config with LAN + a Guest profile interface + routing rules
         std::fs::write(
@@ -870,15 +891,16 @@ config redirect 'dns_override_guest'
                 force: false,
             }),
         )
+        .await
         .unwrap();
 
         // Verify LAN IP updated
-        let res = ipv4_get(ctx.clone()).unwrap();
+        let res = ipv4_get(ctx.clone()).await.unwrap();
         assert_eq!(res.address, "10.0.1.1");
 
         // Re-read all configs
         let arena = Arena::new();
-        let cfgs = parse_all(ctx.uci_root(), &arena, &["network", "dhcp", "firewall"]).unwrap();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network", "dhcp", "firewall"]).await.unwrap();
 
         for section in &cfgs["network"].sections {
             if section.name().as_deref() == Some("guest") {
@@ -946,8 +968,8 @@ config redirect 'dns_override_guest'
         }
     }
 
-    #[test]
-    fn ipv4_set_same_block_does_not_touch_profiles() {
+    #[tokio::test]
+    async fn ipv4_set_same_block_does_not_touch_profiles() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(
             dir.path().join("network"),
@@ -993,11 +1015,12 @@ config profile guest
                 force: false,
             }),
         )
+        .await
         .unwrap();
 
         // Guest should be untouched
         let arena = Arena::new();
-        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).unwrap();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await.unwrap();
 
         for section in &cfgs["network"].sections {
             if section.name().as_deref() == Some("guest") {
@@ -1013,33 +1036,33 @@ config profile guest
 
     // ── IPv6 tests ──────────────────────────────────────────────
 
-    #[test]
-    fn ipv6_get_returns_settings() {
+    #[tokio::test]
+    async fn ipv6_get_returns_settings() {
         let dir = tempfile::tempdir().unwrap();
         setup_fixtures(dir.path());
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let res = ipv6_get(ctx).unwrap();
+        let res = ipv6_get(ctx).await.unwrap();
         assert!(res.slaac);
         assert!(res.dhcpv6);
         assert_eq!(res.prefix, 60);
     }
 
-    #[test]
-    fn ipv6_get_defaults() {
+    #[tokio::test]
+    async fn ipv6_get_defaults() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("network"), "").unwrap();
         std::fs::write(dir.path().join("dhcp"), "").unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
 
-        let res = ipv6_get(ctx).unwrap();
+        let res = ipv6_get(ctx).await.unwrap();
         assert!(!res.slaac);
         assert!(!res.dhcpv6);
         assert_eq!(res.prefix, 64);
     }
 
-    #[test]
-    fn ipv6_set_enables_slaac() {
+    #[tokio::test]
+    async fn ipv6_set_enables_slaac() {
         let dir = tempfile::tempdir().unwrap();
         setup_fixtures(dir.path());
         setup_startwrt(dir.path());
@@ -1052,17 +1075,17 @@ config profile guest
                 dhcpv6: false,
                 prefix: 60,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv6_get(ctx).unwrap();
+        let res = ipv6_get(ctx).await.unwrap();
         assert!(res.slaac);
         assert!(!res.dhcpv6);
         assert_eq!(res.prefix, 60);
     }
 
-    #[test]
-    fn ipv6_set_disables_all() {
+    #[tokio::test]
+    async fn ipv6_set_disables_all() {
         let dir = tempfile::tempdir().unwrap();
         setup_fixtures(dir.path());
         setup_startwrt(dir.path());
@@ -1075,17 +1098,17 @@ config profile guest
                 dhcpv6: false,
                 prefix: 64,
             }),
-        )
+        ).await
         .unwrap();
 
-        let res = ipv6_get(ctx).unwrap();
+        let res = ipv6_get(ctx).await.unwrap();
         assert!(!res.slaac);
         assert!(!res.dhcpv6);
         assert_eq!(res.prefix, 64);
     }
 
-    #[test]
-    fn ipv6_set_errors_when_lan_missing() {
+    #[tokio::test]
+    async fn ipv6_set_errors_when_lan_missing() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("network"), "").unwrap();
         std::fs::write(dir.path().join("dhcp"), "").unwrap();
@@ -1099,7 +1122,7 @@ config profile guest
                 dhcpv6: true,
                 prefix: 60,
             }),
-        )
+        ).await
         .unwrap_err();
 
         assert!(

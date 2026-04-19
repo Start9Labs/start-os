@@ -1,9 +1,8 @@
-use std::fs::{self, OpenOptions};
-use std::io::Write;
-use std::os::unix::fs::OpenOptionsExt;
+use std::fs;
 use std::path::Path;
 
-use crate::Error;
+use crate::invoke::Invoke;
+use crate::prelude::*;
 
 pub const PERSISTENT_MOUNT: &str = "/key_backup";
 pub const WIFI_PASSWORD_PATH: &str = "/key_backup/wifi_password";
@@ -26,19 +25,19 @@ pub fn is_persistent_mounted() -> bool {
 fn find_persistent_device() -> Result<String, Error> {
     let sys_block = Path::new("/sys/block");
     for block_entry in fs::read_dir(sys_block)
-        .map_err(|e| Error::other(format!("failed to read /sys/block: {e}")))?
+        .map_err(|e| Error::new(eyre!("failed to read /sys/block: {e}"), ErrorKind::Filesystem))?
     {
         let block_entry =
-            block_entry.map_err(|e| Error::other(format!("readdir /sys/block: {e}")))?;
+            block_entry.map_err(|e| Error::new(eyre!("readdir /sys/block: {e}"), ErrorKind::Filesystem))?;
         let block_name = block_entry.file_name();
         let block_name = block_name.to_string_lossy();
         if !block_name.starts_with("mmcblk") {
             continue;
         }
         for part_entry in fs::read_dir(block_entry.path())
-            .map_err(|e| Error::other(format!("readdir {}: {e}", block_entry.path().display())))?
+            .map_err(|e| Error::new(eyre!("readdir {}: {e}", block_entry.path().display()), ErrorKind::Filesystem))?
         {
-            let part_entry = part_entry.map_err(|e| Error::other(format!("readdir: {e}")))?;
+            let part_entry = part_entry.map_err(|e| Error::new(eyre!("readdir: {e}"), ErrorKind::Filesystem))?;
             let part_name = part_entry.file_name();
             let part_name_str = part_name.to_string_lossy();
             if !part_name_str.starts_with(&*block_name) {
@@ -52,8 +51,9 @@ fn find_persistent_device() -> Result<String, Error> {
             }
         }
     }
-    Err(Error::other(
-        "no partition named 'key_backup' found on any eMMC device",
+    Err(Error::new(
+        eyre!("no partition named 'key_backup' found on any eMMC device"),
+        ErrorKind::NotFound,
     ))
 }
 
@@ -61,21 +61,15 @@ fn find_persistent_device() -> Result<String, Error> {
 ///
 /// Discovers the key_backup partition device dynamically from sysfs rather than
 /// relying on `/etc/fstab` (OpenWrt uses UCI fstab which BusyBox mount doesn't read).
-pub fn ensure_persistent_mounted() -> Result<(), Error> {
+pub async fn ensure_persistent_mounted() -> Result<(), Error> {
     if is_persistent_mounted() {
         return Ok(());
     }
     let dev = find_persistent_device()?;
-    let status = std::process::Command::new("mount")
+    tokio::process::Command::new("mount")
         .args(["-t", "ext4", &dev, PERSISTENT_MOUNT])
-        .status()
-        .map_err(|e| Error::other(format!("failed to run mount: {e}")))?;
-    if !status.success() {
-        return Err(Error::other(format!(
-            "mount {dev} {PERSISTENT_MOUNT} failed (exit {})",
-            status.code().unwrap_or(-1)
-        )));
-    }
+        .invoke(ErrorKind::Filesystem.into())
+        .await?;
     Ok(())
 }
 
@@ -87,48 +81,26 @@ pub fn is_initialized() -> bool {
 /// Read the plaintext WiFi password from the key_backup partition.
 pub fn read_password() -> Result<String, Error> {
     let password = fs::read_to_string(WIFI_PASSWORD_PATH)
-        .map_err(|e| Error::other(format!("failed to read {WIFI_PASSWORD_PATH}: {e}")))?;
+        .map_err(|e| Error::new(eyre!("failed to read {WIFI_PASSWORD_PATH}: {e}"), ErrorKind::Filesystem))?;
     Ok(password.trim().to_string())
 }
 
 /// Write a plaintext WiFi password to the key_backup partition atomically.
-///
-/// Uses the temp-file → mode 0o600 → write → flush → sync → rename pattern
-/// from auth.rs to avoid partial writes.
-pub fn write_password(password: &str) -> Result<(), Error> {
+pub async fn write_password(password: &str) -> Result<(), Error> {
+    use std::os::unix::fs::PermissionsExt;
+    use tokio::io::AsyncWriteExt;
+
     let path = Path::new(WIFI_PASSWORD_PATH);
-    let tmp_path = path
-        .parent()
-        .unwrap_or(Path::new("/key_backup"))
-        .join(".wifi_password.tmp");
-
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(&tmp_path)
-        .map_err(|e| Error::other(format!("failed to create temp password file: {e}")))?;
-
+    let mut file = startos::util::io::AtomicFile::new(path, None::<&Path>)
+        .await
+        .map_err(Error::from)?;
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))
+        .await
+        .map_err(|e| Error::new(eyre!("failed to set password file permissions: {e}"), ErrorKind::Filesystem))?;
     file.write_all(password.as_bytes())
-        .map_err(|e| Error::other(format!("failed to write password: {e}")))?;
-
-    file.flush()
-        .map_err(|e| Error::other(format!("failed to flush password file: {e}")))?;
-
-    file.sync_all()
-        .map_err(|e| Error::other(format!("failed to sync password file: {e}")))?;
-
-    fs::rename(&tmp_path, path)
-        .map_err(|e| Error::other(format!("failed to persist password file: {e}")))?;
-
-    // fsync the directory to ensure the rename's directory entry is durable.
-    // Without this, the rename is only in the journal's page cache and may be
-    // lost on a crash/reboot before the next journal commit (up to 5 seconds).
-    let dir = std::fs::File::open(path.parent().unwrap_or(Path::new(PERSISTENT_MOUNT)))
-        .map_err(|e| Error::other(format!("failed to open directory for fsync: {e}")))?;
-    dir.sync_all()
-        .map_err(|e| Error::other(format!("failed to fsync directory: {e}")))?;
+        .await
+        .map_err(|e| Error::new(eyre!("failed to write password: {e}"), ErrorKind::Filesystem))?;
+    file.save().await.map_err(Error::from)?;
 
     Ok(())
 }

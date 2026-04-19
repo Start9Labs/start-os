@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
-use crate::error::Error;
+use crate::error::{Error, ErrorKind};
+use crate::prelude::*;
 use crate::utils::HandlerExtSerde;
 use crate::{CliContext, ServerContext};
 
@@ -126,7 +127,7 @@ async fn add_key(
     let pk: openssh_keys::PublicKey = key
         .trim()
         .parse()
-        .map_err(|e| Error::other(format!("invalid SSH public key: {e}")))?;
+        .map_err(|e| Error::new(eyre!("invalid SSH public key: {e}"), ErrorKind::ParseSshKey))?;
 
     let fingerprint = pk.fingerprint_md5();
 
@@ -144,7 +145,7 @@ async fn add_key(
         }
         if let Ok(existing_pk) = trimmed.parse::<openssh_keys::PublicKey>() {
             if existing_pk.fingerprint_md5() == fingerprint {
-                return Err(Error::other("SSH key already exists"));
+                return Err(Error::new(eyre!("SSH key already exists"), ErrorKind::Duplicate));
             }
         }
     }
@@ -179,7 +180,7 @@ async fn delete_key(authorized_keys: &Path, fingerprint: &str) -> Result<(), Err
     let contents = match tokio::fs::read_to_string(authorized_keys).await {
         Ok(c) => c,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            return Err(Error::other("SSH key not found"));
+            return Err(Error::new(eyre!("SSH key not found"), ErrorKind::NotFound));
         }
         Err(e) => return Err(e.into()),
     };
@@ -204,7 +205,7 @@ async fn delete_key(authorized_keys: &Path, fingerprint: &str) -> Result<(), Err
     }
 
     if !found {
-        return Err(Error::other("SSH key not found"));
+        return Err(Error::new(eyre!("SSH key not found"), ErrorKind::NotFound));
     }
 
     // Rewrite the file

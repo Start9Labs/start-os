@@ -1,3 +1,7 @@
+pub mod prelude;
+pub mod error;
+pub mod invoke;
+
 pub mod activity;
 pub mod auth;
 pub mod backup;
@@ -7,7 +11,6 @@ pub mod devices;
 pub mod diagnostics;
 pub mod dns;
 pub mod emmc;
-pub mod error;
 pub mod ethernet;
 pub mod exec;
 pub mod files;
@@ -39,10 +42,11 @@ use std::io::BufReader;
 use std::ops::Deref;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+
 use std::sync::{Arc, OnceLock};
 
 use clap::Parser;
+use color_eyre::eyre::eyre;
 use cookie_store::CookieStore;
 use reqwest_cookie_store::CookieStoreMutex;
 use tokio::runtime::Runtime;
@@ -185,7 +189,7 @@ impl CliContext {
         let cookie_store = Arc::new(CookieStoreMutex::new(if cookie_path.exists() {
             cookie_store::serde::json::load(BufReader::new(
                 File::open(&cookie_path).map_err(|e| {
-                    Error::other(format!("Failed to open cookie file: {}", e))
+                    Error::new(eyre!("Failed to open cookie file: {}", e), ErrorKind::Filesystem)
                 })?,
             ))
             .unwrap_or_default()
@@ -207,7 +211,7 @@ impl CliContext {
         let client = Client::builder()
             .cookie_provider(cookie_store.clone())
             .build()
-            .map_err(|e| Error::other(format!("Failed to build HTTP client: {}", e)))?;
+            .map_err(|e| Error::new(eyre!("Failed to build HTTP client: {}", e), ErrorKind::Network))?;
 
         Ok(Self(Arc::new(CliContextSeed {
             config_root: args.config_root,
@@ -235,9 +239,9 @@ impl CliContext {
     pub async fn rest_download(&self, guid: &str) -> Result<(Vec<u8>, String), Error> {
         let url = self.rest_url(guid);
         let res = self.client.get(url).send().await
-            .map_err(|e| Error::other(format!("Download request failed: {e}")))?;
+            .map_err(|e| Error::new(eyre!("Download request failed: {e}"), ErrorKind::Network))?;
         if !res.status().is_success() {
-            return Err(Error::other(format!("Download failed: {}", res.status())));
+            return Err(Error::new(eyre!("Download failed: {}", res.status()), ErrorKind::Network));
         }
         let filename = res.headers()
             .get(reqwest::header::CONTENT_DISPOSITION)
@@ -247,7 +251,7 @@ impl CliContext {
             .unwrap_or("download")
             .to_string();
         let bytes = res.bytes().await
-            .map_err(|e| Error::other(format!("Failed to read response: {e}")))?
+            .map_err(|e| Error::new(eyre!("Failed to read response: {e}"), ErrorKind::Network))?
             .to_vec();
         Ok((bytes, filename))
     }
@@ -256,10 +260,10 @@ impl CliContext {
     pub async fn rest_upload(&self, guid: &str, data: Vec<u8>) -> Result<(), Error> {
         let url = self.rest_url(guid);
         let res = self.client.post(url).body(data).send().await
-            .map_err(|e| Error::other(format!("Upload request failed: {e}")))?;
+            .map_err(|e| Error::new(eyre!("Upload request failed: {e}"), ErrorKind::Network))?;
         if !res.status().is_success() {
             let text = res.text().await.unwrap_or_default();
-            return Err(Error::other(format!("Upload failed: {text}")));
+            return Err(Error::new(eyre!("Upload failed: {text}"), ErrorKind::Network));
         }
         Ok(())
     }
@@ -270,8 +274,11 @@ impl Context for CliContext {
         Some(
             self.runtime
                 .get_or_init(|| {
+                    // Multi-thread runtime with 1 worker so `block_in_place`
+                    // works when handlers call blocking uciedit operations.
                     Arc::new(
-                        tokio::runtime::Builder::new_current_thread()
+                        tokio::runtime::Builder::new_multi_thread()
+                            .worker_threads(1)
                             .enable_all()
                             .build()
                             .unwrap(),
@@ -359,21 +366,28 @@ pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
         .subcommand("diagnostics", diagnostics::diagnostics::<C>())
 }
 
-/// Run a command with stdout/stderr redirected to /dev/null.
+/// Spawn a command with stdio redirected to /dev/null and wait for the
+/// direct child to exit (NOT `wait_with_output`).
 ///
-/// Child processes inherit the daemon's file descriptors, and procd logs
-/// anything on stderr as `daemon.err`. Service reload scripts write
-/// informational output to stderr (firewall rules, udhcpc status, etc.),
-/// which floods the syslog with false errors. Silencing child output
-/// keeps the syslog clean.
-pub fn run_quiet(cmd: &mut Command) -> std::io::Result<std::process::ExitStatus> {
-    cmd.stdout(Stdio::null())
+/// This exists because `start-os`'s `Invoke` trait defaults to `Stdio::piped()`
+/// + `wait_with_output()`, which hangs forever when a forked grandchild
+/// (udhcpc, hotplug scripts, etc.) inherits the pipe fds and never closes
+/// them. Use this helper for any init-script / service-reload / `ifup`-like
+/// call where we don't care about the output and the child may spawn
+/// long-lived daemons.
+pub async fn run_quiet_async(
+    cmd: &mut tokio::process::Command,
+) -> std::io::Result<std::process::ExitStatus> {
+    use std::process::Stdio;
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()
-        .and_then(|mut c| c.wait())
+        .spawn()?
+        .wait()
+        .await
 }
 
-pub fn init_logging(name: &str) {
+pub fn init_logging(_name: &str) {
     use tracing_rfc_5424::{
         rfc3164::Rfc3164, tracing::TrivialTracingFormatter, transport::UnixSocket,
     };

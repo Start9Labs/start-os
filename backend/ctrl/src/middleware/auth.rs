@@ -13,7 +13,7 @@ use serde::Deserialize;
 use std::net::SocketAddr;
 
 use crate::auth::{error_code, validate_local_auth_cookie, validate_session, HashSessionToken, LoginRes};
-use crate::error::Error;
+use crate::prelude::*;
 
 /// Simple synchronous mutex wrapper with mutate helper
 pub struct SyncMutex<T>(std::sync::Mutex<T>);
@@ -161,7 +161,7 @@ impl<C: Context> Middleware<C> for SessionAuth {
                         *time = Instant::now();
                         Ok(())
                     } else if *count >= 3 {
-                        Err(Error::other("Login attempt limit exceeded."))
+                        Err(Error::new(eyre!("Login attempt limit exceeded."), ErrorKind::RateLimited))
                     } else {
                         *count += 1;
                         Ok(())
@@ -176,7 +176,7 @@ impl<C: Context> Middleware<C> for SessionAuth {
                 // Validate session for non-login endpoints
                 let session_token = self
                     .extract_session_from_cookie()
-                    .ok_or_else(|| Error::other("UNAUTHORIZED"))?;
+                    .ok_or_else(|| Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))?;
 
                 validate_session(session_token.hashed()).await?;
 

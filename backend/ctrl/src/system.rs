@@ -1,18 +1,18 @@
 use crate::error::{Error, ErrorKind};
+use crate::prelude::*;
 use crate::utils::{DeserializeStdin, HandlerExtSerde as _};
 use crate::{CliContext, CtrlContext, ServerContext};
 use chrono::Utc;
 use imbl_value::Value;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
-use rpc_toolkit::{from_fn, from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn, from_fn_async, from_fn_async_local, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::process::Command as StdCommand;
+use crate::invoke::Invoke;
 use std::{fs, path::Path};
-use tokio::process::Command;
 use tracing::instrument;
 use uciedit::openwrt::{FirewallRule, FirewallTarget};
 use uciedit::{dump_all, parse_all, Arena, Configs, TypedSection};
@@ -54,9 +54,10 @@ struct SetPreferencesReq {
     remote_access: Option<String>,
 }
 
-fn info<C: CtrlContext>(ctx: C) -> Result<SystemInfoResponse, Error> {
+#[instrument(skip_all)]
+async fn info<C: CtrlContext>(ctx: C) -> Result<SystemInfoResponse, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"])?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"]).await?;
 
     let mut prefs = UciPreferences::default();
     cfgs["startwrt"].try_each(|name, p: UciPreferences| {
@@ -67,13 +68,16 @@ fn info<C: CtrlContext>(ctx: C) -> Result<SystemInfoResponse, Error> {
     })?;
 
     // Read timezone from system UCI config (spaces → underscores for IANA format)
-    let timezone = StdCommand::new("uci")
-        .args(["get", "system.@system[0].zonename"])
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().replace(' ', "_"))
-        .unwrap_or_default();
+    let timezone = String::from_utf8(
+        tokio::process::Command::new("uci")
+            .args(["get", "system.@system[0].zonename"])
+            .invoke(ErrorKind::Filesystem.into())
+            .await
+            .unwrap_or_default(),
+    )
+    .ok()
+    .map(|s| s.trim().replace(' ', "_"))
+    .unwrap_or_default();
 
     Ok(SystemInfoResponse {
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -85,6 +89,7 @@ fn info<C: CtrlContext>(ctx: C) -> Result<SystemInfoResponse, Error> {
     })
 }
 
+#[instrument(skip_all)]
 fn newer_versions<C: CtrlContext>(_ctx: C) -> Result<Vec<VersionInfo>, Error> {
     // TODO: implement update check against remote server
     Ok(Vec::new())
@@ -117,15 +122,16 @@ fn has_global_ipv6(addrs: &[Ipv6Addr]) -> bool {
     })
 }
 
-fn get_wan_ipv4() -> Result<Option<Ipv4Addr>, Error> {
-    let output = StdCommand::new("ubus")
+async fn get_wan_ipv4() -> Result<Option<Ipv4Addr>, Error> {
+    let stdout = match tokio::process::Command::new("ubus")
         .args(["call", "network.interface.wan", "status"])
-        .output()
-        .map_err(|e| Error::other(format!("failed to call ubus for wan: {e}")))?;
-    if !output.status.success() {
-        return Ok(None);
-    }
-    let json: serde_json::Value = match serde_json::from_slice(&output.stdout) {
+        .invoke(ErrorKind::Network.into())
+        .await
+    {
+        Ok(out) => out,
+        Err(_) => return Ok(None),
+    };
+    let json: serde_json::Value = match serde_json::from_slice(&stdout) {
         Ok(v) => v,
         Err(_) => return Ok(None),
     };
@@ -138,15 +144,16 @@ fn get_wan_ipv4() -> Result<Option<Ipv4Addr>, Error> {
     }
 }
 
-pub fn get_wan_ipv6s() -> Result<Vec<Ipv6Addr>, Error> {
-    let output = StdCommand::new("ubus")
+pub async fn get_wan_ipv6s() -> Result<Vec<Ipv6Addr>, Error> {
+    let stdout = match tokio::process::Command::new("ubus")
         .args(["call", "network.interface.wan6", "status"])
-        .output()
-        .map_err(|e| Error::other(format!("failed to call ubus for wan6: {e}")))?;
-    if !output.status.success() {
-        return Ok(Vec::new());
-    }
-    let json: serde_json::Value = match serde_json::from_slice(&output.stdout) {
+        .invoke(ErrorKind::Network.into())
+        .await
+    {
+        Ok(out) => out,
+        Err(_) => return Ok(Vec::new()),
+    };
+    let json: serde_json::Value = match serde_json::from_slice(&stdout) {
         Ok(v) => v,
         Err(_) => return Ok(Vec::new()),
     };
@@ -370,8 +377,11 @@ fn kill_wan_ssh_sessions(wan_ipv4: Option<Ipv4Addr>, wan_ipv6s: &[Ipv6Addr]) {
 }
 
 fn reload_firewall(wan_ipv4: Option<Ipv4Addr>, wan_ipv6s: Vec<Ipv6Addr>) {
-    std::thread::spawn(move || {
-        let _ = crate::run_quiet(StdCommand::new("/etc/init.d/firewall").arg("reload"));
+    tokio::spawn(async move {
+        let _ = crate::run_quiet_async(
+            tokio::process::Command::new("/etc/init.d/firewall").arg("reload"),
+        )
+        .await;
         // Kill WAN-side SSH sessions so they don't survive firewall changes
         // via conntrack ESTABLISHED state. HTTP sessions disconnect naturally
         // on the next request. Only dropbear processes are killed.
@@ -379,11 +389,12 @@ fn reload_firewall(wan_ipv4: Option<Ipv4Addr>, wan_ipv6s: Vec<Ipv6Addr>) {
     });
 }
 
-pub fn apply_remote_access<C: CtrlContext>(ctx: C) -> Result<Value, Error> {
+#[instrument(skip_all)]
+pub async fn apply_remote_access<C: CtrlContext>(ctx: C) -> Result<Value, Error> {
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "firewall"])?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "firewall"]).await?;
 
         let mut prefs = UciPreferences::default();
         cfgs["startwrt"].try_each(|name, p: UciPreferences| {
@@ -394,14 +405,14 @@ pub fn apply_remote_access<C: CtrlContext>(ctx: C) -> Result<Value, Error> {
         })?;
 
         let (wan_ipv4, wan_ipv6s) = if ctx.effectful() {
-            (get_wan_ipv4()?, get_wan_ipv6s()?)
+            (get_wan_ipv4().await?, get_wan_ipv6s().await?)
         } else {
             (None, Vec::new())
         };
 
         apply_remote_access_config(&mut cfgs, &prefs.remote_access, wan_ipv4, &wan_ipv6s);
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        match dump_all(ctx.uci_root(), cfgs).await {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -419,35 +430,24 @@ pub fn apply_remote_access<C: CtrlContext>(ctx: C) -> Result<Value, Error> {
     }
 }
 
-fn set_preferences<C: CtrlContext>(
+#[instrument(skip_all)]
+async fn set_preferences<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(req): DeserializeStdin<SetPreferencesReq>,
 ) -> Result<Value, Error> {
     if let Some(lang) = &req.language {
         if !VALID_LANGUAGES.contains(&lang.as_str()) {
-            return Err(ErrorKind::InvalidValue {
-                field: "language".to_string(),
-                value: lang.clone(),
-            }
-            .into());
+            return Err(Error::new(eyre!("invalid language: {lang}"), ErrorKind::InvalidValue));
         }
     }
     if let Some(theme) = &req.theme {
         if !VALID_THEMES.contains(&theme.as_str()) {
-            return Err(ErrorKind::InvalidValue {
-                field: "theme".to_string(),
-                value: theme.clone(),
-            }
-            .into());
+            return Err(Error::new(eyre!("invalid theme: {theme}"), ErrorKind::InvalidValue));
         }
     }
     if let Some(ra) = &req.remote_access {
         if !VALID_REMOTE_ACCESS.contains(&ra.as_str()) {
-            return Err(ErrorKind::InvalidValue {
-                field: "remoteAccess".to_string(),
-                value: ra.clone(),
-            }
-            .into());
+            return Err(Error::new(eyre!("invalid remoteAccess: {ra}"), ErrorKind::InvalidValue));
         }
     }
 
@@ -461,7 +461,7 @@ fn set_preferences<C: CtrlContext>(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, configs)?;
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, configs).await?;
 
         // Find existing preferences section or create one
         let mut found = false;
@@ -505,14 +505,14 @@ fn set_preferences<C: CtrlContext>(
         // Apply firewall rules if remote_access changed
         if let Some(mode) = &new_mode {
             let (wan_ipv4, wan_ipv6s) = if ctx.effectful() {
-                (get_wan_ipv4()?, get_wan_ipv6s()?)
+                (get_wan_ipv4().await?, get_wan_ipv6s().await?)
             } else {
                 (None, Vec::new())
             };
             apply_remote_access_config(&mut cfgs, mode, wan_ipv4, &wan_ipv6s);
         }
 
-        match dump_all(ctx.uci_root(), cfgs) {
+        match dump_all(ctx.uci_root(), cfgs).await {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
                 continue;
@@ -527,7 +527,7 @@ fn set_preferences<C: CtrlContext>(
                 if new_mode.is_some() {
                     crate::activity::log("system", "remote-access", true, &format!("Updated remote access to '{}'", new_mode.as_deref().unwrap_or("unknown")), None);
                     if ctx.effectful() {
-                        let (wan_ipv4, wan_ipv6s) = (get_wan_ipv4()?, get_wan_ipv6s()?);
+                        let (wan_ipv4, wan_ipv6s) = (get_wan_ipv4().await?, get_wan_ipv6s().await?);
                         reload_firewall(wan_ipv4, wan_ipv6s);
                     }
                 }
@@ -539,17 +539,13 @@ fn set_preferences<C: CtrlContext>(
 
 #[instrument(skip_all)]
 async fn factory_reset(_ctx: ServerContext) -> Result<(), Error> {
-    let output = Command::new("firstboot")
+    if let Err(e) = tokio::process::Command::new("firstboot")
         .arg("-y")
-        .output()
+        .invoke(ErrorKind::Filesystem.into())
         .await
-        .map_err(|e| Error::other(format!("failed to run firstboot: {e}")))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let err = Error::other(format!("firstboot failed: {stderr}"));
-        crate::activity::log("system", "factory-reset", false, "Failed to initiate factory reset", Some(&err.to_string()));
-        return Err(err);
+    {
+        crate::activity::log("system", "factory-reset", false, "Failed to initiate factory reset", Some(&e.to_string()));
+        return Err(e.into());
     }
 
     crate::activity::log("system", "factory-reset", true, "Factory reset initiated", None);
@@ -557,7 +553,10 @@ async fn factory_reset(_ctx: ServerContext) -> Result<(), Error> {
     // Spawn reboot after a short delay so the HTTP response can reach the client
     tokio::spawn(async {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        if let Err(e) = Command::new("reboot").status().await {
+        if let Err(e) = tokio::process::Command::new("reboot")
+            .invoke(ErrorKind::Filesystem.into())
+            .await
+        {
             tracing::error!("failed to reboot: {e}");
         }
     });
@@ -571,7 +570,10 @@ async fn restart(_ctx: ServerContext) -> Result<(), Error> {
 
     tokio::spawn(async {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        if let Err(e) = Command::new("reboot").status().await {
+        if let Err(e) = tokio::process::Command::new("reboot")
+            .invoke(ErrorKind::Filesystem.into())
+            .await
+        {
             tracing::error!("failed to reboot: {e}");
         }
     });
@@ -594,7 +596,8 @@ struct SetTimezoneParams {
 /// (for the actual time conversion). OpenWrt writes the POSIX string to `/etc/TZ`
 /// on `system reload`, which makes `date`, `cron`, and all libc time functions
 /// use the correct local time. No `zoneinfo` package needed.
-fn set_timezone<C: CtrlContext>(
+#[instrument(skip_all)]
+async fn set_timezone<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(params): DeserializeStdin<SetTimezoneParams>,
 ) -> Result<(), Error> {
@@ -606,40 +609,48 @@ fn set_timezone<C: CtrlContext>(
     let zonename = params.timezone.replace('_', " ");
 
     // Skip if unchanged
-    let current = StdCommand::new("uci")
-        .args(["get", "system.@system[0].zonename"])
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .unwrap_or_default();
+    let current = String::from_utf8(
+        tokio::process::Command::new("uci")
+            .args(["get", "system.@system[0].zonename"])
+            .invoke(ErrorKind::UciEdit.into())
+            .await
+            .unwrap_or_default(),
+    )
+    .unwrap_or_default();
     if current.trim() == zonename {
         return Ok(());
     }
 
     // Set the display name (IANA)
-    crate::run_quiet(
-        StdCommand::new("uci").args([
+    crate::run_quiet_async(
+        tokio::process::Command::new("uci").args([
             "set",
             &format!("system.@system[0].zonename={zonename}"),
         ]),
     )
-    .map_err(|e| Error::other(format!("setting zonename: {e}")))?;
+    .await
+    .map_err(|e| Error::new(eyre!("setting zonename: {e}"), ErrorKind::UciEdit))?;
 
     // Set the POSIX TZ string — this is what actually controls time conversion
-    crate::run_quiet(
-        StdCommand::new("uci").args([
+    crate::run_quiet_async(
+        tokio::process::Command::new("uci").args([
             "set",
             &format!("system.@system[0].timezone={}", params.posix_tz),
         ]),
     )
-    .map_err(|e| Error::other(format!("setting timezone: {e}")))?;
+    .await
+    .map_err(|e| Error::new(eyre!("setting timezone: {e}"), ErrorKind::UciEdit))?;
 
-    crate::run_quiet(StdCommand::new("uci").args(["commit", "system"]))
-        .map_err(|e| Error::other(format!("committing system config: {e}")))?;
+    crate::run_quiet_async(tokio::process::Command::new("uci").args(["commit", "system"]))
+        .await
+        .map_err(|e| Error::new(eyre!("committing system config: {e}"), ErrorKind::UciEdit))?;
 
     // Reload writes the POSIX TZ string to /etc/TZ
-    crate::run_quiet(StdCommand::new("/etc/init.d/system").arg("reload"))
-        .map_err(|e| Error::other(format!("reloading system: {e}")))?;
+    crate::run_quiet_async(
+        tokio::process::Command::new("/etc/init.d/system").arg("reload"),
+    )
+    .await
+    .map_err(|e| Error::new(eyre!("reloading system: {e}"), ErrorKind::Filesystem))?;
 
     Ok(())
 }
@@ -648,7 +659,7 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "info",
-            from_fn(info::<C>)
+            from_fn_async_local(info::<C>)
                 .with_metadata("no_auth", Value::Bool(true))
                 .with_display_serializable(),
         )
@@ -660,11 +671,11 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
         )
         .subcommand(
             "set-preferences",
-            from_fn(set_preferences::<C>).with_display_serializable(),
+            from_fn_async_local(set_preferences::<C>).with_display_serializable(),
         )
         .subcommand(
             "apply-remote-access",
-            from_fn(apply_remote_access::<C>)
+            from_fn_async_local(apply_remote_access::<C>)
                 .with_metadata("no_auth", Value::Bool(true))
                 .no_display(),
         )
@@ -684,7 +695,7 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
         )
         .subcommand(
             "set-timezone",
-            from_fn(set_timezone::<C>)
+            from_fn_async(set_timezone::<C>)
                 .with_metadata("no_auth", Value::Bool(true))
                 .no_display(),
         )
@@ -745,9 +756,9 @@ config zone wan
         .unwrap();
     }
 
-    fn count_remote_rules(dir: &std::path::Path) -> usize {
+    async fn count_remote_rules(dir: &std::path::Path) -> usize {
         let arena = Arena::new();
-        let cfgs = parse_all(dir, &arena, &["firewall"]).unwrap();
+        let cfgs = parse_all(dir, &arena, &["firewall"]).await.unwrap();
         cfgs["firewall"]
             .sections
             .iter()
@@ -759,9 +770,9 @@ config zone wan
             .count()
     }
 
-    fn get_remote_rule_families(dir: &std::path::Path) -> Vec<Option<String>> {
+    async fn get_remote_rule_families(dir: &std::path::Path) -> Vec<Option<String>> {
         let arena = Arena::new();
-        let cfgs = parse_all(dir, &arena, &["firewall"]).unwrap();
+        let cfgs = parse_all(dir, &arena, &["firewall"]).await.unwrap();
         cfgs["firewall"]
             .sections
             .iter()
@@ -776,8 +787,8 @@ config zone wan
             .collect()
     }
 
-    #[test]
-    fn test_apply_always() {
+    #[tokio::test]
+    async fn test_apply_always() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall_config(
             dir.path(),
@@ -785,19 +796,19 @@ config zone wan
         );
 
         let arena = Arena::new();
-        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).unwrap();
+        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).await.unwrap();
         apply_remote_access_config(&mut cfgs, "always", None, &[]);
-        dump_all(dir.path(), cfgs).unwrap();
+        dump_all(dir.path(), cfgs).await.unwrap();
 
-        assert_eq!(count_remote_rules(dir.path()), 3);
+        assert_eq!(count_remote_rules(dir.path()).await, 3);
         // All rules should have no family restriction
-        for family in get_remote_rule_families(dir.path()) {
+        for family in get_remote_rule_families(dir.path()).await {
             assert_eq!(family, None);
         }
     }
 
-    #[test]
-    fn test_apply_never() {
+    #[tokio::test]
+    async fn test_apply_never() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall_config(
             dir.path(),
@@ -806,21 +817,21 @@ config zone wan
 
         // First add some rules
         let arena = Arena::new();
-        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).unwrap();
+        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).await.unwrap();
         apply_remote_access_config(&mut cfgs, "always", None, &[]);
-        dump_all(dir.path(), cfgs).unwrap();
-        assert_eq!(count_remote_rules(dir.path()), 3);
+        dump_all(dir.path(), cfgs).await.unwrap();
+        assert_eq!(count_remote_rules(dir.path()).await, 3);
 
         // Now apply "never" — should remove them all
         let arena = Arena::new();
-        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).unwrap();
+        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).await.unwrap();
         apply_remote_access_config(&mut cfgs, "never", None, &[]);
-        dump_all(dir.path(), cfgs).unwrap();
-        assert_eq!(count_remote_rules(dir.path()), 0);
+        dump_all(dir.path(), cfgs).await.unwrap();
+        assert_eq!(count_remote_rules(dir.path()).await, 0);
     }
 
-    #[test]
-    fn test_apply_default_ipv4_private_ipv6_public() {
+    #[tokio::test]
+    async fn test_apply_default_ipv4_private_ipv6_public() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall_config(
             dir.path(),
@@ -831,18 +842,18 @@ config zone wan
         let wan_ipv6: Ipv6Addr = "2001:db8::1".parse().unwrap();
 
         let arena = Arena::new();
-        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).unwrap();
+        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).await.unwrap();
         apply_remote_access_config(&mut cfgs, "default", Some(wan_ipv4), &[wan_ipv6]);
-        dump_all(dir.path(), cfgs).unwrap();
+        dump_all(dir.path(), cfgs).await.unwrap();
 
-        assert_eq!(count_remote_rules(dir.path()), 3);
-        for family in get_remote_rule_families(dir.path()) {
+        assert_eq!(count_remote_rules(dir.path()).await, 3);
+        for family in get_remote_rule_families(dir.path()).await {
             assert_eq!(family, Some("ipv4".to_string()));
         }
     }
 
-    #[test]
-    fn test_apply_default_both_private() {
+    #[tokio::test]
+    async fn test_apply_default_both_private() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall_config(
             dir.path(),
@@ -853,18 +864,18 @@ config zone wan
         let wan_ipv6: Ipv6Addr = "fd00::1".parse().unwrap();
 
         let arena = Arena::new();
-        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).unwrap();
+        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).await.unwrap();
         apply_remote_access_config(&mut cfgs, "default", Some(wan_ipv4), &[wan_ipv6]);
-        dump_all(dir.path(), cfgs).unwrap();
+        dump_all(dir.path(), cfgs).await.unwrap();
 
-        assert_eq!(count_remote_rules(dir.path()), 3);
-        for family in get_remote_rule_families(dir.path()) {
+        assert_eq!(count_remote_rules(dir.path()).await, 3);
+        for family in get_remote_rule_families(dir.path()).await {
             assert_eq!(family, None);
         }
     }
 
-    #[test]
-    fn test_apply_default_both_public() {
+    #[tokio::test]
+    async fn test_apply_default_both_public() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall_config(
             dir.path(),
@@ -875,16 +886,16 @@ config zone wan
         let wan_ipv6: Ipv6Addr = "2001:db8::1".parse().unwrap();
 
         let arena = Arena::new();
-        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).unwrap();
+        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).await.unwrap();
         apply_remote_access_config(&mut cfgs, "default", Some(wan_ipv4), &[wan_ipv6]);
-        dump_all(dir.path(), cfgs).unwrap();
+        dump_all(dir.path(), cfgs).await.unwrap();
 
         // Both public — no rules should be created
-        assert_eq!(count_remote_rules(dir.path()), 0);
+        assert_eq!(count_remote_rules(dir.path()).await, 0);
     }
 
-    #[test]
-    fn test_apply_default_no_wan() {
+    #[tokio::test]
+    async fn test_apply_default_no_wan() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall_config(
             dir.path(),
@@ -892,16 +903,16 @@ config zone wan
         );
 
         let arena = Arena::new();
-        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).unwrap();
+        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).await.unwrap();
         apply_remote_access_config(&mut cfgs, "default", None, &[]);
-        dump_all(dir.path(), cfgs).unwrap();
+        dump_all(dir.path(), cfgs).await.unwrap();
 
         // No WAN at all — no rules should be created
-        assert_eq!(count_remote_rules(dir.path()), 0);
+        assert_eq!(count_remote_rules(dir.path()).await, 0);
     }
 
-    #[test]
-    fn test_apply_default_ipv4_only() {
+    #[tokio::test]
+    async fn test_apply_default_ipv4_only() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall_config(
             dir.path(),
@@ -911,19 +922,19 @@ config zone wan
         let wan_ipv4: Ipv4Addr = "192.168.1.1".parse().unwrap();
 
         let arena = Arena::new();
-        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).unwrap();
+        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).await.unwrap();
         apply_remote_access_config(&mut cfgs, "default", Some(wan_ipv4), &[]);
-        dump_all(dir.path(), cfgs).unwrap();
+        dump_all(dir.path(), cfgs).await.unwrap();
 
         // Private IPv4, no IPv6 — IPv4-only rules
-        assert_eq!(count_remote_rules(dir.path()), 3);
-        for family in get_remote_rule_families(dir.path()) {
+        assert_eq!(count_remote_rules(dir.path()).await, 3);
+        for family in get_remote_rule_families(dir.path()).await {
             assert_eq!(family, Some("ipv4".to_string()));
         }
     }
 
-    #[test]
-    fn test_apply_default_ipv6_ula_only() {
+    #[tokio::test]
+    async fn test_apply_default_ipv6_ula_only() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall_config(
             dir.path(),
@@ -933,19 +944,19 @@ config zone wan
         let wan_ipv6: Ipv6Addr = "fd00::1".parse().unwrap();
 
         let arena = Arena::new();
-        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).unwrap();
+        let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).await.unwrap();
         apply_remote_access_config(&mut cfgs, "default", None, &[wan_ipv6]);
-        dump_all(dir.path(), cfgs).unwrap();
+        dump_all(dir.path(), cfgs).await.unwrap();
 
         // No IPv4, ULA-only IPv6 — IPv6-only rules
-        assert_eq!(count_remote_rules(dir.path()), 3);
-        for family in get_remote_rule_families(dir.path()) {
+        assert_eq!(count_remote_rules(dir.path()).await, 3);
+        for family in get_remote_rule_families(dir.path()).await {
             assert_eq!(family, Some("ipv6".to_string()));
         }
     }
 
-    #[test]
-    fn test_apply_idempotent() {
+    #[tokio::test]
+    async fn test_apply_idempotent() {
         let dir = tempfile::tempdir().unwrap();
         setup_firewall_config(
             dir.path(),
@@ -955,12 +966,12 @@ config zone wan
         // Apply twice
         for _ in 0..2 {
             let arena = Arena::new();
-            let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).unwrap();
+            let mut cfgs = parse_all(dir.path(), &arena, &["startwrt", "firewall"]).await.unwrap();
             apply_remote_access_config(&mut cfgs, "always", None, &[]);
-            dump_all(dir.path(), cfgs).unwrap();
+            dump_all(dir.path(), cfgs).await.unwrap();
         }
 
         // Should still have exactly 4 rules, not 8
-        assert_eq!(count_remote_rules(dir.path()), 3);
+        assert_eq!(count_remote_rules(dir.path()).await, 3);
     }
 }
