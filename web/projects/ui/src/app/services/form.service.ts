@@ -136,6 +136,7 @@ export class FormService {
       case 'union':
         return this.getUnionObject(spec, currentValue)
       case 'toggle':
+      case 'triState':
         value = currentValue === undefined ? spec.default : currentValue
         return this.formBuilder.control(value)
       case 'select':
