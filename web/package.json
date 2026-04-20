@@ -1,11 +1,12 @@
 {
   "name": "start-wrt",
-  "version": "0.1.0",
+  "version": "0.1.0-beta.1",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "npm run build-config && ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
+    "build-config": "node build-config.js",
     "check": "tsc --project tsconfig.app.json --noEmit --skipLibCheck",
     "prepare": "cd .. && husky web/.husky",
     "analyze": "ng build --stats-json --named-chunks && npx -y @angular-experts/hawkeye dist/startwrt/stats.json"

@@ -37,6 +37,9 @@ yarn-error.log
 testem.log
 /typings
 
+# Generated from config-sample.json by web/update-config.sh (prod)
+# or web/build-config.js (dev). See web/CONTRIBUTING.md.
+/config.json
 
 # System files
 .DS_Store

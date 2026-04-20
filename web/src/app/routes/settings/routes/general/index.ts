@@ -42,6 +42,7 @@ import {
 } from 'src/app/services/api/api.service'
 import { SystemService } from 'src/app/services/system.service'
 import { getTranslatedName, Language, LANGUAGES } from 'src/app/utils/languages'
+import { GIT_HASH } from 'src/app/utils/workspace-config'
 import {
   formatOffset,
   getPosixTz,
@@ -160,6 +161,19 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
           </a>
         </section>
       </fieldset>
+      <fieldset>
+        <legend>About</legend>
+        <section class="about-section">
+          <dl>
+            <dt>Version</dt>
+            <dd>{{ system.info()?.version || '—' }}</dd>
+            <dt>Build</dt>
+            <dd>
+              <code [title]="gitHash || ''">{{ shortGitHash() }}</code>
+            </dd>
+          </dl>
+        </section>
+      </fieldset>
       <tui-elastic-container>
         @if (form.value.remote === 'always') {
           <div tuiAnimated tuiNotification appearance="warning">
@@ -237,6 +251,29 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
           font: var(--tui-typography-text-s);
         }
       }
+
+      .about-section {
+        dl {
+          display: grid;
+          grid-template-columns: max-content 1fr;
+          gap: 0.25rem 1rem;
+          margin: 0;
+        }
+
+        dt {
+          color: var(--tui-text-secondary);
+          font: var(--tui-typography-text-s);
+        }
+
+        dd {
+          margin: 0;
+          font: var(--tui-typography-text-s);
+        }
+
+        code {
+          font-family: var(--tui-font-text-mono, monospace);
+        }
+      }
     }
   `,
   host: { class: 'g-page' },
@@ -275,7 +312,12 @@ export default class General {
   private readonly darkModeKey = inject(TUI_DARK_MODE_KEY)
 
   protected readonly system = inject(SystemService)
+  protected readonly gitHash = inject(GIT_HASH)
   protected readonly languages = LANGUAGES
+
+  protected readonly shortGitHash = computed(() =>
+    this.gitHash ? this.gitHash.slice(0, 12) : 'unknown',
+  )
 
   private readonly systemTheme = computed(
     () => !this.localStorage?.getItem(this.darkModeKey),

@@ -11,13 +11,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, config.json, and h
 ## Commands
 
 ```bash
-npm ci                # Install dependencies
-npm start             # Dev server (uses config.json to toggle mocks)
-npm run build         # Production build
-npm run check         # Type-check without emitting
+cp config-sample.json config.json    # One-time setup (config.json is gitignored)
+npm ci                                # Install dependencies
+npm start                             # Dev server (uses config.json to toggle mocks)
+npm run build                         # Production build
+npm run check                         # Type-check without emitting
 ```
 
-`config.json` at the workspace root controls `useMocks` (swap `MockApiService`/`LiveApiService`) and the API endpoint path.
+`config.json` is gitignored. `config-sample.json` is the committed template (dev default: `useMocks: true`). `npm start` and `npm run build` run `build-config.js` first to stamp the current `gitHash`. Production builds (`make image`) run `web/update-config.sh`, which forces `useMocks: false`.
 
 ## Golden Rules
 

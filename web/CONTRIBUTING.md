@@ -14,25 +14,33 @@ For general setup, see the root [CONTRIBUTING.md](../CONTRIBUTING.md). For archi
 
 ```bash
 cd web
-npm ci                # Install dependencies
-npm start             # Dev server with mock API
-npm run build         # Production build
-npm run check         # Type-check without emitting
+cp config-sample.json config.json    # One-time: create your local config
+npm ci                                # Install dependencies
+npm start                             # Dev server with mock API
+npm run build                         # Production build
+npm run check                         # Type-check without emitting
 ```
 
 ### Configuring config.json
 
-`config.json` at the workspace root controls mock mode and the API endpoint:
+`config.json` is **gitignored** — it's generated from `config-sample.json`:
+
+- **Local dev:** `cp config-sample.json config.json`, then edit freely. `npm start` / `npm run build` run `build-config.js` first, which stamps the current git hash into `gitHash`.
+- **Production / CI:** `make image` triggers `web/update-config.sh`, which flips `useMocks` to `false` and stamps `gitHash` from `build/env/GIT_HASH.txt`.
+
+Schema:
 
 ```json
 {
   "useMocks": true,
-  "api": { "url": "rpc", "version": "v1" }
+  "api": { "url": "rpc", "version": "v1" },
+  "gitHash": ""
 }
 ```
 
 - `useMocks: true` — Uses `MockApiService` (no router needed)
 - `useMocks: false` — Uses `LiveApiService` (requires running backend)
+- `gitHash` — Stamped at build time; available via `WorkspaceConfig.gitHash` for About / diagnostics UIs.
 
 The API URL resolves to `document.location.origin + /rpc/v1`.
 

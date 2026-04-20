@@ -63,6 +63,9 @@ endif
 export CARGO_BUILD_JOBS := $(JOBS)
 export ARCH RUST_ARCH PROFILE
 
+# Build-time env stamps (regenerated on git-state change)
+GIT_HASH_FILE := $(shell ./build/env/check-git-hash.sh)
+
 # Source tracking for incremental builds
 RUST_SRC := $(shell git ls-files backend/ctrl/ backend/uciedit/ backend/uciedit_macros/) backend/Cargo.toml backend/Cargo.lock
 WEB_SRC := $(shell git ls-files web/src/)
@@ -103,9 +106,14 @@ $(RUST_BIN): $(RUST_SRC) $(WEB_DIST) build/build-rust.sh
 	$(OOM_ADJ) $(CGROUP_WRAP) $(NICE) ./build/build-rust.sh
 	@touch $(RUST_BIN)
 
-$(WEB_DIST): $(WEB_SRC) web/package-lock.json
+$(WEB_DIST): $(WEB_SRC) web/package-lock.json web/config.json
 	$(NICE) npm --prefix web install
 	$(OOM_ADJ) $(CGROUP_WRAP) $(NICE) npm --prefix web run build
+
+# Prod config: generated from config-sample.json with useMocks=false
+# and gitHash stamped from build/env/GIT_HASH.txt.
+web/config.json: $(GIT_HASH_FILE) web/config-sample.json web/update-config.sh
+	./web/update-config.sh
 
 # Stage custom files into openwrt/files/
 stage: openwrt/files/.staged

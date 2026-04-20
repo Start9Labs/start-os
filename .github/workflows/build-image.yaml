@@ -5,7 +5,15 @@ on:
     branches: [master]
   push:
     branches: [master]
+    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      deploy:
+        type: choice
+        description: Deploy
+        options:
+          - NONE
+          - release
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -51,3 +59,44 @@ jobs:
           name: openwrt-image
           path: out/*.img
           retention-days: 7
+
+  release:
+    name: Release
+    needs: [build]
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'release')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: web/package.json
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' web/package.json | head -1)
+            TAG="v$VERSION"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Tag: $TAG"
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: openwrt-image
+          path: artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          files: artifacts/*.img
+          fail_on_unmatched_files: true
+          generate_release_notes: true

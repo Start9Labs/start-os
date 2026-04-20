@@ -6842,7 +6842,7 @@ dependencies = [
 
 [[package]]
 name = "startwrt-core"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "async_cell",
  "axum",
