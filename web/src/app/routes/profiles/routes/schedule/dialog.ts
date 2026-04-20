@@ -55,7 +55,7 @@ import type { ScheduleWindow } from './service'
         </div>
       </fieldset>
       <footer>
-        @if (context.label?.startsWith('Edit')) {
+        @if (context.label.startsWith('Edit')) {
           <button
             tuiButton
             type="button"

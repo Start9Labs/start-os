@@ -50,7 +50,7 @@ import {
       </tui-textfield>
       <tui-error formControlName="label" />
       @if (!form.value.config || form.controls.config.invalid) {
-        <label tuiInputFiles class="g-action">
+        <label tuiInputFiles class="g-action" [style.min-block-size.rem]="6">
           <input tuiInputFiles accept=".conf" formControlName="config" />
           <ng-template>
             <div>
@@ -85,11 +85,6 @@ import {
         <button tuiButton>Add VPN</button>
       </footer>
     </form>
-  `,
-  styles: `
-    [tuiInputFiles] {
-      min-height: 8rem;
-    }
   `,
   hostDirectives: [ModalHelp],
   providers: [
