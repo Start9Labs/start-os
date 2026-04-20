@@ -32,6 +32,8 @@ make test-core                            # Run Rust tests
 - Follow existing patterns before inventing new ones
 - Always use `make` recipes when they exist for testing builds rather than manually invoking build commands
 - **Commit signing:** Never push unsigned commits. Before pushing, check all unpushed commits for signatures with `git log --show-signature @{upstream}..HEAD`. If any are unsigned, prompt the user to sign them with `git rebase --exec 'git commit --amend -S --no-edit' @{upstream}`.
+- If you have a choice between a tool call that is allowed without user approval, and one that requires user approval, always use the one that does _not_ require user approval.
+- Always read `docs/USER.md` even if it doesn't seem relevant to your task. It may contain other instructions from this specific user.
 
 ## Supplementary Documentation
 
@@ -51,6 +53,7 @@ On startup:
 1. **Check for `docs/USER.md`** - If it doesn't exist, prompt the user for their name/identifier and create it. This file is gitignored since it varies per developer.
 
 2. **Check `docs/TODO.md` for relevant tasks** - Show TODOs that either:
+
    - Have no `@username` tag (relevant to everyone)
    - Are tagged with the current user's identifier
 
