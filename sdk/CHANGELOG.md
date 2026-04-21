@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0 — StartOS 0.4.0-beta.4 (2026-04-21)
+
+### Added
+
+- `nullToUndefined(obj)` utility and `NullToUndefined<T>` type — recursively convert `null` values to `undefined` through objects and arrays
+
+### Fixed
+
+- Backup `rsync` no longer passes `--no-inc-recursive`; the pre-scan it forced was timing out on large backups. Accurate progress percentages go away as a side effect — to surface progress in the future, count files up front and compute percentage from bytes/files seen
+
 ## 1.2.0 — StartOS 0.4.0-beta.4 (2026-04-17)
 
 ### Added

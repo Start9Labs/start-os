@@ -345,7 +345,12 @@ export const polyfillEffects = (
       }
       args.push("-actAXH")
       args.push("--info=progress2")
-      args.push("--no-inc-recursive")
+      // --no-inc-recursive would give accurate progress percentages (since
+      // rsync knows the full file list up front), but it forces a full
+      // pre-scan that causes timeouts on large transfers. If we start
+      // surfacing progress to users, do a raw file count up front and compute
+      // percentage from bytes/files seen instead of relying on rsync's own
+      // percentage.
       args.push(new Volume(srcVolume, srcPath).path)
       args.push(new Volume(dstVolume, dstPath).path)
       const spawned = child_process.spawn(command, args, { detached: true })
