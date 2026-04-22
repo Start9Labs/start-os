@@ -9,6 +9,7 @@
 ### Fixed
 
 - Backup `rsync` no longer passes `--no-inc-recursive`; the pre-scan it forced was timing out on large backups. Accurate progress percentages go away as a side effect — to surface progress in the future, count files up front and compute percentage from bytes/files seen
+- `withPgDump` pre-backup `touch` and `chown` of the dump file now fail loud instead of silently swallowing errors. Previously, if the backup target couldn't be written or chowned (e.g. a filesystem that doesn't honor Unix ownership), `pg_dump` would hit a confusing `Permission denied` on open instead of surfacing the underlying cause
 
 ## 1.2.0 — StartOS 0.4.0-beta.4 (2026-04-17)
 
