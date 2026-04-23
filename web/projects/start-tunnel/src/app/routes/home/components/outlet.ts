@@ -90,7 +90,7 @@ import { UpdateService } from 'src/app/services/update.service'
       block-size: 100%;
       overflow: hidden;
 
-      --tui-theme-color: var(--tui-background-neutral-1);
+      --tui-theme-color: var(--tui-background-elevation-1);
 
       header {
         clip-path: inset(0);
@@ -109,6 +109,7 @@ import { UpdateService } from 'src/app/services/update.service'
         display: flex;
         flex: 1;
         overflow: hidden;
+        background: var(--tui-background-base-alt);
       }
 
       tui-scrollbar {
@@ -119,6 +120,11 @@ import { UpdateService } from 'src/app/services/update.service'
         > ::ng-deep tui-scroll-controls {
           transform: translateX(1.5rem);
         }
+      }
+
+      aside {
+        --tui-background-neutral-1-hover: var(--tui-background-elevation-2);
+        --tui-background-neutral-1-pressed: var(--tui-background-elevation-3);
       }
 
       [tuiAsideItem]::after {

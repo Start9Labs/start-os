@@ -21,7 +21,7 @@ import { CHANGE_PASSWORD } from './change-password'
 
 @Component({
   template: `
-    <div tuiCardLarge="compact">
+    <div tuiCardLarge="compact" appearance="floating">
       <div tuiCell>
         <span tuiTitle>
           <strong>
@@ -51,7 +51,11 @@ import { CHANGE_PASSWORD } from './change-password'
         }
       </div>
     </div>
-    <div tuiCardLarge="compact" [style.align-items]="'start'">
+    <div
+      tuiCardLarge="compact"
+      appearance="floating"
+      [style.align-items]="'start'"
+    >
       <button tuiButton size="s" (click)="onChangePassword()">
         Change password
       </button>
@@ -75,14 +79,6 @@ import { CHANGE_PASSWORD } from './change-password'
       flex-direction: column;
       gap: 1rem;
       max-inline-size: 50rem;
-    }
-
-    [tuiCardLarge] {
-      background: var(--tui-background-neutral-1);
-
-      &:not([data-appearance]) {
-        display: none;
-      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

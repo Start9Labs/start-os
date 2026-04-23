@@ -31,13 +31,14 @@ import { ApiService } from 'src/app/services/api/api.service'
 
 @Component({
   template: `
-    <form tuiForm [formGroup]="form">
+    <form tuiForm="m" [formGroup]="form">
       <tui-textfield>
         <label tuiLabel>New password</label>
         <input
           tuiInput
           tuiAutoFocus
           type="password"
+          autocomplete="new-password"
           formControlName="password"
         />
         <tui-icon tuiPassword />
@@ -48,6 +49,7 @@ import { ApiService } from 'src/app/services/api/api.service'
         <input
           tuiInput
           type="password"
+          autocomplete="new-password"
           formControlName="confirm"
           [tuiValidator]="matchValidator()"
         />
