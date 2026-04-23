@@ -232,10 +232,9 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
             console.log('[pg-dump] mounting backup target')
             await mountBackupTarget(sub.rootfs)
             await sub.execFail(['touch', dumpFile], { user: 'root' })
-            await sub.execFail(
-              ['chown', 'postgres:postgres', dumpFile],
-              { user: 'root' },
-            )
+            await sub.execFail(['chown', 'postgres:postgres', dumpFile], {
+              user: 'root',
+            })
             await startPg(sub, 'pg-dump')
             console.log('[pg-dump] dumping database')
             await sub.execFail(

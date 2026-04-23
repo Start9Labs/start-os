@@ -182,7 +182,8 @@ This pattern helps you quickly find all the places that need updating in the nex
 - [ ] Create new `core/src/version/vX_Y_Z_alpha_N+1.rs` file
 - [ ] Update `core/src/version/mod.rs` in 5 locations
 - [ ] Run `cargo check` to update `core/Cargo.lock`
-- [ ] Update `sdk/package/lib/StartSdk.ts` OSVersion (only if breaking SDK changes)
+- [ ] Update `sdk/package/lib/StartSdk.ts` OSVersion
+  - ONLY do this if this OS version introduces new features or makes breaking changes that the SDK relies on. When in doubt, ask the user if breaking changes were made.
 - [ ] Update `web/package.json` and `web/package-lock.json` version
 - [ ] Verify all changes compile/build successfully
 

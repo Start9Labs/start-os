@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.1 — StartOS 0.4.0-beta.6 (2026-04-21)
+
+### Changed
+
+- Minimum StartOS version bumped to `0.4.0-beta.6`
+
 ## 1.3.0 — StartOS 0.4.0-beta.4 (2026-04-21)
 
 ### Added
