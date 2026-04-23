@@ -6,6 +6,11 @@ cd "$(git rev-parse --show-toplevel)"
 
 source build/builder-alias.sh
 
+# Always restore host ownership of Docker-written artifacts, even if the
+# build fails or is interrupted — otherwise `make clean` on the host can't
+# remove root-owned files in backend/target.
+trap 'rust-zig-builder sh -c "chown -R $UID:$UID backend/target /usr/local/cargo 2>/dev/null || true"' EXIT
+
 ARCH=${ARCH:-riscv64}
 RUST_ARCH=${RUST_ARCH:-riscv64gc}
 PROFILE=${PROFILE:-release}
@@ -52,11 +57,6 @@ rust-zig-builder cargo zigbuild \
     $BUILD_FLAGS \
     --locked \
     --target=${RUST_ARCH}-unknown-linux-musl
-
-# Fix ownership if built in Docker as root
-if [ "$(ls -nd "backend/target/$RUST_ARCH-unknown-linux-musl/$PROFILE/startwrt" | awk '{ print $3 }')" != "$UID" ]; then
-  rust-zig-builder sh -c "chown -R $UID:$UID backend/target && chown -R $UID:$UID /usr/local/cargo"
-fi
 
 # Verify the binary doesn't use any RVA23-only instructions that would
 # SIGILL on the SpaceMiT K1 (BPI-F3) target.

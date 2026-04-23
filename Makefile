@@ -136,9 +136,17 @@ $(OPENWRT_IMAGE): openwrt/.config openwrt/files/.staged
 	cp $(OPENWRT_IMAGE_SRC) $(OPENWRT_IMAGE)
 
 # Clean
+# backend/target may contain root-owned files when a Docker build is
+# interrupted before build-rust.sh's chown trap fires; in that case delegate
+# removal to the same cargo-zigbuild container so root can rm its own files.
 clean:
 	rm -rf out
-	rm -rf backend/target
+	@if [ -d backend/target ] && find backend/target -not -user "$$(id -u)" -print -quit | grep -q .; then \
+	  echo "  backend/target has root-owned files — removing via docker"; \
+	  docker run --rm -v "$$(pwd)":/workdir -w /workdir start9/cargo-zigbuild rm -rf backend/target; \
+	else \
+	  rm -rf backend/target; \
+	fi
 	rm -rf web/dist web/.angular
 	rm -rf openwrt/files
 	rm -rf openwrt/build_dir openwrt/staging_dir openwrt/tmp openwrt/bin
