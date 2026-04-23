@@ -136,7 +136,7 @@ impl TmpMountGuard {
         let (prev_mt, weak_slot) = tmp_mounts.get_mut(&mountpoint).unwrap();
         if let Some(guard) = weak_slot.upgrade() {
             // upgrade to rw
-            if *prev_mt == ReadOnly && mount_type == ReadWrite {
+            if *prev_mt == ReadOnly && mount_type != ReadOnly {
                 tokio::process::Command::new("mount")
                     .arg("-o")
                     .arg("remount,rw")

@@ -65,7 +65,7 @@ impl<Src: AsRef<Path> + Send + Sync> FileSystem for Bind<Src> {
             if to_meta.as_ref().map_or(false, |m| m.is_dir()) {
                 tokio::fs::remove_dir(mountpoint).await?;
             }
-            if from_meta.is_none() && mount_type == MountType::ReadWrite {
+            if from_meta.is_none() && mount_type != MountType::ReadOnly {
                 create_file(self.src.as_ref()).await?.sync_all().await?;
             }
             if to_meta.is_none() {
@@ -75,7 +75,7 @@ impl<Src: AsRef<Path> + Send + Sync> FileSystem for Bind<Src> {
             if to_meta.as_ref().map_or(false, |m| m.is_file()) {
                 tokio::fs::remove_file(mountpoint).await?;
             }
-            if from_meta.is_none() && mount_type == MountType::ReadWrite {
+            if from_meta.is_none() && mount_type != MountType::ReadOnly {
                 tokio::fs::create_dir_all(self.src.as_ref()).await?;
             }
             if to_meta.is_none() {

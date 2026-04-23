@@ -10,7 +10,7 @@ use tokio::process::Command;
 use tracing::instrument;
 use ts_rs::TS;
 
-use super::{FileSystem, MountType, ReadOnly};
+use super::{BackupWrite, FileSystem, MountType, ReadOnly, ReadWrite};
 use crate::Error;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::util::Invoke;
@@ -54,11 +54,15 @@ pub async fn mount_cifs(
         .env("PASSWD", password.unwrap_or_default())
         .arg(format!("//{}{}", ip, absolute_path.display()))
         .arg(mountpoint.as_ref());
-    if mount_type == ReadOnly {
-        cmd.arg("-o").arg("ro,noserverino");
-    } else {
-        cmd.arg("-o").arg("noserverino");
+    let mut opts = String::from(
+        "vers=3.1.1,hard,actimeo=0,wsize=1048576,rsize=1048576,nobrl,noserverino",
+    );
+    match mount_type {
+        ReadOnly => opts.push_str(",ro,cache=strict"),
+        ReadWrite => opts.push_str(",cache=strict"),
+        BackupWrite => opts.push_str(",cache=none"),
     }
+    cmd.arg("-o").arg(opts);
     cmd.invoke(crate::ErrorKind::Filesystem).await?;
     Ok(())
 }
