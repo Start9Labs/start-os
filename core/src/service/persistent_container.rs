@@ -39,7 +39,7 @@ use crate::util::rpc_client::UnixRpcClient;
 use crate::volume::data_dir;
 use crate::{ARCH, DATA_DIR, ImageId, PACKAGE_DATA, VolumeId};
 
-const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
+const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(120);
 
 #[derive(Debug)]
 pub struct ServiceState {
