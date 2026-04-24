@@ -4,6 +4,7 @@ use std::fmt;
 use std::net::{IpAddr, SocketAddr, SocketAddrV6};
 use std::sync::{Arc, Weak};
 use std::task::{Poll, ready};
+use std::time::Duration;
 
 use async_acme::acme::ACME_TLS_ALPN_NAME;
 use clap::Parser;
@@ -515,7 +516,9 @@ impl Accept for VHostBindListener {
         for (&addr, (listener, gw_info)) in &self.listeners {
             match listener.poll_accept(cx) {
                 Poll::Ready(Ok((stream, peer_addr))) => {
-                    if let Err(e) = socket2::SockRef::from(&stream).set_keepalive(true) {
+                    if let Err(e) =
+                        socket2::SockRef::from(&stream).set_tcp_keepalive(&proxy_keepalive())
+                    {
                         tracing::error!("Failed to set tcp keepalive: {e}");
                         tracing::debug!("{e:?}");
                     }
@@ -763,7 +766,9 @@ where
             .await
             .with_ctx(|_| (ErrorKind::Network, self.addr))
             .log_err()?;
-        if let Err(e) = socket2::SockRef::from(&tcp_stream).set_keepalive(true) {
+        if let Err(e) =
+            socket2::SockRef::from(&tcp_stream).set_tcp_keepalive(&proxy_keepalive())
+        {
             tracing::error!("Failed to set tcp keepalive: {e}");
             tracing::debug!("{e:?}");
         }
@@ -822,6 +827,14 @@ where
                     .await
                     .ok();
                 } else {
+                    // copy_bidirectional drains each direction to EOF, then
+                    // half-closes the destination (flush + FIN). It won't
+                    // return until both directions have settled. Without a
+                    // per-connection escape hatch that would normally risk
+                    // leaking if one peer stayed idle forever — but both
+                    // TCP sockets have tuned SO_KEEPALIVE (proxy_keepalive)
+                    // so a silent peer errors out within ~2 min, bounding
+                    // the hang without losing in-flight bytes.
                     tokio::io::copy_bidirectional(&mut stream, &mut prev)
                         .await
                         .ok();
@@ -830,6 +843,15 @@ where
             .await
         });
     }
+}
+
+/// Detect silent peer death in ~2 min instead of the Linux default ~2h.
+/// 60s idle + 10s × 6 probes.
+fn proxy_keepalive() -> socket2::TcpKeepalive {
+    socket2::TcpKeepalive::new()
+        .with_time(Duration::from_secs(60))
+        .with_interval(Duration::from_secs(10))
+        .with_retries(6)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
@@ -1173,4 +1195,40 @@ impl<A: Accept> VHostServer<A> {
     fn is_empty(&self) -> bool {
         self.mapping.peek(|m| m.is_empty())
     }
+}
+
+#[tokio::test]
+async fn copy_bidirectional_hangs_without_keepalive_when_peer_idle() {
+    // Documents why we tune TCP keepalive on both proxy sockets (see
+    // proxy_keepalive()). `tokio::io::copy_bidirectional` drains each
+    // direction to EOF, half-closes the destination, and only returns
+    // once both directions have settled. If one peer closes but the other
+    // stays open (idle HTTP keep-alive, stuck WebSocket, misbehaving
+    // service), it waits indefinitely.
+    //
+    // In production the underlying TCP sockets have tuned SO_KEEPALIVE so
+    // a silent peer is surfaced as an I/O error on reads within ~2 min,
+    // which errors the direction and lets copy_bidirectional return
+    // without losing in-flight bytes. `tokio::io::duplex` has no keepalive
+    // concept, so here the hang is unbounded and we time it out
+    // explicitly to verify the shape of the behavior.
+    let (mut client_facing, client_side) = tokio::io::duplex(1024);
+    let (mut backend_facing, _backend_side) = tokio::io::duplex(1024);
+
+    let mut proxy = tokio::spawn(async move {
+        tokio::io::copy_bidirectional(&mut client_facing, &mut backend_facing)
+            .await
+            .ok();
+    });
+
+    drop(client_side);
+
+    let res = tokio::time::timeout(Duration::from_millis(200), &mut proxy).await;
+    assert!(
+        res.is_err(),
+        "copy_bidirectional returned without keepalive to break the idle \
+         peer out — keepalive tuning is what makes this bounded in prod."
+    );
+
+    proxy.abort();
 }
