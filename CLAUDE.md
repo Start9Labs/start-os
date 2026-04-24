@@ -16,6 +16,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 - Build commands and make targets
 - Testing and formatting commands
 - Environment variables
+- Code style guidelines
 
 **Quick reference:**
 
