@@ -13,7 +13,6 @@ import { RELATIVE_URL, WorkspaceConfig } from '@start9labs/shared'
 import {
   provideTaiga,
   tuiDialogOptionsProvider,
-  tuiDropdownOptionsProvider,
   tuiHintOptionsProvider,
 } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
@@ -39,8 +38,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withRouterConfig({ onSameUrlNavigation: 'reload' })),
     provideTaiga({ mode: 'dark' }),
     tuiHintOptionsProvider({ appearance: 'primary-grayscale' }),
-    tuiDropdownOptionsProvider({ appearance: 'start-9' }),
-    tuiDialogOptionsProvider({ appearance: 'start-9 taiga', size: 's' }),
+    tuiDialogOptionsProvider({ size: 's' }),
     {
       provide: PatchDB,
       deps: [PatchDbSource, PATCH_CACHE],

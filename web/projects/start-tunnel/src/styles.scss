@@ -1,62 +1,103 @@
-:root {
-  height: 100%;
-
-  --tui-text-action: #428bf9;
-  --tui-text-action-hover: #165eca;
-  --tui-background-accent-1: #428bf9;
-  --tui-background-accent-1-hover: #126df7;
-  --tui-background-accent-1-pressed: #156ed4;
-  --tui-stroke-width: 1.5px;
+@font-face {
+  font-family: 'MBF Minimal';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/assets/fonts/MBF_Minimal_Custom.otf');
 }
 
+[tuiTheme='dark'] {
+  // Backgrounds
+  --tui-background-base: #07080c;
+  --tui-background-base-alt: #0b0c10;
+  --tui-background-elevation-1: #14151c;
+  --tui-background-elevation-2: #1c1d26;
+  --tui-background-elevation-3: #262833;
+  // Other
+  --tui-border-normal: #2a2c38;
+  --tui-border-hover: #333745;
+  // Statuses
+  --tui-status-negative: rgba(255, 73, 97, 1);
+  --tui-status-negative-pale: rgba(255, 73, 97, 0.12);
+  --tui-status-negative-pale-hover: rgba(255, 73, 97, 0.24);
+  --tui-status-positive: rgba(45, 213, 91, 1);
+  --tui-status-positive-pale: rgba(45, 213, 91, 0.32);
+  --tui-status-positive-pale-hover: rgba(45, 213, 91, 0.4);
+  --tui-status-warning: rgba(255, 196, 9, 1);
+  --tui-status-warning-pale: rgba(255, 196, 9, 0.32);
+  --tui-status-warning-pale-hover: rgba(255, 196, 9, 0.4);
+  --tui-status-info: rgba(192, 36, 122, 1);
+  --tui-status-info-pale: rgba(192, 36, 122, 0.12);
+  --tui-status-info-pale-hover: rgba(192, 36, 122, 0.24);
+  // Text
+  --tui-text-primary: #f0f0f0;
+  --tui-text-secondary: #a1a3ad;
+  --tui-text-tertiary: #6b6d78;
+  --tui-text-action: #3880ff;
+  --tui-text-action-hover: #4e8dff;
+  --tui-text-positive: rgba(45, 213, 91, 1);
+  --tui-text-positive-hover: #4ade80;
+  --tui-text-negative: rgba(255, 73, 97, 1);
+  --tui-text-negative-hover: #ff5f74;
+}
+
+:root,
+[tuiTheme='light'] {
+  --tui-background-accent-1: #3880ff;
+  --tui-background-accent-1-hover: #4e8dff;
+  --tui-background-accent-1-pressed: #1165d9;
+  --tui-background-accent-2: #c4247a;
+  --tui-background-accent-2-hover: #e12a8b;
+  --tui-background-accent-2-pressed: #b31a6c;
+  --tui-background-accent-opposite: #0b0c10;
+  --tui-background-accent-opposite-hover: #14151c;
+  --tui-background-accent-opposite-pressed: #07080c;
+  // Other
+  --tui-service-selection-background: rgba(255, 73, 97, 1);
+  // Statuses
+  --tui-status-negative: rgba(255, 73, 97, 1);
+  --tui-status-negative-pale: rgba(255, 73, 97, 0.12);
+  --tui-status-negative-pale-hover: rgba(255, 73, 97, 0.24);
+  --tui-status-positive: rgba(45, 213, 91, 1);
+  --tui-status-positive-pale: rgba(45, 213, 91, 0.32);
+  --tui-status-positive-pale-hover: rgba(45, 213, 91, 0.4);
+  --tui-status-warning: rgba(255, 196, 9, 1);
+  --tui-status-warning-pale: rgba(255, 196, 9, 0.32);
+  --tui-status-warning-pale-hover: rgba(255, 196, 9, 0.4);
+  --tui-status-info: rgba(192, 36, 122, 1);
+  --tui-status-info-pale: rgba(192, 36, 122, 0.12);
+  --tui-status-info-pale-hover: rgba(192, 36, 122, 0.24);
+  // Text
+  --tui-text-primary: rgba(11, 12, 16, 1);
+  --tui-text-secondary: rgba(11, 12, 16, 0.65);
+  --tui-text-tertiary: rgba(11, 12, 16, 0.4);
+  --tui-text-action: #3880ff;
+  --tui-text-action-hover: #4e8dff;
+  --tui-text-positive: rgba(45, 213, 91, 1);
+  --tui-text-positive-hover: #4ade80;
+  --tui-text-negative: rgba(255, 73, 97, 1);
+  --tui-text-negative-hover: #ff5f74;
+
+  --tui-stroke-width: 1.5px;
+  --tui-radius-m: 0.5rem;
+
+  --tui-typography-family-text: 'Proxima Nova', system-ui;
+  --tui-typography-family-display: 'Proxima Nova', system-ui;
+}
+
+::selection {
+  background-color: var(--tui-service-selection-background);
+}
+
+tui-textfield {
+  --tui-background-neutral-1: var(--tui-background-elevation-2);
+  --tui-background-neutral-1-hover: var(--tui-background-elevation-3);
+}
+
+html,
 body {
   height: 100%;
   isolation: isolate;
   overflow-x: hidden;
-  background:
-    linear-gradient(
-      var(--tui-background-base, #171717),
-      var(--tui-background-base, #171717)
-    ),
-    radial-gradient(circle at top right, #5240a8, transparent 40%),
-    radial-gradient(circle at bottom right, #9236c9, transparent),
-    radial-gradient(circle at 25% 100%, #5b65d5, transparent 30%),
-    radial-gradient(circle at bottom left, #0090c0, transparent 50%),
-    radial-gradient(circle at top left, #2a5ba8, transparent 50%),
-    linear-gradient(to bottom, #5654b2, transparent);
-  background-blend-mode: hard-light;
-  background-attachment: fixed;
-
-  &:not([tuiTheme]) {
-    background-blend-mode: soft-light;
-
-    &::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      z-index: -1;
-      background: rgb(255 255 255 / 15%);
-      backdrop-filter: brightness(1.5);
-    }
-  }
-}
-
-tui-dropdown[data-appearance='start-9'] {
-  background: none;
-  backdrop-filter: blur(1rem);
-}
-
-[tuiTheme='dark'] tui-dialog[data-appearance~='start-9'],
-[tuiTheme='dark'] tui-sheet-dialog[data-appearance~='start-9'] .t-sheet {
-  background:
-    linear-gradient(45deg, #5240a89c, transparent),
-    linear-gradient(to bottom, #5240a854, transparent),
-    color-mix(in hsl, var(--tui-background-elevation-1) 90%, transparent 10%);
-  background-blend-mode: multiply;
-
-  header {
-    background: transparent;
-  }
 }
 
 tui-notification-middle {
@@ -67,14 +108,13 @@ tui-notification-middle {
   width: 100%;
   border-collapse: collapse;
   border-radius: var(--tui-radius-s);
-  background: var(--tui-background-neutral-1);
-  box-shadow: inset 0 0 0 1px var(--tui-background-neutral-1);
+  background: var(--tui-background-elevation-1);
 
   thead {
     tr {
       position: sticky;
       top: 0;
-      background: var(--tui-background-neutral-1);
+      background: var(--tui-background-elevation-2);
       backdrop-filter: blur(5rem);
       z-index: 1;
       border-radius: var(--tui-radius-s) var(--tui-radius-s) 0 0;
@@ -102,7 +142,6 @@ tui-notification-middle {
     text-align: start;
     background: transparent;
     border: none;
-    box-shadow: inset 0 1px var(--tui-background-neutral-1);
 
     &:last-child {
       text-align: end;
@@ -113,28 +152,6 @@ tui-notification-middle {
 qr-code {
   display: flex;
   justify-content: center;
-}
-
-tui-data-list {
-  --tui-text-action: var(--tui-text-primary);
-}
-
-[tuiTheme='dark'] tui-notification-middle[style] {
-  &.tui-enter,
-  &.tui-leave {
-    --tui-scale: 0;
-    animation-name: tuiScale;
-  }
-
-  &::before {
-    background: var(--tui-background-neutral-1);
-    backdrop-filter: blur(1rem);
-    box-shadow: inset 0 1px 1px var(--tui-background-neutral-2);
-  }
-
-  tui-loader svg {
-    stroke: white;
-  }
 }
 
 ng-component {

@@ -7,11 +7,7 @@ import {
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { ErrorService } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import {
-  TuiAnimated,
-  TuiAutoFocus,
-  tuiMarkControlAsTouchedAndValidate,
-} from '@taiga-ui/cdk'
+import { TuiAutoFocus, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import { TuiButton, TuiDialogContext, TuiError, TuiInput } from '@taiga-ui/core'
 import {
   TuiChevron,
@@ -66,7 +62,7 @@ import {
 
         <tui-elastic-container>
           @if (form.controls.subnet.value?.range) {
-            <tui-textfield tuiAnimated>
+            <tui-textfield>
               <label tuiLabel>LAN IP</label>
               <input tuiInput tuiAutoFocus formControlName="ip" />
             </tui-textfield>
@@ -91,7 +87,6 @@ import {
     TuiForm,
     TuiSelect,
     TuiInput,
-    TuiAnimated,
     TuiChevron,
     TuiElasticContainer,
   ],

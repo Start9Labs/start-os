@@ -17,7 +17,6 @@ import { UpdateService } from './services/update.service'
 
     tui-root {
       height: 100%;
-      border-image: none;
     }
   `,
 })

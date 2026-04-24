@@ -57,14 +57,15 @@ import { MappedDevice, MappedForward } from './utils'
           <tr>
             <td>
               <tui-loader
-                [loading]="toggling() === $index"
                 size="xs"
+                [loading]="toggling() === $index"
                 [overlay]="true"
               >
                 <input
                   tuiSwitch
                   type="checkbox"
                   size="s"
+                  [style.display]="'flex'"
                   [showIcons]="false"
                   [ngModel]="forward.enabled"
                   (ngModelChange)="onToggle(forward, $index)"
