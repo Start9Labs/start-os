@@ -437,7 +437,7 @@ export default class DrivesPage {
         .openAlert('StartOS has been installed successfully.', {
           label: 'Installation Complete!',
           dismissible: false,
-          closable: false,
+          closable: true,
           data: this.i18n.transform('Continue to Setup'),
         })
         .subscribe({
