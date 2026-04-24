@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.3 — StartOS 0.4.0-beta.6 (2026-04-24)
+
+### Fixed
+
+- `checkPortListening` reads `/proc/net/{tcp,tcp6,udp,udp6}` via `fs.promises.readFile` instead of `cat` through `child_process.exec`. The prior implementation failed with `stdout maxBuffer length exceeded` on hosts where `/proc/net/tcp` exceeded 1 MB, causing false negatives on busy boxes
+
 ## 1.3.1 — StartOS 0.4.0-beta.6 (2026-04-21)
 
 ### Changed
