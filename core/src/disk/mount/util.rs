@@ -53,7 +53,6 @@ pub async fn unmount<P: AsRef<Path>>(mountpoint: P, lazy: bool) -> Result<(), Er
     tracing::debug!("Unmounting {}.", mountpoint.as_ref().display());
     if lazy {
         tokio::process::Command::new("sync")
-            .arg("-f")
             .arg(mountpoint.as_ref())
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
