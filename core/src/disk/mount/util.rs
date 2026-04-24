@@ -51,6 +51,13 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
 #[instrument(skip_all)]
 pub async fn unmount<P: AsRef<Path>>(mountpoint: P, lazy: bool) -> Result<(), Error> {
     tracing::debug!("Unmounting {}.", mountpoint.as_ref().display());
+    if lazy {
+        tokio::process::Command::new("sync")
+            .arg("-f")
+            .arg(mountpoint.as_ref())
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
+    }
     let mut cmd = tokio::process::Command::new("umount");
     cmd.env("LANG", "C.UTF-8");
     if lazy {
