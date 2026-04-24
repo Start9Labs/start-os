@@ -32,7 +32,8 @@ import { HeaderComponent } from './components/header/header.component'
 
 @Component({
   template: `
-    <header appHeader><app-plugins /></header>
+    <!-- <header appHeader><app-plugins /></header> -->
+    <header appHeader></header>
     <main>
       <tui-scrollbar [style.max-height.%]="100">
         <router-outlet />
