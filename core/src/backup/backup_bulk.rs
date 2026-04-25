@@ -20,7 +20,7 @@ use crate::context::RpcContext;
 use crate::db::model::public::BackupProgress;
 use crate::db::model::{Database, DatabaseModel};
 use crate::disk::mount::backup::BackupMountGuard;
-use crate::disk::mount::filesystem::ReadWrite;
+use crate::disk::mount::filesystem::BackupWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::middleware::auth::session::SessionAuthContext;
 use crate::notifications::{NotificationLevel, notify};
@@ -198,7 +198,7 @@ pub async fn backup_all(
     );
 
     let mut backup_guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(&fs, ReadWrite).await?,
+        TmpMountGuard::mount(&fs, BackupWrite).await?,
         &server_id,
         &old_password_decrypted,
     )

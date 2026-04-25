@@ -126,8 +126,13 @@ pub struct CliGetOsAssetParams {
     pub version: Version,
     #[arg(help = "help.arg.platform")]
     pub platform: InternedString,
-    #[arg(long = "download", short = 'd', help = "help.arg.download-directory")]
-    pub download: Option<PathBuf>,
+    #[arg(
+        long = "download",
+        short = 'd',
+        help = "help.arg.download-directory",
+        default_value = "."
+    )]
+    pub download: PathBuf,
     #[arg(long = "reverify", short = 'r', help = "help.arg.reverify-hash")]
     pub reverify: bool,
 }
@@ -166,43 +171,41 @@ async fn cli_get_os_asset(
 
     res.validate(SIG_CONTEXT, res.all_signers())?;
 
-    if let Some(download) = download {
-        let download = download.join(format!("startos-{version}_{platform}.{ext}"));
-        let mut file = AtomicFile::new(&download, None::<&Path>).await?;
+    let download = download.join(format!("startos-{version}_{platform}.{ext}"));
+    let mut file = AtomicFile::new(&download, None::<&Path>).await?;
 
-        let progress = FullProgressTracker::new();
-        let mut download_phase =
-            progress.add_phase(InternedString::intern("Downloading File"), Some(100));
-        download_phase.set_total(res.commitment.size);
-        download_phase.set_units(Some(ProgressUnits::Bytes));
-        let reverify_phase = if reverify {
-            Some(progress.add_phase(InternedString::intern("Reverifying File"), Some(10)))
-        } else {
-            None
-        };
+    let progress = FullProgressTracker::new();
+    let mut download_phase =
+        progress.add_phase(InternedString::intern("Downloading File"), Some(100));
+    download_phase.set_total(res.commitment.size);
+    download_phase.set_units(Some(ProgressUnits::Bytes));
+    let reverify_phase = if reverify {
+        Some(progress.add_phase(InternedString::intern("Reverifying File"), Some(10)))
+    } else {
+        None
+    };
 
-        let progress_task = progress.progress_bar_task("Downloading...");
+    let progress_task = progress.progress_bar_task("Downloading...");
 
-        download_phase.start();
-        let mut download_writer = download_phase.writer(&mut *file);
-        res.download(ctx.client.clone(), &mut download_writer)
+    download_phase.start();
+    let mut download_writer = download_phase.writer(&mut *file);
+    res.download(ctx.client.clone(), &mut download_writer)
+        .await?;
+    let (_, mut download_phase) = download_writer.into_inner();
+    file.save().await?;
+    download_phase.complete();
+
+    if let Some(mut reverify_phase) = reverify_phase {
+        reverify_phase.start();
+        res.commitment
+            .check(&MultiCursorFile::from(open_file(download).await?))
             .await?;
-        let (_, mut download_phase) = download_writer.into_inner();
-        file.save().await?;
-        download_phase.complete();
-
-        if let Some(mut reverify_phase) = reverify_phase {
-            reverify_phase.start();
-            res.commitment
-                .check(&MultiCursorFile::from(open_file(download).await?))
-                .await?;
-            reverify_phase.complete();
-        }
-
-        progress.complete();
-
-        progress_task.await.with_kind(ErrorKind::Unknown)?;
+        reverify_phase.complete();
     }
+
+    progress.complete();
+
+    progress_task.await.with_kind(ErrorKind::Unknown)?;
 
     Ok(res)
 }

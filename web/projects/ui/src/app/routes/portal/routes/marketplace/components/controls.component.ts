@@ -161,6 +161,7 @@ export class MarketplaceControlsComponent {
     }
 
     if (
+      this.sameFlavor() &&
       currentUrl &&
       !sameUrl(currentUrl, originalUrl) &&
       !(await this.alerts.alertMarketplace(currentUrl, originalUrl))

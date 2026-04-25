@@ -75,7 +75,12 @@ impl Rsync {
         let mut command = cmd
             .arg("-actAXH")
             .arg("--info=progress2")
-            .arg("--no-inc-recursive")
+            // --no-inc-recursive would give accurate progress percentages
+            // (since rsync knows the full file list up front), but it forces a
+            // full pre-scan that causes timeouts on large transfers. If we
+            // start surfacing progress to users, do a raw file count up front
+            // and compute percentage from bytes/files seen instead of relying
+            // on rsync's own percentage.
             .arg(src.as_ref())
             .arg(dst.as_ref())
             .kill_on_drop(true)

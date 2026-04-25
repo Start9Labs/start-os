@@ -231,8 +231,8 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
           async (sub) => {
             console.log('[pg-dump] mounting backup target')
             await mountBackupTarget(sub.rootfs)
-            await sub.exec(['touch', dumpFile], { user: 'root' })
-            await sub.exec(['chown', 'postgres:postgres', dumpFile], {
+            await sub.execFail(['touch', dumpFile], { user: 'root' })
+            await sub.execFail(['chown', 'postgres:postgres', dumpFile], {
               user: 'root',
             })
             await startPg(sub, 'pg-dump')
@@ -716,7 +716,11 @@ async function runRsync(rsyncOptions: {
   args.push('--inplace')
   args.push('--timeout=300')
   args.push('--info=progress2')
-  args.push('--no-inc-recursive')
+  // --no-inc-recursive would give accurate progress percentages (since rsync
+  // knows the full file list up front), but it forces a full pre-scan that
+  // causes timeouts on large backups. If we start surfacing progress to users,
+  // do a raw file count up front and compute percentage from bytes/files seen
+  // instead of relying on rsync's own percentage.
   args.push(srcPath)
   args.push(dstPath)
   const spawned = child_process.spawn(command, args, { detached: true })

@@ -1,10 +1,6 @@
 import { Effects } from '../../../../base/lib/types'
-import { stringFromStdErrOut } from '../../util'
 import { HealthCheckResult } from './HealthCheckResult'
-import { promisify } from 'node:util'
-import * as CP from 'node:child_process'
-
-const cpExec = promisify(CP.exec)
+import * as fs from 'node:fs/promises'
 
 export function containsAddress(x: string, port: number, address?: bigint) {
   const readPorts = x
@@ -46,21 +42,15 @@ export async function checkPortListening(
   return Promise.race<HealthCheckResult>([
     Promise.resolve().then(async () => {
       const hasAddress =
+        containsAddress(await fs.readFile('/proc/net/tcp', 'utf-8'), port) ||
         containsAddress(
-          await cpExec(`cat /proc/net/tcp`, {}).then(stringFromStdErrOut),
-          port,
-        ) ||
-        containsAddress(
-          await cpExec(`cat /proc/net/tcp6`, {}).then(stringFromStdErrOut),
+          await fs.readFile('/proc/net/tcp6', 'utf-8'),
           port,
           BigInt(0),
         ) ||
+        containsAddress(await fs.readFile('/proc/net/udp', 'utf-8'), port) ||
         containsAddress(
-          await cpExec('cat /proc/net/udp', {}).then(stringFromStdErrOut),
-          port,
-        ) ||
-        containsAddress(
-          await cpExec('cat /proc/net/udp6', {}).then(stringFromStdErrOut),
+          await fs.readFile('/proc/net/udp6', 'utf-8'),
           port,
           BigInt(0),
         )

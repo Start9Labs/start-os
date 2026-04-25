@@ -9,6 +9,7 @@ use ts_rs::TS;
 use crate::context::RpcContext;
 use crate::db::model::public::{RestartReason, ServerInfo};
 use crate::prelude::*;
+use crate::util::io::copy_file;
 use crate::util::Invoke;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, ts_rs::TS)]
@@ -224,6 +225,8 @@ pub async fn set_hostname(hostname: &ServerHostname) -> Result<(), Error> {
         .arg("/etc/hosts")
         .invoke(ErrorKind::ParseSysInfo)
         .await?;
+    copy_file("/etc/hostname", "/media/startos/config/overlay/etc/hostname").await?;
+    copy_file("/etc/hosts", "/media/startos/config/overlay/etc/hosts").await?;
     Ok(())
 }
 

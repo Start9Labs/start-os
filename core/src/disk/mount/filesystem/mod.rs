@@ -27,6 +27,7 @@ pub mod overlayfs;
 pub enum MountType {
     ReadOnly,
     ReadWrite,
+    BackupWrite,
 }
 
 pub use MountType::*;

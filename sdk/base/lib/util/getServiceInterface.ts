@@ -290,7 +290,7 @@ function filterRec(
             h.metadata.kind === 'ipv6' &&
             IPV6_LINK_LOCAL.contains(IpAddress.parse(h.hostname))) ||
           (kind.has('bridge') &&
-            h.metadata.kind === 'ipv4' &&
+            (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6') &&
             h.metadata.gateway === 'lxcbr0') ||
           (kind.has('plugin') && h.metadata.kind === 'plugin')),
     )
