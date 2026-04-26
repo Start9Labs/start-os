@@ -45,6 +45,16 @@ export const mockDhcpHosts: DhcpHostSection[] = [
     },
     lists: {},
   },
+  {
+    type: 'host',
+    name: 'host_macbook',
+    options: {
+      mac: 'AA:BB:CC:DD:EE:01',
+      name: 'MacBook Pro',
+      dns: '1',
+    },
+    lists: {},
+  },
 ]
 
 // Mock ARP table output (from `ip neigh show`)
@@ -159,6 +169,16 @@ export const MOCK_DEVICE_DEFS: MockDeviceDef[] = [
     status: 'online',
     speed: { up: 0.1, down: 3.2 },
     dataUsage: 87.5,
+  },
+  {
+    mac: 'AA:BB:CC:DD:EE:01',
+    hostname: 'macbook-pro',
+    hostOctet: 110,
+    profileInterface: 'lan',
+    connection: 'Wi-Fi 5GHz',
+    status: 'offline',
+    speed: null,
+    dataUsage: 234.1,
   },
 ]
 

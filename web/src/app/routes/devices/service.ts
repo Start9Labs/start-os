@@ -5,8 +5,6 @@ import {
   DataUsagePeriod,
   DataUsagePoint,
   Device,
-  DeviceStatus,
-  DeviceTableItem,
   DeviceUpdateData,
 } from './utils'
 
@@ -80,45 +78,23 @@ export class DevicesApiService {
 export class DevicesService extends FormService<Device[]> {
   private readonly devicesApi = inject(DevicesApiService)
 
-  // Cache of loaded devices
-  private devices: Device[] = []
-
   async load(): Promise<Device[]> {
-    this.devices = await this.devicesApi.get()
-    return [...this.devices]
+    return this.devicesApi.get()
   }
 
   async store(): Promise<void> {
     // List doesn't have a single store operation
   }
 
-  getDevice(mac: string): Device | undefined {
-    return this.devices.find(d => d.mac === mac)
-  }
-
-  getDevicesByStatus(status: DeviceStatus): DeviceTableItem[] {
-    return this.devices.filter(d => d.status === status)
-  }
-
   // Update device settings
   update(mac: string, data: DeviceUpdateData) {
-    return this.actions.run(async () => {
-      await this.devicesApi.update(mac, data)
-
-      // Update local cache
-      this.devices = this.devices.map(d =>
-        d.mac === mac
-          ? {
-              ...d,
-              name: data.name,
-              ipv4Static: data.ipv4Static,
-              ipv4: data.ipv4Static ? data.ipv4 : d.ipv4,
-              ipv6Static: data.ipv6Static,
-              ipv6: data.ipv6Static ? data.ipv6 : d.ipv6,
-            }
-          : d,
-      )
-    })
+    return this.actions.run(
+      async () => {
+        await this.devicesApi.update(mac, data)
+        await this.refreshAndWait()
+      },
+      { loading: 'Updating device', success: 'Device updated' },
+    )
   }
 
   // Forget device - remove entirely
@@ -126,9 +102,7 @@ export class DevicesService extends FormService<Device[]> {
     return this.actions.run(
       async () => {
         await this.devicesApi.forget(mac)
-
-        // Remove from local cache
-        this.devices = this.devices.filter(d => d.mac !== mac)
+        await this.refreshAndWait()
       },
       { loading: 'Forgetting device', success: 'Device forgotten' },
     )

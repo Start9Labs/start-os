@@ -939,11 +939,12 @@ export class MockApiService extends ApiService {
   // --- Device smart endpoint mocks ---
 
   private mockDeviceHosts = structuredClone(mockDhcpHosts)
+  private mockDeviceDefs = structuredClone(MOCK_DEVICE_DEFS)
 
   async devicesList(): Promise<DeviceFromApi[]> {
     await pauseFor(250)
 
-    return MOCK_DEVICE_DEFS.map(def => {
+    return this.mockDeviceDefs.map(def => {
       const mac = def.mac.toUpperCase()
       const host = this.mockDeviceHosts.find(
         h => h.options.mac?.toUpperCase() === mac,
@@ -1010,6 +1011,9 @@ export class MockApiService extends ApiService {
     )
     this.mockDeviceHosts = this.mockDeviceHosts.filter(
       h => h.options.mac?.toUpperCase() !== macUpper,
+    )
+    this.mockDeviceDefs = this.mockDeviceDefs.filter(
+      d => d.mac.toUpperCase() !== macUpper,
     )
     this.logActivity(
       'device',
@@ -1335,7 +1339,7 @@ export class MockApiService extends ApiService {
     const host = this.mockDeviceHosts.find(
       h => h.options.mac?.toUpperCase() === macUpper,
     )
-    const def = MOCK_DEVICE_DEFS.find(d => d.mac.toUpperCase() === macUpper)
+    const def = this.mockDeviceDefs.find(d => d.mac.toUpperCase() === macUpper)
 
     // Compute IPv4 from profile gateway + host octet
     let ipv4: string | null = null
@@ -1382,7 +1386,9 @@ export class MockApiService extends ApiService {
 
       // Reserve IPv6 static if port uses IPv6 and no reservation exists
       if (input.ipv6 && existing && !existing.options.hostid) {
-        const def = MOCK_DEVICE_DEFS.find(d => d.mac.toUpperCase() === macUpper)
+        const def = this.mockDeviceDefs.find(
+          d => d.mac.toUpperCase() === macUpper,
+        )
         if (def) existing.options.hostid = `1::${def.hostOctet}`
       }
     }
