@@ -6,6 +6,7 @@ use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
 use super::guard::{GenericMountGuard, TmpMountGuard};
+use super::util::sync_directory;
 use crate::PackageId;
 use crate::auth::check_password;
 use crate::backup::target::BackupInfo;
@@ -210,6 +211,7 @@ impl<G: GenericMountGuard> GenericMountGuard for BackupMountGuard<G> {
     }
     async fn unmount(mut self) -> Result<(), Error> {
         if let Some(guard) = self.encrypted_guard.take() {
+            sync_directory(guard.path()).await?;
             guard.unmount().await?;
         }
         if let Some(guard) = self.backup_disk_mount_guard.take() {
@@ -224,6 +226,7 @@ impl<G: GenericMountGuard> Drop for BackupMountGuard<G> {
         let second = self.backup_disk_mount_guard.take();
         tokio::spawn(async move {
             if let Some(guard) = first {
+                sync_directory(guard.path()).await.log_err();
                 guard.unmount().await.log_err();
             }
             if let Some(guard) = second {

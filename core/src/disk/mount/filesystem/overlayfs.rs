@@ -9,6 +9,7 @@ use sha2::Sha256;
 
 use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
+use crate::disk::mount::util::sync_filesystem;
 use crate::prelude::*;
 use crate::util::io::TmpDir;
 
@@ -138,6 +139,7 @@ impl<G: GenericMountGuard> OverlayGuard<G> {
         Self::mount_layers::<&Path>(&[], lower, &[], mountpoint).await
     }
     pub async fn unmount(mut self, delete_mountpoint: bool) -> Result<(), Error> {
+        sync_filesystem(self.inner_guard.path()).await?;
         self.inner_guard.take().unmount(delete_mountpoint).await?;
         if let Some(lower) = self.lower.take() {
             lower.unmount().await?;
@@ -170,6 +172,9 @@ impl<G: GenericMountGuard> Drop for OverlayGuard<G> {
         let guard = self.inner_guard.take();
         if lower.is_some() || upper.is_some() || guard.mounted {
             tokio::spawn(async move {
+                if guard.mounted {
+                    sync_filesystem(guard.path()).await.log_err();
+                }
                 guard.unmount(false).await.log_err();
                 if let Some(lower) = lower {
                     lower.unmount().await.log_err();
