@@ -449,6 +449,21 @@ async fn install_os_inner(
         data_drive,
     }: InstallOsParams,
 ) -> Result<SetupInfo, Error> {
+    // If a previous install attempt left mounts pinned in `ctx.install_rootfs` (e.g.
+    // a successful run whose result was lost to a browser HTTP timeout, prompting the
+    // wizard to invoke install_os again), tear them down before re-entering the
+    // partition/mkfs/mount path. Otherwise the live rootfs/config bind would keep the
+    // target partition busy and the new install would race against itself.
+    let prior = ctx.install_rootfs.mutate(|s| s.take());
+    if let Some((rootfs, config)) = prior {
+        if let Err(e) = config.unmount(false).await {
+            tracing::warn!("failed to unmount stale install config bind: {e}");
+        }
+        if let Err(e) = rootfs.unmount().await {
+            tracing::warn!("failed to unmount stale install rootfs: {e}");
+        }
+    }
+
     let mut disks = crate::disk::util::list(&Default::default()).await?;
     let disk = disks
         .iter_mut()
