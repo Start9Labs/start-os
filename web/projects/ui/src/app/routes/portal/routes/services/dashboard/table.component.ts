@@ -14,7 +14,7 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { ServiceComponent } from './service.component'
 import { TuiComparator, TuiTable, TuiSortDirection } from '@taiga-ui/addon-table'
-import { getInstalledPrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
+import { getInstalledPrimaryStatus, PrimaryStatus, renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 import { ToManifestPipe } from '../../../pipes/to-manifest'
 import { toSignal } from '@angular/core/rxjs-interop'
@@ -26,6 +26,7 @@ import { TuiButton } from '@taiga-ui/core'
 import { RouterLink } from '@angular/router'
 import { ServicesPreferencesService } from 'src/app/services/services-preferences.service'
 import { TuiTableSortChange } from '@taiga-ui/addon-table'
+import Fuse from 'fuse.js'
 
 @Component({
   selector: '[services]',
@@ -62,7 +63,7 @@ import { TuiTableSortChange } from '@taiga-ui/addon-table'
         [appTableSorters]="[null, name, status]"
         (sortChange)="onSortChange($event)"
       >
-        @for (service of services() | tuiTableSort; track $index) {
+        @for (service of filteredServices() | tuiTableSort; track $index) {
           <tr
             appService
             [routerLink]="'/services/' + (service | toManifest)?.id"
@@ -108,6 +109,42 @@ export class ServicesTableComponent<
 
   readonly currentDirection = computed<TuiSortDirection>(() => {
     return this.prefs.sortState$.value.direction as TuiSortDirection
+  })
+
+  readonly filteredServices = computed(() => {
+    const raw = this.services()
+    if (!raw) return []
+
+    const filter = this.prefs.filterState$.value
+    let result = raw
+
+    // Apply text search with Fuse.js
+    if (filter.query) {
+      const query = filter.query
+      const fuse = new Fuse(raw, {
+        keys: [
+          { name: 'title', weight: 1 },
+          { name: 'id', weight: 0.5 },
+        ],
+        threshold: query.length < 4 ? 0.2 : 0.6,
+        includeScore: false,
+        ignoreLocation: query.length >= 4,
+        useExtendedSearch: query.length >= 4,
+      })
+      const fuseResults = fuse.search(query)
+      const matchedIds = new Set(fuseResults.map(r => r.item.id))
+      result = result.filter(pkg => matchedIds.has(pkg.id))
+    }
+
+    // Apply state filter
+    if (filter.states.length > 0) {
+      result = result.filter(pkg => {
+        const status = renderPkgStatus(pkg).primary
+        return filter.states.includes(status)
+      })
+    }
+
+    return result
   })
 
   readonly name: TuiComparator<PackageDataEntry> = byName

@@ -428,7 +428,7 @@ Add minimal styles for the filter bar. Add to the existing `styles` array:
 ### Verification
 
 #### Automated
-- [ ] `cd web && npx tsc --project projects/ui/tsconfig.json --noEmit --skipLibCheck` — no TypeScript errors
+- [x] `cd web && npx tsc --project projects/ui/tsconfig.json --noEmit --skipLibCheck` — no TypeScript errors
 
 #### Manual
 - [ ] Type in search box → table filters in real-time
