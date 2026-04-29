@@ -2,12 +2,18 @@ use std::path::{Path, PathBuf};
 
 use gpt::GptConfig;
 use gpt::disk::LogicalBlockSize;
-use tokio::process::Command;
 
 use crate::disk::OsPartitionInfo;
 use crate::os_install::partition_for;
+use crate::os_install::quiesce::{quiesce_disk, update_partition_table};
 use crate::prelude::*;
-use crate::util::Invoke;
+
+/// Target size for the OS root (rootfs) partition. We try to allocate this much.
+const ROOT_TARGET_BYTES: u64 = 14 * 1024 * 1024 * 1024;
+/// Minimum size we will accept for the OS root partition before erroring out. If a
+/// protected data partition's `first_lba` sits inside the planned root region we will
+/// shrink root down to (but not below) this floor.
+const ROOT_MIN_BYTES: u64 = 12 * 1024 * 1024 * 1024;
 
 pub async fn partition(
     disk_path: &Path,
@@ -27,6 +33,11 @@ pub async fn partition(
             ));
         }
     }
+
+    // Drop every kernel-side reference to partitions on this disk before rewriting the
+    // table. Quiesce is best-effort; partx --update afterwards is what actually makes
+    // the kernel see the new layout, and it tolerates a still-busy protected partition.
+    quiesce_disk(disk_path).await?;
 
     let disk_path = disk_path.to_owned();
     let disk_path_clone = disk_path.clone();
@@ -100,9 +111,56 @@ pub async fn partition(
             0,
             None,
         )?;
+
+        // Compute the root size, shrinking it within [ROOT_MIN_BYTES, ROOT_TARGET_BYTES]
+        // when a protected partition's `first_lba` would otherwise be overwritten. This
+        // tolerates a few MiB of geometry drift on legacy hardware where the protected
+        // partition isn't quite aligned the way the gpt crate would lay it out today.
+        let lb_size: u64 = (*gpt.logical_block_size()).into();
+        let target_root_lba = ROOT_TARGET_BYTES.div_ceil(lb_size);
+        let min_root_lba = ROOT_MIN_BYTES.div_ceil(lb_size);
+        let root_size_bytes = if let Some((protect_first_lba, _, ref path)) =
+            protected_partition_info
+        {
+            // The next add_partition() will pick the lowest free block that fits, so the
+            // earliest free LBA is where root would land. Find it, and clamp root's
+            // length so it ends strictly before the protected partition.
+            let earliest_free_start = gpt
+                .find_free_sectors()
+                .into_iter()
+                .filter(|(start, _)| *start < protect_first_lba)
+                .map(|(start, _)| start)
+                .min()
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("No free space left on device for OS root partition"),
+                        crate::ErrorKind::BlockDevice,
+                    )
+                })?;
+            let available_lba = protect_first_lba.saturating_sub(earliest_free_start);
+            if available_lba < min_root_lba {
+                let available_bytes = available_lba.saturating_mul(lb_size);
+                return Err(Error::new(
+                    eyre!(
+                        concat!(
+                            "Protected partition {} starts at sector {}, leaving only ",
+                            "{} bytes for the OS root partition (minimum is {} bytes)"
+                        ),
+                        path.display(),
+                        protect_first_lba,
+                        available_bytes,
+                        ROOT_MIN_BYTES
+                    ),
+                    crate::ErrorKind::DiskManagement,
+                ));
+            }
+            available_lba.min(target_root_lba).saturating_mul(lb_size)
+        } else {
+            ROOT_TARGET_BYTES
+        };
         gpt.add_partition(
             "root",
-            14 * 1024 * 1024 * 1024,
+            root_size_bytes,
             match crate::ARCH {
                 "x86_64" => gpt::partition_types::LINUX_ROOT_X64,
                 "aarch64" => gpt::partition_types::LINUX_ROOT_ARM_64,
@@ -111,27 +169,6 @@ pub async fn partition(
             0,
             None,
         )?;
-
-        // Check if protected partition would be overwritten by OS partitions
-        if let Some((first_lba, _, ref path)) = protected_partition_info {
-            // Get the actual end sector of the last OS partition (root = partition 3)
-            let os_partitions_end_sector =
-                gpt.partitions().get(&3).map(|p| p.last_lba).unwrap_or(0);
-            if first_lba <= os_partitions_end_sector {
-                return Err(Error::new(
-                    eyre!(
-                        concat!(
-                            "Protected partition {} starts at sector {}",
-                            " which would be overwritten by OS partitions ending at sector {}"
-                        ),
-                        path.display(),
-                        first_lba,
-                        os_partitions_end_sector
-                    ),
-                    crate::ErrorKind::DiskManagement,
-                ));
-            }
-        }
 
         let data_part = if let Some((first_lba, last_lba, path)) = protected_partition_info {
             // Re-create the data partition entry at the same location
@@ -175,48 +212,11 @@ pub async fn partition(
     .await
     .unwrap()?;
 
-    // Re-read partition table and wait for udev to create device nodes
-    Command::new("vgchange")
-        .arg("-an")
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await
-        .ok();
-    Command::new("dmsetup")
-        .arg("remove_all")
-        .arg("--force")
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await
-        .ok();
-    // BLKRRPART can fail with "Device or resource busy" if the kernel still
-    // holds references to old partitions.  Retry a few times with a delay.
-    let mut last_err = None;
-    for attempt in 0..5u32 {
-        if attempt > 0 {
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        }
-        match Command::new("blockdev")
-            .arg("--rereadpt")
-            .arg(&disk_path)
-            .invoke(crate::ErrorKind::DiskManagement)
-            .await
-        {
-            Ok(_) => {
-                last_err = None;
-                break;
-            }
-            Err(e) => {
-                tracing::warn!("blockdev --rereadpt attempt {} failed: {e}", attempt + 1);
-                last_err = Some(e);
-            }
-        }
-    }
-    if let Some(e) = last_err {
-        return Err(e);
-    }
-    Command::new("udevadm")
-        .arg("settle")
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await?;
+    // Make the kernel see the new layout via per-entry BLKPG ioctls. This works even
+    // when a protected partition on this disk is still claimed by something we
+    // couldn't tear down in quiesce_disk, because partx updates entries individually
+    // rather than asking the kernel to re-read the whole table.
+    update_partition_table(&disk_path).await?;
 
     let mut extra_boot = std::collections::BTreeMap::new();
     let bios;

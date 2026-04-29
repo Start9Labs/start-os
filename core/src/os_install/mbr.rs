@@ -2,12 +2,22 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
 use mbrman::{CHS, MBR, MBRPartitionEntry};
-use tokio::process::Command;
 
 use crate::disk::OsPartitionInfo;
 use crate::os_install::partition_for;
+use crate::os_install::quiesce::{quiesce_disk, update_partition_table};
 use crate::prelude::*;
-use crate::util::Invoke;
+
+/// Boot partition starts at sector 2048 and ends at this sector (exclusive).
+/// 2 GiB at 512-byte sectors.
+const BOOT_END_SECTOR: u32 = 4196352;
+/// Target end sector for the OS root partition (i.e. start of the data region in the
+/// happy path). 14 GiB of root + 2 GiB of boot.
+const ROOT_TARGET_END_SECTOR: u32 = 33556480;
+/// Minimum acceptable end sector for the OS root partition. We let the protected
+/// partition push root's end up to this floor, but no further. 12 GiB at 512-byte
+/// sectors = 25_165_824 sectors of root.
+const ROOT_MIN_END_SECTOR: u32 = BOOT_END_SECTOR + 12 * 1024 * 1024 * 2;
 
 pub async fn partition(
     disk_path: &Path,
@@ -26,6 +36,11 @@ pub async fn partition(
             ));
         }
     }
+
+    // Drop every kernel-side reference to partitions on this disk before rewriting the
+    // table. partx --update afterwards is what actually makes the kernel see the new
+    // layout, and it tolerates a still-busy protected partition.
+    quiesce_disk(disk_path).await?;
 
     let disk_path = disk_path.to_owned();
     let disk_path_clone = disk_path.clone();
@@ -66,28 +81,35 @@ pub async fn partition(
             };
 
         // MBR partition layout:
-        // Partition 1 (boot): starts at 2048, ends at 4196352 (sectors: 4194304 = 2GB)
-        // Partition 2 (root): starts at 4196352, ends at 33556480 (sectors: 29360128 = 14GB)
-        // OS partitions end at sector 33556480
-        let os_partitions_end_sector: u32 = 33556480;
-
-        // Check if protected partition would be overwritten
-        if let Some((starting_lba, _, ref path)) = protected_partition_info {
-            if starting_lba < os_partitions_end_sector {
+        // Partition 1 (boot): starts at 2048, ends at BOOT_END_SECTOR (2 GiB)
+        // Partition 2 (root): starts at BOOT_END_SECTOR, ends at root_end_sector
+        //
+        // root_end_sector defaults to ROOT_TARGET_END_SECTOR (14 GiB of root) but may
+        // shrink to as low as ROOT_MIN_END_SECTOR if a protected partition sits in the
+        // way. Below the floor we error out.
+        let root_end_sector: u32 = if let Some((starting_lba, _, ref path)) =
+            protected_partition_info
+        {
+            if starting_lba < ROOT_MIN_END_SECTOR {
                 return Err(Error::new(
                     eyre!(
                         concat!(
-                            "Protected partition {} starts at sector {}",
-                            " which would be overwritten by OS partitions ending at sector {}"
+                            "Protected partition {} starts at sector {}, leaving less ",
+                            "than the minimum room for the OS root partition (must end ",
+                            "at or before sector {}, minimum is sector {})"
                         ),
                         path.display(),
                         starting_lba,
-                        os_partitions_end_sector
+                        starting_lba,
+                        ROOT_MIN_END_SECTOR
                     ),
                     crate::ErrorKind::DiskManagement,
                 ));
             }
-        }
+            std::cmp::min(starting_lba, ROOT_TARGET_END_SECTOR)
+        } else {
+            ROOT_TARGET_END_SECTOR
+        };
 
         let mut file = std::fs::File::options()
             .read(true)
@@ -101,15 +123,15 @@ pub async fn partition(
             sys: 0x0b,
             last_chs: CHS::empty(),
             starting_lba: 2048,
-            sectors: 4196352 - 2048,
+            sectors: BOOT_END_SECTOR - 2048,
         };
         mbr[2] = MBRPartitionEntry {
             boot: 0,
             first_chs: CHS::empty(),
             sys: 0x83,
             last_chs: CHS::empty(),
-            starting_lba: 4196352,
-            sectors: 33556480 - 4196352,
+            starting_lba: BOOT_END_SECTOR,
+            sectors: root_end_sector - BOOT_END_SECTOR,
         };
 
         let data_part = if let Some((starting_lba, part_sectors, path)) = protected_partition_info {
@@ -129,8 +151,8 @@ pub async fn partition(
                 first_chs: CHS::empty(),
                 sys: 0x8e,
                 last_chs: CHS::empty(),
-                starting_lba: 33556480,
-                sectors: sectors - 33556480,
+                starting_lba: root_end_sector,
+                sectors: sectors - root_end_sector,
             };
             Some(partition_for(&disk_path, 3))
         };
@@ -141,48 +163,9 @@ pub async fn partition(
     .await
     .unwrap()?;
 
-    // Re-read partition table and wait for udev to create device nodes
-    Command::new("vgchange")
-        .arg("-an")
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await
-        .ok();
-    Command::new("dmsetup")
-        .arg("remove_all")
-        .arg("--force")
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await
-        .ok();
-    // BLKRRPART can fail with "Device or resource busy" if the kernel still
-    // holds references to old partitions.  Retry a few times with a delay.
-    let mut last_err = None;
-    for attempt in 0..5u32 {
-        if attempt > 0 {
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        }
-        match Command::new("blockdev")
-            .arg("--rereadpt")
-            .arg(&disk_path)
-            .invoke(crate::ErrorKind::DiskManagement)
-            .await
-        {
-            Ok(_) => {
-                last_err = None;
-                break;
-            }
-            Err(e) => {
-                tracing::warn!("blockdev --rereadpt attempt {} failed: {e}", attempt + 1);
-                last_err = Some(e);
-            }
-        }
-    }
-    if let Some(e) = last_err {
-        return Err(e);
-    }
-    Command::new("udevadm")
-        .arg("settle")
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await?;
+    // Make the kernel see the new layout via per-entry BLKPG ioctls instead of
+    // BLKRRPART, so a still-busy protected partition doesn't block the update.
+    update_partition_table(&disk_path).await?;
 
     Ok(OsPartitionInfo {
         bios: None,

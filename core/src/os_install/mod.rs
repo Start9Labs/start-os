@@ -28,6 +28,7 @@ use crate::util::serde::IoFormat;
 
 mod gpt;
 mod mbr;
+mod quiesce;
 
 /// Probe a squashfs image to determine its target architecture
 async fn probe_squashfs_arch(squashfs_path: &Path) -> Result<InternedString, Error> {
