@@ -529,6 +529,7 @@ export class SystemForEmbassy implements System {
             preferredExternalPort: lanPortNum,
             alpn: { specified: [] },
             addXForwardedHeaders: false,
+            auth: null,
           }
         }
         return [

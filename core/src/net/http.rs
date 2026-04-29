@@ -68,6 +68,8 @@ pub async fn run_http_proxy<F, T>(
     to: T,
     alpn: Option<MaybeUtf8String>,
     src_ip: Option<IpAddr>,
+    add_forwarded: bool,
+    auth: Option<HeaderValue>,
 ) -> Result<(), Error>
 where
     F: ReadWriter + Unpin + Send + 'static,
@@ -78,13 +80,19 @@ where
         .map(|alpn| alpn.0.as_slice() == b"h2")
         .unwrap_or(false)
     {
-        run_http2_proxy(from, to, src_ip).await
+        run_http2_proxy(from, to, src_ip, add_forwarded, auth).await
     } else {
-        run_http1_proxy(from, to, src_ip).await
+        run_http1_proxy(from, to, src_ip, add_forwarded, auth).await
     }
 }
 
-pub async fn run_http2_proxy<F, T>(from: F, to: T, src_ip: Option<IpAddr>) -> Result<(), Error>
+pub async fn run_http2_proxy<F, T>(
+    from: F,
+    to: T,
+    src_ip: Option<IpAddr>,
+    add_forwarded: bool,
+    auth: Option<HeaderValue>,
+) -> Result<(), Error>
 where
     F: ReadWriter + Unpin + Send + 'static,
     T: ReadWriter + Unpin + Send + 'static,
@@ -102,17 +110,23 @@ where
         .keep_alive_timeout(Duration::from_secs(300))
         .serve_connection(
             TokioIo::new(from),
-            service_fn(|mut req| {
+            service_fn(move |mut req| {
                 let mut client = client.clone();
+                let auth = auth.clone();
                 async move {
-                    req.headers_mut()
-                        .insert("X-Forwarded-Proto", HeaderValue::from_static("https"));
-                    if let Some(src_ip) = src_ip
-                        .map(|s| s.to_string())
-                        .as_deref()
-                        .and_then(|s| HeaderValue::from_str(s).ok())
-                    {
-                        req.headers_mut().insert("X-Forwarded-For", src_ip);
+                    if add_forwarded {
+                        req.headers_mut()
+                            .insert("X-Forwarded-Proto", HeaderValue::from_static("https"));
+                        if let Some(src_ip) = src_ip
+                            .map(|s| s.to_string())
+                            .as_deref()
+                            .and_then(|s| HeaderValue::from_str(s).ok())
+                        {
+                            req.headers_mut().insert("X-Forwarded-For", src_ip);
+                        }
+                    }
+                    if let Some(auth) = auth {
+                        req.headers_mut().insert(http::header::AUTHORIZATION, auth);
                     }
 
                     let upgrade = if req.method() == http::method::Method::CONNECT
@@ -149,7 +163,13 @@ where
     Ok(())
 }
 
-pub async fn run_http1_proxy<F, T>(from: F, to: T, src_ip: Option<IpAddr>) -> Result<(), Error>
+pub async fn run_http1_proxy<F, T>(
+    from: F,
+    to: T,
+    src_ip: Option<IpAddr>,
+    add_forwarded: bool,
+    auth: Option<HeaderValue>,
+) -> Result<(), Error>
 where
     F: ReadWriter + Unpin + Send + 'static,
     T: ReadWriter + Unpin + Send + 'static,
@@ -164,17 +184,23 @@ where
         .timer(TokioTimer::new())
         .serve_connection(
             TokioIo::new(from),
-            service_fn(|mut req| {
+            service_fn(move |mut req| {
                 let client = client.clone();
+                let auth = auth.clone();
                 async move {
-                    req.headers_mut()
-                        .insert("X-Forwarded-Proto", HeaderValue::from_static("https"));
-                    if let Some(src_ip) = src_ip
-                        .map(|s| s.to_string())
-                        .as_deref()
-                        .and_then(|s| HeaderValue::from_str(s).ok())
-                    {
-                        req.headers_mut().insert("X-Forwarded-For", src_ip);
+                    if add_forwarded {
+                        req.headers_mut()
+                            .insert("X-Forwarded-Proto", HeaderValue::from_static("https"));
+                        if let Some(src_ip) = src_ip
+                            .map(|s| s.to_string())
+                            .as_deref()
+                            .and_then(|s| HeaderValue::from_str(s).ok())
+                        {
+                            req.headers_mut().insert("X-Forwarded-For", src_ip);
+                        }
+                    }
+                    if let Some(auth) = auth {
+                        req.headers_mut().insert(http::header::AUTHORIZATION, auth);
                     }
 
                     let upgrade =
@@ -205,9 +231,19 @@ where
                             if let Some((from, to)) = futures::future::try_join(from, to).await.ok()
                             {
                                 if kind.map_or(false, |k| k == "HTTP/2.0") {
-                                    run_http2_proxy(TokioIo::new(from), TokioIo::new(to), src_ip)
-                                        .await
-                                        .ok();
+                                    // Inner upgraded HTTP/2 connection is the
+                                    // same logical request stream — no need
+                                    // to inject auth or forwarded headers a
+                                    // second time, the outer hop already did.
+                                    run_http2_proxy(
+                                        TokioIo::new(from),
+                                        TokioIo::new(to),
+                                        src_ip,
+                                        false,
+                                        None,
+                                    )
+                                    .await
+                                    .ok();
                                 } else {
                                     tokio::io::copy_bidirectional(
                                         &mut TokioIo::new(from),

@@ -78,6 +78,7 @@ impl Public {
                                                 MaybeUtf8String("h2".into()),
                                                 MaybeUtf8String("http/1.1".into()),
                                             ])),
+                                            auth: None,
                                         }),
                                         secure: None,
                                     },

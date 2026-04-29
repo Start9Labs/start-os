@@ -5,8 +5,9 @@ import { AddSslOptions, BindParams } from '../osBindings'
 import { Security } from '../osBindings'
 import { BindOptions } from '../osBindings'
 import { AlpnInfo } from '../osBindings'
+import { ProxyAuth } from '../osBindings'
 
-export { AddSslOptions, Security, BindOptions }
+export { AddSslOptions, Security, BindOptions, ProxyAuth }
 
 export const knownProtocols = {
   http: {
@@ -146,6 +147,7 @@ export class MultiHost {
           preferredExternalPort: knownProtocols[sslProto].defaultPort,
           scheme: sslProto,
           alpn: 'alpn' in protoInfo ? protoInfo.alpn : null,
+          auth: null as ProxyAuth | null,
           ...('addSsl' in options ? options.addSsl : null),
         }
       : options.addSsl
@@ -154,6 +156,7 @@ export class MultiHost {
             preferredExternalPort: 443,
             scheme: sslProto,
             alpn: null,
+            auth: null as ProxyAuth | null,
             ...options.addSsl,
           }
         : null

@@ -144,6 +144,7 @@ impl NetController {
                             MaybeUtf8String("h2".into()),
                             MaybeUtf8String("http/1.1".into()),
                         ])),
+                        auth: None,
                     }),
                     secure: None,
                 },
@@ -247,6 +248,7 @@ impl NetServiceData {
                                 acme: None,
                                 addr,
                                 add_x_forwarded_headers: ssl.add_x_forwarded_headers,
+                                auth: ssl.auth.clone(),
                                 connect_ssl: connect_ssl
                                     .clone()
                                     .map(|_| ctrl.tls_client_config.clone()),
@@ -281,6 +283,7 @@ impl NetServiceData {
                             .and_then(|p| p.acme.clone()),
                         addr,
                         add_x_forwarded_headers: ssl.add_x_forwarded_headers,
+                        auth: ssl.auth.clone(),
                         connect_ssl: connect_ssl.clone().map(|_| ctrl.tls_client_config.clone()),
                         passthrough: false,
                     });
@@ -361,6 +364,7 @@ impl NetServiceData {
                         acme: None,
                         addr,
                         add_x_forwarded_headers: false,
+                        auth: None,
                         connect_ssl: Err(AlpnInfo::Reflect),
                         passthrough: true,
                     });
