@@ -10,12 +10,14 @@ use crate::context::config::ServerConfig;
 use crate::prelude::*;
 use crate::rpc_continuations::RpcContinuations;
 use crate::shutdown::Shutdown;
+use crate::util::sync::SyncMutex;
 
 pub struct DiagnosticContextSeed {
     pub shutdown: Sender<Shutdown>,
     pub error: Arc<RpcError>,
     pub disk_guid: Option<InternedString>,
     pub rpc_continuations: RpcContinuations,
+    pub update_in_progress: SyncMutex<bool>,
 }
 
 #[derive(Clone)]
@@ -40,6 +42,7 @@ impl DiagnosticContext {
             disk_guid,
             error: Arc::new(error.into()),
             rpc_continuations: RpcContinuations::new(),
+            update_in_progress: SyncMutex::new(false),
         })))
     }
 }
