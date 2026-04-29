@@ -51,7 +51,7 @@ unstable = ["backtrace-on-stack-overflow"]
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
-async-acme = { version = "0.6.0", git = "https://github.com/dr-bonez/async-acme.git", features = [
+async-acme = { version = "0.6.0", git = "https://github.com/Start9Labs/async-acme.git", rev = "6d887d0ba58e5eb49cefc11fb5ab8f6887351f79", features = [
   "use_rustls",
   "use_tokio",
 ] }

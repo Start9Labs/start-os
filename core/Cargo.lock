@@ -241,12 +241,13 @@ dependencies = [
 [[package]]
 name = "async-acme"
 version = "0.6.0"
-source = "git+https://github.com/dr-bonez/async-acme.git#d22a20f9ac0a5dafb8fb383958b12bf6f4151833"
+source = "git+https://github.com/Start9Labs/async-acme.git?rev=6d887d0ba58e5eb49cefc11fb5ab8f6887351f79#6d887d0ba58e5eb49cefc11fb5ab8f6887351f79"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
  "futures-util",
  "generic-async-http-client",
+ "httpdate",
  "log",
  "pem",
  "rcgen",
