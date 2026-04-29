@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use clap::Parser;
 use color_eyre::eyre::eyre;
+use futures::FutureExt;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
@@ -418,6 +420,29 @@ pub async fn install_os_to(
 }
 
 pub async fn install_os(
+    ctx: SetupContext,
+    params: InstallOsParams,
+) -> Result<SetupInfo, Error> {
+    let fut = ctx.install_os_future.mutate(|slot| {
+        if let Some(existing) = slot.as_ref() {
+            if existing.peek().is_none() {
+                return existing.clone();
+            }
+        }
+        let ctx = ctx.clone();
+        let new_fut = async move { install_os_inner(ctx, params).await.map_err(Arc::new) }
+            .boxed()
+            .shared();
+        // Drive the future even if all RPC callers drop their await
+        // (e.g. browser HTTP timeout aborts the request).
+        tokio::spawn(new_fut.clone());
+        *slot = Some(new_fut.clone());
+        new_fut
+    });
+    fut.await.map_err(|e| e.clone_output())
+}
+
+async fn install_os_inner(
     ctx: SetupContext,
     InstallOsParams {
         os_drive,

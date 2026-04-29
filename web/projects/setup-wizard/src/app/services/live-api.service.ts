@@ -82,6 +82,7 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest<InstallOsRes>({
       method: 'setup.install-os',
       params,
+      timeout: 5 * 60 * 1000,
     })
   }
 
