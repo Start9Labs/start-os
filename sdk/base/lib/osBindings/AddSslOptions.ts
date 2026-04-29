@@ -4,6 +4,11 @@ import type { ProxyAuth } from './ProxyAuth'
 
 export type AddSslOptions = {
   preferredExternalPort: number
+  /**
+   * When `true`, the OS reverse proxy adds `X-Forwarded-Proto: https`
+   * and `X-Forwarded-For: <client-ip>` to incoming HTTP requests before
+   * forwarding them upstream. Setting this implies HTTP-aware proxying.
+   */
   addXForwardedHeaders: boolean
   alpn: AlpnInfo | null
   /**
@@ -13,8 +18,7 @@ export type AddSslOptions = {
    * Unauthenticated requests get `401 Unauthorized` with an appropriate
    * `WWW-Authenticate` challenge. For `Basic`, the authenticated
    * username is forwarded to the upstream service as `X-Forwarded-User`.
-   * Setting this implies HTTP-aware proxying (same path as
-   * `add_x_forwarded_headers`).
+   * Setting this implies HTTP-aware proxying.
    */
   auth: ProxyAuth | null
 }

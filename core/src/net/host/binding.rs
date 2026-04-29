@@ -233,8 +233,11 @@ pub struct BindOptions {
 #[ts(export)]
 pub struct AddSslOptions {
     pub preferred_external_port: u16,
+    /// When `true`, the OS reverse proxy adds `X-Forwarded-Proto: https`
+    /// and `X-Forwarded-For: <client-ip>` to incoming HTTP requests before
+    /// forwarding them upstream. Setting this implies HTTP-aware proxying.
     #[serde(default)]
-    pub add_x_forwarded_headers: bool, // TODO
+    pub add_x_forwarded_headers: bool,
     pub alpn: Option<AlpnInfo>,
     /// Optional reverse-proxy auth gate. When set, the OS reverse proxy
     /// will validate the `Authorization` header on incoming HTTP requests
@@ -242,8 +245,7 @@ pub struct AddSslOptions {
     /// Unauthenticated requests get `401 Unauthorized` with an appropriate
     /// `WWW-Authenticate` challenge. For `Basic`, the authenticated
     /// username is forwarded to the upstream service as `X-Forwarded-User`.
-    /// Setting this implies HTTP-aware proxying (same path as
-    /// `add_x_forwarded_headers`).
+    /// Setting this implies HTTP-aware proxying.
     #[serde(default)]
     pub auth: Option<ProxyAuth>,
 }
