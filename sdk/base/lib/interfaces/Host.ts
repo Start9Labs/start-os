@@ -6,8 +6,9 @@ import { Security } from '../osBindings'
 import { BindOptions } from '../osBindings'
 import { AlpnInfo } from '../osBindings'
 import { ProxyAuth } from '../osBindings'
+import { BasicCredential } from '../osBindings'
 
-export { AddSslOptions, Security, BindOptions, ProxyAuth }
+export { AddSslOptions, Security, BindOptions, ProxyAuth, BasicCredential }
 
 export const knownProtocols = {
   http: {

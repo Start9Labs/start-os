@@ -7,12 +7,14 @@ export type AddSslOptions = {
   addXForwardedHeaders: boolean
   alpn: AlpnInfo | null
   /**
-   * Optional proxy-injected `Authorization` header for upstream requests.
-   * When set, incoming requests are HTTP-parsed and an `Authorization`
-   * header is added (or replaced) before being forwarded to the upstream
-   * service. Setting this implies the connection must be HTTP-aware
-   * (i.e. it is processed through `run_http_proxy`, the same path used
-   * for `add_x_forwarded_headers`).
+   * Optional reverse-proxy auth gate. When set, the OS reverse proxy
+   * will validate the `Authorization` header on incoming HTTP requests
+   * against this configuration before forwarding them upstream.
+   * Unauthenticated requests get `401 Unauthorized` with an appropriate
+   * `WWW-Authenticate` challenge. For `Basic`, the authenticated
+   * username is forwarded to the upstream service as `X-Forwarded-User`.
+   * Setting this implies HTTP-aware proxying (same path as
+   * `add_x_forwarded_headers`).
    */
   auth: ProxyAuth | null
 }

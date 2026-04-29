@@ -236,43 +236,38 @@ pub struct AddSslOptions {
     #[serde(default)]
     pub add_x_forwarded_headers: bool, // TODO
     pub alpn: Option<AlpnInfo>,
-    /// Optional proxy-injected `Authorization` header for upstream requests.
-    /// When set, incoming requests are HTTP-parsed and an `Authorization`
-    /// header is added (or replaced) before being forwarded to the upstream
-    /// service. Setting this implies the connection must be HTTP-aware
-    /// (i.e. it is processed through `run_http_proxy`, the same path used
-    /// for `add_x_forwarded_headers`).
+    /// Optional reverse-proxy auth gate. When set, the OS reverse proxy
+    /// will validate the `Authorization` header on incoming HTTP requests
+    /// against this configuration before forwarding them upstream.
+    /// Unauthenticated requests get `401 Unauthorized` with an appropriate
+    /// `WWW-Authenticate` challenge. For `Basic`, the authenticated
+    /// username is forwarded to the upstream service as `X-Forwarded-User`.
+    /// Setting this implies HTTP-aware proxying (same path as
+    /// `add_x_forwarded_headers`).
     #[serde(default)]
     pub auth: Option<ProxyAuth>,
 }
 
-/// Authorization header to inject on upstream proxied requests.
+/// Auth gate enforced by the OS reverse proxy on incoming requests.
 ///
-/// - `Bearer { token }` -> `Authorization: Bearer <token>`
-/// - `Basic  { username, password }` -> `Authorization: Basic <base64(username:password)>`
+/// - `Bearer { tokens }`: any of `tokens` is accepted as `Authorization: Bearer <token>`.
+/// - `Basic  { credentials }`: any `(username, password)` pair in `credentials` is
+///   accepted as `Authorization: Basic <base64(username:password)>`. The matched
+///   `username` is forwarded upstream as `X-Forwarded-User`.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase", tag = "type")]
 #[ts(export)]
 pub enum ProxyAuth {
-    Bearer { token: String },
-    Basic { username: String, password: String },
+    Bearer { tokens: Vec<String> },
+    Basic { credentials: Vec<BasicCredential> },
 }
 
-impl ProxyAuth {
-    /// Render this auth as an HTTP `Authorization` header value.
-    pub fn header_value(&self) -> Result<http::HeaderValue, Error> {
-        use base64::Engine;
-        let s = match self {
-            ProxyAuth::Bearer { token } => format!("Bearer {token}"),
-            ProxyAuth::Basic { username, password } => {
-                let creds = format!("{username}:{password}");
-                let encoded =
-                    base64::engine::general_purpose::STANDARD.encode(creds.as_bytes());
-                format!("Basic {encoded}")
-            }
-        };
-        http::HeaderValue::from_str(&s).with_kind(ErrorKind::InvalidRequest)
-    }
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct BasicCredential {
+    pub username: String,
+    pub password: String,
 }
 
 pub fn binding<C: Context, Kind: HostApiKind>()

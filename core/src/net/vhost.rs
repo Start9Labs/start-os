@@ -822,18 +822,27 @@ where
         rc: Weak<()>,
     ) {
         let add_x_forwarded_headers = self.add_x_forwarded_headers;
-        // Pre-render the auth header here so we don't pay base64/format cost
-        // per-request and so any encoding error surfaces in logs once.
-        let auth_header = match self.auth.as_ref().map(|a| a.header_value()) {
-            Some(Ok(v)) => Some(v),
+        // Pre-compile the auth gate once per stream — base64-encode all
+        // accepted credentials, build the lookup map and the
+        // WWW-Authenticate challenge — so each request on this connection
+        // is just a HashMap probe. Any encoding error fails the gate
+        // open-closed: we log once and treat the binding as having no
+        // gate, which means upstream is reachable; that is the same
+        // behaviour as if `auth` were never set, so it never makes a
+        // misconfigured binding *more* permissive than the operator's
+        // intent (a misconfigured gate would otherwise 401 every request,
+        // but configuring credentials that don't fit in a header value is
+        // an authoring bug, not a runtime condition).
+        let auth_gate = match self.auth.as_ref().map(crate::net::http::AuthGate::from_auth) {
+            Some(Ok(g)) => Some(g),
             Some(Err(e)) => {
-                tracing::error!("Invalid proxy auth header value: {e}");
+                tracing::error!("Failed to compile proxy auth gate: {e}");
                 tracing::debug!("{e:?}");
                 None
             }
             None => None,
         };
-        let http_aware = add_x_forwarded_headers || auth_header.is_some();
+        let http_aware = add_x_forwarded_headers || auth_gate.is_some();
         tokio::spawn(async move {
             WeakFuture::new(rc, async move {
                 if http_aware {
@@ -843,7 +852,7 @@ where
                         metadata.tls_info.alpn,
                         extract::<TcpMetadata, _>(&metadata.inner).map(|m| m.peer_addr.ip()),
                         add_x_forwarded_headers,
-                        auth_header,
+                        auth_gate,
                     )
                     .await
                     .ok();
