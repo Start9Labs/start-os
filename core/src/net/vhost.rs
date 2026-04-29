@@ -980,20 +980,7 @@ where
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
     ) -> Option<TlsHandlerAction> {
-        // ACME `acme-tls/1` challenge must be answered locally with the
-        // challenge cert produced by `AcmeTlsHandler` in the inner chain;
-        // skip the routing/passthrough decision entirely so we don't
-        // accidentally tunnel the challenge to a backend.
-        if hello
-            .alpn()
-            .into_iter()
-            .flatten()
-            .any(|a| a == ACME_TLS_ALPN_NAME)
-        {
-            return self.inner.get_config(hello, metadata).await;
-        }
-
-        let (target, rc) = self.mapping.peek(|m| {
+        let routed = self.mapping.peek(|m| {
             m.get(&hello.server_name().map(InternedString::from))
                 .or_else(|| m.get(&None))
                 .into_iter()
@@ -1001,24 +988,36 @@ where
                 .filter(|(_, rc)| rc.strong_count() > 0)
                 .find(|(t, _)| t.0.filter(metadata))
                 .map(|(t, rc)| (t.clone(), rc.clone()))
-        })?;
+        });
 
-        if target.0.is_passthrough() {
-            // The `ServerConfig` handed to `preprocess` is discarded by the
-            // caller for passthrough — `preprocess`'s only side effect we
-            // care about is the TCP connect to the backend. Use a cheap
-            // stub config (no keygen, no DB I/O) instead of running the
-            // cert chain, which would otherwise pay a write-locked
-            // patch-db transaction and possibly an ed25519+nistp256
-            // keygen + double leaf-cert signature on cold-tuple connects.
+        let acme_alpn = hello
+            .alpn()
+            .into_iter()
+            .flatten()
+            .any(|a| a == ACME_TLS_ALPN_NAME);
+
+        // Passthroughs should not intermediate ACME challenges — the
+        // backend is the ACME client and holds the challenge cert.
+        if let Some((target, rc)) = routed.as_ref().filter(|(t, _)| t.0.is_passthrough()) {
             let stub = passthrough_stub_config(&self.crypto_provider).log_err()?;
-            let (_, store) = target.into_preprocessed(rc, stub, hello, metadata).await?;
+            let (_, store) = target
+                .clone()
+                .into_preprocessed(rc.clone(), stub, hello, metadata)
+                .await?;
             self.preprocessed = Some(store);
             return Some(TlsHandlerAction::Passthrough);
         }
 
-        // Terminating: now we actually need a real cert. Run the inner
-        // chain (AcmeTlsHandler → RootCaTlsHandler).
+        // ACME challenge for a terminating target (or for one with no
+        // explicit vhost mapping): answer locally from the inner chain.
+        if acme_alpn {
+            return self.inner.get_config(hello, metadata).await;
+        }
+
+        let Some((target, rc)) = routed else {
+            return None;
+        };
+
         let action = self.inner.get_config(hello, metadata).await?;
         let cfg = match action {
             TlsHandlerAction::Tls(cfg) => cfg,
