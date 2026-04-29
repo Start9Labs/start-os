@@ -4,6 +4,7 @@ import {
   computed,
   inject,
 } from '@angular/core'
+import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { Summary } from 'src/app/components/summary'
 import { injectFormService } from 'src/app/services/form.service'
 import { WanIpv6Form, IPV6_LABELS } from './utils'
@@ -23,6 +24,21 @@ const SUMMARY_FIELDS = [
   selector: '[wanIpv6Summary]',
   template: `
     <section>
+      @if (mode(); as m) {
+        <div appSummary>
+          Status
+          <span tuiSubtitle [style.gap.rem]="0.375">
+            @if (m === 'disabled') {
+              <span tuiBadge tuiStatus appearance="neutral">Disabled</span>
+            } @else {
+              <span tuiBadge tuiStatus appearance="positive">Enabled</span>
+              <span tuiBadge tuiStatus appearance="positive">
+                {{ IPV6_LABELS[m] }}
+              </span>
+            }
+          </span>
+        </div>
+      }
       @if (assignedIp(); as ip) {
         <div [appSummary]="ip">Assigned IP</div>
       }
@@ -34,13 +50,16 @@ const SUMMARY_FIELDS = [
     </section>
   `,
   host: { '[style.background]': '"var(--tui-status-info-pale)"' },
-  imports: [Summary],
+  imports: [TuiBadge, TuiStatus, Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WanIpv6Summary {
   protected readonly service = injectFormService<WanIpv6Form>()
   private readonly ipv6Service = inject(WanIpv6Service)
+  protected readonly IPV6_LABELS = IPV6_LABELS
   readonly assignedIp = this.ipv6Service.assignedIpv6
+
+  readonly mode = computed(() => this.service.data()?.ip.mode)
 
   readonly items = computed(() => {
     const ip = this.service.data()?.ip
