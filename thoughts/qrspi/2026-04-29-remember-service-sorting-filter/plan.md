@@ -112,7 +112,7 @@ export class ServicesPreferencesService {
 ### Verification
 
 #### Automated
-- [ ] `cd web && npx tsc --project projects/ui/tsconfig.json --noEmit --skipLibCheck` — no TypeScript errors
+- [x] `cd web && npx tsc --project projects/ui/tsconfig.json --noEmit --skipLibCheck` — no TypeScript errors (pre-existing errors unrelated to this file)
 
 #### Manual
 - [ ] `localStorage.getItem('_startos/services/preferences')` returns expected JSON after calling `setSort()` and `setQuery()` in the console
@@ -216,7 +216,7 @@ No changes needed here — the `ServicesTableComponent` injects `ServicesPrefere
 ### Verification
 
 #### Automated
-- [ ] `cd web && npx tsc --project projects/ui/tsconfig.json --noEmit --skipLibCheck` — no TypeScript errors
+- [x] `cd web && npx tsc --project projects/ui/tsconfig.json --noEmit --skipLibCheck` — no TypeScript errors
 
 #### Manual
 - [ ] Click a column header to sort → navigate away from Services tab → navigate back → table is sorted by the previous column

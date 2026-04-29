@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   input,
 } from '@angular/core'
@@ -12,7 +13,7 @@ import {
   StateInfo,
 } from 'src/app/services/patch-db/data-model'
 import { ServiceComponent } from './service.component'
-import { TuiComparator, TuiTable } from '@taiga-ui/addon-table'
+import { TuiComparator, TuiTable, TuiSortDirection } from '@taiga-ui/addon-table'
 import { getInstalledPrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 import { ToManifestPipe } from '../../../pipes/to-manifest'
@@ -23,6 +24,8 @@ import { TuiSkeleton } from '@taiga-ui/kit'
 import { PlaceholderComponent } from '../../../components/placeholder.component'
 import { TuiButton } from '@taiga-ui/core'
 import { RouterLink } from '@angular/router'
+import { ServicesPreferencesService } from 'src/app/services/services-preferences.service'
+import { TuiTableSortChange } from '@taiga-ui/addon-table'
 
 @Component({
   selector: '[services]',
@@ -54,8 +57,10 @@ import { RouterLink } from '@angular/router'
     } @else {
       <table
         [sorter]="name"
+        [direction]="currentDirection()"
         [appTable]="[null, 'Name', 'Status', 'Version', 'Uptime']"
         [appTableSorters]="[null, name, status]"
+        (sortChange)="onSortChange($event)"
       >
         @for (service of services() | tuiTableSort; track $index) {
           <tr
@@ -95,14 +100,25 @@ export class ServicesTableComponent<
     stateInfo: StateInfo
   },
 > {
+  private readonly prefs = inject(ServicesPreferencesService)
+
   readonly errors = toSignal(inject(DepErrorService).depErrors$)
 
   readonly services = input.required<readonly T[] | null>()
+
+  readonly currentDirection = computed<TuiSortDirection>(() => {
+    return this.prefs.sortState$.value.direction as TuiSortDirection
+  })
 
   readonly name: TuiComparator<PackageDataEntry> = byName
 
   readonly status: TuiComparator<PackageDataEntry> = (a, b) =>
     getInstalledPrimaryStatus(b) > getInstalledPrimaryStatus(a) ? -1 : 1
+
+  onSortChange(event: TuiTableSortChange<PackageDataEntry>) {
+    const column = event.sortComparator === this.name ? 'name' : 'status'
+    this.prefs.setSort(column, event.sortDirection)
+  }
 }
 
 function byName(a: PackageDataEntry, b: PackageDataEntry) {

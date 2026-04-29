@@ -36,7 +36,8 @@ import {
   hostDirectives: [
     {
       directive: TuiTableDirective,
-      inputs: ['sorter'],
+      inputs: ['sorter', 'direction'],
+      outputs: ['sortChange'],
     },
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
