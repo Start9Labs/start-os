@@ -14,6 +14,10 @@ const ROOT_TARGET_BYTES: u64 = 14 * 1024 * 1024 * 1024;
 /// protected data partition's `first_lba` sits inside the planned root region we will
 /// shrink root down to (but not below) this floor.
 const ROOT_MIN_BYTES: u64 = 12 * 1024 * 1024 * 1024;
+/// Sector alignment for OS partitions. 2048 sectors at 512 bytes per sector = 1 MiB,
+/// which matches what util-linux fdisk/gdisk default to and what SSDs/NVMe expect for
+/// efficient writes.
+const PARTITION_ALIGNMENT_LBA: u64 = 2048;
 
 pub async fn partition(
     disk_path: &Path,
@@ -92,7 +96,13 @@ pub async fn partition(
         gpt.update_partitions(Default::default())?;
 
         let efi = if use_efi {
-            gpt.add_partition("efi", 100 * 1024 * 1024, gpt::partition_types::EFI, 0, None)?;
+            gpt.add_partition(
+                "efi",
+                100 * 1024 * 1024,
+                gpt::partition_types::EFI,
+                0,
+                Some(PARTITION_ALIGNMENT_LBA),
+            )?;
             true
         } else {
             gpt.add_partition(
@@ -100,7 +110,7 @@ pub async fn partition(
                 8 * 1024 * 1024,
                 gpt::partition_types::BIOS,
                 0,
-                None,
+                Some(PARTITION_ALIGNMENT_LBA),
             )?;
             false
         };
@@ -109,7 +119,7 @@ pub async fn partition(
             2 * 1024 * 1024 * 1024,
             gpt::partition_types::LINUX_FS,
             0,
-            None,
+            Some(PARTITION_ALIGNMENT_LBA),
         )?;
 
         // Compute the root size, shrinking it within [ROOT_MIN_BYTES, ROOT_TARGET_BYTES]
@@ -123,8 +133,10 @@ pub async fn partition(
             protected_partition_info
         {
             // The next add_partition() will pick the lowest free block that fits, so the
-            // earliest free LBA is where root would land. Find it, and clamp root's
-            // length so it ends strictly before the protected partition.
+            // earliest free LBA is where root would land. Find it, then bump it up to
+            // the next 2048-sector alignment boundary (which is what add_partition will
+            // do internally) before computing how much room is left before the
+            // protected partition.
             let earliest_free_start = gpt
                 .find_free_sectors()
                 .into_iter()
@@ -137,7 +149,8 @@ pub async fn partition(
                         crate::ErrorKind::BlockDevice,
                     )
                 })?;
-            let available_lba = protect_first_lba.saturating_sub(earliest_free_start);
+            let aligned_start = earliest_free_start.next_multiple_of(PARTITION_ALIGNMENT_LBA);
+            let available_lba = protect_first_lba.saturating_sub(aligned_start);
             if available_lba < min_root_lba {
                 let available_bytes = available_lba.saturating_mul(lb_size);
                 return Err(Error::new(
@@ -167,7 +180,7 @@ pub async fn partition(
                 _ => gpt::partition_types::LINUX_FS,
             },
             0,
-            None,
+            Some(PARTITION_ALIGNMENT_LBA),
         )?;
 
         let data_part = if let Some((first_lba, last_lba, path)) = protected_partition_info {
@@ -184,21 +197,33 @@ pub async fn partition(
             )?;
             Some(path)
         } else {
+            // Pick the largest free block and ask for the post-alignment size, so that
+            // add_partition's `length >= alignment_offset + size_lba` check passes even
+            // when the block's start isn't already 2048-aligned.
+            let lb_size_bytes: u64 = (*gpt.logical_block_size()).into();
+            let data_size_bytes = gpt
+                .find_free_sectors()
+                .iter()
+                .map(|(start, length_lba)| {
+                    let alignment_offset =
+                        (PARTITION_ALIGNMENT_LBA - (start % PARTITION_ALIGNMENT_LBA))
+                            % PARTITION_ALIGNMENT_LBA;
+                    length_lba.saturating_sub(alignment_offset) * lb_size_bytes
+                })
+                .max()
+                .filter(|s| *s > 0)
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("No free space left on device"),
+                        crate::ErrorKind::BlockDevice,
+                    )
+                })?;
             gpt.add_partition(
                 "data",
-                gpt.find_free_sectors()
-                    .iter()
-                    .map(|(_, size)| *size * u64::from(*gpt.logical_block_size()))
-                    .max()
-                    .ok_or_else(|| {
-                        Error::new(
-                            eyre!("No free space left on device"),
-                            crate::ErrorKind::BlockDevice,
-                        )
-                    })?,
+                data_size_bytes,
                 gpt::partition_types::LINUX_LVM,
                 0,
-                None,
+                Some(PARTITION_ALIGNMENT_LBA),
             )?;
             gpt.partitions()
                 .last_key_value()
