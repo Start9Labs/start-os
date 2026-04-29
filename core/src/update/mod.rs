@@ -251,8 +251,8 @@ async fn maybe_do_update(
             "os.version.get",
             OrdMap::new(),
             json!({
-                "source": current_version,
-                "target": target,
+                "sourceVersion": current_version,
+                "targetVersion": target,
             }),
             RegistryUrlParams { registry },
         )
