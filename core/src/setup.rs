@@ -8,6 +8,8 @@ use josekit::jwk::Jwk;
 use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
+
+use crate::context::CliContext;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
@@ -42,7 +44,7 @@ use crate::system::{KeyboardOptions, SetLanguageParams, save_language, sync_kios
 use crate::util::Invoke;
 use crate::util::crypto::EncryptedWire;
 use crate::util::io::{Counter, create_file, dir_copy, dir_size, read_file_to_string};
-use crate::util::serde::{IoFormat, Pem};
+use crate::util::serde::{HandlerExtSerde, IoFormat, Pem};
 use crate::{DATA_DIR, Error, ErrorKind, MAIN_DATA, PACKAGE_DATA, PLATFORM, ResultExt};
 
 pub fn setup<C: Context>() -> ParentHandler<C> {
@@ -51,7 +53,9 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
             "status",
             from_fn_async(status)
                 .with_metadata("authenticated", Value::Bool(false))
-                .no_cli(),
+                .with_display_serializable()
+                .with_about("about.setup-status")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand("disk", disk::<C>())
         .subcommand("attach", from_fn_async(attach).no_cli())
@@ -61,14 +65,28 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
         )
         .subcommand("execute", from_fn_async(execute).no_cli())
         .subcommand("cifs", cifs::<C>())
-        .subcommand("complete", from_fn_async(complete).no_cli())
+        .subcommand(
+            "complete",
+            from_fn_async(complete)
+                .with_display_serializable()
+                .with_about("about.setup-complete")
+                .with_call_remote::<CliContext>(),
+        )
         .subcommand(
             "get-pubkey",
             from_fn_async(get_pubkey)
                 .with_metadata("authenticated", Value::Bool(false))
-                .no_cli(),
+                .with_display_serializable()
+                .with_about("about.setup-get-pubkey")
+                .with_call_remote::<CliContext>(),
         )
-        .subcommand("exit", from_fn_async(exit).no_cli())
+        .subcommand(
+            "exit",
+            from_fn_async(exit)
+                .no_display()
+                .with_about("about.setup-exit")
+                .with_call_remote::<CliContext>(),
+        )
         .subcommand("logs", crate::system::logs::<SetupContext>())
         .subcommand(
             "logs",
@@ -76,10 +94,34 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_about("about.display-os-logs"),
         )
-        .subcommand("restart", from_fn_async(restart).no_cli())
-        .subcommand("shutdown", from_fn_async(shutdown).no_cli())
-        .subcommand("set-language", from_fn_async(set_language).no_cli())
-        .subcommand("set-keyboard", from_fn_async(set_keyboard).no_cli())
+        .subcommand(
+            "restart",
+            from_fn_async(restart)
+                .no_display()
+                .with_about("about.setup-restart")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "shutdown",
+            from_fn_async(shutdown)
+                .no_display()
+                .with_about("about.setup-shutdown")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set-language",
+            from_fn_async(set_language)
+                .no_display()
+                .with_about("about.setup-set-language")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set-keyboard",
+            from_fn_async(set_keyboard)
+                .no_display()
+                .with_about("about.setup-set-keyboard")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 pub fn disk<C: Context>() -> ParentHandler<C> {
@@ -87,7 +129,9 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
         "list",
         from_fn_async(list_disks)
             .with_metadata("authenticated", Value::Bool(false))
-            .no_cli(),
+            .with_display_serializable()
+            .with_about("about.setup-disk-list")
+            .with_call_remote::<CliContext>(),
     )
 }
 
