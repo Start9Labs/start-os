@@ -39,9 +39,14 @@ nvm alias default 24 # this prevents your machine from reverting back to another
 ### Cloning the Repository
 
 ```sh
-git clone --recursive https://github.com/Start9Labs/start-os.git --branch next/major
+git clone --recursive https://github.com/Start9Labs/start-os.git
 cd start-os
 ```
+
+The default branch is `master`, which is also the PR target for
+bug fixes and most features. `next/major` is a long-lived branch
+holding work for the next major release; only target it for changes
+that must wait for that bump.
 
 ### Development Mode
 
