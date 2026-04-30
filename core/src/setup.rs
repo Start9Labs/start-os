@@ -61,7 +61,10 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
         .subcommand("attach", from_fn_async(attach).no_cli())
         .subcommand(
             "install-os",
-            from_fn_async(crate::os_install::install_os).no_cli(),
+            from_fn_async(crate::os_install::install_os)
+                .with_display_serializable()
+                .with_about("about.setup-install-os")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand("execute", from_fn_async(execute).no_cli())
         .subcommand("cifs", cifs::<C>())

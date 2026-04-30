@@ -114,7 +114,6 @@ pub struct InstallOsParams {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
-#[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 struct DataDrive {
