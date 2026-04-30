@@ -7,9 +7,11 @@ use const_format::formatcp;
 use josekit::jwk::Jwk;
 use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 
 use crate::context::CliContext;
+use itertools::Itertools;
+use rpc_toolkit::CallRemote;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
@@ -60,12 +62,12 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand("disk", disk::<C>())
+        .subcommand("attach", from_fn_async(attach).no_cli())
         .subcommand(
             "attach",
-            from_fn_async(attach)
-                .with_display_serializable()
-                .with_about("about.setup-attach")
-                .with_call_remote::<CliContext>(),
+            from_fn_async(cli_attach)
+                .no_display()
+                .with_about("about.setup-attach"),
         )
         .subcommand(
             "install-os",
@@ -74,12 +76,12 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
                 .with_about("about.setup-install-os")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand("execute", from_fn_async(execute).no_cli())
         .subcommand(
             "execute",
-            from_fn_async(execute)
-                .with_display_serializable()
-                .with_about("about.setup-execute")
-                .with_call_remote::<CliContext>(),
+            from_fn_async(cli_execute)
+                .no_display()
+                .with_about("about.setup-execute"),
         )
         .subcommand("cifs", cifs::<C>())
         .subcommand(
@@ -228,21 +230,35 @@ async fn setup_init(
     Ok((account, init_result))
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct AttachParams {
+    pub password: Option<PasswordType>,
+    pub guid: InternedString,
+    pub kiosk: bool,
+}
+
+/// CLI-only flags for `setup attach`. The password is read from the
+/// PASSWORD environment variable (matching `start-cli auth login`),
+/// or prompted on a TTY — never accepted as a CLI argument so it
+/// can't leak via `ps` or shell history.
+#[derive(Deserialize, Serialize, Parser)]
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
-pub struct AttachParams {
+pub struct SetupAttachCliParams {
     /// Disk GUID of the existing data drive to attach
     #[arg(long)]
     pub guid: InternedString,
-    /// Plaintext password (or JSON for an encrypted wire)
-    #[arg(long)]
-    pub password: Option<PasswordType>,
     /// Enable kiosk mode
     #[arg(long)]
     pub kiosk: bool,
+    /// Treat an unset PASSWORD env var as "no password" (only valid for
+    /// drives whose GUID ends in `_UNENC`). Without this, missing
+    /// PASSWORD falls back to a TTY prompt.
+    #[arg(long)]
+    pub no_password: bool,
 }
 
 #[instrument(skip_all)]
@@ -475,21 +491,31 @@ pub async fn setup_data_drive(
     Ok(guid)
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SetupExecuteParams {
+    guid: InternedString,
+    password: Option<PasswordType>,
+    recovery_source: Option<RecoverySource<PasswordType>>,
+    kiosk: bool,
+    name: Option<InternedString>,
+    hostname: Option<InternedString>,
+}
+
+/// CLI-only flags for `setup execute`. The password is read from the
+/// PASSWORD environment variable (matching `start-cli auth login`),
+/// or prompted on a TTY — never accepted as a CLI argument so it
+/// can't leak via `ps` or shell history. Recovery / migration callers
+/// should hit the JSON-RPC endpoint directly.
+#[derive(Deserialize, Serialize, Parser)]
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
-pub struct SetupExecuteParams {
+pub struct SetupExecuteCliParams {
     /// Disk GUID returned by `setup install-os` (or an existing data drive)
     #[arg(long)]
     guid: InternedString,
-    /// Plaintext password (or JSON for an encrypted wire). Required for fresh setup.
-    #[arg(long)]
-    password: Option<PasswordType>,
-    /// Recovery source (JSON only — not exposed as CLI flags)
-    #[arg(skip)]
-    recovery_source: Option<RecoverySource<PasswordType>>,
     /// Enable kiosk mode
     #[arg(long)]
     kiosk: bool,
@@ -499,6 +525,93 @@ pub struct SetupExecuteParams {
     /// Hostname (LAN advertised) — defaults to a random adjective-noun pair
     #[arg(long)]
     hostname: Option<InternedString>,
+}
+
+fn read_password_env_or_prompt() -> Result<String, RpcError> {
+    if let Ok(p) = std::env::var("PASSWORD") {
+        Ok(p)
+    } else {
+        Ok(rpassword::prompt_password("Password: ")?)
+    }
+}
+
+fn print_remote_result(res: imbl_value::Value) -> Result<(), RpcError> {
+    match serde_json::to_string_pretty(&res) {
+        Ok(s) => {
+            println!("{s}");
+            Ok(())
+        }
+        Err(e) => Err(RpcError::from(
+            crate::Error::new(eyre!("{e}"), crate::ErrorKind::Serialization),
+        )),
+    }
+}
+
+#[instrument(skip_all)]
+async fn cli_attach(
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params:
+            SetupAttachCliParams {
+                guid,
+                kiosk,
+                no_password,
+            },
+        ..
+    }: HandlerArgs<CliContext, SetupAttachCliParams>,
+) -> Result<(), RpcError> {
+    let password = if no_password && std::env::var_os("PASSWORD").is_none() {
+        None
+    } else {
+        Some(read_password_env_or_prompt()?)
+    };
+
+    let res = ctx
+        .call_remote::<SetupContext>(
+            &parent_method.into_iter().chain(method).join("."),
+            imbl_value::json!({
+                "guid": guid,
+                "password": password,
+                "kiosk": kiosk,
+            }),
+        )
+        .await?;
+    print_remote_result(res)
+}
+
+#[instrument(skip_all)]
+async fn cli_execute(
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params:
+            SetupExecuteCliParams {
+                guid,
+                kiosk,
+                name,
+                hostname,
+            },
+        ..
+    }: HandlerArgs<CliContext, SetupExecuteCliParams>,
+) -> Result<(), RpcError> {
+    let password = read_password_env_or_prompt()?;
+
+    let res = ctx
+        .call_remote::<SetupContext>(
+            &parent_method.into_iter().chain(method).join("."),
+            imbl_value::json!({
+                "guid": guid,
+                "password": password,
+                "kiosk": kiosk,
+                "name": name,
+                "hostname": hostname,
+            }),
+        )
+        .await?;
+    print_remote_result(res)
 }
 
 // #[command(rpc_only)]
