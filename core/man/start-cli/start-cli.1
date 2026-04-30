@@ -1,10 +1,10 @@
 .ie \n(.g .ds Aq \(aq
 .el .ds Aq '
-.TH start-cli 1  "start-cli 0.4.0-beta.0" 
+.TH start-cli 1  "start-cli 0.4.0-beta.7" 
 .SH NAME
 start\-cli
 .SH SYNOPSIS
-\fBstart\-cli\fR [\fB\-c\fR|\fB\-\-config\fR] [\fB\-H\fR|\fB\-\-host\fR] [\fB\-r\fR|\fB\-\-registry\fR] [\fB\-\-registry\-hostname\fR] [\fB\-\-s9pk\-s3base\fR] [\fB\-\-s9pk\-s3bucket\fR] [\fB\-t\fR|\fB\-\-tunnel\fR] [\fB\-p\fR|\fB\-\-proxy\fR] [\fB\-\-cookie\-path\fR] [\fB\-\-developer\-key\-path\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
+\fBstart\-cli\fR [\fB\-c\fR|\fB\-\-config\fR] [\fB\-H\fR|\fB\-\-host\fR] [\fB\-r\fR|\fB\-\-registry\fR] [\fB\-\-registry\-hostname\fR] [\fB\-\-s9pk\-s3base\fR] [\fB\-\-s9pk\-s3bucket\fR] [\fB\-t\fR|\fB\-\-tunnel\fR] [\fB\-p\fR|\fB\-\-proxy\fR] [\fB\-\-cookie\-path\fR] [\fB\-\-developer\-key\-path\fR] [\fB\-\-root\-ca\fR] [\fB\-\-insecure\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
 .SH DESCRIPTION
 .SH OPTIONS
 .TP
@@ -37,6 +37,12 @@ Path to cookie file
 .TP
 \fB\-\-developer\-key\-path\fR \fI<DEVELOPER_KEY_PATH>\fR
 Path to developer signing key
+.TP
+\fB\-\-root\-ca\fR \fI<PEM_PATH>\fR
+PEM\-encoded root CA certificate(s) to trust when talking to a StartOS server with a self\-signed cert (e.g. immediately after `setup complete`, before the device\*(Aqs CA has been imported into the local trust store). Repeatable
+.TP
+\fB\-\-insecure\fR
+Skip TLS certificate verification entirely. Intended for unattended bring\-up against a fresh StartOS server whose self\-signed CA hasn\*(Aqt been pinned yet. **Do not use over the public internet.**
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help
@@ -117,4 +123,4 @@ Command for calculating the blake3 hash of a file
 start\-cli\-wifi(1)
 Commands related to wifi networks i.e. add, connect, delete
 .SH VERSION
-v0.4.0\-beta.0
+v0.4.0\-beta.7
