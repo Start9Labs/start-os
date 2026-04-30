@@ -527,12 +527,33 @@ pub struct SetupExecuteCliParams {
     hostname: Option<InternedString>,
 }
 
-fn read_password_env_or_prompt() -> Result<String, RpcError> {
+/// Read a password for an existing data drive: `PASSWORD` env first,
+/// otherwise prompt once on the TTY.
+fn read_password_env_or_prompt(prompt: &str) -> Result<String, RpcError> {
     if let Ok(p) = std::env::var("PASSWORD") {
         Ok(p)
     } else {
-        Ok(rpassword::prompt_password("Password: ")?)
+        Ok(rpassword::prompt_password(prompt)?)
     }
+}
+
+/// Read a *new* password (for fresh setup): `PASSWORD` env if set,
+/// otherwise prompt twice on the TTY and confirm. Mirrors
+/// `cli_reset_password` in `auth.rs`.
+fn read_new_password_env_or_prompt() -> Result<String, RpcError> {
+    if let Ok(p) = std::env::var("PASSWORD") {
+        return Ok(p);
+    }
+    let new_password = rpassword::prompt_password(&t!("auth.prompt-new-password"))?;
+    let confirm = rpassword::prompt_password(&t!("auth.prompt-confirm"))?;
+    if new_password != confirm {
+        return Err(crate::Error::new(
+            eyre!("{}", t!("auth.passwords-do-not-match")),
+            crate::ErrorKind::IncorrectPassword,
+        )
+        .into());
+    }
+    Ok(new_password)
 }
 
 fn print_remote_result(res: imbl_value::Value) -> Result<(), RpcError> {
@@ -565,7 +586,7 @@ async fn cli_attach(
     let password = if no_password && std::env::var_os("PASSWORD").is_none() {
         None
     } else {
-        Some(read_password_env_or_prompt()?)
+        Some(read_password_env_or_prompt("Data drive password: ")?)
     };
 
     let res = ctx
@@ -597,7 +618,7 @@ async fn cli_execute(
         ..
     }: HandlerArgs<CliContext, SetupExecuteCliParams>,
 ) -> Result<(), RpcError> {
-    let password = read_password_env_or_prompt()?;
+    let password = read_new_password_env_or_prompt()?;
 
     let res = ctx
         .call_remote::<SetupContext>(
