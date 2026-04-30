@@ -18,7 +18,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::account::AccountInfo;
-use crate::auth::write_shadow;
+use crate::auth::{PasswordType, write_shadow};
 use crate::backup::restore::recover_full_server;
 use crate::backup::target::BackupTargetFS;
 use crate::bins::set_locale;
@@ -43,6 +43,8 @@ use crate::shutdown::Shutdown;
 use crate::system::{KeyboardOptions, SetLanguageParams, save_language, sync_kiosk};
 use crate::util::Invoke;
 use crate::util::crypto::EncryptedWire;
+
+use clap::Parser;
 use crate::util::io::{Counter, create_file, dir_copy, dir_size, read_file_to_string};
 use crate::util::serde::{HandlerExtSerde, IoFormat, Pem};
 use crate::{DATA_DIR, Error, ErrorKind, MAIN_DATA, PACKAGE_DATA, PLATFORM, ResultExt};
@@ -58,7 +60,13 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand("disk", disk::<C>())
-        .subcommand("attach", from_fn_async(attach).no_cli())
+        .subcommand(
+            "attach",
+            from_fn_async(attach)
+                .with_display_serializable()
+                .with_about("about.setup-attach")
+                .with_call_remote::<CliContext>(),
+        )
         .subcommand(
             "install-os",
             from_fn_async(crate::os_install::install_os)
@@ -66,7 +74,13 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
                 .with_about("about.setup-install-os")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("execute", from_fn_async(execute).no_cli())
+        .subcommand(
+            "execute",
+            from_fn_async(execute)
+                .with_display_serializable()
+                .with_about("about.setup-execute")
+                .with_call_remote::<CliContext>(),
+        )
         .subcommand("cifs", cifs::<C>())
         .subcommand(
             "complete",
@@ -214,12 +228,20 @@ async fn setup_init(
     Ok((account, init_result))
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
 #[ts(export)]
 pub struct AttachParams {
-    pub password: Option<EncryptedWire>,
+    /// Disk GUID of the existing data drive to attach
+    #[arg(long)]
     pub guid: InternedString,
+    /// Plaintext password (or JSON for an encrypted wire)
+    #[arg(long)]
+    pub password: Option<PasswordType>,
+    /// Enable kiosk mode
+    #[arg(long)]
     pub kiosk: bool,
 }
 
@@ -240,15 +262,12 @@ pub async fn attach(
         let rpc_ctx_phases = InitRpcContextPhases::new(&progress);
 
         let password: Option<String> = match password {
-            Some(a) => match a.decrypt(&setup_ctx) {
-                a @ Some(_) => a,
-                None => {
-                    return Err(Error::new(
-                        color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-password")),
-                        crate::ErrorKind::Unknown,
-                    ));
-                }
-            },
+            Some(a) => Some(a.decrypt(&setup_ctx).map_err(|_| {
+                Error::new(
+                    color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-password")),
+                    crate::ErrorKind::Unknown,
+                )
+            })?),
             None => None,
         };
 
@@ -456,15 +475,29 @@ pub async fn setup_data_drive(
     Ok(guid)
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
 #[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
 #[ts(export)]
 pub struct SetupExecuteParams {
+    /// Disk GUID returned by `setup install-os` (or an existing data drive)
+    #[arg(long)]
     guid: InternedString,
-    password: Option<EncryptedWire>,
-    recovery_source: Option<RecoverySource<EncryptedWire>>,
+    /// Plaintext password (or JSON for an encrypted wire). Required for fresh setup.
+    #[arg(long)]
+    password: Option<PasswordType>,
+    /// Recovery source (JSON only — not exposed as CLI flags)
+    #[arg(skip)]
+    recovery_source: Option<RecoverySource<PasswordType>>,
+    /// Enable kiosk mode
+    #[arg(long)]
     kiosk: bool,
+    /// Friendly server name
+    #[arg(long)]
     name: Option<InternedString>,
+    /// Hostname (LAN advertised) — defaults to a random adjective-noun pair
+    #[arg(long)]
     hostname: Option<InternedString>,
 }
 
@@ -482,7 +515,7 @@ pub async fn execute(
 ) -> Result<SetupProgress, Error> {
     let password = password
         .map(|p| {
-            p.decrypt(&ctx).ok_or_else(|| {
+            p.decrypt(&ctx).map_err(|_| {
                 Error::new(
                     color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-startos-password")),
                     crate::ErrorKind::Unknown,
@@ -497,7 +530,7 @@ pub async fn execute(
             server_id,
         }) => Some(RecoverySource::Backup {
             target,
-            password: password.decrypt(&ctx).ok_or_else(|| {
+            password: password.decrypt(&ctx).map_err(|_| {
                 Error::new(
                     color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-recovery-password")),
                     crate::ErrorKind::Unknown,
