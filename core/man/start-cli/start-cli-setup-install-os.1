@@ -4,22 +4,19 @@
 .SH NAME
 start\-cli\-setup\-install\-os \- about.setup\-install\-os
 .SH SYNOPSIS
-\fBstart\-cli setup install\-os\fR <\fB\-\-data\-drive\fR> [\fB\-\-wipe\fR] [\fB\-\-format\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIOS_DRIVE\fR> 
+\fBstart\-cli setup install\-os\fR [\fB\-\-data\-drive\fR] [\fB\-\-wipe\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIOS_DRIVE\fR> 
 .SH DESCRIPTION
 about.setup\-install\-os
 .SH OPTIONS
 .TP
-\fB\-\-data\-drive\fR \fI<LOGICALNAME>\fR
-Path to the data drive
+\fB\-\-data\-drive\fR \fI<DATA_DRIVE>\fR
+Path to the data drive (omit for an OS\-only install). May be the same logical name as <OS_DRIVE>; the installer will carve a data partition out of the same disk
 .TP
 \fB\-\-wipe\fR
-Wipe the drive before use
-.TP
-\fB\-\-format\fR
-
+Wipe the data drive before use
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
 <\fIOS_DRIVE\fR>
-Path to OS drive
+Path to the OS drive

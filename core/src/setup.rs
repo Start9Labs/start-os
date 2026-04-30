@@ -71,10 +71,13 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "install-os",
-            from_fn_async(crate::os_install::install_os)
-                .with_display_serializable()
-                .with_about("about.setup-install-os")
-                .with_call_remote::<CliContext>(),
+            from_fn_async(crate::os_install::install_os).no_cli(),
+        )
+        .subcommand(
+            "install-os",
+            from_fn_async(cli_install_os)
+                .no_display()
+                .with_about("about.setup-install-os"),
         )
         .subcommand("execute", from_fn_async(execute).no_cli())
         .subcommand(
@@ -525,6 +528,62 @@ pub struct SetupExecuteCliParams {
     /// Hostname (LAN advertised) — defaults to a random adjective-noun pair
     #[arg(long)]
     hostname: Option<InternedString>,
+}
+
+/// CLI-only flags for `setup install-os`. Mirrors
+/// `os_install::InstallOsParams` but lives here so we can keep
+/// `#[group(skip)]` on `os_install::DataDrive` (manpage generation
+/// requires it on every `Parser`-derived struct, and clap rejects
+/// `#[command(flatten)] Option<DataDrive>` when the inner type has
+/// `group(skip)`).
+#[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct SetupInstallOsCliParams {
+    /// Path to the OS drive
+    #[arg(value_name = "OS_DRIVE")]
+    pub os_drive: PathBuf,
+    /// Path to the data drive (omit for an OS-only install). May be the
+    /// same logical name as <OS_DRIVE>; the installer will carve a data
+    /// partition out of the same disk.
+    #[arg(long)]
+    pub data_drive: Option<PathBuf>,
+    /// Wipe the data drive before use
+    #[arg(long)]
+    pub wipe: bool,
+}
+
+#[instrument(skip_all)]
+async fn cli_install_os(
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params:
+            SetupInstallOsCliParams {
+                os_drive,
+                data_drive,
+                wipe,
+            },
+        ..
+    }: HandlerArgs<CliContext, SetupInstallOsCliParams>,
+) -> Result<(), RpcError> {
+    let body = if let Some(data_drive) = data_drive {
+        imbl_value::json!({
+            "osDrive": os_drive,
+            "dataDrive": { "logicalname": data_drive, "wipe": wipe },
+        })
+    } else {
+        imbl_value::json!({ "osDrive": os_drive })
+    };
+    let res = ctx
+        .call_remote::<SetupContext>(
+            &parent_method.into_iter().chain(method).join("."),
+            body,
+        )
+        .await?;
+    print_remote_result(res)
 }
 
 /// Read a password for an existing data drive: `PASSWORD` env first,
