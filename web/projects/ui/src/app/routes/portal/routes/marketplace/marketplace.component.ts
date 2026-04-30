@@ -169,7 +169,13 @@ export default class MarketplaceComponent {
       tap(params => {
         const registry = params.get('registry')
 
-        this.categoryService.setQuery(params.get('search') || '')
+        // Only override the query from the URL when `search` is explicitly
+        // present (e.g. a deep link from a dependency tile). Otherwise we'd
+        // wipe out the user's typed search every time another query param
+        // changes (such as `id`/`flavor` when opening a service drawer).
+        if (params.has('search')) {
+          this.categoryService.setQuery(params.get('search') || '')
+        }
 
         if (!registry) {
           this.router.navigate([], {
