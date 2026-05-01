@@ -252,7 +252,14 @@ pub async fn import_certificate_cli(
                     }
                 }
 
-                let is_root = cert.0.verify(&pubkey)?;
+                // Self-signed check used purely as an end-of-chain sentinel.
+                // `X509::verify` returns Err (rather than Ok(false)) when the cert's
+                // signature algorithm is incompatible with the candidate pubkey type
+                // (e.g. an Ed25519 leaf whose signature is ECDSA from a p256 issuer
+                // is verified here against its own Ed25519 pubkey). Treat any such
+                // mismatch as "not self-signed" so non-ECDSA leaves don't blow up
+                // import with a raw OpenSSL error.
+                let is_root = cert.0.verify(&pubkey).unwrap_or(false);
 
                 chain.push(cert.0);
 
