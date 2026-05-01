@@ -99,7 +99,7 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
             from_fn_async(get_pubkey)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
-                .with_about("about.setup-get-pubkey")
+                .with_about("about.get-pubkey-from-server")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -134,14 +134,14 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
             "set-language",
             from_fn_async(set_language)
                 .no_display()
-                .with_about("about.setup-set-language")
+                .with_about("about.set-language")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "set-keyboard",
             from_fn_async(set_keyboard)
                 .no_display()
-                .with_about("about.setup-set-keyboard")
+                .with_about("about.set-keyboard")
                 .with_call_remote::<CliContext>(),
         )
 }
