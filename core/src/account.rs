@@ -7,7 +7,7 @@ use openssl::x509::X509;
 
 use crate::db::model::DatabaseModel;
 use crate::hostname::{ServerHostnameInfo, generate_hostname, generate_id};
-use crate::net::ssl::{gen_nistp256, make_root_cert};
+use crate::net::ssl::{CertBranding, gen_nistp256, make_root_cert};
 use crate::prelude::*;
 use crate::util::serde::Pem;
 
@@ -43,7 +43,8 @@ impl AccountInfo {
             ServerHostnameInfo::from_hostname(generate_hostname())
         };
         let root_ca_key = gen_nistp256()?;
-        let root_ca_cert = make_root_cert(&root_ca_key, &hostname.hostname, start_time)?;
+        let branding = CertBranding::start_os(hostname.hostname.as_ref());
+        let root_ca_cert = make_root_cert(&root_ca_key, &branding, start_time)?;
         let ssh_key = ssh_key::PrivateKey::from(ssh_key::private::Ed25519Keypair::random(
             &mut ssh_key::rand_core::OsRng::default(),
         ));
@@ -107,8 +108,12 @@ impl AccountInfo {
                 .as_root_cert_mut()
                 .ser(Pem::new_ref(&self.root_ca_cert))?;
             let int_key = crate::net::ssl::gen_nistp256()?;
-            let int_cert =
-                crate::net::ssl::make_int_cert((&self.root_ca_key, &self.root_ca_cert), &int_key)?;
+            let branding = CertBranding::start_os(self.hostname.hostname.as_ref());
+            let int_cert = crate::net::ssl::make_int_cert(
+                (&self.root_ca_key, &self.root_ca_cert),
+                &int_key,
+                &branding,
+            )?;
             cert_store.as_int_key_mut().ser(&Pem(int_key))?;
             cert_store.as_int_cert_mut().ser(&Pem(int_cert))?;
             cert_store.as_leaves_mut().ser(&BTreeMap::new())?;

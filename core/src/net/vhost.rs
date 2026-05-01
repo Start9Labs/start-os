@@ -35,7 +35,7 @@ use crate::net::acme::{
 use crate::net::gateway::{
     GatewayInfo, NetworkInterfaceController, NetworkInterfaceListenerAcceptMetadata,
 };
-use crate::net::ssl::{CertStore, RootCaTlsHandler};
+use crate::net::ssl::{CertBranding, CertStore, RootCaTlsHandler};
 use crate::net::tls::{
     ChainedHandler, TlsHandler, TlsHandlerAction, TlsListener, TlsMetadata,
 };
@@ -246,6 +246,7 @@ pub struct VHostController {
     interfaces: Arc<NetworkInterfaceController>,
     crypto_provider: Arc<CryptoProvider>,
     acme_cache: AcmeTlsAlpnCache,
+    branding: CertBranding,
     servers: SyncMutex<BTreeMap<u16, VHostServer<VHostBindListener>>>,
     passthrough_handles: SyncMutex<BTreeMap<(InternedString, u16), PassthroughHandle>>,
 }
@@ -254,6 +255,7 @@ impl VHostController {
         db: TypedPatchDb<Database>,
         interfaces: Arc<NetworkInterfaceController>,
         crypto_provider: Arc<CryptoProvider>,
+        branding: CertBranding,
         passthroughs: Vec<PassthroughInfo>,
     ) -> Self {
         let controller = Self {
@@ -261,6 +263,7 @@ impl VHostController {
             interfaces,
             crypto_provider,
             acme_cache: Arc::new(SyncMutex::new(BTreeMap::new())),
+            branding,
             servers: SyncMutex::new(BTreeMap::new()),
             passthrough_handles: SyncMutex::new(BTreeMap::new()),
         };
@@ -309,6 +312,7 @@ impl VHostController {
             bind_reqs,
             self.db.clone(),
             self.crypto_provider.clone(),
+            self.branding.clone(),
             self.acme_cache.clone(),
         )
     }
@@ -1171,6 +1175,7 @@ impl<A: Accept> VHostServer<A> {
         bind_reqs: Watch<VHostBindRequirements>,
         db: TypedPatchDb<M>,
         crypto_provider: Arc<CryptoProvider>,
+        branding: CertBranding,
         acme_cache: AcmeTlsAlpnCache,
     ) -> Self
     where
@@ -1208,6 +1213,7 @@ impl<A: Accept> VHostServer<A> {
                             RootCaTlsHandler {
                                 db,
                                 crypto_provider: crypto_provider.clone(),
+                                branding,
                             },
                         ),
                         crypto_provider,
