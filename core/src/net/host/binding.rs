@@ -233,9 +233,57 @@ pub struct BindOptions {
 #[ts(export)]
 pub struct AddSslOptions {
     pub preferred_external_port: u16,
+    /// When `true`, the OS reverse proxy adds `X-Forwarded-Proto: https`
+    /// and `X-Forwarded-For: <client-ip>` to incoming HTTP requests before
+    /// forwarding them upstream. Setting this implies HTTP-aware proxying.
     #[serde(default)]
-    pub add_x_forwarded_headers: bool, // TODO
+    pub add_x_forwarded_headers: bool,
     pub alpn: Option<AlpnInfo>,
+    /// Optional reverse-proxy auth gate. When set, the OS reverse proxy
+    /// will validate the `Authorization` header on incoming HTTP requests
+    /// against this configuration before forwarding them upstream.
+    /// Unauthenticated requests get `401 Unauthorized` with an appropriate
+    /// `WWW-Authenticate` challenge. For `Basic`, the authenticated
+    /// username is forwarded to the upstream service as `X-Forwarded-User`.
+    /// Setting this implies HTTP-aware proxying.
+    #[serde(default)]
+    pub auth: Option<ProxyAuth>,
+}
+
+/// Auth gate enforced by the OS reverse proxy on incoming requests.
+///
+/// - `Bearer { tokens }`: any of `tokens` is accepted as `Authorization: Bearer <token>`.
+/// - `Basic  { credentials }`: any `(username, password)` pair in `credentials` is
+///   accepted as `Authorization: Basic <base64(username:password)>`. The matched
+///   `username` is forwarded upstream as `X-Forwarded-User`.
+///
+/// `realm` is the authentication realm advertised in the
+/// `WWW-Authenticate` challenge sent on 401 responses (RFC 7235
+/// §2.2). Defaults to `"StartOS"` when unset. Packages that share
+/// credentials across multiple bindings should pick a stable realm
+/// so that browsers reuse cached credentials across them.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "camelCase", tag = "type")]
+#[ts(export)]
+pub enum ProxyAuth {
+    Bearer {
+        tokens: Vec<String>,
+        #[serde(default)]
+        realm: Option<String>,
+    },
+    Basic {
+        credentials: Vec<BasicCredential>,
+        #[serde(default)]
+        realm: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct BasicCredential {
+    pub username: String,
+    pub password: String,
 }
 
 pub fn binding<C: Context, Kind: HostApiKind>()

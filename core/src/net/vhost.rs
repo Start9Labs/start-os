@@ -327,6 +327,7 @@ impl VHostController {
             acme: None,
             addr: backend,
             add_x_forwarded_headers: false,
+            auth: None,
             connect_ssl: Err(AlpnInfo::Reflect),
             passthrough: true,
         };
@@ -691,6 +692,9 @@ pub struct ProxyTarget {
     pub acme: Option<AcmeProvider>,
     pub addr: SocketAddr,
     pub add_x_forwarded_headers: bool,
+    /// Optional `Authorization` header value to inject on upstream
+    /// requests. Implies HTTP-aware proxying (same path as forwarded headers).
+    pub auth: Option<crate::net::host::binding::ProxyAuth>,
     pub connect_ssl: Result<Arc<ClientConfig>, AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
     pub passthrough: bool,
 }
@@ -700,6 +704,8 @@ impl PartialEq for ProxyTarget {
             && self.private == other.private
             && self.acme == other.acme
             && self.addr == other.addr
+            && self.add_x_forwarded_headers == other.add_x_forwarded_headers
+            && self.auth == other.auth
             && self.passthrough == other.passthrough
             && self.connect_ssl.as_ref().map(Arc::as_ptr)
                 == other.connect_ssl.as_ref().map(Arc::as_ptr)
@@ -714,6 +720,7 @@ impl fmt::Debug for ProxyTarget {
             .field("acme", &self.acme)
             .field("addr", &self.addr)
             .field("add_x_forwarded_headers", &self.add_x_forwarded_headers)
+            .field("auth", &self.auth.as_ref().map(|_| "<redacted>"))
             .field("connect_ssl", &self.connect_ssl.as_ref().map(|_| ()))
             .field("passthrough", &self.passthrough)
             .finish()
@@ -815,14 +822,36 @@ where
         rc: Weak<()>,
     ) {
         let add_x_forwarded_headers = self.add_x_forwarded_headers;
+        // Pre-compile the auth gate once per stream — base64-encode all
+        // accepted credentials, build the lookup map and the
+        // WWW-Authenticate challenge — so each request on this connection
+        // is just a HashMap probe. Compile errors (e.g. credentials that
+        // can't fit in a `HeaderValue`, or any other authoring bug) fail
+        // closed: we log and drop the connection rather than risk
+        // silently exposing an upstream that the operator intended to
+        // gate.
+        let auth_gate = match self.auth.as_ref().map(crate::net::http::AuthGate::from_auth) {
+            Some(Ok(g)) => Some(g),
+            Some(Err(e)) => {
+                tracing::error!("Failed to compile proxy auth gate; refusing connection: {e}");
+                tracing::debug!("{e:?}");
+                drop(stream);
+                drop(prev);
+                return;
+            }
+            None => None,
+        };
+        let http_aware = add_x_forwarded_headers || auth_gate.is_some();
         tokio::spawn(async move {
             WeakFuture::new(rc, async move {
-                if add_x_forwarded_headers {
+                if http_aware {
                     crate::net::http::run_http_proxy(
                         stream,
                         prev,
                         metadata.tls_info.alpn,
                         extract::<TcpMetadata, _>(&metadata.inner).map(|m| m.peer_addr.ip()),
+                        add_x_forwarded_headers,
+                        auth_gate,
                     )
                     .await
                     .ok();
