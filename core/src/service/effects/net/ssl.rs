@@ -107,10 +107,12 @@ pub async fn get_ssl_certificate(
                     }
                 }
             }
+            let hostname = db.as_public().as_server_info().as_hostname().de()?;
+            let branding = crate::net::ssl::CertBranding::start_os(&hostname);
             db.as_private_mut()
                 .as_key_store_mut()
                 .as_local_certs_mut()
-                .cert_for(&hostnames)
+                .cert_for(&hostnames, &branding)
         })
         .await
         .result?;
@@ -210,10 +212,12 @@ pub async fn get_ssl_key(
                     }
                 }
             }
+            let hostname = db.as_public().as_server_info().as_hostname().de()?;
+            let branding = crate::net::ssl::CertBranding::start_os(&hostname);
             db.as_private_mut()
                 .as_key_store_mut()
                 .as_local_certs_mut()
-                .cert_for(&hostnames)
+                .cert_for(&hostnames, &branding)
         })
         .await
         .result?;

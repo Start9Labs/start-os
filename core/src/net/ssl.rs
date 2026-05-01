@@ -37,7 +37,6 @@ use crate::account::AccountInfo;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::{DbAccess, DbAccessMut};
-use crate::hostname::ServerHostname;
 use crate::init::check_time_is_synchronized;
 use crate::net::gateway::GatewayInfo;
 use crate::net::tls::{TlsHandler, TlsHandlerAction};
@@ -56,6 +55,30 @@ pub fn should_use_cert(cert: &X509Ref) -> Result<bool, ErrorStack> {
             == Ordering::Greater)
 }
 
+/// Controls the strings baked into generated certificates (Subject CN, O, OU).
+/// Exposed so downstream consumers can issue certs with their own branding
+/// without having to reimplement the X.509 builders. Not persisted — callers
+/// construct this on demand (typically from hostname + their own labels).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CertBranding {
+    pub organization: InternedString,
+    pub organizational_unit: InternedString,
+    pub root_ca_cn: InternedString,
+    pub intermediate_ca_cn: InternedString,
+}
+impl CertBranding {
+    pub fn start_os(hostname: &str) -> Self {
+        Self {
+            organization: InternedString::intern("Start9"),
+            organizational_unit: InternedString::intern("StartOS"),
+            root_ca_cn: InternedString::from_display(&lazy_format::lazy_format!(
+                "{hostname} Local Root CA"
+            )),
+            intermediate_ca_cn: InternedString::intern("StartOS Local Intermediate CA"),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]
 #[serde(rename_all = "camelCase")]
@@ -67,9 +90,13 @@ pub struct CertStore {
     pub leaves: BTreeMap<JsonKey<BTreeSet<InternedString>>, CertData>,
 }
 impl CertStore {
-    pub fn new(account: &AccountInfo) -> Result<Self, Error> {
+    pub fn new(account: &AccountInfo, branding: &CertBranding) -> Result<Self, Error> {
         let int_key = gen_nistp256()?;
-        let int_cert = make_int_cert((&account.root_ca_key, &account.root_ca_cert), &int_key)?;
+        let int_cert = make_int_cert(
+            (&account.root_ca_key, &account.root_ca_cert),
+            &int_key,
+            branding,
+        )?;
         Ok(Self {
             root_key: Pem::new(account.root_ca_key.clone()),
             root_cert: Pem::new(account.root_ca_cert.clone()),
@@ -84,6 +111,7 @@ impl Model<CertStore> {
     pub fn cert_for(
         &mut self,
         hostnames: &BTreeSet<InternedString>,
+        branding: &CertBranding,
     ) -> Result<FullchainCertData, Error> {
         let keys = if let Some(cert_data) = self
             .as_leaves()
@@ -114,10 +142,12 @@ impl Model<CertStore> {
                 ed25519: make_leaf_cert(
                     (&int_key, &int_cert),
                     (&keys.ed25519, &SANInfo::new(hostnames)),
+                    branding,
                 )?,
                 nistp256: make_leaf_cert(
                     (&int_key, &int_cert),
                     (&keys.nistp256, &SANInfo::new(hostnames)),
+                    branding,
                 )?,
             },
             keys,
@@ -287,7 +317,7 @@ pub fn gen_nistp256() -> Result<PKey<Private>, Error> {
 #[instrument(skip_all)]
 pub fn make_root_cert(
     root_key: &PKey<Private>,
-    hostname: &ServerHostname,
+    branding: &CertBranding,
     start_time: SystemTime,
 ) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
@@ -304,10 +334,9 @@ pub fn make_root_cert(
     builder.set_serial_number(&*rand_serial()?)?;
 
     let mut subject_name_builder = X509NameBuilder::new()?;
-    subject_name_builder
-        .append_entry_by_text("CN", &format!("{} Local Root CA", hostname.as_ref()))?;
-    subject_name_builder.append_entry_by_text("O", "Start9")?;
-    subject_name_builder.append_entry_by_text("OU", "StartOS")?;
+    subject_name_builder.append_entry_by_text("CN", &branding.root_ca_cn)?;
+    subject_name_builder.append_entry_by_text("O", &branding.organization)?;
+    subject_name_builder.append_entry_by_text("OU", &branding.organizational_unit)?;
     let subject_name = subject_name_builder.build();
     builder.set_subject_name(&subject_name)?;
 
@@ -346,6 +375,7 @@ pub fn make_root_cert(
 pub fn make_int_cert(
     signer: (&PKey<Private>, &X509),
     applicant: &PKey<Private>,
+    branding: &CertBranding,
 ) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
@@ -357,9 +387,9 @@ pub fn make_int_cert(
     builder.set_serial_number(&*rand_serial()?)?;
 
     let mut subject_name_builder = X509NameBuilder::new()?;
-    subject_name_builder.append_entry_by_text("CN", "StartOS Local Intermediate CA")?;
-    subject_name_builder.append_entry_by_text("O", "Start9")?;
-    subject_name_builder.append_entry_by_text("OU", "StartOS")?;
+    subject_name_builder.append_entry_by_text("CN", &branding.intermediate_ca_cn)?;
+    subject_name_builder.append_entry_by_text("O", &branding.organization)?;
+    subject_name_builder.append_entry_by_text("OU", &branding.organizational_unit)?;
     let subject_name = subject_name_builder.build();
     builder.set_subject_name(&subject_name)?;
 
@@ -471,6 +501,7 @@ impl std::fmt::Display for SANInfo {
 pub fn make_leaf_cert(
     signer: (&PKey<Private>, &X509),
     applicant: (&PKey<Private>, &SANInfo),
+    branding: &CertBranding,
 ) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
@@ -495,8 +526,8 @@ pub fn make_leaf_cert(
             .map(MaybeWildcard::as_str)
             .unwrap_or("localhost"),
     )?;
-    subject_name_builder.append_entry_by_text("O", "Start9")?;
-    subject_name_builder.append_entry_by_text("OU", "StartOS")?;
+    subject_name_builder.append_entry_by_text("O", &branding.organization)?;
+    subject_name_builder.append_entry_by_text("OU", &branding.organizational_unit)?;
     let subject_name = subject_name_builder.build();
     builder.set_subject_name(&subject_name)?;
 
@@ -534,7 +565,10 @@ pub fn make_leaf_cert(
 }
 
 #[instrument(skip_all)]
-pub fn make_self_signed(applicant: (&PKey<Private>, &SANInfo)) -> Result<X509, Error> {
+pub fn make_self_signed(
+    applicant: (&PKey<Private>, &SANInfo),
+    branding: &CertBranding,
+) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
 
@@ -558,8 +592,8 @@ pub fn make_self_signed(applicant: (&PKey<Private>, &SANInfo)) -> Result<X509, E
             .map(MaybeWildcard::as_str)
             .unwrap_or("localhost"),
     )?;
-    subject_name_builder.append_entry_by_text("O", "Start9")?;
-    subject_name_builder.append_entry_by_text("OU", "StartOS")?;
+    subject_name_builder.append_entry_by_text("O", &branding.organization)?;
+    subject_name_builder.append_entry_by_text("OU", &branding.organizational_unit)?;
     let subject_name = subject_name_builder.build();
     builder.set_subject_name(&subject_name)?;
 
@@ -643,19 +677,21 @@ pub async fn generate_certificate(
     let int_key = cert_store.as_int_key().de()?.0;
     let int_cert = cert_store.as_int_cert().de()?.0;
     let root_cert = cert_store.as_root_cert().de()?.0;
+    let server_hostname = peek.as_public().as_server_info().as_hostname().de()?;
     drop(peek);
 
+    let branding = CertBranding::start_os(&server_hostname);
     let hostnames: BTreeSet<InternedString> =
         hostnames.into_iter().map(InternedString::from).collect();
     let san_info = SANInfo::new(&hostnames);
 
     let (key, cert) = if ed25519 {
         let key = PKey::generate_ed25519()?;
-        let cert = make_leaf_cert((&int_key, &int_cert), (&key, &san_info))?;
+        let cert = make_leaf_cert((&int_key, &int_cert), (&key, &san_info), &branding)?;
         (key, cert)
     } else {
         let key = gen_nistp256()?;
-        let cert = make_leaf_cert((&int_key, &int_cert), (&key, &san_info))?;
+        let cert = make_leaf_cert((&int_key, &int_cert), (&key, &san_info), &branding)?;
         (key, cert)
     };
 
@@ -678,12 +714,14 @@ pub async fn generate_certificate(
 pub struct RootCaTlsHandler<M: HasModel> {
     pub db: TypedPatchDb<M>,
     pub crypto_provider: Arc<CryptoProvider>,
+    pub branding: CertBranding,
 }
 impl<M: HasModel> Clone for RootCaTlsHandler<M> {
     fn clone(&self) -> Self {
         Self {
             db: self.db.clone(),
             crypto_provider: self.crypto_provider.clone(),
+            branding: self.branding.clone(),
         }
     }
 }
@@ -722,9 +760,10 @@ where
                     .map(InternedString::from_display),
             )
             .collect();
+        let branding = self.branding.clone();
         let cert = self
             .db
-            .mutate(|db| M::access_mut(db).cert_for(&hostnames))
+            .mutate(move |db| M::access_mut(db).cert_for(&hostnames, &branding))
             .await
             .result
             .log_err()?;

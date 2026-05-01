@@ -76,20 +76,23 @@ impl NetController {
             ],
         )
         .await?;
-        let passthroughs = db
-            .peek()
-            .await
+        let peek = db.peek().await;
+        let passthroughs = peek
             .as_public()
             .as_server_info()
             .as_network()
             .as_passthroughs()
             .de()?;
+        let hostname = peek.as_public().as_server_info().as_hostname().de()?;
+        drop(peek);
+        let branding = crate::net::ssl::CertBranding::start_os(&hostname);
         Ok(Self {
             db: db.clone(),
             vhost: VHostController::new(
                 db.clone(),
                 net_iface.clone(),
                 crypto_provider,
+                branding,
                 passthroughs,
             ),
             tls_client_config,
