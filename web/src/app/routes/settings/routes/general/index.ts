@@ -193,7 +193,7 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
     .update-banner {
       .release-notes {
         color: var(--tui-text-secondary);
-        font: var(--tui-typography-text-s);
+        font: var(--tui-typography-body-s);
 
         ::ng-deep {
           h1,
@@ -201,7 +201,7 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
           h3,
           h4 {
             margin: 0.75rem 0 0.25rem;
-            font: var(--tui-typography-text-s);
+            font: var(--tui-typography-body-s);
             font-weight: bold;
             color: var(--tui-text-primary);
 
@@ -248,7 +248,7 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
         p {
           margin: 0;
           color: var(--tui-text-secondary);
-          font: var(--tui-typography-text-s);
+          font: var(--tui-typography-body-s);
         }
       }
 
@@ -262,12 +262,12 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
 
         dt {
           color: var(--tui-text-secondary);
-          font: var(--tui-typography-text-s);
+          font: var(--tui-typography-body-s);
         }
 
         dd {
           margin: 0;
-          font: var(--tui-typography-text-s);
+          font: var(--tui-typography-body-s);
         }
 
         code {

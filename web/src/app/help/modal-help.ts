@@ -14,24 +14,23 @@ import {
   PolymorpheusComponent,
   provideContext,
 } from '@taiga-ui/polymorpheus'
-import { HELP, HELP_URL } from 'src/app/help/help'
-import { SidebarService } from 'src/app/services/sidebar.service'
+import { HELP, HELP_OPEN, HELP_URL } from 'src/app/help/help'
 
 @Component({
   template: `
     <label tuiBlock="s" appearance="secondary-grayscale">
-      <input type="checkbox" tuiSwitch size="s" [(ngModel)]="service.end" />
+      <input type="checkbox" tuiSwitch size="s" [(ngModel)]="open" />
       Help
     </label>
-    <tui-scrollbar *tuiPopup="service.end()" tuiAnimated class="modal-help">
+    <tui-scrollbar *tuiPopup="open()" tuiAnimated class="modal-help">
       <div class="g-help" [innerHTML]="content"></div>
     </tui-scrollbar>
   `,
   styles: `
     :host {
       position: fixed;
-      top: 0.75rem;
-      right: 3.5rem;
+      inset-block-start: 0.5rem;
+      inset-inline-end: 3rem;
       backdrop-filter: blur(1rem);
     }
 
@@ -42,12 +41,13 @@ import { SidebarService } from 'src/app/services/sidebar.service'
 
     .modal-help {
       position: fixed;
-      inset: 4.5rem 1rem 1rem auto;
+      inset: 3rem 1rem 1rem auto;
       width: 18rem;
       border-radius: var(--tui-radius-l);
       background: var(--tui-background-elevation-1);
       box-shadow: var(--tui-shadow-popup);
-      backdrop-filter: blur(1rem);
+      outline: 1px solid var(--tui-border-normal);
+      outline-offset: -1px;
 
       --tui-from: translate3d(150%, 0, 0);
 
@@ -60,18 +60,6 @@ import { SidebarService } from 'src/app/services/sidebar.service'
     ::ng-deep tui-root._mobile .modal-help {
       width: calc(100% - 2rem);
     }
-
-    ::ng-deep [tuiTheme='dark'] .modal-help {
-      background:
-        linear-gradient(45deg, rgba(82, 64, 168, 0.6), transparent),
-        linear-gradient(to bottom, rgba(82, 64, 168, 0.33), transparent),
-        color-mix(
-          in hsl,
-          var(--tui-background-elevation-1) 90%,
-          transparent 10%
-        );
-      background-blend-mode: multiply;
-    }
   `,
   imports: [
     FormsModule,
@@ -83,7 +71,7 @@ import { SidebarService } from 'src/app/services/sidebar.service'
   ],
 })
 class ModalToggle {
-  protected readonly service = inject(SidebarService)
+  protected readonly open = inject(HELP_OPEN)
   protected readonly content = injectContext<string>()
 }
 

@@ -3,11 +3,13 @@ import {
   Component,
   ElementRef,
   inject,
+  signal,
   viewChild,
 } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { Router, RouterOutlet } from '@angular/router'
-import { TuiScrollbar } from '@taiga-ui/core'
+import { TUI_DARK_MODE, TuiScrollbar } from '@taiga-ui/core'
+import { TuiNavigation } from '@taiga-ui/layout'
 import { Aside } from 'src/app/components/aside'
 import { Header } from 'src/app/components/header'
 import { Nav } from 'src/app/components/nav'
@@ -16,23 +18,55 @@ import { SystemService } from 'src/app/services/system.service'
 @Component({
   selector: 'app-outlet',
   template: `
-    <header></header>
-    <nav></nav>
+    <header tuiNavigationHeader [attr.tuiTheme]="dark() ? 'dark' : null">
+      <app-header />
+    </header>
+    <aside
+      class="_expanded"
+      [class._expanded]="open()"
+      [tuiNavigationAside]="open()"
+      [attr.tuiTheme]="dark() ? 'dark' : null"
+    >
+      <nav appNav></nav>
+      <footer>
+        <button
+          tuiAsideItem
+          type="button"
+          [iconStart]="open() ? '@tui.chevron-left' : '@tui.chevron-right'"
+          (click)="open.set(!open())"
+        >
+          {{ open() ? 'Collapse' : 'Expand' }}
+        </button>
+      </footer>
+    </aside>
     <main>
       <tui-scrollbar><router-outlet /></tui-scrollbar>
     </main>
-    <aside inert></aside>
+    <aside appAside inert></aside>
   `,
   styles: `
     :host {
       height: 100%;
       display: grid;
-      grid-template: 3.5rem 1fr / 14rem 1fr 20rem;
+      grid-template: 3rem 1fr / min-content 1fr 20.75rem;
       overflow: hidden;
       transition: grid-template var(--tui-duration);
 
       &:has(aside[inert]) {
-        grid-template: 3.5rem 1fr / 14rem 1fr 0;
+        grid-template: 3rem 1fr / min-content 1fr 0;
+      }
+
+      header {
+        grid-column: span 3;
+
+        &::before {
+          clip-path: inset(0 0 0 2rem);
+        }
+      }
+
+      // TODO: Remove after Taiga UI 5.5.0
+      aside {
+        min-block-size: 0;
       }
     }
 
@@ -69,17 +103,16 @@ import { SystemService } from 'src/app/services/system.service'
       &::after {
         content: '';
         block-size: 5rem;
+        flex-shrink: 0;
       }
-    }
-
-    :host-context(tui-root._mobile) {
-      grid-template: 3.5rem 1fr / 1fr;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Header, Nav, Aside, RouterOutlet, TuiScrollbar],
+  imports: [Header, Nav, Aside, RouterOutlet, TuiScrollbar, TuiNavigation],
 })
 export class App {
+  protected readonly dark = inject(TUI_DARK_MODE)
+  protected readonly open = signal(true)
   protected readonly scrollbar = viewChild(TuiScrollbar, { read: ElementRef })
   protected readonly _ = inject(Router)
     .events.pipe(takeUntilDestroyed())
