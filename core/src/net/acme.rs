@@ -2,9 +2,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::net::IpAddr;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use async_acme::acme::{ACME_TLS_ALPN_NAME, Identifier};
+use async_acme::acme::{ACME_TLS_ALPN_NAME, AcmeError, Identifier};
+use async_acme::rustls_helper::OrderError;
 use clap::Parser;
 use clap::builder::ValueParserFactory;
 use futures::future::{BoxFuture, Shared};
@@ -39,13 +40,41 @@ use crate::util::sync::{SyncMutex, Watch};
 pub type AcmeTlsAlpnCache =
     Arc<SyncMutex<BTreeMap<InternedString, Watch<Option<Arc<CertifiedKey>>>>>>;
 
+/// Per-SAN order state: deduplicates concurrent in-flight ACME orders
+/// and arms a cooldown after a failed one. The entry is removed when
+/// `get_cert` next finds a valid cached cert in the DB, so the
+/// success path doesn't need to clean up here.
+#[derive(Default)]
+pub struct OrderEntry {
+    in_flight: Option<Shared<BoxFuture<'static, Option<CertifiedKey>>>>,
+    /// On failure: server-supplied `Retry-After` (when present) or
+    /// [`DEFAULT_FAILURE_BACKOFF`]. Inside this window `get_cert`
+    /// returns `None` instead of starting a new order.
+    backoff_until: Option<Instant>,
+}
+
+/// Cooldown for failures without a server-supplied `Retry-After`. Long
+/// enough to break the per-connection retry loop.
+const DEFAULT_FAILURE_BACKOFF: Duration = Duration::from_secs(60);
+
+/// Cap on server-supplied `Retry-After` so a misbehaving directory
+/// can't indefinitely silence cert issuance.
+const MAX_RETRY_AFTER: Duration = Duration::from_secs(24 * 60 * 60);
+
+/// `Some(retry_after)` (capped) for a 429, `None` otherwise.
+fn retry_after_from_order_error(err: &OrderError) -> Option<Duration> {
+    let OrderError::Acme(AcmeError::RateLimited { retry_after }) = err else {
+        return None;
+    };
+    retry_after.map(|d| d.min(MAX_RETRY_AFTER))
+}
+
 pub struct AcmeTlsHandler<M: HasModel, S> {
     pub db: TypedPatchDb<M>,
     pub acme_cache: AcmeTlsAlpnCache,
     pub crypto_provider: Arc<CryptoProvider>,
     pub get_provider: S,
-    pub in_progress:
-        Watch<BTreeMap<BTreeSet<InternedString>, Shared<BoxFuture<'static, Option<CertifiedKey>>>>>,
+    pub in_progress: Watch<BTreeMap<BTreeSet<InternedString>, OrderEntry>>,
 }
 impl<M, S> AcmeTlsHandler<M, S>
 where
@@ -60,106 +89,172 @@ where
     pub async fn get_cert(&self, san_info: &BTreeSet<InternedString>) -> Option<CertifiedKey> {
         let provider = self.get_provider.get_provider(san_info).await?;
         let provider = provider.as_ref();
-        loop {
-            let peek = self.db.peek().await;
-            let store = <M as DbAccess<AcmeCertStore>>::access(&peek);
-            if let Some(cert) = store
-                .as_certs()
-                .as_idx(&provider.0)
-                .and_then(|p| p.as_idx(JsonKey::new_ref(san_info)))
+
+        let peek = self.db.peek().await;
+        let store = <M as DbAccess<AcmeCertStore>>::access(&peek);
+        if let Some(cert) = store
+            .as_certs()
+            .as_idx(&provider.0)
+            .and_then(|p| p.as_idx(JsonKey::new_ref(san_info)))
+        {
+            let cert = cert.de().log_err()?;
+            if cert
+                .fullchain
+                .get(0)
+                .and_then(|c| should_use_cert(&c.0).log_err())
+                .unwrap_or(false)
             {
-                let cert = cert.de().log_err()?;
-                if cert
-                    .fullchain
-                    .get(0)
-                    .and_then(|c| should_use_cert(&c.0).log_err())
-                    .unwrap_or(false)
-                {
-                    self.in_progress
-                        .send_if_modified(|map| map.remove(san_info).is_some());
-                    return Some(
-                        CertifiedKey::from_der(
-                            cert.fullchain
-                                .into_iter()
-                                .map(|c| Ok(CertificateDer::from(c.to_der()?)))
-                                .collect::<Result<_, Error>>()
-                                .log_err()?,
-                            PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
-                                cert.key.0.private_key_to_pkcs8().log_err()?,
-                            )),
-                            &*self.crypto_provider,
-                        )
-                        .log_err()?,
-                    );
+                // Cached cert is healthy; drop any stale order/backoff state.
+                self.in_progress
+                    .send_if_modified(|map| map.remove(san_info).is_some());
+                return Some(
+                    CertifiedKey::from_der(
+                        cert.fullchain
+                            .into_iter()
+                            .map(|c| Ok(CertificateDer::from(c.to_der()?)))
+                            .collect::<Result<_, Error>>()
+                            .log_err()?,
+                        PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
+                            cert.key.0.private_key_to_pkcs8().log_err()?,
+                        )),
+                        &*self.crypto_provider,
+                    )
+                    .log_err()?,
+                );
+            }
+        }
+
+        let contact = <M as DbAccessByKey<AcmeSettings>>::access_by_key(&peek, &provider)?
+            .as_contact()
+            .de()
+            .log_err()?;
+        drop(peek);
+
+        let identifiers: Vec<_> = san_info
+            .iter()
+            .map(|d| match d.parse::<IpAddr>() {
+                Ok(a) => Identifier::Ip(a),
+                _ => Identifier::Dns((&**d).into()),
+            })
+            .collect::<Vec<_>>();
+
+        let cache_entries = san_info
+            .iter()
+            .cloned()
+            .map(|d| (d, Watch::new(None)))
+            .collect::<BTreeMap<_, _>>();
+
+        // Reuse an in-flight order, honour an active backoff, or start a
+        // new order — all under the in_progress lock.
+        enum Action {
+            Await(Shared<BoxFuture<'static, Option<CertifiedKey>>>),
+            Backoff,
+        }
+        let action = self.in_progress.send_modify(|map| {
+            let entry = map.entry(san_info.clone()).or_default();
+
+            // A resolved future's result is either in the DB (cached-cert
+            // path would have hit) or in `backoff_until` — don't await it.
+            if let Some(fut) = &entry.in_flight {
+                if fut.peek().is_some() {
+                    entry.in_flight = None;
                 }
             }
 
-            let contact = <M as DbAccessByKey<AcmeSettings>>::access_by_key(&peek, &provider)?
-                .as_contact()
-                .de()
-                .log_err()?;
+            if let Some(fut) = &entry.in_flight {
+                return Action::Await(fut.clone());
+            }
 
-            let identifiers: Vec<_> = san_info
-                .iter()
-                .map(|d| match d.parse::<IpAddr>() {
-                    Ok(a) => Identifier::Ip(a),
-                    _ => Identifier::Dns((&**d).into()),
-                })
-                .collect::<Vec<_>>();
+            if let Some(until) = entry.backoff_until {
+                if Instant::now() < until {
+                    return Action::Backoff;
+                }
+            }
 
-            let cache_entries = san_info
-                .iter()
-                .cloned()
-                .map(|d| (d, Watch::new(None)))
-                .collect::<BTreeMap<_, _>>();
+            let provider_clone = provider.clone();
+            let acme_cache = self.acme_cache.clone();
+            let db = self.db.clone();
+            let in_progress = self.in_progress.clone();
+            let san_info_clone = san_info.clone();
+            let cache_entries_clone = cache_entries.clone();
+            let identifiers_clone = identifiers.clone();
+            let contact_clone = contact.clone();
 
-            let cert = self
-                .in_progress
-                .send_modify(|map| {
-                    if let Some(fut) = map.get(san_info).cloned() {
-                        if fut.peek().map_or(true, |f| f.is_some()) {
-                            return fut;
-                        }
+            let fut = async move {
+                acme_cache.mutate(|c| {
+                    c.extend(
+                        cache_entries_clone
+                            .iter()
+                            .map(|(k, v)| (k.clone(), v.clone())),
+                    );
+                });
+
+                let res = tokio::time::timeout(
+                    Duration::from_secs(120),
+                    async_acme::rustls_helper::order(
+                        |identifier, cert| {
+                            let domain = InternedString::from_display(&identifier);
+                            if let Some(entry) = cache_entries_clone.get(&domain) {
+                                entry.send(Some(Arc::new(cert)));
+                            }
+                            Ok(())
+                        },
+                        provider_clone.0.as_str(),
+                        &identifiers_clone,
+                        Some(&AcmeCertCache(&db)),
+                        &contact_clone,
+                    ),
+                )
+                .await;
+
+                acme_cache.mutate(|c| c.retain(|c, _| !cache_entries_clone.contains_key(c)));
+
+                let (cert, backoff) = match res {
+                    Ok(Ok(cert)) => (Some(cert), None),
+                    Ok(Err(e)) => {
+                        let retry_after = retry_after_from_order_error(&e);
+                        tracing::warn!("ACME order failed for {san_info_clone:?}: {e}");
+                        tracing::debug!("{e:?}");
+                        (None, Some(retry_after.unwrap_or(DEFAULT_FAILURE_BACKOFF)))
                     }
-                    let provider = provider.clone();
-                    let acme_cache = self.acme_cache.clone();
-                    let db = self.db.clone();
-                    let fut = async move {
-                        acme_cache.mutate(|c| {
-                            c.extend(cache_entries.iter().map(|(k, v)| (k.clone(), v.clone())));
-                        });
-
-                        let cert = tokio::time::timeout(
-                            Duration::from_secs(120),
-                            async_acme::rustls_helper::order(
-                                |identifier, cert| {
-                                    let domain = InternedString::from_display(&identifier);
-                                    if let Some(entry) = cache_entries.get(&domain) {
-                                        entry.send(Some(Arc::new(cert)));
-                                    }
-                                    Ok(())
-                                },
-                                provider.0.as_str(),
-                                &identifiers,
-                                Some(&AcmeCertCache(&db)),
-                                &contact,
-                            ),
-                        )
-                        .await
-                        .log_err()?
-                        .log_err()?;
-
-                        acme_cache.mutate(|c| c.retain(|c, _| !cache_entries.contains_key(c)));
-
-                        Some(cert)
+                    Err(_) => {
+                        tracing::warn!(
+                            "ACME order timed out for {san_info_clone:?} after 120s"
+                        );
+                        (None, Some(DEFAULT_FAILURE_BACKOFF))
                     }
-                    .boxed()
-                    .shared();
-                    map.insert(san_info.clone(), fut.clone());
-                    fut
-                })
-                .await?;
-            return Some(cert);
+                };
+
+                // Success: leave the entry alone; the next cached-cert
+                // path call removes it. Failure: arm the cooldown.
+                if let Some(d) = backoff {
+                    in_progress.send_if_modified(|map| {
+                        let Some(entry) = map.get_mut(&san_info_clone) else {
+                            return false;
+                        };
+                        entry.in_flight = None;
+                        entry.backoff_until = Some(Instant::now() + d);
+                        tracing::info!(
+                            "ACME order for {san_info_clone:?} backing off for {d:?}"
+                        );
+                        true
+                    });
+                }
+
+                cert
+            }
+            .boxed()
+            .shared();
+
+            entry.in_flight = Some(fut.clone());
+            Action::Await(fut)
+        });
+
+        match action {
+            Action::Await(fut) => fut.await,
+            // Inside cooldown: fall through to a self-signed cert from
+            // `RootCaTlsHandler` instead of blocking the handshake.
+            Action::Backoff => None,
         }
     }
 }
@@ -525,4 +620,53 @@ pub async fn remove(
         .await
         .result?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use async_acme::acme::{AcmeError, Identifier};
+    use async_acme::rustls_helper::OrderError;
+
+    use super::{MAX_RETRY_AFTER, retry_after_from_order_error};
+
+    #[test]
+    fn rate_limited_with_retry_after_passes_through() {
+        let err = OrderError::Acme(AcmeError::RateLimited {
+            retry_after: Some(Duration::from_secs(120)),
+        });
+        assert_eq!(
+            retry_after_from_order_error(&err),
+            Some(Duration::from_secs(120)),
+        );
+    }
+
+    #[test]
+    fn rate_limited_retry_after_capped_at_max() {
+        // Pathological server: "please come back in a year".
+        let err = OrderError::Acme(AcmeError::RateLimited {
+            retry_after: Some(Duration::from_secs(365 * 24 * 60 * 60)),
+        });
+        assert_eq!(retry_after_from_order_error(&err), Some(MAX_RETRY_AFTER));
+    }
+
+    #[test]
+    fn rate_limited_without_retry_after_returns_none() {
+        let err = OrderError::Acme(AcmeError::RateLimited { retry_after: None });
+        assert_eq!(retry_after_from_order_error(&err), None);
+    }
+
+    #[test]
+    fn non_429_http_status_returns_none() {
+        let err = OrderError::Acme(AcmeError::HttpStatus(503));
+        assert_eq!(retry_after_from_order_error(&err), None);
+    }
+
+    #[test]
+    fn non_http_errors_return_none() {
+        let err =
+            OrderError::TooManyAttemptsAuth(Identifier::Dns("example.test".into()));
+        assert_eq!(retry_after_from_order_error(&err), None);
+    }
 }
