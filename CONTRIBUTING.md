@@ -43,10 +43,7 @@ git clone --recursive https://github.com/Start9Labs/start-os.git
 cd start-os
 ```
 
-The default branch is `master`, which is also the PR target for
-bug fixes and most features. `next/major` is a long-lived branch
-holding work for the next major release; only target it for changes
-that must wait for that bump.
+StartOS has 4 major branches for integration. `master` is for the current release. If the current latest release is a pre-release (i.e. "beta.X"), PRs for new features and bugfixes should go here. Otherwise we have `next/` branches depending on which release of StartOS the changes should be included in; `next/patch` for the next patch release, `next/minor` for the next minor release, and `next/major` for the next major release. If you are unsure which branch to target, ask a maintainer.
 
 ### Development Mode
 
