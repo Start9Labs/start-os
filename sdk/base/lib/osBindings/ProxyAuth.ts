@@ -8,7 +8,13 @@ import type { BasicCredential } from './BasicCredential'
  * - `Basic  { credentials }`: any `(username, password)` pair in `credentials` is
  *   accepted as `Authorization: Basic <base64(username:password)>`. The matched
  *   `username` is forwarded upstream as `X-Forwarded-User`.
+ *
+ * `realm` is the authentication realm advertised in the
+ * `WWW-Authenticate` challenge sent on 401 responses (RFC 7235
+ * §2.2). Defaults to `"StartOS"` when unset. Packages that share
+ * credentials across multiple bindings should pick a stable realm
+ * so that browsers reuse cached credentials across them.
  */
 export type ProxyAuth =
-  | { type: 'bearer'; tokens: Array<string> }
-  | { type: 'basic'; credentials: Array<BasicCredential> }
+  | { type: 'bearer'; tokens: Array<string>; realm: string | null }
+  | { type: 'basic'; credentials: Array<BasicCredential>; realm: string | null }

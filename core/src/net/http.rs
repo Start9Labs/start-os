@@ -51,20 +51,33 @@ pub struct AuthGate {
     challenge: HeaderValue,
 }
 
+/// Sanitize a package-supplied realm into something that fits inside an
+/// RFC 7230 `quoted-string`: drop `"` and `\` (the only two
+/// metacharacters in `quoted-string`) and any control bytes. We don't
+/// percent-encode — a realm is operator-facing, so silently dropping
+/// junk is friendlier than rejecting the whole binding for a stray
+/// quote.
+fn sanitize_realm(realm: &str) -> String {
+    realm
+        .chars()
+        .filter(|c| *c != '"' && *c != '\\' && !c.is_control())
+        .collect()
+}
+
 impl AuthGate {
     pub fn from_auth(auth: &ProxyAuth) -> Result<Self, Error> {
         use base64::Engine;
         let mut valid: HashMap<HeaderValue, Option<HeaderValue>> = HashMap::new();
-        let challenge = match auth {
-            ProxyAuth::Bearer { tokens } => {
+        let (scheme, realm) = match auth {
+            ProxyAuth::Bearer { tokens, realm } => {
                 for token in tokens {
                     let v = HeaderValue::from_str(&format!("Bearer {token}"))
                         .with_kind(ErrorKind::InvalidRequest)?;
                     valid.insert(v, None);
                 }
-                HeaderValue::from_static("Bearer realm=\"StartOS\"")
+                ("Bearer", realm.as_deref())
             }
-            ProxyAuth::Basic { credentials } => {
+            ProxyAuth::Basic { credentials, realm } => {
                 for cred in credentials {
                     let raw = format!("{}:{}", cred.username, cred.password);
                     let encoded =
@@ -75,9 +88,13 @@ impl AuthGate {
                         .with_kind(ErrorKind::InvalidRequest)?;
                     valid.insert(header, Some(user));
                 }
-                HeaderValue::from_static("Basic realm=\"StartOS\"")
+                ("Basic", realm.as_deref())
             }
         };
+        let realm = realm.map(sanitize_realm);
+        let realm = realm.as_deref().unwrap_or("StartOS");
+        let challenge = HeaderValue::from_str(&format!("{scheme} realm=\"{realm}\""))
+            .with_kind(ErrorKind::InvalidRequest)?;
         Ok(Self {
             valid: Arc::new(valid),
             challenge,
@@ -122,13 +139,14 @@ fn apply_request_policy<B>(
     add_forwarded: bool,
     gate: Option<&AuthGate>,
 ) -> Result<(), Response<ProxyBody>> {
-    // Always strip — never trust client-supplied forwarded identity.
+    // Always strip client-supplied forwarded identity. This function is
+    // only ever reached on the HTTP-aware proxy path, which is only
+    // entered when the binding actually owns these headers, so there is
+    // nothing to preserve.
     let h = req.headers_mut();
     h.remove("X-Forwarded-User");
-    if add_forwarded || gate.is_some() {
-        h.remove("X-Forwarded-For");
-        h.remove("X-Forwarded-Proto");
-    }
+    h.remove("X-Forwarded-For");
+    h.remove("X-Forwarded-Proto");
 
     let user = match gate {
         Some(g) => g.check(req.headers())?,
@@ -428,6 +446,7 @@ mod tests {
                     password: "swordfish".into(),
                 },
             ],
+            realm: None,
         })
         .unwrap();
 
@@ -449,6 +468,7 @@ mod tests {
                 username: "alice".into(),
                 password: "hunter2".into(),
             }],
+            realm: Some("My App".into()),
         })
         .unwrap();
 
@@ -456,13 +476,11 @@ mod tests {
         let mut req = req_with_auth(Some("Basic YWxpY2U6d3Jvbmc="));
         let resp = apply_request_policy(&mut req, None, false, Some(&gate)).unwrap_err();
         assert_eq!(resp.status(), http::StatusCode::UNAUTHORIZED);
-        assert!(
+        assert_eq!(
             resp.headers()
                 .get(http::header::WWW_AUTHENTICATE)
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .starts_with("Basic ")
+                .unwrap(),
+            "Basic realm=\"My App\""
         );
 
         // missing header
@@ -475,6 +493,7 @@ mod tests {
     fn bearer_gate_accepts_any_listed_token_and_does_not_set_user() {
         let gate = AuthGate::from_auth(&ProxyAuth::Bearer {
             tokens: vec!["alpha".into(), "beta".into()],
+            realm: None,
         })
         .unwrap();
 
@@ -507,12 +526,36 @@ mod tests {
     }
 
     #[test]
+    fn realm_is_sanitized_against_quoted_string_metacharacters() {
+        // `"` and `\` are the only metacharacters in an RFC 7230
+        // quoted-string. The sanitizer drops them rather than escaping,
+        // so a hostile realm can't break out of the challenge header.
+        let gate = AuthGate::from_auth(&ProxyAuth::Basic {
+            credentials: vec![BasicCredential {
+                username: "alice".into(),
+                password: "hunter2".into(),
+            }],
+            realm: Some("hax\"\\\nor".into()),
+        })
+        .unwrap();
+        let mut req = req_with_auth(None);
+        let resp = apply_request_policy(&mut req, None, false, Some(&gate)).unwrap_err();
+        assert_eq!(
+            resp.headers()
+                .get(http::header::WWW_AUTHENTICATE)
+                .unwrap(),
+            "Basic realm=\"haxor\""
+        );
+    }
+
+    #[test]
     fn client_supplied_x_forwarded_user_is_replaced_by_authenticated_user() {
         let gate = AuthGate::from_auth(&ProxyAuth::Basic {
             credentials: vec![BasicCredential {
                 username: "alice".into(),
                 password: "hunter2".into(),
             }],
+            realm: None,
         })
         .unwrap();
         let mut req = req_with_auth(Some("Basic YWxpY2U6aHVudGVyMg=="));

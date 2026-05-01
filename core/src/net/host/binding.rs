@@ -256,12 +256,26 @@ pub struct AddSslOptions {
 /// - `Basic  { credentials }`: any `(username, password)` pair in `credentials` is
 ///   accepted as `Authorization: Basic <base64(username:password)>`. The matched
 ///   `username` is forwarded upstream as `X-Forwarded-User`.
+///
+/// `realm` is the authentication realm advertised in the
+/// `WWW-Authenticate` challenge sent on 401 responses (RFC 7235
+/// §2.2). Defaults to `"StartOS"` when unset. Packages that share
+/// credentials across multiple bindings should pick a stable realm
+/// so that browsers reuse cached credentials across them.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase", tag = "type")]
 #[ts(export)]
 pub enum ProxyAuth {
-    Bearer { tokens: Vec<String> },
-    Basic { credentials: Vec<BasicCredential> },
+    Bearer {
+        tokens: Vec<String>,
+        #[serde(default)]
+        realm: Option<String>,
+    },
+    Basic {
+        credentials: Vec<BasicCredential>,
+        #[serde(default)]
+        realm: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]

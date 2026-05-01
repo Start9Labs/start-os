@@ -825,20 +825,19 @@ where
         // Pre-compile the auth gate once per stream — base64-encode all
         // accepted credentials, build the lookup map and the
         // WWW-Authenticate challenge — so each request on this connection
-        // is just a HashMap probe. Any encoding error fails the gate
-        // open-closed: we log once and treat the binding as having no
-        // gate, which means upstream is reachable; that is the same
-        // behaviour as if `auth` were never set, so it never makes a
-        // misconfigured binding *more* permissive than the operator's
-        // intent (a misconfigured gate would otherwise 401 every request,
-        // but configuring credentials that don't fit in a header value is
-        // an authoring bug, not a runtime condition).
+        // is just a HashMap probe. Compile errors (e.g. credentials that
+        // can't fit in a `HeaderValue`, or any other authoring bug) fail
+        // closed: we log and drop the connection rather than risk
+        // silently exposing an upstream that the operator intended to
+        // gate.
         let auth_gate = match self.auth.as_ref().map(crate::net::http::AuthGate::from_auth) {
             Some(Ok(g)) => Some(g),
             Some(Err(e)) => {
-                tracing::error!("Failed to compile proxy auth gate: {e}");
+                tracing::error!("Failed to compile proxy auth gate; refusing connection: {e}");
                 tracing::debug!("{e:?}");
-                None
+                drop(stream);
+                drop(prev);
+                return;
             }
             None => None,
         };
