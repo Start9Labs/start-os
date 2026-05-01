@@ -20,26 +20,15 @@ import {
   TuiTitle,
 } from '@taiga-ui/core'
 import { TuiBlock, TuiSwitch } from '@taiga-ui/kit'
-import { HELP } from 'src/app/help/help'
+import { HELP, HELP_OPEN } from 'src/app/help/help'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
-import { SidebarService } from 'src/app/services/sidebar.service'
 import { SystemService } from 'src/app/services/system.service'
 
 @Component({
-  selector: 'header',
+  selector: 'app-header',
   template: `
-    <button
-      size="s"
-      appearance="icon"
-      iconStart="@tui.menu"
-      class="nav-menu g-primary"
-      tuiIconButton
-      (click.stop)="sidebars.start.set(!sidebars.start())"
-    >
-      Menu
-    </button>
     <tui-textfield iconStart="@tui.search" [(open)]="open">
       <input
         tuiInput
@@ -66,7 +55,7 @@ import { SystemService } from 'src/app/services/system.service'
       }
     </tui-textfield>
     <label tuiBlock="s" appearance="secondary-grayscale">
-      <input type="checkbox" tuiSwitch size="s" [(ngModel)]="sidebars.end" />
+      <input type="checkbox" tuiSwitch size="s" [(ngModel)]="sidebar" />
       Help
     </label>
     <button
@@ -80,86 +69,63 @@ import { SystemService } from 'src/app/services/system.service'
     >
       <img alt="Start9" src="assets/favicon.svg" [style.margin]="0" />
       <tui-data-list *tuiDropdown="let close" size="m" (click)="close()">
-        <tui-opt-group>
-          <button tuiOption iconStart="@tui.info" (click)="showAbout()">
-            About
-          </button>
-        </tui-opt-group>
-        <tui-opt-group>
-          <a
-            tuiOption
-            iconStart="@tui.book-open"
-            href="https://docs.start9.com"
-            target="_blank"
-            rel="noopener"
-          >
-            Documentation
-          </a>
-          <a
-            tuiOption
-            iconStart="@tui.life-buoy"
-            href="https://start9.com/contact"
-            target="_blank"
-            rel="noopener"
-          >
-            Contact Support
-          </a>
-        </tui-opt-group>
-        <tui-opt-group>
-          <a tuiOption iconStart="@tui.settings" routerLink="/settings">
-            System Settings
-          </a>
-        </tui-opt-group>
-        <tui-opt-group>
-          <button tuiOption iconStart="@tui.log-out" (click)="logout()">
-            Logout
-          </button>
-          <button tuiOption iconStart="@tui.refresh-cw" (click)="restart()">
-            Restart
-          </button>
-        </tui-opt-group>
+        <button tuiOption iconStart="@tui.info" (click)="showAbout()">
+          About
+        </button>
+        <hr />
+        <a
+          tuiOption
+          iconStart="@tui.book-open"
+          href="https://docs.start9.com"
+          target="_blank"
+          rel="noopener"
+        >
+          Documentation
+        </a>
+        <a
+          tuiOption
+          iconStart="@tui.life-buoy"
+          href="https://start9.com/contact"
+          target="_blank"
+          rel="noopener"
+        >
+          Contact Support
+        </a>
+        <hr />
+        <a tuiOption iconStart="@tui.settings" routerLink="/settings">
+          System Settings
+        </a>
+        <hr />
+        <button tuiOption iconStart="@tui.log-out" (click)="logout()">
+          Logout
+        </button>
+        <button tuiOption iconStart="@tui.refresh-cw" (click)="restart()">
+          Restart
+        </button>
       </tui-data-list>
     </button>
   `,
   styles: `
-    :host {
-      grid-column: span 3;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0 0.75rem;
-      background: var(--tui-background-neutral-2);
-      border-bottom: 1px solid var(--tui-border-normal);
+    :host:host {
+      display: contents;
 
       tui-textfield,
       [tuiBlock] {
         border-radius: 2rem;
       }
-    }
 
-    tui-textfield {
-      margin-inline-end: auto;
-      width: min(12.5rem, calc(100vw - 13rem));
-    }
-
-    .nav-menu {
-      display: none;
-    }
-
-    :host-context(tui-root._mobile) {
-      grid-column: span 1;
-
-      .nav-menu {
-        display: flex;
+      tui-textfield {
+        margin-inline-end: auto;
+        width: min(13.5rem, calc(100vw - 10rem));
       }
     }
 
-    :host-context(body:not([tuiTheme])) {
-      background: var(--tui-background-base);
+    label {
+      margin-inline-end: 0.25rem;
+    }
 
-      .start9-menu {
-        filter: invert(1);
-      }
+    :host-context(body:not([tuiTheme])) .start9-menu {
+      filter: invert(1);
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -192,7 +158,7 @@ export class Header {
   private readonly alerts = inject(TuiNotificationService)
   private readonly help = inject(HELP)
 
-  protected readonly sidebars = inject(SidebarService)
+  protected readonly sidebar = inject(HELP_OPEN)
   protected readonly system = inject(SystemService)
   protected readonly search = signal('')
   protected readonly open = signal(false)

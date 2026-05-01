@@ -1,9 +1,9 @@
 import { KeyValuePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { RouterLink, RouterLinkActive } from '@angular/router'
-import { TuiButton, TuiScrollbar, TuiIcon } from '@taiga-ui/core'
+import { RouterLink } from '@angular/router'
+import { TuiIcon } from '@taiga-ui/core'
+import { TuiNavigation } from '@taiga-ui/layout'
 import { SystemService } from 'src/app/services/system.service'
-import { SidebarService } from 'src/app/services/sidebar.service'
 
 const MENU = {
   Internet: [
@@ -69,112 +69,49 @@ const MENU = {
 } as const
 
 @Component({
-  selector: 'nav',
+  selector: '[appNav]',
   template: `
-    <tui-scrollbar>
-      @for (item of routes | keyvalue: asIs; track $index) {
-        <span>{{ item.key }}</span>
-        @for (route of item.value; track $index) {
-          <a
-            tuiButton
-            size="s"
-            appearance="flat-grayscale"
-            routerLinkActive="active"
-            [iconStart]="route.icon"
-            [routerLink]="route.link"
-          >
-            {{ route.name }}
-            @if (route.link === 'settings' && system.updateAvailable()) {
-              <tui-icon icon="@tui.rocket" class="update-icon" />
-            }
-          </a>
-        }
-        @if (!$last) {
-          <hr />
-        }
+    @for (item of routes | keyvalue: asIs; track $index) {
+      <span>{{ item.key }}</span>
+      @for (route of item.value; track $index) {
+        <a tuiAsideItem [iconStart]="route.icon" [routerLink]="route.link">
+          {{ route.name }}
+          @if (route.link === 'settings' && system.updateAvailable()) {
+            <tui-icon class="g-positive" icon="@tui.rocket" />
+          }
+        </a>
       }
-    </tui-scrollbar>
+      @if (!$last) {
+        <hr />
+      }
+    }
   `,
   styles: `
-    :host {
-      display: flex;
-      flex-direction: column;
-      background: var(--tui-background-neutral-1);
-      backdrop-filter: blur(1rem);
-      z-index: 1;
-      overflow: hidden;
-      transition: transform var(--tui-duration);
-    }
+    @use '@taiga-ui/styles/utils' as taiga;
 
-    tui-scrollbar {
-      flex: 1;
-      padding-bottom: 1rem;
+    :host-context(aside._expanded) span {
+      font: var(--tui-typography-body-s);
+      padding-block: 0.5em;
     }
 
     span {
+      @include taiga.transition(all);
+
       display: block;
-      padding: 0.5rem 1rem;
-      font: var(--tui-typography-text-s);
+      padding: 0 0.5rem;
       color: var(--tui-text-secondary);
       text-transform: uppercase;
-
-      &:first-child {
-        margin-top: 1rem;
-      }
+      font-size: 0;
     }
 
-    a {
-      display: flex;
-      justify-content: start;
-      margin: 0 0.5rem;
-
-      &.active {
-        background: var(--tui-background-neutral-1);
-      }
-    }
-
-    hr {
-      height: 1px;
-      border: none;
-      background: var(--tui-border-normal);
-      margin: 0.5rem 0;
-    }
-
-    .update-icon {
-      margin-inline-start: auto;
-      color: var(--tui-status-positive);
-      font-size: 1rem;
-    }
-
-    :host-context(tui-root._mobile) {
-      position: absolute;
-      top: 3.5rem;
-      width: 14rem;
-      bottom: 0;
-      inset-inline-start: 0;
-
-      &:not(:focus-within, ._expanded) {
-        transform: translate3d(-100%, 0, 0);
-      }
+    tui-icon {
+      margin-inline-start: auto !important;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    TuiScrollbar,
-    TuiButton,
-    TuiIcon,
-    RouterLink,
-    KeyValuePipe,
-    RouterLinkActive,
-  ],
-  host: {
-    '[class._expanded]': 'sidebars.start()',
-    '(document:click)': 'sidebars.start.set(false)',
-    '(mousedown.prevent)': '0',
-  },
+  imports: [TuiIcon, RouterLink, KeyValuePipe, TuiNavigation],
 })
 export class Nav {
-  protected readonly sidebars = inject(SidebarService)
   protected readonly system = inject(SystemService)
   protected readonly routes = MENU
 

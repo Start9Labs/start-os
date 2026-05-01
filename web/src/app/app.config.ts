@@ -57,13 +57,8 @@ export const appConfig: ApplicationConfig = {
     tuiTextfieldOptionsProvider({ size: signal('m'), cleaner: signal(false) }),
     tuiFormOptionsProvider({ size: 'm' }),
     tuiCardOptionsProvider({ space: 'compact' }),
-    tuiDropdownOptionsProvider({ appearance: 'start-9' }),
-    tuiDialogOptionsProvider({ appearance: 'start-9 taiga', size: 's' }),
-    tuiSheetDialogOptionsProvider({
-      appearance: 'start-9 taiga',
-      bar: false,
-      offset: 72,
-    }),
+    tuiDialogOptionsProvider({ size: 's' }),
+    tuiSheetDialogOptionsProvider({ bar: false, offset: 72 }),
     {
       provide: TUI_APPEARANCE_OPTIONS,
       useValue: { appearance: 'neutral' },

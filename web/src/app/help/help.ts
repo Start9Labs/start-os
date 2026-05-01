@@ -1,7 +1,7 @@
-import { InjectionToken } from '@angular/core'
+import { InjectionToken, signal } from '@angular/core'
+import devicesDevice from './devices/device.html?raw'
 
 import devices from './devices/index.html?raw'
-import devicesDevice from './devices/device.html?raw'
 import ethernetDialog from './ethernet/dialog.html?raw'
 import ethernet from './ethernet/index.html?raw'
 import inboundClientAdd from './inbound/client-dialog-add.html?raw'
@@ -17,8 +17,8 @@ import outbound from './outbound/index.html?raw'
 import outboundVpn from './outbound/vpn.html?raw'
 import profilesDialog from './profiles/dialog.html?raw'
 import profiles from './profiles/index.html?raw'
-import profilesSchedule from './profiles/schedule.html?raw'
 import profilesScheduleDialog from './profiles/schedule-dialog.html?raw'
+import profilesSchedule from './profiles/schedule.html?raw'
 import publishedPortsDialog from './published-ports/dialog.html?raw'
 import publishedPorts from './published-ports/index.html?raw'
 import settingsActivity from './settings/activity.html?raw'
@@ -27,8 +27,8 @@ import settingsBackup from './settings/backup.html?raw'
 import settingsGeneral from './settings/general.html?raw'
 import settingsLogs from './settings/logs.html?raw'
 import settingsPassword from './settings/password.html?raw'
-import settingsSsh from './settings/ssh.html?raw'
 import settingsSshDialog from './settings/ssh-dialog.html?raw'
+import settingsSsh from './settings/ssh.html?raw'
 import wanDdns from './wan/ddns.html?raw'
 import wanDns from './wan/dns.html?raw'
 import wanIpv4 from './wan/ipv4.html?raw'
@@ -39,6 +39,10 @@ import wifiBlackout from './wifi/blackout.html?raw'
 import wifiPasswordsDialog from './wifi/passwords-dialog.html?raw'
 import wifiPasswords from './wifi/passwords.html?raw'
 import wifiSettings from './wifi/settings.html?raw'
+
+export const HELP_OPEN = new InjectionToken('Help sidebar open status', {
+  factory: () => signal(false),
+})
 
 export const HELP_URL = new InjectionToken<string>('Help URL')
 export const HELP = new InjectionToken<Record<string, string>>(

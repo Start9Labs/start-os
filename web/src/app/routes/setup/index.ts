@@ -20,9 +20,11 @@ import {
   TuiInput,
   TuiLabel,
   TuiTextfield,
+  TuiTitle,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
 import { TuiButtonLoading, TuiPassword } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import {
@@ -45,11 +47,17 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   template: `
     <img alt="StartWRT" src="assets/favicon.svg" />
     @if (complete()) {
-      <h2>Setup complete</h2>
-      <p>You can close this window.</p>
+      <header tuiHeader>
+        <hgroup tuiTitle>
+          <h2>Setup complete</h2>
+          <p tuiSubtitle>You can close this window.</p>
+        </hgroup>
+      </header>
     } @else {
-      <h2>Create your admin password</h2>
-      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <header tuiHeader>
+        <h2 tuiTitle>Create admin password</h2>
+      </header>
+      <form tuiForm="m" [formGroup]="form" (ngSubmit)="onSubmit()">
         <tui-textfield>
           <label tuiLabel>Password</label>
           <input tuiInput formControlName="password" type="password" />
@@ -63,58 +71,34 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
         </tui-textfield>
         <tui-error formControlName="confirm" />
         <tui-error [error]="error()" />
-        <button
-          tuiButton
-          type="submit"
-          appearance="primary"
-          [loading]="loading()"
-        >
-          Set Password
-        </button>
+        <footer>
+          <button tuiButton appearance="primary" [loading]="loading()">
+            Set Password
+          </button>
+        </footer>
       </form>
     }
   `,
   styles: `
     :host {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1.5rem;
+      position: absolute;
+      inline-size: 20rem;
+      inset-inline-start: 50%;
+      inset-block-start: 50%;
+      transform: translate(-50%, -50%);
     }
 
     img {
       width: 5rem;
       height: 5rem;
+      margin: auto;
     }
 
-    h2 {
-      margin: 0;
-    }
-
-    p {
-      margin: 0;
-      color: var(--tui-text-secondary);
-    }
-
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      width: 20rem;
-    }
-
-    button[tuiButton] {
-      align-self: flex-end;
-    }
-
-    :host-context(body:not([tuiTheme])) {
-      img {
-        filter: invert(1);
-      }
+    :host-context(body:not([tuiTheme])) img {
+      filter: invert(1);
     }
   `,
+  hostDirectives: [TuiCardLarge],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     tuiValidationErrorsProvider({
@@ -133,6 +117,9 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
     TuiLabel,
     TuiPassword,
     TuiTextfield,
+    TuiHeader,
+    TuiTitle,
+    TuiForm,
   ],
 })
 export default class Setup {

@@ -17,7 +17,6 @@ import { appConfig } from './app/app.config'
 
     tui-root {
       height: 100%;
-      border-image: none;
     }
   `,
 })

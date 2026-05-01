@@ -27,6 +27,7 @@ import {
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
 import { TuiButtonLoading, TuiPassword, TuiProgress } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { SetupFlashEvent } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
 
@@ -49,35 +50,39 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
 
     @switch (step()) {
       @case ('welcome') {
-        <h2>StartWRT Setup</h2>
-        <p class="subtitle">Choose how to set up your router</p>
-        <div class="options">
-          @if (canUpdate()) {
-            <button tuiCell="l" (click)="selectMode('update')">
-              <div tuiTitle>
-                Keep settings
-                <div tuiSubtitle>
-                  Preserve your configuration, update firmware
-                </div>
-              </div>
-            </button>
-          }
-          <button tuiCell="l" (click)="selectMode('fresh-start')">
+        <header tuiHeader>
+          <hgroup tuiTitle>
+            <h2>StartWRT Setup</h2>
+            <p tuiSubtitle>Choose how to set up your router</p>
+          </hgroup>
+        </header>
+        @if (canUpdate()) {
+          <button tuiCell="l" (click)="selectMode('update')">
             <div tuiTitle>
-              Fresh Start
+              Keep settings
               <div tuiSubtitle>
-                Erase all router configuration, install fresh firmware
+                Preserve your configuration, update firmware
               </div>
             </div>
           </button>
-          @if (!emmcFound()) {
-            <tui-error error="No eMMC device found" />
-          }
-        </div>
+        }
+        <button tuiCell="l" (click)="selectMode('fresh-start')">
+          <div tuiTitle>
+            Fresh Start
+            <div tuiSubtitle>
+              Erase all router configuration, install fresh firmware
+            </div>
+          </div>
+        </button>
+        @if (!emmcFound()) {
+          <tui-error error="No eMMC device found" />
+        }
       }
       @case ('password') {
-        <h2>Create admin password</h2>
-        <form [formGroup]="form" (ngSubmit)="onPasswordSubmit()">
+        <header tuiHeader>
+          <h2 tuiTitle>Create admin password</h2>
+        </header>
+        <form tuiForm="m" [formGroup]="form" (ngSubmit)="onPasswordSubmit()">
           <tui-textfield>
             <label tuiLabel>Password</label>
             <input tuiInput formControlName="password" type="password" />
@@ -90,7 +95,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
             <tui-icon tuiPassword />
           </tui-textfield>
           <tui-error formControlName="confirm" />
-          <div class="form-actions">
+          <footer>
             <button
               tuiButton
               appearance="flat"
@@ -100,22 +105,26 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
               Back
             </button>
             <button tuiButton appearance="primary" type="submit">Next</button>
-          </div>
+          </footer>
         </form>
       }
       @case ('confirm') {
-        <h2>Confirm</h2>
-        @if (mode() === 'update') {
-          <p>Firmware will be updated. Your settings will be preserved.</p>
-        } @else {
-          <p>
-            All router configuration (network, firewall, packages) will be
-            erased and firmware freshly installed. Your admin password and WiFi
-            credentials will be applied to the new installation.
-          </p>
-        }
-        <p class="subtitle">This will take a few minutes.</p>
-        <div class="form-actions">
+        <header tuiHeader>
+          <hgroup tuiTitle>
+            <h2>Confirm</h2>
+            @if (mode() === 'update') {
+              <p>Firmware will be updated. Your settings will be preserved.</p>
+            } @else {
+              <p>
+                All router configuration (network, firewall, packages) will be
+                erased and firmware freshly installed. Your admin password and
+                WiFi credentials will be applied to the new installation.
+              </p>
+            }
+            <p tuiSubtitle>This will take a few minutes.</p>
+          </hgroup>
+        </header>
+        <footer>
           <button tuiButton appearance="flat" (click)="step.set('password')">
             Back
           </button>
@@ -128,18 +137,20 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
           >
             Flash
           </button>
-        </div>
+        </footer>
       }
       @case ('flashing') {
-        <h2>Flashing</h2>
-        <p>{{ flashStatus() }}</p>
+        <header tuiHeader>
+          <h2 tuiTitle>Flashing</h2>
+        </header>
+        <div>{{ flashStatus() }}</div>
         @if (flashTotalSteps() > 0) {
           <progress
             tuiProgressBar
             [max]="flashTotalSteps()"
             [value]="flashStep() - 1"
           ></progress>
-          <p class="hint">Step {{ flashStep() }} of {{ flashTotalSteps() }}</p>
+          <small>Step {{ flashStep() }} of {{ flashTotalSteps() }}</small>
         }
         @if (flashTotal() > 0) {
           <progress
@@ -147,88 +158,58 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
             [max]="flashTotal()"
             [value]="flashCopied()"
           ></progress>
-          <p class="hint">
+          <small>
             {{ flashCopied() / 1000000 | number: '1.0-0' }} /
             {{ flashTotal() / 1000000 | number: '1.0-0' }} MB
-          </p>
+          </small>
         }
         @if (flashError()) {
           <tui-error [error]="flashError()" />
-          <button tuiButton appearance="flat" (click)="step.set('confirm')">
-            Try Again
-          </button>
+          <footer>
+            <button tuiButton appearance="flat" (click)="step.set('confirm')">
+              Try Again
+            </button>
+          </footer>
         }
       }
       @case ('complete') {
-        <h2>Setup complete</h2>
-        <p>Remove the microSD card and reboot your router.</p>
+        <header tuiHeader>
+          <h2 tuiTitle>Setup complete</h2>
+        </header>
+        <div>Remove the microSD card and reboot your router.</div>
       }
     }
   `,
   styles: `
     :host {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1.5rem;
+      position: absolute;
+      inline-size: 20rem;
+      inset-inline-start: 50%;
+      inset-block-start: 50%;
+      transform: translate(-50%, -50%);
     }
 
     img {
       width: 5rem;
       height: 5rem;
+      margin: auto;
     }
 
-    h2 {
-      margin: 0;
-    }
-
-    p {
-      margin: 0;
-      text-align: center;
-      max-width: 24rem;
-    }
-
-    .subtitle {
+    small {
+      margin-block-start: -0.75rem !important;
       color: var(--tui-text-secondary);
     }
 
-    .hint {
-      color: var(--tui-text-tertiary);
-      font-size: 0.85rem;
-    }
-
-    .options {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      width: 20rem;
-    }
-
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      width: 20rem;
-    }
-
-    .form-actions {
+    footer {
       display: flex;
       justify-content: space-between;
-      margin-top: 0.5rem;
     }
 
-    progress[tuiProgressBar] {
-      width: 20rem;
-    }
-
-    :host-context(body:not([tuiTheme])) {
-      img {
-        filter: invert(1);
-      }
+    :host-context(body:not([tuiTheme])) img {
+      filter: invert(1);
     }
   `,
+  hostDirectives: [TuiCardLarge],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     tuiValidationErrorsProvider({
@@ -251,6 +232,8 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
     TuiProgress,
     TuiTextfield,
     TuiTitle,
+    TuiHeader,
+    TuiForm,
   ],
 })
 export default class SetupWizard {
