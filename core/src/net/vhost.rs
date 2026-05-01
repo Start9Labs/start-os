@@ -37,7 +37,7 @@ use crate::net::gateway::{
 };
 use crate::net::ssl::{CertStore, RootCaTlsHandler};
 use crate::net::tls::{
-    ChainedHandler, TlsHandlerAction, TlsHandlerWrapper, TlsListener, TlsMetadata, WrapTlsHandler,
+    ChainedHandler, TlsHandler, TlsHandlerAction, TlsListener, TlsMetadata,
 };
 use crate::net::utils::{ipv6_is_link_local, is_private_ip};
 use crate::net::web_server::{Accept, AcceptStream, ExtractVisitor, TcpMetadata, extract};
@@ -939,38 +939,77 @@ impl<A: Accept + 'static> GetAcmeProvider for GetVHostAcmeProvider<A> {
     }
 }
 
-pub struct VHostConnector<A: Accept + 'static>(Watch<Mapping<A>>, Option<Preprocessed<A>>);
-impl<A: Accept + 'static> Clone for VHostConnector<A> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone(), None)
+/// No-op cert resolver used to build a cheap [`ServerConfig`] for the
+/// passthrough path. The config is fed to [`ProxyTarget::preprocess`] so it
+/// can satisfy the [`VHostTarget`] trait signature, but the caller discards
+/// it before any handshake runs against it — the resolver is never asked
+/// to produce a certificate.
+#[derive(Debug)]
+struct NoCertResolver;
+impl tokio_rustls::rustls::server::ResolvesServerCert for NoCertResolver {
+    fn resolve(
+        &self,
+        _: ClientHello,
+    ) -> Option<Arc<tokio_rustls::rustls::sign::CertifiedKey>> {
+        None
     }
 }
 
-impl<A> WrapTlsHandler<A> for VHostConnector<A>
+fn passthrough_stub_config(
+    crypto_provider: &Arc<CryptoProvider>,
+) -> Result<ServerConfig, Error> {
+    Ok(ServerConfig::builder_with_provider(crypto_provider.clone())
+        .with_safe_default_protocol_versions()
+        .with_kind(ErrorKind::OpenSsl)?
+        .with_no_client_auth()
+        .with_cert_resolver(Arc::new(NoCertResolver)))
+}
+
+/// Routes incoming TLS connections by SNI. For passthrough targets the
+/// expensive cert-resolution chain (`AcmeTlsHandler` + `RootCaTlsHandler`,
+/// the latter of which goes through a write-locked patch-db transaction
+/// and can lazily generate a keypair plus sign two leaf certs) is skipped
+/// entirely — a passthrough connection only needs to TCP-connect to the
+/// backend so the client's TLS handshake can complete against it, and any
+/// `ServerConfig` we built locally would be discarded.
+///
+/// The handler holds the cert-resolution chain as `inner` and only invokes
+/// it when the matched target terminates TLS, or when the connection is the
+/// ACME `acme-tls/1` ALPN challenge (which has to be answered locally).
+pub struct VHostTlsHandler<I, A: Accept + 'static> {
+    inner: I,
+    crypto_provider: Arc<CryptoProvider>,
+    mapping: Watch<Mapping<A>>,
+    preprocessed: Option<Preprocessed<A>>,
+}
+impl<I: Clone, A: Accept + 'static> Clone for VHostTlsHandler<I, A> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            crypto_provider: self.crypto_provider.clone(),
+            mapping: self.mapping.clone(),
+            // Per-connection state — never carried across clones; each
+            // accepted connection clones the handler before populating it.
+            preprocessed: None,
+        }
+    }
+}
+
+impl<'a, A, I> TlsHandler<'a, A> for VHostTlsHandler<I, A>
 where
-    A: Accept + 'static,
-    <A as Accept>::Metadata:
-        Visit<ExtractVisitor<GatewayInfo>> + Visit<ExtractVisitor<TcpMetadata>> + Send + Sync,
+    A: Accept + 'a,
+    <A as Accept>::Metadata: Visit<ExtractVisitor<GatewayInfo>>
+        + Visit<ExtractVisitor<TcpMetadata>>
+        + Send
+        + Sync,
+    I: TlsHandler<'a, A> + Send,
 {
-    async fn wrap<'a>(
+    async fn get_config(
         &'a mut self,
-        prev: ServerConfig,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> Option<TlsHandlerAction>
-    where
-        Self: 'a,
-    {
-        if hello
-            .alpn()
-            .into_iter()
-            .flatten()
-            .any(|a| a == ACME_TLS_ALPN_NAME)
-        {
-            return Some(TlsHandlerAction::Tls(prev));
-        }
-
-        let (target, rc) = self.0.peek(|m| {
+    ) -> Option<TlsHandlerAction> {
+        let routed = self.mapping.peek(|m| {
             m.get(&hello.server_name().map(InternedString::from))
                 .or_else(|| m.get(&None))
                 .into_iter()
@@ -978,27 +1017,53 @@ where
                 .filter(|(_, rc)| rc.strong_count() > 0)
                 .find(|(t, _)| t.0.filter(metadata))
                 .map(|(t, rc)| (t.clone(), rc.clone()))
-        })?;
+        });
 
-        let is_pt = target.0.is_passthrough();
-        let (prev, store) = target.into_preprocessed(rc, prev, hello, metadata).await?;
+        let acme_alpn = hello
+            .alpn()
+            .into_iter()
+            .flatten()
+            .any(|a| a == ACME_TLS_ALPN_NAME);
 
-        self.1 = Some(store);
-
-        if is_pt {
-            Some(TlsHandlerAction::Passthrough)
-        } else {
-            Some(TlsHandlerAction::Tls(prev))
+        // Passthroughs should not intermediate ACME challenges — the
+        // backend is the ACME client and holds the challenge cert.
+        if let Some((target, rc)) = routed.as_ref().filter(|(t, _)| t.0.is_passthrough()) {
+            let stub = passthrough_stub_config(&self.crypto_provider).log_err()?;
+            let (_, store) = target
+                .clone()
+                .into_preprocessed(rc.clone(), stub, hello, metadata)
+                .await?;
+            self.preprocessed = Some(store);
+            return Some(TlsHandlerAction::Passthrough);
         }
+
+        // ACME challenge for a terminating target (or for one with no
+        // explicit vhost mapping): answer locally from the inner chain.
+        if acme_alpn {
+            return self.inner.get_config(hello, metadata).await;
+        }
+
+        let Some((target, rc)) = routed else {
+            return None;
+        };
+
+        let action = self.inner.get_config(hello, metadata).await?;
+        let cfg = match action {
+            TlsHandlerAction::Tls(cfg) => cfg,
+            other => return Some(other),
+        };
+        let (prev, store) = target.into_preprocessed(rc, cfg, hello, metadata).await?;
+        self.preprocessed = Some(store);
+        Some(TlsHandlerAction::Tls(prev))
     }
 }
 
 struct VHostListener<M, A>(
     TlsListener<
         A,
-        TlsHandlerWrapper<
+        VHostTlsHandler<
             ChainedHandler<Arc<AcmeTlsHandler<M, GetVHostAcmeProvider<A>>>, RootCaTlsHandler<M>>,
-            VHostConnector<A>,
+            A,
         >,
     >,
 )
@@ -1052,7 +1117,7 @@ where
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
         let (metadata, stream) = ready!(self.0.poll_accept(cx)?);
-        let preprocessed = self.0.tls_handler.wrapper.1.take();
+        let preprocessed = self.0.tls_handler.preprocessed.take();
         Poll::Ready(Ok((
             VHostListenerMetadata {
                 inner: metadata,
@@ -1131,7 +1196,7 @@ impl<A: Accept> VHostServer<A> {
             _thread: tokio::spawn(async move {
                 let mut listener = VHostListener(TlsListener::new(
                     listener,
-                    TlsHandlerWrapper {
+                    VHostTlsHandler {
                         inner: ChainedHandler(
                             Arc::new(AcmeTlsHandler {
                                 db: db.clone(),
@@ -1142,10 +1207,12 @@ impl<A: Accept> VHostServer<A> {
                             }),
                             RootCaTlsHandler {
                                 db,
-                                crypto_provider,
+                                crypto_provider: crypto_provider.clone(),
                             },
                         ),
-                        wrapper: VHostConnector(mapping, None),
+                        crypto_provider,
+                        mapping,
+                        preprocessed: None,
                     },
                 ));
                 loop {

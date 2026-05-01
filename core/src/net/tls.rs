@@ -82,43 +82,6 @@ where
     }
 }
 
-#[derive(Clone)]
-pub struct TlsHandlerWrapper<I, W> {
-    pub inner: I,
-    pub wrapper: W,
-}
-
-pub trait WrapTlsHandler<A: Accept> {
-    fn wrap<'a>(
-        &'a mut self,
-        prev: ServerConfig,
-        hello: &'a ClientHello<'a>,
-        metadata: &'a <A as Accept>::Metadata,
-    ) -> impl Future<Output = Option<TlsHandlerAction>> + Send + 'a
-    where
-        Self: 'a;
-}
-
-impl<'a, A, I, W> TlsHandler<'a, A> for TlsHandlerWrapper<I, W>
-where
-    A: Accept + 'a,
-    <A as Accept>::Metadata: Send + Sync,
-    I: TlsHandler<'a, A> + Send,
-    W: WrapTlsHandler<A> + Send,
-{
-    async fn get_config(
-        &'a mut self,
-        hello: &'a ClientHello<'a>,
-        metadata: &'a <A as Accept>::Metadata,
-    ) -> Option<TlsHandlerAction> {
-        let action = self.inner.get_config(hello, metadata).await?;
-        match action {
-            TlsHandlerAction::Tls(cfg) => self.wrapper.wrap(cfg, hello, metadata).await,
-            other => Some(other),
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct SingleCertResolver(pub Arc<CertifiedKey>);
 impl ResolvesServerCert for SingleCertResolver {
