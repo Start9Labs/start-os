@@ -5852,6 +5852,69 @@ about.setup-acme-certificate-acquisition:
   fr_FR: "Configurer l'acquisition de certificat ACME"
   pl_PL: "Skonfiguruj pozyskiwanie certyfikatu ACME"
 
+about.setup-attach:
+  en_US: "Attach an existing StartOS data drive without re-running setup"
+  de_DE: "Ein vorhandenes StartOS-Datenlaufwerk anbinden, ohne die Einrichtung erneut auszuführen"
+  es_ES: "Asociar una unidad de datos de StartOS existente sin volver a ejecutar la configuración"
+  fr_FR: "Rattacher un lecteur de données StartOS existant sans relancer la configuration"
+  pl_PL: "Podłącz istniejący dysk danych StartOS bez ponownego uruchamiania konfiguracji"
+
+about.setup-complete:
+  en_US: "Finalize the setup and persist disk identifiers"
+  de_DE: "Die Einrichtung abschließen und Laufwerkskennungen persistieren"
+  es_ES: "Finalizar la configuración y persistir los identificadores de los discos"
+  fr_FR: "Finaliser la configuration et conserver les identifiants des disques"
+  pl_PL: "Zakończ konfigurację i zachowaj identyfikatory dysków"
+
+about.setup-disk-list:
+  en_US: "List disks available for installation"
+  de_DE: "Für die Installation verfügbare Laufwerke auflisten"
+  es_ES: "Listar las unidades disponibles para la instalación"
+  fr_FR: "Lister les lecteurs disponibles pour l'installation"
+  pl_PL: "Wyświetl listę dysków dostępnych do instalacji"
+
+about.setup-execute:
+  en_US: "Run the initial setup against an installed OS or fresh data drive"
+  de_DE: "Die Ersteinrichtung für ein installiertes Betriebssystem oder neues Datenlaufwerk ausführen"
+  es_ES: "Ejecutar la configuración inicial sobre un sistema operativo instalado o una unidad de datos nueva"
+  fr_FR: "Exécuter la configuration initiale sur un système installé ou un nouveau lecteur de données"
+  pl_PL: "Wykonaj początkową konfigurację względem zainstalowanego systemu lub nowego dysku danych"
+
+about.setup-exit:
+  en_US: "Exit setup mode and reboot into the installed OS"
+  de_DE: "Den Einrichtungsmodus verlassen und in das installierte Betriebssystem neu starten"
+  es_ES: "Salir del modo de configuración y reiniciar al sistema operativo instalado"
+  fr_FR: "Quitter le mode de configuration et redémarrer sur le système installé"
+  pl_PL: "Wyjdź z trybu konfiguracji i uruchom ponownie do zainstalowanego systemu"
+
+about.setup-install-os:
+  en_US: "Install StartOS to a disk over the network"
+  de_DE: "StartOS über das Netzwerk auf ein Laufwerk installieren"
+  es_ES: "Instalar StartOS en un disco a través de la red"
+  fr_FR: "Installer StartOS sur un disque par le réseau"
+  pl_PL: "Zainstaluj StartOS na dysku przez sieć"
+
+about.setup-restart:
+  en_US: "Restart the device from setup mode"
+  de_DE: "Das Gerät aus dem Einrichtungsmodus neu starten"
+  es_ES: "Reiniciar el dispositivo desde el modo de configuración"
+  fr_FR: "Redémarrer l'appareil depuis le mode de configuration"
+  pl_PL: "Uruchom ponownie urządzenie z trybu konfiguracji"
+
+about.setup-shutdown:
+  en_US: "Shut down the device from setup mode"
+  de_DE: "Das Gerät aus dem Einrichtungsmodus herunterfahren"
+  es_ES: "Apagar el dispositivo desde el modo de configuración"
+  fr_FR: "Éteindre l'appareil depuis le mode de configuration"
+  pl_PL: "Wyłącz urządzenie z trybu konfiguracji"
+
+about.setup-status:
+  en_US: "Display the current state of the setup wizard"
+  de_DE: "Den aktuellen Status des Einrichtungsassistenten anzeigen"
+  es_ES: "Mostrar el estado actual del asistente de configuración"
+  fr_FR: "Afficher l'état actuel de l'assistant d'installation"
+  pl_PL: "Wyświetl obecny stan kreatora konfiguracji"
+
 about.show-cpu-governors:
   en_US: "Show CPU governors"
   de_DE: "CPU-Governors anzeigen"

@@ -145,6 +145,16 @@ impl CliContext {
                     builder =
                         builder.proxy(Proxy::all(proxy).with_kind(crate::ErrorKind::ParseUrl)?)
                 }
+                if config.insecure {
+                    builder = builder.danger_accept_invalid_certs(true);
+                }
+                for ca_path in config.root_ca.iter().flatten() {
+                    let pem = std::fs::read(ca_path)
+                        .with_ctx(|_| (crate::ErrorKind::Filesystem, ca_path.display()))?;
+                    let cert = reqwest::Certificate::from_pem(&pem)
+                        .with_kind(crate::ErrorKind::OpenSsl)?;
+                    builder = builder.add_root_certificate(cert);
+                }
                 builder.build().expect("cannot fail")
             },
             cookie_store,

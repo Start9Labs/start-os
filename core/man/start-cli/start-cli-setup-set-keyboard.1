@@ -1,0 +1,28 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-setup-set-keyboard 1  "set-keyboard " 
+.SH NAME
+start\-cli\-setup\-set\-keyboard \- Set the keyboard layout
+.SH SYNOPSIS
+\fBstart\-cli setup set\-keyboard\fR [\fB\-k\fR|\fB\-\-keymap\fR] [\fB\-m\fR|\fB\-\-model\fR] [\fB\-v\fR|\fB\-\-variant\fR] [\fB\-o\fR|\fB\-\-option\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fILAYOUT\fR> 
+.SH DESCRIPTION
+Set the keyboard layout
+.SH OPTIONS
+.TP
+\fB\-k\fR, \fB\-\-keymap\fR \fI<KEYMAP>\fR
+Console keymap for vconsole
+.TP
+\fB\-m\fR, \fB\-\-model\fR \fI<MODEL>\fR
+Keyboard model
+.TP
+\fB\-v\fR, \fB\-\-variant\fR \fI<VARIANT>\fR
+Keyboard layout variant
+.TP
+\fB\-o\fR, \fB\-\-option\fR \fI<OPTIONS>\fR
+Additional keyboard option
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fILAYOUT\fR>
+Keyboard layout code

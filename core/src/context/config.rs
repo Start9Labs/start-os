@@ -84,6 +84,20 @@ pub struct ClientConfig {
     pub cookie_path: Option<PathBuf>,
     #[arg(long, help = "help.arg.developer-key-path")]
     pub developer_key_path: Option<PathBuf>,
+    /// PEM-encoded root CA certificate(s) to trust when talking to a
+    /// StartOS server with a self-signed cert (e.g. immediately after
+    /// `setup complete`, before the device's CA has been imported into
+    /// the local trust store). Repeatable.
+    #[arg(long = "root-ca", value_name = "PEM_PATH")]
+    #[serde(default)]
+    pub root_ca: Option<Vec<PathBuf>>,
+    /// Skip TLS certificate verification entirely. Intended for
+    /// unattended bring-up against a fresh StartOS server whose
+    /// self-signed CA hasn't been pinned yet. **Do not use over the
+    /// public internet.**
+    #[arg(long)]
+    #[serde(default)]
+    pub insecure: bool,
 }
 impl ContextConfig for ClientConfig {
     fn next(&mut self) -> Option<PathBuf> {
@@ -102,6 +116,8 @@ impl ContextConfig for ClientConfig {
         self.socks_listen = self.socks_listen.take().or(other.socks_listen);
         self.cookie_path = self.cookie_path.take().or(other.cookie_path);
         self.developer_key_path = self.developer_key_path.take().or(other.developer_key_path);
+        self.root_ca = self.root_ca.take().or(other.root_ca);
+        self.insecure = self.insecure || other.insecure;
     }
 }
 impl ClientConfig {

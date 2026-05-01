@@ -1,0 +1,22 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH start-cli-setup-attach 1  "attach " 
+.SH NAME
+start\-cli\-setup\-attach \- Attach an existing StartOS data drive without re\-running setup
+.SH SYNOPSIS
+\fBstart\-cli setup attach\fR <\fB\-\-guid\fR> [\fB\-\-kiosk\fR] [\fB\-\-no\-password\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+.SH DESCRIPTION
+Attach an existing StartOS data drive without re\-running setup
+.SH OPTIONS
+.TP
+\fB\-\-guid\fR \fI<GUID>\fR
+Disk GUID of the existing data drive to attach
+.TP
+\fB\-\-kiosk\fR
+Enable kiosk mode
+.TP
+\fB\-\-no\-password\fR
+Treat an unset PASSWORD env var as "no password" (only valid for drives whose GUID ends in `_UNENC`). Without this, missing PASSWORD falls back to a TTY prompt
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
