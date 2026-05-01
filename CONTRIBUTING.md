@@ -39,9 +39,11 @@ nvm alias default 24 # this prevents your machine from reverting back to another
 ### Cloning the Repository
 
 ```sh
-git clone --recursive https://github.com/Start9Labs/start-os.git --branch next/major
+git clone --recursive https://github.com/Start9Labs/start-os.git
 cd start-os
 ```
+
+StartOS has 4 major branches for integration. `master` is for the current release. If the current latest release is a pre-release (i.e. "beta.X"), PRs for new features and bugfixes should go here. Otherwise we have `next/` branches depending on which release of StartOS the changes should be included in; `next/patch` for the next patch release, `next/minor` for the next minor release, and `next/major` for the next major release. If you are unsure which branch to target, ask a maintainer.
 
 ### Development Mode
 
