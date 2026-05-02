@@ -17,7 +17,11 @@ pub struct DiagnosticContextSeed {
     pub error: Arc<RpcError>,
     pub disk_guid: Option<InternedString>,
     pub rpc_continuations: RpcContinuations,
-    pub update_in_progress: SyncMutex<bool>,
+    /// Held by an in-flight `diagnostic.update`. The strong count is `1`
+    /// when no update is running; the update task holds a clone for its
+    /// entire lifetime, and dropping the clone (success, failure, or
+    /// cancellation) automatically frees the slot.
+    pub update_in_progress: SyncMutex<Arc<()>>,
 }
 
 #[derive(Clone)]
@@ -42,7 +46,7 @@ impl DiagnosticContext {
             disk_guid,
             error: Arc::new(error.into()),
             rpc_continuations: RpcContinuations::new(),
-            update_in_progress: SyncMutex::new(false),
+            update_in_progress: SyncMutex::new(Arc::new(())),
         })))
     }
 }

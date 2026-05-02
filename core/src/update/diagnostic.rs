@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
@@ -51,26 +52,25 @@ pub async fn update_system(
         progress: report_progress,
     }: UpdateSystemParams,
 ) -> Result<UpdateSystemRes, Error> {
-    let claimed = ctx.update_in_progress.mutate(|in_progress| {
-        if *in_progress {
-            false
+    // Reserve the single-flight slot by cloning the context's `Arc<()>`. If
+    // another update is already running, its task is holding a clone, so the
+    // strong count is >1 and we bail. Otherwise the clone we take here gets
+    // moved into the update task and lives until it finishes.
+    let guard = ctx.update_in_progress.mutate(|slot| {
+        if Arc::strong_count(slot) > 1 {
+            None
         } else {
-            *in_progress = true;
-            true
+            Some(slot.clone())
         }
     });
-    if !claimed {
+    let Some(guard) = guard else {
         return Err(Error::new(
             eyre!("{}", t!("update.already-updating")),
             ErrorKind::InvalidRequest,
         ));
-    }
+    };
 
-    let result = run_update(ctx.clone(), target, registry, report_progress).await;
-    if result.as_ref().map_or(true, |r| r.target.is_none()) {
-        ctx.update_in_progress.mutate(|p| *p = false);
-    }
-    result
+    run_update(ctx, target, registry, report_progress, guard).await
 }
 
 async fn run_update(
@@ -78,6 +78,7 @@ async fn run_update(
     target: Option<VersionRange>,
     registry: Url,
     report_progress: bool,
+    guard: Arc<()>,
 ) -> Result<UpdateSystemRes, Error> {
     let target_range = target.unwrap_or(VersionRange::Any);
     let client = Client::new();
@@ -112,8 +113,10 @@ async fn run_update(
 
     let (done_tx, done_rx) = oneshot::channel();
     let tracker_for_task = tracker.clone();
-    let ctx_for_task = ctx.clone();
     tokio::spawn(async move {
+        // `guard` is moved in here; dropping it at task exit (success,
+        // failure, or panic) releases the single-flight slot.
+        let _guard = guard;
         let res = do_update(
             client,
             asset,
@@ -130,7 +133,6 @@ async fn run_update(
             tracing::error!("{}", t!("update.not-successful", error = e.to_string()));
             tracing::debug!("{e:?}");
         }
-        ctx_for_task.update_in_progress.mutate(|p| *p = false);
         let _ = done_tx.send(res);
     });
 
