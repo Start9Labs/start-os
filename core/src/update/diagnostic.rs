@@ -25,9 +25,7 @@ use crate::sign::AnySigningKey;
 use crate::update::{UpdateProgressHandles, UpdateSystemParams, UpdateSystemRes, do_update};
 use crate::version::{Current, VersionT};
 
-/// Wrapper that exposes a one-off `Client` to `signature::call_remote` while
-/// always failing to produce a signing key (registry version-lookup is
-/// unauthenticated, so the request just goes out unsigned).
+/// `SigningContext` for unauthenticated registry calls in diagnostic mode.
 struct UnsignedRegistry(Client);
 impl AsRef<Client> for UnsignedRegistry {
     fn as_ref(&self) -> &Client {
@@ -52,10 +50,6 @@ pub async fn update_system(
         progress: report_progress,
     }: UpdateSystemParams,
 ) -> Result<UpdateSystemRes, Error> {
-    // Reserve the single-flight slot by cloning the context's `Arc<()>`. If
-    // another update is already running, its task is holding a clone, so the
-    // strong count is >1 and we bail. Otherwise the clone we take here gets
-    // moved into the update task and lives until it finishes.
     let guard = ctx.update_in_progress.mutate(|slot| {
         if Arc::strong_count(slot) > 1 {
             None
@@ -114,8 +108,6 @@ async fn run_update(
     let (done_tx, done_rx) = oneshot::channel();
     let tracker_for_task = tracker.clone();
     tokio::spawn(async move {
-        // `guard` is moved in here; dropping it at task exit (success,
-        // failure, or panic) releases the single-flight slot.
         let _guard = guard;
         let res = do_update(
             client,

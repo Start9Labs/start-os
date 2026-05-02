@@ -17,10 +17,7 @@ pub struct DiagnosticContextSeed {
     pub error: Arc<RpcError>,
     pub disk_guid: Option<InternedString>,
     pub rpc_continuations: RpcContinuations,
-    /// Held by an in-flight `diagnostic.update`. The strong count is `1`
-    /// when no update is running; the update task holds a clone for its
-    /// entire lifetime, and dropping the clone (success, failure, or
-    /// cancellation) automatically frees the slot.
+    /// Single-flight token for `diagnostic.update`; strong count > 1 means an update is running.
     pub update_in_progress: SyncMutex<Arc<()>>,
 }
 
