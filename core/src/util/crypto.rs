@@ -63,6 +63,33 @@ pub struct EncryptedWire {
     encrypted: Value,
 }
 impl EncryptedWire {
+    /// Encrypt `plaintext` against the recipient's public ECDH key,
+    /// producing the same JWE flattened-JSON payload shape that the
+    /// setup-mode web UI sends. Decrypts cleanly via
+    /// [`EncryptedWire::decrypt`] on the matching private JWK.
+    pub fn encrypt(plaintext: &str, public_key: &Jwk) -> Result<Self, Error> {
+        use josekit::jwe::alg::ecdh_es::EcdhEsJweAlgorithm;
+        use josekit::jwe::{self, JweHeaderSet};
+
+        let encrypter = EcdhEsJweAlgorithm::EcdhEs
+            .encrypter_from_jwk(public_key)
+            .map_err(|e| Error::new(eyre!("{e}"), crate::ErrorKind::OpenSsl))?;
+        let mut header = JweHeaderSet::new();
+        header.set_algorithm("ECDH-ES", true);
+        header.set_content_encryption("A128CBC-HS256", true);
+        let jwe_json = jwe::serialize_flattened_json(
+            plaintext.as_bytes(),
+            Some(&header),
+            None,
+            None,
+            &*encrypter,
+        )
+        .map_err(|e| Error::new(eyre!("{e}"), crate::ErrorKind::OpenSsl))?;
+        let encrypted: Value = serde_json::from_str(&jwe_json)
+            .with_kind(crate::ErrorKind::Deserialization)?;
+        Ok(EncryptedWire { encrypted })
+    }
+
     #[instrument(skip_all)]
     pub fn decrypt(self, current_secret: impl AsRef<Jwk>) -> Option<String> {
         let current_secret = current_secret.as_ref();
@@ -102,6 +129,30 @@ impl EncryptedWire {
                 return None;
             }
         }
+    }
+}
+
+/// `EncryptedWire::encrypt` produces a wire format that the matching
+/// [`EncryptedWire::decrypt`] (and therefore the setup-mode server)
+/// accepts.
+#[test]
+fn test_encrypt_decrypt_roundtrip() {
+    let private_key: Jwk = serde_json::from_str(
+        r#"{
+            "kty": "EC",
+            "crv": "P-256",
+            "d": "3P-MxbUJtEhdGGpBCRFXkUneGgdyz_DGZWfIAGSCHOU",
+            "x": "yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4",
+            "y": "8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI"
+          }"#,
+    )
+    .unwrap();
+    let public_key = private_key.to_public_key().unwrap();
+
+    for plaintext in ["", "hunter2", "a longer password with spaces and \u{1f600}"] {
+        let wire = EncryptedWire::encrypt(plaintext, &public_key).unwrap();
+        let recovered = wire.decrypt(std::sync::Arc::new(private_key.clone())).unwrap();
+        assert_eq!(plaintext, &recovered);
     }
 }
 

@@ -237,7 +237,7 @@ async fn setup_init(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AttachParams {
-    pub password: Option<PasswordType>,
+    pub password: Option<EncryptedWire>,
     pub guid: InternedString,
     pub kiosk: bool,
 }
@@ -281,12 +281,15 @@ pub async fn attach(
         let rpc_ctx_phases = InitRpcContextPhases::new(&progress);
 
         let password: Option<String> = match password {
-            Some(a) => Some(a.decrypt(&setup_ctx).map_err(|_| {
-                Error::new(
-                    color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-password")),
-                    crate::ErrorKind::Unknown,
-                )
-            })?),
+            Some(a) => match a.decrypt(&setup_ctx) {
+                a @ Some(_) => a,
+                None => {
+                    return Err(Error::new(
+                        color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-password")),
+                        crate::ErrorKind::Unknown,
+                    ));
+                }
+            },
             None => None,
         };
 
@@ -499,8 +502,8 @@ pub async fn setup_data_drive(
 #[ts(export)]
 pub struct SetupExecuteParams {
     guid: InternedString,
-    password: Option<PasswordType>,
-    recovery_source: Option<RecoverySource<PasswordType>>,
+    password: Option<EncryptedWire>,
+    recovery_source: Option<RecoverySource<EncryptedWire>>,
     kiosk: bool,
     name: Option<InternedString>,
     hostname: Option<InternedString>,
@@ -615,6 +618,23 @@ fn read_new_password_env_or_prompt() -> Result<String, RpcError> {
     Ok(new_password)
 }
 
+/// Fetch the setup-mode public key via JSON-RPC and JWE-encrypt
+/// `plaintext` against it, producing the `EncryptedWire` blob the
+/// server expects on the wire (same shape the web UI sends).
+async fn encrypt_for_setup(
+    ctx: &CliContext,
+    plaintext: &str,
+) -> Result<EncryptedWire, RpcError> {
+    let pubkey_value = ctx
+        .call_remote::<SetupContext>("setup.get-pubkey", imbl_value::json!({}))
+        .await?;
+    let pubkey: josekit::jwk::Jwk = imbl_value::from_value(pubkey_value)
+        .map_err(|e| {
+            crate::Error::new(eyre!("setup get-pubkey: {e}"), crate::ErrorKind::Deserialization)
+        })?;
+    EncryptedWire::encrypt(plaintext, &pubkey).map_err(RpcError::from)
+}
+
 fn print_remote_result(res: imbl_value::Value) -> Result<(), RpcError> {
     match serde_json::to_string_pretty(&res) {
         Ok(s) => {
@@ -645,7 +665,8 @@ async fn cli_attach(
     let password = if no_password && std::env::var_os("PASSWORD").is_none() {
         None
     } else {
-        Some(read_password_env_or_prompt("Data drive password: ")?)
+        let plaintext = read_password_env_or_prompt("Data drive password: ")?;
+        Some(encrypt_for_setup(&ctx, &plaintext).await?)
     };
 
     let res = ctx
@@ -677,7 +698,8 @@ async fn cli_execute(
         ..
     }: HandlerArgs<CliContext, SetupExecuteCliParams>,
 ) -> Result<(), RpcError> {
-    let password = read_new_password_env_or_prompt()?;
+    let plaintext = read_new_password_env_or_prompt()?;
+    let password = encrypt_for_setup(&ctx, &plaintext).await?;
 
     let res = ctx
         .call_remote::<SetupContext>(
@@ -708,7 +730,7 @@ pub async fn execute(
 ) -> Result<SetupProgress, Error> {
     let password = password
         .map(|p| {
-            p.decrypt(&ctx).map_err(|_| {
+            p.decrypt(&ctx).ok_or_else(|| {
                 Error::new(
                     color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-startos-password")),
                     crate::ErrorKind::Unknown,
@@ -723,7 +745,7 @@ pub async fn execute(
             server_id,
         }) => Some(RecoverySource::Backup {
             target,
-            password: password.decrypt(&ctx).map_err(|_| {
+            password: password.decrypt(&ctx).ok_or_else(|| {
                 Error::new(
                     color_eyre::eyre::eyre!("{}", t!("setup.couldnt-decode-recovery-password")),
                     crate::ErrorKind::Unknown,
