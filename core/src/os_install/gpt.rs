@@ -8,15 +8,10 @@ use crate::os_install::partition_for;
 use crate::os_install::quiesce::{quiesce_disk, update_partition_table};
 use crate::prelude::*;
 
-/// Target size for the OS root (rootfs) partition. We try to allocate this much.
 const ROOT_TARGET_BYTES: u64 = 14 * 1024 * 1024 * 1024;
-/// Minimum size we will accept for the OS root partition before erroring out. If a
-/// protected data partition's `first_lba` sits inside the planned root region we will
-/// shrink root down to (but not below) this floor.
+/// Floor for elastic-root shrink when a protected partition is in the way.
 const ROOT_MIN_BYTES: u64 = 12 * 1024 * 1024 * 1024;
-/// Sector alignment for OS partitions. 2048 sectors at 512 bytes per sector = 1 MiB,
-/// which matches what util-linux fdisk/gdisk default to and what SSDs/NVMe expect for
-/// efficient writes.
+/// 1 MiB at 512-byte sectors.
 const PARTITION_ALIGNMENT_LBA: u64 = 2048;
 
 pub async fn partition(
@@ -38,9 +33,6 @@ pub async fn partition(
         }
     }
 
-    // Drop every kernel-side reference to partitions on this disk before rewriting the
-    // table. Quiesce is best-effort; partx --update afterwards is what actually makes
-    // the kernel see the new layout, and it tolerates a still-busy protected partition.
     quiesce_disk(disk_path).await?;
 
     let disk_path = disk_path.to_owned();
@@ -122,21 +114,14 @@ pub async fn partition(
             Some(PARTITION_ALIGNMENT_LBA),
         )?;
 
-        // Compute the root size, shrinking it within [ROOT_MIN_BYTES, ROOT_TARGET_BYTES]
-        // when a protected partition's `first_lba` would otherwise be overwritten. This
-        // tolerates a few MiB of geometry drift on legacy hardware where the protected
-        // partition isn't quite aligned the way the gpt crate would lay it out today.
+        // Elastic root: shrink within [ROOT_MIN_BYTES, ROOT_TARGET_BYTES] if a
+        // protected partition's first_lba sits inside the planned root region.
         let lb_size: u64 = (*gpt.logical_block_size()).into();
         let target_root_lba = ROOT_TARGET_BYTES.div_ceil(lb_size);
         let min_root_lba = ROOT_MIN_BYTES.div_ceil(lb_size);
         let root_size_bytes = if let Some((protect_first_lba, _, ref path)) =
             protected_partition_info
         {
-            // The next add_partition() will pick the lowest free block that fits, so the
-            // earliest free LBA is where root would land. Find it, then bump it up to
-            // the next 2048-sector alignment boundary (which is what add_partition will
-            // do internally) before computing how much room is left before the
-            // protected partition.
             let earliest_free_start = gpt
                 .find_free_sectors()
                 .into_iter()
@@ -197,9 +182,8 @@ pub async fn partition(
             )?;
             Some(path)
         } else {
-            // Pick the largest free block and ask for the post-alignment size, so that
-            // add_partition's `length >= alignment_offset + size_lba` check passes even
-            // when the block's start isn't already 2048-aligned.
+            // Account for alignment offset so add_partition's length check passes
+            // when the largest free block isn't already 2048-aligned.
             let lb_size_bytes: u64 = (*gpt.logical_block_size()).into();
             let data_size_bytes = gpt
                 .find_free_sectors()
@@ -237,10 +221,6 @@ pub async fn partition(
     .await
     .unwrap()?;
 
-    // Make the kernel see the new layout via per-entry BLKPG ioctls. This works even
-    // when a protected partition on this disk is still claimed by something we
-    // couldn't tear down in quiesce_disk, because partx updates entries individually
-    // rather than asking the kernel to re-read the whole table.
     update_partition_table(&disk_path).await?;
 
     let mut extra_boot = std::collections::BTreeMap::new();

@@ -8,15 +8,11 @@ use crate::os_install::partition_for;
 use crate::os_install::quiesce::{quiesce_disk, update_partition_table};
 use crate::prelude::*;
 
-/// Boot partition starts at sector 2048 and ends at this sector (exclusive).
-/// 2 GiB at 512-byte sectors.
+/// Boot end (exclusive). 2 GiB at 512-byte sectors.
 const BOOT_END_SECTOR: u32 = 4196352;
-/// Target end sector for the OS root partition (i.e. start of the data region in the
-/// happy path). 14 GiB of root + 2 GiB of boot.
+/// Happy-path root end. 14 GiB of root after boot.
 const ROOT_TARGET_END_SECTOR: u32 = 33556480;
-/// Minimum acceptable end sector for the OS root partition. We let the protected
-/// partition push root's end up to this floor, but no further. 12 GiB at 512-byte
-/// sectors = 25_165_824 sectors of root.
+/// Floor for elastic-root shrink. 12 GiB of root after boot.
 const ROOT_MIN_END_SECTOR: u32 = BOOT_END_SECTOR + 12 * 1024 * 1024 * 2;
 
 pub async fn partition(
@@ -37,9 +33,6 @@ pub async fn partition(
         }
     }
 
-    // Drop every kernel-side reference to partitions on this disk before rewriting the
-    // table. partx --update afterwards is what actually makes the kernel see the new
-    // layout, and it tolerates a still-busy protected partition.
     quiesce_disk(disk_path).await?;
 
     let disk_path = disk_path.to_owned();
@@ -80,13 +73,9 @@ pub async fn partition(
                 None
             };
 
-        // MBR partition layout:
-        // Partition 1 (boot): starts at 2048, ends at BOOT_END_SECTOR (2 GiB)
-        // Partition 2 (root): starts at BOOT_END_SECTOR, ends at root_end_sector
-        //
-        // root_end_sector defaults to ROOT_TARGET_END_SECTOR (14 GiB of root) but may
-        // shrink to as low as ROOT_MIN_END_SECTOR if a protected partition sits in the
-        // way. Below the floor we error out.
+        // Layout: boot 2048..BOOT_END_SECTOR, root BOOT_END_SECTOR..root_end_sector,
+        // data root_end_sector..end. root shrinks toward ROOT_MIN_END_SECTOR if a
+        // protected partition sits in the way.
         let root_end_sector: u32 = if let Some((starting_lba, _, ref path)) =
             protected_partition_info
         {
@@ -161,8 +150,6 @@ pub async fn partition(
     .await
     .unwrap()?;
 
-    // Make the kernel see the new layout via per-entry BLKPG ioctls instead of
-    // BLKRRPART, so a still-busy protected partition doesn't block the update.
     update_partition_table(&disk_path).await?;
 
     Ok(OsPartitionInfo {

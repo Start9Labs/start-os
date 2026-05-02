@@ -431,14 +431,8 @@ pub async fn install_os(
                 return existing.clone();
             }
         }
-        // Spawn the install on its own task so it makes progress even when no
-        // caller is awaiting (e.g. browser HTTP timeout dropped the RPC). Wrap
-        // the JoinHandle in a NonDetachingJoinHandle so the task is aborted
-        // when the last reference to the Shared future drops -- this makes the
-        // "no leaked installs" property correct-by-construction: while the
-        // SetupContext slot holds a clone of the Shared, the handle (and thus
-        // the task) is alive; once the slot is cleared and any in-flight
-        // awaiters drop, the handle drops with them and aborts the task.
+        // Own the task via NonDetachingJoinHandle inside the Shared so it survives
+        // dropped awaiters but is aborted when the last reference goes away.
         let ctx = ctx.clone();
         let handle: NonDetachingJoinHandle<Result<SetupInfo, Arc<Error>>> = tokio::spawn(
             async move { install_os_inner(ctx, params).await.map_err(Arc::new) },
@@ -468,11 +462,8 @@ async fn install_os_inner(
         data_drive,
     }: InstallOsParams,
 ) -> Result<SetupInfo, Error> {
-    // If a previous install attempt left mounts pinned in `ctx.install_rootfs` (e.g.
-    // a successful run whose result was lost to a browser HTTP timeout, prompting the
-    // wizard to invoke install_os again), tear them down before re-entering the
-    // partition/mkfs/mount path. Otherwise the live rootfs/config bind would keep the
-    // target partition busy and the new install would race against itself.
+    // Drop any rootfs/config mounts a prior install left pinned, so a retry
+    // doesn't fight itself for the target partition.
     let prior = ctx.install_rootfs.mutate(|s| s.take());
     if let Some((rootfs, config)) = prior {
         if let Err(e) = config.unmount(false).await {

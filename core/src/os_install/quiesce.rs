@@ -6,10 +6,7 @@ use tokio::process::Command;
 use crate::prelude::*;
 use crate::util::Invoke;
 
-/// List `/dev/<part>` paths for every partition currently exposed on `disk_path`.
-///
-/// Walks `/sys/block/<disk>/` and picks entries that have a `partition` attribute file
-/// (the kernel's marker for "this is a partition of the parent block device").
+/// `/dev/<part>` paths for every partition currently exposed on `disk_path`.
 pub async fn list_partitions(disk_path: &Path) -> Result<Vec<PathBuf>, Error> {
     let disk_name = disk_path
         .file_name()
@@ -42,25 +39,13 @@ pub async fn list_partitions(disk_path: &Path) -> Result<Vec<PathBuf>, Error> {
     Ok(out)
 }
 
-/// Best-effort teardown of every kernel-side reference to the partitions on `disk_path`,
-/// so the on-disk partition table can be rewritten and `partx --update` will accept the
-/// new layout.
-///
-/// This is intentionally aggressive: VGs are deactivated, dm/md devices torn down, all
-/// mountpoints of every partition on the target disk are unmounted, and the kernel's
-/// btrfs scan cache is forgotten. None of these touches the *bytes* on the disk, so a
-/// `protect`-style preserved partition is safe — only the OS-level claims on it are
-/// dropped (and they need to be: a mounted partition keeps the kernel from seeing
-/// partition-table updates around it).
-///
-/// Failures are logged at WARN and ignored. The next step (`partx --update`) is what
-/// actually decides whether the new layout took, and surfaces the precise per-entry
-/// reason if it didn't.
+/// Best-effort teardown of OS-level claims (mounts, swap, LVM, dm, btrfs scan
+/// cache) on every partition of `disk_path`. Doesn't touch on-disk bytes, so
+/// `protect`ed partitions stay intact. Failures are logged and ignored — the
+/// subsequent `partx --update` is the source of truth.
 pub async fn quiesce_disk(disk_path: &Path) -> Result<(), Error> {
     let partitions = list_partitions(disk_path).await?;
 
-    // Unmount any swap that might be backed by these partitions. `swapoff -a` is broad
-    // but on the install medium nothing else legitimately uses swap.
     if let Err(e) = Command::new("swapoff")
         .arg("-a")
         .invoke(ErrorKind::DiskManagement)
@@ -69,9 +54,7 @@ pub async fn quiesce_disk(disk_path: &Path) -> Result<(), Error> {
         tracing::warn!("swapoff -a failed during quiesce: {e}");
     }
 
-    // Unmount every mountpoint of every partition on the target disk. `umount -A`
-    // unmounts all mountpoints that have this source; fall back to lazy unmount if the
-    // kernel says it's busy (we're about to overwrite the partition anyway).
+    // umount -A all mountpoints; lazy-unmount on busy.
     for part in &partitions {
         if Command::new("umount")
             .arg("-A")
@@ -92,7 +75,6 @@ pub async fn quiesce_disk(disk_path: &Path) -> Result<(), Error> {
         }
     }
 
-    // Deactivate any LVM VG, then any remaining device-mapper holders.
     if let Err(e) = Command::new("vgchange")
         .arg("-an")
         .invoke(ErrorKind::DiskManagement)
@@ -109,9 +91,7 @@ pub async fn quiesce_disk(disk_path: &Path) -> Result<(), Error> {
         tracing::warn!("dmsetup remove_all failed during quiesce: {e}");
     }
 
-    // Drop the kernel's btrfs device-scan cache. Without this, mounting a freshly
-    // mkfs'd btrfs over a partition the kernel previously scanned can race with the
-    // pending re-scan and surface as `mount` exit 32.
+    // Drop btrfs scan cache so a later mount doesn't race with a pending re-scan.
     if let Err(e) = Command::new("btrfs")
         .arg("device")
         .arg("scan")
@@ -125,14 +105,8 @@ pub async fn quiesce_disk(disk_path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-/// Tell the kernel about the new partition table on `disk_path` without requiring an
-/// exclusive open of the whole disk.
-///
-/// `partx --update` issues per-entry `BLKPG_*` ioctls (add/delete/resize) and tolerates
-/// other partitions on the same disk being in use, so it works even when a protected
-/// data partition is still claimed by something we couldn't tear down. This replaces
-/// the old `blockdev --rereadpt` (BLKRRPART) path which fails with EBUSY whenever any
-/// partition on the disk is still held.
+/// Per-entry BLKPG update via `partx`. Tolerates a still-busy partition on the
+/// same disk (unlike BLKRRPART, which would fail with EBUSY).
 pub async fn update_partition_table(disk_path: &Path) -> Result<(), Error> {
     Command::new("partx")
         .arg("--update")
@@ -143,9 +117,8 @@ pub async fn update_partition_table(disk_path: &Path) -> Result<(), Error> {
         .arg("settle")
         .invoke(ErrorKind::DiskManagement)
         .await?;
-    // udev re-runs blkid/btrfs scan against the freshly-announced partitions. Forget
-    // any scan refs it may have just installed, so the next mount of the new rootfs
-    // partition isn't racing the kernel's btrfs cache.
+    // Forget any btrfs scan refs udev just re-installed, for the same reason as
+    // in quiesce_disk.
     if let Err(e) = Command::new("btrfs")
         .arg("device")
         .arg("scan")
