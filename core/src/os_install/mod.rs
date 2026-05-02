@@ -23,6 +23,7 @@ use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::setup::SetupInfo;
 use crate::util::Invoke;
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::{TmpDir, delete_dir, delete_file, open_file, write_file_atomic};
 use crate::util::serde::IoFormat;
 
@@ -430,13 +431,30 @@ pub async fn install_os(
                 return existing.clone();
             }
         }
+        // Spawn the install on its own task so it makes progress even when no
+        // caller is awaiting (e.g. browser HTTP timeout dropped the RPC). Wrap
+        // the JoinHandle in a NonDetachingJoinHandle so the task is aborted
+        // when the last reference to the Shared future drops -- this makes the
+        // "no leaked installs" property correct-by-construction: while the
+        // SetupContext slot holds a clone of the Shared, the handle (and thus
+        // the task) is alive; once the slot is cleared and any in-flight
+        // awaiters drop, the handle drops with them and aborts the task.
         let ctx = ctx.clone();
-        let new_fut = async move { install_os_inner(ctx, params).await.map_err(Arc::new) }
-            .boxed()
-            .shared();
-        // Drive the future even if all RPC callers drop their await
-        // (e.g. browser HTTP timeout aborts the request).
-        tokio::spawn(new_fut.clone());
+        let handle: NonDetachingJoinHandle<Result<SetupInfo, Arc<Error>>> = tokio::spawn(
+            async move { install_os_inner(ctx, params).await.map_err(Arc::new) },
+        )
+        .into();
+        let new_fut = async move {
+            match handle.await {
+                Ok(res) => res,
+                Err(join_err) => Err(Arc::new(Error::new(
+                    eyre!("install_os task did not complete: {join_err}"),
+                    ErrorKind::Unknown,
+                ))),
+            }
+        }
+        .boxed()
+        .shared();
         *slot = Some(new_fut.clone());
         new_fut
     });
