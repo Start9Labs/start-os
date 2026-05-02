@@ -3,6 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures::future::{BoxFuture, Shared};
 use futures::{Future, StreamExt};
 use imbl_value::InternedString;
 use josekit::jwk::Jwk;
@@ -25,7 +26,7 @@ use crate::net::web_server::{WebServer, WebServerAcceptorSetter};
 use crate::prelude::*;
 use crate::progress::FullProgressTracker;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
-use crate::setup::SetupProgress;
+use crate::setup::{SetupInfo, SetupProgress};
 use crate::shutdown::Shutdown;
 use crate::system::KeyboardOptions;
 use crate::util::future::NonDetachingJoinHandle;
@@ -61,6 +62,8 @@ pub struct SetupContextSeed {
     pub shutdown: Sender<Option<Shutdown>>,
     pub rpc_continuations: RpcContinuations,
     pub install_rootfs: SyncMutex<Option<(TmpMountGuard, MountGuard)>>,
+    pub install_os_future:
+        SyncMutex<Option<Shared<BoxFuture<'static, Result<SetupInfo, Arc<Error>>>>>>,
     pub keyboard: SyncMutex<Option<KeyboardOptions>>,
     pub language: SyncMutex<Option<InternedString>>,
 }
@@ -87,6 +90,7 @@ impl SetupContext {
             shutdown,
             rpc_continuations: RpcContinuations::new(),
             install_rootfs: SyncMutex::new(None),
+            install_os_future: SyncMutex::new(None),
             language: SyncMutex::new(None),
             keyboard: SyncMutex::new(None),
         })))

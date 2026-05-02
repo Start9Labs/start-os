@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use clap::Parser;
 use color_eyre::eyre::eyre;
+use futures::FutureExt;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
@@ -21,11 +23,13 @@ use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::setup::SetupInfo;
 use crate::util::Invoke;
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::{TmpDir, delete_dir, delete_file, open_file, write_file_atomic};
 use crate::util::serde::IoFormat;
 
 mod gpt;
 mod mbr;
+mod quiesce;
 
 /// Probe a squashfs image to determine its target architecture
 async fn probe_squashfs_arch(squashfs_path: &Path) -> Result<InternedString, Error> {
@@ -419,11 +423,57 @@ pub async fn install_os_to(
 
 pub async fn install_os(
     ctx: SetupContext,
+    params: InstallOsParams,
+) -> Result<SetupInfo, Error> {
+    let fut = ctx.install_os_future.mutate(|slot| {
+        if let Some(existing) = slot.as_ref() {
+            if existing.peek().is_none() {
+                return existing.clone();
+            }
+        }
+        // Own the task via NonDetachingJoinHandle inside the Shared so it survives
+        // dropped awaiters but is aborted when the last reference goes away.
+        let ctx = ctx.clone();
+        let handle: NonDetachingJoinHandle<Result<SetupInfo, Arc<Error>>> = tokio::spawn(
+            async move { install_os_inner(ctx, params).await.map_err(Arc::new) },
+        )
+        .into();
+        let new_fut = async move {
+            match handle.await {
+                Ok(res) => res,
+                Err(join_err) => Err(Arc::new(Error::new(
+                    eyre!("install_os task did not complete: {join_err}"),
+                    ErrorKind::Unknown,
+                ))),
+            }
+        }
+        .boxed()
+        .shared();
+        *slot = Some(new_fut.clone());
+        new_fut
+    });
+    fut.await.map_err(|e| e.clone_output())
+}
+
+async fn install_os_inner(
+    ctx: SetupContext,
     InstallOsParams {
         os_drive,
         data_drive,
     }: InstallOsParams,
 ) -> Result<SetupInfo, Error> {
+    // Drop any rootfs/config mounts a prior install left pinned, so a retry
+    // doesn't fight itself for the target partition.
+    let prior = ctx.install_rootfs.mutate(|s| s.take());
+    if let Some((rootfs, config)) = prior {
+        if let Err(e) = config.unmount(false).await {
+            tracing::warn!("failed to unmount stale install config bind: {e}");
+        }
+        if let Err(e) = rootfs.unmount().await {
+            tracing::warn!("failed to unmount stale install rootfs: {e}");
+        }
+    }
+
     let mut disks = crate::disk::util::list(&Default::default()).await?;
     let disk = disks
         .iter_mut()

@@ -20,14 +20,6 @@ Artifacts:
 - [ ] StartOS ISO for this release (e.g. `startos-0.4.0-beta.4-abcdef0_x86_64.iso`) on the laptop
 - [ ] SHA256 of the ISO from the release manifest
 
-Fixed values used throughout:
-
-| Field          | Value          |
-| -------------- | -------------- |
-| Admin password | `QaTestPass!1` |
-| Server name    | `QA Test`      |
-| Language       | English (US)   |
-
 ---
 
 ## 1. Flash install media & install from USB

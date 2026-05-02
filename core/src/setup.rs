@@ -361,7 +361,7 @@ pub enum SetupStatusRes {
     Complete(SetupResult),
 }
 
-#[derive(Default, Debug, Deserialize, Serialize, TS)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SetupInfo {
     pub guid: Option<InternedString>,

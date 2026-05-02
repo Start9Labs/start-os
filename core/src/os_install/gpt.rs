@@ -2,12 +2,17 @@ use std::path::{Path, PathBuf};
 
 use gpt::GptConfig;
 use gpt::disk::LogicalBlockSize;
-use tokio::process::Command;
 
 use crate::disk::OsPartitionInfo;
 use crate::os_install::partition_for;
+use crate::os_install::quiesce::{quiesce_disk, update_partition_table};
 use crate::prelude::*;
-use crate::util::Invoke;
+
+const ROOT_TARGET_BYTES: u64 = 14 * 1024 * 1024 * 1024;
+/// Floor for elastic-root shrink when a protected partition is in the way.
+const ROOT_MIN_BYTES: u64 = 12 * 1024 * 1024 * 1024;
+/// 1 MiB at 512-byte sectors.
+const PARTITION_ALIGNMENT_LBA: u64 = 2048;
 
 pub async fn partition(
     disk_path: &Path,
@@ -27,6 +32,8 @@ pub async fn partition(
             ));
         }
     }
+
+    quiesce_disk(disk_path).await?;
 
     let disk_path = disk_path.to_owned();
     let disk_path_clone = disk_path.clone();
@@ -81,7 +88,13 @@ pub async fn partition(
         gpt.update_partitions(Default::default())?;
 
         let efi = if use_efi {
-            gpt.add_partition("efi", 100 * 1024 * 1024, gpt::partition_types::EFI, 0, None)?;
+            gpt.add_partition(
+                "efi",
+                100 * 1024 * 1024,
+                gpt::partition_types::EFI,
+                0,
+                Some(PARTITION_ALIGNMENT_LBA),
+            )?;
             true
         } else {
             gpt.add_partition(
@@ -89,7 +102,7 @@ pub async fn partition(
                 8 * 1024 * 1024,
                 gpt::partition_types::BIOS,
                 0,
-                None,
+                Some(PARTITION_ALIGNMENT_LBA),
             )?;
             false
         };
@@ -98,40 +111,62 @@ pub async fn partition(
             2 * 1024 * 1024 * 1024,
             gpt::partition_types::LINUX_FS,
             0,
-            None,
+            Some(PARTITION_ALIGNMENT_LBA),
         )?;
+
+        // Elastic root: shrink within [ROOT_MIN_BYTES, ROOT_TARGET_BYTES] if a
+        // protected partition's first_lba sits inside the planned root region.
+        let lb_size: u64 = (*gpt.logical_block_size()).into();
+        let target_root_lba = ROOT_TARGET_BYTES.div_ceil(lb_size);
+        let min_root_lba = ROOT_MIN_BYTES.div_ceil(lb_size);
+        let root_size_bytes = if let Some((protect_first_lba, _, ref path)) =
+            protected_partition_info
+        {
+            let earliest_free_start = gpt
+                .find_free_sectors()
+                .into_iter()
+                .filter(|(start, _)| *start < protect_first_lba)
+                .map(|(start, _)| start)
+                .min()
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("{}", t!("os-install.no-free-space-for-os-root")),
+                        crate::ErrorKind::BlockDevice,
+                    )
+                })?;
+            let aligned_start = earliest_free_start.next_multiple_of(PARTITION_ALIGNMENT_LBA);
+            let available_lba = protect_first_lba.saturating_sub(aligned_start);
+            if available_lba < min_root_lba {
+                let available_bytes = available_lba.saturating_mul(lb_size);
+                return Err(Error::new(
+                    eyre!(
+                        "{}",
+                        t!(
+                            "os-install.protected-partition-overlaps-os-root-bytes",
+                            path = path.display(),
+                            first_lba = protect_first_lba,
+                            available_bytes = available_bytes,
+                            min_bytes = ROOT_MIN_BYTES,
+                        )
+                    ),
+                    crate::ErrorKind::DiskManagement,
+                ));
+            }
+            available_lba.min(target_root_lba).saturating_mul(lb_size)
+        } else {
+            ROOT_TARGET_BYTES
+        };
         gpt.add_partition(
             "root",
-            14 * 1024 * 1024 * 1024,
+            root_size_bytes,
             match crate::ARCH {
                 "x86_64" => gpt::partition_types::LINUX_ROOT_X64,
                 "aarch64" => gpt::partition_types::LINUX_ROOT_ARM_64,
                 _ => gpt::partition_types::LINUX_FS,
             },
             0,
-            None,
+            Some(PARTITION_ALIGNMENT_LBA),
         )?;
-
-        // Check if protected partition would be overwritten by OS partitions
-        if let Some((first_lba, _, ref path)) = protected_partition_info {
-            // Get the actual end sector of the last OS partition (root = partition 3)
-            let os_partitions_end_sector =
-                gpt.partitions().get(&3).map(|p| p.last_lba).unwrap_or(0);
-            if first_lba <= os_partitions_end_sector {
-                return Err(Error::new(
-                    eyre!(
-                        concat!(
-                            "Protected partition {} starts at sector {}",
-                            " which would be overwritten by OS partitions ending at sector {}"
-                        ),
-                        path.display(),
-                        first_lba,
-                        os_partitions_end_sector
-                    ),
-                    crate::ErrorKind::DiskManagement,
-                ));
-            }
-        }
 
         let data_part = if let Some((first_lba, last_lba, path)) = protected_partition_info {
             // Re-create the data partition entry at the same location
@@ -147,21 +182,32 @@ pub async fn partition(
             )?;
             Some(path)
         } else {
+            // Account for alignment offset so add_partition's length check passes
+            // when the largest free block isn't already 2048-aligned.
+            let lb_size_bytes: u64 = (*gpt.logical_block_size()).into();
+            let data_size_bytes = gpt
+                .find_free_sectors()
+                .iter()
+                .map(|(start, length_lba)| {
+                    let alignment_offset =
+                        (PARTITION_ALIGNMENT_LBA - (start % PARTITION_ALIGNMENT_LBA))
+                            % PARTITION_ALIGNMENT_LBA;
+                    length_lba.saturating_sub(alignment_offset) * lb_size_bytes
+                })
+                .max()
+                .filter(|s| *s > 0)
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("No free space left on device"),
+                        crate::ErrorKind::BlockDevice,
+                    )
+                })?;
             gpt.add_partition(
                 "data",
-                gpt.find_free_sectors()
-                    .iter()
-                    .map(|(_, size)| *size * u64::from(*gpt.logical_block_size()))
-                    .max()
-                    .ok_or_else(|| {
-                        Error::new(
-                            eyre!("No free space left on device"),
-                            crate::ErrorKind::BlockDevice,
-                        )
-                    })?,
+                data_size_bytes,
                 gpt::partition_types::LINUX_LVM,
                 0,
-                None,
+                Some(PARTITION_ALIGNMENT_LBA),
             )?;
             gpt.partitions()
                 .last_key_value()
@@ -175,48 +221,7 @@ pub async fn partition(
     .await
     .unwrap()?;
 
-    // Re-read partition table and wait for udev to create device nodes
-    Command::new("vgchange")
-        .arg("-an")
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await
-        .ok();
-    Command::new("dmsetup")
-        .arg("remove_all")
-        .arg("--force")
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await
-        .ok();
-    // BLKRRPART can fail with "Device or resource busy" if the kernel still
-    // holds references to old partitions.  Retry a few times with a delay.
-    let mut last_err = None;
-    for attempt in 0..5u32 {
-        if attempt > 0 {
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        }
-        match Command::new("blockdev")
-            .arg("--rereadpt")
-            .arg(&disk_path)
-            .invoke(crate::ErrorKind::DiskManagement)
-            .await
-        {
-            Ok(_) => {
-                last_err = None;
-                break;
-            }
-            Err(e) => {
-                tracing::warn!("blockdev --rereadpt attempt {} failed: {e}", attempt + 1);
-                last_err = Some(e);
-            }
-        }
-    }
-    if let Some(e) = last_err {
-        return Err(e);
-    }
-    Command::new("udevadm")
-        .arg("settle")
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await?;
+    update_partition_table(&disk_path).await?;
 
     let mut extra_boot = std::collections::BTreeMap::new();
     let bios;
