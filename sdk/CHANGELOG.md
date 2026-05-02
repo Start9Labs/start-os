@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.4 — StartOS 0.4.0-beta.8 (2026-05-02)
+
+### Added
+
+- `ProxyAuth` and `BasicCredential` bindings re-exported from `interfaces/Host`. Pass `auth` on `AddSslOptions` to put a `Bearer` or `Basic` gate in front of an HTTPS bind; the OS reverse proxy validates `Authorization` before forwarding upstream and (for `Basic`) injects the matched username as `X-Forwarded-User`. Setting `auth` implies HTTP-aware proxying. Optional `realm` controls the `WWW-Authenticate` challenge string
+
+### Changed
+
+- Minimum StartOS version bumped to `0.4.0-beta.8` — required for the reverse-proxy auth gate added in this release
+
 ## 1.3.3 — StartOS 0.4.0-beta.6 (2026-04-24)
 
 ### Fixed

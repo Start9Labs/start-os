@@ -6481,7 +6481,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "start-os"
-version = "0.4.0-beta.7"
+version = "0.4.0-beta.8"
 dependencies = [
  "aes",
  "async-acme",
