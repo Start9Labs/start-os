@@ -1,5 +1,12 @@
 _version: 2
 
+acme.invalid-contact:
+  en_US: "Invalid ACME contact %{contact}: must be a 'mailto:' URI containing an email address (e.g. 'mailto:you@example.com')"
+  de_DE: "Ungültiger ACME-Kontakt %{contact}: Muss eine „mailto:“-URI mit einer E-Mail-Adresse sein (z. B. „mailto:du@example.com“)"
+  es_ES: "Contacto ACME no válido %{contact}: debe ser una URI «mailto:» que contenga una dirección de correo (por ejemplo, «mailto:tu@example.com»)"
+  fr_FR: "Contact ACME invalide %{contact} : doit être un URI « mailto: » contenant une adresse e-mail (par exemple « mailto:vous@example.com »)"
+  pl_PL: "Nieprawidłowy kontakt ACME %{contact}: musi być URI „mailto:” zawierającym adres e-mail (np. „mailto:ty@example.com”)"
+
 bins.deprecated.renamed:
   en_US: "%{old} has been renamed to %{new}"
   de_DE: "%{old} wurde in %{new} umbenannt"

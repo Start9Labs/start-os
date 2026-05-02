@@ -580,10 +580,39 @@ pub struct InitAcmeParams {
     pub contact: Vec<String>,
 }
 
+// RFC 8555 §7.3 requires `contact` entries to be URLs, and Let's Encrypt
+// (the only provider start-os ships shorthand for) only supports `mailto:`.
+// Without this gate, a bare email here gets stored verbatim and eventually
+// fails the `newAccount` request with `unsupportedContact`.
+fn validate_contact(contact: &str) -> Result<(), Error> {
+    let url = contact.parse::<Url>().map_err(|_| {
+        Error::new(
+            eyre!("{}", t!("acme.invalid-contact", contact = contact)),
+            ErrorKind::InvalidRequest,
+        )
+    })?;
+    if url.scheme() != "mailto" {
+        return Err(Error::new(
+            eyre!("{}", t!("acme.invalid-contact", contact = contact)),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+    if !url.path().contains('@') {
+        return Err(Error::new(
+            eyre!("{}", t!("acme.invalid-contact", contact = contact)),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+    Ok(())
+}
+
 pub async fn init(
     ctx: RpcContext,
     InitAcmeParams { provider, contact }: InitAcmeParams,
 ) -> Result<(), Error> {
+    for c in &contact {
+        validate_contact(c)?;
+    }
     ctx.db
         .mutate(|db| {
             db.as_public_mut()
@@ -629,7 +658,7 @@ mod tests {
     use async_acme::acme::{AcmeError, Identifier};
     use async_acme::rustls_helper::OrderError;
 
-    use super::{MAX_RETRY_AFTER, retry_after_from_order_error};
+    use super::{MAX_RETRY_AFTER, retry_after_from_order_error, validate_contact};
 
     #[test]
     fn rate_limited_with_retry_after_passes_through() {
@@ -668,5 +697,32 @@ mod tests {
         let err =
             OrderError::TooManyAttemptsAuth(Identifier::Dns("example.test".into()));
         assert_eq!(retry_after_from_order_error(&err), None);
+    }
+
+    #[test]
+    fn validate_contact_accepts_mailto_uri() {
+        assert!(validate_contact("mailto:admin@example.com").is_ok());
+    }
+
+    #[test]
+    fn validate_contact_rejects_bare_email() {
+        assert!(validate_contact("admin@example.com").is_err());
+    }
+
+    #[test]
+    fn validate_contact_rejects_non_mailto_scheme() {
+        assert!(validate_contact("https://example.com/contact").is_err());
+        assert!(validate_contact("tel:+15551234567").is_err());
+    }
+
+    #[test]
+    fn validate_contact_rejects_mailto_without_email() {
+        assert!(validate_contact("mailto:").is_err());
+        assert!(validate_contact("mailto:not-an-email").is_err());
+    }
+
+    #[test]
+    fn validate_contact_rejects_empty() {
+        assert!(validate_contact("").is_err());
     }
 }
