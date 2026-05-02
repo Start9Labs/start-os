@@ -55,7 +55,7 @@ pub async fn mount_cifs(
         .arg(format!("//{}{}", ip, absolute_path.display()))
         .arg(mountpoint.as_ref());
     let mut opts = String::from(
-        "vers=3.1.1,hard,actimeo=0,wsize=1048576,rsize=1048576,nobrl,noserverino",
+        "vers=3,hard,actimeo=0,wsize=1048576,rsize=1048576,nobrl,noserverino",
     );
     match mount_type {
         ReadOnly => opts.push_str(",ro,cache=strict"),
