@@ -93,15 +93,13 @@ pub async fn partition(
             if starting_lba < ROOT_MIN_END_SECTOR {
                 return Err(Error::new(
                     eyre!(
-                        concat!(
-                            "Protected partition {} starts at sector {}, leaving less ",
-                            "than the minimum room for the OS root partition (must end ",
-                            "at or before sector {}, minimum is sector {})"
-                        ),
-                        path.display(),
-                        starting_lba,
-                        starting_lba,
-                        ROOT_MIN_END_SECTOR
+                        "{}",
+                        t!(
+                            "os-install.protected-partition-overlaps-os-root-sectors",
+                            path = path.display(),
+                            first_lba = starting_lba,
+                            min_end_sector = ROOT_MIN_END_SECTOR,
+                        )
                     ),
                     crate::ErrorKind::DiskManagement,
                 ));

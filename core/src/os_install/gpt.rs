@@ -145,7 +145,7 @@ pub async fn partition(
                 .min()
                 .ok_or_else(|| {
                     Error::new(
-                        eyre!("No free space left on device for OS root partition"),
+                        eyre!("{}", t!("os-install.no-free-space-for-os-root")),
                         crate::ErrorKind::BlockDevice,
                     )
                 })?;
@@ -155,14 +155,14 @@ pub async fn partition(
                 let available_bytes = available_lba.saturating_mul(lb_size);
                 return Err(Error::new(
                     eyre!(
-                        concat!(
-                            "Protected partition {} starts at sector {}, leaving only ",
-                            "{} bytes for the OS root partition (minimum is {} bytes)"
-                        ),
-                        path.display(),
-                        protect_first_lba,
-                        available_bytes,
-                        ROOT_MIN_BYTES
+                        "{}",
+                        t!(
+                            "os-install.protected-partition-overlaps-os-root-bytes",
+                            path = path.display(),
+                            first_lba = protect_first_lba,
+                            available_bytes = available_bytes,
+                            min_bytes = ROOT_MIN_BYTES,
+                        )
                     ),
                     crate::ErrorKind::DiskManagement,
                 ));
