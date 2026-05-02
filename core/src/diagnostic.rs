@@ -10,6 +10,7 @@ use crate::disk::repair;
 use crate::init::SYSTEM_REBUILD_PATH;
 use crate::prelude::*;
 use crate::shutdown::Shutdown;
+use crate::update::diagnostic as update;
 use crate::util::io::delete_file;
 
 pub fn diagnostic<C: Context>() -> ParentHandler<C> {
@@ -58,6 +59,13 @@ pub fn diagnostic<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_about("about.teardown-rebuild-containers")
                 .with_call_remote::<CliContext>(),
+        )
+        .subcommand("update", from_fn_async(update::update_system).no_cli())
+        .subcommand(
+            "update",
+            from_fn_async(update::cli_update_system)
+                .no_display()
+                .with_about("about.check-update-startos"),
         )
 }
 

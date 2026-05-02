@@ -10,12 +10,14 @@ use imbl::OrdMap;
 use imbl_value::json;
 use itertools::Itertools;
 use patch_db::json_ptr::JsonPointer;
-use reqwest::Url;
+use reqwest::{Client, Url};
 use rpc_toolkit::HandlerArgs;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tracing::instrument;
 use ts_rs::TS;
+
+pub mod diagnostic;
 
 use crate::PLATFORM;
 use crate::context::{CliContext, RpcContext};
@@ -251,8 +253,8 @@ async fn maybe_do_update(
             "os.version.get",
             OrdMap::new(),
             json!({
-                "source": current_version,
-                "target": target,
+                "sourceVersion": current_version,
+                "targetVersion": target,
             }),
             RegistryUrlParams { registry },
         )
@@ -323,7 +325,7 @@ async fn maybe_do_update(
 
     tokio::spawn(async move {
         let res = do_update(
-            ctx.clone(),
+            ctx.client.clone(),
             asset,
             UpdateProgressHandles {
                 progress,
@@ -386,17 +388,17 @@ async fn maybe_do_update(
     Ok(Some(target_version))
 }
 
-struct UpdateProgressHandles {
-    progress: FullProgressTracker,
-    prune_phase: PhaseProgressTrackerHandle,
-    download_phase: PhaseProgressTrackerHandle,
-    reverify_phase: PhaseProgressTrackerHandle,
-    finalize_phase: PhaseProgressTrackerHandle,
+pub(crate) struct UpdateProgressHandles {
+    pub progress: FullProgressTracker,
+    pub prune_phase: PhaseProgressTrackerHandle,
+    pub download_phase: PhaseProgressTrackerHandle,
+    pub reverify_phase: PhaseProgressTrackerHandle,
+    pub finalize_phase: PhaseProgressTrackerHandle,
 }
 
 #[instrument(skip_all)]
-async fn do_update(
-    ctx: RpcContext,
+pub(crate) async fn do_update(
+    client: Client,
     asset: RegistryAsset<Blake3Commitment>,
     UpdateProgressHandles {
         progress,
@@ -420,9 +422,7 @@ async fn do_update(
     let path = Path::new("/media/startos/images/next.squashfs");
     let mut dst = AtomicFile::new(&path, None::<&Path>).await?;
     let mut download_writer = download_phase.writer(&mut *dst);
-    asset
-        .download(ctx.client.clone(), &mut download_writer)
-        .await?;
+    asset.download(client, &mut download_writer).await?;
     let (_, mut download_phase) = download_writer.into_inner();
     dst.sync_all().await?;
     download_phase.complete();
