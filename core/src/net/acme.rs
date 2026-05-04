@@ -14,6 +14,7 @@ use imbl_value::InternedString;
 use itertools::Itertools;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
+use regex::Regex;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio_rustls::rustls::ServerConfig;
@@ -580,10 +581,59 @@ pub struct InitAcmeParams {
     pub contact: Vec<String>,
 }
 
+lazy_static::lazy_static! {
+    // Pragmatic email match: local@domain, no whitespace, dot in domain.
+    // RFC 5322 is far too permissive for what an ACME server actually accepts.
+    static ref EMAIL_REGEX: Regex =
+        Regex::new(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").unwrap();
+}
+
+fn invalid_contact_err(contact: &str) -> Error {
+    Error::new(
+        eyre!("{}", t!("acme.invalid-contact", contact = contact)),
+        ErrorKind::InvalidRequest,
+    )
+}
+
+// RFC 8555 §7.3 requires `contact` entries to be URLs, and Let's Encrypt
+// (the only provider start-os ships shorthand for) only supports `mailto:`.
+// Without this gate, a bare email here gets stored verbatim and eventually
+// fails the `newAccount` request with `unsupportedContact`.
+fn validate_contact(contact: &str) -> Result<(), Error> {
+    let url = contact
+        .parse::<Url>()
+        .map_err(|_| invalid_contact_err(contact))?;
+    if url.scheme() != "mailto" {
+        return Err(invalid_contact_err(contact));
+    }
+    if !EMAIL_REGEX.is_match(url.path()) {
+        return Err(invalid_contact_err(contact));
+    }
+    Ok(())
+}
+
+// Accept either a full `mailto:` URI or a bare email — for the latter,
+// prepend `mailto:` and re-validate so the stored value is always RFC 8555
+// compliant.
+fn normalize_contact(contact: String) -> Result<String, Error> {
+    if validate_contact(&contact).is_ok() {
+        return Ok(contact);
+    }
+    let prefixed = format!("mailto:{contact}");
+    if validate_contact(&prefixed).is_ok() {
+        return Ok(prefixed);
+    }
+    Err(invalid_contact_err(&contact))
+}
+
 pub async fn init(
     ctx: RpcContext,
     InitAcmeParams { provider, contact }: InitAcmeParams,
 ) -> Result<(), Error> {
+    let contact = contact
+        .into_iter()
+        .map(normalize_contact)
+        .collect::<Result<Vec<_>, _>>()?;
     ctx.db
         .mutate(|db| {
             db.as_public_mut()
@@ -629,7 +679,9 @@ mod tests {
     use async_acme::acme::{AcmeError, Identifier};
     use async_acme::rustls_helper::OrderError;
 
-    use super::{MAX_RETRY_AFTER, retry_after_from_order_error};
+    use super::{
+        MAX_RETRY_AFTER, normalize_contact, retry_after_from_order_error, validate_contact,
+    };
 
     #[test]
     fn rate_limited_with_retry_after_passes_through() {
@@ -668,5 +720,61 @@ mod tests {
         let err =
             OrderError::TooManyAttemptsAuth(Identifier::Dns("example.test".into()));
         assert_eq!(retry_after_from_order_error(&err), None);
+    }
+
+    #[test]
+    fn validate_contact_accepts_mailto_uri() {
+        assert!(validate_contact("mailto:admin@example.com").is_ok());
+        assert!(validate_contact("mailto:user.name+tag@sub.example.co.uk").is_ok());
+    }
+
+    #[test]
+    fn validate_contact_rejects_bare_email() {
+        // The validator itself is strict; the fallback in `normalize_contact`
+        // is what auto-prefixes `mailto:`.
+        assert!(validate_contact("admin@example.com").is_err());
+    }
+
+    #[test]
+    fn validate_contact_rejects_non_mailto_scheme() {
+        assert!(validate_contact("https://example.com/contact").is_err());
+        assert!(validate_contact("tel:+15551234567").is_err());
+    }
+
+    #[test]
+    fn validate_contact_rejects_mailto_without_valid_email() {
+        assert!(validate_contact("mailto:").is_err());
+        assert!(validate_contact("mailto:not-an-email").is_err());
+        assert!(validate_contact("mailto:no-tld@localhost").is_err());
+        assert!(validate_contact("mailto:has space@example.com").is_err());
+        assert!(validate_contact("mailto:two@@example.com").is_err());
+    }
+
+    #[test]
+    fn validate_contact_rejects_empty() {
+        assert!(validate_contact("").is_err());
+    }
+
+    #[test]
+    fn normalize_contact_passes_through_valid_mailto() {
+        assert_eq!(
+            normalize_contact("mailto:admin@example.com".into()).unwrap(),
+            "mailto:admin@example.com",
+        );
+    }
+
+    #[test]
+    fn normalize_contact_prepends_mailto_for_bare_email() {
+        assert_eq!(
+            normalize_contact("admin@example.com".into()).unwrap(),
+            "mailto:admin@example.com",
+        );
+    }
+
+    #[test]
+    fn normalize_contact_rejects_garbage_even_with_prefix() {
+        assert!(normalize_contact("not an email".into()).is_err());
+        assert!(normalize_contact("https://example.com".into()).is_err());
+        assert!(normalize_contact("".into()).is_err());
     }
 }
