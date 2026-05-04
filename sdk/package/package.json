@@ -1,6 +1,6 @@
 {
   "name": "@start9labs/start-sdk",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Software development kit to facilitate packaging services for StartOS",
   "main": "./package/lib/index.js",
   "types": "./package/lib/index.d.ts",
@@ -40,7 +40,7 @@
     "isomorphic-fetch": "^3.0.0",
     "mime": "^4.1.0",
     "yaml": "^2.8.3",
-    "zod": "^4.3.6",
+    "zod": "4.3.6",
     "zod-deep-partial": "^1.2.0"
   },
   "prettier": {

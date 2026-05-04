@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.1 — StartOS 0.4.0-beta.8 (2026-05-04)
+
+### Fixed
+
+- Pin `zod` to exact version `4.3.6`. Zod 4.4 changed `.catch()` to no longer fire on missing object keys (only on present-but-invalid values), which silently breaks every package's `.merge({})` seed pattern — required fields with `.catch()` defaults throw `"expected nonoptional, received undefined"` instead of falling back to the default. The previous `^4.3.6` range allowed packages installed after 4.4.0 dropped to pick up the new behavior on `npm install`. Pinning ensures consistent behavior across all packages regardless of when they were installed
+
 ## 1.4.0 — StartOS 0.4.0-beta.8 (2026-05-03)
 
 ### Added
