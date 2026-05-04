@@ -46,25 +46,22 @@ export class i18nService extends TuiLanguageSwitcherService {
     )
   }
 
-  setLang(language: Languages = 'en_US'): void {
+  setLangLocal(language: Languages = 'en_US'): void {
     const tuiLang = LANGUAGE_TO_TUI[language]
-    const current = this.language
-
     super.setLanguage(tuiLang)
     this.loading.set(true)
+    this.i18nLoader(tuiLang).then(value => {
+      this.i18n.set(value)
+      this.loading.set(false)
+    })
+  }
 
-    if (current === tuiLang) {
-      this.i18nLoader(tuiLang).then(value => {
-        this.i18n.set(value)
-        this.loading.set(false)
-      })
+  setLang(language: Languages = 'en_US'): void {
+    const tuiLang = LANGUAGE_TO_TUI[language]
+    if (this.language === tuiLang) {
+      this.setLangLocal(language)
     } else {
-      this.store(language).then(() =>
-        this.i18nLoader(tuiLang).then(value => {
-          this.i18n.set(value)
-          this.loading.set(false)
-        }),
-      )
+      this.store(language).then(() => this.setLangLocal(language))
     }
   }
 }
