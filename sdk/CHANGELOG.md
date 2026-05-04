@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0 — StartOS 0.4.0-beta.8 (2026-05-03)
+
+### Added
+
+- `FileHelper.yaml` accepts an optional `options` argument that is threaded into both `YAML.stringify` and `YAML.parse`. Enables custom YAML tags (`!include`, `!secret`, `!include_dir_*`, etc.) to round-trip through the file model. Pass `customTags` to register tag handlers; pair the handler's `resolve` (returns a JS value during parse) with `identify`/`stringify` (re-emits the tag during write) to keep tag information across read-modify-write cycles. Other yaml options (e.g. `indent`, `lineWidth`, `aliasDuplicateObjects`) are accepted on the same object
+
+### Changed
+
+- **Breaking:** `FileHelper.yaml`'s transformers overload now takes `options` at position 3 and `transformers` at position 4, matching the argument order of `FileHelper.ini` and `FileHelper.xml`. Call sites that passed `transformers` as the third positional argument must be updated. The simple form (`FileHelper.yaml(path, shape)`) is unchanged
+
 ## 1.3.4 — StartOS 0.4.0-beta.8 (2026-05-02)
 
 ### Added

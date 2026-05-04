@@ -491,10 +491,22 @@ interface FileHelperStatic {
   yaml<A extends Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Record<string, unknown>, A>,
+    options?: YAML.ParseOptions &
+      YAML.DocumentOptions &
+      YAML.SchemaOptions &
+      YAML.ToJSOptions &
+      YAML.CreateNodeOptions &
+      YAML.ToStringOptions,
   ): FileHelper<A>
   yaml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
+    options: YAML.ParseOptions &
+      YAML.DocumentOptions &
+      YAML.SchemaOptions &
+      YAML.ToJSOptions &
+      YAML.CreateNodeOptions &
+      YAML.ToStringOptions,
     transformers: Transformers<Record<string, unknown>, Transformed, A>,
   ): FileHelper<A>
 
@@ -591,12 +603,18 @@ export const FileHelper: FileHelperStatic = {
   yaml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
+    options?: YAML.ParseOptions &
+      YAML.DocumentOptions &
+      YAML.SchemaOptions &
+      YAML.ToJSOptions &
+      YAML.CreateNodeOptions &
+      YAML.ToStringOptions,
     transformers?: Transformers<Record<string, unknown>, Transformed, A>,
   ): FileHelper<A> {
     return rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
-      (inData) => YAML.stringify(inData, null, 2),
-      (inString) => YAML.parse(inString),
+      (inData) => YAML.stringify(inData, null, { indent: 2, ...options }),
+      (inString) => YAML.parse(inString, options),
       (data) => shape.parse(data),
       transformers,
     )
