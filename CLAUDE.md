@@ -32,7 +32,13 @@ make test-core                            # Run Rust tests
 - Check component-level CLAUDE.md files for component-specific conventions. ALWAYS read it before operating on that component.
 - Follow existing patterns before inventing new ones
 - Always use `make` recipes when they exist for testing builds rather than manually invoking build commands
-- **Commit signing:** Never push unsigned commits. Before pushing, check all unpushed commits for signatures with `git log --show-signature @{upstream}..HEAD`. If any are unsigned, prompt the user to sign them with `git rebase --exec 'git commit --amend -S --no-edit' @{upstream}`.
+- **Commit signing:** This project requires signed commits (GPG or SSH). Before pushing, verify every unpushed commit has a signature by checking for a `gpgsig` field in the raw commit object — this works for both formats, unlike `git log --show-signature`, which reports "No signature" for SSH-signed commits when the verifier doesn't have `gpg.ssh.allowedSignersFile` configured:
+  ```bash
+  for sha in $(git rev-list @{upstream}..HEAD); do
+    git cat-file commit "$sha" | grep -q '^gpgsig' || echo "UNSIGNED: $sha"
+  done
+  ```
+  If any are unsigned, prompt the user to sign them with `git rebase --exec 'git commit --amend -S --no-edit' @{upstream}` (works for both GPG and SSH signing — the user's `user.signingkey` and `gpg.format` config picks the format).
 - If you have a choice between a tool call that is allowed without user approval, and one that requires user approval, always use the one that does _not_ require user approval.
 - Always read `docs/USER.md` even if it doesn't seem relevant to your task. It may contain other instructions from this specific user.
 
