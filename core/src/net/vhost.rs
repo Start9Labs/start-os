@@ -862,12 +862,27 @@ where
                 } else {
                     // copy_bidirectional drains each direction to EOF, then
                     // half-closes the destination (flush + FIN). It won't
-                    // return until both directions have settled. Without a
-                    // per-connection escape hatch that would normally risk
-                    // leaking if one peer stayed idle forever — but both
-                    // TCP sockets have tuned SO_KEEPALIVE (proxy_keepalive)
-                    // so a silent peer errors out within ~2 min, bounding
-                    // the hang without losing in-flight bytes.
+                    // return until both directions have settled, so without
+                    // a per-connection escape hatch a stuck peer would leak
+                    // the proxy task. We bound the hang at two layers:
+                    //
+                    //   1. SO_KEEPALIVE (proxy_keepalive): catches a *silent*
+                    //      peer (kernel detects no probe replies) in ~2 min.
+                    //   2. TimeoutStream wrapper: catches an *application-
+                    //      idle* peer that still ACKs keepalive probes but
+                    //      never moves bytes — the failure mode keepalive
+                    //      alone can't see. The timer resets on every
+                    //      successful read/write, so long-lived flows that
+                    //      occasionally exchange data (WebSockets, SSE,
+                    //      long-polling RPC) stay open indefinitely.
+                    let mut stream = Box::pin(crate::util::io::TimeoutStream::new(
+                        stream,
+                        IDLE_PROXY_TIMEOUT,
+                    ));
+                    let mut prev = Box::pin(crate::util::io::TimeoutStream::new(
+                        prev,
+                        IDLE_PROXY_TIMEOUT,
+                    ));
                     tokio::io::copy_bidirectional(&mut stream, &mut prev)
                         .await
                         .ok();
@@ -886,6 +901,27 @@ fn proxy_keepalive() -> socket2::TcpKeepalive {
         .with_interval(Duration::from_secs(10))
         .with_retries(6)
 }
+
+/// Maximum time a proxied connection may pass without making forward
+/// progress (no bytes read or written in either direction) before we
+/// tear it down. Resets on every successful read/write, so a flow that
+/// is occasionally active (WebSocket heartbeat, SSE event, long-poll
+/// reply) stays open indefinitely.
+///
+/// This complements `proxy_keepalive()`: keepalive catches *silent*
+/// peers (no probe reply); this catches *application-idle* peers that
+/// still ACK at L4 but never advance L7. Without it, a hyper client
+/// pool socket nobody reuses, an abandoned WebSocket upgrade, or a
+/// browser tab whose JS never closed its EventSource pins the proxy
+/// task forever — observed in production as 16k+ ESTABLISHED sockets
+/// piled on `:80` of an internal upstream, all in
+/// `timer:(keepalive,…,0)` (probes succeeding, no L7 progress).
+///
+/// 10 minutes is comfortably longer than any sane keepalive ping in
+/// real protocols (Matrix, Element, Bisq, Nextcloud, gRPC keepalive
+/// defaults are all ≤ 60 s) but tight enough to bound the leak rate
+/// even under aggressive misuse.
+pub(crate) const IDLE_PROXY_TIMEOUT: Duration = Duration::from_secs(600);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -1330,6 +1366,89 @@ async fn copy_bidirectional_hangs_without_keepalive_when_peer_idle() {
         res.is_err(),
         "copy_bidirectional returned without keepalive to break the idle \
          peer out — keepalive tuning is what makes this bounded in prod."
+    );
+
+    proxy.abort();
+}
+
+#[tokio::test]
+async fn idle_timeout_stream_terminates_copy_bidirectional_on_l7_silence() {
+    // Documents the production failure mode that SO_KEEPALIVE alone
+    // cannot catch: both peers ACK keepalive probes (so the kernel
+    // never tears the socket down), but neither side advances a single
+    // L7 byte. The IDLE_PROXY_TIMEOUT wrapper resets on every successful
+    // read/write, so a flow that exchanges *any* data — even a single
+    // heartbeat byte — stays open. A flow that exchanges *nothing* for
+    // longer than the timeout terminates with ErrorKind::TimedOut and
+    // copy_bidirectional returns.
+    //
+    // We use a short timeout (200ms) so the test runs quickly; the
+    // shape is identical to the production 600s default.
+    let (client_facing, _client_side) = tokio::io::duplex(1024);
+    let (backend_facing, _backend_side) = tokio::io::duplex(1024);
+
+    let test_timeout = Duration::from_millis(200);
+    let mut a = Box::pin(crate::util::io::TimeoutStream::new(
+        client_facing,
+        test_timeout,
+    ));
+    let mut b = Box::pin(crate::util::io::TimeoutStream::new(
+        backend_facing,
+        test_timeout,
+    ));
+
+    let started = tokio::time::Instant::now();
+    let res = tokio::time::timeout(
+        Duration::from_secs(2),
+        tokio::io::copy_bidirectional(&mut a, &mut b),
+    )
+    .await;
+
+    assert!(
+        res.is_ok(),
+        "copy_bidirectional should have returned via the idle-progress \
+         timeout, not the outer 2s safety net — leak fix is not wired up"
+    );
+    let elapsed = started.elapsed();
+    assert!(
+        elapsed >= test_timeout && elapsed < Duration::from_secs(1),
+        "copy_bidirectional returned at {elapsed:?}; expected close to \
+         the {test_timeout:?} idle timeout"
+    );
+}
+
+#[tokio::test]
+async fn idle_timeout_stream_keeps_active_flows_open() {
+    // Inverse of the test above: as long as bytes keep moving (even
+    // sporadically), the idle timer keeps resetting and the proxy stays
+    // open. Models a long-lived WebSocket / SSE stream that sends one
+    // keepalive ping per cycle.
+    let (mut client, client_side) = tokio::io::duplex(1024);
+    let (server_side, mut server) = tokio::io::duplex(1024);
+
+    let idle = Duration::from_millis(100);
+    let mut a = Box::pin(crate::util::io::TimeoutStream::new(client_side, idle));
+    let mut b = Box::pin(crate::util::io::TimeoutStream::new(server_side, idle));
+
+    let proxy = tokio::spawn(async move {
+        tokio::io::copy_bidirectional(&mut a, &mut b).await.ok();
+    });
+
+    // Send a heartbeat byte every 50ms (well within the 100ms idle
+    // window) for 500ms total — would have triggered five timeouts
+    // without resets.
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    for _ in 0..10 {
+        client.write_all(b"x").await.unwrap();
+        let mut buf = [0u8; 1];
+        let _ = server.read_exact(&mut buf).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+
+    assert!(
+        !proxy.is_finished(),
+        "proxy terminated despite continuous heartbeat traffic — the \
+         idle timer is not being reset on byte progress"
     );
 
     proxy.abort();

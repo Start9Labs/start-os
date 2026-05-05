@@ -296,12 +296,21 @@ where
                         tokio::task::spawn(async move {
                             if let Some((from, to)) = futures::future::try_join(from, to).await.ok()
                             {
-                                tokio::io::copy_bidirectional(
-                                    &mut TokioIo::new(from),
-                                    &mut TokioIo::new(to),
-                                )
-                                .await
-                                .ok();
+                                // See vhost::IDLE_PROXY_TIMEOUT — bound the
+                                // hang on application-idle upgraded
+                                // connections (HTTP/2 → CONNECT/UDP, WS),
+                                // resetting on every byte transferred.
+                                let mut from = Box::pin(crate::util::io::TimeoutStream::new(
+                                    TokioIo::new(from),
+                                    crate::net::vhost::IDLE_PROXY_TIMEOUT,
+                                ));
+                                let mut to = Box::pin(crate::util::io::TimeoutStream::new(
+                                    TokioIo::new(to),
+                                    crate::net::vhost::IDLE_PROXY_TIMEOUT,
+                                ));
+                                tokio::io::copy_bidirectional(&mut from, &mut to)
+                                    .await
+                                    .ok();
                             }
                         });
                     }
@@ -393,12 +402,23 @@ where
                                     .await
                                     .ok();
                                 } else {
-                                    tokio::io::copy_bidirectional(
-                                        &mut TokioIo::new(from),
-                                        &mut TokioIo::new(to),
-                                    )
-                                    .await
-                                    .ok();
+                                    // See vhost::IDLE_PROXY_TIMEOUT — bound
+                                    // the hang on application-idle WebSocket
+                                    // upgrades, resetting on every byte
+                                    // transferred.
+                                    let mut from =
+                                        Box::pin(crate::util::io::TimeoutStream::new(
+                                            TokioIo::new(from),
+                                            crate::net::vhost::IDLE_PROXY_TIMEOUT,
+                                        ));
+                                    let mut to =
+                                        Box::pin(crate::util::io::TimeoutStream::new(
+                                            TokioIo::new(to),
+                                            crate::net::vhost::IDLE_PROXY_TIMEOUT,
+                                        ));
+                                    tokio::io::copy_bidirectional(&mut from, &mut to)
+                                        .await
+                                        .ok();
                                 }
                             }
                         });
