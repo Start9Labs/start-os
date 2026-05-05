@@ -109,6 +109,8 @@ pub struct PackageMetadata {
     #[serde(default)]
     pub hardware_acceleration: bool,
     #[serde(default)]
+    pub nested_runtime: bool,
+    #[serde(default)]
     pub plugins: BTreeSet<PluginId>,
     #[serde(default)]
     pub satisfies: BTreeSet<VersionString>,

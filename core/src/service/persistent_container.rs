@@ -98,6 +98,7 @@ impl PersistentContainer {
                 ),
                 LxcConfig {
                     hardware_acceleration: s9pk.manifest.metadata.hardware_acceleration,
+                    nested_runtime: s9pk.manifest.metadata.nested_runtime,
                 },
             )
             .await?;

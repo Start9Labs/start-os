@@ -226,6 +226,7 @@ impl TryFrom<ManifestV1> for Manifest {
                     PackageProcedure::Docker(d) => d.gpu_acceleration,
                     PackageProcedure::Script(_) => false,
                 },
+                nested_runtime: false,
                 plugins: BTreeSet::new(),
                 satisfies: BTreeSet::new(),
             },

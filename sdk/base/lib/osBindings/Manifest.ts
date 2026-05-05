@@ -35,6 +35,7 @@ export type Manifest = {
   osVersion: string
   sdkVersion: string | null
   hardwareAcceleration: boolean
+  nestedRuntime: boolean
   plugins: Array<PluginId>
   satisfies: Array<Version>
 }

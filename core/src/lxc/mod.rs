@@ -178,11 +178,14 @@ impl LxcContainer {
         let machine_id = hex::encode(rand::random::<[u8; 16]>());
         let container_dir = Path::new(LXC_CONTAINER_DIR).join(&*guid);
         tokio::fs::create_dir_all(&container_dir).await?;
-        let config_str = format!(
+        let mut config_str = format!(
             include_str!("./config.template"),
             guid = &*guid,
             lang = &lang,
         );
+        if config.nested_runtime {
+            config_str.push_str(NESTED_RUNTIME_CONFIG);
+        }
         tokio::fs::write(container_dir.join("config"), config_str).await?;
         let rootfs_dir = container_dir.join("rootfs");
         let rootfs = OverlayGuard::mount(
@@ -643,7 +646,17 @@ impl Drop for LxcContainer {
 #[derive(Default, Serialize)]
 pub struct LxcConfig {
     pub hardware_acceleration: bool,
+    pub nested_runtime: bool,
 }
+
+const NESTED_RUNTIME_CONFIG: &str = "
+# Nested OCI runtime opt-in (manifest.nestedRuntime)
+# fuse-overlayfs is the only viable storage driver for rootless docker/podman
+# inside a userns LXC: kernel overlayfs-on-overlayfs is denied for unprivileged
+# users, so the engine falls back to FUSE.
+lxc.mount.entry = /dev/fuse dev/fuse none bind,create=file,optional 0 0
+lxc.cgroup2.devices.allow = c 10:229 rwm
+";
 
 pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid, Error> {
     use axum::extract::ws::Message;

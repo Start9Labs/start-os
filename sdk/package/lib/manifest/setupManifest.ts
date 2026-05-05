@@ -98,6 +98,7 @@ export function buildManifest<
       ),
     },
     hardwareAcceleration: manifest.hardwareAcceleration ?? false,
+    nestedRuntime: manifest.nestedRuntime ?? false,
     plugins: manifest.plugins ?? [],
   }
 }

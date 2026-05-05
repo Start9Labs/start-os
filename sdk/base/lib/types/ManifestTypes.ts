@@ -149,6 +149,15 @@ export type SDKManifest = {
   readonly hardwareAcceleration?: boolean
 
   /**
+   * @description Allow this service's LXC to host a nested OCI runtime
+   * (e.g. rootless Podman or Docker). Mounts /dev/fuse and grants the
+   * cgroup device permission required for fuse-overlayfs storage. The
+   * service still runs unprivileged inside its userns — no extra
+   * capabilities are granted to the LXC itself.
+   */
+  readonly nestedRuntime?: boolean
+
+  /**
    * @description Enable OS plugins
    */
   readonly plugins?: T.PluginId[]

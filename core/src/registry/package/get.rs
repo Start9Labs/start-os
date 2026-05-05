@@ -636,6 +636,7 @@ fn check_matching_info_short() {
             os_version: exver::Version::new([0, 3, 6], []),
             sdk_version: None,
             hardware_acceleration: false,
+            nested_runtime: false,
             plugins: BTreeSet::new(),
             satisfies: BTreeSet::new(),
         },
