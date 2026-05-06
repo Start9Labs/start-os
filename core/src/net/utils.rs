@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::path::Path;
+use std::time::Duration;
 
 use async_stream::try_stream;
 use color_eyre::eyre::eyre;
@@ -46,6 +47,14 @@ pub fn bind_mio_listener(addr: SocketAddr) -> std::io::Result<mio::net::TcpListe
 /// otherwise reach for `tokio::net::TcpListener::bind`.
 pub fn bind_tokio_listener(addr: SocketAddr) -> std::io::Result<tokio::net::TcpListener> {
     tokio::net::TcpListener::from_std(build_listen_socket(addr)?)
+}
+
+/// Detect silent peer death within ~2 min instead of the Linux default ~2h.
+pub fn default_keepalive() -> socket2::TcpKeepalive {
+    socket2::TcpKeepalive::new()
+        .with_time(Duration::from_secs(60))
+        .with_interval(Duration::from_secs(10))
+        .with_retries(6)
 }
 
 pub async fn load_ip_info() -> Result<BTreeMap<GatewayId, IpInfo>, Error> {

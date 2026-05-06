@@ -107,7 +107,9 @@ impl Accept for TcpListener {
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
         if let Poll::Ready((stream, peer_addr)) = TcpListener::poll_accept(self, cx)? {
-            if let Err(e) = socket2::SockRef::from(&stream).set_keepalive(true) {
+            if let Err(e) = socket2::SockRef::from(&stream)
+                .set_tcp_keepalive(&crate::net::utils::default_keepalive())
+            {
                 tracing::error!("Failed to set tcp keepalive: {e}");
                 tracing::debug!("{e:?}");
             }
