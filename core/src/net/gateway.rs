@@ -34,7 +34,7 @@ use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceTyp
 use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::net::gateway::device::DeviceProxy;
 use crate::net::host::all_hosts;
-use crate::net::utils::find_wifi_iface;
+use crate::net::utils::{bind_mio_listener, find_wifi_iface};
 use crate::net::web_server::{Accept, AcceptStream, MetadataVisitor, TcpMetadata};
 use crate::prelude::*;
 use crate::util::Invoke;
@@ -2117,7 +2117,7 @@ pub struct WildcardListener {
 impl WildcardListener {
     pub fn new(port: u16) -> Result<Self, Error> {
         let listener = TcpListener::from_std(
-            mio::net::TcpListener::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port))
+            bind_mio_listener(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port))
                 .with_kind(ErrorKind::Network)?
                 .into(),
         )

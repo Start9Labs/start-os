@@ -17,6 +17,37 @@ use crate::db::model::public::{IpInfo, NetworkInterfaceType};
 use crate::prelude::*;
 use crate::util::Invoke;
 
+// mio/tokio's TcpListener::bind hardcodes listen(128), which overflows the
+// accept queue on the vhost proxy under burst load.
+const LISTEN_BACKLOG: i32 = 1024;
+
+fn build_listen_socket(addr: SocketAddr) -> std::io::Result<std::net::TcpListener> {
+    let domain = match addr {
+        SocketAddr::V4(_) => socket2::Domain::IPV4,
+        SocketAddr::V6(_) => socket2::Domain::IPV6,
+    };
+    let socket = socket2::Socket::new(domain, socket2::Type::STREAM, Some(socket2::Protocol::TCP))?;
+    socket.set_reuse_address(true)?;
+    socket.set_nonblocking(true)?;
+    socket.bind(&addr.into())?;
+    socket.listen(LISTEN_BACKLOG)?;
+    Ok(socket.into())
+}
+
+/// Bind a `mio::net::TcpListener` with an explicit listen backlog
+/// ([`LISTEN_BACKLOG`]) instead of mio's hardcoded 128. Use everywhere we'd
+/// otherwise reach for `mio::net::TcpListener::bind`.
+pub fn bind_mio_listener(addr: SocketAddr) -> std::io::Result<mio::net::TcpListener> {
+    Ok(mio::net::TcpListener::from_std(build_listen_socket(addr)?))
+}
+
+/// Bind a `tokio::net::TcpListener` with an explicit listen backlog
+/// ([`LISTEN_BACKLOG`]) instead of tokio's hardcoded 128. Use everywhere we'd
+/// otherwise reach for `tokio::net::TcpListener::bind`.
+pub fn bind_tokio_listener(addr: SocketAddr) -> std::io::Result<tokio::net::TcpListener> {
+    tokio::net::TcpListener::from_std(build_listen_socket(addr)?)
+}
+
 pub async fn load_ip_info() -> Result<BTreeMap<GatewayId, IpInfo>, Error> {
     let output = String::from_utf8(
         Command::new("ip")

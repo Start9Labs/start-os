@@ -19,6 +19,7 @@ use tokio::sync::oneshot;
 use visit_rs::{Visit, VisitFields, Visitor};
 
 use crate::net::static_server::{UiContext, ui_router};
+use crate::net::utils::bind_tokio_listener;
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::future::NonDetachingJoinHandle;
@@ -300,20 +301,24 @@ impl<A: Accept + Send + Sync + 'static> Acceptor<A> {
 impl Acceptor<Vec<TcpListener>> {
     pub async fn bind(listen: impl IntoIterator<Item = SocketAddr>) -> Result<Self, Error> {
         Ok(Self::new(
-            futures::future::try_join_all(listen.into_iter().map(TcpListener::bind)).await?,
+            listen
+                .into_iter()
+                .map(|addr| bind_tokio_listener(addr).with_kind(ErrorKind::Network))
+                .collect::<Result<Vec<_>, _>>()?,
         ))
     }
 }
 impl Acceptor<Vec<DynAccept>> {
     pub async fn bind_dyn(listen: impl IntoIterator<Item = SocketAddr>) -> Result<Self, Error> {
         Ok(Self::new(
-            futures::future::try_join_all(
-                listen
-                    .into_iter()
-                    .map(TcpListener::bind)
-                    .map(|f| f.map_ok(DynAccept::new)),
-            )
-            .await?,
+            listen
+                .into_iter()
+                .map(|addr| {
+                    bind_tokio_listener(addr)
+                        .with_kind(ErrorKind::Network)
+                        .map(DynAccept::new)
+                })
+                .collect::<Result<Vec<_>, _>>()?,
         ))
     }
 }
@@ -325,17 +330,14 @@ where
         listen: impl IntoIterator<Item = (K, SocketAddr)>,
     ) -> Result<Self, Error> {
         Ok(Self::new(
-            futures::future::try_join_all(listen.into_iter().map(|(key, addr)| async move {
-                Ok::<_, Error>((
-                    key,
-                    TcpListener::bind(addr)
-                        .await
-                        .with_kind(ErrorKind::Network)?,
-                ))
-            }))
-            .await?
-            .into_iter()
-            .collect(),
+            listen
+                .into_iter()
+                .map(|(key, addr)| {
+                    bind_tokio_listener(addr)
+                        .with_kind(ErrorKind::Network)
+                        .map(|l| (key, l))
+                })
+                .collect::<Result<BTreeMap<_, _>, _>>()?,
         ))
     }
 }
@@ -347,18 +349,14 @@ where
         listen: impl IntoIterator<Item = (K, SocketAddr)>,
     ) -> Result<Self, Error> {
         Ok(Self::new(
-            futures::future::try_join_all(listen.into_iter().map(|(key, addr)| async move {
-                Ok::<_, Error>((
-                    key,
-                    TcpListener::bind(addr)
-                        .await
-                        .with_kind(ErrorKind::Network)?,
-                ))
-            }))
-            .await?
-            .into_iter()
-            .map(|(key, listener)| (key, listener.into_dyn()))
-            .collect(),
+            listen
+                .into_iter()
+                .map(|(key, addr)| {
+                    bind_tokio_listener(addr)
+                        .with_kind(ErrorKind::Network)
+                        .map(|l| (key, l.into_dyn()))
+                })
+                .collect::<Result<BTreeMap<_, _>, _>>()?,
         ))
     }
 }

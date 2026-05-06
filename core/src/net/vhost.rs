@@ -39,7 +39,7 @@ use crate::net::ssl::{CertBranding, CertStore, RootCaTlsHandler};
 use crate::net::tls::{
     ChainedHandler, TlsHandler, TlsHandlerAction, TlsListener, TlsMetadata,
 };
-use crate::net::utils::{ipv6_is_link_local, is_private_ip};
+use crate::net::utils::{bind_mio_listener, ipv6_is_link_local, is_private_ip};
 use crate::net::web_server::{Accept, AcceptStream, ExtractVisitor, TcpMetadata, extract};
 use crate::prelude::*;
 use crate::util::collections::EqSet;
@@ -476,7 +476,7 @@ fn update_vhost_listeners(
                         };
                     } else {
                         let tcp = TcpListener::from_std(
-                            mio::net::TcpListener::bind(addr)
+                            bind_mio_listener(addr)
                                 .with_kind(ErrorKind::Network)?
                                 .into(),
                         )
