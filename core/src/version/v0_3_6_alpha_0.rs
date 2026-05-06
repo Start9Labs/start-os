@@ -398,6 +398,17 @@ impl VersionT for Version {
             .await?;
         }
 
+        if tokio::fs::metadata("/media/startos/data/package-data/volumes/monerod")
+            .await
+            .is_ok()
+        {
+            tokio::fs::rename(
+                "/media/startos/data/package-data/volumes/monerod",
+                "/media/startos/data/package-data/volumes/monerod-legacy",
+            )
+            .await?;
+        }
+
         // Load bundled migration images (start9/compat, start9/utils,
         // tonistiigi/binfmt) so the v1->v2 s9pk conversion doesn't need
         // internet access.
@@ -527,6 +538,7 @@ impl VersionT for Version {
                                 "nostr" => "nostr-rs-relay",
                                 "ghost" => "ghost-legacy",
                                 "synapse" => "synapse-legacy",
+                                "monerod" => "monerod-legacy",
                                 other => other,
                             };
                             let version_path = Path::new(DATA_DIR)

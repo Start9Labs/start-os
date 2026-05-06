@@ -200,6 +200,9 @@ impl TryFrom<ManifestV1> for Manifest {
         if &*value.id == "synapse" {
             value.id = "synapse-legacy".parse()?;
         }
+        if &*value.id == "monerod" {
+            value.id = "monerod-legacy".parse()?;
+        }
         Ok(Self {
             id: value.id,
             version: version.into(),
