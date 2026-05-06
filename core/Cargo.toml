@@ -93,9 +93,7 @@ ed25519-dalek = { version = "2.2.0", features = [
   "zeroize",
 ] }
 ed25519-dalek-v1 = { package = "ed25519-dalek", version = "1" }
-exver = { version = "0.2.0", git = "https://github.com/Start9Labs/exver-rs.git", features = [
-  "serde",
-] }
+exver = { version = "0.2.1", features = ["serde"] }
 fd-lock-rs = "0.1.4"
 form_urlencoded = "1.2.1"
 futures = "0.3.28"

@@ -324,22 +324,17 @@ impl ServiceMap {
                                 .can_migrate_to;
                             let next_version = &s9pk.as_manifest().version;
                             let next_can_migrate_from = &s9pk.as_manifest().can_migrate_from;
-                            if let Ok(data_ver_ev) = data_ver.parse::<exver::ExtendedVersion>() {
-                                if data_ver_ev.satisfies(next_can_migrate_from) {
-                                    ExitParams::target_str(data_ver)
-                                } else if next_version.satisfies(prev_can_migrate_to) {
-                                    ExitParams::target_version(&s9pk.as_manifest().version)
-                                } else {
-                                    ExitParams::target_range(&VersionRange::and(
-                                        prev_can_migrate_to.clone(),
-                                        next_can_migrate_from.clone(),
-                                    ))
-                                }
+                            let next_accepts_data_ver = if let Ok(data_ver_ev) =
+                                data_ver.parse::<exver::ExtendedVersion>()
+                            {
+                                data_ver_ev.satisfies(next_can_migrate_from)
                             } else if let Ok(data_ver_range) = data_ver.parse::<VersionRange>() {
-                                ExitParams::target_range(&VersionRange::and(
-                                    data_ver_range,
-                                    next_can_migrate_from.clone(),
-                                ))
+                                data_ver_range.intersects(next_can_migrate_from)
+                            } else {
+                                false
+                            };
+                            if next_accepts_data_ver {
+                                ExitParams::target_str(data_ver)
                             } else if next_version.satisfies(prev_can_migrate_to) {
                                 ExitParams::target_version(&s9pk.as_manifest().version)
                             } else {

@@ -332,7 +332,9 @@ export class VersionGraph<CurrentVersion extends string>
   ): Promise<void> {
     if (target) {
       if (isRange(target) && !target.satisfiable()) {
-        return
+        throw new Error(
+          `uninit target range \`${target.toString()}\` is unsatisfiable — no version can satisfy it (host contract violation)`,
+        )
       }
       const from = await getDataVersion(effects)
       if (from) {

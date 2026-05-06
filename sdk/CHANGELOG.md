@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.2 — StartOS 0.4.0-beta.8 (2026-05-06)
+
+### Changed
+
+- `VersionGraph.uninit` now throws when handed a range target with no satisfying version, instead of silently returning without advancing the data version. The previous silent behavior masked host bugs that produced contradictory targets (e.g. an `AND` of a flavored on-disk range with a flavor-less destination's `canMigrateFrom`) — uninit would skip the registered cross-flavor migration, leave the on-disk range untouched, and the destination's init would dead-end with `cannot migrate from <range> to <concrete>` with no signal at the source. Throwing surfaces the contract violation at the source where it can be diagnosed. Packages whose host correctly computes uninit targets are unaffected
+
 ## 1.4.1 — StartOS 0.4.0-beta.8 (2026-05-04)
 
 ### Fixed
