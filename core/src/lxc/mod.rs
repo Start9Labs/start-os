@@ -649,13 +649,17 @@ pub struct LxcConfig {
     pub nested_runtime: bool,
 }
 
+// Adding any `lxc.cgroup2.devices.allow` here would install a restrictive eBPF
+// device program that overrides the cleared default in userns.conf — that
+// blocks /dev/null & friends and the container fails to start (systemd
+// EXIT_STDIN=208). The bind mount alone is enough: host /dev/fuse is mode 0666
+// so processes inside the userns LXC can use it without a device-cgroup grant.
 const NESTED_RUNTIME_CONFIG: &str = "
 # Nested OCI runtime opt-in (manifest.nestedRuntime)
 # fuse-overlayfs is the only viable storage driver for rootless docker/podman
 # inside a userns LXC: kernel overlayfs-on-overlayfs is denied for unprivileged
 # users, so the engine falls back to FUSE.
 lxc.mount.entry = /dev/fuse dev/fuse none bind,create=file,optional 0 0
-lxc.cgroup2.devices.allow = c 10:229 rwm
 ";
 
 pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid, Error> {
