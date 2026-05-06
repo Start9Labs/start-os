@@ -148,7 +148,7 @@ import UpdatesComponent from './updates.component'
                 iconEnd="@tui.external-link"
                 routerLink="/marketplace"
                 [queryParams]="{
-                  url: parent.current()?.url,
+                  registry: parent.current()?.url,
                   id: item().id,
                   flavor: item().flavor,
                 }"

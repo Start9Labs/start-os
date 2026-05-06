@@ -113,7 +113,7 @@ export class MarketplaceService {
     version: string | null,
     flavor: string | null,
     registryUrl?: string,
-  ): Observable<MarketplacePkg> {
+  ): Observable<MarketplacePkg | null> {
     return this.currentRegistry$.pipe(
       switchMap(registry => {
         const url = registryUrl || registry.url
@@ -181,18 +181,19 @@ export class MarketplaceService {
         otherVersions: 'short',
       }),
     ).pipe(
-      map(packages => {
-        return Object.entries(packages).flatMap(([id, pkgInfo]) =>
-          Object.keys(pkgInfo.best).map(version =>
-            this.convertRegistryPkgToMarketplacePkg(
+      map(packages =>
+        Object.entries(packages).flatMap(([id, pkgInfo]) =>
+          Object.keys(pkgInfo.best).flatMap(version => {
+            const pkg = this.convertRegistryPkgToMarketplacePkg(
               id,
               version,
               this.exver.getFlavor(version),
               pkgInfo,
-            ),
-          ),
-        )
-      }),
+            )
+            return pkg ? [pkg] : []
+          }),
+        ),
+      ),
     )
   }
 
@@ -202,7 +203,7 @@ export class MarketplaceService {
     version: string | null,
     flavor: string | null,
     sourceVersion: string | null = null,
-  ): Observable<MarketplacePkg> {
+  ): Observable<MarketplacePkg | null> {
     return from(
       this.api.getRegistryPackage({
         registry: url,
@@ -223,7 +224,7 @@ export class MarketplaceService {
     version: string | null | undefined,
     flavor: string | null,
     pkgInfo: GetPackageRes,
-  ): MarketplacePkg {
+  ): MarketplacePkg | null {
     const ver =
       version ||
       Object.keys(pkgInfo.best).find(v => this.exver.getFlavor(v) === flavor) ||
@@ -231,7 +232,7 @@ export class MarketplaceService {
     const best = ver && pkgInfo.best[ver]
 
     if (!best) {
-      return {} as MarketplacePkg
+      return null
     }
 
     return {

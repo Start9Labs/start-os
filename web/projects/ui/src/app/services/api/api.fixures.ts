@@ -750,6 +750,60 @@ export namespace Mock {
         },
       },
     },
+    'btc-rpc-proxy': {
+      '=0.3.2.7:0': {
+        best: {
+          '0.3.2.7:0': {
+            title: 'Bitcoin Proxy',
+            description: mockDescription,
+            license: 'mit',
+            packageRepo: 'https://github.com/Start9Labs/btc-rpc-proxy-wrappers',
+            upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
+            docsUrls: [],
+            marketingUrl: '',
+            releaseNotes: 'Upstream release and minor fixes.',
+            osVersion: '0.4.0',
+            sdkVersion: '0.4.0-beta.49',
+            gitHash: 'fakehash',
+            icon: PROXY_ICON,
+            sourceVersion: null,
+            satisfies: [],
+            dependencyMetadata: {
+              bitcoind: BitcoinDep,
+            },
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pks: [
+              [
+                { arch: null, device: [], ram: null },
+                {
+                  urls: [
+                    'https://github.com/Start9Labs/btc-rpc-proxy-startos/releases/download/v0.3.2.7/btc-rpc-proxy.s9pk',
+                  ],
+                  commitment: mockMerkleArchiveCommitment,
+                  signatures: {},
+                  publishedAt: Date.now().toString(),
+                },
+              ],
+            ],
+            hardwareAcceleration: false,
+            plugins: [],
+          },
+        },
+        categories: ['bitcoin'],
+        otherVersions: {
+          '0.4.0:0': {
+            releaseNotes: 'Major release with breaking changes.',
+          },
+        },
+      },
+    },
   }
 
   export const RegistryPackages: GetPackagesRes = {
@@ -968,7 +1022,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
     },
     'btc-rpc-proxy': {
       best: {
-        '0.3.2.7:0': {
+        '0.4.0:0': {
           title: 'Bitcoin Proxy',
           description: mockDescription,
           license: 'mit',
@@ -976,7 +1030,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
           docsUrls: [],
           marketingUrl: '',
-          releaseNotes: 'Upstream release and minor fixes.',
+          releaseNotes: 'Major release with breaking changes.',
           osVersion: '0.4.0',
           sdkVersion: '0.4.0-beta.49',
           gitHash: 'fakehash',
@@ -999,7 +1053,49 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
               { arch: null, device: [], ram: null },
               {
                 urls: [
-                  'https://github.com/Start9Labs/btc-rpc-proxy-startos/releases/download/v0.3.2.7/btc-rpc-proxy.s9pk',
+                  'https://github.com/Start9Labs/btc-rpc-proxy-startos/releases/download/v0.4.0/btc-rpc-proxy.s9pk',
+                ],
+                commitment: mockMerkleArchiveCommitment,
+                signatures: {},
+                publishedAt: Date.now().toString(),
+              },
+            ],
+          ],
+          hardwareAcceleration: false,
+          plugins: [],
+        },
+        '#test:0.5.0:0': {
+          title: 'Bitcoin Proxy (Test)',
+          description: mockDescription,
+          license: 'mit',
+          packageRepo: 'https://github.com/Start9Labs/btc-rpc-proxy-wrappers',
+          upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
+          docsUrls: [],
+          marketingUrl: '',
+          releaseNotes: 'Test flavor that claims compat with 0.3.2.7:0.',
+          osVersion: '0.4.0',
+          sdkVersion: '0.4.0-beta.49',
+          gitHash: 'fakehash',
+          icon: PROXY_ICON,
+          sourceVersion: null,
+          satisfies: ['0.3.2.7:0'],
+          dependencyMetadata: {
+            bitcoind: BitcoinDep,
+          },
+          donationUrl: null,
+          alerts: {
+            install: 'test',
+            uninstall: 'test',
+            start: 'test',
+            stop: 'test',
+            restore: 'test',
+          },
+          s9pks: [
+            [
+              { arch: null, device: [], ram: null },
+              {
+                urls: [
+                  'https://github.com/Start9Labs/btc-rpc-proxy-startos/releases/download/v0.5.0-test/btc-rpc-proxy.s9pk',
                 ],
                 commitment: mockMerkleArchiveCommitment,
                 signatures: {},
@@ -1012,7 +1108,11 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
         },
       },
       categories: ['bitcoin'],
-      otherVersions: {},
+      otherVersions: {
+        '0.3.2.7:0': {
+          releaseNotes: 'Upstream release and minor fixes.',
+        },
+      },
     },
   }
 

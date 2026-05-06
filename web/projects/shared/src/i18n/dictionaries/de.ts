@@ -750,4 +750,5 @@ export default {
   835: 'Standard',
   836: 'Aus',
   837: 'An',
+  838: 'Keine kompatible Version verfügbar',
 } satisfies i18n

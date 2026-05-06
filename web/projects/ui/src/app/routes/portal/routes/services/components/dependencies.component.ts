@@ -20,7 +20,15 @@ import { ToManifestPipe } from '../../../pipes/to-manifest'
       <a
         tuiCell
         [routerLink]="services[d.key] ? ['..', d.key] : ['/marketplace']"
-        [queryParams]="services[d.key] ? {} : { search: d.key }"
+        [queryParams]="
+          services[d.key]
+            ? {}
+            : {
+                search: d.key,
+                requirePkg: d.key,
+                requireRange: d.value.versionRange,
+              }
+        "
         [class.error]="getError(d.key)"
       >
         <span tuiAvatar appearance="action-grayscale" [round]="false">

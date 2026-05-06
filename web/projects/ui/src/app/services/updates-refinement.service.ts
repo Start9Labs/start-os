@@ -103,7 +103,7 @@ export class UpdatesRefinementService {
       this.marketplaceService
         .fetchPackage$(u.url, u.id, null, u.flavor, u.localVer)
         .pipe(
-          map<MarketplacePkg, RefineResult>(pkg => ({
+          map<MarketplacePkg | null, RefineResult>(pkg => ({
             key: u.key,
             pkg: this.isReachableAndNewer(pkg, u.localVer) ? pkg : null,
           })),

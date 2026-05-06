@@ -751,4 +751,5 @@ export const ENGLISH: Record<string, number> = {
   'Default': 835,
   'Off': 836,
   'On': 837,
+  'No compatible version available': 838,
 }

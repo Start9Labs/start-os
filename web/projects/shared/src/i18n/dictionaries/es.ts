@@ -750,4 +750,5 @@ export default {
   835: 'Predeterminado',
   836: 'Desactivado',
   837: 'Activado',
+  838: 'No hay versión compatible disponible',
 } satisfies i18n

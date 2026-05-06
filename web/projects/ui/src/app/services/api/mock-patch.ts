@@ -355,7 +355,7 @@ export const mockPatchData: DataModel = {
           title: Mock.ProxyDep.title,
           icon: Mock.ProxyDep.icon,
           kind: 'running',
-          versionRange: '>2.0.0',
+          versionRange: '<0.4.0',
           healthChecks: [],
         },
       },
