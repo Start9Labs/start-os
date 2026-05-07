@@ -218,7 +218,13 @@ pub async fn init(
 
     start_net.start();
     let net_ctrl = Arc::new(
-        NetController::init(db.clone(), cfg.socks_listen.unwrap_or(DEFAULT_SOCKS_LISTEN)).await?,
+        NetController::init(
+            db.clone(),
+            cfg.socks_listen.unwrap_or(DEFAULT_SOCKS_LISTEN),
+            cfg.max_proxy_conns_per_target
+                .unwrap_or(crate::net::vhost::MAX_PROXY_CONNS_PER_TARGET),
+        )
+        .await?,
     );
     webserver.send_modify(|wl| wl.set_ip_info(net_ctrl.net_iface.watcher.subscribe()));
     let os_net_service = net_ctrl.os_bindings().await?;

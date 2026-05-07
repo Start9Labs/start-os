@@ -3179,6 +3179,13 @@ help.arg.log-limit:
   fr_FR: "Nombre maximum d'entrées de journal"
   pl_PL: "Maksymalna liczba wpisów logu"
 
+help.arg.max-proxy-conns-per-target:
+  en_US: "Per-target cap on concurrent reverse-proxy connections; LRU evicts beyond this"
+  de_DE: "Obergrenze gleichzeitiger Reverse-Proxy-Verbindungen pro Ziel; LRU verdrängt darüber hinaus"
+  es_ES: "Límite por destino de conexiones simultáneas en el proxy inverso; LRU expulsa al superarse"
+  fr_FR: "Plafond par cible des connexions reverse-proxy simultanées ; LRU évince au-delà"
+  pl_PL: "Limit jednoczesnych połączeń proxy odwrotnego na cel; LRU usuwa po przekroczeniu"
+
 help.arg.merge:
   en_US: "Merge with existing version range instead of replacing"
   de_DE: "Mit vorhandenem Versionsbereich zusammenführen statt ersetzen"

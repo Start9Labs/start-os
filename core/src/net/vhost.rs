@@ -252,6 +252,7 @@ pub struct VHostController {
     crypto_provider: Arc<CryptoProvider>,
     acme_cache: AcmeTlsAlpnCache,
     branding: CertBranding,
+    max_proxy_conns_per_target: usize,
     servers: SyncMutex<BTreeMap<u16, VHostServer<VHostBindListener>>>,
     passthrough_handles: SyncMutex<BTreeMap<(InternedString, u16), PassthroughHandle>>,
 }
@@ -262,6 +263,7 @@ impl VHostController {
         crypto_provider: Arc<CryptoProvider>,
         branding: CertBranding,
         passthroughs: Vec<PassthroughInfo>,
+        max_proxy_conns_per_target: usize,
     ) -> Self {
         let controller = Self {
             db,
@@ -269,6 +271,7 @@ impl VHostController {
             crypto_provider,
             acme_cache: Arc::new(SyncMutex::new(BTreeMap::new())),
             branding,
+            max_proxy_conns_per_target,
             servers: SyncMutex::new(BTreeMap::new()),
             passthrough_handles: SyncMutex::new(BTreeMap::new()),
         };
@@ -298,7 +301,7 @@ impl VHostController {
             } else {
                 self.create_server(external)
             };
-            let rc = server.add(hostname, target);
+            let rc = server.add(hostname, target, self.max_proxy_conns_per_target);
             writable.insert(external, server);
             Ok(rc?)
         })
@@ -1037,10 +1040,10 @@ pub struct ProxyContext {
     pub registry: Arc<ConnRegistry>,
 }
 impl ProxyContext {
-    fn new() -> Self {
+    fn new(max_conns: usize) -> Self {
         Self {
             cancel: CancellationToken::new(),
-            registry: ConnRegistry::new(MAX_PROXY_CONNS_PER_TARGET),
+            registry: ConnRegistry::new(max_conns),
         }
     }
     pub fn track<S>(&self, stream: S) -> (ActivityStream<S>, ConnRegHandle) {
@@ -1084,10 +1087,10 @@ struct TargetEntry {
     ctx: ProxyContext,
 }
 impl TargetEntry {
-    fn new(rc: Weak<()>) -> Self {
+    fn new(rc: Weak<()>, max_conns: usize) -> Self {
         Self {
             rc,
-            ctx: ProxyContext::new(),
+            ctx: ProxyContext::new(max_conns),
         }
     }
     fn alive(&self) -> bool {
@@ -1440,6 +1443,7 @@ impl<A: Accept> VHostServer<A> {
         &self,
         hostname: Option<InternedString>,
         target: DynVHostTarget<A>,
+        max_proxy_conns_per_target: usize,
     ) -> Result<Arc<()>, Error> {
         let target = target.into();
         let mut res = Ok(Arc::new(()));
@@ -1462,13 +1466,19 @@ impl<A: Accept> VHostServer<A> {
                         e.ctx.cancel.cancel();
                         changed = true;
                         let rc = Arc::new(());
-                        (rc.clone(), TargetEntry::new(Arc::downgrade(&rc)))
+                        (
+                            rc.clone(),
+                            TargetEntry::new(Arc::downgrade(&rc), max_proxy_conns_per_target),
+                        )
                     }
                 },
                 None => {
                     changed = true;
                     let rc = Arc::new(());
-                    (rc.clone(), TargetEntry::new(Arc::downgrade(&rc)))
+                    (
+                        rc.clone(),
+                        TargetEntry::new(Arc::downgrade(&rc), max_proxy_conns_per_target),
+                    )
                 }
             };
             cancel_dead(&mut targets);
@@ -1627,7 +1637,7 @@ mod conn_cap_tests {
 
     #[tokio::test]
     async fn target_cancel_wakes_idle_proxy_task() {
-        let ctx = ProxyContext::new();
+        let ctx = ProxyContext::new(MAX_PROXY_CONNS_PER_TARGET);
         let (mut a, _a_peer) = tokio::io::duplex(64);
         let (mut b, _b_peer) = tokio::io::duplex(64);
         let target_cancel = ctx.cancel.clone();

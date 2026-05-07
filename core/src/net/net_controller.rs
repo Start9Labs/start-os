@@ -44,7 +44,11 @@ pub struct NetController {
 }
 
 impl NetController {
-    pub async fn init(db: TypedPatchDb<Database>, socks_listen: SocketAddr) -> Result<Self, Error> {
+    pub async fn init(
+        db: TypedPatchDb<Database>,
+        socks_listen: SocketAddr,
+        max_proxy_conns_per_target: usize,
+    ) -> Result<Self, Error> {
         let net_iface = Arc::new(NetworkInterfaceController::new(db.clone()));
         let socks = SocksController::new(socks_listen)?;
         let crypto_provider = Arc::new(tokio_rustls::rustls::crypto::ring::default_provider());
@@ -94,6 +98,7 @@ impl NetController {
                 crypto_provider,
                 branding,
                 passthroughs,
+                max_proxy_conns_per_target,
             ),
             tls_client_config,
             dns: DnsController::init(db, &net_iface.watcher).await?,

@@ -157,7 +157,16 @@ impl RpcContext {
         {
             (net_ctrl, os_net_service)
         } else {
-            let net_ctrl = Arc::new(NetController::init(db.clone(), socks_proxy).await?);
+            let net_ctrl = Arc::new(
+                NetController::init(
+                    db.clone(),
+                    socks_proxy,
+                    config
+                        .max_proxy_conns_per_target
+                        .unwrap_or(crate::net::vhost::MAX_PROXY_CONNS_PER_TARGET),
+                )
+                .await?,
+            );
             webserver.send_modify(|wl| wl.set_ip_info(net_ctrl.net_iface.watcher.subscribe()));
             let os_net_service = net_ctrl.os_bindings().await?;
             (net_ctrl, os_net_service)

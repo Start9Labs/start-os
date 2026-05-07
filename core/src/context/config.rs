@@ -147,6 +147,8 @@ pub struct ServerConfig {
     pub multi_arch_s9pks: Option<bool>,
     #[arg(long, help = "help.arg.developer-key-path")]
     pub developer_key_path: Option<PathBuf>,
+    #[arg(long, help = "help.arg.max-proxy-conns-per-target")]
+    pub max_proxy_conns_per_target: Option<usize>,
 }
 impl ContextConfig for ServerConfig {
     fn next(&mut self) -> Option<PathBuf> {
@@ -161,6 +163,10 @@ impl ContextConfig for ServerConfig {
         self.disable_encryption = self.disable_encryption.take().or(other.disable_encryption);
         self.multi_arch_s9pks = self.multi_arch_s9pks.take().or(other.multi_arch_s9pks);
         self.developer_key_path = self.developer_key_path.take().or(other.developer_key_path);
+        self.max_proxy_conns_per_target = self
+            .max_proxy_conns_per_target
+            .take()
+            .or(other.max_proxy_conns_per_target);
     }
 }
 
