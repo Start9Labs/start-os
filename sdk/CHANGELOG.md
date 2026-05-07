@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.3 — StartOS 0.4.0-beta.8 (2026-05-07)
+
+### Fixed
+
+- `FileHelper.produce` no longer leaks an `abort` listener on its parent `AbortSignal` per `fs.watch` event. The listener was registered inside the `while` loop and never detached, so after ~11 file changes during a single `.const()` lifetime Node emitted `MaxListenersExceededWarning: Possible EventTarget memory leak detected. 11 abort listeners added to [AbortSignal]`. The listener is now scoped to a single iteration via `try`/`finally` so it is removed before the next iteration registers its own. Fixes [#3182](https://github.com/Start9Labs/start-os/issues/3182)
+
 ## 1.4.2 — StartOS 0.4.0-beta.8 (2026-05-06)
 
 ### Changed

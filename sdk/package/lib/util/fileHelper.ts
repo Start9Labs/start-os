@@ -288,20 +288,25 @@ class FileHelperImpl<A> implements FileHelper<A> {
         while (this.effects.isInContext && !abort.aborted) {
           if (await exists(filePath)) {
             const ctrl = new AbortController()
-            abort.addEventListener('abort', () => ctrl.abort())
-            const watch = fs.watch(filePath, {
-              persistent: false,
-              signal: ctrl.signal,
-            })
-            yield await doRead()
-            await Promise.resolve()
-              .then(async () => {
-                for await (const _ of watch) {
-                  ctrl.abort()
-                  return null
-                }
+            const onAbort = () => ctrl.abort()
+            abort.addEventListener('abort', onAbort, { once: true })
+            try {
+              const watch = fs.watch(filePath, {
+                persistent: false,
+                signal: ctrl.signal,
               })
-              .catch((e) => console.error(asError(e)))
+              yield await doRead()
+              await Promise.resolve()
+                .then(async () => {
+                  for await (const _ of watch) {
+                    ctrl.abort()
+                    return null
+                  }
+                })
+                .catch((e) => console.error(asError(e)))
+            } finally {
+              abort.removeEventListener('abort', onAbort)
+            }
           } else {
             yield null
             await onCreated(filePath).catch((e) => console.error(asError(e)))
