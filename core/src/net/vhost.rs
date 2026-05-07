@@ -947,6 +947,23 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for ActivityStream<S> {
     ) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.inner).poll_shutdown(cx)
     }
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bufs: &[std::io::IoSlice<'_>],
+    ) -> Poll<std::io::Result<usize>> {
+        let res = Pin::new(&mut self.inner).poll_write_vectored(cx, bufs);
+        if let Poll::Ready(Ok(n)) = &res {
+            if *n > 0 {
+                self.last_active
+                    .store(monotonic_millis(), Ordering::Relaxed);
+            }
+        }
+        res
+    }
+    fn is_write_vectored(&self) -> bool {
+        self.inner.is_write_vectored()
+    }
 }
 
 #[derive(Debug)]
