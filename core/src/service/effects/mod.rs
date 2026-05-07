@@ -14,6 +14,7 @@ mod control;
 mod dependency;
 mod health;
 mod net;
+pub mod notification;
 pub mod plugin;
 mod prelude;
 pub mod subcontainer;
@@ -95,6 +96,14 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
         )
         // health
         .subcommand("set-health", from_fn_async(health::set_health).no_cli())
+        // notification
+        .subcommand(
+            "notification",
+            ParentHandler::<C>::new().subcommand(
+                "create",
+                from_fn_async(notification::create).no_cli(),
+            ),
+        )
         // subcontainer
         .subcommand(
             "subcontainer",

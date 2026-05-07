@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0 — StartOS 0.4.0-beta.8 (2026-05-08)
+
+### Added
+
+- `sdk.notification.create(effects, options)` lets a package post a notification into the StartOS notifications panel, alongside the ones StartOS itself generates (e.g. on backup completion). The shape of `options` is discriminated by `code`: `code: 0` is a plain notification with no payload; `code: 2` carries a markdown-formatted `data` body that the UI renders in a "View Details" modal (release notes, post-update changelogs, structured error reports — long-form content, not a short status string). `code: 1` (backup reports) is reserved for the OS and rejected by the host. The host forces `packageId` to the calling service's id, so a package can't spoof another package
+- Backed by a new effect `effects.notification.create(...)` (requires StartOS 0.4.0-beta.8 with the matching backend handler)
+
 ## 1.4.3 — StartOS 0.4.0-beta.8 (2026-05-07)
 
 ### Fixed

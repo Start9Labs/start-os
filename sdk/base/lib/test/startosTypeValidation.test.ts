@@ -19,6 +19,7 @@ import { CreateSubcontainerFsParams } from '.././osBindings'
 import { DestroySubcontainerFsParams } from '.././osBindings'
 import { BindParams } from '.././osBindings'
 import { GetHostInfoParams } from '.././osBindings'
+import { CreateNotificationParams } from '.././osBindings'
 import { SetHealth } from '.././osBindings'
 import { GetSslCertificateParams } from '.././osBindings'
 import { GetSslKeyParams } from '.././osBindings'
@@ -76,6 +77,9 @@ describe('startosTypeValidation ', () => {
       setDataVersion: {} as SetDataVersionParams,
       getDataVersion: undefined,
       setHealth: {} as SetHealth,
+      notification: {
+        create: {} as CreateNotificationParams,
+      },
       getSslCertificate: {} as WithCallback<GetSslCertificateParams>,
       getSslKey: {} as GetSslKeyParams,
       getServiceInterface: {} as WithCallback<GetServiceInterfaceParams>,
