@@ -1560,6 +1560,8 @@ async fn copy_bidirectional_hangs_without_keepalive_when_peer_idle() {
 
 #[cfg(test)]
 mod conn_cap_tests {
+    use std::time::Duration;
+
     use super::*;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
