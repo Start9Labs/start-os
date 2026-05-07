@@ -40,6 +40,13 @@ pub const CONTAINER_RPC_SERVER_SOCKET: &str = "service.sock"; // must not be abs
 pub const HOST_RPC_SERVER_SOCKET: &str = "host.sock"; // must not be absolute path
 const CONTAINER_DHCP_TIMEOUT: Duration = Duration::from_secs(30);
 const HARDWARE_ACCELERATION_PATHS: &[&str] = &["/dev/dri", "/dev/nvidia*", "/dev/kfd"];
+// Devices needed by rootless OCI engines (podman/docker) running inside a
+// service that opted in via `manifest.nestedRuntime`:
+//  - /dev/fuse:    fuse-overlayfs storage (the only viable rootless storage
+//                  driver inside a userns LXC; kernel overlayfs-on-overlayfs
+//                  is denied for unprivileged users).
+//  - /dev/net/tun: slirp4netns / pasta networking for nested containers.
+const NESTED_RUNTIME_PATHS: &[&str] = &["/dev/fuse", "/dev/net/tun"];
 
 #[derive(
     Clone, Debug, Serialize, Deserialize, Default, PartialEq, Eq, PartialOrd, Ord, Hash, TS,
@@ -183,9 +190,6 @@ impl LxcContainer {
             guid = &*guid,
             lang = &lang,
         );
-        if config.nested_runtime {
-            config_str.push_str(NESTED_RUNTIME_CONFIG);
-        }
         tokio::fs::write(container_dir.join("config"), config_str).await?;
         let rootfs_dir = container_dir.join("rootfs");
         let rootfs = OverlayGuard::mount(
@@ -301,6 +305,15 @@ impl LxcContainer {
                     .await
                     .with_ctx(|_| (ErrorKind::Filesystem, "readdir /dev"))?,
                 HARDWARE_ACCELERATION_PATHS,
+            )
+            .await?;
+        }
+        if res.config.nested_runtime {
+            res.handle_devices(
+                tokio::fs::read_dir("/dev")
+                    .await
+                    .with_ctx(|_| (ErrorKind::Filesystem, "readdir /dev"))?,
+                NESTED_RUNTIME_PATHS,
             )
             .await?;
         }
@@ -648,22 +661,6 @@ pub struct LxcConfig {
     pub hardware_acceleration: bool,
     pub nested_runtime: bool,
 }
-
-// Adding any `lxc.cgroup2.devices.allow` here would install a restrictive eBPF
-// device program that overrides the cleared default in userns.conf — that
-// blocks /dev/null & friends and the container fails to start (systemd
-// EXIT_STDIN=208). The bind mount alone is enough: host /dev/fuse is mode 0666
-// so processes inside the userns LXC can use it without a device-cgroup grant.
-const NESTED_RUNTIME_CONFIG: &str = "
-# Nested OCI runtime opt-in (manifest.nestedRuntime)
-# fuse-overlayfs is the only viable storage driver for rootless docker/podman
-# inside a userns LXC: kernel overlayfs-on-overlayfs is denied for unprivileged
-# users, so the engine falls back to FUSE.
-lxc.mount.entry = /dev/fuse dev/fuse none bind,create=file,optional 0 0
-# /dev/net/tun is required by slirp4netns / pasta to provide network to
-# rootless containers without setting up host bridges.
-lxc.mount.entry = /dev/net/tun dev/net/tun none bind,create=file,optional 0 0
-";
 
 pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid, Error> {
     use axum::extract::ws::Message;
