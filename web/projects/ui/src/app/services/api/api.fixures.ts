@@ -803,6 +803,7 @@ export namespace Mock {
               ],
             ],
             hardwareAcceleration: false,
+            nestedRuntime: false,
             plugins: [],
           },
         },
@@ -1075,6 +1076,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             ],
           ],
           hardwareAcceleration: false,
+          nestedRuntime: false,
           plugins: [],
         },
         '#test:0.5.0:0': {
