@@ -219,7 +219,7 @@ tokio-rustls = "0.26.4"
 tokio-stream = { version = "0.1.14", features = ["io-util", "net", "sync"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
 tokio-tungstenite = { version = "0.26.2", features = ["native-tls", "url"] }
-tokio-util = { version = "0.7.9", features = ["io"] }
+tokio-util = { version = "0.7.9", features = ["io", "rt"] }
 tower-service = "0.3.3"
 tracing = "0.1.39"
 tracing-error = "0.2.0"
