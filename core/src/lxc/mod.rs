@@ -660,6 +660,9 @@ const NESTED_RUNTIME_CONFIG: &str = "
 # inside a userns LXC: kernel overlayfs-on-overlayfs is denied for unprivileged
 # users, so the engine falls back to FUSE.
 lxc.mount.entry = /dev/fuse dev/fuse none bind,create=file,optional 0 0
+# /dev/net/tun is required by slirp4netns / pasta to provide network to
+# rootless containers without setting up host bridges.
+lxc.mount.entry = /dev/net/tun dev/net/tun none bind,create=file,optional 0 0
 ";
 
 pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid, Error> {

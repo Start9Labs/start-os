@@ -267,8 +267,43 @@ impl ExecParams {
             }
         }
 
-        std::os::unix::fs::chroot(chroot)
-            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("chroot {chroot:?}")))?;
+        // Switch into the subcontainer rootfs via pivot_root rather than
+        // chroot. The kernel's `current_chrooted()` check rejects
+        // `unshare(CLONE_NEWUSER)` from a chrooted process, so a chrooted
+        // service can't spawn a rootless OCI runtime (podman/docker), which
+        // is the whole point of `manifest.nestedRuntime`. pivot_root runs
+        // inside its own mount namespace and doesn't trip that check.
+        nix::sched::unshare(CloneFlags::CLONE_NEWNS)
+            .with_ctx(|_| (ErrorKind::Filesystem, "unshare mount ns"))?;
+        nix::mount::mount(
+            None::<&str>,
+            "/",
+            None::<&str>,
+            nix::mount::MsFlags::MS_REC | nix::mount::MsFlags::MS_PRIVATE,
+            None::<&str>,
+        )
+        .with_ctx(|_| (ErrorKind::Filesystem, "make / private"))?;
+        // pivot_root requires the new root to itself be a mount.
+        nix::mount::mount(
+            Some(chroot.as_path()),
+            chroot.as_path(),
+            None::<&str>,
+            nix::mount::MsFlags::MS_BIND | nix::mount::MsFlags::MS_REC,
+            None::<&str>,
+        )
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("bind {chroot:?} on itself")))?;
+        let put_old = chroot.join(".put_old");
+        std::fs::create_dir_all(&put_old)
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir {put_old:?}")))?;
+        std::env::set_current_dir(chroot)
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("chdir {chroot:?}")))?;
+        nix::unistd::pivot_root(".", ".put_old")
+            .with_ctx(|_| (ErrorKind::Filesystem, "pivot_root"))?;
+        std::env::set_current_dir("/")
+            .with_ctx(|_| (ErrorKind::Filesystem, "chdir /"))?;
+        nix::mount::umount2("/.put_old", nix::mount::MntFlags::MNT_DETACH)
+            .with_ctx(|_| (ErrorKind::Filesystem, "umount /.put_old"))?;
+        std::fs::remove_dir("/.put_old").ok();
         if let Ok(uid) = uid {
             if uid != 0 {
                 std::os::unix::fs::chown("/proc/self/fd/0", Some(uid), gid.ok()).ok();

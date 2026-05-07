@@ -187,9 +187,15 @@ user.max_user_namespaces=28633
 kernel.unprivileged_userns_clone=1
 EOF
 
-# Ensure /dev/fuse is available on the host so service LXCs that opt in via
-# manifest.nestedRuntime can bind-mount it (lxc/mod.rs::NESTED_RUNTIME_CONFIG).
-echo fuse > /etc/modules-load.d/startos-fuse.conf
+# Ensure /dev/fuse and /dev/net/tun are available on the host so service LXCs
+# that opt in via manifest.nestedRuntime can bind-mount them
+# (lxc/mod.rs::NESTED_RUNTIME_CONFIG). tun is what slirp4netns / pasta need to
+# provide rootless network to nested OCI containers.
+cat > /etc/modules-load.d/startos-nested-runtime.conf <<EOF
+fuse
+tun
+EOF
+rm -f /etc/modules-load.d/startos-fuse.conf
 
 if ! getent group | grep '^startos:'; then
 	groupadd startos
