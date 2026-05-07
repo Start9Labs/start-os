@@ -575,7 +575,6 @@ pub async fn cli_download(
         .await?;
     progress_sink.into_inner().1.complete();
 
-    source.wait_for_buffered().await?;
     tokio::fs::rename(dest_tmp, dest).await?;
 
     progress_tracker.complete();
