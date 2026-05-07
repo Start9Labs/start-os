@@ -1,20 +1,16 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
-use openssl::asn1::{Asn1Integer, Asn1Time};
-use openssl::bn::{BigNum, MsbOption};
-use openssl::ec::{EcGroup, EcKey};
-use openssl::hash::MessageDigest;
-use openssl::nid::Nid;
-use openssl::pkey::{PKey, Private};
-use openssl::x509::extension::{
-    AuthorityKeyIdentifier, BasicConstraints, KeyUsage,
-    SubjectAlternativeName, SubjectKeyIdentifier,
+use imbl_value::InternedString;
+use openssl::pkey::PKey;
+use openssl::x509::X509;
+use startos::net::ssl::{
+    CertBranding, SANInfo, gen_nistp256, make_int_cert, make_leaf_cert, make_root_cert,
+    should_use_cert,
 };
-use openssl::x509::{X509Builder, X509};
-use openssl::x509::X509NameBuilder;
 
 use uciedit::openwrt::NetworkInterface;
 use uciedit::{parse_all, Arena};
@@ -35,12 +31,6 @@ const SERVER_KEY_FILENAME: &str = "startwrt-server.key";
 
 /// Default SAN hostname for the router.
 const ROUTER_HOSTNAME: &str = "router.lan";
-
-/// Renew the leaf cert if it expires within this many days.
-const RENEWAL_THRESHOLD_DAYS: u32 = 30;
-
-/// X509 version 3 is encoded as 2.
-const X509_VERSION_3: i32 = 2;
 
 /// The IPv4 and optional IPv6 addresses to include in the server certificate SAN.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,113 +85,26 @@ fn ensure_dirs() -> Result<(), Error> {
     Ok(())
 }
 
-/// Generate a random 64-bit serial number.
-fn rand_serial() -> Result<Asn1Integer, Error> {
-    let mut bn = BigNum::new()
-        .map_err(|e| Error::new(eyre!("failed to create BigNum: {e}"), ErrorKind::OpenSsl))?;
-    bn.rand(64, MsbOption::MAYBE_ZERO, false)
-        .map_err(|e| Error::new(eyre!("failed to generate random serial: {e}"), ErrorKind::OpenSsl))?;
-    Asn1Integer::from_bn(&bn)
-        .map_err(|e| Error::new(eyre!("failed to convert serial to ASN1: {e}"), ErrorKind::OpenSsl))
-}
-
-/// Generate a NIST P-256 EC key pair.
-fn gen_ec_key() -> Result<PKey<Private>, Error> {
-    let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1)
-        .map_err(|e| Error::new(eyre!("failed to get EC group: {e}"), ErrorKind::OpenSsl))?;
-    let ec_key = EcKey::generate(&group)
-        .map_err(|e| Error::new(eyre!("failed to generate EC key: {e}"), ErrorKind::OpenSsl))?;
-    PKey::from_ec_key(ec_key)
-        .map_err(|e| Error::new(eyre!("failed to wrap EC key: {e}"), ErrorKind::OpenSsl))
-}
-
-/// Current unix timestamp.
-fn unix_now() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64
+/// Branding baked into the Subject (CN/O/OU) of StartWRT-issued certs.
+fn startwrt_branding() -> CertBranding {
+    CertBranding {
+        organization: InternedString::intern("Start9"),
+        organizational_unit: InternedString::intern("StartWRT"),
+        root_ca_cn: InternedString::intern("StartWRT Local Root CA"),
+        intermediate_ca_cn: InternedString::intern("StartWRT Local Intermediate CA"),
+    }
 }
 
 /// Generate a new Root CA key pair and self-signed certificate.
 /// Returns (cert_pem, key_pem).
 fn generate_root_ca() -> Result<(String, String), Error> {
-    let key = gen_ec_key()?;
+    let key = gen_nistp256()?;
+    let cert = make_root_cert(&key, &startwrt_branding(), SystemTime::now())?;
 
-    let mut builder = X509Builder::new()
-        .map_err(|e| Error::new(eyre!("failed to create X509 builder: {e}"), ErrorKind::OpenSsl))?;
-    builder.set_version(X509_VERSION_3)
-        .map_err(|e| Error::new(eyre!("failed to set version: {e}"), ErrorKind::OpenSsl))?;
-
-    let now = unix_now();
-    let not_before = Asn1Time::from_unix(now - 86400)
-        .map_err(|e| Error::new(eyre!("failed to create not_before: {e}"), ErrorKind::OpenSsl))?;
-    let not_after = Asn1Time::from_unix(now + 3650 * 86400)
-        .map_err(|e| Error::new(eyre!("failed to create not_after: {e}"), ErrorKind::OpenSsl))?;
-    builder.set_not_before(&not_before)
-        .map_err(|e| Error::new(eyre!("failed to set not_before: {e}"), ErrorKind::OpenSsl))?;
-    builder.set_not_after(&not_after)
-        .map_err(|e| Error::new(eyre!("failed to set not_after: {e}"), ErrorKind::OpenSsl))?;
-
-    builder.set_serial_number(&*rand_serial()?)
-        .map_err(|e| Error::new(eyre!("failed to set serial: {e}"), ErrorKind::OpenSsl))?;
-
-    let mut name_builder = X509NameBuilder::new()
-        .map_err(|e| Error::new(eyre!("failed to create name builder: {e}"), ErrorKind::OpenSsl))?;
-    name_builder.append_entry_by_text("CN", "StartWRT Local Root CA")
-        .map_err(|e| Error::new(eyre!("failed to set CN: {e}"), ErrorKind::OpenSsl))?;
-    name_builder.append_entry_by_text("O", "Start9")
-        .map_err(|e| Error::new(eyre!("failed to set O: {e}"), ErrorKind::OpenSsl))?;
-    name_builder.append_entry_by_text("OU", "StartWRT")
-        .map_err(|e| Error::new(eyre!("failed to set OU: {e}"), ErrorKind::OpenSsl))?;
-    let subject_name = name_builder.build();
-    builder.set_subject_name(&subject_name)
-        .map_err(|e| Error::new(eyre!("failed to set subject: {e}"), ErrorKind::OpenSsl))?;
-    builder.set_issuer_name(&subject_name)
-        .map_err(|e| Error::new(eyre!("failed to set issuer: {e}"), ErrorKind::OpenSsl))?;
-
-    builder.set_pubkey(&key)
-        .map_err(|e| Error::new(eyre!("failed to set pubkey: {e}"), ErrorKind::OpenSsl))?;
-
-    // Extensions
-    let cfg = openssl::conf::Conf::new(openssl::conf::ConfMethod::default())
-        .map_err(|e| Error::new(eyre!("failed to create conf: {e}"), ErrorKind::OpenSsl))?;
-    let ctx = builder.x509v3_context(None, Some(&cfg));
-
-    let ski = SubjectKeyIdentifier::new().build(&ctx)
-        .map_err(|e| Error::new(eyre!("failed to build SKI: {e}"), ErrorKind::OpenSsl))?;
-    let aki = AuthorityKeyIdentifier::new().keyid(false).issuer(true).build(&ctx)
-        .map_err(|e| Error::new(eyre!("failed to build AKI: {e}"), ErrorKind::OpenSsl))?;
-    let bc = BasicConstraints::new().critical().ca().build()
-        .map_err(|e| Error::new(eyre!("failed to build basic constraints: {e}"), ErrorKind::OpenSsl))?;
-    let ku = KeyUsage::new()
-        .critical()
-        .digital_signature()
-        .crl_sign()
-        .key_cert_sign()
-        .build()
-        .map_err(|e| Error::new(eyre!("failed to build key usage: {e}"), ErrorKind::OpenSsl))?;
-
-    builder.append_extension(ski)
-        .map_err(|e| Error::new(eyre!("failed to append SKI: {e}"), ErrorKind::OpenSsl))?;
-    builder.append_extension(aki)
-        .map_err(|e| Error::new(eyre!("failed to append AKI: {e}"), ErrorKind::OpenSsl))?;
-    builder.append_extension(bc)
-        .map_err(|e| Error::new(eyre!("failed to append basic constraints: {e}"), ErrorKind::OpenSsl))?;
-    builder.append_extension(ku)
-        .map_err(|e| Error::new(eyre!("failed to append key usage: {e}"), ErrorKind::OpenSsl))?;
-
-    builder.sign(&key, MessageDigest::sha256())
-        .map_err(|e| Error::new(eyre!("failed to sign CA cert: {e}"), ErrorKind::OpenSsl))?;
-
-    let cert = builder.build();
-    let cert_pem = String::from_utf8(cert.to_pem()
-        .map_err(|e| Error::new(eyre!("failed to encode CA cert PEM: {e}"), ErrorKind::OpenSsl))?)
+    let cert_pem = String::from_utf8(cert.to_pem()?)
         .map_err(|e| Error::new(eyre!("CA cert PEM is not UTF-8: {e}"), ErrorKind::OpenSsl))?;
-    let key_pem = String::from_utf8(key.private_key_to_pem_pkcs8()
-        .map_err(|e| Error::new(eyre!("failed to encode CA key PEM: {e}"), ErrorKind::OpenSsl))?)
+    let key_pem = String::from_utf8(key.private_key_to_pem_pkcs8()?)
         .map_err(|e| Error::new(eyre!("CA key PEM is not UTF-8: {e}"), ErrorKind::OpenSsl))?;
-
     Ok((cert_pem, key_pem))
 }
 
@@ -211,86 +114,18 @@ fn generate_intermediate_ca(
     ca_cert_pem: &str,
     ca_key_pem: &str,
 ) -> Result<(String, String), Error> {
-    let ca_cert = X509::from_pem(ca_cert_pem.as_bytes())
-        .map_err(|e| Error::new(eyre!("failed to parse CA cert: {e}"), ErrorKind::OpenSsl))?;
-    let ca_key = PKey::private_key_from_pem(ca_key_pem.as_bytes())
-        .map_err(|e| Error::new(eyre!("failed to parse CA key: {e}"), ErrorKind::OpenSsl))?;
+    let ca_cert = X509::from_pem(ca_cert_pem.as_bytes())?;
+    let ca_key = PKey::private_key_from_pem(ca_key_pem.as_bytes())?;
 
-    let key = gen_ec_key()?;
+    let key = gen_nistp256()?;
+    let cert = make_int_cert((&ca_key, &ca_cert), &key, &startwrt_branding())?;
 
-    let mut builder = X509Builder::new()
-        .map_err(|e| Error::new(eyre!("failed to create X509 builder: {e}"), ErrorKind::OpenSsl))?;
-    builder.set_version(X509_VERSION_3)
-        .map_err(|e| Error::new(eyre!("failed to set version: {e}"), ErrorKind::OpenSsl))?;
-
-    // Match root CA validity period
-    builder.set_not_before(ca_cert.not_before())
-        .map_err(|e| Error::new(eyre!("failed to set not_before: {e}"), ErrorKind::OpenSsl))?;
-    builder.set_not_after(ca_cert.not_after())
-        .map_err(|e| Error::new(eyre!("failed to set not_after: {e}"), ErrorKind::OpenSsl))?;
-
-    builder.set_serial_number(&*rand_serial()?)
-        .map_err(|e| Error::new(eyre!("failed to set serial: {e}"), ErrorKind::OpenSsl))?;
-
-    let mut name_builder = X509NameBuilder::new()
-        .map_err(|e| Error::new(eyre!("failed to create name builder: {e}"), ErrorKind::OpenSsl))?;
-    name_builder.append_entry_by_text("CN", "StartWRT Local Intermediate CA")
-        .map_err(|e| Error::new(eyre!("failed to set CN: {e}"), ErrorKind::OpenSsl))?;
-    name_builder.append_entry_by_text("O", "Start9")
-        .map_err(|e| Error::new(eyre!("failed to set O: {e}"), ErrorKind::OpenSsl))?;
-    name_builder.append_entry_by_text("OU", "StartWRT")
-        .map_err(|e| Error::new(eyre!("failed to set OU: {e}"), ErrorKind::OpenSsl))?;
-    let subject_name = name_builder.build();
-    builder.set_subject_name(&subject_name)
-        .map_err(|e| Error::new(eyre!("failed to set subject: {e}"), ErrorKind::OpenSsl))?;
-
-    // Issuer is the root CA's subject
-    builder.set_issuer_name(ca_cert.subject_name())
-        .map_err(|e| Error::new(eyre!("failed to set issuer: {e}"), ErrorKind::OpenSsl))?;
-
-    builder.set_pubkey(&key)
-        .map_err(|e| Error::new(eyre!("failed to set pubkey: {e}"), ErrorKind::OpenSsl))?;
-
-    // Extensions
-    let cfg = openssl::conf::Conf::new(openssl::conf::ConfMethod::default())
-        .map_err(|e| Error::new(eyre!("failed to create conf: {e}"), ErrorKind::OpenSsl))?;
-    let ctx = builder.x509v3_context(Some(&ca_cert), Some(&cfg));
-
-    let ski = SubjectKeyIdentifier::new().build(&ctx)
-        .map_err(|e| Error::new(eyre!("failed to build SKI: {e}"), ErrorKind::OpenSsl))?;
-    let aki = AuthorityKeyIdentifier::new().keyid(true).issuer(true).build(&ctx)
-        .map_err(|e| Error::new(eyre!("failed to build AKI: {e}"), ErrorKind::OpenSsl))?;
-    let bc = BasicConstraints::new().critical().ca().pathlen(0).build()
-        .map_err(|e| Error::new(eyre!("failed to build basic constraints: {e}"), ErrorKind::OpenSsl))?;
-    let ku = KeyUsage::new()
-        .critical()
-        .digital_signature()
-        .crl_sign()
-        .key_cert_sign()
-        .build()
-        .map_err(|e| Error::new(eyre!("failed to build key usage: {e}"), ErrorKind::OpenSsl))?;
-
-    builder.append_extension(ski)
-        .map_err(|e| Error::new(eyre!("failed to append SKI: {e}"), ErrorKind::OpenSsl))?;
-    builder.append_extension(aki)
-        .map_err(|e| Error::new(eyre!("failed to append AKI: {e}"), ErrorKind::OpenSsl))?;
-    builder.append_extension(bc)
-        .map_err(|e| Error::new(eyre!("failed to append basic constraints: {e}"), ErrorKind::OpenSsl))?;
-    builder.append_extension(ku)
-        .map_err(|e| Error::new(eyre!("failed to append key usage: {e}"), ErrorKind::OpenSsl))?;
-
-    // Sign with the root CA's key
-    builder.sign(&ca_key, MessageDigest::sha256())
-        .map_err(|e| Error::new(eyre!("failed to sign intermediate cert: {e}"), ErrorKind::OpenSsl))?;
-
-    let cert = builder.build();
-    let cert_pem = String::from_utf8(cert.to_pem()
-        .map_err(|e| Error::new(eyre!("failed to encode intermediate cert PEM: {e}"), ErrorKind::OpenSsl))?)
-        .map_err(|e| Error::new(eyre!("intermediate cert PEM is not UTF-8: {e}"), ErrorKind::OpenSsl))?;
-    let key_pem = String::from_utf8(key.private_key_to_pem_pkcs8()
-        .map_err(|e| Error::new(eyre!("failed to encode intermediate key PEM: {e}"), ErrorKind::OpenSsl))?)
-        .map_err(|e| Error::new(eyre!("intermediate key PEM is not UTF-8: {e}"), ErrorKind::OpenSsl))?;
-
+    let cert_pem = String::from_utf8(cert.to_pem()?).map_err(|e| {
+        Error::new(eyre!("intermediate cert PEM is not UTF-8: {e}"), ErrorKind::OpenSsl)
+    })?;
+    let key_pem = String::from_utf8(key.private_key_to_pem_pkcs8()?).map_err(|e| {
+        Error::new(eyre!("intermediate key PEM is not UTF-8: {e}"), ErrorKind::OpenSsl)
+    })?;
     Ok((cert_pem, key_pem))
 }
 
@@ -303,102 +138,34 @@ fn generate_leaf_cert(
     ca_cert_pem: &str,
     addrs: &LanAddresses,
 ) -> Result<(String, String), Error> {
-    let ca_cert = X509::from_pem(int_cert_pem.as_bytes())
-        .map_err(|e| Error::new(eyre!("failed to parse intermediate cert: {e}"), ErrorKind::OpenSsl))?;
-    let ca_key = PKey::private_key_from_pem(int_key_pem.as_bytes())
-        .map_err(|e| Error::new(eyre!("failed to parse intermediate key: {e}"), ErrorKind::OpenSsl))?;
+    let int_cert = X509::from_pem(int_cert_pem.as_bytes())?;
+    let int_key = PKey::private_key_from_pem(int_key_pem.as_bytes())?;
 
-    let leaf_key = gen_ec_key()?;
+    let leaf_key = gen_nistp256()?;
 
-    let mut builder = X509Builder::new()
-        .map_err(|e| Error::new(eyre!("failed to create X509 builder: {e}"), ErrorKind::OpenSsl))?;
-    builder.set_version(X509_VERSION_3)
-        .map_err(|e| Error::new(eyre!("failed to set version: {e}"), ErrorKind::OpenSsl))?;
-
-    let now = unix_now();
-    let not_before = Asn1Time::from_unix(now - 86400)
-        .map_err(|e| Error::new(eyre!("failed to create not_before: {e}"), ErrorKind::OpenSsl))?;
-    let not_after = Asn1Time::days_from_now(397)
-        .map_err(|e| Error::new(eyre!("failed to create not_after: {e}"), ErrorKind::OpenSsl))?;
-    builder.set_not_before(&not_before)
-        .map_err(|e| Error::new(eyre!("failed to set not_before: {e}"), ErrorKind::OpenSsl))?;
-    builder.set_not_after(&not_after)
-        .map_err(|e| Error::new(eyre!("failed to set not_after: {e}"), ErrorKind::OpenSsl))?;
-
-    builder.set_serial_number(&*rand_serial()?)
-        .map_err(|e| Error::new(eyre!("failed to set serial: {e}"), ErrorKind::OpenSsl))?;
-
-    let mut name_builder = X509NameBuilder::new()
-        .map_err(|e| Error::new(eyre!("failed to create name builder: {e}"), ErrorKind::OpenSsl))?;
-    name_builder.append_entry_by_text("CN", ROUTER_HOSTNAME)
-        .map_err(|e| Error::new(eyre!("failed to set CN: {e}"), ErrorKind::OpenSsl))?;
-    name_builder.append_entry_by_text("O", "Start9")
-        .map_err(|e| Error::new(eyre!("failed to set O: {e}"), ErrorKind::OpenSsl))?;
-    name_builder.append_entry_by_text("OU", "StartWRT")
-        .map_err(|e| Error::new(eyre!("failed to set OU: {e}"), ErrorKind::OpenSsl))?;
-    let subject_name = name_builder.build();
-    builder.set_subject_name(&subject_name)
-        .map_err(|e| Error::new(eyre!("failed to set subject: {e}"), ErrorKind::OpenSsl))?;
-
-    // Issuer is the CA's subject
-    builder.set_issuer_name(ca_cert.subject_name())
-        .map_err(|e| Error::new(eyre!("failed to set issuer: {e}"), ErrorKind::OpenSsl))?;
-
-    builder.set_pubkey(&leaf_key)
-        .map_err(|e| Error::new(eyre!("failed to set pubkey: {e}"), ErrorKind::OpenSsl))?;
-
-    // Extensions — pass CA cert for AKI derivation
-    let cfg = openssl::conf::Conf::new(openssl::conf::ConfMethod::default())
-        .map_err(|e| Error::new(eyre!("failed to create conf: {e}"), ErrorKind::OpenSsl))?;
-    let ctx = builder.x509v3_context(Some(&ca_cert), Some(&cfg));
-
-    let ski = SubjectKeyIdentifier::new().build(&ctx)
-        .map_err(|e| Error::new(eyre!("failed to build SKI: {e}"), ErrorKind::OpenSsl))?;
-    let aki = AuthorityKeyIdentifier::new().keyid(true).issuer(false).build(&ctx)
-        .map_err(|e| Error::new(eyre!("failed to build AKI: {e}"), ErrorKind::OpenSsl))?;
-    let mut san_builder = SubjectAlternativeName::new();
-    san_builder.dns(ROUTER_HOSTNAME);
-    san_builder.ip(&addrs.ipv4.to_string());
+    // SANInfo partitions by parseability: strings that parse as IPs become IP
+    // SANs, others become DNS SANs.
+    let mut san_hostnames: BTreeSet<InternedString> = BTreeSet::new();
+    san_hostnames.insert(InternedString::intern(ROUTER_HOSTNAME));
+    san_hostnames.insert(InternedString::from_display(&addrs.ipv4));
     if let Some(ipv6) = addrs.ipv6 {
-        san_builder.ip(&ipv6.to_string());
+        san_hostnames.insert(InternedString::from_display(&ipv6));
     }
-    let san = san_builder
-        .build(&ctx)
-        .map_err(|e| Error::new(eyre!("failed to build SAN: {e}"), ErrorKind::OpenSsl))?;
-    let bc = BasicConstraints::new().build()
-        .map_err(|e| Error::new(eyre!("failed to build basic constraints: {e}"), ErrorKind::OpenSsl))?;
-    let ku = KeyUsage::new()
-        .critical()
-        .digital_signature()
-        .key_encipherment()
-        .build()
-        .map_err(|e| Error::new(eyre!("failed to build key usage: {e}"), ErrorKind::OpenSsl))?;
-    builder.append_extension(ski)
-        .map_err(|e| Error::new(eyre!("failed to append SKI: {e}"), ErrorKind::OpenSsl))?;
-    builder.append_extension(aki)
-        .map_err(|e| Error::new(eyre!("failed to append AKI: {e}"), ErrorKind::OpenSsl))?;
-    builder.append_extension(san)
-        .map_err(|e| Error::new(eyre!("failed to append SAN: {e}"), ErrorKind::OpenSsl))?;
-    builder.append_extension(bc)
-        .map_err(|e| Error::new(eyre!("failed to append basic constraints: {e}"), ErrorKind::OpenSsl))?;
-    builder.append_extension(ku)
-        .map_err(|e| Error::new(eyre!("failed to append key usage: {e}"), ErrorKind::OpenSsl))?;
+    let san_info = SANInfo::new(&san_hostnames);
 
-    // Sign with the CA's key
-    builder.sign(&ca_key, MessageDigest::sha256())
-        .map_err(|e| Error::new(eyre!("failed to sign server cert: {e}"), ErrorKind::OpenSsl))?;
+    let leaf_cert = make_leaf_cert(
+        (&int_key, &int_cert),
+        (&leaf_key, &san_info),
+        &startwrt_branding(),
+    )?;
 
-    let cert = builder.build();
-    let leaf_pem = String::from_utf8(cert.to_pem()
-        .map_err(|e| Error::new(eyre!("failed to encode leaf cert PEM: {e}"), ErrorKind::OpenSsl))?)
+    let leaf_pem = String::from_utf8(leaf_cert.to_pem()?)
         .map_err(|e| Error::new(eyre!("leaf cert PEM is not UTF-8: {e}"), ErrorKind::OpenSsl))?;
-    let key_pem = String::from_utf8(leaf_key.private_key_to_pem_pkcs8()
-        .map_err(|e| Error::new(eyre!("failed to encode leaf key PEM: {e}"), ErrorKind::OpenSsl))?)
+    let key_pem = String::from_utf8(leaf_key.private_key_to_pem_pkcs8()?)
         .map_err(|e| Error::new(eyre!("leaf key PEM is not UTF-8: {e}"), ErrorKind::OpenSsl))?;
 
-    // Build full chain: leaf cert + intermediate cert + root CA cert
-    let chain_pem = format!("{}{}{}", leaf_pem, int_cert_pem, ca_cert_pem);
-
+    // Full chain: leaf + intermediate + root CA.
+    let chain_pem = format!("{leaf_pem}{int_cert_pem}{ca_cert_pem}");
     Ok((chain_pem, key_pem))
 }
 
@@ -503,25 +270,17 @@ pub async fn read_lan_ipv6_from_ubus() -> Option<Ipv6Addr> {
         .copied()
 }
 
-/// Check whether the server cert expires within the renewal threshold.
+/// Check whether the server cert should be renewed (missing, corrupt, not
+/// yet valid, or expiring within 30 days — the threshold baked into
+/// [`startos::net::ssl::should_use_cert`]).
 fn cert_needs_renewal() -> bool {
-    let cert_path = server_cert_path();
-    let Ok(pem_data) = fs::read(&cert_path) else {
+    let Ok(pem_data) = fs::read(server_cert_path()) else {
         return true;
     };
-
     let Ok(cert) = X509::from_pem(&pem_data) else {
         return true;
     };
-
-    let Ok(threshold) = Asn1Time::days_from_now(RENEWAL_THRESHOLD_DAYS) else {
-        return true;
-    };
-
-    // Renew if cert expires before the threshold (default to renewing on comparison error)
-    cert.not_after()
-        .compare(&threshold)
-        .map_or(true, |ord| ord != std::cmp::Ordering::Greater)
+    !should_use_cert(&cert).unwrap_or(false)
 }
 
 /// Ensure Root CA exists (generate if missing). Returns the CA cert PEM.
@@ -680,6 +439,8 @@ pub fn read_root_ca_pem() -> Result<String, Error> {
 
 #[cfg(test)]
 mod tests {
+    use openssl::nid::Nid;
+
     use super::*;
 
     #[test]
