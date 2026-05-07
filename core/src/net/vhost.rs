@@ -1767,9 +1767,14 @@ mod conn_cap_tests {
                 .await
                 .expect("proxy task must wake within the deadline once cancel fires")
                 .expect("proxy task should not panic");
-        assert_eq!(
-            outcome, "target",
-            "cancel of target_cancel should win the select"
+        // `conn_cancel` is a child of `target_cancel`, so cancelling the
+        // parent makes both branches ready in the same poll. tokio::select!
+        // picks one nondeterministically — either is correct (both signal
+        // lifecycle teardown). What we're asserting here is that the I/O
+        // branch did NOT win, which is the actual production invariant.
+        assert!(
+            outcome == "target" || outcome == "conn",
+            "lifecycle cancel should win over parked I/O, got {outcome}"
         );
     }
 
