@@ -852,25 +852,11 @@ where
             None => None,
         };
         let http_aware = add_x_forwarded_headers || auth_gate.is_some();
-        // Wrap the client-facing stream in `ActivityStream` and register
-        // it with the per-target `ConnRegistry`. The wrapper feeds the LRU
-        // eviction policy (it does NOT enforce a per-connection idle
-        // timeout). Tracking only the client-facing side is sufficient:
-        // copy_bidirectional and the hyper-aware path both ferry every
-        // upstream byte through this socket as a write, so any progress on
-        // either direction registers as activity here. `conn_cancel` is a
-        // child token of the target's cancel — racing against it lets us
-        // tear this single connection down (LRU evict, target removed)
-        // without disturbing siblings.
         let (mut stream, registration, conn_cancel) = ctx.track_with(stream);
         let target_cancel = ctx.cancel.clone();
         tokio::spawn(async move {
-            // The registration handle is moved into the task and dropped
-            // on exit (normal completion, panic, or cancellation), so the
-            // registry entry is always cleaned up. The explicit rebind is
-            // here to force capture by the outer `async move`; without a
-            // reference inside this body the move closure would not
-            // capture it and the entry would deregister immediately.
+            // Force capture by the outer `async move`; without a reference
+            // here the registry entry would deregister immediately.
             let _registration = registration;
             let work = async move {
                 if http_aware {
@@ -885,16 +871,6 @@ where
                     .await
                     .ok();
                 } else {
-                    // copy_bidirectional drains each direction to EOF, then
-                    // half-closes the destination (flush + FIN). It won't
-                    // return until both directions have settled. Without
-                    // an escape hatch it would leak if one peer stayed
-                    // L7-idle but L4-responsive forever (TCP keepalive
-                    // can't catch that case — see `default_keepalive`). The
-                    // outer `tokio::select!` against `conn_cancel` /
-                    // `target_cancel` is that escape hatch: target removal
-                    // and LRU-overflow eviction both wake this future
-                    // immediately.
                     tokio::io::copy_bidirectional(&mut stream, &mut prev)
                         .await
                         .ok();
@@ -909,33 +885,14 @@ where
     }
 }
 
-/// Hard cap on simultaneously-open proxy tasks per (hostname, target). When
-/// the cap is hit, the LRU (least-recently-active) task is cancelled to make
-/// room for the incoming connection. This bounds fd usage at the process
-/// level (cap × number of distinct targets) without imposing any
-/// per-connection time bound: a connection that exchanges bytes — even
-/// rarely — keeps moving forward in the LRU and is preserved over genuinely
-/// stuck peers. Sized for typical workloads; raise if a single target
-/// legitimately handles more concurrent flows than this.
 pub const MAX_PROXY_CONNS_PER_TARGET: usize = 4096;
 
-/// Monotonic millisecond timestamp used by `ActivityStream` and the LRU
-/// eviction policy in `ConnRegistry`. We use a process-monotonic clock so
-/// that wall-clock jumps (NTP, container restore) cannot corrupt the
-/// ordering, and `u64` millis fits comfortably in an atomic for centuries
-/// of uptime.
 fn monotonic_millis() -> u64 {
     static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
-    let start = START.get_or_init(Instant::now);
-    start.elapsed().as_millis() as u64
+    START.get_or_init(Instant::now).elapsed().as_millis() as u64
 }
 
-/// Stream wrapper that ticks a shared `last_active` atomic on every
-/// successful read or write. It does **not** time out — it is purely a
-/// signal feeding the LRU eviction policy. The proxy never closes a
-/// connection because of inactivity; it only chooses which connection to
-/// drop *if* a per-target cap is reached, and the freshest activity
-/// timestamp wins.
+/// Ticks `last_active` on byte progress; never closes the stream.
 pub struct ActivityStream<S> {
     inner: S,
     last_active: Arc<AtomicU64>,
@@ -998,13 +955,7 @@ struct ConnEntry {
     cancel: CancellationToken,
 }
 
-/// Per-target registry of in-flight proxy tasks with an LRU eviction
-/// policy. Registration is the only point where eviction can happen —
-/// adding the (cap+1)th connection cancels the entry whose `last_active`
-/// timestamp is oldest. Concurrent registrations under contention may
-/// transiently exceed `cap` by a few entries; the evicted task drains
-/// itself asynchronously, returning the registry to size <= cap shortly
-/// after.
+/// Per-target proxy-task registry with LRU eviction at the cap.
 #[derive(Debug)]
 pub struct ConnRegistry {
     cap: usize,
@@ -1049,9 +1000,6 @@ impl ConnRegistry {
     }
 }
 
-/// Drop guard that deregisters a connection from its `ConnRegistry`.
-/// Held by the spawned proxy task so dropping the task (normal exit, panic,
-/// LRU cancel) deterministically removes the registry entry.
 struct ConnRegHandle {
     id: u64,
     registry: Weak<ConnRegistry>,
@@ -1066,16 +1014,6 @@ impl Drop for ConnRegHandle {
     }
 }
 
-/// Per-target lifecycle context handed to each spawned proxy task.
-///
-/// Carries:
-///   - `cancel`: a `CancellationToken` that is fired when the target is
-///     removed from the vhost mapping. Spawned tasks `select!` against
-///     `cancel.cancelled()` so they wake immediately on target removal,
-///     instead of relying on the next I/O poll to notice (which never
-///     happens for a parked, L7-idle `copy_bidirectional`).
-///   - `registry`: the per-target `ConnRegistry`, used to bound concurrent
-///     proxy tasks and evict the LRU one when the cap is exceeded.
 #[derive(Clone, Debug)]
 pub struct ProxyContext {
     pub cancel: CancellationToken,
@@ -1088,10 +1026,6 @@ impl ProxyContext {
             registry: ConnRegistry::new(MAX_PROXY_CONNS_PER_TARGET),
         }
     }
-    /// Wrap a stream so its byte progress feeds the LRU eviction policy
-    /// and register the resulting task with the per-target registry. The
-    /// returned guard must be held for the lifetime of the proxy task;
-    /// dropping it deregisters from the registry.
     pub fn track<S>(&self, stream: S) -> (ActivityStream<S>, ConnRegHandle) {
         let last_active = Arc::new(AtomicU64::new(monotonic_millis()));
         let handle = self
@@ -1099,9 +1033,6 @@ impl ProxyContext {
             .register(last_active.clone(), self.cancel.child_token());
         (ActivityStream::new(stream, last_active), handle)
     }
-    /// Same as `track` but takes a child cancellation token explicitly so
-    /// the caller can race work against a per-connection cancel without
-    /// disturbing siblings (LRU eviction triggers this path).
     pub fn track_with(
         &self,
         stream: AcceptStream,
@@ -1130,11 +1061,6 @@ impl Default for AlpnInfo {
     }
 }
 
-/// Internal per-target state stored in the vhost mapping. Pairs the
-/// existing external lifecycle marker (`rc: Weak<()>` — alive iff some
-/// caller still holds the matching `Arc<()>` returned by
-/// `VHostController::add`) with a cancellation token and connection
-/// registry, both fired on target removal.
 #[derive(Debug, Clone)]
 struct TargetEntry {
     rc: Weak<()>,
@@ -1152,10 +1078,6 @@ impl TargetEntry {
     }
 }
 
-/// Drop entries whose external `Arc<()>` has been released. Calls
-/// `cancel()` on each removed entry's `ProxyContext` so spawned proxy
-/// tasks wake up and tear down immediately, instead of waiting for the
-/// next I/O poll to notice.
 fn cancel_dead<A: Accept + 'static>(targets: &mut InOMap<DynVHostTarget<A>, TargetEntry>) {
     targets.retain(|_, e| {
         let alive = e.alive();
@@ -1507,11 +1429,8 @@ impl<A: Accept> VHostServer<A> {
         self.mapping.send_if_modified(|writable| {
             let mut changed = false;
             let mut targets = writable.remove(&hostname).unwrap_or_default();
-            // Re-add of an existing target reuses its `ProxyContext`
-            // (cancel + registry) so in-flight tasks see the same
-            // lifecycle and the connection cap is preserved across
-            // re-registrations. Only when the previous Arc has been
-            // released (or no entry exists) do we mint a fresh context.
+            // Reuse the existing ctx on re-add so in-flight tasks keep
+            // their lifecycle; cancel a stale ctx before replacing it.
             let existing = targets.remove(&target);
             let (rc, entry) = match existing {
                 Some(e) => match e.rc.upgrade() {
@@ -1523,10 +1442,6 @@ impl<A: Accept> VHostServer<A> {
                         },
                     ),
                     None => {
-                        // Stale entry: its external Arc was already
-                        // released, but `gc` hadn't run yet. Cancel its
-                        // ctx so any in-flight proxy tasks for the old
-                        // incarnation tear down before we replace them.
                         e.ctx.cancel.cancel();
                         changed = true;
                         let rc = Arc::new(());
@@ -1561,9 +1476,6 @@ impl<A: Accept> VHostServer<A> {
         self.mapping.send_if_modified(|writable| {
             let mut targets = writable.remove(&hostname).unwrap_or_default();
             let pre = targets.len();
-            // Cancel-and-drop dead entries: cancelling wakes any spawned
-            // proxy tasks waiting on `ProxyContext::cancel` so they tear
-            // down immediately rather than parking on idle I/O.
             cancel_dead(&mut targets);
             let post = targets.len();
             if !targets.is_empty() {
@@ -1634,109 +1546,69 @@ mod conn_cap_tests {
     use super::*;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    /// Filling the registry to its cap and adding one more connection
-    /// must evict exactly the LRU entry (oldest `last_active`), and only
-    /// that one — siblings keep running.
     #[tokio::test]
     async fn lru_eviction_cancels_only_the_oldest() {
         let registry = ConnRegistry::new(2);
 
-        let active1 = Arc::new(AtomicU64::new(100));
         let cancel1 = CancellationToken::new();
-        let _h1 = registry.register(active1, cancel1.clone());
-
-        let active2 = Arc::new(AtomicU64::new(200));
+        let _h1 = registry.register(Arc::new(AtomicU64::new(100)), cancel1.clone());
         let cancel2 = CancellationToken::new();
-        let _h2 = registry.register(active2, cancel2.clone());
-
-        // At cap. Adding a third connection must evict #1 (oldest).
-        let active3 = Arc::new(AtomicU64::new(300));
+        let _h2 = registry.register(Arc::new(AtomicU64::new(200)), cancel2.clone());
         let cancel3 = CancellationToken::new();
-        let _h3 = registry.register(active3, cancel3.clone());
+        let _h3 = registry.register(Arc::new(AtomicU64::new(300)), cancel3.clone());
 
-        assert!(cancel1.is_cancelled(), "LRU entry should have been cancelled");
-        assert!(!cancel2.is_cancelled(), "non-LRU entry must stay alive");
-        assert!(!cancel3.is_cancelled(), "newly registered entry must stay alive");
+        assert!(cancel1.is_cancelled());
+        assert!(!cancel2.is_cancelled());
+        assert!(!cancel3.is_cancelled());
     }
 
-    /// `ActivityStream` must tick `last_active` on byte progress so a
-    /// busy connection keeps moving forward in the LRU and is never
-    /// chosen as the eviction victim — even when sitting next to an
-    /// older but never-touched entry.
     #[tokio::test]
     async fn activity_stream_keeps_busy_conn_out_of_lru_seat() {
         let registry = ConnRegistry::new(2);
 
-        // Stale entry: registered first, never touched again.
-        let stale_active = Arc::new(AtomicU64::new(monotonic_millis()));
         let stale_cancel = CancellationToken::new();
-        let _stale = registry.register(stale_active, stale_cancel.clone());
+        let _stale = registry.register(
+            Arc::new(AtomicU64::new(monotonic_millis())),
+            stale_cancel.clone(),
+        );
 
-        // Busy entry: registered second, but bytes flow through its
-        // ActivityStream wrapper between the registration and the
-        // eventual cap-overflow.
         let busy_active = Arc::new(AtomicU64::new(monotonic_millis()));
         let busy_cancel = CancellationToken::new();
         let _busy = registry.register(busy_active.clone(), busy_cancel.clone());
 
         let (a, mut b) = tokio::io::duplex(64);
         let mut wrapped = ActivityStream::new(a, busy_active.clone());
-        // Sleep a bit so the timestamps would differ if activity weren't
-        // re-ticking the busy entry.
         tokio::time::sleep(Duration::from_millis(20)).await;
         b.write_all(b"hello").await.unwrap();
         let mut buf = [0u8; 5];
         wrapped.read_exact(&mut buf).await.unwrap();
 
-        // Now overflow the cap with a new connection. Stale must be the
-        // victim because its last_active is older than busy's freshly-
-        // ticked timestamp.
-        let new_active = Arc::new(AtomicU64::new(monotonic_millis()));
         let new_cancel = CancellationToken::new();
-        let _new = registry.register(new_active, new_cancel.clone());
-
-        assert!(stale_cancel.is_cancelled(), "stale entry should be evicted");
-        assert!(
-            !busy_cancel.is_cancelled(),
-            "busy entry must NOT be evicted — its activity should keep it ahead in the LRU"
+        let _new = registry.register(
+            Arc::new(AtomicU64::new(monotonic_millis())),
+            new_cancel.clone(),
         );
+
+        assert!(stale_cancel.is_cancelled());
+        assert!(!busy_cancel.is_cancelled());
     }
 
-    /// Dropping a `ConnRegHandle` deregisters from the registry. Without
-    /// this the registry would over-report its size after tasks exit and
-    /// silently lock callers below the real capacity.
     #[tokio::test]
     async fn drop_handle_deregisters() {
         let registry = ConnRegistry::new(8);
-        let cancel = CancellationToken::new();
-        let last = Arc::new(AtomicU64::new(monotonic_millis()));
         {
-            let _h = registry.register(last, cancel);
+            let _h = registry.register(
+                Arc::new(AtomicU64::new(monotonic_millis())),
+                CancellationToken::new(),
+            );
             assert_eq!(registry.len(), 1);
         }
-        assert_eq!(
-            registry.len(),
-            0,
-            "ConnRegHandle::Drop must remove the entry from the registry"
-        );
+        assert_eq!(registry.len(), 0);
     }
 
-    /// `ProxyContext::cancel` is the lifecycle-tied wake-up: when it
-    /// fires (target removed from the vhost mapping), every spawned task
-    /// that was racing against `cancel.cancelled()` must wake up
-    /// immediately, even if its underlying I/O is parked indefinitely.
-    /// This is the gap the previous `WeakFuture(Weak<()>)` design left
-    /// open — `Weak::strong_count` is only re-read on the next poll, so
-    /// an L7-idle but L4-responsive `copy_bidirectional` would never
-    /// notice.
     #[tokio::test]
     async fn target_cancel_wakes_idle_proxy_task() {
         let ctx = ProxyContext::new();
-
-        // Mimic the production hot-path: copy_bidirectional between two
-        // duplexes that never close on their own. Without `cancel`, this
-        // task would park indefinitely (cf.
-        // copy_bidirectional_hangs_without_keepalive_when_peer_idle).
         let (mut a, _a_peer) = tokio::io::duplex(64);
         let (mut b, _b_peer) = tokio::io::duplex(64);
         let target_cancel = ctx.cancel.clone();
@@ -1750,46 +1622,17 @@ mod conn_cap_tests {
             }
         });
 
-        // Confirm the task is genuinely parked — neither stream has
-        // anything to read or write.
         let early = tokio::time::timeout(Duration::from_millis(50), &mut proxy).await;
-        assert!(early.is_err(), "proxy task should be parked on idle I/O");
+        assert!(early.is_err());
 
-        // Drop the lifecycle. ProxyContext goes out of scope, but its
-        // CancellationToken is internally Arc'd and still held by
-        // `target_cancel` inside the task. To simulate a target removal,
-        // we cancel directly here — production fires this path from
-        // `cancel_dead` inside `gc()`.
         ctx.cancel.cancel();
 
-        let outcome =
-            tokio::time::timeout(Duration::from_millis(200), &mut proxy)
-                .await
-                .expect("proxy task must wake within the deadline once cancel fires")
-                .expect("proxy task should not panic");
-        // `conn_cancel` is a child of `target_cancel`, so cancelling the
-        // parent makes both branches ready in the same poll. tokio::select!
-        // picks one nondeterministically — either is correct (both signal
-        // lifecycle teardown). What we're asserting here is that the I/O
-        // branch did NOT win, which is the actual production invariant.
-        assert!(
-            outcome == "target" || outcome == "conn",
-            "lifecycle cancel should win over parked I/O, got {outcome}"
-        );
-    }
-
-    /// hyper's `header_read_timeout` (the third lever in this PR) is a
-    /// per-request slowloris bound *and* the upper bound on idle
-    /// keep-alive sockets. Once a request is in flight, hyper disarms it
-    /// — so this knob can never close an active stream. A direct unit
-    /// test of hyper internals is awkward here; this assertion stands as
-    /// documentation that the constant in `run_http1_proxy` is the
-    /// intended bound and is not silently dropped by a future refactor.
-    #[test]
-    fn http1_header_read_timeout_is_documented() {
-        // The actual builder lives in core/src/net/http.rs. If you
-        // change the value, update the comment here too.
-        const EXPECTED: Duration = Duration::from_secs(60);
-        assert_eq!(EXPECTED, Duration::from_secs(60));
+        // conn_cancel is a child of target_cancel, so either branch winning
+        // is correct — what we're asserting is that "io" doesn't win.
+        let outcome = tokio::time::timeout(Duration::from_millis(200), &mut proxy)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(outcome == "target" || outcome == "conn", "got {outcome}");
     }
 }

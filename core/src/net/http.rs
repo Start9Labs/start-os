@@ -332,13 +332,8 @@ where
         .handshake(TokioIo::new(to))
         .await?;
     let client = Arc::new(Mutex::new(client));
-    // `header_read_timeout` covers both fresh-request slowloris and stuck
-    // idle keep-alive: hyper arms it whenever it's waiting for a complete
-    // request head and disarms it the moment a request body or upgrade is
-    // in flight, so an active stream is never timed out by this knob. 60s
-    // is generous against well-behaved clients while bounding the worst
-    // case where a peer holds a keep-alive socket open and sends no
-    // further requests.
+    // hyper disarms `header_read_timeout` while a body or upgrade is in
+    // flight, so this can't kill an active stream — only idle keep-alive.
     let from = hyper::server::conn::http1::Builder::new()
         .timer(TokioTimer::new())
         .header_read_timeout(Duration::from_secs(60))
