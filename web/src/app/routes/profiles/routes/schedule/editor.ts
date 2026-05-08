@@ -1,39 +1,31 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   inject,
   linkedSignal,
-  signal,
+  model,
   WritableSignal,
 } from '@angular/core'
-import { ActivatedRoute } from '@angular/router'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiAutoColorPipe, TuiTimeline } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
-import { provideHelp } from 'src/app/help/help'
-import { ApiService } from 'src/app/services/api/api.service'
-import {
-  provideFormService,
-  injectFormService,
-} from 'src/app/services/form.service'
+import { ScheduleWindow } from 'src/app/services/api/api.service'
 import {
   formatTime12h,
   quarterHourToTime,
   timeToQuarterHour,
 } from 'src/app/utils/schedule'
 import { ADD_SCHEDULE_WINDOW } from './dialog'
-import { ProfileScheduleService, ScheduleWindow } from './service'
+
+type ViewWindow = {
+  range: readonly [number, number]
+  days: ScheduleWindow['days']
+}
 
 @Component({
+  selector: 'profile-schedule-editor',
   template: `
-    <header tuiHeader>
-      <hgroup tuiTitle>
-        <h2>WAN Schedule — {{ profileName() }}</h2>
-      </hgroup>
-    </header>
-    <section (change)="save()">
+    <section (change)="commit()">
       @for (day of order; track $index) {
         <tui-timeline
           #timeline
@@ -42,7 +34,7 @@ import { ProfileScheduleService, ScheduleWindow } from './service'
           [template]="gap"
         >
           <span class="day">{{ labels[day] }}</span>
-          @for (window of windows(); track $index) {
+          @for (window of view(); track $index) {
             @if (window.days[day]) {
               <label
                 tuiTimelineItem
@@ -74,23 +66,14 @@ import { ProfileScheduleService, ScheduleWindow } from './service'
     </section>
   `,
   styles: `
-    :host {
-      max-width: 50rem;
-      margin-bottom: -5rem;
-
-      &::after {
-        display: none;
-      }
-    }
-
     section {
       display: grid;
       grid-auto-flow: column;
-      height: 36rem;
-      max-height: calc(100svh - 12rem);
+      height: 22rem;
       gap: 0.125rem;
       border-radius: var(--tui-radius-s);
       overflow: hidden;
+      margin-top: 1.5rem;
     }
 
     tui-timeline {
@@ -196,51 +179,23 @@ import { ProfileScheduleService, ScheduleWindow } from './service'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'g-page' },
-  providers: [
-    provideFormService(ProfileScheduleService),
-    provideHelp('/profiles/schedule'),
-  ],
-  imports: [
-    TuiTimeline,
-    TuiIcon,
-    TuiAutoColorPipe,
-    TuiButton,
-    TuiHeader,
-    TuiTitle,
-  ],
+  imports: [TuiTimeline, TuiIcon, TuiAutoColorPipe, TuiButton],
 })
-export default class ProfileScheduleComponent {
+export class ProfileScheduleEditor {
   protected readonly order = [1, 2, 3, 4, 5, 6, 0] as const
   protected readonly labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   protected readonly dialogs = inject(TuiResponsiveDialogService)
-  protected readonly service = injectFormService<ScheduleWindow[]>()
-  private readonly api = inject(ApiService)
-  private readonly iface = inject(ActivatedRoute).snapshot.params['interface']
 
-  protected readonly profileName = signal(this.iface as string)
+  readonly windows = model<readonly ScheduleWindow[]>([])
 
-  constructor() {
-    this.api.profilesList().then(profiles => {
-      const name = profiles.find(p => p.interface === this.iface)?.fullname
-      if (name) this.profileName.set(name)
-    })
-  }
-
-  protected readonly source = computed(
-    () =>
-      this.service.data()?.map(({ startTime, endTime, days }) => ({
+  protected readonly view: WritableSignal<ViewWindow[]> = linkedSignal({
+    source: () =>
+      this.windows().map(({ startTime, endTime, days }) => ({
         range: [from(startTime), from(endTime)] as const,
         days,
-      })) || [],
-  )
-
-  protected readonly windows: WritableSignal<ReturnType<typeof this.source>> =
-    linkedSignal({
-      source: this.source,
-      computation: (source, current) =>
-        current?.value.length ? current.value : source,
-    })
+      })),
+    computation: source => source,
+  })
 
   protected getTime(range: readonly [number, number]): string {
     return `${format(to(range[0]))}<br />-<br />${format(to(range[1]))}`
@@ -251,14 +206,14 @@ export default class ProfileScheduleComponent {
       .open<ScheduleWindow | null>(ADD_SCHEDULE_WINDOW, {
         label: 'Edit WAN-Restricted Window',
         data: {
-          startTime: to(this.windows()[index].range[0]),
-          endTime: to(this.windows()[index].range[1]),
-          days: this.windows()[index].days,
+          startTime: to(this.view()[index].range[0]),
+          endTime: to(this.view()[index].range[1]),
+          days: this.view()[index].days,
         },
       })
       .subscribe(value => {
-        this.windows.update(windows =>
-          windows
+        this.view.update(view =>
+          view
             .map<any>((item, i) =>
               i === index
                 ? value && {
@@ -269,7 +224,7 @@ export default class ProfileScheduleComponent {
             )
             .filter(Boolean),
         )
-        this.save()
+        this.commit()
       })
   }
 
@@ -292,16 +247,16 @@ export default class ProfileScheduleComponent {
         },
       })
       .subscribe(({ days, startTime, endTime }) => {
-        this.windows.update(windows =>
-          windows.concat({ range: [from(startTime), from(endTime)], days }),
+        this.view.update(view =>
+          view.concat({ range: [from(startTime), from(endTime)], days }),
         )
-        this.save()
+        this.commit()
       })
   }
 
-  protected save() {
-    this.service.store(
-      this.windows().map(({ range, days }) => ({
+  protected commit() {
+    this.windows.set(
+      this.view().map(({ range, days }) => ({
         startTime: to(range[0]),
         endTime: to(range[1]),
         days,

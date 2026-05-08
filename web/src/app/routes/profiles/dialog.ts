@@ -53,10 +53,12 @@ import type {
   DnsServer,
   LanAccess,
   ProfileIdOpt,
+  ScheduleWindow,
   SecurityProfile,
   WanAccess,
 } from 'src/app/services/api/api.service'
 import { CustomValidators } from 'src/app/utils/validators'
+import { ProfileScheduleEditor } from './routes/schedule/editor'
 
 export interface ProfileDialogData {
   existing?: SecurityProfile
@@ -65,6 +67,7 @@ export interface ProfileDialogData {
   usedSubnets: number[]
   subnetBase: { firstOctet: number; secondOctet: number }
   hasStaticIpsInSubnet?: boolean
+  scheduleWindows?: ScheduleWindow[]
 }
 
 export interface ProfileDialogResult {
@@ -76,6 +79,7 @@ export interface ProfileDialogResult {
   access_to_new_profiles: boolean
   owns_lan: boolean
   dns_override?: DnsServer[]
+  schedule_windows: ScheduleWindow[]
 }
 
 @Component({
@@ -229,6 +233,10 @@ export interface ProfileDialogResult {
           <tui-error formControlName="wanAccessList" />
         }
       </tui-elastic-container>
+      <fieldset>
+        <legend>WAN Schedule</legend>
+        <profile-schedule-editor [(windows)]="scheduleWindows" />
+      </fieldset>
       <footer>
         <button
           tuiButton
@@ -284,6 +292,7 @@ export interface ProfileDialogResult {
     TuiElasticContainer,
     TuiAnimated,
     TuiHint,
+    ProfileScheduleEditor,
   ],
 })
 class AddProfile {
@@ -295,6 +304,10 @@ class AddProfile {
   private readonly usedSubnets = this.context.data.usedSubnets
 
   protected readonly subnetBase = computed(() => this.context.data.subnetBase)
+
+  protected readonly scheduleWindows = signal<ScheduleWindow[]>(
+    this.context.data.scheduleWindows ?? [],
+  )
 
   private readonly dnsConfig = this.parseDnsOverride()
 
@@ -612,6 +625,7 @@ class AddProfile {
         access_to_new_profiles: val.accessToNewProfiles,
         owns_lan: this.existing?.owns_lan || false,
         dns_override: dns_override?.length ? dns_override : undefined,
+        schedule_windows: this.scheduleWindows(),
       })
     }
   }

@@ -5,6 +5,7 @@ import {
   ProfileCreateInput,
   ProfileIdOpt,
   ProfileUpdateInput,
+  ScheduleWindow,
   SecurityProfile,
 } from 'src/app/services/api/api.service'
 import { FormService } from 'src/app/services/form.service'
@@ -34,10 +35,19 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
     // Not used - individual methods below handle persistence
   }
 
-  async createProfile(params: ProfileCreateInput) {
+  async createProfile(
+    params: ProfileCreateInput,
+    scheduleWindows: ScheduleWindow[] = [],
+  ) {
     await this.actions.run(
       async () => {
-        await this.api.profileCreate(params)
+        const id = await this.api.profileCreate(params)
+        if (scheduleWindows.length) {
+          await this.api.profileScheduleSet({
+            interface: id.interface,
+            windows: scheduleWindows,
+          })
+        }
         this.refresh()
       },
       {
@@ -55,11 +65,19 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
   async updateProfile(
     params: ProfileUpdateInput,
     oldGatewayIp?: string,
+    scheduleWindows: ScheduleWindow[] = [],
   ): Promise<boolean> {
     const adminIpChanged =
       params.owns_lan && !!oldGatewayIp && oldGatewayIp !== params.gateway_ip
 
     if (adminIpChanged) {
+      // Schedule write doesn't restart the network — land it before the IP
+      // change so it survives the redirect to the new admin address.
+      await this.api.profileScheduleSet({
+        interface: params.interface,
+        windows: scheduleWindows,
+      })
+
       const loading = this.notifications
         .open('Applying profile settings...')
         .subscribe()
@@ -84,6 +102,10 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
     await this.actions.run(
       async () => {
         await this.api.profileUpdate(params)
+        await this.api.profileScheduleSet({
+          interface: params.interface,
+          windows: scheduleWindows,
+        })
         this.refresh()
       },
       {

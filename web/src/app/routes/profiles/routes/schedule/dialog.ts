@@ -21,7 +21,7 @@ import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
-import type { ScheduleWindow } from './service'
+import type { ScheduleWindow } from 'src/app/services/api/api.service'
 
 @Component({
   template: `

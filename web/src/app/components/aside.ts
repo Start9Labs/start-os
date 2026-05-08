@@ -60,15 +60,9 @@ export class Aside {
   protected readonly help = toSignal(
     this.router.events.pipe(
       filter(e => e instanceof NavigationEnd),
-      map(({ urlAfterRedirects }) => {
-        const path = urlAfterRedirects.split('?')[0]
-        return this.data[path] ?? this.data[this.normalize(path)]
-      }),
+      map(
+        ({ urlAfterRedirects }) => this.data[urlAfterRedirects.split('?')[0]],
+      ),
     ),
   )
-
-  /** Strip dynamic route params: /profiles/:interface/schedule → /profiles/schedule */
-  private normalize(path: string): string {
-    return path.replace(/^\/profiles\/[^/]+\/schedule/, '/profiles/schedule')
-  }
 }

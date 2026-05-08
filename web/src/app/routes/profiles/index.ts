@@ -24,7 +24,11 @@ import { catchError, EMPTY, filter, firstValueFrom } from 'rxjs'
 import { Placeholder } from 'src/app/components/placeholder'
 import { ReconnectingDialog } from 'src/app/components/reconnecting-dialog'
 import { OutboundService } from 'src/app/routes/outbound/service'
-import { ApiService, SecurityProfile } from 'src/app/services/api/api.service'
+import {
+  ApiService,
+  ScheduleWindow,
+  SecurityProfile,
+} from 'src/app/services/api/api.service'
 import { NetworkRestartService } from 'src/app/services/network-restart.service'
 import { ADD_PROFILE, ProfileDialogResult } from './dialog'
 import { ProfilesService } from './service'
@@ -90,13 +94,6 @@ import { ProfilesService } from './service'
                     (click)="edit(item)"
                   >
                     Edit
-                  </button>
-                  <button
-                    tuiOption
-                    iconStart="@tui.clock"
-                    [routerLink]="[item.interface, 'schedule']"
-                  >
-                    WAN Schedule
                   </button>
                   <button
                     tuiOption
@@ -254,6 +251,7 @@ class Profiles {
 
     // Check if editing a profile that has static IPs in its subnet
     let hasStaticIpsInSubnet = false
+    let scheduleWindows: ScheduleWindow[] = []
     if (profile) {
       try {
         const devices = await this.api.devicesList()
@@ -269,11 +267,19 @@ class Profiles {
       } catch {
         // If we can't check, leave the form enabled — backend validates anyway
       }
+      try {
+        scheduleWindows = await this.api.profileScheduleGet({
+          interface: profile.interface,
+        })
+      } catch {
+        // Empty schedule on failure — user can still edit; save will overwrite
+      }
     }
 
     this.dialogs
       .open<ProfileDialogResult>(ADD_PROFILE, {
         label: profile ? 'Edit Security Profile' : 'Add Security Profile',
+        size: 'l',
         data: {
           existing: profile,
           otherProfiles,
@@ -284,16 +290,19 @@ class Profiles {
             secondOctet: subnet.secondOctet,
           },
           hasStaticIpsInSubnet,
+          scheduleWindows,
         },
       })
       .subscribe(async result => {
+        const { schedule_windows, ...profileFields } = result
         if (profile) {
-          const params = { ...profile, ...result }
+          const params = { ...profile, ...profileFields }
           let adminIpChanged = false
           try {
             adminIpChanged = await this.service.updateProfile(
               params,
               profile.gateway_ip,
+              schedule_windows,
             )
           } catch (e: any) {
             if (!e?.message?.includes('VPN client')) {
@@ -321,6 +330,7 @@ class Profiles {
               adminIpChanged = await this.service.updateProfile(
                 { ...params, force: true },
                 profile.gateway_ip,
+                schedule_windows,
               )
             } catch {
               return
@@ -364,7 +374,7 @@ class Profiles {
             }
           }
         } else {
-          this.service.createProfile(result)
+          this.service.createProfile(profileFields, schedule_windows)
         }
       })
   }
@@ -385,9 +395,5 @@ class Profiles {
 
 export default [
   { path: '', component: Profiles },
-  {
-    path: ':interface/schedule',
-    loadComponent: () => import('./routes/schedule'),
-  },
   { path: '**', redirectTo: '' },
 ] satisfies Routes
