@@ -16,7 +16,12 @@ import { PluginActionsComponent } from './actions.component'
 @Component({
   selector: 'tr[pluginAddress]',
   template: `
-    <td>{{ address().hostnameInfo.ssl ? 'HTTPS' : 'HTTP' }}</td>
+    <td>
+      {{
+        address().scheme?.toUpperCase() ??
+          (address().hostnameInfo.ssl ? 'SSL' : 'TCP/UDP')
+      }}
+    </td>
     <td [style.grid-area]="'2 / 1 / 2 / 2'">
       <div class="url">
         @if (address().masked && currentlyMasked()) {

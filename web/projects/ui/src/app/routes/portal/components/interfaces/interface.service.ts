@@ -177,6 +177,8 @@ export class InterfaceService {
     const masked = serviceInterface.masked
     const groupMap = new Map<string, PluginAddress[]>()
 
+    const { scheme, sslScheme } = serviceInterface.addressInfo
+
     for (const h of addr.available) {
       if (h.metadata.kind !== 'plugin') continue
 
@@ -189,6 +191,7 @@ export class InterfaceService {
 
       groupMap.get(pluginId)!.push({
         url,
+        scheme: h.ssl ? sslScheme : scheme,
         hostnameInfo: h,
         masked,
       })
@@ -336,6 +339,7 @@ export type GatewayAddressGroup = {
 
 export type PluginAddress = {
   url: string
+  scheme: string | null
   hostnameInfo: T.HostnameInfo
   masked: boolean
 }
