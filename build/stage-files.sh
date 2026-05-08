@@ -154,6 +154,7 @@ cat > "${FILES_DIR}/lib/upgrade/keep.d/startwrt" << 'KEEPEOF'
 /etc/ssl/private/startwrt-int.key
 /etc/ssl/private/startwrt-server.key
 /key_backup/
+/etc/nlbwmon/data/
 KEEPEOF
 
 # Key backup partition mount point

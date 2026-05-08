@@ -1,4 +1,5 @@
 import { effect, inject, Injectable, signal } from '@angular/core'
+import { Router } from '@angular/router'
 import { WA_LOCAL_STORAGE } from '@ng-web-apis/common'
 import { ApiService } from './api/api.service'
 
@@ -10,6 +11,7 @@ const KEY = '_startWrt/loggedIn'
 export class AuthService {
   private readonly storage = inject(WA_LOCAL_STORAGE)
   private readonly api = inject(ApiService)
+  private readonly router = inject(Router)
   private readonly effect = effect(() => {
     if (this.authenticated()) {
       this.storage?.setItem(KEY, JSON.stringify(true))
@@ -54,5 +56,10 @@ export class AuthService {
   /** Resolves once the initialization check has completed. */
   whenReady(): Promise<void> {
     return this.ready
+  }
+
+  setUnverified(): void {
+    this.authenticated.set(false)
+    this.router.navigate(['.'])
   }
 }

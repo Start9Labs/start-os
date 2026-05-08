@@ -186,38 +186,15 @@ export const MOCK_DEVICE_DEFS: MockDeviceDef[] = [
 // Generates realistic-looking bandwidth data for a given period
 export function generateMockDataUsage(
   mac: string,
-  period: 'day' | 'week' | 'month' | '3months',
+  period: 'week' | 'month' | '3months',
 ): { timestamp: number; upload: number; download: number }[] {
   const now = Math.floor(Date.now() / 1000)
   const points: { timestamp: number; upload: number; download: number }[] = []
 
-  // Determine time range and interval based on period
-  let startTime: number
-  let interval: number
-  let numPoints: number
-
-  switch (period) {
-    case 'day':
-      startTime = now - 24 * 60 * 60 // 24 hours ago
-      interval = 60 * 60 // 1 hour
-      numPoints = 24
-      break
-    case 'week':
-      startTime = now - 7 * 24 * 60 * 60 // 7 days ago
-      interval = 6 * 60 * 60 // 6 hours
-      numPoints = 28
-      break
-    case 'month':
-      startTime = now - 30 * 24 * 60 * 60 // 30 days ago
-      interval = 24 * 60 * 60 // 1 day
-      numPoints = 30
-      break
-    case '3months':
-      startTime = now - 90 * 24 * 60 * 60 // 90 days ago
-      interval = 24 * 60 * 60 // 1 day
-      numPoints = 90
-      break
-  }
+  // One point per day to match real backend granularity (nlbwmon archives are daily).
+  const interval = 24 * 60 * 60
+  const numPoints = period === 'week' ? 7 : period === 'month' ? 30 : 90
+  const startTime = now - numPoints * interval
 
   // Generate some variation based on MAC address
   const seed = mac.split(':').reduce((acc, hex) => acc + parseInt(hex, 16), 0)

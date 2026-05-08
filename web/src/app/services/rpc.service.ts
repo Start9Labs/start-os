@@ -25,7 +25,7 @@ export class RpcService {
       // which causes NG0200 on first load in the captive portal WebView.
       if (body.error.code === 34) {
         console.error('Unauthenticated, logging out')
-        this.injector.get(AuthService).authenticated.set(false)
+        this.injector.get(AuthService).setUnverified()
       }
       throw new RpcError(body.error)
     }

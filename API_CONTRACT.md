@@ -592,7 +592,6 @@ struct DeviceForgetRequest {
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum DataUsagePeriod {
-    Day,
     Week,
     Month,
     #[serde(rename = "3months")]
@@ -607,15 +606,16 @@ struct DeviceDataUsageRequest {
 
 #[derive(Serialize)]
 struct DataUsagePoint {
-    /// Unix timestamp (seconds)
+    /// Unix timestamp (seconds) at UTC midnight of the day this point covers
     timestamp: u64,
-    /// Bytes uploaded
+    /// Bytes uploaded that day
     upload: u64,
-    /// Bytes downloaded
+    /// Bytes downloaded that day
     download: u64,
 }
-// Response: Vec<DataUsagePoint>
-// Backend: queries nlbwmon
+// Response: Vec<DataUsagePoint>, daily granularity, oldest first.
+// Days the device had no traffic (or the archive is missing) are zero-filled.
+// Backend: fans out `nlbw -c json -g mac -t YYYY-MM-DD` over the requested window.
 ```
 
 ---

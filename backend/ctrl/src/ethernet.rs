@@ -209,17 +209,27 @@ pub async fn set<C: CtrlContext>(
                 crate::activity::log("ethernet", "updated", true, &summary, None);
 
                 if ctx.effectful() {
-                    // Spawn reload in a background thread so the RPC
-                    // response reaches the client before the network
-                    // disruption.  A VLAN change is an L2 path switch —
-                    // no TCP RST is sent, so the client's HTTP request
-                    // would hang forever if we blocked here.
+                    // Spawn the reload sequence so the response returns
+                    // before the network disruption begins.  This endpoint
+                    // differs from the typical inline pattern (lan, wan,
+                    // profiles) because set_config rewrites every
+                    // bridge-vlan section on br-lan: netifd then tears
+                    // down and rebuilds the entire bridge VLAN filter
+                    // table.  During that window wlan0's VLAN 1
+                    // membership briefly disappears and packets between
+                    // WiFi clients and br-lan are dropped — including
+                    // this RPC's response if we blocked here.
                     //
-                    // Only network config (bridge VLANs) was modified —
-                    // no need to restart wifi/dnsmasq/smartdns.  Running
-                    // `wifi` would destroy and recreate wireless
-                    // interfaces whose new instances lose their bridge
-                    // VLAN 1 entry, permanently breaking WiFi.
+                    // `firewall restart` (not `reload`): the bridge
+                    // sub-interfaces were just recreated, and fw3's
+                    // diff-style reload is unreliable against the
+                    // rebuilt state.
+                    //
+                    // Skip wifi/dnsmasq/smartdns: only network config
+                    // changed, and running `wifi` would destroy and
+                    // recreate wireless interfaces whose new instances
+                    // lose their bridge VLAN 1 entry, permanently
+                    // breaking WiFi.
                     tokio::spawn(async move {
                         let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/network").arg("reload")).await;
                         let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/firewall").arg("restart")).await;

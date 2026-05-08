@@ -174,53 +174,6 @@ export class MockApiService extends ApiService {
       }
     }
 
-    // Handle nlbwmon queries for data usage
-    if (params.command === 'nlbw') {
-      // Parse the date from args (-t flag)
-      const dateIndex = params.args.indexOf('-t')
-      const startDate =
-        dateIndex !== -1 ? params.args[dateIndex + 1] : undefined
-
-      // Determine period based on date range
-      let period: 'day' | 'week' | 'month' | '3months' = 'week'
-      if (startDate) {
-        const start = new Date(startDate)
-        const now = new Date()
-        const daysDiff = Math.floor(
-          (now.getTime() - start.getTime()) / (24 * 60 * 60 * 1000),
-        )
-        if (daysDiff <= 1) period = 'day'
-        else if (daysDiff <= 7) period = 'week'
-        else if (daysDiff <= 30) period = 'month'
-        else period = '3months'
-      }
-
-      // Generate mock data for all known MACs
-      const macs = [
-        '00:1a:2b:3c:4d:5e',
-        '00:1a:2b:3c:4d:5f',
-        'de:ad:be:ef:ca:fe',
-        'de:ad:be:ef:ca:ff',
-      ]
-
-      const mockData: any[] = []
-      for (const mac of macs) {
-        const points = generateMockDataUsage(mac, period)
-        for (const point of points) {
-          mockData.push([mac, point.download, point.upload, point.timestamp])
-        }
-      }
-
-      return {
-        exitCode: 0,
-        stdout: JSON.stringify({
-          columns: ['mac', 'rx_bytes', 'tx_bytes', 'interval_start'],
-          data: mockData,
-        }),
-        stderr: '',
-      }
-    }
-
     return {
       exitCode: 0,
       stdout: 'success',

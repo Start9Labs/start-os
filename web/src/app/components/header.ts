@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { Router, RouterLink } from '@angular/router'
+import { RouterLink } from '@angular/router'
 import { TuiDropdownSheet } from '@taiga-ui/addon-mobile'
 import {
   TuiButton,
@@ -153,7 +153,6 @@ import { SystemService } from 'src/app/services/system.service'
 export class Header {
   private readonly api = inject(ApiService)
   private readonly auth = inject(AuthService)
-  private readonly router = inject(Router)
   private readonly actions = inject(ActionService)
   private readonly alerts = inject(TuiNotificationService)
   private readonly help = inject(HELP)
@@ -193,8 +192,7 @@ export class Header {
 
   protected async logout(): Promise<void> {
     if (await this.actions.run(() => this.api.logout(), { loading: '' })) {
-      this.auth.authenticated.set(false)
-      this.router.navigate(['.'])
+      this.auth.setUnverified()
     }
   }
 

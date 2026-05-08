@@ -94,7 +94,7 @@ export const DEVICE_LABELS = {
 } as const
 
 // Data usage types
-export type DataUsagePeriod = 'day' | 'week' | 'month' | '3months'
+export type DataUsagePeriod = 'week' | 'month' | '3months'
 
 export interface DataUsagePoint {
   timestamp: number // Unix timestamp (seconds)
@@ -109,7 +109,6 @@ export interface DeviceDataUsage {
 }
 
 export const DATA_USAGE_PERIOD_LABELS: Record<DataUsagePeriod, string> = {
-  day: 'Last 24 Hours',
   week: 'Last Week',
   month: 'Last 30 Days',
   '3months': 'Last 3 Months',

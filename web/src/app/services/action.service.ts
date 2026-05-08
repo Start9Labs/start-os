@@ -15,6 +15,11 @@ import {
 const RESTART_TIMEOUT_MS = 60_000
 const POLL_INTERVAL_MS = 2000
 const POLL_ATTEMPTS = 3
+// Per-poll timeout so a request stuck on a half-broken connection
+// (e.g. wedged TCP socket whose conntrack was flushed mid-flight)
+// transitions into the reconnecting flow instead of hanging the
+// for-loop indefinitely.
+const POLL_TIMEOUT_MS = 5000
 
 export interface ActionOptions {
   loading: string
@@ -109,7 +114,12 @@ export class ActionService {
     for (let i = 0; i < POLL_ATTEMPTS; i++) {
       await pauseFor(POLL_INTERVAL_MS)
       try {
-        await this.api.systemInfo()
+        await Promise.race([
+          this.api.systemInfo(),
+          pauseFor(POLL_TIMEOUT_MS).then(() => {
+            throw Object.assign(new Error('Poll timeout'), { code: 0 })
+          }),
+        ])
       } catch (e) {
         if (isNetworkError(e)) {
           loading.unsubscribe()

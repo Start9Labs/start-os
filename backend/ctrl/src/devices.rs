@@ -79,7 +79,6 @@ pub struct DeviceMacReq {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DataUsagePeriod {
-    Day,
     Week,
     Month,
     #[serde(rename = "3months")]
@@ -1341,64 +1340,92 @@ pub async fn data_usage(
     _ctx: ServerContext,
     DeserializeStdin(req): DeserializeStdin<DataUsageReq>,
 ) -> Result<Vec<DataUsagePoint>, Error> {
+    use futures::stream::{self, StreamExt};
+
     let mac_upper = req.mac.to_uppercase();
 
-    // Calculate start date
-    let days_back: i64 = match req.period {
-        DataUsagePeriod::Day => 1,
+    let days_back: u64 = match req.period {
         DataUsagePeriod::Week => 7,
         DataUsagePeriod::Month => 30,
         DataUsagePeriod::ThreeMonths => 90,
     };
 
+    // Window: [today - (days_back - 1) .. today], inclusive on both ends.
+    // Daily granularity, so days_back=7 gives 7 daily points ending today.
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let start_secs = now - (days_back as u64 * 86400);
+    let today_days = now / 86400;
+    let earliest_days = today_days.saturating_sub(days_back - 1);
 
-    // Format as YYYY-MM-DD
-    let start_date = {
-        let days_since_epoch = start_secs / 86400;
-        // Simple date calculation
-        let (y, m, d) = days_to_ymd(days_since_epoch);
-        format!("{:04}-{:02}-{:02}", y, m, d)
-    };
+    // List archives nlbwmon currently retains. Each line is YYYY-MM-DD, newest first.
+    let list_output = run_cmd("nlbw", &["-c", "list"]).await;
+    let retained = std::sync::Arc::new(
+        list_output
+            .lines()
+            .filter_map(|l| parse_ymd_to_days(l.trim()))
+            .collect::<std::collections::HashSet<u64>>(),
+    );
+    let mac_for_query = std::sync::Arc::new(mac_upper);
 
-    let output = run_cmd("nlbw", &["-c", "json", "-g", "mac,interval", "-t", &start_date]).await;
+    // Concurrent fan-out, bounded so we don't spawn 90 subprocesses at once.
+    // nlbwmon serializes at the unix-socket level anyway; 8 in flight is plenty.
+    const CONCURRENCY: usize = 8;
 
+    let day_range = earliest_days..=today_days;
+    let mut points: Vec<DataUsagePoint> = stream::iter(day_range)
+        .map(|day| {
+            let mac = mac_for_query.clone();
+            let retained = retained.clone();
+            async move {
+                let timestamp = day * 86400;
+
+                // Zero-fill days that aren't in the archive set (no data captured that day).
+                if !retained.contains(&day) {
+                    return DataUsagePoint { timestamp, upload: 0, download: 0 };
+                }
+
+                let (y, m, d) = days_to_ymd(day);
+                let date = format!("{:04}-{:02}-{:02}", y, m, d);
+                let output = run_cmd("nlbw", &["-c", "json", "-g", "mac", "-t", &date]).await;
+                let (download, upload) = lookup_mac_bytes(&output, &mac);
+                DataUsagePoint { timestamp, upload, download }
+            }
+        })
+        .buffer_unordered(CONCURRENCY)
+        .collect()
+        .await;
+
+    points.sort_by_key(|p| p.timestamp);
+    Ok(points)
+}
+
+/// Extract `(rx_bytes, tx_bytes)` for a single MAC from an `nlbw -c json -g mac` payload.
+/// Returns `(0, 0)` if the MAC isn't present or the payload is malformed.
+fn lookup_mac_bytes(output: &str, mac_upper: &str) -> (u64, u64) {
     if output.is_empty() {
-        return Ok(Vec::new());
+        return (0, 0);
     }
-
-    // Parse and filter for this MAC
-    let parsed: serde_json::Value = match serde_json::from_str(&output) {
+    let parsed: serde_json::Value = match serde_json::from_str(output) {
         Ok(v) => v,
-        Err(_) => return Ok(Vec::new()),
+        Err(_) => return (0, 0),
     };
-
     let columns = match parsed.get("columns").and_then(|c| c.as_array()) {
         Some(c) => c,
-        None => return Ok(Vec::new()),
+        None => return (0, 0),
     };
     let data = match parsed.get("data").and_then(|d| d.as_array()) {
         Some(d) => d,
-        None => return Ok(Vec::new()),
+        None => return (0, 0),
     };
-
     let mac_idx = columns.iter().position(|c| c.as_str() == Some("mac"));
     let rx_idx = columns.iter().position(|c| c.as_str() == Some("rx_bytes"));
     let tx_idx = columns.iter().position(|c| c.as_str() == Some("tx_bytes"));
-    let time_idx = columns
-        .iter()
-        .position(|c| c.as_str() == Some("interval_start"));
-
     let (mac_idx, rx_idx, tx_idx) = match (mac_idx, rx_idx, tx_idx) {
         (Some(m), Some(r), Some(t)) => (m, r, t),
-        _ => return Ok(Vec::new()),
+        _ => return (0, 0),
     };
-
-    let mut points = Vec::new();
     for row in data {
         if let Some(row) = row.as_array() {
             let row_mac = row
@@ -1407,22 +1434,38 @@ pub async fn data_usage(
                 .unwrap_or("")
                 .to_uppercase();
             if row_mac == mac_upper {
-                let timestamp = time_idx
-                    .and_then(|i| row.get(i))
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(now);
-                let download = row.get(rx_idx).and_then(|v| v.as_u64()).unwrap_or(0);
-                let upload = row.get(tx_idx).and_then(|v| v.as_u64()).unwrap_or(0);
-                points.push(DataUsagePoint {
-                    timestamp,
-                    upload,
-                    download,
-                });
+                let rx = row.get(rx_idx).and_then(|v| v.as_u64()).unwrap_or(0);
+                let tx = row.get(tx_idx).and_then(|v| v.as_u64()).unwrap_or(0);
+                return (rx, tx);
             }
         }
     }
+    (0, 0)
+}
 
-    Ok(points)
+/// Parse a `YYYY-MM-DD` date string into days since the Unix epoch.
+fn parse_ymd_to_days(s: &str) -> Option<u64> {
+    let mut parts = s.split('-');
+    let y: u64 = parts.next()?.parse().ok()?;
+    let m: u64 = parts.next()?.parse().ok()?;
+    let d: u64 = parts.next()?.parse().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some(ymd_to_days(y, m, d))
+}
+
+/// Convert (year, month, day) to days since the Unix epoch.
+/// Inverse of [`days_to_ymd`].
+fn ymd_to_days(y: u64, m: u64, d: u64) -> u64 {
+    // Howard Hinnant's algorithm.
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y / 400;
+    let yoe = y - era * 400;
+    let mp = if m > 2 { m - 3 } else { m + 9 };
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146097 + doe - 719468
 }
 
 /// Pick the best IPv6 address from candidates, preferring GUA over ULA.
@@ -1468,4 +1511,60 @@ fn days_to_ymd(days: u64) -> (u64, u64, u64) {
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = if m <= 2 { y + 1 } else { y };
     (y, m, d)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ymd_to_days_round_trip() {
+        // Spot-check a few known dates and full round-trip a range.
+        assert_eq!(ymd_to_days(1970, 1, 1), 0);
+        assert_eq!(ymd_to_days(1970, 1, 2), 1);
+        assert_eq!(ymd_to_days(2000, 1, 1), 10957);
+        assert_eq!(ymd_to_days(2026, 4, 26), 20569);
+
+        // Round-trip every day across a leap year and a century boundary.
+        for days in 10000..12000 {
+            let (y, m, d) = days_to_ymd(days);
+            assert_eq!(ymd_to_days(y, m, d), days, "{:04}-{:02}-{:02}", y, m, d);
+        }
+    }
+
+    #[test]
+    fn parse_ymd_to_days_accepts_zero_padding() {
+        assert_eq!(parse_ymd_to_days("2026-04-26"), Some(20569));
+        assert_eq!(parse_ymd_to_days("1970-01-01"), Some(0));
+    }
+
+    #[test]
+    fn parse_ymd_to_days_rejects_garbage() {
+        assert_eq!(parse_ymd_to_days(""), None);
+        assert_eq!(parse_ymd_to_days("not a date"), None);
+        assert_eq!(parse_ymd_to_days("2026-04"), None);
+        assert_eq!(parse_ymd_to_days("2026-04-26-extra"), None);
+    }
+
+    #[test]
+    fn lookup_mac_bytes_matches_uppercase() {
+        let output = r#"{"columns":["mac","conns","rx_bytes","rx_pkts","tx_bytes","tx_pkts"],"data":[["aa:bb:cc:dd:ee:ff",10,1234,5,5678,6],["00:11:22:33:44:55",1,1,1,1,1]]}"#;
+        // Lowercase and uppercase queries both work — comparison is uppercase-normalized.
+        assert_eq!(lookup_mac_bytes(output, "AA:BB:CC:DD:EE:FF"), (1234, 5678));
+    }
+
+    #[test]
+    fn lookup_mac_bytes_missing_mac_is_zero() {
+        let output = r#"{"columns":["mac","conns","rx_bytes","rx_pkts","tx_bytes","tx_pkts"],"data":[["00:11:22:33:44:55",1,1,1,1,1]]}"#;
+        assert_eq!(lookup_mac_bytes(output, "AA:BB:CC:DD:EE:FF"), (0, 0));
+    }
+
+    #[test]
+    fn lookup_mac_bytes_handles_empty_and_malformed() {
+        assert_eq!(lookup_mac_bytes("", "AA:BB:CC:DD:EE:FF"), (0, 0));
+        assert_eq!(lookup_mac_bytes("not json", "AA:BB:CC:DD:EE:FF"), (0, 0));
+        // Missing rx_bytes column.
+        let bad = r#"{"columns":["mac","tx_bytes"],"data":[["aa:bb:cc:dd:ee:ff",1]]}"#;
+        assert_eq!(lookup_mac_bytes(bad, "AA:BB:CC:DD:EE:FF"), (0, 0));
+    }
 }

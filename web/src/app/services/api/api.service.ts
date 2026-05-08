@@ -441,7 +441,7 @@ export interface DeviceUpdateReq {
   ipv6: string
 }
 
-export type DeviceDataUsagePeriod = 'day' | 'week' | 'month' | '3months'
+export type DeviceDataUsagePeriod = 'week' | 'month' | '3months'
 
 export interface DeviceDataUsageReq {
   mac: string

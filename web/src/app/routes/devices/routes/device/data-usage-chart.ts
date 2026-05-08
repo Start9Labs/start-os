@@ -11,7 +11,13 @@ import {
   TuiAxes,
   TuiLineChart,
 } from '@taiga-ui/addon-charts'
-import { TuiButton, TuiDataList, TuiDropdown, TuiLoader } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiDataList,
+  TuiDropdown,
+  TuiLoader,
+  TuiNotification,
+} from '@taiga-ui/core'
 import type { TuiPoint } from '@taiga-ui/core'
 import { TuiChevron, TuiSkeleton } from '@taiga-ui/kit'
 import {
@@ -55,8 +61,15 @@ import { DevicesService } from '../../service'
         <span>Placeholder</span>
         <span>Placeholder</span>
       </div>
-      <div class="chart-loading">
+      <div class="chart-message">
         <tui-loader />
+      </div>
+    } @else if (error()) {
+      <div tuiNotification appearance="negative" class="chart-error">
+        Failed to load data usage.
+        <button tuiButton size="s" appearance="secondary" (click)="retry()">
+          Retry
+        </button>
       </div>
     } @else {
       <div class="chart-legend">
@@ -75,16 +88,20 @@ import { DevicesService } from '../../service'
         [horizontalLines]="3"
         [horizontalLinesHandler]="lines"
       >
-        @for (line of chartLines(); track $index) {
-          <tui-line-chart
-            class="line"
-            [smoothingFactor]="10"
-            [value]="line"
-            [width]="400"
-            [height]="160"
-            [x]="0"
-            [y]="0"
-          />
+        @if (isEmpty()) {
+          <div class="chart-empty">No data usage recorded for this period.</div>
+        } @else {
+          @for (line of chartLines(); track $index) {
+            <tui-line-chart
+              class="line"
+              [smoothingFactor]="10"
+              [value]="line"
+              [width]="400"
+              [height]="160"
+              [x]="0"
+              [y]="0"
+            />
+          }
         }
       </tui-axes>
     }
@@ -118,11 +135,28 @@ import { DevicesService } from '../../service'
       }
     }
 
-    .chart-loading {
+    .chart-message {
       display: flex;
       justify-content: center;
       align-items: center;
       height: 10rem;
+    }
+
+    .chart-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--tui-text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .chart-error {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 0.5rem 0;
     }
 
     .chart-legend {
@@ -160,6 +194,7 @@ import { DevicesService } from '../../service'
     TuiDropdown,
     TuiLineChart,
     TuiLoader,
+    TuiNotification,
     TuiSkeleton,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -171,40 +206,57 @@ export class DataUsageChart {
 
   protected readonly lines = TUI_ALWAYS_DASHED
   protected readonly periodLabels = DATA_USAGE_PERIOD_LABELS
-  protected readonly periods: DataUsagePeriod[] = [
-    'day',
-    'week',
-    'month',
-    '3months',
-  ]
+  protected readonly periods: DataUsagePeriod[] = ['week', 'month', '3months']
 
   protected readonly selectedPeriod = signal<DataUsagePeriod>('week')
   protected readonly initialLoading = signal(true)
   protected readonly dataPoints = signal<DataUsagePoint[]>([])
+  protected readonly error = signal(false)
 
-  // Convert data to line chart format using absolute coordinates
+  // Backend zero-fills missing days, so an "all zero" series is the real
+  // empty state — render the message instead of flat-zero lines.
+  protected readonly isEmpty = computed(() => {
+    const points = this.dataPoints()
+    return (
+      points.length === 0 ||
+      points.every(p => p.download === 0 && p.upload === 0)
+    )
+  })
+
+  // Convert data to line chart format using absolute coordinates.
+  // A single point is drawn as a flat segment.
   protected readonly chartLines = computed((): TuiPoint[][] => {
     const points = this.dataPoints()
-    if (points.length < 2) return []
+    if (points.length === 0) return []
 
     const width = 400
     const height = 160
-    const len = points.length - 1
-
-    // Find max value for scaling
     const maxBytes = Math.max(
       ...points.map(p => Math.max(p.download, p.upload)),
     )
     const scale = maxBytes > 0 ? height / maxBytes : 1
 
+    if (points.length === 1) {
+      const [p] = points
+      return [
+        [
+          [0, p.download * scale],
+          [width, p.download * scale],
+        ],
+        [
+          [0, p.upload * scale],
+          [width, p.upload * scale],
+        ],
+      ]
+    }
+
+    const len = points.length - 1
     const downloadLine: TuiPoint[] = points.map(
       (p, i): TuiPoint => [(i / len) * width, p.download * scale],
     )
-
     const uploadLine: TuiPoint[] = points.map(
       (p, i): TuiPoint => [(i / len) * width, p.upload * scale],
     )
-
     return [downloadLine, uploadLine]
   })
 
@@ -233,10 +285,12 @@ export class DataUsageChart {
   protected readonly xLabels = computed(() => {
     const period = this.selectedPeriod()
     switch (period) {
-      case 'day':
-        return ['00:00', '06:00', '12:00', '18:00', '24:00']
-      case 'week':
-        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+      case 'week': {
+        // 7 daily points ending today — rotate so the last label is today.
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const today = new Date().getDay()
+        return Array.from({ length: 7 }, (_, i) => days[(today + 1 + i) % 7])
+      }
       case 'month':
         return ['Week 1', 'Week 2', 'Week 3', 'Week 4']
       case '3months':
@@ -255,13 +309,22 @@ export class DataUsageChart {
     })
   }
 
+  protected retry() {
+    const mac = this.mac()
+    if (mac) {
+      this.loadDataUsage(mac, this.selectedPeriod())
+    }
+  }
+
   private async loadDataUsage(mac: string, period: DataUsagePeriod) {
+    this.error.set(false)
     try {
       const points = await this.service().getDataUsage(mac, period)
       this.dataPoints.set(points)
     } catch (e) {
       console.error('Failed to load data usage:', e)
       this.dataPoints.set([])
+      this.error.set(true)
     } finally {
       this.initialLoading.set(false)
     }

@@ -31,6 +31,9 @@ export abstract class FormService<T> {
           if (isNetworkError(e) && this.networkRestart.isSuppressed) {
             return EMPTY
           }
+          if (e?.code === 34) {
+            return EMPTY
+          }
           console.error(e)
           return this.alerts.open<never>(e.message || e, {
             appearance: 'negative',
