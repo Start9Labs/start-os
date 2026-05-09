@@ -20,7 +20,7 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
   private readonly notifications = inject(TuiNotificationMiddleService)
 
   async load() {
-    // Get list of profile IDs
+    // Get a list of profile IDs
     const profileIds = await this.api.profilesList()
 
     // Fetch full profile data for each ID
@@ -32,20 +32,20 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
   }
 
   async store(_data: SecurityProfile[]) {
-    // Not used - individual methods below handle persistence
+    // Not used - the individual methods below handle persistence
   }
 
   async createProfile(
     params: ProfileCreateInput,
-    scheduleWindows: ScheduleWindow[] = [],
+    windows: ScheduleWindow[] = [],
   ) {
     await this.actions.run(
       async () => {
         const id = await this.api.profileCreate(params)
-        if (scheduleWindows.length) {
+        if (windows.length) {
           await this.api.profileScheduleSet({
             interface: id.interface,
-            windows: scheduleWindows,
+            windows,
           })
         }
         this.refresh()
@@ -65,17 +65,17 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
   async updateProfile(
     params: ProfileUpdateInput,
     oldGatewayIp?: string,
-    scheduleWindows: ScheduleWindow[] = [],
+    windows: ScheduleWindow[] = [],
   ): Promise<boolean> {
     const adminIpChanged =
       params.owns_lan && !!oldGatewayIp && oldGatewayIp !== params.gateway_ip
 
     if (adminIpChanged) {
       // Schedule write doesn't restart the network — land it before the IP
-      // change so it survives the redirect to the new admin address.
+      // change, so it survives the redirect to the new admin address.
       await this.api.profileScheduleSet({
         interface: params.interface,
-        windows: scheduleWindows,
+        windows,
       })
 
       const loading = this.notifications
@@ -104,7 +104,7 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
         await this.api.profileUpdate(params)
         await this.api.profileScheduleSet({
           interface: params.interface,
-          windows: scheduleWindows,
+          windows,
         })
         this.refresh()
       },

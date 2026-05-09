@@ -308,8 +308,6 @@ export default class General {
   private readonly api = inject(ApiService)
   private readonly actions = inject(ActionService)
   private readonly mode = inject(TUI_DARK_MODE)
-  private readonly localStorage = inject(WA_LOCAL_STORAGE)
-  private readonly darkModeKey = inject(TUI_DARK_MODE_KEY)
 
   protected readonly system = inject(SystemService)
   protected readonly gitHash = inject(GIT_HASH)
@@ -319,17 +317,13 @@ export default class General {
     this.gitHash ? this.gitHash.slice(0, 12) : 'unknown',
   )
 
-  private readonly systemTheme = computed(
-    () => !this.localStorage?.getItem(this.darkModeKey),
-  )
-
   protected readonly latestVersion = computed(() => {
     const versions = this.system.newerVersions()
     return versions.length ? versions[versions.length - 1].version : null
   })
 
   protected readonly form = inject(NonNullableFormBuilder).group({
-    theme: (this.systemTheme()
+    theme: (!inject(WA_LOCAL_STORAGE)?.getItem(inject(TUI_DARK_MODE_KEY))
       ? 'system'
       : this.mode()
         ? 'dark'

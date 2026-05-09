@@ -61,7 +61,7 @@ export const appConfig: ApplicationConfig = {
     tuiSheetDialogOptionsProvider({ bar: false, offset: 72 }),
     {
       provide: TUI_APPEARANCE_OPTIONS,
-      useValue: { appearance: 'neutral' },
+      useValue: { appearance: 'floating' },
     },
     {
       provide: ApiService,

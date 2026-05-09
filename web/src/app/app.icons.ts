@@ -14,6 +14,7 @@ import circleCheck from '@taiga-ui/icons/src/circle-check.svg'
 import circleMinus from '@taiga-ui/icons/src/circle-minus.svg'
 import circlePause from '@taiga-ui/icons/src/circle-pause.svg'
 import circlePlay from '@taiga-ui/icons/src/circle-play.svg'
+import circleX from '@taiga-ui/icons/src/circle-x.svg'
 import clock from '@taiga-ui/icons/src/clock.svg'
 import copy from '@taiga-ui/icons/src/copy.svg'
 import doorOpen from '@taiga-ui/icons/src/door-open.svg'
@@ -72,6 +73,7 @@ export const ICONS = {
   '@tui.circle-minus': circleMinus,
   '@tui.circle-pause': circlePause,
   '@tui.circle-play': circlePlay,
+  '@tui.circle-x': circleX,
   '@tui.clock': clock,
   '@tui.copy': copy,
   '@tui.download': download,

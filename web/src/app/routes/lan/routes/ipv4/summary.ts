@@ -15,7 +15,6 @@ import { buildNetworkBlock, buildRouterIp, LanIpv4Form } from './utils'
       }
     </section>
   `,
-  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
   imports: [Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

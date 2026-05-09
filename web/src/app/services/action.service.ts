@@ -2,9 +2,8 @@ import { inject, Injectable } from '@angular/core'
 import { TuiNotificationService } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { firstValueFrom, EMPTY, catchError, Subscription } from 'rxjs'
-import { ReconnectingDialog } from 'src/app/components/reconnecting-dialog'
+import { RECONNECTING_DIALOG } from 'src/app/components/reconnecting-dialog'
 import { ApiService } from 'src/app/services/api/api.service'
 import { pauseFor } from 'src/app/utils/pauseFor'
 import {
@@ -133,14 +132,14 @@ export class ActionService {
     this.networkRestart.recovered()
   }
 
-  private waitForReconnect(message: string): Promise<void> {
+  private waitForReconnect(data: string): Promise<void> {
     return firstValueFrom(
       this.dialogs
-        .open(new PolymorpheusComponent(ReconnectingDialog), {
+        .open(RECONNECTING_DIALOG, {
           label: 'Reconnecting',
           closable: false,
           dismissible: false,
-          data: { message },
+          data,
         })
         .pipe(catchError(() => EMPTY)),
     ).then(() => {})

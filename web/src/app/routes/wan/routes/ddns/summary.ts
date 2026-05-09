@@ -26,7 +26,6 @@ import { DdnsForm, DDNS_PROVIDERS } from './utils'
       }
     </section>
   `,
-  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
   imports: [TuiBadge, TuiStatus, Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

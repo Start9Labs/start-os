@@ -32,7 +32,6 @@ import { LanIpv6Data } from './service'
       }
     </section>
   `,
-  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
   imports: [TuiBadge, TuiStatus, Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

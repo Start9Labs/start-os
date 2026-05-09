@@ -23,7 +23,6 @@ import {
   VpnServerSetArgs,
   VpnServers,
   WifiConfig,
-  BlackoutWindow,
   ScheduleWindow,
   ProfileId,
   ProfileIdOpt,
@@ -525,7 +524,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  private mockBlackoutWindows: BlackoutWindow[] = [
+  private mockBlackoutWindows: ScheduleWindow[] = [
     {
       startTime: '20:00',
       endTime: '23:00',
@@ -545,12 +544,12 @@ export class MockApiService extends ApiService {
     return Array.from(bytes, b => chars[b % chars.length]).join('')
   }
 
-  async wifiBlackoutGet(): Promise<BlackoutWindow[]> {
+  async wifiBlackoutGet(): Promise<ScheduleWindow[]> {
     await pauseFor(250)
     return structuredClone(this.mockBlackoutWindows)
   }
 
-  async wifiBlackoutSet(params: BlackoutWindow[]): Promise<null> {
+  async wifiBlackoutSet(params: ScheduleWindow[]): Promise<null> {
     await pauseFor(250)
     this.mockBlackoutWindows = structuredClone(params)
     this.logActivity(

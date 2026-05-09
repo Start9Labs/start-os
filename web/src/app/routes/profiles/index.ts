@@ -19,10 +19,9 @@ import {
 } from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { catchError, EMPTY, filter, firstValueFrom } from 'rxjs'
 import { Placeholder } from 'src/app/components/placeholder'
-import { ReconnectingDialog } from 'src/app/components/reconnecting-dialog'
+import { RECONNECTING_DIALOG } from 'src/app/components/reconnecting-dialog'
 import { OutboundService } from 'src/app/routes/outbound/service'
 import {
   ApiService,
@@ -359,11 +358,11 @@ class Profiles {
             } else {
               await firstValueFrom(
                 this.dialogs
-                  .open(new PolymorpheusComponent(ReconnectingDialog), {
+                  .open(RECONNECTING_DIALOG, {
                     label: 'Reconnecting',
                     closable: false,
                     dismissible: false,
-                    data: { message: 'Applying profile settings...' },
+                    data: 'Applying profile settings...',
                   })
                   .pipe(catchError(() => EMPTY)),
               )
