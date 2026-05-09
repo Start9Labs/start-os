@@ -2,6 +2,17 @@
 
 For general setup and build system, see the root [CONTRIBUTING.md](../CONTRIBUTING.md). For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## Documentation
+
+This sub-tree's docs split across four files:
+
+- `README.md` — what this is
+- `ARCHITECTURE.md` — how it's built
+- `CONTRIBUTING.md` — this file; how to contribute
+- `CLAUDE.md` — AI-developer operating rules (handler registration, effectful flag, retry, vestigial endpoints)
+
+**These docs must be kept up to date.** When you change the backend's crate layout, handler conventions, UCI library API, or test surface, update the relevant file(s) in the same change — do not defer.
+
 ## Tech Stack
 
 - **Rust** (2021 edition) with a 3-crate workspace

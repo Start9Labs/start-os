@@ -2,6 +2,24 @@
 
 For project structure and system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## Documentation
+
+This repo's docs split across:
+
+- `README.md` — what this is
+- `ARCHITECTURE.md` — how it's built
+- `CONTRIBUTING.md` — this file; how to contribute
+- `API_CONTRACT.md` — RPC endpoint contract (consult before frontend/backend changes)
+- `CLAUDE.md` — AI-developer operating rules
+
+**These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer. Sub-trees (`backend/`, `web/`) have their own copies because they have distinct conventions, build steps, and test surfaces.
+
+## Workflow
+
+- Default branch is `master` (never `main`).
+- Commits use lowercase imperative one-liners; some Conventional-Commit prefixes (`feat:`, `fix:`, `refactor:`, `chore:`, `build:`) are common.
+- Changes land via pull requests; CI runs the OpenWrt image build via `.github/workflows/build-image.yaml`.
+
 ## Project Structure
 
 StartWRT is an OpenWrt fork with two main codebases:

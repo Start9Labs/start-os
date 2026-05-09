@@ -1,39 +1,15 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with code in this repository.
+For AI developers (Claude Code, Copilot, etc.). See `CONTRIBUTING.md` for the doc map and contribution workflow.
 
-## Architecture
+## Operating rules
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system architecture, project structure, data flow, build pipeline, and design decisions.
+- `openwrt/` is a git submodule pointing to Start9's OpenWrt fork. Clone with `--recursive` (or `git submodule update --init --recursive`). Don't edit files inside it; changes belong upstream.
+- Don't run `make` (full image build) unsolicited — it builds OpenWrt from source and takes hours. For backend-only work use `cargo build` in `backend/`; for frontend-only work use `npm start` in `web/`. Use `make update REMOTE=...` only when explicitly asked to deploy.
+- Read the component-level CLAUDE.md before operating on that component (`backend/CLAUDE.md`, `web/CLAUDE.md`) — they document footguns specific to each tree.
+- Cross-frontend/backend changes: update `API_CONTRACT.md`, the Rust handler, `web/src/app/services/api/api.service.ts`, and both `live-api.service.ts` and `mock-api.service.ts` together. Skipping any of these breaks the contract.
 
-Each major component has its own docs: [backend/](backend/), [web/](web/).
+## Sub-scopes
 
-## Build & Development
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, build commands, and development workflow.
-
-**Quick reference:**
-
-```bash
-# Frontend
-cd web && npm ci && npm start        # Dev server with mocks
-
-# Backend
-cd backend && cargo build            # Build all crates
-cd backend && cargo test -p uciedit  # Run UCI parser tests
-
-# Full image
-make                                 # Build everything → out/*.img
-make update REMOTE=root@192.168.0.1  # Deploy binary over SSH
-```
-
-## Operating Rules
-
-- Always read the component-level CLAUDE.md before operating on that component: [backend/CLAUDE.md](backend/CLAUDE.md), [web/CLAUDE.md](web/CLAUDE.md)
-- Follow existing patterns before inventing new ones
-- Check [API_CONTRACT.md](API_CONTRACT.md) for the RPC endpoint contract when working across frontend/backend
-
-## Supplementary Documentation
-
-- `docs/TODO.md` — Pending tasks
-- `docs/init-reflash.md` — Manufacturing, setup wizard, and reflash flow specification
+- `backend/CLAUDE.md` — Rust workspace (ctrl, uciedit, uciedit_macros)
+- `web/CLAUDE.md` — Angular 21 + Taiga UI v5 frontend

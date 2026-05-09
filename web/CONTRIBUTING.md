@@ -2,6 +2,21 @@
 
 For general setup, see the root [CONTRIBUTING.md](../CONTRIBUTING.md). For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## Documentation
+
+This sub-tree's docs split across four files:
+
+- `README.md` — what this is
+- `ARCHITECTURE.md` — how it's built
+- `CONTRIBUTING.md` — this file; how to contribute
+- `CLAUDE.md` — AI-developer operating rules (Taiga-first, form patterns)
+
+**These docs must be kept up to date.** When you change web's structure, conventions, build steps, or component patterns, update the relevant file(s) in the same change — do not defer.
+
+## Testing
+
+There is no test framework wired up in this project — `package.json` has no `test` script and no Jest/Karma/Vitest dependencies. Type-check via `npm run check`. Don't add a test framework without discussing first.
+
 ## Tech Stack
 
 - **Angular 21** with zoneless change detection and standalone components
@@ -140,9 +155,26 @@ See `routes/published-ports/` for the best complete example of the table + dialo
 
 When you're unsure how to use a Taiga component:
 
-1. **Check existing code** — search the codebase for usage examples
-2. **Fetch llms-full.txt** — `https://taiga-ui.dev/llms-full.txt` has all components with code examples
-3. **Taiga docs** — `https://taiga-ui.dev/next`
+1. **Check existing code** — search the codebase for usage examples.
+2. **Fetch llms-full.txt** — `https://taiga-ui.dev/llms-full.txt` has all components with code examples (~2200 lines). For Claude Code: `WebFetch url=https://taiga-ui.dev/llms-full.txt prompt="How to use TuiTextfield with a select dropdown"`.
+3. **MCP server (beta)** — `taiga-family/taiga-ui-mcp` exposes `get_list_components` (fuzzy search) and `get_component_example` (docs + code). Add to your Claude config:
+
+   ```json
+   {
+     "mcpServers": {
+       "taiga-ui": {
+         "command": "npx",
+         "args": [
+           "-y",
+           "@anthropic-ai/mcp-remote@latest",
+           "https://taiga-ui.dev/next/api/mcp/sse"
+         ]
+       }
+     }
+   }
+   ```
+
+4. **Taiga docs** — `https://taiga-ui.dev/next`
 
 ## Conventions
 

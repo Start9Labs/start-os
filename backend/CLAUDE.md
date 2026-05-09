@@ -1,38 +1,10 @@
-# Backend — StartWRT Rust Crates
+# CLAUDE.md
 
-Rust workspace: `ctrl` (RPC server + CLI), `uciedit` (UCI parser), `uciedit_macros` (proc macros). Single binary `startwrt` symlinked as `startwrt-ctrld` (daemon) and `startwrt-cli`.
+## Operating rules
 
-## Architecture
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full backend architecture: transport, modules, UCI library, error types, common pitfalls.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and how-to guides.
-
-## Quick Reference
-
-```bash
-cargo build                          # Build all crates
-cargo build -p startwrt-ctrl         # Build ctrl only
-cargo test -p uciedit                # Run UCI parser tests
-```
-
-## Operating Rules
-
-- All handler modules export `pub fn <name><C: CtrlContext>() -> ParentHandler<C>` and are registered in `main_api()` in `ctrl/src/lib.rs`
-- After UCI writes, call `/etc/init.d/<service> reload` — only when `ctx.effectful()` is true
-- Use `uciedit`'s retry mechanism for writes that may conflict (profile creation retries 4 times)
-- Use `STARTWRT_DEV_PASSWORD` env var for auth during development
-- Generic `uci.get`/`uci.set`/`exec` are vestigial — all features have smart endpoints. See [../API_CONTRACT.md](../API_CONTRACT.md) for the full contract
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `ctrl/src/lib.rs` | `CtrlContext` trait, `main_api()`, `ServerContext`, `CliContext` |
-| `ctrl/src/bins/daemon.rs` | Axum server setup (port 80/443), routes, TLS, setup mode |
-| `ctrl/src/bins/cli.rs` | CLI dispatch, local-only subcommands (init, flash, verify) |
-| `ctrl/src/middleware/auth.rs` | `SessionAuth` middleware (rate limiting, cookie validation) |
-| `ctrl/src/profiles.rs` | Security profile CRUD (VLAN/firewall/DHCP orchestration) |
-| `ctrl/src/error.rs` | `ErrorKind` enum, `Error` type |
-| `uciedit/src/lib.rs` | `Config::parse()`, `dump()`, `parse_all()`, `dump_all()` |
-| `uciedit/src/openwrt.rs` | All `TypedSection` structs (firewall, network, wireless, dhcp) |
+- New handler modules must export `pub fn <name><C: CtrlContext>() -> ParentHandler<C>` and be registered in `main_api()` in `ctrl/src/lib.rs`. Skipping the registration is silent — the endpoint won't exist.
+- After UCI writes, call `/etc/init.d/<service> reload` — but only when `ctx.effectful()` is true. Reloading unconditionally breaks `--configs-only` CLI mode.
+- Use `uciedit`'s retry mechanism for writes that may conflict with concurrent writes (profile creation already retries 4 times). Don't add ad-hoc retry loops.
+- The generic `uci.get` / `uci.set` / `file.*` / `exec` endpoints are vestigial — every feature has a purpose-built smart endpoint and no frontend code calls the generics. Don't reach for them when adding new functionality; add a typed handler instead. See `../API_CONTRACT.md` for the full contract.
+- For dev authentication, set `STARTWRT_DEV_PASSWORD` to bypass `/etc/shadow`. Don't try to populate `/etc/shadow` on a dev machine.
+- Cross-frontend changes: when adding/modifying a handler, update `web/src/app/services/api/api.service.ts` and both `live-api.service.ts` / `mock-api.service.ts`, plus `../API_CONTRACT.md`.
