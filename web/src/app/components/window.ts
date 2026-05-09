@@ -54,7 +54,7 @@ import { ScheduleWindow } from 'src/app/services/api/api.service'
         </div>
       </fieldset>
       <footer>
-        @if (context.label === 'Edit Blackout Window') {
+        @if (context.label.startsWith('Edit')) {
           <button
             tuiButton
             type="button"
