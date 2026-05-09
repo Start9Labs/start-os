@@ -1,15 +1,17 @@
 name: Build OpenWrt Image
 
 on:
-  pull_request:
-    branches: [master]
-    paths-ignore:
-      - "**/*.md"
+  # Restore these triggers once the repo is public — private-repo CI minutes
+  # were burning through the org quota at ~5h per build.
+  # pull_request:
+  #   branches: [master]
+  #   paths-ignore:
+  #     - "**/*.md"
   push:
-    branches: [master]
+    # branches: [master]
     tags: ["v*"]
-    paths-ignore:
-      - "**/*.md"
+    # paths-ignore:
+    #   - "**/*.md"
   workflow_dispatch:
     inputs:
       deploy:
