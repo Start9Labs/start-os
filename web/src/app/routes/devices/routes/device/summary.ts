@@ -103,7 +103,6 @@ import { DataUsageChart } from './data-usage-chart'
       gap: 0.25rem;
     }
   `,
-  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
   imports: [TuiIcon, TuiLink, TuiFormatNumberPipe, Summary, DataUsageChart],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

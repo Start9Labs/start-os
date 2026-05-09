@@ -21,7 +21,6 @@ import {
   VpnServerSetArgs,
   VpnServers,
   WifiConfig,
-  BlackoutWindow,
   ScheduleWindow,
   ProfileId,
   ProfileIdOpt,
@@ -169,11 +168,11 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'wifi.generate-password', params: {} })
   }
 
-  async wifiBlackoutGet(): Promise<BlackoutWindow[]> {
+  async wifiBlackoutGet(): Promise<ScheduleWindow[]> {
     return this.rpc.request({ method: 'wifi.blackout-get', params: {} })
   }
 
-  async wifiBlackoutSet(params: BlackoutWindow[]): Promise<null> {
+  async wifiBlackoutSet(params: ScheduleWindow[]): Promise<null> {
     return this.rpc.request({
       method: 'wifi.blackout-set',
       params: { windows: params },

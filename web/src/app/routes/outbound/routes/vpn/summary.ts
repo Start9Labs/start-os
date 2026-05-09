@@ -63,7 +63,6 @@ import OutboundVPN from 'src/app/routes/outbound/routes/vpn/index'
       margin: 0;
     }
   `,
-  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
   imports: [TuiBadge, TuiStatus, Summary, TuiAvatarLabeled, TuiAvatar, TuiIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

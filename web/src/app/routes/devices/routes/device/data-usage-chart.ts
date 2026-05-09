@@ -19,7 +19,7 @@ import {
   TuiNotification,
 } from '@taiga-ui/core'
 import type { TuiPoint } from '@taiga-ui/core'
-import { TuiChevron, TuiSkeleton } from '@taiga-ui/kit'
+import { TuiChevron, TuiSkeleton, TuiStatus } from '@taiga-ui/kit'
 import {
   DATA_USAGE_PERIOD_LABELS,
   DataUsagePeriod,
@@ -57,30 +57,25 @@ import { DevicesService } from '../../service'
       </button>
     </header>
     @if (loading() || initialLoading()) {
-      <div class="chart-legend">
-        <span>Placeholder</span>
-        <span>Placeholder</span>
-      </div>
-      <div class="chart-message">
-        <tui-loader />
-      </div>
+      <div class="chart-legend">&nbsp;</div>
+      <tui-loader size="l" [style.height.rem]="10" />
     } @else if (error()) {
-      <div tuiNotification appearance="negative" class="chart-error">
+      <div tuiNotification size="l" appearance="negative">
         Failed to load data usage.
-        <button tuiButton size="s" appearance="secondary" (click)="retry()">
+        <button
+          tuiButton
+          type="button"
+          class="chart-retry"
+          appearance="secondary-grayscale"
+          (click)="retry()"
+        >
           Retry
         </button>
       </div>
     } @else {
       <div class="chart-legend">
-        <span class="legend-item download">
-          <span class="legend-dot"></span>
-          Download
-        </span>
-        <span class="legend-item upload">
-          <span class="legend-dot"></span>
-          Upload
-        </span>
+        <span tuiStatus="#3b82f6">Download</span>
+        <span tuiStatus="#10b981">Upload</span>
       </div>
       <tui-axes
         [axisXLabels]="xLabels()"
@@ -135,28 +130,14 @@ import { DevicesService } from '../../service'
       }
     }
 
-    .chart-message {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 10rem;
-    }
-
     .chart-empty {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      margin: auto;
       color: var(--tui-text-secondary);
-      font-size: 0.875rem;
     }
 
-    .chart-error {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin: 0.5rem 0;
+    .chart-retry {
+      float: inline-end;
+      margin: -0.25rem;
     }
 
     .chart-legend {
@@ -164,26 +145,6 @@ import { DevicesService } from '../../service'
       gap: 1rem;
       margin-bottom: 0.5rem;
       font-size: 0.75rem;
-
-      .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-      }
-
-      .legend-dot {
-        width: 0.5rem;
-        height: 0.5rem;
-        border-radius: 50%;
-      }
-
-      .download .legend-dot {
-        background: #3b82f6;
-      }
-
-      .upload .legend-dot {
-        background: #10b981;
-      }
     }
   `,
   imports: [
@@ -196,6 +157,7 @@ import { DevicesService } from '../../service'
     TuiLoader,
     TuiNotification,
     TuiSkeleton,
+    TuiStatus,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -215,15 +177,11 @@ export class DataUsageChart {
 
   // Backend zero-fills missing days, so an "all zero" series is the real
   // empty state — render the message instead of flat-zero lines.
-  protected readonly isEmpty = computed(() => {
-    const points = this.dataPoints()
-    return (
-      points.length === 0 ||
-      points.every(p => p.download === 0 && p.upload === 0)
-    )
-  })
+  protected readonly isEmpty = computed(() =>
+    this.dataPoints().every(p => p.download === 0 && p.upload === 0),
+  )
 
-  // Convert data to line chart format using absolute coordinates.
+  // Convert data to a line chart format using absolute coordinates.
   // A single point is drawn as a flat segment.
   protected readonly chartLines = computed((): TuiPoint[][] => {
     const points = this.dataPoints()

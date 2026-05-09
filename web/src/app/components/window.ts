@@ -19,9 +19,8 @@ import { TUI_CONFIRM, TuiBlock, TuiInputTime } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
-import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
-import type { ScheduleWindow } from 'src/app/services/api/api.service'
+import { ScheduleWindow } from 'src/app/services/api/api.service'
 
 @Component({
   template: `
@@ -86,7 +85,6 @@ import type { ScheduleWindow } from 'src/app/services/api/api.service'
   `,
   hostDirectives: [ModalHelp],
   providers: [
-    provideHelp('/profiles/schedule/dialog'),
     tuiValidationErrorsProvider({
       endBeforeStart: 'End time must be later than start time',
     }),
@@ -103,12 +101,13 @@ import type { ScheduleWindow } from 'src/app/services/api/api.service'
     TuiBlock,
   ],
 })
-class AddScheduleWindow {
+export class AddWindow {
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly builder = inject(NonNullableFormBuilder)
   protected readonly context =
     injectContext<TuiDialogContext<ScheduleWindow | null, ScheduleWindow>>()
 
+  // Display Mon–Sun; data keys map to Sun(0)–Sat(6)
   protected readonly displayDays = [
     { label: 'Mon', key: 1 },
     { label: 'Tue', key: 2 },
@@ -173,5 +172,3 @@ class AddScheduleWindow {
       })
   }
 }
-
-export const ADD_SCHEDULE_WINDOW = new PolymorpheusComponent(AddScheduleWindow)

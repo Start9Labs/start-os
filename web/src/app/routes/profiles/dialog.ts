@@ -47,6 +47,7 @@ import {
 import { TuiElasticContainer, TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { startWith } from 'rxjs'
+import { ScheduleComponent } from 'src/app/components/schedule'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
 import type {
@@ -58,7 +59,6 @@ import type {
   WanAccess,
 } from 'src/app/services/api/api.service'
 import { CustomValidators } from 'src/app/utils/validators'
-import { ProfileScheduleEditor } from './routes/schedule/editor'
 
 export interface ProfileDialogData {
   existing?: SecurityProfile
@@ -95,7 +95,7 @@ export interface ProfileDialogResult {
         <input tuiInput formControlName="fullname" placeholder="e.g. Guest" />
       </tui-textfield>
       <tui-error formControlName="fullname" />
-      <fieldset>
+      <fieldset class="subnet">
         <legend>Subnet</legend>
         <div tuiGroup>
           <tui-textfield>
@@ -116,19 +116,19 @@ export interface ProfileDialogResult {
             <input tuiInput value="1" disabled />
           </tui-textfield>
         </div>
+        <tui-textfield tuiChevron [stringify]="stringifyOutbound">
+          <label tuiLabel>Outbound Routing</label>
+          <input tuiSelect formControlName="outbound" />
+          <tui-data-list *tuiDropdown>
+            @for (option of outboundOptions(); track option.interface) {
+              <button tuiOption [value]="option.interface">
+                {{ option.label }}
+              </button>
+            }
+          </tui-data-list>
+        </tui-textfield>
       </fieldset>
       <tui-error formControlName="subnet" />
-      <tui-textfield tuiChevron [stringify]="stringifyOutbound">
-        <label tuiLabel>Outbound Routing</label>
-        <input tuiSelect formControlName="outbound" />
-        <tui-data-list *tuiDropdown>
-          @for (option of outboundOptions(); track option.interface) {
-            <button tuiOption [value]="option.interface">
-              {{ option.label }}
-            </button>
-          }
-        </tui-data-list>
-      </tui-textfield>
       <label tuiLabel>
         <input type="checkbox" tuiSwitch formControlName="useCustomDns" />
         Use custom DNS servers
@@ -235,7 +235,7 @@ export interface ProfileDialogResult {
       </tui-elastic-container>
       <fieldset>
         <legend>WAN Schedule</legend>
-        <profile-schedule-editor [(windows)]="scheduleWindows" />
+        <app-schedule [style.height.rem]="22" [(windows)]="scheduleWindows" />
       </fieldset>
       <footer>
         <button
@@ -252,8 +252,15 @@ export interface ProfileDialogResult {
       </footer>
     </form>
   `,
+  styles: `
+    :host-context(tui-sheet-dialog) .subnet {
+      display: flex;
+      flex-direction: column;
+    }
+  `,
   hostDirectives: [ModalHelp],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  viewProviders: [provideHelp('/profiles/schedule')],
   providers: [
     provideHelp('/profiles/dialog'),
     tuiValidationErrorsProvider({
@@ -292,7 +299,7 @@ export interface ProfileDialogResult {
     TuiElasticContainer,
     TuiAnimated,
     TuiHint,
-    ProfileScheduleEditor,
+    ScheduleComponent,
   ],
 })
 class AddProfile {

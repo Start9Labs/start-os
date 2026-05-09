@@ -8,6 +8,7 @@ import {
 } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { Router, RouterOutlet } from '@angular/router'
+import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { TUI_DARK_MODE, TuiScrollbar } from '@taiga-ui/core'
 import { TuiNavigation } from '@taiga-ui/layout'
 import { Aside } from 'src/app/components/aside'
@@ -112,7 +113,7 @@ import { SystemService } from 'src/app/services/system.service'
 })
 export class App {
   protected readonly dark = inject(TUI_DARK_MODE)
-  protected readonly open = signal(true)
+  protected readonly open = signal(!inject(WA_IS_MOBILE))
   protected readonly scrollbar = viewChild(TuiScrollbar, { read: ElementRef })
   protected readonly _ = inject(Router)
     .events.pipe(takeUntilDestroyed())

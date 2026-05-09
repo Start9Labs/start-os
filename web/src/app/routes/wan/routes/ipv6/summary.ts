@@ -49,7 +49,6 @@ const SUMMARY_FIELDS = [
       }
     </section>
   `,
-  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
   imports: [TuiBadge, TuiStatus, Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

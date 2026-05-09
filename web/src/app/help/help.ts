@@ -15,9 +15,9 @@ import lanIpv6 from './lan/ipv6.html?raw'
 import outboundDialog from './outbound/dialog.html?raw'
 import outbound from './outbound/index.html?raw'
 import outboundVpn from './outbound/vpn.html?raw'
-import profilesDialog from './profiles/dialog.html?raw'
 import profiles from './profiles/index.html?raw'
-import profilesScheduleDialog from './profiles/schedule-dialog.html?raw'
+import profilesDialog from './profiles/dialog.html?raw'
+import profilesSchedule from './profiles/schedule.html?raw'
 import publishedPortsDialog from './published-ports/dialog.html?raw'
 import publishedPorts from './published-ports/index.html?raw'
 import settingsActivity from './settings/activity.html?raw'
@@ -65,7 +65,7 @@ export const HELP = new InjectionToken<Record<string, string>>(
       '/outbound/dialog': outboundDialog,
       '/profiles': profiles,
       '/profiles/dialog': profilesDialog,
-      '/profiles/schedule/dialog': profilesScheduleDialog,
+      '/profiles/schedule': profilesSchedule,
       '/published-ports': publishedPorts,
       '/published-ports/dialog': publishedPortsDialog,
       '/wan/ipv4': wanIpv4,

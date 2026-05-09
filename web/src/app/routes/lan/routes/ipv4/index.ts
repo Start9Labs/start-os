@@ -18,11 +18,10 @@ import {
 } from '@taiga-ui/core'
 import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { catchError, EMPTY, firstValueFrom, startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
-import { ReconnectingDialog } from 'src/app/components/reconnecting-dialog'
+import { RECONNECTING_DIALOG } from 'src/app/components/reconnecting-dialog'
 import { ApiService } from 'src/app/services/api/api.service'
 import { provideFormService } from 'src/app/services/form.service'
 import { NetworkRestartService } from 'src/app/services/network-restart.service'
@@ -176,11 +175,11 @@ export default class LanIpv4 {
       } else {
         await firstValueFrom(
           this.dialogs
-            .open(new PolymorpheusComponent(ReconnectingDialog), {
+            .open(RECONNECTING_DIALOG, {
               label: 'Reconnecting',
               closable: false,
               dismissible: false,
-              data: { message: 'Applying LAN settings...' },
+              data: 'Applying LAN settings...',
             })
             .pipe(catchError(() => EMPTY)),
         )

@@ -29,8 +29,8 @@ export abstract class ApiService {
   abstract wifiGet(): Promise<WifiConfig>
   abstract wifiSet(params: WifiConfig): Promise<null>
   abstract wifiGeneratePassword(): Promise<string>
-  abstract wifiBlackoutGet(): Promise<BlackoutWindow[]>
-  abstract wifiBlackoutSet(params: BlackoutWindow[]): Promise<null>
+  abstract wifiBlackoutGet(): Promise<ScheduleWindow[]>
+  abstract wifiBlackoutSet(params: ScheduleWindow[]): Promise<null>
   abstract profilesList(): Promise<ProfileId[]>
   abstract profileGet(params: ProfileIdOpt): Promise<SecurityProfile>
   abstract profileCreate(params: ProfileCreateInput): Promise<ProfileId>
@@ -312,12 +312,6 @@ export interface WifiConfig {
   broadcastSeparately: boolean
   radios: Record<string, WifiRadio>
   passwords: WifiPassword[]
-}
-
-export interface BlackoutWindow {
-  startTime: string
-  endTime: string
-  days: [boolean, boolean, boolean, boolean, boolean, boolean, boolean]
 }
 
 export interface ScheduleWindow {

@@ -35,7 +35,6 @@ type SummaryField = (typeof SUMMARY_FIELDS)[number]
       }
     </section>
   `,
-  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
   imports: [Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

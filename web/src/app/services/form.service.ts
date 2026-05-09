@@ -28,16 +28,13 @@ export abstract class FormService<T> {
     switchMap(() =>
       from(this.load()).pipe(
         catchError(e => {
-          if (isNetworkError(e) && this.networkRestart.isSuppressed) {
-            return EMPTY
-          }
-          if (e?.code === 34) {
-            return EMPTY
-          }
+          const ignored = isNetworkError(e) && this.networkRestart.isSuppressed
           console.error(e)
-          return this.alerts.open<never>(e.message || e, {
-            appearance: 'negative',
-          })
+          return ignored || e?.code === 34
+            ? EMPTY
+            : this.alerts.open<never>(e?.message || e, {
+                appearance: 'negative',
+              })
         }),
       ),
     ),
