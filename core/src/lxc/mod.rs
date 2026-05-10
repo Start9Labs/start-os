@@ -185,7 +185,7 @@ impl LxcContainer {
         let machine_id = hex::encode(rand::random::<[u8; 16]>());
         let container_dir = Path::new(LXC_CONTAINER_DIR).join(&*guid);
         tokio::fs::create_dir_all(&container_dir).await?;
-        let mut config_str = format!(
+        let config_str = format!(
             include_str!("./config.template"),
             guid = &*guid,
             lang = &lang,
