@@ -26,7 +26,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       ></article>
     } @else {
       <div tuiNotification appearance="neutral">
-        {{ 'No instructions provided for this service.' | i18n }}
+        {{ 'This version has no instructions. Please update.' | i18n }}
       </div>
     }
   `,

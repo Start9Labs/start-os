@@ -752,5 +752,5 @@ export default {
   837: 'Wł.',
   838: 'Brak dostępnej kompatybilnej wersji',
   839: 'instrukcje',
-  840: 'Dla tej usługi nie podano instrukcji.',
+  840: 'Ta wersja nie zawiera instrukcji. Proszę zaktualizować.',
 } satisfies i18n

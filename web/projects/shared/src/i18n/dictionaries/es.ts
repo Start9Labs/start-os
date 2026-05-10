@@ -752,5 +752,5 @@ export default {
   837: 'Activado',
   838: 'No hay versión compatible disponible',
   839: 'instrucciones',
-  840: 'No se proporcionaron instrucciones para este servicio.',
+  840: 'Esta versión no incluye instrucciones. Por favor, actualice.',
 } satisfies i18n
