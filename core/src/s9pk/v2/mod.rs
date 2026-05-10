@@ -35,6 +35,7 @@ pub mod recipe;
     ├── manifest.json
     ├── icon.<ext>
     ├── LICENSE.md
+    ├── instructions.md
     ├── dependencies
     │   └── <id>
     │       ├── metadata.json
@@ -57,10 +58,11 @@ fn priority(s: &str) -> Option<usize> {
         "manifest.json" => Some(0),
         a if Path::new(a).file_stem() == Some(OsStr::new("icon")) => Some(1),
         "LICENSE.md" => Some(2),
-        "dependencies" => Some(3),
-        "javascript.squashfs" => Some(4),
-        "assets.squashfs" => Some(5),
-        "images" => Some(6),
+        "instructions.md" => Some(3),
+        "dependencies" => Some(4),
+        "javascript.squashfs" => Some(5),
+        "assets.squashfs" => Some(6),
+        "images" => Some(7),
         _ => None,
     }
 }
@@ -199,6 +201,14 @@ impl<S: FileSource + Clone> S9pk<S> {
             mime,
             contents.expect_file()?.to_vec(contents.hash()).await?,
         )))
+    }
+
+    pub async fn instructions(&self) -> Result<Option<String>, Error> {
+        let Some(entry) = self.archive.contents().get_path("instructions.md") else {
+            return Ok(None);
+        };
+        let bytes = entry.expect_file()?.to_vec(entry.hash()).await?;
+        Ok(Some(String::from_utf8(bytes)?))
     }
 
     pub async fn dependency_metadata(

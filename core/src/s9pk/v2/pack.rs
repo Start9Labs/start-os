@@ -167,6 +167,8 @@ pub struct PackParams {
     pub icon: Option<PathBuf>,
     #[arg(long, help = "help.arg.license-path")]
     pub license: Option<PathBuf>,
+    #[arg(long, help = "help.arg.instructions-path")]
+    pub instructions: Option<PathBuf>,
     #[arg(long, conflicts_with = "no_assets", help = "help.arg.assets-path")]
     pub assets: Option<PathBuf>,
     #[arg(long, conflicts_with = "assets", help = "help.arg.no-assets")]
@@ -258,6 +260,23 @@ impl PackParams {
                     },
                 )
                 .await?
+        }
+    }
+    async fn instructions(&self) -> Result<PathBuf, Error> {
+        if let Some(instructions) = &self.instructions {
+            Ok(instructions.clone())
+        } else {
+            let candidate = self.path().join("instructions.md");
+            if tokio::fs::metadata(&candidate).await.is_ok() {
+                Ok(candidate)
+            } else {
+                Err(Error::new(
+                    eyre!(
+                        "instructions.md not found at the package root - it is a required file alongside README.md"
+                    ),
+                    ErrorKind::NotFound,
+                ))
+            }
         }
     }
     fn assets(&self) -> PathBuf {
@@ -673,6 +692,13 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
         )),
     );
     files.insert(
+        "instructions.md".into(),
+        Entry::file(TmpSource::new(
+            tmp_dir.clone(),
+            PackSource::File(params.instructions().await?),
+        )),
+    );
+    files.insert(
         "javascript.squashfs".into(),
         Entry::file(TmpSource::new(
             tmp_dir.clone(),
@@ -867,10 +893,20 @@ pub async fn list_ingredients(_: CliContext, params: PackParams) -> Result<Vec<P
         Err(e) => {
             warn!("failed to load manifest: {e}");
             debug!("{e:?}");
-            return Ok(vec![js_path, params.icon().await?, params.license().await?]);
+            return Ok(vec![
+                js_path,
+                params.icon().await?,
+                params.license().await?,
+                params.instructions().await?,
+            ]);
         }
     };
-    let mut ingredients = vec![js_path, params.icon().await?, params.license().await?];
+    let mut ingredients = vec![
+        js_path,
+        params.icon().await?,
+        params.license().await?,
+        params.instructions().await?,
+    ];
 
     for (_, dependency) in manifest.dependencies.0 {
         match dependency.metadata {

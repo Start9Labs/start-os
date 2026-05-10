@@ -15,6 +15,7 @@ The archive is cryptographically signed using Ed25519 with prehashed content (SH
 ├── manifest.json           # Package metadata (required)
 ├── icon.<ext>              # Package icon - any image/* format (required)
 ├── LICENSE.md              # License text (required)
+├── instructions.md         # User-facing setup/usage instructions (required)
 ├── dependencies/           # Dependency metadata (optional)
 │   └── <package-id>/
 │       ├── metadata.json   # DependencyMetadata
@@ -99,7 +100,7 @@ The S9PK uses a merkle tree structure where each file and directory has a blake3
 3. **Efficient updates** - Only download changed portions
 4. **DOS protection** - Size limits enforced before downloading content
 
-Files are sorted by priority for streaming (manifest first, then icon, license, dependencies, javascript, assets, images).
+Files are sorted by priority for streaming (manifest first, then icon, license, instructions, dependencies, javascript, assets, images).
 
 ## Building S9PK
 

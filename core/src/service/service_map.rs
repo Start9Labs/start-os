@@ -178,6 +178,7 @@ impl ServiceMap {
         let manifest = s9pk.as_manifest().clone();
         let id = manifest.id.clone();
         let icon = s9pk.icon_data_url().await?;
+        let instructions = s9pk.instructions().await?.unwrap_or_default();
         let developer_key = s9pk.as_archive().signer();
         let mut service = self.get_mut(&id).await;
         let size = s9pk.size();
@@ -212,6 +213,7 @@ impl ServiceMap {
                         let id = id.clone();
                         let install_progress = progress.snapshot();
                         let registry = registry.clone();
+                        let instructions = instructions.clone();
                         move |db| {
                             if let Some(pde) =
                                 db.as_public_mut().as_package_data_mut().as_idx_mut(&id)
@@ -227,6 +229,7 @@ impl ServiceMap {
                                         },
                                     },
                                 ))?;
+                                pde.as_instructions_mut().ser(&instructions)?;
                             } else {
                                 let installing = InstallingState {
                                     installing_info: InstallingInfo {
@@ -247,6 +250,7 @@ impl ServiceMap {
                                         registry,
                                         developer_key: Pem::new(developer_key),
                                         icon,
+                                        instructions,
                                         last_backup: None,
                                         current_dependencies: Default::default(),
                                         actions: Default::default(),

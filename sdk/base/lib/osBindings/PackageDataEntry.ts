@@ -19,6 +19,7 @@ export type PackageDataEntry = {
   registry: string | null
   developerKey: string
   icon: DataUrl
+  instructions: string
   lastBackup: string | null
   currentDependencies: CurrentDependencies
   actions: { [key: ActionId]: ActionMetadata }

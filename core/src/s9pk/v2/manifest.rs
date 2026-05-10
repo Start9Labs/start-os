@@ -59,6 +59,11 @@ impl Manifest {
                 .map_or(false, |mime| mime.starts_with("image/"))
         })?;
         expected.check_file("LICENSE.md")?;
+        if let Err(e) = expected.check_file("instructions.md") {
+            // backwards compatibility for s9pks built before instructions.md became required
+            tracing::warn!("{e}");
+            tracing::debug!("{e:?}");
+        }
         expected.check_file("javascript.squashfs")?;
         for (dependency, _) in &self.dependencies.0 {
             let dep_path = Path::new("dependencies").join(dependency);

@@ -3116,6 +3116,13 @@ help.arg.include-private-data:
   fr_FR: "Inclure les données privées dans la sortie"
   pl_PL: "Uwzględnij dane prywatne w wynikach"
 
+help.arg.instructions-path:
+  en_US: "Path to user-facing instructions markdown file"
+  de_DE: "Pfad zur benutzerseitigen Anleitungs-Markdown-Datei"
+  es_ES: "Ruta al archivo markdown de instrucciones para el usuario"
+  fr_FR: "Chemin vers le fichier markdown d'instructions destiné à l'utilisateur"
+  pl_PL: "Ścieżka do pliku markdown z instrukcjami dla użytkownika"
+
 help.arg.javascript-path:
   en_US: "Path to JavaScript file"
   de_DE: "Pfad zur JavaScript-Datei"

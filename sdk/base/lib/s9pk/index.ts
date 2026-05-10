@@ -191,4 +191,19 @@ export class S9pk {
       throw new Error('license.md not found in archive')
     return new TextDecoder().decode(await file.verifiedFileContents())
   }
+
+  /**
+   * Reads and returns the `instructions.md` file from the archive as a UTF-8 string.
+   *
+   * `instructions.md` is a required, user-facing markdown document at the root of every
+   * package — see the StartOS packaging book for guidance on what belongs in it.
+   *
+   * @returns The full instructions markdown, or `null` if the s9pk predates the
+   *   instructions-required convention and does not contain the file
+   */
+  async instructions(): Promise<string | null> {
+    const file = this.archive.contents.getPath(['instructions.md'])
+    if (!file || !(file.contents instanceof FileContents)) return null
+    return new TextDecoder().decode(await file.verifiedFileContents())
+  }
 }
