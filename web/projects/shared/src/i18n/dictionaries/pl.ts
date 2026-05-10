@@ -751,4 +751,6 @@ export default {
   836: 'Wył.',
   837: 'Wł.',
   838: 'Brak dostępnej kompatybilnej wersji',
+  839: 'instrukcje',
+  840: 'Dla tej usługi nie podano instrukcji.',
 } satisfies i18n

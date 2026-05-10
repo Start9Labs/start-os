@@ -751,4 +751,6 @@ export default {
   836: 'Désactivé',
   837: 'Activé',
   838: 'Aucune version compatible disponible',
+  839: 'instructions',
+  840: 'Aucune instruction fournie pour ce service.',
 } satisfies i18n

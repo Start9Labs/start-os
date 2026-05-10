@@ -200,6 +200,7 @@ export class ServiceOutletComponent {
 
   protected readonly nav: { title: i18nKey; icon: string }[] = [
     { title: 'dashboard', icon: '@tui.layout-dashboard' },
+    { title: 'instructions', icon: '@tui.book-open' },
     { title: 'actions', icon: '@tui.file-terminal' },
     { title: 'logs', icon: '@tui.logs' },
     { title: 'about', icon: '@tui.info' },

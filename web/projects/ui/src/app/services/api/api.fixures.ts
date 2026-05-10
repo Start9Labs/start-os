@@ -2280,6 +2280,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
     },
     s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
     icon: '/assets/img/service-icons/bitcoin-core.svg',
+    instructions: '# Mock instructions\n\nMock instructions for this package.',
     lastBackup: null,
     statusInfo: {
       error: null,
@@ -2525,6 +2526,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
     },
     s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
+    instructions: '# Mock instructions\n\nMock instructions for this package.',
     lastBackup: null,
     statusInfo: {
       desired: { main: 'stopped' },
@@ -2575,6 +2577,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
     },
     s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
     icon: '/assets/img/service-icons/lnd.png',
+    instructions: '# Mock instructions\n\nMock instructions for this package.',
     lastBackup: null,
     statusInfo: {
       desired: { main: 'stopped' },

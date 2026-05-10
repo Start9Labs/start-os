@@ -15,6 +15,10 @@ export const ROUTES: Routes = [
         component: ServiceRoute,
       },
       {
+        path: 'instructions',
+        loadComponent: () => import('./routes/instructions.component'),
+      },
+      {
         path: 'actions',
         loadComponent: () => import('./routes/actions.component'),
       },
