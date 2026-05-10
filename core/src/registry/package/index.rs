@@ -97,9 +97,6 @@ pub struct PackageMetadata {
     #[ts(type = "string | null")]
     pub donation_url: Option<Url>,
     #[serde(default)]
-    #[ts(type = "string[]")]
-    pub docs_urls: Vec<Url>,
-    #[serde(default)]
     pub alerts: Alerts,
     #[serde(default = "current_version")]
     #[ts(type = "string")]

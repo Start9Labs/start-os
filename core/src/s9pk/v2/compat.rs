@@ -216,7 +216,6 @@ impl TryFrom<ManifestV1> for Manifest {
                 upstream_repo: value.upstream_repo,
                 marketing_url: Some(value.marketing_site.unwrap_or_else(|| default_url.clone())),
                 donation_url: value.donation_url,
-                docs_urls: Vec::new(),
                 description: value.description,
                 alerts: value.alerts,
                 git_hash: value.git_hash,

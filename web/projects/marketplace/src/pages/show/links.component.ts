@@ -42,14 +42,6 @@ import { MarketplaceLinkComponent } from './link.component'
             icon="@tui.external-link"
             class="item-pointer"
           />
-          @for (docsUrl of pkg().docsUrls; track $index) {
-            <marketplace-link
-              [url]="docsUrl"
-              label="Documentation"
-              icon="@tui.external-link"
-              class="item-pointer"
-            />
-          }
           @if (pkg().donationUrl; as donationUrl) {
             <marketplace-link
               [url]="donationUrl"

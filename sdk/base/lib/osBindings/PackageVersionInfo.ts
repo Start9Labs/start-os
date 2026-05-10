@@ -26,7 +26,6 @@ export type PackageVersionInfo = {
   upstreamRepo: string
   marketingUrl: string
   donationUrl: string | null
-  docsUrls: string[]
   alerts: Alerts
   osVersion: string
   sdkVersion: string | null

@@ -13,7 +13,6 @@ export const sdk = StartSdk.of()
       upstreamRepo: '',
       marketingUrl: '',
       donationUrl: null,
-      docsUrls: [],
       description: {
         short: '',
         long: '',

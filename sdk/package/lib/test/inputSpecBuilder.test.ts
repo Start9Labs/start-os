@@ -458,7 +458,6 @@ describe('values', () => {
             upstreamRepo: '',
             marketingUrl: '',
             donationUrl: null,
-            docsUrls: [],
             description: {
               short: '',
               long: '',

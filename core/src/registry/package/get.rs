@@ -631,7 +631,6 @@ fn check_matching_info_short() {
             upstream_repo: "https://github.com/example/upstream".parse().unwrap(),
             marketing_url: Some("https://example.com".parse().unwrap()),
             donation_url: None,
-            docs_urls: Vec::new(),
             alerts: Alerts::default(),
             os_version: exver::Version::new([0, 3, 6], []),
             sdk_version: None,

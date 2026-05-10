@@ -119,10 +119,6 @@ export default class ServiceAboutRoute {
             {
               header: 'Links',
               items: [
-                ...manifest.docsUrls.map(docsUrl => ({
-                  name: 'Documentation',
-                  value: docsUrl,
-                })),
                 {
                   name: 'Marketing',
                   value: manifest.marketingUrl || NOT_PROVIDED,
