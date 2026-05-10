@@ -248,9 +248,6 @@ impl ArchiveSource for BufferedHttpSource {
     }
 }
 
-/// Retry policy for `DownloadHandle::download_from`. Walks the mirror list and,
-/// within each mirror, tries: full download → resume via `Range` (if the previous
-/// attempt got truncated mid-stream) → one full retry → next mirror.
 struct MirrorRetry {
     urls: Vec<Url>,
     client: Client,
@@ -260,11 +257,8 @@ struct MirrorRetry {
 
 #[derive(Clone, Copy)]
 enum MirrorState {
-    /// Try the next URL with a fresh full request.
     NextFull(usize),
-    /// The previous attempt on `urls[idx]` failed mid-body. Try a Range resume next.
     TryResume(usize),
-    /// Resume on `urls[idx]` failed (or wasn't applicable). Try a full retry next.
     RetryFull(usize),
 }
 

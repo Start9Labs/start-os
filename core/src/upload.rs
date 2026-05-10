@@ -207,10 +207,6 @@ impl UploadingFile {
         file.tmp_dir = Some(tmp_dir);
         Ok((handle, file))
     }
-    /// Reader/writer pair where the writer is a plain `tokio::fs::File`. Used for
-    /// HTTP downloads, which need exact byte-level progress (to construct `Range`
-    /// resume headers) and the ability to truncate the file between retry attempts —
-    /// neither of which is workable with the O_DIRECT buffering used by uploads.
     pub async fn with_path_for_download(
         path: impl AsRef<Path>,
         mut progress: PhaseProgressTrackerHandle,
@@ -500,38 +496,18 @@ impl AsyncWrite for UploadHandle {
     }
 }
 
-/// State passed to a `DownloadHandle::download_from` factory each time it's asked
-/// for the next response. The factory uses these to decide whether to issue a
-/// `Range`-resume request, switch mirrors, or give up.
 pub struct DownloadAttemptContext {
-    /// Bytes already written to disk for this download. Use to construct
-    /// `Range: bytes=N-` when issuing a resume request.
     pub bytes_written: u64,
-    /// Total file size if any prior attempt's response told us. None until the
-    /// first response.
     pub expected_size: Option<u64>,
-    /// The error from the previous attempt, if this isn't the first call.
     pub last_error: Option<Error>,
 }
 
-/// Writer half of an `UploadingFile` pair returned by `UploadingFile::with_path_for_download`.
-/// Backed by a plain `tokio::fs::File` (so it can seek / truncate / report exact
-/// on-disk byte counts) and exposes `download_from`, which loops over a factory
-/// of responses to implement retry-with-fallback.
 pub struct DownloadHandle {
     tmp_dir: Option<Arc<TmpDir>>,
     file: tokio::fs::File,
     progress: watch::Sender<Progress>,
 }
 impl DownloadHandle {
-    /// Download by streaming from a sequence of HTTP responses produced by
-    /// `next_response`. The factory is invoked once at the start, then again
-    /// whenever the previous stream errors or ends before the expected size —
-    /// it implements the retry policy (which URL, whether to send a Range header,
-    /// when to give up). The handle keeps the per-chunk write loop, progress
-    /// tracking, and file truncate/resume bookkeeping. A 206 Partial Content
-    /// response continues at `bytes_written`; anything else truncates the file
-    /// back to zero and restarts.
     pub async fn download_from<F, Fut>(&mut self, mut next_response: F)
     where
         F: FnMut(DownloadAttemptContext) -> Fut,
@@ -664,7 +640,6 @@ impl Drop for DownloadHandle {
     }
 }
 
-/// Parse the total file size from a `Content-Range: bytes <start>-<end>/<total>` header.
 fn parse_content_range_total(headers: &HeaderMap) -> Option<u64> {
     headers
         .get(CONTENT_RANGE)?
