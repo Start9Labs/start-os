@@ -1,16 +1,12 @@
 use std::collections::HashMap;
 use std::path::Path;
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
 use chrono::{DateTime, Utc};
-use futures::StreamExt;
 use reqwest::header::RANGE;
-use reqwest::{Client, Response, StatusCode};
+use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWrite;
-use tokio::io::{AsyncRead, AsyncSeekExt, AsyncWriteExt, ReadBuf};
 use ts_rs::TS;
 use url::Url;
 
@@ -19,14 +15,14 @@ use crate::progress::PhaseProgressTrackerHandle;
 use crate::registry::signer::AcceptSigners;
 use crate::s9pk::S9pk;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
-use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, Section};
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::sign::commitment::{Commitment, Digestable};
 use crate::sign::{AnySignature, AnyVerifyingKey};
-use crate::upload::UploadingFile;
+use crate::upload::{DownloadAttemptContext, DownloadHandle, UploadingFile};
 use crate::util::future::NonDetachingJoinHandle;
-use crate::util::io::{TmpDir, create_file, open_file};
+#[cfg(test)]
+use crate::util::io::TmpDir;
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -143,56 +139,7 @@ impl RegistryAsset<MerkleArchiveCommitment> {
 
 pub struct BufferedHttpSource {
     _download: NonDetachingJoinHandle<()>,
-    file: BufferedHttpFile,
-}
-enum BufferedHttpFile {
-    Uploading(UploadingFile),
-    Complete {
-        _tmp_dir: Option<Arc<TmpDir>>,
-        file: MultiCursorFile,
-    },
-}
-
-struct DownloadFailure {
-    error: Error,
-    written: u64,
-    expected: Option<u64>,
-}
-
-#[pin_project::pin_project(project = BufferedFetchReaderProj)]
-pub enum BufferedFetchReader {
-    Uploading(#[pin] <UploadingFile as ArchiveSource>::FetchReader),
-    Complete(#[pin] <MultiCursorFile as ArchiveSource>::FetchReader),
-}
-impl AsyncRead for BufferedFetchReader {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<std::io::Result<()>> {
-        match self.project() {
-            BufferedFetchReaderProj::Uploading(reader) => reader.poll_read(cx, buf),
-            BufferedFetchReaderProj::Complete(reader) => reader.poll_read(cx, buf),
-        }
-    }
-}
-
-#[pin_project::pin_project(project = BufferedFetchAllReaderProj)]
-pub enum BufferedFetchAllReader {
-    Uploading(#[pin] <UploadingFile as ArchiveSource>::FetchAllReader),
-    Complete(#[pin] <MultiCursorFile as ArchiveSource>::FetchAllReader),
-}
-impl AsyncRead for BufferedFetchAllReader {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<std::io::Result<()>> {
-        match self.project() {
-            BufferedFetchAllReaderProj::Uploading(reader) => reader.poll_read(cx, buf),
-            BufferedFetchAllReaderProj::Complete(reader) => reader.poll_read(cx, buf),
-        }
-    }
+    file: UploadingFile,
 }
 
 impl BufferedHttpSource {
@@ -201,17 +148,29 @@ impl BufferedHttpSource {
         url: Url,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<Self, Error> {
-        let response = client.get(url).send().await?;
-        Self::from_response(response, progress).await
+        Self::from_urls(std::slice::from_ref(&url), client, progress).await
     }
     pub async fn from_response(
         response: Response,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<Self, Error> {
-        let (mut handle, file) = UploadingFile::new(progress).await?;
+        let (mut handle, file) = UploadingFile::new_for_download(progress).await?;
+        let mut response = Some(response);
         Ok(Self {
-            _download: tokio::spawn(async move { handle.download(response).await }).into(),
-            file: BufferedHttpFile::Uploading(file),
+            _download: tokio::spawn(async move {
+                handle
+                    .download_from(|_| {
+                        let next = response.take();
+                        async move {
+                            next.ok_or_else(|| {
+                                Error::new(eyre!("download failed"), ErrorKind::Network)
+                            })
+                        }
+                    })
+                    .await
+            })
+            .into(),
+            file,
         })
     }
     pub async fn from_response_with_path(
@@ -219,10 +178,23 @@ impl BufferedHttpSource {
         response: Response,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<Self, Error> {
-        let (mut handle, file) = UploadingFile::with_path(path, progress).await?;
+        let (mut handle, file) = UploadingFile::with_path_for_download(path, progress).await?;
+        let mut response = Some(response);
         Ok(Self {
-            _download: tokio::spawn(async move { handle.download(response).await }).into(),
-            file: BufferedHttpFile::Uploading(file),
+            _download: tokio::spawn(async move {
+                handle
+                    .download_from(|_| {
+                        let next = response.take();
+                        async move {
+                            next.ok_or_else(|| {
+                                Error::new(eyre!("download failed"), ErrorKind::Network)
+                            })
+                        }
+                    })
+                    .await
+            })
+            .into(),
+            file,
         })
     }
     async fn from_urls(
@@ -230,9 +202,8 @@ impl BufferedHttpSource {
         client: Client,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<Self, Error> {
-        let tmp_dir = Arc::new(TmpDir::new().await?);
-        let path = tmp_dir.join("download.s9pk");
-        Self::from_urls_inner(Some(tmp_dir), path, urls, client, progress).await
+        let (handle, file) = UploadingFile::new_for_download(progress).await?;
+        Self::spawn_mirror_download(handle, file, urls, client).await
     }
     async fn from_urls_with_path(
         path: impl AsRef<Path>,
@@ -240,253 +211,133 @@ impl BufferedHttpSource {
         client: Client,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<Self, Error> {
-        Self::from_urls_inner(None, path.as_ref().to_owned(), urls, client, progress).await
+        let (handle, file) = UploadingFile::with_path_for_download(path, progress).await?;
+        Self::spawn_mirror_download(handle, file, urls, client).await
     }
-    async fn from_urls_inner(
-        tmp_dir: Option<Arc<TmpDir>>,
-        path: impl AsRef<Path>,
+    async fn spawn_mirror_download(
+        mut handle: DownloadHandle,
+        file: UploadingFile,
         urls: &[Url],
         client: Client,
-        mut progress: PhaseProgressTrackerHandle,
     ) -> Result<Self, Error> {
-        let mut errors = Vec::new();
-        for url in urls {
-            progress.set_done(0);
-            match Self::download_url_with_retry(url, path.as_ref(), client.clone(), &mut progress)
-                .await
-            {
-                Ok(()) => {
-                    let file = MultiCursorFile::from(open_file(path.as_ref()).await?);
-                    return Ok(Self {
-                        _download: tokio::spawn(async {}).into(),
-                        file: BufferedHttpFile::Complete {
-                            _tmp_dir: tmp_dir,
-                            file,
-                        },
-                    });
-                }
-                Err(e) => {
-                    tracing::warn!("Failed to download {url}; trying next mirror: {e}");
-                    errors.push(format!("{url}: {e}"));
-                }
-            }
-        }
-        Err(Error::new(
-            eyre!(
-                "failed to download package from any mirror: {}",
-                errors.join("; ")
-            ),
-            ErrorKind::Network,
-        ))
-    }
-    async fn download_url_with_retry(
-        url: &Url,
-        path: &Path,
-        client: Client,
-        progress: &mut PhaseProgressTrackerHandle,
-    ) -> Result<(), Error> {
-        match Self::download_full_response(path, client.get(url.clone()).send().await, progress)
-            .await
-        {
-            Ok(_) => Ok(()),
-            Err(first) => {
-                tracing::warn!(
-                    "Failed to download {url}; retrying same mirror: {}",
-                    first.error
-                );
-                if let Some(total) = first.expected {
-                    if first.written > 0 && first.written < total {
-                        match Self::download_range_response(
-                            path,
-                            client
-                                .get(url.clone())
-                                .header(RANGE, format!("bytes={}-", first.written))
-                                .send()
-                                .await,
-                            first.written,
-                            total,
-                            progress,
-                        )
-                        .await
-                        {
-                            Ok(()) => return Ok(()),
-                            Err(range) => {
-                                tracing::warn!(
-                                    "Failed to resume {url}; retrying full download: {}",
-                                    range.error
-                                );
-                            }
-                        }
-                    }
-                }
-                progress.set_done(0);
-                Self::download_full_response(path, client.get(url.clone()).send().await, progress)
-                    .await
-                    .map(|_| ())
-                    .map_err(|retry| retry.error)
-            }
-        }
-    }
-    async fn download_full_response(
-        path: &Path,
-        response: Result<Response, reqwest::Error>,
-        progress: &mut PhaseProgressTrackerHandle,
-    ) -> Result<(), DownloadFailure> {
-        let response = response.map_err(|e| DownloadFailure {
-            error: Error::new(e, ErrorKind::Network),
-            written: 0,
-            expected: None,
-        })?;
-        let response = response.error_for_status().map_err(|e| DownloadFailure {
-            error: Error::new(e, ErrorKind::Network),
-            written: 0,
-            expected: None,
-        })?;
-        let expected = response.content_length();
-        if let Some(total) = expected {
-            progress.set_total(total);
-        }
-        let file = create_file(path).await.map_err(|error| DownloadFailure {
-            error,
-            written: 0,
-            expected,
-        })?;
-        Self::write_response(file, response, 0, expected, progress).await
-    }
-    async fn download_range_response(
-        path: &Path,
-        response: Result<Response, reqwest::Error>,
-        start: u64,
-        expected: u64,
-        progress: &mut PhaseProgressTrackerHandle,
-    ) -> Result<(), DownloadFailure> {
-        let response = response.map_err(|e| DownloadFailure {
-            error: Error::new(e, ErrorKind::Network),
-            written: start,
-            expected: Some(expected),
-        })?;
-        match response.status() {
-            StatusCode::PARTIAL_CONTENT => {
-                let mut file = tokio::fs::OpenOptions::new()
-                    .append(true)
-                    .open(path)
-                    .await
-                    .map_err(|error| DownloadFailure {
-                        error: Error::new(error, ErrorKind::Filesystem),
-                        written: start,
-                        expected: Some(expected),
-                    })?;
-                file.seek(std::io::SeekFrom::End(0))
-                    .await
-                    .map_err(|error| DownloadFailure {
-                        error: Error::new(error, ErrorKind::Filesystem),
-                        written: start,
-                        expected: Some(expected),
-                    })?;
-                progress.set_total(expected);
-                progress.set_done(start);
-                Self::write_response(file, response, start, Some(expected), progress)
-                    .await
-                    .map(|_| ())
-            }
-            StatusCode::OK => {
-                progress.set_done(0);
-                Self::download_full_response(path, Ok(response), progress)
-                    .await
-                    .map(|_| ())
-            }
-            _ => {
-                let status = response.status();
-                Err(DownloadFailure {
-                    error: Error::new(
-                        eyre!("range request failed with {status}"),
-                        ErrorKind::Network,
-                    ),
-                    written: start,
-                    expected: Some(expected),
-                })
-            }
-        }
-    }
-    async fn write_response(
-        mut file: tokio::fs::File,
-        response: Response,
-        start: u64,
-        expected: Option<u64>,
-        progress: &mut PhaseProgressTrackerHandle,
-    ) -> Result<(), DownloadFailure> {
-        let mut written = start;
-        let mut stream = response.bytes_stream();
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| DownloadFailure {
-                error: Error::new(e, ErrorKind::Network),
-                written,
-                expected,
-            })?;
-            file.write_all(&chunk)
-                .await
-                .map_err(|error| DownloadFailure {
-                    error: Error::new(error, ErrorKind::Filesystem),
-                    written,
-                    expected,
-                })?;
-            written += chunk.len() as u64;
-            *progress += chunk.len() as u64;
-        }
-        file.sync_all().await.map_err(|error| DownloadFailure {
-            error: Error::new(error, ErrorKind::Filesystem),
-            written,
-            expected,
-        })?;
-        if let Some(expected) = expected {
-            if written != expected {
-                return Err(DownloadFailure {
-                    error: Error::new(
-                        eyre!("download ended after {written} bytes, expected {expected}"),
-                        ErrorKind::Network,
-                    ),
-                    written,
-                    expected: Some(expected),
-                });
-            }
-        }
-        progress.complete();
-        Ok(())
+        handle
+            .download_from(MirrorRetry::new(urls.to_vec(), client).next_response())
+            .await;
+        drop(handle);
+        file.wait_for_complete().await?;
+        Ok(Self {
+            _download: tokio::spawn(async {}).into(),
+            file,
+        })
     }
     pub async fn wait_for_buffered(&self) -> Result<(), Error> {
-        match &self.file {
-            BufferedHttpFile::Uploading(file) => file.wait_for_complete().await,
-            BufferedHttpFile::Complete { .. } => Ok(()),
-        }
+        self.file.wait_for_complete().await
     }
 }
 impl ArchiveSource for BufferedHttpSource {
-    type FetchReader = BufferedFetchReader;
-    type FetchAllReader = BufferedFetchAllReader;
+    type FetchReader = <UploadingFile as ArchiveSource>::FetchReader;
+    type FetchAllReader = <UploadingFile as ArchiveSource>::FetchAllReader;
     async fn size(&self) -> Option<u64> {
-        match &self.file {
-            BufferedHttpFile::Uploading(file) => file.size().await,
-            BufferedHttpFile::Complete { file, .. } => file.size().await,
-        }
+        self.file.size().await
     }
     async fn fetch_all(&self) -> Result<Self::FetchAllReader, Error> {
-        match &self.file {
-            BufferedHttpFile::Uploading(file) => {
-                Ok(BufferedFetchAllReader::Uploading(file.fetch_all().await?))
-            }
-            BufferedHttpFile::Complete { file, .. } => {
-                Ok(BufferedFetchAllReader::Complete(file.fetch_all().await?))
-            }
-        }
+        self.file.fetch_all().await
     }
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::FetchReader, Error> {
-        match &self.file {
-            BufferedHttpFile::Uploading(file) => Ok(BufferedFetchReader::Uploading(
-                file.fetch(position, size).await?,
-            )),
-            BufferedHttpFile::Complete { file, .. } => Ok(BufferedFetchReader::Complete(
-                file.fetch(position, size).await?,
-            )),
+        self.file.fetch(position, size).await
+    }
+}
+
+/// Retry policy for `DownloadHandle::download_from`. Walks the mirror list and,
+/// within each mirror, tries: full download → resume via `Range` (if the previous
+/// attempt got truncated mid-stream) → one full retry → next mirror.
+struct MirrorRetry {
+    urls: Vec<Url>,
+    client: Client,
+    state: MirrorState,
+    errors: Vec<String>,
+}
+
+#[derive(Clone, Copy)]
+enum MirrorState {
+    /// Try the next URL with a fresh full request.
+    NextFull(usize),
+    /// The previous attempt on `urls[idx]` failed mid-body. Try a Range resume next.
+    TryResume(usize),
+    /// Resume on `urls[idx]` failed (or wasn't applicable). Try a full retry next.
+    RetryFull(usize),
+}
+
+impl MirrorRetry {
+    fn new(urls: Vec<Url>, client: Client) -> Self {
+        Self {
+            urls,
+            client,
+            state: MirrorState::NextFull(0),
+            errors: Vec::new(),
+        }
+    }
+    fn next_response(
+        mut self,
+    ) -> impl FnMut(DownloadAttemptContext) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Response, Error>> + Send>,
+    > {
+        move |ctx| {
+            if let Some(err) = &ctx.last_error {
+                let url_idx = match self.state {
+                    MirrorState::NextFull(i) => i.saturating_sub(1),
+                    MirrorState::TryResume(i) | MirrorState::RetryFull(i) => i,
+                };
+                if let Some(url) = self.urls.get(url_idx) {
+                    self.errors.push(format!("{url}: {err}"));
+                    tracing::warn!("Failed to download {url}: {err}");
+                }
+            }
+            let next = self.advance(&ctx);
+            let exhausted = (next.is_none()).then(|| self.errors.join("; "));
+            Box::pin(async move {
+                match next {
+                    Some(req) => req.send().await.map_err(|e| Error::new(e, ErrorKind::Network)),
+                    None => Err(Error::new(
+                        eyre!(
+                            "failed to download package from any mirror: {}",
+                            exhausted.unwrap_or_default()
+                        ),
+                        ErrorKind::Network,
+                    )),
+                }
+            })
+        }
+    }
+    fn advance(&mut self, ctx: &DownloadAttemptContext) -> Option<reqwest::RequestBuilder> {
+        loop {
+            match self.state {
+                MirrorState::NextFull(idx) => {
+                    let url = self.urls.get(idx)?;
+                    let req = self.client.get(url.clone());
+                    self.state = MirrorState::TryResume(idx);
+                    return Some(req);
+                }
+                MirrorState::TryResume(idx) => {
+                    let url = self.urls.get(idx)?;
+                    self.state = MirrorState::RetryFull(idx);
+                    if let (Some(total), written) = (ctx.expected_size, ctx.bytes_written) {
+                        if written > 0 && written < total {
+                            return Some(
+                                self.client
+                                    .get(url.clone())
+                                    .header(RANGE, format!("bytes={written}-")),
+                            );
+                        }
+                    }
+                    continue;
+                }
+                MirrorState::RetryFull(idx) => {
+                    let url = self.urls.get(idx)?;
+                    self.state = MirrorState::NextFull(idx + 1);
+                    return Some(self.client.get(url.clone()));
+                }
+            }
         }
     }
 }
