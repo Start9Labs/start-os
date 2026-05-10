@@ -309,6 +309,15 @@ export function makeEffects(context: EffectContext): Effects {
         T.Effects["setHealth"]
       >
     },
+    notification: {
+      create(
+        ...[options]: Parameters<T.Effects["notification"]["create"]>
+      ) {
+        return rpcRound("notification.create", options) as ReturnType<
+          T.Effects["notification"]["create"]
+        >
+      },
+    },
 
     getStatus(...[o]: Parameters<T.Effects["getStatus"]>) {
       return rpcRound("get-status", {
