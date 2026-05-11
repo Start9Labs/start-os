@@ -372,8 +372,6 @@ pub struct PackageDataEntry {
     #[ts(type = "string")]
     pub developer_key: Pem<ed25519_dalek::VerifyingKey>,
     pub icon: DataUrl<'static>,
-    #[serde(default)]
-    pub instructions: String,
     #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
     pub current_dependencies: CurrentDependencies,

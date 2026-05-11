@@ -266,8 +266,6 @@ export const mockPatchData: DataModel = {
       },
       s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
       icon: '/assets/img/service-icons/lnd.png',
-      instructions:
-        '# Mock instructions\n\nMock instructions for this package.',
       lastBackup: null,
       statusInfo: {
         desired: { main: 'stopped' },
@@ -431,8 +429,6 @@ export const mockPatchData: DataModel = {
       },
       s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
       icon: '/assets/img/service-icons/bitcoin-core.svg',
-      instructions:
-        '# Mock instructions\n\nMock instructions for this package.',
       lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
       statusInfo: {
         desired: { main: 'stopped' },
@@ -808,8 +804,6 @@ export const mockPatchData: DataModel = {
       },
       s9pk: '/media/startos/data/package-data/archive/installed/tor.s9pk',
       icon: '/assets/img/service-icons/fallback.png',
-      instructions:
-        '# Mock instructions\n\nMock instructions for this package.',
       lastBackup: null,
       statusInfo: {
         desired: { main: 'running' },

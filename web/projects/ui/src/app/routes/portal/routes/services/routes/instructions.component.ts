@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
   getPkgId,
@@ -11,23 +6,34 @@ import {
   MarkdownPipe,
   SafeLinksDirective,
 } from '@start9labs/shared'
-import { TuiNotification } from '@taiga-ui/core'
+import { TuiLoader, TuiNotification } from '@taiga-ui/core'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'
-import { PatchDB } from 'patch-db-client'
-import { DataModel } from 'src/app/services/patch-db/data-model'
+import { catchError, defer, from, map, of, startWith } from 'rxjs'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+
+type State =
+  | { kind: 'loading' }
+  | { kind: 'ready'; md: string }
+  | { kind: 'missing' }
 
 @Component({
   template: `
-    @if (instructions(); as md) {
-      <article
-        class="instructions"
-        safeLinks
-        [innerHTML]="md | markdown | dompurify"
-      ></article>
-    } @else {
-      <div tuiNotification appearance="neutral">
-        {{ 'This version has no instructions. Please update.' | i18n }}
-      </div>
+    @switch (state().kind) {
+      @case ('ready') {
+        <article
+          class="instructions"
+          safeLinks
+          [innerHTML]="ready().md | markdown | dompurify"
+        ></article>
+      }
+      @case ('missing') {
+        <div tuiNotification appearance="neutral">
+          {{ 'This version has no instructions. Please update.' | i18n }}
+        </div>
+      }
+      @default {
+        <tui-loader textContent="Loading" [style.height.%]="100" />
+      }
     }
   `,
   styles: `
@@ -62,18 +68,35 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     NgDompurifyPipe,
     MarkdownPipe,
     SafeLinksDirective,
+    TuiLoader,
     TuiNotification,
     i18nPipe,
   ],
 })
 export default class ServiceInstructionsRoute {
+  private readonly api = inject(ApiService)
   private readonly pkgId = getPkgId()
-  private readonly pkg = toSignal(
-    inject<PatchDB<DataModel>>(PatchDB).watch$('packageData', this.pkgId),
+
+  protected readonly state = toSignal<State>(
+    defer(() =>
+      from(
+        this.api.getStatic(
+          [`/s9pk/installed/${this.pkgId}.s9pk/instructions.md`],
+          {},
+        ),
+      ),
+    ).pipe(
+      map(md => {
+        const trimmed = md?.trim()
+        return trimmed
+          ? ({ kind: 'ready', md: trimmed } as const)
+          : ({ kind: 'missing' } as const)
+      }),
+      catchError(() => of({ kind: 'missing' } as const)),
+      startWith({ kind: 'loading' } as const),
+    ),
+    { requireSync: true },
   )
 
-  protected readonly instructions = computed(() => {
-    const md = this.pkg()?.instructions?.trim()
-    return md ? md : null
-  })
+  protected readonly ready = () => this.state() as { kind: 'ready'; md: string }
 }
