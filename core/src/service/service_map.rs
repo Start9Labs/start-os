@@ -6,7 +6,7 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use exver::VersionRange;
 use futures::future::{BoxFuture, Fuse};
-use futures::stream::FuturesUnordered;
+use futures::stream;
 use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use imbl::OrdMap;
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, oneshot};
@@ -34,6 +34,8 @@ use crate::status::{DesiredStatus, StatusInfo};
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::serde::{Base32, Pem};
 use crate::util::sync::SyncMutex;
+
+const SERVICE_INIT_CONCURRENCY: usize = 4;
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
 pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
@@ -89,16 +91,14 @@ impl ServiceMap {
     #[instrument(skip_all)]
     pub async fn init(&self, ctx: &RpcContext) -> Result<(), Error> {
         let ids = ctx.db.peek().await.as_public().as_package_data().keys()?;
-        let mut jobs = FuturesUnordered::new();
-        for id in &ids {
-            jobs.push(self.load(ctx, id, LoadDisposition::Retry));
-        }
-        while let Some(res) = jobs.next().await {
-            if let Err(e) = res {
-                tracing::error!("Error loading installed package as service: {e}");
-                tracing::debug!("{e:?}");
-            }
-        }
+        stream::iter(&ids)
+            .for_each_concurrent(Some(SERVICE_INIT_CONCURRENCY), |id| async move {
+                if let Err(e) = self.load(ctx, id, LoadDisposition::Retry).await {
+                    tracing::error!("Error loading installed package as service: {e}");
+                    tracing::debug!("{e:?}");
+                }
+            })
+            .await;
         Ok(())
     }
 
