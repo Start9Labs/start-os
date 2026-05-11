@@ -15,7 +15,12 @@ import {
   TuiLabel,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import { TUI_CONFIRM, TuiBlock, TuiInputTime } from '@taiga-ui/kit'
+import {
+  TUI_CONFIRM,
+  TuiBlock,
+  TuiDataListWrapper,
+  TuiInputTime,
+} from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
@@ -34,11 +39,21 @@ import { ScheduleWindow } from 'src/app/services/api/api.service'
         <legend>Time Window</legend>
         <tui-textfield>
           <label tuiLabel>Start Time</label>
-          <input tuiInputTime formControlName="startTime" />
+          <input
+            tuiInputTime
+            formControlName="startTime"
+            [accept]="quarterHours"
+          />
+          <tui-data-list-wrapper *tuiDropdown [items]="quarterHours" />
         </tui-textfield>
         <tui-textfield>
           <label tuiLabel>End Time</label>
-          <input tuiInputTime formControlName="endTime" />
+          <input
+            tuiInputTime
+            formControlName="endTime"
+            [accept]="quarterHours"
+          />
+          <tui-data-list-wrapper *tuiDropdown [items]="quarterHours" />
         </tui-textfield>
       </fieldset>
       <tui-error [formGroup]="form" />
@@ -97,6 +112,7 @@ import { ScheduleWindow } from 'src/app/services/api/api.service'
     TuiButton,
     TuiError,
     TuiInputTime,
+    TuiDataListWrapper,
     TuiGroup,
     TuiBlock,
   ],
@@ -106,6 +122,12 @@ export class AddWindow {
   protected readonly builder = inject(NonNullableFormBuilder)
   protected readonly context =
     injectContext<TuiDialogContext<ScheduleWindow | null, ScheduleWindow>>()
+
+  // 15-minute increments across the day for the time picker dropdown.
+  protected readonly quarterHours: readonly TuiTime[] = Array.from(
+    { length: 96 },
+    (_, i) => new TuiTime(Math.floor(i / 4), (i % 4) * 15),
+  )
 
   // Display Mon–Sun; data keys map to Sun(0)–Sat(6)
   protected readonly displayDays = [

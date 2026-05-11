@@ -53,7 +53,7 @@ import { ApiService } from 'src/app/services/api/api.service'
         </button>
         <button
           tuiButton
-          iconStart="@tui.upload"
+          iconStart="@tui.hard-drive-upload"
           [disabled]="!selectedFile() || uploading()"
           (click)="restore()"
         >

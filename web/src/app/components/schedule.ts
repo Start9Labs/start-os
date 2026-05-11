@@ -67,6 +67,7 @@ import {
       max-width: 50rem;
       display: grid;
       grid-auto-flow: column;
+      grid-auto-columns: minmax(0, 1fr);
       height: 36rem;
       max-height: calc(100svh - 12rem);
       gap: 0.125rem;
@@ -207,7 +208,7 @@ export class ScheduleComponent {
       .open<ScheduleWindow | null>(
         new PolymorpheusComponent(AddWindow, this.injector),
         {
-          label: 'Edit Schedule Window',
+          label: 'Edit Blackout Window',
           data: {
             startTime: to(this.view()[index].range[0]),
             endTime: to(this.view()[index].range[1]),
@@ -245,7 +246,7 @@ export class ScheduleComponent {
       .open<ScheduleWindow>(
         new PolymorpheusComponent(AddWindow, this.injector),
         {
-          label: 'Add Schedule Window',
+          label: 'Add Blackout Window',
           data: {
             startTime: to(start),
             endTime: to(start + 4),

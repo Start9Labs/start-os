@@ -202,7 +202,7 @@ class Profiles {
     vpns: Array<{ id: string; label: string }>,
   ): string {
     return outbound === 'wan'
-      ? 'WAN'
+      ? 'Direct'
       : (vpns.find(v => v.id === outbound)?.label ?? 'Unknown')
   }
 

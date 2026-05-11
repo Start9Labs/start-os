@@ -1,3 +1,4 @@
+import activity from '@taiga-ui/icons/src/activity.svg'
 import arrowDown from '@taiga-ui/icons/src/arrow-down.svg'
 import arrowRight from '@taiga-ui/icons/src/arrow-right.svg'
 import arrowUp from '@taiga-ui/icons/src/arrow-up.svg'
@@ -22,6 +23,7 @@ import download from '@taiga-ui/icons/src/download.svg'
 import ellipsisVertical from '@taiga-ui/icons/src/ellipsis-vertical.svg'
 import ellipsis from '@taiga-ui/icons/src/ellipsis.svg'
 import ethernetPort from '@taiga-ui/icons/src/ethernet-port.svg'
+import externalLink from '@taiga-ui/icons/src/external-link.svg'
 import eyeOff from '@taiga-ui/icons/src/eye-off.svg'
 import eye from '@taiga-ui/icons/src/eye.svg'
 import fileText from '@taiga-ui/icons/src/file-text.svg'
@@ -29,7 +31,9 @@ import file from '@taiga-ui/icons/src/file.svg'
 import globeLock from '@taiga-ui/icons/src/globe-lock.svg'
 import globe from '@taiga-ui/icons/src/globe.svg'
 import hardDriveDownload from '@taiga-ui/icons/src/hard-drive-download.svg'
+import hardDriveUpload from '@taiga-ui/icons/src/hard-drive-upload.svg'
 import hatGlasses from '@taiga-ui/icons/src/hat-glasses.svg'
+import inbox from '@taiga-ui/icons/src/inbox.svg'
 import info from '@taiga-ui/icons/src/info.svg'
 import lifeBuoy from '@taiga-ui/icons/src/life-buoy.svg'
 import lock from '@taiga-ui/icons/src/lock.svg'
@@ -44,6 +48,7 @@ import plus from '@taiga-ui/icons/src/plus.svg'
 import qrCode from '@taiga-ui/icons/src/qr-code.svg'
 import radio from '@taiga-ui/icons/src/radio.svg'
 import refreshCw from '@taiga-ui/icons/src/refresh-cw.svg'
+import repeat from '@taiga-ui/icons/src/repeat.svg'
 import rocket from '@taiga-ui/icons/src/rocket.svg'
 import screenShareOff from '@taiga-ui/icons/src/screen-share-off.svg'
 import scrollText from '@taiga-ui/icons/src/scroll-text.svg'
@@ -57,6 +62,7 @@ import wifi from '@taiga-ui/icons/src/wifi.svg'
 import x from '@taiga-ui/icons/src/x.svg'
 
 export const ICONS = {
+  '@tui.activity': activity,
   '@tui.arrow-down': arrowDown,
   '@tui.arrow-right': arrowRight,
   '@tui.arrow-up': arrowUp,
@@ -81,6 +87,7 @@ export const ICONS = {
   '@tui.ellipsis': ellipsis,
   '@tui.ellipsis-vertical': ellipsisVertical,
   '@tui.ethernet-port': ethernetPort,
+  '@tui.external-link': externalLink,
   '@tui.eye': eye,
   '@tui.eye-off': eyeOff,
   '@tui.file': file,
@@ -88,7 +95,9 @@ export const ICONS = {
   '@tui.globe': globe,
   '@tui.globe-lock': globeLock,
   '@tui.hard-drive-download': hardDriveDownload,
+  '@tui.hard-drive-upload': hardDriveUpload,
   '@tui.hat-glasses': hatGlasses,
+  '@tui.inbox': inbox,
   '@tui.info': info,
   '@tui.lock': lock,
   '@tui.log-in': logIn,
@@ -103,6 +112,7 @@ export const ICONS = {
   '@tui.qr-code': qrCode,
   '@tui.radio': radio,
   '@tui.refresh-cw': refreshCw,
+  '@tui.repeat': repeat,
   '@tui.rocket': rocket,
   '@tui.scroll-text': scrollText,
   '@tui.search': search,
