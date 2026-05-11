@@ -1,5 +1,10 @@
 import { CommonModule } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  OnDestroy,
+} from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
 import {
@@ -157,7 +162,7 @@ import { ConfigService } from 'src/app/services/config.service'
     i18nPipe,
   ],
 })
-export default class MarketplaceComponent {
+export default class MarketplaceComponent implements OnDestroy {
   private readonly categoryService = inject(AbstractCategoryService)
   private readonly marketplaceService = inject(MarketplaceService)
   private readonly configService = inject(ConfigService)
@@ -205,4 +210,12 @@ export default class MarketplaceComponent {
       return cat?.name ? this.localize.transform(cat.name) : key
     }),
   )
+
+  // Clear the search query when leaving the marketplace entirely. Opening a
+  // service drawer only changes query params (the component stays mounted), so
+  // the query survives that; navigating to another route destroys this
+  // component and resets it.
+  ngOnDestroy() {
+    this.categoryService.resetQuery()
+  }
 }

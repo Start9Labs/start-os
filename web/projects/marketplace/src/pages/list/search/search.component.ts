@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -7,13 +6,13 @@ import {
   Output,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiIcon } from '@taiga-ui/core'
+import { TuiInput } from '@taiga-ui/core'
 
 @Component({
   selector: 'marketplace-search',
   templateUrl: 'search.component.html',
   styleUrls: ['search.component.scss'],
-  imports: [FormsModule, CommonModule, TuiIcon],
+  imports: [FormsModule, TuiInput],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SearchComponent {

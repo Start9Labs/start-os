@@ -1,11 +1,10 @@
-<div class="search-box">
-  <tui-icon icon="@tui.search" />
+<tui-textfield iconStart="@tui.search" tuiTextfieldSize="m">
   <input
-    type="text"
+    tuiInput
     name="search"
     placeholder="Search..."
     autocomplete="off"
     [ngModel]="query"
     (ngModelChange)="onModelChange($event)"
   />
-</div>
+</tui-textfield>
