@@ -1,16 +1,26 @@
 use std::collections::BTreeSet;
 use std::fs;
+use std::io::BufReader;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, OnceLock};
 use std::time::SystemTime;
 
+use arc_swap::ArcSwap;
 use imbl_value::InternedString;
 use openssl::pkey::PKey;
 use openssl::x509::X509;
+use rustls::crypto::CryptoProvider;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use rustls::server::ClientHello;
+use rustls::ServerConfig;
+use rustls_pemfile::{certs, pkcs8_private_keys};
 use startos::net::ssl::{
     CertBranding, SANInfo, gen_nistp256, make_int_cert, make_leaf_cert, make_root_cert,
     should_use_cert,
 };
+use startos::net::tls::{TlsHandler, TlsHandlerAction};
+use startos::net::web_server::Accept;
 
 use uciedit::openwrt::NetworkInterface;
 use uciedit::{parse_all, Arena};
@@ -397,38 +407,109 @@ async fn generate_and_write_server_cert(addrs: &LanAddresses) -> Result<(), Erro
     Ok(())
 }
 
-/// Regenerate the server leaf cert (e.g. after LAN IP or IPv6 change).
+/// Regenerate the server leaf cert (e.g. after LAN IP or IPv6 change). If a
+/// hot-reload swap has been initialized, the freshly written cert is loaded
+/// and atomically swapped in for new TLS handshakes.
 pub async fn regenerate_server_cert(addrs: &LanAddresses) -> Result<(), Error> {
-    generate_and_write_server_cert(addrs).await
+    generate_and_write_server_cert(addrs).await?;
+    if let Err(e) = reload_tls_materials() {
+        tracing::error!("regenerated server cert but failed to reload TLS materials: {e}");
+    }
+    Ok(())
 }
 
-/// Validate that the server cert and key on disk form a valid TLS config.
-/// Used at startup to detect corrupt files.
-pub fn build_tls_config() -> Result<(), Error> {
-    use rustls::ServerConfig;
-    use rustls_pemfile::{certs, pkcs8_private_keys};
-    use std::io::BufReader;
+/// Parsed cert chain + key, ready to plug into a `rustls::ServerConfig`.
+pub struct TlsMaterials {
+    pub chain: Vec<CertificateDer<'static>>,
+    pub key: PrivateKeyDer<'static>,
+}
 
-    let cert_file = fs::File::open(server_cert_path())
-        .map_err(|e| Error::new(eyre!("failed to open server cert: {e}"), ErrorKind::Filesystem))?;
-    let key_file = fs::File::open(server_key_path())
-        .map_err(|e| Error::new(eyre!("failed to open server key: {e}"), ErrorKind::Filesystem))?;
+impl TlsMaterials {
+    /// Read and parse the on-disk server cert and key. Used at startup to
+    /// validate the files and to refresh them after regeneration.
+    pub fn load_from_disk() -> Result<Self, Error> {
+        let cert_file = fs::File::open(server_cert_path())
+            .map_err(|e| Error::new(eyre!("failed to open server cert: {e}"), ErrorKind::Filesystem))?;
+        let key_file = fs::File::open(server_key_path())
+            .map_err(|e| Error::new(eyre!("failed to open server key: {e}"), ErrorKind::Filesystem))?;
 
-    let cert_chain: Vec<_> = certs(&mut BufReader::new(cert_file))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| Error::new(eyre!("failed to parse server cert: {e}"), ErrorKind::OpenSsl))?;
+        let chain: Vec<_> = certs(&mut BufReader::new(cert_file))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| Error::new(eyre!("failed to parse server cert: {e}"), ErrorKind::OpenSsl))?;
 
-    let key = pkcs8_private_keys(&mut BufReader::new(key_file))
-        .next()
-        .ok_or_else(|| Error::new(eyre!("no private key found in server key file"), ErrorKind::OpenSsl))?
-        .map_err(|e| Error::new(eyre!("failed to parse server key: {e}"), ErrorKind::OpenSsl))?;
+        let key = pkcs8_private_keys(&mut BufReader::new(key_file))
+            .next()
+            .ok_or_else(|| Error::new(eyre!("no private key found in server key file"), ErrorKind::OpenSsl))?
+            .map_err(|e| Error::new(eyre!("failed to parse server key: {e}"), ErrorKind::OpenSsl))?;
 
-    ServerConfig::builder()
-        .with_no_client_auth()
-        .with_single_cert(cert_chain, key.into())
-        .map_err(|e| Error::new(eyre!("failed to build TLS config: {e}"), ErrorKind::OpenSsl))?;
+        Ok(Self {
+            chain,
+            key: PrivateKeyDer::Pkcs8(key),
+        })
+    }
+}
 
+/// Process-wide hot-swappable TLS materials. Initialized once at startup;
+/// updated by `regenerate_server_cert` so existing servers see new certs on
+/// the next handshake without a daemon restart.
+static TLS_MATERIALS: OnceLock<Arc<ArcSwap<TlsMaterials>>> = OnceLock::new();
+
+/// Initialize the global TLS materials swap from the on-disk cert and key.
+/// Returns a clone of the inner `Arc<ArcSwap<…>>` so callers can hand it to
+/// `StaticTlsHandler`. Must be called after `ensure_server_cert` succeeds.
+pub fn init_tls_materials() -> Result<Arc<ArcSwap<TlsMaterials>>, Error> {
+    let materials = TlsMaterials::load_from_disk()?;
+    Ok(TLS_MATERIALS
+        .get_or_init(|| Arc::new(ArcSwap::from(Arc::new(materials))))
+        .clone())
+}
+
+fn reload_tls_materials() -> Result<(), Error> {
+    if let Some(swap) = TLS_MATERIALS.get() {
+        let materials = TlsMaterials::load_from_disk()?;
+        swap.store(Arc::new(materials));
+    }
     Ok(())
+}
+
+/// `TlsHandler` impl for use with `startos::net::tls::TlsListener`. Serves a
+/// single ArcSwap-backed cert chain and is cheap to clone (just clones the
+/// `Arc`s). New handshakes pick up the latest cert; in-flight connections
+/// keep their original cert until they close.
+#[derive(Clone)]
+pub struct StaticTlsHandler {
+    materials: Arc<ArcSwap<TlsMaterials>>,
+    crypto_provider: Arc<CryptoProvider>,
+}
+
+impl StaticTlsHandler {
+    pub fn new(materials: Arc<ArcSwap<TlsMaterials>>) -> Self {
+        Self {
+            materials,
+            crypto_provider: Arc::new(rustls::crypto::ring::default_provider()),
+        }
+    }
+}
+
+impl<'a, A: Accept + 'a> TlsHandler<'a, A> for StaticTlsHandler
+where
+    A::Metadata: Sync,
+{
+    async fn get_config(
+        &'a mut self,
+        _hello: &'a ClientHello<'a>,
+        _metadata: &'a A::Metadata,
+    ) -> Option<TlsHandlerAction> {
+        let materials = self.materials.load_full();
+        let mut cfg = ServerConfig::builder_with_provider(self.crypto_provider.clone())
+            .with_safe_default_protocol_versions()
+            .ok()?
+            .with_no_client_auth()
+            .with_single_cert(materials.chain.clone(), materials.key.clone_key())
+            .ok()?;
+        cfg.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+        Some(TlsHandlerAction::Tls(cfg))
+    }
 }
 
 /// Read the Root CA certificate PEM from disk.

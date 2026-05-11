@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::ffi::OsString;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -11,11 +11,16 @@ use axum::{Extension, Json, Router};
 use crate::prelude::*;
 use rpc_toolkit::Server;
 use serde::Deserialize;
+use startos::net::tls::TlsListener;
+use startos::net::web_server::{Accept, Acceptor, DynAccept, MetadataVisitor, WebServer};
 use std::future::ready;
 use std::net::SocketAddr;
 use std::time::Duration;
+use tokio::net::TcpListener;
+use tokio::signal::unix::SignalKind;
 use tokio::sync::mpsc;
 use tracing::instrument;
+use visit_rs::Visit;
 
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
@@ -130,21 +135,35 @@ async fn init_ssl() -> bool {
         return false;
     }
 
-    // Verify the cert files are valid by attempting to build a TLS config.
-    // If they're corrupt, force-regenerate once.
-    if ssl::build_tls_config().is_err() {
-        tracing::warn!("TLS config build failed with existing certs, regenerating");
+    // Verify the cert files are valid by attempting to load them as TLS
+    // materials. If they're corrupt, force-regenerate once.
+    if ssl::TlsMaterials::load_from_disk().is_err() {
+        tracing::warn!("TLS materials parse failed with existing certs, regenerating");
         if let Err(e) = ssl::regenerate_server_cert(&addrs).await {
             tracing::error!("cert regeneration failed: {e}");
             return false;
         }
-        if ssl::build_tls_config().is_err() {
-            tracing::error!("TLS config build still failing after regeneration");
+        if ssl::TlsMaterials::load_from_disk().is_err() {
+            tracing::error!("TLS materials parse still failing after regeneration");
             return false;
         }
     }
 
     true
+}
+
+/// Identifies which logical listener (HTTP or HTTPS) accepted a given
+/// connection. Plumbed through `WebServer`'s metadata pipeline so request
+/// extensions can inspect it if needed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum WebserverListener {
+    Http,
+    Https,
+}
+impl<V: MetadataVisitor> Visit<V> for WebserverListener {
+    fn visit(&self, visitor: &mut V) -> <V as visit_rs::Visitor>::Result {
+        visitor.visit(self)
+    }
 }
 
 #[instrument(skip_all)]
@@ -258,8 +277,11 @@ async fn inner_main() -> Result<(), Error> {
             .layer(DefaultBodyLimit::max(10 * 1024 * 1024)))
         // Streaming flash endpoint for setup wizard
         .route("/api/setup/flash", post(setup_flash_handler))
-        // WebSocket endpoint for live log streaming
-        .route("/api/logs", axum::routing::get(crate::logs::logs_ws_handler))
+        // WebSocket endpoint for live log streaming. Registered with `any`
+        // (not `get`) so HTTP/2 CONNECT requests (RFC 8441 extended CONNECT,
+        // used for WebSocket-over-h2) reach the upgrade extractor instead of
+        // being rejected with 405 by the method router.
+        .route("/api/logs", any(crate::logs::logs_ws_handler))
         // Root CA download (no auth required)
         .route("/static/root-ca.crt", get(root_ca_handler))
         // LuCI reverse proxy — forwards to uhttpd on localhost:8080
@@ -282,52 +304,48 @@ async fn inner_main() -> Result<(), Error> {
         .layer(Extension(proxy_client))
         .layer(Extension(app_state));
 
-    // Start HTTP on port 80 (full UI — serves everything)
+    // Build the listener map. start-os's `WebServer` provides the connection-
+    // lifecycle defenses we used to need to hand-roll: TCP keepalive on each
+    // accepted socket, HTTP/2 PING keepalives (25s/300s), accept retry with
+    // backoff on transient errors (EMFILE/ENFILE), GracefulShutdown tracking
+    // of in-flight connections, and RFC 8441 extended CONNECT for h2
+    // WebSocket upgrades. `TlsListener` adds slow-loris-resistant handshake
+    // timeouts (5s ClientHello, 15s full handshake) and runs each handshake
+    // in a per-connection task so a stalled client cannot block accept.
     let http_addr = SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 0], 80));
-    let http_app = app.clone();
-    let http_handle = tokio::spawn(async move {
-        tracing::info!("HTTP listening on {}", http_addr);
-        axum_server::bind(http_addr)
-            .serve(http_app.into_make_service_with_connect_info::<SocketAddr>())
-            .await
-    });
-
-    // Start HTTPS on port 443 if TLS is ready.
-    // Uses from_pem_file so axum-server watches for file changes —
-    // cert rotations (e.g. after LAN IP change) take effect without restart.
-    if tls_ready {
-        let https_addr = SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 0], 443));
-        let rustls_config = axum_server::tls_rustls::RustlsConfig::from_pem_file(
-            ssl::server_cert_path(),
-            ssl::server_key_path(),
-        )
+    let http_listener = TcpListener::bind(http_addr)
         .await
-        .map_err(|e| Error::new(eyre!("failed to load TLS config: {e}"), ErrorKind::OpenSsl))?;
+        .with_kind(ErrorKind::Network)?;
+    tracing::info!("HTTP listening on {}", http_addr);
 
-        let https_app = app.clone();
+    let mut listeners: BTreeMap<WebserverListener, DynAccept> = BTreeMap::new();
+    listeners.insert(WebserverListener::Http, http_listener.into_dyn());
 
-        let https_handle = tokio::spawn(async move {
-            tracing::info!("HTTPS listening on {}", https_addr);
-            axum_server::bind_rustls(https_addr, rustls_config)
-                .serve(https_app.into_make_service_with_connect_info::<SocketAddr>())
-                .await
-        });
-
-        // Both listeners must stay running. If either exits, log and abort.
-        tokio::select! {
-            res = http_handle => {
-                tracing::error!("HTTP listener exited unexpectedly");
-                res??;
-            }
-            res = https_handle => {
-                tracing::error!("HTTPS listener exited unexpectedly");
-                res??;
-            }
-        }
+    if tls_ready {
+        let materials = ssl::init_tls_materials()?;
+        let https_addr = SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 0], 443));
+        let https_listener = TcpListener::bind(https_addr)
+            .await
+            .with_kind(ErrorKind::Network)?;
+        tracing::info!("HTTPS listening on {}", https_addr);
+        let tls = TlsListener::new(https_listener, ssl::StaticTlsHandler::new(materials));
+        listeners.insert(WebserverListener::Https, tls.into_dyn());
     } else {
         tracing::warn!("HTTPS disabled — TLS setup failed, serving HTTP only");
-        http_handle.await??;
     }
+
+    let server = WebServer::new(Acceptor::new(listeners), app);
+
+    // Wait for SIGTERM (procd) or SIGINT, then drain in-flight connections.
+    let mut sigterm = tokio::signal::unix::signal(SignalKind::terminate())
+        .with_kind(ErrorKind::Filesystem)?;
+    let mut sigint = tokio::signal::unix::signal(SignalKind::interrupt())
+        .with_kind(ErrorKind::Filesystem)?;
+    tokio::select! {
+        _ = sigterm.recv() => tracing::info!("received SIGTERM, shutting down"),
+        _ = sigint.recv() => tracing::info!("received SIGINT, shutting down"),
+    }
+    server.shutdown().await;
 
     Ok(())
 }

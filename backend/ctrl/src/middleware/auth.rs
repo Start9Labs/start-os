@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use axum::extract::{ConnectInfo, Request};
+use axum::extract::Request;
 use axum::response::Response;
 use basic_cookies::Cookie;
 use http::header::{COOKIE, USER_AGENT};
@@ -10,7 +10,7 @@ use http::HeaderValue;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{Context, Middleware, RpcRequest, RpcResponse};
 use serde::Deserialize;
-use std::net::SocketAddr;
+use startos::net::web_server::TcpMetadata;
 
 use crate::auth::{error_code, validate_local_auth_cookie, validate_session, HashSessionToken, LoginRes};
 use crate::prelude::*;
@@ -119,9 +119,9 @@ impl<C: Context> Middleware<C> for SessionAuth {
         self.user_agent = request.headers().get(USER_AGENT).cloned();
         self.is_loopback = request
             .extensions()
-            .get::<ConnectInfo<SocketAddr>>()
-            .map_or(false, |ci| {
-                let ip = match ci.0.ip() {
+            .get::<TcpMetadata>()
+            .map_or(false, |m| {
+                let ip = match m.peer_addr.ip() {
                     std::net::IpAddr::V6(v6) => v6
                         .to_ipv4_mapped()
                         .map(std::net::IpAddr::V4)

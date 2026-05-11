@@ -80,10 +80,13 @@ export default class Logs {
   private shouldAutoScroll = true
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectAttempts = 0
-  private skipCount = 0
   private destroyed = false
 
   constructor() {
+    // Open the live stream first (synchronously, before any await) so a quick
+    // destroy/recreate cycle doesn't lose the socket. The snapshot RPC is
+    // best-effort historical context for what happened before this view.
+    this.connectWs()
     this.loadInitial()
     this.destroyRef.onDestroy(() => {
       this.destroyed = true
@@ -96,12 +99,10 @@ export default class Logs {
     try {
       const res = await this.api.systemLogs()
       this.entries.set(res.entries)
-      this.skipCount = res.entries.length
       requestAnimationFrame(() => this.scrollToBottom())
     } catch {
       this.status.set('Failed to load logs')
     }
-    this.connectWs()
   }
 
   private connectWs() {
@@ -115,10 +116,6 @@ export default class Logs {
     }
 
     ws.onmessage = event => {
-      if (this.skipCount > 0) {
-        this.skipCount--
-        return
-      }
       const entry: LogEntry = JSON.parse(event.data)
       this.checkAutoScroll()
       this.entries.update(entries => [...entries, entry])
