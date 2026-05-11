@@ -1,6 +1,5 @@
 use std::collections::HashSet;
-use std::fs::{self, File};
-use std::io::{Read, Seek, SeekFrom};
+use std::fs;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
@@ -10,14 +9,14 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::prelude::*;
-use crate::{emmc, flash, init, ServerContext};
+use crate::{flash, ServerContext};
 
 const EMMC_ROOTFS_MOUNT: &str = "/mnt/emmc_rootfs";
 const EMMC_OVERLAY_MOUNT: &str = "/mnt/emmc_overlay";
 const EMMC_MERGED_MOUNT: &str = "/mnt/emmc_merged";
 
 /// Files excluded from conffiles backup — the wizard writes its own versions.
-const CONFFILES_EXCLUDE: &[&str] = &["/etc/shadow", "/etc/config/wireless"];
+const CONFFILES_EXCLUDE: &[&str] = &["/etc/shadow"];
 
 // ---------------------------------------------------------------------------
 // Boot / device detection
@@ -32,20 +31,8 @@ pub async fn is_setup_mode() -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// Password resolution
+// Overlayfs mount/unmount helpers
 // ---------------------------------------------------------------------------
-
-/// Result of password resolution at daemon startup.
-#[derive(Clone)]
-pub struct ResolvedPassword {
-    pub password: String,
-    /// True if the password came from the SD card's rootfs partition (custom image).
-    pub baked_in: bool,
-}
-
-/// Magic header written by the startwrt-bake-password tool.
-/// Format: 8-byte magic "SWRTPWD\0" + null-terminated ASCII password.
-const BAKE_MAGIC: &[u8; 8] = b"SWRTPWD\0";
 
 /// Find a partition named `name` on block device `dev_path` and return its node.
 async fn find_partition_by_name(dev_path: &str, name: &str) -> Result<Option<String>, Error> {
@@ -56,71 +43,6 @@ async fn find_partition_by_name(dev_path: &str, name: &str) -> Result<Option<Str
         .iter()
         .find(|p| p.name.as_deref() == Some(name))
         .map(|p| p.node.clone()))
-}
-
-/// Round up to 4096-byte alignment (squashfs pad_bytes boundary).
-fn align_up_4k(n: u64) -> u64 {
-    (n + 4095) & !4095
-}
-
-/// Try reading a baked-in password from a rootfs partition device.
-///
-/// Reads the squashfs superblock at offset 0 to get `bytes_used`, then looks
-/// for the `SWRTPWD\0` magic + null-terminated ASCII password at the next
-/// 4096-byte aligned offset. Returns `Some(password)` if found and valid,
-/// `None` otherwise.
-fn read_raw_baked_password(dev: &str) -> Option<String> {
-    let mut f = File::open(dev).ok()?;
-
-    // Read squashfs superblock (first 48 bytes)
-    let mut sb = [0u8; 48];
-    f.read_exact(&mut sb).ok()?;
-
-    // Validate squashfs magic
-    let magic = u32::from_le_bytes(sb[0..4].try_into().unwrap());
-    if magic != flash::SQUASHFS_MAGIC {
-        return None;
-    }
-
-    // bytes_used is at offset 40, 8 bytes LE
-    let bytes_used = u64::from_le_bytes(sb[40..48].try_into().unwrap());
-
-    // Seek to aligned offset after squashfs data
-    let baked_offset = align_up_4k(bytes_used);
-    f.seek(SeekFrom::Start(baked_offset)).ok()?;
-
-    // Read magic + up to 63 chars of password + null terminator
-    // Max WPA2 passphrase is 63 ASCII chars; 8 (magic) + 63 + 1 (null) = 72
-    let mut buf = [0u8; 8 + 64];
-    f.read_exact(&mut buf).ok()?;
-
-    if &buf[..8] != BAKE_MAGIC {
-        return None;
-    }
-
-    // Find null terminator in the password portion
-    let password_bytes = &buf[8..];
-    let null_pos = password_bytes.iter().position(|&b| b == 0)?;
-    if null_pos < 8 || null_pos > 63 {
-        return None; // WPA2 passphrase must be 8-63 chars
-    }
-
-    let password = std::str::from_utf8(&password_bytes[..null_pos]).ok()?;
-    Some(password.to_string())
-}
-
-/// Mount a partition at a given mount point (read-only by default).
-async fn mount_ro(dev: &str, mount_point: &str) -> Result<(), Error> {
-    let mp = Path::new(mount_point);
-    if !mp.exists() {
-        fs::create_dir_all(mp).map_err(|e| {
-            Error::new(
-                eyre!("failed to create {mount_point}: {e}"),
-                ErrorKind::Filesystem,
-            )
-        })?;
-    }
-    flash::run_cmd("mount", &["-o", "ro", dev, mount_point]).await
 }
 
 /// Mount the three-layer SquashFS + ext4 overlay stack.
@@ -259,87 +181,6 @@ fn mark_overlay_ready(overlay_mount: &str) -> Result<(), Error> {
     Ok(())
 }
 
-/// Try reading a password from an ext4 partition (mount, read file, unmount).
-async fn read_ext4_password(dev: &str, mount_point: &str) -> Option<String> {
-    // If block mount already mounted the device (e.g., via fstab label match),
-    // unmount it first to avoid "Resource busy" when we mount at our own path.
-    let _ = flash::run_cmd("umount", &[dev]).await;
-
-    if mount_ro(dev, mount_point).await.is_err() {
-        return None;
-    }
-    let password_path = format!("{mount_point}/wifi_password");
-    let result = if Path::new(&password_path).exists() {
-        fs::read_to_string(&password_path)
-            .ok()
-            .map(|s| s.trim().to_string())
-    } else {
-        None
-    };
-    let _ = flash::run_cmd("umount", &[mount_point]).await;
-    result
-}
-
-/// Resolve the WiFi password.
-///
-/// Precedence: SD baked-in (rootfs) → eMMC key_backup (ext4) → None.
-/// Must be called from setup mode (booted from SD).
-///
-/// For the SD card, reads the squashfs superblock in the rootfs partition to
-/// find `bytes_used`, then checks for the `SWRTPWD` magic at the next
-/// 4096-aligned offset (written by `startwrt-bake-password`).
-/// The eMMC key_backup partition always uses ext4.
-pub async fn resolve_password() -> Result<Option<ResolvedPassword>, Error> {
-    let boot_dev = flash::boot_device().await?;
-    let sd_path = format!("/dev/{boot_dev}");
-
-    // 1. Check SD card's rootfs partition for a baked-in password
-    if let Ok(Some(sd_rootfs_dev)) = find_partition_by_name(&sd_path, "rootfs").await {
-        if let Some(password) = read_raw_baked_password(&sd_rootfs_dev) {
-            return Ok(Some(ResolvedPassword {
-                password,
-                baked_in: true,
-            }));
-        }
-    }
-
-    // 2. Check eMMC's key_backup partition (always ext4)
-    let emmc_dev = match flash::find_emmc(&boot_dev).await {
-        Ok(dev) => dev,
-        Err(_) => return Ok(None),
-    };
-    let emmc_path = format!("/dev/{emmc_dev}");
-
-    if let Ok(Some(emmc_persistent_dev)) = find_partition_by_name(&emmc_path, "key_backup").await {
-        if let Some(password) =
-            read_ext4_password(&emmc_persistent_dev, "/mnt/emmc_persistent").await
-        {
-            return Ok(Some(ResolvedPassword {
-                password,
-                baked_in: false,
-            }));
-        }
-    }
-
-    Ok(None)
-}
-
-/// Check whether the boot device's rootfs has a baked-in WiFi password.
-///
-/// Returns `true` if the squashfs rootfs partition contains a password written
-/// by `startwrt-bake-password`. Used by `startwrt-serial` to decide whether
-/// the web setup wizard is available or the serial `manufacture` flow is needed.
-pub async fn has_baked_password() -> bool {
-    let boot_dev = match flash::boot_device().await {
-        Ok(dev) => dev,
-        Err(_) => return false,
-    };
-    let sd_path = format!("/dev/{boot_dev}");
-    if let Ok(Some(rootfs_dev)) = find_partition_by_name(&sd_path, "rootfs").await {
-        return read_raw_baked_password(&rootfs_dev).is_some();
-    }
-    false
-}
 
 // ---------------------------------------------------------------------------
 // Disk state detection
@@ -686,10 +527,9 @@ pub enum SetupEvent {
 pub async fn run_setup_flash(
     mode: FlashMode,
     admin_password: &str,
-    wifi_password: &str,
     tx: &mpsc::Sender<SetupEvent>,
 ) {
-    if let Err(e) = run_setup_flash_inner(mode, admin_password, wifi_password, tx).await {
+    if let Err(e) = run_setup_flash_inner(mode, admin_password, tx).await {
         let _ = tx
             .send(SetupEvent::Error {
                 message: e.to_string(),
@@ -701,7 +541,6 @@ pub async fn run_setup_flash(
 async fn run_setup_flash_inner(
     mode: FlashMode,
     admin_password: &str,
-    wifi_password: &str,
     tx: &mpsc::Sender<SetupEvent>,
 ) -> Result<(), Error> {
     let total_steps: u32 = 3;
@@ -819,16 +658,9 @@ async fn run_setup_flash_inner(
         .await;
     write_admin_password(EMMC_MERGED_MOUNT, admin_password).await?;
 
-    // Write WiFi config
-    let _ = tx
-        .send(SetupEvent::Status {
-            message: "Configuring WiFi...".into(),
-            step: 3,
-            total_steps,
-        })
-        .await;
-    let uci_root = format!("{EMMC_MERGED_MOUNT}/etc/config");
-    init::configure_wifi(&uci_root, wifi_password, None).await?;
+    // WiFi config is intentionally not written here. The post-reboot daemon
+    // resolves the WiFi password from EEPROM (tag 0x2F) via
+    // restore_wifi_if_needed() and brings up the AP from there.
 
     // Mark overlay as FS_STATE_READY so mount_root doesn't wipe it on first boot
     mark_overlay_ready(EMMC_OVERLAY_MOUNT)?;
@@ -837,30 +669,6 @@ async fn run_setup_flash_inner(
     if let Err(e) = umount_emmc_overlayfs().await {
         eprintln!("WARNING: umount_emmc_overlayfs failed (non-fatal, cleaned up on reboot): {e}");
     }
-
-    // Write password to eMMC key_backup partition.
-    //
-    // run_flash_core mounted /key_backup, but the hotplug/block-mount handler
-    // (triggered asynchronously by partx -u) may have unmounted it in the
-    // meantime. Verify the mount is still active; if not, remount explicitly
-    // using the known eMMC device so we don't write to the rootfs directory.
-    if !emmc::is_persistent_mounted() {
-        eprintln!("WARNING: /key_backup was unmounted (likely by hotplug); remounting");
-        flash::run_cmd("mount", &[&result.persistent_dev, emmc::PERSISTENT_MOUNT]).await?;
-    }
-
-    let _ = tx
-        .send(SetupEvent::Status {
-            message: "Writing WiFi credentials...".into(),
-            step: 3,
-            total_steps,
-        })
-        .await;
-    emmc::write_password(wifi_password).await?;
-
-    // Unmount key_backup to flush all data to disk and guarantee durability
-    // before the Complete event tells the client it's safe to reboot.
-    flash::run_cmd("umount", &[emmc::PERSISTENT_MOUNT]).await?;
 
     let _ = tx.send(SetupEvent::Complete).await;
 
@@ -899,7 +707,6 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
     use std::os::unix::fs::PermissionsExt;
     use tempfile::TempDir;
     use tokio::sync::mpsc;
@@ -967,124 +774,6 @@ mod tests {
     fn flash_mode_invalid() {
         let result = serde_json::from_str::<FlashMode>("\"invalid\"");
         assert!(result.is_err());
-    }
-
-    // ── read_raw_baked_password ─────────────────────────────────────
-
-    /// Create a fake rootfs file with squashfs superblock + optional baked password.
-    fn make_fake_rootfs(
-        path: &std::path::Path,
-        bytes_used: u64,
-        bake_magic: &[u8],
-        password_data: &[u8],
-    ) {
-        let mut f = fs::File::create(path).unwrap();
-
-        // Write squashfs superblock (48 bytes)
-        let mut sb = [0u8; 48];
-        sb[0..4].copy_from_slice(&flash::SQUASHFS_MAGIC.to_le_bytes());
-        sb[40..48].copy_from_slice(&bytes_used.to_le_bytes());
-        f.write_all(&sb).unwrap();
-
-        // Pad to aligned offset: align_up_4k(bytes_used)
-        let baked_offset = align_up_4k(bytes_used) as usize;
-        if baked_offset > 48 {
-            f.write_all(&vec![0u8; baked_offset - 48]).unwrap();
-        }
-
-        // Write magic + password data
-        f.write_all(bake_magic).unwrap();
-        f.write_all(password_data).unwrap();
-        // Pad to fill the 64-byte read buffer after the magic
-        let remaining = 64 - password_data.len();
-        if remaining > 0 {
-            f.write_all(&vec![0u8; remaining]).unwrap();
-        }
-    }
-
-    #[test]
-    fn raw_baked_password_valid() {
-        let dir = TempDir::new().unwrap();
-        let path = dir.path().join("rootfs");
-        let password = "AbCdEf234567";
-
-        // Password bytes + null terminator
-        let mut data = password.as_bytes().to_vec();
-        data.push(0);
-        make_fake_rootfs(&path, 1000, BAKE_MAGIC, &data);
-
-        let result = read_raw_baked_password(path.to_str().unwrap());
-        assert_eq!(result, Some(password.to_string()));
-    }
-
-    #[test]
-    fn raw_baked_password_wrong_magic() {
-        let dir = TempDir::new().unwrap();
-        let path = dir.path().join("rootfs");
-
-        let mut data = b"AbCdEf234567".to_vec();
-        data.push(0);
-        make_fake_rootfs(&path, 1000, b"WRONGMAG", &data);
-
-        assert_eq!(read_raw_baked_password(path.to_str().unwrap()), None);
-    }
-
-    #[test]
-    fn raw_baked_password_short_file() {
-        let dir = TempDir::new().unwrap();
-        let path = dir.path().join("rootfs");
-        fs::write(&path, b"SHORT").unwrap();
-        assert_eq!(read_raw_baked_password(path.to_str().unwrap()), None);
-    }
-
-    #[test]
-    fn raw_baked_password_too_short() {
-        let dir = TempDir::new().unwrap();
-        let path = dir.path().join("rootfs");
-
-        // Password shorter than 8 chars (WPA2 minimum)
-        let mut data = b"short".to_vec();
-        data.push(0);
-        make_fake_rootfs(&path, 1000, BAKE_MAGIC, &data);
-
-        assert_eq!(read_raw_baked_password(path.to_str().unwrap()), None);
-    }
-
-    #[test]
-    fn raw_baked_password_nonexistent_file() {
-        assert_eq!(read_raw_baked_password("/nonexistent/path/rootfs"), None);
-    }
-
-    #[test]
-    fn raw_baked_password_no_squashfs_magic() {
-        let dir = TempDir::new().unwrap();
-        let path = dir.path().join("rootfs");
-
-        // Write 48 bytes of zeros (no squashfs magic)
-        let mut f = fs::File::create(&path).unwrap();
-        f.write_all(&[0u8; 48]).unwrap();
-        drop(f);
-
-        assert_eq!(read_raw_baked_password(path.to_str().unwrap()), None);
-    }
-
-    #[test]
-    fn raw_baked_password_no_password_written() {
-        let dir = TempDir::new().unwrap();
-        let path = dir.path().join("rootfs");
-
-        // Valid squashfs header but no password written after it
-        let mut f = fs::File::create(&path).unwrap();
-        let mut sb = [0u8; 48];
-        sb[0..4].copy_from_slice(&flash::SQUASHFS_MAGIC.to_le_bytes());
-        let bytes_used: u64 = 1000;
-        sb[40..48].copy_from_slice(&bytes_used.to_le_bytes());
-        f.write_all(&sb).unwrap();
-        // Pad to alignment but leave all zeros (no SWRTPWD magic)
-        f.write_all(&vec![0u8; 4096 - 48 + 72]).unwrap();
-        drop(f);
-
-        assert_eq!(read_raw_baked_password(path.to_str().unwrap()), None);
     }
 
     // ── list_conffiles ───────────────────────────────────────────────
@@ -1170,8 +859,8 @@ Conffiles:
         let files = list_conffiles(root.to_str().unwrap());
         assert!(!files.contains("/etc/shadow"), "shadow should be excluded");
         assert!(
-            !files.contains("/etc/config/wireless"),
-            "wireless should be excluded"
+            files.contains("/etc/config/wireless"),
+            "wireless should be preserved (Update path keeps user VLAN/profile config)"
         );
         assert!(files.contains("/etc/config/network"));
     }
@@ -1274,7 +963,7 @@ Conffiles:
         let dir = TempDir::new().unwrap();
         let root = dir.path();
 
-        // keep.d lists a directory (trailing slash) and the excluded /etc/shadow
+        // keep.d lists a directory (trailing slash)
         let keep_d = root.join("lib/upgrade/keep.d");
         fs::create_dir_all(&keep_d).unwrap();
         fs::write(keep_d.join("base"), "/etc/config/\n").unwrap();
@@ -1284,7 +973,6 @@ Conffiles:
         fs::write(root.join("etc/config/startwrt"), "startwrt data\n").unwrap();
         fs::write(root.join("etc/config/network"), "network data\n").unwrap();
         fs::write(root.join("etc/config/subdir/nested"), "nested data\n").unwrap();
-        // This one should be excluded by CONFFILES_EXCLUDE
         fs::write(root.join("etc/config/wireless"), "wireless data\n").unwrap();
 
         let rootfs = root.to_str().unwrap();
@@ -1304,10 +992,10 @@ Conffiles:
             "should include nested files"
         );
         assert!(
-            !paths.contains("/etc/config/wireless"),
-            "wireless should be excluded"
+            paths.contains("/etc/config/wireless"),
+            "wireless should be preserved on Update"
         );
-        assert_eq!(backup.len(), 3);
+        assert_eq!(backup.len(), 4);
 
         // Verify content
         let startwrt = backup
@@ -1429,7 +1117,7 @@ Conffiles:
     #[tokio::test]
     async fn flash_rejects_short_password() {
         let (tx, mut rx) = mpsc::channel(16);
-        run_setup_flash(FlashMode::FreshStart, "short", "AbCdEf234567", &tx).await;
+        run_setup_flash(FlashMode::FreshStart, "short", &tx).await;
         drop(tx);
 
         let mut events = Vec::new();

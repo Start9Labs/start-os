@@ -2,6 +2,7 @@ CONFIG_TARGET_spacemit=y
 CONFIG_TARGET_spacemit_k1_sbc=y
 CONFIG_TARGET_spacemit_k1_sbc_DEVICE_bananapi-f3=y
 CONFIG_DEVEL=y
+CONFIG_PER_FEED_REPO=y
 # CONFIG_BPF_TOOLCHAIN_BUILD_LLVM is not set
 CONFIG_BPF_TOOLCHAIN_NONE=y
 CONFIG_BUILD_LOG=y
@@ -204,6 +205,10 @@ CONFIG_TARGET_ROOTFS_PARTSIZE=256
 # CONFIG_USE_FS_ACL_ATTR is not set
 CONFIG_WPA_MBO_SUPPORT=y
 CONFIG_WPA_MSG_MIN_PRIORITY=3
+# I2C diagnostics (i2cdetect/i2cdump/i2cget/i2cset, plus coreutils-timeout)
+CONFIG_PACKAGE_i2c-tools=y
+CONFIG_PACKAGE_coreutils=y
+CONFIG_PACKAGE_coreutils-timeout=y
 # Disable SpacemiT K1 target defaults not needed by StartWRT
 # CONFIG_PACKAGE_mpp is not set
 # CONFIG_PACKAGE_kmod-sound-core is not set

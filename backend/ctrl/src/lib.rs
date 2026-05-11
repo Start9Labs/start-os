@@ -10,7 +10,7 @@ pub mod continuations;
 pub mod devices;
 pub mod diagnostics;
 pub mod dns;
-pub mod emmc;
+pub mod eeprom;
 pub mod ethernet;
 pub mod exec;
 pub mod files;

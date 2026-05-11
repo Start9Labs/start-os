@@ -45,11 +45,9 @@ The single binary `startwrt` uses `MultiExecutable` to dispatch based on the sym
 
 These run directly without connecting to the server:
 
-- `startwrt init` — Early boot WiFi config
-- `startwrt flash` — Firmware flash
-- `startwrt manufacture` — Manufacturing mode
+- `startwrt set-wifi-password [--manual]` — Provision WiFi password into UCI when EEPROM tag 0x2F is missing
+- `startwrt flash` — Interactive firmware flash from microSD to eMMC
 - `startwrt verify` — Verification
-- `startwrt has-baked-password` — Check if boot image has baked password
 
 ## RPC Method Tree
 

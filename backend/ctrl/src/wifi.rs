@@ -14,6 +14,13 @@ use uciedit::{dump_all, parse_all, Arena, Configs};
 
 pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
 
+/// WPA2-PSK length bounds. Hostapd accepts 8–63 ASCII chars (passphrase form);
+/// the 64-hex-char raw-PMK form isn't exposed through this API. Reject out-of-
+/// range lengths at the API boundary so the user gets a clean error instead of
+/// hostapd silently refusing to start the AP.
+const MIN_PSK_LEN: usize = 8;
+const MAX_PSK_LEN: usize = 63;
+
 /// Whether wifi needs a full restart or just a PSK hot-reload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WifiRestart {
@@ -233,6 +240,47 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
     })
 }
 
+/// If the request introduces the first admin password and every radio in the
+/// request is disabled, flip them all to enabled and broadcasting. Setting an
+/// admin password unambiguously expresses intent to bring up a discoverable
+/// AP; without this, factory `disabled='1'` and `hidden='1'` on the wireless
+/// sections would persist (the `restore_wifi_if_needed` boot path leaves them
+/// as-is when EEPROM tag 0x2F is unprovisioned, and `wifi.get` then reports
+/// `broadcast: false` because of the `disabled` bit, so the form round-trip
+/// echoes both values back as false). The password would be written but no
+/// SSID would broadcast. Only fires on the first add — once any AP iface has
+/// a key, subsequent edits respect explicit radio + broadcast toggles.
+fn auto_enable_radios_on_first_admin_password(
+    wifi: &mut Wifi,
+    cfgs: &Configs,
+) -> Result<bool, Error> {
+    let new_has_admin = wifi.passwords.iter().any(|p| p.profile.is_none());
+    if !new_has_admin {
+        return Ok(false);
+    }
+
+    let mut prev_has_admin = false;
+    cfgs["wireless"].try_each(|_, iface: WifiInterface| {
+        if iface.mode == WifiMode::AP && iface.key.is_some() {
+            prev_has_admin = true;
+        }
+        Ok::<_, Error>(())
+    })?;
+    if prev_has_admin {
+        return Ok(false);
+    }
+
+    if wifi.radios.is_empty() || wifi.radios.values().any(|r| r.enabled) {
+        return Ok(false);
+    }
+
+    for r in wifi.radios.values_mut() {
+        r.enabled = true;
+        r.broadcast = true;
+    }
+    Ok(true)
+}
+
 /// Determines whether a full wifi restart or PSK-only reload is needed.
 fn set_config(
     _ctx: &impl CtrlContext,
@@ -405,7 +453,7 @@ pub async fn set<C: CtrlContext>(
             &["wireless", "startwrt", "network", "firewall"],
         ).await?;
         let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs)?;
-        let wifi = Wifi {
+        let mut wifi = Wifi {
             ssid: wifi.ssid.clone(),
             broadcast_separately: wifi.broadcast_separately,
             radios: wifi.radios.clone(),
@@ -427,6 +475,20 @@ pub async fn set<C: CtrlContext>(
         let mut seen_passwords = std::collections::HashSet::new();
         let mut seen_labels = std::collections::HashSet::new();
         for pass in &wifi.passwords {
+            if pass.password.len() < MIN_PSK_LEN {
+                crate::activity::log("wifi", "updated", false, "Failed to update WiFi: password too short", Some("InvalidValue"));
+                return Err(Error::new(
+                    eyre!("WiFi password must be at least {MIN_PSK_LEN} characters"),
+                    ErrorKind::InvalidValue,
+                ));
+            }
+            if pass.password.len() > MAX_PSK_LEN {
+                crate::activity::log("wifi", "updated", false, "Failed to update WiFi: password too long", Some("InvalidValue"));
+                return Err(Error::new(
+                    eyre!("WiFi password must be at most {MAX_PSK_LEN} characters"),
+                    ErrorKind::InvalidValue,
+                ));
+            }
             if !seen_passwords.insert(&pass.password) {
                 crate::activity::log("wifi", "updated", false, "Failed to update WiFi: duplicate password", Some("DuplicatePassword"));
                 return Err(Error::new(eyre!("duplicate WiFi password"), ErrorKind::DuplicatePassword));
@@ -435,6 +497,9 @@ pub async fn set<C: CtrlContext>(
                 crate::activity::log("wifi", "updated", false, "Failed to update WiFi: duplicate password label", Some("DuplicatePasswordLabel"));
                 return Err(Error::new(eyre!("duplicate WiFi password label"), ErrorKind::DuplicatePasswordLabel));
             }
+        }
+        if auto_enable_radios_on_first_admin_password(&mut wifi, &cfgs)? {
+            crate::activity::log("wifi", "auto-enabled-radios", true, "Auto-enabled radios for first admin password", None);
         }
         let restart = match set_config(&ctx, &mut cfgs, &wifi, &lookup) {
             Err(Error {
@@ -1367,5 +1432,265 @@ config wifi-station
         };
         let restart = set_config(&ctx, &mut cfgs2, &wifi2, &lookup2).unwrap();
         assert_eq!(restart, WifiRestart::PskOnly, "password-only change should use PSK reload");
+    }
+
+    /// Wireless config mimicking a fresh device with no admin password and
+    /// both radios disabled (factory state on bpi-f3 when EEPROM tag 0x2F is
+    /// unprovisioned and `restore_wifi_if_needed` left things untouched).
+    fn write_wireless_config_unkeyed(dir: &std::path::Path) {
+        std::fs::write(
+            dir.join("wireless"),
+            "\
+config wifi-device 'radio0'
+\toption type 'mac80211'
+\toption band '2g'
+\toption channel '1'
+\toption disabled '1'
+
+config wifi-device 'radio1'
+\toption type 'mac80211'
+\toption band '5g'
+\toption channel '36'
+\toption disabled '1'
+
+config wifi-iface 'default_radio0'
+\toption device 'radio0'
+\toption mode 'ap'
+\toption ssid 'OpenWrt'
+\toption encryption 'none'
+\toption hidden '1'
+
+config wifi-iface 'default_radio1'
+\toption device 'radio1'
+\toption mode 'ap'
+\toption ssid 'OpenWrt'
+\toption encryption 'none'
+\toption hidden '1'
+",
+        )
+        .unwrap();
+    }
+
+    fn make_dual_radios_disabled() -> BTreeMap<String, WifiRadio> {
+        let mut radios = make_dual_radios();
+        for r in radios.values_mut() {
+            r.enabled = false;
+            r.broadcast = false;
+        }
+        radios
+    }
+
+    #[tokio::test]
+    async fn test_auto_enable_radios_on_first_admin_password_flips_disabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config_unkeyed(dir.path());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .await
+        .unwrap();
+
+        let mut passwords = BTreeSet::new();
+        passwords.insert(Password {
+            label: "Admin".into(),
+            profile: None,
+            password: "adminpass1".into(),
+        });
+
+        let mut wifi = Wifi {
+            ssid: "TestNet".into(),
+            broadcast_separately: false,
+            radios: make_dual_radios_disabled(),
+            passwords,
+        };
+
+        let flipped = auto_enable_radios_on_first_admin_password(&mut wifi, &cfgs).unwrap();
+        assert!(flipped, "should auto-enable on first admin password add");
+        assert!(
+            wifi.radios.values().all(|r| r.enabled),
+            "all radios should now be enabled"
+        );
+        assert!(
+            wifi.radios.values().all(|r| r.broadcast),
+            "all radios should now be broadcasting (hidden cleared)"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_auto_enable_skipped_when_admin_already_present() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        // write_wireless_config_dual_radio writes both ifaces with key='adminpass1'
+        write_wireless_config_dual_radio(dir.path(), "TestNet", "TestNet", "");
+
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .await
+        .unwrap();
+
+        let mut passwords = BTreeSet::new();
+        passwords.insert(Password {
+            label: "Admin".into(),
+            profile: None,
+            password: "adminpass1".into(),
+        });
+
+        let mut wifi = Wifi {
+            ssid: "TestNet".into(),
+            broadcast_separately: false,
+            radios: make_dual_radios_disabled(),
+            passwords,
+        };
+
+        let flipped = auto_enable_radios_on_first_admin_password(&mut wifi, &cfgs).unwrap();
+        assert!(!flipped, "should not auto-enable when admin password already present");
+        assert!(
+            wifi.radios.values().all(|r| !r.enabled),
+            "user's explicit disable should be respected on subsequent edits"
+        );
+        assert!(
+            wifi.radios.values().all(|r| !r.broadcast),
+            "broadcast should also be untouched on subsequent edits"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_auto_enable_respects_partial_radio_enable() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config_unkeyed(dir.path());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .await
+        .unwrap();
+
+        // First-add scenario, but user explicitly enabled only the 2.4 GHz radio
+        let mut radios = make_dual_radios_disabled();
+        radios.get_mut("default_radio0").unwrap().enabled = true;
+
+        let mut passwords = BTreeSet::new();
+        passwords.insert(Password {
+            label: "Admin".into(),
+            profile: None,
+            password: "adminpass1".into(),
+        });
+
+        let mut wifi = Wifi {
+            ssid: "TestNet".into(),
+            broadcast_separately: false,
+            radios,
+            passwords,
+        };
+
+        let flipped = auto_enable_radios_on_first_admin_password(&mut wifi, &cfgs).unwrap();
+        assert!(!flipped, "should not flip when user already enabled at least one radio");
+        assert!(wifi.radios["default_radio0"].enabled);
+        assert!(!wifi.radios["default_radio1"].enabled);
+    }
+
+    #[tokio::test]
+    async fn test_auto_enable_skipped_without_admin_password() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config_unkeyed(dir.path());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .await
+        .unwrap();
+        let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs).unwrap();
+        let guest_id = lookup.from_fullname("Guest").unwrap().clone();
+
+        // Only profile-scoped passwords, no admin
+        let mut passwords = BTreeSet::new();
+        passwords.insert(Password {
+            label: "Guest".into(),
+            profile: Some(guest_id),
+            password: "guestpass1".into(),
+        });
+
+        let mut wifi = Wifi {
+            ssid: "TestNet".into(),
+            broadcast_separately: false,
+            radios: make_dual_radios_disabled(),
+            passwords,
+        };
+
+        let flipped = auto_enable_radios_on_first_admin_password(&mut wifi, &cfgs).unwrap();
+        assert!(!flipped, "should not auto-enable without an admin password");
+        assert!(wifi.radios.values().all(|r| !r.enabled));
+        assert!(wifi.radios.values().all(|r| !r.broadcast));
+    }
+
+    #[tokio::test]
+    async fn test_set_rejects_short_password() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config_unkeyed(dir.path());
+
+        let mut passwords = BTreeSet::<Password<ProfileIdOpt>>::new();
+        passwords.insert(Password {
+            label: "Admin".into(),
+            profile: None,
+            password: "short".into(), // 5 chars, < MIN_PSK_LEN
+        });
+
+        let wifi = Wifi {
+            ssid: "TestNet".into(),
+            broadcast_separately: false,
+            radios: make_dual_radios(),
+            passwords,
+        };
+
+        let err = set(ctx, DeserializeStdin(wifi)).await.unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidValue);
+    }
+
+    #[tokio::test]
+    async fn test_set_rejects_long_password() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config_unkeyed(dir.path());
+
+        let mut passwords = BTreeSet::<Password<ProfileIdOpt>>::new();
+        passwords.insert(Password {
+            label: "Admin".into(),
+            profile: None,
+            password: "x".repeat(MAX_PSK_LEN + 1), // 64 chars, > MAX_PSK_LEN
+        });
+
+        let wifi = Wifi {
+            ssid: "TestNet".into(),
+            broadcast_separately: false,
+            radios: make_dual_radios(),
+            passwords,
+        };
+
+        let err = set(ctx, DeserializeStdin(wifi)).await.unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidValue);
     }
 }

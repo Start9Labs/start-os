@@ -1,15 +1,12 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
-use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
 use crate::invoke::Invoke;
 use crate::prelude::*;
-use crate::{emmc, init};
 
 pub(crate) const SECTOR_SIZE: u64 = 512;
-const LINUX_FS_GUID: &str = "0FC63DAF-8483-4772-8E79-3D69D8477DE4";
 
 /// SquashFS magic number ("hsqs" in little-endian).
 pub(crate) const SQUASHFS_MAGIC: u32 = 0x73717368;
@@ -50,9 +47,6 @@ pub(crate) struct SfdiskOutput {
     pub partition_table: SfdiskTable,
 }
 
-/// Size of the key_backup partition in 512-byte sectors (64 MB).
-const PERSISTENT_SECTORS: u64 = 131072;
-
 /// Progress/phase events emitted during flash operations.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "phase", rename_all = "camelCase")]
@@ -71,8 +65,6 @@ pub struct FlashResult {
     pub rootfs_dev: String,
     /// eMMC rootfs_data partition device path (e.g. "/dev/mmcblk2p8") — ext4 overlay.
     pub rootfs_data_dev: String,
-    /// eMMC key_backup partition device path (e.g. "/dev/mmcblk2p9").
-    pub persistent_dev: String,
 }
 
 /// Extract the GPT partition number from a device node path.
@@ -263,13 +255,6 @@ pub(crate) fn find_copy_end(dev_path: &str, partitions: &[SfdiskPartition]) -> R
     Ok(rootfs_end)
 }
 
-/// Find the "key_backup" partition and return its 1-based index.
-pub(crate) fn find_persistent_index(partitions: &[SfdiskPartition]) -> Option<usize> {
-    partitions.iter().position(|p| {
-        p.name.as_deref() == Some("key_backup")
-    }).map(|i| i + 1)
-}
-
 /// Prompt user for Y/n confirmation. Enter or "y"/"yes" → true, "n"/"no" → false.
 fn confirm(prompt: &str) -> Result<bool, Error> {
     loop {
@@ -370,8 +355,8 @@ fn copy_raw(
 
 /// Core flash logic shared by interactive and unattended paths.
 ///
-/// Copies firmware from microSD to eMMC, recreates the key_backup partition.
-/// Returns device info needed for post-flash configuration.
+/// Copies firmware from microSD to eMMC and expands rootfs_data to fill the
+/// available space. Returns device info needed for post-flash configuration.
 async fn run_flash_core(
     interactive: bool,
     on_progress: Option<&(dyn Fn(FlashEvent) + Sync)>,
@@ -466,14 +451,7 @@ async fn run_flash_core(
     report("Copying firmware to eMMC...");
     copy_raw(&sd_path, &emmc_path, copy_end_bytes, on_progress)?;
 
-    // 9. Remove the copied key_backup partition (if present).
-    if let Some(persistent_idx) = find_persistent_index(partitions) {
-        report("Removing copied key_backup partition...");
-        let part_num = persistent_idx.to_string();
-        run_cmd("sfdisk", &["--no-reread", "--force", "--delete", &emmc_path, &part_num]).await?;
-    }
-
-    // 10. Read eMMC partition table and find rootfs_data
+    // 9. Read eMMC partition table and find rootfs / rootfs_data
     let emmc_sfdisk = read_partition_table(&emmc_path).await?;
     let emmc_parts = &emmc_sfdisk.partition_table.partitions;
 
@@ -491,12 +469,10 @@ async fn run_flash_core(
     let rootfs_data_start = rootfs_data_part.start;
     let rootfs_data_part_num = node_partition_number(&rootfs_data_part.node)?;
 
-    // 11. Calculate new rootfs_data size: fill all space except 64 MB for key_backup
+    // 10. Expand rootfs_data to fill remaining eMMC space.
     let last_usable = emmc_sectors - 34;
-    let persistent_start = ((last_usable - PERSISTENT_SECTORS) / 2048) * 2048;
-    let new_rootfs_data_size = persistent_start - rootfs_data_start;
+    let new_rootfs_data_size = last_usable - rootfs_data_start;
 
-    // 12. Expand rootfs_data partition
     report(&format!(
         "Expanding rootfs_data partition to {new_rootfs_data_size} sectors..."
     ));
@@ -506,14 +482,7 @@ async fn run_flash_core(
         &format!("size={new_rootfs_data_size}\n"),
     ).await?;
 
-    // 13. Append key_backup partition (fills the remaining ~64 MB gap)
-    report("Creating key_backup partition (64 MB)...");
-    run_sfdisk(
-        &["--no-reread", "--force", "--append", &emmc_path],
-        &format!("type={LINUX_FS_GUID}, name=\"key_backup\"\n"),
-    ).await?;
-
-    // 14. Refresh kernel partition table.
+    // 11. Refresh kernel partition table.
     //     partx -d + -a is the cleanest (wipe stale entries, re-read GPT),
     //     but -a fails if entries already exist and -d fails if partitions
     //     are busy.  Fall back to -u (updates existing entries) which is
@@ -532,56 +501,27 @@ async fn run_flash_core(
         run_cmd("partx", &["-u", &emmc_path]).await?;
     }
 
-    // 15. Format rootfs_data as ext4 (clean overlay)
+    // 12. Format rootfs_data as ext4 (clean overlay)
     let rootfs_data_dev = format!("{emmc_path}p{rootfs_data_part_num}");
     report(&format!(
         "Formatting rootfs_data overlay ({rootfs_data_dev})..."
     ));
     run_cmd("mkfs.ext4", &["-L", "rootfs_data", "-F", &rootfs_data_dev]).await?;
 
-    // 16. Find and format the new key_backup partition.
-    let new_sfdisk = read_partition_table(&emmc_path).await?;
-    let new_persistent = new_sfdisk
-        .partition_table
-        .partitions
-        .iter()
-        .find(|p| p.name.as_deref() == Some("key_backup"))
-        .ok_or_else(|| Error::new(eyre!("key_backup partition not found after creation"), ErrorKind::NotFound))?;
-    let persistent_dev = &new_persistent.node;
-
-    // Unmount if hotplug auto-mounted it
-    if emmc::is_persistent_mounted() {
-        report("Unmounting auto-mounted key_backup partition...");
-        run_cmd("umount", &[emmc::PERSISTENT_MOUNT]).await?;
-    }
-
-    report(&format!("Formatting key_backup partition ({persistent_dev})..."));
-    run_cmd("mkfs.ext4", &["-L", "key_backup", "-F", persistent_dev]).await?;
-
-    // 17. Mount key_backup
-    let mount_point = Path::new(emmc::PERSISTENT_MOUNT);
-    if !mount_point.exists() {
-        fs::create_dir_all(mount_point)
-            .map_err(|e| Error::new(eyre!("failed to create {}: {e}", emmc::PERSISTENT_MOUNT), ErrorKind::Filesystem))?;
-    }
-    run_cmd("mount", &[persistent_dev, emmc::PERSISTENT_MOUNT]).await?;
-
-    // 18. Success
+    // 13. Success
     report("Flash complete.");
 
     Ok(Some(FlashResult {
         emmc_dev: emmc_dev.clone(),
         rootfs_dev,
         rootfs_data_dev,
-        persistent_dev: persistent_dev.to_string(),
     }))
 }
 
 /// Interactive manufacturing flash entry point.
 ///
-/// Copies firmware from microSD to eMMC, then recreates the key_backup
-/// partition to fill remaining eMMC space. Prompts for confirmation
-/// and prints progress to stdout.
+/// Copies firmware from microSD to eMMC and expands rootfs_data to fill the
+/// remaining space. Prompts for confirmation and prints progress to stdout.
 ///
 /// Returns `Ok(true)` if the flash completed successfully, `Ok(false)` if the
 /// operator aborted at the confirmation prompt.
@@ -592,8 +532,6 @@ pub async fn run_flash() -> Result<bool, Error> {
             println!("========================================");
             println!("   Flash complete!");
             println!("========================================");
-            println!();
-            println!("The key_backup partition has been created and mounted.");
             Ok(true)
         }
         None => Ok(false),
@@ -609,51 +547,6 @@ pub async fn run_flash_unattended(
 ) -> Result<FlashResult, Error> {
     run_flash_core(false, Some(on_progress)).await?
         .ok_or_else(|| Error::new(eyre!("flash aborted unexpectedly in unattended mode"), ErrorKind::Filesystem))
-}
-
-/// Combined manufacturing flow: password → flash → persist password.
-///
-/// Intended for use when booted from removable media. The operator enters
-/// the sticker password (no disk needed), the eMMC is flashed (creating
-/// the key_backup partition), and the password is written to key_backup.
-/// On the subsequent eMMC boot, `restore_wifi_if_needed()` recovers WiFi
-/// and the captive portal activates.
-pub async fn run_manufacture() -> Result<(), Error> {
-    // 1. Banner
-    println!();
-    println!("========================================");
-    println!("   StartWRT Manufacturing Setup");
-    println!("========================================");
-    println!();
-
-    // 2. Prompt for password (no disk access)
-    let password = init::prompt_password()?;
-
-    // 3. Flash eMMC (creates key_backup partition and mounts it)
-    if !run_flash().await? {
-        return Ok(()); // operator aborted
-    }
-
-    // 4. Write password to key_backup (now mounted from step 3)
-    println!("Writing WiFi credentials to key_backup partition...");
-    emmc::write_password(&password).await?;
-
-    // 5. Success
-    println!();
-    println!("========================================");
-    println!("   Manufacturing complete!");
-    println!("========================================");
-    println!();
-    println!("Remove the microSD card, then power off.");
-    println!("WiFi will activate automatically on the next boot.");
-
-    // Wait for operator acknowledgement, then drop into a login shell.
-    println!();
-    print!("Press Enter for console login...");
-    io::stdout().flush().ok();
-    let _ = io::stdin().lock().read_line(&mut String::new());
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -692,14 +585,13 @@ mod tests {
                     {"node": "/dev/mmcblk1p5", "start": 8192, "size": 12288, "name": "uboot"},
                     {"node": "/dev/mmcblk1p6", "start": 20480, "size": 262144, "name": "bootfs"},
                     {"node": "/dev/mmcblk1p7", "start": 282624, "size": 524288, "name": "rootfs"},
-                    {"node": "/dev/mmcblk1p8", "start": 806912, "size": 524288, "name": "rootfs_data"},
-                    {"node": "/dev/mmcblk1p9", "start": 1331200, "size": 65536, "name": "key_backup"}
+                    {"node": "/dev/mmcblk1p8", "start": 806912, "size": 524288, "name": "rootfs_data"}
                 ]
             }
         }"#;
 
         let parsed: SfdiskOutput = serde_json::from_str(json).expect("parse failed");
-        assert_eq!(parsed.partition_table.partitions.len(), 9);
+        assert_eq!(parsed.partition_table.partitions.len(), 8);
 
         let rootfs = &parsed.partition_table.partitions[6];
         assert_eq!(rootfs.name.as_deref(), Some("rootfs"));
@@ -718,9 +610,6 @@ mod tests {
         // find_copy_end should return rootfs_start + squashfs bytes_used
         let end = find_copy_end(dev.to_str().unwrap(), &parsed.partition_table.partitions).unwrap();
         assert_eq!(end, 282624 * 512 + bytes_used);
-
-        let persistent_idx = find_persistent_index(&parsed.partition_table.partitions);
-        assert_eq!(persistent_idx, Some(9));
     }
 
     /// Test find_copy_end with squashfs data when rootfs_data is absent.

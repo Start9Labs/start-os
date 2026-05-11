@@ -22,14 +22,12 @@ use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 use crate::continuations::{self, RpcContinuations};
 use crate::embedded_web::serve_embedded;
 use crate::luci_proxy::{self, ProxyClient};
-use crate::setup::{self, FlashMode, ResolvedPassword, SetupEvent};
+use crate::setup::{self, FlashMode, SetupEvent};
 use crate::{init_logging, main_api, middleware::SessionAuth, ssl, ServerContext};
 
 /// Shared state passed to HTTP handlers via Extension.
 #[derive(Clone)]
 struct AppState {
-    /// Resolved WiFi password for setup mode. None in normal mode.
-    setup_password: Option<Arc<ResolvedPassword>>,
     /// Guards against concurrent flash operations.
     flash_in_progress: Arc<AtomicBool>,
 }
@@ -57,11 +55,6 @@ async fn setup_flash_handler(
     Extension(state): Extension<AppState>,
     Json(params): Json<FlashParams>,
 ) -> Response<Body> {
-    let pwd = match state.setup_password {
-        Some(ref pwd) => pwd.clone(),
-        None => return ndjson_error("no WiFi password available — cannot flash"),
-    };
-
     // Prevent concurrent flash operations
     if state
         .flash_in_progress
@@ -83,7 +76,7 @@ async fn setup_flash_handler(
             .build()
             .expect("failed to create setup-flash runtime");
         rt.block_on(async move {
-            setup::run_setup_flash(params.mode, &params.password, &pwd.password, &tx).await;
+            setup::run_setup_flash(params.mode, &params.password, &tx).await;
             flash_flag.store(false, Ordering::SeqCst);
         });
     });
@@ -168,27 +161,26 @@ async fn inner_main() -> Result<(), Error> {
     if setup_mode {
         tracing::info!("setup mode detected (booted from removable media)");
 
-        // Resolve WiFi password: SD baked-in → eMMC key_backup → None
-        let pwd = match setup::resolve_password().await {
-            Ok(Some(pwd)) => {
-                tracing::info!("WiFi password resolved (baked_in={})", pwd.baked_in);
-                Some(pwd)
-            }
+        // Resolve WiFi password from EEPROM tag 0x2F
+        let pwd = match crate::eeprom::read_wifi_password() {
+            Ok(Some(p)) => Some(p),
             Ok(None) => {
-                tracing::error!("no WiFi password available — cannot start setup AP");
+                tracing::warn!(
+                    "no valid WiFi password in EEPROM; setup AP not configured. \
+                     Wizard remains reachable over ethernet."
+                );
                 None
             }
             Err(e) => {
-                tracing::error!("WiFi password resolution failed: {e}");
+                tracing::error!("EEPROM read failed: {e}");
                 None
             }
         };
 
-        if let Some(ref pwd) = pwd {
-            // Configure WiFi AP with resolved password (single-client limit).
-            let wifi_password = pwd.password.clone();
+        if let Some(ref wifi_password) = pwd {
+            // Configure WiFi AP with the EEPROM password (single-client limit).
             if let Err(e) =
-                crate::init::configure_wifi("/etc/config", &wifi_password, Some(1)).await
+                crate::init::configure_wifi("/etc/config", wifi_password, Some(1)).await
             {
                 tracing::error!("WiFi AP setup failed: {e}");
             }
@@ -201,12 +193,9 @@ async fn inner_main() -> Result<(), Error> {
             if let Err(e) = crate::captive::enable_captive_portal().await {
                 tracing::error!("captive portal setup failed: {e}");
             }
-        } else {
-            tracing::error!("no WiFi password available — setup AP cannot start");
         }
 
         app_state = AppState {
-            setup_password: pwd.map(Arc::new),
             flash_in_progress: Arc::new(AtomicBool::new(false)),
         };
     } else {
@@ -230,7 +219,6 @@ async fn inner_main() -> Result<(), Error> {
         }
 
         app_state = AppState {
-            setup_password: None,
             flash_in_progress: Arc::new(AtomicBool::new(false)),
         };
     }

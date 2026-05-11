@@ -11,13 +11,6 @@ pub fn main(args: VecDeque<OsString>) {
     // these run on the serial console and don't need syslog, and the socket
     // may not exist yet during early boot (which would panic in init_logging).
     match args.front().and_then(|s| s.to_str()) {
-        Some("init") => {
-            if let Err(e) = crate::init::run_init() {
-                eprintln!("init failed: {e}");
-                std::process::exit(1);
-            }
-            return;
-        }
         Some("flash") => {
             let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
             if let Err(e) = rt.block_on(crate::flash::run_flash()).map(|_| ()) {
@@ -26,10 +19,11 @@ pub fn main(args: VecDeque<OsString>) {
             }
             return;
         }
-        Some("manufacture") => {
+        Some("set-wifi-password") => {
+            let manual = args.iter().any(|a| a == "--manual");
             let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
-            if let Err(e) = rt.block_on(crate::flash::run_manufacture()) {
-                eprintln!("manufacture failed: {e}");
+            if let Err(e) = rt.block_on(crate::init::set_wifi_password(manual)) {
+                eprintln!("set-wifi-password failed: {e}");
                 std::process::exit(1);
             }
             return;
@@ -41,13 +35,6 @@ pub fn main(args: VecDeque<OsString>) {
                 std::process::exit(1);
             }
             return;
-        }
-        Some("has-baked-password") => {
-            // Exit 0 if the boot image has a baked-in WiFi password,
-            // exit 1 otherwise. Used by startwrt-serial to decide whether
-            // to run manufacture or defer to the web setup wizard.
-            let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
-            std::process::exit(if rt.block_on(crate::setup::has_baked_password()) { 0 } else { 1 });
         }
         _ => {}
     }

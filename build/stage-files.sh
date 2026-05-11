@@ -69,7 +69,9 @@ start_service() {
 SMARTDNSEOF
 chmod +x "${FILES_DIR}/etc/init.d/smartdns"
 
-# Serial console dispatcher — routes ttyS0 to manufacture, init, or login
+# Serial console dispatcher — prints a hint when booted in setup mode,
+# then drops to login. WiFi provisioning is handled by startwrt-ctrld
+# reading EEPROM tag 0x2F at boot; nothing here calls into startwrt-cli.
 mkdir -p "${FILES_DIR}/usr/sbin"
 cat > "${FILES_DIR}/usr/sbin/startwrt-serial" << 'SERIALEOF'
 #!/bin/sh
@@ -95,32 +97,22 @@ boot_type=""
 [ -n "$boot_dev" ] && [ -f "/sys/block/$boot_dev/device/type" ] && \
     boot_type=$(cat "/sys/block/$boot_dev/device/type")
 
-if [ "$boot_type" = "MMC" ]; then
-    # Booted from eMMC — normal operation.
-    # Run init without exec so we always fall through to login.
-    # (key_backup may not be mounted yet, so the file check can miss;
-    #  startwrt-cli init handles the "already initialized" case gracefully.)
-    /usr/bin/startwrt-cli init || echo "WARNING: init failed (exit $?)"
-    exec /bin/login
-else
-    # Booted from SD card, USB, or unknown — setup mode.
-    if /usr/bin/startwrt-cli has-baked-password; then
-        # Image has a baked-in WiFi password — the web setup wizard is
-        # available over WiFi (started by startwrt-ctrld).
-        echo ""
-        echo "========================================"
-        echo "   StartWRT Setup Mode"
-        echo "========================================"
-        echo ""
-        echo "Connect to WiFi 'StartWRT' to run the setup wizard."
-        echo "Log in below for advanced options."
-        echo ""
-    else
-        # No baked-in password — run manufacturing flow on serial console.
-        /usr/bin/startwrt-cli manufacture || echo "WARNING: manufacture failed (exit $?)"
-    fi
-    exec /bin/login
+if [ "$boot_type" != "MMC" ]; then
+    # Booted from removable media — setup wizard mode.
+    echo ""
+    echo "========================================"
+    echo "   StartWRT Setup Mode"
+    echo "========================================"
+    echo ""
+    echo "Connect to WiFi 'StartWRT' to run the setup wizard."
+    echo "If WiFi is not broadcasting, the board's EEPROM has no"
+    echo "WiFi password — connect via ethernet to run the wizard."
+    echo ""
+    echo "Log in below for advanced options."
+    echo ""
 fi
+
+exec /bin/login
 SERIALEOF
 chmod +x "${FILES_DIR}/usr/sbin/startwrt-serial"
 
@@ -153,11 +145,7 @@ cat > "${FILES_DIR}/lib/upgrade/keep.d/startwrt" << 'KEEPEOF'
 /etc/ssl/private/startwrt-ca.key
 /etc/ssl/private/startwrt-int.key
 /etc/ssl/private/startwrt-server.key
-/key_backup/
 /etc/nlbwmon/data/
 KEEPEOF
-
-# Key backup partition mount point
-mkdir -p "${FILES_DIR}/key_backup"
 
 echo "==> Staging complete."

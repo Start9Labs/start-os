@@ -26,10 +26,3 @@ config 'mount'
 	option	uuid	'0e513043-aa3c-50e0-ad45-46bf05f13502'
 	option	enabled	'0'
 
-config 'mount'
-	option	target	'/key_backup'
-	option	label	'key_backup'
-	option	fstype	'ext4'
-	option	options	'rw,noatime'
-	option	enabled	'1'
-
