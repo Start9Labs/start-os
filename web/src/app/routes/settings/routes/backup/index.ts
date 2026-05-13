@@ -5,9 +5,9 @@ import {
   signal,
 } from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiButton } from '@taiga-ui/core'
-import { TUI_CONFIRM } from '@taiga-ui/kit'
-import { TuiCardLarge } from '@taiga-ui/layout'
+import { TuiButton, TuiTitle } from '@taiga-ui/core'
+import { TUI_CONFIRM, TuiBlock } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/api.service'
@@ -15,75 +15,76 @@ import { ApiService } from 'src/app/services/api/api.service'
 @Component({
   template: `
     <section class="g-form" tuiCardLarge>
-      <h3>Create Backup</h3>
-      <p>
+      <header tuiHeader="body-l">
+        <h3 tuiTitle>Create Backup</h3>
+      </header>
+      <p tuiDescription>
         Download a backup of all router settings, including security profiles,
         WiFi configuration, SSL certificates, and system preferences.
       </p>
-      <button
-        tuiButton
-        appearance="outline"
-        iconStart="@tui.download"
-        (click)="download()"
-      >
-        Download Backup
-      </button>
-    </section>
-    <section class="g-form" tuiCardLarge>
-      <h3>Restore Backup</h3>
-      <p>
-        Upload a previously created backup to restore all settings. The device
-        will reboot after restoring.
-      </p>
-      <input
-        #fileInput
-        type="file"
-        accept=".tar.gz,.gz"
-        (change)="onFileSelected($event)"
-        style="display: none"
-      />
-      <div class="restore-row">
+      <footer>
         <button
           tuiButton
           appearance="outline"
-          iconStart="@tui.file"
-          (click)="fileInput.click()"
+          iconStart="@tui.download"
+          (click)="download()"
         >
-          {{ selectedFile() ? selectedFile()!.name : 'Choose File' }}
+          Download Backup
         </button>
+      </footer>
+    </section>
+    <section class="g-form" tuiCardLarge>
+      <header tuiHeader="body-l">
+        <h3 tuiTitle>Restore Backup</h3>
+      </header>
+      <p tuiDescription>
+        Upload a previously created backup to restore all settings. The device
+        will reboot after restoring.
+      </p>
+      <footer>
+        <label tuiBlock="m" appearance="outline" iconStart="@tui.file">
+          <b>{{ selectedFile() ? selectedFile()!.name : 'Choose File' }}</b>
+          <input
+            tuiBlock
+            appearance=""
+            type="file"
+            accept=".tar.gz,.gz"
+            (change)="onFileSelected($event)"
+          />
+        </label>
         <button
           tuiButton
-          iconStart="@tui.upload"
+          iconStart="@tui.hard-drive-upload"
+          [style.margin-inline-start.rem]="1"
           [disabled]="!selectedFile() || uploading()"
           (click)="restore()"
         >
           {{ uploading() ? 'Restoring...' : 'Restore' }}
         </button>
-      </div>
+      </footer>
     </section>
   `,
   styles: `
-    section {
-      align-items: start;
-    }
+    // TODO: Remove in Taiga 5.7.0
+    [tuiBlock] {
+      margin-bottom: 0.25rem;
+      vertical-align: bottom;
 
-    h3 {
-      margin: 0;
-    }
+      &:has(:focus-visible) {
+        outline-color: var(--tui-border-focus);
+      }
 
-    p {
-      margin: 0;
-      color: var(--tui-text-secondary);
-    }
+      &::before {
+        margin: -0.125rem;
+      }
 
-    .restore-row {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
+      input {
+        opacity: 0;
+      }
     }
   `,
   host: { class: 'g-page' },
-  imports: [TuiCardLarge, TuiButton],
+  imports: [TuiCardLarge, TuiButton, TuiHeader, TuiTitle, TuiBlock],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Backup {

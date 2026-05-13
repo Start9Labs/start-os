@@ -202,7 +202,7 @@ class Profiles {
     vpns: Array<{ id: string; label: string }>,
   ): string {
     return outbound === 'wan'
-      ? 'WAN'
+      ? 'Direct'
       : (vpns.find(v => v.id === outbound)?.label ?? 'Unknown')
   }
 
@@ -278,7 +278,6 @@ class Profiles {
     this.dialogs
       .open<ProfileDialogResult>(ADD_PROFILE, {
         label: profile ? 'Edit Security Profile' : 'Add Security Profile',
-        size: 'l',
         data: {
           existing: profile,
           otherProfiles,
