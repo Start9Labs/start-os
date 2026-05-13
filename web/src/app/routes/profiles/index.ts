@@ -278,7 +278,6 @@ class Profiles {
     this.dialogs
       .open<ProfileDialogResult>(ADD_PROFILE, {
         label: profile ? 'Edit Security Profile' : 'Add Security Profile',
-        size: 'l',
         data: {
           existing: profile,
           otherProfiles,

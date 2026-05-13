@@ -15,6 +15,7 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
   TuiAnimated,
   TuiContext,
@@ -41,16 +42,17 @@ import {
   TuiInputNumber,
   TuiMultiSelect,
   TuiRadioList,
+  TuiSegmented,
   TuiSelect,
   TuiStringifyPipe,
   TuiSwitch,
 } from '@taiga-ui/kit'
 import { TuiElasticContainer, TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { startWith } from 'rxjs'
 import { ScheduleComponent } from 'src/app/components/schedule'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
+import { PROFILE_SCHEDULE } from 'src/app/routes/profiles/schedule'
 import type {
   DnsServer,
   LanAccess,
@@ -107,182 +109,204 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
       [formGroup]="form"
       (submit.prevent)="save()"
     >
-      <fieldset class="section">
-        <legend>General</legend>
-        <tui-textfield [style.max-inline-size.rem]="20">
-          <label tuiLabel>Name</label>
-          <input tuiInput formControlName="fullname" placeholder="e.g. Guest" />
-        </tui-textfield>
-        <tui-error formControlName="fullname" />
-      </fieldset>
+      <tui-textfield>
+        <label tuiLabel>Name</label>
+        <input tuiInput formControlName="fullname" placeholder="e.g. Guest" />
+      </tui-textfield>
+      <tui-error formControlName="fullname" />
 
-      <fieldset class="section">
-        <legend>LAN</legend>
-        <label tuiLabel>Subnet</label>
-        <div tuiGroup [style.max-inline-size.rem]="20">
-          <tui-textfield>
-            <input tuiInput [value]="subnetBase().firstOctet" disabled />
-          </tui-textfield>
-          <tui-textfield>
-            <input tuiInput [value]="subnetBase().secondOctet" disabled />
-          </tui-textfield>
-          <tui-textfield>
-            <input
-              tuiInputNumber
-              formControlName="subnet"
-              [min]="0"
-              [max]="254"
+      <tui-segmented [(activeItemIndex)]="tab">
+        <button type="button">LAN</button>
+        <button type="button">WAN / Internet</button>
+        <button type="button">DNS</button>
+      </tui-segmented>
+
+      @switch (tab()) {
+        @case (0) {
+          <fieldset>
+            <legend>Subnet</legend>
+            <div tuiGroup>
+              <tui-textfield>
+                <input tuiInput [value]="subnetBase().firstOctet" disabled />
+              </tui-textfield>
+              <tui-textfield>
+                <input tuiInput [value]="subnetBase().secondOctet" disabled />
+              </tui-textfield>
+              <tui-textfield>
+                <input
+                  tuiInputNumber
+                  formControlName="subnet"
+                  [min]="0"
+                  [max]="254"
+                />
+              </tui-textfield>
+              <tui-textfield>
+                <input tuiInput value="1" disabled />
+              </tui-textfield>
+            </div>
+          </fieldset>
+          <tui-error formControlName="subnet" />
+          <fieldset>
+            <legend>Access</legend>
+            <tui-radio-list
+              size="s"
+              formControlName="lanAccessType"
+              [items]="lanAccessOptions"
+              [itemContent]="getLanAccessLabel"
+              [style.flex-direction]="'row'"
             />
-          </tui-textfield>
-          <tui-textfield>
-            <input tuiInput value="1" disabled />
-          </tui-textfield>
-        </div>
-        <tui-error formControlName="subnet" />
-        <label tuiLabel>Access</label>
-        <tui-radio-list
-          size="s"
-          formControlName="lanAccessType"
-          [items]="lanAccessOptions"
-          [itemContent]="getLanAccessLabel"
-          [style.flex-direction]="'row'"
-        />
-        <tui-elastic-container>
-          @if (['whitelist', 'blacklist'].includes(lanAccessType())) {
-            <tui-textfield
-              multi
-              tuiAnimated
-              tuiChevron
-              [stringify]="'fullname' | tuiStringify"
-            >
-              @if (!context.data.otherProfiles.length) {
-                <label tuiLabel>No other profiles</label>
-              }
-              <input
-                tuiInputChip
-                tuiSelectLike
-                [disabled]="!context.data.otherProfiles.length"
-                [placeholder]="multi().length ? '' : 'Allowed profiles'"
-                [ngModelOptions]="{ standalone: true }"
-                [(ngModel)]="multi"
-                (ngModelChange)="onWhitelist($event)"
-              />
-              <tui-input-chip *tuiItem />
-              <tui-data-list-wrapper
-                *tuiDropdown
-                tuiMultiSelectGroup
-                [items]="context.data.otherProfiles"
-              />
-            </tui-textfield>
-            <tui-error [formGroup]="form.controls.lanAccessProfiles" />
-
-            <label tuiLabel>
-              <input
-                type="checkbox"
-                tuiCheckbox
-                formControlName="accessToNewProfiles"
-              />
-              Auto whitelist new profiles
-            </label>
-          }
-        </tui-elastic-container>
-      </fieldset>
-
-      <fieldset class="section">
-        <legend>DNS</legend>
-        <tui-radio-list
-          size="s"
-          formControlName="dnsMode"
-          [items]="dnsModeOptions"
-          [itemContent]="getDnsModeLabel"
-          [style.flex-direction]="'row'"
-        />
-        <tui-elastic-container>
-          @if (dnsMode() === 'custom') {
-            @for (label of ['Primary', 'Secondary', 'Tertiary']; track $index) {
-              <section tuiAnimated>
-                <tui-textfield>
-                  <label tuiLabel>
-                    {{ label }}{{ $first ? '' : ' (optional)' }}
-                  </label>
-                  <input tuiInput [formControlName]="'dns' + ($index + 1)" />
-                </tui-textfield>
-                <label tuiLabel>
-                  <input
-                    type="checkbox"
-                    tuiSwitch
-                    [formControlName]="'dns' + ($index + 1) + 'Tls'"
-                  />
-                  Secure (DoH)
-                </label>
-              </section>
-              <tui-error [formControlName]="'dns' + ($index + 1)" />
-            }
-          }
-        </tui-elastic-container>
-      </fieldset>
-
-      <fieldset class="section">
-        <legend>WAN / Internet</legend>
-        <label tuiLabel>Outbound Routing</label>
-        <tui-radio-list
-          size="s"
-          formControlName="outboundType"
-          [items]="outboundTypeOptions"
-          [itemContent]="getOutboundTypeLabel"
-          [disabledItemHandler]="isOutboundTypeDisabled"
-          [style.flex-direction]="'row'"
-        />
-        <tui-elastic-container>
-          @if (outboundType() === 'vpn') {
-            <tui-textfield
-              tuiAnimated
-              tuiChevron
-              [stringify]="stringifyVpn"
-              [style.max-inline-size.rem]="20"
-            >
-              <label tuiLabel>VPN client</label>
-              <input tuiSelect formControlName="outboundVpn" />
-              <tui-data-list *tuiDropdown>
-                @for (vpn of outboundVpns; track vpn.interface) {
-                  <button tuiOption [value]="vpn.interface">
-                    {{ vpn.label }}
-                  </button>
+          </fieldset>
+          <tui-elastic-container>
+            @if (['whitelist', 'blacklist'].includes(lanAccessType())) {
+              <tui-textfield
+                multi
+                tuiAnimated
+                tuiChevron
+                [stringify]="'fullname' | tuiStringify"
+              >
+                @if (!context.data.otherProfiles.length) {
+                  <label tuiLabel>No other profiles</label>
                 }
-              </tui-data-list>
-            </tui-textfield>
-          }
-        </tui-elastic-container>
-        <label tuiLabel>Access</label>
-        <tui-radio-list
-          size="s"
-          formControlName="wanAccessType"
-          [items]="wanAccessOptions"
-          [itemContent]="getWanAccessLabel"
-          [style.flex-direction]="'row'"
-        />
-        <tui-elastic-container>
-          @if (['whitelist', 'blacklist'].includes(wanAccessType())) {
-            <tui-textfield tuiAnimated>
-              @if (wanAccessType() === 'whitelist') {
-                <label tuiLabel>Allowed IPs</label>
-              } @else {
-                <label tuiLabel>Blocked IPs</label>
+                <input
+                  tuiInputChip
+                  tuiSelectLike
+                  [disabled]="!context.data.otherProfiles.length"
+                  [invalid]="
+                    form.controls.lanAccessProfiles.touched &&
+                    form.controls.lanAccessProfiles.invalid
+                  "
+                  [placeholder]="multi().length ? '' : 'Allowed profiles'"
+                  [ngModelOptions]="{ standalone: true }"
+                  [(ngModel)]="multi"
+                  (ngModelChange)="onWhitelist($event)"
+                />
+                <tui-input-chip *tuiItem />
+                <tui-data-list-wrapper
+                  *tuiDropdown
+                  tuiMultiSelectGroup
+                  [items]="context.data.otherProfiles"
+                />
+              </tui-textfield>
+              <tui-error [formGroup]="form.controls.lanAccessProfiles" />
+
+              <label tuiLabel>
+                <input
+                  type="checkbox"
+                  tuiCheckbox
+                  formControlName="accessToNewProfiles"
+                />
+                Auto whitelist new profiles
+              </label>
+            }
+          </tui-elastic-container>
+        }
+        @case (1) {
+          <fieldset class="section">
+            <legend>Outbound Routing</legend>
+            <tui-radio-list
+              size="s"
+              formControlName="outboundType"
+              [items]="outboundTypeOptions"
+              [itemContent]="getOutboundTypeLabel"
+              [disabledItemHandler]="isOutboundTypeDisabled"
+              [style.flex-direction]="'row'"
+            />
+          </fieldset>
+          <tui-elastic-container>
+            @if (outboundType() === 'vpn') {
+              <tui-textfield tuiAnimated tuiChevron [stringify]="stringifyVpn">
+                <label tuiLabel>VPN client</label>
+                <input tuiSelect formControlName="outboundVpn" />
+                <tui-data-list *tuiDropdown>
+                  @for (vpn of outboundVpns; track vpn.interface) {
+                    <button tuiOption [value]="vpn.interface">
+                      {{ vpn.label }}
+                    </button>
+                  }
+                </tui-data-list>
+              </tui-textfield>
+            }
+          </tui-elastic-container>
+          <fieldset>
+            <legend>
+              Access
+              <button
+                tuiButton
+                size="xs"
+                type="button"
+                [disabled]="wanAccessType() === 'none'"
+                (click)="onBlackout()"
+              >
+                Blackout Schedule
+              </button>
+            </legend>
+            <tui-radio-list
+              size="s"
+              formControlName="wanAccessType"
+              [items]="wanAccessOptions"
+              [itemContent]="getWanAccessLabel"
+              [style.flex-direction]="'row'"
+            />
+          </fieldset>
+          <tui-elastic-container>
+            @if (['whitelist', 'blacklist'].includes(wanAccessType())) {
+              <tui-textfield tuiAnimated>
+                @if (wanAccessType() === 'whitelist') {
+                  <label tuiLabel>Allowed IPs</label>
+                } @else {
+                  <label tuiLabel>Blocked IPs</label>
+                }
+                <input
+                  tuiInput
+                  formControlName="wanAccessList"
+                  placeholder="e.g. 1.1.1.1, 8.8.8.8/24"
+                />
+              </tui-textfield>
+              <tui-error formControlName="wanAccessList" />
+            }
+          </tui-elastic-container>
+        }
+        @case (2) {
+          <tui-radio-list
+            size="s"
+            formControlName="dnsMode"
+            [items]="dnsModeOptions"
+            [itemContent]="getDnsModeLabel"
+            [style.flex-direction]="'row'"
+          />
+          <tui-elastic-container>
+            @if (dnsMode() === 'custom') {
+              @for (
+                label of ['Primary', 'Secondary', 'Tertiary'];
+                track $index
+              ) {
+                <section tuiAnimated>
+                  <tui-textfield>
+                    <label tuiLabel>
+                      {{ label }}{{ $first ? '' : ' (optional)' }}
+                    </label>
+                    <input tuiInput [formControlName]="'dns' + ($index + 1)" />
+                  </tui-textfield>
+                  <label tuiLabel>
+                    <input
+                      type="checkbox"
+                      tuiSwitch
+                      [formControlName]="'dns' + ($index + 1) + 'Tls'"
+                    />
+                    Secure (DoH)
+                  </label>
+                </section>
+                <tui-error [formControlName]="'dns' + ($index + 1)" />
               }
-              <input
-                tuiInput
-                formControlName="wanAccessList"
-                placeholder="e.g. 1.1.1.1, 8.8.8.8/24"
-              />
-            </tui-textfield>
-            <tui-error formControlName="wanAccessList" />
-          }
-        </tui-elastic-container>
-        <div class="blackout" [class._disabled]="wanAccessType() === 'none'">
-          <label tuiLabel>Blackout times</label>
-          <app-schedule [style.height.rem]="22" [(windows)]="scheduleWindows" />
-        </div>
-      </fieldset>
+            }
+          </tui-elastic-container>
+        }
+      }
+
+      <div class="blackout" [class._disabled]="wanAccessType() === 'none'">
+        <label tuiLabel>Blackout times</label>
+        <app-schedule [style.height.rem]="22" [(windows)]="scheduleWindows" />
+      </div>
 
       <footer>
         <button
@@ -298,13 +322,19 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
     </form>
   `,
   styles: `
-    .section {
-      display: flex;
-      flex-direction: column;
+    tui-segmented button {
+      flex: 1;
+      font-weight: bold;
+      min-inline-size: min-content;
+    }
+
+    legend [tuiButton] {
+      margin-inline-start: 0.5rem;
+      vertical-align: baseline;
     }
 
     .blackout {
-      display: flex;
+      display: none;
       flex-direction: column;
       gap: inherit;
       transition: opacity 0.3s;
@@ -317,7 +347,6 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
   `,
   hostDirectives: [ModalHelp],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  viewProviders: [provideHelp('/profiles/blackout')],
   providers: [
     provideHelp('/profiles/dialog'),
     tuiValidationErrorsProvider({
@@ -358,6 +387,7 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
     TuiElasticContainer,
     TuiAnimated,
     ScheduleComponent,
+    TuiSegmented,
   ],
 })
 class AddProfile {
@@ -367,15 +397,15 @@ class AddProfile {
   private readonly builder = inject(NonNullableFormBuilder)
   private readonly existing = this.context.data.existing
   private readonly usedSubnets = this.context.data.usedSubnets
+  private readonly dnsConfig = this.parseDnsOverride()
+  private readonly dialogs = inject(TuiResponsiveDialogService)
+
+  protected readonly tab = signal(0)
   protected readonly outboundVpns = this.context.data.outboundVpns
-
   protected readonly subnetBase = computed(() => this.context.data.subnetBase)
-
   protected readonly scheduleWindows = signal<ScheduleWindow[]>(
     this.context.data.scheduleWindows ?? [],
   )
-
-  private readonly dnsConfig = this.parseDnsOverride()
 
   protected readonly form = this.builder.group({
     fullname: [
@@ -420,31 +450,23 @@ class AddProfile {
   )
 
   protected readonly lanAccessType = toSignal(
-    this.form.controls.lanAccessType.valueChanges.pipe(
-      startWith(this.form.controls.lanAccessType.value),
-    ),
-    { requireSync: true },
+    this.form.controls.lanAccessType.valueChanges,
+    { initialValue: this.form.controls.lanAccessType.value },
   )
 
   protected readonly wanAccessType = toSignal(
-    this.form.controls.wanAccessType.valueChanges.pipe(
-      startWith(this.form.controls.wanAccessType.value),
-    ),
-    { requireSync: true },
+    this.form.controls.wanAccessType.valueChanges,
+    { initialValue: this.form.controls.wanAccessType.value },
   )
 
   protected readonly outboundType = toSignal(
-    this.form.controls.outboundType.valueChanges.pipe(
-      startWith(this.form.controls.outboundType.value),
-    ),
-    { requireSync: true },
+    this.form.controls.outboundType.valueChanges,
+    { initialValue: this.form.controls.outboundType.value },
   )
 
   protected readonly dnsMode = toSignal(
-    this.form.controls.dnsMode.valueChanges.pipe(
-      startWith(this.form.controls.dnsMode.value),
-    ),
-    { requireSync: true },
+    this.form.controls.dnsMode.valueChanges,
+    { initialValue: this.form.controls.dnsMode.value },
   )
 
   constructor() {
@@ -654,6 +676,16 @@ class AddProfile {
 
   protected readonly stringifyVpn = (value: string): string =>
     this.outboundVpns.find(v => v.interface === value)?.label ?? value
+
+  protected onBlackout(): void {
+    this.dialogs
+      .open<ScheduleWindow[]>(PROFILE_SCHEDULE, {
+        label: 'Blackout Schedule',
+        size: 'l',
+        data: this.scheduleWindows(),
+      })
+      .subscribe(windows => this.scheduleWindows.set(windows))
+  }
 
   protected save(): void {
     tuiMarkControlAsTouchedAndValidate(this.form)

@@ -39,20 +39,12 @@ import { ScheduleWindow } from 'src/app/services/api/api.service'
         <legend>Time Window</legend>
         <tui-textfield>
           <label tuiLabel>Start Time</label>
-          <input
-            tuiInputTime
-            formControlName="startTime"
-            [accept]="quarterHours"
-          />
+          <input tuiInputTime formControlName="startTime" />
           <tui-data-list-wrapper *tuiDropdown [items]="quarterHours" />
         </tui-textfield>
         <tui-textfield>
           <label tuiLabel>End Time</label>
-          <input
-            tuiInputTime
-            formControlName="endTime"
-            [accept]="quarterHours"
-          />
+          <input tuiInputTime formControlName="endTime" />
           <tui-data-list-wrapper *tuiDropdown [items]="quarterHours" />
         </tui-textfield>
       </fieldset>

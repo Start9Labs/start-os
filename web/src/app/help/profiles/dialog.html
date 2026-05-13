@@ -17,10 +17,6 @@ network. Choose "All" for full access, "Same profile" for isolation, or
 When LAN access is set to "Whitelist", enabling this also grants access to any
 profiles created in the future — useful for admin profiles that should reach all
 network segments.
-<h3>DNS</h3>
-Choose whether this profile uses the system's DNS servers or its own. Select
-"Custom" to specify up to three DNS servers, each with optional DoH (DNS over
-HTTPS) encryption for secure lookups.
 <h3>Outbound Routing</h3>
 Choose how traffic from this profile reaches the internet. Select "Direct" for
 normal internet access, or "VPN" to route all of the profile's traffic through
@@ -29,7 +25,7 @@ one of your VPN clients.
 Whether devices in this profile have internet access. Use "Whitelist" or
 "Blacklist" to restrict access to specific IP addresses or CIDR ranges, or
 "None" to block the internet entirely.
-<h3>Blackout times</h3>
+<h3>Blackout Schedule</h3>
 <p>
   Designated times when WAN (internet) access is blocked for devices on this
   profile. Outside of these windows the profile's normal WAN access rules apply.
@@ -41,7 +37,7 @@ Whether devices in this profile have internet access. Use "Whitelist" or
   already blocked at all times, so there is nothing to schedule. Any windows
   you've configured are kept and take effect again if you re-enable WAN access.
 </p>
-<p>
-  Click + to add a window, double-click an existing window to edit or delete it,
-  or drag its handles to resize it in place.
-</p>
+<h3>DNS</h3>
+Choose whether this profile uses the system's DNS servers or its own. Select
+"Custom" to specify up to three DNS servers, each with optional DoH (DNS over
+HTTPS) encryption for secure lookups.
