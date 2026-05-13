@@ -3,6 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
+use reqwest::header::RANGE;
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWrite;
@@ -18,8 +19,10 @@ use crate::s9pk::merkle_archive::source::{ArchiveSource, Section};
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::sign::commitment::{Commitment, Digestable};
 use crate::sign::{AnySignature, AnyVerifyingKey};
-use crate::upload::UploadingFile;
+use crate::upload::{DownloadAttemptContext, DownloadHandle, UploadingFile};
 use crate::util::future::NonDetachingJoinHandle;
+#[cfg(test)]
+use crate::util::io::TmpDir;
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -58,15 +61,7 @@ impl<Commitment> RegistryAsset<Commitment> {
         client: Client,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<BufferedHttpSource, Error> {
-        for url in &self.urls {
-            if let Some(response) = client.get(url.clone()).send().await.log_err() {
-                return BufferedHttpSource::from_response(response, progress).await;
-            }
-        }
-        Err(Error::new(
-            eyre!("{}", t!("registry.asset.failed-to-load-http-url")),
-            ErrorKind::Network,
-        ))
+        BufferedHttpSource::from_urls(&self.urls, client, progress).await
     }
     pub async fn load_buffered_http_source_with_path(
         &self,
@@ -74,15 +69,7 @@ impl<Commitment> RegistryAsset<Commitment> {
         client: Client,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<BufferedHttpSource, Error> {
-        for url in &self.urls {
-            if let Ok(response) = client.get(url.clone()).send().await {
-                return BufferedHttpSource::from_response_with_path(path, response, progress).await;
-            }
-        }
-        Err(Error::new(
-            eyre!("{}", t!("registry.asset.failed-to-load-http-url")),
-            ErrorKind::Network,
-        ))
+        BufferedHttpSource::from_urls_with_path(path, &self.urls, client, progress).await
     }
 }
 impl<Commitment: Digestable> RegistryAsset<Commitment> {
@@ -154,22 +141,35 @@ pub struct BufferedHttpSource {
     _download: NonDetachingJoinHandle<()>,
     file: UploadingFile,
 }
+
 impl BufferedHttpSource {
     pub async fn new(
         client: Client,
         url: Url,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<Self, Error> {
-        let response = client.get(url).send().await?;
-        Self::from_response(response, progress).await
+        Self::from_urls(std::slice::from_ref(&url), client, progress).await
     }
     pub async fn from_response(
         response: Response,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<Self, Error> {
-        let (mut handle, file) = UploadingFile::new(progress).await?;
+        let (mut handle, file) = UploadingFile::new_for_download(progress).await?;
+        let mut response = Some(response);
         Ok(Self {
-            _download: tokio::spawn(async move { handle.download(response).await }).into(),
+            _download: tokio::spawn(async move {
+                handle
+                    .download_from(|_| {
+                        let next = response.take();
+                        async move {
+                            next.ok_or_else(|| {
+                                Error::new(eyre!("download failed"), ErrorKind::Network)
+                            })
+                        }
+                    })
+                    .await
+            })
+            .into(),
             file,
         })
     }
@@ -178,9 +178,55 @@ impl BufferedHttpSource {
         response: Response,
         progress: PhaseProgressTrackerHandle,
     ) -> Result<Self, Error> {
-        let (mut handle, file) = UploadingFile::with_path(path, progress).await?;
+        let (mut handle, file) = UploadingFile::with_path_for_download(path, progress).await?;
+        let mut response = Some(response);
         Ok(Self {
-            _download: tokio::spawn(async move { handle.download(response).await }).into(),
+            _download: tokio::spawn(async move {
+                handle
+                    .download_from(|_| {
+                        let next = response.take();
+                        async move {
+                            next.ok_or_else(|| {
+                                Error::new(eyre!("download failed"), ErrorKind::Network)
+                            })
+                        }
+                    })
+                    .await
+            })
+            .into(),
+            file,
+        })
+    }
+    async fn from_urls(
+        urls: &[Url],
+        client: Client,
+        progress: PhaseProgressTrackerHandle,
+    ) -> Result<Self, Error> {
+        let (handle, file) = UploadingFile::new_for_download(progress).await?;
+        Self::spawn_mirror_download(handle, file, urls, client).await
+    }
+    async fn from_urls_with_path(
+        path: impl AsRef<Path>,
+        urls: &[Url],
+        client: Client,
+        progress: PhaseProgressTrackerHandle,
+    ) -> Result<Self, Error> {
+        let (handle, file) = UploadingFile::with_path_for_download(path, progress).await?;
+        Self::spawn_mirror_download(handle, file, urls, client).await
+    }
+    async fn spawn_mirror_download(
+        mut handle: DownloadHandle,
+        file: UploadingFile,
+        urls: &[Url],
+        client: Client,
+    ) -> Result<Self, Error> {
+        handle
+            .download_from(MirrorRetry::new(urls.to_vec(), client).next_response())
+            .await;
+        drop(handle);
+        file.wait_for_complete().await?;
+        Ok(Self {
+            _download: tokio::spawn(async {}).into(),
             file,
         })
     }
@@ -199,5 +245,266 @@ impl ArchiveSource for BufferedHttpSource {
     }
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::FetchReader, Error> {
         self.file.fetch(position, size).await
+    }
+}
+
+struct MirrorRetry {
+    urls: Vec<Url>,
+    client: Client,
+    state: MirrorState,
+    errors: Vec<String>,
+}
+
+#[derive(Clone, Copy)]
+enum MirrorState {
+    NextFull(usize),
+    TryResume(usize),
+    RetryFull(usize),
+}
+
+impl MirrorRetry {
+    fn new(urls: Vec<Url>, client: Client) -> Self {
+        Self {
+            urls,
+            client,
+            state: MirrorState::NextFull(0),
+            errors: Vec::new(),
+        }
+    }
+    fn next_response(
+        mut self,
+    ) -> impl FnMut(DownloadAttemptContext) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Response, Error>> + Send>,
+    > {
+        move |ctx| {
+            if let Some(err) = &ctx.last_error {
+                let url_idx = match self.state {
+                    MirrorState::NextFull(i) => i.saturating_sub(1),
+                    MirrorState::TryResume(i) | MirrorState::RetryFull(i) => i,
+                };
+                if let Some(url) = self.urls.get(url_idx) {
+                    self.errors.push(format!("{url}: {err}"));
+                    tracing::warn!("Failed to download {url}: {err}");
+                }
+            }
+            let next = self.advance(&ctx);
+            let exhausted = (next.is_none()).then(|| self.errors.join("; "));
+            Box::pin(async move {
+                match next {
+                    Some(req) => req.send().await.map_err(|e| Error::new(e, ErrorKind::Network)),
+                    None => Err(Error::new(
+                        eyre!(
+                            "failed to download package from any mirror: {}",
+                            exhausted.unwrap_or_default()
+                        ),
+                        ErrorKind::Network,
+                    )),
+                }
+            })
+        }
+    }
+    fn advance(&mut self, ctx: &DownloadAttemptContext) -> Option<reqwest::RequestBuilder> {
+        loop {
+            match self.state {
+                MirrorState::NextFull(idx) => {
+                    let url = self.urls.get(idx)?;
+                    let req = self.client.get(url.clone());
+                    self.state = MirrorState::TryResume(idx);
+                    return Some(req);
+                }
+                MirrorState::TryResume(idx) => {
+                    let url = self.urls.get(idx)?;
+                    self.state = MirrorState::RetryFull(idx);
+                    if let (Some(total), written) = (ctx.expected_size, ctx.bytes_written) {
+                        if written > 0 && written < total {
+                            return Some(
+                                self.client
+                                    .get(url.clone())
+                                    .header(RANGE, format!("bytes={written}-")),
+                            );
+                        }
+                    }
+                    continue;
+                }
+                MirrorState::RetryFull(idx) => {
+                    let url = self.urls.get(idx)?;
+                    self.state = MirrorState::NextFull(idx + 1);
+                    return Some(self.client.get(url.clone()));
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    use crate::progress::FullProgressTracker;
+    use crate::s9pk::merkle_archive::source::ArchiveSource;
+
+    struct TestServer {
+        url: Url,
+        complete_hits: Arc<AtomicUsize>,
+    }
+
+    async fn spawn_test_server() -> Result<TestServer, Error> {
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let addr = listener.local_addr()?;
+        let complete_hits = Arc::new(AtomicUsize::new(0));
+        let server_complete_hits = complete_hits.clone();
+        tokio::spawn(async move {
+            loop {
+                let Ok((mut stream, _)) = listener.accept().await else {
+                    break;
+                };
+                let complete_hits = server_complete_hits.clone();
+                tokio::spawn(async move {
+                    let mut buf = [0; 1024];
+                    let Ok(n) = stream.read(&mut buf).await else {
+                        return;
+                    };
+                    let request = String::from_utf8_lossy(&buf[..n]);
+                    let request_lower = request.to_ascii_lowercase();
+                    let path = request
+                        .lines()
+                        .next()
+                        .and_then(|line| line.split_whitespace().nth(1))
+                        .unwrap_or("/");
+                    match path {
+                        "/resume" if request_lower.contains("range: bytes=5-") => {
+                            let _ = stream
+                                .write_all(
+                                    b"HTTP/1.1 206 Partial Content\r\nContent-Length: 6\r\nContent-Range: bytes 5-10/11\r\n\r\n world",
+                                )
+                                .await;
+                        }
+                        "/resume" => {
+                            let _ = stream
+                                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello")
+                                .await;
+                        }
+                        "/range-ignored" if request_lower.contains("range: bytes=5-") => {
+                            let _ = stream
+                                .write_all(
+                                    b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello world",
+                                )
+                                .await;
+                        }
+                        "/range-ignored" => {
+                            let _ = stream
+                                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello")
+                                .await;
+                        }
+                        "/always-truncated" => {
+                            let _ = stream
+                                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello")
+                                .await;
+                        }
+                        "/complete" => {
+                            complete_hits.fetch_add(1, Ordering::SeqCst);
+                            let _ = stream
+                                .write_all(
+                                    b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello world",
+                                )
+                                .await;
+                        }
+                        _ => {
+                            let _ = stream
+                                .write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n")
+                                .await;
+                        }
+                    }
+                });
+            }
+        });
+        Ok(TestServer {
+            url: Url::parse(&format!("http://{addr}")).with_kind(ErrorKind::ParseUrl)?,
+            complete_hits,
+        })
+    }
+
+    async fn buffered_contents(asset: RegistryAsset<()>) -> Result<Vec<u8>, Error> {
+        let progress = FullProgressTracker::new().add_phase("Downloading".into(), Some(100));
+        let tmp_dir = TmpDir::new().await?;
+        let source = asset
+            .load_buffered_http_source_with_path(
+                tmp_dir.join("package.s9pk"),
+                Client::new(),
+                progress,
+            )
+            .await?;
+        let mut contents = Vec::new();
+        source.fetch_all().await?.read_to_end(&mut contents).await?;
+        Ok(contents)
+    }
+
+    #[tokio::test]
+    async fn buffered_download_resumes_same_url_after_truncated_response() -> Result<(), Error> {
+        let server = spawn_test_server().await?;
+        let asset = RegistryAsset {
+            published_at: Utc::now(),
+            urls: vec![server.url.join("resume")?, server.url.join("complete")?],
+            commitment: (),
+            signatures: HashMap::new(),
+        };
+
+        assert_eq!(buffered_contents(asset).await?, b"hello world");
+        assert_eq!(server.complete_hits.load(Ordering::SeqCst), 0);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn buffered_download_retries_same_url_when_range_is_ignored() -> Result<(), Error> {
+        let server = spawn_test_server().await?;
+        let asset = RegistryAsset {
+            published_at: Utc::now(),
+            urls: vec![
+                server.url.join("range-ignored")?,
+                server.url.join("complete")?,
+            ],
+            commitment: (),
+            signatures: HashMap::new(),
+        };
+
+        assert_eq!(buffered_contents(asset).await?, b"hello world");
+        assert_eq!(server.complete_hits.load(Ordering::SeqCst), 0);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn buffered_download_falls_back_to_next_mirror_after_retry_fails() -> Result<(), Error> {
+        let server = spawn_test_server().await?;
+        let asset = RegistryAsset {
+            published_at: Utc::now(),
+            urls: vec![
+                server.url.join("always-truncated")?,
+                server.url.join("complete")?,
+            ],
+            commitment: (),
+            signatures: HashMap::new(),
+        };
+
+        assert_eq!(buffered_contents(asset).await?, b"hello world");
+        assert_eq!(server.complete_hits.load(Ordering::SeqCst), 1);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn buffered_download_fails_after_all_mirrors_fail() -> Result<(), Error> {
+        let server = spawn_test_server().await?;
+        let asset = RegistryAsset {
+            published_at: Utc::now(),
+            urls: vec![server.url.join("always-truncated")?],
+            commitment: (),
+            signatures: HashMap::new(),
+        };
+
+        assert!(buffered_contents(asset).await.is_err());
+        Ok(())
     }
 }

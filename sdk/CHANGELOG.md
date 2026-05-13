@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.1 — StartOS 0.4.0-beta.9 (2026-05-13)
+
+### Fixed
+
+- `GetActionInputType` (used to infer the input shape for `TaskOptions` / `task()` partials) now matches against `ActionInfo` instead of `Action`. The conditional previously tested `A extends Action<...>` while `A` was constrained to `ActionInfo<...>`, so inference fell through to `never` and `TaskInput.value` collapsed to `DeepPartial<never>`. Tasks built from `ActionInfo` now infer their input type correctly
+- `BindOptions.addSsl` is now `Partial<AddSslOptions>` for protocols without SSL variants, matching the type already used on the SSL-variant branch. The two branches of the discriminated union are now consistent, so callers can omit individual SSL option fields regardless of which protocol they're binding
+
 ## 1.5.0 — StartOS 0.4.0-beta.9 (2026-05-08)
 
 ### Added

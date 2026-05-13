@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::io::SeekFrom;
 use std::path::Path;
 use std::pin::Pin;
@@ -10,7 +11,7 @@ use axum::extract::Request;
 use axum::response::Response;
 use bytes::Bytes;
 use futures::{FutureExt, Stream, StreamExt, ready};
-use http::header::CONTENT_LENGTH;
+use http::header::{CONTENT_LENGTH, CONTENT_RANGE};
 use http::{HeaderMap, StatusCode};
 use imbl_value::InternedString;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
@@ -206,6 +207,44 @@ impl UploadingFile {
         file.tmp_dir = Some(tmp_dir);
         Ok((handle, file))
     }
+    pub async fn with_path_for_download(
+        path: impl AsRef<Path>,
+        mut progress: PhaseProgressTrackerHandle,
+    ) -> Result<(DownloadHandle, Self), Error> {
+        progress.set_units(Some(ProgressUnits::Bytes));
+        let progress = watch::channel(Progress {
+            tracker: progress,
+            expected_size: None,
+            written: 0,
+            error: None,
+            complete: false,
+        });
+        let file = create_file(path).await?;
+        let multi_cursor = MultiCursorFile::open(&file).await?;
+        let uploading = Self {
+            tmp_dir: None,
+            file: multi_cursor,
+            progress: progress.1,
+        };
+        Ok((
+            DownloadHandle {
+                tmp_dir: None,
+                file,
+                progress: progress.0,
+            },
+            uploading,
+        ))
+    }
+    pub async fn new_for_download(
+        progress: PhaseProgressTrackerHandle,
+    ) -> Result<(DownloadHandle, Self), Error> {
+        let tmp_dir = Arc::new(TmpDir::new().await?);
+        let (mut handle, mut file) =
+            Self::with_path_for_download(tmp_dir.join("download.tmp"), progress).await?;
+        handle.tmp_dir = Some(tmp_dir.clone());
+        file.tmp_dir = Some(tmp_dir);
+        Ok((handle, file))
+    }
     pub async fn wait_for_complete(&self) -> Result<(), Error> {
         Progress::ready(&mut self.progress.clone()).await
     }
@@ -350,11 +389,6 @@ impl UploadHandle {
             .await;
         self.progress.send_if_modified(|p| p.complete());
     }
-    pub async fn download(&mut self, response: reqwest::Response) {
-        self.process_headers(response.headers());
-        self.process_body(response.bytes_stream()).await;
-        self.progress.send_if_modified(|p| p.complete());
-    }
     fn process_headers(&mut self, headers: &HeaderMap) {
         if let Some(content_length) = headers
             .get(CONTENT_LENGTH)
@@ -373,10 +407,7 @@ impl UploadHandle {
     ) {
         while let Some(next) = body.next().await {
             if let Err(e) = async {
-                self.write_all(
-                    &next.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
-                )
-                .await?;
+                self.write_all(&next.map_err(std::io::Error::other)?).await?;
                 Ok(())
             }
             .await
@@ -388,7 +419,6 @@ impl UploadHandle {
         if let Err(e) = self.file.sync_all().await {
             self.progress.send_if_modified(|p| p.handle_error(&e));
         }
-        // Update progress with final synced bytes
         self.update_sync_progress();
     }
     fn update_sync_progress(&mut self) {
@@ -464,4 +494,160 @@ impl AsyncWrite for UploadHandle {
             a => a,
         }
     }
+}
+
+pub struct DownloadAttemptContext {
+    pub bytes_written: u64,
+    pub expected_size: Option<u64>,
+    pub last_error: Option<Error>,
+}
+
+pub struct DownloadHandle {
+    tmp_dir: Option<Arc<TmpDir>>,
+    file: tokio::fs::File,
+    progress: watch::Sender<Progress>,
+}
+impl DownloadHandle {
+    pub async fn download_from<F, Fut>(&mut self, mut next_response: F)
+    where
+        F: FnMut(DownloadAttemptContext) -> Fut,
+        Fut: Future<Output = Result<reqwest::Response, Error>>,
+    {
+        let mut last_error: Option<Error> = None;
+        let outcome: Result<(), Error> = loop {
+            let (bytes_written, expected_size) = {
+                let p = self.progress.borrow();
+                (p.written, p.expected_size)
+            };
+            let response = match next_response(DownloadAttemptContext {
+                bytes_written,
+                expected_size,
+                last_error: last_error.as_ref().map(|e| e.clone_output()),
+            })
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => break Err(e),
+            };
+            let response = match response.error_for_status() {
+                Ok(r) => r,
+                Err(e) => {
+                    last_error = Some(Error::new(e, ErrorKind::Network));
+                    continue;
+                }
+            };
+
+            if response.status() == StatusCode::PARTIAL_CONTENT {
+                if let Some(total) = parse_content_range_total(response.headers()) {
+                    self.progress.send_modify(|p| {
+                        p.expected_size = Some(total);
+                        p.tracker.set_total(total);
+                    });
+                }
+            } else {
+                if let Err(e) = self.file.set_len(0).await {
+                    break Err(Error::new(e, ErrorKind::Filesystem));
+                }
+                if let Err(e) = self.file.seek(SeekFrom::Start(0)).await {
+                    break Err(Error::new(e, ErrorKind::Filesystem));
+                }
+                self.progress.send_modify(|p| {
+                    p.written = 0;
+                    p.tracker.set_done(0);
+                });
+                if let Some(content_length) = response
+                    .headers()
+                    .get(CONTENT_LENGTH)
+                    .and_then(|a| a.to_str().log_err())
+                    .and_then(|a| a.parse::<u64>().log_err())
+                {
+                    self.progress.send_modify(|p| {
+                        p.expected_size = Some(content_length);
+                        p.tracker.set_total(content_length);
+                    });
+                }
+            }
+
+            let stream_result: Result<(), Error> = async {
+                let mut stream = response.bytes_stream();
+                while let Some(next) = stream.next().await {
+                    let chunk = next.map_err(|e| Error::new(e, ErrorKind::Network))?;
+                    self.file
+                        .write_all(&chunk)
+                        .await
+                        .map_err(|e| Error::new(e, ErrorKind::Filesystem))?;
+                    let len = chunk.len() as u64;
+                    self.progress.send_modify(|p| {
+                        p.written += len;
+                        p.tracker += len;
+                    });
+                }
+                Ok(())
+            }
+            .await;
+
+            if let Err(e) = stream_result {
+                last_error = Some(e);
+                continue;
+            }
+
+            let (written, expected) = {
+                let p = self.progress.borrow();
+                (p.written, p.expected_size)
+            };
+            match expected {
+                Some(total) if written < total => {
+                    last_error = Some(Error::new(
+                        eyre!("download ended after {written} bytes, expected {total}"),
+                        ErrorKind::Network,
+                    ));
+                    continue;
+                }
+                Some(total) if written > total => {
+                    break Err(Error::new(
+                        eyre!("Too many bytes received"),
+                        ErrorKind::Network,
+                    ));
+                }
+                _ => break Ok(()),
+            }
+        };
+
+        match outcome {
+            Ok(()) => {
+                if let Err(e) = self.file.sync_all().await {
+                    self.progress
+                        .send_if_modified(|p| p.handle_error(&e));
+                }
+            }
+            Err(e) => {
+                self.progress.send_if_modified(|p| {
+                    if p.error.is_none() {
+                        p.error = Some(e);
+                        true
+                    } else {
+                        false
+                    }
+                });
+            }
+        }
+        self.progress.send_if_modified(|p| p.complete());
+    }
+}
+impl Drop for DownloadHandle {
+    fn drop(&mut self) {
+        self.progress.send_if_modified(|p| p.complete());
+    }
+}
+
+fn parse_content_range_total(headers: &HeaderMap) -> Option<u64> {
+    headers
+        .get(CONTENT_RANGE)?
+        .to_str()
+        .ok()?
+        .rsplit_once('/')?
+        .1
+        .trim()
+        .parse()
+        .ok()
 }

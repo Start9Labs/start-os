@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { Effects } from '../Effects'
 import { Origin } from './Origin'
-import { AddSslOptions, BindParams } from '../osBindings'
+import { AddSslOptions } from '../osBindings'
 import { Security } from '../osBindings'
 import { BindOptions } from '../osBindings'
 import { AlpnInfo } from '../osBindings'
@@ -71,7 +71,7 @@ type BindOptionsByKnownProtocol =
   | {
       protocol: NotProtocolsWithSslVariants
       preferredExternalPort?: number
-      addSsl?: AddSslOptions
+      addSsl?: Partial<AddSslOptions>
     }
 export type BindOptionsByProtocol =
   | BindOptionsByKnownProtocol

@@ -46,7 +46,7 @@ export const runAction = async <
   }
 }
 type GetActionInputType<A extends ActionInfo<T.ActionId, any>> =
-  A extends Action<T.ActionId, infer I> ? I : never
+  A extends ActionInfo<T.ActionId, infer I> ? I : never
 
 type TaskBase = {
   reason?: string
