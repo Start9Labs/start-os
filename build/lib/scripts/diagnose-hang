@@ -1,0 +1,103 @@
+#!/bin/bash
+# Capture the state of startbox when it is unresponsive. Uses only /proc
+# and basic system tools — does not rely on start-cli (which routes
+# through startd and will hang if startd is hung).
+#
+# Usage: sudo /usr/lib/startos/scripts/diagnose-hang
+# Produces: /tmp/startbox-hang-<timestamp>.tar.gz
+
+set -u
+
+if [ "$(id -u)" -ne 0 ]; then
+    exec sudo bash "$0" "$@"
+fi
+
+PID="$(pidof startbox || true)"
+if [ -z "$PID" ]; then
+    echo "startbox is not running — nothing to diagnose" >&2
+    exit 1
+fi
+
+TS="$(date -u +%Y%m%dT%H%M%SZ)"
+OUT="/tmp/startbox-hang-$TS"
+mkdir -p "$OUT"
+
+echo "Capturing startbox state (pid=$PID) to $OUT" >&2
+
+# ---- Process-level summary ----
+{
+    echo "timestamp: $TS"
+    echo "pid:       $PID"
+    echo "uptime:    $(uptime)"
+    awk '/^Name|^State|^Threads|^VmRSS|^VmPeak|^Pid|^PPid/' "/proc/$PID/status"
+} > "$OUT/summary.txt"
+
+# ---- Per-thread state, wait channel, and kernel-side stack ----
+# wchan tells us the kernel function each thread is blocked in.
+# /proc/<tid>/stack is the kernel stack — works without gdb and tells
+# us if a thread is in I/O, futex, sleep, etc.
+{
+    for t in /proc/$PID/task/*; do
+        tid="$(basename "$t")"
+        echo "==================== tid $tid ===================="
+        awk '/^Name|^State|^TracerPid|^VoluntaryCtxtSwitches|^NonvoluntaryCtxtSwitches/' \
+            "$t/status" 2>/dev/null
+        echo "wchan: $(cat "$t/wchan" 2>/dev/null)"
+        echo "--- kernel stack ---"
+        cat "$t/stack" 2>/dev/null || echo "(stack unavailable)"
+        echo
+    done
+} > "$OUT/threads.txt"
+
+# ---- Thread summary table (name, %cpu, state) ----
+ps -L -p "$PID" -o tid,pcpu,stat,comm 2>/dev/null \
+    | sort -k4 > "$OUT/threads-summary.txt"
+
+# ---- Open files / sockets ----
+ls -la "/proc/$PID/fd/" > "$OUT/fds.txt" 2>&1 || true
+{
+    echo "--- ss (sockets owned by pid) ---"
+    ss -anpe 2>/dev/null | grep -E "pid=$PID|^Netid" || true
+} > "$OUT/sockets.txt"
+
+# ---- Recent journal output for startd ----
+journalctl -u startd --no-pager -n 500 > "$OUT/startd-journal.txt" 2>&1 || true
+
+# ---- I/O and disk health ----
+dmesg -T 2>/dev/null | tail -200 > "$OUT/dmesg.txt"
+{
+    echo "--- df -h ---"
+    df -h
+    echo
+    echo "--- mount ---"
+    mount
+    echo
+    echo "--- iostat -x 1 3 ---"
+    if command -v iostat >/dev/null 2>&1; then
+        iostat -x 1 3
+    else
+        echo "(iostat not installed)"
+    fi
+} > "$OUT/io.txt" 2>&1
+
+# ---- LXC state (the containers startd was managing) ----
+{
+    echo "--- lxc-ls -f ---"
+    lxc-ls -f 2>/dev/null || echo "(lxc-ls failed)"
+    echo
+    echo "--- container-runtime status per container ---"
+    for c in $(lxc-ls 2>/dev/null); do
+        echo "=== $c ==="
+        lxc-attach "$c" -- systemctl status container-runtime --no-pager 2>&1 \
+            | head -40 || echo "(lxc-attach failed for $c)"
+        echo
+    done
+} > "$OUT/lxc.txt"
+
+# ---- Bundle ----
+tar czf "$OUT.tar.gz" -C /tmp "$(basename "$OUT")"
+rm -rf "$OUT"
+
+echo
+echo "Capture complete: $OUT.tar.gz"
+echo "Share this archive with Start9 support to diagnose the hang."
