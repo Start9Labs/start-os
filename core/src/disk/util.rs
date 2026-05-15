@@ -372,29 +372,11 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
             for part in index.parts {
                 let mut disk_info = disk_info(disk.clone()).await;
                 if let Some(g) = disk_guids.get(&part) {
-                    disk_info.capacity = get_capacity(&part)
-                        .await
-                        .map_err(|e| {
-                            tracing::warn!(
-                                "{}",
-                                t!(
-                                    "disk.util.could-not-get-capacity-part",
-                                    part = part.display(),
-                                    error = e.source
-                                )
-                            )
-                        })
-                        .unwrap_or_default();
-                    disk_info.guid = g.clone();
-                    if let Some(guid) = g {
-                        disk_info.filesystem = crate::disk::main::probe_package_data_fs(guid)
-                            .await
-                            .unwrap_or_else(|e| {
-                                tracing::warn!("Failed to probe filesystem for {guid}: {e}");
-                                None
-                            });
-                    }
-                    disk_info.logicalname = part;
+                    let pi = lvm_pv_part_info(part, g.clone()).await;
+                    disk_info.logicalname = pi.logicalname;
+                    disk_info.capacity = pi.capacity;
+                    disk_info.guid = pi.guid;
+                    disk_info.filesystem = pi.filesystem;
                 } else {
                     let Some(part_info) = part_info(part).await else {
                         continue;
@@ -420,20 +402,14 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
                 }
             } else {
                 for part in index.parts {
-                    let Some(mut part_info) = part_info(part).await else {
-                        continue;
+                    let part_info = if let Some(g) = disk_guids.get(&part) {
+                        lvm_pv_part_info(part, g.clone()).await
+                    } else {
+                        let Some(pi) = part_info(part).await else {
+                            continue;
+                        };
+                        pi
                     };
-                    if let Some(g) = disk_guids.get(&part_info.logicalname) {
-                        part_info.guid = g.clone();
-                        if let Some(guid) = g {
-                            part_info.filesystem = crate::disk::main::probe_package_data_fs(guid)
-                                .await
-                                .unwrap_or_else(|e| {
-                                    tracing::warn!("Failed to probe filesystem for {guid}: {e}");
-                                    None
-                                });
-                        }
-                    }
                     disk_info.partitions.push(part_info);
                 }
             }
@@ -506,6 +482,41 @@ async fn disk_info(disk: PathBuf) -> DiskInfo {
         capacity,
         guid: None,
         filesystem: None,
+    }
+}
+
+async fn lvm_pv_part_info(part: PathBuf, guid: Option<InternedString>) -> PartitionInfo {
+    let capacity = get_capacity(&part)
+        .await
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-capacity-part",
+                    part = part.display(),
+                    error = e.source
+                )
+            )
+        })
+        .unwrap_or_default();
+    let filesystem = if let Some(ref guid) = guid {
+        crate::disk::main::probe_package_data_fs(guid)
+            .await
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to probe filesystem for {guid}: {e}");
+                None
+            })
+    } else {
+        None
+    };
+    PartitionInfo {
+        logicalname: part,
+        label: None,
+        capacity,
+        used: None,
+        start_os: BTreeMap::new(),
+        guid,
+        filesystem,
     }
 }
 
