@@ -985,12 +985,12 @@ disk.util.could-not-get-capacity-part:
   fr_FR: "Impossible d'obtenir la capacité de %{part} : %{error}"
   pl_PL: "Nie można pobrać pojemności %{part}: %{error}"
 
-disk.util.could-not-collect-usage-info:
-  en_US: "Could not collect usage information: %{error}"
-  de_DE: "Konnte Nutzungsinformationen nicht sammeln: %{error}"
-  es_ES: "No se pudo recopilar información de uso: %{error}"
-  fr_FR: "Impossible de collecter les informations d'utilisation : %{error}"
-  pl_PL: "Nie można zebrać informacji o użyciu: %{error}"
+disk.util.skipping-unmountable-partition:
+  en_US: "Skipping unmountable partition %{part}: %{error}"
+  de_DE: "Überspringe nicht einhängbare Partition %{part}: %{error}"
+  es_ES: "Omitiendo partición no montable %{part}: %{error}"
+  fr_FR: "Partition non montable %{part} ignorée : %{error}"
+  pl_PL: "Pomijanie niemożliwej do zamontowania partycji %{part}: %{error}"
 
 disk.util.could-not-get-usage:
   en_US: "Could not get usage of %{part}: %{error}"
