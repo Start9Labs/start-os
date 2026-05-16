@@ -11,6 +11,7 @@ use axum::body::Body;
 use axum::extract::{self as x, Request};
 use axum::response::Response;
 use axum::routing::{any, get};
+use base64::Engine;
 use base64::display::Base64Display;
 use digest::Digest;
 use futures::future::ready;
@@ -100,13 +101,24 @@ impl UiContext for RpcContext {
                 })
             })
             .nest("/s9pk", s9pk_router(self.clone()))
+            .route("/static/local-root-ca.crt", {
+                let ctx = self.clone();
+                get(move || {
+                    let ctx = ctx.clone();
+                    async move {
+                        ctx.account.peek(|account| {
+                            cert_send(&account.root_ca_cert, &account.hostname.hostname)
+                        })
+                    }
+                })
+            })
             .route(
-                "/static/local-root-ca.crt",
+                "/static/local-root-ca.mobileconfig",
                 get(move || {
                     let ctx = self.clone();
                     async move {
                         ctx.account.peek(|account| {
-                            cert_send(&account.root_ca_cert, &account.hostname.hostname)
+                            mobileconfig_send(&account.root_ca_cert, &account.hostname.hostname)
                         })
                     }
                 }),
@@ -436,10 +448,91 @@ fn cert_send(cert: &X509, hostname: &ServerHostname) -> Result<Response, Error> 
         .header(http::header::CONTENT_LENGTH, pem.len())
         .header(
             http::header::CONTENT_DISPOSITION,
-            format!("attachment; filename={}.crt", hostname.as_ref()),
+            format!("attachment; filename=\"{}.crt\"", hostname.as_ref()),
         )
         .body(Body::from(pem))
         .with_kind(ErrorKind::Network)
+}
+
+fn mobileconfig_send(cert: &X509, hostname: &ServerHostname) -> Result<Response, Error> {
+    let der = cert.to_der()?;
+    let fingerprint = hex::encode(&*cert.digest(MessageDigest::sha256())?);
+    let cert_uuid = format_uuid_from_hex(&fingerprint[..32]);
+    let profile_uuid = format_uuid_from_hex(&fingerprint[32..64]);
+    let der_b64 = BASE64.encode(&der);
+    let host = hostname.as_ref();
+
+    let plist = format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+         <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
+         <plist version=\"1.0\">\n\
+         <dict>\n\
+         \t<key>PayloadContent</key>\n\
+         \t<array>\n\
+         \t\t<dict>\n\
+         \t\t\t<key>PayloadCertificateFileName</key>\n\
+         \t\t\t<string>{host}.crt</string>\n\
+         \t\t\t<key>PayloadContent</key>\n\
+         \t\t\t<data>{der_b64}</data>\n\
+         \t\t\t<key>PayloadDescription</key>\n\
+         \t\t\t<string>Adds the StartOS root certificate authority for {host}.</string>\n\
+         \t\t\t<key>PayloadDisplayName</key>\n\
+         \t\t\t<string>{host} Root Certificate</string>\n\
+         \t\t\t<key>PayloadIdentifier</key>\n\
+         \t\t\t<string>com.start9.ca.cert.{cert_uuid}</string>\n\
+         \t\t\t<key>PayloadType</key>\n\
+         \t\t\t<string>com.apple.security.root</string>\n\
+         \t\t\t<key>PayloadUUID</key>\n\
+         \t\t\t<string>{cert_uuid}</string>\n\
+         \t\t\t<key>PayloadVersion</key>\n\
+         \t\t\t<integer>1</integer>\n\
+         \t\t</dict>\n\
+         \t</array>\n\
+         \t<key>PayloadDescription</key>\n\
+         \t<string>Trusts the root certificate authority for {host}.</string>\n\
+         \t<key>PayloadDisplayName</key>\n\
+         \t<string>StartOS Root CA ({host})</string>\n\
+         \t<key>PayloadIdentifier</key>\n\
+         \t<string>com.start9.ca.profile.{profile_uuid}</string>\n\
+         \t<key>PayloadType</key>\n\
+         \t<string>Configuration</string>\n\
+         \t<key>PayloadUUID</key>\n\
+         \t<string>{profile_uuid}</string>\n\
+         \t<key>PayloadVersion</key>\n\
+         \t<integer>1</integer>\n\
+         </dict>\n\
+         </plist>\n",
+    );
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(
+            http::header::ETAG,
+            base32::encode(
+                base32::Alphabet::Rfc4648 { padding: false },
+                &*cert.digest(MessageDigest::sha256())?,
+            )
+            .to_lowercase(),
+        )
+        .header(http::header::CONTENT_TYPE, "application/x-apple-aspen-config")
+        .header(http::header::CONTENT_LENGTH, plist.len())
+        .header(
+            http::header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}.mobileconfig\"", host),
+        )
+        .body(Body::from(plist))
+        .with_kind(ErrorKind::Network)
+}
+
+fn format_uuid_from_hex(hex32: &str) -> String {
+    format!(
+        "{}-{}-{}-{}-{}",
+        &hex32[0..8],
+        &hex32[8..12],
+        &hex32[12..16],
+        &hex32[16..20],
+        &hex32[20..32],
+    )
 }
 
 fn parse_range(header: &HeaderValue, len: u64) -> Result<(u64, u64, u64), Error> {

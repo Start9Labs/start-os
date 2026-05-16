@@ -24,6 +24,66 @@ import { RemoveMediaDialog } from '../components/remove-media.dialog'
 import { ApiService } from '../services/api.service'
 import { StateService } from '../services/state.service'
 
+// Runs when the downloaded HTML is opened. iOS Safari ignores Content-Type on
+// .crt downloads and saves the file as .crt.html — but installs profiles cleanly
+// when given a .mobileconfig. The script swaps the cert link's href/download on
+// iOS/iPadOS so the same offline HTML works for both Apple-mobile and everyone else.
+const IOS_CERT_SWAP_SCRIPT = `<script>
+(function(){var el=document.getElementById('cert');if(!el)return;
+var ua=navigator.userAgent;
+var isIOS=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+if(isIOS&&el.dataset.mobileconfigHref){el.href=el.dataset.mobileconfigHref;
+if(el.dataset.mobileconfigName)el.download=el.dataset.mobileconfigName;}})();
+</script>`
+
+function buildMobileconfigPlist(
+  derBase64: string,
+  hostname: string,
+  certUuid: string,
+  profileUuid: string,
+): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>PayloadContent</key>
+\t<array>
+\t\t<dict>
+\t\t\t<key>PayloadCertificateFileName</key>
+\t\t\t<string>${hostname}.crt</string>
+\t\t\t<key>PayloadContent</key>
+\t\t\t<data>${derBase64}</data>
+\t\t\t<key>PayloadDescription</key>
+\t\t\t<string>Adds the StartOS root certificate authority for ${hostname}.</string>
+\t\t\t<key>PayloadDisplayName</key>
+\t\t\t<string>${hostname} Root Certificate</string>
+\t\t\t<key>PayloadIdentifier</key>
+\t\t\t<string>com.start9.ca.cert.${certUuid}</string>
+\t\t\t<key>PayloadType</key>
+\t\t\t<string>com.apple.security.root</string>
+\t\t\t<key>PayloadUUID</key>
+\t\t\t<string>${certUuid}</string>
+\t\t\t<key>PayloadVersion</key>
+\t\t\t<integer>1</integer>
+\t\t</dict>
+\t</array>
+\t<key>PayloadDescription</key>
+\t<string>Trusts the root certificate authority for ${hostname}.</string>
+\t<key>PayloadDisplayName</key>
+\t<string>StartOS Root CA (${hostname})</string>
+\t<key>PayloadIdentifier</key>
+\t<string>com.start9.ca.profile.${profileUuid}</string>
+\t<key>PayloadType</key>
+\t<string>Configuration</string>
+\t<key>PayloadUUID</key>
+\t<string>${profileUuid}</string>
+\t<key>PayloadVersion</key>
+\t<integer>1</integer>
+</dict>
+</plist>
+`
+}
+
 @Component({
   template: `
     <canvas matrix></canvas>
@@ -230,18 +290,48 @@ export default class SuccessPage implements AfterViewInit {
     const lanElem = this.document.getElementById('lan-addr')
     if (lanElem) lanElem.innerHTML = this.lanAddress
 
-    this.document
-      .getElementById('cert')
-      ?.setAttribute(
+    const certElem = this.document.getElementById('cert')
+    if (certElem) {
+      certElem.setAttribute(
         'href',
         `data:application/octet-stream;base64,${this.result!.rootCa}`,
       )
+      certElem.setAttribute(
+        'data-mobileconfig-href',
+        this.buildMobileconfigDataUrl(
+          this.result!.rootCa,
+          this.result!.hostname,
+        ),
+      )
+      certElem.setAttribute(
+        'data-mobileconfig-name',
+        `${this.result!.hostname}.mobileconfig`,
+      )
+    }
 
     const html = this.documentation?.nativeElement.innerHTML || ''
 
-    this.downloadHtml.download('StartOS-info.html', html).then(() => {
-      this.downloaded = true
-    })
+    this.downloadHtml
+      .download('StartOS-info.html', html + IOS_CERT_SWAP_SCRIPT)
+      .then(() => {
+        this.downloaded = true
+      })
+  }
+
+  private buildMobileconfigDataUrl(pem: string, hostname: string): string {
+    const derBase64 = pem
+      .replace(/-----BEGIN CERTIFICATE-----/g, '')
+      .replace(/-----END CERTIFICATE-----/g, '')
+      .replace(/\s+/g, '')
+    const certUuid = crypto.randomUUID()
+    const profileUuid = crypto.randomUUID()
+    const plist = buildMobileconfigPlist(
+      derBase64,
+      hostname,
+      certUuid,
+      profileUuid,
+    )
+    return `data:application/x-apple-aspen-config;base64,${btoa(plist)}`
   }
 
   removeMedia() {

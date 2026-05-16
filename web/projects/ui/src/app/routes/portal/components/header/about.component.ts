@@ -1,6 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { CopyService, i18nPipe } from '@start9labs/shared'
+import {
+  CopyService,
+  i18nPipe,
+  ROOT_CA_DOWNLOAD_HREF,
+} from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton, TuiHint, TuiTitle, TuiCell } from '@taiga-ui/core'
 import { TuiFade } from '@taiga-ui/kit'
@@ -42,7 +46,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
           download
           appearance="icon"
           iconStart="@tui.download"
-          href="/static/local-root-ca.crt"
+          [href]="rootCaHref"
           [tuiHint]="'Download' | i18n"
           tuiHintDirection="bottom"
         >
@@ -85,6 +89,7 @@ export class AboutComponent {
   readonly server = toSignal(
     inject<PatchDB<DataModel>>(PatchDB).watch$('serverInfo'),
   )
+  readonly rootCaHref = ROOT_CA_DOWNLOAD_HREF
 
   getPubkey(server: T.ServerInfo) {
     return `${server.pubkey} startos@${server.hostname}`

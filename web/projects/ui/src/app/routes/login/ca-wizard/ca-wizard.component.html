@@ -25,12 +25,7 @@
             | i18n
         }}
         <br />
-        <a
-          tuiButton
-          size="s"
-          iconEnd="@tui.download"
-          href="/static/local-root-ca.crt"
-        >
+        <a tuiButton size="s" iconEnd="@tui.download" [href]="rootCaHref">
           {{ 'Download' | i18n }}
         </a>
       </li>
