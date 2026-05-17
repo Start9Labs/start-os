@@ -73,26 +73,21 @@ import { wifiSpec } from './wifi.const'
         <button
           tuiIconButton
           tuiDropdown
+          tuiDropdownAuto
           size="s"
           appearance="flat-grayscale"
           iconStart="@tui.ellipsis-vertical"
-          [tuiDropdownOpen]="!!opens[network.ssid]"
-          (tuiDropdownOpenChange)="opens[network.ssid] = $event"
         >
           {{ 'More' | i18n }}
-          <tui-data-list *tuiDropdown>
-            <button
-              tuiOption
-              iconStart="@tui.wifi"
-              (click)="opens[network.ssid] = false; prompt(network)"
-            >
+          <tui-data-list *tuiDropdown="let close" (click)="close()">
+            <button tuiOption iconStart="@tui.wifi" (click)="prompt(network)">
               {{ 'Connect' | i18n }}
             </button>
             <button
               tuiOption
               iconStart="@tui.trash"
               class="g-negative"
-              (click)="opens[network.ssid] = false; forget(network)"
+              (click)="forget(network)"
             >
               {{ 'Forget' | i18n }}
             </button>
@@ -170,8 +165,6 @@ export class WifiTableComponent {
 
   @Input()
   wifi: readonly Wifi[] = []
-
-  opens: Record<string, boolean> = {}
 
   getSignal(signal: number) {
     if (signal < 5) {
