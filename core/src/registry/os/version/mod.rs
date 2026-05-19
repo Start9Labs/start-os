@@ -16,6 +16,7 @@ use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
 use crate::registry::os::index::OsVersionInfo;
+use crate::registry::webhook::RegistryEvent;
 use crate::sign::AnyVerifyingKey;
 use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 
@@ -90,11 +91,22 @@ pub async fn add_version(
         signer,
     }: AddVersionParams,
 ) -> Result<(), Error> {
-    ctx.db
+    let event_version = version.clone();
+    let event_headline = headline.clone();
+    let event_release_notes = release_notes.clone();
+    let event_source_version = source_version.clone();
+    let rev = ctx
+        .db
         .mutate(|db| {
             let signer = signer
                 .map(|s| db.as_index().as_signers().get_signer(&s))
                 .transpose()?;
+            let is_update = db
+                .as_index()
+                .as_os()
+                .as_versions()
+                .as_idx(&version)
+                .is_some();
             db.as_index_mut()
                 .as_os_mut()
                 .as_versions_mut()
@@ -105,10 +117,27 @@ pub async fn add_version(
                     i.source_version = source_version;
                     i.authorized.extend(signer);
                     Ok(())
-                })
+                })?;
+            Ok(is_update)
         })
-        .await
-        .result
+        .await;
+    let changed = rev.revision.is_some();
+    let is_update = rev.result?;
+
+    if changed {
+        let _ = ctx.event_tx.send(RegistryEvent::new(
+            "os.version.add",
+            imbl_value::json!({
+                "version": event_version.to_string(),
+                "headline": event_headline,
+                "releaseNotes": event_release_notes,
+                "sourceVersion": event_source_version.to_string(),
+                "isUpdate": is_update,
+            }),
+        ));
+    }
+
+    Ok(())
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
@@ -126,7 +155,9 @@ pub async fn remove_version(
     ctx: RegistryContext,
     RemoveVersionParams { version }: RemoveVersionParams,
 ) -> Result<(), Error> {
-    ctx.db
+    let event_version = version.clone();
+    let rev = ctx
+        .db
         .mutate(|db| {
             db.as_index_mut()
                 .as_os_mut()
@@ -134,8 +165,18 @@ pub async fn remove_version(
                 .remove(&version)?;
             Ok(())
         })
-        .await
-        .result
+        .await;
+    let changed = rev.revision.is_some();
+    rev.result?;
+    if changed {
+        let _ = ctx.event_tx.send(RegistryEvent::new(
+            "os.version.remove",
+            imbl_value::json!({
+                "version": event_version.to_string(),
+            }),
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]

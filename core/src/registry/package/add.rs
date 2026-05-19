@@ -16,6 +16,7 @@ use crate::progress::FullProgressTracker;
 use crate::registry::asset::BufferedHttpSource;
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::PackageVersionInfo;
+use crate::registry::webhook::RegistryEvent;
 use crate::s9pk::S9pk;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::v2::SIG_CONTEXT;
@@ -77,6 +78,7 @@ pub async fn add_package(
 
     let manifest = s9pk.as_manifest();
 
+    let event_urls = urls.clone();
     let mut info = PackageVersionInfo::from_s9pk(&s9pk, urls).await?;
     for (_, s9pk) in &mut info.s9pks {
         if !s9pk.signatures.contains_key(&uploader) && s9pk.commitment == commitment {
@@ -84,8 +86,21 @@ pub async fn add_package(
         }
     }
 
-    ctx.db
+    let rev = ctx
+        .db
         .mutate(|db| {
+            let prior_versions_empty = db
+                .as_index()
+                .as_package()
+                .as_packages()
+                .as_idx(&manifest.id)
+                .map(|p| {
+                    p.as_versions()
+                        .as_entries()
+                        .map(|e| e.is_empty())
+                        .unwrap_or(true)
+                })
+                .unwrap_or(true);
             if db.as_admins().de()?.contains(&uploader_guid)
                 || db
                     .as_index()
@@ -104,13 +119,15 @@ pub async fn add_package(
                     .as_packages_mut()
                     .upsert(&manifest.id, || Ok(Default::default()))?;
                 let v = package.as_versions_mut();
-                if let Some(prev) = v.as_idx_mut(&manifest.version) {
+                let is_update = if let Some(prev) = v.as_idx_mut(&manifest.version) {
                     prev.mutate(|p| p.merge_with(info, true))?;
+                    true
                 } else {
                     v.insert(&manifest.version, &info)?;
-                }
+                    false
+                };
 
-                Ok(())
+                Ok((prior_versions_empty, is_update))
             } else {
                 Err(Error::new(
                     eyre!("{}", t!("registry.package.add.unauthorized")),
@@ -118,8 +135,25 @@ pub async fn add_package(
                 ))
             }
         })
-        .await
-        .result
+        .await;
+    let changed = rev.revision.is_some();
+    let (is_first_version, is_update) = rev.result?;
+
+    if changed {
+        let _ = ctx.event_tx.send(RegistryEvent::new(
+            "package.version.add",
+            imbl_value::json!({
+                "packageId": manifest.id,
+                "version": manifest.version,
+                "isFirstVersion": is_first_version,
+                "isUpdate": is_update,
+                "urls": event_urls,
+                "metadata": manifest.metadata,
+            }),
+        ));
+    }
+
+    Ok(())
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
@@ -333,7 +367,19 @@ pub async fn remove_package(
             }
         })
         .await;
-    rev.result.map(|_| rev.revision.is_some())
+    let changed = rev.revision.is_some();
+    rev.result?;
+    if changed {
+        let _ = ctx.event_tx.send(RegistryEvent::new(
+            "package.remove",
+            imbl_value::json!({
+                "packageId": id,
+                "version": version,
+                "sighash": sighash,
+            }),
+        ));
+    }
+    Ok(changed)
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]

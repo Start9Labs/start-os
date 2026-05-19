@@ -17,6 +17,7 @@ use rpc_toolkit::{CallRemote, Context, Empty, RpcRequest};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::Sender;
+use tokio::sync::mpsc;
 use tracing::instrument;
 use ts_rs::TS;
 use url::Url;
@@ -31,6 +32,7 @@ use crate::registry::RegistryDatabase;
 use crate::registry::device_info::{DEVICE_INFO_HEADER, DeviceInfo};
 use crate::registry::migrations::run_migrations;
 use crate::registry::signer::SignerInfo;
+use crate::registry::webhook::{self, RegistryEvent, WebhookSubscriber, dispatcher};
 use crate::rpc_continuations::RpcContinuations;
 use crate::sign::AnyVerifyingKey;
 use crate::util::io::{append_file, read_file_to_string};
@@ -58,6 +60,9 @@ pub struct RegistryConfig {
     pub tor_proxy: Option<Url>,
     #[arg(short = 'd', long = "datadir", help = "help.arg.data-directory")]
     pub datadir: Option<PathBuf>,
+    #[arg(skip)]
+    #[serde(default)]
+    pub webhook: Option<WebhookSubscriber>,
 }
 impl ContextConfig for RegistryConfig {
     fn next(&mut self) -> Option<PathBuf> {
@@ -68,6 +73,7 @@ impl ContextConfig for RegistryConfig {
         self.registry_hostname.append(&mut other.registry_hostname);
         self.tor_proxy = self.tor_proxy.take().or(other.tor_proxy);
         self.datadir = self.datadir.take().or(other.datadir);
+        self.webhook = self.webhook.take().or(other.webhook);
     }
 }
 
@@ -89,6 +95,9 @@ pub struct RegistryContextSeed {
     pub client: Client,
     pub shutdown: Sender<()>,
     pub metrics_db: SyncMutex<Connection>,
+    pub event_tx: mpsc::UnboundedSender<RegistryEvent>,
+    pub webhook: Option<WebhookSubscriber>,
+    pub webhook_signing_key: ed25519_dalek::SigningKey,
 }
 
 #[derive(Clone)]
@@ -111,6 +120,19 @@ impl RegistryContext {
             db.put(&ROOT, &RegistryDatabase::init()).await?;
         }
         db.mutate(|db| run_migrations(db)).await.result?;
+
+        let webhook_signing_key = db
+            .mutate(|db| {
+                if let Some(existing) = db.as_webhook_signing_key().de()? {
+                    return Ok(existing.0);
+                }
+                let new = webhook::generate_signing_key();
+                let key = new.0.clone();
+                db.as_webhook_signing_key_mut().ser(&Some(new))?;
+                Ok(key)
+            })
+            .await
+            .result?;
 
         Self::init_auth_cookie().await?;
 
@@ -148,7 +170,9 @@ impl RegistryContext {
                 ErrorKind::NotFound,
             ));
         }
-        Ok(Self(Arc::new(RegistryContextSeed {
+        let (event_tx, event_rx) = mpsc::unbounded_channel();
+        let webhook = config.webhook.clone();
+        let ctx = Self(Arc::new(RegistryContextSeed {
             hostnames: config.registry_hostname.clone(),
             listen: config.registry_listen.unwrap_or(DEFAULT_REGISTRY_LISTEN),
             db,
@@ -166,7 +190,17 @@ impl RegistryContext {
                 .with_kind(crate::ErrorKind::ParseUrl)?,
             shutdown,
             metrics_db,
-        })))
+            event_tx,
+            webhook: webhook.clone(),
+            webhook_signing_key: webhook_signing_key.clone(),
+        }));
+        tokio::spawn(dispatcher::dispatcher_loop(
+            ctx.clone(),
+            webhook,
+            webhook_signing_key,
+            event_rx,
+        ));
+        Ok(ctx)
     }
 }
 impl AsRef<RpcContinuations> for RegistryContext {
