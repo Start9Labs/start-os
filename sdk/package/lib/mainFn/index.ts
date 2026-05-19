@@ -3,6 +3,24 @@ import { Daemons } from './Daemons'
 import '../../../base/lib/interfaces/ServiceInterfaceBuilder'
 import '../../../base/lib/interfaces/Origin'
 
+export {
+  DaemonsPlan,
+  DaemonsReconciler,
+  dynamicDaemons,
+  configHash,
+} from './DaemonsPlan'
+export type {
+  SubContainerSpec,
+  PlanEntry,
+  DaemonPlanEntry,
+  OneshotPlanEntry,
+  HealthPlanEntry,
+  AddDaemonPlanParams,
+  AddOneshotPlanParams,
+  AddHealthCheckPlanParams,
+  DaemonsPlanBuilder,
+} from './DaemonsPlan'
+
 /** Default time in milliseconds to wait for a process to exit after SIGTERM before escalating to SIGKILL */
 export const DEFAULT_SIGTERM_TIMEOUT = 60_000
 /**

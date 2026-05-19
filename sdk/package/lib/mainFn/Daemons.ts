@@ -15,6 +15,11 @@ import { EXIT_SUCCESS, HealthDaemon } from './HealthDaemon'
 import { Daemon } from './Daemon'
 import { CommandController } from './CommandController'
 import { Oneshot } from './Oneshot'
+import {
+  DaemonsPlan,
+  DaemonsPlanBuilder,
+  dynamicDaemons,
+} from './DaemonsPlan'
 
 /** Promisified version of `child_process.exec` */
 export const cpExec = promisify(CP.exec)
@@ -256,6 +261,59 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    */
   static of<Manifest extends T.SDKManifest>(options: { effects: T.Effects }) {
     return new Daemons<Manifest, never>(options.effects, [], [])
+  }
+
+  /**
+   * Start a new empty {@link DaemonsPlan} for use with {@link Daemons.dynamic}.
+   *
+   * The plan is a declarative description of the daemon topology that the
+   * SDK reconciles against the running set on each re-run. See
+   * {@link DaemonsPlan} and {@link Daemons.dynamic} for details.
+   */
+  static plan<Manifest extends T.SDKManifest>() {
+    return DaemonsPlan.of<Manifest>()
+  }
+
+  /**
+   * Build a reactive `main` entrypoint that reconciles its daemon set
+   * against a {@link DaemonsPlan} every time the plan changes.
+   *
+   * The builder is invoked once on startup and again on each
+   * `effects.constRetry` trigger (e.g. when a file watched via
+   * `FileHelper.read().const(effects)` changes). The reconciler diffs the
+   * new plan against the running set, then starts new daemons, stops
+   * removed daemons, restarts daemons whose `configHash` changed, and
+   * leaves unchanged daemons alone.
+   *
+   * @example
+   * ```ts
+   * export const main = sdk.Daemons.dynamic(async ({ effects }) => {
+   *   const { instances } = (await instancesYaml.read().const(effects)) ?? { instances: [] }
+   *   let plan = sdk.Daemons.plan<Manifest>()
+   *     .addDaemon('portal', { ... })
+   *   for (const inst of instances) {
+   *     plan = plan.addDaemon(`reg-${inst.id}`, {
+   *       subcontainerSpec: {
+   *         imageId: 'startos-registry',
+   *         sharedRun: true,
+   *         name: `reg-${inst.id}-sub`,
+   *         mounts: sdk.Mounts.of()
+   *           .mountVolume({ volumeId: 'main', subpath: `/instances/${inst.id}/data`, mountpoint: '/var/lib/startos', readonly: false })
+   *           .mountVolume({ volumeId: 'main', subpath: `/instances/${inst.id}/config.yaml`, mountpoint: '/etc/startos/config.yaml', readonly: false, type: 'file' }),
+   *       },
+   *       exec: { command: ['start-registryd'] },
+   *       ready: { display: `Registry ${inst.label}`, fn: () => sdk.healthCheck.checkPortListening(effects, inst.port, {}) },
+   *       requires: [],
+   *     })
+   *   }
+   *   return plan
+   * })
+   * ```
+   */
+  static dynamic<Manifest extends T.SDKManifest>(
+    fn: DaemonsPlanBuilder<Manifest>,
+  ): T.ExpectedExports.main {
+    return dynamicDaemons<Manifest>(fn)
   }
 
   private addDaemonImpl<Id extends string>(
