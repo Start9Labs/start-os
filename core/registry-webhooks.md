@@ -37,7 +37,7 @@ Adding a new topic: emit from the relevant handler with `RegistryEvent::new(topi
 
 Each delivery is a JSON `POST` with four headers:
 
-- `x-startos-registry-pubkey` — base64 of the raw 32-byte Ed25519 public key. This is the registry's identity. Consumers look it up in an allowlist of trusted registries before verifying.
+- `x-startos-registry-pubkey` — base64 of the SPKI-DER-encoded Ed25519 public key (about 60 ASCII characters). This is the registry's identity. Consumers look it up in an allowlist of trusted registries before verifying. SPKI-DER (rather than the raw 32-byte form) so consumers can hand the decoded bytes directly to any standard crypto library — e.g. Node's `crypto.createPublicKey({ key, format: 'der', type: 'spki' })` — without re-wrapping. The same bytes are the inner content of the PEM that `webhook.pubkey` emits, so an allowlist loaded from PEM matches the header value after stripping the `-----BEGIN/END-----` lines and newlines.
 - `x-startos-registry-signature` — base64 of the 64-byte Ed25519 signature over the raw body, signed with the registry's private key.
 - `x-startos-registry-topic` — the event topic string.
 - `x-startos-registry-event-id` — the `Guid` of the event (32-char base32). Stable across replays — dedupe on this.

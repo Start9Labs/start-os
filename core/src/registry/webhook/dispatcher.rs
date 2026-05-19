@@ -2,6 +2,7 @@ use std::time::Instant;
 
 use base64::Engine;
 use chrono::Utc;
+use ed25519::pkcs8::EncodePublicKey;
 use ed25519_dalek::{Signer, SigningKey};
 use reqwest::Client;
 use tokio::sync::mpsc;
@@ -100,8 +101,12 @@ pub async fn deliver(
         Err(e) => return fail(format!("serialize event: {e}")),
     };
     let b64 = base64::engine::general_purpose::STANDARD;
+    let pubkey_der = match signing_key.verifying_key().to_public_key_der() {
+        Ok(d) => d,
+        Err(e) => return fail(format!("encode pubkey der: {e}")),
+    };
     let signature = signing_key.sign(&body);
-    let pubkey_b64 = b64.encode(signing_key.verifying_key().as_bytes());
+    let pubkey_b64 = b64.encode(pubkey_der.as_bytes());
     let sig_b64 = b64.encode(signature.to_bytes());
 
     match client
