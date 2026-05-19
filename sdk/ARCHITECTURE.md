@@ -200,7 +200,7 @@ The `.build()` method returns an object containing the entire SDK surface area, 
 |----------|---------|---------|
 | **Manifest** | `manifest`, `volumes` | Access manifest data and volume paths |
 | **Actions** | `Action.withInput`, `Action.withoutInput`, `Actions`, `action.run`, `action.createTask`, `action.createOwnTask`, `action.clearTask` | Define and manage user actions |
-| **Daemons** | `Daemons.of`, `Daemon.of`, `setupMain` | Configure service processes |
+| **Daemons** | `Daemons.of`, `Daemons.plan`, `Daemons.dynamic`, `Daemon.of`, `setupMain` | Configure service processes (static or reactive) |
 | **Health** | `healthCheck.checkPortListening`, `.checkWebUrl`, `.runHealthScript` | Built-in health checks |
 | **Interfaces** | `createInterface`, `MultiHost.of`, `setupInterfaces`, `serviceInterface.*` | Network endpoint management |
 | **Backups** | `setupBackups`, `Backups.ofVolumes`, `Backups.ofSyncs`, `Backups.withOptions` | Backup configuration |
@@ -222,6 +222,7 @@ The daemon subsystem manages long-running processes:
 mainFn/
 ├── Daemons.ts          — Multi-daemon topology builder
 ├── Daemon.ts           — Single daemon wrapper
+├── DaemonsPlan.ts      — Spec-form plan + Daemons.dynamic reconciler
 ├── HealthDaemon.ts     — Health check executor
 ├── CommandController.ts — Command execution controller
 ├── Mounts.ts           — Volume/asset/dependency mount builder
@@ -242,6 +243,26 @@ Features:
 - Ready probes (wait for a daemon to be ready before starting dependents)
 - Graceful shutdown with configurable signals and timeouts
 - One-shot commands that run before daemons start
+
+**`Daemons.dynamic`** makes the daemon set a reactive function of on-disk state. The builder returns a `Daemons.plan()` — an immutable spec-form description that the reconciler diffs against the running set on every `effects.constRetry` trigger (typically fired by a `FileHelper.read().const(effects)` watcher):
+
+```typescript
+export const main = sdk.Daemons.dynamic(async ({ effects }) => {
+  const { instances } = (await instancesYaml.read().const(effects)) ?? { instances: [] }
+  let plan = sdk.Daemons.plan<Manifest>()
+  for (const inst of instances) {
+    plan = plan.addDaemon(`reg-${inst.id}`, {
+      subcontainerSpec: { imageId: 'reg', sharedRun: true, name: `reg-${inst.id}-sub`, mounts: ... },
+      exec: { command: ['start-registryd'] },
+      ready: { display: inst.label, fn: () => sdk.healthCheck.checkPortListening(effects, inst.port, {}) },
+      requires: [],
+    })
+  }
+  return plan
+})
+```
+
+Diff semantics per id: absent→present **start**, present→absent **stop**, same `configHash` **leave alone**, different `configHash` **restart**. Dependents of any restarted/stopped daemon are also restarted to keep `requires` wiring consistent. `configHash` covers the subcontainer descriptor (`imageId`, `sharedRun`, `name`, `mounts.build()`), exec, `requires`, and the structural parts of `ready` (`display`, `gracePeriod`) — closures (`ready.fn`, `ready.trigger`) are deliberately excluded so a touch of the watched file with unchanged content doesn't bounce every daemon. Designed for multi-tenant packages that need to add, rename, and delete sub-instances without restarting the service.
 
 **Mounts** declares what to attach to a container:
 ```typescript

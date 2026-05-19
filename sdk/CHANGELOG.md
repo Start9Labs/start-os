@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.0 — StartOS 0.4.0-beta.9 (2026-05-19)
+
+### Added
+
+- `sdk.Daemons.dynamic(fn)` builds a reactive `main` entrypoint whose daemon set is a function of on-disk state. The supplied builder returns a `sdk.Daemons.plan()` (a new immutable spec-form builder), and the SDK diffs the plan against the running daemon set on every `effects.constRetry` trigger — typically fired by a `FileHelper.read().const(effects)` watcher. Per id: absent→present **start**, present→absent **stop**, same `configHash` **leave alone**, different `configHash` **restart**. Dependents of any restarted/stopped daemon are also restarted to keep `requires` wiring consistent. The diff key (`configHash`) covers the subcontainer descriptor (`imageId`, `sharedRun`, `name`, structural `mounts.build()`), exec (`command`, `env`, `cwd`, `user`, `runAsInit`, `sigtermTimeout`), `requires` (sorted), and the structural parts of `ready` (`display`, `gracePeriod`) — closures (`ready.fn`, `ready.trigger`) are intentionally excluded so an unrelated re-run doesn't bounce every daemon. Authors who want the reconciler to react to a value change must surface that value through one of the hashed fields. Designed for multi-tenant packages like the registry-portal s9pk that add, rename, and delete sub-instance daemons without restarting the service
+- `SubContainerSpec<M>` and the spec-form `addDaemon` / `addOneshot` accept a subcontainer descriptor (`{ imageId, sharedRun?, name, mounts? }`) instead of a pre-built `SubContainer`. The SDK constructs the subcontainer at start time and destroys it at stop time, so the descriptor's structural shape is what participates in `configHash`. Falls out of `Daemons.dynamic`'s diff-and-reconcile model
+
 ## 1.5.2 — StartOS 0.4.0-beta.9 (2026-05-15)
 
 ### Fixed

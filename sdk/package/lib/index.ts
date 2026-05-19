@@ -26,6 +26,16 @@ export {
 export { setupI18n } from './i18n'
 export * as T from './types'
 export { Daemons } from './mainFn/Daemons'
+export {
+  DaemonsPlan,
+  DaemonsReconciler,
+  dynamicDaemons,
+} from './mainFn/DaemonsPlan'
+export type {
+  SubContainerSpec,
+  PlanEntry,
+  DaemonsPlanBuilder,
+} from './mainFn/DaemonsPlan'
 export { SubContainer } from './util/SubContainer'
 export { StartSdk } from './StartSdk'
 export { setupManifest, buildManifest } from './manifest/setupManifest'

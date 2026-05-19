@@ -46,6 +46,7 @@ import { checkWebUrl, runHealthScript } from './health/checkFns'
 import { checkPortListening } from './health/checkFns/checkPortListening'
 import { setupMain } from './mainFn'
 import { Daemon, Daemons } from './mainFn/Daemons'
+import { DaemonsPlanBuilder } from './mainFn/DaemonsPlan'
 import { Mounts } from './mainFn/Mounts'
 import { cooldownTrigger, statusTrigger } from './trigger'
 import { defaultTrigger } from './trigger/defaultTrigger'
@@ -842,6 +843,22 @@ export class StartSdk<Manifest extends T.SDKManifest> {
          */
         of(effects: Effects) {
           return Daemons.of<Manifest>({ effects })
+        },
+        /**
+         * Start a new empty {@link DaemonsPlan} for use with
+         * {@link sdk.Daemons.dynamic}. Chain `.addDaemon()` / `.addOneshot()`
+         * / `.addHealthCheck()` on the returned plan.
+         */
+        plan() {
+          return Daemons.plan<Manifest>()
+        },
+        /**
+         * Build a reactive `main` entrypoint that reconciles its daemon set
+         * against a {@link DaemonsPlan} on every `effects.constRetry`
+         * trigger. See {@link Daemons.dynamic} for the full diff semantics.
+         */
+        dynamic(fn: DaemonsPlanBuilder<Manifest>) {
+          return Daemons.dynamic<Manifest>(fn)
         },
       },
       SubContainer: {
