@@ -2051,6 +2051,20 @@ registry.package.signer.not-authorized:
   fr_FR: "Le signataire %{signer} n'est pas autorisé à signer pour %{id}"
   pl_PL: "Sygnatariusz %{signer} nie jest autoryzowany do podpisywania %{id}"
 
+registry.webhook.no-subscriber:
+  en_US: "No webhook subscriber is configured"
+  de_DE: "Kein Webhook-Abonnent konfiguriert"
+  es_ES: "No hay suscriptor de webhook configurado"
+  fr_FR: "Aucun abonné webhook n'est configuré"
+  pl_PL: "Nie skonfigurowano subskrybenta webhooka"
+
+registry.webhook.event-not-found:
+  en_US: "Webhook event %{id} not found"
+  de_DE: "Webhook-Ereignis %{id} nicht gefunden"
+  es_ES: "Evento de webhook %{id} no encontrado"
+  fr_FR: "Événement webhook %{id} introuvable"
+  pl_PL: "Nie znaleziono zdarzenia webhooka %{id}"
+
 # service/mod.rs
 service.mod.service-actor-held-after-shutdown:
   en_US: "ServiceActor held somewhere after actor shutdown"
@@ -3627,6 +3641,34 @@ help.arg.version-range:
   fr_FR: "Contrainte de plage de version"
   pl_PL: "Ograniczenie zakresu wersji"
 
+help.arg.webhook-event-id:
+  en_US: "Webhook event ID"
+  de_DE: "Webhook-Ereignis-ID"
+  es_ES: "ID del evento de webhook"
+  fr_FR: "Identifiant de l'événement webhook"
+  pl_PL: "Identyfikator zdarzenia webhooka"
+
+help.arg.webhook-limit:
+  en_US: "Maximum number of events to return"
+  de_DE: "Maximale Anzahl zurückgegebener Ereignisse"
+  es_ES: "Número máximo de eventos a devolver"
+  fr_FR: "Nombre maximum d'événements à renvoyer"
+  pl_PL: "Maksymalna liczba zwracanych zdarzeń"
+
+help.arg.webhook-since:
+  en_US: "Only return events occurring at or after this timestamp"
+  de_DE: "Nur Ereignisse zurückgeben, die zu oder nach diesem Zeitstempel auftreten"
+  es_ES: "Devolver solo eventos que ocurran en o después de este momento"
+  fr_FR: "Ne renvoyer que les événements survenus à cet horodatage ou après"
+  pl_PL: "Zwracaj tylko zdarzenia występujące w tym czasie lub później"
+
+help.arg.webhook-topic-filter:
+  en_US: "Only return events matching this topic"
+  de_DE: "Nur Ereignisse zurückgeben, die diesem Thema entsprechen"
+  es_ES: "Devolver solo eventos que coincidan con este tema"
+  fr_FR: "Ne renvoyer que les événements correspondant à ce sujet"
+  pl_PL: "Zwracaj tylko zdarzenia pasujące do tego tematu"
+
 help.arg.wifi-country-code:
   en_US: "ISO 3166-1 alpha-2 WiFi country code"
   de_DE: "ISO 3166-1 Alpha-2 WLAN-Ländercode"
@@ -4692,6 +4734,13 @@ about.commands-registry-info:
   fr_FR: "Afficher ou modifier les informations du registre"
   pl_PL: "Wyświetl lub edytuj informacje rejestru"
 
+about.commands-registry-webhook:
+  en_US: "Inspect and replay webhook events emitted by the registry"
+  de_DE: "Vom Registry ausgegebene Webhook-Ereignisse einsehen und erneut senden"
+  es_ES: "Inspeccionar y reproducir los eventos de webhook emitidos por el registro"
+  fr_FR: "Inspecter et rejouer les événements webhook émis par le registre"
+  pl_PL: "Przeglądaj i ponawiaj zdarzenia webhooka emitowane przez rejestr"
+
 about.commands-restore-backup:
   en_US: "Commands for restoring package(s) from backup"
   de_DE: "Befehle zum Wiederherstellen von Paketen aus dem Backup"
@@ -5147,6 +5196,13 @@ about.get-metrics-users:
   fr_FR: "Compter les utilisateurs actifs uniques dans un intervalle de temps"
   pl_PL: "Zlicz unikalnych aktywnych użytkowników w zakresie czasu"
 
+about.get-webhook-pubkey:
+  en_US: "Get this registry's webhook public key, used by consumers to verify event signatures"
+  de_DE: "Den Webhook-öffentlichen Schlüssel dieses Registry abrufen, mit dem Konsumenten Ereignissignaturen prüfen"
+  es_ES: "Obtener la clave pública del webhook de este registro, que los consumidores usan para verificar las firmas de eventos"
+  fr_FR: "Obtenir la clé publique webhook de ce registre, utilisée par les consommateurs pour vérifier les signatures d'événements"
+  pl_PL: "Pobierz klucz publiczny webhooka tego rejestru, używany przez konsumentów do weryfikacji podpisów zdarzeń"
+
 about.get-os-versions-info:
   en_US: "Get OS versions info"
   de_DE: "Informationen zu Betriebssystemversionen abrufen"
@@ -5363,6 +5419,13 @@ about.list-vhost-passthrough:
   es_ES: "Listar passthroughs de vhost"
   fr_FR: "Lister les passthroughs vhost"
   pl_PL: "Wyświetl passthrough vhost"
+
+about.list-webhook-events:
+  en_US: "List recorded webhook events and their delivery attempts"
+  de_DE: "Aufgezeichnete Webhook-Ereignisse und deren Zustellversuche auflisten"
+  es_ES: "Listar los eventos de webhook registrados y sus intentos de entrega"
+  fr_FR: "Lister les événements webhook enregistrés et leurs tentatives de livraison"
+  pl_PL: "Wyświetl zarejestrowane zdarzenia webhooka i próby ich dostarczenia"
 
 about.list-wifi-info:
   en_US: "List wifi information"
@@ -5713,6 +5776,13 @@ about.repair-disk-corruption:
   es_ES: "Reparar corrupción del disco"
   fr_FR: "Réparer la corruption du disque"
   pl_PL: "Napraw uszkodzenie dysku"
+
+about.replay-webhook-event:
+  en_US: "Re-deliver a previously emitted webhook event to the configured subscriber"
+  de_DE: "Ein zuvor ausgesendetes Webhook-Ereignis erneut an den konfigurierten Abonnenten senden"
+  es_ES: "Reenviar al suscriptor configurado un evento de webhook emitido previamente"
+  fr_FR: "Re-livrer à l'abonné configuré un événement webhook émis précédemment"
+  pl_PL: "Ponownie dostarcz wcześniej wyemitowane zdarzenie webhooka skonfigurowanemu subskrybentowi"
 
 about.reset-password:
   en_US: "Reset the password"

@@ -25,7 +25,7 @@ The crate produces a single binary `startbox` that is symlinked under different 
 - `src/db/model/` — Patch-DB models (`public.rs` synced to frontend, `private.rs` backend-only)
 - `src/net/` — Networking (DNS, ACME, WiFi, Tor via Arti, WireGuard)
 - `src/s9pk/` — S9PK package format (merkle archive)
-- `src/registry/` — Package registry management
+- `src/registry/` — Package registry management; see [registry-webhooks.md](registry-webhooks.md) for the outbound webhook subsystem
 
 ## RPC Pattern
 
@@ -70,3 +70,4 @@ See [core-rust-patterns.md](core-rust-patterns.md) for common utilities (Invoke 
 - [i18n-patterns.md](i18n-patterns.md) — Internationalization conventions
 - [core-rust-patterns.md](core-rust-patterns.md) — Common Rust utilities
 - [s9pk-structure.md](s9pk-structure.md) — S9PK package format
+- [registry-webhooks.md](registry-webhooks.md) — Registry outbound webhook subsystem

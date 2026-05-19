@@ -19,7 +19,7 @@ use crate::registry::package::index::PackageIndex;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::Guid;
 use crate::util::DataUrl;
-use crate::util::serde::HandlerExtSerde;
+use crate::util::serde::{HandlerExtSerde, Pem};
 
 pub mod admin;
 pub mod asset;
@@ -32,6 +32,7 @@ mod migrations;
 pub mod os;
 pub mod package;
 pub mod signer;
+pub mod webhook;
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "camelCase")]
@@ -41,6 +42,10 @@ pub struct RegistryDatabase {
     pub migrations: BTreeSet<InternedString>,
     pub admins: BTreeSet<Guid>,
     pub index: FullIndex,
+    #[serde(default)]
+    pub webhook_signing_key: Option<Pem<ed25519_dalek::SigningKey>>,
+    #[serde(default)]
+    pub webhook_log: webhook::WebhookLog,
 }
 
 impl RegistryDatabase {
@@ -104,6 +109,10 @@ pub fn registry_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "metrics",
             metrics::metrics_api::<C>().with_about("about.commands-registry-metrics"),
+        )
+        .subcommand(
+            "webhook",
+            webhook::api::webhook_api::<C>().with_about("about.commands-registry-webhook"),
         )
 }
 
