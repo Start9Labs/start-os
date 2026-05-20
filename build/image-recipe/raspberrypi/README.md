@@ -25,11 +25,24 @@ Pi-specific kernel chainload code.
 
 The VPU blobs + DTBs + overlays come from the Debian `raspi-firmware`
 package on `archive.raspberrypi.com` (see `build/dpkg-deps/raspberrypi.depends`).
-Kernel comes from `linux-image-rpi-v8` on the same archive — picked
-because it boots on both Pi 4 (Cortex-A72) and Pi 5 (Cortex-A76).
-`rpi-2712` is Cortex-A76-tuned and would crash a Pi 4, so we trade
-some Pi 5 performance for a single image; switching to a hardware-
-detected dual-kernel layout is a follow-on.
+
+### Kernels
+
+Both Pi-vendor kernel flavours from `archive.raspberrypi.com` are
+installed:
+
+- `linux-image-rpi-v8` — Cortex-A72 baseline, runs on Pi 4 / 400 / CM4
+  (and on Pi 5 as a fallback).
+- `linux-image-rpi-2712` — Cortex-A76 tuned, runs on Pi 5 / 500 / CM5
+  only. Would trap on a Pi 4.
+
+`update-grub` produces one menuentry per installed kernel. A custom
+`/etc/grub.d/05_pi_kernel_select` (shipped in
+`squashfs/etc/grub.d/`) emits a grub.cfg prologue that reads the
+board model from EDK2's SMBIOS table at boot time and points
+`${default}` at the matching submenu entry. Net effect: Pi 5 hardware
+boots `rpi-2712`, everything else boots `rpi-v8`, all from the same
+image with no first-boot rewrite.
 
 The EDK2 UEFI binaries are downloaded at image-build time, pinned by
 version + SHA-256 in `build/image-recipe/build.sh`:

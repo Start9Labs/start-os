@@ -1,0 +1,37 @@
+#!/bin/sh
+# Pick the right Pi-vendor kernel at boot via EDK2 SMBIOS.
+#
+# update-grub generates one menuentry per installed kernel. With both
+# rpi-v8 and rpi-2712 present we'd otherwise rely on update-grub's
+# version ordering for the default, which can't tell Pi 4 (A72) from
+# Pi 5 (A76) — and booting rpi-2712 on a Pi 4 crashes on A76-only
+# instructions. This emits a grub.cfg prologue that overrides
+# ${default} with the board-appropriate submenu path.
+#
+# No-op if either kernel is missing or PLATFORM != raspberrypi.
+
+set -e
+
+[ -r /usr/lib/startos/PLATFORM.txt ] || exit 0
+[ "$(cat /usr/lib/startos/PLATFORM.txt)" = raspberrypi ] || exit 0
+
+kver_v8=$(ls -1 /boot/vmlinuz-*-rpi-v8 2>/dev/null | sort -V | tail -n1)
+kver_2712=$(ls -1 /boot/vmlinuz-*-rpi-2712 2>/dev/null | sort -V | tail -n1)
+[ -n "$kver_v8" ] && [ -n "$kver_2712" ] || exit 0
+kver_v8=${kver_v8#/boot/vmlinuz-}
+kver_2712=${kver_2712#/boot/vmlinuz-}
+
+dist="${GRUB_DISTRIBUTOR:-StartOS}"
+sub="Advanced options for $dist GNU/Linux"
+
+cat <<GRUBCFG
+# /etc/grub.d/05_pi_kernel_select — Pi kernel auto-select via SMBIOS.
+insmod regexp
+insmod smbios
+smbios -t 1 -s 4 --set pi_product
+if regexp "^Raspberry Pi (5|500|Compute Module 5)" "\$pi_product"; then
+  set default="$sub>$dist GNU/Linux, with Linux $kver_2712"
+else
+  set default="$sub>$dist GNU/Linux, with Linux $kver_v8"
+fi
+GRUBCFG

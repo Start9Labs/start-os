@@ -84,10 +84,12 @@ PLATFORM_CONFIG_EXTRAS=()
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-binary false )
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-chroot false )
-	# rpi-v8 boots both Pi 4 (Cortex-A72) and Pi 5 (Cortex-A76); rpi-2712 is
-	# A76-tuned and would crash on Pi 4. One image, one kernel. Pi 5 users
-	# trade some perf for unified-image simplicity; rpi-2712 as a follow-on.
-	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours rpi-v8 )
+	# Ship both Pi-vendor kernels — rpi-v8 (Cortex-A72, Pi 4 family) and
+	# rpi-2712 (Cortex-A76, Pi 5 family). A custom /etc/grub.d/ snippet
+	# (see squashfs/etc/grub.d/05_pi_kernel_select) picks the right one
+	# at boot time via EDK2 SMBIOS. A76-tuned rpi-2712 would crash a Pi
+	# 4, so we can't just default-boot the newer kernel everywhere.
+	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours "rpi-v8 rpi-2712" )
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours rockchip64 )
 elif [ "${IB_TARGET_ARCH}" = "riscv64" ]; then
