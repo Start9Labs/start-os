@@ -227,6 +227,9 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    * `Daemons.dynamic`. Eager handles created inside `fn` are wasted on
    * re-runs that diff to "leave alone"; the reconciler throws at hash time
    * if it sees one.
+   *
+   * @param fn Async builder invoked on startup and on every `constRetry`. Must return a `Daemons` in record-mode (not pre-`build()`-ed)
+   * @returns A `main` export compatible with `T.ExpectedExports.main`
    */
   static dynamic<Manifest extends T.SDKManifest>(
     fn: DaemonsBuilder<Manifest>,
@@ -251,6 +254,9 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    * `requires`. Pass a static options object, a sync/async factory that
    * returns options (or `null` to conditionally skip the daemon), or an
    * object with a pre-built `daemon` instance.
+   *
+   * @param id Unique string identifier for this daemon
+   * @param options Daemon configuration, or a factory returning it (return `null` to skip)
    */
   addDaemon<Id extends string, C extends SubContainer<Manifest> | null>(
     // prettier-ignore
@@ -299,7 +305,15 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     return res(options)
   }
 
-  /** Register a one-shot command that runs to completion before dependents start. */
+  /**
+   * Register a one-shot command that runs to completion before dependents
+   * start. Common uses: `chown` for file ownership, database migrations,
+   * config generation, wallet unlocking. The oneshot is considered "ready"
+   * as soon as the command exits successfully (exit code 0).
+   *
+   * @param id Unique string identifier for this oneshot
+   * @param options Oneshot configuration, or a factory returning it (return `null` to skip)
+   */
   addOneshot<Id extends string, C extends SubContainer<Manifest> | null>(
     // prettier-ignore
     id:
@@ -342,7 +356,17 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     return res(options)
   }
 
-  /** Register a standalone health check with no associated process. */
+  /**
+   * Register a standalone health check with no associated process.
+   *
+   * Use this for ongoing conditions that don't map to a single daemon,
+   * such as blockchain sync progress or network reachability. Dependent
+   * services can reference standalone health check IDs in their
+   * dependency config.
+   *
+   * @param id Unique string identifier for this health check
+   * @param options Health check configuration, or a factory returning it (return `null` to skip)
+   */
   addHealthCheck<Id extends string>(
     // prettier-ignore
     id:
@@ -445,9 +469,12 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   /**
    * Start all registered daemons and wait until every one passes its
    * ready check, then tear everything down. Used for bootstrapping via a
-   * temporary daemon chain.
+   * temporary daemon chain — e.g. starting a service to call its API
+   * (create admin users, register apps), then shutting it down before
+   * the real daemon chain starts.
    *
-   * @param timeout - Maximum time (ms) to wait for all daemons to become ready
+   * @param timeout Maximum time (ms) to wait for all daemons to become ready, or `null` for no limit
+   * @throws If the timeout is reached before all daemons are ready
    */
   async runUntilSuccess(timeout: number | null) {
     let resolve = (_: void) => {}
@@ -598,6 +625,9 @@ function validateEntries<M extends T.SDKManifest>(
  *
  * NOT hashed: `ready.fn`, `ready.trigger`, function-form `exec.fn`, and
  * any pre-built `daemon` instance.
+ *
+ * @param entry A recorded {@link Daemons} entry (`Daemons.entries[i]`)
+ * @returns A canonical JSON string suitable for equality comparison
  */
 export function configHash<M extends T.SDKManifest>(
   entry: DaemonEntry<M>,

@@ -144,15 +144,15 @@ export class Daemon<
    * the SubContainer hold taken at {@link start}.
    *
    * Sends the configured signal (default SIGTERM) and waits for the
-   * process to exit. The SubContainer itself is not destroyed by this call
-   * — call `subcontainer.destroy()` separately (typically the owning
-   * `Daemons` instance does that). The container is torn down by the
-   * SubContainer's own machinery when destroy has been requested and all
-   * outstanding holds have been released.
+   * process to exit. The SubContainer itself is not destroyed by this
+   * call — call `subcontainer.destroy()` separately (typically the
+   * owning `Daemons` instance does that). The container is torn down by
+   * the SubContainer's own machinery when destroy has been requested and
+   * all outstanding holds have been released.
    *
-   * @param termOptions - Optional termination settings
-   * @param termOptions.signal - The signal to send (default: SIGTERM)
-   * @param termOptions.timeout - Milliseconds to wait before SIGKILL
+   * @param termOptions Optional termination settings
+   * @param termOptions.signal The signal to send (default `SIGTERM`)
+   * @param termOptions.timeout Milliseconds to wait before escalating to `SIGKILL` (default = `Daemon`'s configured `sigtermTimeout`, ultimately `DEFAULT_SIGTERM_TIMEOUT`)
    */
   async term(termOptions?: {
     signal?: NodeJS.Signals | undefined

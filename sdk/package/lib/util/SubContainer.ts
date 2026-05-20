@@ -126,33 +126,46 @@ export interface SubContainer<
   /**
    * Resolve a path within the subcontainer's rootfs. Sync `string` on
    * {@link SubContainerEager}; `Promise<string>` on
-   * {@link SubContainerLazy}.
+   * {@link SubContainerLazy} (resolves after first materialization).
+   *
+   * @param path Path relative to the rootfs (e.g. `"/etc/config.json"` or `"data/file"`)
    */
   subpath(path: string): string | Promise<string>
 
   /**
-   * Apply filesystem mounts to this subcontainer. Returns the same
-   * SubContainer for chaining. Lazy handles materialize on this call.
+   * Apply filesystem mounts (volumes, assets, dependencies, backups) to
+   * this subcontainer. Returns the same SubContainer for chaining. Lazy
+   * handles materialize on this call.
+   *
+   * @param mounts The Mounts configuration to apply
+   * @returns This subcontainer instance for chaining
    */
   mount(mounts: MountsArg<Manifest, Effects>): Promise<this>
 
   /**
    * Take a use-hold on this subcontainer. The returned function releases
-   * the hold; the SubContainer is destroyed when a {@link destroy} call has
-   * been made *and* the last hold is released, in either order.
+   * the hold; the SubContainer is destroyed when {@link destroy} has been
+   * called *and* the last hold is released, in either order.
+   *
+   * @returns A release function — call it to drop this hold
    */
   hold(): () => Promise<void>
 
   /**
    * Mark this subcontainer for destruction. Fires `destroyFs` immediately
-   * if no holds are outstanding; otherwise the final
-   * {@link hold|hold-release} fires it.
+   * if no holds are outstanding; otherwise the final hold-release fires
+   * it. Idempotent.
    */
   destroy(): Promise<void>
 
   /**
    * Run a command inside this subcontainer.
    * Does NOT throw on non-zero exit (see {@link execFail}).
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, user, cwd, and stdin input
+   * @param timeoutMs How long to wait before SIGKILL (default 30 s, `null` for no timeout)
+   * @param abort Optional AbortController; aborting SIGKILLs the process
    */
   exec(
     command: string[],
@@ -167,7 +180,16 @@ export interface SubContainer<
     stderr: string | Buffer
   }>
 
-  /** Run a command inside this subcontainer, throwing on non-zero exit. */
+  /**
+   * Run a command inside this subcontainer, throwing on non-zero exit
+   * status or signal.
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, user, cwd, and stdin input
+   * @param timeoutMs How long to wait before SIGKILL (default 30 s, `null` for no timeout)
+   * @param abort Optional AbortController; aborting SIGKILLs the process
+   * @throws {@link ExitError} on non-zero exit code or signal termination
+   */
   execFail(
     command: string[],
     options?: CommandOptions & ExecOptions,
@@ -175,19 +197,36 @@ export interface SubContainer<
     abort?: AbortController,
   ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }>
 
-  /** Launch a command as the init (PID 1) process of the subcontainer. */
+  /**
+   * Launch a command as the init (PID 1) process of the subcontainer.
+   * Replaces the current leader process.
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, working directory, and user overrides
+   */
   launch(
     command: string[],
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams>
 
-  /** Spawn a command inside the subcontainer as a non-init process. */
+  /**
+   * Spawn a command inside the subcontainer as a non-init process.
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, working directory, user, and stdio overrides
+   */
   spawn(
     command: string[],
     options?: CommandOptions & StdioOptions,
   ): Promise<cp.ChildProcess>
 
-  /** Write a file to the subcontainer's filesystem. */
+  /**
+   * Write a file to the subcontainer's filesystem.
+   *
+   * @param path Path relative to the subcontainer rootfs (e.g. `"/etc/config.json"`)
+   * @param data The data to write
+   * @param options Optional write options (same as `node:fs/promises` `writeFile`)
+   */
   writeFile(
     path: string,
     data:
@@ -217,6 +256,11 @@ export const SubContainer = {
    * not actually be needed (the canonical case: `Daemons.dynamic` may diff
    * a daemon away before it ever runs) and whenever you don't need sync
    * access to `rootfs` / `guid` / `subpath()`.
+   *
+   * @param effects The effects context the subcontainer will run under
+   * @param image Image to launch from (must be declared in the manifest); `sharedRun` rbinds the host's `/run` if true
+   * @param mounts Initial mounts applied at materialization (declared so they participate in `Daemons.dynamic`'s `configHash`)
+   * @param name Debug/identification name (does not affect identity)
    */
   of<Manifest extends T.SDKManifest, Effects extends T.Effects = T.Effects>(
     effects: Effects,
@@ -249,6 +293,11 @@ export const SubContainer = {
    * Eager handles created inside `fn` are wasted on re-runs that diff to
    * "leave alone" — use {@link SubContainer.of} (lazy) for daemons under
    * `Daemons.dynamic`.
+   *
+   * @param effects The effects context the subcontainer will run under
+   * @param image Image to launch from; `sharedRun` rbinds the host's `/run` if true
+   * @param mounts Mounts applied during construction
+   * @param name Debug/identification name (does not affect identity)
    */
   eager<Manifest extends T.SDKManifest, Effects extends T.Effects = T.Effects>(
     effects: Effects,
@@ -272,6 +321,13 @@ export const SubContainer = {
    * Run a function with an ephemeral, eager subcontainer. The container
    * is created before `fn` runs and destroyed in a `finally` block after.
    * Use for one-off command execution that needs a fresh filesystem.
+   *
+   * @param effects The effects context the subcontainer will run under
+   * @param image Image to launch from; `sharedRun` rbinds the host's `/run` if true
+   * @param mounts Mounts applied during construction
+   * @param name Debug/identification name (does not affect identity)
+   * @param fn Function to invoke with the eager subcontainer
+   * @returns Whatever `fn` returns
    */
   async withTemp<
     Manifest extends T.SDKManifest,
@@ -421,12 +477,24 @@ export class SubContainerEager<
     }
   }
 
+  /**
+   * Resolve a path within this subcontainer's rootfs (synchronous on eager).
+   *
+   * @param path Path relative to the rootfs (e.g. `"/etc/config.json"` or `"data/file"`)
+   */
   subpath(path: string): string {
     return path.startsWith('/')
       ? `${this.rootfs}${path}`
       : `${this.rootfs}/${path}`
   }
 
+  /**
+   * Apply filesystem mounts (volumes, assets, dependencies, backups) to
+   * this subcontainer.
+   *
+   * @param mounts The Mounts configuration to apply
+   * @returns This subcontainer instance for chaining
+   */
   async mount(mounts: MountsArg<Manifest, Effects>): Promise<this> {
     for (let mount of mounts.build()) {
       let { options, mountpoint } = mount
@@ -470,6 +538,14 @@ export class SubContainerEager<
     return this
   }
 
+  /**
+   * Take a use-hold on this subcontainer. The container is destroyed
+   * when {@link destroy} has been called *and* the last hold is released,
+   * in either order.
+   *
+   * @returns A release function — call it to drop this hold
+   * @throws If this subcontainer has already been destroyed
+   */
   hold(): () => Promise<void> {
     if (this.destroyed) {
       throw new Error(
@@ -488,6 +564,11 @@ export class SubContainerEager<
     }
   }
 
+  /**
+   * Mark this subcontainer for destruction. Fires `destroyFs` immediately
+   * if no holds are outstanding; otherwise the final hold-release fires
+   * it. Idempotent.
+   */
   async destroy(): Promise<void> {
     this.destroyPending = true
     if (this.holdCount === 0) await this._destroyImmediate()
@@ -526,6 +607,15 @@ export class SubContainerEager<
     }
   }
 
+  /**
+   * Run a command inside this subcontainer.
+   * Does NOT throw on non-zero exit (see {@link execFail}).
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, user, cwd, and stdin input
+   * @param timeoutMs How long to wait before SIGKILL (default 30 s, `null` for no timeout)
+   * @param abort Optional AbortController; aborting SIGKILLs the process
+   */
   async exec(
     command: string[],
     options?: CommandOptions & ExecOptions,
@@ -638,6 +728,15 @@ export class SubContainerEager<
     })
   }
 
+  /**
+   * Run a command inside this subcontainer, throwing on non-zero exit.
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, user, cwd, and stdin input
+   * @param timeoutMs How long to wait before SIGKILL (default 30 s, `null` for no timeout)
+   * @param abort Optional AbortController; aborting SIGKILLs the process
+   * @throws {@link ExitError} on non-zero exit code or signal termination
+   */
   async execFail(
     command: string[],
     options?: CommandOptions & ExecOptions,
@@ -649,6 +748,13 @@ export class SubContainerEager<
     )
   }
 
+  /**
+   * Launch a command as the init (PID 1) process of the subcontainer.
+   * Replaces the current leader process.
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, working directory, and user overrides
+   */
   async launch(
     command: string[],
     options?: CommandOptions,
@@ -700,6 +806,12 @@ export class SubContainerEager<
     return this.leader as cp.ChildProcessWithoutNullStreams
   }
 
+  /**
+   * Spawn a command inside the subcontainer as a non-init process.
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, working directory, user, and stdio overrides
+   */
   async spawn(
     command: string[],
     options: CommandOptions & StdioOptions = { stdio: 'inherit' },
@@ -745,6 +857,13 @@ export class SubContainerEager<
     )
   }
 
+  /**
+   * Write a file to the subcontainer's filesystem.
+   *
+   * @param path Path relative to the subcontainer rootfs (e.g. `"/etc/config.json"`)
+   * @param data The data to write
+   * @param options Optional write options (same as `node:fs/promises` `writeFile`)
+   */
   async writeFile(
     path: string,
     data:
@@ -825,23 +944,49 @@ export class SubContainerLazy<
     }))
   }
 
+  /** Absolute path to the materialized subcontainer's rootfs. Triggers materialization on first access. */
   get rootfs(): Promise<string> {
     return this.eager().then((e) => e.rootfs)
   }
 
+  /** OS-level guid. Triggers materialization on first access. */
   get guid(): Promise<T.Guid> {
     return this.eager().then((e) => e.guid)
   }
 
+  /**
+   * Resolve a path within the subcontainer's rootfs. Triggers
+   * materialization on first call.
+   *
+   * @param path Path relative to the rootfs
+   */
   async subpath(path: string): Promise<string> {
     return (await this.eager()).subpath(path)
   }
 
+  /**
+   * Apply filesystem mounts to this subcontainer (materializes on first
+   * call). Mounts beyond the ones declared at construction are not part
+   * of `Daemons.dynamic`'s `configHash`.
+   *
+   * @param mounts The Mounts configuration to apply
+   * @returns This lazy handle, for chaining
+   */
   async mount(mounts: MountsArg<Manifest, Effects>): Promise<this> {
     await (await this.eager()).mount(mounts)
     return this
   }
 
+  /**
+   * Take a use-hold on this subcontainer. Materializes the underlying
+   * eager subcontainer asynchronously and places the hold on it.
+   *
+   * The returned release function is safe to call before materialization
+   * completes — it cancels the pending hold so a never-materialized lazy
+   * (the canonical "left alone" case in `Daemons.dynamic`) stays cheap.
+   *
+   * @returns A release function — call it to drop this hold
+   */
   hold(): () => Promise<void> {
     // Acquire the hold on the eager once materialized. Until then we record
     // a "pending" intent so destroy() honors any outstanding holds even on
@@ -871,11 +1016,26 @@ export class SubContainerLazy<
     }
   }
 
+  /**
+   * Mark this subcontainer for destruction. If already materialized, the
+   * underlying eager's destroy is invoked (which respects outstanding
+   * holds). If never materialized, the destroy pending flag is set so
+   * that any future materialization fires destroy immediately.
+   */
   async destroy(): Promise<void> {
     this.destroyPending = true
     if (this.materialized) await (await this.materialized).destroy()
   }
 
+  /**
+   * Run a command inside this subcontainer (materializes on first call).
+   * Does NOT throw on non-zero exit (see {@link execFail}).
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, user, cwd, and stdin input
+   * @param timeoutMs How long to wait before SIGKILL (default 30 s, `null` for no timeout)
+   * @param abort Optional AbortController; aborting SIGKILLs the process
+   */
   async exec(
     command: string[],
     options?: CommandOptions & ExecOptions,
@@ -891,6 +1051,16 @@ export class SubContainerLazy<
     return (await this.eager()).exec(command, options, timeoutMs, abort)
   }
 
+  /**
+   * Run a command inside this subcontainer, throwing on non-zero exit
+   * (materializes on first call).
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, user, cwd, and stdin input
+   * @param timeoutMs How long to wait before SIGKILL (default 30 s, `null` for no timeout)
+   * @param abort Optional AbortController; aborting SIGKILLs the process
+   * @throws {@link ExitError} on non-zero exit code or signal termination
+   */
   async execFail(
     command: string[],
     options?: CommandOptions & ExecOptions,
@@ -900,6 +1070,13 @@ export class SubContainerLazy<
     return (await this.eager()).execFail(command, options, timeoutMs, abort)
   }
 
+  /**
+   * Launch a command as the init (PID 1) process of the subcontainer
+   * (materializes on first call).
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, working directory, and user overrides
+   */
   async launch(
     command: string[],
     options?: CommandOptions,
@@ -907,6 +1084,13 @@ export class SubContainerLazy<
     return (await this.eager()).launch(command, options)
   }
 
+  /**
+   * Spawn a command inside the subcontainer as a non-init process
+   * (materializes on first call).
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, working directory, user, and stdio overrides
+   */
   async spawn(
     command: string[],
     options?: CommandOptions & StdioOptions,
@@ -914,6 +1098,13 @@ export class SubContainerLazy<
     return (await this.eager()).spawn(command, options)
   }
 
+  /**
+   * Write a file to the subcontainer's filesystem (materializes on first call).
+   *
+   * @param path Path relative to the subcontainer rootfs (e.g. `"/etc/config.json"`)
+   * @param data The data to write
+   * @param options Optional write options (same as `node:fs/promises` `writeFile`)
+   */
   async writeFile(
     path: string,
     data:
