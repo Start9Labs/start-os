@@ -37,7 +37,7 @@ Adding a new topic: emit from the relevant handler with `RegistryEvent::new(topi
 
 Each delivery is a JSON `POST` with four headers:
 
-- `x-startos-registry-pubkey` — base64 of the SPKI-DER-encoded Ed25519 public key (about 60 ASCII characters). This is the registry's identity. Consumers look it up in an allowlist of trusted registries before verifying. SPKI-DER (rather than the raw 32-byte form) so consumers can hand the decoded bytes directly to any standard crypto library — e.g. Node's `crypto.createPublicKey({ key, format: 'der', type: 'spki' })` — without re-wrapping. The same bytes are the inner content of the PEM that `webhook.pubkey` emits, so an allowlist loaded from PEM matches the header value after stripping the `-----BEGIN/END-----` lines and newlines.
+- `x-startos-registry-pubkey` — base64 of the SPKI-DER-encoded Ed25519 public key (about 60 ASCII characters). This is the registry's identity. Consumers look it up in an allowlist of trusted registries before verifying. SPKI-DER (rather than the raw 32-byte form) so consumers can hand the decoded bytes directly to any standard crypto library — e.g. Node's `crypto.createPublicKey({ key, format: 'der', type: 'spki' })` — without re-wrapping. `webhook.pubkey` emits the same form, so an allowlist loaded from its output matches the header value byte-for-byte.
 - `x-startos-registry-signature` — base64 of the 64-byte Ed25519 signature over the raw body, signed with the registry's private key.
 - `x-startos-registry-topic` — the event topic string.
 - `x-startos-registry-event-id` — the `Guid` of the event (32-char base32). Stable across replays — dedupe on this.
@@ -88,4 +88,4 @@ Replay errors if no subscriber is configured (`registry.webhook.no-subscriber`) 
 
 ## Pubkey RPC
 
-`webhook.pubkey` is unauthenticated (the public key is, by definition, public) and returns the registry's webhook verifying key as PEM. Operators share the output with each consumer they want to authorize; consumers add it to their allowlist.
+`webhook.pubkey` is unauthenticated (the public key is, by definition, public) and returns the registry's webhook verifying key as base64-encoded Ed25519 SPKI DER — the same form sent in the `x-startos-registry-pubkey` header on every webhook delivery, so consumers can paste it straight into their allowlist with no re-encoding. Operators share the output with each consumer they want to authorize.
