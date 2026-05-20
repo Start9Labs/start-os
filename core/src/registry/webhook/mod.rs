@@ -12,6 +12,12 @@ use crate::util::serde::Pem;
 
 pub mod api;
 pub mod dispatcher;
+pub mod event;
+
+pub use event::{
+    OsVersionAddData, OsVersionRemoveData, PackageRemoveData, PackageVersionAddData, RegistryEvent,
+    RegistryEventData,
+};
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
@@ -28,30 +34,6 @@ pub struct WebhookLog {
 pub struct WebhookEventRecord {
     pub event: RegistryEvent,
     pub attempts: Vec<DeliveryAttempt>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, HasModel, TS)]
-#[serde(rename_all = "camelCase")]
-#[model = "Model<Self>"]
-#[ts(export)]
-pub struct RegistryEvent {
-    pub id: Guid,
-    pub topic: String,
-    #[ts(type = "string")]
-    pub occurred_at: DateTime<Utc>,
-    #[ts(type = "any")]
-    pub data: Value,
-}
-
-impl RegistryEvent {
-    pub fn new(topic: impl Into<String>, data: Value) -> Self {
-        Self {
-            id: Guid::new(),
-            topic: topic.into(),
-            occurred_at: Utc::now(),
-            data,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, HasModel, TS)]

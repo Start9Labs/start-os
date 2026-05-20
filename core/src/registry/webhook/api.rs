@@ -154,7 +154,7 @@ pub async fn list_events(
         .collect::<Result<_, _>>()?;
     records.sort_by(|a, b| b.event.occurred_at.cmp(&a.event.occurred_at));
     records.retain(|r| {
-        topic.as_ref().map_or(true, |t| &r.event.topic == t)
+        topic.as_ref().map_or(true, |t| r.event.topic() == t)
             && since.map_or(true, |s| r.event.occurred_at >= s)
     });
     if let Some(n) = limit {

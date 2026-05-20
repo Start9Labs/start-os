@@ -16,7 +16,9 @@ use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
 use crate::registry::os::index::OsVersionInfo;
-use crate::registry::webhook::RegistryEvent;
+use crate::registry::webhook::{
+    OsVersionAddData, OsVersionRemoveData, RegistryEvent, RegistryEventData,
+};
 use crate::sign::AnyVerifyingKey;
 use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 
@@ -126,13 +128,12 @@ pub async fn add_version(
 
     if changed {
         let _ = ctx.event_tx.send(RegistryEvent::new(
-            "os.version.add",
-            imbl_value::json!({
-                "version": event_version.to_string(),
-                "headline": event_headline,
-                "releaseNotes": event_release_notes,
-                "sourceVersion": event_source_version.to_string(),
-                "isUpdate": is_update,
+            RegistryEventData::OsVersionAdd(OsVersionAddData {
+                version: event_version,
+                headline: event_headline,
+                release_notes: event_release_notes,
+                source_version: event_source_version,
+                is_update,
             }),
         ));
     }
@@ -170,9 +171,8 @@ pub async fn remove_version(
     rev.result?;
     if changed {
         let _ = ctx.event_tx.send(RegistryEvent::new(
-            "os.version.remove",
-            imbl_value::json!({
-                "version": event_version.to_string(),
+            RegistryEventData::OsVersionRemove(OsVersionRemoveData {
+                version: event_version,
             }),
         ));
     }

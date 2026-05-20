@@ -16,7 +16,9 @@ use crate::progress::FullProgressTracker;
 use crate::registry::asset::BufferedHttpSource;
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::PackageVersionInfo;
-use crate::registry::webhook::RegistryEvent;
+use crate::registry::webhook::{
+    PackageRemoveData, PackageVersionAddData, RegistryEvent, RegistryEventData,
+};
 use crate::s9pk::S9pk;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::v2::SIG_CONTEXT;
@@ -141,14 +143,13 @@ pub async fn add_package(
 
     if changed {
         let _ = ctx.event_tx.send(RegistryEvent::new(
-            "package.version.add",
-            imbl_value::json!({
-                "packageId": manifest.id,
-                "version": manifest.version,
-                "isFirstVersion": is_first_version,
-                "isUpdate": is_update,
-                "urls": event_urls,
-                "metadata": manifest.metadata,
+            RegistryEventData::PackageVersionAdd(PackageVersionAddData {
+                package_id: manifest.id.clone(),
+                version: manifest.version.clone(),
+                is_first_version,
+                is_update,
+                urls: event_urls,
+                metadata: manifest.metadata.clone(),
             }),
         ));
     }
@@ -371,11 +372,10 @@ pub async fn remove_package(
     rev.result?;
     if changed {
         let _ = ctx.event_tx.send(RegistryEvent::new(
-            "package.remove",
-            imbl_value::json!({
-                "packageId": id,
-                "version": version,
-                "sighash": sighash,
+            RegistryEventData::PackageRemove(PackageRemoveData {
+                package_id: id,
+                version,
+                sighash,
             }),
         ));
     }

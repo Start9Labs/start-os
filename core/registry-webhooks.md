@@ -4,7 +4,8 @@ The registry binary (`registrybox`) signs outbound webhooks with an Ed25519 keyp
 
 ## Subsystem layout
 
-- `src/registry/webhook/mod.rs` — Event/record types (`RegistryEvent`, `WebhookEventRecord`, `DeliveryAttempt`) and `generate_signing_key()` for bootstrap.
+- `src/registry/webhook/event.rs` — Source of truth for the event taxonomy: the `RegistryEventData` tagged enum (one variant per topic) and its payload structs, plus the `RegistryEvent` envelope (id + occurredAt + flattened event data). Adding or changing a topic happens here; every other layer follows.
+- `src/registry/webhook/mod.rs` — Storage and delivery-attempt types (`WebhookEventRecord`, `WebhookLog`, `DeliveryAttempt`) and `generate_signing_key()` for bootstrap. Re-exports the event types.
 - `src/registry/webhook/dispatcher.rs` — Long-running task that drains the event channel, reads the current subscriber set from the DB, persists each event to `WebhookLog`, then signs and POSTs to **each** subscriber, appending a `DeliveryAttempt` per delivery. Also exposes `deliver` (takes a single subscriber `Url`) and `append_attempt` as helpers reused by the replay RPC.
 - `src/registry/webhook/api.rs` — `webhook.subscriber.{add,remove,list}`, `webhook.list`, `webhook.replay`, and `webhook.pubkey` RPCs.
 
@@ -18,20 +19,22 @@ The persisted key is a private key — the `db dump` RPC (admin-only) does expos
 
 ## Emission
 
-Mutation handlers send a `RegistryEvent` on `ctx.event_tx` **after** their `db.mutate(...)` call returns, and only when `revision.is_some()` — no-op mutations (e.g. re-uploading an identical s9pk) do not produce an event. The handlers are responsible for assembling the `data` payload from values they captured before the closure consumed them.
+Mutation handlers send a `RegistryEvent` on `ctx.event_tx` **after** their `db.mutate(...)` call returns, and only when `revision.is_some()` — no-op mutations (e.g. re-uploading an identical s9pk) do not produce an event. Each handler constructs a `RegistryEventData::<Variant>(<Payload>{...})` from values captured before the closure consumed them, then wraps it via `RegistryEvent::new(data)` which stamps a fresh `id`/`occurredAt`.
 
-Current emission sites:
+`RegistryEventData` is a `#[serde(tag = "topic", content = "data")]` enum, so the wire shape is unchanged — the discriminant `topic` and the typed `data` payload land at the top level of the envelope alongside `id`/`occurredAt`.
 
-| Topic | Site | `data` shape |
-|---|---|---|
-| `package.version.add` | `src/registry/package/add.rs::add_package` | `{ packageId, version, isFirstVersion, isUpdate, urls, metadata }` |
-| `package.remove` | `src/registry/package/add.rs::remove_package` | `{ packageId, version?, sighash? }` |
-| `os.version.add` | `src/registry/os/version/mod.rs::add_version` | `{ version, headline, releaseNotes, sourceVersion, isUpdate }` |
-| `os.version.remove` | `src/registry/os/version/mod.rs::remove_version` | `{ version }` |
+Current variants (declared in `webhook/event.rs`):
+
+| Variant | Topic | Site | Payload struct |
+|---|---|---|---|
+| `PackageVersionAdd` | `package.version.add` | `src/registry/package/add.rs::add_package` | `PackageVersionAddData { packageId, version, isFirstVersion, isUpdate, urls, metadata }` |
+| `PackageRemove` | `package.remove` | `src/registry/package/add.rs::remove_package` | `PackageRemoveData { packageId, version?, sighash? }` |
+| `OsVersionAdd` | `os.version.add` | `src/registry/os/version/mod.rs::add_version` | `OsVersionAddData { version, headline, releaseNotes, sourceVersion, isUpdate }` |
+| `OsVersionRemove` | `os.version.remove` | `src/registry/os/version/mod.rs::remove_version` | `OsVersionRemoveData { version }` |
 
 `isFirstVersion` is computed by inspecting the pre-mutation state inside the closure (count of versions for this package id). `isUpdate` is true when the specific version key already existed.
 
-Adding a new topic: emit from the relevant handler with `RegistryEvent::new(topic, json)`. The dispatcher is topic-agnostic; no registration is needed.
+Adding a new topic: add a variant to `RegistryEventData` with its payload struct in `webhook/event.rs` and emit `RegistryEvent::new(RegistryEventData::<Variant>(<Payload>{...}))` from the relevant handler. The dispatcher is topic-agnostic; no registration is needed. TS bindings regenerate on `make ts-bindings`, giving subscribers a discriminated union they can switch over.
 
 ## Wire format
 

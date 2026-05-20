@@ -125,7 +125,7 @@ pub async fn deliver(
         .header("content-type", "application/json")
         .header(PUBKEY_HEADER, pubkey_b64)
         .header(SIGNATURE_HEADER, sig_b64)
-        .header(TOPIC_HEADER, &event.topic)
+        .header(TOPIC_HEADER, event.topic())
         .header(EVENT_ID_HEADER, event.id.as_ref())
         .body(body)
         .send()
