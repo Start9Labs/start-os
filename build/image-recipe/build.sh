@@ -84,9 +84,10 @@ PLATFORM_CONFIG_EXTRAS=()
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-binary false )
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-chroot false )
-	RPI_KERNEL_VERSION=6.12.47+rpt
-	PLATFORM_CONFIG_EXTRAS+=( --linux-packages linux-image-$RPI_KERNEL_VERSION )
-	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours "rpi-v8 rpi-2712" )
+	# rpi-v8 boots both Pi 4 (Cortex-A72) and Pi 5 (Cortex-A76); rpi-2712 is
+	# A76-tuned and would crash on Pi 4. One image, one kernel. Pi 5 users
+	# trade some perf for unified-image simplicity; rpi-2712 as a follow-on.
+	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours rpi-v8 )
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours rockchip64 )
 elif [ "${IB_TARGET_ARCH}" = "riscv64" ]; then
@@ -141,9 +142,14 @@ mkdir -p config/includes.binary
 touch config/includes.binary/.startos-installer
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+	# VPU blobs + DTBs + overlays come from the raspi-firmware Debian
+	# package via archive.raspberrypi.com (declared in
+	# build/dpkg-deps/raspberrypi.depends), not a sideband git clone.
+	# Our squashfs overlay carries the StartOS-specific config.txt + GRUB
+	# drop-in. EDK2 firmware images are downloaded and dropped into
+	# /boot/firmware/ by the chroot hook below, after raspi-firmware has
+	# laid down its files (so apt-postinst doesn't clobber ours).
 	mkdir -p config/includes.chroot
-	git clone --depth=1 --branch=stable https://github.com/raspberrypi/rpi-firmware.git config/includes.chroot/boot
-	rm -rf config/includes.chroot/boot/.git config/includes.chroot/boot/modules
 	rsync -rLp $SOURCE_DIR/raspberrypi/squashfs/ config/includes.chroot/
 fi
 
@@ -337,9 +343,43 @@ fi
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
     ln -sf /usr/bin/pi-beep /usr/local/bin/beep
     sh /boot/firmware/config.sh > /boot/firmware/config.txt
-    mkinitramfs -c gzip -o /boot/initrd.img-${RPI_KERNEL_VERSION}-rpi-v8 ${RPI_KERNEL_VERSION}-rpi-v8
-    mkinitramfs -c gzip -o /boot/initrd.img-${RPI_KERNEL_VERSION}-rpi-2712 ${RPI_KERNEL_VERSION}-rpi-2712
-    cp /usr/lib/u-boot/rpi_arm64/u-boot.bin /boot/firmware/u-boot.bin
+
+    # EDK2 UEFI firmware. Pi VPU firmware loads RPI_EFI_*.fd via armstub=;
+    # EDK2 publishes UEFI; GRUB chainloads from there. config.txt picks
+    # the right .fd per Pi model via [pi4]/[pi5] sections.
+    #
+    # Pi 4: pftf/RPi4 (Pi Firmware Task Force, actively maintained,
+    # builds tianocore/edk2-platforms upstream).
+    # Pi 5: NumberOneGit/rpi5-uefi (individual-maintainer fork of the
+    # archived worproject/rpi5-uefi; supports D0 silicon stepping). See
+    # build/image-recipe/raspberrypi/README.md for supply-chain caveats.
+
+    PFTF_RPI4_VERSION=v1.51
+    PFTF_RPI4_SHA256=000b6c518e83bb93262ed6b264a0e9498509c46513dabf58c0dbb73d4c2e7c18
+    NOG_RPI5_VERSION=v0.1
+    NOG_RPI5_SHA256=c4fbbec9cd0d1115c9adab884923061b960de42b4ca6d65ba5f08cb6b46c6fad
+
+    curl -fsSL -o /tmp/pftf-rpi4.zip \\
+        https://github.com/pftf/RPi4/releases/download/\${PFTF_RPI4_VERSION}/RPi4_UEFI_Firmware_\${PFTF_RPI4_VERSION}.zip
+    echo "\${PFTF_RPI4_SHA256}  /tmp/pftf-rpi4.zip" | sha256sum -c -
+    PFTF_DIR=\$(mktemp -d)
+    unzip -q /tmp/pftf-rpi4.zip -d \$PFTF_DIR
+    cp \$PFTF_DIR/RPI_EFI.fd /boot/firmware/RPI_EFI_RPI4.fd
+    # pftf ships ACPI-patched DTBs; let them override raspi-firmware's
+    cp \$PFTF_DIR/bcm2711-rpi-*.dtb /boot/firmware/
+    mkdir -p /boot/firmware/overlays
+    cp \$PFTF_DIR/overlays/*.dtbo /boot/firmware/overlays/
+    rm -rf /tmp/pftf-rpi4.zip \$PFTF_DIR
+
+    curl -fsSL -o /tmp/nog-rpi5.zip \\
+        https://github.com/NumberOneGit/rpi5-uefi/releases/download/\${NOG_RPI5_VERSION}/RPI5_D0.zip
+    echo "\${NOG_RPI5_SHA256}  /tmp/nog-rpi5.zip" | sha256sum -c -
+    NOG_DIR=\$(mktemp -d)
+    unzip -q /tmp/nog-rpi5.zip -d \$NOG_DIR
+    cp \$NOG_DIR/RPI_EFI.fd /boot/firmware/RPI_EFI_RPI5.fd
+    cp \$NOG_DIR/bcm2712*.dtb /boot/firmware/
+    cp \$NOG_DIR/overlays/*.dtbo /boot/firmware/overlays/
+    rm -rf /tmp/nog-rpi5.zip \$NOG_DIR
 fi
 
 useradd --shell /bin/bash -G startos -m start9
