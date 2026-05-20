@@ -13,12 +13,6 @@ use crate::util::serde::Pem;
 pub mod api;
 pub mod dispatcher;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct WebhookSubscriber {
-    pub url: Url,
-}
-
 #[derive(Debug, Clone, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
@@ -65,6 +59,8 @@ impl RegistryEvent {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct DeliveryAttempt {
+    #[ts(type = "string")]
+    pub subscriber: Url,
     #[ts(type = "string")]
     pub at: DateTime<Utc>,
     pub status_code: Option<u16>,

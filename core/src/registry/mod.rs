@@ -45,6 +45,8 @@ pub struct RegistryDatabase {
     #[serde(default)]
     pub webhook_signing_key: Option<Pem<ed25519_dalek::SigningKey>>,
     #[serde(default)]
+    pub webhook_subscribers: BTreeSet<url::Url>,
+    #[serde(default)]
     pub webhook_log: webhook::WebhookLog,
 }
 

@@ -7,8 +7,9 @@ use ed25519_dalek::{Signer, SigningKey};
 use reqwest::Client;
 use tokio::sync::mpsc;
 use tracing::{error, instrument};
+use url::Url;
 
-use super::{DeliveryAttempt, RegistryEvent, WebhookEventRecord, WebhookSubscriber};
+use super::{DeliveryAttempt, RegistryEvent, WebhookEventRecord};
 use crate::registry::context::RegistryContext;
 use crate::rpc_continuations::Guid;
 
@@ -20,15 +21,22 @@ pub const EVENT_ID_HEADER: &str = "x-startos-registry-event-id";
 #[instrument(skip_all)]
 pub async fn dispatcher_loop(
     ctx: RegistryContext,
-    subscriber: Option<WebhookSubscriber>,
     signing_key: SigningKey,
     mut rx: mpsc::UnboundedReceiver<RegistryEvent>,
 ) {
-    let Some(sub) = subscriber else {
-        while rx.recv().await.is_some() {}
-        return;
-    };
     while let Some(event) = rx.recv().await {
+        let subscribers = match ctx.db.peek().await.as_webhook_subscribers().de() {
+            Ok(s) => s,
+            Err(e) => {
+                error!("failed to read webhook subscribers: {e}");
+                continue;
+            }
+        };
+        // No subscribers: drop the event and persist nothing.
+        if subscribers.is_empty() {
+            continue;
+        }
+
         let id = event.id.clone();
         let record = WebhookEventRecord {
             event: event.clone(),
@@ -48,8 +56,10 @@ pub async fn dispatcher_loop(
             continue;
         }
 
-        let attempt = deliver(&ctx.client, &sub, &signing_key, &event, false).await;
-        append_attempt(&ctx, &id, attempt).await;
+        for subscriber in &subscribers {
+            let attempt = deliver(&ctx.client, subscriber, &signing_key, &event, false).await;
+            append_attempt(&ctx, &id, attempt).await;
+        }
     }
 }
 
@@ -81,7 +91,7 @@ pub async fn append_attempt(ctx: &RegistryContext, event_id: &Guid, attempt: Del
 
 pub async fn deliver(
     client: &Client,
-    sub: &WebhookSubscriber,
+    subscriber: &Url,
     signing_key: &SigningKey,
     event: &RegistryEvent,
     replay: bool,
@@ -89,6 +99,7 @@ pub async fn deliver(
     let started = Instant::now();
     let elapsed_ms = |s: Instant| s.elapsed().as_millis() as u64;
     let fail = |err: String| DeliveryAttempt {
+        subscriber: subscriber.clone(),
         at: Utc::now(),
         status_code: None,
         error: Some(err),
@@ -110,7 +121,7 @@ pub async fn deliver(
     let sig_b64 = b64.encode(signature.to_bytes());
 
     match client
-        .post(sub.url.clone())
+        .post(subscriber.clone())
         .header("content-type", "application/json")
         .header(PUBKEY_HEADER, pubkey_b64)
         .header(SIGNATURE_HEADER, sig_b64)
@@ -123,6 +134,7 @@ pub async fn deliver(
         Ok(r) => {
             let status = r.status();
             DeliveryAttempt {
+                subscriber: subscriber.clone(),
                 at: Utc::now(),
                 status_code: Some(status.as_u16()),
                 error: if status.is_success() {

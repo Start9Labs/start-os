@@ -2052,11 +2052,18 @@ registry.package.signer.not-authorized:
   pl_PL: "Sygnatariusz %{signer} nie jest autoryzowany do podpisywania %{id}"
 
 registry.webhook.no-subscriber:
-  en_US: "No webhook subscriber is configured"
-  de_DE: "Kein Webhook-Abonnent konfiguriert"
-  es_ES: "No hay suscriptor de webhook configurado"
+  en_US: "No webhook subscribers are configured"
+  de_DE: "Keine Webhook-Abonnenten konfiguriert"
+  es_ES: "No hay suscriptores de webhook configurados"
   fr_FR: "Aucun abonné webhook n'est configuré"
-  pl_PL: "Nie skonfigurowano subskrybenta webhooka"
+  pl_PL: "Nie skonfigurowano subskrybentów webhooka"
+
+registry.webhook.invalid-subscriber-url:
+  en_US: "Webhook subscriber URL must be http or https"
+  de_DE: "Die Webhook-Abonnenten-URL muss http oder https sein"
+  es_ES: "La URL del suscriptor de webhook debe ser http o https"
+  fr_FR: "L'URL de l'abonné webhook doit être http ou https"
+  pl_PL: "Adres URL subskrybenta webhooka musi być http lub https"
 
 registry.webhook.event-not-found:
   en_US: "Webhook event %{id} not found"
@@ -3662,6 +3669,13 @@ help.arg.webhook-since:
   fr_FR: "Ne renvoyer que les événements survenus à cet horodatage ou après"
   pl_PL: "Zwracaj tylko zdarzenia występujące w tym czasie lub później"
 
+help.arg.webhook-subscriber-url:
+  en_US: "URL of the webhook subscriber"
+  de_DE: "URL des Webhook-Abonnenten"
+  es_ES: "URL del suscriptor de webhook"
+  fr_FR: "URL de l'abonné webhook"
+  pl_PL: "Adres URL subskrybenta webhooka"
+
 help.arg.webhook-topic-filter:
   en_US: "Only return events matching this topic"
   de_DE: "Nur Ereignisse zurückgeben, die diesem Thema entsprechen"
@@ -4384,6 +4398,13 @@ about.add-vhost-passthrough:
   fr_FR: "Ajouter un passthrough vhost"
   pl_PL: "Dodaj passthrough vhost"
 
+about.add-webhook-subscriber:
+  en_US: "Add a webhook subscriber"
+  de_DE: "Einen Webhook-Abonnenten hinzufügen"
+  es_ES: "Agregar un suscriptor de webhook"
+  fr_FR: "Ajouter un abonné webhook"
+  pl_PL: "Dodaj subskrybenta webhooka"
+
 about.add-wifi-ssid-password:
   en_US: "Add wifi ssid and password"
   de_DE: "WLAN-SSID und Passwort hinzufügen"
@@ -4740,6 +4761,13 @@ about.commands-registry-webhook:
   es_ES: "Inspeccionar y reproducir los eventos de webhook emitidos por el registro"
   fr_FR: "Inspecter et rejouer les événements webhook émis par le registre"
   pl_PL: "Przeglądaj i ponawiaj zdarzenia webhooka emitowane przez rejestr"
+
+about.commands-registry-webhook-subscriber:
+  en_US: "Manage the consumers that receive this registry's webhooks"
+  de_DE: "Die Konsumenten verwalten, die die Webhooks dieses Registry empfangen"
+  es_ES: "Gestionar los consumidores que reciben los webhooks de este registro"
+  fr_FR: "Gérer les consommateurs qui reçoivent les webhooks de ce registre"
+  pl_PL: "Zarządzaj konsumentami otrzymującymi webhooki tego rejestru"
 
 about.commands-restore-backup:
   en_US: "Commands for restoring package(s) from backup"
@@ -5427,6 +5455,13 @@ about.list-webhook-events:
   fr_FR: "Lister les événements webhook enregistrés et leurs tentatives de livraison"
   pl_PL: "Wyświetl zarejestrowane zdarzenia webhooka i próby ich dostarczenia"
 
+about.list-webhook-subscribers:
+  en_US: "List the configured webhook subscribers"
+  de_DE: "Die konfigurierten Webhook-Abonnenten auflisten"
+  es_ES: "Listar los suscriptores de webhook configurados"
+  fr_FR: "Lister les abonnés webhook configurés"
+  pl_PL: "Wyświetl skonfigurowanych subskrybentów webhooka"
+
 about.list-wifi-info:
   en_US: "List wifi information"
   de_DE: "WLAN-Informationen auflisten"
@@ -5756,6 +5791,13 @@ about.remove-vhost-passthrough:
   fr_FR: "Supprimer un passthrough vhost"
   pl_PL: "Usuń passthrough vhost"
 
+about.remove-webhook-subscriber:
+  en_US: "Remove a webhook subscriber"
+  de_DE: "Einen Webhook-Abonnenten entfernen"
+  es_ES: "Eliminar un suscriptor de webhook"
+  fr_FR: "Supprimer un abonné webhook"
+  pl_PL: "Usuń subskrybenta webhooka"
+
 about.remove-wifi-network:
   en_US: "Remove a wifi network"
   de_DE: "Ein WLAN-Netzwerk entfernen"
@@ -5778,11 +5820,11 @@ about.repair-disk-corruption:
   pl_PL: "Napraw uszkodzenie dysku"
 
 about.replay-webhook-event:
-  en_US: "Re-deliver a previously emitted webhook event to the configured subscriber"
-  de_DE: "Ein zuvor ausgesendetes Webhook-Ereignis erneut an den konfigurierten Abonnenten senden"
-  es_ES: "Reenviar al suscriptor configurado un evento de webhook emitido previamente"
-  fr_FR: "Re-livrer à l'abonné configuré un événement webhook émis précédemment"
-  pl_PL: "Ponownie dostarcz wcześniej wyemitowane zdarzenie webhooka skonfigurowanemu subskrybentowi"
+  en_US: "Re-deliver a previously emitted webhook event to all configured subscribers"
+  de_DE: "Ein zuvor ausgesendetes Webhook-Ereignis erneut an alle konfigurierten Abonnenten senden"
+  es_ES: "Reenviar a todos los suscriptores configurados un evento de webhook emitido previamente"
+  fr_FR: "Re-livrer à tous les abonnés configurés un événement webhook émis précédemment"
+  pl_PL: "Ponownie dostarcz wcześniej wyemitowane zdarzenie webhooka wszystkim skonfigurowanym subskrybentom"
 
 about.reset-password:
   en_US: "Reset the password"

@@ -1,9 +1,12 @@
+use std::collections::BTreeSet;
+
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use ed25519_dalek::VerifyingKey;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+use url::Url;
 
 use super::{DeliveryAttempt, WebhookEventRecord, dispatcher};
 use crate::context::CliContext;
@@ -14,6 +17,10 @@ use crate::util::serde::{HandlerExtSerde, Pem};
 
 pub fn webhook_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
+        .subcommand(
+            "subscriber",
+            subscriber_api::<C>().with_about("about.commands-registry-webhook-subscriber"),
+        )
         .subcommand(
             "list",
             from_fn_async(list_events)
@@ -38,6 +45,80 @@ pub fn webhook_api<C: Context>() -> ParentHandler<C> {
                 .with_about("about.get-webhook-pubkey")
                 .with_call_remote::<CliContext>(),
         )
+}
+
+fn subscriber_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "add",
+            from_fn_async(add_subscriber)
+                .with_metadata("admin", Value::Bool(true))
+                .with_display_serializable()
+                .with_about("about.add-webhook-subscriber")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "remove",
+            from_fn_async(remove_subscriber)
+                .with_metadata("admin", Value::Bool(true))
+                .with_display_serializable()
+                .with_about("about.remove-webhook-subscriber")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "list",
+            from_fn_async(list_subscribers)
+                .with_metadata("admin", Value::Bool(true))
+                .with_display_serializable()
+                .with_about("about.list-webhook-subscribers")
+                .with_call_remote::<CliContext>(),
+        )
+}
+
+#[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[command(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SubscriberParams {
+    #[ts(type = "string")]
+    #[arg(help = "help.arg.webhook-subscriber-url")]
+    pub url: Url,
+}
+
+pub async fn add_subscriber(
+    ctx: RegistryContext,
+    SubscriberParams { url }: SubscriberParams,
+) -> Result<(), Error> {
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(Error::new(
+            eyre!("{}", t!("registry.webhook.invalid-subscriber-url")),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+    ctx.db
+        .mutate(|db| db.as_webhook_subscribers_mut().mutate(|s| Ok(s.insert(url))))
+        .await
+        .result?;
+    Ok(())
+}
+
+pub async fn remove_subscriber(
+    ctx: RegistryContext,
+    SubscriberParams { url }: SubscriberParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_webhook_subscribers_mut()
+                .mutate(|s| Ok(s.remove(&url)))
+        })
+        .await
+        .result?;
+    Ok(())
+}
+
+pub async fn list_subscribers(ctx: RegistryContext) -> Result<BTreeSet<Url>, Error> {
+    ctx.db.peek().await.as_webhook_subscribers().de()
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
@@ -95,14 +176,15 @@ pub struct ReplayEventParams {
 pub async fn replay_event(
     ctx: RegistryContext,
     ReplayEventParams { event_id }: ReplayEventParams,
-) -> Result<DeliveryAttempt, Error> {
-    let sub = ctx.webhook.as_ref().ok_or_else(|| {
-        Error::new(
+) -> Result<Vec<DeliveryAttempt>, Error> {
+    let peek = ctx.db.peek().await;
+    let subscribers: BTreeSet<Url> = peek.as_webhook_subscribers().de()?;
+    if subscribers.is_empty() {
+        return Err(Error::new(
             eyre!("{}", t!("registry.webhook.no-subscriber")),
             ErrorKind::InvalidRequest,
-        )
-    })?;
-    let peek = ctx.db.peek().await;
+        ));
+    }
     let event = peek
         .as_webhook_log()
         .as_events()
@@ -115,10 +197,16 @@ pub async fn replay_event(
         })?
         .as_event()
         .de()?;
-    let attempt =
-        dispatcher::deliver(&ctx.client, sub, &ctx.webhook_signing_key, &event, true).await;
-    dispatcher::append_attempt(&ctx, &event_id, attempt.clone()).await;
-    Ok(attempt)
+
+    let mut attempts = Vec::with_capacity(subscribers.len());
+    for subscriber in &subscribers {
+        let attempt =
+            dispatcher::deliver(&ctx.client, subscriber, &ctx.webhook_signing_key, &event, true)
+                .await;
+        dispatcher::append_attempt(&ctx, &event_id, attempt.clone()).await;
+        attempts.push(attempt);
+    }
+    Ok(attempts)
 }
 
 pub async fn pubkey(ctx: RegistryContext) -> Result<Pem<VerifyingKey>, Error> {

@@ -1,14 +1,14 @@
 # Registry Webhooks
 
-The registry binary (`registrybox`) signs outbound webhooks with an Ed25519 keypair generated on first start. Each event is POSTed to one configured subscriber URL and signed with the registry's private key; the public key rides in the request header as the registry's identity. Consumers maintain an allowlist of trusted public keys — there is no shared secret to coordinate.
+The registry binary (`registrybox`) signs outbound webhooks with an Ed25519 keypair generated on first start. Each event is POSTed to every configured subscriber URL and signed with the registry's private key; the public key rides in the request header as the registry's identity. Consumers maintain an allowlist of trusted public keys — there is no shared secret to coordinate. The subscriber set is managed at runtime via RPC and persisted in patch-db (keyed by URL); there is no config-file webhook setting.
 
 ## Subsystem layout
 
-- `src/registry/webhook/mod.rs` — Event/record types (`RegistryEvent`, `WebhookEventRecord`, `DeliveryAttempt`), the `WebhookSubscriber` config struct, and `generate_signing_key()` for bootstrap.
-- `src/registry/webhook/dispatcher.rs` — Long-running task that drains the event channel, persists each event to `WebhookLog`, signs and POSTs to the subscriber, and appends a `DeliveryAttempt`. Also exposes `deliver` and `append_attempt` as helpers reused by the replay RPC.
-- `src/registry/webhook/api.rs` — `webhook.list`, `webhook.replay`, and `webhook.pubkey` RPCs.
+- `src/registry/webhook/mod.rs` — Event/record types (`RegistryEvent`, `WebhookEventRecord`, `DeliveryAttempt`) and `generate_signing_key()` for bootstrap.
+- `src/registry/webhook/dispatcher.rs` — Long-running task that drains the event channel, reads the current subscriber set from the DB, persists each event to `WebhookLog`, then signs and POSTs to **each** subscriber, appending a `DeliveryAttempt` per delivery. Also exposes `deliver` (takes a single subscriber `Url`) and `append_attempt` as helpers reused by the replay RPC.
+- `src/registry/webhook/api.rs` — `webhook.subscriber.{add,remove,list}`, `webhook.list`, `webhook.replay`, and `webhook.pubkey` RPCs.
 
-The dispatcher is spawned once from `RegistryContext::init` and receives events over an unbounded `mpsc` channel whose sender (`event_tx`) lives on `RegistryContextSeed`. The signing key is generated lazily on first init and cached on the seed (`webhook_signing_key`).
+The dispatcher is spawned once from `RegistryContext::init` and receives events over an unbounded `mpsc` channel whose sender (`event_tx`) lives on `RegistryContextSeed`. The signing key is generated lazily on first init and cached on the seed (`webhook_signing_key`). The subscriber set is *not* cached on the seed — the dispatcher re-reads it from the DB for each event, so `subscriber add`/`remove` take effect on the next emission without a restart.
 
 ## Bootstrap
 
@@ -59,32 +59,33 @@ Consumers verify by: (1) reading the pubkey header, (2) rejecting if not in thei
 
 ## Persistence
 
-State lives at `registry_database.webhook_log.events: BTreeMap<Guid, WebhookEventRecord>`. Each record holds the original `RegistryEvent` plus an append-only `attempts: Vec<DeliveryAttempt>`.
+State lives at `registry_database.webhook_log.events: BTreeMap<Guid, WebhookEventRecord>`. Each record holds the original `RegistryEvent` plus an append-only `attempts: Vec<DeliveryAttempt>`. With multiple subscribers a single event accrues one attempt per subscriber per delivery round (the initial fan-out plus any replays).
 
-A `DeliveryAttempt` records timestamp, HTTP status (or `None` for network/serialization failure), error string, duration in milliseconds, and a `replay: bool` flag. Successful deliveries set `error = None`; non-2xx responses populate `error` with the status line.
+A `DeliveryAttempt` records the target `subscriber` URL, timestamp, HTTP status (or `None` for network/serialization failure), error string, duration in milliseconds, and a `replay: bool` flag. Successful deliveries set `error = None`; non-2xx responses populate `error` with the status line.
 
-Schema is additive: the `webhook_log` and `webhook_signing_key` fields both have `#[serde(default)]`, so existing registry databases deserialize without a migration. The signing key materializes on first init via the bootstrap path above.
+The subscriber set lives at `registry_database.webhook_subscribers: BTreeSet<Url>` — the URL is the subscriber's identity.
+
+Schema is additive: `webhook_log`, `webhook_signing_key`, and `webhook_subscribers` all have `#[serde(default)]`, so existing registry databases deserialize without a migration. The signing key materializes on first init via the bootstrap path above.
 
 The log grows unbounded — there is no retention or pruning. At human-driven registry mutation rates this is fine, but if call volume grows a pruning RPC (or an age-based GC) is the natural follow-up.
 
-## Configuration
+## Subscribers
 
-`RegistryConfig.webhook: Option<WebhookSubscriber>` is loaded from the TOML config file only (the field is `#[arg(skip)]`, so it has no CLI flag). Shape:
+Subscribers are managed at runtime, not via config. Three admin RPCs under `webhook.subscriber`:
 
-```toml
-[webhook]
-url = "https://example.com/registry-events"
-```
+- `webhook.subscriber.add { url }` — validates the URL scheme is `http`/`https` and inserts it into `webhook_subscribers`. Idempotent (it's a set).
+- `webhook.subscriber.remove { url }` — removes the URL. Idempotent.
+- `webhook.subscriber.list` — returns the current set.
 
-That's it — no shared secret, no operator-chosen identifier. The registry's identity is its public key (which the operator publishes via `registry webhook pubkey` and the consumer adds to its allowlist).
+That's it — no shared secret, no operator-chosen identifier. The registry's identity is its public key (which the operator publishes via `registry webhook pubkey` and each consumer adds to its allowlist).
 
-When the field is `None`, the dispatcher drains and drops events without touching patch-db. Nothing is persisted while unconfigured.
+When the set is empty, the dispatcher drains and drops events without touching patch-db. Nothing is persisted while there are no subscribers.
 
 ## Replay semantics
 
-`webhook.replay { eventId }` reads the persisted event, calls `dispatcher::deliver` with `replay: true`, and appends the resulting `DeliveryAttempt` to the event's record. The `event-id` header is unchanged, which means a well-behaved consumer that dedupes by event id will accept the replay only if it never saw the original — i.e. replay is an idempotent re-try, not a force-re-announce.
+`webhook.replay { eventId }` reads the persisted event and re-delivers it to **every** current subscriber, calling `dispatcher::deliver` with `replay: true` once per subscriber and appending each resulting `DeliveryAttempt` to the event's record. It returns the `Vec<DeliveryAttempt>` for the round. The `event-id` header is unchanged, which means a well-behaved consumer that dedupes by event id will accept the replay only if it never saw the original — i.e. replay is an idempotent re-try, not a force-re-announce. Replaying to all subscribers (rather than a targeted one) is harmless precisely because of this dedupe: subscribers that already received the event ignore the repeat.
 
-Replay errors if no subscriber is configured (`registry.webhook.no-subscriber`) or the event id is not in the log (`registry.webhook.event-not-found`).
+Replay errors if no subscribers are configured (`registry.webhook.no-subscriber`) or the event id is not in the log (`registry.webhook.event-not-found`).
 
 ## Pubkey RPC
 
