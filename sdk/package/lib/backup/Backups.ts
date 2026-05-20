@@ -270,10 +270,9 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
             // Stage the dump off the FUSE before pg_restore reads it — see
             // the comment on `tmpDumpFile` above.
             await sub.execFail(['cp', dumpFile, tmpDumpFile], { user: 'root' })
-            await sub.execFail(
-              ['chown', 'postgres:postgres', tmpDumpFile],
-              { user: 'root' },
-            )
+            await sub.execFail(['chown', 'postgres:postgres', tmpDumpFile], {
+              user: 'root',
+            })
             await sub.execFail(
               ['chown', '-R', 'postgres:postgres', mountpoint],
               { user: 'root' },
@@ -411,6 +410,36 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       }
     }
 
+    async function stopMysql(sub: {
+      exec(cmd: string[], opts?: any): Promise<{ exitCode: number | null }>
+      execFail(cmd: string[], opts?: any, timeout?: number | null): Promise<any>
+    }) {
+      // SIGTERM mysqld and wait for it to finish flushing before teardown.
+      // A killed-but-unreaped mysqld lingers as a zombie that keeps its PID,
+      // so `tail --pid`/`kill -0` would block here forever — treat the zombie
+      // ('Z') state, or a vanished PID, as "fully exited". Bounded SIGKILL
+      // fallback guarantees we can never deadlock the backup.
+      await sub.execFail(
+        [
+          'sh',
+          '-c',
+          [
+            'PID="$(cat /var/run/mysqld/mysqld.pid)"',
+            'kill "$PID" 2>/dev/null || exit 0',
+            'i=0',
+            'while [ -e "/proc/$PID" ]; do',
+            '  case "$(cut -d" " -f3 "/proc/$PID/stat" 2>/dev/null)" in Z|"") break ;; esac',
+            '  i=$((i + 1))',
+            '  [ "$i" -ge 600 ] && { kill -9 "$PID" 2>/dev/null; break; }',
+            '  sleep 0.2',
+            'done',
+          ].join('\n'),
+        ],
+        { user: 'root' },
+        null,
+      )
+    }
+
     return new Backups<M>()
       .setPreBackup(async (effects) => {
         const pw = await resolvePassword(password)
@@ -456,16 +485,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
               null,
             )
             await sub.execFail(['cp', tmpDumpFile, dumpFile], { user: 'root' })
-            // Graceful shutdown via SIGTERM; wait for exit
-            await sub.execFail(
-              [
-                'sh',
-                '-c',
-                'PID=$(cat /var/run/mysqld/mysqld.pid) && kill $PID && tail --pid=$PID -f /dev/null',
-              ],
-              { user: 'root' },
-              null,
-            )
+            await stopMysql(sub)
           },
         )
       })
@@ -531,16 +551,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
               { user: 'root' },
               null,
             )
-            // Graceful shutdown via SIGTERM; wait for exit
-            await sub.execFail(
-              [
-                'sh',
-                '-c',
-                'PID=$(cat /var/run/mysqld/mysqld.pid) && kill $PID && tail --pid=$PID -f /dev/null',
-              ],
-              { user: 'root' },
-              null,
-            )
+            await stopMysql(sub)
           },
         )
       })

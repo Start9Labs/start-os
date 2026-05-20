@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.3 — StartOS 0.4.0-beta.9 (2026-05-20)
+
+### Fixed
+
+- `Backups.withMysqlDump` no longer wedges the entire backup (and the StartOS host) on the database-shutdown step. After the dump it stopped mysqld with `kill $PID && tail --pid=$PID -f /dev/null`, but the daemonized (mysql) / backgrounded (mariadb) mysqld is never reaped in the dump subcontainer, so it lingers as a zombie that keeps its PID and `tail --pid` waited on it forever. The subcontainer was then never torn down and the backup hung until the box was rebooted — often surfacing afterward as a misleading `ENOTCONN … mkdir` notification as mounts were unwound under the stuck operation. Shutdown now waits for mysqld to reach the zombie (`Z`) state or vanish (treating either as "exited"), with a bounded SIGKILL fallback so it can never deadlock again. Applies to both backup and restore. `withPgDump` was unaffected (it uses `pg_ctl stop -w`, which reaps cleanly). The `withMysqlDump` packages (ghost, mempool) should rebuild against this SDK
+
 ## 1.5.2 — StartOS 0.4.0-beta.9 (2026-05-15)
 
 ### Fixed
