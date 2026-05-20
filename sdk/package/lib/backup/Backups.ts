@@ -3,7 +3,7 @@ import * as child_process from 'child_process'
 import * as fs from 'fs/promises'
 import { Affine, asError } from '../util'
 import { InitKind, InitScript } from '../../../base/lib/inits'
-import { SubContainerRc, execFile } from '../util/SubContainer'
+import { SubContainer, execFile } from '../util/SubContainer'
 import { Mounts } from '../mainFn/Mounts'
 
 const BACKUP_HOST_PATH = '/media/startos/backup'
@@ -229,7 +229,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
 
     return new Backups<M>()
       .setPreBackup(async (effects) => {
-        await SubContainerRc.withTemp<M, void, BackupEffects>(
+        await SubContainer.withTemp<M, void, BackupEffects>(
           effects,
           { imageId },
           dbMounts() as any,
@@ -260,7 +260,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       })
       .setPostRestore(async (effects) => {
         const resolvedPassword = await resolvePassword(password)
-        await SubContainerRc.withTemp<M, void, BackupEffects>(
+        await SubContainer.withTemp<M, void, BackupEffects>(
           effects,
           { imageId },
           dbMounts() as any,
@@ -451,7 +451,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
           ...(pw !== null ? [`-p${pw}`] : []),
           '--silent',
         ]
-        await SubContainerRc.withTemp<M, void, BackupEffects>(
+        await SubContainer.withTemp<M, void, BackupEffects>(
           effects,
           { imageId },
           dbMounts() as any,
@@ -491,7 +491,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       })
       .setPostRestore(async (effects) => {
         const pw = await resolvePassword(password)
-        await SubContainerRc.withTemp<M, void, BackupEffects>(
+        await SubContainer.withTemp<M, void, BackupEffects>(
           effects,
           { imageId },
           dbMounts() as any,

@@ -63,7 +63,8 @@ import {
   CommandOptions,
   ExitError,
   SubContainer,
-  SubContainerOwned,
+  SubContainerEager,
+  SubContainerLazy,
 } from './util/SubContainer'
 import { createVolumes } from './util/Volume'
 import { getDataVersion, setDataVersion } from './version'
@@ -860,32 +861,62 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           },
           mounts: Mounts<Manifest> | null,
           name: string,
-        ) {
-          return SubContainerOwned.of<Manifest, Effects>(
+        ): SubContainerLazy<Manifest, Effects> {
+          return SubContainer.of<Manifest, Effects>(
             effects,
             image,
             mounts,
             name,
-          ).then((subc) => subc.rc())
+          )
         },
         /**
-         * @description Run a function with a temporary SubContainer
-         * @param effects
-         * @param image - what container image to use
-         * @param mounts - what to mount to the subcontainer
-         * @param name - a name to use to refer to the ephemeral subcontainer for debugging purposes
+         * Create an eager SubContainer, materializing its backing
+         * filesystem immediately. Use when you need synchronous access to
+         * `rootfs` / `guid` / `subpath()` before running any methods, or
+         * want `createFs` failures to surface here instead of at first
+         * method call.
+         *
+         * **Do not pass an eager SubContainer to `Daemons.dynamic`'s `fn`** —
+         * see {@link SubContainer.eager}.
          */
-        withTemp<T>(
-          effects: T.Effects,
+        eager(
+          effects: Effects,
           image: {
             imageId: T.ImageId & keyof Manifest['images']
             sharedRun?: boolean
           },
           mounts: Mounts<Manifest> | null,
           name: string,
-          fn: (subContainer: SubContainer<Manifest>) => Promise<T>,
+        ): Promise<SubContainerEager<Manifest, Effects>> {
+          return SubContainer.eager<Manifest, Effects>(
+            effects,
+            image,
+            mounts,
+            name,
+          )
+        },
+        /**
+         * Run a function with an ephemeral, eager SubContainer. The
+         * container is created before `fn` runs and destroyed in a
+         * `finally` block after.
+         */
+        withTemp<T>(
+          effects: Effects,
+          image: {
+            imageId: T.ImageId & keyof Manifest['images']
+            sharedRun?: boolean
+          },
+          mounts: Mounts<Manifest> | null,
+          name: string,
+          fn: (subContainer: SubContainerEager<Manifest, Effects>) => Promise<T>,
         ): Promise<T> {
-          return SubContainerOwned.withTemp(effects, image, mounts, name, fn)
+          return SubContainer.withTemp<Manifest, T, Effects>(
+            effects,
+            image,
+            mounts,
+            name,
+            fn,
+          )
         },
       },
       List,
@@ -979,7 +1010,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
     commands = imageMeta.entrypoint ?? []
     commands = commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
   } else commands = splitCommand(command)
-  return SubContainerOwned.withTemp(
+  return SubContainer.withTemp<Manifest, { stdout: string | Buffer; stderr: string | Buffer }>(
     effects,
     image,
     options.mounts,

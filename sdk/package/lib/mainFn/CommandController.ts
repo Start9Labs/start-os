@@ -47,7 +47,6 @@ export class CommandController<
       subcontainer: C,
       exec: DaemonCommandType<Manifest, C>,
     ) => {
-      try {
         if ('fn' in exec) {
           const abort = new AbortController()
           const cell: { ctrl: CommandController<Manifest, C> } = {
@@ -141,10 +140,6 @@ export class CommandController<
           childProcess,
           exec.sigtermTimeout,
         )
-      } catch (e) {
-        await subcontainer?.destroy()
-        throw e
-      }
     }
   }
   /**
@@ -174,7 +169,6 @@ export class CommandController<
         if (this.process instanceof AbortController) this.process.abort()
         else this.process.kill('SIGKILL')
       }
-      await this.subcontainer?.destroy()
     }
   }
   /**
@@ -187,38 +181,34 @@ export class CommandController<
    * @param options.timeout - Milliseconds before escalating to SIGKILL
    */
   async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
-    try {
-      if (!this.state.exited) {
-        if (this.process instanceof AbortController) return this.process.abort()
+    if (!this.state.exited) {
+      if (this.process instanceof AbortController) return this.process.abort()
 
-        if (signal !== 'SIGKILL') {
-          setTimeout(() => {
-            if (this.process instanceof AbortController) this.process.abort()
-            else this.process.kill('SIGKILL')
-          }, timeout)
-        }
-        if (!this.process.kill(signal)) {
-          console.error(
-            `failed to send signal ${signal} to pid ${this.process.pid}`,
-          )
-        }
+      if (signal !== 'SIGKILL') {
+        setTimeout(() => {
+          if (this.process instanceof AbortController) this.process.abort()
+          else this.process.kill('SIGKILL')
+        }, timeout)
       }
-
-      if (this.process instanceof AbortController)
-        await Promise.race([
-          this.runningAnswer,
-          new Promise((_, reject) =>
-            setTimeout(
-              () =>
-                reject(new Error('Timed out waiting for js command to exit')),
-              timeout * 2,
-            ),
-          ),
-        ])
-      else await this.runningAnswer
-    } finally {
-      await this.subcontainer?.destroy()
+      if (!this.process.kill(signal)) {
+        console.error(
+          `failed to send signal ${signal} to pid ${this.process.pid}`,
+        )
+      }
     }
+
+    if (this.process instanceof AbortController)
+      await Promise.race([
+        this.runningAnswer,
+        new Promise((_, reject) =>
+          setTimeout(
+            () =>
+              reject(new Error('Timed out waiting for js command to exit')),
+            timeout * 2,
+          ),
+        ),
+      ])
+    else await this.runningAnswer
   }
   onDrop(): void {
     this.term().catch(logErrorOnce)

@@ -1,15 +1,13 @@
 import * as T from '../../../base/lib/types'
-import { SubContainer, SubContainerOwned } from '../util/SubContainer'
+import { SubContainer } from '../util/SubContainer'
 import { CommandController } from './CommandController'
 import { Daemon } from './Daemon'
 import { DaemonCommandType } from './Daemons'
 
 /**
- * This is a wrapper around CommandController that has a state of off, where the command shouldn't be running
- * and the others state of running, where it will keep a living running command
- * unlike Daemon, does not restart on success
+ * A one-shot command: same machinery as a {@link Daemon} but exits after a
+ * successful run instead of restarting.
  */
-
 export class Oneshot<
   Manifest extends T.SDKManifest,
   C extends SubContainer<Manifest> | null = SubContainer<Manifest> | null,
@@ -20,14 +18,8 @@ export class Oneshot<
       subcontainer: C,
       exec: DaemonCommandType<Manifest, C>,
     ) => {
-      let subc: SubContainer<Manifest> | null = subcontainer
-      if (subcontainer && subcontainer.isOwned()) subc = subcontainer.rc()
       const startCommand = () =>
-        CommandController.of<Manifest, C>()(
-          effects,
-          (subc?.rc() ?? null) as C,
-          exec,
-        )
+        CommandController.of<Manifest, C>()(effects, subcontainer, exec)
       return new Oneshot<Manifest, C>(subcontainer, startCommand, true)
     }
   }

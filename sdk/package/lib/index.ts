@@ -25,8 +25,13 @@ export {
 }
 export { setupI18n } from './i18n'
 export * as T from './types'
-export { Daemons } from './mainFn/Daemons'
-export { SubContainer } from './util/SubContainer'
+export { Daemons, configHash, DaemonsReconciler } from './mainFn/Daemons'
+export type { DaemonsBuilder } from './mainFn/Daemons'
+export {
+  SubContainer,
+  SubContainerEager,
+  SubContainerLazy,
+} from './util/SubContainer'
 export { StartSdk } from './StartSdk'
 export { setupManifest, buildManifest } from './manifest/setupManifest'
 export { FileHelper } from './util/fileHelper'

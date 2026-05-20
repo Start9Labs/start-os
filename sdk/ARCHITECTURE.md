@@ -200,7 +200,7 @@ The `.build()` method returns an object containing the entire SDK surface area, 
 |----------|---------|---------|
 | **Manifest** | `manifest`, `volumes` | Access manifest data and volume paths |
 | **Actions** | `Action.withInput`, `Action.withoutInput`, `Actions`, `action.run`, `action.createTask`, `action.createOwnTask`, `action.clearTask` | Define and manage user actions |
-| **Daemons** | `Daemons.of`, `Daemon.of`, `setupMain` | Configure service processes |
+| **Daemons** | `Daemons.of`, `Daemons.dynamic`, `Daemon.of`, `setupMain` | Configure service processes (static or reactive) |
 | **Health** | `healthCheck.checkPortListening`, `.checkWebUrl`, `.runHealthScript` | Built-in health checks |
 | **Interfaces** | `createInterface`, `MultiHost.of`, `setupInterfaces`, `serviceInterface.*` | Network endpoint management |
 | **Backups** | `setupBackups`, `Backups.ofVolumes`, `Backups.ofSyncs`, `Backups.withOptions` | Backup configuration |
@@ -242,6 +242,34 @@ Features:
 - Ready probes (wait for a daemon to be ready before starting dependents)
 - Graceful shutdown with configurable signals and timeouts
 - One-shot commands that run before daemons start
+
+Internally the builder is record-then-materialize: `.addDaemon()` appends a recorded entry, `Daemons.build()` walks the entries to construct `HealthDaemon`s with correct dependency wiring and runs `updateStatus()`. Side-effects start at `build()`, so the timing is identical to the prior eager builder for `setupMain` users.
+
+**`Daemons.dynamic`** makes the daemon set a reactive function of on-disk state. The builder returns a regular `Daemons.of(...).addDaemon(...)` chain; the reconciler diffs its entries against the running set on every `effects.constRetry` trigger:
+
+```typescript
+export const main = sdk.Daemons.dynamic(async ({ effects }) => {
+  const { instances } = (await instancesYaml.read().const(effects)) ?? { instances: [] }
+  let daemons = sdk.Daemons.of<Manifest>({ effects })
+  for (const inst of instances) {
+    daemons = daemons.addDaemon(`reg-${inst.id}`, {
+      subcontainer: sdk.SubContainer.of(effects, { imageId: 'reg', sharedRun: true }, mounts, `reg-${inst.id}-sub`),
+      exec: { command: ['start-registryd'] },
+      ready: { display: inst.label, fn: () => sdk.healthCheck.checkPortListening(effects, inst.port, {}) },
+      requires: [],
+    })
+  }
+  return daemons
+})
+```
+
+Diff semantics per id: absent→present **start**, present→absent **stop**, same `configHash` **leave alone**, different `configHash` **restart**. Dependents of any restarted/stopped daemon are also restarted. `configHash` is a canonical-JSON hash over the subcontainer descriptor (`imageId`, `sharedRun`, `name`, `mounts.build()`), exec, `requires`, and the structural parts of `ready` — closures (`ready.fn`, `ready.trigger`) are excluded so a watched-file touch with unchanged content doesn't bounce every daemon. Lazy `SubContainer`s ({@link SubContainer.of}) are required under `Daemons.dynamic`; eager handles produced inside the builder would defeat the "leave alone" guarantee and the reconciler throws if it sees one.
+
+**SubContainers** come in two flavors:
+- `SubContainer.of(effects, image, mounts, name)` — lazy, the default. Returns a `SubContainerLazy<M>` synchronously; `createFs` happens on first method call. Lazy handles produced inside `Daemons.dynamic` that diff to "leave alone" are GC'd without ever materializing.
+- `SubContainer.eager(effects, image, mounts, name)` — materializes immediately. Returns `Promise<SubContainerEager<M>>`. Use when you need sync `rootfs` / `guid` / `subpath()` or `createFs` failures at construction time.
+
+The unified `SubContainer<M>` interface widens `rootfs` / `guid` / `subpath()` to `T | Promise<T>`; concrete classes narrow. Multiple consumers share a SubContainer by passing the same instance to multiple `addDaemon` calls — each takes a `hold()` and releases on `term`; the container's `destroyFs` fires when `destroy()` has been called and the last hold is released.
 
 **Mounts** declares what to attach to a container:
 ```typescript

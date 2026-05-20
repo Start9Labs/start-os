@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.0.0 — StartOS 0.4.0-beta.9 (2026-05-20)
+
+### Added
+
+- `sdk.Daemons.dynamic(fn)` builds a reactive `main` entrypoint whose daemon set is a function of on-disk state. The supplied builder returns a regular `sdk.Daemons.of({ effects }).addDaemon(...)` chain (now record-then-materialize — see below), and the SDK diffs its entries against the running set on every `effects.constRetry` trigger (typically fired by a `FileHelper.read().const(effects)` watcher). Per id: absent → present **start**, present → absent **stop**, same `configHash` **leave alone**, different `configHash` **restart**. Dependents of any restarted or stopped daemon are also restarted to keep `requires` wiring consistent. Re-runs coalesce while one is in flight. Designed for multi-tenant packages like the registry-portal s9pk that add, rename, and delete sub-instance daemons without restarting the service
+- `configHash` covers the subcontainer descriptor (`imageId`, `sharedRun`, `name`, structural `mounts.build()`), exec (`command`, `env`, `cwd`, `user`, `runAsInit`, `sigtermTimeout`), `requires` (sorted), and the structural parts of `ready` (`display`, `gracePeriod`). Closures (`ready.fn`, `ready.trigger`, function-form `exec.fn`) and pre-built `Daemon` instances are intentionally excluded — surface a value through one of the hashed fields if you want the reconciler to react to it changing
+- `sdk.SubContainer.eager(...)` creates a SubContainer with its filesystem materialized immediately. Use when you need `createFs` failures to surface at the construction site instead of at first method call, or when you need sync access to `rootfs` / `guid` / `subpath()` before running any methods
+- `SubContainerLazy.eager(): Promise<SubContainerEager<M>>` forces materialization on a lazy handle and returns the underlying eager subcontainer for callers that need the narrowed sync interface
+
+### Changed
+
+- **Breaking — `sdk.SubContainer.of(...)` is now lazy by default.** Returns a `SubContainerLazy<M>` *synchronously* (no `Promise<>` wrapper) whose filesystem is materialized on first method call. `rootfs` / `guid` / `subpath()` on the unified `SubContainer<M>` interface widen to `T | Promise<T>`; the concrete classes narrow (`SubContainerEager` to `T`, `SubContainerLazy` to `Promise<T>`). Code holding the generic interface must `await` those accessors; code holding `SubContainerEager` keeps sync access. Migration: most callers already use only async methods (`.exec`, `.writeFile`, `.spawn`, `.launch`) and need no change beyond dropping the redundant `await` on `SubContainer.of(...)`; callers that read `.rootfs` / `.guid` / `.subpath()` add an `await` or switch to `sdk.SubContainer.eager(...)`. The lazy default enables `Daemons.dynamic`'s "leave alone is load-bearing" guarantee: unchanged daemons across reconciles never materialize a fresh subcontainer
+- **Breaking — `SubContainerOwned` / `SubContainerRc` collapsed into `SubContainerEager`.** The reference-counted handle (`SubContainerRc`, `.rc()`, `.isOwned()`) is replaced by an internal hold-count on the unified `SubContainer`. Multiple consumers each call `sub.hold()` (returns a release fn); the container's `destroyFs` fires when `destroy()` has been called and the last hold is released, in either order. `Daemon.start()` takes its own hold for the daemon's lifetime and releases it on `term()`. The `destroySubcontainer` flag on `Daemon.term` / `HealthDaemon.term` is gone — `Daemons.term()` calls `destroy()` on each unique subcontainer in its entries, and the hold machinery handles sharing safely
+- **Breaking — `Daemon.sharesSubcontainerWith` removed.** Two `Daemon`s share a subcontainer when constructed with the same `SubContainer` instance (compare `daemon.subcontainer.identity`). Daemons' internal "should I destroy this subc?" branching is gone — it always calls `destroy()`, and hold-count decides
+- **Breaking — `Daemons` is record-then-materialize.** `.addDaemon()` / `.addOneshot()` / `.addHealthCheck()` append a recorded entry without constructing `HealthDaemon` or `Daemon`. `Daemons.build()` walks the entries and constructs the chain in one pass. Functionally identical for `setupMain` callers — the original "construct on addDaemon, kick off on build" timing is invisible because nothing actually starts until `build()`'s `updateStatus()` calls anyway. The change is load-bearing for `Daemons.dynamic`, which needs to diff entries without paying the cost of building them eagerly each reconcile
+- **Breaking — `SubContainer` adds `identity: symbol`.** Sync, stable handle preserved across `SubContainerLazy.eager()` materialization. Use for sharing checks that must work before materialization (replaces `Daemon.sharesSubcontainerWith`'s previous `guid` comparison, which couldn't fire pre-materialization)
+- Container-runtime updated: `SubContainerOwned` → `SubContainer.eager`; `SubContainerRc<M>` → `SubContainer<M>`; `daemon.subcontainerRc()` → `daemon.subcontainer`
+
+### Removed
+
+- `SubContainerOwned`, `SubContainerRc`, `SubContainer.rc()`, `SubContainer.isOwned()` — folded into the unified `SubContainerEager` / `SubContainerLazy` with hold/release lifecycle
+- `Daemon.subcontainerRc()`, `Daemon.markManaged()`, `Daemon.sharesSubcontainerWith()` — superseded by `daemon.subcontainer` (public readonly) and the hold-count model
+- `destroySubcontainer` option on `Daemon.term` / `HealthDaemon.term` — `Daemons` calls `subcontainer.destroy()` for each unique subc on shutdown, and the hold-count decides actual timing
+
 ## 1.5.3 — StartOS 0.4.0-beta.9 (2026-05-20)
 
 ### Fixed
