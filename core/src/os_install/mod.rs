@@ -160,6 +160,17 @@ pub async fn install_os_to(
             .invoke(crate::ErrorKind::DiskManagement)
             .await?;
     }
+    if let Some(firmware) = part_info.extra_boot.get("firmware") {
+        Command::new("mkfs.vfat")
+            .arg(firmware)
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+        Command::new("fatlabel")
+            .arg(firmware)
+            .arg("firmware")
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+    }
 
     Command::new("mkfs.vfat")
         .arg(&part_info.boot)
@@ -325,6 +336,11 @@ pub async fn install_os_to(
         overlay.path().join("etc/fstab"),
         format!(
             include_str!("fstab.template"),
+            firmware = part_info
+                .extra_boot
+                .get("firmware")
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "# N/A".to_owned()),
             boot = part_info.boot.display(),
             efi = part_info
                 .extra_boot
@@ -335,6 +351,23 @@ pub async fn install_os_to(
         ),
     )
     .await?;
+
+    // Populate the Pi firmware partition by mirroring the live media's
+    // /boot/firmware (VPU blobs + EDK2 .fd + config.txt + DTBs + overlays).
+    // Pi VPU reads from partition 1 at next boot; nothing else does.
+    if let Some(firmware) = part_info.extra_boot.get("firmware") {
+        let fw_target = TmpDir::new().await?;
+        let fw_mount =
+            MountGuard::mount(&BlockDev::new(firmware), &*fw_target, ReadWrite).await?;
+        Command::new("cp")
+            .arg("-a")
+            .arg("/boot/firmware/.")
+            .arg(&*fw_target)
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
+        fw_mount.unmount(false).await?;
+        fw_target.delete().await?;
+    }
 
     Command::new("chroot")
         .arg(overlay.path())

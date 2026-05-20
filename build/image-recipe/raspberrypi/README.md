@@ -1,10 +1,16 @@
 # Raspberry Pi image notes
 
-The Raspberry Pi target produces a **single** `.img` that boots on Pi 4,
-Pi 400, CM4, Pi 5, Pi 500, and CM5. The closed-source VPU firmware
-reads `config.txt`, selects the right EDK2 UEFI build per model via
-`[pi4]` / `[pi5]` conditional sections, and chainloads GRUB through
-UEFI exactly as on any other arm64 server board.
+The Raspberry Pi target produces a **single** `.img` that is a **live
+installer** for Pi 4, Pi 400, CM4, Pi 5, Pi 500, and CM5 — same UX as
+the x86 `.iso`. Flash to USB or microSD; boot the Pi; the live system
+runs setup mode on port 80; user picks a target disk; the installer
+(in `core/src/os_install/`) writes installed StartOS to that target;
+reboot from the target.
+
+The closed-source VPU firmware reads `config.txt`, selects the right
+EDK2 UEFI build per model via `[pi4]` / `[pi5]` conditional sections,
+and chainloads GRUB through UEFI exactly as on any other arm64 server
+board.
 
 ## Boot chain
 
@@ -15,11 +21,33 @@ VPU ROM
        └─ RPI_EFI_RPI5.fd   on Pi 5 family    (NumberOneGit/rpi5-uefi)
              └─ GRUB EFI    (arm64-efi)
                   └─ Linux kernel + initrd
+                       └─ boot=live  → live-init mounts
+                          /boot/live/filesystem.squashfs as rootfs
+                          (live media), or boot=startos → installed disk
 ```
 
 The OS-side install path (`core/src/os_install/`) is fully shared with
-the other UEFI arm64 targets — `grub-install --target=arm64-efi`. No
-Pi-specific kernel chainload code.
+the other UEFI arm64 targets — `grub-install --target=arm64-efi`. The
+only Pi-specific addition is a 128 MiB firmware partition (partition 1
+in the installed-disk GPT) that the installer populates by mirroring
+the live media's `/boot/firmware/` (VPU blobs + EDK2 `.fd` + config.txt
++ DTBs + overlays). Pi VPU reads from that partition on every boot;
+nothing else does.
+
+## Image layout
+
+The live installer image has three partitions:
+
+| # | Name     | Size  | FS    | Contents                                  |
+|---|----------|-------|-------|-------------------------------------------|
+| 1 | firmware | 128MB | FAT32 | VPU blobs + EDK2 .fd + config.txt + DTBs  |
+| 2 | efi      | 100MB | FAT32 | GRUB-EFI loader (`EFI/BOOT/BOOTAA64.EFI`) |
+| 3 | boot     | ~1GB  | FAT32 | GRUB modules + `grub.cfg`, kernels, initrds, `/live/filesystem.squashfs` |
+
+No root partition — the live system overlay-mounts the squashfs as
+its rootfs via live-init. When the user runs the installer from setup
+mode, `os_install` partitions the target disk with the full installed
+layout (firmware + efi + boot + btrfs root + optional data).
 
 ## Sources
 

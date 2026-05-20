@@ -452,33 +452,42 @@ if [ "${IMAGE_TYPE}" = iso ]; then
 
 elif [ "${IMAGE_TYPE}" = img ]; then
 
+	# Pi live installer image. Same UX as the x86 .iso: user flashes to
+	# USB/SD, boots the Pi, the live system runs setup mode on port 80,
+	# user picks a target disk, core/src/os_install/ writes the installed
+	# StartOS to that target. The image itself has no btrfs root — it's
+	# pure live media.
+	#
+	# Layout: firmware (128 MiB) + ESP (100 MiB) + boot (sized to fit
+	# kernel + initrd + grub + filesystem.squashfs). VPU loads EDK2 from
+	# the firmware partition, EDK2 publishes UEFI, GRUB-EFI on the ESP
+	# loads the live kernel from /boot with boot=live cmdline, live-init
+	# finds /boot/live/filesystem.squashfs and overlay-mounts it.
+
 	SECTOR_LEN=512
 	FW_START=$((1024 * 1024)) # 1MiB (sector 2048) — Pi-specific
-	FW_LEN=$((128 * 1024 * 1024)) # 128MiB (Pi firmware + U-Boot + DTBs)
+	FW_LEN=$((128 * 1024 * 1024)) # 128MiB (Pi firmware + EDK2 .fd + DTBs)
 	FW_END=$((FW_START + FW_LEN - 1))
-	ESP_START=$((FW_END + 1)) # 100MB EFI System Partition (matches os_install)
+	ESP_START=$((FW_END + 1)) # 100MB EFI System Partition
 	ESP_LEN=$((100 * 1024 * 1024))
 	ESP_END=$((ESP_START + ESP_LEN - 1))
-	BOOT_START=$((ESP_END + 1)) # 2GB /boot (matches os_install)
-	BOOT_LEN=$((2 * 1024 * 1024 * 1024))
-	BOOT_END=$((BOOT_START + BOOT_LEN - 1))
-	ROOT_START=$((BOOT_END + 1))
+	BOOT_START=$((ESP_END + 1))
 
-	# Size root partition to fit the squashfs + 256MB overhead for btrfs
-	# metadata and config overlay, avoiding the need for btrfs resize
+	# Boot partition holds GRUB modules + kernel + initrd + the live
+	# squashfs at /live/filesystem.squashfs. Size = squashfs + 128 MiB
+	# overhead for kernels, initrds, and grub modules.
 	SQUASHFS_SIZE=$(stat -c %s $prep_results_dir/binary/live/filesystem.squashfs)
-	ROOT_LEN=$(( SQUASHFS_SIZE + 256 * 1024 * 1024 ))
-	# Align to sector boundary
-	ROOT_LEN=$(( (ROOT_LEN + SECTOR_LEN - 1) / SECTOR_LEN * SECTOR_LEN ))
+	BOOT_LEN=$(( SQUASHFS_SIZE + 128 * 1024 * 1024 ))
+	BOOT_LEN=$(( (BOOT_LEN + SECTOR_LEN - 1) / SECTOR_LEN * SECTOR_LEN ))
+	BOOT_END=$((BOOT_START + BOOT_LEN - 1))
 
 	# Total image: partitions + GPT backup header (34 sectors)
-	IMG_LEN=$((ROOT_START + ROOT_LEN + 34 * SECTOR_LEN))
+	IMG_LEN=$((BOOT_END + 1 + 34 * SECTOR_LEN))
 
 	# Fixed GPT partition UUIDs (deterministic, based on old MBR disk ID cb15ae4d)
 	FW_UUID=cb15ae4d-0001-4000-8000-000000000001
 	ESP_UUID=cb15ae4d-0002-4000-8000-000000000002
 	BOOT_UUID=cb15ae4d-0003-4000-8000-000000000003
-	ROOT_UUID=cb15ae4d-0004-4000-8000-000000000004
 
 	TARGET_NAME=$prep_results_dir/${IMAGE_BASENAME}.img
 	truncate -s $IMG_LEN $TARGET_NAME
@@ -489,98 +498,79 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 		${TARGET_NAME}1 : start=$((FW_START / SECTOR_LEN)), size=$((FW_LEN / SECTOR_LEN)), type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7, uuid=${FW_UUID}, name="firmware"
 		${TARGET_NAME}2 : start=$((ESP_START / SECTOR_LEN)), size=$((ESP_LEN / SECTOR_LEN)), type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=${ESP_UUID}, name="efi"
 		${TARGET_NAME}3 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=${BOOT_UUID}, name="boot"
-		${TARGET_NAME}4 : start=$((ROOT_START / SECTOR_LEN)), size=$((ROOT_LEN / SECTOR_LEN)), type=B921B045-1DF0-41C3-AF44-4C6F280D3FAE, uuid=${ROOT_UUID}, name="root"
 	EOF
 
-	# Create named loop device nodes (high minor numbers to avoid conflicts)
-	# and detach any stale ones from previous failed builds
+	# Named loop device nodes (high minor numbers to avoid conflicts)
+	# with cleanup of stale devices from previous failed builds.
 	FW_DEV=/dev/startos-loop-fw
 	ESP_DEV=/dev/startos-loop-esp
 	BOOT_DEV=/dev/startos-loop-boot
-	ROOT_DEV=/dev/startos-loop-root
-	for dev in $FW_DEV:200 $ESP_DEV:201 $BOOT_DEV:202 $ROOT_DEV:203; do
+	for dev in $FW_DEV:200 $ESP_DEV:201 $BOOT_DEV:202; do
 		name=${dev%:*}
 		minor=${dev#*:}
 		[ -e $name ] || mknod $name b 7 $minor
 		losetup -d $name 2>/dev/null || true
 	done
 
-	losetup $FW_DEV --offset $FW_START --sizelimit $FW_LEN $TARGET_NAME
-	losetup $ESP_DEV --offset $ESP_START --sizelimit $ESP_LEN $TARGET_NAME
+	losetup $FW_DEV   --offset $FW_START   --sizelimit $FW_LEN   $TARGET_NAME
+	losetup $ESP_DEV  --offset $ESP_START  --sizelimit $ESP_LEN  $TARGET_NAME
 	losetup $BOOT_DEV --offset $BOOT_START --sizelimit $BOOT_LEN $TARGET_NAME
-	losetup $ROOT_DEV --offset $ROOT_START --sizelimit $ROOT_LEN $TARGET_NAME
 
 	mkfs.vfat -F32 -n firmware $FW_DEV
 	mkfs.vfat -F32 -n efi $ESP_DEV
 	mkfs.vfat -F32 -n boot $BOOT_DEV
-	mkfs.btrfs -f -L rootfs $ROOT_DEV
 
 	TMPDIR=$(mktemp -d)
 
-	# Extract boot files from squashfs to staging area
+	# Mount partitions (nested: firmware + efi inside boot)
+	mkdir -p $TMPDIR/boot
+	mount $BOOT_DEV $TMPDIR/boot
+	mkdir -p $TMPDIR/boot/firmware $TMPDIR/boot/efi $TMPDIR/boot/live
+	mount $FW_DEV  $TMPDIR/boot/firmware
+	mount $ESP_DEV $TMPDIR/boot/efi
+
+	# Extract /boot from the squashfs — this gives us the kernels +
+	# initrds + the firmware-partition contents (nested mount routes
+	# /boot/firmware/* to the firmware partition automatically).
 	BOOT_STAGING=$(mktemp -d)
 	unsquashfs -n -f -d $BOOT_STAGING $prep_results_dir/binary/live/filesystem.squashfs boot
-
-	# Mount partitions (nested: firmware and efi inside boot)
-	mkdir -p $TMPDIR/boot $TMPDIR/root
-	mount $BOOT_DEV $TMPDIR/boot
-	mkdir -p $TMPDIR/boot/firmware $TMPDIR/boot/efi
-	mount $FW_DEV $TMPDIR/boot/firmware
-	mount $ESP_DEV $TMPDIR/boot/efi
-	mount $ROOT_DEV $TMPDIR/root
-
-	# Copy boot files — nested mounts route firmware/* to the firmware partition
 	cp -a $BOOT_STAGING/boot/. $TMPDIR/boot/
 	rm -rf $BOOT_STAGING
 
-	mkdir $TMPDIR/root/images $TMPDIR/root/config
-	B3SUM=$(b3sum $prep_results_dir/binary/live/filesystem.squashfs | head -c 16)
-	cp $prep_results_dir/binary/live/filesystem.squashfs $TMPDIR/root/images/$B3SUM.rootfs
-	ln -rsf $TMPDIR/root/images/$B3SUM.rootfs $TMPDIR/root/config/current.rootfs
+	# Drop the squashfs onto the boot partition for live-init to find.
+	cp $prep_results_dir/binary/live/filesystem.squashfs $TMPDIR/boot/live/filesystem.squashfs
 
-	mkdir -p $TMPDIR/next $TMPDIR/lower $TMPDIR/root/config/work $TMPDIR/root/config/overlay
-	mount $TMPDIR/root/config/current.rootfs $TMPDIR/lower
+	# Install GRUB-EFI + generate grub.cfg by chrooting into the
+	# lb-built rootfs at chroot/chroot/. Bind-mount our boot partition
+	# (with ESP nested) at the chroot's /boot so grub-install writes
+	# the EFI loader to the ESP and modules to /boot.
+	mkdir -p chroot/chroot/dev chroot/chroot/proc chroot/chroot/sys
+	mount --bind /dev chroot/chroot/dev
+	mount -t proc proc chroot/chroot/proc
+	mount -t sysfs sysfs chroot/chroot/sys
+	mount --rbind $TMPDIR/boot chroot/chroot/boot
 
-	mount -t overlay -o lowerdir=$TMPDIR/lower,workdir=$TMPDIR/root/config/work,upperdir=$TMPDIR/root/config/overlay overlay $TMPDIR/next
+	chroot chroot/chroot grub-install --target=arm64-efi --removable \
+		--efi-directory=/boot/efi --boot-directory=/boot --no-nvram
+	chroot chroot/chroot update-grub
 
-	if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-		rsync -a $SOURCE_DIR/raspberrypi/img/ $TMPDIR/next/
+	umount -l chroot/chroot/boot
+	umount chroot/chroot/sys
+	umount chroot/chroot/proc
+	umount chroot/chroot/dev
 
-		# Install GRUB: ESP at /boot/efi (Part 2), /boot (Part 3)
-		mkdir -p $TMPDIR/next/boot \
-			$TMPDIR/next/dev $TMPDIR/next/proc $TMPDIR/next/sys $TMPDIR/next/media/startos/root
-		mount --rbind $TMPDIR/boot $TMPDIR/next/boot
-		mount --bind /dev $TMPDIR/next/dev
-		mount -t proc proc $TMPDIR/next/proc
-		mount -t sysfs sysfs $TMPDIR/next/sys
-		mount --bind $TMPDIR/root $TMPDIR/next/media/startos/root
-
-		chroot $TMPDIR/next grub-install --target=arm64-efi --removable --efi-directory=/boot/efi --boot-directory=/boot --no-nvram
-		chroot $TMPDIR/next update-grub
-
-		umount $TMPDIR/next/media/startos/root
-		umount $TMPDIR/next/sys
-		umount $TMPDIR/next/proc
-		umount $TMPDIR/next/dev
-		umount -l $TMPDIR/next/boot
-
-		# Fix root= in grub.cfg: update-grub sees loop devices, but the
-		# real device uses a fixed GPT PARTUUID for root (Part 4).
-		sed -i "s|root=[^ ]*|root=PARTUUID=${ROOT_UUID}|g" $TMPDIR/boot/grub/grub.cfg
-
-		# Inject first-boot resize script into GRUB config
-		sed -i 's| boot=startos| boot=startos init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/grub/grub.cfg
-	fi
-
-	umount $TMPDIR/next
-	umount $TMPDIR/lower
+	# Rewrite grub.cfg for live boot. update-grub used /etc/default/grub
+	# (boot=startos for the installed-disk path); we drop the installed-
+	# disk root= and replace boot=startos with live-init's invocation.
+	sed -i \
+		-e 's| root=[^ ]*||g' \
+		-e 's|boot=startos|boot=live components live-media-path=/live|g' \
+		$TMPDIR/boot/grub/grub.cfg
 
 	umount $TMPDIR/boot/firmware
 	umount $TMPDIR/boot/efi
 	umount $TMPDIR/boot
-	umount $TMPDIR/root
 
-	losetup -d $ROOT_DEV
 	losetup -d $BOOT_DEV
 	losetup -d $ESP_DEV
 	losetup -d $FW_DEV
