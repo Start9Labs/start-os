@@ -21,6 +21,7 @@ import { BindParams } from '.././osBindings'
 import { GetHostInfoParams } from '.././osBindings'
 import { CreateNotificationParams } from '.././osBindings'
 import { SetHealth } from '.././osBindings'
+import { SetBackupProgress } from '.././osBindings'
 import { GetSslCertificateParams } from '.././osBindings'
 import { GetSslKeyParams } from '.././osBindings'
 import { GetServiceInterfaceParams } from '.././osBindings'
@@ -77,6 +78,7 @@ describe('startosTypeValidation ', () => {
       setDataVersion: {} as SetDataVersionParams,
       getDataVersion: undefined,
       setHealth: {} as SetHealth,
+      setBackupProgress: {} as SetBackupProgress,
       notification: {
         create: {} as CreateNotificationParams,
       },
