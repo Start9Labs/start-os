@@ -1,15 +1,16 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { i18nKey } from '@start9labs/shared'
+import { i18nKey, phaseLeaf } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
 @Pipe({
   name: 'installingProgress',
 })
 export class InstallingProgressPipe implements PipeTransform {
-  transform(progress: T.Progress = false): number {
-    if (progress === true) return 100
-    if (progress === false || progress === null || !progress.total) return 0
-    return Math.floor((100 * progress.done) / progress.total)
+  transform(progress: T.PhaseProgress = false): number {
+    const leaf = phaseLeaf(progress)
+    if (leaf === true) return 100
+    if (leaf === false || leaf === null || !leaf.total) return 0
+    return Math.floor((100 * leaf.done) / leaf.total)
   }
 }
 

@@ -7,6 +7,7 @@ export function formatProgress({ phases, overall }: T.FullProgress): {
   return {
     total: getDecimal(overall),
     message: phases
+      .map(p => ({ name: p.name, progress: phaseLeaf(p.progress) }))
       .filter(
         (
           p,
@@ -18,6 +19,14 @@ export function formatProgress({ phases, overall }: T.FullProgress): {
       .map(p => `<b>${p.name}</b>${getDetails(p.progress)}`)
       .join(', '),
   }
+}
+
+/** Reduce a (possibly nested) phase progress to its overall leaf Progress. */
+export function phaseLeaf(p: T.PhaseProgress): T.Progress {
+  if (p !== null && typeof p === 'object' && 'overall' in p) {
+    return p.overall
+  }
+  return p as T.Progress
 }
 
 function getDecimal(progress: T.Progress): number {

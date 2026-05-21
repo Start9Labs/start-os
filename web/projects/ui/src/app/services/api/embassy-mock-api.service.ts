@@ -884,7 +884,7 @@ export class MockApiService extends ApiService {
 
     setTimeout(async () => {
       for (let i = 0; i < ids.length; i++) {
-        const id = ids[i]
+        const id = ids[i]!
         const appPath = `/packageData/${id}/statusInfo/desired/main`
         const appPatch: ReplaceOperation<T.DesiredStatus['main']>[] = [
           {
@@ -895,7 +895,18 @@ export class MockApiService extends ApiService {
         ]
         this.mockRevision(appPatch)
 
-        await pauseFor(8000)
+        for (const pct of [25, 50, 75]) {
+          await pauseFor(2000)
+          this.mockRevision([
+            {
+              op: PatchOp.REPLACE,
+              path: `${serverPath}/phases/${i}/progress`,
+              value: { done: pct, total: 100, units: null },
+            },
+          ])
+        }
+
+        await pauseFor(2000)
 
         this.mockRevision([
           {
@@ -904,19 +915,21 @@ export class MockApiService extends ApiService {
           },
         ])
 
-        const serverPatch: ReplaceOperation<T.BackupProgress['complete']>[] = [
-          {
-            op: PatchOp.REPLACE,
-            path: `${serverPath}/${id}/complete`,
-            value: true,
-          },
-        ]
-        this.mockRevision(serverPatch)
+        const completePhase: ReplaceOperation<T.PhaseProgress> = {
+          op: PatchOp.REPLACE,
+          path: `${serverPath}/phases/${i}/progress`,
+          value: true,
+        }
+        const advanceOverall: ReplaceOperation<T.Progress> = {
+          op: PatchOp.REPLACE,
+          path: `${serverPath}/overall`,
+          value: { done: i + 1, total: ids.length, units: null },
+        }
+        this.mockRevision([completePhase, advanceOverall])
       }
 
       await pauseFor(1000)
 
-      // remove backupProgress
       const lastPatch: ReplaceOperation<T.ServerStatus['backupProgress']>[] = [
         {
           op: PatchOp.REPLACE,
@@ -932,12 +945,10 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REPLACE,
           path: serverPath,
-          value: ids.reduce((acc, val) => {
-            return {
-              ...acc,
-              [val]: { complete: false },
-            }
-          }, {}),
+          value: {
+            overall: { done: 0, total: ids.length, units: null },
+            phases: ids.map(id => ({ name: id, progress: null })),
+          },
         },
       ]
 
@@ -1690,9 +1701,11 @@ export class MockApiService extends ApiService {
   }
 
   private async initProgress(): Promise<T.FullProgress> {
-    const progress = JSON.parse(JSON.stringify(PROGRESS))
+    // Cast to any: PhaseProgress now allows nested FullProgress, but the mock
+    // PROGRESS fixture only uses leaf shapes — we know it at the call site.
+    const progress: any = JSON.parse(JSON.stringify(PROGRESS))
 
-    for (let [i, phase] of progress.phases.entries()) {
+    for (let [i, phase] of progress.phases.entries() as [number, any][]) {
       if (
         !phase.progress ||
         typeof phase.progress !== 'object' ||
@@ -1743,9 +1756,10 @@ export class MockApiService extends ApiService {
     id: string,
     finalManifest?: T.Manifest,
   ): Promise<void> {
-    const progress = JSON.parse(JSON.stringify(PROGRESS))
+    // Cast to any: same reasoning as initProgress above.
+    const progress: any = JSON.parse(JSON.stringify(PROGRESS))
 
-    for (let [i, phase] of progress.phases.entries()) {
+    for (let [i, phase] of progress.phases.entries() as [number, any][]) {
       if (!phase.progress || phase.progress === true || !phase.progress.total) {
         await pauseFor(2000)
 

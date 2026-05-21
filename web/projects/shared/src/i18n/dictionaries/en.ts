@@ -754,4 +754,5 @@ export const ENGLISH: Record<string, number> = {
   'No compatible version available': 838,
   'instructions': 839,
   'This version has no instructions. Please update.': 840,
+  'Overall': 841,
 }

@@ -753,4 +753,5 @@ export default {
   838: 'Brak dostępnej kompatybilnej wersji',
   839: 'instrukcje',
   840: 'Ta wersja nie zawiera instrukcji. Proszę zaktualizować.',
+  841: 'Łącznie',
 } satisfies i18n
