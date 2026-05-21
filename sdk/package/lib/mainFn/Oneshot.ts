@@ -5,9 +5,11 @@ import { Daemon } from './Daemon'
 import { DaemonCommandType } from './Daemons'
 
 /**
- * A one-shot command: same machinery as a {@link Daemon} but exits after a
- * successful run instead of restarting.
+ * This is a wrapper around CommandController that has a state of off, where the command shouldn't be running
+ * and the others state of running, where it will keep a living running command
+ * unlike Daemon, does not restart on success
  */
+
 export class Oneshot<
   Manifest extends T.SDKManifest,
   C extends SubContainer<Manifest> | null = SubContainer<Manifest> | null,

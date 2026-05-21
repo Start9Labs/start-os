@@ -38,29 +38,98 @@ export const cpExecFile = promisify(CP.execFile)
  * to 1 s before the first non-pending result, then 30 s). During the initial
  * `gracePeriod` window, `failure` results are softened to `starting` so the
  * UI doesn't flash red while a daemon is still booting.
+ *
+ * ### Health check result states
+ *
+ * | Result      | Meaning                                              | UI treatment     |
+ * |-------------|------------------------------------------------------|------------------|
+ * | `success`   | Healthy and fully operational                        | Green / ready    |
+ * | `loading`   | Operational but still catching up (e.g. syncing)     | Progress / amber |
+ * | `disabled`  | Intentionally inactive (excluded by configuration)   | Grey / skipped   |
+ * | `starting`  | Not yet ready, still initializing                    | Spinner          |
+ * | `waiting`   | Blocked on an external dependency                    | Spinner          |
+ * | `failure`   | Unhealthy — something is wrong                       | Red / error      |
  */
 export type Ready = {
+  /**
+   * Human-readable label shown in the StartOS health-check UI.
+   * Set to `null` to hide this check from the UI entirely.
+   */
   display: string | null
+  /**
+   * The function called on each polling interval to determine the daemon's health.
+   *
+   * Return a {@link HealthCheckResult} with a `result` field (`success`, `loading`,
+   * `failure`, etc.) and an optional `message` string shown in the UI.
+   *
+   * The SDK ships several built-in helpers on `sdk.healthCheck`:
+   * - `checkPortListening` — checks whether a TCP/UDP port is bound
+   * - `checkWebUrl` — fetches a URL and succeeds on any HTTP response
+   * - `runHealthScript` — runs a command in a subcontainer and succeeds on exit 0
+   *
+   * @example
+   * ```ts
+   * fn: () =>
+   *   sdk.healthCheck.checkPortListening(effects, 80, {
+   *     successMessage: 'Web server is ready',
+   *     errorMessage: 'Web server is not listening',
+   *   })
+   * ```
+   */
   fn: () => Promise<HealthCheckResult> | HealthCheckResult
+  /**
+   * Duration in milliseconds during which `failure` results are reported
+   * as `starting` instead, giving the daemon time to initialize without
+   * showing errors in the UI.
+   *
+   * @default 10_000
+   */
   gracePeriod?: number
+  /**
+   * Controls the polling interval for this health check.
+   *
+   * Use one of the built-in triggers from `sdk.trigger`:
+   * - `cooldownTrigger(ms)` — fixed interval between checks
+   * - `statusTrigger({ success, loading, failure, ... })` — per-status
+   *   polling intervals
+   *
+   * If omitted, uses the default trigger: 1 s before the first non-pending
+   * result, then 30 s afterward.
+   */
   trigger?: Trigger
 }
 
-/** Options for running a daemon as a shell command inside a subcontainer. */
+/**
+ * Options for running a daemon as a shell command inside a subcontainer.
+ */
 export type ExecCommandOptions = {
+  /** The command and arguments to execute (e.g. `['bitcoind', '-conf=/etc/bitcoin.conf']`) */
   command: T.CommandType
+  /**
+   * How long (ms) to wait for the process to exit after sending SIGTERM
+   * before force-killing it.
+   *
+   * @default 30_000
+   */
   sigtermTimeout?: number
+  /** Run the command as PID 1 inside the container (init process) */
   runAsInit?: boolean
+  /** Environment variables to set for the process */
   env?: { [variable in string]?: string } | undefined
+  /** Working directory for the process */
   cwd?: string | undefined
+  /** Run the process as this user inside the container */
   user?: string | undefined
+  /** Callback invoked with each chunk written to stdout */
   onStdout?: (chunk: Buffer | string | any) => void
+  /** Callback invoked with each chunk written to stderr */
   onStderr?: (chunk: Buffer | string | any) => void
 }
 
 /**
- * Options for running a daemon via an async function that may optionally
- * return a command to execute in the subcontainer.
+ * Options for running a daemon via an async function that may optionally return
+ * a command to execute in the subcontainer. The function receives an `AbortSignal`
+ * for cooperative cancellation.
  */
 export type ExecFnOptions<
   Manifest extends T.SDKManifest,
@@ -70,9 +139,14 @@ export type ExecFnOptions<
     subcontainer: C,
     abort: AbortSignal,
   ) => Promise<C extends null ? null : ExecCommandOptions | null>
+  // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
   sigtermTimeout?: number
 }
 
+/**
+ * The execution specification for a daemon: either an {@link ExecFnOptions} (async function)
+ * or an {@link ExecCommandOptions} (shell command, only valid when a subcontainer is provided).
+ */
 export type DaemonCommandType<
   Manifest extends T.SDKManifest,
   C extends SubContainer<Manifest> | null,
@@ -82,7 +156,7 @@ type NewDaemonParams<
   Manifest extends T.SDKManifest,
   C extends SubContainer<Manifest> | null,
 > = {
-  /** What to run as the daemon: either an async fn or a commandline command */
+  /** What to run as the daemon: either an async fn or a commandline command to run in the subcontainer */
   exec: DaemonCommandType<Manifest, C>
   /** The subcontainer in which the daemon runs */
   subcontainer: C
@@ -115,11 +189,19 @@ type AddOneshotParams<
   Id extends string,
   C extends SubContainer<Manifest> | null,
 > = NewDaemonParams<Manifest, C> & {
+  /**
+   * IDs of prior daemons/oneshots/health checks that must be ready before
+   * this oneshot runs.
+   */
   requires: Exclude<Ids, Id>[]
 }
 
 type AddHealthCheckParams<Ids extends string, Id extends string> = {
   ready: Ready
+  /**
+   * IDs of prior daemons/oneshots/health checks that must be ready before
+   * this health check starts polling.
+   */
   requires: Exclude<Ids, Id>[]
 }
 
@@ -155,7 +237,7 @@ export const runCommand = <Manifest extends T.SDKManifest>() =>
   CommandController.of<Manifest, SubContainer<Manifest>>()
 
 /**
- * Builder for the service's daemon topology.
+ * A class for defining and controlling the service daemons
  *
  * `Daemons` is a record-then-build container: each `.addDaemon(...)` /
  * `.addOneshot(...)` / `.addHealthCheck(...)` call appends an entry to an
@@ -175,7 +257,15 @@ export const runCommand = <Manifest extends T.SDKManifest>() =>
  *   .addDaemon('webui', {
  *     subcontainer: sdk.SubContainer.of(effects, { imageId: 'main' }, mounts, 'webui'),
  *     exec: { command: ['hello-world'] },
- *     ready: { display: 'Web Interface', fn: () => sdk.healthCheck.checkPortListening(effects, 80, {}) },
+ *     ready: {
+ *       display: 'Web Interface',
+ *       // The function to run to determine the health status of the daemon
+ *       fn: () =>
+ *         checkPortListening(effects, 80, {
+ *           successMessage: 'The web interface is ready',
+ *           errorMessage: 'The web interface is not ready',
+ *         }),
+ *     },
  *     requires: [],
  *   })
  * ```

@@ -124,20 +124,17 @@ export interface SubContainer<
   readonly guid: T.Guid | Promise<T.Guid>
 
   /**
-   * Resolve a path within the subcontainer's rootfs. Sync `string` on
-   * {@link SubContainerEager}; `Promise<string>` on
+   * Get the absolute path to a file or directory within this subcontainer's rootfs.
+   * Sync `string` on {@link SubContainerEager}; `Promise<string>` on
    * {@link SubContainerLazy} (resolves after first materialization).
-   *
-   * @param path Path relative to the rootfs (e.g. `"/etc/config.json"` or `"data/file"`)
+   * @param path Path relative to the rootfs
    */
   subpath(path: string): string | Promise<string>
 
   /**
-   * Apply filesystem mounts (volumes, assets, dependencies, backups) to
-   * this subcontainer. Returns the same SubContainer for chaining. Lazy
-   * handles materialize on this call.
-   *
-   * @param mounts The Mounts configuration to apply
+   * Apply filesystem mounts (volumes, assets, dependencies, backups) to this subcontainer.
+   * Lazy handles materialize on this call.
+   * @param mounts - The Mounts configuration to apply
    * @returns This subcontainer instance for chaining
    */
   mount(mounts: MountsArg<Manifest, Effects>): Promise<this>
@@ -159,13 +156,13 @@ export interface SubContainer<
   destroy(): Promise<void>
 
   /**
-   * Run a command inside this subcontainer.
-   * Does NOT throw on non-zero exit (see {@link execFail}).
-   *
-   * @param command Argv array representing the command and its arguments
-   * @param options Optional environment, user, cwd, and stdin input
-   * @param timeoutMs How long to wait before SIGKILL (default 30 s, `null` for no timeout)
-   * @param abort Optional AbortController; aborting SIGKILLs the process
+   * @description run a command inside this subcontainer
+   * DOES NOT THROW ON NONZERO EXIT CODE (see execFail)
+   * @param command an array representing the command and args to execute
+   * @param options
+   * @param timeoutMs how long to wait before killing the command in ms
+   * @param abort optional AbortController; aborting SIGKILLs the process
+   * @returns
    */
   exec(
     command: string[],
@@ -181,13 +178,12 @@ export interface SubContainer<
   }>
 
   /**
-   * Run a command inside this subcontainer, throwing on non-zero exit
-   * status or signal.
-   *
-   * @param command Argv array representing the command and its arguments
-   * @param options Optional environment, user, cwd, and stdin input
-   * @param timeoutMs How long to wait before SIGKILL (default 30 s, `null` for no timeout)
-   * @param abort Optional AbortController; aborting SIGKILLs the process
+   * @description run a command inside this subcontainer, throwing on non-zero exit status
+   * @param command an array representing the command and args to execute
+   * @param options
+   * @param timeoutMs how long to wait before killing the command in ms
+   * @param abort optional AbortController; aborting SIGKILLs the process
+   * @returns
    * @throws {@link ExitError} on non-zero exit code or signal termination
    */
   execFail(
@@ -200,9 +196,8 @@ export interface SubContainer<
   /**
    * Launch a command as the init (PID 1) process of the subcontainer.
    * Replaces the current leader process.
-   *
-   * @param command Argv array representing the command and its arguments
-   * @param options Optional environment, working directory, and user overrides
+   * @param command - The command and arguments to execute
+   * @param options - Optional environment, working directory, and user overrides
    */
   launch(
     command: string[],
@@ -211,9 +206,8 @@ export interface SubContainer<
 
   /**
    * Spawn a command inside the subcontainer as a non-init process.
-   *
-   * @param command Argv array representing the command and its arguments
-   * @param options Optional environment, working directory, user, and stdio overrides
+   * @param command - The command and arguments to execute
+   * @param options - Optional environment, working directory, user, and stdio overrides
    */
   spawn(
     command: string[],
@@ -221,11 +215,10 @@ export interface SubContainer<
   ): Promise<cp.ChildProcess>
 
   /**
-   * Write a file to the subcontainer's filesystem.
-   *
-   * @param path Path relative to the subcontainer rootfs (e.g. `"/etc/config.json"`)
+   * @description Write a file to the subcontainer's filesystem
+   * @param path Path relative to the subcontainer rootfs (e.g. "/etc/config.json")
    * @param data The data to write
-   * @param options Optional write options (same as `node:fs/promises` `writeFile`)
+   * @param options Optional write options (same as node:fs/promises writeFile)
    */
   writeFile(
     path: string,
@@ -359,6 +352,8 @@ export const SubContainer = {
 }
 
 /**
+ * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
+ *
  * Eager subcontainer: its filesystem and leader process exist from
  * construction. `rootfs` / `guid` / `subpath()` are synchronous.
  *
