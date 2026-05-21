@@ -707,7 +707,7 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
     );
 
     let mut s9pk = S9pk::new(
-        MerkleArchive::new(files, ctx.developer_key()?.clone(), SIG_CONTEXT),
+        MerkleArchive::new(files, ctx.build_key()?, SIG_CONTEXT),
         None,
     )
     .await?;
