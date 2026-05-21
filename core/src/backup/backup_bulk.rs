@@ -261,6 +261,7 @@ async fn perform_backup(
             )
         })
         .collect();
+    let mut os_data_phase = progress.add_phase("OS Data".into(), Some(1));
     let _progress_db_sync = NonDetachingJoinHandle::from(tokio::spawn(progress.clone().sync_to_db(
         ctx.db.clone(),
         |db| {
@@ -318,14 +319,14 @@ async fn perform_backup(
             );
         }
     }
-    progress.complete();
-
     let mut backup_guard = Arc::try_unwrap(backup_guard).map_err(|_| {
         Error::new(
             eyre!("{}", t!("backup.bulk.leaked-reference")),
             ErrorKind::Incoherent,
         )
     })?;
+
+    os_data_phase.start();
 
     let ui = ctx.db.peek().await.into_public().into_ui().de()?;
 
@@ -349,6 +350,9 @@ async fn perform_backup(
     if tokio::fs::metadata(&luks_folder).await.is_ok() {
         dir_copy(luks_folder, &luks_folder_bak, None).await?;
     }
+
+    os_data_phase.complete();
+    progress.complete();
 
     let timestamp = Utc::now();
 

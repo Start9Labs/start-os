@@ -881,6 +881,9 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     const serverPath = '/serverInfo/statusInfo/backupProgress'
     const ids = params.packageIds || []
+    // One phase per package plus a trailing "OS Data" phase (the host
+    // writes os-backup.json + LUKS folder after the per-package loop).
+    const phaseCount = ids.length + 1
 
     setTimeout(async () => {
       for (let i = 0; i < ids.length; i++) {
@@ -923,12 +926,27 @@ export class MockApiService extends ApiService {
         const advanceOverall: ReplaceOperation<T.Progress> = {
           op: PatchOp.REPLACE,
           path: `${serverPath}/overall`,
-          value: { done: i + 1, total: ids.length, units: null },
+          value: { done: i + 1, total: phaseCount, units: null },
         }
         this.mockRevision([completePhase, advanceOverall])
       }
 
-      await pauseFor(1000)
+      // OS Data phase
+      const osIdx = ids.length
+      await pauseFor(1500)
+      const completeOsPhase: ReplaceOperation<T.PhaseProgress> = {
+        op: PatchOp.REPLACE,
+        path: `${serverPath}/phases/${osIdx}/progress`,
+        value: true,
+      }
+      const completeOverall: ReplaceOperation<T.Progress> = {
+        op: PatchOp.REPLACE,
+        path: `${serverPath}/overall`,
+        value: true,
+      }
+      this.mockRevision([completeOsPhase, completeOverall])
+
+      await pauseFor(800)
 
       const lastPatch: ReplaceOperation<T.ServerStatus['backupProgress']>[] = [
         {
@@ -946,8 +964,11 @@ export class MockApiService extends ApiService {
           op: PatchOp.REPLACE,
           path: serverPath,
           value: {
-            overall: { done: 0, total: ids.length, units: null },
-            phases: ids.map(id => ({ name: id, progress: null })),
+            overall: { done: 0, total: phaseCount, units: null },
+            phases: [
+              ...ids.map(id => ({ name: id, progress: null })),
+              { name: 'OS Data', progress: null },
+            ],
           },
         },
       ]

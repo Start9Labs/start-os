@@ -47,7 +47,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
             </span>
             <span tuiTitle>{{ (pkg | toManifest).title }}</span>
           } @else {
-            <span tuiTitle>{{ phase.name }}</span>
+            <span tuiTitle>{{ $any(phase.name) | i18n }}</span>
           }
           <span class="status">
             @if (leaf === true) {
