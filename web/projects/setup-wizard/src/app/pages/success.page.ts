@@ -1,23 +1,10 @@
-import {
-  AfterViewInit,
-  Component,
-  DOCUMENT,
-  ElementRef,
-  inject,
-  ViewChild,
-} from '@angular/core'
-import {
-  DialogService,
-  DownloadHTMLService,
-  ErrorService,
-  i18nPipe,
-} from '@start9labs/shared'
+import { AfterViewInit, Component, inject } from '@angular/core'
+import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiCell, TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { DocumentationComponent } from '../components/documentation.component'
 import { MatrixComponent } from '../components/matrix.component'
 import { MokEnrollmentDialog } from '../components/mok-enrollment.dialog'
 import { RemoveMediaDialog } from '../components/remove-media.dialog'
@@ -48,33 +35,9 @@ import { StateService } from '../services/state.service'
       @if (!result) {
         <tui-loader />
       } @else {
-        <!-- Step: Download Address Info (non-kiosk only) -->
-        @if (!stateService.kiosk) {
-          <button tuiCell="l" (click)="download()">
-            <span tuiAvatar="@tui.download" appearance="secondary"></span>
-            <span tuiTitle>
-              <b>{{ 'Download Address Info' | i18n }}</b>
-              <span tuiSubtitle>
-                {{
-                  "Contains your server's permanent local address and Root CA"
-                    | i18n
-                }}
-              </span>
-            </span>
-            @if (downloaded) {
-              <tui-icon icon="@tui.circle-check" class="g-positive" />
-            }
-          </button>
-        }
-
         <!-- Step: Restart flow -->
         @if (result.needsRestart) {
-          <button
-            tuiCell="l"
-            [class.disabled]="!stateService.kiosk && !downloaded"
-            [disabled]="!stateService.kiosk && !downloaded"
-            (click)="removeMedia()"
-          >
+          <button tuiCell="l" (click)="removeMedia()">
             <span tuiAvatar="@tui.usb" appearance="secondary"></span>
             <span tuiTitle>
               <b>{{ 'Remove Installation Media' | i18n }}</b>
@@ -170,8 +133,6 @@ import { StateService } from '../services/state.service'
               <span tuiSubtitle>{{ lanAddress }}</span>
             </span>
           </button>
-
-          <app-documentation hidden [lanAddress]="lanAddress" />
         }
       }
     </section>
@@ -189,20 +150,14 @@ import { StateService } from '../services/state.service'
     TuiLoader,
     TuiAvatar,
     MatrixComponent,
-    DocumentationComponent,
     TuiHeader,
     TuiTitle,
     i18nPipe,
   ],
 })
 export default class SuccessPage implements AfterViewInit {
-  @ViewChild(DocumentationComponent, { read: ElementRef })
-  private readonly documentation?: ElementRef<HTMLElement>
-
-  private readonly document = inject(DOCUMENT)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
-  private readonly downloadHtml = inject(DownloadHTMLService)
   private readonly dialogs = inject(DialogService)
   private readonly i18n = inject(i18nPipe)
 
@@ -210,38 +165,18 @@ export default class SuccessPage implements AfterViewInit {
 
   result?: T.SetupResult
   lanAddress = ''
-  downloaded = false
   usbRemoved = false
   mokAcknowledged = false
   rebooting = false
   rebooted = false
 
   get canOpenAddress(): boolean {
-    if (!this.downloaded) return false
     if (this.result?.needsRestart && !this.rebooted) return false
     return true
   }
 
   ngAfterViewInit() {
     setTimeout(() => this.complete(), 500)
-  }
-
-  download() {
-    const lanElem = this.document.getElementById('lan-addr')
-    if (lanElem) lanElem.innerHTML = this.lanAddress
-
-    this.document
-      .getElementById('cert')
-      ?.setAttribute(
-        'href',
-        `data:application/octet-stream;base64,${this.result!.rootCa}`,
-      )
-
-    const html = this.documentation?.nativeElement.innerHTML || ''
-
-    this.downloadHtml.download('StartOS-info.html', html).then(() => {
-      this.downloaded = true
-    })
   }
 
   removeMedia() {

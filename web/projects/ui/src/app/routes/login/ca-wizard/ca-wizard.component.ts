@@ -1,5 +1,10 @@
 import { Component, inject, DOCUMENT } from '@angular/core'
-import { DocsLinkDirective, i18nPipe, RELATIVE_URL } from '@start9labs/shared'
+import {
+  DocsLinkDirective,
+  i18nPipe,
+  RELATIVE_URL,
+  ROOT_CA_DOWNLOAD_HREF,
+} from '@start9labs/shared'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiCardLarge, TuiSurface } from '@taiga-ui/layout'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -24,6 +29,7 @@ export class CAWizardComponent {
   private readonly document = inject(DOCUMENT)
 
   readonly config = inject(ConfigService)
+  readonly rootCaHref = ROOT_CA_DOWNLOAD_HREF
   caTrusted = false
 
   async ngOnInit() {

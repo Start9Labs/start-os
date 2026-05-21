@@ -606,8 +606,6 @@ export default {
   670: 'Poczekaj 1–2 minuty i odśwież stronę',
   672: 'Konfiguracja zakończona!',
   675: 'http://start.local służył tylko do konfiguracji. Nie będzie już działać.',
-  676: 'Pobierz informacje adresowe',
-  677: 'Zawiera stały lokalny adres serwera oraz główny urząd certyfikacji (Root CA)',
   678: 'Usuń nośnik instalacyjny',
   679: 'Usuń pamięć USB lub inny nośnik instalacyjny z serwera',
   680: 'Uruchom ponownie serwer',

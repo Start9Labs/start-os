@@ -606,8 +606,6 @@ export default {
   670: 'Espere 1–2 minutos y actualice la página',
   672: '¡Configuración completa!',
   675: 'http://start.local era solo para la configuración. Ya no funcionará.',
-  676: 'Descargar información de direcciones',
-  677: 'Contiene la dirección local permanente de su servidor y la CA raíz',
   678: 'Retirar medio de instalación',
   679: 'Retire la memoria USB u otro medio de instalación de su servidor',
   680: 'Reiniciar servidor',

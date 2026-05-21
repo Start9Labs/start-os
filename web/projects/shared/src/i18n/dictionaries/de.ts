@@ -606,8 +606,6 @@ export default {
   670: 'Warten Sie 1–2 Minuten und aktualisieren Sie die Seite',
   672: 'Einrichtung abgeschlossen!',
   675: 'http://start.local war nur für die Einrichtung gedacht. Es funktioniert nicht mehr.',
-  676: 'Adressinformationen herunterladen',
-  677: 'Enthält die permanente lokale Adresse Ihres Servers und die Root-CA',
   678: 'Installationsmedium entfernen',
   679: 'Entfernen Sie den USB-Stick oder andere Installationsmedien von Ihrem Server',
   680: 'Server neu starten',

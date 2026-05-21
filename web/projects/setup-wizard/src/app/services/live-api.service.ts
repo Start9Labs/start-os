@@ -1,7 +1,6 @@
 import { Inject, Injectable, DOCUMENT } from '@angular/core'
 import {
   DiskInfo,
-  encodeBase64,
   FullKeyboard,
   HttpService,
   isRpcError,
@@ -123,15 +122,10 @@ export class LiveApiService extends ApiService {
   }
 
   async complete() {
-    const res = await this.rpcRequest<T.SetupResult>({
+    return this.rpcRequest<T.SetupResult>({
       method: 'setup.complete',
       params: {},
     })
-
-    return {
-      ...res,
-      rootCa: encodeBase64(res.rootCa),
-    }
   }
 
   async exit() {

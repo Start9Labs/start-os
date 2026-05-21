@@ -4,7 +4,7 @@ import {
   inject,
   input,
 } from '@angular/core'
-import { i18nPipe } from '@start9labs/shared'
+import { i18nPipe, ROOT_CA_DOWNLOAD_HREF } from '@start9labs/shared'
 import { TuiButton, TuiDataList, TuiDropdown, TuiInput } from '@taiga-ui/core'
 import { Authority, AuthorityService } from './authority.service'
 
@@ -49,7 +49,7 @@ import { Authority, AuthorityService } from './authority.service'
                 tuiOption
                 download
                 iconStart="@tui.download"
-                href="/static/local-root-ca.crt"
+                [href]="rootCaHref"
               >
                 {{ 'Download' | i18n }}
               </a>
@@ -81,6 +81,7 @@ export class AuthorityItemComponent {
   protected readonly service = inject(AuthorityService)
 
   readonly authority = input.required<Authority>()
+  readonly rootCaHref = ROOT_CA_DOWNLOAD_HREF
 
   open = false
 }

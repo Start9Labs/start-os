@@ -606,8 +606,6 @@ export default {
   670: 'Attendez 1 à 2 minutes puis actualisez la page',
   672: 'Configuration terminée !',
   675: 'http://start.local était réservé à la configuration. Il ne fonctionnera plus.',
-  676: 'Télécharger les informations d’adresse',
-  677: 'Contient l\u2019adresse locale permanente de votre serveur et la CA racine',
   678: 'Retirer le support d\u2019installation',
   679: 'Retirez la clé USB ou tout autre support d\u2019installation de votre serveur',
   680: 'Redémarrer le serveur',
