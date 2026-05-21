@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core'
 import {
   DiskInfo,
-  encodeBase64,
   FullKeyboard,
   pauseFor,
   SetLanguageParams,
@@ -73,7 +72,7 @@ export class MockApiService extends ApiService {
       return {
         status: 'complete',
         hostname: 'adjective-noun',
-        rootCa: encodeBase64(ROOT_CA),
+        rootCa: ROOT_CA,
         needsRestart: this.installCompleted,
       }
     }
@@ -174,7 +173,7 @@ export class MockApiService extends ApiService {
     await pauseFor(500)
     return {
       hostname: 'adjective-noun',
-      rootCa: encodeBase64(ROOT_CA),
+      rootCa: ROOT_CA,
       needsRestart: this.installCompleted,
     }
   }
