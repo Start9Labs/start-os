@@ -918,7 +918,7 @@ export class MockApiService extends ApiService {
           },
         ])
 
-        const completePhase: ReplaceOperation<T.PhaseProgress> = {
+        const completePhase: ReplaceOperation<T.Progress> = {
           op: PatchOp.REPLACE,
           path: `${serverPath}/phases/${i}/progress`,
           value: true,
@@ -934,7 +934,7 @@ export class MockApiService extends ApiService {
       // OS Data phase
       const osIdx = ids.length
       await pauseFor(1500)
-      const completeOsPhase: ReplaceOperation<T.PhaseProgress> = {
+      const completeOsPhase: ReplaceOperation<T.Progress> = {
         op: PatchOp.REPLACE,
         path: `${serverPath}/phases/${osIdx}/progress`,
         value: true,

@@ -25,7 +25,7 @@ export * from './pipes/empty.pipe'
 export * from './pipes/trust.pipe'
 export * from './pipes/convert-bytes.pipe'
 export * from './pipes/markdown.pipe'
-export * from './pipes/phase-leaf.pipe'
+export * from './pipes/leaf-progress.pipe'
 
 export * from './services/copy.service'
 export * from './services/dialog.service'

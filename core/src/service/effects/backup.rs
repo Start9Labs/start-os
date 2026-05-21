@@ -1,11 +1,11 @@
-use crate::progress::PhaseProgress;
+use crate::progress::Progress;
 use crate::service::effects::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetBackupProgress {
-    pub progress: PhaseProgress,
+    pub progress: Progress,
 }
 
 pub async fn set_backup_progress(

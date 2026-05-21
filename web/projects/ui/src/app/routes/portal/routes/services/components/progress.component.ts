@@ -4,7 +4,12 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { ErrorService, i18nPipe, PhaseLeafPipe } from '@start9labs/shared'
+import {
+  ErrorService,
+  i18nPipe,
+  leafProgress,
+  LeafProgressPipe,
+} from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiNotificationMiddleService, TuiProgress } from '@taiga-ui/kit'
@@ -33,7 +38,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       phase of pkg.stateInfo.installingInfo?.progress?.phases;
       track $index
     ) {
-      @let leaf = phase.progress | phaseLeaf;
+      @let leaf = phase.progress | leafProgress;
       @let percent = leaf | installingProgress;
       <div>
         {{ $any(phase.name) | i18n }}:
@@ -80,7 +85,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   imports: [
     TuiProgress,
     InstallingProgressPipe,
-    PhaseLeafPipe,
+    LeafProgressPipe,
     i18nPipe,
     TuiButton,
   ],
@@ -94,10 +99,8 @@ export class ServiceInstallProgressComponent {
   private readonly loader = inject(TuiNotificationMiddleService)
 
   isIndeterminate(progress: T.Progress): boolean {
-    return (
-      progress === false ||
-      (!!progress && progress !== true && progress.total === null)
-    )
+    const leaf = leafProgress(progress)
+    return leaf === false || (!!leaf && leaf !== true && leaf.total === null)
   }
 
   async cancel() {

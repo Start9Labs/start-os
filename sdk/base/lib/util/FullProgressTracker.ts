@@ -1,9 +1,4 @@
-import {
-  FullProgress,
-  PhaseProgress,
-  Progress,
-  ProgressUnits,
-} from '../osBindings'
+import { FullProgress, Progress, ProgressUnits } from '../osBindings'
 
 /**
  * Mirror of the core Rust `FullProgressTracker`. Use this when a service's
@@ -11,16 +6,17 @@ import {
  * the host's progress UI.
  *
  * Wire it up by `snapshot()`ing on demand and sending the result via
- * `effects.setBackupProgress({ progress: tracker.snapshot() })`.
+ * `effects.setBackupProgress({ progress: tracker.snapshot() })`. On the
+ * wire that snapshot lands as `Progress::Nested(FullProgress)`.
  *
- * Phases can be nested: `addNestedPhase` returns a child tracker that
- * the parent's snapshot folds in as `PhaseProgress::Nested(...)`.
+ * Phases can be nested: `addNestedPhase` returns a child tracker whose
+ * snapshot the parent folds in as a `Progress::Nested(...)` value.
  */
 export class FullProgressTracker {
   private phases: Array<{
     name: string
     contribution: number | null
-    value: () => PhaseProgress
+    value: () => Progress
   }> = []
   private completed = false
 
@@ -57,15 +53,17 @@ export class FullProgressTracker {
   private computeOverall(): Progress {
     const weighted = this.phases.filter(p => p.contribution !== null)
     if (weighted.length === 0) return null
-    const total = weighted.reduce((acc, p) => acc + (p.contribution as number), 0)
+    const total = weighted.reduce(
+      (acc, p) => acc + (p.contribution as number),
+      0,
+    )
     if (total <= 0) return null
     let done = 0
     let anyStarted = false
     for (const p of weighted) {
       const v = p.value()
-      const ratio = phaseRatio(v)
-      done += ratio * (p.contribution as number)
-      if (!isNotStarted(v)) anyStarted = true
+      done += progressRatio(v) * (p.contribution as number)
+      if (v !== null) anyStarted = true
     }
     if (!anyStarted) return null
     return { done: Math.floor(done), total, units: null }
@@ -82,7 +80,11 @@ export class PhaseHandle {
 
   setDone(done: number): void {
     if (this.state === true) return
-    if (this.state === null || this.state === false) {
+    if (
+      this.state === null ||
+      this.state === false ||
+      isFullProgress(this.state)
+    ) {
       this.state = { done, total: null, units: null }
       return
     }
@@ -93,7 +95,11 @@ export class PhaseHandle {
 
   setTotal(total: number): void {
     if (this.state === true) return
-    if (this.state === null || this.state === false) {
+    if (
+      this.state === null ||
+      this.state === false ||
+      isFullProgress(this.state)
+    ) {
       this.state = { done: 0, total, units: null }
       return
     }
@@ -105,6 +111,7 @@ export class PhaseHandle {
     if (
       this.state === null ||
       this.state === false ||
+      isFullProgress(this.state) ||
       this.state.total === null
     ) {
       this.setTotal(total)
@@ -115,7 +122,11 @@ export class PhaseHandle {
 
   setUnits(units: ProgressUnits | null): void {
     if (this.state === true) return
-    if (this.state === null || this.state === false) {
+    if (
+      this.state === null ||
+      this.state === false ||
+      isFullProgress(this.state)
+    ) {
       this.state = { done: 0, total: null, units }
       return
     }
@@ -126,37 +137,34 @@ export class PhaseHandle {
     this.state = true
   }
 
-  /** Replace this phase's value wholesale (e.g. a precomputed Progress). */
+  /** Replace this phase's value wholesale — accepts any `Progress`, including a nested `FullProgress`. */
   setRaw(value: Progress): void {
     this.state = value
   }
 
-  snapshot(): PhaseProgress {
+  snapshot(): Progress {
     return this.state
   }
 }
 
-function isNotStarted(p: PhaseProgress): boolean {
-  if (p === null) return true
-  if (typeof p === 'boolean') return false
-  if ('overall' in p) return isNotStartedProgress(p.overall)
-  return false
+function isFullProgress(p: Progress): p is FullProgress {
+  return p !== null && typeof p === 'object' && 'overall' in p
 }
 
-function isNotStartedProgress(p: Progress): boolean {
-  return p === null
-}
+/** Scalar `Progress` — every variant except `Nested(FullProgress)`. */
+export type LeafProgress = Exclude<Progress, FullProgress>
 
-function phaseRatio(p: PhaseProgress): number {
-  if (p === null) return 0
-  if (typeof p === 'boolean') return p ? 1 : 0
-  if ('overall' in p) return progressRatio(p.overall)
-  return progressRatio(p as Progress)
+/** Walk through any `Nested` layers and return the scalar `Progress`. */
+export function leafProgress(p: Progress): LeafProgress {
+  let cur = p
+  while (isFullProgress(cur)) cur = cur.overall
+  return cur as LeafProgress
 }
 
 function progressRatio(p: Progress): number {
-  if (p === true) return 1
-  if (p === false || p === null) return 0
-  if (p.total === null || p.total <= 0) return 0
-  return Math.min(1, p.done / p.total)
+  const leaf = leafProgress(p)
+  if (leaf === true) return 1
+  if (leaf === false || leaf === null) return 0
+  if (leaf.total === null || leaf.total <= 0) return 0
+  return Math.min(1, leaf.done / leaf.total)
 }

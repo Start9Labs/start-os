@@ -1,7 +1,7 @@
 import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { i18nPipe, PhaseLeafPipe } from '@start9labs/shared'
+import { i18nPipe, LeafProgressPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiIcon, TuiTitle, TuiCell } from '@taiga-ui/core'
 import { TuiAvatar, TuiProgress } from '@taiga-ui/kit'
@@ -17,7 +17,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     <header>{{ 'Backup Progress' | i18n }}</header>
     @let bp = backupProgress();
     @if (bp) {
-      @let overallLeaf = bp.overall | phaseLeaf;
+      @let overallLeaf = bp.overall | leafProgress;
       @let overallPct = overallLeaf | installingProgress;
       <div class="overall">
         <span class="label">{{ 'Overall' | i18n }}</span>
@@ -38,7 +38,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       </div>
       @for (phase of bp.phases; track phase.name) {
         @let pkg = pkgs()?.[phase.name];
-        @let leaf = phase.progress | phaseLeaf;
+        @let leaf = phase.progress | leafProgress;
         @let percent = leaf | installingProgress;
         <div tuiCell>
           @if (pkg) {
@@ -120,7 +120,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     TuiIcon,
     TuiProgress,
     ToManifestPipe,
-    PhaseLeafPipe,
+    LeafProgressPipe,
     InstallingProgressPipe,
     i18nPipe,
   ],

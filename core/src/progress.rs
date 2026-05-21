@@ -32,8 +32,9 @@ pub enum ProgressUnits {
     Steps,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(untagged)]
+#[ts(export)]
 pub enum Progress {
     NotStarted(()),
     Complete(bool),
@@ -44,12 +45,23 @@ pub enum Progress {
         total: Option<u64>,
         units: Option<ProgressUnits>,
     },
+    /// A sub-tree of progress. Used by `NamedProgress.progress` so a phase
+    /// can carry its own `FullProgress` with sub-phases. Producers are
+    /// expected to keep `FullProgress.overall` scalar (not nested again).
+    Nested(Box<FullProgress>),
 }
 impl Progress {
     pub fn new() -> Self {
         Progress::NotStarted(())
     }
-    pub fn update_bar(self, bar: &ProgressBar) {
+    /// Walk through `Nested` to the leaf scalar progress (or `NotStarted` if the tree is empty).
+    pub fn leaf(&self) -> Progress {
+        match self {
+            Self::Nested(fp) => fp.overall.leaf(),
+            other => other.clone(),
+        }
+    }
+    pub fn update_bar(&self, bar: &ProgressBar) {
         match self {
             Self::NotStarted(()) => {
                 bar.set_style(SPINNER.clone());
@@ -66,12 +78,12 @@ impl Progress {
                 total: None,
                 units,
             } => {
-                if units == Some(ProgressUnits::Bytes) {
+                if *units == Some(ProgressUnits::Bytes) {
                     bar.set_style(BYTES.clone());
                 } else {
                     bar.set_style(STEPS.clone());
                 }
-                bar.set_position(done);
+                bar.set_position(*done);
                 bar.tick();
             }
             Self::Progress {
@@ -79,119 +91,122 @@ impl Progress {
                 total: Some(total),
                 units,
             } => {
-                if units == Some(ProgressUnits::Bytes) {
+                if *units == Some(ProgressUnits::Bytes) {
                     bar.set_style(PERCENTAGE_BYTES.clone());
                 } else {
                     bar.set_style(PERCENTAGE.clone());
                 }
-                bar.set_position(done);
-                bar.set_length(total);
+                bar.set_position(*done);
+                bar.set_length(*total);
                 bar.tick();
             }
+            Self::Nested(fp) => fp.overall.update_bar(bar),
         }
     }
     pub fn start(&mut self) {
-        *self = match *self {
-            Self::NotStarted(()) => Self::Complete(false),
-            a => a,
-        };
+        if matches!(self, Self::NotStarted(())) {
+            *self = Self::Complete(false);
+        }
     }
     pub fn set_done(&mut self, done: u64) {
-        *self = match *self {
-            Self::Complete(false) | Self::NotStarted(()) => Self::Progress {
-                done,
-                total: None,
-                units: None,
-            },
-            Self::Progress {
-                mut done,
-                total,
-                units,
-            } => {
-                if let Some(total) = total {
-                    if done > total {
-                        done = total;
-                    }
-                }
-                Self::Progress { done, total, units }
+        match self {
+            Self::Complete(false) | Self::NotStarted(()) => {
+                *self = Self::Progress {
+                    done,
+                    total: None,
+                    units: None,
+                };
             }
-            Self::Complete(true) => Self::Complete(true),
-        };
+            Self::Progress {
+                done: d,
+                total,
+                ..
+            } => {
+                *d = match total {
+                    Some(t) => done.min(*t),
+                    None => done,
+                };
+            }
+            Self::Complete(true) | Self::Nested(_) => {}
+        }
     }
     pub fn set_total(&mut self, total: u64) {
-        *self = match *self {
-            Self::Complete(false) | Self::NotStarted(()) => Self::Progress {
-                done: 0,
-                total: Some(total),
-                units: None,
-            },
-            Self::Progress { done, units, .. } => Self::Progress {
-                done,
-                total: Some(total),
-                units,
-            },
-            Self::Complete(true) => Self::Complete(true),
+        match self {
+            Self::Complete(false) | Self::NotStarted(()) => {
+                *self = Self::Progress {
+                    done: 0,
+                    total: Some(total),
+                    units: None,
+                };
+            }
+            Self::Progress { total: t, .. } => *t = Some(total),
+            Self::Complete(true) | Self::Nested(_) => {}
         }
     }
     pub fn add_total(&mut self, total: u64) {
-        if let Self::Progress {
-            done,
-            total: Some(old),
-            units,
-        } = *self
-        {
-            *self = Self::Progress {
-                done,
-                total: Some(old + total),
-                units,
-            };
-        } else {
-            self.set_total(total)
+        match self {
+            Self::Progress {
+                total: Some(t), ..
+            } => *t += total,
+            Self::Complete(true) | Self::Nested(_) => {}
+            _ => self.set_total(total),
         }
     }
     pub fn set_units(&mut self, units: Option<ProgressUnits>) {
-        *self = match *self {
-            Self::Complete(false) | Self::NotStarted(()) => Self::Progress {
-                done: 0,
-                total: None,
-                units,
-            },
-            Self::Progress { done, total, .. } => Self::Progress { done, total, units },
-            Self::Complete(true) => Self::Complete(true),
-        };
+        match self {
+            Self::Complete(false) | Self::NotStarted(()) => {
+                *self = Self::Progress {
+                    done: 0,
+                    total: None,
+                    units,
+                };
+            }
+            Self::Progress { units: u, .. } => *u = units,
+            Self::Complete(true) | Self::Nested(_) => {}
+        }
     }
     pub fn set_complete(&mut self) {
-        *self = Self::Complete(true);
+        match self {
+            Self::Nested(fp) => {
+                fp.overall.set_complete();
+                for phase in &mut fp.phases {
+                    phase.progress.set_complete();
+                }
+            }
+            _ => *self = Self::Complete(true),
+        }
     }
     pub fn is_complete(&self) -> bool {
-        matches!(self, Self::Complete(true))
-    }
-}
-impl std::ops::Add<u64> for Progress {
-    type Output = Self;
-    fn add(self, rhs: u64) -> Self::Output {
         match self {
-            Self::Complete(false) | Self::NotStarted(()) => Self::Progress {
-                done: rhs,
-                total: None,
-                units: None,
-            },
-            Self::Progress { done, total, units } => {
-                let mut done = done + rhs;
-                if let Some(total) = total {
-                    if done > total {
-                        done = total;
-                    }
-                }
-                Self::Progress { done, total, units }
-            }
-            Self::Complete(true) => Self::Complete(true),
+            Self::Complete(true) => true,
+            Self::Nested(fp) => fp.overall.is_complete(),
+            _ => false,
         }
     }
 }
 impl std::ops::AddAssign<u64> for Progress {
     fn add_assign(&mut self, rhs: u64) {
-        *self = *self + rhs;
+        match self {
+            Self::Complete(false) | Self::NotStarted(()) => {
+                *self = Self::Progress {
+                    done: rhs,
+                    total: None,
+                    units: None,
+                };
+            }
+            Self::Progress {
+                done,
+                total,
+                ..
+            } => {
+                let new = *done + rhs;
+                *done = match total {
+                    Some(t) => new.min(*t),
+                    None => new,
+                };
+            }
+            Self::Complete(true) | Self::Nested(_) => {}
+        }
     }
 }
 
@@ -200,7 +215,7 @@ impl std::ops::AddAssign<u64> for Progress {
 pub struct NamedProgress {
     #[ts(type = "string")]
     pub name: InternedString,
-    pub progress: PhaseProgress,
+    pub progress: Progress,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
@@ -218,56 +233,11 @@ impl FullProgress {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, TS)]
-#[serde(untagged)]
-#[ts(export)]
-pub enum PhaseProgress {
-    Nested(FullProgress),
-    Leaf(Progress),
-}
-impl PhaseProgress {
-    pub fn overall(&self) -> Progress {
-        match self {
-            PhaseProgress::Leaf(p) => *p,
-            PhaseProgress::Nested(fp) => fp.overall,
-        }
-    }
-    pub fn is_complete(&self) -> bool {
-        self.overall().is_complete()
-    }
-    pub fn set_complete(&mut self) {
-        match self {
-            PhaseProgress::Leaf(p) => p.set_complete(),
-            PhaseProgress::Nested(fp) => {
-                fp.overall.set_complete();
-                for phase in &mut fp.phases {
-                    phase.progress.set_complete();
-                }
-            }
-        }
-    }
-}
-impl Default for PhaseProgress {
-    fn default() -> Self {
-        PhaseProgress::Leaf(Progress::new())
-    }
-}
-impl From<Progress> for PhaseProgress {
-    fn from(p: Progress) -> Self {
-        PhaseProgress::Leaf(p)
-    }
-}
-impl From<FullProgress> for PhaseProgress {
-    fn from(fp: FullProgress) -> Self {
-        PhaseProgress::Nested(fp)
-    }
-}
-
 #[derive(Clone)]
 pub struct FullProgressTracker {
     log: bool,
     overall: watch::Sender<Progress>,
-    phases: watch::Sender<Vector<(InternedString, watch::Receiver<PhaseProgress>)>>,
+    phases: watch::Sender<Vector<(InternedString, watch::Receiver<Progress>)>>,
 }
 impl FullProgressTracker {
     pub fn new() -> Self {
@@ -284,7 +254,7 @@ impl FullProgressTracker {
     }
     pub fn snapshot(&self) -> FullProgress {
         FullProgress {
-            overall: *self.overall.borrow(),
+            overall: self.overall.borrow().clone(),
             phases: self
                 .phases
                 .borrow()
@@ -299,9 +269,8 @@ impl FullProgressTracker {
     pub fn stream(&self, min_interval: Option<Duration>) -> BoxStream<'static, FullProgress> {
         struct StreamState {
             overall: watch::Receiver<Progress>,
-            phases_recv:
-                watch::Receiver<Vector<(InternedString, watch::Receiver<PhaseProgress>)>>,
-            phases: Vector<(InternedString, watch::Receiver<PhaseProgress>)>,
+            phases_recv: watch::Receiver<Vector<(InternedString, watch::Receiver<Progress>)>>,
+            phases: Vector<(InternedString, watch::Receiver<Progress>)>,
         }
         let mut overall = self.overall.subscribe();
         overall.mark_changed(); // make sure stream starts with a value
@@ -344,7 +313,7 @@ impl FullProgressTracker {
                 phases.truncate(phases_ref.len());
                 drop(phases_ref);
 
-                let o = *overall.borrow_and_update();
+                let o = overall.borrow_and_update().clone();
 
                 Some((
                     FullProgress {
@@ -420,7 +389,7 @@ impl FullProgressTracker {
             self.overall
                 .send_modify(|o| o.add_total(overall_contribution));
         }
-        let (send, recv) = watch::channel(PhaseProgress::default());
+        let (send, recv) = watch::channel(Progress::new());
         let log = self.log.then(|| name.clone());
         self.phases.send_modify(|p| {
             p.push_back((name, recv));
@@ -439,13 +408,14 @@ impl FullProgressTracker {
 }
 
 fn progress_ratio(p: &Progress) -> Option<f64> {
-    match *p {
+    match p {
         Progress::Complete(true) => Some(1.0),
         Progress::Progress {
             done,
             total: Some(total),
             ..
-        } if total > 0 => Some((done as f64 / total as f64).min(1.0)),
+        } if *total > 0 => Some((*done as f64 / *total as f64).min(1.0)),
+        Progress::Nested(fp) => progress_ratio(&fp.overall),
         _ => None,
     }
 }
@@ -455,13 +425,12 @@ pub struct PhaseProgressTrackerHandle {
     overall: watch::Sender<Progress>,
     overall_contribution: Option<u64>,
     contributed: u64,
-    progress: watch::Sender<PhaseProgress>,
+    progress: watch::Sender<Progress>,
 }
 impl PhaseProgressTrackerHandle {
     fn update_overall(&mut self) {
         if let Some(overall_contribution) = self.overall_contribution {
-            let overall = self.progress.borrow().overall();
-            let contribution = match progress_ratio(&overall) {
+            let contribution = match progress_ratio(&*self.progress.borrow()) {
                 Some(r) => (r * overall_contribution as f64) as u64,
                 None => 0,
             };
@@ -472,39 +441,29 @@ impl PhaseProgressTrackerHandle {
             }
         }
     }
-    fn modify_leaf<F: FnOnce(&mut Progress)>(&self, f: F) {
-        self.progress.send_modify(|pp| match pp {
-            PhaseProgress::Leaf(p) => f(p),
-            _ => {
-                let mut p = Progress::new();
-                f(&mut p);
-                *pp = PhaseProgress::Leaf(p);
-            }
-        });
-    }
     pub fn start(&mut self) {
         if let Some(name) = &self.log {
             tracing::info!("{}...", name)
         }
-        self.modify_leaf(|p| p.start());
+        self.progress.send_modify(|p| p.start());
     }
     pub fn set_done(&mut self, done: u64) {
-        self.modify_leaf(|p| p.set_done(done));
+        self.progress.send_modify(|p| p.set_done(done));
         self.update_overall();
     }
     pub fn set_total(&mut self, total: u64) {
-        self.modify_leaf(|p| p.set_total(total));
+        self.progress.send_modify(|p| p.set_total(total));
         self.update_overall();
     }
     pub fn add_total(&mut self, total: u64) {
-        self.modify_leaf(|p| p.add_total(total));
+        self.progress.send_modify(|p| p.add_total(total));
         self.update_overall();
     }
     pub fn set_units(&mut self, units: Option<ProgressUnits>) {
-        self.modify_leaf(|p| p.set_units(units));
+        self.progress.send_modify(|p| p.set_units(units));
     }
     pub fn complete(&mut self) {
-        self.modify_leaf(|p| p.set_complete());
+        self.progress.send_modify(|p| p.set_complete());
         self.update_overall();
         if let Some(name) = &self.log {
             tracing::info!("{}: complete", name)
@@ -512,7 +471,9 @@ impl PhaseProgressTrackerHandle {
     }
     /// Replace this phase's value wholesale — used when the value is sourced
     /// externally (e.g. relayed from a service container via setBackupProgress).
-    pub fn set_phase_value(&mut self, value: PhaseProgress) {
+    /// Accepts a nested `Progress::Nested(FullProgress)` if the source is
+    /// driving its own sub-tracker.
+    pub fn set_phase_value(&mut self, value: Progress) {
         self.progress.send_replace(value);
         self.update_overall();
     }
@@ -525,7 +486,7 @@ impl PhaseProgressTrackerHandle {
 }
 impl std::ops::AddAssign<u64> for PhaseProgressTrackerHandle {
     fn add_assign(&mut self, rhs: u64) {
-        self.modify_leaf(|p| *p += rhs);
+        self.progress.send_modify(|p| *p += rhs);
         self.update_overall();
     }
 }
@@ -637,7 +598,7 @@ impl PhasedProgressBar {
         for (name, bar) in self.phases.iter() {
             if let Some(progress) = progress.phases.iter().find_map(|p| {
                 if &p.name == name {
-                    Some(p.progress.overall())
+                    Some(&p.progress)
                 } else {
                     None
                 }
