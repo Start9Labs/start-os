@@ -371,20 +371,18 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
         if index.internal {
             for part in index.parts {
                 let mut disk_info = disk_info(disk.clone()).await;
-                let part_info = part_info(part).await;
-                disk_info.logicalname = part_info.logicalname.clone();
-                disk_info.capacity = part_info.capacity;
-                if let Some(g) = disk_guids.get(&disk_info.logicalname) {
-                    disk_info.guid = g.clone();
-                    if let Some(guid) = g {
-                        disk_info.filesystem = crate::disk::main::probe_package_data_fs(guid)
-                            .await
-                            .unwrap_or_else(|e| {
-                                tracing::warn!("Failed to probe filesystem for {guid}: {e}");
-                                None
-                            });
-                    }
+                if let Some(g) = disk_guids.get(&part) {
+                    let pi = lvm_pv_part_info(part, g.clone()).await;
+                    disk_info.logicalname = pi.logicalname;
+                    disk_info.capacity = pi.capacity;
+                    disk_info.guid = pi.guid;
+                    disk_info.filesystem = pi.filesystem;
                 } else {
+                    let Some(part_info) = part_info(part).await else {
+                        continue;
+                    };
+                    disk_info.logicalname = part_info.logicalname.clone();
+                    disk_info.capacity = part_info.capacity;
                     disk_info.partitions = vec![part_info];
                 }
                 res.push(disk_info);
@@ -404,18 +402,14 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
                 }
             } else {
                 for part in index.parts {
-                    let mut part_info = part_info(part).await;
-                    if let Some(g) = disk_guids.get(&part_info.logicalname) {
-                        part_info.guid = g.clone();
-                        if let Some(guid) = g {
-                            part_info.filesystem = crate::disk::main::probe_package_data_fs(guid)
-                                .await
-                                .unwrap_or_else(|e| {
-                                    tracing::warn!("Failed to probe filesystem for {guid}: {e}");
-                                    None
-                                });
-                        }
-                    }
+                    let part_info = if let Some(g) = disk_guids.get(&part) {
+                        lvm_pv_part_info(part, g.clone()).await
+                    } else {
+                        let Some(pi) = part_info(part).await else {
+                            continue;
+                        };
+                        pi
+                    };
                     disk_info.partitions.push(part_info);
                 }
             }
@@ -491,8 +485,42 @@ async fn disk_info(disk: PathBuf) -> DiskInfo {
     }
 }
 
-async fn part_info(part: PathBuf) -> PartitionInfo {
-    let mut start_os = BTreeMap::new();
+async fn lvm_pv_part_info(part: PathBuf, guid: Option<InternedString>) -> PartitionInfo {
+    let capacity = get_capacity(&part)
+        .await
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-capacity-part",
+                    part = part.display(),
+                    error = e.source
+                )
+            )
+        })
+        .unwrap_or_default();
+    let filesystem = if let Some(ref guid) = guid {
+        crate::disk::main::probe_package_data_fs(guid)
+            .await
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to probe filesystem for {guid}: {e}");
+                None
+            })
+    } else {
+        None
+    };
+    PartitionInfo {
+        logicalname: part,
+        label: None,
+        capacity,
+        used: None,
+        start_os: BTreeMap::new(),
+        guid,
+        filesystem,
+    }
+}
+
+async fn part_info(part: PathBuf) -> Option<PartitionInfo> {
     let label = get_label(&part)
         .await
         .map_err(|e| {
@@ -519,52 +547,57 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
             )
         })
         .unwrap_or_default();
-    let mut used = None;
 
-    match TmpMountGuard::mount(&BlockDev::new(&part), ReadOnly).await {
-        Err(e) => tracing::warn!(
-            "{}",
-            t!("disk.util.could-not-collect-usage-info", error = e.source)
-        ),
-        Ok(mount_guard) => {
-            used = get_used(mount_guard.path())
-                .await
-                .map_err(|e| {
-                    tracing::warn!(
-                        "{}",
-                        t!(
-                            "disk.util.could-not-get-usage",
-                            part = part.display(),
-                            error = e.source
-                        )
-                    )
-                })
-                .ok();
-            match recovery_info(mount_guard.path()).await {
-                Ok(a) => {
-                    start_os = a;
-                }
-                Err(e) => {
-                    tracing::error!(
-                        "{}",
-                        t!("disk.util.error-fetching-backup-metadata", error = e)
-                    );
-                }
-            }
-            if let Err(e) = mount_guard.unmount().await {
-                tracing::error!(
-                    "{}",
-                    t!(
-                        "disk.util.error-unmounting-partition",
-                        part = part.display(),
-                        error = e
-                    )
-                );
-            }
+    let mount_guard = match TmpMountGuard::mount(&BlockDev::new(&part), ReadOnly).await {
+        Err(e) => {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.skipping-unmountable-partition",
+                    part = part.display(),
+                    error = e.source
+                )
+            );
+            return None;
         }
+        Ok(g) => g,
+    };
+
+    let used = get_used(mount_guard.path())
+        .await
+        .map_err(|e| {
+            tracing::warn!(
+                "{}",
+                t!(
+                    "disk.util.could-not-get-usage",
+                    part = part.display(),
+                    error = e.source
+                )
+            )
+        })
+        .ok();
+    let start_os = match recovery_info(mount_guard.path()).await {
+        Ok(a) => a,
+        Err(e) => {
+            tracing::error!(
+                "{}",
+                t!("disk.util.error-fetching-backup-metadata", error = e)
+            );
+            BTreeMap::new()
+        }
+    };
+    if let Err(e) = mount_guard.unmount().await {
+        tracing::error!(
+            "{}",
+            t!(
+                "disk.util.error-unmounting-partition",
+                part = part.display(),
+                error = e
+            )
+        );
     }
 
-    PartitionInfo {
+    Some(PartitionInfo {
         logicalname: part,
         label,
         capacity,
@@ -572,7 +605,7 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
         start_os,
         guid: None,
         filesystem: None,
-    }
+    })
 }
 
 fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<InternedString>> {
