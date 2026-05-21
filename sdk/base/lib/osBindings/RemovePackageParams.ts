@@ -5,6 +5,7 @@ import type { Version } from './Version'
 
 export type RemovePackageParams = {
   id: PackageId
-  version: Version
+  version: Version | null
   sighash: Base64 | null
+  force: boolean
 }
