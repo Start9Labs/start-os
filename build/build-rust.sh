@@ -34,7 +34,13 @@ if [ "$RUST_ARCH" = "riscv64gc" ]; then
 	# Clear the image's RVA23 default so our RUSTFLAGS takes effect
 	# (CARGO_TARGET_<triple>_RUSTFLAGS outranks RUSTFLAGS when both are set).
 	export CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_MUSL_RUSTFLAGS=""
-	export RUSTFLAGS="-C target-cpu=generic-rv64 -C target-feature=+m,+a,+f,+d,+c,+v,+zicsr,+zifencei,+zicntr,+zihpm,+ziccif,+ziccamoa,+zicclsm,+ziccrse,+za64rs,+zihintpause,+zic64b,+zicbom,+zicbop,+zicboz,+zba,+zbb,+zbs,+zkt,+zihintntl,+zawrs"
+	# Deliberately NO `+v`. K1 implements V 1.0 but traps on misaligned
+	# vector-element accesses, and the Bianbu 6.6 kernel does not emulate
+	# them — so any V instruction LLVM's auto-vectoriser emits (blake3,
+	# memcpy, TLS record assembly) surfaces as a userspace SIGBUS/BUS_ADRALN
+	# with no Rust panic. Keep V off globally; re-enable per-audited-crate
+	# only. build/verify-isa.sh fails the build if V instructions appear.
+	export RUSTFLAGS="-C target-cpu=generic-rv64 -C target-feature=+m,+a,+f,+d,+c,+zicsr,+zifencei,+zicntr,+zihpm,+ziccif,+ziccamoa,+zicclsm,+ziccrse,+za64rs,+zihintpause,+zic64b,+zicbom,+zicbop,+zicboz,+zba,+zbb,+zbs,+zkt,+zihintntl,+zawrs"
 	# C deps (aws-lc-sys, ring, openssl-sys, zstd-sys) go through our
 	# K1-pinned zigcc wrapper, which bakes -mcpu into its zig cc invocation.
 	# Do NOT also set CFLAGS_<target>: aws-lc-sys's jitter-entropy sub-build

@@ -13,6 +13,8 @@ import {
   SetUciReq,
   SetUciRes,
   VersionInfo,
+  SystemUpdateReq,
+  SystemUpdateRes,
   SetPasswordReq,
   SetPreferencesReq,
   VpnServer,
@@ -272,6 +274,11 @@ export class MockApiService extends ApiService {
 - Performance improvements for VPN connections`,
       },
     ]
+  }
+
+  async systemUpdate(params: SystemUpdateReq): Promise<SystemUpdateRes> {
+    await pauseFor(500)
+    return { target: '1.0.2', progress: 'mock-guid-1234' }
   }
 
   async systemRestart(): Promise<null> {

@@ -8,6 +8,7 @@ import {
 } from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { WA_LOCAL_STORAGE } from '@ng-web-apis/common'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiAnimated, TuiValueChanges } from '@taiga-ui/cdk'
 import {
   TUI_DARK_MODE,
@@ -27,10 +28,12 @@ import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import {
   TuiAccordion,
   TuiChevron,
+  TUI_CONFIRM,
   TuiDataListWrapper,
   TuiSelect,
 } from '@taiga-ui/kit'
 import { TuiElasticContainer, TuiHeader } from '@taiga-ui/layout'
+import { filter } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
 import { MarkdownPipe } from 'src/app/pipes/markdown.pipe'
@@ -41,6 +44,7 @@ import {
   Theme,
 } from 'src/app/services/api/api.service'
 import { SystemService } from 'src/app/services/system.service'
+import { UPDATE_PROGRESS_DIALOG } from './update-progress-dialog'
 import { getTranslatedName, Language, LANGUAGES } from 'src/app/utils/languages'
 import { GIT_HASH } from 'src/app/utils/workspace-config'
 import {
@@ -74,7 +78,13 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
             }
           </div>
           <div [style.margin-top.rem]="1">
-            <button tuiButton appearance="positive" type="button">
+            <button
+              tuiButton
+              appearance="positive"
+              type="button"
+              [disabled]="system.updating()"
+              (click)="onUpdate()"
+            >
               Update now
             </button>
           </div>
@@ -307,6 +317,7 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
 export default class General {
   private readonly api = inject(ApiService)
   private readonly actions = inject(ActionService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly mode = inject(TUI_DARK_MODE)
 
   protected readonly system = inject(SystemService)
@@ -413,5 +424,33 @@ export default class General {
         success: 'Preferences saved',
       },
     )
+  }
+
+  protected onUpdate(): void {
+    const latest = this.system.newerVersions().at(-1)
+    if (!latest) return
+
+    this.dialogs
+      .open(TUI_CONFIRM, {
+        label: 'Start System Update?',
+        data: {
+          content: `Updating to v${latest.version} will restart your router. This may take several minutes and your network will be temporarily unavailable.`,
+          yes: 'Update Now',
+          no: 'Cancel',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.doUpdate(latest.version))
+  }
+
+  private doUpdate(version: string): void {
+    this.dialogs
+      .open(UPDATE_PROGRESS_DIALOG, {
+        label: 'System Update',
+        data: version,
+        closable: false,
+        dismissible: false,
+      })
+      .subscribe()
   }
 }

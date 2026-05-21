@@ -146,6 +146,7 @@ cat > "${FILES_DIR}/lib/upgrade/keep.d/startwrt" << 'KEEPEOF'
 /etc/ssl/private/startwrt-int.key
 /etc/ssl/private/startwrt-server.key
 /etc/nlbwmon/data/
+/etc/startwrt/pending-update
 KEEPEOF
 
 echo "==> Staging complete."

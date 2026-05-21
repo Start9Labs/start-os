@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::process::Command as StdCommand;
 use crate::invoke::Invoke;
 use std::{fs, path::Path};
 use tracing::instrument;
@@ -89,10 +90,87 @@ async fn info<C: CtrlContext>(ctx: C) -> Result<SystemInfoResponse, Error> {
     })
 }
 
-#[instrument(skip_all)]
-fn newer_versions<C: CtrlContext>(_ctx: C) -> Result<Vec<VersionInfo>, Error> {
-    // TODO: implement update check against remote server
-    Ok(Vec::new())
+/// Default registry URL used when no UCI config override exists.
+pub(crate) const DEFAULT_REGISTRY_URL: &str = "http://startwrt-registry.start9.com";
+
+async fn newer_versions(_ctx: ServerContext) -> Result<Vec<VersionInfo>, Error> {
+    // Read registry URL from UCI config (fallback to default)
+    let registry_url = read_registry_url().unwrap_or_else(|| DEFAULT_REGISTRY_URL.to_string());
+
+    let versions = match crate::update::fetch_newer_versions(&registry_url).await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!("Failed to check for updates: {e}");
+            return Ok(Vec::new());
+        }
+    };
+
+    let platform = crate::registry::device_info::DeviceInfo::load()
+        .map(|d| d.os.platform)
+        .unwrap_or_else(|_| "unknown".to_string());
+
+    let current: &str = env!("CARGO_PKG_VERSION");
+
+    let mut result: Vec<VersionInfo> = versions
+        .into_iter()
+        .filter(|(ver, info)| {
+            // Only include versions that have an asset for our platform
+            // and are newer than the current version (semver comparison)
+            info.asset_for_platform(&platform).is_some()
+                && is_newer_version(ver, current)
+        })
+        .map(|(ver, info)| VersionInfo {
+            version: ver,
+            release_notes: info.release_notes,
+        })
+        .collect();
+    // Sort ascending by semver precedence. The map above iterates in
+    // lexicographic key order, which mis-ranks multi-digit pre-releases
+    // (`0.1.0-beta.10` sorts before `0.1.0-beta.9`); the frontend treats the
+    // last element as the newest, so the ordering must be semver-correct.
+    result.sort_by(|a, b| cmp_versions(&a.version, &b.version));
+    Ok(result)
+}
+
+/// Parse a version string as semver, tolerating an optional leading `v`.
+/// Returns `None` for strings that are not valid semver.
+fn parse_version(v: &str) -> Option<semver::Version> {
+    semver::Version::parse(v.strip_prefix('v').unwrap_or(v)).ok()
+}
+
+/// Compare two version strings by semver precedence.
+///
+/// This honours the pre-release suffix per the semver spec, so
+/// `0.1.0-beta.3 < 0.1.0-beta.4 < 0.1.0`. A plain `(major, minor, patch)`
+/// compare collapses every `0.1.0-beta.N` to `0.1.0`, which makes an OTA
+/// between two betas never register as "newer". Strings that are not valid
+/// semver sort *below* any version that is; two unparseable strings are
+/// `Equal`.
+pub(crate) fn cmp_versions(a: &str, b: &str) -> std::cmp::Ordering {
+    match (parse_version(a), parse_version(b)) {
+        (Some(a), Some(b)) => a.cmp(&b),
+        (Some(_), None) => std::cmp::Ordering::Greater,
+        (None, Some(_)) => std::cmp::Ordering::Less,
+        (None, None) => std::cmp::Ordering::Equal,
+    }
+}
+
+/// `true` iff `candidate` is strictly newer than `current` by semver.
+fn is_newer_version(candidate: &str, current: &str) -> bool {
+    cmp_versions(candidate, current) == std::cmp::Ordering::Greater
+}
+
+/// Read the registry URL from UCI config `startwrt.system.registry`.
+pub(crate) fn read_registry_url() -> Option<String> {
+    StdCommand::new("uci")
+        .args(["get", "startwrt.system.registry"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 const VALID_LANGUAGES: &[&str] = &["en_US", "es_ES", "de_DE", "fr_FR", "pl_PL"];
@@ -665,9 +743,16 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
         )
         .subcommand(
             "newer-versions",
-            from_fn(newer_versions::<C>)
+            from_fn_async(newer_versions)
                 .with_metadata("no_auth", Value::Bool(true))
-                .with_display_serializable(),
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "update",
+            from_fn_async(crate::update::update_system)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "set-preferences",
@@ -710,6 +795,27 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_cmp_versions_prerelease() {
+        use std::cmp::Ordering;
+        // Pre-release ordering — the case the old tuple compare got wrong.
+        assert_eq!(cmp_versions("0.1.0-beta.3", "0.1.0-beta.4"), Ordering::Less);
+        assert_eq!(cmp_versions("0.1.0-beta.4", "0.1.0-beta.3"), Ordering::Greater);
+        assert_eq!(cmp_versions("0.1.0-beta.3", "0.1.0-beta.3"), Ordering::Equal);
+        // A pre-release is older than its own final release.
+        assert_eq!(cmp_versions("0.1.0-beta.4", "0.1.0"), Ordering::Less);
+        // The numeric core still dominates the pre-release tag.
+        assert_eq!(cmp_versions("0.2.0-beta.1", "0.1.0"), Ordering::Greater);
+        assert_eq!(cmp_versions("v1.2.3", "1.2.3"), Ordering::Equal);
+        // Unparseable strings sort below anything that parses.
+        assert_eq!(cmp_versions("garbage", "0.1.0-beta.3"), Ordering::Less);
+        assert_eq!(cmp_versions("nonsense", "rubbish"), Ordering::Equal);
+
+        assert!(is_newer_version("0.1.0-beta.4", "0.1.0-beta.3"));
+        assert!(!is_newer_version("0.1.0-beta.3", "0.1.0-beta.4"));
+        assert!(!is_newer_version("0.1.0-beta.3", "0.1.0-beta.3"));
+    }
 
     #[test]
     fn test_is_private_ipv4() {

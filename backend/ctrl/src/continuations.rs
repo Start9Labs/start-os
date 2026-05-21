@@ -25,6 +25,10 @@ impl Guid {
     pub fn new() -> Self {
         Self(startos::util::new_guid().to_string())
     }
+
+    pub fn from_str(s: &str) -> Self {
+        Self(s.to_string())
+    }
 }
 
 impl fmt::Display for Guid {
@@ -42,7 +46,7 @@ impl AsRef<str> for Guid {
 // ── TimedResource ─────────────────────────────────────────────────────
 
 /// A resource that auto-drops after a timeout unless claimed first.
-struct TimedResource<T: Send + 'static> {
+pub(crate) struct TimedResource<T: Send + 'static> {
     ready: oneshot::Sender<()>,
     handle: tokio::task::JoinHandle<Option<T>>,
 }
@@ -101,9 +105,36 @@ impl Future for RestFuture {
 
 pub type RestHandler = Box<dyn FnOnce(Request<Body>) -> RestFuture + Send>;
 
+// ── WebSocketHandler ─────────────────────────────────────────────────
+
+/// Future returned by a WebSocket continuation handler, with optional session kill signal.
+pub struct WebSocketFuture {
+    kill: Option<broadcast::Receiver<()>>,
+    fut: Pin<Box<dyn Future<Output = ()> + Send>>,
+}
+
+impl Future for WebSocketFuture {
+    type Output = ();
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        if self.kill.as_ref().map_or(false, |k| !k.is_empty()) {
+            std::task::Poll::Ready(())
+        } else {
+            self.fut.as_mut().poll(cx)
+        }
+    }
+}
+
+pub type WebSocketHandler = Box<dyn FnOnce(axum::extract::ws::WebSocket) -> WebSocketFuture + Send>;
+
 // ── RpcContinuation ───────────────────────────────────────────────────
 
-pub struct RpcContinuation(TimedResource<RestHandler>);
+pub enum RpcContinuation {
+    Rest(TimedResource<RestHandler>),
+    WebSocket(TimedResource<WebSocketHandler>),
+}
 
 pub const DEFAULT_TTL: Duration = Duration::from_secs(60);
 
@@ -114,7 +145,7 @@ impl RpcContinuation {
         F: FnOnce(Request<Body>) -> Fut + Send + 'static,
         Fut: Future<Output = Result<Response<Body>, Error>> + Send + 'static,
     {
-        Self(TimedResource::new(
+        Self::Rest(TimedResource::new(
             Box::new(|req| RestFuture {
                 kill: None,
                 fut: Box::pin(handler(req)),
@@ -135,7 +166,7 @@ impl RpcContinuation {
         Fut: Future<Output = Result<Response<Body>, Error>> + Send + 'static,
     {
         let kill = Some(open.subscribe(session));
-        Self(TimedResource::new(
+        Self::Rest(TimedResource::new(
             Box::new(|req| RestFuture {
                 kill,
                 fut: Box::pin(handler(req)),
@@ -144,8 +175,26 @@ impl RpcContinuation {
         ))
     }
 
+    /// Create a WebSocket continuation.
+    pub fn ws<F, Fut>(handler: F, timeout: Duration) -> Self
+    where
+        F: FnOnce(axum::extract::ws::WebSocket) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
+        Self::WebSocket(TimedResource::new(
+            Box::new(|ws| WebSocketFuture {
+                kill: None,
+                fut: Box::pin(handler(ws)),
+            }),
+            timeout,
+        ))
+    }
+
     fn is_timed_out(&self) -> bool {
-        self.0.is_timed_out()
+        match self {
+            Self::Rest(r) => r.is_timed_out(),
+            Self::WebSocket(w) => w.is_timed_out(),
+        }
     }
 }
 
@@ -171,10 +220,22 @@ impl RpcContinuations {
         map.insert(guid, cont);
     }
 
-    /// Remove and return a handler if it exists and hasn't timed out.
+    /// Remove and return a REST handler if it exists and hasn't timed out.
     pub async fn get_rest_handler(&self, guid: &Guid) -> Option<RestHandler> {
         let cont = self.inner.lock().unwrap().remove(guid)?;
-        cont.0.get().await
+        match cont {
+            RpcContinuation::Rest(r) => r.get().await,
+            RpcContinuation::WebSocket(_) => None,
+        }
+    }
+
+    /// Remove and return a WebSocket handler if it exists and hasn't timed out.
+    pub async fn get_ws_handler(&self, guid: &Guid) -> Option<WebSocketHandler> {
+        let cont = self.inner.lock().unwrap().remove(guid)?;
+        match cont {
+            RpcContinuation::WebSocket(w) => w.get().await,
+            RpcContinuation::Rest(_) => None,
+        }
     }
 }
 

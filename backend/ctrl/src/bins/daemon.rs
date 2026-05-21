@@ -55,6 +55,26 @@ fn ndjson_error(message: &str) -> Response<Body> {
         .unwrap()
 }
 
+/// GET /ws/rpc/{guid} — WebSocket continuation handler (e.g., update progress).
+async fn ws_continuation_handler(
+    axum::extract::Path(guid): axum::extract::Path<String>,
+    headers: axum::http::HeaderMap,
+    ws: axum::extract::ws::WebSocketUpgrade,
+    Extension(continuations): Extension<RpcContinuations>,
+) -> axum::response::Response {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+
+    if !crate::middleware::validate_session_from_headers(&headers).await {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let guid = crate::continuations::Guid::from_str(&guid);
+    match continuations.get_ws_handler(&guid).await {
+        Some(handler) => ws.on_upgrade(handler),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
 /// POST /api/setup/flash — streams NDJSON progress events.
 async fn setup_flash_handler(
     Extension(state): Extension<AppState>,
@@ -219,6 +239,11 @@ async fn inner_main() -> Result<(), Error> {
         };
     } else {
         // Normal mode: restore WiFi + manage captive portal state
+
+        // Record the outcome of a pending OTA update (if any) in the Activity
+        // log now that the new firmware is up.
+        crate::update::check_pending_update_marker();
+
         if let Err(e) = crate::init::restore_wifi_if_needed().await {
             tracing::error!("WiFi auto-restore failed: {e}");
         }
@@ -275,6 +300,11 @@ async fn inner_main() -> Result<(), Error> {
         // RPC continuation endpoint (binary I/O for backup/restore/diagnostics)
         .route("/rest/rpc/{guid}", any(continuations::continuation_handler)
             .layer(DefaultBodyLimit::max(10 * 1024 * 1024)))
+        // WebSocket continuation endpoint (progress streaming for updates).
+        // Registered with `any` (not `get`) so HTTP/2 CONNECT requests (RFC
+        // 8441 extended CONNECT, used for WebSocket-over-h2) reach the
+        // upgrade extractor — same reasoning as /api/logs below.
+        .route("/ws/rpc/{guid}", any(ws_continuation_handler))
         // Streaming flash endpoint for setup wizard
         .route("/api/setup/flash", post(setup_flash_handler))
         // WebSocket endpoint for live log streaming. Registered with `any`

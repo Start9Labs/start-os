@@ -16,6 +16,7 @@ export abstract class ApiService {
   abstract setUci<T extends string[]>(params: SetUciReq): Promise<SetUciRes<T>>
   abstract systemInfo(): Promise<SystemInfoRes>
   abstract systemNewerVersions(): Promise<VersionInfo[]>
+  abstract systemUpdate(params: SystemUpdateReq): Promise<SystemUpdateRes>
   abstract systemRestart(): Promise<null>
   abstract setPassword(params: SetPasswordReq): Promise<null>
   abstract setPreferences(params: SetPreferencesReq): Promise<null>
@@ -211,6 +212,33 @@ export type VersionInfo = {
   version: string
   releaseNotes: string
 }
+
+export type SystemUpdateReq = {
+  registry?: string
+  targetVersion?: string
+}
+
+export type SystemUpdateRes = {
+  target: string | null
+  progress: string | null
+}
+
+// Progress types for WebSocket streaming (mirrors start-os FullProgress)
+export type FullProgress = {
+  overall: Progress
+  phases: NamedProgress[]
+}
+
+export type NamedProgress = {
+  name: string
+  progress: Progress
+}
+
+// null = NotStarted, boolean = Complete, object = in-progress
+export type Progress =
+  | null
+  | boolean
+  | { done: number; total: number | null; units: string | null }
 
 export type SetPasswordReq = {
   oldPassword: string

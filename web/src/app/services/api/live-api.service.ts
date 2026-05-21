@@ -12,6 +12,8 @@ import {
   SetUciReq,
   SetUciRes,
   VersionInfo,
+  SystemUpdateReq,
+  SystemUpdateRes,
   SetPasswordReq,
   SetPreferencesReq,
   VpnServerDeleteArgs,
@@ -120,6 +122,10 @@ export class LiveApiService extends ApiService {
 
   async systemNewerVersions(): Promise<VersionInfo[]> {
     return this.rpc.request({ method: 'system.newer-versions', params: {} })
+  }
+
+  async systemUpdate(params: SystemUpdateReq): Promise<SystemUpdateRes> {
+    return this.rpc.request({ method: 'system.update', params })
   }
 
   async systemRestart(): Promise<null> {

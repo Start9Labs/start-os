@@ -165,6 +165,14 @@ impl Error {
         self.info = info;
         self
     }
+
+    /// Shorthand for ad-hoc errors where no specific `ErrorKind` applies.
+    /// Wraps the message via `eyre!` and tags as `ErrorKind::Unknown`. Used
+    /// extensively by the OTA update path (registry RPC, signature
+    /// verification, sysupgrade invocation).
+    pub fn other(msg: impl Display) -> Self {
+        Error::new(eyre!("{msg}"), ErrorKind::Unknown)
+    }
 }
 
 // --- From impls ---

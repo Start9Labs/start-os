@@ -1,9 +1,12 @@
 #!/bin/bash
-# Verify a RISC-V binary contains no instructions outside the SpaceMiT K1 ISA.
+# Verify a RISC-V binary is safe to run on the SpaceMiT K1.
 #
-# K1 (BPI-F3) supports RVA22 + V 1.0 + Zicbom/Zicbop/Zicboz + Zihintpause.
-# Instructions from RVA23-only extensions (Zicond, Zfa, Zacas, Zfh, Zcmop,
-# Zimop, vector crypto) SIGILL on this CPU.
+# Two failure classes are rejected:
+#  - RVA23-only extensions (Zicond, Zfa, Zacas, Zfh, Zcmop, Zimop, vector
+#    crypto): absent from K1's RVA22 baseline, so they SIGILL.
+#  - Base RISC-V Vector (V 1.0): K1 implements it, but traps on misaligned
+#    vector-element accesses that the Bianbu kernel does not emulate, so
+#    auto-vectorised code SIGBUSes (BUS_ADRALN) at runtime. Policy: no V.
 set -e
 
 BINARY="${1:?usage: verify-isa.sh <binary>}"
@@ -49,9 +52,21 @@ fi
 #            c.zext.h, c.sext.h, c.zext.w, c.not, c.mul
 BANNED_RE='\b(czero\.(eqz|nez)|fli\.[sdhq]|fround(nx)?\.[sdhq]|fmaxm\.[sdhq]|fminm\.[sdhq]|fleq\.[sdhq]|fltq\.[sdhq]|fcvtmod\.w\.d|fmvh\.x\.d|fmvp\.d\.x|amocas\.[wdq]|c\.mop\.[0-9]+|mop\.r\.[0-9]+|mop\.rr\.[0-9]+|f(add|sub|mul|div|sqrt|min|max|madd|msub|nmadd|nmsub|sgnj|sgnjn|sgnjx|eq|lt|le|class|mv|cvt)\.h|c\.(lbu|lhu|lh|sb|sh|zext\.[bhw]|sext\.[bh]|not|mul))\b'
 
-echo "==> Verifying $(basename "$BINARY") against K1 ISA (via $(basename "$OBJDUMP"))..."
-FOUND=$("$OBJDUMP" -d -M no-aliases "$BINARY" 2>/dev/null | grep -oE "$BANNED_RE" | sort -u || true)
+# RISC-V Vector (RVV / "+v") instructions. K1 implements V 1.0 so these do
+# not SIGILL — but the CPU traps on misaligned vector-element accesses, which
+# the Bianbu kernel does not emulate, so auto-vectorised code SIGBUSes at
+# runtime (BUS_ADRALN). Every RVV sequence starts with a vset{i,}vl{i,}, so
+# detecting those catches any vectorised code.
+VSET_RE='\bvset(i?vli|vl)\b'
 
+echo "==> Verifying $(basename "$BINARY") against K1 ISA (via $(basename "$OBJDUMP"))..."
+
+# Disassemble once; scan the text for both failure classes.
+DISASM="$(mktemp)"
+trap 'rm -f "$DISASM"' EXIT
+"$OBJDUMP" -d -M no-aliases "$BINARY" 2>/dev/null > "$DISASM"
+
+FOUND=$(grep -oE "$BANNED_RE" "$DISASM" | sort -u || true)
 if [ -n "$FOUND" ]; then
     echo "ERROR: $BINARY contains RVA23-only instructions not supported by SpaceMiT K1:" >&2
     echo "$FOUND" | sed 's/^/    /' >&2
@@ -60,4 +75,15 @@ if [ -n "$FOUND" ]; then
     exit 1
 fi
 
-echo "    OK — no RVA23-only instructions"
+VFOUND=$(grep -oE "$VSET_RE" "$DISASM" | sort -u || true)
+if [ -n "$VFOUND" ]; then
+    echo "ERROR: $BINARY contains RISC-V Vector instructions:" >&2
+    echo "$VFOUND" | sed 's/^/    /' >&2
+    echo "" >&2
+    echo "RVV code SIGBUSes on the SpaceMiT K1 — misaligned vector access is" >&2
+    echo "not emulated by the Bianbu kernel. Remove '+v' from build/build-rust.sh," >&2
+    echo "build/zigcc-k1.sh, and build/zigcxx-k1.sh." >&2
+    exit 1
+fi
+
+echo "    OK — no RVA23-only or vector instructions"

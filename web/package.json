@@ -1,6 +1,6 @@
 {
   "name": "start-wrt",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "scripts": {
     "ng": "ng",
     "start": "npm run build-config && ng serve",

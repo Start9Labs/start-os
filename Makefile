@@ -76,9 +76,12 @@ BUILD_SCRIPTS := $(shell git ls-files build/)
 RUST_BIN_DIR := backend/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)
 RUST_BIN := $(RUST_BIN_DIR)/startwrt
 WEB_DIST := web/dist/startwrt/browser/index.html
-OPENWRT_IMAGE_NAME := openwrt-spacemit-k1-sbc-bananapi-f3-squashfs-pack-sdcard.img
-OPENWRT_IMAGE_SRC := openwrt/bin/targets/spacemit/$(OPENWRT_IMAGE_NAME)
-OPENWRT_IMAGE := out/$(OPENWRT_IMAGE_NAME)
+OPENWRT_IMAGE_DIR := openwrt/bin/targets/spacemit
+OPENWRT_SDCARD_NAME := openwrt-spacemit-k1-sbc-bananapi-f3-squashfs-sdcard.img
+OPENWRT_SYSUPGRADE_NAME := openwrt-spacemit-k1-sbc-bananapi-f3-squashfs-sysupgrade.img.gz
+OPENWRT_SDCARD := out/$(OPENWRT_SDCARD_NAME)
+OPENWRT_SYSUPGRADE := out/$(OPENWRT_SYSUPGRADE_NAME)
+OPENWRT_IMAGES := $(OPENWRT_SDCARD) $(OPENWRT_SYSUPGRADE)
 
 # ---------------------------------------------------------------------------
 # Remote deployment (SSH transport)
@@ -107,7 +110,7 @@ $(RUST_BIN): $(RUST_SRC) $(WEB_DIST) build/build-rust.sh
 	@touch $(RUST_BIN)
 
 $(WEB_DIST): $(WEB_SRC) web/package-lock.json web/config.json
-	$(NICE) npm --prefix web install
+	$(NICE) npm --prefix web ci
 	$(OOM_ADJ) $(CGROUP_WRAP) $(NICE) npm --prefix web run build
 
 # Prod config: generated from config-sample.json with useMocks=false
@@ -123,9 +126,9 @@ openwrt/files/.staged: $(RUST_BIN) $(CONFIG_SRC) build/stage-files.sh
 	touch openwrt/files/.staged
 
 # Build OpenWrt image (depends on staging)
-image: $(OPENWRT_IMAGE)
+image: $(OPENWRT_IMAGES)
 
-$(OPENWRT_IMAGE): openwrt/.config openwrt/files/.staged
+$(OPENWRT_SDCARD) $(OPENWRT_SYSUPGRADE) &: openwrt/.config openwrt/files/.staged
 	@printf '  Build resources: JOBS=%s  MemAvail=%s MB  MemMax=%s MB  cgroup=%s\n' \
 		'$(JOBS)' \
 		"$$(awk '/MemAvailable/{printf "%d", $$2/1024}' /proc/meminfo)" \
@@ -133,7 +136,8 @@ $(OPENWRT_IMAGE): openwrt/.config openwrt/files/.staged
 		'$(if $(filter 1,$(HAS_SYSTEMD_RUN)),yes,no)'
 	$(OOM_ADJ) $(CGROUP_WRAP) $(NICE) $(MAKE) -C openwrt V=s -j$(JOBS) $(LOAD_LIMIT)
 	mkdir -p out
-	cp $(OPENWRT_IMAGE_SRC) $(OPENWRT_IMAGE)
+	cp $(OPENWRT_IMAGE_DIR)/$(OPENWRT_SDCARD_NAME) $(OPENWRT_SDCARD)
+	cp $(OPENWRT_IMAGE_DIR)/$(OPENWRT_SYSUPGRADE_NAME) $(OPENWRT_SYSUPGRADE)
 
 # Clean
 # backend/target may contain root-owned files when a Docker build is

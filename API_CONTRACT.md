@@ -114,6 +114,10 @@ struct SystemInfoResponse {
 
 ### `system.newer-versions`
 
+Queries the Start9 registry for OS versions newer than the running firmware.
+Registry URL defaults to `https://startwrt-registry.start9.com/` and can be overridden
+via UCI: `startwrt.system.registry`.
+
 ```rust
 // Request: {}
 
@@ -123,6 +127,44 @@ struct VersionInfo {
     release_notes: String,  // Markdown
 }
 // Response: Vec<VersionInfo>
+```
+
+### `system.update`
+
+Initiate an OTA firmware update. Downloads the asset from the registry,
+verifies BLAKE3 hash + Ed25519 signatures, then runs `sysupgrade`.
+Returns a GUID for WebSocket progress streaming.
+
+```rust
+// Request:
+struct UpdateSystemParams {
+    registry: String,              // Registry URL
+    target_version: Option<String>, // Specific version (default: latest)
+}
+
+// Response:
+struct UpdateSystemRes {
+    target: Option<String>,   // Version being installed
+    progress: Option<String>, // GUID for /ws/rpc/{guid}
+}
+```
+
+#### WebSocket progress: `/ws/rpc/{guid}`
+
+Connect via WebSocket to stream `FullProgress` JSON frames:
+
+```typescript
+type FullProgress = {
+  overall: Progress;
+  phases: NamedProgress[];
+};
+type NamedProgress = { name: string; progress: Progress };
+type Progress =
+  | null
+  | boolean
+  | { done: number; total: number | null; units: string | null };
+// null = NotStarted, true = Complete(success), false = Complete(failure)
+// Phases: "Downloading firmware", "Verifying integrity", "Applying update"
 ```
 
 ### `system.restart`
@@ -1104,61 +1146,61 @@ struct SshKeyDeleteRequest {
 
 ## Endpoint Summary
 
-| RPC Method | Status | Category |
-|------------|--------|----------|
-| `auth.login` | Exists | Auth |
-| `auth.logout` | Exists | Auth |
-| `auth.set-password` | Exists | Auth |
-| `system.info` | Exists | System |
-| `system.newer-versions` | Exists | System |
-| `system.restart` | Exists | System |
-| `system.set-preferences` | Exists | System |
-| `system.logs` | Exists | System |
-| `/api/logs` (WebSocket) | Exists | System |
-| `wan.ipv4-get` | **New** | WAN |
-| `wan.ipv4-set` | **New** | WAN |
-| `wan.ipv6-get` | **New** | WAN |
-| `wan.ipv6-set` | **New** | WAN |
-| `wan.mac-get` | **New** | WAN |
-| `wan.mac-set` | **New** | WAN |
-| `wan.dns-get` | **New** | WAN |
-| `wan.dns-set` | **New** | WAN |
-| `wan.ddns-get` | **New** | WAN |
-| `wan.ddns-set` | **New** | WAN |
-| `lan.ipv4-get` | **New** | LAN |
-| `lan.ipv4-set` | **New** | LAN |
-| `lan.ipv6-get` | **New** | LAN |
-| `lan.ipv6-set` | **New** | LAN |
-| `ethernet.get` | **New** | Ethernet |
-| `ethernet.set` | **New** | Ethernet |
-| `devices.list` | **New** | Devices |
-| `devices.update` | **New** | Devices |
-| `devices.forget` | **New** | Devices |
-| `devices.data-usage` | **New** | Devices |
-| `published-ports.list` | **New** | Published Ports |
-| `published-ports.set` | **New** | Published Ports |
-| `vpn-client.list` | **New** | Outbound VPN |
-| `vpn-client.create` | **New** | Outbound VPN |
-| `vpn-client.update` | **New** | Outbound VPN |
-| `vpn-client.delete` | **New** | Outbound VPN |
-| `vpn-client.set-enabled` | **New** | Outbound VPN |
-| `vpn-server.list` | Exists | Inbound VPN |
-| `vpn-server.set` | Exists | Inbound VPN |
-| `vpn-server.delete` | Exists | Inbound VPN |
-| `vpn-server.peer-add` | Exists | Inbound VPN |
-| `vpn-server.peer-delete` | Exists | Inbound VPN |
-| `wifi.get` | Exists | WiFi |
-| `wifi.set` | Exists | WiFi |
-| `wifi.blackout-get` | Exists | WiFi |
-| `wifi.blackout-set` | Exists | WiFi |
-| `profiles.list` | Exists | Profiles |
-| `profiles.get` | Exists | Profiles |
-| `profiles.create` | Exists | Profiles |
-| `profiles.set` | Exists | Profiles |
-| `profiles.delete` | Exists | Profiles |
-| `ssh-keys.list` | **New** | SSH Keys |
-| `ssh-keys.add` | **New** | SSH Keys |
-| `ssh-keys.delete` | **New** | SSH Keys |
+| RPC Method               | Status  | Category        |
+| ------------------------ | ------- | --------------- |
+| `auth.login`             | Exists  | Auth            |
+| `auth.logout`            | Exists  | Auth            |
+| `auth.set-password`      | Exists  | Auth            |
+| `system.info`            | Exists  | System          |
+| `system.newer-versions`  | Exists  | System          |
+| `system.restart`         | Exists  | System          |
+| `system.set-preferences` | Exists  | System          |
+| `system.logs`            | Exists  | System          |
+| `/api/logs` (WebSocket)  | Exists  | System          |
+| `wan.ipv4-get`           | **New** | WAN             |
+| `wan.ipv4-set`           | **New** | WAN             |
+| `wan.ipv6-get`           | **New** | WAN             |
+| `wan.ipv6-set`           | **New** | WAN             |
+| `wan.mac-get`            | **New** | WAN             |
+| `wan.mac-set`            | **New** | WAN             |
+| `wan.dns-get`            | **New** | WAN             |
+| `wan.dns-set`            | **New** | WAN             |
+| `wan.ddns-get`           | **New** | WAN             |
+| `wan.ddns-set`           | **New** | WAN             |
+| `lan.ipv4-get`           | **New** | LAN             |
+| `lan.ipv4-set`           | **New** | LAN             |
+| `lan.ipv6-get`           | **New** | LAN             |
+| `lan.ipv6-set`           | **New** | LAN             |
+| `ethernet.get`           | **New** | Ethernet        |
+| `ethernet.set`           | **New** | Ethernet        |
+| `devices.list`           | **New** | Devices         |
+| `devices.update`         | **New** | Devices         |
+| `devices.forget`         | **New** | Devices         |
+| `devices.data-usage`     | **New** | Devices         |
+| `published-ports.list`   | **New** | Published Ports |
+| `published-ports.set`    | **New** | Published Ports |
+| `vpn-client.list`        | **New** | Outbound VPN    |
+| `vpn-client.create`      | **New** | Outbound VPN    |
+| `vpn-client.update`      | **New** | Outbound VPN    |
+| `vpn-client.delete`      | **New** | Outbound VPN    |
+| `vpn-client.set-enabled` | **New** | Outbound VPN    |
+| `vpn-server.list`        | Exists  | Inbound VPN     |
+| `vpn-server.set`         | Exists  | Inbound VPN     |
+| `vpn-server.delete`      | Exists  | Inbound VPN     |
+| `vpn-server.peer-add`    | Exists  | Inbound VPN     |
+| `vpn-server.peer-delete` | Exists  | Inbound VPN     |
+| `wifi.get`               | Exists  | WiFi            |
+| `wifi.set`               | Exists  | WiFi            |
+| `wifi.blackout-get`      | Exists  | WiFi            |
+| `wifi.blackout-set`      | Exists  | WiFi            |
+| `profiles.list`          | Exists  | Profiles        |
+| `profiles.get`           | Exists  | Profiles        |
+| `profiles.create`        | Exists  | Profiles        |
+| `profiles.set`           | Exists  | Profiles        |
+| `profiles.delete`        | Exists  | Profiles        |
+| `ssh-keys.list`          | **New** | SSH Keys        |
+| `ssh-keys.add`           | **New** | SSH Keys        |
+| `ssh-keys.delete`        | **New** | SSH Keys        |
 
 **Totals:** 51 endpoints (22 existing, 29 new)
 
@@ -1168,10 +1210,10 @@ struct SshKeyDeleteRequest {
 
 The following generic endpoints should be removed from the frontend once all smart endpoints are implemented:
 
-| Endpoint | Replaced by |
-|----------|-------------|
-| `uci.get` | All `*.get` endpoints above |
-| `uci.set` | All `*.set` endpoints above |
-| `exec` | Absorbed into smart endpoints internally |
-| `file.get` | `ssh-keys.list` |
-| `file.set` | `ssh-keys.add`, `ssh-keys.delete` |
+| Endpoint   | Replaced by                              |
+| ---------- | ---------------------------------------- |
+| `uci.get`  | All `*.get` endpoints above              |
+| `uci.set`  | All `*.set` endpoints above              |
+| `exec`     | Absorbed into smart endpoints internally |
+| `file.get` | `ssh-keys.list`                          |
+| `file.set` | `ssh-keys.add`, `ssh-keys.delete`        |
