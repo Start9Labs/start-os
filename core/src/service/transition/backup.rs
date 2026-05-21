@@ -4,9 +4,9 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt};
 use rpc_toolkit::yajrc::RpcError;
 
-use crate::db::model::public::BackupProgress;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::prelude::*;
+use crate::progress::PhaseProgressTrackerHandle;
 use crate::rpc_continuations::Guid;
 use crate::service::action::GetActionInput;
 use crate::service::start_stop::StartStop;
@@ -31,6 +31,9 @@ impl ServiceActorSeed {
                     ))
                 };
                 let id = &self.id;
+                if let Some(mut handle) = self.backup_phase.replace(None) {
+                    handle.complete();
+                }
                 self.ctx
                     .db
                     .mutate(|db| {
@@ -51,15 +54,6 @@ impl ServiceActorSeed {
                                     x => x,
                                 })
                             })?;
-                        if let Some(progress) = db
-                            .as_public_mut()
-                            .as_server_info_mut()
-                            .as_status_info_mut()
-                            .as_backup_progress_mut()
-                            .transpose_mut()
-                        {
-                            progress.insert(id, &BackupProgress { complete: true })?;
-                        }
                         Ok(())
                     })
                     .await
@@ -73,6 +67,7 @@ impl ServiceActorSeed {
 
 pub(in crate::service) struct Backup {
     pub path: PathBuf,
+    pub progress: PhaseProgressTrackerHandle,
 }
 impl Handler<Backup> for ServiceActor {
     type Response = Result<BoxFuture<'static, Result<(), Error>>, Error>;
@@ -82,10 +77,11 @@ impl Handler<Backup> for ServiceActor {
     async fn handle(
         &mut self,
         id: Guid,
-        Backup { path }: Backup,
+        Backup { path, progress }: Backup,
         _: &BackgroundJobQueue,
     ) -> Self::Response {
         let seed = self.0.clone();
+        seed.backup_phase.replace(Some(progress));
 
         let transition = async move {
             async {

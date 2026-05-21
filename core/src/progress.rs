@@ -200,7 +200,7 @@ impl std::ops::AddAssign<u64> for Progress {
 pub struct NamedProgress {
     #[ts(type = "string")]
     pub name: InternedString,
-    pub progress: Progress,
+    pub progress: PhaseProgress,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
@@ -218,11 +218,56 @@ impl FullProgress {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(untagged)]
+#[ts(export)]
+pub enum PhaseProgress {
+    Nested(FullProgress),
+    Leaf(Progress),
+}
+impl PhaseProgress {
+    pub fn overall(&self) -> Progress {
+        match self {
+            PhaseProgress::Leaf(p) => *p,
+            PhaseProgress::Nested(fp) => fp.overall,
+        }
+    }
+    pub fn is_complete(&self) -> bool {
+        self.overall().is_complete()
+    }
+    pub fn set_complete(&mut self) {
+        match self {
+            PhaseProgress::Leaf(p) => p.set_complete(),
+            PhaseProgress::Nested(fp) => {
+                fp.overall.set_complete();
+                for phase in &mut fp.phases {
+                    phase.progress.set_complete();
+                }
+            }
+        }
+    }
+}
+impl Default for PhaseProgress {
+    fn default() -> Self {
+        PhaseProgress::Leaf(Progress::new())
+    }
+}
+impl From<Progress> for PhaseProgress {
+    fn from(p: Progress) -> Self {
+        PhaseProgress::Leaf(p)
+    }
+}
+impl From<FullProgress> for PhaseProgress {
+    fn from(fp: FullProgress) -> Self {
+        PhaseProgress::Nested(fp)
+    }
+}
+
 #[derive(Clone)]
 pub struct FullProgressTracker {
     log: bool,
     overall: watch::Sender<Progress>,
-    phases: watch::Sender<Vector<(InternedString, watch::Receiver<Progress>)>>,
+    phases: watch::Sender<Vector<(InternedString, watch::Receiver<PhaseProgress>)>>,
 }
 impl FullProgressTracker {
     pub fn new() -> Self {
@@ -246,7 +291,7 @@ impl FullProgressTracker {
                 .iter()
                 .map(|(name, progress)| NamedProgress {
                     name: name.clone(),
-                    progress: *progress.borrow(),
+                    progress: progress.borrow().clone(),
                 })
                 .collect(),
         }
@@ -254,8 +299,9 @@ impl FullProgressTracker {
     pub fn stream(&self, min_interval: Option<Duration>) -> BoxStream<'static, FullProgress> {
         struct StreamState {
             overall: watch::Receiver<Progress>,
-            phases_recv: watch::Receiver<Vector<(InternedString, watch::Receiver<Progress>)>>,
-            phases: Vector<(InternedString, watch::Receiver<Progress>)>,
+            phases_recv:
+                watch::Receiver<Vector<(InternedString, watch::Receiver<PhaseProgress>)>>,
+            phases: Vector<(InternedString, watch::Receiver<PhaseProgress>)>,
         }
         let mut overall = self.overall.subscribe();
         overall.mark_changed(); // make sure stream starts with a value
@@ -307,7 +353,7 @@ impl FullProgressTracker {
                             .iter_mut()
                             .map(|(name, progress)| NamedProgress {
                                 name: name.clone(),
-                                progress: *progress.borrow_and_update(),
+                                progress: progress.borrow_and_update().clone(),
                             })
                             .collect(),
                     },
@@ -374,7 +420,7 @@ impl FullProgressTracker {
             self.overall
                 .send_modify(|o| o.add_total(overall_contribution));
         }
-        let (send, recv) = watch::channel(Progress::new());
+        let (send, recv) = watch::channel(PhaseProgress::default());
         let log = self.log.then(|| name.clone());
         self.phases.send_modify(|p| {
             p.push_back((name, recv));
@@ -392,24 +438,32 @@ impl FullProgressTracker {
     }
 }
 
+fn progress_ratio(p: &Progress) -> Option<f64> {
+    match *p {
+        Progress::Complete(true) => Some(1.0),
+        Progress::Progress {
+            done,
+            total: Some(total),
+            ..
+        } if total > 0 => Some((done as f64 / total as f64).min(1.0)),
+        _ => None,
+    }
+}
+
 pub struct PhaseProgressTrackerHandle {
     log: Option<InternedString>,
     overall: watch::Sender<Progress>,
     overall_contribution: Option<u64>,
     contributed: u64,
-    progress: watch::Sender<Progress>,
+    progress: watch::Sender<PhaseProgress>,
 }
 impl PhaseProgressTrackerHandle {
     fn update_overall(&mut self) {
         if let Some(overall_contribution) = self.overall_contribution {
-            let contribution = match *self.progress.borrow() {
-                Progress::Complete(true) => overall_contribution,
-                Progress::Progress {
-                    done,
-                    total: Some(total),
-                    ..
-                } => ((done as f64 / total as f64) * overall_contribution as f64) as u64,
-                _ => 0,
+            let overall = self.progress.borrow().overall();
+            let contribution = match progress_ratio(&overall) {
+                Some(r) => (r * overall_contribution as f64) as u64,
+                None => 0,
             };
             if contribution > self.contributed {
                 self.overall
@@ -418,33 +472,49 @@ impl PhaseProgressTrackerHandle {
             }
         }
     }
+    fn modify_leaf<F: FnOnce(&mut Progress)>(&self, f: F) {
+        self.progress.send_modify(|pp| match pp {
+            PhaseProgress::Leaf(p) => f(p),
+            _ => {
+                let mut p = Progress::new();
+                f(&mut p);
+                *pp = PhaseProgress::Leaf(p);
+            }
+        });
+    }
     pub fn start(&mut self) {
         if let Some(name) = &self.log {
             tracing::info!("{}...", name)
         }
-        self.progress.send_modify(|p| p.start());
+        self.modify_leaf(|p| p.start());
     }
     pub fn set_done(&mut self, done: u64) {
-        self.progress.send_modify(|p| p.set_done(done));
+        self.modify_leaf(|p| p.set_done(done));
         self.update_overall();
     }
     pub fn set_total(&mut self, total: u64) {
-        self.progress.send_modify(|p| p.set_total(total));
+        self.modify_leaf(|p| p.set_total(total));
         self.update_overall();
     }
     pub fn add_total(&mut self, total: u64) {
-        self.progress.send_modify(|p| p.add_total(total));
+        self.modify_leaf(|p| p.add_total(total));
         self.update_overall();
     }
     pub fn set_units(&mut self, units: Option<ProgressUnits>) {
-        self.progress.send_modify(|p| p.set_units(units));
+        self.modify_leaf(|p| p.set_units(units));
     }
     pub fn complete(&mut self) {
-        self.progress.send_modify(|p| p.set_complete());
+        self.modify_leaf(|p| p.set_complete());
         self.update_overall();
         if let Some(name) = &self.log {
             tracing::info!("{}: complete", name)
         }
+    }
+    /// Replace this phase's value wholesale — used when the value is sourced
+    /// externally (e.g. relayed from a service container via setBackupProgress).
+    pub fn set_phase_value(&mut self, value: PhaseProgress) {
+        self.progress.send_replace(value);
+        self.update_overall();
     }
     pub fn writer<W>(self, writer: W) -> ProgressTrackerWriter<W> {
         ProgressTrackerWriter {
@@ -455,7 +525,7 @@ impl PhaseProgressTrackerHandle {
 }
 impl std::ops::AddAssign<u64> for PhaseProgressTrackerHandle {
     fn add_assign(&mut self, rhs: u64) {
-        self.progress.send_modify(|p| *p += rhs);
+        self.modify_leaf(|p| *p += rhs);
         self.update_overall();
     }
 }
@@ -567,7 +637,7 @@ impl PhasedProgressBar {
         for (name, bar) in self.phases.iter() {
             if let Some(progress) = progress.phases.iter().find_map(|p| {
                 if &p.name == name {
-                    Some(p.progress)
+                    Some(p.progress.overall())
                 } else {
                     None
                 }
