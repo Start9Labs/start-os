@@ -31,6 +31,7 @@ export class Daemon<
   private onExitFns: ((success: boolean) => void)[] = []
   private loop: { abort: AbortController; done: Promise<void> } | null = null
   private releaseSubcontainerHold: (() => Promise<void>) | null = null
+  private _managed = false
   protected constructor(
     readonly subcontainer: C,
     private startCommand: () => Promise<CommandController<Manifest, C>>,
@@ -46,9 +47,10 @@ export class Daemon<
    * Factory method to create a new Daemon.
    *
    * Returns a curried function: `(effects, subcontainer, exec) => Daemon`.
-   * Termination on context-leave is handled by the owning `Daemons` instance
-   * (which calls `term()` in dependent-first order); standalone daemons
-   * created outside `Daemons` are responsible for their own teardown.
+   * Registers an `effects.onLeaveContext` hook that terminates the daemon
+   * on parent-context teardown — suppressed when the daemon is adopted by
+   * a {@link Daemons} chain via {@link markManaged}, since `Daemons.term()`
+   * handles dependency-ordered shutdown for those.
    */
   static of<Manifest extends T.SDKManifest>() {
     return <C extends SubContainer<Manifest> | null>(
@@ -58,8 +60,22 @@ export class Daemon<
     ) => {
       const startCommand = () =>
         CommandController.of<Manifest, C>()(effects, subcontainer, exec)
-      return new Daemon<Manifest, C>(subcontainer, startCommand)
+      const res = new Daemon<Manifest, C>(subcontainer, startCommand)
+      effects.onLeaveContext(() => {
+        if (res._managed) return
+        res.term().catch((e) => logErrorOnce(asError(e)))
+      })
+      return res
     }
+  }
+
+  /**
+   * Mark this daemon as managed by a {@link Daemons} instance, suppressing
+   * the per-daemon `onLeaveContext` termination. The owning `Daemons`
+   * handles ordered shutdown via its own `onLeaveContext` registration.
+   */
+  markManaged(): void {
+    this._managed = true
   }
   /**
    * Start the daemon. If it is already running, this is a no-op.
@@ -140,15 +156,14 @@ export class Daemon<
   }
 
   /**
-   * Terminate the daemon, stopping its underlying command and releasing
-   * the SubContainer hold taken at {@link start}.
+   * Terminate the daemon, stopping its underlying command, releasing the
+   * SubContainer hold taken at {@link start}, and requesting the
+   * SubContainer's destruction (`destroy()` is idempotent and defers to
+   * the last hold release, so other daemons sharing the same SubContainer
+   * keep it alive until they also term).
    *
    * Sends the configured signal (default SIGTERM) and waits for the
-   * process to exit. The SubContainer itself is not destroyed by this
-   * call — call `subcontainer.destroy()` separately (typically the
-   * owning `Daemons` instance does that). The container is torn down by
-   * the SubContainer's own machinery when destroy has been requested and
-   * all outstanding holds have been released.
+   * process to exit.
    *
    * @param termOptions Optional termination settings
    * @param termOptions.signal The signal to send (default `SIGTERM`)
@@ -177,6 +192,13 @@ export class Daemon<
       const release = this.releaseSubcontainerHold
       this.releaseSubcontainerHold = null
       await release().catch(logErrorOnce)
+    }
+
+    // Request the SubContainer's destruction. Idempotent + hold-aware:
+    // if another daemon still holds this SubContainer, destroy waits for
+    // the last hold-release before firing `destroyFs`.
+    if (this.subcontainer) {
+      await this.subcontainer.destroy().catch((e) => logErrorOnce(asError(e)))
     }
   }
 

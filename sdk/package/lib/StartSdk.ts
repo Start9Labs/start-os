@@ -844,6 +844,19 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         of(effects: Effects) {
           return Daemons.of<Manifest>({ effects })
         },
+        /**
+         * Build a reactive `main` entrypoint that reconciles its daemon set
+         * against a `Daemons` chain on every `effects.constRetry` trigger.
+         * See {@link Daemons.dynamic} for diff semantics and the rule that
+         * `fn`'s subcontainers must be lazy (`sdk.SubContainer.of(...)`).
+         *
+         * @param fn Async builder invoked on startup and on every constRetry
+         */
+        dynamic(
+          fn: (o: { effects: Effects }) => Promise<Daemons<Manifest, any>> | Daemons<Manifest, any>,
+        ) {
+          return Daemons.dynamic<Manifest>(fn)
+        },
       },
       SubContainer: {
         /**

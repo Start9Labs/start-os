@@ -414,49 +414,70 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    * an `onLeaveContext` cleanup, and kicks off status updates.
    *
    * Idempotent — repeat calls return the same `Daemons` without rebuilding.
+   *
+   * **No-leak invariant**: an `onLeaveContext` shutdown handler is armed
+   * *before* any daemon is constructed, and every partial construction is
+   * tracked in `builtHealthDaemons` so {@link term} can clean it up.
+   * Anything that throws during construction or `updateStatus` triggers
+   * an immediate `term()` (which is also idempotent) before the failure
+   * propagates.
    */
   async build(): Promise<this> {
     if (this.builtHealthDaemons) return this
     validateEntries(this.entries)
-    const hds: HealthDaemon<Manifest>[] = []
-    const byId = new Map<string, HealthDaemon<Manifest>>()
-    for (const entry of this.entries) {
-      const deps = entry.requires
-        .map((r) => byId.get(r))
-        .filter((d): d is HealthDaemon<Manifest> => !!d)
-      let daemon: Daemon<Manifest> | null = null
-      let readyArg: Ready | typeof EXIT_SUCCESS
-      if (entry.kind === 'daemon') {
-        daemon =
-          entry.prebuiltDaemon ??
-          Daemon.of<Manifest>()(this.effects, entry.subcontainer, entry.exec)
-        readyArg = entry.ready
-      } else if (entry.kind === 'oneshot') {
-        daemon = Oneshot.of<Manifest>()(
-          this.effects,
-          entry.subcontainer,
-          entry.exec,
-        )
-        readyArg = EXIT_SUCCESS
-      } else {
-        readyArg = entry.ready
-      }
-      const hd = new HealthDaemon<Manifest>(
-        daemon,
-        deps,
-        entry.id,
-        readyArg,
-        this.effects,
-      )
-      hds.push(hd)
-      byId.set(entry.id, hd)
-    }
-    this.builtHealthDaemons = hds
+    // Arm cleanup BEFORE constructing anything. If anything throws below
+    // — or context leaves while we're awaiting updateStatus — term() runs
+    // over whatever made it into builtHealthDaemons.
+    this.builtHealthDaemons = []
     this.effects.onLeaveContext(() => {
       this.term().catch((e) => logErrorOnce(asError(e)))
     })
-    for (const hd of hds) {
-      await hd.updateStatus()
+    const byId = new Map<string, HealthDaemon<Manifest>>()
+    try {
+      for (const entry of this.entries) {
+        const deps = entry.requires
+          .map((r) => byId.get(r))
+          .filter((d): d is HealthDaemon<Manifest> => !!d)
+        let daemon: Daemon<Manifest> | null = null
+        let readyArg: Ready | typeof EXIT_SUCCESS
+        if (entry.kind === 'daemon') {
+          daemon =
+            entry.prebuiltDaemon ??
+            Daemon.of<Manifest>()(this.effects, entry.subcontainer, entry.exec)
+          readyArg = entry.ready
+        } else if (entry.kind === 'oneshot') {
+          daemon = Oneshot.of<Manifest>()(
+            this.effects,
+            entry.subcontainer,
+            entry.exec,
+          )
+          readyArg = EXIT_SUCCESS
+        } else {
+          readyArg = entry.ready
+        }
+        // Suppress the Daemon's own onLeaveContext self-term — Daemons.term()
+        // handles dependency-ordered shutdown for the whole chain.
+        daemon?.markManaged()
+        const hd = new HealthDaemon<Manifest>(
+          daemon,
+          deps,
+          entry.id,
+          readyArg,
+          this.effects,
+        )
+        // Push BEFORE awaiting anything — so a context-leave mid-build
+        // sees this entry in builtHealthDaemons.
+        this.builtHealthDaemons.push(hd)
+        byId.set(entry.id, hd)
+      }
+      for (const hd of this.builtHealthDaemons) {
+        await hd.updateStatus()
+      }
+    } catch (e) {
+      // Best-effort tear-down of whatever we managed to construct before
+      // re-throwing, so the failure path leaves no leaked daemons.
+      await this.term().catch((te) => logErrorOnce(asError(te)))
+      throw e
     }
     return this
   }
@@ -489,37 +510,31 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
         }, timeout)
       }
     })
+    // Build the user's chain through the normal path so onLeaveContext +
+    // partial-construction cleanup are in place.
+    await this.build()
     const sentinelDaemon = Oneshot.of<Manifest>()(this.effects, null, {
       fn: async () => {
         resolve()
         return null
       },
     })
-    const sentinelEntry: DaemonEntry<Manifest> = {
-      kind: 'oneshot',
-      id: '__RUN_UNTIL_SUCCESS',
-      subcontainer: null,
-      exec: { fn: async () => null } as unknown as DaemonCommandType<
-        Manifest,
-        SubContainer<Manifest> | null
-      >,
-      requires: this.entries.map((e) => e.id),
-    }
-    // Bypass build() to inject the pre-built sentinel
-    const composed = new Daemons<Manifest, Ids>(this.effects, this.ids, [
-      ...this.entries,
-      sentinelEntry,
-    ])
-    const built = await composed.build()
-    // Replace the sentinel daemon with one whose fn signals completion
-    const sentinelHd = built.builtHealthDaemons!.find(
-      (h) => h.id === '__RUN_UNTIL_SUCCESS',
+    sentinelDaemon.markManaged()
+    const sentinelHd = new HealthDaemon<Manifest>(
+      sentinelDaemon,
+      [...(this.builtHealthDaemons ?? [])],
+      '__RUN_UNTIL_SUCCESS',
+      EXIT_SUCCESS,
+      this.effects,
     )
-    if (sentinelHd) (sentinelHd as any).daemon = sentinelDaemon
+    // Inject the sentinel into the live HealthDaemon list so term() walks
+    // it during dependency-ordered shutdown along with the user's daemons.
+    this.builtHealthDaemons!.push(sentinelHd)
     try {
+      await sentinelHd.updateStatus()
       await res
     } finally {
-      await built.term()
+      await this.term()
     }
     return null
   }
@@ -729,7 +744,7 @@ export class DaemonsReconciler<M extends T.SDKManifest>
   implements T.DaemonBuildable
 {
   private running = new Map<string, RunningEntry<M>>()
-  private inProgress = false
+  private inFlight: Promise<void> | null = null
   private pendingRerun = false
   private isTerminating = false
   private termPromise: Promise<void> | null = null
@@ -740,58 +755,91 @@ export class DaemonsReconciler<M extends T.SDKManifest>
   ) {}
 
   async build(): Promise<{ term(): Promise<void> }> {
-    await this.runReconcile()
+    // Arm cleanup BEFORE the first reconcile. The user's `fn` is awaited
+    // inside runReconcile; if context leaves during that await (or during
+    // any partial startEntry), term() walks whatever made it into the
+    // `running` map and tears it down.
     this.rootEffects.onLeaveContext(() => {
       this.term().catch((e) => logErrorOnce(asError(e)))
     })
+    await this.runReconcile()
     return { term: () => this.term() }
   }
 
   /** Trigger an out-of-band reconcile. Internal — exposed for testing. */
   scheduleRerun(): void {
     if (this.isTerminating) return
-    if (this.inProgress) {
+    if (this.inFlight) {
       this.pendingRerun = true
       return
     }
     this.runReconcile().catch((e) => logErrorOnce(asError(e)))
   }
 
-  private async runReconcile(): Promise<void> {
-    if (this.isTerminating) return
-    this.inProgress = true
-    try {
-      const fnEffects = this.rootEffects.child(`dyn-daemons-fn`)
-      fnEffects.constRetry = once(() => this.scheduleRerun())
-      const recorded = await this.fn({ effects: fnEffects })
-      validateEntries(recorded.entries)
-      await this.reconcile(recorded.entries)
-    } catch (e) {
-      logErrorOnce(asError(e))
-    } finally {
-      this.inProgress = false
+  private runReconcile(): Promise<void> {
+    if (this.isTerminating) return Promise.resolve()
+    // Tracking the in-flight promise (rather than a boolean) lets term()
+    // await its completion before mutating `running` — eliminating the
+    // race between teardown and a concurrent reconcile.
+    const p = (async () => {
+      try {
+        const fnEffects = this.rootEffects.child(`dyn-daemons-fn`)
+        fnEffects.constRetry = once(() => this.scheduleRerun())
+        const recorded = await this.fn({ effects: fnEffects })
+        validateEntries(recorded.entries)
+        await this.reconcile(recorded.entries)
+      } catch (e) {
+        logErrorOnce(asError(e))
+      }
+    })()
+    this.inFlight = p
+    p.finally(() => {
+      if (this.inFlight === p) this.inFlight = null
       if (this.pendingRerun && !this.isTerminating) {
         this.pendingRerun = false
         this.runReconcile().catch((e) => logErrorOnce(asError(e)))
       }
-    }
+    })
+    return p
   }
 
   private async reconcile(
     entries: ReadonlyArray<DaemonEntry<M>>,
   ): Promise<void> {
     // Eager subcontainers can't be diffed across reconciles (no stable hash).
-    for (const e of entries) {
-      if (
+    // If we find any, the user's `fn` has already paid for `createFs` on
+    // each one (eager construction is awaited inside fn) — destroy every
+    // subc the user just handed us before throwing, so the failure leaves
+    // no leaked subcontainers behind.
+    const hasEager = entries.some(
+      (e) =>
         'subcontainer' in e &&
         e.subcontainer &&
-        e.subcontainer instanceof SubContainerEager
-      ) {
-        throw new Error(
-          `Daemons.dynamic: entry '${e.id}' uses an eager SubContainer; ` +
-            `use sdk.SubContainer.of(...) (lazy) for diff-reuse under Daemons.dynamic.`,
-        )
-      }
+        e.subcontainer instanceof SubContainerEager,
+    )
+    if (hasEager) {
+      await Promise.allSettled(
+        entries
+          .filter(
+            (e): e is Extract<DaemonEntry<M>, { subcontainer: any }> =>
+              'subcontainer' in e && !!e.subcontainer,
+          )
+          .map((e) =>
+            e.subcontainer!.destroy().catch((err) =>
+              logErrorOnce(asError(err)),
+            ),
+          ),
+      )
+      const offender = entries.find(
+        (e) =>
+          'subcontainer' in e &&
+          e.subcontainer &&
+          e.subcontainer instanceof SubContainerEager,
+      )!
+      throw new Error(
+        `Daemons.dynamic: entry '${offender.id}' uses an eager SubContainer; ` +
+          `use sdk.SubContainer.of(...) (lazy) for diff-reuse under Daemons.dynamic.`,
+      )
     }
 
     const desiredById = new Map<string, DaemonEntry<M>>(
@@ -890,6 +938,9 @@ export class DaemonsReconciler<M extends T.SDKManifest>
     } else {
       readyArg = entry.ready
     }
+    // Suppress the Daemon's own onLeaveContext self-term — the reconciler
+    // handles dependency-ordered shutdown via stopEntries / term().
+    daemon?.markManaged()
 
     const dependencies = entry.requires
       .map((reqId) => this.running.get(reqId)?.healthDaemon)
@@ -917,6 +968,13 @@ export class DaemonsReconciler<M extends T.SDKManifest>
     if (this.termPromise) return this.termPromise
     this.isTerminating = true
     this.termPromise = (async () => {
+      // Drain any in-flight reconcile before stopping. The reconcile
+      // catches its own errors, so awaiting it never throws; the await
+      // just synchronises so we don't race against startEntry/stopEntries
+      // mutations to `running`.
+      if (this.inFlight) {
+        await this.inFlight.catch(() => {})
+      }
       await this.stopEntries(new Set(this.running.keys()))
     })()
     return this.termPromise
