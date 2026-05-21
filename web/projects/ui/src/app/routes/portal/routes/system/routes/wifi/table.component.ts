@@ -73,13 +73,13 @@ import { wifiSpec } from './wifi.const'
         <button
           tuiIconButton
           tuiDropdown
+          tuiDropdownAuto
           size="s"
           appearance="flat-grayscale"
           iconStart="@tui.ellipsis-vertical"
-          [(tuiDropdownOpen)]="open"
         >
           {{ 'More' | i18n }}
-          <tui-data-list *tuiDropdown>
+          <tui-data-list *tuiDropdown="let close" (click)="close()">
             <button tuiOption iconStart="@tui.wifi" (click)="prompt(network)">
               {{ 'Connect' | i18n }}
             </button>
@@ -165,8 +165,6 @@ export class WifiTableComponent {
 
   @Input()
   wifi: readonly Wifi[] = []
-
-  open = false
 
   getSignal(signal: number) {
     if (signal < 5) {
