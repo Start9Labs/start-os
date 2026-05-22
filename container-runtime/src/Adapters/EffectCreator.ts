@@ -310,9 +310,7 @@ export function makeEffects(context: EffectContext): Effects {
       >
     },
     notification: {
-      create(
-        ...[options]: Parameters<T.Effects["notification"]["create"]>
-      ) {
+      create(...[options]: Parameters<T.Effects["notification"]["create"]>) {
         return rpcRound("notification.create", options) as ReturnType<
           T.Effects["notification"]["create"]
         >

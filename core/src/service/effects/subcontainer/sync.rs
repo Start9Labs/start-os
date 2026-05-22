@@ -279,7 +279,7 @@ impl ExecParams {
             None::<&str>,
             "/",
             None::<&str>,
-            nix::mount::MsFlags::MS_REC | nix::mount::MsFlags::MS_PRIVATE,
+            nix::mount::MsFlags::MS_REC | nix::mount::MsFlags::MS_SLAVE,
             None::<&str>,
         )
         .with_ctx(|_| (ErrorKind::Filesystem, "make / private"))?;
@@ -291,7 +291,12 @@ impl ExecParams {
             nix::mount::MsFlags::MS_BIND | nix::mount::MsFlags::MS_REC,
             None::<&str>,
         )
-        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("bind {chroot:?} on itself")))?;
+        .with_ctx(|_| {
+            (
+                ErrorKind::Filesystem,
+                lazy_format!("bind {chroot:?} on itself"),
+            )
+        })?;
         let put_old = chroot.join(".put_old");
         std::fs::create_dir_all(&put_old)
             .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir {put_old:?}")))?;
@@ -299,8 +304,7 @@ impl ExecParams {
             .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("chdir {chroot:?}")))?;
         nix::unistd::pivot_root(".", ".put_old")
             .with_ctx(|_| (ErrorKind::Filesystem, "pivot_root"))?;
-        std::env::set_current_dir("/")
-            .with_ctx(|_| (ErrorKind::Filesystem, "chdir /"))?;
+        std::env::set_current_dir("/").with_ctx(|_| (ErrorKind::Filesystem, "chdir /"))?;
         nix::mount::umount2("/.put_old", nix::mount::MntFlags::MNT_DETACH)
             .with_ctx(|_| (ErrorKind::Filesystem, "umount /.put_old"))?;
         std::fs::remove_dir("/.put_old").ok();
