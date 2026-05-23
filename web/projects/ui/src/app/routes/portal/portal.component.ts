@@ -7,7 +7,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterOutlet } from '@angular/router'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
-import { ErrorService, i18nPipe } from '@start9labs/shared'
+import { ErrorService, i18nPipe, LeafProgressPipe } from '@start9labs/shared'
 import {
   TuiButton,
   TuiCell,
@@ -43,17 +43,16 @@ import { HeaderComponent } from './components/header/header.component'
     @if (update(); as update) {
       <tui-action-bar *tuiPopup="bar()">
         <span tuiCell="m">
-          @if (
-            update.overall && update.overall !== true && update.overall.total
-          ) {
+          @let leaf = update.overall | leafProgress;
+          @if (leaf && leaf !== true && leaf.total) {
             <tui-progress-circle
               size="xxs"
               [style.display]="'flex'"
               [max]="100"
-              [value]="getProgress(update.overall.total, update.overall.done)"
+              [value]="getProgress(leaf.total, leaf.done)"
             />
             Downloading:
-            {{ getProgress(update.overall.total, update.overall.done) }}%
+            {{ getProgress(leaf.total, leaf.done) }}%
           } @else {
             <tui-loader />
             Calculating download size
@@ -175,7 +174,7 @@ import { HeaderComponent } from './components/header/header.component'
     TuiPopup,
     TuiCell,
     i18nPipe,
-    PluginsComponent,
+    LeafProgressPipe,
   ],
 })
 export class PortalComponent {
