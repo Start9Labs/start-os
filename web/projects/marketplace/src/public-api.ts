@@ -19,7 +19,9 @@ export * from './pages/show/release-notes.component'
 
 export * from './pipes/filter-packages.pipe'
 
+export * from './components/aside.component'
 export * from './components/store-icon.component'
+export * from './components/store-icon.directive'
 export * from './components/menu/menu.component'
 export * from './components/registry.component'
 

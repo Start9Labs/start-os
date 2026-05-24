@@ -24,7 +24,7 @@ import {
   i18nPipe,
   MARKDOWN,
 } from '@start9labs/shared'
-import { TuiLoader, TuiNotification } from '@taiga-ui/core'
+import { TuiLoader, TuiNotification, TuiTitle } from '@taiga-ui/core'
 import {
   BehaviorSubject,
   combineLatest,
@@ -46,9 +46,11 @@ import { MarketplaceControlsComponent } from '../components/controls.component'
     <div class="outer-container">
       <ng-content select="[slot=close]" />
       @if (noMatch()) {
-        <div tuiNotification appearance="negative" class="no-match">
-          <strong>{{ 'No compatible version available' | i18n }}</strong>
-          <span>{{ 'Requires' | i18n }}: {{ targetRange() }}</span>
+        <div tuiNotification appearance="negative">
+          <div tuiTitle>
+            {{ 'No compatible version available' | i18n }}
+            <div tuiSubtitle>{{ 'Requires' | i18n }}: {{ targetRange() }}</div>
+          </div>
         </div>
       } @else if (pkg$ | async; as pkg) {
         <marketplace-package-hero [pkg]="pkg">
@@ -113,13 +115,6 @@ import { MarketplaceControlsComponent } from '../components/controls.component'
         height: 0.8em;
       }
     }
-
-    .no-match {
-      margin: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -129,6 +124,7 @@ import { MarketplaceControlsComponent } from '../components/controls.component'
     EmptyPipe,
     TuiLoader,
     TuiNotification,
+    TuiTitle,
     MarketplaceLinksComponent,
     MarketplaceFlavorsComponent,
     MarketplaceAboutComponent,

@@ -7,50 +7,65 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
-import { ItemComponent, MarketplacePkg } from '@start9labs/marketplace'
+import { MarketplacePkg } from '@start9labs/marketplace'
+import { LocalizePipe } from '@start9labs/shared'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
-import { TuiButton, TuiPopup } from '@taiga-ui/core'
-import { TuiDrawer } from '@taiga-ui/kit'
+import { TuiButton, TuiCell, TuiPopup, TuiTitle } from '@taiga-ui/core'
+import { TuiAvatar, TuiDrawer } from '@taiga-ui/kit'
+import { TuiCardLarge, tuiCardOptionsProvider } from '@taiga-ui/layout'
 import { debounceTime } from 'rxjs'
 import { MarketplacePreviewComponent } from '../modals/preview.component'
 
 @Component({
-  selector: 'marketplace-tile',
+  selector: 'button[marketplaceTile], a[marketplaceTile]',
   template: `
-    <marketplace-item [pkg]="pkg()" (click)="toggle(true)">
-      <tui-drawer
-        *tuiPopup="open()"
-        [overlay]="true"
-        (click.self)="toggle(false)"
-      >
-        <marketplace-preview [pkgId]="pkg().id">
-          <button
-            tuiAutoFocus
-            slot="close"
-            size="xs"
-            class="close-button"
-            tuiIconButton
-            type="button"
-            appearance="icon"
-            iconStart="@tui.x"
-            [tuiAppearanceFocus]="false"
-            (click)="toggle(false)"
-          ></button>
-        </marketplace-preview>
-      </tui-drawer>
-    </marketplace-item>
+    <span tuiCell>
+      <span tuiAvatar [round]="false">
+        <img
+          alt=""
+          [src]="pkg().icon || 'assets/img/service-icons/fallback.png'"
+        />
+      </span>
+      <span tuiTitle>
+        <b>{{ pkg().title }}</b>
+        <span tuiSubtitle>{{ pkg().version }}</span>
+      </span>
+    </span>
+    <span tuiDescription>{{ pkg().description.short | localize }}</span>
+    <tui-drawer
+      *tuiPopup="open()"
+      [overlay]="true"
+      (click.self)="toggle(false)"
+    >
+      <marketplace-preview [pkgId]="pkg().id">
+        <button
+          tuiAutoFocus
+          slot="close"
+          size="xs"
+          class="close-button"
+          tuiIconButton
+          type="button"
+          appearance="icon"
+          iconStart="@tui.x"
+          [tuiAppearanceFocus]="false"
+          (click)="toggle(false)"
+        ></button>
+      </marketplace-preview>
+    </tui-drawer>
   `,
   styles: `
-    @keyframes animateIn {
-      from {
-        opacity: 0;
-        transform: scale(0.6) translateY(-20px);
-      }
+    :host {
+      text-align: start;
+      box-shadow: none !important;
     }
 
-    :host {
-      cursor: pointer;
-      animation: animateIn 400ms calc(var(--animation-order) * 50ms) both;
+    [tuiDescription] {
+      margin: 0 0 -0.25rem !important;
+      color: var(--tui-text-secondary);
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
     }
 
     tui-drawer {
@@ -68,14 +83,24 @@ import { MarketplacePreviewComponent } from '../modals/preview.component'
       }
     }
   `,
+  host: {
+    '(click)': 'toggle(true)',
+  },
+  hostDirectives: [TuiCardLarge],
+  providers: [
+    tuiCardOptionsProvider({ space: 'compact', appearance: 'floating' }),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ItemComponent,
     TuiAutoFocus,
     TuiButton,
     TuiPopup,
     TuiDrawer,
     MarketplacePreviewComponent,
+    LocalizePipe,
+    TuiAvatar,
+    TuiTitle,
+    TuiCell,
   ],
 })
 export class MarketplaceTileComponent {
@@ -84,7 +109,7 @@ export class MarketplaceTileComponent {
     inject(ActivatedRoute).queryParamMap.pipe(debounceTime(100)),
   )
 
-  readonly pkg = input.required<MarketplacePkg>()
+  readonly pkg = input.required<MarketplacePkg>({ alias: 'marketplaceTile' })
   readonly open = computed(
     () =>
       this.params()?.get('id') === this.pkg()?.id &&
