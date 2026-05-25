@@ -1,70 +1,57 @@
 use std::fs::File;
 use std::io::{self, Write};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 
 use lazy_static::lazy_static;
 use tracing::Subscriber;
-use tracing_subscriber::fmt::MakeWriter;
+use tracing_appender::non_blocking::{NonBlocking, NonBlockingBuilder, WorkerGuard};
 use tracing_subscriber::util::SubscriberInitExt;
 
 lazy_static! {
     pub static ref LOGGER: StartOSLogger = StartOSLogger::init();
 }
 
-#[derive(Clone)]
-pub struct StartOSLogger {
-    logfile: LogFile,
+/// Hot-swappable on-disk log file.  Only contested between the appender
+/// thread and `set_logfile` callers; tokio workers never touch it.
+#[derive(Clone, Default)]
+struct SharedLogFile(Arc<Mutex<Option<File>>>);
+
+/// Tees each event to the optional log file and to stderr.  Owned by the
+/// `tracing_appender::non_blocking` background thread, never invoked from
+/// a tokio worker.
+struct TeeWriter {
+    file: SharedLogFile,
 }
 
-#[derive(Clone, Default)]
-struct LogFile(Arc<Mutex<Option<File>>>);
-impl<'a> MakeWriter<'a> for LogFile {
-    type Writer = Box<dyn Write + 'a>;
-    fn make_writer(&'a self) -> Self::Writer {
-        let f = self.0.lock().unwrap();
-        if f.is_some() {
-            struct TeeWriter<'a>(MutexGuard<'a, Option<File>>);
-            impl<'a> Write for TeeWriter<'a> {
-                fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-                    // Blocking file+stderr I/O on a tokio worker thread can
-                    // starve the I/O driver (tokio-rs/tokio#4730).
-                    // block_in_place tells the runtime to hand off driver
-                    // duties before we block.  Only available on the
-                    // multi-thread runtime; falls back to a direct write on
-                    // current-thread runtimes (CLI) or outside a runtime.
-                    if matches!(
-                        tokio::runtime::Handle::try_current().map(|h| h.runtime_flavor()),
-                        Ok(tokio::runtime::RuntimeFlavor::MultiThread),
-                    ) {
-                        tokio::task::block_in_place(|| self.write_inner(buf))
-                    } else {
-                        self.write_inner(buf)
-                    }
-                }
-                fn flush(&mut self) -> io::Result<()> {
-                    if let Some(f) = &mut *self.0 {
-                        f.flush()?;
-                    }
-                    Ok(())
-                }
+impl Write for TeeWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        // Best-effort to both sinks. The appender thread may block here if
+        // stderr is wedged, but worker threads cannot.
+        if let Ok(mut guard) = self.file.0.lock() {
+            if let Some(f) = guard.as_mut() {
+                let _ = f.write_all(buf);
             }
-            impl<'a> TeeWriter<'a> {
-                fn write_inner(&mut self, buf: &[u8]) -> io::Result<usize> {
-                    let n = if let Some(f) = &mut *self.0 {
-                        f.write(buf)?
-                    } else {
-                        buf.len()
-                    };
-                    io::stderr().write_all(&buf[..n])?;
-                    Ok(n)
-                }
-            }
-            Box::new(TeeWriter(f))
-        } else {
-            drop(f);
-            Box::new(io::stderr())
         }
+        let _ = io::stderr().write_all(buf);
+        Ok(buf.len())
     }
+
+    fn flush(&mut self) -> io::Result<()> {
+        if let Ok(mut guard) = self.file.0.lock() {
+            if let Some(f) = guard.as_mut() {
+                let _ = f.flush();
+            }
+        }
+        let _ = io::stderr().flush();
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub struct StartOSLogger {
+    logfile: SharedLogFile,
+    // Keeps the appender background thread alive for the process lifetime.
+    _guard: Arc<Mutex<Option<WorkerGuard>>>,
 }
 
 impl StartOSLogger {
@@ -74,7 +61,7 @@ impl StartOSLogger {
         *self.logfile.0.lock().unwrap() = logfile;
     }
 
-    fn base_subscriber(logfile: LogFile) -> impl Subscriber {
+    fn base_subscriber(writer: NonBlocking) -> impl Subscriber {
         use tracing_error::ErrorLayer;
         use tracing_subscriber::prelude::*;
         use tracing_subscriber::{EnvFilter, fmt};
@@ -90,7 +77,7 @@ impl StartOSLogger {
         };
 
         let fmt_layer = fmt::layer()
-            .with_writer(logfile)
+            .with_writer(writer)
             .with_line_number(true)
             .with_file(true)
             .with_target(true)
@@ -105,12 +92,25 @@ impl StartOSLogger {
 
         sub
     }
+
     fn init() -> Self {
-        let logfile = LogFile::default();
-        Self::base_subscriber(logfile.clone()).init();
+        let logfile = SharedLogFile::default();
+        // Lossy: drop events under sustained backpressure rather than ever
+        // letting a worker thread sync-block on logger I/O.
+        let (writer, guard) = NonBlockingBuilder::default()
+            .lossy(true)
+            .buffered_lines_limit(65_536)
+            .thread_name("startos-logger".into())
+            .finish(TeeWriter {
+                file: logfile.clone(),
+            });
+        Self::base_subscriber(writer).init();
         color_eyre::install().unwrap_or_else(|_| tracing::warn!("tracing too many times"));
 
-        StartOSLogger { logfile }
+        StartOSLogger {
+            logfile,
+            _guard: Arc::new(Mutex::new(Some(guard))),
+        }
     }
 }
 

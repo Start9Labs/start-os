@@ -222,6 +222,7 @@ tokio-tungstenite = { version = "0.26.2", features = ["native-tls", "url"] }
 tokio-util = { version = "0.7.9", features = ["io", "rt"] }
 tower-service = "0.3.3"
 tracing = "0.1.39"
+tracing-appender = "0.2.3"
 tracing-error = "0.2.0"
 tracing-journald = "0.3.0"
 tracing-subscriber = { version = "=0.3.19", features = ["env-filter"] }

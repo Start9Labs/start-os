@@ -1,10 +1,10 @@
 #!/bin/bash
-# Capture the state of startbox when it is unresponsive. Uses only /proc
+# Capture the state of startd when it is unresponsive. Uses only /proc
 # and basic system tools — does not rely on start-cli (which routes
 # through startd and will hang if startd is hung).
 #
 # Usage: sudo /usr/lib/startos/scripts/diagnose-hang
-# Produces: /tmp/startbox-hang-<timestamp>.tar.gz
+# Produces: /tmp/startd-hang-<timestamp>.tar.gz
 
 set -u
 
@@ -12,22 +12,24 @@ if [ "$(id -u)" -ne 0 ]; then
     exec sudo bash "$0" "$@"
 fi
 
-PID="$(pidof startbox || true)"
+PID="$(pidof startd || true)"
 if [ -z "$PID" ]; then
-    echo "startbox is not running — nothing to diagnose" >&2
+    echo "startd is not running — nothing to diagnose" >&2
     exit 1
 fi
+JOURNALD_PID="$(pidof systemd-journald || true)"
 
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
-OUT="/tmp/startbox-hang-$TS"
+OUT="/tmp/startd-hang-$TS"
 mkdir -p "$OUT"
 
-echo "Capturing startbox state (pid=$PID) to $OUT" >&2
+echo "Capturing startd state (pid=$PID) to $OUT" >&2
 
 # ---- Process-level summary ----
 {
     echo "timestamp: $TS"
     echo "pid:       $PID"
+    echo "journald:  ${JOURNALD_PID:-MISSING}"
     echo "uptime:    $(uptime)"
     awk '/^Name|^State|^Threads|^VmRSS|^VmPeak|^Pid|^PPid/' "/proc/$PID/status"
 } > "$OUT/summary.txt"
@@ -53,15 +55,120 @@ echo "Capturing startbox state (pid=$PID) to $OUT" >&2
 ps -L -p "$PID" -o tid,pcpu,stat,comm 2>/dev/null \
     | sort -k4 > "$OUT/threads-summary.txt"
 
+# ---- Futex address per thread (histogram) ----
+# /proc/<tid>/syscall format: NR arg0 arg1 arg2 arg3 arg4 arg5 sp pc.
+# For futex (NR=202 on x86_64), arg0 is the futex uaddr.
+# Same uaddr across many threads = mutex contention.
+# Different uaddrs = tokio's own park condvars (normal idle workers).
+# This is the single most useful piece of evidence for diagnosing the
+# logger-mutex wedge vs. a healthy-but-idle runtime.
+{
+    echo "=== /proc/<tid>/syscall per thread ==="
+    printf "%-7s %-24s %s\n" TID COMM SYSCALL
+    for t in /proc/$PID/task/*; do
+        tid="$(basename "$t")"
+        comm="$(cat "$t/comm" 2>/dev/null)"
+        sc="$(cat "$t/syscall" 2>/dev/null)"
+        printf "%-7s %-24s %s\n" "$tid" "$comm" "$sc"
+    done
+    echo
+    echo "=== histogram of futex uaddrs (col2 of syscall, only when col1=202) ==="
+    for t in /proc/$PID/task/*; do
+        sc="$(cat "$t/syscall" 2>/dev/null)"
+        set -- $sc
+        [ "${1:-}" = "202" ] && echo "$2"
+    done | sort | uniq -c | sort -rn
+} > "$OUT/futex-histogram.txt"
+
+# ---- Userspace backtraces (if gdb installed) ----
+# Reveals WHICH thread is the logger-mutex holder and what others are
+# parked on. Cheap and read-only.
+if command -v gdb >/dev/null 2>&1; then
+    timeout 60 gdb -batch -nx \
+        -ex "set pagination off" \
+        -ex "set print thread-events off" \
+        -ex "attach $PID" \
+        -ex "info threads" \
+        -ex "thread apply all bt" \
+        -ex "detach" \
+        -ex "quit" \
+        > "$OUT/startd-gdb.txt" 2>&1 || true
+else
+    echo "(gdb not installed)" > "$OUT/startd-gdb.txt"
+fi
+
 # ---- Open files / sockets ----
 ls -la "/proc/$PID/fd/" > "$OUT/fds.txt" 2>&1 || true
 {
-    echo "--- ss (sockets owned by pid) ---"
+    echo "--- ss (sockets owned by startd) ---"
     ss -anpe 2>/dev/null | grep -E "pid=$PID|^Netid" || true
+    echo
+    echo "--- ss (unix sockets owned by journald) ---"
+    if [ -n "${JOURNALD_PID:-}" ]; then
+        ss -xnpe 2>/dev/null | grep -E "pid=$JOURNALD_PID|^Netid" || true
+    fi
+    echo
+    echo "--- /proc/net/unix (queue depths for stdout/journal streams) ---"
+    awk 'NR==1 || /journal|stdout/' /proc/net/unix 2>/dev/null | head -100
 } > "$OUT/sockets.txt"
 
-# ---- Recent journal output for startd ----
+# ---- startd fd 2 -> peer ----
+# Most likely culprit for a logger-shaped wedge: fd 2 connected to a
+# journald stream whose peer is alive but not reading.
+{
+    echo "=== startd fd 0/1/2 ==="
+    ls -l "/proc/$PID/fd/0" "/proc/$PID/fd/1" "/proc/$PID/fd/2" 2>&1
+    echo
+    target="$(readlink "/proc/$PID/fd/2" 2>/dev/null)"
+    echo "fd 2 -> $target"
+    inode="$(echo "$target" | sed -n 's/^socket:\[\([0-9]*\)\]$/\1/p')"
+    if [ -n "$inode" ]; then
+        echo
+        echo "=== matching socket(s) for inode $inode ==="
+        ss -xnpe 2>/dev/null | awk -v ino="$inode" \
+            'NR==1 || $0 ~ ("ino:"ino"[^0-9]") || $0 ~ ("[ \t]"ino"[ \t]")'
+    fi
+} > "$OUT/startd-fd2.txt" 2>&1
+
+# ---- journald state ----
+{
+    echo "=== systemctl status systemd-journald ==="
+    systemctl status systemd-journald --no-pager -l 2>&1
+    echo
+    echo "=== systemctl show systemd-journald (key fields) ==="
+    systemctl show systemd-journald --no-pager \
+        --property=ActiveState,SubState,Result,NRestarts,ExecMainStartTimestamp,ExecMainPID 2>&1
+    echo
+    echo "=== journalctl -u systemd-journald --since '4 hours ago' (last 200) ==="
+    journalctl -u systemd-journald --since "4 hours ago" --no-pager 2>&1 | tail -200
+    echo
+    if [ -n "${JOURNALD_PID:-}" ]; then
+        echo "=== /proc/$JOURNALD_PID/wchan ==="
+        cat "/proc/$JOURNALD_PID/wchan" 2>&1; echo
+        echo "=== /proc/$JOURNALD_PID/stack ==="
+        cat "/proc/$JOURNALD_PID/stack" 2>&1; echo
+        echo "=== /proc/$JOURNALD_PID/io ==="
+        cat "/proc/$JOURNALD_PID/io" 2>&1; echo
+        echo "=== journald per-thread wchan ==="
+        for t in "/proc/$JOURNALD_PID/task/"*; do
+            tid="$(basename "$t")"
+            printf "  tid=%-7s comm=%-20s wchan=%s\n" \
+                "$tid" \
+                "$(cat "$t/comm" 2>/dev/null)" \
+                "$(cat "$t/wchan" 2>/dev/null)"
+        done
+        echo
+        echo "=== journald open fds ==="
+        ls -l "/proc/$JOURNALD_PID/fd" 2>&1
+    fi
+} > "$OUT/journald-state.txt"
+
+# ---- Recent journal output ----
 journalctl -u startd --no-pager -n 500 > "$OUT/startd-journal.txt" 2>&1 || true
+# All-units tail tells us whether the entire system stopped logging at
+# the same instant (journald-side wedge) or just startd's stream.
+journalctl --since "4 hours ago" --no-pager 2>&1 | tail -5000 \
+    > "$OUT/journal-all-tail.txt" || true
 
 # ---- I/O and disk health ----
 dmesg -T 2>/dev/null | tail -200 > "$OUT/dmesg.txt"
@@ -72,12 +179,25 @@ dmesg -T 2>/dev/null | tail -200 > "$OUT/dmesg.txt"
     echo "--- mount ---"
     mount
     echo
+    echo "--- /proc/pressure/* ---"
+    for f in /proc/pressure/cpu /proc/pressure/memory /proc/pressure/io; do
+        [ -r "$f" ] && { echo "$f"; cat "$f"; echo; }
+    done
     echo "--- iostat -x 1 3 ---"
     if command -v iostat >/dev/null 2>&1; then
         iostat -x 1 3
     else
         echo "(iostat not installed)"
     fi
+    echo
+    echo "--- journalctl --disk-usage ---"
+    journalctl --disk-usage 2>&1
+    echo
+    echo "--- /var/log/journal ---"
+    ls -la /var/log/journal/ 2>&1
+    echo
+    echo "--- /run/log/journal ---"
+    ls -la /run/log/journal/ 2>&1
 } > "$OUT/io.txt" 2>&1
 
 # ---- LXC state (the containers startd was managing) ----
@@ -93,6 +213,27 @@ dmesg -T 2>/dev/null | tail -200 > "$OUT/dmesg.txt"
         echo
     done
 } > "$OUT/lxc.txt"
+
+# ---- Environment / versions ----
+{
+    echo "--- uname ---"; uname -a
+    echo
+    echo "--- /etc/os-release ---"; cat /etc/os-release 2>&1
+    echo
+    echo "--- systemd version ---"; systemctl --version 2>&1
+    echo
+    echo "--- /etc/systemd/journald.conf ---"
+    cat /etc/systemd/journald.conf 2>&1
+    echo
+    echo "--- /etc/systemd/journald.conf.d/*.conf ---"
+    cat /etc/systemd/journald.conf.d/*.conf 2>/dev/null
+    echo
+    echo "--- startd exe ---"
+    readlink "/proc/$PID/exe" 2>&1
+    echo
+    echo "--- startd cmdline ---"
+    tr '\0' ' ' < "/proc/$PID/cmdline" 2>&1; echo
+} > "$OUT/environment.txt"
 
 # ---- Bundle ----
 tar czf "$OUT.tar.gz" -C /tmp "$(basename "$OUT")"

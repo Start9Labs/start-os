@@ -6608,6 +6608,7 @@ dependencies = [
  "toml 0.9.12+spec-1.1.0",
  "tower-service",
  "tracing",
+ "tracing-appender",
  "tracing-error",
  "tracing-journald",
  "tracing-subscriber",
@@ -8075,7 +8076,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -8728,9 +8729,9 @@ checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "yasi"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b4752072f7740cdfce9c61da81760fbda4182cfe4fff6f7a21fb6470b3f20a0"
+checksum = "a8fe88b2e18f1393e93a7703658ef5edca32d6a7da3aa23afae15f76e1cb0115"
 dependencies = [
  "hashbrown 0.13.2",
  "lazy_static",
