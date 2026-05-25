@@ -65,7 +65,7 @@ impl NetController {
                 .0],
         )?);
         add_iptables_rule(
-            false,
+            None,
             false,
             &[
                 "FORWARD",
