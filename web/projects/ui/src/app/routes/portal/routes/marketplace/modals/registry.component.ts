@@ -28,6 +28,7 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StorageService } from 'src/app/services/storage.service'
+import { MarketplaceAlertsService } from '../services/alerts.service'
 
 @Component({
   template: `
@@ -100,6 +101,7 @@ export class MarketplaceRegistryModal {
   )
   private readonly i18n = inject(i18nPipe)
   private readonly storage = inject(StorageService)
+  private readonly alerts = inject(MarketplaceAlertsService)
 
   readonly registries$ = combineLatest([
     this.marketplaceService.registries$,
@@ -192,6 +194,7 @@ export class MarketplaceRegistryModal {
       })
       this.storage.set('selectedRegistry', url)
       this.context.$implicit.complete()
+      this.alerts.alertRegistryChange(url)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

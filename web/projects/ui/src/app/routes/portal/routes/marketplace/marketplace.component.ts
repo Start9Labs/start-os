@@ -19,7 +19,6 @@ import {
   TuiButton,
   tuiButtonOptionsProvider,
   TuiCell,
-  TuiNotification,
   TuiScrollbar,
   TuiTitle,
 } from '@taiga-ui/core'
@@ -31,7 +30,6 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { StorageService } from 'src/app/services/storage.service'
 import { TitleDirective } from 'src/app/services/title.service'
 
-import { MarketplaceNotificationComponent } from './components/notification.component'
 import { MarketplaceTileComponent } from './components/tile.component'
 import { MARKETPLACE_REGISTRY } from './modals/registry.component'
 
@@ -51,7 +49,6 @@ import { MARKETPLACE_REGISTRY } from './modals/registry.component'
     <tui-scrollbar [style.flex]="1">
       <section>
         @if (registry(); as reg) {
-          <div tuiNotification [registry]="reg.url"></div>
           @for (
             pkg of reg.packages | filterPackages: query() : category() : sort();
             track $index
@@ -59,8 +56,7 @@ import { MARKETPLACE_REGISTRY } from './modals/registry.component'
             <button type="button" [marketplaceTile]="pkg"></button>
           }
         } @else {
-          <div tuiNotification size="m" [tuiSkeleton]="true">Loading</div>
-          @for (_ of '-'.repeat(3); track $index) {
+          @for (_ of '-'.repeat(15); track $index) {
             <div tuiCardLarge="compact" [tuiSkeleton]="true">
               <span tuiCell>
                 <span tuiAvatar></span>
@@ -105,22 +101,16 @@ import { MARKETPLACE_REGISTRY } from './modals/registry.component'
       gap: 1rem;
       grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
     }
-
-    [tuiNotification] {
-      grid-column: 1 / -1;
-    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     MarketplaceTileComponent,
-    MarketplaceNotificationComponent,
     TuiScrollbar,
     FilterPackagesPipe,
     TitleDirective,
     i18nPipe,
     MarketplaceAsideComponent,
-    TuiNotification,
     TuiButton,
     StoreIconDirective,
     TuiAvatar,

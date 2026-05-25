@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { i18nPipe, LeafProgressPipe } from '@start9labs/shared'
-import { TuiIcon, TuiTitle, TuiCell } from '@taiga-ui/core'
-import { TuiAvatar, TuiFade, TuiProgress } from '@taiga-ui/kit'
+import { TuiIcon, TuiLoader, TuiTitle, TuiCell } from '@taiga-ui/core'
+import { TuiAvatar, TuiFade } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { take } from 'rxjs'
 import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
@@ -22,24 +22,18 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
         <span>{{ overallPct }}%</span>
       }
     </header>
-    <progress
-      tuiProgressBar
-      size="s"
-      [style.margin]="'1rem 0 1.25rem'"
-      [max]="100"
-      [class.g-positive]="overallLeaf === true"
-      [attr.value]="overallLeaf === true ? 100 : overallPct"
-    ></progress>
     @for (phase of backupProgress()?.phases; track phase.name) {
       @let pkg = pkgs()?.[phase.name];
       @let leaf = phase.progress | leafProgress;
       @let percent = leaf | installingProgress;
       <div tuiCell>
-        @if (pkg) {
-          <span tuiAvatar appearance="action-grayscale" [round]="false">
+        <span tuiAvatar appearance="action-grayscale" [round]="false">
+          @if (pkg) {
             <img alt="" [src]="pkg.icon" />
-          </span>
-        }
+          } @else {
+            <img alt="StartOS" src="assets/img/icon.png" />
+          }
+        </span>
         <span tuiTitle>
           <span class="title">
             <span tuiFade>
@@ -52,17 +46,10 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
               <tui-icon icon="@tui.clock" />
               {{ 'waiting' | i18n }}
             } @else {
+              <tui-loader size="s" />
               {{ percent }}%
             }
           </span>
-          @if (leaf !== null && leaf !== true) {
-            <progress
-              tuiProgressBar
-              size="xs"
-              [max]="100"
-              [attr.value]="leaf === false ? undefined : percent"
-            ></progress>
-          }
         </span>
       </div>
     }
@@ -104,7 +91,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     TuiAvatar,
     TuiTitle,
     TuiIcon,
-    TuiProgress,
+    TuiLoader,
     ToManifestPipe,
     LeafProgressPipe,
     InstallingProgressPipe,
