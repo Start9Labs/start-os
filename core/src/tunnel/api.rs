@@ -249,7 +249,7 @@ pub async fn add_subnet(
             .collect::<Vec<_>>()
     }) {
         add_iptables_rule(
-            true,
+            Some("nat"),
             false,
             &[
                 "POSTROUTING",
@@ -296,7 +296,7 @@ pub async fn remove_subnet(
             .collect::<Vec<_>>()
     }) {
         add_iptables_rule(
-            true,
+            Some("nat"),
             true,
             &[
                 "POSTROUTING",

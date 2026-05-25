@@ -254,10 +254,14 @@ pub struct PortForwardController {
     _thread: NonDetachingJoinHandle<()>,
 }
 
-pub async fn add_iptables_rule(nat: bool, undo: bool, args: &[&str]) -> Result<(), Error> {
+pub async fn add_iptables_rule(
+    table: Option<&str>,
+    undo: bool,
+    args: &[&str],
+) -> Result<(), Error> {
     let mut cmd = Command::new("iptables");
-    if nat {
-        cmd.arg("-t").arg("nat");
+    if let Some(table) = table {
+        cmd.arg("-t").arg(table);
     }
     let exists = cmd
         .arg("-C")
@@ -267,8 +271,8 @@ pub async fn add_iptables_rule(nat: bool, undo: bool, args: &[&str]) -> Result<(
         .is_ok();
     if undo != !exists {
         let mut cmd = Command::new("iptables");
-        if nat {
-            cmd.arg("-t").arg("nat");
+        if let Some(table) = table {
+            cmd.arg("-t").arg(table);
         }
         if undo {
             cmd.arg("-D");
@@ -292,7 +296,7 @@ impl PortForwardController {
                     .invoke(ErrorKind::Network)
                     .await?;
                 add_iptables_rule(
-                    false,
+                    None,
                     false,
                     &[
                         "FORWARD",

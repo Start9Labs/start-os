@@ -126,7 +126,7 @@ impl TunnelContext {
         let net_iface = Watch::new(net_iface);
         let forward = PortForwardController::new();
         add_iptables_rule(
-            false,
+            None,
             false,
             &[
                 "FORWARD",
@@ -138,6 +138,26 @@ impl TunnelContext {
                 "NEW",
                 "-j",
                 "ACCEPT",
+            ],
+        )
+        .await?;
+        // Clamp TCP MSS on forwarded SYNs to the WireGuard path MTU so large
+        // TLS ClientHellos (desktop Firefox/Chromium with X25519MLKEM768
+        // post-quantum key shares) don't get silently dropped after
+        // encapsulation. See start-os#3261.
+        add_iptables_rule(
+            Some("mangle"),
+            false,
+            &[
+                "FORWARD",
+                "-p",
+                "tcp",
+                "--tcp-flags",
+                "SYN,RST",
+                "SYN",
+                "-j",
+                "TCPMSS",
+                "--clamp-mss-to-pmtu",
             ],
         )
         .await?;
@@ -159,7 +179,7 @@ impl TunnelContext {
         }) {
             for subnet in peek.as_wg().as_subnets().keys()? {
                 add_iptables_rule(
-                    true,
+                    Some("nat"),
                     false,
                     &[
                         "POSTROUTING",
