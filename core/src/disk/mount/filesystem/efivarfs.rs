@@ -1,3 +1,4 @@
+use std::os::fd::AsFd;
 use std::path::Path;
 
 use digest::generic_array::GenericArray;
@@ -5,15 +6,29 @@ use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;
 
 use super::FileSystem;
+use crate::disk::mount::filesystem::MountType;
+use crate::disk::mount::filesystem::syscall::{
+    DetachedMount, fsconfig_create, fsmount, fsopen,
+};
 use crate::prelude::*;
 
 pub struct EfiVarFs;
 impl FileSystem for EfiVarFs {
-    fn mount_type(&self) -> Option<impl AsRef<str>> {
-        Some("efivarfs")
-    }
-    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
-        Ok(Some("efivarfs"))
+    async fn mount<P: AsRef<Path> + Send>(
+        &self,
+        mountpoint: P,
+        mount_type: MountType,
+    ) -> Result<(), Error> {
+        let mp = mountpoint.as_ref();
+        tokio::fs::create_dir_all(mp).await?;
+        let fs = fsopen("efivarfs")?;
+        fsconfig_create(fs.as_fd())?;
+        let detached = DetachedMount::from_fd(fsmount(fs.as_fd(), 0)?);
+        if matches!(mount_type, MountType::ReadOnly) {
+            detached.set_readonly(true)?;
+        }
+        detached.attach(mp)?;
+        Ok(())
     }
     async fn source_hash(
         &self,

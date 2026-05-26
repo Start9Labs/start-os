@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::os::fd::AsFd;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
@@ -7,6 +7,9 @@ use digest::{Digest, OutputSizeUser};
 use itertools::Itertools;
 use sha2::Sha256;
 
+use crate::disk::mount::filesystem::syscall::{
+    DetachedMount, fsconfig_create, fsconfig_set_string, fsmount, fsopen,
+};
 use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
 use crate::disk::mount::util::sync_filesystem;
@@ -27,26 +30,39 @@ impl<P0: AsRef<Path>, P1: AsRef<Path>, P2: AsRef<Path>> OverlayFs<P0, P1, P2> {
 impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync, P2: AsRef<Path> + Send + Sync>
     FileSystem for OverlayFs<P0, P1, P2>
 {
-    fn mount_type(&self) -> Option<impl AsRef<str>> {
-        Some("overlay")
-    }
-    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
-        Ok(Some("overlay"))
-    }
-    fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
-        [
-            Box::new(lazy_format!(
-                "lowerdir={}",
-                self.lower.iter().map(|p| p.as_ref().display()).join(":")
-            )) as Box<dyn Display>,
-            Box::new(lazy_format!("upperdir={}", self.upper.as_ref().display())),
-            Box::new(lazy_format!("workdir={}", self.work.as_ref().display())),
-        ]
-    }
-    async fn pre_mount(&self, mountpoint: &Path, _: MountType) -> Result<(), Error> {
+    async fn mount<MP: AsRef<Path> + Send>(
+        &self,
+        mountpoint: MP,
+        mount_type: MountType,
+    ) -> Result<(), Error> {
+        let mp = mountpoint.as_ref();
         tokio::fs::create_dir_all(self.upper.as_ref()).await?;
         tokio::fs::create_dir_all(self.work.as_ref()).await?;
-        tokio::fs::create_dir_all(mountpoint).await?;
+        tokio::fs::create_dir_all(mp).await?;
+
+        let fs = fsopen("overlay")?;
+        let lowerdir = self
+            .lower
+            .iter()
+            .map(|p| p.as_ref().display().to_string())
+            .join(":");
+        fsconfig_set_string(fs.as_fd(), "lowerdir", &lowerdir)?;
+        fsconfig_set_string(
+            fs.as_fd(),
+            "upperdir",
+            &self.upper.as_ref().display().to_string(),
+        )?;
+        fsconfig_set_string(
+            fs.as_fd(),
+            "workdir",
+            &self.work.as_ref().display().to_string(),
+        )?;
+        fsconfig_create(fs.as_fd())?;
+        let detached = DetachedMount::from_fd(fsmount(fs.as_fd(), 0)?);
+        if matches!(mount_type, MountType::ReadOnly) {
+            detached.set_readonly(true)?;
+        }
+        detached.attach(mp)?;
         Ok(())
     }
     async fn source_hash(
