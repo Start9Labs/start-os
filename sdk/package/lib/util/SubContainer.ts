@@ -50,15 +50,19 @@ async function bind(
 ) {
   await prepBind(from, to, type)
 
-  const args = ['--bind']
-
-  if (idmap.length) {
-    args.push(
-      `-oX-mount.idmap=${idmap.map((i) => `b:${i.fromId}:${i.toId}:${i.range}`).join(' ')}`,
-    )
+  // Inside the LXC subcontainer (which is itself idmapped), util-linux's
+  // `mount --bind -oX-mount.idmap=...` can't reliably set up a second,
+  // nested idmap. start-container's `mount` subcommand performs the bind
+  // via direct syscalls (open_tree + mount_setattr + move_mount) so the
+  // SDK's idmap field on volume/asset/dependency/backup mounts works.
+  const args = ['mount', '--source', from, '--target', to, '--recursive']
+  if (type === 'file') {
+    args.push('--file')
   }
-
-  await execFile('mount', [...args, from, to])
+  for (const i of idmap) {
+    args.push('--idmap', `${i.fromId}:${i.toId}:${i.range}`)
+  }
+  await execFile('start-container', args)
 }
 
 type MountsArg<Manifest extends T.SDKManifest, E extends T.Effects> =
@@ -516,7 +520,27 @@ export class SubContainerEager<
         await bind(from, path, options.filetype, options.idmap)
       } else if (options.type === 'pointer') {
         await prepBind(null, path, 'directory')
-        await this.effects.mount({ location: path, target: options })
+        // Host-side does the base-mapped bind; the SDK idmap is applied
+        // separately below as a nested syscall bind so pointer mounts
+        // pick up the same idmap semantics as volume/asset/backup mounts.
+        await this.effects.mount({
+          location: path,
+          target: { ...options, idmap: [] },
+        })
+        if (options.idmap.length) {
+          const args = [
+            'mount',
+            '--source',
+            path,
+            '--target',
+            path,
+            '--recursive',
+          ]
+          for (const i of options.idmap) {
+            args.push('--idmap', `${i.fromId}:${i.toId}:${i.range}`)
+          }
+          await execFile('start-container', args)
+        }
       } else if (options.type === 'backup') {
         const subpath = options.subpath
           ? options.subpath.startsWith('/')

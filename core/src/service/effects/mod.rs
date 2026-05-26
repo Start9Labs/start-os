@@ -13,6 +13,7 @@ pub mod context;
 mod control;
 mod dependency;
 mod health;
+mod local_mount;
 mod net;
 pub mod notification;
 pub mod plugin;
@@ -85,7 +86,8 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand("mount", from_fn_async(dependency::mount).no_cli())
+        .subcommand("mount-pointer", from_fn_async(dependency::mount).no_cli())
+        .subcommand("mount", from_fn_async(local_mount::local_mount::<C>).no_display())
         .subcommand(
             "get-installed-packages",
             from_fn_async(dependency::get_installed_packages).no_cli(),

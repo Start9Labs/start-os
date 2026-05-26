@@ -26,23 +26,6 @@ pub struct IdMap {
     pub to_id: u32,
     pub range: u32,
 }
-impl IdMap {
-    pub fn stack(a: Vec<IdMap>, b: Vec<IdMap>) -> Vec<IdMap> {
-        let mut res = Vec::with_capacity(a.len() + b.len());
-        res.extend_from_slice(&a);
-
-        for mut b in b {
-            for a in &a {
-                if a.from_id <= b.to_id && a.from_id + a.range > b.to_id {
-                    b.to_id += a.to_id;
-                }
-            }
-            res.push(b);
-        }
-
-        res
-    }
-}
 impl FromStr for IdMap {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {

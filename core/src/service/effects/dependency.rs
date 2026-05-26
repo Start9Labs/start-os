@@ -56,7 +56,10 @@ pub async fn mount(
                 subpath,
                 readonly,
                 filetype,
-                idmap,
+                // SDK idmap is applied by the inner `start-container mount`
+                // from inside the LXC, not composed in here. The host-side
+                // bind always uses just the LXC base map.
+                idmap: _,
             },
     }: MountParams,
 ) -> Result<(), Error> {
@@ -80,14 +83,11 @@ pub async fn mount(
 
     IdMapped::new(
         Bind::new(source).with_type(filetype).recursive(true),
-        IdMap::stack(
-            vec![IdMap {
-                from_id: 0,
-                to_id: 100000,
-                range: 65536,
-            }],
-            idmap,
-        ),
+        vec![IdMap {
+            from_id: 0,
+            to_id: 100000,
+            range: 65536,
+        }],
     )
     .mount(
         mountpoint,
