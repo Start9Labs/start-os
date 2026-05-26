@@ -1271,7 +1271,10 @@ pub async fn cli_attach(
         {
             Ok(a) => a,
             Err(e) => {
-                if e.kind != ErrorKind::InvalidRequest {
+                if e.kind != ErrorKind::InvalidRequest
+                    || !stdin.is_terminal()
+                    || !stdout.is_terminal()
+                {
                     return Err(e);
                 }
                 let prompt = e.to_string();
