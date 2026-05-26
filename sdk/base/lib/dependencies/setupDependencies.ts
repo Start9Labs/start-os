@@ -1,3 +1,4 @@
+import { ValidateExVerRange } from '../exver'
 import * as T from '../types'
 import { once } from '../util'
 
@@ -36,10 +37,29 @@ export type CurrentDependenciesResult<Manifest extends T.SDKManifest> = {
   [K in OptionalDependenciesOf<Manifest>]?: DependencyRequirement
 }
 
-export function setupDependencies<Manifest extends T.SDKManifest>(
+/**
+ * Validates each requirement's `versionRange` literal as an exver version
+ * range. A malformed range collapses that field to `never`, surfacing a compile
+ * error at the offending requirement. Non-literal `string` values pass through
+ * unchecked (see {@link ValidateExVerRange}); runtime validation is unchanged.
+ */
+export type ValidateVersionRanges<R> = {
+  [K in keyof R]: R[K] extends { versionRange: infer V }
+    ? V extends string
+      ? [ValidateExVerRange<V>] extends [never]
+        ? Omit<R[K], 'versionRange'> & { versionRange: never }
+        : R[K]
+      : R[K]
+    : R[K]
+}
+
+export function setupDependencies<
+  Manifest extends T.SDKManifest,
+  const R extends CurrentDependenciesResult<Manifest>,
+>(
   fn: (options: {
     effects: T.Effects
-  }) => Promise<CurrentDependenciesResult<Manifest>>,
+  }) => Promise<R & ValidateVersionRanges<R>>,
 ): (effects: T.Effects) => Promise<null> {
   return async (effects: T.Effects) => {
     const dependencyType = await fn({ effects })
@@ -56,4 +76,40 @@ export function setupDependencies<Manifest extends T.SDKManifest>(
         ),
     })
   }
+}
+
+function __type_tests() {
+  type TestManifest = Omit<T.SDKManifest, 'dependencies'> & {
+    dependencies: {
+      'hello-world': T.Manifest['dependencies'][string] & { optional: false }
+    }
+  }
+  // `Manifest` is fixed and `R` stays inferred — the same wrapper shape that
+  // `sdk.setupDependencies` uses, so `const R` can capture range literals.
+  const setup = <const R extends CurrentDependenciesResult<TestManifest>>(
+    fn: (options: {
+      effects: T.Effects
+    }) => Promise<R & ValidateVersionRanges<R>>,
+  ) => setupDependencies<TestManifest, R>(fn)
+
+  // valid range literal (full grammar)
+  setup(async () => ({
+    'hello-world': {
+      kind: 'running',
+      versionRange: '>=1.0.0:0 && <2:0',
+      healthChecks: [],
+    },
+  }))
+
+  // invalid range literal — error lands on the returned object
+  setup(async () =>
+    // @ts-expect-error - malformed version in range
+    ({
+      'hello-world': {
+        kind: 'running',
+        versionRange: '>=2.f',
+        healthChecks: [],
+      },
+    }),
+  )
 }

@@ -1,4 +1,4 @@
-import { ValidateExVer } from '../../../base/lib/exver'
+import { ValidateExVer, ValidateExVerRange } from '../../../base/lib/exver'
 import * as T from '../../../base/lib/types'
 
 /**
@@ -6,6 +6,25 @@ import * as T from '../../../base/lib/types'
  * Use this for `migrations.up` or `migrations.down` to prevent migration.
  */
 export const IMPOSSIBLE: unique symbol = Symbol('IMPOSSIBLE')
+
+type Migration = {
+  up?: (opts: { effects: T.Effects }) => Promise<void>
+  down?: (opts: { effects: T.Effects }) => Promise<void>
+}
+
+/**
+ * Validates each key of a `migrations.other` record as an exver version range.
+ * An invalid key collapses that entry's value type to `never`, surfacing a
+ * compile error at the offending entry. (The `[…] extends […]` tuple wrapping
+ * prevents distribution over `never`.)
+ */
+type ValidateOtherKeys<O> = {
+  [K in keyof O]: K extends string
+    ? [ValidateExVerRange<K>] extends [never]
+      ? never
+      : O[K]
+    : O[K]
+}
 
 /**
  * Configuration options for a single service version definition.
@@ -83,8 +102,13 @@ class VersionInfoImpl<Version extends string> implements VersionInfo<Version> {
  * @returns A VersionInfo instance that is exported, then imported into versions/index.ts.
  */
 export const VersionInfo = {
-  of<Version extends string>(
-    options: VersionOptions<Version>,
+  of<
+    Version extends string,
+    const Other extends Record<string, Migration> = {},
+  >(
+    options: VersionOptions<Version> & {
+      migrations: { other?: Other & ValidateOtherKeys<Other> }
+    },
   ): VersionInfo<Version> {
     return new VersionInfoImpl<Version>({ ...options, satisfies: [] })
   },
@@ -104,6 +128,30 @@ function __type_tests() {
   let a: VersionInfo<'1.0.0:0'> = version
   // @ts-expect-error
   let b: VersionInfo<'1.0.0:3'> = version
+
+  // migrations.other keys accept the full range grammar (and concrete versions)
+  VersionInfo.of({
+    version: '1.0.0:0',
+    releaseNotes: '',
+    migrations: {
+      other: {
+        ['^29']: { up: async () => {} },
+        ['>=28:0 && <30:0']: { up: async () => {} },
+        ['^#knotsrdts:29.3']: { up: async () => {} },
+        ['1.0.0:0']: { up: async () => {} },
+      },
+    },
+  })
+  VersionInfo.of({
+    version: '1.0.0:0',
+    releaseNotes: '',
+    migrations: {
+      other: {
+        // @ts-expect-error - invalid version inside the range key
+        ['^28 || 30.x:0']: { up: async () => {} },
+      },
+    },
+  })
 
   VersionInfo.of({
     // @ts-expect-error
