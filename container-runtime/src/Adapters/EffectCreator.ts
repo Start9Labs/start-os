@@ -48,7 +48,11 @@ export type EffectContext = {
 
 const rpcRoundFor =
   (eventId: string | null) =>
-  <K extends T.EffectMethod | "clearCallbacks">(
+  // `mount-pointer` is the internal RPC route name for the cross-package
+  // bind handler — `Effects.mount(...)` is the user-facing method that
+  // wraps it, but the RPC string itself is renamed to free the `mount`
+  // name for the host's new `start-container mount` CLI subcommand.
+  <K extends T.EffectMethod | "clearCallbacks" | "mount-pointer">(
     method: K,
     params: Record<string, unknown>,
   ) => {
