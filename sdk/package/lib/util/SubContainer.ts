@@ -7,17 +7,9 @@ import { once } from '../../../base/lib/util/once'
 import { Drop } from '../../../base/lib/util/Drop'
 import { Mounts } from '../mainFn/Mounts'
 import { BackupEffects } from '../backup/Backups'
-import { PathBase } from './Volume'
 
 export const execFile = promisify(cp.execFile)
 const False = () => false
-
-type ExecResults = {
-  exitCode: number | null
-  exitSignal: NodeJS.Signals | null
-  stdout: string | Buffer
-  stderr: string | Buffer
-}
 
 export type ExecOptions = {
   input?: string | Buffer
@@ -69,55 +61,107 @@ async function bind(
   await execFile('mount', [...args, from, to])
 }
 
+type MountsArg<Manifest extends T.SDKManifest, E extends T.Effects> =
+  E extends BackupEffects
+    ? Mounts<Manifest, { subpath: string | null; mountpoint: string }>
+    : Mounts<Manifest, never>
+
 /**
- * Interface representing an isolated container environment for running service processes.
+ * Isolated container environment for running service processes.
  *
- * Provides methods for executing commands, spawning processes, mounting filesystems,
- * and writing files within the container's rootfs. Comes in two flavors:
- * {@link SubContainerOwned} (owns the underlying filesystem) and
- * {@link SubContainerRc} (reference-counted handle to a shared container).
+ * Two concrete shapes implement this interface:
+ *
+ * - {@link SubContainerEager} — created and materialized immediately by
+ *   {@link SubContainer.eager}. The `rootfs` / `guid` / `subpath()` accessors
+ *   return `string` / `T.Guid` synchronously.
+ * - {@link SubContainerLazy} — created by {@link SubContainer.of} (the
+ *   default). Backing filesystem is not materialized until the first method
+ *   call (or explicit {@link SubContainerLazy.eager}). `rootfs` / `guid` /
+ *   `subpath()` return `Promise<...>`.
+ *
+ * The interface widens those accessors to `T | Promise<T>` so a caller
+ * holding the interface type must `await` (which yields the value for either
+ * shape). Callers holding the concrete class get the narrower sync type.
+ *
+ * ### Lifecycle and sharing
+ *
+ * Multiple consumers may share a single SubContainer (typical pattern: an
+ * `Oneshot` setup step and a `Daemon` running in the same container so the
+ * setup's writes are visible to the daemon). Each consumer takes a use-hold
+ * via {@link SubContainer.hold} and releases it when finished. The
+ * SubContainer is torn down (`destroyFs`) when {@link SubContainer.destroy}
+ * has been called *and* all outstanding holds have been released — whichever
+ * is later. `Daemons` manages holds for the daemons it owns.
  */
 export interface SubContainer<
   Manifest extends T.SDKManifest,
   Effects extends T.Effects = T.Effects,
->
-  extends Drop, PathBase {
+> extends Drop {
+  /** The image this subcontainer is launched from. */
   readonly imageId: keyof Manifest['images'] & T.ImageId
-  readonly rootfs: string
-  readonly guid: T.Guid
 
   /**
-   * Get the absolute path to a file or directory within this subcontainer's rootfs
+   * Stable, sync handle identifying this SubContainer. Generated at
+   * construction by {@link SubContainer.of} / {@link SubContainer.eager}
+   * and preserved across materialization, so a lazy handle and the eager
+   * it materializes into compare equal. Use this for sharing comparisons
+   * that must work pre-materialization.
+   */
+  readonly identity: symbol
+
+  /**
+   * Absolute path to the subcontainer's rootfs. Sync `string` on
+   * {@link SubContainerEager}; `Promise<string>` on
+   * {@link SubContainerLazy}. Awaiting the property works for either.
+   */
+  readonly rootfs: string | Promise<string>
+
+  /**
+   * OS-level guid of the subcontainer. Sync `T.Guid` on
+   * {@link SubContainerEager}; `Promise<T.Guid>` on
+   * {@link SubContainerLazy}.
+   */
+  readonly guid: T.Guid | Promise<T.Guid>
+
+  /**
+   * Get the absolute path to a file or directory within this subcontainer's rootfs.
+   * Sync `string` on {@link SubContainerEager}; `Promise<string>` on
+   * {@link SubContainerLazy} (resolves after first materialization).
    * @param path Path relative to the rootfs
    */
-  subpath(path: string): string
+  subpath(path: string): string | Promise<string>
 
   /**
    * Apply filesystem mounts (volumes, assets, dependencies, backups) to this subcontainer.
+   * Lazy handles materialize on this call.
    * @param mounts - The Mounts configuration to apply
    * @returns This subcontainer instance for chaining
    */
-  mount(
-    mounts: Effects extends BackupEffects
-      ? Mounts<
-          Manifest,
-          {
-            subpath: string | null
-            mountpoint: string
-          }
-        >
-      : Mounts<Manifest, never>,
-  ): Promise<this>
+  mount(mounts: MountsArg<Manifest, Effects>): Promise<this>
 
-  /** Destroy this subcontainer and clean up its filesystem */
-  destroy: () => Promise<null>
+  /**
+   * Take a use-hold on this subcontainer. The returned function releases
+   * the hold; the SubContainer is destroyed when {@link destroy} has been
+   * called *and* the last hold is released, in either order.
+   *
+   * @returns A release function — call it to drop this hold
+   */
+  hold(): () => Promise<void>
+
+  /**
+   * Mark this subcontainer for destruction. Fires `destroyFs` immediately
+   * if no holds are outstanding; otherwise the final hold-release fires
+   * it. Idempotent.
+   */
+  destroy(): Promise<void>
 
   /**
    * @description run a command inside this subcontainer
    * DOES NOT THROW ON NONZERO EXIT CODE (see execFail)
-   * @param commands an array representing the command and args to execute
+   * @param command an array representing the command and args to execute
    * @param options
    * @param timeoutMs how long to wait before killing the command in ms
+   * @param abort optional AbortController; aborting SIGKILLs the process
    * @returns
    */
   exec(
@@ -135,20 +179,19 @@ export interface SubContainer<
 
   /**
    * @description run a command inside this subcontainer, throwing on non-zero exit status
-   * @param commands an array representing the command and args to execute
+   * @param command an array representing the command and args to execute
    * @param options
    * @param timeoutMs how long to wait before killing the command in ms
+   * @param abort optional AbortController; aborting SIGKILLs the process
    * @returns
+   * @throws {@link ExitError} on non-zero exit code or signal termination
    */
   execFail(
     command: string[],
     options?: CommandOptions & ExecOptions,
     timeoutMs?: number | null,
     abort?: AbortController,
-  ): Promise<{
-    stdout: string | Buffer
-    stderr: string | Buffer
-  }>
+  ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }>
 
   /**
    * Launch a command as the init (PID 1) process of the subcontainer.
@@ -186,38 +229,154 @@ export interface SubContainer<
       | AsyncIterable<string | NodeJS.ArrayBufferView>,
     options?: Parameters<typeof fs.writeFile>[2],
   ): Promise<void>
+}
+
+/**
+ * Top-level factories for creating SubContainers. Prefer
+ * {@link SubContainer.of} (lazy) unless you need synchronous access to
+ * `rootfs` / `guid` / `subpath()` before running any methods — for that, use
+ * {@link SubContainer.eager}.
+ */
+export const SubContainer = {
+  /**
+   * Create a {@link SubContainerLazy} that materializes its backing
+   * filesystem on first use. Synchronous return — no `Promise` wrapper.
+   *
+   * Identity is generated at this call and threaded through to the eager
+   * container produced by {@link SubContainerLazy.eager}.
+   *
+   * This is the default factory. Use it whenever the subcontainer might
+   * not actually be needed (the canonical case: `Daemons.dynamic` may diff
+   * a daemon away before it ever runs) and whenever you don't need sync
+   * access to `rootfs` / `guid` / `subpath()`.
+   *
+   * @param effects The effects context the subcontainer will run under
+   * @param image Image to launch from (must be declared in the manifest); `sharedRun` rbinds the host's `/run` if true
+   * @param mounts Initial mounts applied at materialization (declared so they participate in `Daemons.dynamic`'s `configHash`)
+   * @param name Debug/identification name (does not affect identity)
+   */
+  of<Manifest extends T.SDKManifest, Effects extends T.Effects = T.Effects>(
+    effects: Effects,
+    image: {
+      imageId: keyof Manifest['images'] & T.ImageId
+      sharedRun?: boolean
+    },
+    mounts: MountsArg<Manifest, Effects> | null,
+    name: string,
+  ): SubContainerLazy<Manifest, Effects> {
+    return new SubContainerLazy<Manifest, Effects>(
+      effects,
+      image,
+      mounts,
+      name,
+    )
+  },
 
   /**
-   * Create a reference-counted handle to this subcontainer.
-   * The underlying container is only destroyed when all handles are released.
+   * Create a {@link SubContainerEager}, materializing the backing
+   * filesystem immediately. Returns `Promise<SubContainerEager>`.
+   *
+   * Use when you need synchronous access to `rootfs` / `guid` /
+   * `subpath()` before running any methods (e.g. mounting paths from
+   * outside the container, init-time precheck), or when you want
+   * `effects.subcontainer.createFs` failures to surface here instead of at
+   * first method call.
+   *
+   * **Do not pass an eager SubContainer to `Daemons.dynamic`'s `fn`**.
+   * Eager handles created inside `fn` are wasted on re-runs that diff to
+   * "leave alone" — use {@link SubContainer.of} (lazy) for daemons under
+   * `Daemons.dynamic`.
+   *
+   * @param effects The effects context the subcontainer will run under
+   * @param image Image to launch from; `sharedRun` rbinds the host's `/run` if true
+   * @param mounts Mounts applied during construction
+   * @param name Debug/identification name (does not affect identity)
    */
-  rc(): SubContainerRc<Manifest, Effects>
+  eager<Manifest extends T.SDKManifest, Effects extends T.Effects = T.Effects>(
+    effects: Effects,
+    image: {
+      imageId: keyof Manifest['images'] & T.ImageId
+      sharedRun?: boolean
+    },
+    mounts: MountsArg<Manifest, Effects> | null,
+    name: string,
+  ): Promise<SubContainerEager<Manifest, Effects>> {
+    return SubContainerEager._of(
+      effects,
+      image,
+      mounts,
+      name,
+      Symbol('subcontainer'),
+    )
+  },
 
-  /** Returns true if this is an owned subcontainer (not a reference-counted handle) */
-  isOwned(): this is SubContainerOwned<Manifest, Effects>
+  /**
+   * Run a function with an ephemeral, eager subcontainer. The container
+   * is created before `fn` runs and destroyed in a `finally` block after.
+   * Use for one-off command execution that needs a fresh filesystem.
+   *
+   * @param effects The effects context the subcontainer will run under
+   * @param image Image to launch from; `sharedRun` rbinds the host's `/run` if true
+   * @param mounts Mounts applied during construction
+   * @param name Debug/identification name (does not affect identity)
+   * @param fn Function to invoke with the eager subcontainer
+   * @returns Whatever `fn` returns
+   */
+  async withTemp<
+    Manifest extends T.SDKManifest,
+    T_,
+    Effects extends T.Effects = T.Effects,
+  >(
+    effects: Effects,
+    image: {
+      imageId: keyof Manifest['images'] & T.ImageId
+      sharedRun?: boolean
+    },
+    mounts: MountsArg<Manifest, Effects> | null,
+    name: string,
+    fn: (sub: SubContainerEager<Manifest, Effects>) => Promise<T_>,
+  ): Promise<T_> {
+    const sub = await SubContainerEager._of(
+      effects,
+      image,
+      mounts,
+      name,
+      Symbol('subcontainer'),
+    )
+    try {
+      return await fn(sub)
+    } finally {
+      await sub.destroy()
+    }
+  },
 }
 
 /**
  * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
+ *
+ * Eager subcontainer: its filesystem and leader process exist from
+ * construction. `rootfs` / `guid` / `subpath()` are synchronous.
+ *
+ * Construct via {@link SubContainer.eager} or {@link SubContainer.withTemp}.
  */
-export class SubContainerOwned<
+export class SubContainerEager<
   Manifest extends T.SDKManifest,
   Effects extends T.Effects = T.Effects,
->
-  extends Drop
-  implements SubContainer<Manifest, Effects>
-{
+> extends Drop implements SubContainer<Manifest, Effects> {
   private destroyed = false
-  public rcs = 0
+  private destroyPending = false
+  private holdCount = 0
 
   private leader: cp.ChildProcess
   private leaderExited: boolean = false
   private waitProc: () => Promise<null>
+
   private constructor(
     readonly effects: Effects,
     readonly imageId: keyof Manifest['images'] & T.ImageId,
     readonly rootfs: string,
     readonly guid: T.Guid,
+    readonly identity: symbol,
   ) {
     super()
     this.leaderExited = false
@@ -255,32 +414,36 @@ export class SubContainerOwned<
         }),
     )
   }
-  static async of<Manifest extends T.SDKManifest, Effects extends T.Effects>(
+
+  /**
+   * Internal factory. Accepts an explicit `identity` so a lazy handle can
+   * thread its identity through to the eager it materializes into.
+   * External callers use {@link SubContainer.eager} (which generates its
+   * own identity) or {@link SubContainer.of} (lazy).
+   */
+  static async _of<Manifest extends T.SDKManifest, Effects extends T.Effects>(
     effects: Effects,
     image: {
       imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
-    mounts:
-      | (Effects extends BackupEffects
-          ? Mounts<
-              Manifest,
-              {
-                subpath: string | null
-                mountpoint: string
-              }
-            >
-          : Mounts<Manifest, never>)
-      | null,
+    mounts: MountsArg<Manifest, Effects> | null,
     name: string,
-  ): Promise<SubContainerOwned<Manifest, Effects>> {
+    identity: symbol,
+  ): Promise<SubContainerEager<Manifest, Effects>> {
     const { imageId, sharedRun } = image
     const [rootfs, guid] = await effects.subcontainer.createFs({
       imageId,
       name,
     })
 
-    const res = new SubContainerOwned(effects, imageId, rootfs, guid)
+    const res = new SubContainerEager<Manifest, Effects>(
+      effects,
+      imageId,
+      rootfs,
+      guid,
+      identity,
+    )
 
     try {
       if (mounts) {
@@ -304,65 +467,30 @@ export class SubContainerOwned<
 
       return res
     } catch (e) {
-      await res.destroy()
+      await res._destroyImmediate()
       throw e
     }
   }
 
-  static async withTemp<
-    Manifest extends T.SDKManifest,
-    T,
-    Effects extends T.Effects,
-  >(
-    effects: Effects,
-    image: {
-      imageId: keyof Manifest['images'] & T.ImageId
-      sharedRun?: boolean
-    },
-    mounts:
-      | (Effects extends BackupEffects
-          ? Mounts<
-              Manifest,
-              {
-                subpath: string | null
-                mountpoint: string
-              }
-            >
-          : Mounts<Manifest, never>)
-      | null,
-    name: string,
-    fn: (subContainer: SubContainer<Manifest, Effects>) => Promise<T>,
-  ): Promise<T> {
-    const subContainer = await SubContainerOwned.of(
-      effects,
-      image,
-      mounts,
-      name,
-    )
-    try {
-      return await fn(subContainer)
-    } finally {
-      await subContainer.destroy()
-    }
-  }
-
+  /**
+   * Resolve a path within this subcontainer's rootfs (synchronous on eager).
+   *
+   * @param path Path relative to the rootfs (e.g. `"/etc/config.json"` or `"data/file"`)
+   */
   subpath(path: string): string {
     return path.startsWith('/')
       ? `${this.rootfs}${path}`
       : `${this.rootfs}/${path}`
   }
 
-  async mount(
-    mounts: Effects extends BackupEffects
-      ? Mounts<
-          Manifest,
-          {
-            subpath: string | null
-            mountpoint: string
-          }
-        >
-      : Mounts<Manifest, never>,
-  ): Promise<this> {
+  /**
+   * Apply filesystem mounts (volumes, assets, dependencies, backups) to
+   * this subcontainer.
+   *
+   * @param mounts The Mounts configuration to apply
+   * @returns This subcontainer instance for chaining
+   */
+  async mount(mounts: MountsArg<Manifest, Effects>): Promise<this> {
     for (let mount of mounts.build()) {
       let { options, mountpoint } = mount
       const path = mountpoint.startsWith('/')
@@ -405,10 +533,52 @@ export class SubContainerOwned<
     return this
   }
 
-  private async killLeader() {
-    if (this.leaderExited) {
-      return
+  /**
+   * Take a use-hold on this subcontainer. The container is destroyed
+   * when {@link destroy} has been called *and* the last hold is released,
+   * in either order.
+   *
+   * @returns A release function — call it to drop this hold
+   * @throws If this subcontainer has already been destroyed
+   */
+  hold(): () => Promise<void> {
+    if (this.destroyed) {
+      throw new Error(
+        `cannot hold subcontainer ${String(this.identity.description)}: already destroyed`,
+      )
     }
+    this.holdCount++
+    let released = false
+    return async () => {
+      if (released) return
+      released = true
+      this.holdCount--
+      if (this.holdCount === 0 && this.destroyPending) {
+        await this._destroyImmediate()
+      }
+    }
+  }
+
+  /**
+   * Mark this subcontainer for destruction. Fires `destroyFs` immediately
+   * if no holds are outstanding; otherwise the final hold-release fires
+   * it. Idempotent.
+   */
+  async destroy(): Promise<void> {
+    this.destroyPending = true
+    if (this.holdCount === 0) await this._destroyImmediate()
+  }
+
+  private async _destroyImmediate(): Promise<void> {
+    if (this.destroyed) return
+    this.destroyed = true
+    const guid = this.guid
+    await this.killLeader()
+    await this.effects.subcontainer.destroyFs({ guid })
+  }
+
+  private async killLeader(): Promise<null> {
+    if (this.leaderExited) return null
     return new Promise<null>((resolve, reject) => {
       try {
         let timeout = setTimeout(() => this.leader.kill('SIGKILL'), 30000)
@@ -425,30 +595,21 @@ export class SubContainerOwned<
     })
   }
 
-  get destroy() {
-    return async () => {
-      if (!this.destroyed) {
-        const guid = this.guid
-        await this.killLeader()
-        await this.effects.subcontainer.destroyFs({ guid })
-        this.destroyed = true
-      }
-      return null
+  onDrop(): void {
+    if (!this.destroyed && this.holdCount === 0) {
+      console.log(`Cleaning up dangling subcontainer ${this.guid}`)
+      this._destroyImmediate().catch((e) => console.error(e))
     }
   }
 
-  onDrop(): void {
-    console.log(`Cleaning up dangling subcontainer ${this.guid}`)
-    this.destroy()
-  }
-
   /**
-   * @description run a command inside this subcontainer
-   * DOES NOT THROW ON NONZERO EXIT CODE (see execFail)
-   * @param commands an array representing the command and args to execute
-   * @param options
-   * @param timeoutMs how long to wait before killing the command in ms
-   * @returns
+   * Run a command inside this subcontainer.
+   * Does NOT throw on non-zero exit (see {@link execFail}).
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, user, cwd, and stdin input
+   * @param timeoutMs How long to wait before SIGKILL (default 30 s, `null` for no timeout)
+   * @param abort Optional AbortController; aborting SIGKILLs the process
    */
   async exec(
     command: string[],
@@ -563,26 +724,32 @@ export class SubContainerOwned<
   }
 
   /**
-   * @description run a command inside this subcontainer, throwing on non-zero exit status
-   * @param commands an array representing the command and args to execute
-   * @param options
-   * @param timeoutMs how long to wait before killing the command in ms
-   * @returns
+   * Run a command inside this subcontainer, throwing on non-zero exit.
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, user, cwd, and stdin input
+   * @param timeoutMs How long to wait before SIGKILL (default 30 s, `null` for no timeout)
+   * @param abort Optional AbortController; aborting SIGKILLs the process
+   * @throws {@link ExitError} on non-zero exit code or signal termination
    */
   async execFail(
     command: string[],
     options?: CommandOptions & ExecOptions,
     timeoutMs?: number | null,
     abort?: AbortController,
-  ): Promise<{
-    stdout: string | Buffer
-    stderr: string | Buffer
-  }> {
+  ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
     return this.exec(command, options, timeoutMs, abort).then((res) =>
       res.throw(),
     )
   }
 
+  /**
+   * Launch a command as the init (PID 1) process of the subcontainer.
+   * Replaces the current leader process.
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, working directory, and user overrides
+   */
   async launch(
     command: string[],
     options?: CommandOptions,
@@ -634,6 +801,12 @@ export class SubContainerOwned<
     return this.leader as cp.ChildProcessWithoutNullStreams
   }
 
+  /**
+   * Spawn a command inside the subcontainer as a non-init process.
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, working directory, user, and stdio overrides
+   */
   async spawn(
     command: string[],
     options: CommandOptions & StdioOptions = { stdio: 'inherit' },
@@ -680,10 +853,11 @@ export class SubContainerOwned<
   }
 
   /**
-   * @description Write a file to the subcontainer's filesystem
-   * @param path Path relative to the subcontainer rootfs (e.g. "/etc/config.json")
+   * Write a file to the subcontainer's filesystem.
+   *
+   * @param path Path relative to the subcontainer rootfs (e.g. `"/etc/config.json"`)
    * @param data The data to write
-   * @param options Optional write options (same as node:fs/promises writeFile)
+   * @param options Optional write options (same as `node:fs/promises` `writeFile`)
    */
   async writeFile(
     path: string,
@@ -699,154 +873,168 @@ export class SubContainerOwned<
     await fs.mkdir(dir, { recursive: true })
     return fs.writeFile(fullPath, data, options)
   }
-
-  rc(): SubContainerRc<Manifest, Effects> {
-    return new SubContainerRc(this)
-  }
-
-  isOwned(): this is SubContainerOwned<Manifest, Effects> {
-    return true
-  }
 }
 
 /**
- * A reference-counted handle to a {@link SubContainerOwned}.
+ * Lazy subcontainer: a handle whose backing filesystem is materialized on
+ * first use (or explicit {@link SubContainerLazy.eager}). The narrow types
+ * for `rootfs` / `guid` / `subpath()` are `Promise<...>`.
  *
- * Multiple `SubContainerRc` instances can share one underlying subcontainer.
- * The subcontainer is destroyed only when the last reference is released via `destroy()`.
+ * Construct via {@link SubContainer.of}. Identity is generated at
+ * construction and preserved across materialization.
+ *
+ * Sharing across consumers: pass the same `SubContainerLazy` to multiple
+ * `addDaemon` calls. The first consumer to call a method (or `.eager()`)
+ * triggers materialization; all consumers end up holding the same
+ * underlying {@link SubContainerEager}.
  */
-export class SubContainerRc<
+export class SubContainerLazy<
   Manifest extends T.SDKManifest,
   Effects extends T.Effects = T.Effects,
->
-  extends Drop
-  implements SubContainer<Manifest, Effects>
-{
-  get imageId() {
-    return this.subcontainer.imageId
-  }
-  get rootfs() {
-    return this.subcontainer.rootfs
-  }
-  get guid() {
-    return this.subcontainer.guid
-  }
-  subpath(path: string): string {
-    return this.subcontainer.subpath(path)
-  }
-  private destroyed = false
-  private destroying: Promise<null> | null = null
-  public constructor(
-    private readonly subcontainer: SubContainerOwned<Manifest, Effects>,
+> extends Drop implements SubContainer<Manifest, Effects> {
+  readonly identity: symbol = Symbol('subcontainer')
+  readonly imageId: keyof Manifest['images'] & T.ImageId
+  readonly sharedRun: boolean
+  readonly name: string
+  /** The mounts declared at construction. Read by `Daemons.dynamic`'s configHash. */
+  readonly mounts: MountsArg<Manifest, Effects> | null
+
+  private materialized: Promise<SubContainerEager<Manifest, Effects>> | null =
+    null
+  private destroyPending = false
+
+  constructor(
+    readonly effects: Effects,
+    image: {
+      imageId: keyof Manifest['images'] & T.ImageId
+      sharedRun?: boolean
+    },
+    mounts: MountsArg<Manifest, Effects> | null,
+    name: string,
   ) {
-    subcontainer.rcs++
     super()
-  }
-  static async of<Manifest extends T.SDKManifest, Effects extends T.Effects>(
-    effects: Effects,
-    image: {
-      imageId: keyof Manifest['images'] & T.ImageId
-      sharedRun?: boolean
-    },
-    mounts:
-      | (Effects extends BackupEffects
-          ? Mounts<
-              Manifest,
-              {
-                subpath: string | null
-                mountpoint: string
-              }
-            >
-          : Mounts<Manifest, never>)
-      | null,
-    name: string,
-  ) {
-    return new SubContainerRc(
-      await SubContainerOwned.of(effects, image, mounts, name),
-    )
-  }
-
-  static async withTemp<
-    Manifest extends T.SDKManifest,
-    T,
-    Effects extends T.Effects,
-  >(
-    effects: Effects,
-    image: {
-      imageId: keyof Manifest['images'] & T.ImageId
-      sharedRun?: boolean
-    },
-    mounts:
-      | (Effects extends BackupEffects
-          ? Mounts<
-              Manifest,
-              {
-                subpath: string | null
-                mountpoint: string
-              }
-            >
-          : Mounts<Manifest, never>)
-      | null,
-    name: string,
-    fn: (subContainer: SubContainer<Manifest, Effects>) => Promise<T>,
-  ): Promise<T> {
-    const subContainer = await SubContainerRc.of(effects, image, mounts, name)
-    try {
-      return await fn(subContainer)
-    } finally {
-      await subContainer.destroy()
-    }
-  }
-
-  async mount(
-    mounts: Effects extends BackupEffects
-      ? Mounts<
-          Manifest,
-          {
-            subpath: string | null
-            mountpoint: string
-          }
-        >
-      : Mounts<Manifest, never>,
-  ): Promise<this> {
-    await this.subcontainer.mount(mounts)
-    return this
-  }
-
-  get destroy() {
-    return async () => {
-      if (!this.destroyed && !this.destroying) {
-        const rcs = --this.subcontainer.rcs
-        if (rcs <= 0) {
-          this.destroying = this.subcontainer.destroy()
-          if (rcs < 0) console.error(new Error('UNREACHABLE: rcs < 0').stack)
-        }
-      }
-      if (this.destroying) {
-        await this.destroying
-      }
-      this.destroyed = true
-      this.destroying = null
-      return null
-    }
-  }
-
-  onDrop(): void {
-    this.destroy()
+    this.imageId = image.imageId
+    this.sharedRun = image.sharedRun ?? false
+    this.mounts = mounts
+    this.name = name
   }
 
   /**
-   * @description run a command inside this subcontainer
-   * DOES NOT THROW ON NONZERO EXIT CODE (see execFail)
-   * @param commands an array representing the command and args to execute
-   * @param options
-   * @param timeoutMs how long to wait before killing the command in ms
-   * @returns
+   * Materialize the underlying eager subcontainer (idempotent) and return
+   * it. Subsequent calls return the same instance. Useful when you need
+   * the synchronous `SubContainerEager` interface (e.g. sync `rootfs` /
+   * `subpath()`) — for ordinary command execution, just call `.exec()` /
+   * `.writeFile()` directly and the lazy handle materializes internally.
+   */
+  eager(): Promise<SubContainerEager<Manifest, Effects>> {
+    return (this.materialized ??= SubContainerEager._of<Manifest, Effects>(
+      this.effects,
+      { imageId: this.imageId, sharedRun: this.sharedRun },
+      this.mounts,
+      this.name,
+      this.identity,
+    ).then(async (eager) => {
+      if (this.destroyPending) await eager.destroy()
+      return eager
+    }))
+  }
+
+  /** Absolute path to the materialized subcontainer's rootfs. Triggers materialization on first access. */
+  get rootfs(): Promise<string> {
+    return this.eager().then((e) => e.rootfs)
+  }
+
+  /** OS-level guid. Triggers materialization on first access. */
+  get guid(): Promise<T.Guid> {
+    return this.eager().then((e) => e.guid)
+  }
+
+  /**
+   * Resolve a path within the subcontainer's rootfs. Triggers
+   * materialization on first call.
+   *
+   * @param path Path relative to the rootfs
+   */
+  async subpath(path: string): Promise<string> {
+    return (await this.eager()).subpath(path)
+  }
+
+  /**
+   * Apply filesystem mounts to this subcontainer (materializes on first
+   * call). Mounts beyond the ones declared at construction are not part
+   * of `Daemons.dynamic`'s `configHash`.
+   *
+   * @param mounts The Mounts configuration to apply
+   * @returns This lazy handle, for chaining
+   */
+  async mount(mounts: MountsArg<Manifest, Effects>): Promise<this> {
+    await (await this.eager()).mount(mounts)
+    return this
+  }
+
+  /**
+   * Take a use-hold on this subcontainer. Materializes the underlying
+   * eager subcontainer asynchronously and places the hold on it.
+   *
+   * The returned release function is safe to call before materialization
+   * completes — it cancels the pending hold so a never-materialized lazy
+   * (the canonical "left alone" case in `Daemons.dynamic`) stays cheap.
+   *
+   * @returns A release function — call it to drop this hold
+   */
+  hold(): () => Promise<void> {
+    // Acquire the hold on the eager once materialized. Until then we record
+    // a "pending" intent so destroy() honors any outstanding holds even on
+    // a never-materialized handle.
+    let released = false
+    let underlyingRelease: (() => Promise<void>) | null = null
+    const eagerPromise = this.eager()
+    const acquired = eagerPromise
+      .then((eager) => {
+        if (released) return
+        underlyingRelease = eager.hold()
+      })
+      .catch((e) => {
+        released = true
+        throw e
+      })
+    return async () => {
+      if (released) return
+      released = true
+      try {
+        await acquired
+      } catch (_) {
+        // materialization failed; nothing to release
+        return
+      }
+      if (underlyingRelease) await underlyingRelease()
+    }
+  }
+
+  /**
+   * Mark this subcontainer for destruction. If already materialized, the
+   * underlying eager's destroy is invoked (which respects outstanding
+   * holds). If never materialized, the destroy pending flag is set so
+   * that any future materialization fires destroy immediately.
+   */
+  async destroy(): Promise<void> {
+    this.destroyPending = true
+    if (this.materialized) await (await this.materialized).destroy()
+  }
+
+  /**
+   * Run a command inside this subcontainer (materializes on first call).
+   * Does NOT throw on non-zero exit (see {@link execFail}).
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, user, cwd, and stdin input
+   * @param timeoutMs How long to wait before SIGKILL (default 30 s, `null` for no timeout)
+   * @param abort Optional AbortController; aborting SIGKILLs the process
    */
   async exec(
     command: string[],
     options?: CommandOptions & ExecOptions,
-    timeoutMs?: number | null,
+    timeoutMs: number | null = 30000,
     abort?: AbortController,
   ): Promise<{
     throw: () => { stdout: string | Buffer; stderr: string | Buffer }
@@ -855,47 +1043,62 @@ export class SubContainerRc<
     stdout: string | Buffer
     stderr: string | Buffer
   }> {
-    return this.subcontainer.exec(command, options, timeoutMs, abort)
+    return (await this.eager()).exec(command, options, timeoutMs, abort)
   }
 
   /**
-   * @description run a command inside this subcontainer, throwing on non-zero exit status
-   * @param commands an array representing the command and args to execute
-   * @param options
-   * @param timeoutMs how long to wait before killing the command in ms
-   * @returns
+   * Run a command inside this subcontainer, throwing on non-zero exit
+   * (materializes on first call).
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, user, cwd, and stdin input
+   * @param timeoutMs How long to wait before SIGKILL (default 30 s, `null` for no timeout)
+   * @param abort Optional AbortController; aborting SIGKILLs the process
+   * @throws {@link ExitError} on non-zero exit code or signal termination
    */
   async execFail(
     command: string[],
     options?: CommandOptions & ExecOptions,
     timeoutMs?: number | null,
     abort?: AbortController,
-  ): Promise<{
-    stdout: string | Buffer
-    stderr: string | Buffer
-  }> {
-    return this.subcontainer.execFail(command, options, timeoutMs, abort)
+  ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
+    return (await this.eager()).execFail(command, options, timeoutMs, abort)
   }
 
+  /**
+   * Launch a command as the init (PID 1) process of the subcontainer
+   * (materializes on first call).
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, working directory, and user overrides
+   */
   async launch(
     command: string[],
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams> {
-    return this.subcontainer.launch(command, options)
-  }
-
-  async spawn(
-    command: string[],
-    options: CommandOptions & StdioOptions = { stdio: 'inherit' },
-  ): Promise<cp.ChildProcess> {
-    return this.subcontainer.spawn(command, options)
+    return (await this.eager()).launch(command, options)
   }
 
   /**
-   * @description Write a file to the subcontainer's filesystem
-   * @param path Path relative to the subcontainer rootfs (e.g. "/etc/config.json")
+   * Spawn a command inside the subcontainer as a non-init process
+   * (materializes on first call).
+   *
+   * @param command Argv array representing the command and its arguments
+   * @param options Optional environment, working directory, user, and stdio overrides
+   */
+  async spawn(
+    command: string[],
+    options?: CommandOptions & StdioOptions,
+  ): Promise<cp.ChildProcess> {
+    return (await this.eager()).spawn(command, options)
+  }
+
+  /**
+   * Write a file to the subcontainer's filesystem (materializes on first call).
+   *
+   * @param path Path relative to the subcontainer rootfs (e.g. `"/etc/config.json"`)
    * @param data The data to write
-   * @param options Optional write options (same as node:fs/promises writeFile)
+   * @param options Optional write options (same as `node:fs/promises` `writeFile`)
    */
   async writeFile(
     path: string,
@@ -906,30 +1109,24 @@ export class SubContainerRc<
       | AsyncIterable<string | NodeJS.ArrayBufferView>,
     options?: Parameters<typeof fs.writeFile>[2],
   ): Promise<void> {
-    return this.subcontainer.writeFile(path, data, options)
+    return (await this.eager()).writeFile(path, data, options)
   }
 
-  rc(): SubContainerRc<Manifest, Effects> {
-    return this.subcontainer.rc()
-  }
-
-  isOwned(): this is SubContainerOwned<Manifest, Effects> {
-    return false
+  onDrop(): void {
+    if (this.materialized) {
+      this.materialized
+        .then((e) => e.destroy())
+        .catch((e) => console.error(e))
+    }
   }
 }
 
 export type CommandOptions = {
-  /**
-   * Environment variables to set for this command
-   */
+  /** Environment variables to set for this command */
   env?: { [variable in string]?: string }
-  /**
-   * the working directory to run this command in
-   */
+  /** the working directory to run this command in */
   cwd?: string
-  /**
-   * the user to run this command as
-   */
+  /** the user to run this command as */
   user?: string
 }
 
@@ -982,13 +1179,15 @@ export type MountOptionsBackup = {
   filetype: 'file' | 'directory' | 'infer'
   idmap: { fromId: number; toId: number; range: number }[]
 }
+
 function wait(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time))
 }
 
 /**
- * Error thrown when a subcontainer command exits with a non-zero code or signal.
- * Contains the full result including stdout, stderr, exit code, and exit signal.
+ * Error thrown when a subcontainer command exits with a non-zero code or
+ * signal. Contains the full result including stdout, stderr, exit code,
+ * and exit signal.
  */
 export class ExitError extends Error {
   constructor(

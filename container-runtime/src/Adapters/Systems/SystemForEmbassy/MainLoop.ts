@@ -7,7 +7,7 @@ import { Effects } from "../../../Models/Effects"
 import { off } from "node:process"
 import { CommandController } from "@start9labs/start-sdk/package/lib/mainFn/CommandController"
 import { SDKManifest } from "@start9labs/start-sdk/base/lib/types"
-import { SubContainerRc } from "@start9labs/start-sdk/package/lib/util/SubContainer"
+import { SubContainer } from "@start9labs/start-sdk/package/lib/util/SubContainer"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 /**
@@ -16,13 +16,13 @@ const EMBASSY_HEALTH_INTERVAL = 15 * 1000
  * Also, this has an ability to clean itself up too if need be.
  */
 export class MainLoop {
-  private subcontainerRc?: SubContainerRc<SDKManifest>
+  private subcontainerHandle?: SubContainer<SDKManifest>
   get mainSubContainerHandle() {
-    this.subcontainerRc =
-      this.subcontainerRc ??
-      this.mainEvent?.daemon?.subcontainerRc() ??
+    this.subcontainerHandle =
+      this.subcontainerHandle ??
+      this.mainEvent?.daemon?.subcontainer ??
       undefined
-    return this.subcontainerRc
+    return this.subcontainerHandle
   }
   private healthLoops?: {
     name: string

@@ -2,19 +2,22 @@ import * as T from '../../../base/lib/types'
 import { asError } from '../../../base/lib/util/asError'
 import { logErrorOnce } from '../../../base/lib/util/logErrorOnce'
 import { Drop } from '../util'
-import { SubContainer, SubContainerRc } from '../util/SubContainer'
+import { SubContainer } from '../util/SubContainer'
 import { CommandController } from './CommandController'
 import { DaemonCommandType } from './Daemons'
 import { Oneshot } from './Oneshot'
 
 const TIMEOUT_INCREMENT_MS = 1000
 const MAX_TIMEOUT_MS = 30000
+
 /**
  * A managed long-running process wrapper around {@link CommandController}.
  *
- * When started, the daemon automatically restarts its underlying command on failure
- * with exponential backoff (up to 30 seconds). When stopped, the command is terminated
- * gracefully. Implements {@link Drop} for automatic cleanup when the context is left.
+ * When started, the daemon automatically restarts its underlying command on
+ * failure with exponential backoff (up to 30 seconds). When stopped, the
+ * command is terminated gracefully. While the daemon is running, it holds a
+ * use-token (`subcontainer.hold()`) on its SubContainer so the container is
+ * not destroyed out from under it. The hold is released on `term()`.
  *
  * @typeParam Manifest - The service manifest type
  * @typeParam C - The subcontainer type, or `null` for JS-only daemons
@@ -27,9 +30,10 @@ export class Daemon<
   protected exitedSuccess = false
   private onExitFns: ((success: boolean) => void)[] = []
   private loop: { abort: AbortController; done: Promise<void> } | null = null
+  private releaseSubcontainerHold: (() => Promise<void>) | null = null
   private _managed = false
   protected constructor(
-    private subcontainer: C,
+    readonly subcontainer: C,
     private startCommand: () => Promise<CommandController<Manifest, C>>,
     readonly oneshot: boolean = false,
   ) {
@@ -43,8 +47,10 @@ export class Daemon<
    * Factory method to create a new Daemon.
    *
    * Returns a curried function: `(effects, subcontainer, exec) => Daemon`.
-   * Registers an `onLeaveContext` callback that terminates the daemon when the
-   * effects context is left.
+   * Registers an `effects.onLeaveContext` hook that terminates the daemon
+   * on parent-context teardown — suppressed when the daemon is adopted by
+   * a {@link Daemons} chain via {@link markManaged}, since `Daemons.term()`
+   * handles dependency-ordered shutdown for those.
    */
   static of<Manifest extends T.SDKManifest>() {
     return <C extends SubContainer<Manifest> | null>(
@@ -52,32 +58,39 @@ export class Daemon<
       subcontainer: C,
       exec: DaemonCommandType<Manifest, C>,
     ) => {
-      let subc: SubContainer<Manifest> | null = subcontainer
-      if (subcontainer && subcontainer.isOwned()) subc = subcontainer.rc()
       const startCommand = () =>
-        CommandController.of<Manifest, C>()(
-          effects,
-          (subc?.rc() ?? null) as C,
-          exec,
-        )
-      const res = new Daemon(subc, startCommand)
+        CommandController.of<Manifest, C>()(effects, subcontainer, exec)
+      const res = new Daemon<Manifest, C>(subcontainer, startCommand)
       effects.onLeaveContext(() => {
-        if (!res._managed) {
-          res.term({ destroySubcontainer: true }).catch((e) => logErrorOnce(e))
-        }
+        if (res._managed) return
+        res.term().catch((e) => logErrorOnce(asError(e)))
       })
       return res
     }
   }
+
+  /**
+   * Mark this daemon as managed by a {@link Daemons} instance, suppressing
+   * the per-daemon `onLeaveContext` termination. The owning `Daemons`
+   * handles ordered shutdown via its own `onLeaveContext` registration.
+   */
+  markManaged(): void {
+    this._managed = true
+  }
   /**
    * Start the daemon. If it is already running, this is a no-op.
    *
-   * The daemon will automatically restart on failure with increasing backoff
-   * until {@link term} is called.
+   * Takes a `hold()` on the daemon's SubContainer (if any) so the container
+   * is kept alive while the daemon runs. The hold is released on
+   * {@link term}. The daemon will automatically restart on failure with
+   * increasing backoff until `term` is called.
    */
   async start() {
     if (this.loop) {
       return
+    }
+    if (this.subcontainer && !this.releaseSubcontainerHold) {
+      this.releaseSubcontainerHold = this.subcontainer.hold()
     }
     const abort = new AbortController()
     const done = this.runLoop(abort.signal)
@@ -143,20 +156,22 @@ export class Daemon<
   }
 
   /**
-   * Terminate the daemon, stopping its underlying command.
+   * Terminate the daemon, stopping its underlying command, releasing the
+   * SubContainer hold taken at {@link start}, and requesting the
+   * SubContainer's destruction (`destroy()` is idempotent and defers to
+   * the last hold release, so other daemons sharing the same SubContainer
+   * keep it alive until they also term).
    *
-   * Sends the configured signal (default SIGTERM) and waits for the process to exit.
-   * Optionally destroys the subcontainer after termination.
+   * Sends the configured signal (default SIGTERM) and waits for the
+   * process to exit.
    *
-   * @param termOptions - Optional termination settings
-   * @param termOptions.signal - The signal to send (default: SIGTERM)
-   * @param termOptions.timeout - Milliseconds to wait before SIGKILL
-   * @param termOptions.destroySubcontainer - Whether to destroy the subcontainer after exit
+   * @param termOptions Optional termination settings
+   * @param termOptions.signal The signal to send (default `SIGTERM`)
+   * @param termOptions.timeout Milliseconds to wait before escalating to `SIGKILL` (default = `Daemon`'s configured `sigtermTimeout`, ultimately `DEFAULT_SIGTERM_TIMEOUT`)
    */
   async term(termOptions?: {
     signal?: NodeJS.Signals | undefined
     timeout?: number | undefined
-    destroySubcontainer?: boolean
   }) {
     this.exitedSuccess = false
     this.onExitFns = []
@@ -173,28 +188,20 @@ export class Daemon<
       await this.loop.done
     }
 
-    if (termOptions?.destroySubcontainer) {
-      await this.subcontainer?.destroy()
+    if (this.releaseSubcontainerHold) {
+      const release = this.releaseSubcontainerHold
+      this.releaseSubcontainerHold = null
+      await release().catch(logErrorOnce)
+    }
+
+    // Request the SubContainer's destruction. Idempotent + hold-aware:
+    // if another daemon still holds this SubContainer, destroy waits for
+    // the last hold-release before firing `destroyFs`.
+    if (this.subcontainer) {
+      await this.subcontainer.destroy().catch((e) => logErrorOnce(asError(e)))
     }
   }
-  /**
-   * Mark this daemon as managed by a {@link Daemons} instance.
-   * Suppresses the individual `onLeaveContext` termination since the
-   * `Daemons` instance handles ordered shutdown.
-   */
-  markManaged() {
-    this._managed = true
-  }
-  /** Get a reference-counted handle to the daemon's subcontainer, or null if there is none */
-  subcontainerRc(): SubContainerRc<Manifest> | null {
-    return this.subcontainer?.rc() ?? null
-  }
-  /** Check whether this daemon shares the same subcontainer as another daemon */
-  sharesSubcontainerWith(
-    other: Daemon<Manifest, SubContainer<Manifest> | null>,
-  ): boolean {
-    return this.subcontainer?.guid === other.subcontainer?.guid
-  }
+
   /**
    * Register a callback to be invoked each time the daemon's process exits.
    * @param fn - Callback receiving `true` on clean exit, `false` on error

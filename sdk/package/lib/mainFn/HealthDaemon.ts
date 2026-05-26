@@ -43,7 +43,6 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   async term(termOptions?: {
     signal?: NodeJS.Signals | undefined
     timeout?: number | undefined
-    destroySubcontainer?: boolean
   }) {
     this.healthWatchers = []
     this.running = false

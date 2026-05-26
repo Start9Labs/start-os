@@ -1,5 +1,5 @@
 import * as T from '../../../base/lib/types'
-import { SubContainer, SubContainerOwned } from '../util/SubContainer'
+import { SubContainer } from '../util/SubContainer'
 import { CommandController } from './CommandController'
 import { Daemon } from './Daemon'
 import { DaemonCommandType } from './Daemons'
@@ -20,14 +20,8 @@ export class Oneshot<
       subcontainer: C,
       exec: DaemonCommandType<Manifest, C>,
     ) => {
-      let subc: SubContainer<Manifest> | null = subcontainer
-      if (subcontainer && subcontainer.isOwned()) subc = subcontainer.rc()
       const startCommand = () =>
-        CommandController.of<Manifest, C>()(
-          effects,
-          (subc?.rc() ?? null) as C,
-          exec,
-        )
+        CommandController.of<Manifest, C>()(effects, subcontainer, exec)
       return new Oneshot<Manifest, C>(subcontainer, startCommand, true)
     }
   }

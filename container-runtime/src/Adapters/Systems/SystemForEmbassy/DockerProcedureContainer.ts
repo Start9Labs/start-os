@@ -7,7 +7,7 @@ import { Volume } from "./matchVolume"
 import {
   CommandOptions,
   ExecOptions,
-  SubContainerOwned,
+  SubContainer as SubContainerNS,
 } from "@start9labs/start-sdk/package/lib/util/SubContainer"
 import { Mounts } from "@start9labs/start-sdk/package/lib/mainFn/Mounts"
 import { Manifest } from "@start9labs/start-sdk/base/lib/osBindings"
@@ -50,7 +50,7 @@ export class DockerProcedureContainer extends Drop {
     volumes: { [id: string]: Volume },
     name: string,
   ) {
-    const subcontainer = await SubContainerOwned.of(
+    const subcontainer = await SubContainerNS.eager(
       effects as BackupEffects,
       { imageId: data.image },
       null,
