@@ -11,6 +11,7 @@ pub mod start_cli;
 pub mod start_init;
 pub mod startd;
 pub mod tunnel;
+pub mod unshare_userns;
 
 pub fn set_locale_from_env() {
     let lang = std::env::var("LANG").ok();
@@ -132,6 +133,10 @@ impl MultiExecutable {
     }
     pub fn enable_start_tunnel(&mut self) -> &mut Self {
         self.bins.insert("start-tunnel", tunnel::cli);
+        self
+    }
+    pub fn enable_unshare_userns(&mut self) -> &mut Self {
+        self.bins.insert("unshare-userns", unshare_userns::main);
         self
     }
 

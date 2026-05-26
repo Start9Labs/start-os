@@ -22,6 +22,7 @@ pub mod idmapped;
 pub mod label;
 pub mod loop_dev;
 pub mod overlayfs;
+pub mod syscall;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MountType {
