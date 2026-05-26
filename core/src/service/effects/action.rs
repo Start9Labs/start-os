@@ -192,21 +192,44 @@ async fn run_action(
     let package_id = package_id.as_ref().unwrap_or(&context.seed.id);
 
     if package_id != &context.seed.id {
-        return Err(Error::new(
-            eyre!(
-                "{}",
-                t!("service.effects.action.calling-actions-on-other-packages-unsupported")
-            ),
-            ErrorKind::InvalidRequest,
-        ));
+        // A service may run another package's action directly only if that action
+        // is marked public by the package that owns it.
+        let is_public = context
+            .seed
+            .ctx
+            .db
+            .peek()
+            .await
+            .as_public()
+            .as_package_data()
+            .as_idx(package_id)
+            .or_not_found(package_id)?
+            .as_actions()
+            .as_idx(&action_id)
+            .or_not_found(&action_id)?
+            .as_public()
+            .de()?;
+        if !is_public {
+            return Err(Error::new(
+                eyre!(
+                    "{}",
+                    t!(
+                        "service.effects.action.action-not-public",
+                        action_id = action_id,
+                        package_id = package_id
+                    )
+                ),
+                ErrorKind::InvalidRequest,
+            ));
+        }
         context
             .seed
             .ctx
             .services
-            .get(&package_id)
+            .get(package_id)
             .await
             .as_ref()
-            .or_not_found(&package_id)?
+            .or_not_found(package_id)?
             .run_action(procedure_id, action_id, input)
             .await
     } else {

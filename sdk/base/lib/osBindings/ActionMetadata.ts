@@ -34,4 +34,8 @@ export type ActionMetadata = {
    * If provided, this action will be nested under a header of this value, along with other actions of the same group
    */
   group: string | null
+  /**
+   * If true, services that depend on this package may invoke this action directly, rather than only creating a task against it. Defaults to false.
+   */
+  public: boolean
 }

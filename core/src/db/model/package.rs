@@ -342,6 +342,9 @@ pub struct ActionMetadata {
     pub has_input: bool,
     /// If provided, this action will be nested under a header of this value, along with other actions of the same group
     pub group: Option<String>,
+    /// If true, services that depend on this package may invoke this action directly, rather than only creating a task against it. Defaults to false.
+    #[serde(default)]
+    pub public: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]

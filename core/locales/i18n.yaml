@@ -2216,12 +2216,12 @@ service.action.service-not-in-allowed-status:
   pl_PL: "usługa nie jest w dozwolonym stanie dla %{action_id}"
 
 # service/effects/action.rs
-service.effects.action.calling-actions-on-other-packages-unsupported:
-  en_US: "calling actions on other packages is unsupported at this time"
-  de_DE: "Aufrufen von Aktionen auf anderen Paketen wird derzeit nicht unterstützt"
-  es_ES: "llamar acciones en otros paquetes no está soportado en este momento"
-  fr_FR: "l'appel d'actions sur d'autres paquets n'est pas pris en charge pour le moment"
-  pl_PL: "wywoływanie akcji na innych pakietach nie jest obecnie obsługiwane"
+service.effects.action.action-not-public:
+  en_US: "action %{action_id} of %{package_id} is not public and cannot be run directly by other services"
+  de_DE: "Aktion %{action_id} von %{package_id} ist nicht öffentlich und kann nicht direkt von anderen Diensten ausgeführt werden"
+  es_ES: "la acción %{action_id} de %{package_id} no es pública y no puede ser ejecutada directamente por otros servicios"
+  fr_FR: "l'action %{action_id} de %{package_id} n'est pas publique et ne peut pas être exécutée directement par d'autres services"
+  pl_PL: "akcja %{action_id} pakietu %{package_id} nie jest publiczna i nie może być uruchamiana bezpośrednio przez inne usługi"
 
 service.effects.action.input-not-matches-requires-input:
   en_US: "input-not-matches trigger requires input to be specified"
