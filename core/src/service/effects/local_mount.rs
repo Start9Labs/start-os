@@ -68,14 +68,21 @@ pub async fn local_mount<C: Context>(_: C, params: LocalMountParams) -> Result<(
         tokio::fs::create_dir_all(&target).await?;
     }
 
-    let fd = syscall::open_tree_clone(&source, recursive)?;
-    let detached = DetachedMount::from_fd(fd);
-
-    if !idmap.is_empty() {
+    // For the idmap case we use open_tree_attr (Linux 6.15+) so the clone
+    // and the idmap are applied atomically — the kernel refuses the
+    // two-step open_tree + mount_setattr(IDMAP) when the source filesystem
+    // is itself already idmapped (which is the LXC-userns scenario this
+    // subcommand exists to serve).
+    let detached = if idmap.is_empty() {
+        let fd = syscall::open_tree_clone(&source, recursive)?;
+        DetachedMount::from_fd(fd)
+    } else {
         let userns = syscall::userns_fd_from_idmap(&idmap).await?;
-        detached.set_idmap(userns.as_fd(), recursive)?;
+        let fd = syscall::open_tree_attr_idmap(&source, recursive, userns.as_fd())?;
         drop(userns);
-    }
+        DetachedMount::from_fd(fd)
+    };
+
     if readonly {
         detached.set_readonly(true)?;
     }

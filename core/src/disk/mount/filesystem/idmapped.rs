@@ -13,7 +13,7 @@ use ts_rs::TS;
 use super::FileSystem;
 use crate::disk::mount::filesystem::MountType;
 use crate::disk::mount::filesystem::syscall::{
-    DetachedMount, open_tree_clone, userns_fd_from_idmap,
+    DetachedMount, open_tree_attr_idmap, userns_fd_from_idmap,
 };
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::prelude::*;
@@ -93,12 +93,16 @@ impl<Fs: FileSystem> FileSystem for IdMapped<Fs> {
         tokio::fs::create_dir_all(mp).await?;
 
         let staging = TmpMountGuard::mount(&self.filesystem, mount_type).await?;
-        let fd = open_tree_clone(staging.path(), true)?;
-        let detached = DetachedMount::from_fd(fd);
 
+        // open_tree_attr atomically clones the staging mount and applies
+        // the idmap — required so the kernel doesn't see (and reject) a
+        // window where the cloned mount exists without the idmap, which
+        // is the recursive-idmap failure mode for inners that are
+        // themselves idmapped.
         let userns = userns_fd_from_idmap(&self.idmap).await?;
-        detached.set_idmap(userns.as_fd(), true)?;
+        let fd = open_tree_attr_idmap(staging.path(), true, userns.as_fd())?;
         drop(userns);
+        let detached = DetachedMount::from_fd(fd);
 
         if matches!(mount_type, MountType::ReadOnly) {
             detached.set_readonly(true)?;

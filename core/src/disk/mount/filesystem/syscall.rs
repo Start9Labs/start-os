@@ -36,6 +36,12 @@ const FSCONFIG_CMD_CREATE: libc::c_uint = 6;
 const FSOPEN_CLOEXEC: libc::c_uint = 0x1;
 const FSMOUNT_CLOEXEC: libc::c_uint = 0x1;
 
+// open_tree_attr(2) — added in Linux 6.15. libc 0.2 only defines
+// SYS_open_tree_attr for m68k, but the assignment is unified at 467
+// across x86_64 / aarch64 / riscv64 / armv7 / i686, which covers every
+// arch start-os targets.
+const SYS_OPEN_TREE_ATTR: libc::c_long = 467;
+
 #[repr(C)]
 #[derive(Default)]
 struct MountAttr {
@@ -181,6 +187,44 @@ pub fn open_tree_clone(path: &Path, recursive: bool) -> Result<OwnedFd, Error> {
     }
     let r = unsafe { libc::syscall(libc::SYS_open_tree, AT_FDCWD, p.as_ptr(), flags) };
     fd_from_raw(r, "open_tree")
+}
+
+/// `open_tree_attr(AT_FDCWD, path, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC |
+/// [AT_RECURSIVE], &attr, sizeof(attr))` with `MOUNT_ATTR_IDMAP` set and
+/// `attr->userns_fd = userns`. Kernel 6.15+.
+///
+/// This is the atomic equivalent of `open_tree(OPEN_TREE_CLONE) +
+/// mount_setattr(MOUNT_ATTR_IDMAP)` — the cloned mount fd never exists in
+/// a non-idmapped state. Required for the recursive-idmap case (idmapping
+/// a clone whose source filesystem is already idmapped); the kernel
+/// refuses the two-step pattern in that scenario.
+pub fn open_tree_attr_idmap(
+    path: &Path,
+    recursive: bool,
+    userns: BorrowedFd,
+) -> Result<OwnedFd, Error> {
+    let p = cstr_path(path)?;
+    let mut flags = OPEN_TREE_CLOEXEC | OPEN_TREE_CLONE;
+    if recursive {
+        flags |= AT_RECURSIVE as libc::c_uint;
+    }
+    let attr = MountAttr {
+        attr_set: MOUNT_ATTR_IDMAP,
+        attr_clr: 0,
+        propagation: 0,
+        userns_fd: userns.as_raw_fd() as u64,
+    };
+    let r = unsafe {
+        libc::syscall(
+            SYS_OPEN_TREE_ATTR,
+            AT_FDCWD,
+            p.as_ptr(),
+            flags,
+            &attr as *const _ as *const libc::c_void,
+            std::mem::size_of::<MountAttr>(),
+        )
+    };
+    fd_from_raw(r, "open_tree_attr IDMAP")
 }
 
 /// `move_mount(detached, "", AT_FDCWD, to, MOVE_MOUNT_F_EMPTY_PATH)` — attach
