@@ -90,7 +90,7 @@ pub async fn init_workspace(
 
     // Refuse nesting: a marker strictly above `root` would put a workspace inside a
     // workspace. A marker at `root` itself is just a re-run, which is allowed.
-    if let Some(outer) = root.parent().and_then(find_workspace_root) {
+    if let Some(outer) = root.parent().map(find_workspace_root).transpose()?.flatten() {
         return Err(Error::new(
             eyre!(
                 "{}",
@@ -174,7 +174,7 @@ pub async fn init_package(
     InitPackageParams { name }: InitPackageParams,
 ) -> Result<(), Error> {
     let cwd = std::env::current_dir().with_kind(ErrorKind::Filesystem)?;
-    let root = find_workspace_root(&cwd).ok_or_else(|| {
+    let root = find_workspace_root(&cwd)?.ok_or_else(|| {
         Error::new(
             eyre!("{}", t!("s9pk.init.not-in-workspace")),
             ErrorKind::InvalidRequest,
@@ -243,14 +243,20 @@ pub async fn init_package(
 /// Walk up from `start` (inclusive) for the nearest workspace — a directory
 /// containing a `.startos` dir. (start-cli's own config/key discovery walks up
 /// the same way; the outermost match may be the global `~/.startos`.)
-fn find_workspace_root(start: &Path) -> Option<PathBuf> {
+fn find_workspace_root(start: &Path) -> Result<Option<PathBuf>, Error> {
     let mut dir = start.to_path_buf();
     loop {
-        if dir.join(STARTOS_DIR).is_dir() {
-            return Some(dir);
+        match std::fs::metadata(dir.join(STARTOS_DIR)) {
+            Ok(meta) if meta.is_dir() => return Ok(Some(dir)),
+            // Present but not a directory — not a marker; keep walking up.
+            Ok(_) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            // EACCES (or other non-NotFound) on an ancestor: surface it rather
+            // than reporting "no workspace" and silently walking past it.
+            Err(e) => return Err(e.into()),
         }
         if !dir.pop() {
-            return None;
+            return Ok(None);
         }
     }
 }

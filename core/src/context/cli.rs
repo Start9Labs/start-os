@@ -84,7 +84,7 @@ impl CliContext {
     pub fn init(config: ClientConfig) -> Result<Self, Error> {
         // Resolve -H/-r (profile name or URL) against the workspace config, falling
         // back to a literal URL, then to localhost / no registry when unset.
-        let workspace = WorkspaceConfig::find();
+        let workspace = WorkspaceConfig::find()?;
         let mut url =
             match resolve_target(config.host.as_deref(), workspace.as_ref().map(|w| &w.host))? {
                 Some(url) => url,
@@ -210,7 +210,9 @@ impl CliContext {
         let mut dir = std::env::current_dir().with_kind(ErrorKind::Filesystem)?;
         loop {
             let candidate = dir.join(STARTOS_DIR).join(BUILD_KEY_FILE);
-            if candidate.exists() {
+            // `try_exists` (unlike `exists`) surfaces EACCES on an inaccessible
+            // ancestor as an error instead of reporting `false` and walking past it.
+            if candidate.try_exists()? {
                 return load_signing_key(candidate);
             }
             if !dir.pop() {

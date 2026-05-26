@@ -151,17 +151,25 @@ impl WorkspaceConfig {
     /// Walk up from cwd for the nearest `.startos/config.yaml` that parses as a
     /// workspace config. A flat config (no `schema`) fails to parse and is skipped,
     /// so the walk continues — preserving the global fallback when there's none.
-    pub fn find() -> Option<Self> {
-        let mut dir = std::env::current_dir().ok()?;
+    /// An EACCES (or other non-NotFound) error on a candidate is surfaced rather
+    /// than swallowed, so an unreadable workspace can't masquerade as absent.
+    pub fn find() -> Result<Option<Self>, Error> {
+        let mut dir = std::env::current_dir()?;
         loop {
             let candidate = dir.join(".startos").join("config.yaml");
-            if let Ok(file) = File::open(&candidate) {
-                if let Ok(config) = IoFormat::Yaml.from_reader::<_, Self>(file) {
-                    return Some(config);
+            match File::open(&candidate) {
+                Ok(file) => {
+                    if let Ok(config) = IoFormat::Yaml.from_reader::<_, Self>(file) {
+                        return Ok(Some(config));
+                    }
+                    // Present but not a workspace config (e.g. the legacy flat
+                    // config) — keep walking up.
                 }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(e.into()),
             }
             if !dir.pop() {
-                return None;
+                return Ok(None);
             }
         }
     }
