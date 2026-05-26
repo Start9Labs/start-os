@@ -1,3 +1,4 @@
+use std::os::fd::AsFd;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
@@ -9,6 +10,7 @@ use ts_rs::TS;
 
 use super::FileSystem;
 use crate::disk::mount::filesystem::MountType;
+use crate::disk::mount::filesystem::syscall::{DetachedMount, open_tree_clone};
 use crate::prelude::*;
 use crate::util::io::create_file;
 
@@ -48,14 +50,8 @@ impl<Src: AsRef<Path>> Bind<Src> {
         self
     }
 }
-impl<Src: AsRef<Path> + Send + Sync> FileSystem for Bind<Src> {
-    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
-        Ok(Some(&self.src))
-    }
-    fn extra_args(&self) -> impl IntoIterator<Item = impl AsRef<std::ffi::OsStr>> {
-        [if self.recursive { "--rbind" } else { "--bind" }]
-    }
-    async fn pre_mount(&self, mountpoint: &Path, mount_type: MountType) -> Result<(), Error> {
+impl<Src: AsRef<Path> + Send + Sync> Bind<Src> {
+    async fn prep(&self, mountpoint: &Path, mount_type: MountType) -> Result<(), Error> {
         let from_meta = tokio::fs::metadata(&self.src).await.ok();
         let to_meta = tokio::fs::metadata(&mountpoint).await.ok();
         if matches!(self.filetype, FileType::File)
@@ -82,6 +78,24 @@ impl<Src: AsRef<Path> + Send + Sync> FileSystem for Bind<Src> {
                 tokio::fs::create_dir_all(mountpoint).await?;
             }
         }
+        Ok(())
+    }
+}
+impl<Src: AsRef<Path> + Send + Sync> FileSystem for Bind<Src> {
+    async fn mount<P: AsRef<Path> + Send>(
+        &self,
+        mountpoint: P,
+        mount_type: MountType,
+    ) -> Result<(), Error> {
+        let mp = mountpoint.as_ref();
+        self.prep(mp, mount_type).await?;
+
+        let fd = open_tree_clone(self.src.as_ref(), self.recursive)?;
+        let detached = DetachedMount::from_fd(fd);
+        if matches!(mount_type, MountType::ReadOnly) {
+            detached.set_readonly(true)?;
+        }
+        detached.attach(mp)?;
         Ok(())
     }
     async fn source_hash(
