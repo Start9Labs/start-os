@@ -549,10 +549,17 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	# squashfs as the chroot's rootfs. lb's binary_rootfs rm -rf's
 	# chroot/chroot/ after squashing, so the squashfs is the only
 	# remaining source for the rootfs at this point.
-	mkdir -p $TMPDIR/lower $TMPDIR/upper $TMPDIR/work $TMPDIR/next
+	#
+	# The overlay upper/workdir need a filesystem the kernel accepts
+	# as upperdir — the docker container's /tmp is overlayfs, and
+	# overlay-on-overlay is rejected. Mount a fresh tmpfs and put
+	# upper+work there.
+	mkdir -p $TMPDIR/lower $TMPDIR/scratch $TMPDIR/next
 	mount -o ro,loop $prep_results_dir/binary/live/filesystem.squashfs $TMPDIR/lower
+	mount -t tmpfs -o size=512M tmpfs $TMPDIR/scratch
+	mkdir -p $TMPDIR/scratch/upper $TMPDIR/scratch/work
 	mount -t overlay \
-		-o lowerdir=$TMPDIR/lower,upperdir=$TMPDIR/upper,workdir=$TMPDIR/work \
+		-o lowerdir=$TMPDIR/lower,upperdir=$TMPDIR/scratch/upper,workdir=$TMPDIR/scratch/work \
 		overlay $TMPDIR/next
 
 	mkdir -p $TMPDIR/next/boot $TMPDIR/next/dev $TMPDIR/next/proc $TMPDIR/next/sys
@@ -570,6 +577,7 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	umount $TMPDIR/next/proc
 	umount $TMPDIR/next/dev
 	umount $TMPDIR/next
+	umount $TMPDIR/scratch
 	umount $TMPDIR/lower
 
 	# Rewrite grub.cfg for live boot. update-grub used /etc/default/grub
