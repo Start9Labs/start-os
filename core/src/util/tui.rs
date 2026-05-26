@@ -1,7 +1,8 @@
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::str::FromStr;
 
 use r3bl_tui::{DefaultIoDevices, ReadlineAsyncContext, ReadlineEvent};
+use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
 
 use crate::prelude::*;
 
@@ -106,43 +107,110 @@ pub async fn choose_custom_display<'t, T>(
     choices: &'t [T],
     mut display: impl FnMut(&T) -> String,
 ) -> Result<&'t T, Error> {
-    let mut io = DefaultIoDevices::default();
-    let style = r3bl_tui::readline_async::StyleSheet::default();
     let string_choices = choices.into_iter().map(|c| display(c)).collect::<Vec<_>>();
-    let choice = r3bl_tui::readline_async::choose(
-        prompt,
-        string_choices.clone(),
-        None,
-        None,
-        r3bl_tui::HowToChoose::Single,
-        style,
-        (
-            &mut io.output_device,
-            &mut io.input_device,
-            io.maybe_shared_writer,
-        ),
-    )
-    .await
-    .map_err(map_miette)?;
-    if choice.len() < 1 {
-        return Err(Error::new(
-            eyre!("{}", t!("util.tui.aborted")),
-            ErrorKind::Cancelled,
-        ));
+
+    if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+        let mut io = DefaultIoDevices::default();
+        let style = r3bl_tui::readline_async::StyleSheet::default();
+        let choice = r3bl_tui::readline_async::choose(
+            prompt,
+            string_choices.clone(),
+            None,
+            None,
+            r3bl_tui::HowToChoose::Single,
+            style,
+            (
+                &mut io.output_device,
+                &mut io.input_device,
+                io.maybe_shared_writer,
+            ),
+        )
+        .await
+        .map_err(map_miette)?;
+        if choice.len() < 1 {
+            return Err(Error::new(
+                eyre!("{}", t!("util.tui.aborted")),
+                ErrorKind::Cancelled,
+            ));
+        }
+        let (idx, choice_str) = string_choices
+            .iter()
+            .enumerate()
+            .find(|(_, s)| s.as_str() == choice[0].as_str())
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("{}", t!("util.tui.selected-choice-not-in-input")),
+                    ErrorKind::Incoherent,
+                )
+            })?;
+        let choice = &choices[idx];
+        println!("{prompt} {choice_str}");
+        return Ok(&choice);
     }
-    let (idx, choice_str) = string_choices
+
+    let mut stderr = std::io::stderr().lock();
+    let idx = choose_non_tty(
+        prompt,
+        &string_choices,
+        BufReader::new(tokio::io::stdin()),
+        &mut stderr,
+    )
+    .await?;
+    Ok(&choices[idx])
+}
+
+async fn choose_non_tty<R, W>(
+    prompt: &str,
+    string_choices: &[String],
+    mut input: R,
+    mut err: W,
+) -> Result<usize, Error>
+where
+    R: AsyncBufRead + Unpin,
+    W: Write,
+{
+    let listing = string_choices
         .iter()
         .enumerate()
-        .find(|(_, s)| s.as_str() == choice[0].as_str())
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("{}", t!("util.tui.selected-choice-not-in-input")),
-                ErrorKind::Incoherent,
-            )
-        })?;
-    let choice = &choices[idx];
-    println!("{prompt} {choice_str}");
-    Ok(&choice)
+        .map(|(i, s)| format!("  {}) {s}", i + 1))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    writeln!(&mut err, "{prompt}")?;
+    writeln!(&mut err, "{listing}")?;
+    write!(
+        &mut err,
+        "{} ",
+        t!("util.tui.select-by-number", max = string_choices.len())
+    )?;
+    err.flush()?;
+
+    let mut line = String::new();
+    let n = input.read_line(&mut line).await?;
+    if n == 0 {
+        return Err(Error::new(
+            eyre!(
+                "{}\n{prompt}\n{listing}",
+                t!("util.tui.could-not-read-response"),
+            ),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+    let trimmed = line.trim();
+    let invalid = || {
+        Error::new(
+            eyre!(
+                "{}",
+                t!("util.tui.invalid-selection", max = string_choices.len())
+            ),
+            ErrorKind::InvalidRequest,
+        )
+    };
+    let idx: usize = trimmed.parse().map_err(|_| invalid())?;
+    if idx < 1 || idx > string_choices.len() {
+        return Err(invalid());
+    }
+    Ok(idx - 1)
 }
 
 pub async fn choose<'t, T: std::fmt::Display>(
@@ -150,4 +218,81 @@ pub async fn choose<'t, T: std::fmt::Display>(
     choices: &'t [T],
 ) -> Result<&'t T, Error> {
     choose_custom_display(prompt, choices, |t| t.to_string()).await
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn run(input: &[u8]) -> (Result<usize, Error>, String) {
+        let choices = vec![
+            "alpha".to_string(),
+            "bravo".to_string(),
+            "charlie".to_string(),
+        ];
+        let mut err: Vec<u8> = Vec::new();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let res = rt.block_on(choose_non_tty(
+            "pick one",
+            &choices,
+            tokio::io::BufReader::new(input),
+            &mut err,
+        ));
+        (res, String::from_utf8(err).unwrap())
+    }
+
+    #[test]
+    fn valid_selection_returns_index() {
+        let (res, stderr) = run(b"2\n");
+        assert_eq!(res.unwrap(), 1);
+        assert!(stderr.contains("pick one"));
+        assert!(stderr.contains("  1) alpha"));
+        assert!(stderr.contains("  2) bravo"));
+        assert!(stderr.contains("  3) charlie"));
+        assert!(stderr.contains("between 1 and 3"));
+    }
+
+    #[test]
+    fn whitespace_around_selection_ok() {
+        let (res, _) = run(b"  3  \n");
+        assert_eq!(res.unwrap(), 2);
+    }
+
+    #[test]
+    fn out_of_range_errors() {
+        let (res, _) = run(b"4\n");
+        let e = res.unwrap_err();
+        assert_eq!(e.kind, ErrorKind::InvalidRequest);
+        assert!(format!("{e}").contains("Invalid selection"));
+    }
+
+    #[test]
+    fn zero_is_out_of_range() {
+        let (res, _) = run(b"0\n");
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn non_numeric_errors() {
+        let (res, _) = run(b"foo\n");
+        let e = res.unwrap_err();
+        assert_eq!(e.kind, ErrorKind::InvalidRequest);
+        assert!(format!("{e}").contains("Invalid selection"));
+    }
+
+    #[test]
+    fn eof_errors_with_listing() {
+        let (res, _) = run(b"");
+        let e = res.unwrap_err();
+        assert_eq!(e.kind, ErrorKind::InvalidRequest);
+        let msg = format!("{e}");
+        assert!(msg.contains("Could not read response from stdin"));
+        assert!(msg.contains("pick one"));
+        assert!(msg.contains("  1) alpha"));
+        assert!(msg.contains("  2) bravo"));
+        assert!(msg.contains("  3) charlie"));
+    }
 }
