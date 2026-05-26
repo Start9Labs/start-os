@@ -407,6 +407,125 @@ pub fn unshare_userns_main() -> std::io::Result<()> {
     Ok(())
 }
 
+// loop(4) constants — not exported by libc 0.2.
+
+const LOOP_CTL_GET_FREE: libc::c_ulong = 0x4C82;
+const LOOP_CONFIGURE: libc::c_ulong = 0x4C0A;
+const LO_FLAGS_READ_ONLY: u32 = 1;
+const LO_FLAGS_AUTOCLEAR: u32 = 4;
+
+#[repr(C)]
+struct LoopInfo64 {
+    lo_device: u64,
+    lo_inode: u64,
+    lo_rdevice: u64,
+    lo_offset: u64,
+    lo_sizelimit: u64,
+    lo_number: u32,
+    lo_encrypt_type: u32,
+    lo_encrypt_key_size: u32,
+    lo_flags: u32,
+    lo_file_name: [u8; 64],
+    lo_crypt_name: [u8; 64],
+    lo_encrypt_key: [u8; 32],
+    lo_init: [u64; 2],
+}
+impl LoopInfo64 {
+    fn zeroed() -> Self {
+        // SAFETY: all fields are POD (integers / byte arrays); zeroed bit
+        // pattern is a valid LoopInfo64.
+        unsafe { std::mem::zeroed() }
+    }
+}
+
+#[repr(C)]
+struct LoopConfig {
+    fd: u32,
+    block_size: u32,
+    info: LoopInfo64,
+    __reserved: [u64; 8],
+}
+
+/// Allocate a loop device, attach `backing` to it (with `offset` /
+/// `sizelimit`), and return both an owned fd referring to the loop device
+/// and the `/dev/loopN` path.
+///
+/// `read_only` sets `LO_FLAGS_READ_ONLY`; the loop device is also marked
+/// `LO_FLAGS_AUTOCLEAR` so that the kernel detaches the backing file once
+/// the last open fd is closed (avoiding leaked loop devices on crash).
+pub async fn loop_attach(
+    backing: impl AsRef<Path>,
+    offset: u64,
+    sizelimit: u64,
+    read_only: bool,
+) -> Result<(OwnedFd, std::path::PathBuf), Error> {
+    let backing = backing.as_ref().to_owned();
+    tokio::task::spawn_blocking(move || -> Result<(OwnedFd, std::path::PathBuf), Error> {
+        use std::os::fd::IntoRawFd;
+        let mut open_opts = std::fs::OpenOptions::new();
+        open_opts.read(true);
+        if !read_only {
+            open_opts.write(true);
+        }
+        let backing_file = open_opts
+            .open(&backing)
+            .map_err(|e| Error::new(e, ErrorKind::Filesystem))
+            .with_ctx(|_| (ErrorKind::Filesystem, format!("open backing {}", backing.display())))?;
+
+        let ctl = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open("/dev/loop-control")
+            .map_err(|e| Error::new(e, ErrorKind::Filesystem))
+            .with_ctx(|_| (ErrorKind::Filesystem, "open /dev/loop-control"))?;
+        let loop_nr = unsafe { libc::ioctl(ctl.as_raw_fd(), LOOP_CTL_GET_FREE) };
+        if loop_nr < 0 {
+            return Err(Error::new(
+                io::Error::last_os_error(),
+                ErrorKind::Filesystem,
+            ))
+            .with_ctx(|_| (ErrorKind::Filesystem, "LOOP_CTL_GET_FREE"));
+        }
+        let loop_path = std::path::PathBuf::from(format!("/dev/loop{}", loop_nr));
+
+        let mut loop_open = std::fs::OpenOptions::new();
+        loop_open.read(true);
+        if !read_only {
+            loop_open.write(true);
+        }
+        let loop_dev = loop_open
+            .open(&loop_path)
+            .map_err(|e| Error::new(e, ErrorKind::Filesystem))
+            .with_ctx(|_| (ErrorKind::Filesystem, format!("open {}", loop_path.display())))?;
+
+        let mut config = LoopConfig {
+            fd: backing_file.as_raw_fd() as u32,
+            block_size: 0,
+            info: LoopInfo64::zeroed(),
+            __reserved: [0; 8],
+        };
+        config.info.lo_offset = offset;
+        config.info.lo_sizelimit = sizelimit;
+        config.info.lo_flags = LO_FLAGS_AUTOCLEAR | if read_only { LO_FLAGS_READ_ONLY } else { 0 };
+
+        let r = unsafe {
+            libc::ioctl(loop_dev.as_raw_fd(), LOOP_CONFIGURE, &config as *const LoopConfig)
+        };
+        if r < 0 {
+            return Err(Error::new(
+                io::Error::last_os_error(),
+                ErrorKind::Filesystem,
+            ))
+            .with_ctx(|_| (ErrorKind::Filesystem, format!("LOOP_CONFIGURE {}", loop_path.display())));
+        }
+
+        let owned = unsafe { OwnedFd::from_raw_fd(loop_dev.into_raw_fd()) };
+        Ok((owned, loop_path))
+    })
+    .await
+    .with_kind(ErrorKind::Cancelled)?
+}
+
 /// `umount2(target, flags)` — drop-in replacement for `umount(8)`. `lazy`
 /// sets `MNT_DETACH`.
 pub async fn umount2(target: impl AsRef<Path>, lazy: bool) -> Result<(), Error> {
