@@ -19,14 +19,19 @@ use std::time::Duration;
 
 use libc::{
     AT_EMPTY_PATH, AT_FDCWD, AT_RECURSIVE, MOUNT_ATTR_IDMAP, MOUNT_ATTR_RDONLY,
-    MOVE_MOUNT_F_EMPTY_PATH, OPEN_TREE_CLOEXEC, OPEN_TREE_CLONE,
+    OPEN_TREE_CLOEXEC, OPEN_TREE_CLONE,
 };
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
 use crate::prelude::*;
 
-// FSCONFIG_* command codes (linux/mount.h; not yet exported by libc).
+// linux/mount.h. Defined locally because libc 0.2 only exports
+// `MOVE_MOUNT_F_EMPTY_PATH` for gnu-linux, not for the musl targets we
+// also cross-build against.
+const MOVE_MOUNT_F_EMPTY_PATH: libc::c_uint = 0x00000004;
+
+// FSCONFIG_* command codes (linux/mount.h; not exported by libc).
 const FSCONFIG_SET_FLAG: libc::c_uint = 0;
 const FSCONFIG_SET_STRING: libc::c_uint = 1;
 const FSCONFIG_SET_PATH: libc::c_uint = 3;
@@ -453,8 +458,11 @@ pub fn unshare_userns_main() -> std::io::Result<()> {
 
 // loop(4) constants — not exported by libc 0.2.
 
-const LOOP_CTL_GET_FREE: libc::c_ulong = 0x4C82;
-const LOOP_CONFIGURE: libc::c_ulong = 0x4C0A;
+// `libc::Ioctl` is `c_int` on musl and `c_ulong` on gnu — `libc::ioctl`'s
+// second argument takes this type alias, so use it directly to keep the
+// constants portable across our cross-compile targets.
+const LOOP_CTL_GET_FREE: libc::Ioctl = 0x4C82;
+const LOOP_CONFIGURE: libc::Ioctl = 0x4C0A;
 const LO_FLAGS_READ_ONLY: u32 = 1;
 const LO_FLAGS_AUTOCLEAR: u32 = 4;
 
