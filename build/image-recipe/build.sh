@@ -361,6 +361,9 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
     NOG_RPI5_VERSION=v0.1
     NOG_RPI5_SHA256=c4fbbec9cd0d1115c9adab884923061b960de42b4ca6d65ba5f08cb6b46c6fad
 
+    # unzip is build-time only — install ephemerally, purge after.
+    apt-get install -y --no-install-recommends unzip
+
     curl -fsSL -o /tmp/pftf-rpi4.zip \\
         https://github.com/pftf/RPi4/releases/download/\${PFTF_RPI4_VERSION}/RPi4_UEFI_Firmware_\${PFTF_RPI4_VERSION}.zip
     echo "\${PFTF_RPI4_SHA256}  /tmp/pftf-rpi4.zip" | sha256sum -c -
@@ -382,6 +385,8 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
     cp \$NOG_DIR/bcm2712*.dtb /boot/firmware/
     cp \$NOG_DIR/overlays/*.dtbo /boot/firmware/overlays/
     rm -rf /tmp/nog-rpi5.zip \$NOG_DIR
+
+    apt-get -y --purge remove unzip
 fi
 
 useradd --shell /bin/bash -G startos -m start9
