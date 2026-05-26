@@ -2705,6 +2705,27 @@ util.tui.selected-choice-not-in-input:
   fr_FR: "le choix sélectionné n'apparaît pas dans l'entrée"
   pl_PL: "wybrany wybór nie pojawia się w danych wejściowych"
 
+util.tui.select-by-number:
+  en_US: "Please enter a number between 1 and %{max}:"
+  de_DE: "Bitte geben Sie eine Zahl zwischen 1 und %{max} ein:"
+  es_ES: "Por favor, ingrese un número entre 1 y %{max}:"
+  fr_FR: "Veuillez entrer un nombre entre 1 et %{max} :"
+  pl_PL: "Proszę wprowadzić liczbę od 1 do %{max}:"
+
+util.tui.invalid-selection:
+  en_US: "Invalid selection — must be a number between 1 and %{max}"
+  de_DE: "Ungültige Auswahl — muss eine Zahl zwischen 1 und %{max} sein"
+  es_ES: "Selección inválida — debe ser un número entre 1 y %{max}"
+  fr_FR: "Sélection invalide — doit être un nombre entre 1 et %{max}"
+  pl_PL: "Nieprawidłowy wybór — musi być liczbą od 1 do %{max}"
+
+util.tui.could-not-read-response:
+  en_US: "Could not read response from stdin"
+  de_DE: "Antwort konnte nicht von stdin gelesen werden"
+  es_ES: "No se pudo leer la respuesta desde stdin"
+  fr_FR: "Impossible de lire la réponse depuis stdin"
+  pl_PL: "Nie można odczytać odpowiedzi ze standardowego wejścia"
+
 # util/serde.rs
 util.serde.must-specify-units-for-duration:
   en_US: "Must specify units for duration"

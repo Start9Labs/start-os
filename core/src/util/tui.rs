@@ -1,7 +1,8 @@
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::str::FromStr;
 
 use r3bl_tui::{DefaultIoDevices, ReadlineAsyncContext, ReadlineEvent};
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 use crate::prelude::*;
 
@@ -106,43 +107,94 @@ pub async fn choose_custom_display<'t, T>(
     choices: &'t [T],
     mut display: impl FnMut(&T) -> String,
 ) -> Result<&'t T, Error> {
-    let mut io = DefaultIoDevices::default();
-    let style = r3bl_tui::readline_async::StyleSheet::default();
     let string_choices = choices.into_iter().map(|c| display(c)).collect::<Vec<_>>();
-    let choice = r3bl_tui::readline_async::choose(
-        prompt,
-        string_choices.clone(),
-        None,
-        None,
-        r3bl_tui::HowToChoose::Single,
-        style,
-        (
-            &mut io.output_device,
-            &mut io.input_device,
-            io.maybe_shared_writer,
-        ),
-    )
-    .await
-    .map_err(map_miette)?;
-    if choice.len() < 1 {
-        return Err(Error::new(
-            eyre!("{}", t!("util.tui.aborted")),
-            ErrorKind::Cancelled,
-        ));
+
+    if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+        let mut io = DefaultIoDevices::default();
+        let style = r3bl_tui::readline_async::StyleSheet::default();
+        let choice = r3bl_tui::readline_async::choose(
+            prompt,
+            string_choices.clone(),
+            None,
+            None,
+            r3bl_tui::HowToChoose::Single,
+            style,
+            (
+                &mut io.output_device,
+                &mut io.input_device,
+                io.maybe_shared_writer,
+            ),
+        )
+        .await
+        .map_err(map_miette)?;
+        if choice.len() < 1 {
+            return Err(Error::new(
+                eyre!("{}", t!("util.tui.aborted")),
+                ErrorKind::Cancelled,
+            ));
+        }
+        let (idx, choice_str) = string_choices
+            .iter()
+            .enumerate()
+            .find(|(_, s)| s.as_str() == choice[0].as_str())
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("{}", t!("util.tui.selected-choice-not-in-input")),
+                    ErrorKind::Incoherent,
+                )
+            })?;
+        let choice = &choices[idx];
+        println!("{prompt} {choice_str}");
+        return Ok(&choice);
     }
-    let (idx, choice_str) = string_choices
+
+    let listing = string_choices
         .iter()
         .enumerate()
-        .find(|(_, s)| s.as_str() == choice[0].as_str())
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("{}", t!("util.tui.selected-choice-not-in-input")),
-                ErrorKind::Incoherent,
-            )
-        })?;
-    let choice = &choices[idx];
-    println!("{prompt} {choice_str}");
-    Ok(&choice)
+        .map(|(i, s)| format!("  {}) {s}", i + 1))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    {
+        let mut stderr = std::io::stderr().lock();
+        writeln!(&mut stderr, "{prompt}")?;
+        writeln!(&mut stderr, "{listing}")?;
+        write!(
+            &mut stderr,
+            "{} ",
+            t!("util.tui.select-by-number", max = string_choices.len())
+        )?;
+        stderr.flush()?;
+    }
+
+    let mut line = String::new();
+    let n = BufReader::new(tokio::io::stdin())
+        .read_line(&mut line)
+        .await?;
+    if n == 0 {
+        return Err(Error::new(
+            eyre!(
+                "{}\n{prompt}\n{listing}",
+                t!("util.tui.could-not-read-response"),
+            ),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+    let trimmed = line.trim();
+    let invalid = || {
+        Error::new(
+            eyre!(
+                "{}",
+                t!("util.tui.invalid-selection", max = string_choices.len())
+            ),
+            ErrorKind::InvalidRequest,
+        )
+    };
+    let idx: usize = trimmed.parse().map_err(|_| invalid())?;
+    if idx < 1 || idx > string_choices.len() {
+        return Err(invalid());
+    }
+    Ok(&choices[idx - 1])
 }
 
 pub async fn choose<'t, T: std::fmt::Display>(
