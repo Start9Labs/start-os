@@ -37,13 +37,7 @@ const lazy = (
   sharedRun = true,
   mounts: Mounts<Manifest> | null = null,
   name = 'reg-sub',
-) =>
-  SubContainer.of<Manifest>(
-    e,
-    { imageId, sharedRun },
-    mounts as any,
-    name,
-  )
+) => SubContainer.of<Manifest>(e, { imageId, sharedRun }, mounts as any, name)
 
 describe('Daemons recorder', () => {
   it('records entries in declaration order without constructing HealthDaemons', () => {
@@ -324,12 +318,7 @@ describe('SubContainer.of (lazy) identity', () => {
     // We can't actually materialize without a real runtime, but we can
     // verify the identity field exists and is stable on the lazy handle.
     const e = fakeEffects()
-    const sub = SubContainer.of<Manifest>(
-      e,
-      { imageId: 'reg' },
-      null,
-      'name',
-    )
+    const sub = SubContainer.of<Manifest>(e, { imageId: 'reg' }, null, 'name')
     expect(typeof sub.identity).toBe('symbol')
     // Identity unchanged across method-less accesses
     expect(sub.identity).toBe(sub.identity)
@@ -337,18 +326,8 @@ describe('SubContainer.of (lazy) identity', () => {
 
   it('produces distinct identities per call', () => {
     const e = fakeEffects()
-    const a = SubContainer.of<Manifest>(
-      e,
-      { imageId: 'reg' },
-      null,
-      'name',
-    )
-    const b = SubContainer.of<Manifest>(
-      e,
-      { imageId: 'reg' },
-      null,
-      'name',
-    )
+    const a = SubContainer.of<Manifest>(e, { imageId: 'reg' }, null, 'name')
+    const b = SubContainer.of<Manifest>(e, { imageId: 'reg' }, null, 'name')
     expect(a.identity).not.toBe(b.identity)
   })
 })

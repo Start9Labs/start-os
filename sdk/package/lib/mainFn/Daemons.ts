@@ -171,10 +171,7 @@ type AddDaemonParams<
   Ids extends string,
   Id extends string,
   C extends SubContainer<Manifest> | null,
-> = (
-  | NewDaemonParams<Manifest, C>
-  | { daemon: Daemon<Manifest> }
-) & {
+> = (NewDaemonParams<Manifest, C> | { daemon: Daemon<Manifest> }) & {
   ready: Ready
   /**
    * IDs of prior daemons/oneshots/health checks that must be ready before
@@ -324,8 +321,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   static dynamic<Manifest extends T.SDKManifest>(
     fn: DaemonsBuilder<Manifest>,
   ): T.ExpectedExports.main {
-    return async ({ effects }) =>
-      new DaemonsReconciler<Manifest>(effects, fn)
+    return async ({ effects }) => new DaemonsReconciler<Manifest>(effects, fn)
   }
 
   private appendEntry(entry: DaemonEntry<Manifest>): Daemons<Manifest, any> {
@@ -376,14 +372,22 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       const entry: DaemonEntry<Manifest> = {
         kind: 'daemon',
         id,
-        subcontainer: 'daemon' in opts ? opts.daemon.subcontainer : opts.subcontainer,
+        subcontainer:
+          'daemon' in opts ? opts.daemon.subcontainer : opts.subcontainer,
         exec:
           'daemon' in opts
-            ? (null as unknown as DaemonCommandType<Manifest, SubContainer<Manifest> | null>)
-            : (opts.exec as DaemonCommandType<Manifest, SubContainer<Manifest> | null>),
+            ? (null as unknown as DaemonCommandType<
+                Manifest,
+                SubContainer<Manifest> | null
+              >)
+            : (opts.exec as DaemonCommandType<
+                Manifest,
+                SubContainer<Manifest> | null
+              >),
         ready: opts.ready,
         requires: opts.requires as string[],
-        prebuiltDaemon: 'daemon' in opts ? (opts.daemon as Daemon<Manifest>) : null,
+        prebuiltDaemon:
+          'daemon' in opts ? (opts.daemon as Daemon<Manifest>) : null,
       }
       return prev.appendEntry(entry)
     }
@@ -433,7 +437,10 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
         kind: 'oneshot',
         id,
         subcontainer: opts.subcontainer,
-        exec: opts.exec as DaemonCommandType<Manifest, SubContainer<Manifest> | null>,
+        exec: opts.exec as DaemonCommandType<
+          Manifest,
+          SubContainer<Manifest> | null
+        >,
         requires: opts.requires as string[],
       }
       return prev.appendEntry(entry)
@@ -679,9 +686,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       }
     }
     await Promise.allSettled(
-      [...subs].map((s) =>
-        s.destroy().catch((e) => logErrorOnce(asError(e))),
-      ),
+      [...subs].map((s) => s.destroy().catch((e) => logErrorOnce(asError(e)))),
     )
   }
 }
@@ -807,7 +812,8 @@ function canonicalize(v: unknown): unknown {
   if (typeof v === 'object') {
     const keys = Object.keys(v as object).sort()
     const out: Record<string, unknown> = {}
-    for (const k of keys) out[k] = canonicalize((v as Record<string, unknown>)[k])
+    for (const k of keys)
+      out[k] = canonicalize((v as Record<string, unknown>)[k])
     return out
   }
   if (typeof v === 'function') return null
@@ -915,9 +921,9 @@ export class DaemonsReconciler<M extends T.SDKManifest>
               'subcontainer' in e && !!e.subcontainer,
           )
           .map((e) =>
-            e.subcontainer!.destroy().catch((err) =>
-              logErrorOnce(asError(err)),
-            ),
+            e
+              .subcontainer!.destroy()
+              .catch((err) => logErrorOnce(asError(err))),
           ),
       )
       const offender = entries.find(
@@ -1006,10 +1012,7 @@ export class DaemonsReconciler<M extends T.SDKManifest>
     }
   }
 
-  private async startEntry(
-    entry: DaemonEntry<M>,
-    hash: string,
-  ): Promise<void> {
+  private async startEntry(entry: DaemonEntry<M>, hash: string): Promise<void> {
     const id = entry.id
     let daemon: Daemon<M> | null = null
     let readyArg: Ready | typeof EXIT_SUCCESS
