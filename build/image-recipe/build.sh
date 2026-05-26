@@ -364,7 +364,7 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
     # unzip is build-time only — install ephemerally, purge after.
     apt-get install -y --no-install-recommends unzip
 
-    curl -fsSL -o /tmp/pftf-rpi4.zip \\
+    curl -fsSL --retry 5 --retry-delay 5 -o /tmp/pftf-rpi4.zip \\
         https://github.com/pftf/RPi4/releases/download/\${PFTF_RPI4_VERSION}/RPi4_UEFI_Firmware_\${PFTF_RPI4_VERSION}.zip
     echo "\${PFTF_RPI4_SHA256}  /tmp/pftf-rpi4.zip" | sha256sum -c -
     PFTF_DIR=\$(mktemp -d)
@@ -376,7 +376,7 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
     cp \$PFTF_DIR/overlays/*.dtbo /boot/firmware/overlays/
     rm -rf /tmp/pftf-rpi4.zip \$PFTF_DIR
 
-    curl -fsSL -o /tmp/nog-rpi5.zip \\
+    curl -fsSL --retry 5 --retry-delay 5 -o /tmp/nog-rpi5.zip \\
         https://github.com/NumberOneGit/rpi5-uefi/releases/download/\${NOG_RPI5_VERSION}/RPI5_D0.zip
     echo "\${NOG_RPI5_SHA256}  /tmp/nog-rpi5.zip" | sha256sum -c -
     NOG_DIR=\$(mktemp -d)

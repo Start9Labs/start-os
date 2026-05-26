@@ -43,12 +43,14 @@ fn build_gpt_layout(
     // partition on the boot media. Reserve 128 MiB up front so the
     // installer can drop firmware blobs + EDK2 binaries there; on other
     // platforms this partition isn't created and indices shift down.
+    // Type = Microsoft Basic Data — matches what `sfdisk` writes for
+    // the same partition on the install media (build.sh).
     let has_firmware = &*crate::PLATFORM == "raspberrypi";
     if has_firmware {
         gpt.add_partition(
             "firmware",
             128 * 1024 * 1024,
-            gpt::partition_types::LINUX_FS,
+            gpt::partition_types::BASIC,
             0,
             Some(PARTITION_ALIGNMENT_LBA),
         )?;
