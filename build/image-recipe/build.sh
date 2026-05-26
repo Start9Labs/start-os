@@ -545,24 +545,32 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	# Drop the squashfs onto the boot partition for live-init to find.
 	cp $prep_results_dir/binary/live/filesystem.squashfs $TMPDIR/boot/live/filesystem.squashfs
 
-	# Install GRUB-EFI + generate grub.cfg by chrooting into the
-	# lb-built rootfs at chroot/chroot/. Bind-mount our boot partition
-	# (with ESP nested) at the chroot's /boot so grub-install writes
-	# the EFI loader to the ESP and modules to /boot.
-	mkdir -p chroot/chroot/boot chroot/chroot/dev chroot/chroot/proc chroot/chroot/sys
-	mount --bind /dev chroot/chroot/dev
-	mount -t proc proc chroot/chroot/proc
-	mount -t sysfs sysfs chroot/chroot/sys
-	mount --rbind $TMPDIR/boot chroot/chroot/boot
+	# Install GRUB-EFI + generate grub.cfg by overlay-mounting the
+	# squashfs as the chroot's rootfs. lb's binary_rootfs rm -rf's
+	# chroot/chroot/ after squashing, so the squashfs is the only
+	# remaining source for the rootfs at this point.
+	mkdir -p $TMPDIR/lower $TMPDIR/upper $TMPDIR/work $TMPDIR/next
+	mount -o ro,loop $prep_results_dir/binary/live/filesystem.squashfs $TMPDIR/lower
+	mount -t overlay \
+		-o lowerdir=$TMPDIR/lower,upperdir=$TMPDIR/upper,workdir=$TMPDIR/work \
+		overlay $TMPDIR/next
 
-	chroot chroot/chroot grub-install --target=arm64-efi --removable \
+	mkdir -p $TMPDIR/next/boot $TMPDIR/next/dev $TMPDIR/next/proc $TMPDIR/next/sys
+	mount --bind /dev $TMPDIR/next/dev
+	mount -t proc proc $TMPDIR/next/proc
+	mount -t sysfs sysfs $TMPDIR/next/sys
+	mount --rbind $TMPDIR/boot $TMPDIR/next/boot
+
+	chroot $TMPDIR/next grub-install --target=arm64-efi --removable \
 		--efi-directory=/boot/efi --boot-directory=/boot --no-nvram
-	chroot chroot/chroot update-grub
+	chroot $TMPDIR/next update-grub
 
-	umount -l chroot/chroot/boot
-	umount chroot/chroot/sys
-	umount chroot/chroot/proc
-	umount chroot/chroot/dev
+	umount -l $TMPDIR/next/boot
+	umount $TMPDIR/next/sys
+	umount $TMPDIR/next/proc
+	umount $TMPDIR/next/dev
+	umount $TMPDIR/next
+	umount $TMPDIR/lower
 
 	# Rewrite grub.cfg for live boot. update-grub used /etc/default/grub
 	# (boot=startos for the installed-disk path); we drop the installed-
