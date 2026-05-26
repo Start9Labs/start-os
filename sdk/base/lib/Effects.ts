@@ -18,6 +18,7 @@ import {
   StatusInfo,
   Manifest,
   HostnameInfo,
+  Progress,
 } from './osBindings'
 import {
   PackageId,
@@ -92,6 +93,23 @@ export type Effects = {
     packageId: PackageId
     callback?: () => void
   }): Promise<Manifest>
+
+  // backup
+  /**
+   * Report progress for this service's currently-running backup procedure.
+   *
+   * Called from inside `createBackup`. The host stores `progress` as the
+   * service's phase in the server-wide backup tracker, so the UI sees the
+   * same `FullProgress` wire format used by OS updates / package installs.
+   *
+   * `progress` is a `Progress` — null / true / false / `{ done, total, units }`
+   * for a leaf reading, or a nested `FullProgress` (`{ overall, phases }`)
+   * if the service is tracking its own sub-phases (use the
+   * `FullProgressTracker` SDK utility for that).
+   *
+   * No-op outside the backup transition.
+   */
+  setBackupProgress(o: { progress: Progress }): Promise<null>
 
   // health
   /** sets the result of a health check */

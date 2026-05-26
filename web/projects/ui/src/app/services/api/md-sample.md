@@ -19,6 +19,11 @@ if the cost exceeds the limit.
   <img src="./img/example.png" alt="Size Limit CLI" width="738">
 </p>
 
+| Left Align | Center Align | Right Align |
+| :--------- | :----------: | ----------: |
+| Apple      |    Banana    |      Cherry |
+| Dog        |   Elephant   |         Fox |
+
 With **[GitHub action]** Size Limit will post bundle size changes as a comment
 in pull request discussion.
 

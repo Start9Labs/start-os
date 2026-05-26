@@ -751,4 +751,6 @@ export default {
   838: 'No hay versión compatible disponible',
   839: 'instrucciones',
   840: 'Esta versión no incluye instrucciones. Por favor, actualice.',
+  841: 'General',
+  842: 'Datos del SO',
 } satisfies i18n

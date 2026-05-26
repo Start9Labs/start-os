@@ -8,6 +8,7 @@ use crate::service::effects::context::EffectContext;
 use crate::{HOST_IP, echo};
 
 mod action;
+mod backup;
 pub mod callbacks;
 pub mod context;
 mod control;
@@ -93,6 +94,11 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "get-service-manifest",
             from_fn_async(dependency::get_service_manifest).no_cli(),
+        )
+        // backup
+        .subcommand(
+            "set-backup-progress",
+            from_fn_async(backup::set_backup_progress).no_cli(),
         )
         // health
         .subcommand("set-health", from_fn_async(health::set_health).no_cli())

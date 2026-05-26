@@ -349,18 +349,11 @@ pub struct DomainSettings {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
-#[model = "Model<Self>"]
-#[ts(export)]
-pub struct BackupProgress {
-    pub complete: bool,
-}
-
-#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct ServerStatus {
-    pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
+    pub backup_progress: Option<FullProgress>,
     pub update_progress: Option<FullProgress>,
     #[serde(default)]
     pub shutting_down: bool,

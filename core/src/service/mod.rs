@@ -333,6 +333,7 @@ impl Service {
             persistent_container,
             ctx,
             backup: SyncMutex::new(None),
+            backup_phase: SyncMutex::new(None),
         });
         let service: ServiceRef = Self {
             actor: ConcurrentActor::new(ServiceActor(seed.clone())),
@@ -672,7 +673,11 @@ impl Service {
     }
 
     #[instrument(skip_all)]
-    pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<(), Error> {
+    pub async fn backup(
+        &self,
+        guard: impl GenericMountGuard,
+        progress: crate::progress::PhaseProgressTrackerHandle,
+    ) -> Result<(), Error> {
         let id = &self.seed.id;
         // Prepare the backup future in the actor first, so the cell is
         // populated before the actor reacts to the DesiredStatus change.
@@ -682,6 +687,7 @@ impl Service {
                 Guid::new(),
                 transition::backup::Backup {
                     path: guard.path().join("data"),
+                    progress,
                 },
             )
             .await??;
@@ -761,6 +767,9 @@ struct ServiceActorSeed {
     /// Needed to interact with the container for the service
     persistent_container: PersistentContainer,
     backup: SyncMutex<Option<BoxFuture<'static, Result<(), RpcError>>>>,
+    /// Set while a backup procedure is running so the service container can
+    /// stream progress updates back via the `setBackupProgress` effect.
+    backup_phase: SyncMutex<Option<crate::progress::PhaseProgressTrackerHandle>>,
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]

@@ -173,6 +173,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       shutdown: (effects, ...args) => effects.shutdown(...args),
       getDependencies: (effects, ...args) => effects.getDependencies(...args),
       setHealth: (effects, ...args) => effects.setHealth(...args),
+      setBackupProgress: (effects, ...args) =>
+        effects.setBackupProgress(...args),
     }
 
     return {

@@ -34,3 +34,9 @@ export { AbortedError } from './AbortedError'
 export * as regexes from './regexes'
 export { stringFromStdErrOut } from './stringFromStdErrOut'
 export { logErrorOnce } from './logErrorOnce'
+export {
+  FullProgressTracker,
+  PhaseHandle,
+  LeafProgress,
+  leafProgress,
+} from './FullProgressTracker'

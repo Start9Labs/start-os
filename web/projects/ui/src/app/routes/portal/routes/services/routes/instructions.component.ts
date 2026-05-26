@@ -11,55 +11,55 @@ import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { catchError, defer, from, map, of, startWith } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
-type State =
-  | { kind: 'loading' }
-  | { kind: 'ready'; md: string }
-  | { kind: 'missing' }
-
 @Component({
   template: `
-    @switch (state().kind) {
-      @case ('ready') {
-        <article
-          class="instructions"
-          safeLinks
-          [innerHTML]="ready().md | markdown | dompurify"
-        ></article>
-      }
-      @case ('missing') {
-        <div tuiNotification appearance="neutral">
-          {{ 'This version has no instructions. Please update.' | i18n }}
-        </div>
-      }
-      @default {
-        <tui-loader textContent="Loading" [style.height.%]="100" />
-      }
+    @if (value() === undefined) {
+      <tui-loader textContent="Loading" [style.height.%]="100" />
+    } @else if (value(); as value) {
+      <article safeLinks [innerHTML]="value | markdown | dompurify"></article>
+    } @else {
+      <div tuiNotification appearance="neutral">
+        {{ 'This version has no instructions. Please update.' | i18n }}
+      </div>
     }
   `,
   styles: `
-    .instructions {
+    article {
       max-width: 48rem;
       line-height: 1.55;
-    }
 
-    .instructions :is(h1, h2, h3, h4) {
-      margin-top: 1.5em;
-      margin-bottom: 0.5em;
-    }
+      ::ng-deep :is(h1, h2, h3, h4) {
+        margin: 1.5em 0 0.5em;
 
-    .instructions :is(ul, ol) {
-      padding-inline-start: 1.5rem;
-    }
+        &:first-child {
+          margin-top: 0;
+        }
+      }
 
-    .instructions code {
-      font-family: var(--tui-font-text-mono);
-    }
+      ::ng-deep :is(ul, ol) {
+        padding-inline-start: 1rem;
+      }
 
-    .instructions pre {
-      padding: 0.75rem 1rem;
-      border-radius: var(--tui-radius-m);
-      background: var(--tui-background-neutral-1);
-      overflow-x: auto;
+      ::ng-deep pre {
+        padding: 0.75rem 1rem;
+        border-radius: var(--tui-radius-m);
+        background: var(--tui-background-neutral-1);
+        overflow-x: auto;
+      }
+
+      ::ng-deep table {
+        inline-size: 100%;
+        border-collapse: collapse;
+      }
+
+      ::ng-deep thead {
+        background: var(--tui-background-neutral-1);
+      }
+
+      ::ng-deep :is(td, th) {
+        border: 1px solid var(--tui-border-normal);
+        padding: 0.25rem 0.75rem;
+      }
     }
   `,
   host: { class: 'g-subpage' },
@@ -74,29 +74,15 @@ type State =
   ],
 })
 export default class ServiceInstructionsRoute {
-  private readonly api = inject(ApiService)
-  private readonly pkgId = getPkgId()
-
-  protected readonly state = toSignal<State>(
-    defer(() =>
-      from(
-        this.api.getStatic(
-          [`/s9pk/installed/${this.pkgId}.s9pk/instructions.md`],
-          {},
-        ),
+  protected readonly value = toSignal(
+    from(
+      inject(ApiService).getStatic(
+        [`/s9pk/installed/${getPkgId()}.s9pk/instructions.md`],
+        {},
       ),
     ).pipe(
-      map(md => {
-        const trimmed = md?.trim()
-        return trimmed
-          ? ({ kind: 'ready', md: trimmed } as const)
-          : ({ kind: 'missing' } as const)
-      }),
-      catchError(() => of({ kind: 'missing' } as const)),
-      startWith({ kind: 'loading' } as const),
+      map(md => md?.trim()),
+      catchError(() => of('')),
     ),
-    { requireSync: true },
   )
-
-  protected readonly ready = () => this.state() as { kind: 'ready'; md: string }
 }
