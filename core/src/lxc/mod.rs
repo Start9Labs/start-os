@@ -241,11 +241,7 @@ impl LxcContainer {
             .arg(rootfs_dir.join("etc/hosts"))
             .invoke(ErrorKind::Filesystem)
             .await?;
-        Command::new("mount")
-            .arg("--make-rshared")
-            .arg(rootfs.path())
-            .invoke(ErrorKind::Filesystem)
-            .await?;
+        crate::disk::mount::filesystem::syscall::make_rshared(rootfs.path()).await?;
         let rpc_dir = rootfs_dir.join(RPC_DIR);
         tokio::fs::create_dir_all(&rpc_dir).await?;
         let rpc_bind = TmpMountGuard::mount(&Bind::new(rpc_dir), ReadWrite).await?;

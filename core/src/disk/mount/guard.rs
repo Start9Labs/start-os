@@ -137,12 +137,7 @@ impl TmpMountGuard {
         if let Some(guard) = weak_slot.upgrade() {
             // upgrade to rw
             if *prev_mt == ReadOnly && mount_type != ReadOnly {
-                tokio::process::Command::new("mount")
-                    .arg("-o")
-                    .arg("remount,rw")
-                    .arg(&mountpoint)
-                    .invoke(crate::ErrorKind::Filesystem)
-                    .await?;
+                crate::disk::mount::filesystem::syscall::remount_rw(&mountpoint).await?;
                 *prev_mt = ReadWrite;
             }
             Ok(TmpMountGuard { guard })

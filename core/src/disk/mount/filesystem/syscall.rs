@@ -466,6 +466,26 @@ pub async fn is_mountpoint(path: impl AsRef<Path>) -> Result<bool, Error> {
     .with_kind(ErrorKind::Cancelled)?
 }
 
+/// Remount `mountpoint` read-write via `mount(2)` with `MS_REMOUNT`. The
+/// `mount -o remount,rw` equivalent.
+pub async fn remount_rw(mountpoint: impl AsRef<Path>) -> Result<(), Error> {
+    let p = mountpoint.as_ref().to_owned();
+    tokio::task::spawn_blocking(move || -> Result<(), Error> {
+        use nix::mount::MsFlags;
+        nix::mount::mount(
+            None::<&Path>,
+            &p,
+            None::<&str>,
+            MsFlags::MS_REMOUNT,
+            None::<&str>,
+        )
+        .map_err(|e| Error::new(std::io::Error::from_raw_os_error(e as i32), ErrorKind::Filesystem))
+        .with_ctx(|_| (ErrorKind::Filesystem, format!("remount,rw {}", p.display())))
+    })
+    .await
+    .with_kind(ErrorKind::Cancelled)?
+}
+
 /// Mark a mountpoint as `MS_SHARED | MS_REC` (the `mount --make-rshared`
 /// equivalent).
 pub async fn make_rshared(mountpoint: impl AsRef<Path>) -> Result<(), Error> {
