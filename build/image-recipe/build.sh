@@ -549,7 +549,7 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	# lb-built rootfs at chroot/chroot/. Bind-mount our boot partition
 	# (with ESP nested) at the chroot's /boot so grub-install writes
 	# the EFI loader to the ESP and modules to /boot.
-	mkdir -p chroot/chroot/dev chroot/chroot/proc chroot/chroot/sys
+	mkdir -p chroot/chroot/boot chroot/chroot/dev chroot/chroot/proc chroot/chroot/sys
 	mount --bind /dev chroot/chroot/dev
 	mount -t proc proc chroot/chroot/proc
 	mount -t sysfs sysfs chroot/chroot/sys
