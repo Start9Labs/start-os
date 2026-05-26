@@ -80,6 +80,53 @@ pub(self) async fn default_mount_impl(
     Ok(())
 }
 
+/// Fallback path that invokes `mount(8)` for filesystems we can't (yet) do
+/// via direct syscalls — primarily the autodetect-fs-type case for
+/// `BlockDev` when the caller doesn't know the type up front, and the
+/// helper-spawn family (cifs/ecryptfs/httpdirfs/backup-fs) that needs
+/// `mount.<type>` to do credential exchange / FUSE setup.
+pub async fn mount_via_cli(
+    fs_type: Option<&str>,
+    extra_args: impl IntoIterator<Item = impl AsRef<OsStr>>,
+    options: impl IntoIterator<Item = impl Display>,
+    source: Option<&Path>,
+    mountpoint: &Path,
+    mount_type: MountType,
+) -> Result<(), Error> {
+    tokio::fs::create_dir_all(mountpoint).await?;
+    let mut cmd = std::process::Command::new("mount");
+    if mount_type == ReadOnly {
+        cmd.arg("-r");
+    }
+    for a in extra_args {
+        cmd.arg(a.as_ref());
+    }
+    if let Some(ty) = fs_type {
+        cmd.arg("-t").arg(ty);
+    }
+    let joined = options
+        .into_iter()
+        .fold(None, |acc: Option<String>, x| match acc {
+            Some(mut s) => {
+                write!(s, ",{}", x).unwrap();
+                Some(s)
+            }
+            None => Some(x.to_string()),
+        });
+    if let Some(joined) = joined {
+        cmd.arg("-o").arg(joined);
+    }
+    if let Some(src) = source {
+        cmd.arg(src);
+    }
+    cmd.arg(mountpoint);
+    Command::from(cmd)
+        .capture(false)
+        .invoke(ErrorKind::Filesystem)
+        .await?;
+    Ok(())
+}
+
 pub trait FileSystem: Send + Sync {
     fn mount_type(&self) -> Option<impl AsRef<str>> {
         None::<&str>

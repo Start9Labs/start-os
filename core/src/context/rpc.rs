@@ -282,6 +282,7 @@ impl RpcContext {
                         // tmp.unmount_and_delete().await?;
                     }
                     BlockDev::new(&sqfs)
+                        .with_type("squashfs")
                         .mount(NVIDIA_OVERLAY_PATH, ReadOnly)
                         .await?;
 

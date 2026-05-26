@@ -195,7 +195,8 @@ impl LxcContainer {
         let rootfs = OverlayGuard::mount(
             TmpMountGuard::mount(
                 &IdMapped::new(
-                    BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
+                    BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs")
+                        .with_type("squashfs"),
                     vec![IdMap {
                         from_id: 0,
                         to_id: 100000,
