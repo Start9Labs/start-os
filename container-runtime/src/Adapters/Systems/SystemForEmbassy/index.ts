@@ -674,7 +674,6 @@ export class SystemForEmbassy implements System {
           allowedStatuses,
           hasInput: !!action["input-spec"],
           group: null,
-          access: "user",
         },
       })
     }

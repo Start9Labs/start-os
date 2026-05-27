@@ -202,7 +202,8 @@ async fn run_action(
             .as_idx(&action_id)
             .or_not_found(&action_id)?
             .as_access()
-            .de()?;
+            .de()?
+            .unwrap_or_default();
         match access {
             ActionAccess::Public => {}
             ActionAccess::Dependent => {

@@ -458,11 +458,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         */
         withoutInput: <Id extends T.ActionId>(
           id: Id,
-          metadata: MaybeFn<
-            Omit<T.ActionMetadata, 'hasInput' | 'access'> & {
-              access?: T.ActionAccess
-            }
-          >,
+          metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput'>>,
           run: Run<{}>,
         ) => Action.withoutInput(id, metadata, run),
       },

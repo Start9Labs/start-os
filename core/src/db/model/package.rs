@@ -359,10 +359,10 @@ pub struct ActionMetadata {
     /// Who is allowed to invoke this action directly via `effects.action.run`.
     ///   - "public" — any installed package
     ///   - "dependent" — only services that declare this package as a current dependency
-    ///   - "user" — only the user (other services must create a task). Default.
+    ///   - "user" — only the user (other services must create a task). Default when omitted.
     /// Services that lack direct access can always queue a task with `effects.action.createTask`.
-    #[serde(default)]
-    pub access: ActionAccess,
+    #[ts(optional)]
+    pub access: Option<ActionAccess>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]

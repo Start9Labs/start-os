@@ -282,7 +282,6 @@ export const mockPatchData: DataModel = {
           allowedStatuses: 'any',
           hasInput: true,
           group: null,
-          access: 'user',
         },
         connect: {
           name: 'Connect',
@@ -292,7 +291,6 @@ export const mockPatchData: DataModel = {
           allowedStatuses: 'any',
           hasInput: true,
           group: 'Connecting',
-          access: 'user',
         },
       },
       serviceInterfaces: {
@@ -453,7 +451,6 @@ export const mockPatchData: DataModel = {
           allowedStatuses: 'any',
           hasInput: true,
           group: null,
-          access: 'user',
         },
         rpc: {
           name: 'Set RPC',
@@ -463,7 +460,6 @@ export const mockPatchData: DataModel = {
           allowedStatuses: 'any',
           hasInput: true,
           group: null,
-          access: 'user',
         },
         properties: {
           name: 'View Properties',
@@ -473,7 +469,6 @@ export const mockPatchData: DataModel = {
           allowedStatuses: 'any',
           hasInput: false,
           group: null,
-          access: 'user',
         },
         test: {
           name: 'Do Another Thing',
@@ -484,7 +479,6 @@ export const mockPatchData: DataModel = {
           allowedStatuses: 'only-running',
           hasInput: false,
           group: null,
-          access: 'user',
         },
       },
       serviceInterfaces: {
@@ -826,7 +820,6 @@ export const mockPatchData: DataModel = {
           allowedStatuses: 'only-running',
           hasInput: true,
           group: null,
-          access: 'user',
         },
         'delete-onion-service': {
           name: 'Delete Onion Service',
@@ -836,7 +829,6 @@ export const mockPatchData: DataModel = {
           allowedStatuses: 'only-running',
           hasInput: false,
           group: null,
-          access: 'user',
         },
         'regenerate-key': {
           name: 'Regenerate Key',
@@ -847,7 +839,6 @@ export const mockPatchData: DataModel = {
           allowedStatuses: 'only-running',
           hasInput: false,
           group: null,
-          access: 'user',
         },
       },
       serviceInterfaces: {},
