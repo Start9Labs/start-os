@@ -545,22 +545,24 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	# Drop the squashfs onto the boot partition for live-init to find.
 	cp $prep_results_dir/binary/live/filesystem.squashfs $TMPDIR/boot/live/filesystem.squashfs
 
-	# Install GRUB-EFI + generate grub.cfg by overlay-mounting the
-	# squashfs as the chroot's rootfs. lb's binary_rootfs rm -rf's
-	# chroot/chroot/ after squashing, so the squashfs is the only
-	# remaining source for the rootfs at this point.
-	#
-	# The overlay upper/workdir need a filesystem the kernel accepts
-	# as upperdir — the docker container's /tmp is overlayfs, and
-	# overlay-on-overlay is rejected. Mount a fresh tmpfs and put
-	# upper+work there.
-	mkdir -p $TMPDIR/lower $TMPDIR/scratch $TMPDIR/next
-	mount -o ro,loop $prep_results_dir/binary/live/filesystem.squashfs $TMPDIR/lower
-	mount -t tmpfs -o size=512M tmpfs $TMPDIR/scratch
-	mkdir -p $TMPDIR/scratch/upper $TMPDIR/scratch/work
-	mount -t overlay \
-		-o lowerdir=$TMPDIR/lower,upperdir=$TMPDIR/scratch/upper,workdir=$TMPDIR/scratch/work \
-		overlay $TMPDIR/next
+	# Install GRUB-EFI + generate grub.cfg by chrooting into an
+	# unsquashed copy of the rootfs on a loop-backed ext4 file.
+	# lb's binary_rootfs rm -rf's chroot/chroot/ after squashing,
+	# and an overlay-mounted chroot makes grub-mkconfig's
+	# `grub-probe --target=device /` fail with "failed to get
+	# canonical path of `overlay'" (the source string in /proc/mounts
+	# isn't a canonicalizable path). Loop-backed ext4 shows up as
+	# /dev/loopN in /proc/mounts, which grub-probe handles fine.
+	NEXT_LEN=$(( (SQUASHFS_SIZE * 4) + 256 * 1024 * 1024 ))
+	truncate -s $NEXT_LEN $TMPDIR/next.ext4
+	mkfs.ext4 -F -q $TMPDIR/next.ext4
+	NEXT_DEV=/dev/startos-loop-next
+	[ -e $NEXT_DEV ] || mknod $NEXT_DEV b 7 204
+	losetup -d $NEXT_DEV 2>/dev/null || true
+	losetup $NEXT_DEV $TMPDIR/next.ext4
+	mkdir -p $TMPDIR/next
+	mount $NEXT_DEV $TMPDIR/next
+	unsquashfs -n -f -d $TMPDIR/next $prep_results_dir/binary/live/filesystem.squashfs >/dev/null
 
 	mkdir -p $TMPDIR/next/boot $TMPDIR/next/dev $TMPDIR/next/proc $TMPDIR/next/sys
 	mount --bind /dev $TMPDIR/next/dev
@@ -577,8 +579,8 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	umount $TMPDIR/next/proc
 	umount $TMPDIR/next/dev
 	umount $TMPDIR/next
-	umount $TMPDIR/scratch
-	umount $TMPDIR/lower
+	losetup -d $NEXT_DEV
+	rm -f $TMPDIR/next.ext4
 
 	# Rewrite grub.cfg for live boot. update-grub used /etc/default/grub
 	# (boot=startos for the installed-disk path); we drop the installed-
