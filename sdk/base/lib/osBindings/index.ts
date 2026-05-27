@@ -1,6 +1,7 @@
 export { AcceptSigners } from './AcceptSigners'
 export { AcmeProvider } from './AcmeProvider'
 export { AcmeSettings } from './AcmeSettings'
+export { ActionAccess } from './ActionAccess'
 export { ActionId } from './ActionId'
 export { ActionInput } from './ActionInput'
 export { ActionMetadata } from './ActionMetadata'

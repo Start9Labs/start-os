@@ -2216,12 +2216,26 @@ service.action.service-not-in-allowed-status:
   pl_PL: "usługa nie jest w dozwolonym stanie dla %{action_id}"
 
 # service/effects/action.rs
-service.effects.action.action-not-public:
-  en_US: "action %{action_id} of %{package_id} is not public and cannot be run directly by other services"
-  de_DE: "Aktion %{action_id} von %{package_id} ist nicht öffentlich und kann nicht direkt von anderen Diensten ausgeführt werden"
-  es_ES: "la acción %{action_id} de %{package_id} no es pública y no puede ser ejecutada directamente por otros servicios"
-  fr_FR: "l'action %{action_id} de %{package_id} n'est pas publique et ne peut pas être exécutée directement par d'autres services"
-  pl_PL: "akcja %{action_id} pakietu %{package_id} nie jest publiczna i nie może być uruchamiana bezpośrednio przez inne usługi"
+service.effects.action.action-has-no-input:
+  en_US: "action %{action_id} of %{package_id} has no input"
+  de_DE: "Aktion %{action_id} von %{package_id} hat keine Eingabe"
+  es_ES: "la acción %{action_id} de %{package_id} no tiene entrada"
+  fr_FR: "l'action %{action_id} de %{package_id} n'a pas d'entrée"
+  pl_PL: "akcja %{action_id} pakietu %{package_id} nie ma wejścia"
+
+service.effects.action.action-not-accessible:
+  en_US: "action %{action_id} of %{package_id} cannot be invoked directly by other services"
+  de_DE: "Aktion %{action_id} von %{package_id} kann nicht direkt von anderen Diensten aufgerufen werden"
+  es_ES: "la acción %{action_id} de %{package_id} no puede ser invocada directamente por otros servicios"
+  fr_FR: "l'action %{action_id} de %{package_id} ne peut pas être invoquée directement par d'autres services"
+  pl_PL: "akcja %{action_id} pakietu %{package_id} nie może być wywołana bezpośrednio przez inne usługi"
+
+service.effects.action.action-only-accessible-to-dependents:
+  en_US: "action %{action_id} of %{package_id} can only be invoked by services that depend on %{package_id}"
+  de_DE: "Aktion %{action_id} von %{package_id} kann nur von Diensten aufgerufen werden, die von %{package_id} abhängen"
+  es_ES: "la acción %{action_id} de %{package_id} solo puede ser invocada por servicios que dependen de %{package_id}"
+  fr_FR: "l'action %{action_id} de %{package_id} ne peut être invoquée que par des services qui dépendent de %{package_id}"
+  pl_PL: "akcja %{action_id} pakietu %{package_id} może być wywoływana tylko przez usługi zależne od %{package_id}"
 
 service.effects.action.input-not-matches-requires-input:
   en_US: "input-not-matches trigger requires input to be specified"
@@ -2229,13 +2243,6 @@ service.effects.action.input-not-matches-requires-input:
   es_ES: "el disparador input-not-matches requiere que se especifique la entrada"
   fr_FR: "le déclencheur input-not-matches nécessite une entrée spécifiée"
   pl_PL: "wyzwalacz input-not-matches wymaga określenia wejścia"
-
-service.effects.action.action-has-no-input:
-  en_US: "action %{action_id} of %{package_id} has no input"
-  de_DE: "Aktion %{action_id} von %{package_id} hat keine Eingabe"
-  es_ES: "la acción %{action_id} de %{package_id} no tiene entrada"
-  fr_FR: "l'action %{action_id} de %{package_id} n'a pas d'entrée"
-  pl_PL: "akcja %{action_id} pakietu %{package_id} nie ma wejścia"
 
 # service/effects/dependency.rs
 service.effects.dependency.unknown-dependency-kind:

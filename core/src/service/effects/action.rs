@@ -5,7 +5,7 @@ use rust_i18n::t;
 
 use crate::action::{ActionInput, ActionResult, display_action_result};
 use crate::db::model::package::{
-    ActionMetadata, Task, TaskCondition, TaskEntry, TaskSeverity, TaskTrigger,
+    ActionAccess, ActionMetadata, Task, TaskCondition, TaskEntry, TaskSeverity, TaskTrigger,
 };
 use crate::rpc_continuations::Guid;
 use crate::service::cli::ContainerCliContext;
@@ -192,14 +192,8 @@ async fn run_action(
     let package_id = package_id.as_ref().unwrap_or(&context.seed.id);
 
     if package_id != &context.seed.id {
-        // A service may run another package's action directly only if that action
-        // is marked public by the package that owns it.
-        let is_public = context
-            .seed
-            .ctx
-            .db
-            .peek()
-            .await
+        let db = context.seed.ctx.db.peek().await;
+        let access = db
             .as_public()
             .as_package_data()
             .as_idx(package_id)
@@ -207,20 +201,47 @@ async fn run_action(
             .as_actions()
             .as_idx(&action_id)
             .or_not_found(&action_id)?
-            .as_public()
+            .as_access()
             .de()?;
-        if !is_public {
-            return Err(Error::new(
-                eyre!(
-                    "{}",
-                    t!(
-                        "service.effects.action.action-not-public",
-                        action_id = action_id,
-                        package_id = package_id
-                    )
-                ),
-                ErrorKind::InvalidRequest,
-            ));
+        match access {
+            ActionAccess::Public => {}
+            ActionAccess::Dependent => {
+                let caller_depends_on_target = db
+                    .as_public()
+                    .as_package_data()
+                    .as_idx(&context.seed.id)
+                    .or_not_found(&context.seed.id)?
+                    .as_current_dependencies()
+                    .de()?
+                    .0
+                    .contains_key(package_id);
+                if !caller_depends_on_target {
+                    return Err(Error::new(
+                        eyre!(
+                            "{}",
+                            t!(
+                                "service.effects.action.action-only-accessible-to-dependents",
+                                action_id = action_id,
+                                package_id = package_id
+                            )
+                        ),
+                        ErrorKind::InvalidRequest,
+                    ));
+                }
+            }
+            ActionAccess::User => {
+                return Err(Error::new(
+                    eyre!(
+                        "{}",
+                        t!(
+                            "service.effects.action.action-not-accessible",
+                            action_id = action_id,
+                            package_id = package_id
+                        )
+                    ),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
         }
         context
             .seed

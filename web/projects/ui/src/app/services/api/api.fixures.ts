@@ -2296,7 +2296,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
         allowedStatuses: 'any',
         hasInput: true,
         group: null,
-        public: false,
+        access: 'user',
       },
       rpc: {
         name: 'Set RPC',
@@ -2306,7 +2306,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
         allowedStatuses: 'any',
         hasInput: true,
         group: null,
-        public: false,
+        access: 'user',
       },
       properties: {
         name: 'View Properties',
@@ -2316,7 +2316,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
         allowedStatuses: 'any',
         hasInput: false,
         group: null,
-        public: false,
+        access: 'user',
       },
       test: {
         name: 'Do Another Thing',
@@ -2327,7 +2327,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
         allowedStatuses: 'only-running',
         hasInput: false,
         group: null,
-        public: false,
+        access: 'user',
       },
     },
     serviceInterfaces: {
@@ -2595,7 +2595,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
         allowedStatuses: 'any',
         hasInput: true,
         group: null,
-        public: false,
+        access: 'user',
       },
       connect: {
         name: 'Connect',
@@ -2605,7 +2605,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
         allowedStatuses: 'any',
         hasInput: true,
         group: 'Connecting',
-        public: false,
+        access: 'user',
       },
     },
     serviceInterfaces: {

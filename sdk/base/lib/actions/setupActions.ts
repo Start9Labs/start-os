@@ -152,9 +152,11 @@ export const Action = {
     InputSpecType extends InputSpec<Record<string, any>>,
   >(
     id: Id,
-    metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput' | 'public'> & {
-      public?: boolean
-    }>,
+    metadata: MaybeFn<
+      Omit<T.ActionMetadata, 'hasInput' | 'access'> & {
+        access?: T.ActionAccess
+      }
+    >,
     inputSpec: MaybeFn<
       InputSpecType,
       {
@@ -170,7 +172,7 @@ export const Action = {
       mapMaybeFn(metadata, (m) => ({
         ...m,
         hasInput: true,
-        public: m.public ?? false,
+        access: m.access ?? 'user',
       })),
       inputSpec as any,
       getInput,
@@ -179,9 +181,11 @@ export const Action = {
   },
   withoutInput<Id extends T.ActionId>(
     id: Id,
-    metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput' | 'public'> & {
-      public?: boolean
-    }>,
+    metadata: MaybeFn<
+      Omit<T.ActionMetadata, 'hasInput' | 'access'> & {
+        access?: T.ActionAccess
+      }
+    >,
     run: Run<{}>,
   ): Action<Id, {}> {
     return new ActionImpl(
@@ -189,7 +193,7 @@ export const Action = {
       mapMaybeFn(metadata, (m) => ({
         ...m,
         hasInput: false,
-        public: m.public ?? false,
+        access: m.access ?? 'user',
       })),
       null,
       async () => null,
