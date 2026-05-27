@@ -248,13 +248,11 @@ async fn create_task(
                         ErrorKind::InvalidRequest,
                     ));
                 };
-                let prev = if let Some(service) = context
-                    .seed
-                    .ctx
-                    .services
-                    .get(&task.package_id)
-                    .await
-                    .as_ref()
+                // try_get to avoid deadlock during self-calls on install
+                let guard = context.seed.ctx.services.try_get(&task.package_id);
+                let prev = if let Some(service) = guard
+                    .as_deref()
+                    .and_then(Option::as_ref)
                     .filter(|s| s.is_initialized())
                 {
                     service
