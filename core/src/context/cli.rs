@@ -18,7 +18,7 @@ use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{Connector, MaybeTlsStream, WebSocketStream};
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
@@ -48,6 +48,8 @@ pub struct CliContextSeed {
     pub cookie_path: PathBuf,
     pub developer_key_path: PathBuf,
     pub developer_key: OnceCell<ed25519_dalek::SigningKey>,
+    pub root_ca: Vec<PathBuf>,
+    pub insecure: bool,
 }
 impl Drop for CliContextSeed {
     fn drop(&mut self) {
@@ -170,7 +172,29 @@ impl CliContext {
                 .developer_key_path
                 .unwrap_or_else(default_developer_key_path),
             developer_key: OnceCell::new(),
+            root_ca: config.root_ca.unwrap_or_default(),
+            insecure: config.insecure,
         })))
+    }
+
+    fn ws_tls_connector(&self) -> Result<Option<Connector>, Error> {
+        if self.root_ca.is_empty() && !self.insecure {
+            return Ok(None);
+        }
+        let mut builder = native_tls::TlsConnector::builder();
+        if self.insecure {
+            builder.danger_accept_invalid_certs(true);
+            builder.danger_accept_invalid_hostnames(true);
+        }
+        for ca_path in &self.root_ca {
+            let pem = std::fs::read(ca_path)
+                .with_ctx(|_| (crate::ErrorKind::Filesystem, ca_path.display()))?;
+            let cert = native_tls::Certificate::from_pem(&pem)
+                .with_kind(crate::ErrorKind::OpenSsl)?;
+            builder.add_root_certificate(cert);
+        }
+        let connector = builder.build().with_kind(crate::ErrorKind::OpenSsl)?;
+        Ok(Some(Connector::NativeTls(connector)))
     }
 
     /// BLOCKING
@@ -257,9 +281,15 @@ impl CliContext {
             .push("ws")
             .push("rpc")
             .push(guid.as_ref());
-        let (stream, _) =
-                // base_url is "http://127.0.0.1/", with a trailing slash, so we don't put a leading slash in this path:
-                tokio_tungstenite::connect_async(url).await.with_kind(ErrorKind::Network)?;
+        let connector = self.ws_tls_connector()?;
+        let (stream, _) = tokio_tungstenite::connect_async_tls_with_config(
+            url,
+            None,
+            false,
+            connector,
+        )
+        .await
+        .with_kind(ErrorKind::Network)?;
         Ok(stream)
     }
 
