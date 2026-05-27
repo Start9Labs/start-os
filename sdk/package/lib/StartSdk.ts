@@ -21,7 +21,11 @@ import {
   CheckDependencies,
   checkDependencies,
 } from '../../base/lib/dependencies/dependencies'
-import { setupDependencies } from '../../base/lib/dependencies/setupDependencies'
+import {
+  CurrentDependenciesResult,
+  ValidateVersionRanges,
+  setupDependencies,
+} from '../../base/lib/dependencies/setupDependencies'
 import { testTypeVersion } from '../../base/lib/exver'
 import {
   setupInit,
@@ -613,7 +617,13 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         )
        * ```
        */
-      setupDependencies: setupDependencies<Manifest>,
+      setupDependencies: <
+        const R extends CurrentDependenciesResult<Manifest>,
+      >(
+        fn: (options: {
+          effects: T.Effects
+        }) => Promise<R & ValidateVersionRanges<R>>,
+      ) => setupDependencies<Manifest, R>(fn),
       /**
        * @description Use this function to create an InitScript that runs every time the service initializes (install, update, restore, rebuild, and server bootup)
        */
