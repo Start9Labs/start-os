@@ -17,7 +17,9 @@ use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::hostname::ServerHostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::{HostAddress, PublicDomainConfig, address_api};
-use crate::net::host::binding::{BindInfo, BindOptions, Bindings, binding};
+use crate::net::host::binding::{
+    BindInfo, BindOptions, BindingRanges, Bindings, RangeBindInfo, binding,
+};
 use crate::net::service_interface::{HostnameInfo, HostnameMetadata};
 use crate::prelude::*;
 use crate::{GatewayId, HostId, PackageId};
@@ -31,11 +33,17 @@ pub mod binding;
 #[ts(export)]
 pub struct Host {
     pub bindings: Bindings,
+    #[serde(default)]
+    pub binding_ranges: BindingRanges,
     pub public_domains: BTreeMap<InternedString, PublicDomainConfig>,
     pub private_domains: BTreeMap<InternedString, BTreeSet<GatewayId>>,
     /// COMPUTED: port forwarding rules needed on gateways for public addresses to work.
     #[serde(default)]
     pub port_forwards: BTreeSet<PortForward>,
+}
+
+fn default_port_forward_count() -> u16 {
+    1
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
@@ -47,6 +55,13 @@ pub struct PortForward {
     #[ts(type = "string")]
     pub dst: SocketAddrV4,
     pub gateway: GatewayId,
+    /// Number of contiguous ports covered by this forward (always >= 1).
+    /// Set to >1 by [`crate::net::host::binding::RangeBindInfo`] entries to
+    /// represent a single iptables port-range rule rather than N per-port
+    /// rules. Defaults to 1 to keep the on-disk shape compatible with
+    /// existing single-port `PortForward`s.
+    #[serde(default = "default_port_forward_count")]
+    pub count: u16,
 }
 
 impl AsRef<Host> for Host {
@@ -359,10 +374,42 @@ impl Model<Host> {
                         src: SocketAddrV4::new(wan_ip, port),
                         dst: SocketAddrV4::new(addr, port),
                         gateway: gw_id.clone(),
+                        count: 1,
                     });
                 }
             }
         }
+
+        // Port-range bindings: forward each range to every IPv4 gateway with
+        // a WAN IP. Ranges have no derived addresses (no HTTP-style routing),
+        // so they get forwarded unconditionally for every gateway that can
+        // route to them.
+        let binding_ranges: BindingRanges = this.binding_ranges.de()?;
+        for (&internal_start, range) in binding_ranges.iter() {
+            if !range.enabled {
+                continue;
+            }
+            for (gw_id, gw_info) in gateways {
+                let Some(ip_info) = &gw_info.ip_info else {
+                    continue;
+                };
+                let Some(wan_ip) = ip_info.wan_ip else {
+                    continue;
+                };
+                for subnet in &ip_info.subnets {
+                    let IpAddr::V4(lan_ip) = subnet.addr() else {
+                        continue;
+                    };
+                    port_forwards.insert(PortForward {
+                        src: SocketAddrV4::new(wan_ip, range.external_start_port),
+                        dst: SocketAddrV4::new(lan_ip, internal_start),
+                        gateway: gw_id.clone(),
+                        count: range.number_of_ports,
+                    });
+                }
+            }
+        }
+
         this.port_forwards.ser(&port_forwards)?;
 
         Ok(())
@@ -441,6 +488,69 @@ impl Model<Host> {
                 BindInfo::new(available_ports, options)?
             };
             b.insert(internal_port, info);
+            Ok(())
+        })
+    }
+
+    /// Add or re-affirm a contiguous port-range binding. Range bindings
+    /// require `internal_start_port == external_start_port` (the iptables
+    /// DNAT preserves the port number across the range) and must allocate
+    /// every external port in the range up-front — partial collisions are a
+    /// hard error.
+    pub fn add_binding_range(
+        &mut self,
+        available_ports: &mut AvailablePorts,
+        internal_start_port: u16,
+        external_start_port: u16,
+        number_of_ports: u16,
+    ) -> Result<(), Error> {
+        if number_of_ports == 0 {
+            return Err(Error::new(
+                eyre!("numberOfPorts must be at least 1"),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        if internal_start_port != external_start_port {
+            return Err(Error::new(
+                eyre!(
+                    "bindPortRange requires internalStartPort == externalStartPort \
+                     (got internal={internal_start_port} external={external_start_port})"
+                ),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        self.as_binding_ranges_mut().mutate(|ranges| {
+            // Free the old range first when this is an idempotent re-bind, so a
+            // package can call bindPortRange every setupMain pass without
+            // tripping its own previous allocation.
+            if let Some(existing) = ranges.remove(&internal_start_port) {
+                if existing.external_start_port == external_start_port
+                    && existing.number_of_ports == number_of_ports
+                {
+                    ranges.insert(
+                        internal_start_port,
+                        RangeBindInfo {
+                            enabled: true,
+                            external_start_port,
+                            number_of_ports,
+                        },
+                    );
+                    return Ok(());
+                }
+                available_ports.free(
+                    existing.external_start_port
+                        ..(existing.external_start_port + existing.number_of_ports),
+                );
+            }
+            available_ports.try_alloc_range(external_start_port, number_of_ports)?;
+            ranges.insert(
+                internal_start_port,
+                RangeBindInfo {
+                    enabled: true,
+                    external_start_port,
+                    number_of_ports,
+                },
+            );
             Ok(())
         })
     }

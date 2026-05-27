@@ -132,6 +132,7 @@ export const mockPatchData: DataModel = {
             },
           },
         },
+        bindingRanges: {},
         publicDomains: {},
         privateDomains: {
           'my-server.home': ['eth0'],
@@ -141,6 +142,7 @@ export const mockPatchData: DataModel = {
             src: '203.0.113.45:443',
             dst: '10.0.0.1:443',
             gateway: 'eth0',
+            count: 1,
           },
         ],
       },
@@ -664,6 +666,7 @@ export const mockPatchData: DataModel = {
               },
             },
           },
+          bindingRanges: {},
           publicDomains: {
             'bitcoin.example.com': {
               gateway: 'eth0',
@@ -678,11 +681,13 @@ export const mockPatchData: DataModel = {
               src: '203.0.113.45:443',
               dst: '10.0.0.1:443',
               gateway: 'eth0',
+              count: 1,
             },
             {
               src: '203.0.113.45:42443',
               dst: '10.0.0.1:42443',
               gateway: 'eth0',
+              count: 1,
             },
           ],
         },
@@ -738,6 +743,7 @@ export const mockPatchData: DataModel = {
               },
             },
           },
+          bindingRanges: {},
           publicDomains: {},
           privateDomains: {},
           portForwards: [],
@@ -762,6 +768,7 @@ export const mockPatchData: DataModel = {
               },
             },
           },
+          bindingRanges: {},
           publicDomains: {},
           privateDomains: {},
           portForwards: [],

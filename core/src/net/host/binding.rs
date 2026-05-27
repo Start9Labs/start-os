@@ -111,6 +111,57 @@ impl std::ops::DerefMut for Bindings {
     }
 }
 
+/// Contiguous port-range binding (e.g. WebRTC/STUN/TURN RTP ranges).
+///
+/// Keyed by `internal_start_port` in [`BindingRanges`]. The range covers
+/// `internal_start_port..(internal_start_port + number_of_ports)` and is
+/// forwarded through a single iptables rule per protocol per gateway,
+/// preserving the destination port number.
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct RangeBindInfo {
+    pub enabled: bool,
+    pub external_start_port: u16,
+    pub number_of_ports: u16,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct BindingRanges(pub BTreeMap<u16, RangeBindInfo>);
+
+impl Map for BindingRanges {
+    type Key = u16;
+    type Value = RangeBindInfo;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Self::key_string(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(InternedString::from_display(key))
+    }
+}
+
+impl std::ops::Deref for BindingRanges {
+    type Target = BTreeMap<u16, RangeBindInfo>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for BindingRanges {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl RangeBindInfo {
+    pub fn disable(&mut self) {
+        self.enabled = false;
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]

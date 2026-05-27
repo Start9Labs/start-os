@@ -26,8 +26,10 @@ export type PortForwardsModalData = {
 
 type PortForwardRow = {
   interfaces: string[]
-  externalPort: number
-  internalPort: number
+  externalPort: string
+  internalPort: string
+  /** Start port — single-port forwards equal `externalPort`; range forwards expose the first port for the "Test" button. */
+  testPort: number
 }
 
 function parseSocketAddr(s: string): { ip: string; port: number } {
@@ -36,6 +38,10 @@ function parseSocketAddr(s: string): { ip: string; port: number } {
     ip: s.substring(0, lastColon),
     port: Number(s.substring(lastColon + 1)),
   }
+}
+
+function formatPortRange(start: number, count: number): string {
+  return count > 1 ? `${start}-${start + count - 1}` : `${start}`
 }
 
 @Component({
@@ -76,7 +82,7 @@ function parseSocketAddr(s: string): { ip: string; port: number } {
               tuiButton
               size="s"
               [loading]="!!loading()[i]"
-              (click)="testPort(i, row.externalPort)"
+              (click)="testPort(i, row.testPort)"
             >
               {{ 'Test' | i18n }}
             </button>
@@ -170,6 +176,7 @@ export class PortForwardsModalComponent {
           src: string
           dst: string
           gateway: string
+          count: number
           interfaces: string[]
         }> = []
 
@@ -207,13 +214,15 @@ export class PortForwardsModalComponent {
         pf => pf.gateway === gatewayId,
       )
 
-      // Group by (externalPort, internalPort)
+      // Group by (externalPort, internalPort, count) so single-port and
+      // range forwards never coalesce.
       const grouped = new Map<string, PortForwardRow>()
 
       for (const pf of all) {
         const src = parseSocketAddr(pf.src)
         const dst = parseSocketAddr(pf.dst)
-        const key = `${src.port}:${dst.port}`
+        const count = pf.count ?? 1
+        const key = `${src.port}:${dst.port}:${count}`
 
         const existing = grouped.get(key)
         if (existing) {
@@ -225,15 +234,14 @@ export class PortForwardsModalComponent {
         } else {
           grouped.set(key, {
             interfaces: [...pf.interfaces],
-            externalPort: src.port,
-            internalPort: dst.port,
+            externalPort: formatPortRange(src.port, count),
+            internalPort: formatPortRange(dst.port, count),
+            testPort: src.port,
           })
         }
       }
 
-      return [...grouped.values()].sort(
-        (a, b) => a.externalPort - b.externalPort,
-      )
+      return [...grouped.values()].sort((a, b) => a.testPort - b.testPort)
     }),
   )
 

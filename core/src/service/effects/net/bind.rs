@@ -2,6 +2,10 @@ use crate::net::host::binding::{BindId, BindOptions, NetInfo};
 use crate::service::effects::prelude::*;
 use crate::{HostId, PackageId};
 
+/// Hard cap on how many ports a single `bindPortRange` call can claim.
+/// Matched on the SDK side as `MAX_BIND_PORT_RANGE_SIZE`.
+pub const MAX_BIND_PORT_RANGE_SIZE: u16 = 500;
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -25,6 +29,63 @@ pub async fn bind(
         .persistent_container
         .net_service
         .bind(id, internal_port, options)
+        .await
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct BindRangeParams {
+    pub id: HostId,
+    pub internal_start_port: u16,
+    pub external_start_port: u16,
+    pub number_of_ports: u16,
+}
+
+pub async fn bind_range(
+    context: EffectContext,
+    BindRangeParams {
+        id,
+        internal_start_port,
+        external_start_port,
+        number_of_ports,
+    }: BindRangeParams,
+) -> Result<(), Error> {
+    if number_of_ports == 0 {
+        return Err(Error::new(
+            eyre!("numberOfPorts must be at least 1"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+    if number_of_ports > MAX_BIND_PORT_RANGE_SIZE {
+        return Err(Error::new(
+            eyre!(
+                "numberOfPorts ({number_of_ports}) exceeds maximum ({MAX_BIND_PORT_RANGE_SIZE})"
+            ),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+    if internal_start_port != external_start_port {
+        return Err(Error::new(
+            eyre!(
+                "bindPortRange requires internalStartPort == externalStartPort \
+                 (got internal={internal_start_port} external={external_start_port}); \
+                 port-range forwards preserve the destination port across the range"
+            ),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+    let context = context.deref()?;
+    context
+        .seed
+        .persistent_container
+        .net_service
+        .bind_range(
+            id,
+            internal_start_port,
+            external_start_port,
+            number_of_ports,
+        )
         .await
 }
 

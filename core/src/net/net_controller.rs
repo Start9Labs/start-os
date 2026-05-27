@@ -156,7 +156,10 @@ impl NetController {
 
 #[derive(Default, Debug)]
 struct HostBinds {
-    forwards: BTreeMap<u16, (SocketAddrV4, ForwardRequirements, Arc<()>)>,
+    /// `(internal-target, count, requirements, rc)` keyed by external start
+    /// port. `count == 1` is the single-port case; `count > 1` represents a
+    /// contiguous range forward.
+    forwards: BTreeMap<u16, (SocketAddrV4, u16, ForwardRequirements, Arc<()>)>,
     vhosts: BTreeMap<(Option<InternedString>, u16), (ProxyTarget, Arc<()>)>,
     private_dns: BTreeMap<InternedString, Arc<()>>,
 }
@@ -179,7 +182,7 @@ impl NetServiceData {
     }
 
     async fn update(&mut self, ctrl: &NetController, id: HostId, host: Host) -> Result<(), Error> {
-        let mut forwards: BTreeMap<u16, (SocketAddrV4, ForwardRequirements)> = BTreeMap::new();
+        let mut forwards: BTreeMap<u16, (SocketAddrV4, u16, ForwardRequirements)> = BTreeMap::new();
         let mut vhosts: BTreeMap<(Option<InternedString>, u16), ProxyTarget> = BTreeMap::new();
         let mut private_dns: BTreeMap<InternedString, BTreeSet<GatewayId>> = BTreeMap::new();
         let binds = self.binds.entry(id.clone()).or_default();
@@ -340,6 +343,7 @@ impl NetServiceData {
                     external,
                     (
                         SocketAddrV4::new(self.ip, *port),
+                        1,
                         ForwardRequirements {
                             public_gateways: fwd_public,
                             private_ips: fwd_private,
@@ -398,6 +402,40 @@ impl NetServiceData {
             }
         }
 
+        // Port-range bindings: forward each enabled range to its container.
+        // Ranges are public-only (no SSL/vhost) and pinned to all gateways
+        // with WAN IPs — matching what `Host::update_addresses` records in
+        // `port_forwards` for them.
+        for (&internal_start, range) in host.binding_ranges.iter() {
+            if !range.enabled {
+                continue;
+            }
+            let fwd_public: BTreeSet<GatewayId> = net_ifaces
+                .iter()
+                .filter(|(_, info)| {
+                    info.ip_info
+                        .as_ref()
+                        .map_or(false, |ip| ip.wan_ip.is_some())
+                })
+                .map(|(gw, _)| gw.clone())
+                .collect();
+            if fwd_public.is_empty() {
+                continue;
+            }
+            forwards.insert(
+                range.external_start_port,
+                (
+                    SocketAddrV4::new(self.ip, internal_start),
+                    range.number_of_ports,
+                    ForwardRequirements {
+                        public_gateways: fwd_public,
+                        private_ips: BTreeSet::new(),
+                        secure: false,
+                    },
+                ),
+            );
+        }
+
         // ── Phase 3: Reconcile ──
         let all = binds
             .forwards
@@ -407,8 +445,8 @@ impl NetServiceData {
             .collect::<BTreeSet<_>>();
         for external in all {
             let mut prev = binds.forwards.remove(&external);
-            if let Some((internal, reqs)) = forwards.remove(&external) {
-                prev = prev.filter(|(i, r, _)| i == &internal && *r == reqs);
+            if let Some((internal, count, reqs)) = forwards.remove(&external) {
+                prev = prev.filter(|(i, c, r, _)| i == &internal && *c == count && *r == reqs);
                 binds.forwards.insert(
                     external,
                     if let Some(prev) = prev {
@@ -416,10 +454,12 @@ impl NetServiceData {
                     } else {
                         (
                             internal,
+                            count,
                             reqs.clone(),
                             ctrl.forward
-                                .add(
+                                .add_range(
                                     external,
+                                    count,
                                     reqs,
                                     internal,
                                     net_ifaces
@@ -742,6 +782,42 @@ impl NetService {
             .result
     }
 
+    pub async fn bind_range(
+        &self,
+        id: HostId,
+        internal_start_port: u16,
+        external_start_port: u16,
+        number_of_ports: u16,
+    ) -> Result<(), Error> {
+        let (ctrl, pkg_id) = {
+            let data = self.data.lock().await;
+            (data.net_controller()?, data.id.clone())
+        };
+        ctrl.db
+            .mutate(|db| {
+                let gateways = db
+                    .as_public()
+                    .as_server_info()
+                    .as_network()
+                    .as_gateways()
+                    .de()?;
+                let hostname = ServerHostname::load(db.as_public().as_server_info())?;
+                let mut ports = db.as_private().as_available_ports().de()?;
+                let host = host_for(db, pkg_id.as_ref(), &id)?;
+                host.add_binding_range(
+                    &mut ports,
+                    internal_start_port,
+                    external_start_port,
+                    number_of_ports,
+                )?;
+                host.update_addresses(&hostname, &gateways, &ports)?;
+                db.as_private_mut().as_available_ports_mut().ser(&ports)?;
+                Ok(())
+            })
+            .await
+            .result
+    }
+
     pub async fn clear_bindings(&self, except: BTreeSet<BindId>) -> Result<(), Error> {
         let (ctrl, pkg_id) = {
             let data = self.data.lock().await;
@@ -777,6 +853,17 @@ impl NetService {
                             }
                             Ok(())
                         })?;
+                        host.as_binding_ranges_mut().mutate(|r| {
+                            for (internal_port, info) in r.iter_mut() {
+                                if !except.contains(&BindId {
+                                    id: host_id.clone(),
+                                    internal_port: *internal_port,
+                                }) {
+                                    info.disable();
+                                }
+                            }
+                            Ok(())
+                        })?;
                         host.update_addresses(&hostname, &gateways, &ports)?;
                     }
                 } else {
@@ -787,6 +874,17 @@ impl NetService {
                         .as_host_mut();
                     host.as_bindings_mut().mutate(|b| {
                         for (internal_port, info) in b.iter_mut() {
+                            if !except.contains(&BindId {
+                                id: HostId::default(),
+                                internal_port: *internal_port,
+                            }) {
+                                info.disable();
+                            }
+                        }
+                        Ok(())
+                    })?;
+                    host.as_binding_ranges_mut().mutate(|r| {
+                        for (internal_port, info) in r.iter_mut() {
                             if !except.contains(&BindId {
                                 id: HostId::default(),
                                 internal_port: *internal_port,

@@ -167,6 +167,12 @@ export function makeEffects(context: EffectContext): Effects {
         stack: new Error().stack,
       }) as ReturnType<T.Effects["bind"]>
     },
+    bindRange(...[options]: Parameters<T.Effects["bindRange"]>) {
+      return rpcRound("bind-range", {
+        ...options,
+        stack: new Error().stack,
+      }) as ReturnType<T.Effects["bindRange"]>
+    },
     clearBindings(...[options]: Parameters<T.Effects["clearBindings"]>) {
       return rpcRound("clear-bindings", { ...options }) as ReturnType<
         T.Effects["clearBindings"]
@@ -309,7 +315,9 @@ export function makeEffects(context: EffectContext): Effects {
         T.Effects["setHealth"]
       >
     },
-    setBackupProgress(...[options]: Parameters<T.Effects["setBackupProgress"]>) {
+    setBackupProgress(
+      ...[options]: Parameters<T.Effects["setBackupProgress"]>
+    ) {
       return rpcRound("set-backup-progress", options) as ReturnType<
         T.Effects["setBackupProgress"]
       >

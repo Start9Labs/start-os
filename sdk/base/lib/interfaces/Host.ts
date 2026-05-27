@@ -80,6 +80,28 @@ export type BindOptionsByProtocol =
 const hasStringProtocol = (v: unknown): v is { protocol: string } =>
   z.object({ protocol: z.string() }).safeParse(v).success
 
+/**
+ * Hard cap on how many ports a single {@link MultiHost.bindPortRange} call
+ * can claim. Mirrors `MAX_BIND_PORT_RANGE_SIZE` in StartOS's bind effect.
+ */
+export const MAX_BIND_PORT_RANGE_SIZE = 500
+
+export type BindPortRangeOptions = {
+  /** First internal (container-side) port in the range. */
+  internalStartPort: number
+  /**
+   * First external (host-side / WAN) port in the range. Must equal
+   * `internalStartPort` — the underlying iptables DNAT preserves the
+   * destination port number across the range, which requires the two
+   * ranges to start at the same port. Kept as a separate field for API
+   * symmetry with {@link MultiHost.bindPort} and so a future relaxation
+   * does not break callers.
+   */
+  externalStartPort: number
+  /** Number of contiguous ports in the range. Must be in `[1, 500]`. */
+  numberOfPorts: number
+}
+
 export class MultiHost {
   constructor(
     readonly options: {
@@ -113,6 +135,64 @@ export class MultiHost {
     } else {
       return await this.bindPortForUnknown(internalPort, options)
     }
+  }
+
+  /**
+   * Bind a contiguous range of UDP+TCP ports to this host.
+   *
+   * Intended for real-time / WebRTC servers (coturn, RTP, SIP) that need a
+   * public port range. The whole range is allocated atomically; any
+   * partial collision with already-bound external ports is a hard error.
+   *
+   * Constraints:
+   * - `internalStartPort` must equal `externalStartPort` (port-preservation
+   *   constraint of the underlying iptables DNAT).
+   * - `numberOfPorts` must be in `[1, {@link MAX_BIND_PORT_RANGE_SIZE}]`.
+   * - All `numberOfPorts` external ports starting at `externalStartPort`
+   *   must be free and non-restricted.
+   *
+   * Returns `void`: range bindings are not addressable as HTTP-style
+   * service interfaces, so there is no {@link Origin} / `.export()` step.
+   *
+   * @example
+   * ```
+   * await sdk.MultiHost.of(effects, 'turn-relay').bindPortRange({
+   *   internalStartPort: 49152,
+   *   externalStartPort: 49152,
+   *   numberOfPorts: 100,
+   * })
+   * ```
+   */
+  async bindPortRange(options: BindPortRangeOptions): Promise<void> {
+    const { internalStartPort, externalStartPort, numberOfPorts } = options
+    if (!Number.isInteger(numberOfPorts) || numberOfPorts < 1) {
+      throw new Error(`numberOfPorts must be a positive integer`)
+    }
+    if (numberOfPorts > MAX_BIND_PORT_RANGE_SIZE) {
+      throw new Error(
+        `numberOfPorts (${numberOfPorts}) exceeds maximum (${MAX_BIND_PORT_RANGE_SIZE})`,
+      )
+    }
+    if (internalStartPort !== externalStartPort) {
+      throw new Error(
+        `bindPortRange requires internalStartPort === externalStartPort (got internal=${internalStartPort} external=${externalStartPort})`,
+      )
+    }
+    if (
+      !Number.isInteger(internalStartPort) ||
+      internalStartPort < 1 ||
+      internalStartPort + numberOfPorts - 1 > 65535
+    ) {
+      throw new Error(
+        `port range [${internalStartPort}, ${internalStartPort + numberOfPorts - 1}] is out of bounds`,
+      )
+    }
+    await this.options.effects.bindRange({
+      id: this.options.id,
+      internalStartPort,
+      externalStartPort,
+      numberOfPorts,
+    })
   }
 
   private async bindPortForUnknown(

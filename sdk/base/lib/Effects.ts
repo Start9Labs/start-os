@@ -8,6 +8,7 @@ import {
   CreateNotificationParams,
   SetHealth,
   BindParams,
+  BindRangeParams,
   HostId,
   NetInfo,
   Host,
@@ -143,6 +144,16 @@ export type Effects = {
   // bind
   /** Creates a host connected to the specified port with the provided options */
   bind(options: BindParams): Promise<null>
+  /**
+   * Binds a contiguous range of UDP+TCP ports to the specified host. Used
+   * for real-time / WebRTC servers (coturn, RTP, SIP) that need a public
+   * port range. Both `internalStartPort` and `externalStartPort` must be
+   * equal — the underlying iptables forward preserves the destination port
+   * across the range. The whole range is allocated atomically; any
+   * partial collision with already-bound external ports is a hard error.
+   * Capped at 500 ports per call.
+   */
+  bindRange(options: BindRangeParams): Promise<null>
   /** Get the port address for a service */
   getServicePortForward(options: {
     packageId?: PackageId

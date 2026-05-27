@@ -151,6 +151,7 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
         )
         // net
         .subcommand("bind", from_fn_async(net::bind::bind).no_cli())
+        .subcommand("bind-range", from_fn_async(net::bind::bind_range).no_cli())
         .subcommand(
             "get-service-port-forward",
             from_fn_async(net::bind::get_service_port_forward).no_cli(),

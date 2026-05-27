@@ -1,5 +1,6 @@
 import { ServiceInterfaceBuilder } from '../../../base/lib/interfaces/ServiceInterfaceBuilder'
 import { Effects } from '../../../base/lib/Effects'
+import { MAX_BIND_PORT_RANGE_SIZE } from '../../../base/lib/interfaces/Host'
 import { sdk } from '../test/output.sdk'
 
 describe('host', () => {
@@ -25,5 +26,71 @@ describe('host', () => {
 
       await fooOrigin.export([fooInterface])
     }
+  })
+
+  describe('MultiHost.bindPortRange', () => {
+    const fakeEffects = (
+      bindRange: jest.Mock = jest.fn(async () => null),
+    ): Effects => ({ bindRange }) as unknown as Effects
+
+    test('forwards the call to effects.bindRange with normalised params', async () => {
+      const bindRange = jest.fn(async () => null)
+      const host = sdk.MultiHost.of(fakeEffects(bindRange), 'turn')
+      await host.bindPortRange({
+        internalStartPort: 49152,
+        externalStartPort: 49152,
+        numberOfPorts: 100,
+      })
+      expect(bindRange).toHaveBeenCalledWith({
+        id: 'turn',
+        internalStartPort: 49152,
+        externalStartPort: 49152,
+        numberOfPorts: 100,
+      })
+    })
+
+    test('rejects mismatched internal/external start ports', async () => {
+      const host = sdk.MultiHost.of(fakeEffects(), 'turn')
+      await expect(
+        host.bindPortRange({
+          internalStartPort: 49152,
+          externalStartPort: 50000,
+          numberOfPorts: 10,
+        }),
+      ).rejects.toThrow(/internalStartPort === externalStartPort/)
+    })
+
+    test('rejects numberOfPorts below 1', async () => {
+      const host = sdk.MultiHost.of(fakeEffects(), 'turn')
+      await expect(
+        host.bindPortRange({
+          internalStartPort: 49152,
+          externalStartPort: 49152,
+          numberOfPorts: 0,
+        }),
+      ).rejects.toThrow(/positive integer/)
+    })
+
+    test('rejects numberOfPorts past the SDK cap', async () => {
+      const host = sdk.MultiHost.of(fakeEffects(), 'turn')
+      await expect(
+        host.bindPortRange({
+          internalStartPort: 49152,
+          externalStartPort: 49152,
+          numberOfPorts: MAX_BIND_PORT_RANGE_SIZE + 1,
+        }),
+      ).rejects.toThrow(/exceeds maximum/)
+    })
+
+    test('rejects ranges that walk past port 65535', async () => {
+      const host = sdk.MultiHost.of(fakeEffects(), 'turn')
+      await expect(
+        host.bindPortRange({
+          internalStartPort: 65500,
+          externalStartPort: 65500,
+          numberOfPorts: 100,
+        }),
+      ).rejects.toThrow(/out of bounds/)
+    })
   })
 })
