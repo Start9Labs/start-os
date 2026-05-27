@@ -15,7 +15,7 @@ lxc.uts.name = {guid}
 lxc.net.0.type = veth
 lxc.net.0.link = lxcbr0
 lxc.net.0.flags = up
-{caps}
+
 lxc.rootfs.options = rshared
 
 # Environment
