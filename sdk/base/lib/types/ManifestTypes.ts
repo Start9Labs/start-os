@@ -145,13 +145,22 @@ export type SDKManifest = {
   readonly hardwareAcceleration?: boolean
 
   /**
-   * @description Allow this service's LXC to host a nested OCI runtime
-   * (e.g. rootless Podman or Docker). Mounts /dev/fuse and grants the
-   * cgroup device permission required for fuse-overlayfs storage. The
-   * service still runs unprivileged inside its userns — no extra
-   * capabilities are granted to the LXC itself.
+   * @description Mount /dev/fuse and grant the cgroup device permission
+   * required for fuse-overlayfs storage — the rootless storage driver used to
+   * host a nested OCI runtime (e.g. rootless Podman or Docker) inside this
+   * service's LXC. Grants no extra capabilities; the service still runs
+   * unprivileged inside its userns.
    */
-  readonly nestedRuntime?: boolean
+  readonly userspaceFilesystems?: boolean
+
+  /**
+   * @description Mount /dev/net/tun and grant CAP_NET_ADMIN so this service
+   * can create kernel tunnel interfaces (VPN / WireGuard / tun-class
+   * workloads). This is a meaningful privilege escalation — capabilities are
+   * scoped to the container's user namespace; declare it only when the service
+   * genuinely needs a kernel tunnel interface.
+   */
+  readonly virtualNetworking?: boolean
 
   /**
    * @description Enable OS plugins

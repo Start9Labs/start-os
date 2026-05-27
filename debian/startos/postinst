@@ -189,9 +189,10 @@ kernel.unprivileged_userns_clone=1
 EOF
 
 # Ensure /dev/fuse and /dev/net/tun are available on the host so service LXCs
-# that opt in via manifest.nestedRuntime can bind-mount them
-# (lxc/mod.rs::NESTED_RUNTIME_CONFIG). tun is what slirp4netns / pasta need to
-# provide rootless network to nested OCI containers.
+# can bind-mount them (lxc/mod.rs::{USERSPACE_FILESYSTEM_PATHS,
+# VIRTUAL_NETWORKING_PATHS}). fuse backs fuse-overlayfs for services that opt
+# in via manifest.userspaceFilesystems; tun backs VPN / tun-class services
+# (and slirp4netns / pasta rootless networking) via manifest.virtualNetworking.
 cat > /etc/modules-load.d/startos-nested-runtime.conf <<EOF
 fuse
 tun

@@ -34,7 +34,17 @@ export type Manifest = {
   osVersion: string
   sdkVersion: string | null
   hardwareAcceleration: boolean
-  nestedRuntime: boolean
+  /**
+   * Mount /dev/fuse and grant the cgroup device permission required for
+   * fuse-overlayfs storage (the rootless storage driver used by a nested
+   * OCI runtime). Grants no extra capabilities.
+   */
+  userspaceFilesystems: boolean
+  /**
+   * Mount /dev/net/tun and grant CAP_NET_ADMIN so the service can create
+   * kernel tunnel interfaces (VPN / WireGuard / tun-class workloads).
+   */
+  virtualNetworking: boolean
   plugins: Array<PluginId>
   satisfies: Array<Version>
 }
