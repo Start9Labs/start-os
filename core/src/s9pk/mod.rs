@@ -1,4 +1,5 @@
 pub mod git_hash;
+pub mod init;
 pub mod merkle_archive;
 pub mod rpc;
 pub mod v1;

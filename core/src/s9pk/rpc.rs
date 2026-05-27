@@ -53,6 +53,18 @@ pub fn s9pk() -> ParentHandler<CliContext> {
                 .with_about("about.list-paths-of-package-ingredients"),
         )
         .subcommand(
+            "init-workspace",
+            from_fn_async(super::init::init_workspace)
+                .no_display()
+                .with_about("about.initialize-a-packaging-workspace"),
+        )
+        .subcommand(
+            "init-package",
+            from_fn_async(super::init::init_package)
+                .no_display()
+                .with_about("about.scaffold-a-new-package-from-template"),
+        )
+        .subcommand(
             "edit",
             edit().with_about("about.commands-add-image-or-edit-manifest"),
         )
@@ -157,7 +169,7 @@ async fn add_image(
 ) -> Result<(), Error> {
     let mut s9pk = super::load(
         MultiCursorFile::from(open_file(&s9pk_path).await?),
-        || ctx.developer_key().cloned(),
+        || ctx.build_key(),
         None,
     )
     .await?;
@@ -190,7 +202,7 @@ async fn edit_manifest(
 ) -> Result<Manifest, Error> {
     let mut s9pk = super::load(
         MultiCursorFile::from(open_file(&s9pk_path).await?),
-        || ctx.developer_key().cloned(),
+        || ctx.build_key(),
         None,
     )
     .await?;
@@ -201,7 +213,7 @@ async fn edit_manifest(
     let tmp_path = s9pk_path.with_extension("s9pk.tmp");
     let mut tmp_file = create_file(&tmp_path).await?;
     s9pk.as_archive_mut()
-        .set_signer(ctx.developer_key()?.clone(), SIG_CONTEXT);
+        .set_signer(ctx.build_key()?, SIG_CONTEXT);
     s9pk.serialize(&mut tmp_file, true).await?;
     tmp_file.sync_all().await?;
     tokio::fs::rename(&tmp_path, &s9pk_path).await?;
@@ -216,7 +228,7 @@ async fn file_tree(
 ) -> Result<Vec<PathBuf>, Error> {
     let s9pk = super::load(
         MultiCursorFile::from(open_file(&s9pk_path).await?),
-        || ctx.developer_key().cloned(),
+        || ctx.build_key(),
         None,
     )
     .await?;
@@ -240,7 +252,7 @@ async fn cat(
 
     let s9pk = super::load(
         MultiCursorFile::from(open_file(&s9pk_path).await?),
-        || ctx.developer_key().cloned(),
+        || ctx.build_key(),
         None,
     )
     .await?;
@@ -267,7 +279,7 @@ async fn inspect_manifest(
 ) -> Result<Manifest, Error> {
     let s9pk = super::load(
         MultiCursorFile::from(open_file(&s9pk_path).await?),
-        || ctx.developer_key().cloned(),
+        || ctx.build_key(),
         None,
     )
     .await?;
@@ -286,7 +298,7 @@ async fn inspect_commitment(
 async fn convert(ctx: CliContext, S9pkPath { s9pk: s9pk_path }: S9pkPath) -> Result<(), Error> {
     let mut s9pk = super::load(
         MultiCursorFile::from(open_file(&s9pk_path).await?),
-        || ctx.developer_key().cloned(),
+        || ctx.build_key(),
         None,
     )
     .await?;

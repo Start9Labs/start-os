@@ -140,6 +140,70 @@ bins.tunnel.error-updating-webserver-bind:
   fr_FR: "erreur lors de la mise à jour de la liaison du serveur web : %{error}"
   pl_PL: "błąd podczas aktualizacji powiązania serwera WWW: %{error}"
 
+# s9pk/init.rs
+s9pk.init.cloning-start-docs:
+  en_US: "Cloning the packaging guide (start-docs)…"
+  de_DE: "Paketierungsleitfaden (start-docs) wird geklont…"
+  es_ES: "Clonando la guía de empaquetado (start-docs)…"
+  fr_FR: "Clonage du guide d'empaquetage (start-docs)…"
+  pl_PL: "Klonowanie przewodnika pakowania (start-docs)…"
+
+s9pk.init.installing-deps:
+  en_US: "Installing dependencies (npm install)…"
+  de_DE: "Abhängigkeiten werden installiert (npm install)…"
+  es_ES: "Instalando dependencias (npm install)…"
+  fr_FR: "Installation des dépendances (npm install)…"
+  pl_PL: "Instalowanie zależności (npm install)…"
+
+s9pk.init.invalid-package-name:
+  en_US: "Cannot derive a valid package ID from \"%{name}\". Use a name containing letters or digits."
+  de_DE: "Aus „%{name}“ lässt sich keine gültige Paket-ID ableiten. Verwende einen Namen mit Buchstaben oder Ziffern."
+  es_ES: "No se puede derivar un ID de paquete válido de «%{name}». Usa un nombre que contenga letras o dígitos."
+  fr_FR: "Impossible de dériver un ID de paquet valide à partir de « %{name} ». Utilisez un nom contenant des lettres ou des chiffres."
+  pl_PL: "Nie można utworzyć prawidłowego identyfikatora pakietu z „%{name}”. Użyj nazwy zawierającej litery lub cyfry."
+
+s9pk.init.nested-workspace:
+  en_US: "Cannot create a workspace inside an existing one (found %{path})."
+  de_DE: "Ein Arbeitsbereich kann nicht innerhalb eines bestehenden erstellt werden (gefunden: %{path})."
+  es_ES: "No se puede crear un espacio de trabajo dentro de uno existente (se encontró %{path})."
+  fr_FR: "Impossible de créer un espace de travail à l'intérieur d'un autre (trouvé : %{path})."
+  pl_PL: "Nie można utworzyć obszaru roboczego wewnątrz istniejącego (znaleziono %{path})."
+
+s9pk.init.not-in-workspace:
+  en_US: "Not inside a packaging workspace. Run `start-cli s9pk init-workspace` first."
+  de_DE: "Nicht innerhalb eines Paketierungs-Arbeitsbereichs. Führe zuerst `start-cli s9pk init-workspace` aus."
+  es_ES: "No estás dentro de un espacio de trabajo de empaquetado. Ejecuta primero `start-cli s9pk init-workspace`."
+  fr_FR: "Vous n'êtes pas dans un espace de travail d'empaquetage. Exécutez d'abord `start-cli s9pk init-workspace`."
+  pl_PL: "Nie jesteś w obszarze roboczym pakowania. Najpierw uruchom `start-cli s9pk init-workspace`."
+
+s9pk.init.package-created:
+  en_US: "Created %{id} at %{path}. Next: work the checklist in TODO.md."
+  de_DE: "%{id} wurde unter %{path} erstellt. Nächster Schritt: Arbeite die Checkliste in TODO.md ab."
+  es_ES: "Se creó %{id} en %{path}. Siguiente: completa la lista de tareas en TODO.md."
+  fr_FR: "%{id} créé dans %{path}. Étape suivante : suivez la liste de tâches dans TODO.md."
+  pl_PL: "Utworzono %{id} w %{path}. Następnie: wykonaj listę zadań w TODO.md."
+
+s9pk.init.package-exists:
+  en_US: "%{path} already exists; choose a different name or remove it."
+  de_DE: "%{path} existiert bereits; wähle einen anderen Namen oder entferne es."
+  es_ES: "%{path} ya existe; elige otro nombre o elimínalo."
+  fr_FR: "%{path} existe déjà ; choisissez un autre nom ou supprimez-le."
+  pl_PL: "%{path} już istnieje; wybierz inną nazwę lub usuń je."
+
+s9pk.init.template-missing:
+  en_US: "Package template not found at %{path}. Re-run `start-cli s9pk init-workspace` to restore start-docs."
+  de_DE: "Paketvorlage unter %{path} nicht gefunden. Führe `start-cli s9pk init-workspace` erneut aus, um start-docs wiederherzustellen."
+  es_ES: "No se encontró la plantilla de paquete en %{path}. Vuelve a ejecutar `start-cli s9pk init-workspace` para restaurar start-docs."
+  fr_FR: "Modèle de paquet introuvable à %{path}. Relancez `start-cli s9pk init-workspace` pour restaurer start-docs."
+  pl_PL: "Nie znaleziono szablonu pakietu w %{path}. Uruchom ponownie `start-cli s9pk init-workspace`, aby przywrócić start-docs."
+
+s9pk.init.workspace-ready:
+  en_US: "Packaging workspace ready at %{path}. Next: start-cli s9pk init-package \"<Name>\"."
+  de_DE: "Paketierungs-Arbeitsbereich bereit unter %{path}. Nächster Schritt: start-cli s9pk init-package \"<Name>\"."
+  es_ES: "Espacio de trabajo de empaquetado listo en %{path}. Siguiente: start-cli s9pk init-package \"<Nombre>\"."
+  fr_FR: "Espace de travail d'empaquetage prêt à %{path}. Étape suivante : start-cli s9pk init-package \"<Nom>\"."
+  pl_PL: "Obszar roboczy pakowania gotowy w %{path}. Następnie: start-cli s9pk init-package \"<Nazwa>\"."
+
 # setup.rs
 setup.opening-data-drive:
   en_US: "Opening data drive"
@@ -2364,6 +2428,13 @@ context.cli.cannot-set-url-scheme:
   fr_FR: "Impossible de définir le schéma d'URL"
   pl_PL: "Nie można ustawić schematu URL"
 
+context.cli.unknown-profile-or-url:
+  en_US: "'%{value}' is not a known profile or a valid URL"
+  de_DE: "„%{value}“ ist kein bekanntes Profil und keine gültige URL"
+  es_ES: "«%{value}» no es un perfil conocido ni una URL válida"
+  fr_FR: "« %{value} » n'est pas un profil connu ni une URL valide"
+  pl_PL: "„%{value}” nie jest znanym profilem ani prawidłowym adresem URL"
+
 # context/rpc.rs
 context.rpc.rpc-context-dropped:
   en_US: "RpcContext is dropped"
@@ -3676,6 +3747,13 @@ help.arg.workdir-path:
   fr_FR: "Chemin du répertoire de travail"
   pl_PL: "Ścieżka katalogu roboczego"
 
+help.arg.workspace-path:
+  en_US: "Workspace directory to create or initialize (default: current directory)"
+  de_DE: "Zu erstellendes oder zu initialisierendes Arbeitsbereichsverzeichnis (Standard: aktuelles Verzeichnis)"
+  es_ES: "Directorio del espacio de trabajo a crear o inicializar (predeterminado: directorio actual)"
+  fr_FR: "Répertoire de l'espace de travail à créer ou initialiser (par défaut : répertoire courant)"
+  pl_PL: "Katalog obszaru roboczego do utworzenia lub zainicjowania (domyślnie: bieżący katalog)"
+
 help.arg.action-id:
   en_US: "Action identifier"
   de_DE: "Aktions-Kennung"
@@ -3990,6 +4068,13 @@ help.arg.os-drive-path:
   es_ES: "Ruta a la unidad del sistema operativo"
   fr_FR: "Chemin vers le disque du système d'exploitation"
   pl_PL: "Ścieżka do dysku systemu operacyjnego"
+
+help.arg.package-display-name:
+  en_US: "Human-readable package name (e.g. \"Hello World\")"
+  de_DE: "Menschenlesbarer Paketname (z. B. „Hello World“)"
+  es_ES: "Nombre de paquete legible (p. ej. «Hello World»)"
+  fr_FR: "Nom de paquet lisible (par ex. « Hello World »)"
+  pl_PL: "Czytelna nazwa pakietu (np. „Hello World”)"
 
 help.arg.package-id:
   en_US: "Package identifier"
@@ -5196,6 +5281,13 @@ about.indicate-gateway-inbound-access-from-wan:
   fr_FR: "Indiquer l'accès entrant de la passerelle depuis le WAN"
   pl_PL: "Wskaż dostęp przychodzący bramy z WAN"
 
+about.initialize-a-packaging-workspace:
+  en_US: "Initialize a StartOS packaging workspace"
+  de_DE: "Einen StartOS-Paketierungs-Arbeitsbereich initialisieren"
+  es_ES: "Inicializar un espacio de trabajo de empaquetado de StartOS"
+  fr_FR: "Initialiser un espace de travail d'empaquetage StartOS"
+  pl_PL: "Zainicjuj obszar roboczy pakowania StartOS"
+
 about.initialize-webserver:
   en_US: "Initialize the webserver"
   de_DE: "Webserver initialisieren"
@@ -5797,6 +5889,13 @@ about.run-service-action:
   es_ES: "Ejecutar una acción de servicio"
   fr_FR: "Exécuter une action de service"
   pl_PL: "Uruchom akcję usługi"
+
+about.scaffold-a-new-package-from-template:
+  en_US: "Scaffold a new package from the workspace template"
+  de_DE: "Ein neues Paket aus der Arbeitsbereichsvorlage erzeugen"
+  es_ES: "Generar un nuevo paquete a partir de la plantilla del espacio de trabajo"
+  fr_FR: "Générer un nouveau paquet à partir du modèle de l'espace de travail"
+  pl_PL: "Utwórz nowy pakiet z szablonu obszaru roboczego"
 
 about.set-address-enabled-for-binding:
   en_US: "Set a gateway address enabled for a binding"
