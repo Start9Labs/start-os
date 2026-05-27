@@ -251,9 +251,9 @@ fn find_workspace_root(start: &Path) -> Result<Option<PathBuf>, Error> {
             // Present but not a directory — not a marker; keep walking up.
             Ok(_) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            // EACCES (or other non-NotFound) on an ancestor: surface it rather
-            // than reporting "no workspace" and silently walking past it.
-            Err(e) => return Err(e.into()),
+            // EACCES (or any other IO error) on an ancestor — treat as "no
+            // accessible workspace here" and stop walking.
+            Err(_) => return Ok(None),
         }
         if !dir.pop() {
             return Ok(None);

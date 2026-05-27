@@ -210,18 +210,23 @@ impl CliContext {
         let mut dir = std::env::current_dir().with_kind(ErrorKind::Filesystem)?;
         loop {
             let candidate = dir.join(STARTOS_DIR).join(BUILD_KEY_FILE);
-            // `try_exists` (unlike `exists`) surfaces EACCES on an inaccessible
-            // ancestor as an error instead of reporting `false` and walking past it.
-            if candidate.try_exists()? {
-                return load_signing_key(candidate);
+            // EACCES on an inaccessible ancestor (or any other IO error) is treated
+            // as "no accessible workspace here" — stop walking rather than either
+            // silently stepping past it (`exists()`) or surfacing the error
+            // (`try_exists()?`).
+            match candidate.try_exists() {
+                Ok(true) => return load_signing_key(candidate),
+                Ok(false) => {}
+                Err(_) => break,
             }
             if !dir.pop() {
-                return Err(Error::new(
-                    eyre!("{}", t!("s9pk.init.not-in-workspace")),
-                    ErrorKind::Uninitialized,
-                ));
+                break;
             }
         }
+        Err(Error::new(
+            eyre!("{}", t!("s9pk.init.not-in-workspace")),
+            ErrorKind::Uninitialized,
+        ))
     }
 
     pub async fn ws_continuation(

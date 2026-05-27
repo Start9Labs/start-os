@@ -151,8 +151,8 @@ impl WorkspaceConfig {
     /// Walk up from cwd for the nearest `.startos/config.yaml` that parses as a
     /// workspace config. A flat config (no `schema`) fails to parse and is skipped,
     /// so the walk continues — preserving the global fallback when there's none.
-    /// An EACCES (or other non-NotFound) error on a candidate is surfaced rather
-    /// than swallowed, so an unreadable workspace can't masquerade as absent.
+    /// EACCES (or any other IO error) on a candidate stops the walk and reports
+    /// no workspace; an inaccessible ancestor isn't surfaced as an error.
     pub fn find() -> Result<Option<Self>, Error> {
         let mut dir = std::env::current_dir()?;
         loop {
@@ -166,7 +166,7 @@ impl WorkspaceConfig {
                     // config) — keep walking up.
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                Err(e) => return Err(e.into()),
+                Err(_) => return Ok(None),
             }
             if !dir.pop() {
                 return Ok(None);
