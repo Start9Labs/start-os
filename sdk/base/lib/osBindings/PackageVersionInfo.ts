@@ -37,8 +37,7 @@ export type PackageVersionInfo = {
   userspaceFilesystems: boolean
   /**
    * Mount /dev/net/tun so the service can create kernel tunnel interfaces
-   * (VPN / WireGuard / tun-class workloads). CAP_NET_ADMIN is already
-   * retained by the service LXC via the standard userns.conf include.
+   * (VPN / WireGuard / tun-class workloads).
    */
   virtualNetworking: boolean
   plugins: Array<PluginId>

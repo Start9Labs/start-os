@@ -110,8 +110,7 @@ pub struct PackageMetadata {
     #[serde(default)]
     pub userspace_filesystems: bool,
     /// Mount /dev/net/tun so the service can create kernel tunnel interfaces
-    /// (VPN / WireGuard / tun-class workloads). CAP_NET_ADMIN is already
-    /// retained by the service LXC via the standard userns.conf include.
+    /// (VPN / WireGuard / tun-class workloads).
     #[serde(default)]
     pub virtual_networking: bool,
     #[serde(default)]

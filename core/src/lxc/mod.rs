@@ -47,8 +47,7 @@ const HARDWARE_ACCELERATION_PATHS: &[&str] = &["/dev/dri", "/dev/nvidia*", "/dev
 const USERSPACE_FILESYSTEM_PATHS: &[&str] = &["/dev/fuse"];
 // /dev/net/tun: kernel tunnel interface for VPN / WireGuard / tun-class
 // services (and slirp4netns / pasta networking for nested containers) — opted
-// in via `manifest.virtualNetworking`. CAP_NET_ADMIN is already retained by
-// the userns LXC via `userns.conf`, so the bind-mount alone unblocks TUNSETIFF.
+// in via `manifest.virtualNetworking`.
 const VIRTUAL_NETWORKING_PATHS: &[&str] = &["/dev/net/tun"];
 
 #[derive(

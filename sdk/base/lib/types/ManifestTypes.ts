@@ -153,9 +153,7 @@ export type SDKManifest = {
 
   /**
    * @description Mount /dev/net/tun so this service can create kernel tunnel
-   * interfaces (VPN / WireGuard / tun-class workloads). The service LXC
-   * already retains CAP_NET_ADMIN within its user namespace via the standard
-   * userns.conf include; this flag just exposes the device node.
+   * interfaces (VPN / WireGuard / tun-class workloads).
    */
   readonly virtualNetworking?: boolean
 
