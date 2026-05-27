@@ -150,6 +150,7 @@ log = "0.4.20"
 mbrman = "0.6.0"
 miette = { version = "7.6.0", features = ["fancy"] }
 mio = "1"
+native-tls = "0.2.11"
 new_mime_guess = "4"
 nix = { version = "0.30.1", features = [
   "fs",
