@@ -670,13 +670,17 @@ impl InterfaceForwardEntry {
             ));
         }
         if count != self.count {
-            return Err(Error::new(
-                eyre!(
-                    "forward entry at external port {external} already has count {existing}, refusing to overwrite with count {count}",
-                    existing = self.count,
-                ),
-                ErrorKind::InvalidRequest,
-            ));
+            // The count changed because the range was resized, or a single-port
+            // forward and a range swapped at this external start (AvailablePorts
+            // freed the old allocation and handed the same start port back).
+            // The old count no longer applies: adopt the new one and rebuild
+            // this entry's forwards from scratch so the underlying iptables
+            // rules (whose chain name encodes the count) are reconciled cleanly.
+            // `state` entries are never evicted, so without this a count change
+            // at a reused external port would be a hard error until restart.
+            self.count = count;
+            self.targets.clear();
+            self.forwards.clear();
         }
 
         let entry = self

@@ -406,11 +406,10 @@ impl NetServiceData {
         // Ranges are public-only (no SSL/vhost) and pinned to all gateways
         // with WAN IPs — matching what `Host::update_addresses` records in
         // `port_forwards` for them.
-        for (&internal_start, range) in host.binding_ranges.iter() {
-            if !range.enabled {
-                continue;
-            }
-            let fwd_public: BTreeSet<GatewayId> = net_ifaces
+        if !host.binding_ranges.is_empty() {
+            // Every public range forwards to the same set — all gateways with a
+            // WAN IP — so compute it once rather than per range.
+            let range_gateways: BTreeSet<GatewayId> = net_ifaces
                 .iter()
                 .filter(|(_, info)| {
                     info.ip_info
@@ -419,21 +418,23 @@ impl NetServiceData {
                 })
                 .map(|(gw, _)| gw.clone())
                 .collect();
-            if fwd_public.is_empty() {
-                continue;
+            for (&internal_start, range) in host.binding_ranges.iter() {
+                if !range.enabled || range_gateways.is_empty() {
+                    continue;
+                }
+                forwards.insert(
+                    range.external_start_port,
+                    (
+                        SocketAddrV4::new(self.ip, internal_start),
+                        range.number_of_ports,
+                        ForwardRequirements {
+                            public_gateways: range_gateways.clone(),
+                            private_ips: BTreeSet::new(),
+                            secure: false,
+                        },
+                    ),
+                );
             }
-            forwards.insert(
-                range.external_start_port,
-                (
-                    SocketAddrV4::new(self.ip, internal_start),
-                    range.number_of_ports,
-                    ForwardRequirements {
-                        public_gateways: fwd_public,
-                        private_ips: BTreeSet::new(),
-                        secure: false,
-                    },
-                ),
-            );
         }
 
         // ── Phase 3: Reconcile ──

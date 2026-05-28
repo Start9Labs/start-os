@@ -520,29 +520,26 @@ impl Model<Host> {
             ));
         }
         self.as_binding_ranges_mut().mutate(|ranges| {
-            // Free the old range first when this is an idempotent re-bind, so a
-            // package can call bindPortRange every setupMain pass without
-            // tripping its own previous allocation.
-            if let Some(existing) = ranges.remove(&internal_start_port) {
-                if existing.external_start_port == external_start_port
-                    && existing.number_of_ports == number_of_ports
-                {
-                    ranges.insert(
-                        internal_start_port,
-                        RangeBindInfo {
-                            enabled: true,
-                            external_start_port,
-                            number_of_ports,
-                        },
-                    );
-                    return Ok(());
+            match ranges.get(&internal_start_port) {
+                // Idempotent re-bind: a package may call bindPortRange on every
+                // setupMain pass. An unchanged range keeps its allocation; the
+                // insert below just re-affirms (re-enables) it.
+                Some(existing)
+                    if existing.external_start_port == external_start_port
+                        && existing.number_of_ports == number_of_ports => {}
+                // New, resized, or moved range: free any prior allocation, then
+                // claim the new one. The free uses an inclusive end —
+                // `start + count` would overflow u16 for a range ending at 65535.
+                maybe_existing => {
+                    if let Some(existing) = maybe_existing {
+                        available_ports.free(
+                            existing.external_start_port
+                                ..=existing.external_start_port + existing.number_of_ports - 1,
+                        );
+                    }
+                    available_ports.try_alloc_range(external_start_port, number_of_ports)?;
                 }
-                available_ports.free(
-                    existing.external_start_port
-                        ..(existing.external_start_port + existing.number_of_ports),
-                );
             }
-            available_ports.try_alloc_range(external_start_port, number_of_ports)?;
             ranges.insert(
                 internal_start_port,
                 RangeBindInfo {
