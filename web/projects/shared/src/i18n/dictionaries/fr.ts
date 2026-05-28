@@ -759,4 +759,5 @@ export default {
   847: 'Dernière publication',
   848: "l'adresse de ce serveur sur le tunnel",
   849: 'Dans StartTunnel, définissez le DNS de ce sous-réseau sur ce serveur.',
+  850: 'Durée',
 } satisfies i18n

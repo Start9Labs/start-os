@@ -23,6 +23,7 @@ import { DataModel } from '../services/patch-db/data-model'
         <tr>
           <th>{{ 'Title' | i18n }}</th>
           <th>{{ 'Result' | i18n }}</th>
+          <th>{{ 'Duration' | i18n }}</th>
         </tr>
       </thead>
       <tbody>
@@ -32,6 +33,7 @@ import { DataModel } from '../services/patch-db/data-model'
             <tui-icon [icon]="system().icon" />
             {{ system().result | i18n }}
           </td>
+          <td></td>
         </tr>
         @if (pkgTitles(); as titles) {
           @for (pkg of data.content.packages | keyvalue; track $index) {
@@ -45,6 +47,7 @@ import { DataModel } from '../services/patch-db/data-model'
                     : ('Succeeded' | i18n)
                 }}
               </td>
+              <td>{{ formatDuration(pkg.value.duration_ms) }}</td>
             </tr>
           }
         }
@@ -126,6 +129,15 @@ export class BackupsReportModal {
 
   getIcon(error: unknown) {
     return error ? '@tui.circle-minus' : '@tui.check'
+  }
+
+  formatDuration(ms: number): string {
+    if (ms < 1000) return `${ms}ms`
+    const seconds = Math.round(ms / 1000)
+    if (seconds < 60) return `${seconds}s`
+    const minutes = Math.floor(seconds / 60)
+    const remainder = seconds % 60
+    return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`
   }
 }
 
