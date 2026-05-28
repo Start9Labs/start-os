@@ -17,7 +17,6 @@ import { i18nPipe } from '@start9labs/shared'
     <table tuiTable class="g-table-service">
       <thead>
         <tr>
-          <th tuiTh>{{ 'Service' | i18n }}</th>
           <th tuiTh>{{ 'Action' }}</th>
           <th tuiTh>{{ 'Severity' }}</th>
           <th tuiTh>{{ 'Reason' | i18n }}</th>
@@ -29,7 +28,7 @@ import { i18nPipe } from '@start9labs/shared'
           <tr [task]="item.task" [services]="services()"></tr>
         } @empty {
           <tr>
-            <td colspan="5">
+            <td colspan="4">
               <app-placeholder icon="@tui.list-checks">
                 {{ 'All tasks complete' | i18n }}
               </app-placeholder>
@@ -42,7 +41,7 @@ import { i18nPipe } from '@start9labs/shared'
   styles: `
     :host {
       min-height: 12rem;
-      grid-column: span 10;
+      grid-column: span 7;
     }
   `,
   host: { class: 'g-card' },
