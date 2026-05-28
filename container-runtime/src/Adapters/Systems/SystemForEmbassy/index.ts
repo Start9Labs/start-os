@@ -405,6 +405,9 @@ export class SystemForEmbassy implements System {
     if (this.manifest.id === "monerod") {
       this.manifest.id = "monerod-legacy"
     }
+    if (this.manifest.id === "fedimintd") {
+      this.manifest.id = "fedimint-guardian"
+    }
   }
 
   async init(

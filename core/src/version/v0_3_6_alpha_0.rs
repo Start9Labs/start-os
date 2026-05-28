@@ -409,6 +409,17 @@ impl VersionT for Version {
             .await?;
         }
 
+        if tokio::fs::metadata("/media/startos/data/package-data/volumes/fedimintd")
+            .await
+            .is_ok()
+        {
+            tokio::fs::rename(
+                "/media/startos/data/package-data/volumes/fedimintd",
+                "/media/startos/data/package-data/volumes/fedimint-guardian",
+            )
+            .await?;
+        }
+
         // Load bundled migration images (start9/compat, start9/utils,
         // tonistiigi/binfmt) so the v1->v2 s9pk conversion doesn't need
         // internet access.
@@ -539,6 +550,7 @@ impl VersionT for Version {
                                 "ghost" => "ghost-legacy",
                                 "synapse" => "synapse-legacy",
                                 "monerod" => "monerod-legacy",
+                                "fedimintd" => "fedimint-guardian",
                                 other => other,
                             };
                             let version_path = Path::new(DATA_DIR)
