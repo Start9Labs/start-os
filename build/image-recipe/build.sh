@@ -386,6 +386,13 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
     cp \$NOG_DIR/overlays/*.dtbo /boot/firmware/overlays/
     rm -rf /tmp/nog-rpi5.zip \$NOG_DIR
 
+    # Drop the direct-boot kernel raspi-firmware drops in /boot/firmware.
+    # With armstub=RPI_EFI_*.fd the VPU hands off to EDK2 and the real
+    # kernel is loaded by GRUB from the boot partition; a stray
+    # kernel*.img here just confuses the firmware's auto-kernel logic.
+    # pftf/NumberOneGit boot partitions contain no kernel image.
+    rm -f /boot/firmware/kernel*.img /boot/firmware/initramfs*
+
     apt-get -y --purge remove unzip
 fi
 
