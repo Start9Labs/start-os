@@ -105,13 +105,12 @@ pub struct PackageMetadata {
     pub sdk_version: Option<Version>,
     #[serde(default)]
     pub hardware_acceleration: bool,
-    /// Mount /dev/fuse and grant the cgroup device permission required for
-    /// fuse-overlayfs storage (the rootless storage driver used by a nested
-    /// OCI runtime). Grants no extra capabilities.
+    /// Mount /dev/fuse for fuse-overlayfs storage (the rootless storage
+    /// driver used by a nested OCI runtime).
     #[serde(default)]
     pub userspace_filesystems: bool,
-    /// Mount /dev/net/tun and grant CAP_NET_ADMIN so the service can create
-    /// kernel tunnel interfaces (VPN / WireGuard / tun-class workloads).
+    /// Mount /dev/net/tun so the service can create kernel tunnel interfaces
+    /// (VPN / WireGuard / tun-class workloads).
     #[serde(default)]
     pub virtual_networking: bool,
     #[serde(default)]

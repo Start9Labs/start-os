@@ -47,7 +47,7 @@ const HARDWARE_ACCELERATION_PATHS: &[&str] = &["/dev/dri", "/dev/nvidia*", "/dev
 const USERSPACE_FILESYSTEM_PATHS: &[&str] = &["/dev/fuse"];
 // /dev/net/tun: kernel tunnel interface for VPN / WireGuard / tun-class
 // services (and slirp4netns / pasta networking for nested containers) — opted
-// in via `manifest.virtualNetworking`, which also grants CAP_NET_ADMIN.
+// in via `manifest.virtualNetworking`.
 const VIRTUAL_NETWORKING_PATHS: &[&str] = &["/dev/net/tun"];
 
 #[derive(
@@ -187,21 +187,10 @@ impl LxcContainer {
         let machine_id = hex::encode(rand::random::<[u8; 16]>());
         let container_dir = Path::new(LXC_CONTAINER_DIR).join(&*guid);
         tokio::fs::create_dir_all(&container_dir).await?;
-        // `virtualNetworking` re-grants CAP_NET_ADMIN by overriding the
-        // capability drop list inherited from the host's common.conf (clearing
-        // it, then re-dropping the stock Debian set minus net_admin) so the
-        // service can create kernel tun interfaces. Caps remain scoped to the
-        // container's user namespace.
-        let caps = if config.virtual_networking {
-            "# virtualNetworking: re-grant CAP_NET_ADMIN\nlxc.cap.drop =\nlxc.cap.drop = mac_admin mac_override sys_time sys_module sys_rawio\n"
-        } else {
-            ""
-        };
         let config_str = format!(
             include_str!("./config.template"),
             guid = &*guid,
             lang = &lang,
-            caps = caps,
         );
         tokio::fs::write(container_dir.join("config"), config_str).await?;
         let rootfs_dir = container_dir.join("rootfs");
