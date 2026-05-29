@@ -1,13 +1,14 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
 use hickory_server::authority::{AuthorityObject, Catalog};
 use hickory_server::proto::rr::Name;
 use hickory_server::proto::xfer::Protocol;
-use hickory_server::resolver::config::{NameServerConfig, NameServerConfigGroup, ResolverOpts};
+use hickory_server::resolver::config::{
+    NameServerConfig, NameServerConfigGroup, ResolverConfig, ResolverOpts,
+};
 use hickory_server::store::forwarder::{ForwardAuthority, ForwardConfig};
 use hickory_server::{ServerFuture, resolver as hickory_resolver};
 use ipnet::Ipv4Net;
@@ -87,29 +88,42 @@ async fn resolve_upstreams(config: &DnsConfig) -> Result<Vec<SocketAddr>, Error>
 }
 
 /// The VPS's own system resolvers. Prefer systemd-resolved's upstream list
-/// (`/run/systemd/resolve/resolv.conf`) over `/etc/resolv.conf`, which on a
-/// systemd box is just the `127.0.0.53` stub. Loopback entries are dropped so
-/// the proxy never forwards to itself / the stub (which would loop).
+/// (`/run/systemd/resolve/resolv.conf`, which holds the real upstreams rather
+/// than the `127.0.0.53` stub), falling back to `/etc/resolv.conf` on systems
+/// that don't run systemd-resolved. Loopback entries are dropped so the proxy
+/// never forwards to itself / the stub (which would loop).
 async fn default_upstreams() -> Result<Vec<SocketAddr>, Error> {
-    let systemd = Path::new("/run/systemd/resolve/resolv.conf");
-    let config = if systemd.exists() {
-        let contents = read_file_to_string(systemd).await?;
-        hickory_resolver::system_conf::parse_resolv_conf(contents)
-            .with_kind(ErrorKind::ParseSysInfo)?
-            .0
-    } else {
-        hickory_resolver::system_conf::read_system_conf()
-            .with_kind(ErrorKind::ParseSysInfo)?
-            .0
+    let from_systemd = systemd_resolved_upstreams().await;
+    if !from_systemd.is_empty() {
+        return Ok(from_systemd);
+    }
+    let (config, _) =
+        hickory_resolver::system_conf::read_system_conf().with_kind(ErrorKind::ParseSysInfo)?;
+    Ok(resolv_conf_upstreams(&config))
+}
+
+/// systemd-resolved's upstream resolvers, or empty if the file is absent,
+/// unreadable, or unparseable (e.g. the system doesn't run systemd-resolved).
+async fn systemd_resolved_upstreams() -> Vec<SocketAddr> {
+    let Ok(contents) = read_file_to_string("/run/systemd/resolve/resolv.conf").await else {
+        return Vec::new();
     };
+    match hickory_resolver::system_conf::parse_resolv_conf(contents) {
+        Ok((config, _)) => resolv_conf_upstreams(&config),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Non-loopback nameservers from a parsed resolv.conf, de-duplicated.
+fn resolv_conf_upstreams(config: &ResolverConfig) -> Vec<SocketAddr> {
     let mut seen = BTreeSet::new();
-    Ok(config
+    config
         .name_servers()
         .iter()
         .map(|ns| ns.socket_addr)
         .filter(|addr| !addr.ip().is_loopback())
         .filter(|addr| seen.insert(*addr))
-        .collect())
+        .collect()
 }
 
 /// Bind UDP + TCP on `addr:53` and spawn a `ServerFuture` forwarding to `upstreams`.
