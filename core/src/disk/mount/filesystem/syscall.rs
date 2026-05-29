@@ -356,7 +356,15 @@ pub async fn userns_fd_from_idmap(idmap: &[crate::disk::mount::filesystem::idmap
     let gid_map = uid_map.clone();
 
     let helper = which_self_exe()?;
+    // The MultiExecutable dispatcher selects a sub-bin by the basename of
+    // argv[0], falling through to argv[1] only when argv[0] is not itself a
+    // registered bin. current_exe is `start-container` inside the LXC (a
+    // registered, default bin), which would shadow the `unshare-userns`
+    // selector and run the container CLI instead. Override argv[0] with a
+    // non-bin sentinel so dispatch falls through to the `unshare-userns`
+    // arg regardless of what current_exe is named.
     let mut child = Command::new(&helper)
+        .arg0("startos-unshare-userns-helper")
         .arg("unshare-userns")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -379,9 +387,18 @@ pub async fn userns_fd_from_idmap(idmap: &[crate::disk::mount::filesystem::idmap
         match tokio::time::timeout(Duration::from_secs(5), reader.read_line(&mut line)).await {
             Ok(Ok(_)) if line.trim() == "ready" => (),
             Ok(Ok(_)) => {
+                let mut stderr = String::new();
+                if let Some(mut e) = child.stderr.take() {
+                    use tokio::io::AsyncReadExt;
+                    let _ = e.read_to_string(&mut stderr).await;
+                }
                 let _ = child.kill().await;
                 return Err(Error::new(
-                    eyre!("unshare-userns helper said: {}", line.trim()),
+                    eyre!(
+                        "unshare-userns helper failed (stdout: {:?}, stderr: {})",
+                        line.trim(),
+                        stderr.trim()
+                    ),
                     ErrorKind::Filesystem,
                 ));
             }
