@@ -754,4 +754,6 @@ export const ENGLISH: Record<string, number> = {
   'This version has no instructions. Please update.': 840,
   'Overall': 841,
   'OS Data': 842,
+  'the address of this server on the tunnel': 843,
+  'In StartTunnel, set the DNS for this subnet to this server.': 844,
 }

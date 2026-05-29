@@ -45,25 +45,14 @@ import { GatewayItemComponent } from './item.component'
         }
       }
       {{ gatewayGroup().gatewayName }}
-      @if (gatewayGroup().isWireguard) {
-        <button
-          tuiButton
-          iconStart="@tui.plus"
-          [style.margin-inline-start]="'auto'"
-          (click)="addPublicDomain()"
-        >
-          {{ 'Add Public Domain' | i18n }}
-        </button>
-      } @else {
-        <button
-          tuiButton
-          iconStart="@tui.plus"
-          [style.margin-inline-start]="'auto'"
-          (click)="openDomainTypePicker()"
-        >
-          {{ 'Add Domain' | i18n }}
-        </button>
-      }
+      <button
+        tuiButton
+        iconStart="@tui.plus"
+        [style.margin-inline-start]="'auto'"
+        (click)="openDomainTypePicker()"
+      >
+        {{ 'Add Domain' | i18n }}
+      </button>
     </header>
     <table
       [appTable]="[

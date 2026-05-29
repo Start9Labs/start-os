@@ -753,4 +753,6 @@ export default {
   840: "Cette version ne contient pas d'instructions. Veuillez mettre à jour.",
   841: 'Global',
   842: "Données de l'OS",
+  843: "l'adresse de ce serveur sur le tunnel",
+  844: 'Dans StartTunnel, définissez le DNS de ce sous-réseau sur ce serveur.',
 } satisfies i18n

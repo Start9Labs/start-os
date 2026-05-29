@@ -753,4 +753,6 @@ export default {
   840: 'Diese Version enthält keine Anweisungen. Bitte aktualisieren.',
   841: 'Gesamt',
   842: 'Betriebssystemdaten',
+  843: 'die Adresse dieses Servers im Tunnel',
+  844: 'Stellen Sie in StartTunnel das DNS dieses Subnetzes auf diesen Server ein.',
 } satisfies i18n

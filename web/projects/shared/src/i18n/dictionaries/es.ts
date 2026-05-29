@@ -753,4 +753,6 @@ export default {
   840: 'Esta versión no incluye instrucciones. Por favor, actualice.',
   841: 'General',
   842: 'Datos del SO',
+  843: 'la dirección de este servidor en el túnel',
+  844: 'En StartTunnel, configure el DNS de esta subred para que use este servidor.',
 } satisfies i18n
