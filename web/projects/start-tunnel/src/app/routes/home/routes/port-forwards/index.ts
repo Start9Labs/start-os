@@ -78,7 +78,7 @@ import { MappedDevice, MappedForward } from './utils'
             <td>{{ forward.externalport }}</td>
             <td>{{ forward.device.name }}</td>
             <td>{{ forward.internalport }}</td>
-            <td>TCP, UDP</td>
+            <td>TCP/UDP</td>
             <td>
               <button
                 tuiIconButton
