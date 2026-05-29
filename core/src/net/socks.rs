@@ -8,6 +8,7 @@ use socks5_impl::server::{AuthAdaptor, ClientConnection, Server};
 use tokio::net::{TcpListener, TcpStream};
 
 use crate::HOST_IP;
+use crate::net::mdns::resolve_mdns;
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::future::NonDetachingJoinHandle;
@@ -16,6 +17,49 @@ pub const DEFAULT_SOCKS_LISTEN: SocketAddr = SocketAddr::V4(SocketAddrV4::new(
     Ipv4Addr::new(HOST_IP[0], HOST_IP[1], HOST_IP[2], HOST_IP[3]),
     1080,
 ));
+
+/// SOCKS5 proxy exposed by the `tor` service (the user-installable Tor plugin),
+/// reachable from the host via the embedded DNS once that service is running.
+/// Matches the default the registry server uses for its own onion requests.
+const TOR_PROXY: (&str, u16) = ("tor.startos", 9050);
+
+/// Open a connection to a SOCKS `CONNECT` target, special-casing the two address
+/// families the host's resolver/router can't reach on its own:
+///
+/// - `*.onion` is tunneled through the Tor service's SOCKS5 proxy ([`TOR_PROXY`]).
+///   Requires the `tor` service installed and running; otherwise `tor.startos`
+///   doesn't resolve and the connection fails.
+/// - `*.local` is resolved over mDNS via Avahi. The host runs systemd-resolved
+///   with `MulticastDNS=no` and forwards `.local` to unicast upstreams, so
+///   `getaddrinfo` never sees it — [`resolve_mdns`] queries `avahi` directly.
+///
+/// Everything else (clearnet hostnames, `*.startos`, raw IPs) connects directly
+/// through the host's normal resolution path.
+async fn connect_target(addr: Address) -> Result<TcpStream, Error> {
+    match addr {
+        Address::DomainAddress(domain, port) if domain.ends_with(".onion") => {
+            let mut tor = TcpStream::connect(TOR_PROXY)
+                .await
+                .with_kind(ErrorKind::Network)?;
+            socks5_impl::client::connect(&mut tor, Address::DomainAddress(domain, port), None)
+                .await
+                .with_kind(ErrorKind::Network)?;
+            Ok(tor)
+        }
+        Address::DomainAddress(domain, port) if domain.ends_with(".local") => {
+            let ip = resolve_mdns(&domain).await?;
+            TcpStream::connect((ip, port))
+                .await
+                .with_kind(ErrorKind::Network)
+        }
+        Address::DomainAddress(domain, port) => TcpStream::connect((domain, port))
+            .await
+            .with_kind(ErrorKind::Network),
+        Address::SocketAddress(addr) => {
+            TcpStream::connect(addr).await.with_kind(ErrorKind::Network)
+        }
+    }
+}
 
 pub struct SocksController {
     _thread: NonDetachingJoinHandle<()>,
@@ -56,14 +100,9 @@ impl SocksController {
                                                 .with_kind(ErrorKind::Network)?
                                             {
                                                 ClientConnection::Connect(reply, addr) => {
-                                                    if let Ok(mut target) = match addr {
-                                                        Address::DomainAddress(domain, port) => {
-                                                            TcpStream::connect((domain, port)).await
-                                                        }
-                                                        Address::SocketAddress(addr) => {
-                                                            TcpStream::connect(addr).await
-                                                        }
-                                                    } {
+                                                    if let Ok(mut target) =
+                                                        connect_target(addr).await
+                                                    {
                                                         if let Err(e) =
                                                             socket2::SockRef::from(&target)
                                                                 .set_keepalive(true)
