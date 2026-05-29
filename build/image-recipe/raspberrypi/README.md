@@ -36,18 +36,29 @@ nothing else does.
 
 ## Image layout
 
-The live installer image has three partitions:
+The live installer image has **two** MBR partitions:
 
-| # | Name     | Size  | FS    | Contents                                  |
-|---|----------|-------|-------|-------------------------------------------|
-| 1 | firmware | 128MB | FAT32 | VPU blobs + EDK2 .fd + config.txt + DTBs  |
-| 2 | efi      | 100MB | FAT32 | GRUB-EFI loader (`EFI/BOOT/BOOTAA64.EFI`) |
-| 3 | boot     | ~1GB  | FAT32 | GRUB modules + `grub.cfg`, kernels, initrds, `/live/filesystem.squashfs` |
+| # | Name     | Type | FS    | Contents                                  |
+|---|----------|------|-------|-------------------------------------------|
+| 1 | firmware | `ef` | FAT32 | VPU blobs + EDK2 `RPI_EFI_*.fd` + config.txt + DTBs **+ `EFI/BOOT/BOOTAA64.EFI`** |
+| 2 | boot     | `c`  | FAT32 | GRUB modules + `grub.cfg`, kernels, initrds, `/live/filesystem.squashfs` |
+
+The GRUB EFI loader is **co-located with `RPI_EFI_*.fd` on partition 1**,
+not on a separate ESP. RPi EDK2 ships `PcdBootDiscoveryPolicy = minimal`,
+so on a normal boot it only connects the volume it loaded the firmware
+from; the `\EFI\BOOT\BOOTAA64.EFI` removable-media fallback only scans
+already-connected volumes. A loader on a separate ESP is never connected,
+so EDK2 finds no boot option and falls through to PXE → setup. Putting
+the loader on the firmware partition (pftf's reference single-FAT layout,
+type `ef`) is what makes EDK2 auto-launch GRUB. (The partition *table*
+type, GPT vs MBR, was **not** the deciding factor — co-location is.)
 
 No root partition — the live system overlay-mounts the squashfs as
 its rootfs via live-init. When the user runs the installer from setup
 mode, `os_install` partitions the target disk with the full installed
-layout (firmware + efi + boot + btrfs root + optional data).
+layout (firmware + efi + boot + btrfs root + optional data). **Note:**
+the installed-disk path uses GRUB's `--removable --no-nvram` install on
+Pi for the same connect-policy reason — see `core/src/os_install/`.
 
 ## Sources
 
@@ -117,9 +128,11 @@ This trade-off was accepted in preference to:
 Pi 5 + M.2 HAT+ + NVMe is the expected target for serious deployments.
 For this to work:
 
-1. `dtparam=pciex1` in `config.txt` (set in our `config.sh`).
-2. EDK2 must enumerate PCIe early enough to expose NVMe to GRUB.
-   NumberOneGit's build does this.
-3. The Pi EEPROM `BOOT_ORDER` needs `0xf416` or similar to attempt
+1. EDK2 enumerates the PCIe root complex / NVMe internally and exposes
+   it to GRUB; NumberOneGit's build does this. We deliberately do **not**
+   add `dtparam=pciex1` to `config.txt` — the pinned NumberOneGit
+   reference config omits it, and diverging from the reference config is
+   what caused earlier boot regressions.
+2. The Pi EEPROM `BOOT_ORDER` needs `0xf416` or similar to attempt
    NVMe before SD. This is user setup, not image config — covered in
    the Pi 5 + StartOS install docs in `start-docs`.

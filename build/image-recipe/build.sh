@@ -115,9 +115,9 @@ lb config \
 	--mirror-chroot-security "https://security.debian.org/debian-security" \
 	-d ${IB_SUITE} \
 	-a ${IB_TARGET_ARCH} \
-	${QEMU_ARGS[@]} \
+	"${QEMU_ARGS[@]}" \
 	--archive-areas "${ARCHIVE_AREAS}" \
-	${PLATFORM_CONFIG_EXTRAS[@]}
+	"${PLATFORM_CONFIG_EXTRAS[@]}"
 
 # Overlays
 
@@ -464,30 +464,35 @@ if [ "${IMAGE_TYPE}" = iso ]; then
 
 elif [ "${IMAGE_TYPE}" = img ]; then
 
-	# Pi live installer image. Same UX as the x86 .iso: user flashes to
-	# USB/SD, boots the Pi, the live system runs setup mode on port 80,
-	# user picks a target disk, core/src/os_install/ writes the installed
-	# StartOS to that target. The image itself has no btrfs root — it's
-	# pure live media.
+	# Pi live INSTALLER image. Same UX as the x86 .iso: flash to USB/SD,
+	# boot, the live system runs setup mode on port 80, the user picks a
+	# target disk, core/src/os_install/ writes the installed StartOS. No
+	# btrfs root — pure live media.
 	#
-	# Layout: firmware (128 MiB) + ESP (100 MiB) + boot (sized to fit
-	# kernel + initrd + grub + filesystem.squashfs). VPU loads EDK2 from
-	# the firmware partition, EDK2 publishes UEFI, GRUB-EFI on the ESP
-	# loads the live kernel from /boot with boot=live cmdline, live-init
-	# finds /boot/live/filesystem.squashfs and overlay-mounts it.
+	# TWO partitions, MBR table:
+	#   p1 "firmware" (FAT32, type ef, bootable): the VPU loads config.txt
+	#     + RPI_EFI_*.fd from here, AND it holds EFI/BOOT/BOOTAA64.EFI.
+	#     These MUST be co-located. RPi EDK2 ships
+	#     PcdBootDiscoveryPolicy = minimal, so on a normal boot it only
+	#     *connects* the volume it loaded the firmware from; the UEFI
+	#     removable-media fallback (\EFI\BOOT\BOOTAA64.EFI) only scans
+	#     already-connected volumes (EfiBootManagerConnectAll runs only on
+	#     the unable-to-boot recovery path). A loader on a *separate* ESP
+	#     is therefore never connected → no boot option → EDK2 falls
+	#     through to PXE IPv4/IPv6 → setup. That was the observed failure;
+	#     GPT-vs-MBR was a red herring. This is pftf's proven
+	#     single-firmware-partition layout (type ef, VPU reads it fine).
+	#   p2 "boot" (FAT32, type c): GRUB modules + grub.cfg, kernels +
+	#     initrds, and the live squashfs at /live/filesystem.squashfs.
+	#     The GRUB stub on p1 finds it by FAT serial (search.fs_uuid).
 
 	SECTOR_LEN=512
-	FW_START=$((1024 * 1024)) # 1MiB (sector 2048) — Pi-specific
-	FW_LEN=$((128 * 1024 * 1024)) # 128MiB (Pi firmware + EDK2 .fd + DTBs)
+	FW_START=$((1024 * 1024)) # 1MiB (sector 2048)
+	FW_LEN=$((128 * 1024 * 1024)) # 128MiB: VPU blobs + EDK2 .fd + DTBs + grub EFI
 	FW_END=$((FW_START + FW_LEN - 1))
-	ESP_START=$((FW_END + 1)) # 100MB EFI System Partition
-	ESP_LEN=$((100 * 1024 * 1024))
-	ESP_END=$((ESP_START + ESP_LEN - 1))
-	BOOT_START=$((ESP_END + 1))
+	BOOT_START=$((FW_END + 1))
 
-	# Boot partition holds GRUB modules + kernel + initrd + the live
-	# squashfs at /live/filesystem.squashfs. Size = squashfs + 128 MiB
-	# overhead for kernels, initrds, and grub modules.
+	# Boot partition: squashfs + 128 MiB for kernels, initrds, grub modules.
 	SQUASHFS_SIZE=$(stat -c %s $prep_results_dir/binary/live/filesystem.squashfs)
 	BOOT_LEN=$(( SQUASHFS_SIZE + 128 * 1024 * 1024 ))
 	BOOT_LEN=$(( (BOOT_LEN + SECTOR_LEN - 1) / SECTOR_LEN * SECTOR_LEN ))
@@ -496,31 +501,38 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	# Total image: just the partitions (MBR table, no GPT backup header).
 	IMG_LEN=$((BOOT_END + 1))
 
+	# Fail the build loudly if a kernel flavour silently dropped. Both
+	# rpi-v8 (Pi 4 family) and rpi-2712 (Pi 5 family) must be present, or
+	# /etc/grub.d/05_pi_kernel_select is a dead no-op and Pi 5 silently
+	# runs the unoptimized rpi-v8 kernel. (A prior unquoted
+	# --linux-flavours expansion word-split the value and dropped
+	# rpi-2712 — guard so any future regression fails here, not on a Pi.)
+	for fl in rpi-v8 rpi-2712; do
+		if ! unsquashfs -l $prep_results_dir/binary/live/filesystem.squashfs 2>/dev/null \
+			| grep -q "/boot/vmlinuz-.*-$fl\$"; then
+			echo "FATAL: kernel flavour '$fl' missing from squashfs — check the quoted --linux-flavours in lb config" >&2
+			exit 1
+		fi
+	done
+
 	TARGET_NAME=$prep_results_dir/${IMAGE_BASENAME}.img
 	truncate -s $IMG_LEN $TARGET_NAME
 
-	# MBR (msdos) partition table, NOT GPT. The Pi's EDK2 UEFI firmware
-	# (pftf/RPi4, NumberOneGit/rpi5-uefi) only reliably enumerates a
-	# bootable EFI System Partition from an MBR table — pftf's own README
-	# warns GPT "has been reported to result in boot errors", and in
-	# practice EDK2 on a GPT disk finds no boot option and falls through
-	# to PXE → setup. The VPU loads config.txt + RPI_EFI.fd from the first
-	# FAT either way, so EDK2 starts; it's EDK2's own partition scan that
-	# needs MBR. Partition types: 0c = W95 FAT32 (LBA), ef = EFI System.
+	# MBR table. p1 type ef (EFI System) holds the VPU firmware + EDK2 .fd
+	# + EFI/BOOT, mirroring pftf's reference single FAT partition; p2 type
+	# c (W95 FAT32 LBA) holds grub + kernels + the live squashfs.
 	sfdisk $TARGET_NAME <<-EOF
 		label: dos
 
-		${TARGET_NAME}1 : start=$((FW_START / SECTOR_LEN)), size=$((FW_LEN / SECTOR_LEN)), type=c, bootable
-		${TARGET_NAME}2 : start=$((ESP_START / SECTOR_LEN)), size=$((ESP_LEN / SECTOR_LEN)), type=ef
-		${TARGET_NAME}3 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=c
+		${TARGET_NAME}1 : start=$((FW_START / SECTOR_LEN)), size=$((FW_LEN / SECTOR_LEN)), type=ef, bootable
+		${TARGET_NAME}2 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=c
 	EOF
 
 	# Named loop device nodes (high minor numbers to avoid conflicts)
 	# with cleanup of stale devices from previous failed builds.
 	FW_DEV=/dev/startos-loop-fw
-	ESP_DEV=/dev/startos-loop-esp
 	BOOT_DEV=/dev/startos-loop-boot
-	for dev in $FW_DEV:200 $ESP_DEV:201 $BOOT_DEV:202; do
+	for dev in $FW_DEV:200 $BOOT_DEV:202; do
 		name=${dev%:*}
 		minor=${dev#*:}
 		[ -e $name ] || mknod $name b 7 $minor
@@ -528,21 +540,22 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	done
 
 	losetup $FW_DEV   --offset $FW_START   --sizelimit $FW_LEN   $TARGET_NAME
-	losetup $ESP_DEV  --offset $ESP_START  --sizelimit $ESP_LEN  $TARGET_NAME
 	losetup $BOOT_DEV --offset $BOOT_START --sizelimit $BOOT_LEN $TARGET_NAME
 
 	mkfs.vfat -F32 -n firmware $FW_DEV
-	mkfs.vfat -F32 -n efi $ESP_DEV
 	mkfs.vfat -F32 -n boot $BOOT_DEV
 
 	TMPDIR=$(mktemp -d)
 
-	# Mount partitions (nested: firmware + efi inside boot)
+	# Mount the boot partition, nest the firmware partition at
+	# /boot/firmware — the squashfs keeps the VPU+EDK2 files under
+	# /boot/firmware/, so the cp below routes them onto p1 automatically,
+	# and grub-install --efi-directory=/boot/firmware lands BOOTAA64.EFI
+	# on p1 right next to RPI_EFI_*.fd.
 	mkdir -p $TMPDIR/boot
 	mount $BOOT_DEV $TMPDIR/boot
-	mkdir -p $TMPDIR/boot/firmware $TMPDIR/boot/efi $TMPDIR/boot/live
-	mount $FW_DEV  $TMPDIR/boot/firmware
-	mount $ESP_DEV $TMPDIR/boot/efi
+	mkdir -p $TMPDIR/boot/firmware $TMPDIR/boot/live
+	mount $FW_DEV $TMPDIR/boot/firmware
 
 	# Extract /boot from the squashfs — this gives us the kernels +
 	# initrds + the firmware-partition contents (nested mount routes
@@ -580,8 +593,14 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	mount -t sysfs sysfs $TMPDIR/next/sys
 	mount --rbind $TMPDIR/boot $TMPDIR/next/boot
 
+	# --efi-directory=/boot/firmware co-locates BOOTAA64.EFI with
+	# RPI_EFI_*.fd on p1 (the volume EDK2 connects on a normal boot);
+	# --boot-directory=/boot puts the modules + real grub.cfg on p2, which
+	# the EFI stub finds by FAT serial. --removable installs to the
+	# \EFI\BOOT\BOOTAA64.EFI fallback path EDK2 auto-launches; --no-nvram
+	# because EDK2's varstore is volatile here.
 	chroot $TMPDIR/next grub-install --target=arm64-efi --removable \
-		--efi-directory=/boot/efi --boot-directory=/boot --no-nvram
+		--efi-directory=/boot/firmware --boot-directory=/boot --no-nvram
 	chroot $TMPDIR/next update-grub
 
 	umount -l $TMPDIR/next/boot
@@ -601,11 +620,9 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 		$TMPDIR/boot/grub/grub.cfg
 
 	umount $TMPDIR/boot/firmware
-	umount $TMPDIR/boot/efi
 	umount $TMPDIR/boot
 
 	losetup -d $BOOT_DEV
-	losetup -d $ESP_DEV
 	losetup -d $FW_DEV
 
 	mv $TARGET_NAME $RESULTS_DIR/$IMAGE_BASENAME.img
