@@ -195,8 +195,10 @@ impl LxcContainer {
         let rootfs = OverlayGuard::mount(
             TmpMountGuard::mount(
                 &IdMapped::new(
-                    BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs")
-                        .with_type("squashfs"),
+                    // Regular-file squashfs: the syscall fsopen path can't
+                    // loop-attach a non-block-device source (ENOTBLK), so
+                    // leave this on the mount(8) auto-loop fallback.
+                    BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
                     vec![IdMap {
                         from_id: 0,
                         to_id: 100000,

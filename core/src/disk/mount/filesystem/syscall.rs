@@ -344,9 +344,14 @@ impl DetachedMount {
 /// `/proc/<pid>/gid_map`, and opens `/proc/<pid>/ns/user`. Dropping stdin
 /// signals the helper to exit; the userns fd keeps the namespace alive.
 pub async fn userns_fd_from_idmap(idmap: &[crate::disk::mount::filesystem::idmapped::IdMap]) -> Result<OwnedFd, Error> {
+    // /proc/<pid>/uid_map columns are "id-in-userns id-in-parent range".
+    // For an idmapped mount the kernel runs the on-disk id through
+    // map_id_down (matched against col1, output col2), so col1 is the
+    // on-disk id (IdMap::from_id) and col2 is the id the mount user sees
+    // (IdMap::to_id). Order: `from_id to_id range`.
     let uid_map = idmap
         .iter()
-        .map(|i| format!("{} {} {}\n", i.to_id, i.from_id, i.range))
+        .map(|i| format!("{} {} {}\n", i.from_id, i.to_id, i.range))
         .collect::<String>();
     let gid_map = uid_map.clone();
 

@@ -283,7 +283,9 @@ export function makeEffects(context: EffectContext): Effects {
       }) as ReturnType<T.Effects["listServiceInterfaces"]>
     },
     mount(...[options]: Parameters<T.Effects["mount"]>) {
-      return rpcRound("mount-pointer", options) as ReturnType<T.Effects["mount"]>
+      return rpcRound("mount-pointer", options) as ReturnType<
+        T.Effects["mount"]
+      >
     },
     restart(...[]: Parameters<T.Effects["restart"]>) {
       console.log("Restarting service...")

@@ -17,11 +17,15 @@ export type ExecOptions = {
 
 const TIMES_TO_WAIT_FOR_PROC = 100
 
+// Returns whether the bind target was prepared as a file (vs a directory),
+// so callers can pass the matching `--file` flag. For `infer` this resolves
+// against the source, so it must be the single source of truth — `bind()`
+// keys `--file` off this rather than re-deciding.
 async function prepBind(
   from: string | null,
   to: string,
   type: 'file' | 'directory' | 'infer',
-) {
+): Promise<boolean> {
   const fromMeta = from ? await fs.stat(from).catch((_) => null) : null
   const toMeta = await fs.stat(to).catch((_) => null)
 
@@ -35,10 +39,12 @@ async function prepBind(
       await fs.mkdir(to.replace(/\/[^\/]*\/?$/, ''), { recursive: true })
       await fs.writeFile(to, '')
     }
+    return true
   } else {
     if (toMeta && toMeta.isFile() && !toMeta.size) await fs.rm(to)
     if (from && !fromMeta) await fs.mkdir(from, { recursive: true })
     if (!toMeta) await fs.mkdir(to, { recursive: true })
+    return false
   }
 }
 
@@ -48,15 +54,15 @@ async function bind(
   type: 'file' | 'directory' | 'infer',
   idmap: IdMap[],
 ) {
-  await prepBind(from, to, type)
+  const isFile = await prepBind(from, to, type)
 
   // Inside the LXC subcontainer (which is itself idmapped), util-linux's
   // `mount --bind -oX-mount.idmap=...` can't reliably set up a second,
   // nested idmap. start-container's `mount` subcommand performs the bind
   // via direct syscalls (open_tree + mount_setattr + move_mount) so the
-  // SDK's idmap field on volume/asset/dependency/backup mounts works.
+  // SDK's idmap field on volume/asset/dependency mounts works.
   const args = ['mount', '--source', from, '--target', to, '--recursive']
-  if (type === 'file') {
+  if (isFile) {
     args.push('--file')
   }
   for (const i of idmap) {
@@ -522,7 +528,7 @@ export class SubContainerEager<
         await prepBind(null, path, 'directory')
         // Host-side does the base-mapped bind; the SDK idmap is applied
         // separately below as a nested syscall bind so pointer mounts
-        // pick up the same idmap semantics as volume/asset/backup mounts.
+        // pick up the same idmap semantics as volume/asset mounts.
         await this.effects.mount({
           location: path,
           target: { ...options, idmap: [] },
