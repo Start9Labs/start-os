@@ -493,23 +493,26 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	BOOT_LEN=$(( (BOOT_LEN + SECTOR_LEN - 1) / SECTOR_LEN * SECTOR_LEN ))
 	BOOT_END=$((BOOT_START + BOOT_LEN - 1))
 
-	# Total image: partitions + GPT backup header (34 sectors)
-	IMG_LEN=$((BOOT_END + 1 + 34 * SECTOR_LEN))
-
-	# Fixed GPT partition UUIDs (deterministic, based on old MBR disk ID cb15ae4d)
-	FW_UUID=cb15ae4d-0001-4000-8000-000000000001
-	ESP_UUID=cb15ae4d-0002-4000-8000-000000000002
-	BOOT_UUID=cb15ae4d-0003-4000-8000-000000000003
+	# Total image: just the partitions (MBR table, no GPT backup header).
+	IMG_LEN=$((BOOT_END + 1))
 
 	TARGET_NAME=$prep_results_dir/${IMAGE_BASENAME}.img
 	truncate -s $IMG_LEN $TARGET_NAME
 
+	# MBR (msdos) partition table, NOT GPT. The Pi's EDK2 UEFI firmware
+	# (pftf/RPi4, NumberOneGit/rpi5-uefi) only reliably enumerates a
+	# bootable EFI System Partition from an MBR table — pftf's own README
+	# warns GPT "has been reported to result in boot errors", and in
+	# practice EDK2 on a GPT disk finds no boot option and falls through
+	# to PXE → setup. The VPU loads config.txt + RPI_EFI.fd from the first
+	# FAT either way, so EDK2 starts; it's EDK2's own partition scan that
+	# needs MBR. Partition types: 0c = W95 FAT32 (LBA), ef = EFI System.
 	sfdisk $TARGET_NAME <<-EOF
-		label: gpt
+		label: dos
 
-		${TARGET_NAME}1 : start=$((FW_START / SECTOR_LEN)), size=$((FW_LEN / SECTOR_LEN)), type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7, uuid=${FW_UUID}, name="firmware"
-		${TARGET_NAME}2 : start=$((ESP_START / SECTOR_LEN)), size=$((ESP_LEN / SECTOR_LEN)), type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=${ESP_UUID}, name="efi"
-		${TARGET_NAME}3 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=${BOOT_UUID}, name="boot"
+		${TARGET_NAME}1 : start=$((FW_START / SECTOR_LEN)), size=$((FW_LEN / SECTOR_LEN)), type=c, bootable
+		${TARGET_NAME}2 : start=$((ESP_START / SECTOR_LEN)), size=$((ESP_LEN / SECTOR_LEN)), type=ef
+		${TARGET_NAME}3 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=c
 	EOF
 
 	# Named loop device nodes (high minor numbers to avoid conflicts)
