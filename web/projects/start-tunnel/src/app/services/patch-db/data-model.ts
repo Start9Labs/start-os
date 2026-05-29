@@ -17,6 +17,7 @@ export const mockTunnelData: TunnelData = {
           '10.59.0.3': { name: 'Phone', key: '', psk: '' },
           '10.59.0.4': { name: 'Laptop', key: '', psk: '' },
         },
+        dns: { type: 'default' },
       },
     },
   },

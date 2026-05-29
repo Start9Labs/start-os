@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { utils } from '@start9labs/start-sdk'
+import { T, utils } from '@start9labs/start-sdk'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
 import {
@@ -23,6 +23,7 @@ import { SUBNETS_ADD } from './add'
         <tr>
           <th>Name</th>
           <th>IP Range</th>
+          <th>DNS</th>
           <th [style.padding-inline-end.rem]="0.625">
             <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
               Add
@@ -35,6 +36,7 @@ import { SUBNETS_ADD } from './add'
           <tr>
             <td>{{ subnet.name }}</td>
             <td>{{ subnet.range }}</td>
+            <td>{{ subnet.dnsLabel }}</td>
             <td>
               <button
                 tuiIconButton
@@ -55,7 +57,7 @@ import { SUBNETS_ADD } from './add'
                     iconStart="@tui.pencil"
                     (click)="onEdit(subnet)"
                   >
-                    Rename
+                    Edit
                   </button>
                   <button
                     tuiOption
@@ -70,7 +72,7 @@ import { SUBNETS_ADD } from './add'
           </tr>
         } @empty {
           <tr>
-            <td colspan="3">
+            <td colspan="4">
               <app-placeholder icon="@tui.network">No subnets</app-placeholder>
             </td>
           </tr>
@@ -106,6 +108,9 @@ export default class Subnets {
             range,
             name: info.name,
             hasClients: !!Object.keys(info.clients).length,
+            dns: info.dns,
+            clients: info.clients,
+            dnsLabel: dnsLabel(info.dns, info.clients),
           })),
         ),
       ),
@@ -116,16 +121,37 @@ export default class Subnets {
     this.dialogs
       .open(SUBNETS_ADD, {
         label: 'Add Subnet',
-        data: { subnet: this.getNext() },
+        data: {
+          subnet: this.getNext(),
+          mode: 'default',
+          device: null,
+          servers: [],
+          devices: [],
+        },
       })
       .subscribe()
   }
 
-  protected onEdit({ range, name }: MappedSubnet): void {
+  protected onEdit({ range, name, dns, clients }: MappedSubnet): void {
+    const devices = Object.entries(clients).map(([ip, client]) => ({
+      ip,
+      name: client.name,
+    }))
+
     this.dialogs
       .open(SUBNETS_ADD, {
-        label: 'Rename Subnet',
-        data: { subnet: range, name },
+        label: 'Edit Subnet',
+        data: {
+          subnet: range,
+          name,
+          mode: dns.type,
+          device:
+            dns.type === 'device'
+              ? (devices.find(d => d.ip === dns.ip) ?? null)
+              : null,
+          servers: dns.type === 'custom' ? dns.servers : [],
+          devices,
+        },
       })
       .subscribe()
   }
@@ -172,4 +198,21 @@ type MappedSubnet = {
   range: string
   name: string
   hasClients: boolean
+  dns: T.Tunnel.DnsConfig
+  clients: T.Tunnel.WgSubnetClients
+  dnsLabel: string
+}
+
+function dnsLabel(
+  dns: T.Tunnel.DnsConfig,
+  clients: T.Tunnel.WgSubnetClients,
+): string {
+  switch (dns.type) {
+    case 'device':
+      return clients[dns.ip]?.name ?? dns.ip
+    case 'custom':
+      return 'custom'
+    default:
+      return 'default'
+  }
 }

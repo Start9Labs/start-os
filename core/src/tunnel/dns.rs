@@ -1,0 +1,167 @@
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
+
+use hickory_server::authority::{AuthorityObject, Catalog};
+use hickory_server::proto::rr::Name;
+use hickory_server::proto::xfer::Protocol;
+use hickory_server::resolver::config::{NameServerConfig, NameServerConfigGroup, ResolverOpts};
+use hickory_server::store::forwarder::{ForwardAuthority, ForwardConfig};
+use hickory_server::{ServerFuture, resolver as hickory_resolver};
+use ipnet::Ipv4Net;
+use tokio::net::{TcpListener, UdpSocket};
+
+use crate::prelude::*;
+use crate::tunnel::wg::{DnsConfig, WgServer};
+use crate::util::future::NonDetachingJoinHandle;
+use crate::util::io::read_file_to_string;
+use crate::util::sync::SyncMutex;
+
+const DNS_PORT: u16 = 53;
+const FORWARD_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Manages the per-subnet forward-only DNS proxies. Each subnet gets one
+/// `ServerFuture` bound to that subnet's in-tunnel server address (`.1:53`,
+/// UDP + TCP) that forwards every query to the upstream(s) selected for the
+/// subnet. Binding to the specific in-tunnel address — never `0.0.0.0` — keeps
+/// the proxy reachable only over the tunnel, not from the WAN.
+#[derive(Default)]
+pub struct DnsProxyController {
+    listeners: SyncMutex<BTreeMap<Ipv4Net, NonDetachingJoinHandle<()>>>,
+}
+impl DnsProxyController {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Tear down every listener and rebind one proxy per current subnet. Full
+    /// rebuild keeps this race-free against the `wg-quick` down/up cycle that
+    /// re-creates the interface addresses; callers MUST invoke this *after*
+    /// `WgServer::sync()` so the `.1` addresses exist to bind to.
+    pub async fn sync(&self, server: &WgServer) -> Result<(), Error> {
+        // Drop the old listeners and wait for their tasks to finish so the
+        // sockets are released before we rebind the same addresses.
+        let old = self.listeners.mutate(std::mem::take);
+        for (_, handle) in old {
+            let _ = handle.wait_for_abort().await;
+        }
+
+        let mut listeners = BTreeMap::new();
+        for (subnet, config) in &server.subnets.0 {
+            let upstreams = match resolve_upstreams(&config.dns).await {
+                Ok(u) => u,
+                Err(e) => {
+                    tracing::error!("failed to resolve DNS upstreams for {subnet}: {e}");
+                    tracing::debug!("{e:?}");
+                    continue;
+                }
+            };
+            if upstreams.is_empty() {
+                tracing::warn!("no DNS upstreams for subnet {subnet}; proxy not started");
+                continue;
+            }
+            match bind_proxy(subnet.addr(), upstreams).await {
+                Ok(handle) => {
+                    listeners.insert(*subnet, handle);
+                }
+                Err(e) => {
+                    tracing::error!("failed to start DNS proxy for subnet {subnet}: {e}");
+                    tracing::debug!("{e:?}");
+                }
+            }
+        }
+        self.listeners.mutate(|l| *l = listeners);
+        Ok(())
+    }
+}
+
+/// The upstream resolvers a subnet's proxy should forward to, per its mode.
+async fn resolve_upstreams(config: &DnsConfig) -> Result<Vec<SocketAddr>, Error> {
+    match config {
+        DnsConfig::Default => default_upstreams().await,
+        DnsConfig::Device { ip } => Ok(vec![SocketAddr::new(IpAddr::V4(*ip), DNS_PORT)]),
+        DnsConfig::Custom { servers } => Ok(servers.clone()),
+    }
+}
+
+/// The VPS's own system resolvers. Prefer systemd-resolved's upstream list
+/// (`/run/systemd/resolve/resolv.conf`) over `/etc/resolv.conf`, which on a
+/// systemd box is just the `127.0.0.53` stub. Loopback entries are dropped so
+/// the proxy never forwards to itself / the stub (which would loop).
+async fn default_upstreams() -> Result<Vec<SocketAddr>, Error> {
+    let systemd = Path::new("/run/systemd/resolve/resolv.conf");
+    let config = if systemd.exists() {
+        let contents = read_file_to_string(systemd).await?;
+        hickory_resolver::system_conf::parse_resolv_conf(contents)
+            .with_kind(ErrorKind::ParseSysInfo)?
+            .0
+    } else {
+        hickory_resolver::system_conf::read_system_conf()
+            .with_kind(ErrorKind::ParseSysInfo)?
+            .0
+    };
+    let mut seen = BTreeSet::new();
+    Ok(config
+        .name_servers()
+        .iter()
+        .map(|ns| ns.socket_addr)
+        .filter(|addr| !addr.ip().is_loopback())
+        .filter(|addr| seen.insert(*addr))
+        .collect())
+}
+
+/// Bind UDP + TCP on `addr:53` and spawn a `ServerFuture` forwarding to `upstreams`.
+/// Binds before spawning so bind failures surface to the caller.
+async fn bind_proxy(
+    addr: Ipv4Addr,
+    upstreams: Vec<SocketAddr>,
+) -> Result<NonDetachingJoinHandle<()>, Error> {
+    let listen = SocketAddrV4::new(addr, DNS_PORT);
+    let udp = UdpSocket::bind(listen).await.with_kind(ErrorKind::Network)?;
+    let tcp = TcpListener::bind(listen)
+        .await
+        .with_kind(ErrorKind::Network)?;
+
+    let mut server = ServerFuture::new(forwarding_catalog(upstreams)?);
+    server.register_socket(udp);
+    server.register_listener(tcp, FORWARD_TIMEOUT);
+
+    Ok(tokio::spawn(async move {
+        server
+            .block_until_done()
+            .await
+            .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))
+            .log_err();
+    })
+    .into())
+}
+
+/// A `Catalog` whose root zone is a single `ForwardAuthority` pointed at
+/// `upstreams` (UDP + TCP per server). `Catalog` itself implements
+/// `RequestHandler`, so no custom handler is needed for a pure forwarder.
+fn forwarding_catalog(upstreams: Vec<SocketAddr>) -> Result<Catalog, Error> {
+    let name_servers: Vec<NameServerConfig> = upstreams
+        .into_iter()
+        .flat_map(|addr| {
+            [
+                NameServerConfig::new(addr, Protocol::Udp),
+                NameServerConfig::new(addr, Protocol::Tcp),
+            ]
+        })
+        .collect();
+    let mut opts = ResolverOpts::default();
+    opts.timeout = FORWARD_TIMEOUT;
+    let authority = ForwardAuthority::builder_tokio(ForwardConfig {
+        name_servers: NameServerConfigGroup::from(name_servers),
+        options: Some(opts),
+    })
+    .build()
+    .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))?;
+
+    let mut catalog = Catalog::new();
+    let auth: Vec<Arc<dyn AuthorityObject>> = vec![Arc::new(authority)];
+    catalog.upsert(Name::root().into(), auth);
+    Ok(catalog)
+}
