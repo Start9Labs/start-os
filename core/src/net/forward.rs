@@ -408,10 +408,28 @@ struct InterfaceForwardRequest {
     rc: Arc<()>,
 }
 
+/// One target binding pinned by a caller's Arc. Multiple targets can
+/// coexist for the same `ForwardRequirements` during package transitions
+/// (e.g. an old NetService being torn down while a new one is binding the
+/// same port). The list is kept in insertion order; iteration prefers the
+/// most-recently-pinned live entry, and dead entries are gc'd lazily.
+#[derive(Clone)]
+struct TargetSlot {
+    target: SocketAddrV4,
+    target_prefix: u8,
+    rc: Weak<()>,
+}
+
 #[derive(Clone)]
 struct InterfaceForwardEntry {
     external: u16,
-    targets: BTreeMap<ForwardRequirements, (SocketAddrV4, u8, Weak<()>)>,
+    /// For each `ForwardRequirements`, the stack of caller-pinned targets in
+    /// insertion order. The newest live entry wins when installing iptables
+    /// rules; older entries persist only as long as their callers hold the
+    /// returned `Arc`, so that lingering NetServices (e.g. from a still-
+    /// shutting-down upgrade) cannot resurrect a stale target after a fresh
+    /// caller has registered a new one.
+    targets: BTreeMap<ForwardRequirements, Vec<TargetSlot>>,
     // Maps source SocketAddr -> strong reference for the forward created in PortForwardController
     forwards: BTreeMap<SocketAddrV4, Arc<()>>,
 }
@@ -434,11 +452,25 @@ impl InterfaceForwardEntry {
         }
     }
 
+    /// Drop dead `TargetSlot`s and any `ForwardRequirements` whose stack has
+    /// become empty. Called before every reconcile so that stale
+    /// (NetService-dropped) targets cannot get installed.
+    fn prune_dead(&mut self) {
+        for slots in self.targets.values_mut() {
+            slots.retain(|s| s.rc.strong_count() > 0);
+        }
+        self.targets.retain(|_, slots| !slots.is_empty());
+    }
+
     async fn update(
         &mut self,
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
         port_forward: &PortForwardController,
     ) -> Result<(), Error> {
+        // Always gc before reconciling so we never pick a target whose
+        // owner has been dropped.
+        self.prune_dead();
+
         let mut keep = BTreeSet::<SocketAddrV4>::new();
 
         for (gw_id, info) in ip_info.iter() {
@@ -450,10 +482,13 @@ impl InterfaceForwardEntry {
                             continue;
                         }
 
-                        for (reqs, (target, target_prefix, rc)) in self.targets.iter() {
-                            if rc.strong_count() == 0 {
+                        for (reqs, slots) in self.targets.iter() {
+                            // Newest live entry wins (push order = age).
+                            let Some(slot) =
+                                slots.iter().rev().find(|s| s.rc.strong_count() > 0)
+                            else {
                                 continue;
-                            }
+                            };
                             if !reqs.secure && !info.secure() {
                                 continue;
                             }
@@ -468,7 +503,7 @@ impl InterfaceForwardEntry {
 
                             keep.insert(addr);
                             let fwd_rc = port_forward
-                                .add_forward(addr, *target, *target_prefix, src_filter)
+                                .add_forward(addr, slot.target, slot.target_prefix, src_filter)
                                 .await?;
                             self.forwards.insert(addr, fwd_rc);
                             break;
@@ -491,7 +526,7 @@ impl InterfaceForwardEntry {
             target,
             target_prefix,
             reqs,
-            mut rc,
+            rc,
         }: InterfaceForwardRequest,
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
         port_forward: &PortForwardController,
@@ -503,20 +538,31 @@ impl InterfaceForwardEntry {
             ));
         }
 
-        let entry = self
-            .targets
-            .entry(reqs)
-            .or_insert_with(|| (target, target_prefix, Arc::downgrade(&rc)));
-        if entry.0 != target {
-            entry.0 = target;
-            entry.1 = target_prefix;
-            entry.2 = Arc::downgrade(&rc);
+        let slots = self.targets.entry(reqs).or_default();
+        // Drop any dead slots inline so we don't accumulate stale entries
+        // even for callers who never trigger a global gc.
+        slots.retain(|s| s.rc.strong_count() > 0);
+        // If a live slot already pins this exact target, reuse its Arc so
+        // that the caller gets a refcount on the existing pin (matches the
+        // previous coalescing behaviour for idempotent re-binds).
+        if let Some(existing) = slots.iter().find_map(|s| {
+            if s.target == target && s.target_prefix == target_prefix {
+                s.rc.upgrade()
+            } else {
+                None
+            }
+        }) {
+            self.update(ip_info, port_forward).await?;
+            return Ok(existing);
         }
-        if let Some(existing) = entry.2.upgrade() {
-            rc = existing;
-        } else {
-            entry.2 = Arc::downgrade(&rc);
-        }
+        // Otherwise push a fresh slot for this caller. The new slot is
+        // pinned by the caller's Arc and is the newest live entry, so the
+        // next reconcile installs THIS target.
+        slots.push(TargetSlot {
+            target,
+            target_prefix,
+            rc: Arc::downgrade(&rc),
+        });
 
         self.update(ip_info, port_forward).await?;
 
@@ -528,7 +574,9 @@ impl InterfaceForwardEntry {
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
         port_forward: &PortForwardController,
     ) -> Result<(), Error> {
-        self.targets.retain(|_, (_, _, rc)| rc.strong_count() > 0);
+        // update() also prunes, but be explicit here so the intent of gc()
+        // is unambiguous.
+        self.prune_dead();
 
         self.update(ip_info, port_forward).await
     }
@@ -597,20 +645,19 @@ impl From<&InterfaceForwardState> for ForwardTable {
                 .state
                 .iter()
                 .flat_map(|entry| {
-                    entry
-                        .targets
-                        .iter()
-                        .filter(|(_, (_, _, rc))| rc.strong_count() > 0)
-                        .map(|(reqs, (target, target_prefix, _))| {
-                            (
-                                entry.external,
-                                ForwardTarget {
-                                    target: *target,
-                                    target_prefix: *target_prefix,
-                                    reqs: format!("{reqs}"),
-                                },
-                            )
-                        })
+                    entry.targets.iter().filter_map(|(reqs, slots)| {
+                        // Surface the newest live target — the one that
+                        // would be installed by the next reconcile pass.
+                        let slot = slots.iter().rev().find(|s| s.rc.strong_count() > 0)?;
+                        Some((
+                            entry.external,
+                            ForwardTarget {
+                                target: slot.target,
+                                target_prefix: slot.target_prefix,
+                                reqs: format!("{reqs}"),
+                            },
+                        ))
+                    })
                 })
                 .collect(),
         )
