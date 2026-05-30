@@ -1,3 +1,4 @@
+import { UpperCasePipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -8,6 +9,7 @@ import { toSignal } from '@angular/core/rxjs-interop'
 import { getPkgId, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { tuiDefaultSort } from '@taiga-ui/cdk'
+import { TuiTitle } from '@taiga-ui/core'
 import { TuiAccordion, TuiBadge } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
@@ -23,25 +25,19 @@ import { getInstalledBaseStatus } from 'src/app/services/pkg-status-rendering.se
 @Component({
   template: `
     @if (pkg()) {
-      @let ifaces = interfaces();
-
-      @if (ifaces.length) {
+      @if (interfaces().length) {
         <tui-accordion [closeOthers]="false">
-          @for (iface of ifaces; track iface.id) {
-            <button [tuiAccordion]="ifaces.length === 1">
-              <span class="header">
-                <span class="title">
+          @for (iface of interfaces(); track iface.id) {
+            <button [tuiAccordion]="interfaces().length === 1">
+              <span tuiTitle>
+                <b>
                   {{ iface.name }}
-                  <span
-                    tuiBadge
-                    size="m"
-                    [appearance]="getAppearance(iface.type)"
-                  >
-                    {{ iface.type }}
+                  <span tuiBadge [appearance]="getAppearance(iface.type)">
+                    <b>{{ iface.type | uppercase }}</b>
                   </span>
-                </span>
+                </b>
                 @if (iface.description) {
-                  <span class="description">{{ iface.description }}</span>
+                  <span tuiSubtitle>{{ iface.description }}</span>
                 }
               </span>
             </button>
@@ -65,34 +61,8 @@ import { getInstalledBaseStatus } from 'src/app/services/pkg-status-rendering.se
     [tuiAccordion] {
       block-size: auto;
       min-block-size: var(--tui-height-l);
-      padding: 0.75rem 1.25rem;
+      padding-block: 0.75rem;
       white-space: normal;
-    }
-
-    .header {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      align-items: flex-start;
-    }
-
-    .title {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    tui-badge {
-      text-transform: uppercase;
-      font-weight: bold;
-    }
-
-    .description {
-      font: var(--tui-typography-body-s);
-      color: var(--tui-text-secondary);
-      text-align: start;
     }
   `,
   host: { class: 'g-subpage' },
@@ -101,9 +71,11 @@ import { getInstalledBaseStatus } from 'src/app/services/pkg-status-rendering.se
   imports: [
     TuiAccordion,
     TuiBadge,
+    TuiTitle,
     InterfaceComponent,
     PlaceholderComponent,
     i18nPipe,
+    UpperCasePipe,
   ],
 })
 export default class ServiceInterfacesRoute {
@@ -114,11 +86,9 @@ export default class ServiceInterfacesRoute {
   readonly pkgId = getPkgId()
   readonly pkg = toSignal(this.patch.watch$('packageData', this.pkgId))
   readonly allPackageData = toSignal(this.patch.watch$('packageData'))
-
-  readonly isRunning = computed(() => {
-    const pkg = this.pkg()
-    return pkg ? getInstalledBaseStatus(pkg.statusInfo) === 'running' : false
-  })
+  readonly isRunning = computed((pkg = this.pkg()) =>
+    pkg ? getInstalledBaseStatus(pkg.statusInfo) === 'running' : false,
+  )
 
   readonly interfaces = computed<MappedServiceInterface[]>(() => {
     const pkg = this.pkg()
@@ -129,7 +99,7 @@ export default class ServiceInterfacesRoute {
     const allPackageData = this.allPackageData()
 
     return Object.values(serviceInterfaces)
-      .sort((a, b) => tuiDefaultSort(a, b))
+      .sort(tuiDefaultSort)
       .map(iFace => {
         const hostId = iFace.addressInfo.hostId || ''
         const host = hosts[hostId]

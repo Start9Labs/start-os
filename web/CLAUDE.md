@@ -9,3 +9,4 @@
   - Taiga docs are authoritative — this project's existing code is not. If they disagree, the docs win, except where this project has a deliberate local wrapper.
 - **Follow existing patterns before inventing new ones.** Nearly anything you build has a precedent in this codebase — search for a similar component first and copy its conventions (signals, `inject()`, OnPush, etc. — see ARCHITECTURE.md's component conventions).
 - **i18n is mandatory for user-facing strings.** Every English string used in templates goes through `| i18n` and must have an entry in every language dictionary under `shared/src/i18n/dictionaries/`. See ARCHITECTURE.md's i18n section.
+- **Use tuiTitle + tuiSubtitle** for a common UI pattern of a vertical stack of primary text and secondary text. Use the <b> tag to make the title bold.
