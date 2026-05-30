@@ -77,6 +77,18 @@ pub async fn add_tunnel(
         set_as_default_outbound,
     }: AddTunnelParams,
 ) -> Result<GatewayId, Error> {
+    // Caller may declare the type; fall back to auto-detection only when absent.
+    // StartTunnel configs carry a marker => inbound/outbound; anything else
+    // (e.g. a commercial VPN like Mullvad) => outbound-only.
+    let gateway_type = gateway_type.unwrap_or_else(|| {
+        let marker = crate::tunnel::wg::START_TUNNEL_MARKER.to_lowercase();
+        if config.to_lowercase().contains(&marker) {
+            GatewayType::InboundOutbound
+        } else {
+            GatewayType::OutboundOnly
+        }
+    });
+
     let ifaces = ctx.net_controller.net_iface.watcher.subscribe();
     let mut iface = GatewayId::from(InternedString::intern("wg0"));
     if !ifaces.send_if_modified(|i| {
@@ -88,7 +100,7 @@ pub async fn add_tunnel(
                         name: Some(name),
                         secure: None,
                         ip_info: None,
-                        gateway_type,
+                        gateway_type: Some(gateway_type),
                     },
                 );
                 return true;
