@@ -753,4 +753,6 @@ export default {
   840: 'Ta wersja nie zawiera instrukcji. Proszę zaktualizować.',
   841: 'Łącznie',
   842: 'Dane systemu OS',
+  843: 'interfejsy',
+  844: 'akcje & konfiguracja',
 } satisfies i18n
