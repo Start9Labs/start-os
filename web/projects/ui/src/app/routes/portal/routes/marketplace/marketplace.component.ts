@@ -3,25 +3,17 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  OnDestroy,
   signal,
 } from '@angular/core'
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
 import {
-  AbstractCategoryService,
   FilterPackagesPipe,
   MarketplaceAsideComponent,
   StoreIconDirective,
 } from '@start9labs/marketplace'
 import { DialogService, i18nPipe } from '@start9labs/shared'
-import {
-  TuiButton,
-  tuiButtonOptionsProvider,
-  TuiCell,
-  TuiScrollbar,
-  TuiTitle,
-} from '@taiga-ui/core'
+import { TuiButton, TuiCell, TuiScrollbar, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiCardLarge } from '@taiga-ui/layout'
 import { tap } from 'rxjs'
@@ -36,7 +28,12 @@ import { MARKETPLACE_REGISTRY } from './modals/registry.component'
 @Component({
   template: `
     <ng-container *title>{{ 'Marketplace' | i18n }}</ng-container>
-    <marketplace-aside [registry]="registry()" [(sort)]="sort">
+    <marketplace-aside
+      [registry]="registry()"
+      [(sort)]="sort"
+      [(category)]="category"
+      [(query)]="query"
+    >
       <button tuiButton iconEnd="@tui.repeat" (click)="changeRegistry()">
         <span tuiAvatar appearance="action-grayscale" size="xs">
           <img [storeIcon]="registry()?.url" />
@@ -121,9 +118,8 @@ import { MARKETPLACE_REGISTRY } from './modals/registry.component'
     TuiTitle,
   ],
 })
-export default class MarketplaceComponent implements OnDestroy {
+export default class MarketplaceComponent {
   private readonly dialog = inject(DialogService)
-  private readonly categoryService = inject(AbstractCategoryService)
   private readonly marketplaceService = inject(MarketplaceService)
   private readonly configService = inject(ConfigService)
   private readonly router = inject(Router)
@@ -139,7 +135,7 @@ export default class MarketplaceComponent implements OnDestroy {
         // wipe out the user's typed search every time another query param
         // changes (such as `id`/`flavor` when opening a service drawer).
         if (params.has('search')) {
-          this.categoryService.setQuery(params.get('search') || '')
+          this.query.set(params.get('search') || '')
         }
 
         if (!registry) {
@@ -159,21 +155,13 @@ export default class MarketplaceComponent implements OnDestroy {
     .subscribe()
 
   readonly sort = signal('a')
-  readonly category = toSignal(this.categoryService.getCategory$())
-  readonly query = toSignal(this.categoryService.getQuery$())
+  readonly category = signal('all')
+  readonly query = signal('')
   protected readonly registry = toSignal(
     this.marketplaceService.currentRegistry$,
   )
 
   changeRegistry() {
     this.dialog.openComponent(MARKETPLACE_REGISTRY).subscribe()
-  }
-
-  // Clear the search query when leaving the marketplace entirely. Opening a
-  // service drawer only changes query params (the component stays mounted), so
-  // the query survives that; navigating to another route destroys this
-  // component and resets it.
-  ngOnDestroy() {
-    this.categoryService.resetQuery()
   }
 }

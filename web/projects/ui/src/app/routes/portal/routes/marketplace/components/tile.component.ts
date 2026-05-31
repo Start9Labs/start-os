@@ -8,9 +8,9 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
 import { MarketplacePkg } from '@start9labs/marketplace'
-import { LocalizePipe } from '@start9labs/shared'
+import { i18nPipe, LocalizePipe } from '@start9labs/shared'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
-import { TuiButton, TuiCell, TuiPopup, TuiTitle } from '@taiga-ui/core'
+import { TuiButtonX, TuiCell, TuiPopup, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar, TuiDrawer } from '@taiga-ui/kit'
 import { TuiCardLarge, tuiCardOptionsProvider } from '@taiga-ui/layout'
 import { debounceTime } from 'rxjs'
@@ -40,16 +40,12 @@ import { MarketplacePreviewComponent } from '../modals/preview.component'
       <marketplace-preview [pkgId]="pkg().id">
         <button
           tuiAutoFocus
-          slot="close"
-          size="xs"
-          class="close-button"
-          tuiIconButton
-          type="button"
-          appearance="icon"
-          iconStart="@tui.x"
+          tuiButtonX
           [tuiAppearanceFocus]="false"
           (click)="toggle(false)"
-        ></button>
+        >
+          {{ 'Close' | i18n }}
+        </button>
       </marketplace-preview>
     </tui-drawer>
   `,
@@ -73,15 +69,6 @@ import { MarketplacePreviewComponent } from '../modals/preview.component'
       width: 28rem;
       border-radius: 0;
     }
-
-    button {
-      place-self: end;
-      margin-bottom: 0;
-
-      @media (min-width: 768px) {
-        margin-bottom: 2rem;
-      }
-    }
   `,
   host: {
     '(click)': 'toggle(true)',
@@ -93,7 +80,6 @@ import { MarketplacePreviewComponent } from '../modals/preview.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiAutoFocus,
-    TuiButton,
     TuiPopup,
     TuiDrawer,
     MarketplacePreviewComponent,
@@ -101,6 +87,8 @@ import { MarketplacePreviewComponent } from '../modals/preview.component'
     TuiAvatar,
     TuiTitle,
     TuiCell,
+    TuiButtonX,
+    i18nPipe,
   ],
 })
 export class MarketplaceTileComponent {

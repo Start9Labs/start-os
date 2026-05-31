@@ -7,7 +7,7 @@ import {
   TuiLink,
   TuiTitle,
 } from '@taiga-ui/core'
-import { TuiCard, TuiHeader, TuiList } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiHeader, TuiList } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 
 export type DomainType = 'public' | 'private'
@@ -143,7 +143,7 @@ export type DomainType = 'public' | 'private'
     TuiIcon,
     TuiLink,
     i18nPipe,
-    TuiCard,
+    TuiCardLarge,
     TuiHeader,
     TuiTitle,
     TuiList,

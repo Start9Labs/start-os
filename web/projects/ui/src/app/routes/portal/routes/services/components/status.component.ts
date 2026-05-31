@@ -24,7 +24,7 @@ import {
         }
 
         @if (rendering().showDots) {
-          <span class="loading-dots"></span>
+          <span class="g-dots"></span>
         }
 
         @if (pkg().statusInfo.started; as started) {

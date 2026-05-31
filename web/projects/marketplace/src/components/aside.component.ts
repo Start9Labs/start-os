@@ -21,8 +21,6 @@ import {
 } from '@taiga-ui/core'
 import { TuiButtonSelect, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiNavigation } from '@taiga-ui/layout'
-
-import { AbstractCategoryService } from '../services/category.service'
 import { StoreDataWithUrl } from '../types'
 
 const ICONS: Record<string, string> = {
@@ -70,8 +68,7 @@ const ICONS: Record<string, string> = {
           <input
             tuiInput
             placeholder="Search"
-            [ngModel]="query()"
-            (ngModelChange)="service.setQuery($event)"
+            [(ngModel)]="query"
             (focus)="open.set(true)"
           />
         </tui-textfield>
@@ -157,10 +154,9 @@ const ICONS: Record<string, string> = {
 export class MarketplaceAsideComponent {
   readonly registry = input<StoreDataWithUrl>()
   readonly sort = model('a')
+  readonly query = model('')
+  readonly category = model('')
 
-  protected readonly service = inject(AbstractCategoryService)
-  protected readonly category = toSignal(this.service.getCategory$())
-  protected readonly query = toSignal(this.service.getQuery$())
   protected readonly icons = ICONS
   protected readonly asIs = () => 0
   protected readonly mobile = inject(WA_IS_MOBILE)
@@ -176,8 +172,8 @@ export class MarketplaceAsideComponent {
   }
 
   onCategory(category: string) {
-    this.service.resetQuery()
-    this.service.changeCategory(category)
+    this.query.set('')
+    this.category.set(category)
   }
 
   getLabel(sort: string) {
