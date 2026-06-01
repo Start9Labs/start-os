@@ -42,7 +42,10 @@ pub enum DeviceStatus {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Device {
     pub mac: Option<String>,
-    pub name: Option<String>,
+    /// Fully-resolved display name: UCI static name → live DHCP hostname →
+    /// remembered hostname (cache) → `device-<mac>` placeholder.
+    pub name: String,
+    /// Raw DHCP lease hostname (may be "*"); surfaced as an edit-form hint.
     pub hostname: Option<String>,
     pub status: DeviceStatus,
     pub connection: Option<String>,
@@ -122,6 +125,15 @@ struct DhcpLease {
     mac: String,
     ip: String,
     hostname: String,
+}
+
+/// Placeholder name for a device with no UCI name, DHCP hostname, or cached
+/// hostname. Strips colons, takes the last 6 hex chars, lowercases →
+/// `device-<suffix>` (kept identical to the frontend's prior name generator).
+fn fallback_name(mac: &str) -> String {
+    let hex: String = mac.chars().filter(|c| *c != ':').collect();
+    let start = hex.len().saturating_sub(6);
+    format!("device-{}", hex[start..].to_lowercase())
 }
 
 /// Parse a 32-char hex IPv6 address from /proc/net/if_inet6 into standard notation.
@@ -977,6 +989,16 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     }
 
     // --- Phase 4: Build device list ---
+    //
+    // Load the persistent name cache once. It backfills a remembered hostname
+    // for any MAC the live sources (UCI host, DHCP lease) can't name this poll,
+    // so a recognized device never reverts to a `device-<mac>` placeholder just
+    // because dnsmasq's volatile lease state dropped its name. Observations
+    // gathered in the loop are committed back to the cache afterwards.
+    let cache_now = chrono::Utc::now().timestamp();
+    let name_cache = crate::device_names::load_all();
+    let mut name_observations: Vec<crate::device_names::Observation> = Vec::new();
+
     let mut devices = Vec::new();
     for mac in &all_macs {
         let arp_list = arp_by_mac.get(mac).cloned().unwrap_or_default();
@@ -1028,19 +1050,30 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
             .unwrap_or(1);
         let security_profile = profile_by_vlan.get(&vlan_tag).cloned();
 
-        // Name
+        // Fully-resolved display name. UCI static host (user-assigned) wins,
+        // then the live DHCP-lease hostname, then the remembered hostname from
+        // the cache, then a `device-<mac>` placeholder. A fresh live name always
+        // overrides a remembered one because the cache sits below the live
+        // sources in the chain.
+        let dhcp_hostname = lease.and_then(|l| {
+            if l.hostname != "*" && !l.hostname.is_empty() {
+                Some(l.hostname.clone())
+            } else {
+                None
+            }
+        });
         let name = host
             .and_then(|h| h.name.clone())
-            .or_else(|| {
-                lease.and_then(|l| {
-                    if l.hostname != "*" {
-                        Some(l.hostname.clone())
-                    } else {
-                        None
-                    }
-                })
-            });
+            .or_else(|| dhcp_hostname.clone())
+            .or_else(|| name_cache.get(mac).cloned())
+            .unwrap_or_else(|| fallback_name(mac));
         let hostname = lease.map(|l| l.hostname.clone());
+
+        // Remember the DHCP-advertised name (or keep an existing entry alive).
+        name_observations.push(crate::device_names::Observation {
+            mac: mac.clone(),
+            dhcp_hostname,
+        });
 
         // Connection type — only label as "Ethernet" when the bridge FDB
         // does NOT place the MAC on a WiFi port. This prevents recently
@@ -1087,6 +1120,10 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
             data_usage,
         });
     }
+
+    // Persist this poll's observations (learn/refresh names, keep visible
+    // entries alive, opportunistic prune). Best-effort — never fails the list.
+    crate::device_names::commit(&name_observations, cache_now).await;
 
     // --- Phase 5: Add VPN-connected peers ---
     //
@@ -1167,7 +1204,11 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
 
             devices.push(Device {
                 mac: None,
-                name: Some(peer_cfg.name.clone()),
+                name: if peer_cfg.name.is_empty() {
+                    "VPN Device".to_string()
+                } else {
+                    peer_cfg.name.clone()
+                },
                 hostname: None,
                 status: DeviceStatus::Online,
                 connection: Some(format!("VPN {}", server.label)),
@@ -1326,6 +1367,7 @@ pub async fn forget<C: CtrlContext>(
                     &format!("Forgot device {}", mac_upper),
                     None,
                 );
+                crate::device_names::forget(&mac_upper).await;
                 if ctx.effectful() {
                     flush_device_from_network(&mac_upper).await;
                 }

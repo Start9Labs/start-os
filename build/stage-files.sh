@@ -155,6 +155,9 @@ cat > "${FILES_DIR}/lib/upgrade/keep.d/startwrt" << 'KEEPEOF'
 /etc/ssl/private/startwrt-server.key
 /etc/nlbwmon/data/
 /etc/startwrt/pending-update
+# Persistent device-name cache. Written atomically (temp + rename), so a live
+# `sysupgrade --create-backup` always captures one complete JSON document.
+/etc/startwrt/device_names.json
 KEEPEOF
 
 echo "==> Staging complete."

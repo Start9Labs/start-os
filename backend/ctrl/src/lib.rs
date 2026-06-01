@@ -7,6 +7,7 @@ pub mod auth;
 pub mod backup;
 pub mod captive;
 pub mod continuations;
+pub mod device_names;
 pub mod devices;
 pub mod diagnostics;
 pub mod dns;

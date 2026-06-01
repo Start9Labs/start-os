@@ -441,7 +441,7 @@ export interface SetupFlashEvent {
 // Device types (from backend smart endpoints)
 export interface DeviceFromApi {
   mac: string | null
-  name: string | null
+  name: string
   hostname: string | null
   status: 'online' | 'offline'
   connection: string | null

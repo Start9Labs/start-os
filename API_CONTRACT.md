@@ -584,9 +584,10 @@ enum DeviceStatus {
 #[derive(Serialize)]
 struct Device {
     mac: String,
-    /// User-assigned name
-    name: Option<String>,
-    /// Device-reported hostname
+    /// Fully-resolved display name: UCI static name → live DHCP hostname →
+    /// remembered hostname (name cache) → `device-<mac>` placeholder. Always set.
+    name: String,
+    /// Raw DHCP lease hostname ("*" when unset); a hint for the rename form.
     hostname: Option<String>,
     status: DeviceStatus,
     /// "Ethernet", "Wi-Fi 2.4GHz", "Wi-Fi 5GHz", etc.
@@ -598,7 +599,10 @@ struct Device {
     security_profile: Option<String>,
 }
 // Response: Vec<Device>
-// Backend: reads DHCP hosts, firewall rules, ARP table, DHCP leases
+// Backend: reads DHCP hosts, firewall rules, ARP table, DHCP leases, and a
+// persistent name cache (/etc/startwrt/device_names.json) that remembers
+// DHCP-advertised hostnames per MAC. The backend resolves the full name
+// fallback chain server-side and returns a single `name`.
 ```
 
 ### `devices.update`

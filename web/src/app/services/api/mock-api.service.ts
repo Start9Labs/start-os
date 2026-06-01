@@ -913,9 +913,17 @@ export class MockApiService extends ApiService {
         p => p.interface === def.profileInterface,
       )
 
+      // Mirror the backend's server-side name resolution chain:
+      // UCI name → DHCP hostname → device-<mac>.
+      const dhcpHostname = def.hostname !== '*' ? def.hostname : null
+      const name =
+        device.name ||
+        dhcpHostname ||
+        `device-${mac.replace(/:/g, '').slice(-6).toLowerCase()}`
+
       return {
         mac,
-        name: device.name,
+        name,
         hostname: def.hostname,
         status: def.status,
         connection: def.status === 'online' ? def.connection : null,

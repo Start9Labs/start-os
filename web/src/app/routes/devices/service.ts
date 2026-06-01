@@ -47,14 +47,9 @@ export class DevicesApiService {
   }
 
   private mapDevice(d: DeviceFromApi): Device {
-    const name =
-      d.name ||
-      (d.hostname && d.hostname !== '*' ? d.hostname : null) ||
-      (d.mac ? this.generateNameFromMac(d.mac) : 'VPN Device')
-
     return {
       mac: d.mac,
-      name,
+      name: d.name, // fully resolved server-side
       hostname: d.hostname || '',
       status: d.status,
       connection: d.connection || undefined,
@@ -66,11 +61,6 @@ export class DevicesApiService {
       speed: d.speed || undefined,
       dataUsage: d.data_usage ?? undefined,
     }
-  }
-
-  private generateNameFromMac(mac: string): string {
-    const suffix = mac.replace(/:/g, '').slice(-6).toLowerCase()
-    return `device-${suffix}`
   }
 }
 

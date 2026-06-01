@@ -424,11 +424,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<PublishedPort>, Error> {
                 source: raw.source.clone(),
                 status,
                 status_reason,
-                device_name: device.and_then(|d| {
-                    d.name
-                        .clone()
-                        .or_else(|| d.hostname.clone())
-                }),
+                device_name: device.map(|d| d.name.clone()),
                 device_ipv4: device.and_then(|d| d.ipv4.clone()),
                 device_ipv6: device.and_then(|d| d.ipv6.clone()),
             }

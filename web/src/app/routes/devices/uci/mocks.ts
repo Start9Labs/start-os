@@ -180,6 +180,18 @@ export const MOCK_DEVICE_DEFS: MockDeviceDef[] = [
     speed: null,
     dataUsage: 234.1,
   },
+  {
+    // No DHCP name advertised ('*') and no static host entry — exercises the
+    // `device-<mac>` placeholder rendering.
+    mac: 'AA:BB:CC:DD:EE:02',
+    hostname: '*',
+    hostOctet: 111,
+    profileInterface: 'lan',
+    connection: 'Ethernet',
+    status: 'online',
+    speed: { up: 0.5, down: 5.0 },
+    dataUsage: 12.0,
+  },
 ]
 
 // Mock nlbwmon data generator
