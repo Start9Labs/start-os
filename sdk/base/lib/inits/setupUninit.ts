@@ -43,7 +43,7 @@ export type UninitScriptOrFn = UninitScript | UninitFn
 export function setupUninit(
   ...uninits: UninitScriptOrFn[]
 ): T.ExpectedExports.uninit {
-  return async (opts) => {
+  return async opts => {
     for (const uninit of uninits) {
       if ('uninit' in uninit) await uninit.uninit(opts.effects, opts.target)
       else await uninit(opts.effects, opts.target)

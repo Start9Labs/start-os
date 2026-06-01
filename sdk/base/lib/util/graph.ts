@@ -37,7 +37,7 @@ export class Graph<VMetadata = null, EMetadata = null> {
    * @returns A pretty-printed JSON string of the graph structure
    */
   dump(
-    metadataRepr: (metadata: VMetadata | EMetadata) => any = (a) => a,
+    metadataRepr: (metadata: VMetadata | EMetadata) => any = a => a,
   ): string {
     const seen = new WeakSet()
 
@@ -149,8 +149,8 @@ export class Graph<VMetadata = null, EMetadata = null> {
       visited.push(vertex)
       yield vertex
       let generators = vertex.edges
-        .filter((e) => e.from === vertex)
-        .map((e) => rec(e.to))
+        .filter(e => e.from === vertex)
+        .map(e => rec(e.to))
       while (generators.length) {
         let prev = generators
         generators = []
@@ -205,8 +205,8 @@ export class Graph<VMetadata = null, EMetadata = null> {
       visited.push(vertex)
       yield vertex
       let generators = vertex.edges
-        .filter((e) => e.to === vertex)
-        .map((e) => rec(e.from))
+        .filter(e => e.to === vertex)
+        .map(e => rec(e.from))
       while (generators.length) {
         let prev = generators
         generators = []
@@ -274,8 +274,8 @@ export class Graph<VMetadata = null, EMetadata = null> {
       visited.push(vertex)
       yield
       let generators = vertex.edges
-        .filter((e) => e.from === vertex)
-        .map((e) => check(e.to, [...path, e]))
+        .filter(e => e.from === vertex)
+        .map(e => check(e.to, [...path, e]))
       while (generators.length) {
         let prev = generators
         generators = []
@@ -295,7 +295,7 @@ export class Graph<VMetadata = null, EMetadata = null> {
     }
 
     if (from instanceof Function) {
-      let generators = this.vertices.filter(from).map((v) => check(v, []))
+      let generators = this.vertices.filter(from).map(v => check(v, []))
       while (generators.length) {
         let prev = generators
         generators = []

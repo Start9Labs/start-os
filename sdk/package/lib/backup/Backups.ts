@@ -116,7 +116,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     ...volumeNames: Array<M['volumes'][number]>
   ): Backups<M> {
     return Backups.ofSyncs(
-      ...volumeNames.map((srcVolume) => ({
+      ...volumeNames.map(srcVolume => ({
         dataPath: `/media/startos/volumes/${srcVolume}/` as const,
         backupPath: `/media/startos/backup/volumes/${srcVolume}/` as const,
       })),
@@ -223,19 +223,19 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
           console.log(`[${label}] postgres is ready`)
           return
         }
-        await new Promise((r) => setTimeout(r, 1000))
+        await new Promise(r => setTimeout(r, 1000))
       }
       throw new Error('PostgreSQL failed to become ready within 60 seconds')
     }
 
     return new Backups<M>()
-      .setPreBackup(async (effects) => {
+      .setPreBackup(async effects => {
         await SubContainer.withTemp<M, void, BackupEffects>(
           effects,
           { imageId },
           dbMounts() as any,
           'pg-dump',
-          async (sub) => {
+          async sub => {
             console.log('[pg-dump] mounting backup target')
             await mountBackupTarget(sub.rootfs)
             await sub.execFail(['touch', tmpDumpFile], { user: 'root' })
@@ -259,14 +259,14 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
           },
         )
       })
-      .setPostRestore(async (effects) => {
+      .setPostRestore(async effects => {
         const resolvedPassword = await resolvePassword(password)
         await SubContainer.withTemp<M, void, BackupEffects>(
           effects,
           { imageId },
           dbMounts() as any,
           'pg-restore',
-          async (sub) => {
+          async sub => {
             await mountBackupTarget(sub.rootfs)
             // Stage the dump off the FUSE before pg_restore reads it — see
             // the comment on `tmpDumpFile` above.
@@ -370,7 +370,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       for (let i = 0; i < 30; i++) {
         const { exitCode } = await sub.exec(cmd)
         if (exitCode === 0) return
-        await new Promise((r) => setTimeout(r, 1000))
+        await new Promise(r => setTimeout(r, 1000))
       }
       throw new Error('MySQL/MariaDB failed to become ready within 30 seconds')
     }
@@ -392,7 +392,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
             ],
             { user: 'root' },
           )
-          .catch((e) =>
+          .catch(e =>
             console.error('[mysql-backup] mysqld exited unexpectedly:', e),
           )
       } else {
@@ -442,7 +442,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     }
 
     return new Backups<M>()
-      .setPreBackup(async (effects) => {
+      .setPreBackup(async effects => {
         const pw = await resolvePassword(password)
         const readyCmd = readyCommand || [
           'mysqladmin',
@@ -457,7 +457,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
           { imageId },
           dbMounts() as any,
           'mysql-dump',
-          async (sub) => {
+          async sub => {
             await mountBackupTarget(sub.rootfs)
             await sub.exec(['mkdir', '-p', '/var/run/mysqld'], {
               user: 'root',
@@ -490,14 +490,14 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
           },
         )
       })
-      .setPostRestore(async (effects) => {
+      .setPostRestore(async effects => {
         const pw = await resolvePassword(password)
         await SubContainer.withTemp<M, void, BackupEffects>(
           effects,
           { imageId },
           dbMounts() as any,
           'mysql-restore',
-          async (sub) => {
+          async sub => {
             await mountBackupTarget(sub.rootfs)
             await sub.exec(['mkdir', '-p', '/var/run/mysqld'], {
               user: 'root',
@@ -759,7 +759,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       .readFile('/media/startos/backup/dataVersion.txt', {
         encoding: 'utf-8',
       })
-      .catch((_) => null)
+      .catch(_ => null)
     if (dataVersion) await effects.setDataVersion({ version: dataVersion })
     await this.postRestore(effects as BackupEffects)
     return

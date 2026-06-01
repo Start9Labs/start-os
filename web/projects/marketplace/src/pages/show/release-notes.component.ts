@@ -9,7 +9,9 @@ import { MarketplacePkgBase } from '../../types'
     <div class="background-border box-shadow-lg shadow-color-light">
       <div class="box-container">
         <h2 class="additional-detail-title">New in {{ pkg().version }}</h2>
-        <p [innerHTML]="pkg().releaseNotes | localize | markdown | dompurify"></p>
+        <p
+          [innerHTML]="pkg().releaseNotes | localize | markdown | dompurify"
+        ></p>
       </div>
     </div>
   `,

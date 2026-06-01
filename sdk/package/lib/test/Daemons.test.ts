@@ -37,13 +37,7 @@ const lazy = (
   sharedRun = true,
   mounts: Mounts<Manifest> | null = null,
   name = 'reg-sub',
-) =>
-  SubContainer.of<Manifest>(
-    e,
-    { imageId, sharedRun },
-    mounts as any,
-    name,
-  )
+) => SubContainer.of<Manifest>(e, { imageId, sharedRun }, mounts as any, name)
 
 describe('Daemons recorder', () => {
   it('records entries in declaration order without constructing HealthDaemons', () => {
@@ -62,7 +56,7 @@ describe('Daemons recorder', () => {
         requires: ['a'],
       })
 
-    expect(daemons.entries.map((x) => x.id)).toEqual(['a', 'b'])
+    expect(daemons.entries.map(x => x.id)).toEqual(['a', 'b'])
     expect(daemons.entries[0].kind).toBe('daemon')
     expect(daemons.entries[1].requires).toEqual(['a'])
     // Nothing built yet
@@ -99,7 +93,7 @@ describe('Daemons recorder', () => {
         ready: baseReady,
         requires: ['migrate'],
       })
-    expect(daemons.entries.map((x) => x.kind)).toEqual(['oneshot', 'health'])
+    expect(daemons.entries.map(x => x.kind)).toEqual(['oneshot', 'health'])
   })
 })
 
@@ -324,12 +318,7 @@ describe('SubContainer.of (lazy) identity', () => {
     // We can't actually materialize without a real runtime, but we can
     // verify the identity field exists and is stable on the lazy handle.
     const e = fakeEffects()
-    const sub = SubContainer.of<Manifest>(
-      e,
-      { imageId: 'reg' },
-      null,
-      'name',
-    )
+    const sub = SubContainer.of<Manifest>(e, { imageId: 'reg' }, null, 'name')
     expect(typeof sub.identity).toBe('symbol')
     // Identity unchanged across method-less accesses
     expect(sub.identity).toBe(sub.identity)
@@ -337,18 +326,8 @@ describe('SubContainer.of (lazy) identity', () => {
 
   it('produces distinct identities per call', () => {
     const e = fakeEffects()
-    const a = SubContainer.of<Manifest>(
-      e,
-      { imageId: 'reg' },
-      null,
-      'name',
-    )
-    const b = SubContainer.of<Manifest>(
-      e,
-      { imageId: 'reg' },
-      null,
-      'name',
-    )
+    const a = SubContainer.of<Manifest>(e, { imageId: 'reg' }, null, 'name')
+    const b = SubContainer.of<Manifest>(e, { imageId: 'reg' }, null, 'name')
     expect(a.identity).not.toBe(b.identity)
   })
 })

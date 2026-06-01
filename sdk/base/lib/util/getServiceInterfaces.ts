@@ -19,7 +19,7 @@ const makeManyInterfaceFilled = async ({
   })
 
   const serviceInterfacesFilled: ServiceInterfaceFilled[] = await Promise.all(
-    Object.values(serviceInterfaceValues).map(async (serviceInterfaceValue) => {
+    Object.values(serviceInterfaceValues).map(async serviceInterfaceValue => {
       const hostId = serviceInterfaceValue.addressInfo.hostId
       const host = await effects.getHostInfo({
         packageId,
@@ -79,7 +79,7 @@ export function getOwnServiceInterfaces<Mapped>(
     effects,
     {},
     {
-      map: map ?? ((a) => a as Mapped),
+      map: map ?? (a => a as Mapped),
       eq: eq ?? ((a, b) => deepEqual(a, b)),
     },
   )
@@ -102,7 +102,7 @@ export function getServiceInterfaces<Mapped>(
   eq?: (a: Mapped, b: Mapped) => boolean,
 ): GetServiceInterfaces<Mapped> {
   return new GetServiceInterfaces<Mapped>(effects, opts, {
-    map: map ?? ((a) => a as Mapped),
+    map: map ?? (a => a as Mapped),
     eq: eq ?? ((a, b) => deepEqual(a, b)),
   })
 }

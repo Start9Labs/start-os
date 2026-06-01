@@ -56,10 +56,13 @@ export function both<T>(arr1: T[], arr2: T[]): T[] {
 }
 
 export function toObject<T>(t: T[], map: (t0: T) => string): Record<string, T> {
-  return t.reduce((acc, next) => {
-    acc[map(next)] = next
-    return acc
-  }, {} as Record<string, T>)
+  return t.reduce(
+    (acc, next) => {
+      acc[map(next)] = next
+      return acc
+    },
+    {} as Record<string, T>,
+  )
 }
 
 export function partitionArray<T>(

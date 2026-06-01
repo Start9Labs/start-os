@@ -21,7 +21,7 @@ describe('graph', () => {
           [{ from: baz, metadata: 'baz-qux' }],
           [],
         )
-        const match = Array.from(graph.findVertex((v) => v.metadata === 'qux'))
+        const match = Array.from(graph.findVertex(v => v.metadata === 'qux'))
         expect(match).toHaveLength(1)
         expect(match[0]).toBe(qux)
       })

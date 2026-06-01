@@ -37,7 +37,7 @@ export function setupBackups<M extends T.SDKManifest>(
   }
   const answer: SetupBackupsRes = {
     get createBackup() {
-      return (async (options) => {
+      return (async options => {
         return (await backupsFactory(options)).createBackup(options.effects)
       }) as T.ExpectedExports.createBackup
     },

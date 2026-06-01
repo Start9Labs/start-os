@@ -157,7 +157,7 @@ export class Variants<
       )
       .optional()
     return new Variants<VariantValues>(
-      async (options) => {
+      async options => {
         const validators = {} as {
           [K in keyof VariantValues]: z.ZodType<
             ExtractInputSpecType<VariantValues[K]['spec']>

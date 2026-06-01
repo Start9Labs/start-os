@@ -665,7 +665,7 @@ export class MockApiService extends ApiService {
     ]
 
     if (params.setAsDefaultOutbound) {
-      (patch as any[]).push({
+      ;(patch as any[]).push({
         op: PatchOp.REPLACE,
         path: '/serverInfo/network/defaultOutbound',
         value: id,

@@ -92,7 +92,7 @@ export function buildManifest<
           if (arch === null) {
             return inputSpec.arch
           }
-          return arch.filter((a) => inputSpec.arch.includes(a))
+          return arch.filter(a => inputSpec.arch.includes(a))
         },
         null as string[] | null,
       ),

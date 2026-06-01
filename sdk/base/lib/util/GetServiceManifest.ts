@@ -45,7 +45,7 @@ export function getServiceManifest<Mapped>(
     effects,
     { packageId },
     {
-      map: map ?? ((a) => a as Mapped),
+      map: map ?? (a => a as Mapped),
       eq: eq ?? ((a, b) => deepEqual(a, b)),
     },
   )

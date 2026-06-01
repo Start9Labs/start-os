@@ -149,9 +149,9 @@ export class Mounts<
   build(): MountArray {
     const mountpoints = new Set()
     for (let mountpoint of this.volumes
-      .map((v) => v.mountpoint)
-      .concat(this.assets.map((a) => a.mountpoint))
-      .concat(this.dependencies.map((d) => d.mountpoint))) {
+      .map(v => v.mountpoint)
+      .concat(this.assets.map(a => a.mountpoint))
+      .concat(this.dependencies.map(d => d.mountpoint))) {
       if (mountpoints.has(mountpoint)) {
         throw new Error(
           `cannot mount more than once to mountpoint ${mountpoint}`,
@@ -161,7 +161,7 @@ export class Mounts<
     }
     return ([] as MountArray)
       .concat(
-        this.volumes.map((v) => ({
+        this.volumes.map(v => ({
           mountpoint: v.mountpoint,
           options: {
             type: 'volume',
@@ -174,7 +174,7 @@ export class Mounts<
         })),
       )
       .concat(
-        this.assets.map((a) => ({
+        this.assets.map(a => ({
           mountpoint: a.mountpoint,
           options: {
             type: 'assets',
@@ -185,7 +185,7 @@ export class Mounts<
         })),
       )
       .concat(
-        this.dependencies.map((d) => ({
+        this.dependencies.map(d => ({
           mountpoint: d.mountpoint,
           options: {
             type: 'pointer',
