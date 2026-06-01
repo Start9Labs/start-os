@@ -64,15 +64,15 @@ const ICONS: Record<string, string> = {
             </button>
           </tui-data-list>
         </button>
-        <tui-textfield tuiTextfieldSize="s" iconStart="@tui.search">
-          <input
-            tuiInput
-            placeholder="Search"
-            [(ngModel)]="query"
-            (focus)="open.set(true)"
-          />
-        </tui-textfield>
       </header>
+      <tui-textfield tuiTextfieldSize="s" iconStart="@tui.search">
+        <input
+          tuiInput
+          placeholder="Search"
+          [(ngModel)]="query"
+          (focus)="open.set(true)"
+        />
+      </tui-textfield>
       @for (cat of categories() || fallback | keyvalue: asIs; track cat.key) {
         <button
           [tuiSkeleton]="!categories()"
@@ -119,7 +119,7 @@ const ICONS: Record<string, string> = {
         }
 
         tui-textfield {
-          margin-bottom: 0.25rem;
+          margin-bottom: 0.75rem;
           padding: 0 0.5rem;
           flex-wrap: nowrap;
           overflow: hidden;
