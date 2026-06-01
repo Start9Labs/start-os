@@ -7,7 +7,6 @@ import {
   model,
   signal,
 } from '@angular/core'
-import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { DocsLinkDirective, i18nPipe, LocalizePipe } from '@start9labs/shared'
@@ -94,16 +93,14 @@ const ICONS: Record<string, string> = {
           tuiButton
           [textContent]="'Package a service' | i18n"
         ></a>
-        @if (mobile || !open()) {
-          <button
-            tuiAsideItem
-            type="button"
-            [iconStart]="open() ? '@tui.chevron-left' : '@tui.chevron-right'"
-            (click)="open.set(!open())"
-          >
-            {{ open() ? 'Collapse' : 'Expand' }}
-          </button>
-        }
+        <button
+          tuiAsideItem
+          type="button"
+          [iconStart]="open() ? '@tui.chevron-left' : '@tui.chevron-right'"
+          (click)="open.set(!open())"
+        >
+          {{ open() ? 'Collapse' : 'Expand' }}
+        </button>
       </footer>
     </aside>
   `,
@@ -159,8 +156,7 @@ export class MarketplaceAsideComponent {
 
   protected readonly icons = ICONS
   protected readonly asIs = () => 0
-  protected readonly mobile = inject(WA_IS_MOBILE)
-  protected readonly open = signal(!this.mobile)
+  protected readonly open = signal(!inject(WA_IS_MOBILE))
   protected readonly categories = computed(
     () => this.registry()?.info?.categories,
   )
