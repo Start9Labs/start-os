@@ -1,0 +1,4 @@
+# Generated / build output — not Prettier's to format
+package-lock.json
+dist/
+.angular/
