@@ -141,10 +141,6 @@ impl ArchiveSource for MultiCursorFile {
 
 impl From<&Section<MultiCursorFile>> for LoopDev<PathBuf> {
     fn from(value: &Section<MultiCursorFile>) -> Self {
-        // s9pk subarchives mounted as a loop device are always squashfs;
-        // declare the type so the mount goes through the syscall path
-        // instead of mount(8)'s autodetect.
         LoopDev::new(value.source.path().unwrap(), value.position, value.size)
-            .with_type("squashfs")
     }
 }

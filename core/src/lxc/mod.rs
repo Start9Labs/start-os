@@ -195,9 +195,6 @@ impl LxcContainer {
         let rootfs = OverlayGuard::mount(
             TmpMountGuard::mount(
                 &IdMapped::new(
-                    // Regular-file squashfs: the syscall fsopen path can't
-                    // loop-attach a non-block-device source (ENOTBLK), so
-                    // leave this on the mount(8) auto-loop fallback.
                     BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
                     vec![IdMap {
                         from_id: 0,
@@ -243,7 +240,11 @@ impl LxcContainer {
             .arg(rootfs_dir.join("etc/hosts"))
             .invoke(ErrorKind::Filesystem)
             .await?;
-        crate::disk::mount::filesystem::syscall::make_rshared(rootfs.path()).await?;
+        Command::new("mount")
+            .arg("--make-rshared")
+            .arg(rootfs.path())
+            .invoke(ErrorKind::Filesystem)
+            .await?;
         let rpc_dir = rootfs_dir.join(RPC_DIR);
         tokio::fs::create_dir_all(&rpc_dir).await?;
         let rpc_bind = TmpMountGuard::mount(&Bind::new(rpc_dir), ReadWrite).await?;

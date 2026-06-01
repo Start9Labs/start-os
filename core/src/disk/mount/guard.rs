@@ -9,7 +9,7 @@ use tracing::instrument;
 
 use super::filesystem::{FileSystem, MountType, ReadOnly, ReadWrite};
 use super::util::unmount;
-use crate::util::Never;
+use crate::util::{Invoke, Never};
 use crate::{Error, ResultExt};
 
 pub const TMP_MOUNTPOINT: &'static str = "/media/startos/tmp";
@@ -137,7 +137,12 @@ impl TmpMountGuard {
         if let Some(guard) = weak_slot.upgrade() {
             // upgrade to rw
             if *prev_mt == ReadOnly && mount_type != ReadOnly {
-                crate::disk::mount::filesystem::syscall::remount_rw(&mountpoint).await?;
+                tokio::process::Command::new("mount")
+                    .arg("-o")
+                    .arg("remount,rw")
+                    .arg(&mountpoint)
+                    .invoke(crate::ErrorKind::Filesystem)
+                    .await?;
                 *prev_mt = ReadWrite;
             }
             Ok(TmpMountGuard { guard })

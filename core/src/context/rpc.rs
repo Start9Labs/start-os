@@ -281,9 +281,6 @@ impl RpcContext {
                             .await?;
                         // tmp.unmount_and_delete().await?;
                     }
-                    // Regular-file squashfs: mount(8) auto-loop fallback;
-                    // the syscall fsopen path would ENOTBLK on a non-block
-                    // source.
                     BlockDev::new(&sqfs)
                         .mount(NVIDIA_OVERLAY_PATH, ReadOnly)
                         .await?;
