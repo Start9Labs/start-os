@@ -752,7 +752,9 @@ export default {
   840: "Cette version ne contient pas d'instructions. Veuillez mettre à jour.",
   841: 'Global',
   842: "Données de l'OS",
-  843: 'A-Z',
-  844: 'Z-A',
-  845: 'Dernière publication',
+  843: 'interfaces',
+  844: 'actions & configuration',
+  845: 'A-Z',
+  846: 'Z-A',
+  847: 'Dernière publication',
 } satisfies i18n

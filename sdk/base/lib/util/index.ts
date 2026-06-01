@@ -1,5 +1,5 @@
 /// Currently being used
-export { addressHostToUrl } from './getServiceInterface'
+export { addressHostToUrl, mdnsResolvable } from './getServiceInterface'
 export { getDefaultString } from './getDefaultString'
 export * from './ip'
 

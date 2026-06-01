@@ -40,13 +40,15 @@ pub const CONTAINER_RPC_SERVER_SOCKET: &str = "service.sock"; // must not be abs
 pub const HOST_RPC_SERVER_SOCKET: &str = "host.sock"; // must not be absolute path
 const CONTAINER_DHCP_TIMEOUT: Duration = Duration::from_secs(30);
 const HARDWARE_ACCELERATION_PATHS: &[&str] = &["/dev/dri", "/dev/nvidia*", "/dev/kfd"];
-// Devices needed by rootless OCI engines (podman/docker) running inside a
-// service that opted in via `manifest.nestedRuntime`:
-//  - /dev/fuse:    fuse-overlayfs storage (the only viable rootless storage
-//                  driver inside a userns LXC; kernel overlayfs-on-overlayfs
-//                  is denied for unprivileged users).
-//  - /dev/net/tun: slirp4netns / pasta networking for nested containers.
-const NESTED_RUNTIME_PATHS: &[&str] = &["/dev/fuse", "/dev/net/tun"];
+// /dev/fuse: fuse-overlayfs storage, the only viable rootless storage driver
+// inside a userns LXC (kernel overlayfs-on-overlayfs is denied for
+// unprivileged users) — needed by rootless OCI engines (podman/docker) opted
+// in via `manifest.userspaceFilesystems`.
+const USERSPACE_FILESYSTEM_PATHS: &[&str] = &["/dev/fuse"];
+// /dev/net/tun: kernel tunnel interface for VPN / WireGuard / tun-class
+// services (and slirp4netns / pasta networking for nested containers) — opted
+// in via `manifest.virtualNetworking`.
+const VIRTUAL_NETWORKING_PATHS: &[&str] = &["/dev/net/tun"];
 
 #[derive(
     Clone, Debug, Serialize, Deserialize, Default, PartialEq, Eq, PartialOrd, Ord, Hash, TS,
@@ -308,12 +310,21 @@ impl LxcContainer {
             )
             .await?;
         }
-        if res.config.nested_runtime {
+        if res.config.userspace_filesystems {
             res.handle_devices(
                 tokio::fs::read_dir("/dev")
                     .await
                     .with_ctx(|_| (ErrorKind::Filesystem, "readdir /dev"))?,
-                NESTED_RUNTIME_PATHS,
+                USERSPACE_FILESYSTEM_PATHS,
+            )
+            .await?;
+        }
+        if res.config.virtual_networking {
+            res.handle_devices(
+                tokio::fs::read_dir("/dev")
+                    .await
+                    .with_ctx(|_| (ErrorKind::Filesystem, "readdir /dev"))?,
+                VIRTUAL_NETWORKING_PATHS,
             )
             .await?;
         }
@@ -659,7 +670,8 @@ impl Drop for LxcContainer {
 #[derive(Default, Serialize)]
 pub struct LxcConfig {
     pub hardware_acceleration: bool,
-    pub nested_runtime: bool,
+    pub userspace_filesystems: bool,
+    pub virtual_networking: bool,
 }
 
 pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid, Error> {

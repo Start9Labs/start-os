@@ -95,14 +95,16 @@ import { GatewayItemComponent } from './item.component'
     </table>
   `,
   styles: `
-    header tui-icon {
-      font-size: 1.25rem;
-      margin-inline-end: 0.375rem;
-    }
-
     :host ::ng-deep {
       th:first-child {
         width: 5rem;
+      }
+    }
+
+    @media (max-width: 450px) {
+      header button {
+        font-size: 0;
+        gap: 0;
       }
     }
   `,

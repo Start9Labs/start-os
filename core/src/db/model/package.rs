@@ -318,6 +318,20 @@ pub enum AllowedStatuses {
     Any,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "kebab-case")]
+pub enum ActionAccess {
+    Public,
+    Dependent,
+    User,
+}
+impl Default for ActionAccess {
+    fn default() -> Self {
+        Self::User
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
@@ -342,6 +356,13 @@ pub struct ActionMetadata {
     pub has_input: bool,
     /// If provided, this action will be nested under a header of this value, along with other actions of the same group
     pub group: Option<String>,
+    /// Who is allowed to invoke this action directly via `effects.action.run`.
+    ///   - "public" — any installed package
+    ///   - "dependent" — only services that declare this package as a current dependency
+    ///   - "user" — only the user (other services must create a task). Default when omitted.
+    /// Services that lack direct access can always queue a task with `effects.action.createTask`.
+    #[ts(optional)]
+    pub access: Option<ActionAccess>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]

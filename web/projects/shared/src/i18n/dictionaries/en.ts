@@ -753,7 +753,9 @@ export const ENGLISH: Record<string, number> = {
   'This version has no instructions. Please update.': 840,
   'Overall': 841,
   'OS Data': 842,
-  'A-Z': 843,
-  'Z-A': 844,
-  'Last published': 845,
+  'interfaces': 843,
+  'actions & config': 844,
+  'A-Z': 845,
+  'Z-A': 846,
+  'Last published': 847,
 }

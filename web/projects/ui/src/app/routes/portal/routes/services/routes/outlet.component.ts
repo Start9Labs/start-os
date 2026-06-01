@@ -10,9 +10,9 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
 import {
   TuiAppearance,
   TuiButton,
+  TuiCell,
   TuiIcon,
   TuiTitle,
-  TuiCell,
 } from '@taiga-ui/core'
 import { TuiAvatar, TuiFade } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
@@ -60,13 +60,10 @@ import { getManifest } from 'src/app/utils/get-package-data'
               tuiAppearance="action-grayscale"
               routerLinkActive="active"
               [routerLinkActiveOptions]="{ exact: true }"
-              [routerLink]="item.title === 'dashboard' ? './' : item.title"
+              [routerLink]="item.link"
             >
               <tui-icon [icon]="item.icon" />
               <span tuiTitle>{{ item.title | i18n }}</span>
-              @if (item.title === 'dashboard') {
-                <a routerLink="interface" routerLinkActive="active"></a>
-              }
             </a>
           }
         </nav>
@@ -198,12 +195,17 @@ export class ServiceOutletComponent {
   private readonly router = inject(Router)
   private readonly params = inject(ActivatedRoute).paramMap
 
-  protected readonly nav: { title: i18nKey; icon: string }[] = [
-    { title: 'dashboard', icon: '@tui.layout-dashboard' },
-    { title: 'instructions', icon: '@tui.book-open' },
-    { title: 'actions', icon: '@tui.file-terminal' },
-    { title: 'logs', icon: '@tui.logs' },
-    { title: 'about', icon: '@tui.info' },
+  protected readonly nav: { title: i18nKey; icon: string; link: string }[] = [
+    { title: 'dashboard', icon: '@tui.layout-dashboard', link: './' },
+    { title: 'interfaces', icon: '@tui.monitor', link: 'interfaces' },
+    { title: 'actions & config', icon: '@tui.cog', link: 'actions' },
+    {
+      title: 'instructions',
+      icon: '@tui.book-open-text',
+      link: 'instructions',
+    },
+    { title: 'logs', icon: '@tui.scroll-text', link: 'logs' },
+    { title: 'about', icon: '@tui.info', link: 'about' },
   ]
 
   protected readonly service = toSignal(

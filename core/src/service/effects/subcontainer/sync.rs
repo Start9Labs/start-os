@@ -271,7 +271,7 @@ impl ExecParams {
         // chroot. The kernel's `current_chrooted()` check rejects
         // `unshare(CLONE_NEWUSER)` from a chrooted process, so a chrooted
         // service can't spawn a rootless OCI runtime (podman/docker), which
-        // is the whole point of `manifest.nestedRuntime`. pivot_root runs
+        // is the whole point of `manifest.userspaceFilesystems`. pivot_root runs
         // inside its own mount namespace and doesn't trip that check.
         nix::sched::unshare(CloneFlags::CLONE_NEWNS)
             .with_ctx(|_| (ErrorKind::Filesystem, "unshare mount ns"))?;

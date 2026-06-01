@@ -6,6 +6,7 @@ import {
 } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
+import { TuiAvatar } from '@taiga-ui/kit'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { ActionService } from 'src/app/services/action.service'
@@ -20,7 +21,9 @@ import { PluginItemComponent } from './item.component'
   template: `
     <header>
       @if (pluginGroup().pluginPkgInfo; as pkgInfo) {
-        <img [src]="pkgInfo.icon" alt="" class="plugin-icon" />
+        <span tuiAvatar size="xs">
+          <img [src]="pkgInfo.icon" alt="" />
+        </span>
       }
       {{ 'Plugin' | i18n }}: {{ pluginGroup().pluginName }}
       @if (pluginGroup().tableAction; as action) {
@@ -55,15 +58,16 @@ import { PluginItemComponent } from './item.component'
     </table>
   `,
   styles: `
-    .plugin-icon {
-      height: 1.25rem;
-      margin-inline-end: 0.375rem;
-      border-radius: 100%;
-    }
-
     :host ::ng-deep {
       th:first-child {
         width: 5rem;
+      }
+    }
+
+    @media (max-width: 450px) {
+      header button {
+        font-size: 0;
+        gap: 0;
       }
     }
   `,
@@ -74,6 +78,7 @@ import { PluginItemComponent } from './item.component'
     PlaceholderComponent,
     i18nPipe,
     PluginItemComponent,
+    TuiAvatar,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

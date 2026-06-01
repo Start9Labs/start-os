@@ -1,5 +1,7 @@
 # Distribution configuration
 lxc.include = /usr/share/lxc/config/common.conf
+# userns.conf clears the cap drop/keep lists from common.conf — every
+# capability is enabled by default in the service LXC, scoped to its userns.
 lxc.include = /usr/share/lxc/config/userns.conf
 lxc.arch = linux64
 

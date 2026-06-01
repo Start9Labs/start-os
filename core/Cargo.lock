@@ -6552,6 +6552,7 @@ dependencies = [
  "mbrman",
  "miette",
  "mio",
+ "native-tls",
  "new_mime_guess",
  "nix 0.30.1",
  "nom 8.0.0",

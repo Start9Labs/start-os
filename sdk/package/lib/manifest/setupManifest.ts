@@ -98,7 +98,8 @@ export function buildManifest<
       ),
     },
     hardwareAcceleration: manifest.hardwareAcceleration ?? false,
-    nestedRuntime: manifest.nestedRuntime ?? false,
+    userspaceFilesystems: manifest.userspaceFilesystems ?? false,
+    virtualNetworking: manifest.virtualNetworking ?? false,
     plugins: manifest.plugins ?? [],
   }
 }

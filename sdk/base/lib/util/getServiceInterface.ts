@@ -313,8 +313,28 @@ function isPublicIp(h: HostnameInfo): boolean {
   return h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
 }
 
+/**
+ * mDNS (.local) names resolve only via LAN IPs on a shared gateway, so an mDNS
+ * address is reachable only when one of its gateways has an enabled LAN IP among
+ * `enabled`. Non-mDNS addresses are always resolvable here.
+ */
+export function mdnsResolvable(
+  h: HostnameInfo,
+  enabled: HostnameInfo[],
+): boolean {
+  if (h.metadata.kind !== 'mdns') return true
+  const lanGateways = new Set(
+    enabled.flatMap((a) =>
+      !a.public && (a.metadata.kind === 'ipv4' || a.metadata.kind === 'ipv6')
+        ? [a.metadata.gateway]
+        : [],
+    ),
+  )
+  return h.metadata.gateways.some((g) => lanGateways.has(g))
+}
+
 function enabledAddresses(addr: DerivedAddressInfo): HostnameInfo[] {
-  return addr.available.filter((h) => {
+  const enabled = addr.available.filter((h) => {
     if (isPublicIp(h)) {
       // Public IPs: disabled by default, explicitly enabled via SocketAddr string
       if (h.port === null) return true
@@ -330,6 +350,8 @@ function enabledAddresses(addr: DerivedAddressInfo): HostnameInfo[] {
       )
     }
   })
+
+  return enabled.filter((h) => mdnsResolvable(h, enabled))
 }
 
 /**

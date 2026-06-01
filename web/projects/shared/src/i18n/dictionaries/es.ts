@@ -752,7 +752,9 @@ export default {
   840: 'Esta versión no incluye instrucciones. Por favor, actualice.',
   841: 'General',
   842: 'Datos del SO',
-  843: 'A-Z',
-  844: 'Z-A',
-  845: 'Última publicación',
+  843: 'interfaces',
+  844: 'acciones & configuración',
+  845: 'A-Z',
+  846: 'Z-A',
+  847: 'Última publicación',
 } satisfies i18n

@@ -45,6 +45,7 @@ import { MappedDevice, MappedForward } from './utils'
           <th>External Port</th>
           <th>Device</th>
           <th>Internal Port</th>
+          <th>Protocol</th>
           <th [style.padding-inline-end.rem]="0.625">
             <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
               Add
@@ -77,6 +78,7 @@ import { MappedDevice, MappedForward } from './utils'
             <td>{{ forward.externalport }}</td>
             <td>{{ forward.device.name }}</td>
             <td>{{ forward.internalport }}</td>
+            <td>TCP/UDP</td>
             <td>
               <button
                 tuiIconButton
@@ -112,7 +114,7 @@ import { MappedDevice, MappedForward } from './utils'
           </tr>
         } @empty {
           <tr>
-            <td colspan="7">
+            <td colspan="8">
               <app-placeholder icon="@tui.globe">
                 No port forwards
               </app-placeholder>

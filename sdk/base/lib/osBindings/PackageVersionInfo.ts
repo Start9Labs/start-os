@@ -30,7 +30,16 @@ export type PackageVersionInfo = {
   osVersion: string
   sdkVersion: string | null
   hardwareAcceleration: boolean
-  nestedRuntime: boolean
+  /**
+   * Mount /dev/fuse for fuse-overlayfs storage (the rootless storage
+   * driver used by a nested OCI runtime).
+   */
+  userspaceFilesystems: boolean
+  /**
+   * Mount /dev/net/tun so the service can create kernel tunnel interfaces
+   * (VPN / WireGuard / tun-class workloads).
+   */
+  virtualNetworking: boolean
   plugins: Array<PluginId>
   satisfies: Array<Version>
 }

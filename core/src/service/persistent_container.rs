@@ -98,7 +98,8 @@ impl PersistentContainer {
                 ),
                 LxcConfig {
                     hardware_acceleration: s9pk.manifest.metadata.hardware_acceleration,
-                    nested_runtime: s9pk.manifest.metadata.nested_runtime,
+                    userspace_filesystems: s9pk.manifest.metadata.userspace_filesystems,
+                    virtual_networking: s9pk.manifest.metadata.virtual_networking,
                 },
             )
             .await?;
