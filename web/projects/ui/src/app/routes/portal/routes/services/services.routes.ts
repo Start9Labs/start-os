@@ -15,20 +15,20 @@ export const ROUTES: Routes = [
         component: ServiceRoute,
       },
       {
-        path: 'instructions',
-        loadComponent: () => import('./routes/instructions.component'),
+        path: 'interfaces',
+        loadComponent: () => import('./routes/interfaces.component'),
       },
       {
         path: 'actions',
         loadComponent: () => import('./routes/actions.component'),
       },
       {
-        path: 'interface/:interfaceId',
-        loadComponent: () => import('./routes/interface.component'),
-      },
-      {
         path: 'logs',
         loadComponent: () => import('./routes/logs.component'),
+      },
+      {
+        path: 'instructions',
+        loadComponent: () => import('./routes/instructions.component'),
       },
       {
         path: 'about',

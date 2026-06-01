@@ -21,6 +21,10 @@
 - **Breaking — `SubContainer` adds `identity: symbol`.** Sync, stable handle preserved across `SubContainerLazy.eager()` materialization. Use for sharing checks that must work before materialization (replaces `Daemon.sharesSubcontainerWith`'s previous `guid` comparison, which couldn't fire pre-materialization)
 - Container-runtime updated: `SubContainerOwned` → `SubContainer.eager`; `SubContainerRc<M>` → `SubContainer<M>`; `daemon.subcontainerRc()` → `daemon.subcontainer`
 
+### Fixed
+
+- `filledAddress` (and the `getServiceInterface` / `getServiceInterfaces` helpers built on it) now excludes mDNS (`.local`) addresses whose gateways have no enabled LAN IP. An mDNS name resolves only via a LAN IP on a shared gateway, so when every such IP is disabled the `.local` address is unreachable — it was previously still reported as available, which let the StartOS UI offer (and launch) an unresolvable `.local` URL even though the address table showed it disabled. The rule is now exported as `utils.mdnsResolvable(hostname, enabledHostnames)`, shared between the SDK's reachable-address filter and the UI's address table so the two stay consistent
+
 ### Removed
 
 - **Breaking — `nestedRuntime` manifest flag removed**, with no compatibility alias. It conflated two unrelated device grants (`/dev/fuse` for fuse-overlayfs storage and `/dev/net/tun` for kernel tun interfaces). Replace with `userspaceFilesystems` (nested OCI runtimes) and/or `virtualNetworking` (kernel tun interfaces). Packages must republish: a host updating StartOS parses an old `nestedRuntime` field as absent, so both new flags default to `false`

@@ -3,167 +3,123 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  OnDestroy,
+  signal,
 } from '@angular/core'
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
 import {
-  AbstractCategoryService,
   FilterPackagesPipe,
+  MarketplaceAsideComponent,
+  StoreIconDirective,
 } from '@start9labs/marketplace'
-import { i18nPipe, LocalizePipe } from '@start9labs/shared'
-import { TuiScrollbar } from '@taiga-ui/core'
-import { combineLatest, map, tap } from 'rxjs'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { TitleDirective } from 'src/app/services/title.service'
-import { MarketplaceMenuComponent } from './components/menu.component'
-import { MarketplaceNotificationComponent } from './components/notification.component'
-import { MarketplaceTileComponent } from './components/tile.component'
-import { StorageService } from 'src/app/services/storage.service'
+import { DialogService, i18nPipe } from '@start9labs/shared'
+import { TuiButton, TuiCell, TuiScrollbar, TuiTitle } from '@taiga-ui/core'
+import { TuiAvatar, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
+import { TuiCardLarge } from '@taiga-ui/layout'
+import { tap } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { StorageService } from 'src/app/services/storage.service'
+import { TitleDirective } from 'src/app/services/title.service'
+
+import { MarketplaceTileComponent } from './components/tile.component'
+import { MARKETPLACE_REGISTRY } from './modals/registry.component'
 
 @Component({
   template: `
     <ng-container *title>{{ 'Marketplace' | i18n }}</ng-container>
-    <marketplace-menu />
-    <tui-scrollbar>
-      <div class="marketplace-content-wrapper">
-        <div class="marketplace-content-inner">
-          <marketplace-notification [url]="(url$ | async) || ''" />
-          <div class="title-wrapper">
-            <h1>{{ categoryName$ | async }}</h1>
-          </div>
-          @if (registry$ | async; as registry) {
-            <section class="marketplace-content-list">
-              @for (
-                pkg of registry.packages
-                  | filterPackages: (query$ | async) : (category$ | async);
-                track $index
-              ) {
-                <marketplace-tile
-                  [pkg]="pkg"
-                  [style.--animation-order]="$index"
-                  class="tile-wrapper"
-                />
-              }
-            </section>
-          } @else {
-            <h1 class="loading-text">
-              {{ 'Loading' | i18n }}
-              <span class="loading-dots"></span>
-            </h1>
+    <marketplace-aside
+      [registry]="registry()"
+      [(sort)]="sort"
+      [(category)]="category"
+      [(query)]="query"
+    >
+      <button tuiButton iconEnd="@tui.repeat" (click)="changeRegistry()">
+        <span tuiAvatar appearance="action-grayscale" size="xs">
+          <img [storeIcon]="registry()?.url" />
+        </span>
+        <span tuiFade [tuiSkeleton]="!registry()?.info?.name">
+          {{ registry()?.info?.name || 'Loading...' }}
+        </span>
+      </button>
+    </marketplace-aside>
+    <tui-scrollbar [style.flex]="1">
+      <section>
+        @if (registry(); as reg) {
+          @for (
+            pkg of reg.packages | filterPackages: query() : category() : sort();
+            track $index
+          ) {
+            <button type="button" [marketplaceTile]="pkg"></button>
           }
-        </div>
-      </div>
+        } @else {
+          @for (_ of '-'.repeat(15); track $index) {
+            <div tuiCardLarge="compact" [tuiSkeleton]="true">
+              <span tuiCell>
+                <span tuiAvatar></span>
+                <span tuiTitle>
+                  Loading
+                  <span tuiSubtitle>Loading</span>
+                </span>
+              </span>
+              <span tuiDescription>Loading</span>
+            </div>
+          }
+        }
+      </section>
     </tui-scrollbar>
   `,
   host: { class: 'g-page' },
   styles: `
     :host {
       display: flex;
-      flex-direction: column;
       overflow: hidden;
-      padding: 0;
-      background: rgb(55 58 63 / 90%)
-        url('/assets/img/background_marketplace.jpg') no-repeat top right;
-      background-size: cover;
-      &::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        backdrop-filter: blur(2rem);
+      padding: 1px;
+      background: #1c1d26;
+    }
+
+    [tuiButton] {
+      inline-size: 100%;
+      justify-content: flex-start;
+
+      [tuiAvatar] {
+        margin-inline-start: -0.375rem;
+      }
+
+      &::after {
+        margin-inline-start: auto;
+        color: var(--tui-text-tertiary);
       }
     }
 
-    .marketplace-content {
-      &-wrapper {
-        @media (min-width: 768px) {
-          padding-left: 17rem;
-        }
-
-        @media (min-width: 1536px) {
-          padding-left: 18rem;
-        }
-      }
-
-      &-inner {
-        padding-top: 6rem;
-
-        @media (min-width: 768px) {
-          padding: 0 2rem 2.5rem 2rem;
-        }
-
-        .title-wrapper {
-          margin: 2rem 0 2.5rem 0;
-          padding: 0 1.5rem;
-
-          h1 {
-            font-size: 2.25rem;
-            line-height: 2.5rem;
-            font-weight: bold;
-            color: rgb(250 250 250 / 0.8);
-            pointer-events: none;
-
-            @media (min-width: 640px) {
-              font-size: 3rem;
-              line-height: 1;
-            }
-          }
-        }
-      }
-
-      &-list {
-        display: grid;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-        gap: 3.5rem 2.5rem;
-        padding: 1.5rem;
-
-        @media (min-width: 768px) {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        @media (min-width: 1024px) {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        @media (min-width: 1280px) {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-        @media (min-width: 1536px) {
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-
-        .tile-wrapper {
-          display: block;
-          height: 100%;
-        }
-      }
-    }
-
-    .loading-text {
-      font-size: 1.25rem;
-      line-height: 1.75rem;
-      padding-left: 1.5rem;
-      font-weight: normal;
-    }
-
-    :host-context(tui-root._mobile) {
-      padding: 0;
+    section {
+      padding: 1rem;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [FilterPackagesPipe],
   imports: [
     CommonModule,
     MarketplaceTileComponent,
-    MarketplaceMenuComponent,
-    MarketplaceNotificationComponent,
     TuiScrollbar,
     FilterPackagesPipe,
     TitleDirective,
     i18nPipe,
+    MarketplaceAsideComponent,
+    TuiButton,
+    StoreIconDirective,
+    TuiAvatar,
+    TuiFade,
+    TuiSkeleton,
+    TuiCardLarge,
+    TuiCell,
+    TuiTitle,
   ],
 })
-export default class MarketplaceComponent implements OnDestroy {
-  private readonly categoryService = inject(AbstractCategoryService)
+export default class MarketplaceComponent {
+  private readonly dialog = inject(DialogService)
   private readonly marketplaceService = inject(MarketplaceService)
   private readonly configService = inject(ConfigService)
   private readonly router = inject(Router)
@@ -179,7 +135,7 @@ export default class MarketplaceComponent implements OnDestroy {
         // wipe out the user's typed search every time another query param
         // changes (such as `id`/`flavor` when opening a service drawer).
         if (params.has('search')) {
-          this.categoryService.setQuery(params.get('search') || '')
+          this.query.set(params.get('search') || '')
         }
 
         if (!registry) {
@@ -198,24 +154,14 @@ export default class MarketplaceComponent implements OnDestroy {
     )
     .subscribe()
 
-  private readonly localize = inject(LocalizePipe)
-
-  readonly url$ = this.marketplaceService.currentRegistryUrl$
-  readonly category$ = this.categoryService.getCategory$()
-  readonly query$ = this.categoryService.getQuery$()
-  readonly registry$ = this.marketplaceService.currentRegistry$
-  readonly categoryName$ = combineLatest([this.category$, this.registry$]).pipe(
-    map(([key, registry]) => {
-      const cat = registry?.info?.categories?.[key]
-      return cat?.name ? this.localize.transform(cat.name) : key
-    }),
+  readonly sort = signal('a')
+  readonly category = signal('all')
+  readonly query = signal('')
+  protected readonly registry = toSignal(
+    this.marketplaceService.currentRegistry$,
   )
 
-  // Clear the search query when leaving the marketplace entirely. Opening a
-  // service drawer only changes query params (the component stays mounted), so
-  // the query survives that; navigating to another route destroys this
-  // component and resets it.
-  ngOnDestroy() {
-    this.categoryService.resetQuery()
+  changeRegistry() {
+    this.dialog.openComponent(MARKETPLACE_REGISTRY).subscribe()
   }
 }

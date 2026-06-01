@@ -7,11 +7,8 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute } from '@angular/router'
-import { WaIntersectionObserver } from '@ng-web-apis/intersection-observer'
-import { i18nPipe, isEmptyObject } from '@start9labs/shared'
+import { isEmptyObject } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { TuiElement } from '@taiga-ui/cdk'
-import { TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { map, of } from 'rxjs'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -26,7 +23,6 @@ import { ServiceControlsComponent } from '../components/controls.component'
 import { ServiceDependenciesComponent } from '../components/dependencies.component'
 import { ServiceErrorComponent } from '../components/error.component'
 import { ServiceHealthChecksComponent } from '../components/health-checks.component'
-import { ServiceInterfacesComponent } from '../components/interfaces.component'
 import { ServiceInstallProgressComponent } from '../components/progress.component'
 import { ServiceStatusComponent } from '../components/status.component'
 import { ServiceUptimeComponent } from '../components/uptime.component'
@@ -48,7 +44,8 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
         @if (status() !== 'backing-up') {
           <service-health-checks [checks]="health()" />
           <service-uptime class="g-card" [started]="pkg.statusInfo.started" />
-          <service-interfaces [pkg]="pkg" />
+
+          <service-tasks [pkg]="pkg" [services]="services() || {}" />
 
           @if (errors() | async; as errors) {
             <service-dependencies
@@ -57,31 +54,6 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
               [errors]="errors"
             />
           }
-
-          <service-tasks
-            #tasks="elementRef"
-            tuiElement
-            waIntersectionObserver
-            waIntersectionThreshold="0.5"
-            (waIntersectionObservee)="scrolled = $event.at(-1)?.isIntersecting"
-            [pkg]="pkg"
-            [services]="services() || {}"
-          />
-          <button
-            tuiIconButton
-            iconStart="@tui.arrow-down"
-            tabindex="-1"
-            class="arrow"
-            [class.arrow_hidden]="scrolled"
-            (click)="
-              tasks.nativeElement.scrollIntoView({
-                block: 'end',
-                behavior: 'smooth',
-              })
-            "
-          >
-            {{ 'Tasks' | i18n }}
-          </button>
         }
       } @else if (removing()) {
         <service-status [connected]="!!connected()" [pkg]="pkg" />
@@ -89,14 +61,6 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
     }
   `,
   styles: `
-    @use '@taiga-ui/styles/utils' as taiga;
-
-    @keyframes bounce {
-      to {
-        transform: translateY(-1rem);
-      }
-    }
-
     :host {
       display: grid;
       grid-template-columns: repeat(10, 1fr);
@@ -107,23 +71,6 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
     small {
       font-weight: normal;
       text-transform: uppercase;
-    }
-
-    .arrow {
-      @include taiga.transition(opacity);
-      position: sticky;
-      bottom: 1rem;
-      border-radius: 100%;
-      place-self: center;
-      grid-area: auto / span 6;
-      box-shadow: inset 0 0 0 2rem var(--tui-status-warning);
-      animation: bounce 1s infinite alternate;
-
-      &_hidden,
-      :host:has(::ng-deep service-tasks app-placeholder) & {
-        opacity: 0;
-        pointer-events: none;
-      }
     }
 
     :host-context(tui-root._mobile) {
@@ -142,14 +89,9 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    TuiElement,
-    TuiButton,
-    WaIntersectionObserver,
-    i18nPipe,
     ServiceInstallProgressComponent,
     ServiceStatusComponent,
     ServiceControlsComponent,
-    ServiceInterfacesComponent,
     ServiceHealthChecksComponent,
     ServiceDependenciesComponent,
     ServiceErrorComponent,
@@ -160,8 +102,6 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
 export class ServiceRoute {
   private readonly errorService = inject(DepErrorService)
   protected readonly connected = toSignal(inject(ConnectionService))
-
-  protected scrolled?: boolean
 
   protected readonly id = toSignal(
     inject(ActivatedRoute).paramMap.pipe(map(params => params.get('pkgId'))),

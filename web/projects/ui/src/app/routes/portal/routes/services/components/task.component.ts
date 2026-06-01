@@ -24,20 +24,23 @@ import { getManifest } from 'src/app/utils/get-package-data'
 @Component({
   selector: 'tr[task]',
   template: `
-    <td tuiFade class="row">
-      <i tuiAvatar appearance="action-grayscale" size="xs" [round]="false">
+    <td tuiFade class="name">
+      <i
+        tuiAvatar
+        appearance="action-grayscale"
+        size="xs"
+        [round]="false"
+        [title]="title() || fallback()?.title"
+      >
         <img [src]="pkg()?.icon || fallback()?.icon" alt="" />
       </i>
-      <span>{{ title() || fallback()?.title }}</span>
-    </td>
-    <td [style.grid-row]="2">
       <strong>
         {{
           pkg()?.actions?.[task().actionId]?.name || ('Not installed' | i18n)
         }}
       </strong>
     </td>
-    <td class="row">
+    <td class="severity">
       @if (task().severity === 'critical') {
         <strong class="g-warning">{{ 'Required' | i18n }}</strong>
       } @else if (task().severity === 'important') {
@@ -46,13 +49,13 @@ import { getManifest } from 'src/app/utils/get-package-data'
         <strong>{{ 'Optional' | i18n }}</strong>
       }
     </td>
-    <td class="g-secondary" [style.grid-row]="3">
+    <td class="reason g-secondary">
       {{ task().reason || ('No reason provided' | i18n) }}
       @if (disabled()) {
         <div class="g-warning">{{ disabled() }}</div>
       }
     </td>
-    <td>
+    <td class="actions">
       @if (task().severity !== 'critical') {
         <button
           tuiIconButton
@@ -76,42 +79,59 @@ import { getManifest } from 'src/app/utils/get-package-data'
     </td>
   `,
   styles: `
-    td:first-child {
+    .name {
       white-space: nowrap;
       max-width: 15rem;
       overflow: hidden;
+    }
+
+    .name strong {
+      margin-inline-start: 0.5rem;
+      line-height: 1.5rem;
+      vertical-align: middle;
     }
 
     td:not(:last-child) {
       padding-inline-end: 1.5rem;
     }
 
-    td:last-child {
+    .actions {
       white-space: nowrap;
       justify-content: end;
       display: flex;
       gap: 8px;
     }
 
-    span {
-      margin-inline-start: 0.5rem;
-      line-height: 1.5rem;
-      vertical-align: middle;
-    }
-
     :host-context(tui-root._mobile) {
       display: grid;
       grid-template-columns: 1fr min-content;
+      align-items: center;
+      gap: 0.5rem 1rem;
       padding: 1rem 0.5rem;
-
-      .row {
-        margin-bottom: 1rem;
-      }
 
       td {
         display: flex;
         align-items: center;
         padding: 0;
+      }
+
+      .name {
+        grid-area: 1 / 1;
+        max-width: none;
+        white-space: normal;
+        overflow: visible;
+      }
+
+      .severity {
+        grid-area: 2 / 1;
+      }
+
+      .reason {
+        grid-area: 3 / 1;
+      }
+
+      .actions {
+        grid-area: 1 / 2 / 4 / 3;
       }
     }
   `,

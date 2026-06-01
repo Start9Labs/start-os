@@ -290,8 +290,9 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
 
         method = method.strip_prefix("registry.").unwrap_or(method);
         let sig_context = registry.host_str().map(InternedString::from);
+        let is_onion = registry.host_str().map_or(false, |h| h.ends_with(".onion"));
 
-        let mut res = crate::middleware::auth::signature::call_remote(
+        let mut res = match crate::middleware::auth::signature::call_remote(
             self,
             registry,
             headers,
@@ -299,7 +300,12 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
             method,
             params.clone(),
         )
-        .await?;
+        .await
+        {
+            Ok(res) => res,
+            Err(e) if is_onion => return Err(onion_tor_hint(self, e).await),
+            Err(e) => return Err(e),
+        };
 
         if let Some(device_info) = device_info {
             device_info.filter_for_hardware(method, params, &mut res)?;
@@ -307,6 +313,27 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
 
         Ok(res)
     }
+}
+
+/// Reaching a `.onion` registry requires the host to proxy through the Tor
+/// service's SOCKS proxy (`tor.startos:9050`). When that service is missing or
+/// stopped, the request fails with reqwest's opaque "error sending request" —
+/// replace it with actionable guidance. If Tor is up, the failure belongs to the
+/// onion service itself, so the original error is preserved.
+async fn onion_tor_hint(ctx: &RpcContext, original: RpcError) -> RpcError {
+    let running = async {
+        let tor_id = "tor".parse::<crate::PackageId>().ok()?;
+        let peek = ctx.db.peek().await;
+        let entry = peek.as_public().as_package_data().as_idx(&tor_id)?;
+        Some(entry.as_status_info().as_started().de().ok()?.is_some())
+    }
+    .await;
+    let msg = match running {
+        Some(true) => return original,
+        Some(false) => t!("registry.context.onion-tor-not-running"),
+        None => t!("registry.context.onion-tor-not-installed"),
+    };
+    Error::new(eyre!("{msg}"), ErrorKind::Network).into()
 }
 
 #[derive(Deserialize)]

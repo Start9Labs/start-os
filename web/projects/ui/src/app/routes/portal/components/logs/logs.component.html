@@ -23,7 +23,7 @@
       }
 
       @if ((status$ | async) !== 'connected') {
-        <div class="loading-dots" [attr.data-status]="status$.value">
+        <div class="g-dots" [attr.data-status]="status$.value">
           {{
             status$.value === 'reconnecting'
               ? ('Reconnecting' | i18n)

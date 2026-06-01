@@ -1,13 +1,8 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { tuiIsString } from '@taiga-ui/cdk'
-import { TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiButtonX } from '@taiga-ui/core'
 import {
   TuiAvatar,
   TuiFiles,
@@ -23,17 +18,7 @@ import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
     <ng-container *title>{{ 'Sideload' | i18n }}</ng-container>
     @if (file && package(); as pkg) {
       <sideload-package [pkg]="pkg" [file]="file!">
-        <button
-          tuiIconButton
-          appearance="neutral"
-          iconStart="@tui.x"
-          size="s"
-          [style.border-radius.%]="100"
-          [style.justify-self]="'end'"
-          (click)="clear()"
-        >
-          {{ 'Close' | i18n }}
-        </button>
+        <button tuiButtonX (click)="clear()">{{ 'Close' | i18n }}</button>
       </sideload-package>
     } @else {
       <label tuiInputFiles (click)="clear()">
@@ -68,10 +53,6 @@ import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
       max-width: 42rem;
       margin: 0 auto;
     }
-
-    button {
-      margin-bottom: 2rem;
-    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [tuiInputFilesOptionsProvider({ maxFileSize: Infinity })],
@@ -80,6 +61,7 @@ import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
     TuiFiles,
     TuiAvatar,
     TuiButton,
+    TuiButtonX,
     SideloadPackageComponent,
     TitleDirective,
     i18nPipe,

@@ -45,10 +45,9 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
           <button
             tuiButton
             appearance="primary-grayscale"
-            iconStart="@tui.external-link"
             tuiChevron
             tuiDropdownAuto
-            tuiDropdownLimitWidth="fixed"
+            tuiDropdownLimitWidth="min"
             [disabled]="!hasAnyHref()"
             [tuiDropdown]="content"
           >

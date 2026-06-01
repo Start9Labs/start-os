@@ -7,13 +7,13 @@ import {
   input,
   signal,
 } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
 import {
   MarketplaceAboutComponent,
   MarketplaceDependenciesComponent,
   MarketplaceFlavorsComponent,
   MarketplaceLinksComponent,
-  MarketplacePackageHeroComponent,
   MarketplacePkg,
   MarketplaceReleaseNotesComponent,
 } from '@start9labs/marketplace'
@@ -24,7 +24,13 @@ import {
   i18nPipe,
   MARKDOWN,
 } from '@start9labs/shared'
-import { TuiLoader, TuiNotification } from '@taiga-ui/core'
+import { TuiLoader, TuiNotification, TuiTitle } from '@taiga-ui/core'
+import { TuiAvatar, TuiFade } from '@taiga-ui/kit'
+import {
+  tuiCardOptionsProvider,
+  TuiHeader,
+  tuiHeaderOptionsProvider,
+} from '@taiga-ui/layout'
 import {
   BehaviorSubject,
   combineLatest,
@@ -36,99 +42,77 @@ import {
   take,
   tap,
 } from 'rxjs'
-import { toSignal } from '@angular/core/rxjs-interop'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { MarketplaceControlsComponent } from '../components/controls.component'
 
 @Component({
   selector: 'marketplace-preview',
   template: `
-    <div class="outer-container">
-      <ng-content select="[slot=close]" />
-      @if (noMatch()) {
-        <div tuiNotification appearance="negative" class="no-match">
-          <strong>{{ 'No compatible version available' | i18n }}</strong>
-          <span>{{ 'Requires' | i18n }}: {{ targetRange() }}</span>
+    @if (noMatch()) {
+      <div tuiNotification appearance="negative">
+        <div tuiTitle>
+          {{ 'No compatible version available' | i18n }}
+          <div tuiSubtitle>{{ 'Requires' | i18n }}: {{ targetRange() }}</div>
         </div>
-      } @else if (pkg$ | async; as pkg) {
-        <marketplace-package-hero [pkg]="pkg">
-          <marketplace-controls [pkg]="pkg" />
-        </marketplace-package-hero>
-        <div class="inner-container">
-          <marketplace-about
-            [pkg]="pkg"
-            [versions]="versions$ | async"
-            (static)="onStatic()"
-            (onVersion)="selectedVersion$.next($event)"
+      </div>
+    } @else if (pkg$ | async; as pkg) {
+      <header tuiHeader>
+        <span tuiAvatar [round]="false">
+          <img
+            alt=""
+            [src]="pkg.icon || 'assets/img/service-icons/fallback.png'"
           />
-          <marketplace-release-notes [pkg]="pkg" />
-          @if (flavors$ | async; as flavors) {
-            <marketplace-flavors [pkgs]="flavors" />
-          }
-          @if (!(pkg.dependencyMetadata | empty)) {
-            <marketplace-dependencies [pkg]="pkg" (open)="open($event)" />
-          }
-          <marketplace-links [pkg]="pkg" />
-        </div>
-      } @else {
-        <tui-loader textContent="Loading" [style.height.%]="100" />
+        </span>
+        <span tuiTitle tuiFade>{{ pkg.title }}</span>
+        <span tuiAccessories><ng-content /></span>
+      </header>
+      <marketplace-controls [pkg]="pkg" />
+      <marketplace-about
+        [pkg]="pkg"
+        [versions]="versions$ | async"
+        (static)="onStatic()"
+        (onVersion)="selectedVersion$.next($event)"
+      />
+      <marketplace-release-notes [pkg]="pkg" />
+      @if (flavors$ | async; as flavors) {
+        <marketplace-flavors [pkgs]="flavors" />
       }
-    </div>
+      @if (!(pkg.dependencyMetadata | empty)) {
+        <marketplace-dependencies [pkg]="pkg" />
+      }
+      <marketplace-links [pkg]="pkg" />
+    } @else {
+      <tui-loader [textContent]="'Loading' | i18n" />
+    }
   `,
   styles: `
     :host {
-      pointer-events: auto;
-      overflow-y: auto;
-      height: 100%;
-      max-width: 100%;
-
-      @media (min-width: 768px) {
-        max-width: 30rem;
-      }
-    }
-
-    .outer-container {
-      display: flex;
-      flex-direction: column;
-      height: calc(100dvh - var(--portal-header-height) - var(--bumper));
-    }
-
-    .inner-container {
       display: grid;
-      grid-template-columns: repeat(1, minmax(0, 1fr));
-      column-gap: 2rem;
+      gap: 1rem;
     }
 
-    .listing {
-      font-size: 0.8rem;
-      // @TODO theme
-      color: #8059e5;
-      font-weight: 600;
-      display: flex;
+    header {
+      gap: 1rem;
       align-items: center;
-      gap: 0.3rem;
-
-      tui-icon {
-        width: 0.8em;
-        height: 0.8em;
-      }
-    }
-
-    .no-match {
-      margin: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
+      white-space: nowrap;
+      overflow: hidden;
     }
   `,
+  providers: [
+    tuiHeaderOptionsProvider({ size: 'h6' }),
+    tuiCardOptionsProvider({ appearance: 'secondary-grayscale' }),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    MarketplacePackageHeroComponent,
-    MarketplaceDependenciesComponent,
     EmptyPipe,
     TuiLoader,
     TuiNotification,
+    TuiTitle,
+    TuiHeader,
+    TuiAvatar,
+    TuiFade,
+    MarketplaceDependenciesComponent,
     MarketplaceLinksComponent,
     MarketplaceFlavorsComponent,
     MarketplaceAboutComponent,
@@ -151,15 +135,13 @@ export class MarketplacePreviewComponent {
   )
 
   private readonly params = toSignal(this.params$)
-
   private readonly flavor$ = this.params$.pipe(map(p => p.get('flavor')))
 
-  readonly targetRange = computed(() => {
-    const params = this.params()
-    return params?.get('requirePkg') === this.pkgId()
-      ? params.get('requireRange')
-      : null
-  })
+  readonly targetRange = computed(() =>
+    this.params()?.get('requirePkg') === this.pkgId()
+      ? this.params()?.get('requireRange')
+      : null,
+  )
 
   readonly selectedVersion$ = new BehaviorSubject<string | null>(null)
 
@@ -187,10 +169,12 @@ export class MarketplacePreviewComponent {
           }
         }),
         filter(pkg => {
-          if (!pkg) return false
-          if (version) return true
           const range = this.targetRange()
-          return !range || this.satisfiesWithAliases(pkg, range)
+
+          return (
+            !!pkg &&
+            (!!version || !range || this.satisfiesWithAliases(pkg, range))
+          )
         }),
         startWith<MarketplacePkg | null>(null),
       ),
@@ -199,8 +183,10 @@ export class MarketplacePreviewComponent {
   )
 
   private satisfiesWithAliases(pkg: MarketplacePkg, range: string): boolean {
-    if (this.exver.satisfies(pkg.version, range)) return true
-    return (pkg.satisfies || []).some(v => this.exver.satisfies(v, range))
+    return (
+      this.exver.satisfies(pkg.version, range) ||
+      (pkg.satisfies || []).some(v => this.exver.satisfies(v, range))
+    )
   }
 
   readonly flavors$ = this.flavor$.pipe(
@@ -211,7 +197,7 @@ export class MarketplacePreviewComponent {
             ({ id, flavor }) => id === this.pkgId() && flavor !== current,
           ),
         ),
-        filter(p => p.length > 0),
+        filter(p => !!p.length),
       ),
     ),
   )
@@ -226,19 +212,14 @@ export class MarketplacePreviewComponent {
         v => this.exver.getFlavor(v) === flavor,
       )
       return [pkg.version, ...others]
-        .filter(v => {
-          if (!range) return true
-          if (v === pkg.version) return this.satisfiesWithAliases(pkg, range)
-          return this.exver.satisfies(v, range)
-        })
+        .filter(v =>
+          v === pkg.version
+            ? !range || this.satisfiesWithAliases(pkg, range)
+            : !range || this.exver.satisfies(v, range),
+        )
         .sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0))
     }),
   )
-
-  open(id: string) {
-    // @TODO re-engage when button can link to root with search QP
-    // this.router.navigate([], { queryParams: { id } })
-  }
 
   onStatic() {
     this.dialog
