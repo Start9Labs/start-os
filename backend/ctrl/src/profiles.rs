@@ -16,7 +16,8 @@ use crate::invoke::Invoke;
 use uciedit::openwrt::{
     DeviceType, Dhcp, FirewallForwarding, FirewallRedirect, FirewallRule, FirewallTarget,
     FirewallZone, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkRoute,
-    NetworkRule, NetworkVlanPort, NetworkVlanPortTagging, ProfileDnsmasq, WifiStation, WifiVlan,
+    NetworkRoute6, NetworkRule, NetworkRule6, NetworkVlanPort, NetworkVlanPortTagging,
+    ProfileDnsmasq, WifiStation, WifiVlan,
 };
 use uciedit::{dump_all, parse_all, Arena, Configs, Line, LineComment, Token, TypedSection};
 
@@ -761,7 +762,7 @@ fn delete_config(
     sync_cross_subnet_routes(cfgs)?;
 
     // Clean up orphaned VPN interfaces from WAN zone
-    cleanup_orphaned_wan_vpns(cfgs);
+    cleanup_orphaned_vpn_zones(cfgs);
 
     Ok(())
 }
@@ -795,11 +796,28 @@ pub(crate) fn list_config(_ctx: impl CtrlContext, cfgs: &Configs) -> Result<Vec<
 }
 
 pub async fn reload_system() -> Result<(), Error> {
-    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/network").arg("reload")).await;
+    reload_system_inner(false).await
+}
+
+/// Like [`reload_system`] but does a full `network restart` instead of `reload`.
+/// Profile create/edit may add or change an interface's `ip6assign`; netifd only
+/// recomputes its global IPv6 prefix distribution on a process restart, so a plain
+/// `reload` leaves a newly v6-eligible profile without its delegated /64 (and
+/// odhcpd with no prefix to advertise) until the next full restart.
+pub async fn reload_system_full() -> Result<(), Error> {
+    reload_system_inner(true).await
+}
+
+async fn reload_system_inner(restart_network: bool) -> Result<(), Error> {
+    let network_action = if restart_network { "restart" } else { "reload" };
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/network").arg(network_action)).await;
+    // odhcpd holds RA/DHCPv6 config in memory; restart so dhcp.*.ra_default
+    // (and other v6 advertisement changes) actually take effect.
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/odhcpd").arg("restart")).await;
     let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/smartdns").arg("restart")).await;
     let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/firewall").arg("restart")).await;
     let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/dnsmasq").arg("restart")).await;
-    // Re-apply WAN schedules — firewall restart flushes the iptables chain
+    // Re-apply WAN schedules — firewall restart rebuilds the nftables ruleset
     reapply_schedules_after_reload().await;
     Ok(())
 }
@@ -809,12 +827,26 @@ pub async fn reload_system() -> Result<(), Error> {
 /// tears down and recreates wireless interfaces, which destabilizes the network if the
 /// firewall reloads concurrently.
 pub async fn reload_system_and_wifi() -> Result<(), Error> {
-    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/network").arg("reload")).await;
+    reload_system_and_wifi_inner(false).await
+}
+
+/// Full-restart variant of [`reload_system_and_wifi`] — see [`reload_system_full`]
+/// for why profile create needs `network restart` rather than `reload`.
+pub async fn reload_system_and_wifi_full() -> Result<(), Error> {
+    reload_system_and_wifi_inner(true).await
+}
+
+async fn reload_system_and_wifi_inner(restart_network: bool) -> Result<(), Error> {
+    let network_action = if restart_network { "restart" } else { "reload" };
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/network").arg(network_action)).await;
     let _ = crate::run_quiet_async(&mut tokio::process::Command::new("wifi")).await;
+    // odhcpd holds RA/DHCPv6 config in memory; restart so dhcp.*.ra_default
+    // (and other v6 advertisement changes) actually take effect.
+    let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/odhcpd").arg("restart")).await;
     let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/smartdns").arg("restart")).await;
     let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/firewall").arg("restart")).await;
     let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/dnsmasq").arg("restart")).await;
-    // Re-apply WAN schedules — firewall restart flushes the iptables chain
+    // Re-apply WAN schedules — firewall restart rebuilds the nftables ruleset
     reapply_schedules_after_reload().await;
     Ok(())
 }
@@ -1017,9 +1049,28 @@ pub async fn set<C: CtrlContext>(
                     if admin_ip_changed {
                         crate::lan::restart_network_services(profile.gateway_ip, restart_ifaces).await;
                     } else {
-                        reload_system().await?;
+                        // Full network restart (not reload) so an outbound change
+                        // that flips IPv6 eligibility re-runs netifd prefix
+                        // distribution (adds/removes the profile's /64).
+                        reload_system_full().await?;
                     }
                     removed_vpns.apply_post_reload().await;
+                }
+                // Keep the schedule crontab in sync: its window-start commands
+                // embed the egress zone ("wan" vs "vpn_<X>"), which depends on
+                // this profile's outbound — so an outbound change must rewrite
+                // them, or the next blackout boundary would REJECT toward the
+                // stale zone.
+                if let Err(e) = regenerate_schedule_crontab(&ctx).await {
+                    tracing::error!(
+                        "Failed to regenerate schedule crontab after profile update: {e}"
+                    );
+                }
+                if ctx.effectful() {
+                    let _ = crate::run_quiet_async(
+                        tokio::process::Command::new("/etc/init.d/cron").arg("restart"),
+                    )
+                    .await;
                 }
                 let mut changes = Vec::new();
                 if let Some(ref old) = old_state {
@@ -1153,7 +1204,14 @@ fn set_config<C: CtrlContext>(
                 iface.proto = InterfaceProto::STATIC;
                 iface.ipaddr = Some(profile.gateway_ip);
                 iface.netmask = Some(Ipv4Addr::new(255, 255, 255, 0));
-                iface.ip6assign = if ipv6 { Some("64".into()) } else { None };
+                // The admin LAN's prefix delegation is owned by lan::ipv6_set
+                // (the LAN IPv6 page) and uses the user-configured prefix — don't
+                // reset it here. Non-admin VLANs get a /64, gated on whether their
+                // outbound carries v6. (A VPN-routed admin still fails v6 closed
+                // via the kill-switch route in rewrite_routing.)
+                if !profile.owns_lan {
+                    iface.ip6assign = if ipv6 { Some("64".into()) } else { None };
+                }
                 section.set(&iface)?;
                 found_interface = true;
             }
@@ -1202,8 +1260,40 @@ fn set_config<C: CtrlContext>(
     rewrite_dns_forwarding(cfgs, &profile)?;
     rewrite_routing(&ctx, cfgs, &profile)?;
     sync_cross_subnet_routes(cfgs)?;
-    cleanup_orphaned_wan_vpns(cfgs);
+    cleanup_orphaned_vpn_zones(cfgs);
     Ok((profile.id, old_state))
+}
+
+/// Re-apply a profile's full firewall/dhcp/dns/routing config from its current
+/// UCI state. Used after a profile's outbound is reset to "wan" (because its VPN
+/// was deleted or disabled) so the dedicated-vpn-zone forwarding (`<zone> →
+/// vpn_<wg>`) is rebuilt as `<zone> → wan`. Mirrors the rewrite sequence at the
+/// tail of `set_config`; the VPN delete/disable paths previously ran only
+/// `rewrite_routing` + `rewrite_dns_forwarding`, leaving the profile with no
+/// `→ wan` forwarding (fw4 then dropped all of its WAN traffic).
+pub(crate) fn reapply_profile_config<C: CtrlContext>(
+    ctx: &C,
+    cfgs: &mut Configs,
+    query: ProfileIdOpt,
+) -> Result<(), Error> {
+    let profile = get_config(ctx.clone(), cfgs, query)?;
+    let all_interfaces: BTreeSet<String> = cfgs["network"]
+        .sections
+        .iter()
+        .filter_map(|s| {
+            let ni = s.get::<NetworkInterface>().ok()?;
+            if ni.proto == InterfaceProto::STATIC {
+                Some(s.name()?.to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+    rewrite_firewall(ctx, cfgs, &profile, &all_interfaces, &[], false)?;
+    rewrite_dhcp(ctx, cfgs, &profile)?;
+    rewrite_dns_forwarding(cfgs, &profile)?;
+    rewrite_routing(ctx, cfgs, &profile)?;
+    Ok(())
 }
 
 #[instrument(skip_all)]
@@ -1263,7 +1353,9 @@ pub async fn create<C: CtrlContext>(
                     };
                     dns::apply_smartdns_groups(smartdns_groups).await?;
 
-                    reload_system_and_wifi().await?;
+                    // Full network restart (not reload) so netifd re-runs IPv6
+                    // prefix distribution and the new profile's VLAN gets its /64.
+                    reload_system_and_wifi_full().await?;
                 }
                 crate::activity::log("profile", "created", true, &format!("Created profile '{name}'"), None);
                 return Ok(out);
@@ -1467,7 +1559,7 @@ fn create_config(
     rewrite_dns_forwarding(cfgs, &profile)?;
     rewrite_routing(&ctx, cfgs, &profile)?;
     sync_cross_subnet_routes(cfgs)?;
-    cleanup_orphaned_wan_vpns(cfgs);
+    cleanup_orphaned_vpn_zones(cfgs);
     Ok(profile.id)
 }
 
@@ -1519,10 +1611,19 @@ fn rewrite_firewall(
                 output: FirewallTarget::ACCEPT,
                 forward: FirewallTarget::ACCEPT,
                 network: vec![profile.id.interface.clone()],
+                masq: None,
+                masq6: None,
             },
             None,
         )?;
     }
+
+    // Egress zone for this profile's internet-bound traffic.
+    // "wan" for wan-routed profiles; "vpn_<wg_X>" (a dedicated NAT66-enabled
+    // zone, ensured by ensure_vpn_outbound_zone in rewrite_routing) for
+    // VPN-routed profiles — the dedicated zone carries masq6=1 so NAT applies
+    // on VPN egress without touching wan6.
+    let outbound_zone = resolve_outbound_zone(&profile.outbound);
 
     // Setup forwarding for DNS and DHCP
     let mut found_dhcp_dns_rule = false;
@@ -1583,14 +1684,15 @@ fn rewrite_firewall(
         )?;
     }
 
-    // Clean up old WAN access rules for this profile
+    // Clean up old WAN-access rules for this profile. The dest could be either
+    // "wan" or a previous "vpn_<X>" zone (if the profile's outbound changed),
+    // so match on src + non-DHCP name only. (Schedule `sched_*` rules are
+    // re-applied separately by evaluate_and_apply_schedules after reload.)
     cfgs["firewall"].sections.retain(|section| {
         let Ok(rule) = section.get::<FirewallRule>() else {
             return true;
         };
-        !(rule.src == this_zone_name
-            && rule.dest.as_deref() == Some(DEFAULT_WAN_ZONE)
-            && !rule.name.contains("DHCP"))
+        !(rule.src == this_zone_name && !rule.name.contains("DHCP"))
     });
 
     // Setup forwarding for lan access
@@ -1647,12 +1749,23 @@ fn rewrite_firewall(
         }
     }
 
-    // Setup forwarding for wan access
+    // Setup forwarding for wan access. `outbound_zone` is "wan" for wan-routed
+    // profiles and "vpn_<wg_X>" for VPN-routed ones; routing sends the traffic
+    // out the corresponding interface, so the forward chain must permit it to
+    // that zone.
+    //
+    // TODO(ipv6/nat66): a wan-routed non-admin profile on a /64-only ISP can only
+    // get a ULA (the single GUA /64 goes to the admin LAN) and the `wan` zone has
+    // no masq6, so its IPv6 is local-only — no internet path. To give such
+    // profiles v6 internet without a larger PD, NAT66 their ULA out wan (e.g. a
+    // dedicated wan-egress zone with masq6=1, mirroring ensure_vpn_outbound_zone).
+    // Today v6 internet for non-admin profiles works only via a GUA (larger ISP
+    // delegation) or VPN egress (masq6 on the vpn_<X> zone).
     match &profile.wan_access {
         WanAccess::All => cfgs["firewall"].append(
             &FirewallForwarding {
                 src: this_zone_name.clone(),
-                dest: DEFAULT_WAN_ZONE.into(),
+                dest: outbound_zone.clone(),
             },
             None,
         )?,
@@ -1662,7 +1775,7 @@ fn rewrite_firewall(
             cfgs["firewall"].append(
                 &FirewallForwarding {
                     src: this_zone_name.clone(),
-                    dest: DEFAULT_WAN_ZONE.into(),
+                    dest: outbound_zone.clone(),
                 },
                 None,
             )?;
@@ -1676,7 +1789,7 @@ fn rewrite_firewall(
                             dest_ip
                         ),
                         src: this_zone_name.clone(),
-                        dest: Some(DEFAULT_WAN_ZONE.into()),
+                        dest: Some(outbound_zone.clone()),
                         dest_ip: Some(dest_ip.clone()),
                         proto: vec!["all".into()],
                         target: FirewallTarget::ACCEPT,
@@ -1693,7 +1806,7 @@ fn rewrite_firewall(
                         profile.id.fullname.replace(" ", "-")
                     ),
                     src: this_zone_name.clone(),
-                    dest: Some(DEFAULT_WAN_ZONE.into()),
+                    dest: Some(outbound_zone.clone()),
                     proto: vec!["all".into()],
                     target: FirewallTarget::REJECT,
                     ..Default::default()
@@ -1706,7 +1819,7 @@ fn rewrite_firewall(
             cfgs["firewall"].append(
                 &FirewallForwarding {
                     src: this_zone_name.clone(),
-                    dest: DEFAULT_WAN_ZONE.into(),
+                    dest: outbound_zone.clone(),
                 },
                 None,
             )?;
@@ -1720,7 +1833,7 @@ fn rewrite_firewall(
                             dest_ip
                         ),
                         src: this_zone_name.clone(),
-                        dest: Some(DEFAULT_WAN_ZONE.into()),
+                        dest: Some(outbound_zone.clone()),
                         dest_ip: Some(dest_ip.clone()),
                         proto: vec!["all".into()],
                         target: FirewallTarget::REJECT,
@@ -1774,6 +1887,17 @@ pub fn rewrite_dhcp(
         && outbound_supports_ipv6(cfgs, &profile.outbound);
     let ra_value = if ipv6 { "server" } else { "disabled" }.to_string();
     let dhcpv6_value = if ipv6 { "server" } else { "disabled" }.to_string();
+    // When IPv6 routes through a VPN, force odhcpd to advertise this router as
+    // the IPv6 default. Without this, downstream-without-PD setups (where wan6
+    // has no default route) make odhcpd suppress the Default Router Lifetime,
+    // so LAN clients have no IPv6 default route and traffic never reaches the
+    // policy-routing layer. `wan` keeps odhcpd's default behavior (mode 2 —
+    // advertise only if wan6 has a default), so we don't override there.
+    let ra_default_value = if ipv6 && profile.outbound != "wan" {
+        Some("1".to_string())
+    } else {
+        None
+    };
 
     let mut found_dhcp = false;
     for section in &mut cfgs["dhcp"].sections {
@@ -1785,6 +1909,10 @@ pub fn rewrite_dhcp(
             if dhcp.ra.as_deref() != Some(&ra_value) || dhcp.dhcpv6.as_deref() != Some(&dhcpv6_value) {
                 dhcp.ra = Some(ra_value.clone());
                 dhcp.dhcpv6 = Some(dhcpv6_value.clone());
+                changed = true;
+            }
+            if dhcp.ra_default != ra_default_value {
+                dhcp.ra_default = ra_default_value.clone();
                 changed = true;
             }
             // Enforce DHCP pool bounds (avoid overlap with VPN peer range .200-.253)
@@ -1809,6 +1937,7 @@ pub fn rewrite_dhcp(
                 ra: Some(ra_value),
                 dhcpv6: Some(dhcpv6_value),
                 ra_management: None,
+                ra_default: ra_default_value,
             },
             Some(&profile.id.interface),
         )?;
@@ -1822,16 +1951,27 @@ pub(crate) fn rewrite_routing(
     profile: &Profile,
 ) -> Result<(), Error> {
     let route_name = format!("prt_{}", profile.id.interface);
+    let route_block_name = format!("prtb_{}", profile.id.interface);
     let local_route_name = format!("plr_{}", profile.id.interface);
     let rule_name = format!("prr_{}", profile.id.interface);
+    let route6_name = format!("prt6_{}", profile.id.interface);
+    let route6_block_name = format!("prt6b_{}", profile.id.interface);
+    let local6_rule_name = format!("prl6_{}", profile.id.interface);
+    let rule6_name = format!("prr6_{}", profile.id.interface);
     let mark_rule_name = format!("dnat_mark_{}", profile.id.interface);
 
-    // 1. Remove old route/rule/mark for this profile
+    // 1. Remove old route/rule/mark for this profile (both v4 and v6 siblings,
+    //    incl. the kill-switch fallback routes)
     cfgs["network"].sections.retain(|s| {
         let n = s.name();
         n.as_deref() != Some(route_name.as_str())
+            && n.as_deref() != Some(route_block_name.as_str())
             && n.as_deref() != Some(local_route_name.as_str())
             && n.as_deref() != Some(rule_name.as_str())
+            && n.as_deref() != Some(route6_name.as_str())
+            && n.as_deref() != Some(route6_block_name.as_str())
+            && n.as_deref() != Some(local6_rule_name.as_str())
+            && n.as_deref() != Some(rule6_name.as_str())
     });
     cfgs["firewall"]
         .sections
@@ -1844,20 +1984,50 @@ pub(crate) fn rewrite_routing(
         return Ok(());
     }
 
+    // Whether this VPN carries IPv6. The v6 policy routing (rules + unreachable
+    // fallback) is installed for every VPN-routed profile so v6 always fails
+    // closed; the per-VLAN default points at the tunnel only when the VPN
+    // actually carries v6 (otherwise the unreachable fallback is the only
+    // default). RA/address service stays gated by is_ipv6_enabled in
+    // rewrite_dhcp — that controls whether clients GET v6, independent of where
+    // v6 routes if present.
+    let vpn_has_v6 = outbound_supports_ipv6(cfgs, &profile.outbound);
+
     // 3. Create routing table entry:
     //    config route 'prt_<interface>'
     //      option interface '<outbound>'
     //      option target '0.0.0.0/0'
     //      option table '<vlan_tag>'
+    //      option metric '1'   (beats the kill-switch fallback below)
     cfgs["network"].append(
         &NetworkRoute {
             interface: profile.outbound.clone(),
             target: "0.0.0.0/0".to_string(),
             gateway: None,
             netmask: None,
+            metric: Some(VPN_DEFAULT_ROUTE_METRIC),
             table: Some(profile.id.vlan_tag as u32),
+            kind: None,
         },
         Some(&route_name),
+    )?;
+
+    // 3b. IPv4 kill-switch fallback: an `unreachable` default in the per-VLAN
+    //     table, attached to loopback (always up) at a higher metric than the
+    //     `dev <wg>` route above. While the WG interface is up the dev route
+    //     wins; the moment it goes down (netifd removes interface-bound routes)
+    //     this fallback catches the traffic with ENETUNREACH instead of letting
+    //     the ip rule fall through to the main table and leak out WAN.
+    cfgs["network"].append(
+        &NetworkRoute {
+            interface: "loopback".to_string(),
+            target: "0.0.0.0/0".to_string(),
+            metric: Some(VPN_KILLSWITCH_METRIC),
+            table: Some(profile.id.vlan_tag as u32),
+            kind: Some("unreachable".to_string()),
+            ..Default::default()
+        },
+        Some(&route_block_name),
     )?;
 
     // 4. Create connected route for the profile's local subnet so LAN traffic
@@ -1893,38 +2063,99 @@ pub(crate) fn rewrite_routing(
         Some(&rule_name),
     )?;
 
-    // 6. Create mangle MARK rule so that DNAT reply traffic gets routed via
-    //    the main table instead of the VPN tunnel.  fw3 places MARK rules
-    //    with src=<zone> + dest='*' into mangle PREROUTING (rules.c:313).
-    //    The matching ip rule (dnat_return) is created by ensure_dnat_return_rule().
-    let zone_name = resolve_profile_zone(cfgs, &profile.id.interface);
-    cfgs["firewall"].append(
-        &FirewallRule {
-            name: "Mark-DNAT-Return".to_string(),
-            src: zone_name,
-            dest: Some("*".to_string()),
-            proto: vec!["all".into()],
-            target: FirewallTarget::MARK,
-            set_mark: Some(DNAT_RETURN_MARK.to_string()),
-            extra: Some("-m conntrack --ctstate DNAT".to_string()),
+    // 5b. IPv6 policy routing. Installed for EVERY VPN-routed profile (mirrors
+    //     the always-on v4 fallback above), independent of whether IPv6 is
+    //     globally served — so v6 fails closed in all states (global v6 off,
+    //     v4-only VPN, tunnel interface down). We can't mirror IPv4's
+    //     `src=<prefix>` matcher because LAN /64s are dynamic under DHCPv6-PD,
+    //     so two rule6 sections instead:
+    //       * `prl6_<iface>`: lookup main, suppress_prefixlength=0 — match any
+    //         specific route (e.g. on-link /64 to a sibling LAN) but fall
+    //         through on default-route-only matches. Lets cross-VLAN and
+    //         link-local traffic stay local instead of being captured by the
+    //         per-VLAN table's ::/0 → VPN entry.
+    //         NOTE (v4/v6 asymmetry, accepted): this escape can also reach the
+    //         WAN interface's own on-link /64 (e.g. an upstream ULA/GUA segment)
+    //         directly, bypassing the tunnel. It only ever permits on-link
+    //         destinations — public-internet traffic has no specific main-table
+    //         route, so it is always captured by `prr6_` below (tunnel or
+    //         unreachable) and never leaks. The v4 path has no equivalent
+    //         because its per-VLAN table is seeded with explicit local/sibling
+    //         routes (plr_/pxr_). This matches upstream `pbr`'s escape rule.
+    //       * `prr6_<iface>`: lookup <vlan_tag>, the per-VLAN table holding
+    //         the VPN default route (or the unreachable kill switch).
+    //     netifd matches `in: <logical_iface>` against logical interface names
+    //     (iprule.c:194) and substitutes the kernel netdev at install time
+    //     (iprule.c:134), so we pass the profile interface name directly.
+    cfgs["network"].append(
+        &NetworkRule6 {
+            in_iface: Some(profile.id.interface.clone()),
+            lookup: 254, // main
+            suppress_prefixlength: Some(0),
+            priority: Some(VPN_ROUTING_V6_LOCAL_PRIORITY),
             ..Default::default()
         },
-        Some(&mark_rule_name),
+        Some(&local6_rule_name),
     )?;
-    ensure_dnat_return_rule(cfgs)?;
+    cfgs["network"].append(
+        &NetworkRule6 {
+            in_iface: Some(profile.id.interface.clone()),
+            lookup: profile.id.vlan_tag as u32,
+            priority: Some(VPN_ROUTING_PRIORITY),
+            ..Default::default()
+        },
+        Some(&rule6_name),
+    )?;
 
-    // 7. Ensure VPN interface is in WAN zone (for masquerading)
-    for section in &mut cfgs["firewall"].sections {
-        if let Ok(mut zone) = section.get::<FirewallZone>() {
-            if zone.name == DEFAULT_WAN_ZONE {
-                if !zone.network.contains(&profile.outbound) {
-                    zone.network.push(profile.outbound.clone());
-                    section.set(&zone)?;
-                }
-                break;
-            }
-        }
+    // When the VPN carries v6, the per-VLAN default points at the tunnel.
+    if vpn_has_v6 {
+        cfgs["network"].append(
+            &NetworkRoute6 {
+                interface: profile.outbound.clone(),
+                target: "::/0".to_string(),
+                metric: Some(VPN_DEFAULT_ROUTE_METRIC),
+                table: Some(profile.id.vlan_tag as u32),
+                ..Default::default()
+            },
+            Some(&route6_name),
+        )?;
     }
+
+    // IPv6 kill switch / fail-closed fallback: an `unreachable` default in the
+    // per-VLAN table, attached to loopback at a higher metric. For a v4-only VPN
+    // it is the only default (v6 is always blocked); for a v6-capable VPN it
+    // backstops the `dev <wg>` route when the tunnel interface goes down — so v6
+    // never falls through to wan6.
+    cfgs["network"].append(
+        &NetworkRoute6 {
+            interface: "loopback".to_string(),
+            target: "::/0".to_string(),
+            metric: Some(VPN_KILLSWITCH_METRIC),
+            table: Some(profile.id.vlan_tag as u32),
+            kind: Some("unreachable".to_string()),
+            ..Default::default()
+        },
+        Some(&route6_block_name),
+    )?;
+
+    // 6. DNAT-return marking: replies to inbound port-forwarded connections must
+    //    route via the main table, not the VPN tunnel. The marks are set by
+    //    static nftables chains (fw4 has no UCI option for `ct status dnat` /
+    //    connmark matching); here we only ensure the matching ip rules.
+    //      * IPv4: 10-startwrt-dnat-mark.nft marks `ct status dnat` packets;
+    //        dnat_return routes fwmark 0x80 -> main.
+    //      * IPv6: 11-startwrt-inbound6-mark.nft connection-marks WAN-initiated
+    //        flows (v6 port-forwards aren't DNAT'd, so there's no dnat status to
+    //        key on); dnat_return6 routes fwmark 0x80 -> main, ahead of prl6_/
+    //        prr6_, so a published-port reply leaves via wan6 instead of the VPN.
+    ensure_dnat_return_rule(cfgs)?;
+    ensure_dnat_return6_rule(cfgs)?;
+
+    // 7. Ensure a dedicated firewall zone exists for the VPN outbound, carrying
+    //    masq=1/masq6=1. The per-profile forwardings created by rewrite_firewall
+    //    target this zone (not wan), so NAT (incl. NAT66) applies on the VPN
+    //    egress while wan6's GUA path and inbound port-forwards stay intact.
+    ensure_vpn_outbound_zone(cfgs, &profile.outbound)?;
 
     // 8. Add /32 peer routes so locally-generated responses (DNS, HTTP) reach
     //    VPN clients via wg_X instead of being caught by the /24 subnet route
@@ -1934,6 +2165,7 @@ pub(crate) fn rewrite_routing(
 }
 
 const DNAT_RETURN_RULE: &str = "dnat_return";
+const DNAT_RETURN_RULE6: &str = "dnat_return6";
 const DNAT_RETURN_MARK: &str = "0x80/0x80";
 /// Must be lower (higher priority) than VPN_ROUTING_PRIORITY so that the
 /// fwmark rule is evaluated before source-based VPN routing rules.
@@ -1941,26 +2173,24 @@ const DNAT_RETURN_PRIORITY: u32 = 100;
 /// Explicit priority for source-based VPN ip rules, ensuring they don't
 /// collide with DNAT_RETURN_PRIORITY through netifd auto-assignment.
 const VPN_ROUTING_PRIORITY: u32 = 200;
-
-/// Find the firewall zone name for a profile's interface.
-fn resolve_profile_zone(cfgs: &Configs, interface: &str) -> String {
-    for section in &cfgs["firewall"].sections {
-        if let Ok(zone) = section.get::<FirewallZone>() {
-            if zone.name == DEFAULT_WAN_ZONE {
-                continue;
-            }
-            if zone.network.iter().any(|n| n == interface) {
-                return zone.name;
-            }
-        }
-    }
-    format!("vlan_{interface}")
-}
+/// IPv6 cross-VLAN escape rule: must fire before VPN_ROUTING_PRIORITY so
+/// specific (sibling-LAN /64) destinations escape to the main table before
+/// the per-VLAN default route captures them.
+const VPN_ROUTING_V6_LOCAL_PRIORITY: u32 = 150;
+/// Metric for the per-VLAN `dev <wg>` default route. Lower than
+/// VPN_KILLSWITCH_METRIC so the tunnel route is preferred whenever the WG
+/// interface is up.
+const VPN_DEFAULT_ROUTE_METRIC: u32 = 1;
+/// Metric for the fail-closed `unreachable` fallback in the per-VLAN table.
+/// Higher than VPN_DEFAULT_ROUTE_METRIC and any netifd-default (≈1024), so it
+/// only wins when the `dev <wg>` route is absent (interface down / v4-only VPN).
+const VPN_KILLSWITCH_METRIC: u32 = 2048;
 
 /// Ensure a single `ip rule` exists that routes fwmark 0x80 packets via the
-/// main routing table.  This cooperates with the per-profile mangle MARK rules
-/// (dnat_mark_<interface>) to prevent DNAT reply traffic from being captured by
-/// source-based VPN policy routing rules.
+/// main routing table.  This cooperates with the static nftables chain
+/// (/etc/nftables.d/10-startwrt-dnat-mark.nft), which marks DNAT-state packets
+/// with 0x80, to prevent DNAT reply traffic from being captured by source-based
+/// VPN policy routing rules.
 fn ensure_dnat_return_rule(cfgs: &mut Configs) -> Result<(), Error> {
     let exists = cfgs["network"]
         .sections
@@ -1975,6 +2205,33 @@ fn ensure_dnat_return_rule(cfgs: &mut Configs) -> Result<(), Error> {
                 priority: Some(DNAT_RETURN_PRIORITY),
             },
             Some(DNAT_RETURN_RULE),
+        )?;
+    }
+    Ok(())
+}
+
+/// Ensure a single `ip -6 rule` exists that routes fwmark 0x80 packets via the
+/// main routing table.  This is the IPv6 sibling of [`ensure_dnat_return_rule`]:
+/// it cooperates with the static nftables chain
+/// (/etc/nftables.d/11-startwrt-inbound6-mark.nft), which connection-marks
+/// IPv6 flows initiated from WAN, so that replies to inbound port-forwarded
+/// connections route out wan6 instead of being captured by the per-VLAN VPN
+/// policy rules (prr6_*). Priority 100 (DNAT_RETURN_PRIORITY) keeps it ahead of
+/// both prl6_ (150) and prr6_ (200).
+fn ensure_dnat_return6_rule(cfgs: &mut Configs) -> Result<(), Error> {
+    let exists = cfgs["network"]
+        .sections
+        .iter()
+        .any(|s| s.name().as_deref() == Some(DNAT_RETURN_RULE6));
+    if !exists {
+        cfgs["network"].append(
+            &NetworkRule6 {
+                lookup: 254, // main table
+                mark: Some(DNAT_RETURN_MARK.to_string()),
+                priority: Some(DNAT_RETURN_PRIORITY),
+                ..Default::default()
+            },
+            Some(DNAT_RETURN_RULE6),
         )?;
     }
     Ok(())
@@ -2053,9 +2310,102 @@ pub(crate) fn sync_cross_subnet_routes(cfgs: &mut Configs) -> Result<(), Error> 
     Ok(())
 }
 
-/// After routing changes, remove VPN interfaces from the WAN zone that are no longer
-/// referenced by any profile's outbound field.
-pub(crate) fn cleanup_orphaned_wan_vpns(cfgs: &mut Configs) {
+/// The firewall zone name for a profile's outbound:
+///   - `"wan"` when outbound is `"wan"`.
+///   - `"vpn_<wg_name>"` (a dedicated NAT66-enabled zone) otherwise.
+///
+/// Used in `rewrite_firewall`/`evaluate_and_apply_schedules` to compute
+/// forwarding/rule `dest` fields and in `ensure_vpn_outbound_zone` to manage
+/// the zone lifecycle.
+pub(crate) fn resolve_outbound_zone(outbound: &str) -> String {
+    if outbound == DEFAULT_WAN_ZONE {
+        DEFAULT_WAN_ZONE.to_string()
+    } else {
+        format!("vpn_{outbound}")
+    }
+}
+
+/// Ensure a dedicated firewall zone exists for a VPN outbound, with v4 and v6
+/// masquerade enabled. Returns the zone name.
+///
+/// The separate zone (vs. dumping the wg interface into `wan`) is what lets us
+/// apply NAT66 to VPN-routed traffic without touching wan6 — preserving the
+/// admin LAN's GUA path and inbound port-forwards.
+///
+/// Side effects: creates `vpn_<wg_name>` if missing; strips `wg_name` from any
+/// other zone's `network` (notably leftover `wan` membership from before this
+/// layout).
+pub(crate) fn ensure_vpn_outbound_zone(
+    cfgs: &mut Configs,
+    wg_name: &str,
+) -> Result<String, Error> {
+    let zone_name = resolve_outbound_zone(wg_name);
+
+    // Strip wg_name from any zone that isn't ours (esp. wan).
+    for section in &mut cfgs["firewall"].sections {
+        let Ok(mut zone) = section.get::<FirewallZone>() else {
+            continue;
+        };
+        if zone.name == zone_name {
+            continue;
+        }
+        if zone.network.iter().any(|n| n == wg_name) {
+            zone.network.retain(|n| n != wg_name);
+            section.set(&zone)?;
+        }
+    }
+
+    // Find or update the dedicated zone.
+    let mut exists = false;
+    for section in &mut cfgs["firewall"].sections {
+        let Ok(mut zone) = section.get::<FirewallZone>() else {
+            continue;
+        };
+        if zone.name != zone_name {
+            continue;
+        }
+        exists = true;
+        let mut changed = false;
+        if !zone.network.iter().any(|n| n == wg_name) {
+            zone.network.push(wg_name.to_string());
+            changed = true;
+        }
+        if zone.masq != Some(true) {
+            zone.masq = Some(true);
+            changed = true;
+        }
+        if zone.masq6 != Some(true) {
+            zone.masq6 = Some(true);
+            changed = true;
+        }
+        if changed {
+            section.set(&zone)?;
+        }
+        break;
+    }
+    if !exists {
+        cfgs["firewall"].append(
+            &FirewallZone {
+                name: zone_name.clone(),
+                input: FirewallTarget::REJECT,
+                output: FirewallTarget::ACCEPT,
+                forward: FirewallTarget::REJECT,
+                network: vec![wg_name.to_string()],
+                masq: Some(true),
+                masq6: Some(true),
+            },
+            None,
+        )?;
+    }
+
+    Ok(zone_name)
+}
+
+/// After routing changes, remove `vpn_<X>` zones (and any forwardings or rules
+/// that reference them) when no profile uses `wg_X` as outbound. Also strips
+/// stray `wg_X` entries from the wan zone (pre-migration leftovers from when
+/// VPN outbounds lived directly in the wan zone).
+pub(crate) fn cleanup_orphaned_vpn_zones(cfgs: &mut Configs) {
     // Collect all VPN interface names referenced by any profile's outbound
     let mut referenced_vpns = std::collections::HashSet::new();
     for section in &cfgs["startwrt"].sections {
@@ -2069,16 +2419,58 @@ pub(crate) fn cleanup_orphaned_wan_vpns(cfgs: &mut Configs) {
             }
         }
     }
+    let referenced_zone_names: std::collections::HashSet<String> = referenced_vpns
+        .iter()
+        .map(|wg| resolve_outbound_zone(wg))
+        .collect();
 
-    // Remove unreferenced VPN interfaces from WAN zone
+    // 1. Collect orphaned vpn_<X> zone names.
+    let mut orphaned_zone_names: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+    for section in &cfgs["firewall"].sections {
+        let Ok(zone) = section.get::<FirewallZone>() else {
+            continue;
+        };
+        if !zone.name.starts_with("vpn_") {
+            continue;
+        }
+        if !referenced_zone_names.contains(&zone.name) {
+            orphaned_zone_names.insert(zone.name);
+        }
+    }
+
+    // 2. Drop orphaned zones + any forwarding/rule referencing them.
+    cfgs["firewall"].sections.retain(|section| {
+        if let Ok(zone) = section.get::<FirewallZone>() {
+            if orphaned_zone_names.contains(&zone.name) {
+                return false;
+            }
+        }
+        if let Ok(fwd) = section.get::<FirewallForwarding>() {
+            if orphaned_zone_names.contains(&fwd.src) || orphaned_zone_names.contains(&fwd.dest) {
+                return false;
+            }
+        }
+        if let Ok(rule) = section.get::<FirewallRule>() {
+            if orphaned_zone_names.contains(&rule.src)
+                || rule
+                    .dest
+                    .as_ref()
+                    .map_or(false, |d| orphaned_zone_names.contains(d))
+            {
+                return false;
+            }
+        }
+        true
+    });
+
+    // 3. Defense in depth: strip any stray wg_X entries still in the wan zone.
     for section in &mut cfgs["firewall"].sections {
         if let Ok(mut zone) = section.get::<FirewallZone>() {
             if zone.name == DEFAULT_WAN_ZONE {
                 let before_len = zone.network.len();
-                zone.network.retain(|n| {
-                    // Keep "wan" and any interface still referenced by a profile
-                    !n.starts_with("wg_") || referenced_vpns.contains(n)
-                });
+                zone.network
+                    .retain(|n| !n.starts_with("wg_") || referenced_vpns.contains(n));
                 if zone.network.len() != before_len {
                     let _ = section.set(&zone);
                 }
@@ -2419,7 +2811,7 @@ pub async fn schedule_get<C: CtrlContext>(
     Err(Error::new(eyre!("missing profile: {}", params.interface), ErrorKind::MissingProfile))
 }
 
-/// Write schedule data for a single profile, regenerate crontab and iptables rules.
+/// Write schedule data for a single profile, regenerate crontab and firewall rules.
 #[instrument(skip_all)]
 pub async fn schedule_set<C: CtrlContext>(
     ctx: C,
@@ -2533,6 +2925,10 @@ pub(crate) async fn regenerate_schedule_crontab(ctx: &impl CtrlContext) -> Resul
             }
             let iface = &profile.interface;
             let zone = find_zone_for_interface(&cfgs, iface);
+            // Block traffic toward the profile's egress zone — "wan" for
+            // wan-routed profiles, "vpn_<wg_X>" for VPN-routed ones (else the
+            // blackout wouldn't cover VPN egress).
+            let egress = resolve_outbound_zone(profile.outbound.as_deref().unwrap_or("wan"));
             let sec = format!("{SCHEDULE_RULE_PREFIX}{iface}");
 
             for window in &windows {
@@ -2558,7 +2954,7 @@ pub(crate) async fn regenerate_schedule_crontab(ctx: &impl CtrlContext) -> Resul
                      uci set firewall.{sec}=rule; \
                      uci set firewall.{sec}.name='WAN-Schedule-{iface}'; \
                      uci set firewall.{sec}.src='{zone}'; \
-                     uci set firewall.{sec}.dest='wan'; \
+                     uci set firewall.{sec}.dest='{egress}'; \
                      uci set firewall.{sec}.target='REJECT'; \
                      uci commit firewall; \
                      /etc/init.d/firewall reload \
@@ -2611,9 +3007,16 @@ pub(crate) async fn evaluate_and_apply_schedules(ctx: &impl CtrlContext) -> Resu
 
     // Collect interfaces that should be blocked right now
     let mut should_block: BTreeSet<String> = BTreeSet::new();
+    // Map each profile interface to its egress zone so the REJECT rule blocks
+    // the right zone ("wan" or "vpn_<wg_X>").
+    let mut iface_egress: BTreeMap<String, String> = BTreeMap::new();
 
     for section in &cfgs["startwrt"].sections {
         if let Some(profile) = section.get_typed::<UciProfile>()? {
+            iface_egress.insert(
+                profile.interface.clone(),
+                resolve_outbound_zone(profile.outbound.as_deref().unwrap_or("wan")),
+            );
             let windows = parse_schedule_windows(&profile.wan_schedule);
 
             for window in &windows {
@@ -2670,12 +3073,16 @@ pub(crate) async fn evaluate_and_apply_schedules(ctx: &impl CtrlContext) -> Resu
     // Add missing schedule rules
     for iface in &to_add {
         let zone = find_zone_for_interface(&cfgs, iface);
+        let dest_zone = iface_egress
+            .get(*iface)
+            .cloned()
+            .unwrap_or_else(|| DEFAULT_WAN_ZONE.to_string());
         let section_name = format!("{SCHEDULE_RULE_PREFIX}{iface}");
         cfgs["firewall"].append(
             &FirewallRule {
                 name: format!("WAN-Schedule-{iface}"),
                 src: zone,
-                dest: Some("wan".into()),
+                dest: Some(dest_zone),
                 target: FirewallTarget::REJECT,
                 ..Default::default()
             },
@@ -3523,6 +3930,72 @@ config dhcp 'lan'
     }
 
     #[tokio::test]
+    async fn test_set_config_preserves_admin_lan_prefix() {
+        // The admin LAN's ip6assign prefix is owned by lan::ipv6_set (the LAN
+        // IPv6 page). Editing the admin profile must not clobber it. Regression
+        // for the /60 → /64 reset.
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        // Seed the LAN with a user-configured /60 and enable IPv6 (ra=server).
+        // With IPv6 enabled the old code reset ip6assign to "64".
+        for section in &mut cfgs["network"].sections {
+            if section.name().as_deref() == Some("lan") {
+                let mut iface = section.get_typed::<NetworkInterface>().unwrap().unwrap();
+                iface.ip6assign = Some("60".into());
+                section.set(&iface).unwrap();
+            }
+        }
+        for section in &mut cfgs["dhcp"].sections {
+            if section.name().as_deref() == Some("lan") {
+                let mut dhcp = section.get_typed::<Dhcp>().unwrap().unwrap();
+                dhcp.ra = Some("server".into());
+                section.set(&dhcp).unwrap();
+            }
+        }
+
+        // Edit the admin profile (owns_lan).
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Admin".into()),
+                interface: Some("lan".into()),
+                vlan_tag: Some(99),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 1, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::All,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: true,
+            owns_lan: true,
+        };
+        set_config(ctx.clone(), &mut cfgs, &profile).unwrap();
+
+        let lan = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("lan"))
+            .and_then(|s| s.get_typed::<NetworkInterface>().ok().flatten())
+            .expect("lan interface");
+        assert_eq!(
+            lan.ip6assign.as_deref(),
+            Some("60"),
+            "editing the admin profile must preserve the LAN's configured ip6assign"
+        );
+    }
+
+    #[tokio::test]
     async fn test_outbound_vpn_creates_routing() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
@@ -3590,18 +4063,102 @@ config dhcp 'lan'
         assert_eq!(dnat_data.priority, Some(100));
         assert!(dnat_data.src.is_none());
 
-        // Verify mangle MARK rule was created for the profile's zone
-        let mark_rule = cfgs["firewall"]
+        // The DNAT-return mark is no longer a per-profile UCI firewall rule —
+        // it moved to a static nftables chain (/etc/nftables.d/10-startwrt-dnat-mark.nft)
+        // because fw4 has no UCI option for `ct status dnat` matching.
+        assert!(
+            !cfgs["firewall"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("dnat_mark_guest")),
+            "per-profile dnat_mark rule should no longer be written (moved to nftables.d)"
+        );
+
+        // The VPN outbound lives in a dedicated vpn_<wg> zone with masq/masq6,
+        // and the profile's wan-access forwarding targets that zone (not wan).
+        let vpn_zone = cfgs["firewall"]
             .sections
             .iter()
-            .find(|s| s.name().as_deref() == Some("dnat_mark_guest"))
-            .expect("dnat_mark_guest firewall rule should exist");
-        let mark_data = mark_rule.get::<FirewallRule>().unwrap();
-        assert_eq!(mark_data.src, "vlan_guest");
-        assert_eq!(mark_data.dest.as_deref(), Some("*"));
-        assert_eq!(mark_data.target, FirewallTarget::MARK);
-        assert_eq!(mark_data.set_mark.as_deref(), Some("0x80/0x80"));
-        assert_eq!(mark_data.extra.as_deref(), Some("-m conntrack --ctstate DNAT"));
+            .filter_map(|s| s.get::<FirewallZone>().ok())
+            .find(|z| z.name == "vpn_wg_test")
+            .expect("vpn_wg_test zone should exist");
+        assert_eq!(vpn_zone.network, vec!["wg_test".to_string()]);
+        assert_eq!(vpn_zone.masq, Some(true));
+        assert_eq!(vpn_zone.masq6, Some(true));
+
+        let fwd_to_vpn = cfgs["firewall"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<FirewallForwarding>().ok())
+            .any(|f| f.src == "vlan_guest" && f.dest == "vpn_wg_test");
+        assert!(
+            fwd_to_vpn,
+            "VPN-routed profile forwarding must target the vpn_<wg> zone"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_rewrite_routing_v4_killswitch_fallback() {
+        // A VPN-routed profile gets both the `dev <wg>` v4 default (metric 1)
+        // and an `unreachable` fallback on loopback (metric 2048) so v4 fails
+        // closed if the WG interface goes down instead of falling through to WAN.
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_test".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        // dev-wg default: metric 1, no special type.
+        let dev = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("prt_guest"))
+            .expect("prt_guest should exist")
+            .get::<NetworkRoute>()
+            .unwrap();
+        assert_eq!(dev.interface, "wg_test");
+        assert_eq!(dev.target, "0.0.0.0/0");
+        assert_eq!(dev.metric, Some(VPN_DEFAULT_ROUTE_METRIC));
+        assert!(dev.kind.is_none());
+
+        // Fallback: unreachable on loopback, higher metric, same table.
+        let fallback = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("prtb_guest"))
+            .expect("prtb_guest kill-switch fallback should exist")
+            .get::<NetworkRoute>()
+            .unwrap();
+        assert_eq!(fallback.target, "0.0.0.0/0");
+        assert_eq!(fallback.interface, "loopback");
+        assert_eq!(fallback.kind.as_deref(), Some("unreachable"));
+        assert_eq!(fallback.table, Some(101));
+        assert_eq!(fallback.metric, Some(VPN_KILLSWITCH_METRIC));
     }
 
     #[tokio::test]
@@ -3729,7 +4286,7 @@ config dhcp 'lan'
     }
 
     #[tokio::test]
-    async fn test_outbound_vpn_adds_to_wan_zone() {
+    async fn test_outbound_vpn_creates_dedicated_zone() {
         let dir = tempfile::tempdir().unwrap();
         let ctx = TestContext(dir.path().to_path_buf());
         setup_configs(dir.path());
@@ -3761,7 +4318,20 @@ config dhcp 'lan'
 
         set_config(ctx, &mut cfgs, &profile).unwrap();
 
-        // WAN zone should contain the VPN interface
+        // VPN interface lives in a dedicated vpn_<wg> zone (NOT the wan zone),
+        // with masq + masq6 so NAT/NAT66 applies on VPN egress while wan6 stays
+        // untouched.
+        let vpn_zone = cfgs["firewall"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<FirewallZone>().ok())
+            .find(|z| z.name == "vpn_wg_mullvad")
+            .expect("vpn_wg_mullvad zone should exist");
+        assert_eq!(vpn_zone.network, vec!["wg_mullvad".to_string()]);
+        assert_eq!(vpn_zone.masq, Some(true));
+        assert_eq!(vpn_zone.masq6, Some(true));
+
+        // WAN zone must NOT contain the VPN interface.
         let wan_zone = cfgs["firewall"]
             .sections
             .iter()
@@ -3769,10 +4339,106 @@ config dhcp 'lan'
             .find(|z| z.name == DEFAULT_WAN_ZONE)
             .expect("WAN zone should exist");
         assert!(
-            wan_zone.network.contains(&"wg_mullvad".to_string()),
-            "VPN interface should be added to WAN zone, got: {:?}",
+            !wan_zone.network.contains(&"wg_mullvad".to_string()),
+            "VPN interface must not be in the WAN zone, got: {:?}",
             wan_zone.network
         );
+    }
+
+    #[tokio::test]
+    async fn test_reapply_restores_wan_forwarding_after_vpn_reset() {
+        // Reproduces the VPN-delete/disable cleanup bug: a profile routed through
+        // a VPN, once its outbound is reset to "wan", must get its firewall
+        // forwarding rebuilt as `<zone> → wan` (not left pointing at the removed
+        // vpn_<wg> zone) and its kill-switch routes removed — otherwise all WAN
+        // traffic is dropped.
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        // 1. Route the guest profile through a v6-capable VPN.
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_v6".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx.clone(), &mut cfgs, &profile).unwrap();
+
+        // Sanity: forwarding now targets the dedicated vpn zone, kill switch present.
+        let fwd_to_vpn = |cfgs: &Configs| {
+            cfgs["firewall"]
+                .sections
+                .iter()
+                .filter_map(|s| s.get::<FirewallForwarding>().ok())
+                .any(|f| f.src == "vlan_guest" && f.dest == "vpn_wg_v6")
+        };
+        assert!(fwd_to_vpn(&cfgs), "precondition: vlan_guest → vpn_wg_v6 forwarding");
+        assert!(
+            cfgs["network"].sections.iter().any(|s| s.name().as_deref() == Some("prt6b_guest")),
+            "precondition: v6 kill switch present"
+        );
+
+        // 2. Simulate the VPN delete/disable reset: outbound → "wan" in UCI
+        //    (what reset_profiles_using_vpn does), then the fixed cleanup path.
+        for section in &mut cfgs["startwrt"].sections {
+            if let Some(mut p) = section.get_typed::<UciProfile>().unwrap() {
+                if p.interface == "guest" {
+                    p.outbound = Some("wan".to_string());
+                    section.set(&p).unwrap();
+                }
+            }
+        }
+        reapply_profile_config(
+            &ctx,
+            &mut cfgs,
+            ProfileIdOpt { fullname: None, interface: Some("guest".into()), vlan_tag: None },
+        )
+        .unwrap();
+        cleanup_orphaned_vpn_zones(&mut cfgs);
+
+        // 3. WAN forwarding restored; vpn zone + its forwarding + kill switch gone.
+        assert!(
+            cfgs["firewall"]
+                .sections
+                .iter()
+                .filter_map(|s| s.get::<FirewallForwarding>().ok())
+                .any(|f| f.src == "vlan_guest" && f.dest == "wan"),
+            "vlan_guest → wan forwarding must be restored"
+        );
+        assert!(!fwd_to_vpn(&cfgs), "stale vlan_guest → vpn_wg_v6 forwarding must be gone");
+        assert!(
+            !cfgs["firewall"]
+                .sections
+                .iter()
+                .filter_map(|s| s.get::<FirewallZone>().ok())
+                .any(|z| z.name == "vpn_wg_v6"),
+            "orphaned vpn_wg_v6 zone must be removed"
+        );
+        for name in &["prt_guest", "prtb_guest", "prr_guest", "prt6_guest", "prt6b_guest", "prr6_guest", "prl6_guest"] {
+            assert!(
+                !cfgs["network"].sections.iter().any(|s| s.name().as_deref() == Some(*name)),
+                "{name} kill-switch/policy section must be removed after reset to wan"
+            );
+        }
     }
 
     #[tokio::test]
@@ -4399,5 +5065,629 @@ config zone
             .any(|s| s.name().as_deref() == Some("dns_guest"));
         assert!(dns_lan, "Admin profile should get per-profile dnsmasq");
         assert!(dns_guest, "Guest profile should get per-profile dnsmasq");
+    }
+
+    // === IPv6 routing tests ===
+    //
+    // These exercise the v6 leg of rewrite_routing: route6 prt6_*, rule6 prl6_*
+    // (suppress_prefixlength=0 escape), and rule6 prr6_* (VPN default).
+
+    /// Augment setup_configs by adding two WG client interfaces (v6-capable
+    /// `wg_v6` and v4-only `wg_v4`) and switching the LAN dhcp to RA=server so
+    /// `is_ipv6_enabled` returns true.
+    fn setup_configs_with_ipv6_vpn(dir: &std::path::Path) {
+        setup_configs(dir);
+
+        // Append WG interfaces to network config
+        let mut network = std::fs::read_to_string(dir.join("network")).unwrap();
+        network.push_str(
+            "\n\
+config interface 'wg_v6'
+\toption proto 'wireguard'
+\toption private_key 'aGkmAm6PEDDjyZx/Lwc8AfwlVWuJOaKB6E5Hp+JqgVc='
+\toption disabled '0'
+\toption defaultroute '0'
+\toption peerdns '0'
+\tlist addresses '10.2.0.2/32'
+\tlist addresses 'fd00:2::2/128'
+
+config wireguard_wg_v6 'v6_peer0'
+\toption public_key 'aGkmAm6PEDDjyZx/Lwc8AfwlVWuJOaKB6E5Hp+JqgVc='
+\toption endpoint_host 'vpn.example.com'
+\toption endpoint_port '51820'
+\toption route_allowed_ips '0'
+\tlist allowed_ips '0.0.0.0/0'
+\tlist allowed_ips '::/0'
+
+config interface 'wg_v4'
+\toption proto 'wireguard'
+\toption private_key 'aGkmAm6PEDDjyZx/Lwc8AfwlVWuJOaKB6E5Hp+JqgVc='
+\toption disabled '0'
+\toption defaultroute '0'
+\toption peerdns '0'
+\tlist addresses '10.3.0.2/32'
+
+config wireguard_wg_v4 'v4_peer0'
+\toption public_key 'aGkmAm6PEDDjyZx/Lwc8AfwlVWuJOaKB6E5Hp+JqgVc='
+\toption endpoint_host 'v4vpn.example.com'
+\toption endpoint_port '51820'
+\toption route_allowed_ips '0'
+\tlist allowed_ips '0.0.0.0/0'
+",
+        );
+        std::fs::write(dir.join("network"), network).unwrap();
+
+        // Flip lan DHCP to RA/dhcpv6 server (is_ipv6_enabled looks at 'lan').
+        std::fs::write(
+            dir.join("dhcp"),
+            "\
+config dhcp 'lan'
+\toption interface 'lan'
+\toption start '100'
+\toption limit '150'
+\toption leasetime '12h'
+\toption ra 'server'
+\toption dhcpv6 'server'
+
+config dhcp 'guest'
+\toption interface 'guest'
+\toption start '100'
+\toption limit '150'
+\toption leasetime '12h'
+\toption ra 'server'
+\toption dhcpv6 'server'
+",
+        )
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_rewrite_routing_emits_ipv6_when_vpn_supports_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_v6".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        // prt6_guest: ::/0 via wg_v6, table 101
+        let route6 = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("prt6_guest"))
+            .expect("prt6_guest route6 should exist");
+        let route6_data = route6.get::<NetworkRoute6>().unwrap();
+        assert_eq!(route6_data.interface, "wg_v6");
+        assert_eq!(route6_data.target, "::/0");
+        assert_eq!(route6_data.table, Some(101));
+        assert_eq!(route6_data.metric, Some(VPN_DEFAULT_ROUTE_METRIC));
+        assert!(route6_data.kind.is_none(), "dev-wg route is not unreachable");
+
+        // prt6b_guest: the fail-closed fallback that backstops the dev-wg route
+        // if the WG interface goes down (higher metric, loopback, unreachable).
+        let fallback = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("prt6b_guest"))
+            .expect("prt6b_guest fallback route should exist")
+            .get::<NetworkRoute6>()
+            .unwrap();
+        assert_eq!(fallback.target, "::/0");
+        assert_eq!(fallback.interface, "loopback");
+        assert_eq!(fallback.kind.as_deref(), Some("unreachable"));
+        assert_eq!(fallback.table, Some(101));
+        assert_eq!(fallback.metric, Some(VPN_KILLSWITCH_METRIC));
+
+        // prl6_guest: lookup main with suppress_prefixlength=0 — the cross-VLAN
+        // escape rule that lets connected /64s be matched ahead of ::/0 dev VPN.
+        let escape = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("prl6_guest"))
+            .expect("prl6_guest rule6 should exist");
+        let escape_data = escape.get::<NetworkRule6>().unwrap();
+        assert_eq!(escape_data.in_iface.as_deref(), Some("guest"));
+        assert_eq!(escape_data.lookup, 254);
+        assert_eq!(escape_data.suppress_prefixlength, Some(0));
+        assert_eq!(escape_data.priority, Some(150));
+
+        // prr6_guest: the per-VLAN VPN rule
+        let rule6 = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("prr6_guest"))
+            .expect("prr6_guest rule6 should exist");
+        let rule6_data = rule6.get::<NetworkRule6>().unwrap();
+        assert_eq!(rule6_data.in_iface.as_deref(), Some("guest"));
+        assert_eq!(rule6_data.lookup, 101);
+        assert_eq!(rule6_data.priority, Some(200));
+        assert!(rule6_data.suppress_prefixlength.is_none());
+
+        // Phase 5a: dhcp.guest should have ra_default='1' so odhcpd announces
+        // Router B as the IPv6 default — required when downstream has no PD.
+        let dhcp_guest = cfgs["dhcp"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("guest"))
+            .expect("dhcp 'guest' should exist")
+            .get::<Dhcp>()
+            .unwrap();
+        assert_eq!(
+            dhcp_guest.ra_default.as_deref(),
+            Some("1"),
+            "ra_default=1 required so odhcpd advertises default router"
+        );
+
+        // IPv6 SNAT (ULA → tunnel GUA) is handled by the dedicated vpn_<wg>
+        // egress zone carrying masq6=1 (NAT66), so VPN-routed v6 traffic is
+        // masqueraded to the tunnel address without touching wan6.
+        let vpn_zone = cfgs["firewall"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<FirewallZone>().ok())
+            .find(|z| z.name == "vpn_wg_v6")
+            .expect("vpn_wg_v6 zone should exist");
+        assert_eq!(vpn_zone.masq, Some(true));
+        assert_eq!(vpn_zone.masq6, Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_rewrite_routing_creates_dnat_return6_rule() {
+        // A VPN-routed profile must get the global `dnat_return6` ip6 rule
+        // (fwmark 0x80 -> main, priority 100) so that replies to inbound IPv6
+        // port-forwards leave via wan6 instead of being captured by prr6_.
+        // Created for every VPN-routed profile (the inbound problem exists even
+        // for a v4-only VPN, since the device can still hold a wan6-PD GUA).
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_v6".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        let rule6 = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("dnat_return6"))
+            .expect("dnat_return6 rule6 should exist for a VPN-routed profile")
+            .get::<NetworkRule6>()
+            .unwrap();
+        assert_eq!(rule6.lookup, 254, "dnat_return6 must look up the main table");
+        assert_eq!(rule6.mark.as_deref(), Some("0x80/0x80"));
+        assert_eq!(
+            rule6.priority,
+            Some(100),
+            "must beat prl6_ (150) and prr6_ (200)"
+        );
+        // It's a global, unconditional rule — not scoped to one interface/source.
+        assert!(rule6.in_iface.is_none());
+        assert!(rule6.src.is_none());
+
+        // The v4 sibling is still there too.
+        assert!(
+            cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("dnat_return")),
+            "v4 dnat_return rule should still be created"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_rewrite_routing_no_dnat_return6_for_wan_profile() {
+        // A wan-routed profile takes the early return in rewrite_routing before
+        // any DNAT-return rule is ensured, so a config with only wan profiles
+        // never gains dnat_return6.
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        assert!(
+            !cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("dnat_return6")),
+            "wan-routed profile should not create dnat_return6"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_rewrite_routing_killswitch_when_vpn_v4_only() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_v4".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        // IPv4 routing should still be created
+        assert!(
+            cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("prt_guest")),
+            "IPv4 route should still exist for v4-only VPN"
+        );
+
+        // The v6 source rules ARE installed (kill switch is active whenever IPv6
+        // is globally enabled), but there is NO `dev <wg>` v6 default route.
+        for name in &["prl6_guest", "prr6_guest"] {
+            assert!(
+                cfgs["network"]
+                    .sections
+                    .iter()
+                    .any(|s| s.name().as_deref() == Some(*name)),
+                "{} should exist (v6 policy routing installed for fail-closed)",
+                name
+            );
+        }
+        assert!(
+            !cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("prt6_guest")),
+            "prt6_guest (dev wg v6 default) must NOT exist for a v4-only VPN"
+        );
+
+        // The v6 kill switch: an `unreachable ::/0` in the per-VLAN table,
+        // attached to loopback. This blocks IPv6 egress so the ISP's v6 can't
+        // leak when the VPN can't carry v6.
+        let ks = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("prt6b_guest"))
+            .expect("prt6b_guest kill-switch route should exist")
+            .get::<NetworkRoute6>()
+            .unwrap();
+        assert_eq!(ks.target, "::/0");
+        assert_eq!(ks.interface, "loopback");
+        assert_eq!(ks.kind.as_deref(), Some("unreachable"));
+        assert_eq!(ks.table, Some(101));
+        assert_eq!(ks.metric, Some(VPN_KILLSWITCH_METRIC));
+
+        // dhcp.ra_default should NOT be set when the VPN is v4-only — RA/DHCPv6
+        // stay disabled on the profile; the kill switch is the active backstop.
+        let dhcp_guest = cfgs["dhcp"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("guest"))
+            .and_then(|s| s.get::<Dhcp>().ok());
+        if let Some(dhcp) = dhcp_guest {
+            assert!(
+                dhcp.ra_default.is_none(),
+                "ra_default should not be set when VPN is v4-only"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_rewrite_routing_cleans_ipv6_on_wan_switch() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        // First: outbound = wg_v6 → IPv6 sections appear
+        let profile_vpn = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_v6".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx.clone(), &mut cfgs, &profile_vpn).unwrap();
+        assert!(cfgs["network"]
+            .sections
+            .iter()
+            .any(|s| s.name().as_deref() == Some("prt6_guest")));
+
+        // Then: switch back to wan → IPv6 sections should be removed
+        let profile_wan = Profile {
+            outbound: "wan".into(),
+            ..profile_vpn
+        };
+        set_config(ctx, &mut cfgs, &profile_wan).unwrap();
+
+        for name in &["prt6_guest", "prl6_guest", "prr6_guest"] {
+            assert!(
+                !cfgs["network"]
+                    .sections
+                    .iter()
+                    .any(|s| s.name().as_deref() == Some(*name)),
+                "{} should be removed after switching to WAN",
+                name
+            );
+        }
+
+        // ra_default should be removed after switching to wan — odhcpd's
+        // default mode 2 behavior resumes (announce only if wan6 has default).
+        let dhcp_guest = cfgs["dhcp"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("guest"))
+            .and_then(|s| s.get::<Dhcp>().ok())
+            .expect("dhcp 'guest' should exist");
+        assert!(
+            dhcp_guest.ra_default.is_none(),
+            "ra_default should be cleared when outbound is wan"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_rewrite_routing_installs_v6_killswitch_even_when_globally_disabled() {
+        // Even with IPv6 globally disabled (no ra=server on lan), a VPN-routed
+        // profile still gets the v6 policy routing + unreachable kill switch, so
+        // a client with a residual/static v6 address can't leak out wan6. This
+        // mirrors the always-on v4 fallback (fail closed in all states).
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path()); // baseline: no ra=server on lan
+
+        // Add a v6-capable WG interface but leave dhcp baseline
+        let mut network = std::fs::read_to_string(dir.path().join("network")).unwrap();
+        network.push_str(
+            "\nconfig interface 'wg_v6'
+\toption proto 'wireguard'
+\toption private_key 'aGkmAm6PEDDjyZx/Lwc8AfwlVWuJOaKB6E5Hp+JqgVc='
+\tlist addresses 'fd00:2::2/128'
+",
+        );
+        std::fs::write(dir.path().join("network"), network).unwrap();
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_v6".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        // The v6 source rules and the unreachable kill switch are installed even
+        // though global IPv6 is off — fail closed regardless of RA state.
+        for name in &["prl6_guest", "prr6_guest", "prt6b_guest"] {
+            assert!(
+                cfgs["network"]
+                    .sections
+                    .iter()
+                    .any(|s| s.name().as_deref() == Some(*name)),
+                "{} should exist even when IPv6 is globally disabled (fail closed)",
+                name
+            );
+        }
+        // This VPN advertises a v6 address, so the dev-wg default is present too.
+        assert!(
+            cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("prt6_guest")),
+            "prt6_guest dev-wg route present for a v6-capable VPN"
+        );
+        // The kill switch is an unreachable route on loopback.
+        let ks = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("prt6b_guest"))
+            .unwrap()
+            .get::<NetworkRoute6>()
+            .unwrap();
+        assert_eq!(ks.kind.as_deref(), Some("unreachable"));
+        assert_eq!(ks.interface, "loopback");
+    }
+
+    #[tokio::test]
+    async fn test_rewrite_routing_converts_to_killswitch_on_switch_to_v4_only_vpn() {
+        // Switching outbound from a v6-capable VPN to a v4-only VPN must drop the
+        // `dev <wg>` v6 default (prt6_) but KEEP the v6 source rules and convert
+        // the per-VLAN default to the `unreachable` kill switch (prt6b_).
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        // First: outbound = wg_v6 → v6 sections appear.
+        let profile_v6 = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_v6".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx.clone(), &mut cfgs, &profile_v6).unwrap();
+        assert!(cfgs["network"]
+            .sections
+            .iter()
+            .any(|s| s.name().as_deref() == Some("prt6_guest")));
+
+        // Then: switch outbound to v4-only wg_v4. v4 routing must persist; v6
+        // sections must be cleaned up because outbound_supports_ipv6 gates off.
+        let profile_v4 = Profile {
+            outbound: "wg_v4".into(),
+            ..profile_v6
+        };
+        set_config(ctx, &mut cfgs, &profile_v4).unwrap();
+
+        assert!(
+            cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("prt_guest")),
+            "v4 route should still exist after switching to v4-only VPN"
+        );
+        // The dev-wg v6 default is gone; the source rules and the kill-switch
+        // fallback remain.
+        assert!(
+            !cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("prt6_guest")),
+            "prt6_guest (dev wg v6 default) should be removed after switching to v4-only VPN"
+        );
+        for name in &["prl6_guest", "prr6_guest", "prt6b_guest"] {
+            assert!(
+                cfgs["network"]
+                    .sections
+                    .iter()
+                    .any(|s| s.name().as_deref() == Some(*name)),
+                "{} should persist after switching to v4-only VPN",
+                name
+            );
+        }
+        let ks = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("prt6b_guest"))
+            .unwrap()
+            .get::<NetworkRoute6>()
+            .unwrap();
+        assert_eq!(ks.kind.as_deref(), Some("unreachable"));
+        assert_eq!(ks.interface, "loopback");
     }
 }

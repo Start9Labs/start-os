@@ -178,10 +178,19 @@ const VALID_THEMES: &[&str] = &["dark", "light", "system"];
 const VALID_REMOTE_ACCESS: &[&str] = &["default", "never", "always"];
 
 const REMOTE_RULE_PREFIX: &str = "startwrt_remote_";
-const REMOTE_ACCESS_PORTS: &[(&str, &str)] = &[
-    ("startwrt_remote_80", "80"),
-    ("startwrt_remote_443", "443"),
-    ("startwrt_remote_22", "22"),
+const REMOTE_ACCESS_PORTS: &[&str] = &["80", "443", "22"];
+
+/// ULA range (RFC 4193). Disjoint from global unicast (`2000::/3`).
+const ULA_PREFIX: &str = "fc00::/7";
+
+/// The three RFC1918 ranges, as `(name suffix, CIDR)`. In `default` mode an IPv4
+/// remote-access rule is emitted per range so that any private source is accepted
+/// while no global one is. fw4's `option src_ip` holds a single value, so each
+/// range needs its own rule; the suffix keeps the generated section names unique.
+const RFC1918_BLOCKS: &[(&str, &str)] = &[
+    ("ipv4_10", "10.0.0.0/8"),
+    ("ipv4_172", "172.16.0.0/12"),
+    ("ipv4_192", "192.168.0.0/16"),
 ];
 
 fn is_private_ipv4(ip: &Ipv4Addr) -> bool {
@@ -275,38 +284,69 @@ fn apply_remote_access_config(
         !rule.name.starts_with(REMOTE_RULE_PREFIX)
     });
 
-    if mode == "never" {
-        return;
+    // Canonical OpenWrt access restriction: limit who may connect via `src_ip`
+    // (mirrors the shipped `Allow-MLD` rule's `src_ip fe80::/10`). In `default`
+    // mode, accept only locally-scoped sources — all RFC1918 ranges for IPv4, the
+    // ULA supernet for IPv6 — so a globally-routable client can never reach these
+    // ports, even if a global address later appears on the WAN. `always` is an
+    // explicit opt-in to full exposure and stays unscoped; `never` opens nothing.
+    struct RuleSpec {
+        /// Disambiguates the section name when one family yields several rules
+        /// (one per RFC1918 range). `None` for the unscoped `always` rule.
+        suffix: Option<&'static str>,
+        family: Option<&'static str>,
+        src_ip: Option<&'static str>,
     }
-
-    let family: Option<Option<String>> = match mode {
-        "always" => Some(None), // both families
+    let specs: Vec<RuleSpec> = match mode {
+        "never" => return,
+        "always" => vec![RuleSpec {
+            suffix: None,
+            family: None,
+            src_ip: None,
+        }],
         "default" => {
-            let v4_private = wan_ipv4.map_or(false, |ip| is_private_ipv4(&ip));
-            let v6_private = !wan_ipv6s.is_empty() && !has_global_ipv6(wan_ipv6s);
-            match (v4_private, v6_private) {
-                (true, true) => Some(None),               // both families
-                (true, false) => Some(Some("ipv4".into())), // IPv4 only
-                (false, true) => Some(Some("ipv6".into())), // IPv6 only
-                (false, false) => None,                    // no rules
+            let mut specs = Vec::new();
+            // Behind NAT on IPv4 → accept every private (RFC1918) source, but no
+            // global one. Gated on the WAN address itself being private.
+            if wan_ipv4.is_some_and(|ip| is_private_ipv4(&ip)) {
+                for &(suffix, block) in RFC1918_BLOCKS {
+                    specs.push(RuleSpec {
+                        suffix: Some(suffix),
+                        family: Some("ipv4"),
+                        src_ip: Some(block),
+                    });
+                }
             }
+            if !wan_ipv6s.is_empty() && !has_global_ipv6(wan_ipv6s) {
+                specs.push(RuleSpec {
+                    suffix: Some("ipv6"),
+                    family: Some("ipv6"),
+                    src_ip: Some(ULA_PREFIX),
+                });
+            }
+            specs
         }
-        _ => None,
+        _ => return,
     };
 
-    let Some(family) = family else { return };
-
-    for &(name, port) in REMOTE_ACCESS_PORTS {
-        let rule = FirewallRule {
-            name: name.to_string(),
-            src: "wan".to_string(),
-            dest_port: Some(port.to_string()),
-            proto: vec!["tcp".to_string()],
-            target: FirewallTarget::ACCEPT,
-            family: family.clone(),
-            ..Default::default()
-        };
-        cfgs["firewall"].append(&rule, Some(name)).ok();
+    for spec in &specs {
+        for &port in REMOTE_ACCESS_PORTS {
+            let name = match spec.suffix {
+                Some(suffix) => format!("{REMOTE_RULE_PREFIX}{port}_{suffix}"),
+                None => format!("{REMOTE_RULE_PREFIX}{port}"),
+            };
+            let rule = FirewallRule {
+                name: name.clone(),
+                src: "wan".to_string(),
+                src_ip: spec.src_ip.map(str::to_string),
+                dest_port: Some(port.to_string()),
+                proto: vec!["tcp".to_string()],
+                target: FirewallTarget::ACCEPT,
+                family: spec.family.map(str::to_string),
+                ..Default::default()
+            };
+            cfgs["firewall"].append(&rule, Some(name.as_str())).ok();
+        }
     }
 }
 
@@ -893,6 +933,23 @@ config zone wan
             .collect()
     }
 
+    async fn get_remote_rule_src_ips(dir: &std::path::Path) -> Vec<Option<String>> {
+        let arena = Arena::new();
+        let cfgs = parse_all(dir, &arena, &["firewall"]).await.unwrap();
+        cfgs["firewall"]
+            .sections
+            .iter()
+            .filter_map(|s| {
+                let rule = s.get::<FirewallRule>().ok()?;
+                if rule.name.starts_with(REMOTE_RULE_PREFIX) {
+                    Some(rule.src_ip.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     #[tokio::test]
     async fn test_apply_always() {
         let dir = tempfile::tempdir().unwrap();
@@ -910,6 +967,10 @@ config zone wan
         // All rules should have no family restriction
         for family in get_remote_rule_families(dir.path()).await {
             assert_eq!(family, None);
+        }
+        // `always` is an explicit opt-in: rules stay unscoped (any source).
+        for src_ip in get_remote_rule_src_ips(dir.path()).await {
+            assert_eq!(src_ip, None);
         }
     }
 
@@ -952,10 +1013,17 @@ config zone wan
         apply_remote_access_config(&mut cfgs, "default", Some(wan_ipv4), &[wan_ipv6]);
         dump_all(dir.path(), cfgs).await.unwrap();
 
-        assert_eq!(count_remote_rules(dir.path()).await, 3);
+        // Public IPv6 → no IPv6 rule. IPv4 behind NAT → one rule per RFC1918
+        // range × 3 ports = 9 rules.
+        assert_eq!(count_remote_rules(dir.path()).await, 9);
         for family in get_remote_rule_families(dir.path()).await {
             assert_eq!(family, Some("ipv4".to_string()));
         }
+        let src_ips = get_remote_rule_src_ips(dir.path()).await;
+        assert!(src_ips.iter().all(|s| s.is_some()));
+        assert!(src_ips.iter().any(|s| s.as_deref() == Some("10.0.0.0/8")));
+        assert!(src_ips.iter().any(|s| s.as_deref() == Some("172.16.0.0/12")));
+        assert!(src_ips.iter().any(|s| s.as_deref() == Some("192.168.0.0/16")));
     }
 
     #[tokio::test]
@@ -974,10 +1042,27 @@ config zone wan
         apply_remote_access_config(&mut cfgs, "default", Some(wan_ipv4), &[wan_ipv6]);
         dump_all(dir.path(), cfgs).await.unwrap();
 
-        assert_eq!(count_remote_rules(dir.path()).await, 3);
-        for family in get_remote_rule_families(dir.path()).await {
-            assert_eq!(family, None);
-        }
+        // Both private — IPv4 gets one rule per RFC1918 range, IPv6 one for the
+        // ULA supernet. (3 ranges + 1) × 3 ports = 12 rules.
+        assert_eq!(count_remote_rules(dir.path()).await, 12);
+        let families = get_remote_rule_families(dir.path()).await;
+        assert_eq!(
+            families.iter().filter(|f| f.as_deref() == Some("ipv4")).count(),
+            9
+        );
+        assert_eq!(
+            families.iter().filter(|f| f.as_deref() == Some("ipv6")).count(),
+            3
+        );
+        let src_ips = get_remote_rule_src_ips(dir.path()).await;
+        assert!(
+            src_ips.iter().all(|s| s.is_some()),
+            "default-mode rules must be src_ip-scoped: {src_ips:?}"
+        );
+        assert!(src_ips.iter().any(|s| s.as_deref() == Some("10.0.0.0/8")));
+        assert!(src_ips.iter().any(|s| s.as_deref() == Some("172.16.0.0/12")));
+        assert!(src_ips.iter().any(|s| s.as_deref() == Some("192.168.0.0/16")));
+        assert!(src_ips.iter().any(|s| s.as_deref() == Some("fc00::/7")));
     }
 
     #[tokio::test]
@@ -1032,11 +1117,15 @@ config zone wan
         apply_remote_access_config(&mut cfgs, "default", Some(wan_ipv4), &[]);
         dump_all(dir.path(), cfgs).await.unwrap();
 
-        // Private IPv4, no IPv6 — IPv4-only rules
-        assert_eq!(count_remote_rules(dir.path()).await, 3);
+        // Private IPv4, no IPv6 — one IPv4 rule per RFC1918 range × 3 ports.
+        assert_eq!(count_remote_rules(dir.path()).await, 9);
         for family in get_remote_rule_families(dir.path()).await {
             assert_eq!(family, Some("ipv4".to_string()));
         }
+        let src_ips = get_remote_rule_src_ips(dir.path()).await;
+        assert!(src_ips.iter().any(|s| s.as_deref() == Some("10.0.0.0/8")));
+        assert!(src_ips.iter().any(|s| s.as_deref() == Some("172.16.0.0/12")));
+        assert!(src_ips.iter().any(|s| s.as_deref() == Some("192.168.0.0/16")));
     }
 
     #[tokio::test]
@@ -1058,6 +1147,10 @@ config zone wan
         assert_eq!(count_remote_rules(dir.path()).await, 3);
         for family in get_remote_rule_families(dir.path()).await {
             assert_eq!(family, Some("ipv6".to_string()));
+        }
+        // Source-scoped to ULA so a globally-routed client can never match.
+        for src_ip in get_remote_rule_src_ips(dir.path()).await {
+            assert_eq!(src_ip.as_deref(), Some("fc00::/7"));
         }
     }
 

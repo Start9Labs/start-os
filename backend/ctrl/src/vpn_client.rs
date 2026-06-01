@@ -31,6 +31,10 @@ pub struct OutboundVpn {
     pub target: String,
     pub enabled: bool,
     pub used_by: Vec<String>,
+    /// True when the VPN's WireGuard interface has at least one IPv6 address;
+    /// false means profiles routed through this VPN will have IPv6 disabled
+    /// (per `outbound_supports_ipv6` in profiles.rs).
+    pub supports_ipv6: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -414,6 +418,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<OutboundVpn>, Error> {
             }
 
             let enabled = !wg_iface.disabled();
+            let supports_ipv6 = wg_iface.addresses.iter().any(|a| a.contains(':'));
 
             let used_by = get_used_by_profiles(&cfgs, &meta.interface);
 
@@ -423,6 +428,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<OutboundVpn>, Error> {
                 target: meta.target.clone(),
                 enabled,
                 used_by,
+                supports_ipv6,
             })
         })
         .collect();
@@ -606,26 +612,22 @@ pub async fn delete(ctx: ServerContext, args: OutboundVpnDeleteRequest) -> Resul
         // Find profiles that reference this VPN and reset them to WAN
         let affected_profiles = reset_profiles_using_vpn(&mut cfgs, interface_name);
 
-        // Use rewrite_routing and rewrite_dns_forwarding to properly clean up
-        // policy routing and per-profile DNS forwarding for each affected profile.
-        for (profile_interface, vlan_tag, gateway_ip) in &affected_profiles {
-            let profile = crate::profiles::Profile {
-                id: crate::profiles::ProfileId {
-                    fullname: String::new(),
-                    interface: profile_interface.clone(),
-                    vlan_tag: *vlan_tag,
+        // Re-apply each affected profile's FULL config (firewall + dhcp + dns +
+        // routing) now that its outbound is "wan". This rebuilds the firewall
+        // forwarding as `<zone> → wan` (the dedicated vpn_<wg> zone + its
+        // forwarding are torn down by cleanup_orphaned_vpn_zones below). Running
+        // only rewrite_routing/rewrite_dns here would leave the profile with no
+        // `→ wan` forwarding, blocking all of its WAN traffic.
+        for (profile_interface, _vlan_tag, _gateway_ip) in &affected_profiles {
+            crate::profiles::reapply_profile_config(
+                &ctx,
+                &mut cfgs,
+                crate::profiles::ProfileIdOpt {
+                    fullname: None,
+                    interface: Some(profile_interface.clone()),
+                    vlan_tag: None,
                 },
-                gateway_ip: *gateway_ip,
-                outbound: "wan".to_string(),
-                lan_access: crate::profiles::LanAccess::SameProfile,
-                wan_access: crate::profiles::WanAccess::None,
-                dns_override: Vec::new(),
-                dns_source: String::new(),
-                access_to_new_profiles: false,
-                owns_lan: false,
-            };
-            crate::profiles::rewrite_routing(&ctx, &mut cfgs, &profile)?;
-            crate::profiles::rewrite_dns_forwarding(&mut cfgs, &profile)?;
+            )?;
         }
 
         // Remove the WireGuard interface
@@ -660,7 +662,7 @@ pub async fn delete(ctx: ServerContext, args: OutboundVpnDeleteRequest) -> Resul
         // Remove any orphaned VPN interfaces from the WAN firewall zone.
         // This is more robust than removing just the deleted VPN — it also
         // cleans up any previously orphaned entries.
-        crate::profiles::cleanup_orphaned_wan_vpns(&mut cfgs);
+        crate::profiles::cleanup_orphaned_vpn_zones(&mut cfgs);
 
         rewrite_vpn_chain_routes(&mut cfgs)?;
 
@@ -761,28 +763,25 @@ pub async fn set_enabled(
             }
         }
 
-        // When disabling, reset any profiles that route through this VPN back to WAN
+        // When disabling, reset any profiles that route through this VPN back to
+        // WAN and re-apply their full config so the firewall forwarding is
+        // rebuilt as `<zone> → wan` (see reapply_profile_config). The disabled
+        // VPN's now-unused vpn_<wg> zone + stale forwarding are then removed by
+        // cleanup_orphaned_vpn_zones.
         if !req.enabled {
             let affected_profiles = reset_profiles_using_vpn(&mut cfgs, interface_name);
-            for (profile_interface, vlan_tag, gateway_ip) in &affected_profiles {
-                let profile = crate::profiles::Profile {
-                    id: crate::profiles::ProfileId {
-                        fullname: String::new(),
-                        interface: profile_interface.clone(),
-                        vlan_tag: *vlan_tag,
+            for (profile_interface, _vlan_tag, _gateway_ip) in &affected_profiles {
+                crate::profiles::reapply_profile_config(
+                    &ctx,
+                    &mut cfgs,
+                    crate::profiles::ProfileIdOpt {
+                        fullname: None,
+                        interface: Some(profile_interface.clone()),
+                        vlan_tag: None,
                     },
-                    gateway_ip: *gateway_ip,
-                    outbound: "wan".to_string(),
-                    lan_access: crate::profiles::LanAccess::SameProfile,
-                    wan_access: crate::profiles::WanAccess::None,
-                    dns_override: Vec::new(),
-                    dns_source: String::new(),
-                    access_to_new_profiles: false,
-                    owns_lan: false,
-                };
-                crate::profiles::rewrite_routing(&ctx, &mut cfgs, &profile)?;
-                crate::profiles::rewrite_dns_forwarding(&mut cfgs, &profile)?;
+                )?;
             }
+            crate::profiles::cleanup_orphaned_vpn_zones(&mut cfgs);
         }
 
         // Find and update the WireGuard interface disabled state
@@ -845,6 +844,9 @@ pub async fn set_enabled(
 // === VPN Chain Routing ===
 
 /// Read the `endpoint_host` from a peer section (`wireguard_<interface>`).
+/// Strips the surrounding `[...]` of a bracketed IPv6 literal so the returned
+/// string parses as `IpAddr` directly. (The literal in UCI keeps the brackets;
+/// `wireguard.sh` handles them before passing to `wg`.)
 fn get_peer_endpoint_host(cfgs: &Configs, interface: &str) -> Option<String> {
     let peer_type = format!("wireguard_{}", interface);
     cfgs["network"]
@@ -858,7 +860,12 @@ fn get_peer_endpoint_host(cfgs: &Configs, interface: &str) -> Option<String> {
                 } = line
                 {
                     if option.as_str() == "endpoint_host" {
-                        return Some(value.as_str().to_string());
+                        let raw = value.as_str();
+                        let stripped = raw
+                            .strip_prefix('[')
+                            .and_then(|s| s.strip_suffix(']'))
+                            .unwrap_or(&raw);
+                        return Some(stripped.to_string());
                     }
                 }
                 None
@@ -869,13 +876,14 @@ fn get_peer_endpoint_host(cfgs: &Configs, interface: &str) -> Option<String> {
 /// Idempotently rebuild all VPN chain endpoint routes (`vcr_*` sections).
 ///
 /// For each VPN client whose target is another VPN (not "Internet"), creates a
-/// `/32` static route in the main routing table sending the VPN's peer endpoint
+/// host route in the main routing table sending the VPN's peer endpoint
 /// through its target VPN's tunnel interface. This ensures WireGuard's locally-
 /// generated UDP packets traverse the chain instead of exiting via WAN.
+/// IPv4 endpoints produce a `route` /32; IPv6 endpoints produce a `route6` /128.
 pub(crate) fn rewrite_vpn_chain_routes(cfgs: &mut Configs) -> Result<(), Error> {
-    use uciedit::openwrt::NetworkRoute;
+    use uciedit::openwrt::{NetworkRoute, NetworkRoute6};
 
-    // 1. Remove all existing vcr_* route sections
+    // 1. Remove all existing vcr_* route / route6 sections
     cfgs["network"]
         .sections
         .retain(|s| !s.name().map(|n| n.starts_with("vcr_")).unwrap_or(false));
@@ -906,20 +914,34 @@ pub(crate) fn rewrite_vpn_chain_routes(cfgs: &mut Configs) -> Result<(), Error> 
             continue;
         };
 
-        // Only create routes for IP endpoints, skip hostnames
-        if endpoint_host.parse::<IpAddr>().is_err() {
+        // Only create routes for IP literals, skip hostnames
+        let Ok(addr) = endpoint_host.parse::<IpAddr>() else {
             continue;
-        }
+        };
 
         let route_name = format!("vcr_{}", client.interface);
-        cfgs["network"].append(
-            &NetworkRoute {
-                interface: target_interface.to_string(),
-                target: format!("{}/32", endpoint_host),
-                ..Default::default()
-            },
-            Some(&route_name),
-        )?;
+        match addr {
+            IpAddr::V4(_) => {
+                cfgs["network"].append(
+                    &NetworkRoute {
+                        interface: target_interface.to_string(),
+                        target: format!("{}/32", endpoint_host),
+                        ..Default::default()
+                    },
+                    Some(&route_name),
+                )?;
+            }
+            IpAddr::V6(_) => {
+                cfgs["network"].append(
+                    &NetworkRoute6 {
+                        interface: target_interface.to_string(),
+                        target: format!("{}/128", endpoint_host),
+                        ..Default::default()
+                    },
+                    Some(&route_name),
+                )?;
+            }
+        }
     }
 
     Ok(())
@@ -2889,5 +2911,176 @@ config wireguard_wg_c 'c_peer0'
         let arena = Arena::new();
         let cfgs = parse_all(dir.path(), &arena, &["startwrt"]).await.unwrap();
         assert!(validate_target(&cfgs, "A", "C").is_ok());
+    }
+
+    // === IPv6 chain endpoint tests ===
+
+    /// Chain of two VPNs where the upstream peer's endpoint is an IPv6 literal.
+    fn setup_chain_with_ipv6_endpoint(dir: &Path) {
+        let key_a = gen_key();
+        let pub_a = gen_key();
+        let key_b = gen_key();
+        let pub_b = gen_key();
+
+        std::fs::write(
+            dir.join("startwrt"),
+            "\
+config vpn_client wg_upstream
+\toption interface 'wg_upstream'
+\toption label 'Upstream'
+\toption target 'Internet'
+
+config vpn_client wg_inner
+\toption interface 'wg_inner'
+\toption label 'Inner'
+\toption target 'Upstream'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.join("network"),
+            format!(
+                "\
+config interface 'wg_upstream'
+\toption proto 'wireguard'
+\toption private_key '{key_a}'
+
+config wireguard_wg_upstream 'up_peer0'
+\toption public_key '{pub_a}'
+\toption endpoint_host '1.2.3.4'
+\toption endpoint_port '51820'
+
+config interface 'wg_inner'
+\toption proto 'wireguard'
+\toption private_key '{key_b}'
+
+config wireguard_wg_inner 'in_peer0'
+\toption public_key '{pub_b}'
+\toption endpoint_host '[2001:db8::1]'
+\toption endpoint_port '51820'
+"
+            ),
+        )
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_get_peer_endpoint_host_strips_brackets() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_chain_with_ipv6_endpoint(dir.path());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).await.unwrap();
+
+        assert_eq!(
+            get_peer_endpoint_host(&cfgs, "wg_inner").as_deref(),
+            Some("2001:db8::1"),
+            "brackets should be stripped from IPv6 literal"
+        );
+        assert_eq!(
+            get_peer_endpoint_host(&cfgs, "wg_upstream").as_deref(),
+            Some("1.2.3.4"),
+            "IPv4 endpoint pass-through unchanged"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_rewrite_chain_routes_ipv6_endpoint_emits_route6() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_chain_with_ipv6_endpoint(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).await.unwrap();
+
+        rewrite_vpn_chain_routes(&mut cfgs).unwrap();
+
+        // wg_inner has an IPv6 endpoint and targets wg_upstream → route6 /128
+        let route_section = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("vcr_wg_inner"))
+            .expect("vcr_wg_inner should exist for IPv6-endpoint chain hop");
+        assert_eq!(
+            route_section.ty(),
+            "route6",
+            "IPv6 endpoint must produce a route6 section, not route"
+        );
+        let route_data = route_section
+            .get::<uciedit::openwrt::NetworkRoute6>()
+            .unwrap();
+        assert_eq!(route_data.interface, "wg_upstream");
+        assert_eq!(route_data.target, "2001:db8::1/128");
+        assert!(route_data.table.is_none(), "chain routes live in main table");
+
+        // wg_upstream targets Internet → no chain route
+        assert!(
+            !cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("vcr_wg_upstream")),
+            "Internet-targeted VPN should not get a chain route"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_rewrite_chain_routes_idempotent_v6() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_chain_with_ipv6_endpoint(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).await.unwrap();
+
+        rewrite_vpn_chain_routes(&mut cfgs).unwrap();
+        rewrite_vpn_chain_routes(&mut cfgs).unwrap();
+
+        // Exactly one route6 vcr_* section after two calls.
+        let vcr_count = cfgs["network"]
+            .sections
+            .iter()
+            .filter(|s| s.name().map(|n| n.starts_with("vcr_")).unwrap_or(false))
+            .count();
+        assert_eq!(vcr_count, 1, "idempotent: one route6 vcr_* after two calls");
+    }
+
+    #[tokio::test]
+    async fn test_list_reports_supports_ipv6() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_vpn_client(dir.path());
+
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"]).await.unwrap();
+
+        // Replicate the list() filter inline so we don't need to spin up the
+        // full ServerContext just to read addresses+metadata.
+        let server_interfaces = get_vpn_server_interfaces(&cfgs);
+        let entries: Vec<OutboundVpn> = cfgs["startwrt"]
+            .sections
+            .iter()
+            .filter_map(|section| section.get::<UciVpnClient>().ok())
+            .filter_map(|meta| {
+                let wg = cfgs["network"]
+                    .sections
+                    .iter()
+                    .find(|s| s.name().as_deref() == Some(meta.interface.as_str()))
+                    .and_then(|s| s.get::<WgInterface>().ok())
+                    .filter(|w| w.is_wireguard())?;
+                if server_interfaces.contains(&meta.interface) {
+                    return None;
+                }
+                Some(OutboundVpn {
+                    id: meta.interface.clone(),
+                    label: meta.label.clone(),
+                    target: meta.target.clone(),
+                    enabled: !wg.disabled(),
+                    used_by: vec![],
+                    supports_ipv6: wg.addresses.iter().any(|a| a.contains(':')),
+                })
+            })
+            .collect();
+
+        // setup_with_vpn_client gives wg_proton only an IPv4 /32 address.
+        let proton = entries.iter().find(|e| e.id == "wg_proton").expect("wg_proton listed");
+        assert!(!proton.supports_ipv6, "v4-only VPN must report supports_ipv6=false");
     }
 }

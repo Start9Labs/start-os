@@ -756,6 +756,10 @@ struct OutboundVpn {
     enabled: bool,
     /// Which security profiles route through this VPN
     used_by: Vec<String>,
+    /// True when the WG config supplied at least one IPv6 `Address`. Profiles
+    /// pointed at an outbound VPN with `supports_ipv6 == false` get IPv6
+    /// disabled (RA/DHCPv6) to avoid leaking around the tunnel.
+    supports_ipv6: bool,
 }
 // Response: Vec<OutboundVpn>
 ```

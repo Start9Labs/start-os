@@ -1459,7 +1459,6 @@ fn ensure_wireguard_firewall_rule(cfgs: &mut Configs, wg_interface_name: &str, l
         family: None,
         enabled: None,
         set_mark: None,
-        extra: None,
         _pp_id: None,
         _pp_mac: None,
     };

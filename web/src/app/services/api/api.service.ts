@@ -638,6 +638,7 @@ export interface OutboundVpn {
   target: string
   enabled: boolean
   used_by: string[]
+  supports_ipv6: boolean
 }
 
 export interface OutboundVpnCreateRequest {

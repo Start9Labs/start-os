@@ -350,11 +350,11 @@ pub async fn ipv6_set<C: CtrlContext>(
         }
 
         // Update all profile DHCP/network sections to match global IPv6 state.
-        // Only the admin LAN interface gets ip6assign (the full delegated
-        // prefix). Profile interfaces do NOT get ip6assign — until multi-prefix
-        // delegation is implemented, only admin devices receive GUA addresses.
-        // Profiles routed through a VPN that lacks IPv6 addresses always get
-        // IPv6 disabled to prevent leaking traffic outside the tunnel.
+        // The admin LAN keeps the full delegated prefix (the ISP's GUA /64, set
+        // above). Non-admin VLAN profiles get a /64 carved from the device's ULA
+        // prefix when their outbound carries IPv6 — odhcpd hands it to clients and
+        // the vpn_<X> zone NAT66s it out the tunnel. Profiles whose outbound VPN
+        // lacks IPv6 get none, so v6 can't leak outside the tunnel.
         let ipv6_requested = req.slaac || req.dhcpv6;
         let mut profile_ipv6_map: HashMap<String, bool> = HashMap::new();
         for section in &cfgs["startwrt"].sections {
@@ -366,14 +366,21 @@ pub async fn ipv6_set<C: CtrlContext>(
             }
         }
 
-        // Remove ip6assign from profile interfaces (only lan gets it)
+        // Sync ip6assign on profile interfaces to match each profile's IPv6
+        // state: v6-capable profiles get a /64 (a ULA carved from the device
+        // prefix, NAT66'd out the VPN by the vpn_<X> zone's masq6); the rest
+        // get none. Mirrors set_config/create_config in profiles.rs — the LAN
+        // interface keeps the full delegated prefix, handled above.
         for section in &mut cfgs["network"].sections {
             if let Some(name) = section.name() {
-                if name.as_ref() != LAN_INTERFACE && profile_ipv6_map.contains_key(name.as_ref()) {
-                    if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
-                        if iface.ip6assign.is_some() {
-                            iface.ip6assign = None;
-                            section.set(&iface)?;
+                if name.as_ref() != LAN_INTERFACE {
+                    if let Some(&has_ipv6) = profile_ipv6_map.get(name.as_ref()) {
+                        if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
+                            let want = if has_ipv6 { Some("64".to_string()) } else { None };
+                            if iface.ip6assign != want {
+                                iface.ip6assign = want;
+                                section.set(&iface)?;
+                            }
                         }
                     }
                 }
@@ -1129,6 +1136,137 @@ config profile guest
             err.to_string().contains("LAN interface not found")
                 || err.to_string().contains("LAN section not found"),
             "unexpected error: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn ipv6_set_syncs_profile_ip6assign_by_outbound() {
+        // Enabling IPv6 must give a profile whose outbound VPN carries v6 an
+        // ip6assign='64' (ULA /64, NAT66'd out the tunnel) and strip it from a
+        // profile on a v4-only VPN (so v6 can't leak). The admin LAN keeps its
+        // configured prefix. Regression for the strip-everything loop.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("network"),
+            "\
+config interface 'lan'
+\toption device 'br-lan'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+\toption ip6assign '60'
+
+config interface 'guest'
+\toption device 'br-lan.101'
+\toption proto 'static'
+\toption ipaddr '192.168.101.1'
+\toption netmask '255.255.255.0'
+
+config interface 'iot'
+\toption device 'br-lan.102'
+\toption proto 'static'
+\toption ipaddr '192.168.102.1'
+\toption netmask '255.255.255.0'
+\toption ip6assign '64'
+
+config interface 'wg_v6'
+\toption proto 'wireguard'
+\toption private_key 'aGkmAm6PEDDjyZx/Lwc8AfwlVWuJOaKB6E5Hp+JqgVc='
+\tlist addresses '10.2.0.2/32'
+\tlist addresses 'fd00:2::2/128'
+
+config interface 'wg_v4'
+\toption proto 'wireguard'
+\toption private_key 'aGkmAm6PEDDjyZx/Lwc8AfwlVWuJOaKB6E5Hp+JqgVc='
+\tlist addresses '10.3.0.2/32'
+",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("dhcp"),
+            "\
+config dhcp 'lan'
+\toption interface 'lan'
+\toption start '100'
+\toption limit '150'
+\toption leasetime '12h'
+\toption ra 'server'
+\toption dhcpv6 'server'
+
+config dhcp 'guest'
+\toption interface 'guest'
+\toption start '100'
+\toption limit '150'
+\toption leasetime '12h'
+
+config dhcp 'iot'
+\toption interface 'iot'
+\toption start '100'
+\toption limit '150'
+\toption leasetime '12h'
+",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '99'
+
+config profile guest
+\toption fullname 'Guest'
+\toption interface 'guest'
+\toption vlan_tag '101'
+\toption outbound 'wg_v6'
+
+config profile iot
+\toption fullname 'IoT'
+\toption interface 'iot'
+\toption vlan_tag '102'
+\toption outbound 'wg_v4'
+",
+        )
+        .unwrap();
+
+        let ctx = TestContext(dir.path().to_path_buf());
+        ipv6_set(
+            ctx.clone(),
+            DeserializeStdin(LanIpv6SetRequest {
+                slaac: true,
+                dhcpv6: false,
+                prefix: 60,
+            }),
+        )
+        .await
+        .unwrap();
+
+        let arena = Arena::new();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await.unwrap();
+        let ip6assign_of = |name: &str| -> Option<String> {
+            cfgs["network"]
+                .sections
+                .iter()
+                .find(|s| s.name().as_deref() == Some(name))
+                .and_then(|s| s.get_typed::<NetworkInterface>().ok().flatten())
+                .and_then(|i| i.ip6assign)
+        };
+
+        assert_eq!(
+            ip6assign_of("lan").as_deref(),
+            Some("60"),
+            "admin LAN keeps its configured prefix"
+        );
+        assert_eq!(
+            ip6assign_of("guest").as_deref(),
+            Some("64"),
+            "v6-capable VPN profile gains a /64"
+        );
+        assert_eq!(
+            ip6assign_of("iot"),
+            None,
+            "v4-only VPN profile has ip6assign stripped to prevent v6 leak"
         );
     }
 }

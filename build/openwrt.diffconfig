@@ -60,14 +60,15 @@ CONFIG_PACKAGE_cgi-io=y
 CONFIG_PACKAGE_dbus=y
 CONFIG_PACKAGE_devlink=y
 CONFIG_PACKAGE_fdisk=y
-CONFIG_PACKAGE_firewall=y
-# CONFIG_PACKAGE_firewall4 is not set
+# CONFIG_PACKAGE_firewall is not set
+CONFIG_PACKAGE_firewall4=y
 CONFIG_PACKAGE_hostapd-basic-mbedtls=y
 CONFIG_PACKAGE_hostapd-common=y
 CONFIG_PACKAGE_hostapd-utils=y
 CONFIG_PACKAGE_ip-bridge=y
 CONFIG_PACKAGE_ip-full=y
 # CONFIG_PACKAGE_ip-tiny is not set
+# CONFIG_PACKAGE_ip6tables-mod-nat is not set
 CONFIG_PACKAGE_iw=y
 CONFIG_PACKAGE_iwinfo=y
 # CONFIG_PACKAGE_jansson is not set
@@ -90,10 +91,12 @@ CONFIG_PACKAGE_kmod-crypto-sha3=y
 # CONFIG_PACKAGE_kmod-crypto-sha512 is not set
 CONFIG_PACKAGE_kmod-hwmon-core=y
 CONFIG_PACKAGE_kmod-input-core=y
-CONFIG_PACKAGE_kmod-ip6tables=y
-CONFIG_PACKAGE_kmod-ipt-conntrack=y
-CONFIG_PACKAGE_kmod-ipt-core=y
-CONFIG_PACKAGE_kmod-ipt-nat=y
+# CONFIG_PACKAGE_kmod-ip6tables is not set
+# CONFIG_PACKAGE_kmod-ipt-conntrack is not set
+# CONFIG_PACKAGE_kmod-ipt-core is not set
+# CONFIG_PACKAGE_kmod-ipt-nat is not set
+# CONFIG_PACKAGE_kmod-ipt-nat6 is not set
+# CONFIG_PACKAGE_kmod-nf-nat6 is not set
 # CONFIG_PACKAGE_kmod-lib-crc-ccitt is not set
 # CONFIG_PACKAGE_kmod-lib-crc32c is not set
 CONFIG_PACKAGE_kmod-mac80211=y
@@ -107,15 +110,15 @@ CONFIG_PACKAGE_kmod-mt7915e=y
 CONFIG_PACKAGE_kmod-mt7916-firmware=y
 # CONFIG_PACKAGE_kmod-rtl8852bs is not set
 # CONFIG_PACKAGE_kmod-nf-flow is not set
-CONFIG_PACKAGE_kmod-nf-ipt=y
+# CONFIG_PACKAGE_kmod-nf-ipt is not set
 # CONFIG_PACKAGE_kmod-nf-log6 is not set
 CONFIG_PACKAGE_kmod-br-netfilter=y
 CONFIG_PACKAGE_kmod-nf-reject6=y
 CONFIG_PACKAGE_conntrack=y
-# CONFIG_PACKAGE_kmod-nft-core is not set
-# CONFIG_PACKAGE_kmod-nft-fib is not set
-# CONFIG_PACKAGE_kmod-nft-nat is not set
-# CONFIG_PACKAGE_kmod-nft-offload is not set
+CONFIG_PACKAGE_kmod-nft-core=y
+CONFIG_PACKAGE_kmod-nft-fib=y
+CONFIG_PACKAGE_kmod-nft-nat=y
+CONFIG_PACKAGE_kmod-nft-offload=y
 # CONFIG_PACKAGE_kmod-ppp is not set
 CONFIG_PACKAGE_kmod-sched-core=y
 CONFIG_PACKAGE_kmod-thermal=y
@@ -134,23 +137,23 @@ CONFIG_PACKAGE_libelf=y
 CONFIG_PACKAGE_libexpat=y
 CONFIG_PACKAGE_libfdisk=y
 # CONFIG_PACKAGE_libffmpeg-full is not set
-CONFIG_PACKAGE_libip4tc=y
-CONFIG_PACKAGE_libip6tc=y
-CONFIG_PACKAGE_libiptext=y
-CONFIG_PACKAGE_libiptext6=y
+# CONFIG_PACKAGE_libip4tc is not set
+# CONFIG_PACKAGE_libip6tc is not set
+# CONFIG_PACKAGE_libiptext is not set
+# CONFIG_PACKAGE_libiptext6 is not set
 CONFIG_PACKAGE_libiwinfo=y
 CONFIG_PACKAGE_libiwinfo-data=y
 CONFIG_PACKAGE_liblucihttp=y
 CONFIG_PACKAGE_liblucihttp-ucode=y
 CONFIG_PACKAGE_libmount=y
 CONFIG_PACKAGE_libncurses=y
-# CONFIG_PACKAGE_libnftnl is not set
+CONFIG_PACKAGE_libnftnl=y
 CONFIG_PACKAGE_libopenssl=y
 CONFIG_PACKAGE_libpopt=y
 CONFIG_PACKAGE_libreadline=y
 CONFIG_PACKAGE_libsmartcols=y
 CONFIG_PACKAGE_libtirpc=y
-CONFIG_PACKAGE_libxtables=y
+# CONFIG_PACKAGE_libxtables is not set
 CONFIG_PACKAGE_lsblk=y
 CONFIG_PACKAGE_luci=y
 CONFIG_PACKAGE_luci-app-firewall=y
@@ -165,7 +168,7 @@ CONFIG_PACKAGE_luci-proto-ipv6=y
 CONFIG_PACKAGE_luci-proto-ppp=y
 CONFIG_PACKAGE_luci-theme-bootstrap=y
 CONFIG_PACKAGE_mdadm=y
-# CONFIG_PACKAGE_nftables-json is not set
+CONFIG_PACKAGE_nftables-json=y
 CONFIG_PACKAGE_nlbwmon=y
 CONFIG_PACKAGE_nstat=y
 CONFIG_PACKAGE_odhcp6c=y

@@ -21,6 +21,13 @@ pub struct FirewallZone {
     pub output: FirewallTarget,
     pub forward: FirewallTarget,
     pub network: Vec<String>,
+    /// IPv4 masquerading (NAT). fw4 native.
+    #[uci(default)]
+    pub masq: Option<bool>,
+    /// IPv6 masquerading (NAT66). fw4 native — used to SNAT VPN-routed LAN
+    /// traffic to the tunnel's assigned address on a dedicated `vpn_<X>` zone.
+    #[uci(default)]
+    pub masq6: Option<bool>,
 }
 
 #[derive(Debug, TypedSection, Default)]
@@ -60,8 +67,6 @@ pub struct FirewallRule {
     pub enabled: Option<String>,
     #[uci(default)]
     pub set_mark: Option<String>,
-    #[uci(default)]
-    pub extra: Option<String>,
     /// Published-port metadata: links IPv4 redirect + IPv6 rule
     #[uci(default)]
     pub _pp_id: Option<String>,
@@ -323,7 +328,31 @@ pub struct NetworkRoute {
     #[uci(default)]
     pub netmask: Option<String>,
     #[uci(default)]
+    pub metric: Option<u32>,
+    #[uci(default)]
     pub table: Option<u32>,
+    /// Route type, e.g. "unreachable" for a fail-closed kill-switch fallback.
+    #[uci(default, rename = "type")]
+    pub kind: Option<String>,
+}
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "route6")]
+pub struct NetworkRoute6 {
+    pub interface: String,
+    /// IPv6 CIDR (e.g. `::/0`, `2001:db8::1/128`)
+    pub target: String,
+    #[uci(default)]
+    pub gateway: Option<String>,
+    #[uci(default)]
+    pub metric: Option<u32>,
+    #[uci(default)]
+    pub mtu: Option<u32>,
+    #[uci(default)]
+    pub table: Option<u32>,
+    /// Route type, e.g. "unreachable" for a fail-closed kill-switch fallback.
+    #[uci(default, rename = "type")]
+    pub kind: Option<String>,
 }
 
 #[derive(Debug, TypedSection, Default)]
@@ -336,6 +365,29 @@ pub struct NetworkRule {
     pub mark: Option<String>,
     #[uci(default)]
     pub priority: Option<u32>,
+}
+
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "rule6")]
+pub struct NetworkRule6 {
+    /// Logical netifd interface name; netifd substitutes the kernel netdev at install time.
+    #[uci(default, rename = "in")]
+    pub in_iface: Option<String>,
+    #[uci(default, rename = "out")]
+    pub out_iface: Option<String>,
+    #[uci(default)]
+    pub src: Option<String>,
+    #[uci(default)]
+    pub dest: Option<String>,
+    pub lookup: u32,
+    #[uci(default)]
+    pub mark: Option<String>,
+    #[uci(default)]
+    pub priority: Option<u32>,
+    /// `FRA_SUPPRESS_PREFIXLEN`: suppress matches whose prefix length is ≤ this value.
+    /// Set to 0 to fall through on default-route-only matches in the looked-up table.
+    #[uci(default)]
+    pub suppress_prefixlength: Option<u32>,
 }
 
 #[derive(Debug, TypedSection)]
@@ -352,6 +404,12 @@ pub struct Dhcp {
     pub dhcpv6: Option<String>,
     #[uci(default)]
     pub ra_management: Option<String>,
+    /// odhcpd default-router advertisement policy: "0" never, "1" always,
+    /// "2" only when wan6 has a default route. Must be set to "1" on profiles
+    /// whose outbound is a VPN with IPv6 — otherwise clients have no default
+    /// route when the router itself has no upstream IPv6 PD.
+    #[uci(default)]
+    pub ra_default: Option<String>,
 }
 
 #[derive(Debug, TypedSection, Default)]

@@ -221,7 +221,7 @@ pub async fn set<C: CtrlContext>(
                     // this RPC's response if we blocked here.
                     //
                     // `firewall restart` (not `reload`): the bridge
-                    // sub-interfaces were just recreated, and fw3's
+                    // sub-interfaces were just recreated, and fw4's
                     // diff-style reload is unreliable against the
                     // rebuilt state.
                     //

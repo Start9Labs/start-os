@@ -1383,6 +1383,7 @@ export class MockApiService extends ApiService {
       target: 'Internet',
       enabled: true,
       used_by: [],
+      supports_ipv6: true,
     },
     {
       id: 'wg_mullvad',
@@ -1390,6 +1391,7 @@ export class MockApiService extends ApiService {
       target: 'Proton',
       enabled: true,
       used_by: [],
+      supports_ipv6: false,
     },
   ]
 
@@ -1418,6 +1420,7 @@ export class MockApiService extends ApiService {
         target: params.target,
         enabled: true,
         used_by: [],
+        supports_ipv6: /(^|\n)\s*Address\s*=[^\n]*:/.test(params.config),
       },
     ]
     this.logActivity(

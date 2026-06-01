@@ -6,7 +6,12 @@ config interface 'loopback'
 	option netmask '255.0.0.0'
 
 config globals 'globals'
-	option ula_prefix 'fda7:5549:a8c::/48'
+	# 'auto' lets /etc/uci-defaults/12_network-generate-ula generate a unique
+	# random /48 per device at first boot (RFC 4193). A hardcoded prefix makes
+	# every device share a ULA, which collides when start-wrt routers are
+	# chained — the WAN side learns the same /48 and shadows the LAN route,
+	# black-holing reverse-NAT'd replies (e.g. IPv6 VPN return traffic).
+	option ula_prefix 'auto'
 
 config device
 	option name 'br-lan'
