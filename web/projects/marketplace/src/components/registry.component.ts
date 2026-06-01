@@ -1,25 +1,26 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { ChangeDetectionStrategy, Component, input, Input } from '@angular/core'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
-import { StoreIconComponent } from './store-icon.component'
+import { TuiAvatar } from '@taiga-ui/kit'
+
+import { StoreIconDirective } from './store-icon.directive'
 
 @Component({
   selector: '[registry]',
   template: `
-    <store-icon [url]="registry.url" size="40px" />
+    <span tuiAvatar><img [storeIcon]="registry().url" /></span>
     <div tuiTitle>
-      {{ registry.name }}
-      <div tuiSubtitle>{{ registry.url }}</div>
+      {{ registry().name }}
+      <div tuiSubtitle>{{ registry().url }}</div>
     </div>
-    @if (registry.selected) {
-      <tui-icon icon="@tui.check" [style.color]="'var(--tui-text-positive)'" />
+    @if (registry().selected) {
+      <tui-icon icon="@tui.check" class="g-positive" />
     } @else {
       <ng-content />
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [StoreIconComponent, TuiIcon, TuiTitle],
+  imports: [StoreIconDirective, TuiIcon, TuiTitle, TuiAvatar],
 })
 export class MarketplaceRegistryComponent {
-  @Input()
-  registry!: { url: string; selected: boolean; name: string }
+  registry = input.required<{ url: string; selected: boolean; name: string }>()
 }

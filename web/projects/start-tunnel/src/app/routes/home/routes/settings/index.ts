@@ -13,7 +13,7 @@ import {
   TuiButtonLoading,
   TuiNotificationMiddleService,
 } from '@taiga-ui/kit'
-import { TuiCard } from '@taiga-ui/layout'
+import { TuiCardLarge } from '@taiga-ui/layout'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { UpdateService } from 'src/app/services/update.service'
@@ -82,7 +82,14 @@ import { CHANGE_PASSWORD } from './change-password'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiCard, TuiCell, TuiTitle, TuiButton, TuiButtonLoading, TuiBadge],
+  imports: [
+    TuiCardLarge,
+    TuiCell,
+    TuiTitle,
+    TuiButton,
+    TuiButtonLoading,
+    TuiBadge,
+  ],
 })
 export default class Settings {
   private readonly dialogs = inject(TuiResponsiveDialogService)

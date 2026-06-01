@@ -557,7 +557,6 @@ export const ENGLISH: Record<string, number> = {
   'Servers': 618, // as in, computer servers
   'Warning. StartOS is currently using the following gateway for DNS': 619,
   'If you intend to use this gateway for private domain resolution, set alternative static DNS servers using the form above.': 620,
-  'Package a service': 621, // as in, package a software application for an operating system
   'Released': 622, // as in, the date something became available
   'Alternative Implementations': 623,
   'Versions': 624,
@@ -756,4 +755,7 @@ export const ENGLISH: Record<string, number> = {
   'OS Data': 842,
   'interfaces': 843,
   'actions & config': 844,
+  'A-Z': 845,
+  'Z-A': 846,
+  'Last published': 847,
 }

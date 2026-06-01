@@ -558,7 +558,6 @@ export default {
   618: 'Serwery',
   619: 'Ostrzeżenie. StartOS obecnie używa następującej bramy do DNS',
   620: 'Jeśli zamierzasz używać tej bramy do rozwiązywania domen prywatnych, ustaw alternatywne statyczne serwery DNS za pomocą powyższego formularza.',
-  621: 'Spakietuj usługę',
   622: 'Wydano',
   623: 'Alternatywne implementacje',
   624: 'Wersje',
@@ -755,4 +754,7 @@ export default {
   842: 'Dane systemu OS',
   843: 'interfejsy',
   844: 'akcje & konfiguracja',
+  845: 'A-Z',
+  846: 'Z-A',
+  847: 'Ostatnio opublikowane',
 } satisfies i18n
