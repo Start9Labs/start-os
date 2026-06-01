@@ -11,7 +11,10 @@ import {
 } from "@start9labs/start-sdk/package/lib/util/SubContainer"
 import { Mounts } from "@start9labs/start-sdk/package/lib/mainFn/Mounts"
 import { Manifest } from "@start9labs/start-sdk/base/lib/osBindings"
-import { BackupEffects } from "@start9labs/start-sdk/package/lib/backup/Backups"
+import {
+  BackupEffects,
+  mountBackupTarget,
+} from "@start9labs/start-sdk/package/lib/backup/Backups"
 import { Drop } from "@start9labs/start-sdk/package/lib/util"
 import { SDKManifest } from "@start9labs/start-sdk/base/lib/types"
 export const exec = promisify(cp.exec)
@@ -118,6 +121,11 @@ export class DockerProcedureContainer extends Drop {
               idmap: [],
             },
           })
+        } else if (volumeMount.type === "backup") {
+          // Mount the backup target via the same rbind native 0.4 packages
+          // use (Backups.ts), at the manifest-declared mountpoint the legacy
+          // docker backup/restore procedure expects.
+          await mountBackupTarget(subcontainer.rootfs, mounts[mount])
         }
       }
     }
