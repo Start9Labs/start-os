@@ -118,13 +118,6 @@ export class DockerProcedureContainer extends Drop {
               idmap: [],
             },
           })
-        } else if (volumeMount.type === "backup") {
-          await subcontainer.mount(
-            Mounts.of().mountBackups({
-              subpath: null,
-              mountpoint: mounts[mount],
-            }),
-          )
         }
       }
     }

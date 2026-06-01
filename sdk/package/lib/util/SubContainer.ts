@@ -6,7 +6,6 @@ import { Buffer } from 'node:buffer'
 import { once } from '../../../base/lib/util/once'
 import { Drop } from '../../../base/lib/util/Drop'
 import { Mounts } from '../mainFn/Mounts'
-import { BackupEffects } from '../backup/Backups'
 
 export const execFile = promisify(cp.execFile)
 const False = () => false
@@ -70,13 +69,6 @@ async function bind(
   }
   await execFile('start-container', args)
 }
-
-type MountsArg<
-  Manifest extends T.SDKManifest,
-  E extends T.Effects,
-> = E extends BackupEffects
-  ? Mounts<Manifest, { subpath: string | null; mountpoint: string }>
-  : Mounts<Manifest, never>
 
 /**
  * Isolated container environment for running service processes.
@@ -144,12 +136,12 @@ export interface SubContainer<
   subpath(path: string): string | Promise<string>
 
   /**
-   * Apply filesystem mounts (volumes, assets, dependencies, backups) to this subcontainer.
+   * Apply filesystem mounts (volumes, assets, dependencies) to this subcontainer.
    * Lazy handles materialize on this call.
    * @param mounts - The Mounts configuration to apply
    * @returns This subcontainer instance for chaining
    */
-  mount(mounts: MountsArg<Manifest, Effects>): Promise<this>
+  mount(mounts: Mounts<Manifest>): Promise<this>
 
   /**
    * Take a use-hold on this subcontainer. The returned function releases
@@ -273,7 +265,7 @@ export const SubContainer = {
       imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
-    mounts: MountsArg<Manifest, Effects> | null,
+    mounts: Mounts<Manifest> | null,
     name: string,
   ): SubContainerLazy<Manifest, Effects> {
     return new SubContainerLazy<Manifest, Effects>(effects, image, mounts, name)
@@ -305,7 +297,7 @@ export const SubContainer = {
       imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
-    mounts: MountsArg<Manifest, Effects> | null,
+    mounts: Mounts<Manifest> | null,
     name: string,
   ): Promise<SubContainerEager<Manifest, Effects>> {
     return SubContainerEager._of(
@@ -339,7 +331,7 @@ export const SubContainer = {
       imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
-    mounts: MountsArg<Manifest, Effects> | null,
+    mounts: Mounts<Manifest> | null,
     name: string,
     fn: (sub: SubContainerEager<Manifest, Effects>) => Promise<T_>,
   ): Promise<T_> {
@@ -437,7 +429,7 @@ export class SubContainerEager<
       imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
-    mounts: MountsArg<Manifest, Effects> | null,
+    mounts: Mounts<Manifest> | null,
     name: string,
     identity: symbol,
   ): Promise<SubContainerEager<Manifest, Effects>> {
@@ -494,13 +486,13 @@ export class SubContainerEager<
   }
 
   /**
-   * Apply filesystem mounts (volumes, assets, dependencies, backups) to
+   * Apply filesystem mounts (volumes, assets, dependencies) to
    * this subcontainer.
    *
    * @param mounts The Mounts configuration to apply
    * @returns This subcontainer instance for chaining
    */
-  async mount(mounts: MountsArg<Manifest, Effects>): Promise<this> {
+  async mount(mounts: Mounts<Manifest>): Promise<this> {
     for (let mount of mounts.build()) {
       let { options, mountpoint } = mount
       const path = mountpoint.startsWith('/')
@@ -547,15 +539,6 @@ export class SubContainerEager<
           }
           await execFile('start-container', args)
         }
-      } else if (options.type === 'backup') {
-        const subpath = options.subpath
-          ? options.subpath.startsWith('/')
-            ? options.subpath
-            : `/${options.subpath}`
-          : '/'
-        const from = `/media/startos/backup${subpath}`
-
-        await bind(from, path, options.filetype, options.idmap)
       } else {
         throw new Error(`unknown type ${(options as any).type}`)
       }
@@ -930,7 +913,7 @@ export class SubContainerLazy<
   readonly sharedRun: boolean
   readonly name: string
   /** The mounts declared at construction. Read by `Daemons.dynamic`'s configHash. */
-  readonly mounts: MountsArg<Manifest, Effects> | null
+  readonly mounts: Mounts<Manifest> | null
 
   private materialized: Promise<SubContainerEager<Manifest, Effects>> | null =
     null
@@ -942,7 +925,7 @@ export class SubContainerLazy<
       imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
-    mounts: MountsArg<Manifest, Effects> | null,
+    mounts: Mounts<Manifest> | null,
     name: string,
   ) {
     super()
@@ -1000,7 +983,7 @@ export class SubContainerLazy<
    * @param mounts The Mounts configuration to apply
    * @returns This lazy handle, for chaining
    */
-  async mount(mounts: MountsArg<Manifest, Effects>): Promise<this> {
+  async mount(mounts: Mounts<Manifest>): Promise<this> {
     await (await this.eager()).mount(mounts)
     return this
   }
@@ -1173,7 +1156,6 @@ export type MountOptions =
   | MountOptionsVolume
   | MountOptionsAssets
   | MountOptionsPointer
-  | MountOptionsBackup
 
 /** Mount options for binding a service volume into a subcontainer */
 export type MountOptionsVolume = {
@@ -1200,14 +1182,6 @@ export type MountOptionsPointer = {
   volumeId: string
   subpath: string | null
   readonly: boolean
-  idmap: { fromId: number; toId: number; range: number }[]
-}
-
-/** Mount options for binding the backup directory into a subcontainer */
-export type MountOptionsBackup = {
-  type: 'backup'
-  subpath: string | null
-  filetype: 'file' | 'directory' | 'infer'
   idmap: { fromId: number; toId: number; range: number }[]
 }
 

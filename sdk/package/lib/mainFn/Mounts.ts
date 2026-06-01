@@ -65,21 +65,16 @@ type DependencyOpts<Manifest extends T.SDKManifest> = {
 /**
  * Immutable builder for declaring filesystem mounts into a subcontainer.
  *
- * Supports mounting volumes, static assets, dependency volumes, and backup directories.
+ * Supports mounting volumes, static assets, and dependency volumes.
  * Each `mount*` method returns a new `Mounts` instance (immutable builder pattern).
  *
  * @typeParam Manifest - The service manifest type
- * @typeParam Backups - Tracks whether backup mounts have been added (type-level flag)
  */
-export class Mounts<
-  Manifest extends T.SDKManifest,
-  Backups extends SharedOptions = never,
-> {
+export class Mounts<Manifest extends T.SDKManifest> {
   private constructor(
     readonly volumes: VolumeOpts<Manifest>[],
     readonly assets: SharedOptions[],
     readonly dependencies: DependencyOpts<T.SDKManifest>[],
-    readonly backups: Backups[],
   ) {}
 
   /**
@@ -87,7 +82,7 @@ export class Mounts<
    * @returns A new Mounts instance ready for chaining mount declarations
    */
   static of<Manifest extends T.SDKManifest>() {
-    return new Mounts<Manifest>([], [], [], [])
+    return new Mounts<Manifest>([], [], [])
   }
 
   /**
@@ -96,11 +91,10 @@ export class Mounts<
    * @returns A new Mounts instance with this volume added
    */
   mountVolume(options: VolumeOpts<Manifest>) {
-    return new Mounts<Manifest, Backups>(
+    return new Mounts<Manifest>(
       [...this.volumes, options],
       [...this.assets],
       [...this.dependencies],
-      [...this.backups],
     )
   }
 
@@ -110,11 +104,10 @@ export class Mounts<
    * @returns A new Mounts instance with this asset mount added
    */
   mountAssets(options: SharedOptions) {
-    return new Mounts<Manifest, Backups>(
+    return new Mounts<Manifest>(
       [...this.volumes],
       [...this.assets, options],
       [...this.dependencies],
-      [...this.backups],
     )
   }
 
@@ -126,31 +119,10 @@ export class Mounts<
   mountDependency<DependencyManifest extends T.SDKManifest>(
     options: DependencyOpts<DependencyManifest>,
   ) {
-    return new Mounts<Manifest, Backups>(
+    return new Mounts<Manifest>(
       [...this.volumes],
       [...this.assets],
       [...this.dependencies, options],
-      [...this.backups],
-    )
-  }
-
-  /**
-   * Add a mount of the backup directory. Only valid during backup/restore operations.
-   * @param options - Mountpoint and optional subpath within the backup directory
-   * @returns A new Mounts instance with this backup mount added
-   */
-  mountBackups(options: SharedOptions) {
-    return new Mounts<
-      Manifest,
-      {
-        subpath: string | null
-        mountpoint: string
-      }
-    >(
-      [...this.volumes],
-      [...this.assets],
-      [...this.dependencies],
-      [...this.backups, options],
     )
   }
 
@@ -213,7 +185,3 @@ export class Mounts<
       )
   }
 }
-
-const a = Mounts.of().mountBackups({ subpath: null, mountpoint: '' })
-// @ts-expect-error
-const m: Mounts<T.SDKManifest, never> = a
