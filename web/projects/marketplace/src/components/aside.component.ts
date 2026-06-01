@@ -9,10 +9,9 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
-import { DocsLinkDirective, i18nPipe, LocalizePipe } from '@start9labs/shared'
+import { i18nPipe, LocalizePipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
-  TuiButton,
   tuiButtonOptionsProvider,
   TuiDataList,
   TuiDropdown,
@@ -86,13 +85,6 @@ const ICONS: Record<string, string> = {
         </button>
       }
       <footer>
-        <a
-          iconStart="@tui.external-link"
-          docsLink
-          path="/packaging/quick-start.html"
-          tuiButton
-          [textContent]="'Package a service' | i18n"
-        ></a>
         <button
           tuiAsideItem
           type="button"
@@ -122,11 +114,6 @@ const ICONS: Record<string, string> = {
           overflow: hidden;
           --t-start: 1.375rem;
         }
-
-        [tuiButton] {
-          justify-content: flex-start;
-          gap: 0.625rem;
-        }
       }
     }
   `,
@@ -139,16 +126,14 @@ const ICONS: Record<string, string> = {
     TuiDataList,
     TuiDropdown,
     TuiButtonSelect,
-    TuiButton,
     TuiSkeleton,
-    i18nPipe,
     KeyValuePipe,
     LocalizePipe,
     FormsModule,
-    DocsLinkDirective,
   ],
 })
 export class MarketplaceAsideComponent {
+  private readonly i18n = inject(i18nPipe)
   readonly registry = input<StoreDataWithUrl>()
   readonly sort = model('a')
   readonly query = model('')
@@ -175,11 +160,11 @@ export class MarketplaceAsideComponent {
   getLabel(sort: string) {
     switch (sort) {
       case 'a':
-        return 'Alphabetic'
+        return this.i18n.transform('A-Z')
       case 'z':
-        return 'Alphabetic Reversed'
+        return this.i18n.transform('Z-A')
       default:
-        return 'Latest Release'
+        return this.i18n.transform('Last published')
     }
   }
 }

@@ -558,7 +558,6 @@ export default {
   618: 'Server',
   619: 'Warnung. StartOS verwendet derzeit das folgende Gateway für DNS',
   620: 'Wenn Sie dieses Gateway für die Auflösung privater Domains verwenden möchten, legen Sie alternative statische DNS-Server mit dem obigen Formular fest.',
-  621: 'Einen Dienst paketieren',
   622: 'Veröffentlicht',
   623: 'Alternative Implementierungen',
   624: 'Versionen',
@@ -753,4 +752,7 @@ export default {
   840: 'Diese Version enthält keine Anweisungen. Bitte aktualisieren.',
   841: 'Gesamt',
   842: 'Betriebssystemdaten',
+  843: 'A-Z',
+  844: 'Z-A',
+  845: 'Zuletzt veröffentlicht',
 } satisfies i18n

@@ -558,7 +558,6 @@ export default {
   618: 'Serveurs',
   619: 'Avertissement. StartOS utilise actuellement la passerelle suivante pour le DNS',
   620: 'Si vous souhaitez utiliser cette passerelle pour la résolution de domaines privés, définissez des serveurs DNS statiques alternatifs à l’aide du formulaire ci-dessus.',
-  621: 'Emballer un service',
   622: 'Publié',
   623: 'Implémentations alternatives',
   624: 'Versions',
@@ -753,4 +752,7 @@ export default {
   840: "Cette version ne contient pas d'instructions. Veuillez mettre à jour.",
   841: 'Global',
   842: "Données de l'OS",
+  843: 'A-Z',
+  844: 'Z-A',
+  845: 'Dernière publication',
 } satisfies i18n
