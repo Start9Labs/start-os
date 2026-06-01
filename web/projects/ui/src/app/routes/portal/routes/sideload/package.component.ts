@@ -1,12 +1,14 @@
 import { Component, inject, input } from '@angular/core'
 import {
   MarketplaceAboutComponent,
-  MarketplaceLinksComponent,
   MarketplaceDependenciesComponent,
-  MarketplacePackageHeroComponent,
+  MarketplaceLinksComponent,
   MarketplaceReleaseNotesComponent,
 } from '@start9labs/marketplace'
 import { DialogService, EmptyPipe, MARKDOWN } from '@start9labs/shared'
+import { TuiTitle } from '@taiga-ui/core'
+import { TuiAvatar, TuiFade } from '@taiga-ui/kit'
+import { TuiHeader } from '@taiga-ui/layout'
 import { of } from 'rxjs'
 import { MarketplaceControlsComponent } from '../marketplace/components/controls.component'
 import { MarketplacePkgSideload } from './sideload.utils'
@@ -14,68 +16,52 @@ import { MarketplacePkgSideload } from './sideload.utils'
 @Component({
   selector: 'sideload-package',
   template: `
-    <div class="outer-container">
-      <ng-content />
-      <marketplace-package-hero [pkg]="pkg()">
+    <header tuiHeader="h4">
+      <span tuiAvatar>
+        <img
+          alt=""
+          [src]="pkg().icon || 'assets/img/service-icons/fallback.png'"
+        />
+      </span>
+      <span tuiTitle tuiFade>{{ pkg().title }}</span>
+      <span tuiAccessories>
         <marketplace-controls [pkg]="pkg()" [file]="file()" />
-      </marketplace-package-hero>
-      <div class="package-details">
-        <div class="package-details-main">
-          <marketplace-about [pkg]="pkg()" />
-          <marketplace-release-notes [pkg]="pkg()" />
-          @if (!(pkg().dependencyMetadata | empty)) {
-            <marketplace-dependencies [pkg]="pkg()" />
-          }
-        </div>
-        <div class="package-details-additional">
-          <marketplace-links [pkg]="pkg()" (static)="onStatic()" />
-        </div>
-      </div>
-    </div>
+        <ng-content />
+      </span>
+    </header>
+    <marketplace-about [pkg]="pkg()" (static)="onStatic()" />
+    <marketplace-release-notes [pkg]="pkg()" />
+    @if (!(pkg().dependencyMetadata | empty)) {
+      <marketplace-dependencies [pkg]="pkg()" />
+    }
+    <marketplace-links [pkg]="pkg()" />
   `,
   styles: `
-    .outer-container {
+    :host {
       display: grid;
-      justify-content: center;
-      width: 100%;
-
-      @media (min-width: 1024px) {
-        margin: auto;
-        padding: 2.5rem 4rem 2rem 4rem;
-      }
+      gap: 1rem;
+      inline-size: min(100%, 30rem);
+      margin: auto;
     }
 
-    .package-details {
-      column-gap: 2rem;
-
-      &-main {
-        grid-column: span 12 / span 12;
-      }
-
-      &-additional {
-        grid-column: span 12 / span 12;
-      }
-
-      @media (min-width: 1536px) {
-        grid-template-columns: repeat(12, minmax(0, 1fr));
-        &-main {
-          grid-column: span 8 / span 8;
-        }
-        &-additional {
-          grid-column: span 4 / span 4;
-          margin-top: 0;
-        }
-      }
+    header {
+      gap: 1rem;
+      align-items: center;
+      white-space: nowrap;
+      overflow: hidden;
     }
   `,
   imports: [
     EmptyPipe,
     MarketplaceAboutComponent,
     MarketplaceLinksComponent,
-    MarketplacePackageHeroComponent,
     MarketplaceDependenciesComponent,
     MarketplaceControlsComponent,
     MarketplaceReleaseNotesComponent,
+    TuiHeader,
+    TuiAvatar,
+    TuiTitle,
+    TuiFade,
   ],
 })
 export class SideloadPackageComponent {

@@ -57,12 +57,6 @@ import { TitleDirective } from 'src/app/services/title.service'
       :host-context(tui-root._mobile) {
         flex-direction: column;
         justify-content: flex-start;
-
-        [tuiCardMedium] {
-          width: 100%;
-          height: auto;
-          gap: 1rem;
-        }
       }
     `,
   ],
