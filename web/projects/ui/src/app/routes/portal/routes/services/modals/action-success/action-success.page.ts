@@ -7,14 +7,22 @@ import { ActionResponseWithResult } from './types'
 
 @Component({
   template: `
-    @if (data.message) {
-      <p>{{ data.message }}</p>
-    }
-    @if (single) {
-      <app-action-success-single [single]="single" />
-    }
-    @if (group) {
-      <app-action-success-group [group]="group" />
+    <div class="content">
+      @if (data.message) {
+        <p>{{ data.message }}</p>
+      }
+      @if (single) {
+        <app-action-success-single [single]="single" />
+      }
+      @if (group) {
+        <app-action-success-group [group]="group" />
+      }
+    </div>
+  `,
+  styles: `
+    .content {
+      max-height: calc(100dvh - 12rem);
+      overflow-y: auto;
     }
   `,
   imports: [ActionSuccessGroupComponent, ActionSuccessSingleComponent],

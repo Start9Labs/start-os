@@ -13,11 +13,11 @@ import { GroupResult } from './types'
         }
         @if (member.type === 'group') {
           <tui-accordion>
-            <button tuiAccordion>
+            <button [tuiAccordion]="depth === 0">
               <span tuiFade>{{ member.name }}</span>
             </button>
             <tui-expand>
-              <app-action-success-group [group]="member" />
+              <app-action-success-group [group]="member" [depth]="depth + 1" />
             </tui-expand>
           </tui-accordion>
         }
@@ -39,4 +39,7 @@ import { GroupResult } from './types'
 export class ActionSuccessGroupComponent {
   @Input()
   group!: GroupResult
+
+  @Input()
+  depth = 0
 }
