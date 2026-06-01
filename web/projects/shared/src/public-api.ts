@@ -7,7 +7,6 @@ export * from './classes/rpc-error'
 
 export * from './components/initializing/logs-window.component'
 export * from './components/initializing/initializing.component'
-export * from './components/ticker.component'
 export * from './components/markdown.component'
 export * from './components/prompt.component'
 export * from './components/server.component'

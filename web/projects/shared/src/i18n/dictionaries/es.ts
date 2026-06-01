@@ -558,7 +558,6 @@ export default {
   618: 'Servidores',
   619: 'Advertencia. StartOS está utilizando actualmente la siguiente puerta de enlace para DNS',
   620: 'Si deseas usar esta puerta de enlace para la resolución de dominios privados, configura servidores DNS estáticos alternativos usando el formulario anterior.',
-  621: 'Empaquetar un servicio',
   622: 'Publicado',
   623: 'Implementaciones alternativas',
   624: 'Versiones',
@@ -755,4 +754,7 @@ export default {
   842: 'Datos del SO',
   843: 'interfaces',
   844: 'acciones & configuración',
+  845: 'A-Z',
+  846: 'Z-A',
+  847: 'Última publicación',
 } satisfies i18n

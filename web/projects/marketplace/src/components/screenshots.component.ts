@@ -12,7 +12,7 @@ import {
   TuiDialogService,
 } from '@taiga-ui/core'
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
-import { MarketplacePkg } from '../../types'
+import { MarketplacePkg } from '../types'
 
 @Component({
   selector: 'marketplace-package-screenshots',
