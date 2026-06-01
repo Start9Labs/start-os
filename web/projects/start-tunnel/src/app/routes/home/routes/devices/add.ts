@@ -38,7 +38,11 @@ import {
       <tui-error formControlName="name" />
 
       @if (!context.data.device) {
-        <tui-textfield tuiChevron [stringify]="stringify">
+        <tui-textfield
+          tuiChevron
+          [stringify]="stringify"
+          [tuiTextfieldCleaner]="false"
+        >
           <label tuiLabel>Subnet</label>
           @if (mobile) {
             <select

@@ -26,13 +26,26 @@ export type PrivateDnsValidationData = {
     @let internalIp = lanIp || ('Error' | i18n);
 
     <h2>{{ 'DNS Server Config' | i18n }}</h2>
-    <p>
-      {{ 'Gateway' | i18n }} "{{ gatewayName }}"
-      {{ 'must be configured to use' | i18n }}
-      {{ internalIp }}
-      ({{ 'the LAN IP address of this server' | i18n }})
-      {{ 'as its DNS server' | i18n }}.
-    </p>
+    @if (isWireguard) {
+      <p>
+        {{ 'Gateway' | i18n }} "{{ gatewayName }}"
+        {{ 'must be configured to use' | i18n }}
+        {{ internalIp }}
+        ({{ 'the address of this server on the tunnel' | i18n }})
+        {{ 'as its DNS server' | i18n }}.
+        {{
+          'In StartTunnel, set the DNS for this subnet to this server.' | i18n
+        }}
+      </p>
+    } @else {
+      <p>
+        {{ 'Gateway' | i18n }} "{{ gatewayName }}"
+        {{ 'must be configured to use' | i18n }}
+        {{ internalIp }}
+        ({{ 'the LAN IP address of this server' | i18n }})
+        {{ 'as its DNS server' | i18n }}.
+      </p>
+    }
 
     <div class="desktop">
       <table [appTable]="[null, 'Gateway', 'DNS Server', null]">
@@ -212,6 +225,10 @@ export class PrivateDnsValidationComponent {
     return this.context.data.gateway.ipInfo.subnets
       .map(s => utils.IpNet.parse(s))
       .find(s => s.isIpv4())?.address
+  }
+
+  get isWireguard(): boolean {
+    return this.context.data.gateway.ipInfo.deviceType === 'wireguard'
   }
 
   readonly loading = signal(false)

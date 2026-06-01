@@ -758,4 +758,6 @@ export const ENGLISH: Record<string, number> = {
   'A-Z': 845,
   'Z-A': 846,
   'Last published': 847,
+  'the address of this server on the tunnel': 848,
+  'In StartTunnel, set the DNS for this subnet to this server.': 849,
 }

@@ -1,6 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use imbl_value::InternedString;
 use ipnet::Ipv4Net;
 use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
@@ -13,7 +13,9 @@ use crate::net::forward::add_iptables_rule;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::PortForwardEntry;
-use crate::tunnel::wg::{WIREGUARD_INTERFACE_NAME, WgConfig, WgSubnetClients, WgSubnetConfig};
+use crate::tunnel::wg::{
+    DnsConfig, WIREGUARD_INTERFACE_NAME, WgConfig, WgSubnetClients, WgSubnetConfig,
+};
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 
 pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
@@ -136,6 +138,15 @@ pub fn subnet_api<C: Context>() -> ParentHandler<C, SubnetParams> {
                 .with_about("about.remove-subnet")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "set-dns",
+            from_fn_async(set_subnet_dns)
+                .with_metadata("sync_db", Value::Bool(true))
+                .with_inherited(|a, _| a)
+                .no_display()
+                .with_about("about.set-subnet-dns")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 pub fn device_api<C: Context>() -> ParentHandler<C> {
@@ -234,7 +245,7 @@ pub async fn add_subnet(
         })
         .await
         .result?;
-    server.sync().await?;
+    ctx.sync_network(&server).await?;
 
     for iface in ctx.net_iface.peek(|i| {
         i.iter()
@@ -280,7 +291,7 @@ pub async fn remove_subnet(
         })
         .await
         .result?;
-    server.sync().await?;
+    ctx.sync_network(&server).await?;
     ctx.gc_forwards(&keep).await?;
 
     for iface in ctx.net_iface.peek(|i| {
@@ -312,6 +323,108 @@ pub async fn remove_subnet(
     }
 
     Ok(())
+}
+
+/// Which upstream a subnet's DNS proxy forwards to. Companion fields on
+/// [`SetSubnetDnsParams`] supply the data for the `Device`/`Custom` modes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS, ValueEnum)]
+#[serde(rename_all = "camelCase")]
+pub enum DnsMode {
+    Default,
+    Device,
+    Custom,
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct SetSubnetDnsParams {
+    #[arg(long, help = "help.arg.dns-mode")]
+    mode: DnsMode,
+    /// The selected device's WireGuard IP; required when `mode` is `device`.
+    #[arg(long, help = "help.arg.dns-device-ip")]
+    #[ts(type = "string | null")]
+    device_ip: Option<Ipv4Addr>,
+    /// Up to 3 upstream servers (bare IP or `ip:port`); used when `mode` is `custom`.
+    #[arg(long = "server", action = clap::ArgAction::Append, help = "help.arg.dns-server")]
+    #[ts(type = "string[]")]
+    servers: Vec<String>,
+}
+
+/// Parse a custom DNS upstream entry: a bare IP (port defaults to 53) or `ip:port`.
+fn parse_dns_server(s: &str) -> Result<SocketAddr, Error> {
+    if let Ok(ip) = s.parse::<IpAddr>() {
+        return Ok(SocketAddr::new(ip, 53));
+    }
+    s.parse::<SocketAddr>().map_err(|_| {
+        Error::new(
+            eyre!("invalid DNS server `{s}` (expected an IP or IP:port)"),
+            ErrorKind::InvalidRequest,
+        )
+    })
+}
+
+pub async fn set_subnet_dns(
+    ctx: TunnelContext,
+    SetSubnetDnsParams {
+        mode,
+        device_ip,
+        servers,
+    }: SetSubnetDnsParams,
+    SubnetParams { subnet }: SubnetParams,
+) -> Result<(), Error> {
+    let dns = match mode {
+        DnsMode::Default => DnsConfig::Default,
+        DnsMode::Device => DnsConfig::Device {
+            ip: device_ip.ok_or_else(|| {
+                Error::new(
+                    eyre!("device DNS requires --device-ip"),
+                    ErrorKind::InvalidRequest,
+                )
+            })?,
+        },
+        DnsMode::Custom => {
+            if servers.is_empty() || servers.len() > 3 {
+                return Err(Error::new(
+                    eyre!("custom DNS requires between 1 and 3 servers"),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
+            DnsConfig::Custom {
+                servers: servers
+                    .iter()
+                    .map(|s| parse_dns_server(s))
+                    .collect::<Result<_, _>>()?,
+            }
+        }
+    };
+
+    let server = ctx
+        .db
+        .mutate(|db| {
+            let subnet_model = db
+                .as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?;
+            if let DnsConfig::Device { ip } = &dns {
+                if subnet_model.as_clients().as_idx(ip).is_none() {
+                    return Err(Error::new(
+                        eyre!("no device with ip {ip} on subnet {subnet}"),
+                        ErrorKind::InvalidRequest,
+                    ));
+                }
+            }
+            subnet_model.as_dns_mut().ser(&dns)?;
+            db.as_wg().de()
+        })
+        .await
+        .result?;
+
+    // The DNS line in client configs always points at the subnet's `.1`, so the
+    // WireGuard config is unchanged by a mode switch — only the proxy's upstreams
+    // change. No `server.sync()` / wg-quick bounce needed.
+    ctx.dns_proxy.sync(&server).await
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -375,7 +488,7 @@ pub async fn add_device(
         })
         .await
         .result?;
-    server.sync().await
+    ctx.sync_network(&server).await
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -406,7 +519,7 @@ pub async fn remove_device(
         })
         .await
         .result?;
-    server.sync().await?;
+    ctx.sync_network(&server).await?;
     ctx.gc_forwards(&keep).await
 }
 
@@ -684,4 +797,40 @@ pub async fn set_forward_enabled(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_dns_server_defaults_to_port_53() {
+        assert_eq!(
+            parse_dns_server("1.1.1.1").unwrap(),
+            "1.1.1.1:53".parse().unwrap()
+        );
+        assert_eq!(
+            parse_dns_server("2606:4700:4700::1111").unwrap(),
+            "[2606:4700:4700::1111]:53".parse().unwrap()
+        );
+    }
+
+    #[test]
+    fn parse_dns_server_accepts_explicit_port() {
+        assert_eq!(
+            parse_dns_server("9.9.9.9:5353").unwrap(),
+            "9.9.9.9:5353".parse().unwrap()
+        );
+        assert_eq!(
+            parse_dns_server("[2606:4700:4700::1111]:53").unwrap(),
+            "[2606:4700:4700::1111]:53".parse().unwrap()
+        );
+    }
+
+    #[test]
+    fn parse_dns_server_rejects_invalid() {
+        assert!(parse_dns_server("not-an-ip").is_err());
+        assert!(parse_dns_server("1.1.1.1:99999").is_err());
+        assert!(parse_dns_server("").is_err());
+    }
 }

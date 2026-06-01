@@ -81,12 +81,35 @@ impl Map for WgSubnetMap {
     }
 }
 
+/// Per-subnet DNS proxy configuration. WireGuard clients on a subnet are pointed
+/// at the subnet's in-tunnel server address (`.1`) for DNS; the forward-only proxy
+/// listening there resolves every query against the upstream(s) selected here.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum DnsConfig {
+    /// Forward to the VPS's own system resolvers.
+    #[default]
+    Default,
+    /// Forward to a device on this subnet (its WireGuard IP) on port 53.
+    Device {
+        #[ts(type = "string")]
+        ip: Ipv4Addr,
+    },
+    /// Forward to operator-specified upstream servers (1-3, optional `:port`).
+    Custom {
+        #[ts(type = "string[]")]
+        servers: Vec<SocketAddr>,
+    },
+}
+
 #[derive(Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct WgSubnetConfig {
     pub name: InternedString,
     pub clients: WgSubnetClients,
+    #[serde(default)]
+    pub dns: DnsConfig,
 }
 impl WgSubnetConfig {
     pub fn new(name: InternedString) -> Self {
@@ -230,6 +253,7 @@ impl std::fmt::Display for ClientConfig {
             privkey = self.client_config.key.to_padded_string(),
             psk = self.client_config.psk.to_padded_string(),
             addr = Ipv4Net::new_assert(self.client_addr, self.subnet.prefix_len()),
+            dns = self.subnet.addr(),
             subnet = self.subnet.trunc(),
             server_pubkey = self.server_pubkey.to_padded_string(),
             server_addr = self.server_addr,
