@@ -62,9 +62,24 @@ export type MysqlDumpConfig<M extends T.SDKManifest> = {
   mysqldOptions?: string[]
 }
 
-/** Bind-mount the backup target into a SubContainer's rootfs */
-async function mountBackupTarget(rootfs: string) {
-  const target = `${rootfs}${BACKUP_CONTAINER_MOUNT}`
+/**
+ * Bind-mount the host backup directory (`/media/startos/backup`) into a
+ * SubContainer's rootfs.
+ *
+ * Native 0.4 packages mount at the SDK's `/backup-target`; legacy
+ * SystemForEmbassy packages pass the manifest-declared mountpoint so the
+ * docker backup/restore procedure finds its `backup`-type volume where it
+ * expects. Both paths share this single rbind so legacy backups go through
+ * the same mechanism as native ones.
+ */
+export async function mountBackupTarget(
+  rootfs: string,
+  containerPath: string = BACKUP_CONTAINER_MOUNT,
+) {
+  const normalized = containerPath.startsWith('/')
+    ? containerPath
+    : `/${containerPath}`
+  const target = `${rootfs}${normalized}`
   await fs.mkdir(target, { recursive: true })
   await execFile('mount', ['--rbind', BACKUP_HOST_PATH, target])
 }

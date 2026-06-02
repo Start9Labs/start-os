@@ -34,8 +34,6 @@ pub struct MountTarget {
     #[serde(skip_deserializing)]
     #[ts(skip)]
     filetype: FileType,
-    #[serde(default)]
-    idmap: Vec<IdMap>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -56,7 +54,6 @@ pub async fn mount(
                 subpath,
                 readonly,
                 filetype,
-                idmap,
             },
     }: MountParams,
 ) -> Result<(), Error> {
@@ -80,14 +77,11 @@ pub async fn mount(
 
     IdMapped::new(
         Bind::new(source).with_type(filetype).recursive(true),
-        IdMap::stack(
-            vec![IdMap {
-                from_id: 0,
-                to_id: 100000,
-                range: 65536,
-            }],
-            idmap,
-        ),
+        vec![IdMap {
+            from_id: 0,
+            to_id: 100000,
+            range: 65536,
+        }],
     )
     .mount(
         mountpoint,

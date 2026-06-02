@@ -28,5 +28,6 @@ fn main() {
     MultiExecutable::default()
         .enable_startd()
         .enable_start_cli()
+        .enable_unshare_userns()
         .execute()
 }

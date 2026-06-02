@@ -9,6 +9,7 @@ use crate::{HOST_IP, echo};
 
 mod action;
 mod backup;
+mod bind_mount;
 pub mod callbacks;
 pub mod context;
 mod control;
@@ -87,6 +88,10 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand("mount", from_fn_async(dependency::mount).no_cli())
+        .subcommand(
+            "bind-mount",
+            from_fn_async(bind_mount::bind_mount::<C>).no_display(),
+        )
         .subcommand(
             "get-installed-packages",
             from_fn_async(dependency::get_installed_packages).no_cli(),

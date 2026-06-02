@@ -22,6 +22,11 @@ pub mod idmapped;
 pub mod label;
 pub mod loop_dev;
 pub mod overlayfs;
+#[cfg(target_os = "linux")]
+pub mod syscall;
+#[cfg(not(target_os = "linux"))]
+#[path = "syscall_stub.rs"]
+pub mod syscall;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MountType {

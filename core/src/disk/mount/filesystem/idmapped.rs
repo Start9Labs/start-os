@@ -1,6 +1,4 @@
-use std::ffi::OsStr;
-use std::fmt::Display;
-use std::os::unix::fs::MetadataExt;
+use std::os::fd::AsFd;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -10,13 +8,16 @@ use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use tokio::process::Command;
 use ts_rs::TS;
 
 use super::FileSystem;
 use crate::disk::mount::filesystem::MountType;
+use crate::disk::mount::filesystem::syscall::{
+    DetachedMount, open_tree_attr_idmap, userns_fd_from_idmap,
+};
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::prelude::*;
-use crate::util::{FromStrParser, Invoke};
+use crate::util::FromStrParser;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, Parser, TS)]
 #[group(skip)]
@@ -25,23 +26,6 @@ pub struct IdMap {
     pub from_id: u32,
     pub to_id: u32,
     pub range: u32,
-}
-impl IdMap {
-    pub fn stack(a: Vec<IdMap>, b: Vec<IdMap>) -> Vec<IdMap> {
-        let mut res = Vec::with_capacity(a.len() + b.len());
-        res.extend_from_slice(&a);
-
-        for mut b in b {
-            for a in &a {
-                if a.from_id <= b.to_id && a.from_id + a.range > b.to_id {
-                    b.to_id += a.to_id;
-                }
-            }
-            res.push(b);
-        }
-
-        res
-    }
 }
 impl FromStr for IdMap {
     type Err = Error;
@@ -74,6 +58,15 @@ impl ValueParserFactory for IdMap {
     }
 }
 
+/// Wraps another filesystem and applies an idmap (uid/gid remapping) to the
+/// resulting mount via `mount_setattr(MOUNT_ATTR_IDMAP, userns_fd)`.
+///
+/// The inner filesystem is mounted on a tmp staging path (deduplicated by
+/// `TmpMountGuard`), cloned into a detached fd via
+/// `open_tree(OPEN_TREE_CLONE | AT_RECURSIVE)`, idmapped, and finally
+/// `move_mount`-ed onto the requested mountpoint. The staging mount is
+/// released when this method returns; the detached clone holds independent
+/// mount state.
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IdMapped<Fs: FileSystem> {
@@ -86,58 +79,44 @@ impl<Fs: FileSystem> IdMapped<Fs> {
     }
 }
 impl<Fs: FileSystem> FileSystem for IdMapped<Fs> {
-    fn mount_type(&self) -> Option<impl AsRef<str>> {
-        self.filesystem.mount_type()
-    }
-    fn extra_args(&self) -> impl IntoIterator<Item = impl AsRef<OsStr>> {
-        self.filesystem.extra_args()
-    }
-    fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
-        self.filesystem
-            .mount_options()
-            .into_iter()
-            .map(|a| Box::new(a) as Box<dyn Display>)
-            .chain(if self.idmap.is_empty() {
-                None
-            } else {
-                use std::fmt::Write;
+    async fn mount<P: AsRef<Path> + Send>(
+        &self,
+        mountpoint: P,
+        mount_type: MountType,
+    ) -> Result<(), Error> {
+        let mp = mountpoint.as_ref();
 
-                let mut option = "X-mount.idmap=".to_owned();
-                for i in &self.idmap {
-                    write!(&mut option, "b:{}:{}:{} ", i.from_id, i.to_id, i.range).unwrap();
-                }
-                Some(Box::new(option) as Box<dyn Display>)
-            })
-    }
-    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
-        self.filesystem.source().await
-    }
-    async fn pre_mount(&self, mountpoint: &Path, mount_type: MountType) -> Result<(), Error> {
-        self.filesystem.pre_mount(mountpoint, mount_type).await?;
-        let info = tokio::fs::metadata(mountpoint).await?;
-        for i in &self.idmap {
-            let uid_in_range = i.from_id <= info.uid() && i.from_id + i.range > info.uid();
-            let gid_in_range = i.from_id <= info.gid() && i.from_id + i.range > info.gid();
-            if uid_in_range || gid_in_range {
-                Command::new("chown")
-                    .arg(format!(
-                        "{uid}:{gid}",
-                        uid = if uid_in_range {
-                            i.to_id + info.uid() - i.from_id
-                        } else {
-                            info.uid()
-                        },
-                        gid = if gid_in_range {
-                            i.to_id + info.gid() - i.from_id
-                        } else {
-                            info.gid()
-                        },
-                    ))
-                    .arg(&mountpoint)
-                    .invoke(crate::ErrorKind::Filesystem)
-                    .await?;
-            }
+        if self.idmap.is_empty() {
+            return self.filesystem.mount(mp, mount_type).await;
         }
+
+        tokio::fs::create_dir_all(mp).await?;
+
+        let staging = TmpMountGuard::mount(&self.filesystem, mount_type).await?;
+
+        // open_tree_attr atomically clones the staging mount and applies
+        // the idmap — required so the kernel doesn't see (and reject) a
+        // window where the cloned mount exists without the idmap, which
+        // is the recursive-idmap failure mode for inners that are
+        // themselves idmapped.
+        let userns = userns_fd_from_idmap(&self.idmap).await?;
+        let fd = open_tree_attr_idmap(staging.path(), true, userns.as_fd())?;
+        drop(userns);
+        let detached = DetachedMount::from_fd(fd);
+
+        if matches!(mount_type, MountType::ReadOnly) {
+            detached.set_readonly(true)?;
+        }
+
+        detached.attach(mp)?;
+
+        // The detached clone we just attached is independent of `staging`,
+        // so unmounting the staging copy here doesn't disturb it. Unmount
+        // explicitly (rather than relying on Drop's fire-and-forget spawn)
+        // so the staging mount is gone before we return and any failure is
+        // surfaced.
+        staging.unmount().await?;
+
         Ok(())
     }
     async fn source_hash(

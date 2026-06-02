@@ -6,7 +6,6 @@ import { Buffer } from 'node:buffer'
 import { once } from '../../../base/lib/util/once'
 import { Drop } from '../../../base/lib/util/Drop'
 import { Mounts } from '../mainFn/Mounts'
-import { BackupEffects } from '../backup/Backups'
 
 export const execFile = promisify(cp.execFile)
 const False = () => false
@@ -17,11 +16,15 @@ export type ExecOptions = {
 
 const TIMES_TO_WAIT_FOR_PROC = 100
 
+// Returns whether the bind target was prepared as a file (vs a directory),
+// so callers can pass the matching `--file` flag. For `infer` this resolves
+// against the source, so it must be the single source of truth — `bind()`
+// keys `--file` off this rather than re-deciding.
 async function prepBind(
   from: string | null,
   to: string,
   type: 'file' | 'directory' | 'infer',
-) {
+): Promise<boolean> {
   const fromMeta = from ? await fs.stat(from).catch(_ => null) : null
   const toMeta = await fs.stat(to).catch(_ => null)
 
@@ -35,10 +38,12 @@ async function prepBind(
       await fs.mkdir(to.replace(/\/[^\/]*\/?$/, ''), { recursive: true })
       await fs.writeFile(to, '')
     }
+    return true
   } else {
     if (toMeta && toMeta.isFile() && !toMeta.size) await fs.rm(to)
     if (from && !fromMeta) await fs.mkdir(from, { recursive: true })
     if (!toMeta) await fs.mkdir(to, { recursive: true })
+    return false
   }
 }
 
@@ -48,25 +53,22 @@ async function bind(
   type: 'file' | 'directory' | 'infer',
   idmap: IdMap[],
 ) {
-  await prepBind(from, to, type)
+  const isFile = await prepBind(from, to, type)
 
-  const args = ['--bind']
-
-  if (idmap.length) {
-    args.push(
-      `-oX-mount.idmap=${idmap.map(i => `b:${i.fromId}:${i.toId}:${i.range}`).join(' ')}`,
-    )
+  // Inside the LXC subcontainer (which is itself idmapped), util-linux's
+  // `mount --bind -oX-mount.idmap=...` can't reliably set up a second,
+  // nested idmap. start-container's `bind-mount` subcommand performs the
+  // bind via direct syscalls (open_tree + mount_setattr + move_mount) so
+  // the SDK's idmap field on volume/asset/dependency mounts works.
+  const args = ['bind-mount', '--source', from, '--target', to, '--recursive']
+  if (isFile) {
+    args.push('--file')
   }
-
-  await execFile('mount', [...args, from, to])
+  for (const i of idmap) {
+    args.push('--idmap', `${i.fromId}:${i.toId}:${i.range}`)
+  }
+  await execFile('start-container', args)
 }
-
-type MountsArg<
-  Manifest extends T.SDKManifest,
-  E extends T.Effects,
-> = E extends BackupEffects
-  ? Mounts<Manifest, { subpath: string | null; mountpoint: string }>
-  : Mounts<Manifest, never>
 
 /**
  * Isolated container environment for running service processes.
@@ -134,12 +136,12 @@ export interface SubContainer<
   subpath(path: string): string | Promise<string>
 
   /**
-   * Apply filesystem mounts (volumes, assets, dependencies, backups) to this subcontainer.
+   * Apply filesystem mounts (volumes, assets, dependencies) to this subcontainer.
    * Lazy handles materialize on this call.
    * @param mounts - The Mounts configuration to apply
    * @returns This subcontainer instance for chaining
    */
-  mount(mounts: MountsArg<Manifest, Effects>): Promise<this>
+  mount(mounts: Mounts<Manifest>): Promise<this>
 
   /**
    * Take a use-hold on this subcontainer. The returned function releases
@@ -263,7 +265,7 @@ export const SubContainer = {
       imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
-    mounts: MountsArg<Manifest, Effects> | null,
+    mounts: Mounts<Manifest> | null,
     name: string,
   ): SubContainerLazy<Manifest, Effects> {
     return new SubContainerLazy<Manifest, Effects>(effects, image, mounts, name)
@@ -295,7 +297,7 @@ export const SubContainer = {
       imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
-    mounts: MountsArg<Manifest, Effects> | null,
+    mounts: Mounts<Manifest> | null,
     name: string,
   ): Promise<SubContainerEager<Manifest, Effects>> {
     return SubContainerEager._of(
@@ -329,7 +331,7 @@ export const SubContainer = {
       imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
-    mounts: MountsArg<Manifest, Effects> | null,
+    mounts: Mounts<Manifest> | null,
     name: string,
     fn: (sub: SubContainerEager<Manifest, Effects>) => Promise<T_>,
   ): Promise<T_> {
@@ -427,7 +429,7 @@ export class SubContainerEager<
       imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
-    mounts: MountsArg<Manifest, Effects> | null,
+    mounts: Mounts<Manifest> | null,
     name: string,
     identity: symbol,
   ): Promise<SubContainerEager<Manifest, Effects>> {
@@ -484,13 +486,13 @@ export class SubContainerEager<
   }
 
   /**
-   * Apply filesystem mounts (volumes, assets, dependencies, backups) to
+   * Apply filesystem mounts (volumes, assets, dependencies) to
    * this subcontainer.
    *
    * @param mounts The Mounts configuration to apply
    * @returns This subcontainer instance for chaining
    */
-  async mount(mounts: MountsArg<Manifest, Effects>): Promise<this> {
+  async mount(mounts: Mounts<Manifest>): Promise<this> {
     for (let mount of mounts.build()) {
       let { options, mountpoint } = mount
       const path = mountpoint.startsWith('/')
@@ -516,16 +518,27 @@ export class SubContainerEager<
         await bind(from, path, options.filetype, options.idmap)
       } else if (options.type === 'pointer') {
         await prepBind(null, path, 'directory')
-        await this.effects.mount({ location: path, target: options })
-      } else if (options.type === 'backup') {
-        const subpath = options.subpath
-          ? options.subpath.startsWith('/')
-            ? options.subpath
-            : `/${options.subpath}`
-          : '/'
-        const from = `/media/startos/backup${subpath}`
-
-        await bind(from, path, options.filetype, options.idmap)
+        // Host-side does the base-mapped bind; the SDK idmap is applied
+        // separately below as a nested syscall bind so pointer mounts
+        // pick up the same idmap semantics as volume/asset mounts.
+        await this.effects.mount({
+          location: path,
+          target: options,
+        })
+        if (options.idmap.length) {
+          const args = [
+            'bind-mount',
+            '--source',
+            path,
+            '--target',
+            path,
+            '--recursive',
+          ]
+          for (const i of options.idmap) {
+            args.push('--idmap', `${i.fromId}:${i.toId}:${i.range}`)
+          }
+          await execFile('start-container', args)
+        }
       } else {
         throw new Error(`unknown type ${(options as any).type}`)
       }
@@ -900,7 +913,7 @@ export class SubContainerLazy<
   readonly sharedRun: boolean
   readonly name: string
   /** The mounts declared at construction. Read by `Daemons.dynamic`'s configHash. */
-  readonly mounts: MountsArg<Manifest, Effects> | null
+  readonly mounts: Mounts<Manifest> | null
 
   private materialized: Promise<SubContainerEager<Manifest, Effects>> | null =
     null
@@ -912,7 +925,7 @@ export class SubContainerLazy<
       imageId: keyof Manifest['images'] & T.ImageId
       sharedRun?: boolean
     },
-    mounts: MountsArg<Manifest, Effects> | null,
+    mounts: Mounts<Manifest> | null,
     name: string,
   ) {
     super()
@@ -970,7 +983,7 @@ export class SubContainerLazy<
    * @param mounts The Mounts configuration to apply
    * @returns This lazy handle, for chaining
    */
-  async mount(mounts: MountsArg<Manifest, Effects>): Promise<this> {
+  async mount(mounts: Mounts<Manifest>): Promise<this> {
     await (await this.eager()).mount(mounts)
     return this
   }
@@ -1143,7 +1156,6 @@ export type MountOptions =
   | MountOptionsVolume
   | MountOptionsAssets
   | MountOptionsPointer
-  | MountOptionsBackup
 
 /** Mount options for binding a service volume into a subcontainer */
 export type MountOptionsVolume = {
@@ -1170,14 +1182,6 @@ export type MountOptionsPointer = {
   volumeId: string
   subpath: string | null
   readonly: boolean
-  idmap: { fromId: number; toId: number; range: number }[]
-}
-
-/** Mount options for binding the backup directory into a subcontainer */
-export type MountOptionsBackup = {
-  type: 'backup'
-  subpath: string | null
-  filetype: 'file' | 'directory' | 'infer'
   idmap: { fromId: number; toId: number; range: number }[]
 }
 
