@@ -2,72 +2,95 @@ import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
 } from '@angular/core'
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
+import { FormsModule } from '@angular/forms'
 import { ActivatedRoute, Router } from '@angular/router'
 import {
   FilterPackagesPipe,
   MarketplaceAsideComponent,
-  StoreIconDirective,
 } from '@start9labs/marketplace'
-import { DialogService, i18nPipe } from '@start9labs/shared'
-import { TuiButton, TuiCell, TuiScrollbar, TuiTitle } from '@taiga-ui/core'
-import { TuiAvatar, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
-import { TuiCardLarge } from '@taiga-ui/layout'
+import { i18nPipe, LocalizePipe } from '@start9labs/shared'
+import {
+  TuiCell,
+  TuiDataList,
+  TuiDropdown,
+  TuiScrollbar,
+  TuiTitle,
+} from '@taiga-ui/core'
+import { TuiAvatar, TuiChevron, TuiSelect, TuiSkeleton } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { tap } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { StorageService } from 'src/app/services/storage.service'
 import { TitleDirective } from 'src/app/services/title.service'
 
+import { MarketplaceRegistrySelectComponent } from './components/registry-select.component'
 import { MarketplaceTileComponent } from './components/tile.component'
-import { MARKETPLACE_REGISTRY } from './modals/registry.component'
 
 @Component({
   template: `
     <ng-container *title>{{ 'Marketplace' | i18n }}</ng-container>
     <marketplace-aside
       [registry]="registry()"
-      [(sort)]="sort"
       [(category)]="category"
       [(query)]="query"
     >
-      <button tuiButton iconEnd="@tui.repeat" (click)="changeRegistry()">
-        <span tuiAvatar appearance="action-grayscale" size="xs">
-          <img [storeIcon]="registry()?.url" />
-        </span>
-        <span tuiFade [tuiSkeleton]="!registry()?.info?.name">
-          {{ registry()?.info?.name || 'Loading...' }}
-        </span>
-      </button>
+      <marketplace-registry-select />
     </marketplace-aside>
-    <tui-scrollbar [style.flex]="1">
-      <section>
-        @if (registry(); as reg) {
-          @for (
-            pkg of reg.packages | filterPackages: query() : category() : sort();
-            track $index
-          ) {
-            <button type="button" [marketplaceTile]="pkg"></button>
-          }
-        } @else {
-          @for (_ of '-'.repeat(15); track $index) {
-            <div tuiCardLarge="compact" [tuiSkeleton]="true">
-              <span tuiCell>
-                <span tuiAvatar></span>
-                <span tuiTitle>
-                  Loading
-                  <span tuiSubtitle>Loading</span>
+    <div class="content">
+      <header tuiHeader="h4">
+        <hgroup tuiTitle>
+          <h2 [tuiSkeleton]="!registry()">{{ categoryName() | localize }}</h2>
+        </hgroup>
+        <aside tuiAccessories>
+          <tui-textfield
+            tuiTextfieldSize="s"
+            tuiChevron
+            [tuiTextfieldCleaner]="false"
+          >
+            <input tuiSelect [(ngModel)]="sortLabel" />
+            <tui-data-list *tuiDropdown>
+              @for (key of sortKeys; track key) {
+                <button tuiOption [value]="getLabel(key)">
+                  {{ getLabel(key) }}
+                </button>
+              }
+            </tui-data-list>
+          </tui-textfield>
+        </aside>
+      </header>
+      <tui-scrollbar [style.flex]="1">
+        <section>
+          @if (registry(); as reg) {
+            @for (
+              pkg of reg.packages
+                | filterPackages: query() : category() : sort();
+              track $index
+            ) {
+              <button type="button" [marketplaceTile]="pkg"></button>
+            }
+          } @else {
+            @for (_ of '-'.repeat(15); track $index) {
+              <div tuiCardLarge="compact" [tuiSkeleton]="true">
+                <span tuiCell>
+                  <span tuiAvatar></span>
+                  <span tuiTitle>
+                    Loading
+                    <span tuiSubtitle>Loading</span>
+                  </span>
                 </span>
-              </span>
-              <span tuiDescription>Loading</span>
-            </div>
+                <span tuiDescription>Loading</span>
+              </div>
+            }
           }
-        }
-      </section>
-    </tui-scrollbar>
+        </section>
+      </tui-scrollbar>
+    </div>
   `,
   host: { class: 'g-page' },
   styles: `
@@ -78,40 +101,64 @@ import { MARKETPLACE_REGISTRY } from './modals/registry.component'
       background: #1c1d26;
     }
 
-    [tuiButton] {
-      inline-size: 100%;
-      justify-content: flex-start;
+    .content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-      [tuiAvatar] {
-        margin-inline-start: -0.375rem;
-      }
+    [tuiHeader] {
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      padding: 1rem 2rem 0;
+    }
 
-      &::after {
-        margin-inline-start: auto;
-        color: var(--tui-text-tertiary);
-      }
+    [tuiHeader] [tuiAccessories] {
+      flex-shrink: 0;
+      gap: 0;
+    }
+
+    tui-textfield {
+      inline-size: 10rem;
+    }
+
+    tui-scrollbar {
+      min-height: 0;
     }
 
     section {
-      padding: 1rem;
+      padding: 1rem 2rem;
       display: grid;
       gap: 1rem;
       grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+    }
+
+    :host-context(tui-root._mobile) [tuiHeader],
+    :host-context(tui-root._mobile) section {
+      padding-inline: 1rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
+    FormsModule,
     MarketplaceTileComponent,
     TuiScrollbar,
     FilterPackagesPipe,
     TitleDirective,
     i18nPipe,
+    LocalizePipe,
     MarketplaceAsideComponent,
-    TuiButton,
-    StoreIconDirective,
+    MarketplaceRegistrySelectComponent,
+    TuiChevron,
+    TuiDataList,
+    TuiDropdown,
+    TuiHeader,
+    TuiSelect,
     TuiAvatar,
-    TuiFade,
     TuiSkeleton,
     TuiCardLarge,
     TuiCell,
@@ -119,7 +166,7 @@ import { MARKETPLACE_REGISTRY } from './modals/registry.component'
   ],
 })
 export default class MarketplaceComponent {
-  private readonly dialog = inject(DialogService)
+  private readonly i18n = inject(i18nPipe)
   private readonly marketplaceService = inject(MarketplaceService)
   private readonly configService = inject(ConfigService)
   private readonly router = inject(Router)
@@ -157,11 +204,32 @@ export default class MarketplaceComponent {
   readonly sort = signal('a')
   readonly category = signal('all')
   readonly query = signal('')
+  protected readonly sortKeys = ['a', '1']
   protected readonly registry = toSignal(
     this.marketplaceService.currentRegistry$,
   )
 
-  changeRegistry() {
-    this.dialog.openComponent(MARKETPLACE_REGISTRY).subscribe()
+  protected get sortLabel(): string {
+    return this.getLabel(this.sort())
+  }
+
+  protected set sortLabel(label: string) {
+    this.sort.set(
+      this.sortKeys.find(key => this.getLabel(key) === label) || 'a',
+    )
+  }
+
+  protected readonly categoryName = computed(() => {
+    const category = this.category()
+    return this.registry()?.info?.categories?.[category]?.name || category
+  })
+
+  getLabel(sort: string) {
+    switch (sort) {
+      case 'a':
+        return this.i18n.transform('Alphabetical')
+      default:
+        return this.i18n.transform('Recently updated')
+    }
   }
 }

@@ -9,15 +9,10 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
-import { i18nPipe, LocalizePipe } from '@start9labs/shared'
+import { LocalizePipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import {
-  tuiButtonOptionsProvider,
-  TuiDataList,
-  TuiDropdown,
-  TuiInput,
-} from '@taiga-ui/core'
-import { TuiButtonSelect, TuiSkeleton } from '@taiga-ui/kit'
+import { tuiButtonOptionsProvider, TuiInput } from '@taiga-ui/core'
+import { TuiSkeleton } from '@taiga-ui/kit'
 import { TuiNavigation } from '@taiga-ui/layout'
 import { StoreDataWithUrl } from '../types'
 
@@ -42,26 +37,6 @@ const ICONS: Record<string, string> = {
     <aside [tuiNavigationAside]="open()">
       <header>
         <ng-content />
-        <button
-          tuiButtonSelect
-          tuiAsideItem
-          iconStart="@tui.arrow-down-a-z"
-          type="button"
-          [(ngModel)]="sort"
-        >
-          {{ getLabel(sort()) }}
-          <tui-data-list *tuiDropdown>
-            <button tuiOption iconStart="@tui.arrow-down-a-z" value="a">
-              {{ getLabel('a') }}
-            </button>
-            <button tuiOption iconStart="@tui.arrow-up-a-z" value="z">
-              {{ getLabel('z') }}
-            </button>
-            <button tuiOption iconStart="@tui.calendar-arrow-down" value="1">
-              {{ getLabel('1') }}
-            </button>
-          </tui-data-list>
-        </button>
       </header>
       <tui-textfield tuiTextfieldSize="s" iconStart="@tui.search">
         <input
@@ -109,12 +84,18 @@ const ICONS: Record<string, string> = {
 
         tui-textfield {
           margin-bottom: 0.75rem;
-          padding: 0 0.5rem;
           flex-wrap: nowrap;
           overflow: hidden;
           --t-start: 1.375rem;
         }
       }
+    }
+
+    // Widen the expanded sidebar to fit the longest registry title
+    // (Community Registry) plus the chevron. A fixed length (not max-content)
+    // keeps the expand/collapse width transition animating.
+    aside[tuiNavigationAside]._expanded {
+      inline-size: 18rem;
     }
   `,
   providers: [
@@ -123,9 +104,6 @@ const ICONS: Record<string, string> = {
   imports: [
     TuiNavigation,
     TuiInput,
-    TuiDataList,
-    TuiDropdown,
-    TuiButtonSelect,
     TuiSkeleton,
     KeyValuePipe,
     LocalizePipe,
@@ -133,9 +111,7 @@ const ICONS: Record<string, string> = {
   ],
 })
 export class MarketplaceAsideComponent {
-  private readonly i18n = inject(i18nPipe)
   readonly registry = input<StoreDataWithUrl>()
-  readonly sort = model('a')
   readonly query = model('')
   readonly category = model('')
 
@@ -155,16 +131,5 @@ export class MarketplaceAsideComponent {
   onCategory(category: string) {
     this.query.set('')
     this.category.set(category)
-  }
-
-  getLabel(sort: string) {
-    switch (sort) {
-      case 'a':
-        return this.i18n.transform('A-Z')
-      case 'z':
-        return this.i18n.transform('Z-A')
-      default:
-        return this.i18n.transform('Last published')
-    }
   }
 }
