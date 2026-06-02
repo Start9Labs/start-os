@@ -57,10 +57,10 @@ async function bind(
 
   // Inside the LXC subcontainer (which is itself idmapped), util-linux's
   // `mount --bind -oX-mount.idmap=...` can't reliably set up a second,
-  // nested idmap. start-container's `local-mount` subcommand performs the
+  // nested idmap. start-container's `bind-mount` subcommand performs the
   // bind via direct syscalls (open_tree + mount_setattr + move_mount) so
   // the SDK's idmap field on volume/asset/dependency mounts works.
-  const args = ['local-mount', '--source', from, '--target', to, '--recursive']
+  const args = ['bind-mount', '--source', from, '--target', to, '--recursive']
   if (isFile) {
     args.push('--file')
   }
@@ -527,7 +527,7 @@ export class SubContainerEager<
         })
         if (options.idmap.length) {
           const args = [
-            'local-mount',
+            'bind-mount',
             '--source',
             path,
             '--target',

@@ -9,12 +9,12 @@ use crate::{HOST_IP, echo};
 
 mod action;
 mod backup;
+mod bind_mount;
 pub mod callbacks;
 pub mod context;
 mod control;
 mod dependency;
 mod health;
-mod local_mount;
 mod net;
 pub mod notification;
 pub mod plugin;
@@ -89,8 +89,8 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
         )
         .subcommand("mount", from_fn_async(dependency::mount).no_cli())
         .subcommand(
-            "local-mount",
-            from_fn_async(local_mount::local_mount::<C>).no_display(),
+            "bind-mount",
+            from_fn_async(bind_mount::bind_mount::<C>).no_display(),
         )
         .subcommand(
             "get-installed-packages",

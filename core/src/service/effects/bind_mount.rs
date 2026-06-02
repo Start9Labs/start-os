@@ -1,4 +1,4 @@
-//! `start-container local-mount` — syscall-based bind mount with optional idmap.
+//! `start-container bind-mount` — syscall-based bind mount with optional idmap.
 //!
 //! Used by container-runtime to set up volume/asset/dependency/backup mounts
 //! from inside an LXC subcontainer. The CLI surface is intentionally narrow:
@@ -22,7 +22,7 @@ use crate::prelude::*;
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-pub struct LocalMountParams {
+pub struct BindMountParams {
     /// Source path. May be any path on the filesystem; the kernel produces
     /// a detached bind clone via `open_tree(OPEN_TREE_CLONE)`.
     #[arg(long)]
@@ -47,8 +47,8 @@ pub struct LocalMountParams {
     pub idmap: Vec<IdMap>,
 }
 
-pub async fn local_mount<C: Context>(_: C, params: LocalMountParams) -> Result<(), Error> {
-    let LocalMountParams {
+pub async fn bind_mount<C: Context>(_: C, params: BindMountParams) -> Result<(), Error> {
+    let BindMountParams {
         source,
         target,
         recursive,
