@@ -266,16 +266,7 @@ pub const NFT_TABLE: &str = "startos";
 /// rules are added into it by callers and the forward-port script.
 pub async fn nft_ensure_base() -> Result<(), Error> {
     Command::new("nft")
-        .arg(
-            "add table ip startos
-add chain ip startos prerouting { type nat hook prerouting priority dstnat; policy accept; }
-add chain ip startos output { type nat hook output priority -100; policy accept; }
-add chain ip startos postrouting { type nat hook postrouting priority srcnat; policy accept; }
-add chain ip startos forward { type filter hook forward priority filter; policy drop; }
-add chain ip startos mangle_prerouting { type filter hook prerouting priority mangle; policy accept; }
-add chain ip startos mangle_output { type filter hook output priority mangle; policy accept; }
-add chain ip startos mangle_forward { type filter hook forward priority mangle; policy accept; }",
-        )
+        .arg(include_str!("startos-base.nft"))
         .invoke(ErrorKind::Network)
         .await?;
     Ok(())

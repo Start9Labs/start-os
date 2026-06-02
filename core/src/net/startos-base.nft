@@ -1,0 +1,8 @@
+add table ip startos
+add chain ip startos prerouting { type nat hook prerouting priority dstnat; policy accept; }
+add chain ip startos output { type nat hook output priority -100; policy accept; }
+add chain ip startos postrouting { type nat hook postrouting priority srcnat; policy accept; }
+add chain ip startos forward { type filter hook forward priority filter; policy drop; }
+add chain ip startos mangle_prerouting { type filter hook prerouting priority mangle; policy accept; }
+add chain ip startos mangle_output { type filter hook output priority mangle; policy accept; }
+add chain ip startos mangle_forward { type filter hook forward priority mangle; policy accept; }
