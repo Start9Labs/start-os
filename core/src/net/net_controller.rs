@@ -495,7 +495,7 @@ pub struct NetService {
     synced: Watch<u64>,
 }
 impl NetService {
-    fn dummy() -> Self {
+    pub(crate) fn dummy() -> Self {
         Self {
             shutdown: true,
             data: Arc::new(Mutex::new(NetServiceData {
@@ -810,6 +810,7 @@ impl NetService {
                 crate::ErrorKind::Network,
             ));
         }
+        self.shutdown = true;
         let current = self.synced.peek(|v| *v);
         self.clear_bindings(Default::default()).await?;
         let mut w = self.synced.clone();

@@ -445,6 +445,7 @@ impl PersistentContainer {
         let images = std::mem::take(&mut self.images);
         let subcontainers = self.subcontainers.clone();
         let lxc_container = self.lxc_container.take();
+        let net_service = std::mem::replace(&mut self.net_service, NetService::dummy());
         self.destroyed = true;
         Some(async move {
             let mut errs = ErrorCollection::new();
@@ -460,6 +461,7 @@ impl PersistentContainer {
                 shutdown.shutdown();
                 errs.handle(hdl.await.with_kind(ErrorKind::Cancelled));
             }
+            net_service.remove_all().await.log_err();
             for (_, volume) in volumes {
                 errs.handle(volume.unmount(true).await);
             }
