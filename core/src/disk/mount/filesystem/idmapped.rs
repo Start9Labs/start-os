@@ -111,9 +111,11 @@ impl<Fs: FileSystem> FileSystem for IdMapped<Fs> {
         detached.attach(mp)?;
 
         // The detached clone we just attached is independent of `staging`,
-        // so dropping the TmpMountGuard here unmounts the staging copy
-        // without disturbing the attached mount.
-        drop(staging);
+        // so unmounting the staging copy here doesn't disturb it. Unmount
+        // explicitly (rather than relying on Drop's fire-and-forget spawn)
+        // so the staging mount is gone before we return and any failure is
+        // surfaced.
+        staging.unmount().await?;
 
         Ok(())
     }
