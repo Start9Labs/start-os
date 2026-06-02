@@ -54,7 +54,7 @@ import { RouterLink } from '@angular/router'
     } @else {
       <table
         [sorter]="name"
-        [appTable]="[null, 'Name', 'Status', 'Version', 'Uptime']"
+        [appTable]="[null, 'Service', 'Status', 'Version', 'Uptime']"
         [appTableSorters]="[null, name, status]"
       >
         @for (service of services() | tuiTableSort; track $index) {

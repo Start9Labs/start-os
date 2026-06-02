@@ -16,30 +16,11 @@ import { ServicesTableComponent } from './table.component'
   template: `
     <ng-container *title>{{ 'Installed services' | i18n }}</ng-container>
 
-    <section class="g-card">
-      <header>
-        {{ 'Installed services' | i18n }}
-      </header>
-
-      <div #table [services]="services()"></div>
-    </section>
+    <div #table [services]="services()"></div>
   `,
   styles: `
     :host {
       padding: 1rem;
-    }
-
-    :host-context(tui-root._mobile) {
-      header {
-        display: none;
-      }
-
-      .g-card {
-        padding: 0;
-        margin-top: -0.75rem;
-        background: none;
-        box-shadow: none;
-      }
     }
   `,
   host: { class: 'g-page' },
