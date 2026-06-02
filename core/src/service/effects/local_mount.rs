@@ -1,4 +1,4 @@
-//! `start-container mount` — syscall-based bind mount with optional idmap.
+//! `start-container local-mount` — syscall-based bind mount with optional idmap.
 //!
 //! Used by container-runtime to set up volume/asset/dependency/backup mounts
 //! from inside an LXC subcontainer. The CLI surface is intentionally narrow:
