@@ -254,32 +254,79 @@ pub struct PortForwardController {
     _thread: NonDetachingJoinHandle<()>,
 }
 
-pub async fn add_iptables_rule(
-    table: Option<&str>,
-    undo: bool,
-    args: &[&str],
-) -> Result<(), Error> {
-    let mut cmd = Command::new("iptables");
-    if let Some(table) = table {
-        cmd.arg("-t").arg(table);
-    }
-    let exists = cmd
-        .arg("-C")
-        .args(args)
+/// Native nftables table that owns all of StartOS's packet-filter / NAT rules
+/// (forwarding, base forward policy, policy-routing marks, tunnel). Coexists
+/// with lxc-net / wg-quick, which keep their own iptables-nft rules in separate
+/// tables on the shared nf_tables datapath.
+pub const NFT_TABLE: &str = "startos";
+
+/// Ensure `table ip startos` and its base chains exist. Idempotent: nft's `add
+/// table`/`add chain` are no-ops when the object already exists. The forward
+/// chain defaults to `drop` (replacing `iptables -P FORWARD DROP`); ACCEPT
+/// rules are added into it by callers and the forward-port script.
+pub async fn nft_ensure_base() -> Result<(), Error> {
+    Command::new("nft")
+        .arg(
+            "add table ip startos
+add chain ip startos prerouting { type nat hook prerouting priority dstnat; policy accept; }
+add chain ip startos output { type nat hook output priority -100; policy accept; }
+add chain ip startos postrouting { type nat hook postrouting priority srcnat; policy accept; }
+add chain ip startos forward { type filter hook forward priority filter; policy drop; }
+add chain ip startos mangle_prerouting { type filter hook prerouting priority mangle; policy accept; }
+add chain ip startos mangle_output { type filter hook output priority mangle; policy accept; }
+add chain ip startos mangle_forward { type filter hook forward priority mangle; policy accept; }",
+        )
+        .invoke(ErrorKind::Network)
+        .await?;
+    Ok(())
+}
+
+async fn nft_handles(chain: &str, comment: &str) -> Vec<u32> {
+    let out = Command::new("nft")
+        .arg("-a")
+        .arg("list")
+        .arg("chain")
+        .arg("ip")
+        .arg("startos")
+        .arg(chain)
         .invoke(ErrorKind::Network)
         .await
-        .is_ok();
-    if undo != !exists {
-        let mut cmd = Command::new("iptables");
-        if let Some(table) = table {
-            cmd.arg("-t").arg(table);
-        }
-        if undo {
-            cmd.arg("-D");
-        } else {
-            cmd.arg("-A");
-        }
-        cmd.args(args).invoke(ErrorKind::Network).await?;
+        .unwrap_or_default();
+    let needle = format!("comment \"{comment}\"");
+    String::from_utf8_lossy(&out)
+        .lines()
+        .filter(|line| line.contains(&needle))
+        .filter_map(|line| line.rsplit_once("# handle ")?.1.trim().parse::<u32>().ok())
+        .collect()
+}
+
+/// Idempotently install (or, with `undo`, remove) the rule tagged `comment` in
+/// `chain` of `table ip startos`. Any prior rule(s) with the same comment in
+/// that chain are removed first, so this reconciles rather than blindly
+/// appends. `prepend` inserts at the top of the chain (needed for the
+/// mark-restore rule, which must run before the per-interface set-mark rules).
+pub async fn nft_rule(
+    chain: &str,
+    comment: &str,
+    undo: bool,
+    prepend: bool,
+    rule: &str,
+) -> Result<(), Error> {
+    nft_ensure_base().await?;
+    for handle in nft_handles(chain, comment).await {
+        Command::new("nft")
+            .arg(format!("delete rule ip startos {chain} handle {handle}"))
+            .invoke(ErrorKind::Network)
+            .await?;
+    }
+    if !undo {
+        let verb = if prepend { "insert" } else { "add" };
+        Command::new("nft")
+            .arg(format!(
+                "{verb} rule ip startos {chain} {rule} comment \"{comment}\""
+            ))
+            .invoke(ErrorKind::Network)
+            .await?;
     }
     Ok(())
 }
@@ -289,24 +336,13 @@ impl PortForwardController {
         let (req_send, mut req_recv) = mpsc::unbounded_channel::<PortForwardCommand>();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             while let Err(e) = async {
-                Command::new("iptables")
-                    .arg("-P")
-                    .arg("FORWARD")
-                    .arg("DROP")
-                    .invoke(ErrorKind::Network)
-                    .await?;
-                add_iptables_rule(
-                    None,
+                nft_ensure_base().await?;
+                nft_rule(
+                    "forward",
+                    "base-established",
                     false,
-                    &[
-                        "FORWARD",
-                        "-m",
-                        "state",
-                        "--state",
-                        "ESTABLISHED,RELATED",
-                        "-j",
-                        "ACCEPT",
-                    ],
+                    false,
+                    "ct state established,related accept",
                 )
                 .await?;
                 Command::new("sysctl")

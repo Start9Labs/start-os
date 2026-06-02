@@ -27,7 +27,7 @@ use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::middleware::auth::Auth;
 use crate::middleware::auth::local::LocalAuthContext;
 use crate::middleware::cors::Cors;
-use crate::net::forward::{PortForwardController, add_iptables_rule};
+use crate::net::forward::{PortForwardController, nft_rule};
 use crate::net::static_server::{EMPTY_DIR, UiContext};
 use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
@@ -127,40 +127,24 @@ impl TunnelContext {
             .result?;
         let net_iface = Watch::new(net_iface);
         let forward = PortForwardController::new();
-        add_iptables_rule(
-            None,
+        nft_rule(
+            "forward",
+            "wg-forward",
             false,
-            &[
-                "FORWARD",
-                "-i",
-                WIREGUARD_INTERFACE_NAME,
-                "-m",
-                "state",
-                "--state",
-                "NEW",
-                "-j",
-                "ACCEPT",
-            ],
+            false,
+            &format!("iifname \"{WIREGUARD_INTERFACE_NAME}\" ct state new accept"),
         )
         .await?;
         // Clamp TCP MSS on forwarded SYNs to the WireGuard path MTU so large
         // TLS ClientHellos (desktop Firefox/Chromium with X25519MLKEM768
         // post-quantum key shares) don't get silently dropped after
         // encapsulation. See start-os#3261.
-        add_iptables_rule(
-            Some("mangle"),
+        nft_rule(
+            "mangle_forward",
+            "wg-mss-clamp",
             false,
-            &[
-                "FORWARD",
-                "-p",
-                "tcp",
-                "--tcp-flags",
-                "SYN,RST",
-                "SYN",
-                "-j",
-                "TCPMSS",
-                "--clamp-mss-to-pmtu",
-            ],
+            false,
+            "tcp flags syn / syn,rst tcp option maxseg size set rt mtu",
         )
         .await?;
 
@@ -183,18 +167,13 @@ impl TunnelContext {
                 .collect::<Vec<_>>()
         }) {
             for subnet in peek.as_wg().as_subnets().keys()? {
-                add_iptables_rule(
-                    Some("nat"),
+                let net = subnet.trunc();
+                nft_rule(
+                    "postrouting",
+                    &format!("tunnel-masq-{net}-{iface}"),
                     false,
-                    &[
-                        "POSTROUTING",
-                        "-s",
-                        &subnet.trunc().to_string(),
-                        "-o",
-                        iface.as_str(),
-                        "-j",
-                        "MASQUERADE",
-                    ],
+                    false,
+                    &format!("ip saddr {net} oifname \"{iface}\" masquerade"),
                 )
                 .await?;
             }
