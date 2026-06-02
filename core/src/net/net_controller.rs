@@ -810,12 +810,13 @@ impl NetService {
                 crate::ErrorKind::Network,
             ));
         }
-        self.shutdown = true;
         let current = self.synced.peek(|v| *v);
         self.clear_bindings(Default::default()).await?;
         let mut w = self.synced.clone();
         w.wait_for(|v| *v > current).await;
         self.sync_task.abort();
+        // Set only after teardown succeeds, so an earlier failure leaves Drop's fallback armed.
+        self.shutdown = true;
         // Clean up any outbound gateway ip rules for this service
         let service_ip = self.data.lock().await.ip.to_string();
         loop {
