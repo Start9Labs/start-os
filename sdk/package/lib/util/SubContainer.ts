@@ -523,7 +523,7 @@ export class SubContainerEager<
         // pick up the same idmap semantics as volume/asset mounts.
         await this.effects.mount({
           location: path,
-          target: { ...options, idmap: [] },
+          target: options,
         })
         if (options.idmap.length) {
           const args = [

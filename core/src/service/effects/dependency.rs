@@ -34,8 +34,6 @@ pub struct MountTarget {
     #[serde(skip_deserializing)]
     #[ts(skip)]
     filetype: FileType,
-    #[serde(default)]
-    idmap: Vec<IdMap>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -56,10 +54,6 @@ pub async fn mount(
                 subpath,
                 readonly,
                 filetype,
-                // SDK idmap is applied by the inner `start-container mount`
-                // from inside the LXC, not composed in here. The host-side
-                // bind always uses just the LXC base map.
-                idmap: _,
             },
     }: MountParams,
 ) -> Result<(), Error> {
