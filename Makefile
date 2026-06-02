@@ -61,7 +61,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format install-cli cli uis ui reflash deb $(IMAGE_TYPE) squashfs wormhole wormhole-deb test test-core test-sdk test-container-runtime registry install-registry tunnel install-tunnel ts-bindings
+.PHONY: all metadata install clean format format-check install-cli cli uis ui reflash deb $(IMAGE_TYPE) squashfs wormhole wormhole-deb test test-core test-sdk test-container-runtime registry install-registry tunnel install-tunnel ts-bindings
 
 all: $(STARTOS_TARGETS)
 
@@ -94,6 +94,13 @@ clean:
 
 format:
 	cd core && cargo +nightly fmt
+	npm --prefix web run format
+	cd sdk && make fmt
+
+# Read-only formatting verification (prettier --check for web + sdk). Used by CI.
+format-check:
+	npm --prefix web run format:check
+	cd sdk && make check-fmt
 
 test: | test-core test-sdk test-container-runtime
 

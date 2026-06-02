@@ -88,7 +88,7 @@ export class VersionGraph<CurrentVersion extends string>
   >
   /** Dump the version graph as a human-readable string for debugging */
   dump(): string {
-    return this.graph().dump((metadata) => metadata?.toString())
+    return this.graph().dump(metadata => metadata?.toString())
   }
   private constructor(
     readonly current: VersionInfo<CurrentVersion>,
@@ -168,7 +168,7 @@ export class VersionGraph<CurrentVersion extends string>
               if (migration.up) graph.addEdge(migration.up, vRange, vertex)
               if (migration.down) graph.addEdge(migration.down, vertex, vRange)
               for (let matching of graph.findVertex(
-                (v) => isExver(v.metadata) && v.metadata.satisfies(range),
+                v => isExver(v.metadata) && v.metadata.satisfies(range),
               )) {
                 if (migration.up) graph.addEdge(migration.up, matching, vertex)
                 if (migration.down)
@@ -222,8 +222,8 @@ export class VersionGraph<CurrentVersion extends string>
     const graph = this.graph()
     if (from && to) {
       const path = graph.shortestPath(
-        (v) => overlaps(v.metadata, from),
-        (v) => overlaps(v.metadata, to),
+        v => overlaps(v.metadata, from),
+        v => overlaps(v.metadata, to),
       )
       if (path) {
         console.log(
@@ -264,7 +264,7 @@ export class VersionGraph<CurrentVersion extends string>
    */
   canMigrateFrom = once(() =>
     Array.from(
-      this.graph().reverseBreadthFirstSearch((v) =>
+      this.graph().reverseBreadthFirstSearch(v =>
         overlaps(v.metadata, this.currentVersion()),
       ),
     )
@@ -285,7 +285,7 @@ export class VersionGraph<CurrentVersion extends string>
    */
   canMigrateTo = once(() =>
     Array.from(
-      this.graph().breadthFirstSearch((v) =>
+      this.graph().breadthFirstSearch(v =>
         overlaps(v.metadata, this.currentVersion()),
       ),
     )

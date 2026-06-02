@@ -617,9 +617,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         )
        * ```
        */
-      setupDependencies: <
-        const R extends CurrentDependenciesResult<Manifest>,
-      >(
+      setupDependencies: <const R extends CurrentDependenciesResult<Manifest>>(
         fn: (options: {
           effects: T.Effects
         }) => Promise<R & ValidateVersionRanges<R>>,
@@ -865,7 +863,9 @@ export class StartSdk<Manifest extends T.SDKManifest> {
          * @param fn Async builder invoked on startup and on every constRetry
          */
         dynamic(
-          fn: (o: { effects: Effects }) => Promise<Daemons<Manifest, any>> | Daemons<Manifest, any>,
+          fn: (o: {
+            effects: Effects
+          }) => Promise<Daemons<Manifest, any>> | Daemons<Manifest, any>,
         ) {
           return Daemons.dynamic<Manifest>(fn)
         },
@@ -933,7 +933,9 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           },
           mounts: Mounts<Manifest> | null,
           name: string,
-          fn: (subContainer: SubContainerEager<Manifest, Effects>) => Promise<T>,
+          fn: (
+            subContainer: SubContainerEager<Manifest, Effects>,
+          ) => Promise<T>,
         ): Promise<T> {
           return SubContainer.withTemp<Manifest, T, Effects>(
             effects,
@@ -993,7 +995,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
             effects.plugin.url.exportUrl({
               hostnameInfo: options.hostnameInfo,
               removeAction: options.removeAction?.id ?? null,
-              overflowActions: options.overflowActions.map((a) => a.id),
+              overflowActions: options.overflowActions.map(a => a.id),
             }),
           setupExportedUrls, // similar to setupInterfaces
         }),
@@ -1035,13 +1037,16 @@ export async function runCommand<Manifest extends T.SDKManifest>(
     commands = imageMeta.entrypoint ?? []
     commands = commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
   } else commands = splitCommand(command)
-  return SubContainer.withTemp<Manifest, { stdout: string | Buffer; stderr: string | Buffer }>(
+  return SubContainer.withTemp<
+    Manifest,
+    { stdout: string | Buffer; stderr: string | Buffer }
+  >(
     effects,
     image,
     options.mounts,
     name ||
       commands
-        .map((c) => {
+        .map(c => {
           if (c.includes(' ')) {
             return `"${c.replace(/"/g, `\"`)}"`
           } else {
@@ -1049,7 +1054,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
           }
         })
         .join(' '),
-    async (subcontainer) => {
+    async subcontainer => {
       const res = await subcontainer.exec(commands)
       if (res.exitCode || res.exitSignal) {
         throw new ExitError(commands[0], res)

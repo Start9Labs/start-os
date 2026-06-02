@@ -22,8 +22,8 @@ async function prepBind(
   to: string,
   type: 'file' | 'directory' | 'infer',
 ) {
-  const fromMeta = from ? await fs.stat(from).catch((_) => null) : null
-  const toMeta = await fs.stat(to).catch((_) => null)
+  const fromMeta = from ? await fs.stat(from).catch(_ => null) : null
+  const toMeta = await fs.stat(to).catch(_ => null)
 
   if (type === 'file' || (type === 'infer' && from && fromMeta?.isFile())) {
     if (toMeta && toMeta.isDirectory()) await fs.rmdir(to)
@@ -54,17 +54,19 @@ async function bind(
 
   if (idmap.length) {
     args.push(
-      `-oX-mount.idmap=${idmap.map((i) => `b:${i.fromId}:${i.toId}:${i.range}`).join(' ')}`,
+      `-oX-mount.idmap=${idmap.map(i => `b:${i.fromId}:${i.toId}:${i.range}`).join(' ')}`,
     )
   }
 
   await execFile('mount', [...args, from, to])
 }
 
-type MountsArg<Manifest extends T.SDKManifest, E extends T.Effects> =
-  E extends BackupEffects
-    ? Mounts<Manifest, { subpath: string | null; mountpoint: string }>
-    : Mounts<Manifest, never>
+type MountsArg<
+  Manifest extends T.SDKManifest,
+  E extends T.Effects,
+> = E extends BackupEffects
+  ? Mounts<Manifest, { subpath: string | null; mountpoint: string }>
+  : Mounts<Manifest, never>
 
 /**
  * Isolated container environment for running service processes.
@@ -264,12 +266,7 @@ export const SubContainer = {
     mounts: MountsArg<Manifest, Effects> | null,
     name: string,
   ): SubContainerLazy<Manifest, Effects> {
-    return new SubContainerLazy<Manifest, Effects>(
-      effects,
-      image,
-      mounts,
-      name,
-    )
+    return new SubContainerLazy<Manifest, Effects>(effects, image, mounts, name)
   },
 
   /**
@@ -362,7 +359,10 @@ export const SubContainer = {
 export class SubContainerEager<
   Manifest extends T.SDKManifest,
   Effects extends T.Effects = T.Effects,
-> extends Drop implements SubContainer<Manifest, Effects> {
+>
+  extends Drop
+  implements SubContainer<Manifest, Effects>
+{
   private destroyed = false
   private destroyPending = false
   private holdCount = 0
@@ -396,7 +396,7 @@ export class SubContainerEager<
         new Promise(async (resolve, reject) => {
           let count = 0
           while (
-            !(await fs.stat(`${this.rootfs}/proc/1`).then((x) => !!x, False))
+            !(await fs.stat(`${this.rootfs}/proc/1`).then(x => !!x, False))
           ) {
             if (count++ > TIMES_TO_WAIT_FOR_PROC) {
               console.debug('Failed to start subcontainer', {
@@ -598,7 +598,7 @@ export class SubContainerEager<
   onDrop(): void {
     if (!this.destroyed && this.holdCount === 0) {
       console.log(`Cleaning up dangling subcontainer ${this.guid}`)
-      this._destroyImmediate().catch((e) => console.error(e))
+      this._destroyImmediate().catch(e => console.error(e))
     }
   }
 
@@ -664,8 +664,8 @@ export class SubContainerEager<
     if (options?.input) {
       await new Promise<null>((resolve, reject) => {
         try {
-          child.stdin.on('error', (e) => reject(e))
-          child.stdin.write(options.input, (e) => {
+          child.stdin.on('error', e => reject(e))
+          child.stdin.write(options.input, e => {
             if (e) {
               reject(e)
             } else {
@@ -738,7 +738,7 @@ export class SubContainerEager<
     timeoutMs?: number | null,
     abort?: AbortController,
   ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
-    return this.exec(command, options, timeoutMs, abort).then((res) =>
+    return this.exec(command, options, timeoutMs, abort).then(res =>
       res.throw(),
     )
   }
@@ -891,7 +891,10 @@ export class SubContainerEager<
 export class SubContainerLazy<
   Manifest extends T.SDKManifest,
   Effects extends T.Effects = T.Effects,
-> extends Drop implements SubContainer<Manifest, Effects> {
+>
+  extends Drop
+  implements SubContainer<Manifest, Effects>
+{
   readonly identity: symbol = Symbol('subcontainer')
   readonly imageId: keyof Manifest['images'] & T.ImageId
   readonly sharedRun: boolean
@@ -933,7 +936,7 @@ export class SubContainerLazy<
       this.mounts,
       this.name,
       this.identity,
-    ).then(async (eager) => {
+    ).then(async eager => {
       if (this.destroyPending) await eager.destroy()
       return eager
     }))
@@ -941,12 +944,12 @@ export class SubContainerLazy<
 
   /** Absolute path to the materialized subcontainer's rootfs. Triggers materialization on first access. */
   get rootfs(): Promise<string> {
-    return this.eager().then((e) => e.rootfs)
+    return this.eager().then(e => e.rootfs)
   }
 
   /** OS-level guid. Triggers materialization on first access. */
   get guid(): Promise<T.Guid> {
-    return this.eager().then((e) => e.guid)
+    return this.eager().then(e => e.guid)
   }
 
   /**
@@ -990,11 +993,11 @@ export class SubContainerLazy<
     let underlyingRelease: (() => Promise<void>) | null = null
     const eagerPromise = this.eager()
     const acquired = eagerPromise
-      .then((eager) => {
+      .then(eager => {
         if (released) return
         underlyingRelease = eager.hold()
       })
-      .catch((e) => {
+      .catch(e => {
         released = true
         throw e
       })
@@ -1114,9 +1117,7 @@ export class SubContainerLazy<
 
   onDrop(): void {
     if (this.materialized) {
-      this.materialized
-        .then((e) => e.destroy())
-        .catch((e) => console.error(e))
+      this.materialized.then(e => e.destroy()).catch(e => console.error(e))
     }
   }
 }
@@ -1181,7 +1182,7 @@ export type MountOptionsBackup = {
 }
 
 function wait(time: number) {
-  return new Promise((resolve) => setTimeout(resolve, time))
+  return new Promise(resolve => setTimeout(resolve, time))
 }
 
 /**

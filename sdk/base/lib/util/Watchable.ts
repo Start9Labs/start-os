@@ -14,7 +14,7 @@ export abstract class Watchable<Raw, Mapped = Raw> {
       eq?: (a: Mapped, b: Mapped) => boolean
     },
   ) {
-    this.mapFn = options?.map ?? ((a) => a as unknown as Mapped)
+    this.mapFn = options?.map ?? (a => a as unknown as Mapped)
     this.eqFn = options?.eq ?? ((a, b) => deepEqual(a, b))
   }
 
@@ -38,7 +38,7 @@ export abstract class Watchable<Raw, Mapped = Raw> {
     abort.addEventListener('abort', () => resolveCell.resolve())
     while (this.effects.isInContext && !abort.aborted) {
       let callback: () => void = () => {}
-      const waitForNext = new Promise<void>((resolve) => {
+      const waitForNext = new Promise<void>(resolve => {
         callback = resolve
         resolveCell.resolve = resolve
       })
@@ -83,7 +83,7 @@ export abstract class Watchable<Raw, Mapped = Raw> {
       const constRetry = this.effects.constRetry
       const cleanup = this.onConstRegistered(value)
       gen.next().then(
-        (a) => {
+        a => {
           abort.abort()
           cleanup?.()
           if (!a.done) {
@@ -149,8 +149,8 @@ export abstract class Watchable<Raw, Mapped = Raw> {
         }
       }
     })()
-      .catch((e) => callback(undefined, e))
-      .catch((e) =>
+      .catch(e => callback(undefined, e))
+      .catch(e =>
         console.error(
           `callback function threw an error @ ${this.label}.onChange`,
           e,

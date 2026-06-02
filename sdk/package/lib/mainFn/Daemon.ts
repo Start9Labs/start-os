@@ -63,7 +63,7 @@ export class Daemon<
       const res = new Daemon<Manifest, C>(subcontainer, startCommand)
       effects.onLeaveContext(() => {
         if (res._managed) return
-        res.term().catch((e) => logErrorOnce(asError(e)))
+        res.term().catch(e => logErrorOnce(asError(e)))
       })
       return res
     }
@@ -113,8 +113,8 @@ export class Daemon<
             break
           }
           const success = await this.commandController.wait().then(
-            (_) => true,
-            (err) => {
+            _ => true,
+            err => {
               if (!signal.aborted) logErrorOnce(err)
               return false
             },
@@ -136,7 +136,7 @@ export class Daemon<
           if (!signal.aborted) console.error(e)
         }
         if (signal.aborted) break
-        await new Promise<void>((resolve) => {
+        await new Promise<void>(resolve => {
           const timer = setTimeout(resolve, timeoutCounter)
           signal.addEventListener(
             'abort',
@@ -198,7 +198,7 @@ export class Daemon<
     // if another daemon still holds this SubContainer, destroy waits for
     // the last hold-release before firing `destroyFs`.
     if (this.subcontainer) {
-      await this.subcontainer.destroy().catch((e) => logErrorOnce(asError(e)))
+      await this.subcontainer.destroy().catch(e => logErrorOnce(asError(e)))
     }
   }
 
@@ -210,6 +210,6 @@ export class Daemon<
     this.onExitFns.push(fn)
   }
   onDrop(): void {
-    this.term().catch((e) => logErrorOnce(asError(e)))
+    this.term().catch(e => logErrorOnce(asError(e)))
   }
 }

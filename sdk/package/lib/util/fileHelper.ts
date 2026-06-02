@@ -237,7 +237,7 @@ class FileHelperImpl<A> implements FileHelper<A> {
     if (!(await exists(this.path))) {
       return null
     }
-    return await fs.readFile(this.path).then((data) => data.toString('utf-8'))
+    return await fs.readFile(this.path).then(data => data.toString('utf-8'))
   }
 
   private async readFile(): Promise<unknown> {
@@ -303,13 +303,13 @@ class FileHelperImpl<A> implements FileHelper<A> {
                     return null
                   }
                 })
-                .catch((e) => console.error(asError(e)))
+                .catch(e => console.error(asError(e)))
             } finally {
               abort.removeEventListener('abort', onAbort)
             }
           } else {
             yield null
-            await onCreated(filePath).catch((e) => console.error(asError(e)))
+            await onCreated(filePath).catch(e => console.error(asError(e)))
           }
         }
       }
@@ -324,7 +324,7 @@ class FileHelperImpl<A> implements FileHelper<A> {
         ]
         fileHelper.consts.push(record)
         return () => {
-          fileHelper.consts = fileHelper.consts.filter((r) => r !== record)
+          fileHelper.consts = fileHelper.consts.filter(r => r !== record)
         }
       }
     })(effects, { map: wrappedMap, eq })
@@ -447,13 +447,13 @@ function rawTransformed<A extends Transformed, Raw, Transformed>(
 ): FileHelper<A> {
   return FileHelper.raw<A>(
     path,
-    (inData) => {
+    inData => {
       if (transformers) {
         return toFile(transformers.onWrite(inData))
       }
       return toFile(inData as any as Raw)
     },
-    (fileData) => {
+    fileData => {
       if (transformers) {
         return transformers.onRead(fromFile(fileData))
       }
@@ -581,9 +581,9 @@ export const FileHelper: FileHelperStatic = {
   ): FileHelper<A> {
     return rawTransformed<A, string, Transformed>(
       path,
-      (inData) => inData,
-      (inString) => inString,
-      (data) =>
+      inData => inData,
+      inString => inString,
+      data =>
         (shape || (z.string() as unknown as Validator<Transformed, A>)).parse(
           data,
         ),
@@ -598,9 +598,9 @@ export const FileHelper: FileHelperStatic = {
   ): FileHelper<A> {
     return rawTransformed<A, unknown, Transformed>(
       path,
-      (inData) => JSON.stringify(inData, null, 2),
-      (inString) => JSON.parse(inString),
-      (data) => shape.parse(data),
+      inData => JSON.stringify(inData, null, 2),
+      inString => JSON.parse(inString),
+      data => shape.parse(data),
       transformers,
     )
   },
@@ -618,9 +618,9 @@ export const FileHelper: FileHelperStatic = {
   ): FileHelper<A> {
     return rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
-      (inData) => YAML.stringify(inData, null, { indent: 2, ...options }),
-      (inString) => YAML.parse(inString, options),
-      (data) => shape.parse(data),
+      inData => YAML.stringify(inData, null, { indent: 2, ...options }),
+      inString => YAML.parse(inString, options),
+      data => shape.parse(data),
       transformers,
     )
   },
@@ -632,9 +632,9 @@ export const FileHelper: FileHelperStatic = {
   ): FileHelper<A> {
     return rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
-      (inData) => TOML.stringify(inData as TOML.JsonMap),
-      (inString) => TOML.parse(inString),
-      (data) => shape.parse(data),
+      inData => TOML.stringify(inData as TOML.JsonMap),
+      inString => TOML.parse(inString),
+      data => shape.parse(data),
       transformers,
     )
   },
@@ -647,9 +647,9 @@ export const FileHelper: FileHelperStatic = {
   ): FileHelper<A> {
     return rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
-      (inData) => INI.stringify(filterUndefined(inData), options),
-      (inString) => INI.parse(inString, options),
-      (data) => shape.parse(data),
+      inData => INI.stringify(filterUndefined(inData), options),
+      inString => INI.parse(inString, options),
+      data => shape.parse(data),
       transformers,
     )
   },
@@ -661,22 +661,22 @@ export const FileHelper: FileHelperStatic = {
   ): FileHelper<A> {
     return rawTransformed<A, Record<string, string>, Transformed>(
       path,
-      (inData) =>
+      inData =>
         Object.entries(inData)
           .map(([k, v]) => `${k}=${v}`)
           .join('\n'),
-      (inString) =>
+      inString =>
         Object.fromEntries(
           inString
             .split('\n')
-            .map((line) => line.trim())
-            .filter((line) => !line.startsWith('#') && line.includes('='))
-            .map((line) => {
+            .map(line => line.trim())
+            .filter(line => !line.startsWith('#') && line.includes('='))
+            .map(line => {
               const pos = line.indexOf('=')
               return [line.slice(0, pos), line.slice(pos + 1)]
             }),
         ),
-      (data) => shape.parse(data),
+      data => shape.parse(data),
       transformers,
     )
   },
@@ -691,9 +691,9 @@ export const FileHelper: FileHelperStatic = {
     const builder = new XMLBuilder(options?.builder)
     return rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
-      (inData) => builder.build(inData),
-      (inString) => parser.parse(inString),
-      (data) => shape.parse(data),
+      inData => builder.build(inData),
+      inString => parser.parse(inString),
+      data => shape.parse(data),
       transformers,
     )
   },

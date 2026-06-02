@@ -52,7 +52,7 @@ export class IpAddress {
       octets = address.split('.').map(Number)
       if (octets.length !== 4) throw new Error('invalid ipv4 address')
     }
-    if (octets.some((o) => isNaN(o) || o > 255)) {
+    if (octets.some(o => isNaN(o) || o > 255)) {
       throw new Error('invalid ip address')
     }
     return new IpAddress(octets, address)
@@ -65,12 +65,12 @@ export class IpAddress {
    */
   static fromOctets(octets: number[]) {
     if (octets.length == 4) {
-      if (octets.some((o) => o > 255)) {
+      if (octets.some(o => o > 255)) {
         throw new Error('invalid ip address')
       }
       return new IpAddress(octets, octets.join('.'))
     } else if (octets.length == 16) {
-      if (octets.some((o) => o > 255)) {
+      if (octets.some(o => o > 255)) {
         throw new Error('invalid ip address')
       }
       let pre = octets.slice(0, 8)
@@ -100,7 +100,7 @@ export class IpAddress {
   }
   /** Returns true if this is a public IPv4 address (not in any private range). */
   isPublic(): boolean {
-    return this.isIpv4() && !PRIVATE_IPV4_RANGES.some((r) => r.contains(this))
+    return this.isIpv4() && !PRIVATE_IPV4_RANGES.some(r => r.contains(this))
   }
   /**
    * Returns a new IpAddress incremented by `n`.

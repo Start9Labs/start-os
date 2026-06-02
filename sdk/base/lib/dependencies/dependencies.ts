@@ -46,14 +46,14 @@ export async function checkDependencies<
     }),
   ])
   if (packageIds) {
-    dependencies = dependencies.filter((d) =>
+    dependencies = dependencies.filter(d =>
       (packageIds as PackageId[]).includes(d.id),
     )
   }
 
   const infoFor = (packageId: DependencyId) => {
-    const dependencyRequirement = dependencies.find((d) => d.id === packageId)
-    const dependencyResult = results.find((d) => d.packageId === packageId)
+    const dependencyRequirement = dependencies.find(d => d.id === packageId)
+    const dependencyResult = results.find(d => d.packageId === packageId)
     if (!dependencyRequirement || !dependencyResult) {
       throw new Error(`Unknown DependencyId ${packageId}`)
     }
@@ -94,7 +94,7 @@ export async function checkDependencies<
     const errors =
       dep.requirement.kind === 'running'
         ? dep.requirement.healthChecks
-            .map((id) => [id, dep.result.healthChecks[id] ?? null] as const)
+            .map(id => [id, dep.result.healthChecks[id] ?? null] as const)
             .filter(([id, _]) => (healthCheckId ? id === healthCheckId : true))
             .filter(([_, res]) => res?.result !== 'success')
         : []
@@ -109,7 +109,7 @@ export async function checkDependencies<
   const satisfied = (packageId?: DependencyId) =>
     packageId
       ? pkgSatisfied(packageId)
-      : dependencies.every((d) => pkgSatisfied(d.id as DependencyId))
+      : dependencies.every(d => pkgSatisfied(d.id as DependencyId))
 
   const throwIfInstalledNotSatisfied = (packageId: DependencyId) => {
     const dep = infoFor(packageId)
@@ -124,7 +124,7 @@ export async function checkDependencies<
       throw new Error(`${dep.result.title || packageId} is not installed`)
     }
     if (
-      ![dep.result.installedVersion, ...dep.result.satisfies].find((v) =>
+      ![dep.result.installedVersion, ...dep.result.satisfies].find(v =>
         ExtendedVersion.parse(v).satisfies(
           VersionRange.parse(dep.requirement.versionRange),
         ),
@@ -170,7 +170,7 @@ export async function checkDependencies<
     const errors =
       dep.requirement.kind === 'running'
         ? dep.requirement.healthChecks
-            .map((id) => [id, dep.result.healthChecks[id] ?? null] as const)
+            .map(id => [id, dep.result.healthChecks[id] ?? null] as const)
             .filter(([id, _]) => (healthCheckId ? id === healthCheckId : true))
             .filter(([_, res]) => res?.result !== 'success')
         : []
@@ -199,7 +199,7 @@ export async function checkDependencies<
     packageId
       ? throwIfPkgNotSatisfied(packageId)
       : (() => {
-          const err = dependencies.flatMap((d) => {
+          const err = dependencies.flatMap(d => {
             try {
               throwIfPkgNotSatisfied(d.id as DependencyId)
             } catch (e) {

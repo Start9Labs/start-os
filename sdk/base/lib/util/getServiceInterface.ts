@@ -220,7 +220,7 @@ export type ServiceInterfaceFilled = {
 const either =
   <A>(...args: ((a: A) => boolean)[]) =>
   (a: A) =>
-    args.some((x) => x(a))
+    args.some(x => x(a))
 const negate =
   <A>(fn: (a: A) => boolean) =>
   (a: A) =>
@@ -261,12 +261,12 @@ function filterRec(
 ): HostnameInfo[] {
   if (filter.predicate) {
     const pred = filter.predicate
-    hostnames = hostnames.filter((h) => invert !== pred(h))
+    hostnames = hostnames.filter(h => invert !== pred(h))
   }
   if (filter.visibility === 'public')
-    hostnames = hostnames.filter((h) => invert !== h.public)
+    hostnames = hostnames.filter(h => invert !== h.public)
   if (filter.visibility === 'private')
-    hostnames = hostnames.filter((h) => invert !== !h.public)
+    hostnames = hostnames.filter(h => invert !== !h.public)
   if (filter.kind) {
     const kind = new Set(
       Array.isArray(filter.kind) ? filter.kind : [filter.kind],
@@ -276,7 +276,7 @@ function filterRec(
       kind.add('ipv6')
     }
     hostnames = hostnames.filter(
-      (h) =>
+      h =>
         invert !==
         ((kind.has('mdns') && h.metadata.kind === 'mdns') ||
           (kind.has('domain') &&
@@ -298,7 +298,7 @@ function filterRec(
   if (filter.pluginId) {
     const id = filter.pluginId
     hostnames = hostnames.filter(
-      (h) =>
+      h =>
         invert !==
         (h.metadata.kind === 'plugin' && h.metadata.packageId === id),
     )
@@ -324,17 +324,17 @@ export function mdnsResolvable(
 ): boolean {
   if (h.metadata.kind !== 'mdns') return true
   const lanGateways = new Set(
-    enabled.flatMap((a) =>
+    enabled.flatMap(a =>
       !a.public && (a.metadata.kind === 'ipv4' || a.metadata.kind === 'ipv6')
         ? [a.metadata.gateway]
         : [],
     ),
   )
-  return h.metadata.gateways.some((g) => lanGateways.has(g))
+  return h.metadata.gateways.some(g => lanGateways.has(g))
 }
 
 function enabledAddresses(addr: DerivedAddressInfo): HostnameInfo[] {
-  const enabled = addr.available.filter((h) => {
+  const enabled = addr.available.filter(h => {
     if (isPublicIp(h)) {
       // Public IPs: disabled by default, explicitly enabled via SocketAddr string
       if (h.port === null) return true
@@ -351,7 +351,7 @@ function enabledAddresses(addr: DerivedAddressInfo): HostnameInfo[] {
     }
   })
 
-  return enabled.filter((h) => mdnsResolvable(h, enabled))
+  return enabled.filter(h => mdnsResolvable(h, enabled))
 }
 
 /**
@@ -391,7 +391,7 @@ export const filledAddress = (
         let res: FormatReturnTy<{}, Format>[] = hostnames as any
         if (format === 'hostname-info') return res
         const urls = hostnames.map(toUrl)
-        if (format === 'url') res = urls.map((u) => new URL(u)) as any
+        if (format === 'url') res = urls.map(u => new URL(u)) as any
         else res = urls as any
         return res
       },
@@ -507,7 +507,7 @@ export function getOwnServiceInterface<Mapped>(
     effects,
     { id },
     {
-      map: map ?? ((a) => a as Mapped),
+      map: map ?? (a => a as Mapped),
       eq: eq ?? ((a, b) => deepEqual(a, b)),
     },
   )
@@ -530,7 +530,7 @@ export function getServiceInterface<Mapped>(
   eq?: (a: Mapped, b: Mapped) => boolean,
 ): GetServiceInterface<Mapped> {
   return new GetServiceInterface<Mapped>(effects, opts, {
-    map: map ?? ((a) => a as Mapped),
+    map: map ?? (a => a as Mapped),
     eq: eq ?? ((a, b) => deepEqual(a, b)),
   })
 }

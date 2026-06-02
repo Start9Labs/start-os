@@ -27,7 +27,7 @@ export function getErrorMessage(e: HttpError | string, link?: string): string {
     message = e
   } else if (e.code === 0) {
     message =
-      'Request Error. Your browser couldn\'t reach your server (network or browser blocked the connection). Common causes: a VPN or firewall blocking loopback/LAN; the server is still starting; or the page is loaded from a different origin than the API. Try refreshing this page; if you\'re using a VPN, allow LAN connections or disconnect briefly.'
+      "Request Error. Your browser couldn't reach your server (network or browser blocked the connection). Common causes: a VPN or firewall blocking loopback/LAN; the server is still starting; or the page is loaded from a different origin than the API. Try refreshing this page; if you're using a VPN, allow LAN connections or disconnect briefly."
   } else if (!e.message) {
     message = 'Unknown Error'
   } else {

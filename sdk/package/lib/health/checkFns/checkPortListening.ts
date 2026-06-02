@@ -7,8 +7,8 @@ export function containsAddress(x: string, port: number, address?: bigint) {
     .split('\n')
     .filter(Boolean)
     .splice(1)
-    .map((x) => x.split(' ').filter(Boolean)[1]?.split(':'))
-    .filter((x) => x?.length > 1)
+    .map(x => x.split(' ').filter(Boolean)[1]?.split(':'))
+    .filter(x => x?.length > 1)
     .map(([addr, p]) => [BigInt(`0x${addr}`), Number.parseInt(p, 16)] as const)
   return !!readPorts.find(
     ([addr, p]) => (address === undefined || address === addr) && port === p,
@@ -62,7 +62,7 @@ export async function checkPortListening(
         message: options.errorMessage,
       }
     }),
-    new Promise((resolve) => {
+    new Promise(resolve => {
       setTimeout(
         () =>
           resolve({

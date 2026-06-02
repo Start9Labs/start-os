@@ -68,12 +68,10 @@ export function deepMerge(...args: unknown[]): unknown {
   const lastItem = (args as any)[args.length - 1]
   if (typeof lastItem !== 'object' || !lastItem) return lastItem
   if (Array.isArray(lastItem))
-    return deepMergeList(
-      ...(args.filter((x) => Array.isArray(x)) as unknown[][]),
-    )
+    return deepMergeList(...(args.filter(x => Array.isArray(x)) as unknown[][]))
   return deepMergeObject(
     ...(args.filter(
-      (x) => typeof x === 'object' && x && !Array.isArray(x),
+      x => typeof x === 'object' && x && !Array.isArray(x),
     ) as object[]),
   )
 }
@@ -82,7 +80,7 @@ function deepMergeList(...args: unknown[][]): unknown[] {
   const res: unknown[] = []
   for (let arg of args) {
     for (let item of arg) {
-      if (!res.some((x) => !partialDiff(x, item))) {
+      if (!res.some(x => !partialDiff(x, item))) {
         res.push(item)
       }
     }
@@ -94,9 +92,9 @@ function deepMergeObject(...args: object[]): object {
   const lastItem = (args as any)[args.length - 1]
   if (args.length === 0) return lastItem as any
   if (args.length === 1) args.unshift({})
-  const allKeys = new Set(args.flatMap((x) => Object.keys(x)))
+  const allKeys = new Set(args.flatMap(x => Object.keys(x)))
   for (const key of allKeys) {
-    const filteredValues = args.flatMap((x) =>
+    const filteredValues = args.flatMap(x =>
       key in x ? [(x as any)[key]] : [],
     )
     ;(args as any)[0][key] = deepMerge(...filteredValues)

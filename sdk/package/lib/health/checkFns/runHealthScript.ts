@@ -29,7 +29,7 @@ export const runHealthScript = async <Manifest extends SDKManifest>(
   const res = await Promise.race([
     subcontainer.execFail(runCommand),
     timeoutPromise(timeout),
-  ]).catch((e) => {
+  ]).catch(e => {
     console.warn(errorMessage)
     console.warn(JSON.stringify(e))
     console.warn(e.toString())

@@ -101,7 +101,7 @@ export class S9pk {
    */
   async icon(): Promise<DataUrl> {
     const iconName = Object.keys(this.archive.contents.contents).find(
-      (name) =>
+      name =>
         name.startsWith('icon.') && mime.getType(name)?.startsWith('image/'),
     )
     if (!iconName) {
@@ -143,7 +143,7 @@ export class S9pk {
     const dir = this.archive.contents.getPath(['dependencies', id])
     if (!dir || !(dir.contents instanceof DirectoryContents)) return null
     const iconName = Object.keys(dir.contents.contents).find(
-      (name) =>
+      name =>
         name.startsWith('icon.') && mime.getType(name)?.startsWith('image/'),
     )
     if (!iconName) return null

@@ -43,7 +43,7 @@ export class FullProgressTracker {
   snapshot(): FullProgress {
     return {
       overall: this.completed ? true : this.computeOverall(),
-      phases: this.phases.map((p) => ({
+      phases: this.phases.map(p => ({
         name: p.name,
         progress: p.value(),
       })),
@@ -51,7 +51,7 @@ export class FullProgressTracker {
   }
 
   private computeOverall(): Progress {
-    const weighted = this.phases.filter((p) => p.contribution !== null)
+    const weighted = this.phases.filter(p => p.contribution !== null)
     if (weighted.length === 0) return null
     const total = weighted.reduce(
       (acc, p) => acc + (p.contribution as number),
