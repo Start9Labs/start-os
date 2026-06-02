@@ -73,7 +73,31 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.ADD,
         path: `/wg/subnets/${replaceSlashes(params.subnet)}`,
-        value: { name: params.name, clients: {} },
+        value: { name: params.name, clients: {}, dns: { type: 'default' } },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setSubnetDns(
+    params: T.Tunnel.SubnetParams & T.Tunnel.SetSubnetDnsParams,
+  ): Promise<null> {
+    await pauseFor(1000)
+
+    const dns: T.Tunnel.DnsConfig =
+      params.mode === 'device'
+        ? { type: 'device', ip: params.deviceIp! }
+        : params.mode === 'custom'
+          ? { type: 'custom', servers: params.servers }
+          : { type: 'default' }
+
+    const patch: ReplaceOperation<T.Tunnel.DnsConfig>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/dns`,
+        value: dns,
       },
     ]
     this.mockRevision(patch)

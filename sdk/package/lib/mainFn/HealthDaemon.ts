@@ -30,13 +30,13 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     readonly effects: Effects,
   ) {
     this.readyPromise = new Promise(
-      (resolve) =>
+      resolve =>
         (this.resolveReady = () => {
           resolve()
           this.resolvedReady = true
         }),
     )
-    this.dependencies.forEach((d) => d.addWatcher(() => this.updateStatus()))
+    this.dependencies.forEach(d => d.addWatcher(() => this.updateStatus()))
   }
 
   /** Run after we want to do cleanup */
@@ -90,7 +90,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   private resetReady() {
     this.resolvedReady = false
     this.readyPromise = new Promise(
-      (resolve) =>
+      resolve =>
         (this.resolveReady = () => {
           resolve()
           this.resolvedReady = true
@@ -103,7 +103,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
 
     const abort = new AbortController()
 
-    this.daemon?.onExit((success) => {
+    this.daemon?.onExit(success => {
       if (abort.signal.aborted) return
       if (success && this.ready === 'EXIT_SUCCESS') {
         this.setHealth({ result: 'success', message: null })
@@ -134,7 +134,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
       lastResult: this._health.result,
     }))
 
-    const aborted = new Promise<{ done: true }>((resolve) =>
+    const aborted = new Promise<{ done: true }>(resolve =>
       signal.addEventListener('abort', () => resolve({ done: true }), {
         once: true,
       }),
@@ -148,7 +148,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
       ) {
         const response: HealthCheckResult = await Promise.resolve(
           this.ready.fn(),
-        ).catch((err) => {
+        ).catch(err => {
           return {
             result: 'failure' as const,
             message: 'message' in err ? err.message : String(err),
@@ -179,7 +179,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     if (this.resolveReady && health.result === 'success') {
       this.resolveReady()
     }
-    if (changed) this.healthWatchers.forEach((watcher) => watcher())
+    if (changed) this.healthWatchers.forEach(watcher => watcher())
     if (this.ready === 'EXIT_SUCCESS') return
     const display = this.ready.display
     if (!display) {
@@ -204,20 +204,18 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }
 
   async updateStatus() {
-    const healths = this.dependencies.map((d) => ({
+    const healths = this.dependencies.map(d => ({
       health: d.running && d._health,
       id: d.id,
       display: typeof d.ready === 'object' ? d.ready.display : null,
     }))
     const waitingOn = healths.filter(
-      (h) => !h.health || h.health.result !== 'success',
+      h => !h.health || h.health.result !== 'success',
     )
     if (waitingOn.length)
-      console.debug(
-        `daemon ${this.id} waiting on ${waitingOn.map((w) => w.id)}`,
-      )
+      console.debug(`daemon ${this.id} waiting on ${waitingOn.map(w => w.id)}`)
     if (waitingOn.length) {
-      const waitingOnNames = waitingOn.flatMap((w) =>
+      const waitingOnNames = waitingOn.flatMap(w =>
         w.display ? [w.display] : [],
       )
       const message = waitingOnNames.length ? waitingOnNames.join(', ') : null

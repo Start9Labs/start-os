@@ -136,7 +136,7 @@ export class List<
     >,
   ) {
     const validator = z.array(z.string())
-    return new List<string[], string[], OuterType>(async (options) => {
+    return new List<string[], string[], OuterType>(async options => {
       const { spec: aSpec, ...a } = await getA(options)
       const spec = {
         type: 'text' as const,
@@ -189,7 +189,7 @@ export class List<
       uniqueBy?: null | UniqueBy
     },
   ) {
-    return new List<Type[], StaticValidatedAs[]>(async (options) => {
+    return new List<Type[], StaticValidatedAs[]>(async options => {
       const { spec: previousSpecSpec, ...restSpec } = aSpec
       const built = await previousSpecSpec.build(options)
       const spec = {

@@ -22,6 +22,9 @@ export abstract class ApiService {
     params: T.Tunnel.SubnetParams & T.Tunnel.AddSubnetParams,
   ): Promise<null> // subnet.edit
   abstract deleteSubnet(params: T.Tunnel.SubnetParams): Promise<null> // subnet.remove
+  abstract setSubnetDns(
+    params: T.Tunnel.SubnetParams & T.Tunnel.SetSubnetDnsParams,
+  ): Promise<null> // subnet.set-dns
   // devices
   abstract addDevice(params: T.Tunnel.AddDeviceParams): Promise<null> // device.add
   abstract editDevice(params: T.Tunnel.AddDeviceParams): Promise<null> // device.edit

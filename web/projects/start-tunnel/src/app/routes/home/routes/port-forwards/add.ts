@@ -39,7 +39,7 @@ import { MappedDevice, PortForwardsData } from './utils'
         <input tuiInput formControlName="label" />
       </tui-textfield>
       <tui-error formControlName="label" />
-      <tui-textfield tuiChevron>
+      <tui-textfield tuiChevron [tuiTextfieldCleaner]="false">
         <label tuiLabel>External IP</label>
         @if (mobile) {
           <select
@@ -68,7 +68,11 @@ import { MappedDevice, PortForwardsData } from './utils'
         />
       </tui-textfield>
       <tui-error formControlName="externalport" />
-      <tui-textfield tuiChevron [stringify]="stringify">
+      <tui-textfield
+        tuiChevron
+        [stringify]="stringify"
+        [tuiTextfieldCleaner]="false"
+      >
         <label tuiLabel>Device</label>
         @if (mobile) {
           <select

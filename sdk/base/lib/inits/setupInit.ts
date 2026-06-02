@@ -34,12 +34,12 @@ export type InitScriptOrFn<Kind extends InitKind = InitKind> =
  * @param inits - One or more init handlers to compose
  */
 export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
-  return async (opts) => {
+  return async opts => {
     for (const idx in inits) {
       const init = inits[idx]
       const fn = async () => {
         let res: (value?: undefined) => void = () => {}
-        const complete = new Promise((resolve) => {
+        const complete = new Promise(resolve => {
           res = resolve
         })
         const e: T.Effects = opts.effects.child(`init_${idx}`)

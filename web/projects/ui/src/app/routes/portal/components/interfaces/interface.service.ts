@@ -13,10 +13,6 @@ function isPublicIp(h: T.HostnameInfo): boolean {
   return h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
 }
 
-export function isLanIp(h: T.HostnameInfo): boolean {
-  return !h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
-}
-
 function isEnabled(addr: T.DerivedAddressInfo, h: T.HostnameInfo): boolean {
   if (isPublicIp(h)) {
     if (h.port === null) return true
@@ -147,11 +143,13 @@ export class InterfaceService {
       .map(g => {
         const addresses = groupMap.get(g.id)!.sort(sortDomainsFirst)
 
-        // Derive mDNS enabled state from LAN IPs on this gateway
-        const lanIps = addresses.filter(a => isLanIp(a.hostnameInfo))
+        // mDNS resolves only via enabled LAN IPs on this gateway
+        const enabledHostnames = addresses
+          .filter(a => a.enabled)
+          .map(a => a.hostnameInfo)
         for (const a of addresses) {
           if (a.hostnameInfo.metadata.kind === 'mdns') {
-            a.enabled = lanIps.some(ip => ip.enabled)
+            a.enabled = utils.mdnsResolvable(a.hostnameInfo, enabledHostnames)
           }
         }
 
@@ -159,7 +157,6 @@ export class InterfaceService {
           gatewayId: g.id,
           gatewayName: g.name,
           deviceType: g.ipInfo?.deviceType || 'ethernet',
-          isWireguard: g.ipInfo?.deviceType === 'wireguard',
           addresses,
         }
       })
@@ -333,7 +330,6 @@ export type GatewayAddressGroup = {
   gatewayId: string
   gatewayName: string
   deviceType: string
-  isWireguard: boolean
   addresses: GatewayAddress[]
 }
 

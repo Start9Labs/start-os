@@ -45,25 +45,14 @@ import { GatewayItemComponent } from './item.component'
         }
       }
       {{ gatewayGroup().gatewayName }}
-      @if (gatewayGroup().isWireguard) {
-        <button
-          tuiButton
-          iconStart="@tui.plus"
-          [style.margin-inline-start]="'auto'"
-          (click)="addPublicDomain()"
-        >
-          {{ 'Add Public Domain' | i18n }}
-        </button>
-      } @else {
-        <button
-          tuiButton
-          iconStart="@tui.plus"
-          [style.margin-inline-start]="'auto'"
-          (click)="openDomainTypePicker()"
-        >
-          {{ 'Add Domain' | i18n }}
-        </button>
-      }
+      <button
+        tuiButton
+        iconStart="@tui.plus"
+        [style.margin-inline-start]="'auto'"
+        (click)="openDomainTypePicker()"
+      >
+        {{ 'Add Domain' | i18n }}
+      </button>
     </header>
     <table
       [appTable]="[
@@ -95,14 +84,16 @@ import { GatewayItemComponent } from './item.component'
     </table>
   `,
   styles: `
-    header tui-icon {
-      font-size: 1.25rem;
-      margin-inline-end: 0.375rem;
-    }
-
     :host ::ng-deep {
       th:first-child {
         width: 5rem;
+      }
+    }
+
+    @media (max-width: 450px) {
+      header button {
+        font-size: 0;
+        gap: 0;
       }
     }
   `,

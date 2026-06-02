@@ -21,7 +21,11 @@ import {
   CheckDependencies,
   checkDependencies,
 } from '../../base/lib/dependencies/dependencies'
-import { setupDependencies } from '../../base/lib/dependencies/setupDependencies'
+import {
+  CurrentDependenciesResult,
+  ValidateVersionRanges,
+  setupDependencies,
+} from '../../base/lib/dependencies/setupDependencies'
 import { testTypeVersion } from '../../base/lib/exver'
 import {
   setupInit,
@@ -173,6 +177,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       shutdown: (effects, ...args) => effects.shutdown(...args),
       getDependencies: (effects, ...args) => effects.getDependencies(...args),
       setHealth: (effects, ...args) => effects.setHealth(...args),
+      setBackupProgress: (effects, ...args) =>
+        effects.setBackupProgress(...args),
     }
 
     return {
@@ -611,7 +617,11 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         )
        * ```
        */
-      setupDependencies: setupDependencies<Manifest>,
+      setupDependencies: <const R extends CurrentDependenciesResult<Manifest>>(
+        fn: (options: {
+          effects: T.Effects
+        }) => Promise<R & ValidateVersionRanges<R>>,
+      ) => setupDependencies<Manifest, R>(fn),
       /**
        * @description Use this function to create an InitScript that runs every time the service initializes (install, update, restore, rebuild, and server bootup)
        */
@@ -985,7 +995,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
             effects.plugin.url.exportUrl({
               hostnameInfo: options.hostnameInfo,
               removeAction: options.removeAction?.id ?? null,
-              overflowActions: options.overflowActions.map((a) => a.id),
+              overflowActions: options.overflowActions.map(a => a.id),
             }),
           setupExportedUrls, // similar to setupInterfaces
         }),
@@ -1036,7 +1046,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
     options.mounts,
     name ||
       commands
-        .map((c) => {
+        .map(c => {
           if (c.includes(' ')) {
             return `"${c.replace(/"/g, `\"`)}"`
           } else {
@@ -1044,7 +1054,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
           }
         })
         .join(' '),
-    async (subcontainer) => {
+    async subcontainer => {
       const res = await subcontainer.exec(commands)
       if (res.exitCode || res.exitSignal) {
         throw new ExitError(commands[0], res)

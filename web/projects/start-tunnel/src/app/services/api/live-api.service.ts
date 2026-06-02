@@ -70,6 +70,12 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'subnet.remove', params })
   }
 
+  async setSubnetDns(
+    params: T.Tunnel.SubnetParams & T.Tunnel.SetSubnetDnsParams,
+  ): Promise<null> {
+    return this.rpcRequest({ method: 'subnet.set-dns', params })
+  }
+
   // devices
 
   async addDevice(params: T.Tunnel.AddDeviceParams): Promise<null> {

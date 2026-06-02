@@ -43,6 +43,23 @@ pub async fn write_developer_key(
     Ok(())
 }
 
+/// Read counterpart to [`write_developer_key`]: load a PKCS#8 PEM ed25519 key
+/// (e.g. a workspace `.startos/build-key`) into a `SigningKey`.
+pub fn load_signing_key(path: impl AsRef<Path>) -> Result<SigningKey, Error> {
+    let path = path.as_ref();
+    let pair = <ed25519::KeypairBytes as ed25519::pkcs8::DecodePrivateKey>::from_pkcs8_pem(
+        &std::fs::read_to_string(path).with_ctx(|_| (ErrorKind::Filesystem, path.display()))?,
+    )
+    .with_kind(ErrorKind::Pem)?;
+    let secret = ed25519_dalek::SecretKey::try_from(&pair.secret_key[..]).map_err(|_| {
+        Error::new(
+            eyre!("{}", t!("context.cli.pkcs8-key-incorrect-length")),
+            ErrorKind::OpenSsl,
+        )
+    })?;
+    Ok(secret.into())
+}
+
 #[instrument(skip_all)]
 pub async fn init(ctx: CliContext) -> Result<(), Error> {
     if tokio::fs::metadata(OS_DEVELOPER_KEY_PATH).await.is_ok() {

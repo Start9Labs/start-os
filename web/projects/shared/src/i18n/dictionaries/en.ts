@@ -557,7 +557,6 @@ export const ENGLISH: Record<string, number> = {
   'Servers': 618, // as in, computer servers
   'Warning. StartOS is currently using the following gateway for DNS': 619,
   'If you intend to use this gateway for private domain resolution, set alternative static DNS servers using the form above.': 620,
-  'Package a service': 621, // as in, package a software application for an operating system
   'Released': 622, // as in, the date something became available
   'Alternative Implementations': 623,
   'Versions': 624,
@@ -752,4 +751,13 @@ export const ENGLISH: Record<string, number> = {
   'No compatible version available': 838,
   'instructions': 839,
   'This version has no instructions. Please update.': 840,
+  'Overall': 841,
+  'OS Data': 842,
+  'interfaces': 843,
+  'actions & config': 844,
+  'A-Z': 845,
+  'Z-A': 846,
+  'Last published': 847,
+  'the address of this server on the tunnel': 848,
+  'In StartTunnel, set the DNS for this subnet to this server.': 849,
 }

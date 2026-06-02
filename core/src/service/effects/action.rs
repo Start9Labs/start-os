@@ -5,7 +5,7 @@ use rust_i18n::t;
 
 use crate::action::{ActionInput, ActionResult, display_action_result};
 use crate::db::model::package::{
-    ActionMetadata, Task, TaskCondition, TaskEntry, TaskSeverity, TaskTrigger,
+    ActionAccess, ActionMetadata, Task, TaskCondition, TaskEntry, TaskSeverity, TaskTrigger,
 };
 use crate::rpc_continuations::Guid;
 use crate::service::cli::ContainerCliContext;
@@ -192,21 +192,66 @@ async fn run_action(
     let package_id = package_id.as_ref().unwrap_or(&context.seed.id);
 
     if package_id != &context.seed.id {
-        return Err(Error::new(
-            eyre!(
-                "{}",
-                t!("service.effects.action.calling-actions-on-other-packages-unsupported")
-            ),
-            ErrorKind::InvalidRequest,
-        ));
+        let db = context.seed.ctx.db.peek().await;
+        let access = db
+            .as_public()
+            .as_package_data()
+            .as_idx(package_id)
+            .or_not_found(package_id)?
+            .as_actions()
+            .as_idx(&action_id)
+            .or_not_found(&action_id)?
+            .as_access()
+            .de()?
+            .unwrap_or_default();
+        match access {
+            ActionAccess::Public => {}
+            ActionAccess::Dependent => {
+                let caller_depends_on_target = db
+                    .as_public()
+                    .as_package_data()
+                    .as_idx(&context.seed.id)
+                    .or_not_found(&context.seed.id)?
+                    .as_current_dependencies()
+                    .de()?
+                    .0
+                    .contains_key(package_id);
+                if !caller_depends_on_target {
+                    return Err(Error::new(
+                        eyre!(
+                            "{}",
+                            t!(
+                                "service.effects.action.action-only-accessible-to-dependents",
+                                action_id = action_id,
+                                package_id = package_id
+                            )
+                        ),
+                        ErrorKind::InvalidRequest,
+                    ));
+                }
+            }
+            ActionAccess::User => {
+                return Err(Error::new(
+                    eyre!(
+                        "{}",
+                        t!(
+                            "service.effects.action.action-not-accessible",
+                            action_id = action_id,
+                            package_id = package_id
+                        )
+                    ),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
+        }
         context
             .seed
             .ctx
             .services
-            .get(&package_id)
+            .get(package_id)
             .await
             .as_ref()
-            .or_not_found(&package_id)?
+            .or_not_found(package_id)?
             .run_action(procedure_id, action_id, input)
             .await
     } else {
@@ -248,13 +293,11 @@ async fn create_task(
                         ErrorKind::InvalidRequest,
                     ));
                 };
-                let prev = if let Some(service) = context
-                    .seed
-                    .ctx
-                    .services
-                    .get(&task.package_id)
-                    .await
-                    .as_ref()
+                // try_get to avoid deadlock during self-calls on install
+                let guard = context.seed.ctx.services.try_get(&task.package_id);
+                let prev = if let Some(service) = guard
+                    .as_deref()
+                    .and_then(Option::as_ref)
                     .filter(|s| s.is_initialized())
                 {
                     service

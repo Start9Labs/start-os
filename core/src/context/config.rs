@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -60,10 +61,12 @@ pub trait ContextConfig: DeserializeOwned + Default {
 pub struct ClientConfig {
     #[arg(short = 'c', long, help = "help.arg.config-file-path")]
     pub config: Option<PathBuf>,
+    /// A `host` profile name from the workspace `.startos/config.yaml`, or a URL.
     #[arg(short = 'H', long, help = "help.arg.host-url")]
-    pub host: Option<Url>,
+    pub host: Option<String>,
+    /// A `registry` profile name from the workspace `.startos/config.yaml`, or a URL.
     #[arg(short = 'r', long, help = "help.arg.registry-url")]
-    pub registry: Option<Url>,
+    pub registry: Option<String>,
     #[arg(long, help = "help.arg.registry-hostname")]
     pub registry_hostname: Option<Vec<InternedString>>,
     #[arg(skip)]
@@ -127,6 +130,75 @@ impl ClientConfig {
         self.load_path_rec(local_config_path())?;
         self.load_path_rec(Some(CONFIG_PATH))?;
         Ok(self)
+    }
+}
+
+/// Per-workspace config (`.startos/config.yaml`), discovered by walking up from
+/// cwd. Unlike the flat global config it carries named `host`/`registry` profiles.
+/// The required `schema` field is what distinguishes it from the legacy flat
+/// `~/.startos/config.yaml` (which has no `schema`, so it's skipped here and still
+/// loaded the old way).
+#[derive(Debug, Default, Deserialize)]
+pub struct WorkspaceConfig {
+    #[allow(dead_code)]
+    pub schema: u64,
+    #[serde(default)]
+    pub host: BTreeMap<String, Url>,
+    #[serde(default)]
+    pub registry: BTreeMap<String, Url>,
+}
+impl WorkspaceConfig {
+    /// Walk up from cwd for the nearest `.startos/config.yaml` that parses as a
+    /// workspace config. A flat config (no `schema`) fails to parse and is skipped,
+    /// so the walk continues — preserving the global fallback when there's none.
+    /// EACCES (or any other IO error) on a candidate stops the walk and reports
+    /// no workspace; an inaccessible ancestor isn't surfaced as an error.
+    pub fn find() -> Result<Option<Self>, Error> {
+        let mut dir = std::env::current_dir()?;
+        loop {
+            let candidate = dir.join(".startos").join("config.yaml");
+            match File::open(&candidate) {
+                Ok(file) => {
+                    if let Ok(config) = IoFormat::Yaml.from_reader::<_, Self>(file) {
+                        return Ok(Some(config));
+                    }
+                    // Present but not a workspace config (e.g. the legacy flat
+                    // config) — keep walking up.
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(_) => return Ok(None),
+            }
+            if !dir.pop() {
+                return Ok(None);
+            }
+        }
+    }
+}
+
+/// Resolve a `-H`/`-r` value against a profile map: a profile-name match first,
+/// then a literal URL, else an error. A missing value falls back to the `default`
+/// profile, or `None` when there's no workspace config (keeping the global fallback).
+pub fn resolve_target(
+    value: Option<&str>,
+    profiles: Option<&BTreeMap<String, Url>>,
+) -> Result<Option<Url>, Error> {
+    match value {
+        Some(value) => {
+            if let Some(url) = profiles.and_then(|p| p.get(value)) {
+                Ok(Some(url.clone()))
+            } else if let Ok(url) = Url::parse(value) {
+                Ok(Some(url))
+            } else {
+                Err(Error::new(
+                    eyre!(
+                        "{}",
+                        t!("context.cli.unknown-profile-or-url", value = value)
+                    ),
+                    ErrorKind::InvalidRequest,
+                ))
+            }
+        }
+        None => Ok(profiles.and_then(|p| p.get("default")).cloned()),
     }
 }
 

@@ -41,7 +41,7 @@ export class HealthCheck extends Drop {
       const checkStarted = () =>
         [
           this.started,
-          new Promise<void>((resolve) => {
+          new Promise<void>(resolve => {
             this.setStarted = (started: number | null) => {
               this.started = started
               resolve()

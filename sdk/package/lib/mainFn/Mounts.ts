@@ -39,7 +39,7 @@ type SharedOptions = {
 function normalizeIdmap(
   idmap: NonNullable<SharedOptions['idmap']> | undefined,
 ): { fromId: number; toId: number; range: number }[] {
-  return (idmap ?? []).map((i) => ({
+  return (idmap ?? []).map(i => ({
     fromId: i.fromId,
     toId: i.toId,
     range: i.range ?? 1,
@@ -134,9 +134,9 @@ export class Mounts<Manifest extends T.SDKManifest> {
   build(): MountArray {
     const mountpoints = new Set()
     for (let mountpoint of this.volumes
-      .map((v) => v.mountpoint)
-      .concat(this.assets.map((a) => a.mountpoint))
-      .concat(this.dependencies.map((d) => d.mountpoint))) {
+      .map(v => v.mountpoint)
+      .concat(this.assets.map(a => a.mountpoint))
+      .concat(this.dependencies.map(d => d.mountpoint))) {
       if (mountpoints.has(mountpoint)) {
         throw new Error(
           `cannot mount more than once to mountpoint ${mountpoint}`,
@@ -146,7 +146,7 @@ export class Mounts<Manifest extends T.SDKManifest> {
     }
     return ([] as MountArray)
       .concat(
-        this.volumes.map((v) => ({
+        this.volumes.map(v => ({
           mountpoint: v.mountpoint,
           options: {
             type: 'volume',
@@ -159,7 +159,7 @@ export class Mounts<Manifest extends T.SDKManifest> {
         })),
       )
       .concat(
-        this.assets.map((a) => ({
+        this.assets.map(a => ({
           mountpoint: a.mountpoint,
           options: {
             type: 'assets',
@@ -170,7 +170,7 @@ export class Mounts<Manifest extends T.SDKManifest> {
         })),
       )
       .concat(
-        this.dependencies.map((d) => ({
+        this.dependencies.map(d => ({
           mountpoint: d.mountpoint,
           options: {
             type: 'pointer',

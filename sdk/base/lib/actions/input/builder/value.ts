@@ -22,7 +22,7 @@ function literalKeysValidator(
   const keys = Object.keys(values)
   if (keys.length === 0) return z.string()
   return z.union(
-    keys.map((x) => z.literal(x)) as [
+    keys.map(x => z.literal(x)) as [
       z.ZodLiteral<string>,
       z.ZodLiteral<string>,
       ...z.ZodLiteral<string>[],
@@ -154,7 +154,7 @@ export class Value<
   ) {
     const validator = z.boolean()
     return new Value<boolean, boolean, OuterType>(
-      async (options) => ({
+      async options => ({
         spec: {
           description: null,
           warning: null,
@@ -241,7 +241,7 @@ export class Value<
   ) {
     const validator = z.boolean().nullable()
     return new Value<boolean | null, boolean | null, OuterType>(
-      async (options) => ({
+      async options => ({
         spec: {
           type: 'triState' as const,
           description: null,
@@ -380,7 +380,7 @@ export class Value<
     >,
   ) {
     return new Value<AsRequired<string, Required>, string | null, OuterType>(
-      async (options) => {
+      async options => {
         const a = await getA(options)
         return {
           spec: {
@@ -505,7 +505,7 @@ export class Value<
     >,
   ) {
     return new Value<AsRequired<string, Required>, string | null, OuterType>(
-      async (options) => {
+      async options => {
         const a = await getA(options)
         return {
           spec: {
@@ -633,7 +633,7 @@ export class Value<
     >,
   ) {
     return new Value<AsRequired<number, Required>, number | null, OuterType>(
-      async (options) => {
+      async options => {
         const a = await getA(options)
         return {
           spec: {
@@ -728,7 +728,7 @@ export class Value<
     >,
   ) {
     return new Value<AsRequired<string, Required>, string | null, OuterType>(
-      async (options) => {
+      async options => {
         const a = await getA(options)
         return {
           spec: {
@@ -834,7 +834,7 @@ export class Value<
     >,
   ) {
     return new Value<AsRequired<string, Required>, string | null, OuterType>(
-      async (options) => {
+      async options => {
         const a = await getA(options)
         return {
           spec: {
@@ -944,7 +944,7 @@ export class Value<
     >,
   ) {
     return new Value<keyof Values & string, keyof Values & string, OuterType>(
-      async (options) => {
+      async options => {
         const a = await getA(options)
         return {
           spec: {
@@ -1059,7 +1059,7 @@ export class Value<
       (keyof Values & string)[],
       (keyof Values & string)[],
       OuterType
-    >(async (options) => {
+    >(async options => {
       const a = await getA(options)
       return {
         spec: {
@@ -1104,7 +1104,7 @@ export class Value<
     },
     spec: InputSpec<Type, StaticValidatedAs>,
   ) {
-    const value = new Value<Type, StaticValidatedAs>(async (options) => {
+    const value = new Value<Type, StaticValidatedAs>(async options => {
       const built = await spec.build(options as any)
       return {
         spec: {
@@ -1166,7 +1166,7 @@ export class Value<
       AsRequired<FileInfo, Required>,
       FileInfo | null,
       OuterType
-    >(async (options) => {
+    >(async options => {
       const spec = {
         type: 'file' as const,
         description: null,
@@ -1236,7 +1236,7 @@ export class Value<
     return new Value<
       typeof a.variants._TYPE,
       typeof a.variants.validator._output
-    >(async (options) => {
+    >(async options => {
       const built = await a.variants.build(options as any)
       return {
         spec: {
@@ -1328,7 +1328,7 @@ export class Value<
       UnionRes<VariantValues>,
       z.infer<typeof validator>,
       OuterType
-    >(async (options) => {
+    >(async options => {
       const newValues = await getA(options)
       const built = await newValues.variants.build(options as any)
       return {
@@ -1408,7 +1408,7 @@ export class Value<
    * ```
    */
   static list<Type>(a: List<Type>) {
-    return new Value<Type>((options) => a.build(options), a.validator)
+    return new Value<Type>(options => a.build(options), a.validator)
   }
 
   /**
@@ -1441,7 +1441,7 @@ export class Value<
   static dynamicHidden<T, OuterType = unknown>(
     getParser: LazyBuild<z.ZodType<T>, OuterType>,
   ) {
-    return new Value<T, T, OuterType>(async (options) => {
+    return new Value<T, T, OuterType>(async options => {
       const validator = await getParser(options)
       return {
         spec: {
@@ -1460,7 +1460,7 @@ export class Value<
    */
   withDisabled(message: string): Value<Type, StaticValidatedAs, OuterType> {
     const original = this
-    const v = new Value<Type, StaticValidatedAs, OuterType>(async (options) => {
+    const v = new Value<Type, StaticValidatedAs, OuterType>(async options => {
       const built = await original.build(options)
       return {
         spec: { ...built.spec, disabled: message } as ValueSpec,
@@ -1478,7 +1478,7 @@ export class Value<
    * @param fn - A function to transform the validated value
    */
   map<U>(fn: (value: StaticValidatedAs) => U): Value<U, U, OuterType> {
-    return new Value<U, U, OuterType>(async (options) => {
+    return new Value<U, U, OuterType>(async options => {
       const built = await this.build(options)
       return {
         spec: built.spec,

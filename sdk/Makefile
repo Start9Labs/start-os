@@ -2,7 +2,7 @@ PACKAGE_TS_FILES := $(shell git ls-files package/lib)
 BASE_TS_FILES := $(shell git ls-files base/lib)
 version = $(shell git tag --sort=committerdate | tail -1)
 
-.PHONY: test base/test package/test clean bundle fmt buildOutput check
+.PHONY: test base/test package/test clean bundle fmt check-fmt buildOutput check
 
 all: bundle
 
@@ -21,7 +21,7 @@ clean:
 	rm -f package/lib/test/output.ts
 	rm -rf package/node_modules
 	
-bundle: baseDist dist | test fmt
+bundle: baseDist dist | test check-fmt
 	touch dist
 
 base/lib/exver/exver.ts: base/node_modules base/lib/exver/exver.pegjs
@@ -57,6 +57,9 @@ check:
 
 fmt: package/node_modules base/node_modules
 	npx --prefix base prettier "**/*.ts" --write
+
+check-fmt: package/node_modules base/node_modules
+	npx --prefix base prettier "**/*.ts" --check
 
 package/package-lock.json: package/package.json
 	cd package && npm i

@@ -4,7 +4,12 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { ErrorService, i18nPipe } from '@start9labs/shared'
+import {
+  ErrorService,
+  i18nPipe,
+  leafProgress,
+  LeafProgressPipe,
+} from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiNotificationMiddleService, TuiProgress } from '@taiga-ui/kit'
@@ -33,14 +38,15 @@ import { getManifest } from 'src/app/utils/get-package-data'
       phase of pkg.stateInfo.installingInfo?.progress?.phases;
       track $index
     ) {
-      @let percent = phase.progress | installingProgress;
+      @let leaf = phase.progress | leafProgress;
+      @let percent = leaf | installingProgress;
       <div>
         {{ $any(phase.name) | i18n }}:
-        @if (phase.progress === null) {
+        @if (leaf === null) {
           <span>{{ 'waiting' | i18n }}</span>
-        } @else if (phase.progress === true) {
+        } @else if (leaf === true) {
           <span>{{ 'complete' | i18n }}!</span>
-        } @else if (phase.progress === false || phase.progress.total === null) {
+        } @else if (leaf === false || leaf.total === null) {
           <span>{{ 'in progress' | i18n }}...</span>
         } @else {
           <span>{{ percent }}%</span>
@@ -49,8 +55,8 @@ import { getManifest } from 'src/app/utils/get-package-data'
           tuiProgressBar
           size="m"
           [max]="100"
-          [class.g-positive]="phase.progress === true"
-          [attr.value]="isIndeterminate(phase.progress) ? undefined : percent"
+          [class.g-positive]="leaf === true"
+          [attr.value]="isIndeterminate(leaf) ? undefined : percent"
         ></progress>
       </div>
     }
@@ -76,7 +82,13 @@ import { getManifest } from 'src/app/utils/get-package-data'
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiProgress, InstallingProgressPipe, i18nPipe, TuiButton],
+  imports: [
+    TuiProgress,
+    InstallingProgressPipe,
+    LeafProgressPipe,
+    i18nPipe,
+    TuiButton,
+  ],
 })
 export class ServiceInstallProgressComponent {
   @Input({ required: true })
@@ -87,10 +99,8 @@ export class ServiceInstallProgressComponent {
   private readonly loader = inject(TuiNotificationMiddleService)
 
   isIndeterminate(progress: T.Progress): boolean {
-    return (
-      progress === false ||
-      (!!progress && progress !== true && progress.total === null)
-    )
+    const leaf = leafProgress(progress)
+    return leaf === false || (!!leaf && leaf !== true && leaf.total === null)
   }
 
   async cancel() {

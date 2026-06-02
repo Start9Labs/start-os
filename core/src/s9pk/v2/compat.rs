@@ -203,6 +203,9 @@ impl TryFrom<ManifestV1> for Manifest {
         if &*value.id == "monerod" {
             value.id = "monerod-legacy".parse()?;
         }
+        if &*value.id == "fedimintd" {
+            value.id = "fedimint-guardian".parse()?;
+        }
         Ok(Self {
             id: value.id,
             version: version.into(),
@@ -225,7 +228,8 @@ impl TryFrom<ManifestV1> for Manifest {
                     PackageProcedure::Docker(d) => d.gpu_acceleration,
                     PackageProcedure::Script(_) => false,
                 },
-                nested_runtime: false,
+                userspace_filesystems: false,
+                virtual_networking: false,
                 plugins: BTreeSet::new(),
                 satisfies: BTreeSet::new(),
             },

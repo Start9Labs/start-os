@@ -34,8 +34,9 @@ use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
 use crate::tunnel::api::tunnel_api;
 use crate::tunnel::db::TunnelDatabase;
+use crate::tunnel::dns::DnsProxyController;
 use crate::tunnel::migrations::run_migrations;
-use crate::tunnel::wg::WIREGUARD_INTERFACE_NAME;
+use crate::tunnel::wg::{WIREGUARD_INTERFACE_NAME, WgServer};
 use crate::util::collections::OrdMapIterMut;
 use crate::util::io::read_file_to_string;
 use crate::util::sync::{SyncMutex, Watch};
@@ -80,6 +81,7 @@ pub struct TunnelContextSeed {
     pub ephemeral_sessions: SyncMutex<Sessions>,
     pub net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     pub forward: PortForwardController,
+    pub dns_proxy: DnsProxyController,
     pub active_forwards: SyncMutex<BTreeMap<SocketAddrV4, Arc<()>>>,
     pub shutdown: Sender<Option<bool>>,
 }
@@ -162,8 +164,11 @@ impl TunnelContext {
         )
         .await?;
 
+        let dns_proxy = DnsProxyController::new();
         let peek = db.peek().await;
-        peek.as_wg().de()?.sync().await?;
+        let wg = peek.as_wg().de()?;
+        wg.sync().await?;
+        dns_proxy.sync(&wg).await?;
 
         for iface in net_iface.peek(|i| {
             i.iter()
@@ -227,6 +232,7 @@ impl TunnelContext {
             ephemeral_sessions: SyncMutex::new(Sessions::new()),
             net_iface,
             forward,
+            dns_proxy,
             active_forwards: SyncMutex::new(active_forwards),
             shutdown,
         })))
@@ -236,6 +242,15 @@ impl TunnelContext {
         self.active_forwards
             .mutate(|pf| pf.retain(|k, _| keep.contains(k)));
         self.forward.gc().await
+    }
+
+    /// Apply a WireGuard config change to the live tunnel: re-render and reload the
+    /// wg interface, then rebind the per-subnet DNS proxies (which bind to the
+    /// interface addresses `wg-quick up` just (re)created — so this must run after
+    /// `server.sync()`).
+    pub async fn sync_network(&self, server: &WgServer) -> Result<(), Error> {
+        server.sync().await?;
+        self.dns_proxy.sync(server).await
     }
 }
 impl AsRef<RpcContinuations> for TunnelContext {

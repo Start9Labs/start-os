@@ -25,10 +25,7 @@ import {
 import { provideServiceWorker } from '@angular/service-worker'
 import { WA_LOCATION, WA_WINDOW } from '@ng-web-apis/common'
 import initArgon from '@start9labs/argon2'
-import {
-  AbstractCategoryService,
-  FilterPackagesPipe,
-} from '@start9labs/marketplace'
+import { FilterPackagesPipe } from '@start9labs/marketplace'
 import {
   I18N_PROVIDERS,
   I18N_STORAGE,
@@ -38,11 +35,7 @@ import {
   VERSION,
   WorkspaceConfig,
 } from '@start9labs/shared'
-import {
-  TUI_WINDOW_SIZE,
-  tuiObfuscateOptionsProvider,
-  tuiWindowSize,
-} from '@taiga-ui/cdk'
+import { tuiObfuscateOptionsProvider, tuiWindowSize } from '@taiga-ui/cdk'
 import {
   provideTaiga,
   TUI_BREAKPOINT,
@@ -66,7 +59,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { LiveApiService } from 'src/app/services/api/embassy-live-api.service'
 import { MockApiService } from 'src/app/services/api/embassy-mock-api.service'
 import { AuthService } from 'src/app/services/auth.service'
-import { CategoryService } from 'src/app/services/category.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { ConfigService } from 'src/app/services/config.service'
 import {
@@ -146,10 +138,6 @@ export const APP_CONFIG: ApplicationConfig = {
     {
       provide: RELATIVE_URL,
       useValue: `/${api.url}/${api.version}`,
-    },
-    {
-      provide: AbstractCategoryService,
-      useClass: CategoryService,
     },
     {
       provide: TUI_DIALOGS_CLOSE,

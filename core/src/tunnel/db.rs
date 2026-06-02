@@ -98,6 +98,7 @@ fn export_bindings_tunnel_db() {
     TunnelDatabase::export_all_to("bindings/tunnel").unwrap();
     SubnetParams::export_all_to("bindings/tunnel").unwrap();
     AddSubnetParams::export_all_to("bindings/tunnel").unwrap();
+    SetSubnetDnsParams::export_all_to("bindings/tunnel").unwrap();
     AddDeviceParams::export_all_to("bindings/tunnel").unwrap();
     RemoveDeviceParams::export_all_to("bindings/tunnel").unwrap();
     ListDevicesParams::export_all_to("bindings/tunnel").unwrap();

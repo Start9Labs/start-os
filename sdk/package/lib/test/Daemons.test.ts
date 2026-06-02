@@ -56,7 +56,7 @@ describe('Daemons recorder', () => {
         requires: ['a'],
       })
 
-    expect(daemons.entries.map((x) => x.id)).toEqual(['a', 'b'])
+    expect(daemons.entries.map(x => x.id)).toEqual(['a', 'b'])
     expect(daemons.entries[0].kind).toBe('daemon')
     expect(daemons.entries[1].requires).toEqual(['a'])
     // Nothing built yet
@@ -93,7 +93,7 @@ describe('Daemons recorder', () => {
         ready: baseReady,
         requires: ['migrate'],
       })
-    expect(daemons.entries.map((x) => x.kind)).toEqual(['oneshot', 'health'])
+    expect(daemons.entries.map(x => x.kind)).toEqual(['oneshot', 'health'])
   })
 })
 

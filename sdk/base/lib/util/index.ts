@@ -1,5 +1,5 @@
 /// Currently being used
-export { addressHostToUrl } from './getServiceInterface'
+export { addressHostToUrl, mdnsResolvable } from './getServiceInterface'
 export { getDefaultString } from './getDefaultString'
 export * from './ip'
 
@@ -34,3 +34,9 @@ export { AbortedError } from './AbortedError'
 export * as regexes from './regexes'
 export { stringFromStdErrOut } from './stringFromStdErrOut'
 export { logErrorOnce } from './logErrorOnce'
+export {
+  FullProgressTracker,
+  PhaseHandle,
+  LeafProgress,
+  leafProgress,
+} from './FullProgressTracker'

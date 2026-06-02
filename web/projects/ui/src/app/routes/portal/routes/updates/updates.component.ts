@@ -9,7 +9,7 @@ import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
   Marketplace,
   MarketplacePkg,
-  StoreIconComponent,
+  StoreIconDirective,
   StoreIdentity,
 } from '@start9labs/marketplace'
 import { i18nPipe } from '@start9labs/shared'
@@ -77,7 +77,7 @@ interface UpdatesData {
           (click)="current.set(registry)"
         >
           <span tuiAvatar appearance="action-grayscale">
-            <store-icon [url]="registry.url" />
+            <img [storeIcon]="registry.url" />
           </span>
           <span tuiTitle>
             <b tuiFade>{{ registry.name }}</b>
@@ -242,7 +242,7 @@ interface UpdatesData {
     TuiBadgeNotification,
     TuiFade,
     TuiButton,
-    StoreIconComponent,
+    StoreIconDirective,
     FilterUpdatesPipe,
     UpdatesItemComponent,
     TitleDirective,

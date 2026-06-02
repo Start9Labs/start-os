@@ -42,7 +42,6 @@ type KEYS = 'id' | 'version' | 'alerts' | 'flavor' | 'satisfies'
           @case (1) {
             <button
               tuiButton
-              size="m"
               type="button"
               appearance="warning"
               (click)="tryInstall()"
@@ -53,7 +52,6 @@ type KEYS = 'id' | 'version' | 'alerts' | 'flavor' | 'satisfies'
           @case (-1) {
             <button
               tuiButton
-              size="m"
               type="button"
               appearance="primary"
               (click)="tryInstall()"
@@ -64,7 +62,6 @@ type KEYS = 'id' | 'version' | 'alerts' | 'flavor' | 'satisfies'
           @case (0) {
             <button
               tuiButton
-              size="m"
               type="button"
               appearance="secondary-grayscale"
               (click)="tryInstall()"
@@ -76,7 +73,6 @@ type KEYS = 'id' | 'version' | 'alerts' | 'flavor' | 'satisfies'
       }
       <button
         tuiButton
-        size="m"
         type="button"
         appearance="secondary-grayscale"
         (click)="showService()"
@@ -87,7 +83,6 @@ type KEYS = 'id' | 'version' | 'alerts' | 'flavor' | 'satisfies'
     } @else {
       <button
         tuiButton
-        size="m"
         type="button"
         appearance="primary"
         (click)="tryInstall()"
@@ -99,9 +94,7 @@ type KEYS = 'id' | 'version' | 'alerts' | 'flavor' | 'satisfies'
   styles: `
     :host {
       display: flex;
-      justify-content: flex-start;
       gap: 0.5rem;
-      height: 4.5rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

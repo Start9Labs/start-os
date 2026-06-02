@@ -1,8 +1,9 @@
-# StartTunnel config for {name}
+# {marker} config for {name}
 
 [Interface]
 Address = {addr}
 PrivateKey = {privkey}
+DNS = {dns}
 
 [Peer]
 PublicKey = {server_pubkey}

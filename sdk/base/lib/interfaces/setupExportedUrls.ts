@@ -14,7 +14,7 @@ export const setupExportedUrls: SetupExportedUrls = (fn: SetExportedUrls) => {
           ...effects.plugin,
           url: {
             ...effects.plugin.url,
-            exportUrl: (params) => {
+            exportUrl: params => {
               urls.push(params.hostnameInfo)
               return effects.plugin.url.exportUrl(params)
             },

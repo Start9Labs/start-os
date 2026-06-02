@@ -25,8 +25,8 @@ async function prepBind(
   to: string,
   type: 'file' | 'directory' | 'infer',
 ): Promise<boolean> {
-  const fromMeta = from ? await fs.stat(from).catch((_) => null) : null
-  const toMeta = await fs.stat(to).catch((_) => null)
+  const fromMeta = from ? await fs.stat(from).catch(_ => null) : null
+  const toMeta = await fs.stat(to).catch(_ => null)
 
   if (type === 'file' || (type === 'infer' && from && fromMeta?.isFile())) {
     if (toMeta && toMeta.isDirectory()) await fs.rmdir(to)
@@ -398,7 +398,7 @@ export class SubContainerEager<
         new Promise(async (resolve, reject) => {
           let count = 0
           while (
-            !(await fs.stat(`${this.rootfs}/proc/1`).then((x) => !!x, False))
+            !(await fs.stat(`${this.rootfs}/proc/1`).then(x => !!x, False))
           ) {
             if (count++ > TIMES_TO_WAIT_FOR_PROC) {
               console.debug('Failed to start subcontainer', {
@@ -611,7 +611,7 @@ export class SubContainerEager<
   onDrop(): void {
     if (!this.destroyed && this.holdCount === 0) {
       console.log(`Cleaning up dangling subcontainer ${this.guid}`)
-      this._destroyImmediate().catch((e) => console.error(e))
+      this._destroyImmediate().catch(e => console.error(e))
     }
   }
 
@@ -677,8 +677,8 @@ export class SubContainerEager<
     if (options?.input) {
       await new Promise<null>((resolve, reject) => {
         try {
-          child.stdin.on('error', (e) => reject(e))
-          child.stdin.write(options.input, (e) => {
+          child.stdin.on('error', e => reject(e))
+          child.stdin.write(options.input, e => {
             if (e) {
               reject(e)
             } else {
@@ -751,7 +751,7 @@ export class SubContainerEager<
     timeoutMs?: number | null,
     abort?: AbortController,
   ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
-    return this.exec(command, options, timeoutMs, abort).then((res) =>
+    return this.exec(command, options, timeoutMs, abort).then(res =>
       res.throw(),
     )
   }
@@ -949,7 +949,7 @@ export class SubContainerLazy<
       this.mounts,
       this.name,
       this.identity,
-    ).then(async (eager) => {
+    ).then(async eager => {
       if (this.destroyPending) await eager.destroy()
       return eager
     }))
@@ -957,12 +957,12 @@ export class SubContainerLazy<
 
   /** Absolute path to the materialized subcontainer's rootfs. Triggers materialization on first access. */
   get rootfs(): Promise<string> {
-    return this.eager().then((e) => e.rootfs)
+    return this.eager().then(e => e.rootfs)
   }
 
   /** OS-level guid. Triggers materialization on first access. */
   get guid(): Promise<T.Guid> {
-    return this.eager().then((e) => e.guid)
+    return this.eager().then(e => e.guid)
   }
 
   /**
@@ -1006,11 +1006,11 @@ export class SubContainerLazy<
     let underlyingRelease: (() => Promise<void>) | null = null
     const eagerPromise = this.eager()
     const acquired = eagerPromise
-      .then((eager) => {
+      .then(eager => {
         if (released) return
         underlyingRelease = eager.hold()
       })
-      .catch((e) => {
+      .catch(e => {
         released = true
         throw e
       })
@@ -1130,7 +1130,7 @@ export class SubContainerLazy<
 
   onDrop(): void {
     if (this.materialized) {
-      this.materialized.then((e) => e.destroy()).catch((e) => console.error(e))
+      this.materialized.then(e => e.destroy()).catch(e => console.error(e))
     }
   }
 }
@@ -1186,7 +1186,7 @@ export type MountOptionsPointer = {
 }
 
 function wait(time: number) {
-  return new Promise((resolve) => setTimeout(resolve, time))
+  return new Promise(resolve => setTimeout(resolve, time))
 }
 
 /**

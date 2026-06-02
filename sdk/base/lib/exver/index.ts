@@ -52,6 +52,88 @@ export type ValidateExVers<T> =
   T extends [infer A, ...infer B] ? ValidateExVer<A & string> & ValidateExVers<B> :
   never[]
 
+/**
+ * Validates a `[#flavor:]upstream[:downstream]` version spec (the downstream
+ * segment and flavor are optional, e.g. `29`, `29.3`, `29.3:0`, `#knots:29.3:0`),
+ * as well as a bare `#flavor` atom. Each numeric segment is checked via
+ * {@link ValidateVersion}.
+ */
+// prettier-ignore
+type ValidateVersionSpec<T extends string> =
+  T extends `#${string}:${infer A}:${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :
+  T extends `#${string}:${infer A}`            ? ValidateVersion<A> :
+  T extends `#${string}`                       ? unknown :
+  T extends `${infer A}:${infer B}`            ? ValidateVersion<A> & ValidateVersion<B> :
+  ValidateVersion<T>
+
+/** Strips leading spaces. */
+type RangeTrimL<S extends string> = S extends ` ${infer R}` ? RangeTrimL<R> : S
+
+/** A character that terminates a version-spec token. */
+type RangeDelim = ' ' | '&' | '|' | ')' | '('
+
+/** Reads a maximal version-spec token, returning `[token, rest]`. */
+// prettier-ignore
+type RangeReadSpec<S extends string, Acc extends string = ''> =
+  S extends `${infer C}${infer R}`
+    ? C extends RangeDelim ? [Acc, S] : RangeReadSpec<R, `${Acc}${C}`>
+    : [Acc, '']
+
+/** Validates one anchor (its version spec) then continues with the remainder. */
+// prettier-ignore
+type RangeValidateSpecToken<S extends string> =
+  RangeReadSpec<S> extends [infer Tok extends string, infer Rest extends string]
+    ? [ValidateVersionSpec<Tok>] extends [never] ? never : ValidateRangeExpr<Rest>
+    : never
+
+/** Strips an optional leading comparison operator, then validates the spec. */
+// prettier-ignore
+type RangeValidateAtom<S extends string> =
+  S extends `>=${infer R}` ? RangeValidateSpecToken<R> :
+  S extends `<=${infer R}` ? RangeValidateSpecToken<R> :
+  S extends `>${infer R}`  ? RangeValidateSpecToken<R> :
+  S extends `<${infer R}`  ? RangeValidateSpecToken<R> :
+  S extends `=${infer R}`  ? RangeValidateSpecToken<R> :
+  S extends `^${infer R}`  ? RangeValidateSpecToken<R> :
+  S extends `~${infer R}`  ? RangeValidateSpecToken<R> :
+  RangeValidateSpecToken<S>
+
+/**
+ * Recursively consumes a version-range expression, validating every version
+ * atom it encounters. Structural tokens (`&&`, `||`, parens, `!`, `*`) are
+ * skipped — full grammar structure (paren balance, operator placement) is left
+ * to runtime, but a malformed version anywhere in the expression is rejected.
+ */
+// prettier-ignore
+type ValidateRangeExpr<S extends string> =
+  RangeTrimL<S> extends ''             ? unknown :
+  RangeTrimL<S> extends `&&${infer R}` ? ValidateRangeExpr<R> :
+  RangeTrimL<S> extends `||${infer R}` ? ValidateRangeExpr<R> :
+  RangeTrimL<S> extends `(${infer R}`  ? ValidateRangeExpr<R> :
+  RangeTrimL<S> extends `)${infer R}`  ? ValidateRangeExpr<R> :
+  RangeTrimL<S> extends `!${infer R}`  ? ValidateRangeExpr<R> :
+  RangeTrimL<S> extends `*${infer R}`  ? ValidateRangeExpr<R> :
+  RangeValidateAtom<RangeTrimL<S>>
+
+/**
+ * Compile-time validator for an exver version **range** string literal — the
+ * full grammar (comparison / caret / tilde anchors, `&&` / `||`, parentheses,
+ * negation, `#flavor` atoms, `*`). Resolves to `unknown` if valid, `never` if
+ * any version atom is malformed. A non-literal `string` is accepted (nothing to
+ * check at compile time); structural-only errors are deferred to runtime.
+ *
+ * @example
+ * ```ts
+ * type A = ValidateExVerRange<"^29">                     // valid
+ * type B = ValidateExVerRange<">=29:0 && <30:0">         // valid
+ * type C = ValidateExVerRange<"(>=1:0 && <2:0) || >=3:0"> // valid
+ * type D = ValidateExVerRange<">=2.f">                   // never (bad version)
+ * ```
+ */
+export type ValidateExVerRange<T extends string> = string extends T
+  ? unknown
+  : ValidateRangeExpr<T>
+
 type Anchor = {
   type: 'Anchor'
   operator: P.CmpOp

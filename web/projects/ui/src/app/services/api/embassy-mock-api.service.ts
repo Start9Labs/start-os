@@ -659,13 +659,17 @@ export class MockApiService extends ApiService {
             lanIp: ['192.168.1.10'],
             dnsServers: [],
           },
-          type: 'inbound-outbound',
+          type:
+            params.type ??
+            (params.config.toLowerCase().includes('starttunnel')
+              ? 'inbound-outbound'
+              : 'outbound-only'),
         },
       },
     ]
 
     if (params.setAsDefaultOutbound) {
-      (patch as any[]).push({
+      ;(patch as any[]).push({
         op: PatchOp.REPLACE,
         path: '/serverInfo/network/defaultOutbound',
         value: id,
@@ -881,10 +885,13 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     const serverPath = '/serverInfo/statusInfo/backupProgress'
     const ids = params.packageIds || []
+    // One phase per package plus a trailing "OS Data" phase (the host
+    // writes os-backup.json + LUKS folder after the per-package loop).
+    const phaseCount = ids.length + 1
 
     setTimeout(async () => {
       for (let i = 0; i < ids.length; i++) {
-        const id = ids[i]
+        const id = ids[i]!
         const appPath = `/packageData/${id}/statusInfo/desired/main`
         const appPatch: ReplaceOperation<T.DesiredStatus['main']>[] = [
           {
@@ -895,7 +902,18 @@ export class MockApiService extends ApiService {
         ]
         this.mockRevision(appPatch)
 
-        await pauseFor(8000)
+        for (const pct of [25, 50, 75]) {
+          await pauseFor(2000)
+          this.mockRevision([
+            {
+              op: PatchOp.REPLACE,
+              path: `${serverPath}/phases/${i}/progress`,
+              value: { done: pct, total: 100, units: null },
+            },
+          ])
+        }
+
+        await pauseFor(2000)
 
         this.mockRevision([
           {
@@ -904,19 +922,36 @@ export class MockApiService extends ApiService {
           },
         ])
 
-        const serverPatch: ReplaceOperation<T.BackupProgress['complete']>[] = [
-          {
-            op: PatchOp.REPLACE,
-            path: `${serverPath}/${id}/complete`,
-            value: true,
-          },
-        ]
-        this.mockRevision(serverPatch)
+        const completePhase: ReplaceOperation<T.Progress> = {
+          op: PatchOp.REPLACE,
+          path: `${serverPath}/phases/${i}/progress`,
+          value: true,
+        }
+        const advanceOverall: ReplaceOperation<T.Progress> = {
+          op: PatchOp.REPLACE,
+          path: `${serverPath}/overall`,
+          value: { done: i + 1, total: phaseCount, units: null },
+        }
+        this.mockRevision([completePhase, advanceOverall])
       }
 
-      await pauseFor(1000)
+      // OS Data phase
+      const osIdx = ids.length
+      await pauseFor(1500)
+      const completeOsPhase: ReplaceOperation<T.Progress> = {
+        op: PatchOp.REPLACE,
+        path: `${serverPath}/phases/${osIdx}/progress`,
+        value: true,
+      }
+      const completeOverall: ReplaceOperation<T.Progress> = {
+        op: PatchOp.REPLACE,
+        path: `${serverPath}/overall`,
+        value: true,
+      }
+      this.mockRevision([completeOsPhase, completeOverall])
 
-      // remove backupProgress
+      await pauseFor(800)
+
       const lastPatch: ReplaceOperation<T.ServerStatus['backupProgress']>[] = [
         {
           op: PatchOp.REPLACE,
@@ -932,12 +967,13 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REPLACE,
           path: serverPath,
-          value: ids.reduce((acc, val) => {
-            return {
-              ...acc,
-              [val]: { complete: false },
-            }
-          }, {}),
+          value: {
+            overall: { done: 0, total: phaseCount, units: null },
+            phases: [
+              ...ids.map(id => ({ name: id, progress: null })),
+              { name: 'OS Data', progress: null },
+            ],
+          },
         },
       ]
 
@@ -1690,9 +1726,11 @@ export class MockApiService extends ApiService {
   }
 
   private async initProgress(): Promise<T.FullProgress> {
-    const progress = JSON.parse(JSON.stringify(PROGRESS))
+    // Cast to any: PhaseProgress now allows nested FullProgress, but the mock
+    // PROGRESS fixture only uses leaf shapes — we know it at the call site.
+    const progress: any = JSON.parse(JSON.stringify(PROGRESS))
 
-    for (let [i, phase] of progress.phases.entries()) {
+    for (let [i, phase] of progress.phases.entries() as [number, any][]) {
       if (
         !phase.progress ||
         typeof phase.progress !== 'object' ||
@@ -1743,9 +1781,10 @@ export class MockApiService extends ApiService {
     id: string,
     finalManifest?: T.Manifest,
   ): Promise<void> {
-    const progress = JSON.parse(JSON.stringify(PROGRESS))
+    // Cast to any: same reasoning as initProgress above.
+    const progress: any = JSON.parse(JSON.stringify(PROGRESS))
 
-    for (let [i, phase] of progress.phases.entries()) {
+    for (let [i, phase] of progress.phases.entries() as [number, any][]) {
       if (!phase.progress || phase.progress === true || !phase.progress.total) {
         await pauseFor(2000)
 

@@ -30,7 +30,7 @@ export function statusTrigger(
       const ms = lastResult
         ? (intervals[lastResult] ?? defaultMs)
         : (intervals.starting ?? defaultMs)
-      await new Promise((resolve) => setTimeout(resolve, ms))
+      await new Promise(resolve => setTimeout(resolve, ms))
       yield
     }
   }

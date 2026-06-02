@@ -18,16 +18,17 @@ use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{Connector, MaybeTlsStream, WebSocketStream};
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
-use crate::context::config::{ClientConfig, local_config_path};
+use crate::context::config::{ClientConfig, WorkspaceConfig, local_config_path, resolve_target};
 use crate::context::{DiagnosticContext, InitContext, RpcContext, SetupContext};
-use crate::developer::{OS_DEVELOPER_KEY_PATH, default_developer_key_path};
+use crate::developer::{OS_DEVELOPER_KEY_PATH, default_developer_key_path, load_signing_key};
 use crate::middleware::auth::local::LocalAuthContext;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
+use crate::s9pk::init::{BUILD_KEY_FILE, STARTOS_DIR};
 use crate::util::io::read_file_to_string;
 
 #[derive(Debug)]
@@ -47,6 +48,8 @@ pub struct CliContextSeed {
     pub cookie_path: PathBuf,
     pub developer_key_path: PathBuf,
     pub developer_key: OnceCell<ed25519_dalek::SigningKey>,
+    pub root_ca: Vec<PathBuf>,
+    pub insecure: bool,
 }
 impl Drop for CliContextSeed {
     fn drop(&mut self) {
@@ -81,13 +84,19 @@ impl CliContext {
     /// BLOCKING
     #[instrument(skip_all)]
     pub fn init(config: ClientConfig) -> Result<Self, Error> {
-        let mut url = if let Some(host) = config.host {
-            host
-        } else {
-            "http://localhost".parse()?
-        };
+        // Resolve -H/-r (profile name or URL) against the workspace config, falling
+        // back to a literal URL, then to localhost / no registry when unset.
+        let workspace = WorkspaceConfig::find()?;
+        let mut url =
+            match resolve_target(config.host.as_deref(), workspace.as_ref().map(|w| &w.host))? {
+                Some(url) => url,
+                None => "http://localhost".parse()?,
+            };
 
-        let registry = config.registry.clone();
+        let registry = resolve_target(
+            config.registry.as_deref(),
+            workspace.as_ref().map(|w| &w.registry),
+        )?;
 
         let cookie_path = config.cookie_path.unwrap_or_else(|| {
             local_config_path()
@@ -163,7 +172,29 @@ impl CliContext {
                 .developer_key_path
                 .unwrap_or_else(default_developer_key_path),
             developer_key: OnceCell::new(),
+            root_ca: config.root_ca.unwrap_or_default(),
+            insecure: config.insecure,
         })))
+    }
+
+    fn ws_tls_connector(&self) -> Result<Option<Connector>, Error> {
+        if self.root_ca.is_empty() && !self.insecure {
+            return Ok(None);
+        }
+        let mut builder = native_tls::TlsConnector::builder();
+        if self.insecure {
+            builder.danger_accept_invalid_certs(true);
+            builder.danger_accept_invalid_hostnames(true);
+        }
+        for ca_path in &self.root_ca {
+            let pem = std::fs::read(ca_path)
+                .with_ctx(|_| (crate::ErrorKind::Filesystem, ca_path.display()))?;
+            let cert = native_tls::Certificate::from_pem(&pem)
+                .with_kind(crate::ErrorKind::OpenSsl)?;
+            builder.add_root_certificate(cert);
+        }
+        let connector = builder.build().with_kind(crate::ErrorKind::OpenSsl)?;
+        Ok(Some(Connector::NativeTls(connector)))
     }
 
     /// BLOCKING
@@ -195,6 +226,33 @@ impl CliContext {
         })
     }
 
+    /// The workspace's s9pk signing key. Walks up from cwd for `.startos/build-key`
+    /// (created by `s9pk init-workspace`) and errors if there's no workspace, since
+    /// s9pk signing is workspace-scoped. Distinct from [`Self::developer_key`], which
+    /// stays the global identity for registry/server auth.
+    pub fn build_key(&self) -> Result<ed25519_dalek::SigningKey, Error> {
+        let mut dir = std::env::current_dir().with_kind(ErrorKind::Filesystem)?;
+        loop {
+            let candidate = dir.join(STARTOS_DIR).join(BUILD_KEY_FILE);
+            // EACCES on an inaccessible ancestor (or any other IO error) is treated
+            // as "no accessible workspace here" — stop walking rather than either
+            // silently stepping past it (`exists()`) or surfacing the error
+            // (`try_exists()?`).
+            match candidate.try_exists() {
+                Ok(true) => return load_signing_key(candidate),
+                Ok(false) => {}
+                Err(_) => break,
+            }
+            if !dir.pop() {
+                break;
+            }
+        }
+        Err(Error::new(
+            eyre!("{}", t!("s9pk.init.not-in-workspace")),
+            ErrorKind::Uninitialized,
+        ))
+    }
+
     pub async fn ws_continuation(
         &self,
         guid: Guid,
@@ -223,9 +281,15 @@ impl CliContext {
             .push("ws")
             .push("rpc")
             .push(guid.as_ref());
-        let (stream, _) =
-                // base_url is "http://127.0.0.1/", with a trailing slash, so we don't put a leading slash in this path:
-                tokio_tungstenite::connect_async(url).await.with_kind(ErrorKind::Network)?;
+        let connector = self.ws_tls_connector()?;
+        let (stream, _) = tokio_tungstenite::connect_async_tls_with_config(
+            url,
+            None,
+            false,
+            connector,
+        )
+        .await
+        .with_kind(ErrorKind::Network)?;
         Ok(stream)
     }
 

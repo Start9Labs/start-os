@@ -140,6 +140,70 @@ bins.tunnel.error-updating-webserver-bind:
   fr_FR: "erreur lors de la mise à jour de la liaison du serveur web : %{error}"
   pl_PL: "błąd podczas aktualizacji powiązania serwera WWW: %{error}"
 
+# s9pk/init.rs
+s9pk.init.cloning-start-docs:
+  en_US: "Cloning the packaging guide (start-docs)…"
+  de_DE: "Paketierungsleitfaden (start-docs) wird geklont…"
+  es_ES: "Clonando la guía de empaquetado (start-docs)…"
+  fr_FR: "Clonage du guide d'empaquetage (start-docs)…"
+  pl_PL: "Klonowanie przewodnika pakowania (start-docs)…"
+
+s9pk.init.installing-deps:
+  en_US: "Installing dependencies (npm install)…"
+  de_DE: "Abhängigkeiten werden installiert (npm install)…"
+  es_ES: "Instalando dependencias (npm install)…"
+  fr_FR: "Installation des dépendances (npm install)…"
+  pl_PL: "Instalowanie zależności (npm install)…"
+
+s9pk.init.invalid-package-name:
+  en_US: "Cannot derive a valid package ID from \"%{name}\". Use a name containing letters or digits."
+  de_DE: "Aus „%{name}“ lässt sich keine gültige Paket-ID ableiten. Verwende einen Namen mit Buchstaben oder Ziffern."
+  es_ES: "No se puede derivar un ID de paquete válido de «%{name}». Usa un nombre que contenga letras o dígitos."
+  fr_FR: "Impossible de dériver un ID de paquet valide à partir de « %{name} ». Utilisez un nom contenant des lettres ou des chiffres."
+  pl_PL: "Nie można utworzyć prawidłowego identyfikatora pakietu z „%{name}”. Użyj nazwy zawierającej litery lub cyfry."
+
+s9pk.init.nested-workspace:
+  en_US: "Cannot create a workspace inside an existing one (found %{path})."
+  de_DE: "Ein Arbeitsbereich kann nicht innerhalb eines bestehenden erstellt werden (gefunden: %{path})."
+  es_ES: "No se puede crear un espacio de trabajo dentro de uno existente (se encontró %{path})."
+  fr_FR: "Impossible de créer un espace de travail à l'intérieur d'un autre (trouvé : %{path})."
+  pl_PL: "Nie można utworzyć obszaru roboczego wewnątrz istniejącego (znaleziono %{path})."
+
+s9pk.init.not-in-workspace:
+  en_US: "Not inside a packaging workspace. Run `start-cli s9pk init-workspace` first."
+  de_DE: "Nicht innerhalb eines Paketierungs-Arbeitsbereichs. Führe zuerst `start-cli s9pk init-workspace` aus."
+  es_ES: "No estás dentro de un espacio de trabajo de empaquetado. Ejecuta primero `start-cli s9pk init-workspace`."
+  fr_FR: "Vous n'êtes pas dans un espace de travail d'empaquetage. Exécutez d'abord `start-cli s9pk init-workspace`."
+  pl_PL: "Nie jesteś w obszarze roboczym pakowania. Najpierw uruchom `start-cli s9pk init-workspace`."
+
+s9pk.init.package-created:
+  en_US: "Created %{id} at %{path}. Next: work the checklist in TODO.md."
+  de_DE: "%{id} wurde unter %{path} erstellt. Nächster Schritt: Arbeite die Checkliste in TODO.md ab."
+  es_ES: "Se creó %{id} en %{path}. Siguiente: completa la lista de tareas en TODO.md."
+  fr_FR: "%{id} créé dans %{path}. Étape suivante : suivez la liste de tâches dans TODO.md."
+  pl_PL: "Utworzono %{id} w %{path}. Następnie: wykonaj listę zadań w TODO.md."
+
+s9pk.init.package-exists:
+  en_US: "%{path} already exists; choose a different name or remove it."
+  de_DE: "%{path} existiert bereits; wähle einen anderen Namen oder entferne es."
+  es_ES: "%{path} ya existe; elige otro nombre o elimínalo."
+  fr_FR: "%{path} existe déjà ; choisissez un autre nom ou supprimez-le."
+  pl_PL: "%{path} już istnieje; wybierz inną nazwę lub usuń je."
+
+s9pk.init.template-missing:
+  en_US: "Package template not found at %{path}. Re-run `start-cli s9pk init-workspace` to restore start-docs."
+  de_DE: "Paketvorlage unter %{path} nicht gefunden. Führe `start-cli s9pk init-workspace` erneut aus, um start-docs wiederherzustellen."
+  es_ES: "No se encontró la plantilla de paquete en %{path}. Vuelve a ejecutar `start-cli s9pk init-workspace` para restaurar start-docs."
+  fr_FR: "Modèle de paquet introuvable à %{path}. Relancez `start-cli s9pk init-workspace` pour restaurer start-docs."
+  pl_PL: "Nie znaleziono szablonu pakietu w %{path}. Uruchom ponownie `start-cli s9pk init-workspace`, aby przywrócić start-docs."
+
+s9pk.init.workspace-ready:
+  en_US: "Packaging workspace ready at %{path}. Next: start-cli s9pk init-package \"<Name>\"."
+  de_DE: "Paketierungs-Arbeitsbereich bereit unter %{path}. Nächster Schritt: start-cli s9pk init-package \"<Name>\"."
+  es_ES: "Espacio de trabajo de empaquetado listo en %{path}. Siguiente: start-cli s9pk init-package \"<Nombre>\"."
+  fr_FR: "Espace de travail d'empaquetage prêt à %{path}. Étape suivante : start-cli s9pk init-package \"<Nom>\"."
+  pl_PL: "Obszar roboczy pakowania gotowy w %{path}. Następnie: start-cli s9pk init-package \"<Nazwa>\"."
+
 # setup.rs
 setup.opening-data-drive:
   en_US: "Opening data drive"
@@ -1854,6 +1918,20 @@ registry.context.missing-hostname:
   fr_FR: "Configuration requise manquante : registry-hostname"
   pl_PL: "Brak wymaganej konfiguracji: registry-hostname"
 
+registry.context.onion-tor-not-installed:
+  en_US: "Cannot reach this Tor (.onion) registry: the Tor service is not installed. Install and start it to use onion registries."
+  de_DE: "Diese Tor-(.onion-)Registry ist nicht erreichbar: Der Tor-Dienst ist nicht installiert. Installieren und starten Sie ihn, um Onion-Registries zu verwenden."
+  es_ES: "No se puede acceder a este registro Tor (.onion): el servicio Tor no está instalado. Instálalo e inícialo para usar registros onion."
+  fr_FR: "Impossible d'accéder à ce registre Tor (.onion) : le service Tor n'est pas installé. Installez-le et démarrez-le pour utiliser les registres onion."
+  pl_PL: "Nie można połączyć się z tym rejestrem Tor (.onion): usługa Tor nie jest zainstalowana. Zainstaluj ją i uruchom, aby korzystać z rejestrów onion."
+
+registry.context.onion-tor-not-running:
+  en_US: "Cannot reach this Tor (.onion) registry: the Tor service is not running. Start the Tor service to use onion registries."
+  de_DE: "Diese Tor-(.onion-)Registry ist nicht erreichbar: Der Tor-Dienst läuft nicht. Starten Sie den Tor-Dienst, um Onion-Registries zu verwenden."
+  es_ES: "No se puede acceder a este registro Tor (.onion): el servicio Tor no está en ejecución. Inicia el servicio Tor para usar registros onion."
+  fr_FR: "Impossible d'accéder à ce registre Tor (.onion) : le service Tor n'est pas démarré. Démarrez le service Tor pour utiliser les registres onion."
+  pl_PL: "Nie można połączyć się z tym rejestrem Tor (.onion): usługa Tor nie jest uruchomiona. Uruchom usługę Tor, aby korzystać z rejestrów onion."
+
 registry.context.registry-required:
   en_US: "`--registry` required"
   de_DE: "`--registry` erforderlich"
@@ -2152,12 +2230,26 @@ service.action.service-not-in-allowed-status:
   pl_PL: "usługa nie jest w dozwolonym stanie dla %{action_id}"
 
 # service/effects/action.rs
-service.effects.action.calling-actions-on-other-packages-unsupported:
-  en_US: "calling actions on other packages is unsupported at this time"
-  de_DE: "Aufrufen von Aktionen auf anderen Paketen wird derzeit nicht unterstützt"
-  es_ES: "llamar acciones en otros paquetes no está soportado en este momento"
-  fr_FR: "l'appel d'actions sur d'autres paquets n'est pas pris en charge pour le moment"
-  pl_PL: "wywoływanie akcji na innych pakietach nie jest obecnie obsługiwane"
+service.effects.action.action-has-no-input:
+  en_US: "action %{action_id} of %{package_id} has no input"
+  de_DE: "Aktion %{action_id} von %{package_id} hat keine Eingabe"
+  es_ES: "la acción %{action_id} de %{package_id} no tiene entrada"
+  fr_FR: "l'action %{action_id} de %{package_id} n'a pas d'entrée"
+  pl_PL: "akcja %{action_id} pakietu %{package_id} nie ma wejścia"
+
+service.effects.action.action-not-accessible:
+  en_US: "action %{action_id} of %{package_id} cannot be invoked directly by other services"
+  de_DE: "Aktion %{action_id} von %{package_id} kann nicht direkt von anderen Diensten aufgerufen werden"
+  es_ES: "la acción %{action_id} de %{package_id} no puede ser invocada directamente por otros servicios"
+  fr_FR: "l'action %{action_id} de %{package_id} ne peut pas être invoquée directement par d'autres services"
+  pl_PL: "akcja %{action_id} pakietu %{package_id} nie może być wywołana bezpośrednio przez inne usługi"
+
+service.effects.action.action-only-accessible-to-dependents:
+  en_US: "action %{action_id} of %{package_id} can only be invoked by services that depend on %{package_id}"
+  de_DE: "Aktion %{action_id} von %{package_id} kann nur von Diensten aufgerufen werden, die von %{package_id} abhängen"
+  es_ES: "la acción %{action_id} de %{package_id} solo puede ser invocada por servicios que dependen de %{package_id}"
+  fr_FR: "l'action %{action_id} de %{package_id} ne peut être invoquée que par des services qui dépendent de %{package_id}"
+  pl_PL: "akcja %{action_id} pakietu %{package_id} może być wywoływana tylko przez usługi zależne od %{package_id}"
 
 service.effects.action.input-not-matches-requires-input:
   en_US: "input-not-matches trigger requires input to be specified"
@@ -2165,13 +2257,6 @@ service.effects.action.input-not-matches-requires-input:
   es_ES: "el disparador input-not-matches requiere que se especifique la entrada"
   fr_FR: "le déclencheur input-not-matches nécessite une entrée spécifiée"
   pl_PL: "wyzwalacz input-not-matches wymaga określenia wejścia"
-
-service.effects.action.action-has-no-input:
-  en_US: "action %{action_id} of %{package_id} has no input"
-  de_DE: "Aktion %{action_id} von %{package_id} hat keine Eingabe"
-  es_ES: "la acción %{action_id} de %{package_id} no tiene entrada"
-  fr_FR: "l'action %{action_id} de %{package_id} n'a pas d'entrée"
-  pl_PL: "akcja %{action_id} pakietu %{package_id} nie ma wejścia"
 
 # service/effects/dependency.rs
 service.effects.dependency.unknown-dependency-kind:
@@ -2363,6 +2448,13 @@ context.cli.cannot-set-url-scheme:
   es_ES: "No se puede establecer el esquema de URL"
   fr_FR: "Impossible de définir le schéma d'URL"
   pl_PL: "Nie można ustawić schematu URL"
+
+context.cli.unknown-profile-or-url:
+  en_US: "'%{value}' is not a known profile or a valid URL"
+  de_DE: "„%{value}“ ist kein bekanntes Profil und keine gültige URL"
+  es_ES: "«%{value}» no es un perfil conocido ni una URL válida"
+  fr_FR: "« %{value} » n'est pas un profil connu ni une URL valide"
+  pl_PL: "„%{value}” nie jest znanym profilem ani prawidłowym adresem URL"
 
 # context/rpc.rs
 context.rpc.rpc-context-dropped:
@@ -2704,6 +2796,27 @@ util.tui.selected-choice-not-in-input:
   es_ES: "la opción seleccionada no aparece en la entrada"
   fr_FR: "le choix sélectionné n'apparaît pas dans l'entrée"
   pl_PL: "wybrany wybór nie pojawia się w danych wejściowych"
+
+util.tui.select-by-number:
+  en_US: "Please enter a number between 1 and %{max}:"
+  de_DE: "Bitte geben Sie eine Zahl zwischen 1 und %{max} ein:"
+  es_ES: "Por favor, ingrese un número entre 1 y %{max}:"
+  fr_FR: "Veuillez entrer un nombre entre 1 et %{max} :"
+  pl_PL: "Proszę wprowadzić liczbę od 1 do %{max}:"
+
+util.tui.invalid-selection:
+  en_US: "Invalid selection — must be a number between 1 and %{max}"
+  de_DE: "Ungültige Auswahl — muss eine Zahl zwischen 1 und %{max} sein"
+  es_ES: "Selección inválida — debe ser un número entre 1 y %{max}"
+  fr_FR: "Sélection invalide — doit être un nombre entre 1 et %{max}"
+  pl_PL: "Nieprawidłowy wybór — musi być liczbą od 1 do %{max}"
+
+util.tui.could-not-read-response:
+  en_US: "Could not read response from stdin"
+  de_DE: "Antwort konnte nicht von stdin gelesen werden"
+  es_ES: "No se pudo leer la respuesta desde stdin"
+  fr_FR: "Impossible de lire la réponse depuis stdin"
+  pl_PL: "Nie można odczytać odpowiedzi ze standardowego wejścia"
 
 # util/serde.rs
 util.serde.must-specify-units-for-duration:
@@ -3655,6 +3768,13 @@ help.arg.workdir-path:
   fr_FR: "Chemin du répertoire de travail"
   pl_PL: "Ścieżka katalogu roboczego"
 
+help.arg.workspace-path:
+  en_US: "Workspace directory to create or initialize (default: current directory)"
+  de_DE: "Zu erstellendes oder zu initialisierendes Arbeitsbereichsverzeichnis (Standard: aktuelles Verzeichnis)"
+  es_ES: "Directorio del espacio de trabajo a crear o inicializar (predeterminado: directorio actual)"
+  fr_FR: "Répertoire de l'espace de travail à créer ou initialiser (par défaut : répertoire courant)"
+  pl_PL: "Katalog obszaru roboczego do utworzenia lub zainicjowania (domyślnie: bieżący katalog)"
+
 help.arg.action-id:
   en_US: "Action identifier"
   de_DE: "Aktions-Kennung"
@@ -3752,6 +3872,27 @@ help.arg.db-path:
   es_ES: "Ruta a la base de datos"
   fr_FR: "Chemin vers la base de données"
   pl_PL: "Ścieżka do bazy danych"
+
+help.arg.dns-device-ip:
+  en_US: "WireGuard IP of the device to use as DNS server (device mode)"
+  de_DE: "WireGuard-IP des als DNS-Server zu verwendenden Geräts (Modus „device“)"
+  es_ES: "IP de WireGuard del dispositivo a usar como servidor DNS (modo «device»)"
+  fr_FR: "IP WireGuard de l'appareil à utiliser comme serveur DNS (mode « device »)"
+  pl_PL: "Adres WireGuard urządzenia używanego jako serwer DNS (tryb „device”)"
+
+help.arg.dns-mode:
+  en_US: "DNS mode for the subnet: default, device, or custom"
+  de_DE: "DNS-Modus für das Subnetz: default, device oder custom"
+  es_ES: "Modo DNS para la subred: default, device o custom"
+  fr_FR: "Mode DNS pour le sous-réseau : default, device ou custom"
+  pl_PL: "Tryb DNS dla podsieci: default, device lub custom"
+
+help.arg.dns-server:
+  en_US: "Upstream DNS server (IP or IP:port); repeatable, up to 3 (custom mode)"
+  de_DE: "Upstream-DNS-Server (IP oder IP:Port); wiederholbar, bis zu 3 (Modus „custom“)"
+  es_ES: "Servidor DNS upstream (IP o IP:puerto); repetible, hasta 3 (modo «custom»)"
+  fr_FR: "Serveur DNS en amont (IP ou IP:port) ; répétable, jusqu'à 3 (mode « custom »)"
+  pl_PL: "Nadrzędny serwer DNS (IP lub IP:port); powtarzalny, do 3 (tryb „custom”)"
 
 help.arg.dns-servers:
   en_US: "DNS servers to use"
@@ -3969,6 +4110,13 @@ help.arg.os-drive-path:
   es_ES: "Ruta a la unidad del sistema operativo"
   fr_FR: "Chemin vers le disque du système d'exploitation"
   pl_PL: "Ścieżka do dysku systemu operacyjnego"
+
+help.arg.package-display-name:
+  en_US: "Human-readable package name (e.g. \"Hello World\")"
+  de_DE: "Menschenlesbarer Paketname (z. B. „Hello World“)"
+  es_ES: "Nombre de paquete legible (p. ej. «Hello World»)"
+  fr_FR: "Nom de paquet lisible (par ex. « Hello World »)"
+  pl_PL: "Czytelna nazwa pakietu (np. „Hello World”)"
 
 help.arg.package-id:
   en_US: "Package identifier"
@@ -5175,6 +5323,13 @@ about.indicate-gateway-inbound-access-from-wan:
   fr_FR: "Indiquer l'accès entrant de la passerelle depuis le WAN"
   pl_PL: "Wskaż dostęp przychodzący bramy z WAN"
 
+about.initialize-a-packaging-workspace:
+  en_US: "Initialize a StartOS packaging workspace"
+  de_DE: "Einen StartOS-Paketierungs-Arbeitsbereich initialisieren"
+  es_ES: "Inicializar un espacio de trabajo de empaquetado de StartOS"
+  fr_FR: "Initialiser un espace de travail d'empaquetage StartOS"
+  pl_PL: "Zainicjuj obszar roboczy pakowania StartOS"
+
 about.initialize-webserver:
   en_US: "Initialize the webserver"
   de_DE: "Webserver initialisieren"
@@ -5777,6 +5932,13 @@ about.run-service-action:
   fr_FR: "Exécuter une action de service"
   pl_PL: "Uruchom akcję usługi"
 
+about.scaffold-a-new-package-from-template:
+  en_US: "Scaffold a new package from the workspace template"
+  de_DE: "Ein neues Paket aus der Arbeitsbereichsvorlage erzeugen"
+  es_ES: "Generar un nuevo paquete a partir de la plantilla del espacio de trabajo"
+  fr_FR: "Générer un nouveau paquet à partir du modèle de l'espace de travail"
+  pl_PL: "Utwórz nowy pakiet z szablonu obszaru roboczego"
+
 about.set-address-enabled-for-binding:
   en_US: "Set a gateway address enabled for a binding"
   de_DE: "Gateway-Adresse für eine Bindung aktivieren"
@@ -5874,6 +6036,13 @@ about.set-static-dns-servers:
   es_ES: "Establecer servidores DNS estáticos"
   fr_FR: "Définir les serveurs DNS statiques"
   pl_PL: "Ustaw statyczne serwery DNS"
+
+about.set-subnet-dns:
+  en_US: "Set subnet DNS"
+  de_DE: "Subnetz-DNS festlegen"
+  es_ES: "Establecer DNS de subred"
+  fr_FR: "Définir le DNS du sous-réseau"
+  pl_PL: "Ustaw DNS podsieci"
 
 about.set-user-interface-password:
   en_US: "Set user interface password"

@@ -33,7 +33,7 @@ export const SYSTEM_UTILITIES: Record<
     title: 'Metrics',
   },
   logs: {
-    icon: '@tui.logs',
+    icon: '@tui.scroll-text',
     title: 'Logs',
   },
   system: {

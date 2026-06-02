@@ -28,7 +28,7 @@ export function deepEqual(...args: unknown[]) {
   if (objects.some(Array.isArray) && !objects.every(Array.isArray)) return false
   if (
     objects.some(
-      (x) => !Array.isArray(x) && Object.getPrototypeOf(x) !== Object.prototype,
+      x => !Array.isArray(x) && Object.getPrototypeOf(x) !== Object.prototype,
     )
   ) {
     return (
@@ -38,7 +38,7 @@ export function deepEqual(...args: unknown[]) {
       ) !== null
     )
   }
-  const allKeys = new Set(objects.flatMap((x) => Object.keys(x)))
+  const allKeys = new Set(objects.flatMap(x => Object.keys(x)))
   for (const key of allKeys) {
     for (const x of objects) {
       if (!(key in x)) return false

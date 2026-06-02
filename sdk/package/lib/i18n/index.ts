@@ -37,8 +37,8 @@ export function setupI18n<
     const availableLangs = Object.keys(translations) as (keyof Translations)[]
 
     const match =
-      availableLangs.find((l) => l === lang) ??
-      availableLangs.find((l) => String(l).startsWith(lang.split('_')[0] + '_'))
+      availableLangs.find(l => l === lang) ??
+      availableLangs.find(l => String(l).startsWith(lang.split('_')[0] + '_'))
 
     return match ? (translations[match] as Record<number, string>) : null
   }

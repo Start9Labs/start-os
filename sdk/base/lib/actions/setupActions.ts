@@ -165,7 +165,7 @@ export const Action = {
   ): Action<Id, ExtractInputSpecType<InputSpecType>> {
     return new ActionImpl<Id, ExtractInputSpecType<InputSpecType>>(
       id,
-      mapMaybeFn(metadata, (m) => ({ ...m, hasInput: true })),
+      mapMaybeFn(metadata, m => ({ ...m, hasInput: true })),
       inputSpec as any,
       getInput,
       run,
@@ -178,7 +178,7 @@ export const Action = {
   ): Action<Id, {}> {
     return new ActionImpl(
       id,
-      mapMaybeFn(metadata, (m) => ({ ...m, hasInput: false })),
+      mapMaybeFn(metadata, m => ({ ...m, hasInput: false })),
       null,
       async () => null,
       run,
@@ -209,7 +209,7 @@ class ActionsImpl<
     for (let action of Object.values(this.actions)) {
       const fn = async () => {
         let res: (value?: undefined) => void = () => {}
-        const complete = new Promise((resolve) => {
+        const complete = new Promise(resolve => {
           res = resolve
         })
         const e: T.Effects = effects.child(action.id)

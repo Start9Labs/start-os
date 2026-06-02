@@ -51,7 +51,7 @@ export class CommandController<
         const abort = new AbortController()
         const cell: { ctrl: CommandController<Manifest, C> } = {
           ctrl: new CommandController<Manifest, C>(
-            exec.fn(subcontainer, abort.signal).then(async (command) => {
+            exec.fn(subcontainer, abort.signal).then(async command => {
               if (subcontainer && command && !abort.signal.aborted) {
                 const newCtrl = (
                   await CommandController.of<
@@ -110,7 +110,7 @@ export class CommandController<
 
       const state = { exited: false }
       const answer = new Promise<null>((resolve, reject) => {
-        childProcess.on('exit', (code) => {
+        childProcess.on('exit', code => {
           state.exited = true
           if (
             code === 0 ||

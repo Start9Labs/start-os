@@ -92,13 +92,14 @@ export function buildManifest<
           if (arch === null) {
             return inputSpec.arch
           }
-          return arch.filter((a) => inputSpec.arch.includes(a))
+          return arch.filter(a => inputSpec.arch.includes(a))
         },
         null as string[] | null,
       ),
     },
     hardwareAcceleration: manifest.hardwareAcceleration ?? false,
-    nestedRuntime: manifest.nestedRuntime ?? false,
+    userspaceFilesystems: manifest.userspaceFilesystems ?? false,
+    virtualNetworking: manifest.virtualNetworking ?? false,
     plugins: manifest.plugins ?? [],
   }
 }

@@ -25,7 +25,7 @@ describe('builder tests', () => {
       }),
     })
       .build({} as any)
-      .then((a) => a.spec)
+      .then(a => a.spec)
     expect(bitcoinPropertiesBuilt).toMatchObject({
       'peer-tor-address': {
         type: 'text',

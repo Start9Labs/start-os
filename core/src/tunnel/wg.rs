@@ -16,6 +16,16 @@ use crate::util::serde::Base64;
 
 pub const WIREGUARD_INTERFACE_NAME: &str = "wg-start-tunnel";
 
+/// Brand token written into every StartTunnel client config's header (see
+/// client.conf.template, rendered as `# StartTunnel config for <name>`).
+/// `add_tunnel` looks for this token (case-insensitively) to classify a pasted
+/// config as an inbound/outbound StartTunnel gateway — vs outbound-only for
+/// plain WireGuard configs like Mullvad. Matching just the brand token keeps
+/// detection working across StartTunnel/StartOS version skew and any future
+/// rewording of the surrounding header, and stays backwards-compatible with
+/// configs generated before this check existed.
+pub const START_TUNNEL_MARKER: &str = "StartTunnel";
+
 #[derive(Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
@@ -81,12 +91,35 @@ impl Map for WgSubnetMap {
     }
 }
 
+/// Per-subnet DNS proxy configuration. WireGuard clients on a subnet are pointed
+/// at the subnet's in-tunnel server address (`.1`) for DNS; the forward-only proxy
+/// listening there resolves every query against the upstream(s) selected here.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum DnsConfig {
+    /// Forward to the VPS's own system resolvers.
+    #[default]
+    Default,
+    /// Forward to a device on this subnet (its WireGuard IP) on port 53.
+    Device {
+        #[ts(type = "string")]
+        ip: Ipv4Addr,
+    },
+    /// Forward to operator-specified upstream servers (1-3, optional `:port`).
+    Custom {
+        #[ts(type = "string[]")]
+        servers: Vec<SocketAddr>,
+    },
+}
+
 #[derive(Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct WgSubnetConfig {
     pub name: InternedString,
     pub clients: WgSubnetClients,
+    #[serde(default)]
+    pub dns: DnsConfig,
 }
 impl WgSubnetConfig {
     pub fn new(name: InternedString) -> Self {
@@ -226,10 +259,12 @@ impl std::fmt::Display for ClientConfig {
         write!(
             f,
             include_str!("./client.conf.template"),
+            marker = START_TUNNEL_MARKER,
             name = self.client_config.name,
             privkey = self.client_config.key.to_padded_string(),
             psk = self.client_config.psk.to_padded_string(),
             addr = Ipv4Net::new_assert(self.client_addr, self.subnet.prefix_len()),
+            dns = self.subnet.addr(),
             subnet = self.subnet.trunc(),
             server_pubkey = self.server_pubkey.to_padded_string(),
             server_addr = self.server_addr,

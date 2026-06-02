@@ -27,13 +27,13 @@ export const checkWebUrl = async (
 ): Promise<HealthCheckResult> => {
   return Promise.race([fetch(url), timeoutPromise(timeout)])
     .then(
-      (x) =>
+      x =>
         ({
           result: 'success',
           message: successMessage,
         }) as const,
     )
-    .catch((e) => {
+    .catch(e => {
       console.warn(`Error while fetching URL: ${url}`)
       console.error(JSON.stringify(e))
       console.error(asError(e))

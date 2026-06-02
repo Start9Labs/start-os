@@ -26,7 +26,7 @@ import {
     <b [style.color]="color()">{{ statusText() | i18n }}</b>
 
     @if (showDots()) {
-      <span class="loading-dots g-info"></span>
+      <span class="g-dots g-info"></span>
     }
   `,
   styles: `

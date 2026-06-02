@@ -1,11 +1,13 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl::OrdSet;
+use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
@@ -17,7 +19,6 @@ use crate::PackageId;
 use crate::backup::os::OsBackup;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
-use crate::db::model::public::BackupProgress;
 use crate::db::model::{Database, DatabaseModel};
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::BackupWrite;
@@ -25,6 +26,8 @@ use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::middleware::auth::session::SessionAuthContext;
 use crate::notifications::{NotificationLevel, notify};
 use crate::prelude::*;
+use crate::progress::{FullProgress, FullProgressTracker};
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::{AtomicFile, dir_copy};
 use crate::util::serde::IoFormat;
 use crate::version::VersionT;
@@ -231,12 +234,8 @@ fn assure_backing_up<'a>(
             ErrorKind::InvalidRequest,
         ));
     }
-    backing_up.ser(&Some(
-        packages
-            .into_iter()
-            .map(|x| (x.clone(), BackupProgress { complete: false }))
-            .collect(),
-    ))?;
+    let _ = packages;
+    backing_up.ser(&Some(FullProgress::new()))?;
     Ok(())
 }
 
@@ -252,10 +251,35 @@ async fn perform_backup(
     let mut package_backups: BTreeMap<PackageId, PackageBackupInfo> =
         backup_guard.metadata.package_backups.clone();
 
+    let progress = FullProgressTracker::new();
+    let mut phase_handles: BTreeMap<PackageId, _> = package_ids
+        .iter()
+        .map(|id| {
+            (
+                id.clone(),
+                progress.add_phase(InternedString::from(id.clone()), Some(1)),
+            )
+        })
+        .collect();
+    let mut os_data_phase = progress.add_phase("OS Data".into(), Some(1));
+    let _progress_db_sync = NonDetachingJoinHandle::from(tokio::spawn(progress.clone().sync_to_db(
+        ctx.db.clone(),
+        |db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_status_info_mut()
+                .as_backup_progress_mut()
+                .transpose_mut()
+        },
+        Some(Duration::from_millis(300)),
+    )));
+
     for id in package_ids {
+        let mut phase = phase_handles.remove(id).expect("phase exists");
+        phase.start();
         if let Some(service) = &*ctx.services.get(id).await {
             let backup_result = service
-                .backup(backup_guard.package_backup(id).await?)
+                .backup(backup_guard.package_backup(id).await?, phase)
                 .await
                 .err()
                 .map(|e| e.to_string());
@@ -286,6 +310,7 @@ async fn perform_backup(
                 },
             );
         } else {
+            phase.complete();
             backup_report.insert(
                 id.clone(),
                 PackageBackupReport {
@@ -294,13 +319,14 @@ async fn perform_backup(
             );
         }
     }
-
     let mut backup_guard = Arc::try_unwrap(backup_guard).map_err(|_| {
         Error::new(
             eyre!("{}", t!("backup.bulk.leaked-reference")),
             ErrorKind::Incoherent,
         )
     })?;
+
+    os_data_phase.start();
 
     let ui = ctx.db.peek().await.into_public().into_ui().de()?;
 
@@ -324,6 +350,9 @@ async fn perform_backup(
     if tokio::fs::metadata(&luks_folder).await.is_ok() {
         dir_copy(luks_folder, &luks_folder_bak, None).await?;
     }
+
+    os_data_phase.complete();
+    progress.complete();
 
     let timestamp = Utc::now();
 

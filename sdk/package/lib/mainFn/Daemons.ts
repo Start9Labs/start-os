@@ -527,13 +527,13 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     // over whatever made it into builtHealthDaemons.
     this.builtHealthDaemons = []
     this.effects.onLeaveContext(() => {
-      this.term().catch((e) => logErrorOnce(asError(e)))
+      this.term().catch(e => logErrorOnce(asError(e)))
     })
     const byId = new Map<string, HealthDaemon<Manifest>>()
     try {
       for (const entry of this.entries) {
         const deps = entry.requires
-          .map((r) => byId.get(r))
+          .map(r => byId.get(r))
           .filter((d): d is HealthDaemon<Manifest> => !!d)
         let daemon: Daemon<Manifest> | null = null
         let readyArg: Ready | typeof EXIT_SUCCESS
@@ -573,7 +573,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     } catch (e) {
       // Best-effort tear-down of whatever we managed to construct before
       // re-throwing, so the failure path leaves no leaked daemons.
-      await this.term().catch((te) => logErrorOnce(asError(te)))
+      await this.term().catch(te => logErrorOnce(asError(te)))
       throw e
     }
     return this
@@ -601,8 +601,8 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       if (timeout) {
         setTimeout(() => {
           const notReady = (this.builtHealthDaemons ?? [])
-            .filter((d) => !d.isReady)
-            .map((d) => d.id)
+            .filter(d => !d.isReady)
+            .map(d => d.id)
           rej(new Error(`Timed out waiting for ${notReady}`))
         }, timeout)
       }
@@ -654,9 +654,9 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       const remaining = new Set(hds)
       while (remaining.size > 0) {
         const canShutdown = [...remaining].filter(
-          (hd) =>
-            ![...remaining].some((other) =>
-              other.dependencies.some((dep) => dep.id === hd.id),
+          hd =>
+            ![...remaining].some(other =>
+              other.dependencies.some(dep => dep.id === hd.id),
             ),
         )
         if (canShutdown.length === 0) {
@@ -665,9 +665,9 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
           )
           canShutdown.push(...[...remaining].reverse())
         }
-        canShutdown.forEach((hd) => remaining.delete(hd))
+        canShutdown.forEach(hd => remaining.delete(hd))
         await Promise.allSettled(
-          canShutdown.map(async (hd) => {
+          canShutdown.map(async hd => {
             try {
               await hd.term()
             } catch (e) {
@@ -686,7 +686,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       }
     }
     await Promise.allSettled(
-      [...subs].map((s) => s.destroy().catch((e) => logErrorOnce(asError(e)))),
+      [...subs].map(s => s.destroy().catch(e => logErrorOnce(asError(e)))),
     )
   }
 }
@@ -856,7 +856,7 @@ export class DaemonsReconciler<M extends T.SDKManifest>
     // any partial startEntry), term() walks whatever made it into the
     // `running` map and tears it down.
     this.rootEffects.onLeaveContext(() => {
-      this.term().catch((e) => logErrorOnce(asError(e)))
+      this.term().catch(e => logErrorOnce(asError(e)))
     })
     await this.runReconcile()
     return { term: () => this.term() }
@@ -869,7 +869,7 @@ export class DaemonsReconciler<M extends T.SDKManifest>
       this.pendingRerun = true
       return
     }
-    this.runReconcile().catch((e) => logErrorOnce(asError(e)))
+    this.runReconcile().catch(e => logErrorOnce(asError(e)))
   }
 
   private runReconcile(): Promise<void> {
@@ -893,7 +893,7 @@ export class DaemonsReconciler<M extends T.SDKManifest>
       if (this.inFlight === p) this.inFlight = null
       if (this.pendingRerun && !this.isTerminating) {
         this.pendingRerun = false
-        this.runReconcile().catch((e) => logErrorOnce(asError(e)))
+        this.runReconcile().catch(e => logErrorOnce(asError(e)))
       }
     })
     return p
@@ -908,7 +908,7 @@ export class DaemonsReconciler<M extends T.SDKManifest>
     // subc the user just handed us before throwing, so the failure leaves
     // no leaked subcontainers behind.
     const hasEager = entries.some(
-      (e) =>
+      e =>
         'subcontainer' in e &&
         e.subcontainer &&
         e.subcontainer instanceof SubContainerEager,
@@ -920,14 +920,12 @@ export class DaemonsReconciler<M extends T.SDKManifest>
             (e): e is Extract<DaemonEntry<M>, { subcontainer: any }> =>
               'subcontainer' in e && !!e.subcontainer,
           )
-          .map((e) =>
-            e
-              .subcontainer!.destroy()
-              .catch((err) => logErrorOnce(asError(err))),
+          .map(e =>
+            e.subcontainer!.destroy().catch(err => logErrorOnce(asError(err))),
           ),
       )
       const offender = entries.find(
-        (e) =>
+        e =>
           'subcontainer' in e &&
           e.subcontainer &&
           e.subcontainer instanceof SubContainerEager,
@@ -939,10 +937,10 @@ export class DaemonsReconciler<M extends T.SDKManifest>
     }
 
     const desiredById = new Map<string, DaemonEntry<M>>(
-      entries.map((e) => [e.id, e]),
+      entries.map(e => [e.id, e]),
     )
     const desiredHashes = new Map<string, string>(
-      entries.map((e) => [e.id, configHash(e)]),
+      entries.map(e => [e.id, configHash(e)]),
     )
 
     const toStop = new Set<string>()
@@ -958,7 +956,7 @@ export class DaemonsReconciler<M extends T.SDKManifest>
       changed = false
       for (const [id, current] of this.running) {
         if (toStop.has(id)) continue
-        if (current.requires.some((r) => toStop.has(r))) {
+        if (current.requires.some(r => toStop.has(r))) {
           toStop.add(id)
           changed = true
         }
@@ -1036,7 +1034,7 @@ export class DaemonsReconciler<M extends T.SDKManifest>
     daemon?.markManaged()
 
     const dependencies = entry.requires
-      .map((reqId) => this.running.get(reqId)?.healthDaemon)
+      .map(reqId => this.running.get(reqId)?.healthDaemon)
       .filter((d): d is HealthDaemon<M> => !!d)
 
     const healthDaemon = new HealthDaemon<M>(
