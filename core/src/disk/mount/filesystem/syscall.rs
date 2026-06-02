@@ -207,13 +207,18 @@ pub async fn userns_fd_from_idmap(
     let gid_map = uid_map.clone();
 
     let helper = which_self_exe()?;
-    // The MultiExecutable dispatcher selects a sub-bin by the basename of
-    // argv[0], falling through to argv[1] only when argv[0] is not itself a
-    // registered bin. current_exe is `start-container` inside the LXC (a
-    // registered, default bin), which would shadow the `unshare-userns`
-    // selector and run the container CLI instead. Override argv[0] with a
-    // non-bin sentinel so dispatch falls through to the `unshare-userns`
-    // arg regardless of what current_exe is named.
+    // The helper runs `unshare(CLONE_NEWUSER)`, which the kernel rejects
+    // (EINVAL) on a multi-threaded process — so it can't be a CLI
+    // subcommand (that runs inside the multi-threaded tokio runtime); it
+    // has to be a multi-call applet that runs before any runtime starts.
+    //
+    // The MultiExecutable dispatcher selects the applet by argv[0]'s
+    // basename, falling through to argv[1] only when argv[0] isn't itself a
+    // registered applet. current_exe is `start-container` inside the LXC (a
+    // registered, default applet), which would shadow the selector and run
+    // the container CLI. Override argv[0] with a non-applet sentinel so
+    // dispatch falls through to `unshare-userns` regardless of current_exe's
+    // name (busybox-style multi-call selection).
     let mut child = Command::new(&helper)
         .arg0("startos-unshare-userns-helper")
         .arg("unshare-userns")
