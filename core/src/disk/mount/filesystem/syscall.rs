@@ -208,9 +208,11 @@ pub async fn userns_fd_from_idmap(
 
     let helper = which_self_exe()?;
     // The helper runs `unshare(CLONE_NEWUSER)`, which the kernel rejects
-    // (EINVAL) on a multi-threaded process — so it can't be a CLI
-    // subcommand (that runs inside the multi-threaded tokio runtime); it
-    // has to be a multi-call applet that runs before any runtime starts.
+    // (EINVAL) on a multi-threaded process, so it must be a minimal
+    // multi-call applet rather than a CLI subcommand: the CLI's main()
+    // enables the logger, whose tracing-appender background thread makes
+    // the process multi-threaded before any handler runs. The applet does
+    // no such global init and stays single-threaded.
     //
     // The MultiExecutable dispatcher selects the applet by argv[0]'s
     // basename, falling through to argv[1] only when argv[0] isn't itself a

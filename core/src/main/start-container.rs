@@ -1,11 +1,13 @@
 use startos::bins::MultiExecutable;
 
 fn main() {
-    // unshare-userns must be a multi-call applet, not a CLI subcommand:
-    // it runs `unshare(CLONE_NEWUSER)`, which fails EINVAL on a
-    // multi-threaded process, so it has to execute in a pristine
-    // single-threaded process before any tokio runtime starts. A CLI
-    // subcommand runs inside the multi-threaded runtime and can't.
+    // unshare-userns must be a multi-call applet, not a CLI subcommand: it
+    // runs `unshare(CLONE_NEWUSER)`, which the kernel rejects (EINVAL) on a
+    // multi-threaded process. The CLI path isn't single-threaded — its
+    // main() enables the logger, whose tracing-appender non-blocking writer
+    // spawns a background thread, so a subcommand handler would already be
+    // running multi-threaded. The applet entry does no such global init and
+    // stays single-threaded.
     MultiExecutable::default()
         .enable_start_container()
         .enable_unshare_userns()
