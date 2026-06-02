@@ -495,7 +495,7 @@ pub struct NetService {
     synced: Watch<u64>,
 }
 impl NetService {
-    fn dummy() -> Self {
+    pub(crate) fn dummy() -> Self {
         Self {
             shutdown: true,
             data: Arc::new(Mutex::new(NetServiceData {
@@ -813,7 +813,12 @@ impl NetService {
         let current = self.synced.peek(|v| *v);
         self.clear_bindings(Default::default()).await?;
         let mut w = self.synced.clone();
-        w.wait_for(|v| *v > current).await;
+        tokio::select! {
+            _ = w.wait_for(|v| *v > current) => {}
+            // sync-task already dead (e.g. aborted by a prior remove_all):
+            // `synced` will never advance again, so don't block on it.
+            _ = &mut self.sync_task => {}
+        }
         self.sync_task.abort();
         // Clean up any outbound gateway ip rules for this service
         let service_ip = self.data.lock().await.ip.to_string();
@@ -832,6 +837,8 @@ impl NetService {
                 break;
             }
         }
+        // Set last: an earlier failure leaves shutdown false so Drop's fallback re-runs.
+        self.shutdown = true;
         Ok(())
     }
 
