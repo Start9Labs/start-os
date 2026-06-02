@@ -659,7 +659,11 @@ export class MockApiService extends ApiService {
             lanIp: ['192.168.1.10'],
             dnsServers: [],
           },
-          type: 'inbound-outbound',
+          type:
+            params.type ??
+            (params.config.toLowerCase().includes('starttunnel')
+              ? 'inbound-outbound'
+              : 'outbound-only'),
         },
       },
     ]

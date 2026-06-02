@@ -16,6 +16,16 @@ use crate::util::serde::Base64;
 
 pub const WIREGUARD_INTERFACE_NAME: &str = "wg-start-tunnel";
 
+/// Brand token written into every StartTunnel client config's header (see
+/// client.conf.template, rendered as `# StartTunnel config for <name>`).
+/// `add_tunnel` looks for this token (case-insensitively) to classify a pasted
+/// config as an inbound/outbound StartTunnel gateway — vs outbound-only for
+/// plain WireGuard configs like Mullvad. Matching just the brand token keeps
+/// detection working across StartTunnel/StartOS version skew and any future
+/// rewording of the surrounding header, and stays backwards-compatible with
+/// configs generated before this check existed.
+pub const START_TUNNEL_MARKER: &str = "StartTunnel";
+
 #[derive(Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
@@ -249,6 +259,7 @@ impl std::fmt::Display for ClientConfig {
         write!(
             f,
             include_str!("./client.conf.template"),
+            marker = START_TUNNEL_MARKER,
             name = self.client_config.name,
             privkey = self.client_config.key.to_padded_string(),
             psk = self.client_config.psk.to_padded_string(),

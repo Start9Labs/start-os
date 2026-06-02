@@ -1,4 +1,4 @@
-# StartTunnel config for {name}
+# {marker} config for {name}
 
 [Interface]
 Address = {addr}

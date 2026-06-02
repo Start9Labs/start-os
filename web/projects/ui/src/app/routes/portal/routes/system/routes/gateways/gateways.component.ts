@@ -275,7 +275,7 @@ export default class GatewaysComponent {
                     input.config.selection === 'paste'
                       ? input.config.value.file
                       : await (input.config.value.file as any as File).text(),
-                  type: null, // @TODO Aiden why is attr here?
+                  type: null, // let StartOS auto-detect from the config
                   setAsDefaultOutbound: false,
                 })
                 return true
