@@ -666,7 +666,18 @@ export const mockPatchData: DataModel = {
               },
             },
           },
-          bindingRanges: {},
+          bindingRanges: {
+            49152: {
+              enabled: true,
+              externalStartPort: 49152,
+              numberOfPorts: 100,
+              // Absent gateways default to 'private' (LAN only). Seed eth0 as
+              // 'public' and wlan0 as 'disabled' so all three states are
+              // visible on load (wireguard1 stays at the 'private' default;
+              // wireguard2/Mullvad is outbound-only and excluded from the UI).
+              gatewayAccess: { eth0: 'public', wlan0: 'disabled' },
+            },
+          },
           publicDomains: {
             'bitcoin.example.com': {
               gateway: 'eth0',
@@ -688,6 +699,12 @@ export const mockPatchData: DataModel = {
               dst: '10.0.0.1:42443',
               gateway: 'eth0',
               count: 1,
+            },
+            {
+              src: '203.0.113.45:49152',
+              dst: '10.0.0.2:49152',
+              gateway: 'eth0',
+              count: 100,
             },
           ],
         },

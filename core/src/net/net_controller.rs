@@ -13,13 +13,14 @@ use tokio_rustls::rustls::ClientConfig as TlsClientConfig;
 use tracing::instrument;
 
 use crate::db::model::Database;
+use crate::db::model::public::GatewayType;
 use crate::hostname::ServerHostname;
 use crate::net::dns::DnsController;
 use crate::net::forward::{
     ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, nft_rule,
 };
 use crate::net::gateway::NetworkInterfaceController;
-use crate::net::host::binding::{AddSslOptions, BindId, BindOptions};
+use crate::net::host::binding::{AddSslOptions, BindId, BindOptions, RangeGatewayAccess};
 use crate::net::host::{Host, Hosts, host_for};
 use crate::net::service_interface::HostnameMetadata;
 use crate::net::socks::SocksController;
@@ -402,24 +403,41 @@ impl NetServiceData {
             }
         }
 
-        // Port-range bindings: forward each enabled range to its container.
-        // Ranges are public-only (no SSL/vhost) and pinned to all gateways
-        // with WAN IPs — matching what `Host::update_addresses` records in
-        // `port_forwards` for them.
+        // Port-range bindings: forward each enabled range to its container per
+        // the operator's per-gateway choice. `Public` → `public_gateways` (no
+        // source filter, reachable from LAN + WAN); `Private` → the gateway's
+        // subnets in `private_ips` (source-filtered to the LAN); `Disabled` →
+        // neither. Outbound-only gateways never receive inbound forwards.
+        //
+        // `secure: true` is intentional: ranges carry no Security option (no
+        // SSL/vhost), and the operator's explicit Public/Private choice IS the
+        // access decision — without it the forward.rs security gate
+        // (`!reqs.secure && !info.secure()`) would drop every range on a normal
+        // (non-secure) WAN gateway, since no gateway is ever marked secure.
         if !host.binding_ranges.is_empty() {
-            // Every public range forwards to the same set — all gateways with a
-            // WAN IP — so compute it once rather than per range.
-            let range_gateways: BTreeSet<GatewayId> = net_ifaces
-                .iter()
-                .filter(|(_, info)| {
-                    info.ip_info
-                        .as_ref()
-                        .map_or(false, |ip| ip.wan_ip.is_some())
-                })
-                .map(|(gw, _)| gw.clone())
-                .collect();
             for (&internal_start, range) in host.binding_ranges.iter() {
-                if !range.enabled || range_gateways.is_empty() {
+                if !range.enabled {
+                    continue;
+                }
+                let mut public_gateways = BTreeSet::new();
+                let mut private_ips = BTreeSet::new();
+                for (gw_id, info) in net_ifaces.iter() {
+                    if matches!(info.gateway_type, Some(GatewayType::OutboundOnly)) {
+                        continue;
+                    }
+                    match range.access_for(gw_id) {
+                        RangeGatewayAccess::Disabled => {}
+                        RangeGatewayAccess::Public => {
+                            public_gateways.insert(gw_id.clone());
+                        }
+                        RangeGatewayAccess::Private => {
+                            if let Some(ip_info) = &info.ip_info {
+                                private_ips.extend(ip_info.subnets.iter().map(|s| s.addr()));
+                            }
+                        }
+                    }
+                }
+                if public_gateways.is_empty() && private_ips.is_empty() {
                     continue;
                 }
                 forwards.insert(
@@ -428,9 +446,9 @@ impl NetServiceData {
                         SocketAddrV4::new(self.ip, internal_start),
                         range.number_of_ports,
                         ForwardRequirements {
-                            public_gateways: range_gateways.clone(),
-                            private_ips: BTreeSet::new(),
-                            secure: false,
+                            public_gateways,
+                            private_ips,
+                            secure: true,
                         },
                     ),
                 );

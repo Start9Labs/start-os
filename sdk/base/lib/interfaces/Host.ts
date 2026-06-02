@@ -180,11 +180,18 @@ export class MultiHost {
     }
     if (
       !Number.isInteger(internalStartPort) ||
-      internalStartPort < 1 ||
       internalStartPort + numberOfPorts - 1 > 65535
     ) {
       throw new Error(
         `port range [${internalStartPort}, ${internalStartPort + numberOfPorts - 1}] is out of bounds`,
+      )
+    }
+    // StartOS rejects privileged/system ports (<= 1024); fail fast on the
+    // common case here. A few specific reserved ports above 1024 (e.g. 5353,
+    // 5432, 9050) are additionally validated server-side at allocation time.
+    if (internalStartPort <= 1024) {
+      throw new Error(
+        `internalStartPort (${internalStartPort}) must be greater than 1024; ports <= 1024 are reserved`,
       )
     }
     await this.options.effects.bindRange({

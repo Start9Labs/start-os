@@ -763,4 +763,12 @@ export default {
   848: 'adresu tego serwera w tunelu',
   849: 'W StartTunnel ustaw DNS tej podsieci na ten serwer.',
   850: 'Czas trwania',
+  851: 'zakresy portów',
+  852: 'Brak zakresów portów',
+  853: 'Brak bram',
+  854: 'Brak adresu IP WAN',
+  855: 'Zakres',
+  856: 'LAN',
+  857: 'LAN+WAN',
+  858: 'przekieruj poniższy zakres portów na ten serwer, zarówno dla TCP, jak i UDP, jeśli jeszcze tego nie zrobiono',
 } satisfies i18n

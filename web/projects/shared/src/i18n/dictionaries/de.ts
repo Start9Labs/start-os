@@ -763,4 +763,12 @@ export default {
   848: 'die Adresse dieses Servers im Tunnel',
   849: 'Stellen Sie in StartTunnel das DNS dieses Subnetzes auf diesen Server ein.',
   850: 'Dauer',
+  851: 'Portbereiche',
+  852: 'Keine Portbereiche',
+  853: 'Keine Gateways',
+  854: 'Keine WAN-IP',
+  855: 'Bereich',
+  856: 'LAN',
+  857: 'LAN+WAN',
+  858: 'leiten Sie den folgenden Portbereich für TCP und UDP an diesen Server weiter, falls noch nicht geschehen',
 } satisfies i18n

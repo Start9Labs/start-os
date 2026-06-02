@@ -763,4 +763,12 @@ export default {
   848: 'la dirección de este servidor en el túnel',
   849: 'En StartTunnel, configure el DNS de esta subred para que use este servidor.',
   850: 'Duración',
+  851: 'rangos de puertos',
+  852: 'Sin rangos de puertos',
+  853: 'Sin puertas de enlace',
+  854: 'Sin IP WAN',
+  855: 'Rango',
+  856: 'LAN',
+  857: 'LAN+WAN',
+  858: 'reenvíe el siguiente rango de puertos a este servidor, tanto para TCP como para UDP, si aún no lo ha hecho',
 } satisfies i18n

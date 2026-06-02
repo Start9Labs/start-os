@@ -8,9 +8,11 @@ use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_f
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::GatewayId;
 use crate::HostId;
 use crate::context::{CliContext, RpcContext};
 use crate::db::prelude::Map;
+use crate::hostname::ServerHostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::HostApiKind;
 use crate::net::service_interface::{HostnameInfo, HostnameMetadata};
@@ -111,6 +113,39 @@ impl std::ops::DerefMut for Bindings {
     }
 }
 
+/// Per-gateway exposure of a port range, chosen by the operator.
+///
+/// `Public` and `Private` mirror how single-port bindings treat WAN vs LAN
+/// addresses in [`crate::net::forward::ForwardRequirements`]: `Public` puts
+/// the gateway in `public_gateways` (no source filter → reachable from LAN and
+/// WAN), `Private` puts the gateway's subnet(s) in `private_ips` (source
+/// filtered to the LAN → reachable from LAN only), and `Disabled` forwards on
+/// neither.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Deserialize,
+    Serialize,
+    TS,
+    clap::ValueEnum,
+)]
+#[ts(export)]
+#[serde(rename_all = "kebab-case")]
+pub enum RangeGatewayAccess {
+    Disabled,
+    /// Default: a freshly-bound range is reachable on the LAN only. Exposing it
+    /// to the WAN is an explicit, per-gateway operator opt-in (`Public`).
+    #[default]
+    Private,
+    Public,
+}
+
 /// Contiguous port-range binding (e.g. WebRTC/STUN/TURN RTP ranges).
 ///
 /// Keyed by `internal_start_port` in [`BindingRanges`]. The range covers
@@ -125,6 +160,13 @@ pub struct RangeBindInfo {
     pub enabled: bool,
     pub external_start_port: u16,
     pub number_of_ports: u16,
+    /// Per-gateway exposure chosen by the operator. Absent gateways default to
+    /// [`RangeGatewayAccess::Private`] (LAN-only), so a freshly-bound range is
+    /// not exposed to the WAN until the operator opts in. Persisted
+    /// independently of `enabled` (the service-lifecycle flag) so operator
+    /// choices survive restarts / rebinds.
+    #[serde(default)]
+    pub gateway_access: BTreeMap<GatewayId, RangeGatewayAccess>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -159,6 +201,15 @@ impl std::ops::DerefMut for BindingRanges {
 impl RangeBindInfo {
     pub fn disable(&mut self) {
         self.enabled = false;
+    }
+
+    /// Effective exposure for `gateway` — gateways the operator hasn't touched
+    /// default to [`RangeGatewayAccess::Public`].
+    pub fn access_for(&self, gateway: &GatewayId) -> RangeGatewayAccess {
+        self.gateway_access
+            .get(gateway)
+            .copied()
+            .unwrap_or_default()
     }
 }
 
@@ -387,6 +438,15 @@ pub fn binding<C: Context, Kind: HostApiKind>()
                 .with_about("about.set-address-enabled-for-binding")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "set-range-gateway-access",
+            from_fn_async(set_range_gateway_access::<Kind>)
+                .with_metadata("sync_db", Value::Bool(true))
+                .with_inherited(Kind::inheritance)
+                .no_display()
+                .with_about("about.set-range-gateway-access-for-binding")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 pub async fn list_bindings<Kind: HostApiKind>(
@@ -517,6 +577,65 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
                     }
                     Ok(())
                 })
+        })
+        .await
+        .result?;
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct BindingSetRangeGatewayAccessParams {
+    #[arg(help = "help.arg.internal-start-port")]
+    internal_start_port: u16,
+    #[arg(long, help = "help.arg.gateway-id")]
+    gateway: GatewayId,
+    #[arg(long, help = "help.arg.range-access")]
+    access: RangeGatewayAccess,
+}
+
+/// Set how a port-range binding is exposed on a single gateway
+/// (disabled / private / public). The range's `enabled` flag is
+/// service-controlled; this only records the operator's per-gateway choice.
+/// `Public` is the default, so setting a gateway to `Public` clears its entry.
+pub async fn set_range_gateway_access<Kind: HostApiKind>(
+    ctx: RpcContext,
+    BindingSetRangeGatewayAccessParams {
+        internal_start_port,
+        gateway,
+        access,
+    }: BindingSetRangeGatewayAccessParams,
+    inheritance: Kind::Inheritance,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            Kind::host_for(&inheritance, db)?
+                .as_binding_ranges_mut()
+                .mutate(|ranges| {
+                    let range = ranges
+                        .get_mut(&internal_start_port)
+                        .or_not_found(internal_start_port)?;
+                    if access == RangeGatewayAccess::default() {
+                        range.gateway_access.remove(&gateway);
+                    } else {
+                        range.gateway_access.insert(gateway, access);
+                    }
+                    Ok(())
+                })?;
+            // Recompute derived port_forwards so the gateways port-forwards UI
+            // reflects the change immediately; the Hosts DB watcher then
+            // reconciles the iptables rules.
+            let hostname = ServerHostname::load(db.as_public().as_server_info())?;
+            let gateways = db
+                .as_public()
+                .as_server_info()
+                .as_network()
+                .as_gateways()
+                .de()?;
+            let ports = db.as_private().as_available_ports().de()?;
+            Kind::host_for(&inheritance, db)?.update_addresses(&hostname, &gateways, &ports)
         })
         .await
         .result?;

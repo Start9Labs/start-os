@@ -13,12 +13,12 @@ use ts_rs::TS;
 
 use crate::context::RpcContext;
 use crate::db::model::DatabaseModel;
-use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::db::model::public::{GatewayType, NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::hostname::ServerHostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::{HostAddress, PublicDomainConfig, address_api};
 use crate::net::host::binding::{
-    BindInfo, BindOptions, BindingRanges, Bindings, RangeBindInfo, binding,
+    BindInfo, BindOptions, BindingRanges, Bindings, RangeBindInfo, RangeGatewayAccess, binding,
 };
 use crate::net::service_interface::{HostnameInfo, HostnameMetadata};
 use crate::prelude::*;
@@ -380,16 +380,24 @@ impl Model<Host> {
             }
         }
 
-        // Port-range bindings: forward each range to every IPv4 gateway with
-        // a WAN IP. Ranges have no derived addresses (no HTTP-style routing),
-        // so they get forwarded unconditionally for every gateway that can
-        // route to them.
+        // Port-range bindings: `port_forwards` records only the rules an
+        // operator must add on their router (WAN exposure), mirroring the
+        // single-port loop above which emits public addresses only. So a range
+        // contributes a PortForward only for gateways set to `Public` that have
+        // a WAN IP; `Private` (LAN-only) and `Disabled` need no router config,
+        // and outbound-only gateways never receive inbound forwards.
         let binding_ranges: BindingRanges = this.binding_ranges.de()?;
         for (&internal_start, range) in binding_ranges.iter() {
             if !range.enabled {
                 continue;
             }
             for (gw_id, gw_info) in gateways {
+                if matches!(gw_info.gateway_type, Some(GatewayType::OutboundOnly)) {
+                    continue;
+                }
+                if range.access_for(gw_id) != RangeGatewayAccess::Public {
+                    continue;
+                }
                 let Some(ip_info) = &gw_info.ip_info else {
                     continue;
                 };
@@ -520,25 +528,33 @@ impl Model<Host> {
             ));
         }
         self.as_binding_ranges_mut().mutate(|ranges| {
-            match ranges.get(&internal_start_port) {
-                // Idempotent re-bind: a package may call bindPortRange on every
-                // setupMain pass. An unchanged range keeps its allocation; the
-                // insert below just re-affirms (re-enables) it.
-                Some(existing)
-                    if existing.external_start_port == external_start_port
-                        && existing.number_of_ports == number_of_ports => {}
+            let existing = ranges.get(&internal_start_port);
+            // Idempotent re-bind: a package may call bindPortRange on every
+            // setupMain pass. An unchanged range keeps its allocation; the
+            // insert below just re-affirms (re-enables) it.
+            let unchanged = matches!(
+                existing,
+                Some(e)
+                    if e.external_start_port == external_start_port
+                        && e.number_of_ports == number_of_ports
+            );
+            // Preserve the operator's per-gateway access choices across rebinds
+            // — bindPortRange is service-driven, so it must not clobber a UI
+            // choice made between restarts.
+            let gateway_access = existing
+                .map(|e| e.gateway_access.clone())
+                .unwrap_or_default();
+            if !unchanged {
                 // New, resized, or moved range: free any prior allocation, then
-                // claim the new one. The free uses an inclusive end —
-                // `start + count` would overflow u16 for a range ending at 65535.
-                maybe_existing => {
-                    if let Some(existing) = maybe_existing {
-                        available_ports.free(
-                            existing.external_start_port
-                                ..=existing.external_start_port + existing.number_of_ports - 1,
-                        );
-                    }
-                    available_ports.try_alloc_range(external_start_port, number_of_ports)?;
+                // claim the new one. `number_of_ports >= 1`, so subtract before
+                // adding — `start + count` would overflow u16 for a range ending
+                // at 65535.
+                if let Some(e) = existing {
+                    available_ports.free(
+                        e.external_start_port..=e.external_start_port + (e.number_of_ports - 1),
+                    );
                 }
+                available_ports.try_alloc_range(external_start_port, number_of_ports)?;
             }
             ranges.insert(
                 internal_start_port,
@@ -546,6 +562,7 @@ impl Model<Host> {
                     enabled: true,
                     external_start_port,
                     number_of_ports,
+                    gateway_access,
                 },
             );
             Ok(())

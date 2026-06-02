@@ -92,5 +92,16 @@ describe('host', () => {
         }),
       ).rejects.toThrow(/out of bounds/)
     })
+
+    test('rejects privileged/system start ports (<= 1024)', async () => {
+      const host = sdk.MultiHost.of(fakeEffects(), 'turn')
+      await expect(
+        host.bindPortRange({
+          internalStartPort: 1024,
+          externalStartPort: 1024,
+          numberOfPorts: 10,
+        }),
+      ).rejects.toThrow(/greater than 1024/)
+    })
   })
 })

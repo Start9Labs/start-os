@@ -18,6 +18,7 @@ import {
   PkgAddPrivateDomainReq,
   PkgAddPublicDomainReq,
   PkgBindingSetAddressEnabledReq,
+  PkgBindingSetRangeAccessReq,
   PkgRemovePrivateDomainReq,
   PkgRemovePublicDomainReq,
   ServerBindingSetAddressEnabledReq,
@@ -352,6 +353,10 @@ export abstract class ApiService {
 
   abstract pkgBindingSetAddressEnabled(
     params: PkgBindingSetAddressEnabledReq,
+  ): Promise<null>
+
+  abstract pkgBindingSetRangeAccess(
+    params: PkgBindingSetRangeAccessReq,
   ): Promise<null>
 
   abstract pkgAddPublicDomain(
