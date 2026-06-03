@@ -65,16 +65,6 @@ pub async fn bind_range(
             ErrorKind::InvalidRequest,
         ));
     }
-    if internal_start_port != external_start_port {
-        return Err(Error::new(
-            eyre!(
-                "bindPortRange requires internalStartPort == externalStartPort \
-                 (got internal={internal_start_port} external={external_start_port}); \
-                 port-range forwards preserve the destination port across the range"
-            ),
-            ErrorKind::InvalidRequest,
-        ));
-    }
     let context = context.deref()?;
     context
         .seed

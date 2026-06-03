@@ -49,15 +49,20 @@ describe('host', () => {
       })
     })
 
-    test('rejects mismatched internal/external start ports', async () => {
-      const host = sdk.MultiHost.of(fakeEffects(), 'turn')
-      await expect(
-        host.bindPortRange({
-          internalStartPort: 49152,
-          externalStartPort: 50000,
-          numberOfPorts: 10,
-        }),
-      ).rejects.toThrow(/internalStartPort === externalStartPort/)
+    test('accepts an offset range (internal !== external)', async () => {
+      const bindRange = jest.fn(async () => null)
+      const host = sdk.MultiHost.of(fakeEffects(bindRange), 'turn')
+      await host.bindPortRange({
+        internalStartPort: 49152,
+        externalStartPort: 50000,
+        numberOfPorts: 10,
+      })
+      expect(bindRange).toHaveBeenCalledWith({
+        id: 'turn',
+        internalStartPort: 49152,
+        externalStartPort: 50000,
+        numberOfPorts: 10,
+      })
     })
 
     test('rejects numberOfPorts below 1', async () => {

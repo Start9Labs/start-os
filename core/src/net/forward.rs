@@ -165,9 +165,8 @@ struct ForwardMapping {
     target: SocketAddrV4,
     /// Number of contiguous ports forwarded starting at `source.port()` /
     /// `target.port()`. `1` is a single-port forward; values > 1 produce a
-    /// single iptables rule per protocol covering the whole range and
-    /// preserve the destination port number (which requires
-    /// `source.port() == target.port()`).
+    /// single nft rule covering the whole range (port-preserving when the two
+    /// bases are equal, otherwise an offset verdict map).
     count: u16,
     target_prefix: u8,
     src_filter: Option<IpNet>,
@@ -506,9 +505,9 @@ impl PortForwardController {
     }
 
     /// Like [`add_forward`] but covers `count` contiguous ports per protocol
-    /// (TCP + UDP) starting at `source.port()` / `target.port()`. Requires
-    /// `source.port() == target.port()` when `count > 1` so the underlying
-    /// iptables DNAT can preserve the destination port across the range.
+    /// (TCP + UDP) starting at `source.port()` / `target.port()`. The two
+    /// bases may differ; the forward maps the source range onto the target
+    /// range by offset.
     pub async fn add_forward_range(
         &self,
         source: SocketAddrV4,
@@ -555,8 +554,8 @@ struct InterfaceForwardRequest {
     external: u16,
     target: SocketAddrV4,
     /// Number of contiguous ports starting at `external` / `target.port()`.
-    /// `1` is a single-port forward; values > 1 require
-    /// `external == target.port()` (port preservation).
+    /// `1` is a single-port forward; values > 1 cover a contiguous range
+    /// (port-preserving when the bases are equal, else an offset map).
     count: u16,
     target_prefix: u8,
     reqs: ForwardRequirements,
@@ -865,9 +864,8 @@ impl InterfacePortForwardController {
     }
 
     /// Add a `count`-port contiguous forward starting at `external` /
-    /// `target.port()`. `count == 1` is equivalent to [`add`]. `count > 1`
-    /// requires `external == target.port()` so the underlying iptables DNAT
-    /// can preserve the destination port.
+    /// `target.port()`. `count == 1` is equivalent to [`add`]. For `count >
+    /// 1` the external and target bases may differ (offset-mapped).
     pub async fn add_range(
         &self,
         external: u16,

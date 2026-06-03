@@ -500,11 +500,11 @@ impl Model<Host> {
         })
     }
 
-    /// Add or re-affirm a contiguous port-range binding. Range bindings
-    /// require `internal_start_port == external_start_port` (the iptables
-    /// DNAT preserves the port number across the range) and must allocate
-    /// every external port in the range up-front — partial collisions are a
-    /// hard error.
+    /// Add or re-affirm a contiguous port-range binding. The external ports
+    /// (`external_start_port..`) are all allocated up-front — partial
+    /// collisions are a hard error. `internal_start_port` may differ from
+    /// `external_start_port`; the forward-port script maps the two ranges by
+    /// offset via an nft verdict map.
     pub fn add_binding_range(
         &mut self,
         available_ports: &mut AvailablePorts,
@@ -515,15 +515,6 @@ impl Model<Host> {
         if number_of_ports == 0 {
             return Err(Error::new(
                 eyre!("numberOfPorts must be at least 1"),
-                ErrorKind::InvalidRequest,
-            ));
-        }
-        if internal_start_port != external_start_port {
-            return Err(Error::new(
-                eyre!(
-                    "bindPortRange requires internalStartPort == externalStartPort \
-                     (got internal={internal_start_port} external={external_start_port})"
-                ),
                 ErrorKind::InvalidRequest,
             ));
         }

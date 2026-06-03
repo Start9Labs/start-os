@@ -90,12 +90,11 @@ export type BindPortRangeOptions = {
   /** First internal (container-side) port in the range. */
   internalStartPort: number
   /**
-   * First external (host-side / WAN) port in the range. Must equal
-   * `internalStartPort` — the underlying iptables DNAT preserves the
-   * destination port number across the range, which requires the two
-   * ranges to start at the same port. Kept as a separate field for API
-   * symmetry with {@link MultiHost.bindPort} and so a future relaxation
-   * does not break callers.
+   * First external (host-side / WAN) port in the range. May differ from
+   * `internalStartPort`: the forward maps the external range onto the
+   * internal range by offset (`externalStartPort + i` → `internalStartPort
+   * + i`) via an nft verdict map. Use the same value for the common
+   * port-preserving case.
    */
   externalStartPort: number
   /** Number of contiguous ports in the range. Must be in `[1, 500]`. */
@@ -144,9 +143,10 @@ export class MultiHost {
    * public port range. The whole range is allocated atomically; any
    * partial collision with already-bound external ports is a hard error.
    *
+   * `externalStartPort` may differ from `internalStartPort` — the forward
+   * maps the external range onto the internal range by offset.
+   *
    * Constraints:
-   * - `internalStartPort` must equal `externalStartPort` (port-preservation
-   *   constraint of the underlying iptables DNAT).
    * - `numberOfPorts` must be in `[1, {@link MAX_BIND_PORT_RANGE_SIZE}]`.
    * - All `numberOfPorts` external ports starting at `externalStartPort`
    *   must be free and non-restricted.
@@ -173,26 +173,23 @@ export class MultiHost {
         `numberOfPorts (${numberOfPorts}) exceeds maximum (${MAX_BIND_PORT_RANGE_SIZE})`,
       )
     }
-    if (internalStartPort !== externalStartPort) {
-      throw new Error(
-        `bindPortRange requires internalStartPort === externalStartPort (got internal=${internalStartPort} external=${externalStartPort})`,
-      )
-    }
-    if (
-      !Number.isInteger(internalStartPort) ||
-      internalStartPort + numberOfPorts - 1 > 65535
-    ) {
-      throw new Error(
-        `port range [${internalStartPort}, ${internalStartPort + numberOfPorts - 1}] is out of bounds`,
-      )
-    }
-    // StartOS rejects privileged/system ports (<= 1024); fail fast on the
-    // common case here. A few specific reserved ports above 1024 (e.g. 5353,
-    // 5432, 9050) are additionally validated server-side at allocation time.
-    if (internalStartPort <= 1024) {
-      throw new Error(
-        `internalStartPort (${internalStartPort}) must be greater than 1024; ports <= 1024 are reserved`,
-      )
+    // Both ranges must be in-bounds and above the reserved/privileged range.
+    // StartOS additionally rejects a few specific ports (e.g. 5353, 5432,
+    // 9050) server-side at allocation time.
+    for (const [name, start] of [
+      ['internalStartPort', internalStartPort],
+      ['externalStartPort', externalStartPort],
+    ] as const) {
+      if (!Number.isInteger(start) || start <= 1024) {
+        throw new Error(
+          `${name} (${start}) must be an integer greater than 1024; ports <= 1024 are reserved`,
+        )
+      }
+      if (start + numberOfPorts - 1 > 65535) {
+        throw new Error(
+          `${name} range [${start}, ${start + numberOfPorts - 1}] is out of bounds`,
+        )
+      }
     }
     await this.options.effects.bindRange({
       id: this.options.id,
