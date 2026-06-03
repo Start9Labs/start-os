@@ -10,6 +10,7 @@ use super::util::sync_directory;
 use crate::PackageId;
 use crate::auth::check_password;
 use crate::backup::target::BackupInfo;
+use crate::disk::BACKUP_DIR_NAME;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::filesystem::backupfs::BackupFS;
 use crate::disk::mount::guard::SubPath;
@@ -35,7 +36,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         server_id: &str,
         password: &str,
     ) -> Result<(StartOsRecoveryInfo, String), Error> {
-        let backup_dir = backup_disk_path.join("StartOSBackups").join(server_id);
+        let backup_dir = backup_disk_path.join(BACKUP_DIR_NAME).join(server_id);
         let unencrypted_metadata_path = backup_dir.join("unencrypted-metadata.json");
         let crypt_path = backup_dir.join("crypt");
         let mut unencrypted_metadata: StartOsRecoveryInfo =
@@ -104,7 +105,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         let backup_disk_path = backup_disk_mount_guard.path();
         let (unencrypted_metadata, enc_key) =
             Self::load_metadata(backup_disk_path, server_id, password).await?;
-        let backup_dir = backup_disk_path.join("StartOSBackups").join(server_id);
+        let backup_dir = backup_disk_path.join(BACKUP_DIR_NAME).join(server_id);
         let unencrypted_metadata_path = backup_dir.join("unencrypted-metadata.json");
         let crypt_path = backup_dir.join("crypt");
 
