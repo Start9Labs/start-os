@@ -636,14 +636,21 @@ export class MockApiService extends ApiService {
   async profileCreate(params: ProfileCreateInput): Promise<ProfileId> {
     await pauseFor(250)
 
-    // Generate interface name from fullname (first 5 chars, lowercase)
-    const interface_name =
-      params.interface ||
-      params.fullname
-        ?.toLowerCase()
-        .replace(/[^a-z0-9]/g, '')
-        .slice(0, 5) ||
-      'prof'
+    // Allocate a random opaque interface id, mirroring the backend's
+    // collision-safe allocation (backend/ctrl/src/profiles.rs
+    // `allocate_interface_name`). The id is never shown in the UI (profiles
+    // display `fullname`), so it's always random rather than derived from the
+    // name — that's what lets a freed-then-reused name get a fresh id instead of
+    // colliding. Retry against ids already taken to avoid a chance collision.
+    const taken = new Set(this.mockProfiles.map(p => p.interface))
+    const randomInterface = () =>
+      Array.from({ length: 5 }, () =>
+        String.fromCharCode(97 + Math.floor(Math.random() * 26)),
+      ).join('')
+    let interface_name = randomInterface()
+    while (taken.has(interface_name)) {
+      interface_name = randomInterface()
+    }
 
     // Auto-assign vlan_tag if not provided
     const existing_tags = this.mockProfiles.map(p => p.vlan_tag)

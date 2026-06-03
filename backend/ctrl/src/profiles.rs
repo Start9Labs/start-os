@@ -22,6 +22,13 @@ use uciedit::openwrt::{
 use uciedit::{dump_all, parse_all, Arena, Configs, Line, LineComment, Token, TypedSection};
 
 pub const DEFAULT_WAN_ZONE: &str = "wan";
+/// Max length of a generated profile interface id. The binding constraint is the
+/// WiFi VLAN netdev OpenWrt derives for a profile's `wifi-vlan`:
+/// `<ap_ifname>-<iface>` (e.g. `phy0-ap0-<iface>`; see `iface_vlan` in
+/// wifi-scripts' `ap.uc` / `hostapd.sh`). That name must fit Linux IFNAMSIZ
+/// (15 chars). With a 2-digit phy/ap index the AP ifname is up to 9 chars,
+/// leaving 5 for the id. (The VPN-server device `wg_<iface>` is looser, at 12.)
+/// Do NOT raise this without re-checking every interface-derived netdev name.
 pub const INTERFACE_NAME_LIMIT: usize = 5;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1302,17 +1309,19 @@ pub async fn create<C: CtrlContext>(
     DeserializeStdin(profile): DeserializeStdin<Profile<ProfileIdOpt>>,
 ) -> Result<ProfileId, Error> {
     let name = profile.id.fullname.clone().unwrap_or_default();
-    // Pre-allocate the interface name before the retry loop to avoid holding
-    // the !Send Arena across an .await point.
+    // Pre-allocate the interface id before the retry loop to avoid holding the
+    // !Send Arena across an .await point. Gather the ids already in use (in their
+    // own arena scope, dropped before the loop) so the random allocation avoids
+    // them instead of hard-failing in create_config — every id is random, so a
+    // freed-then-reused profile name, or two names that sanitize to the same
+    // prefix, each get a distinct id.
     let pre_allocated_interface = if !profile.owns_lan {
-        Some(allocate_interface_name(
-            &ctx,
-            profile
-                .id
-                .interface
-                .as_deref()
-                .or(profile.id.fullname.as_deref()),
-        ).await?)
+        let taken = {
+            let arena = Arena::new();
+            let cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt"]).await?;
+            reserved_interface_names(&cfgs)
+        };
+        Some(allocate_interface_name(&ctx, &taken).await?)
     } else {
         None
     };
@@ -2480,47 +2489,73 @@ pub(crate) fn cleanup_orphaned_vpn_zones(cfgs: &mut Configs) {
     }
 }
 
+/// A random `INTERFACE_NAME_LIMIT`-char lowercase interface id. Always starts
+/// with a letter (the alphabet is `a..=z`), so it is a valid UCI section name.
+fn random_interface_name() -> String {
+    String::from_iter([(); INTERFACE_NAME_LIMIT].map(|_| rand::random_range('a'..='z')))
+}
+
+/// True if a kernel network device with this name currently exists. An
+/// ambiguous error is treated as "exists" so the caller picks another name.
+async fn netdev_exists(name: &str) -> bool {
+    // `ip link show <name>` exits non-zero with a "device not found" message
+    // when no such device exists.
+    match tokio::process::Command::new("ip")
+        .arg("link")
+        .arg("show")
+        .arg(name)
+        .invoke(ErrorKind::Network.into())
+        .await
+    {
+        Err(e) if e.to_string().contains("can't find device")
+            || e.to_string().contains("does not exist") =>
+        {
+            false
+        }
+        Err(_) | Ok(_) => true,
+    }
+}
+
+/// The interface ids already in use, so a newly created profile can avoid them.
+/// Mirrors the conflict surface checked in `create_config`: every `network`
+/// interface section name (`lan`, `wan`, `wan6`, `loopback`, `wg_*` VPN ifaces,
+/// other profiles' ifaces, …) plus every existing profile's interface.
+fn reserved_interface_names(cfgs: &Configs) -> BTreeSet<String> {
+    let mut set = BTreeSet::new();
+    for section in &cfgs["network"].sections {
+        if &*section.ty() == NetworkInterface::TY {
+            if let Some(name) = section.name() {
+                set.insert(name.to_string());
+            }
+        }
+    }
+    for section in &cfgs["startwrt"].sections {
+        if let Ok(Some(profile)) = section.get_typed::<UciProfile>() {
+            set.insert(profile.interface);
+        }
+    }
+    set
+}
+
+/// Allocate a random UCI interface id that collides with neither an existing
+/// UCI interface/profile id (`taken`) nor a live kernel netdev.
+///
+/// The id is opaque and never shown in the UI — profiles are displayed by their
+/// separate, freely-renamable `fullname` — so it is always random rather than
+/// derived from the profile name. That carries no UX cost and means the id is
+/// never re-derived on rename, which is what keeps a renamed profile's
+/// WireGuard device, firewall zone, and DHCP/route names stable.
 pub async fn allocate_interface_name(
     ctx: &impl CtrlContext,
-    hint: Option<&str>,
+    taken: &BTreeSet<String>,
 ) -> Result<String, Error> {
-    fn random() -> String {
-        String::from_iter([(); INTERFACE_NAME_LIMIT].map(|_| rand::random_range('a'..='z')))
-    }
-    let mut name = match hint {
-        Some(hint) => {
-            let mut hint = hint.trim().to_ascii_lowercase();
-            hint.truncate(INTERFACE_NAME_LIMIT);
-            match hint.split(|c: char| !c.is_ascii_alphanumeric()).next() {
-                None | Some("") => random(),
-                Some(hint) => hint.to_string(),
-            }
-        }
-        None => random(),
-    };
-    if !ctx.effectful() {
-        return Ok(name);
-    }
+    let mut name = random_interface_name();
     for _ in 0..100 {
-        // `ip link show <name>` exits non-zero when the device doesn't exist.
-        // Use invoke and treat an error containing the expected message as "available".
-        match tokio::process::Command::new("ip")
-            .arg("link")
-            .arg("show")
-            .arg(&name)
-            .invoke(ErrorKind::Network.into())
-            .await
-        {
-            Err(e) if e.to_string().contains("can't find device")
-                || e.to_string().contains("does not exist") =>
-            {
-                return Ok(name);
-            }
-            Err(_) | Ok(_) => {
-                // Device exists or unexpected error — try another name
-                name = random();
-            }
+        if !taken.contains(&name) && !(ctx.effectful() && netdev_exists(&name).await) {
+            return Ok(name);
         }
+        // Collides with a reserved id or a live device — try another random one.
+        name = random_interface_name();
     }
     Err(Error::new(eyre!("gave up looking for a new interface name"), ErrorKind::InterfaceNameConflict))
 }
@@ -5689,5 +5724,42 @@ config dhcp 'guest'
             .unwrap();
         assert_eq!(ks.kind.as_deref(), Some("unreachable"));
         assert_eq!(ks.interface, "loopback");
+    }
+
+    // === Interface id allocation ===
+
+    #[tokio::test]
+    async fn test_allocate_is_random_and_well_formed() {
+        let ctx = TestContext(PathBuf::from(".")); // non-effectful: no `ip link` calls
+        let taken = BTreeSet::new();
+        let name = allocate_interface_name(&ctx, &taken).await.unwrap();
+        // INTERFACE_NAME_LIMIT lowercase letters, valid UCI section name.
+        assert_eq!(name.len(), INTERFACE_NAME_LIMIT);
+        assert!(name.chars().all(|c| c.is_ascii_lowercase()));
+    }
+
+    #[tokio::test]
+    async fn test_allocate_avoids_taken_names() {
+        let ctx = TestContext(PathBuf::from("."));
+        // A random draw could collide with a reserved id (e.g. another profile's
+        // id, or `lan`/`wan`); the allocator must retry until it finds a free one.
+        let taken = BTreeSet::from(["wan".to_string(), "lan".to_string()]);
+        let name = allocate_interface_name(&ctx, &taken).await.unwrap();
+        assert!(!taken.contains(&name));
+    }
+
+    #[tokio::test]
+    async fn test_reserved_interface_names_collects_network_and_profiles() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+        let arena = Arena::new();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt"])
+            .await
+            .unwrap();
+        let reserved = reserved_interface_names(&cfgs);
+        // From network interface sections and startwrt profiles.
+        assert!(reserved.contains("lan"));
+        assert!(reserved.contains("guest"));
     }
 }
