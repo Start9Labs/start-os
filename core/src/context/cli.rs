@@ -64,8 +64,8 @@ impl Drop for CliContextSeed {
     }
 }
 impl CliContextSeed {
-    /// Persist the cookie store to `cookie_path` atomically (write-temp-then-rename),
-    /// serialized across processes by an exclusive lock on a *stable* sidecar lock
+    /// Persist the cookie store to `cookie_path` atomically (merge-then-write-temp-
+    /// then-rename), serialized across processes by an exclusive lock on a *stable* lock
     /// file. `cookie_path` is derived from `$HOME`, so concurrent `start-cli`
     /// invocations (the release pipeline publishes one s9pk per arch in parallel)
     /// share it. The lock must be held on a file that is never renamed away — the
@@ -86,16 +86,39 @@ impl CliContextSeed {
             true,
         )
         .with_ctx(|_| (ErrorKind::Filesystem, &lock_path))?;
-        let tmp = format!("{}.tmp", self.cookie_path.display());
-        let mut writer = File::create(&tmp).with_ctx(|_| (ErrorKind::Filesystem, &tmp))?;
-        {
+
+        // Merge onto whatever is on disk now — a concurrent writer may have saved
+        // cookies for other domains since we loaded — rather than clobbering it.
+        // Our in-memory copy wins per-cookie conflicts (last-writer-wins).
+        let on_disk = if self.cookie_path.exists() {
+            cookie_store::serde::json::load(BufReader::new(
+                File::open(&self.cookie_path)
+                    .with_ctx(|_| (ErrorKind::Filesystem, self.cookie_path.display()))?,
+            ))
+            .unwrap_or_default()
+        } else {
+            CookieStore::default()
+        };
+        let merged = {
             let store = self
                 .cookie_store
                 .lock()
                 .map_err(|_| Error::new(eyre!("cookie store mutex poisoned"), ErrorKind::Unknown))?;
-            cookie_store::serde::json::save(&store, &mut writer)
-                .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Filesystem))?;
-        }
+            CookieStore::from_cookies(
+                on_disk
+                    .iter_unexpired()
+                    .chain(store.iter_unexpired())
+                    .cloned()
+                    .map(Ok::<_, std::convert::Infallible>),
+                false,
+            )
+            .expect("from_cookies is infallible")
+        };
+
+        let tmp = format!("{}.tmp", self.cookie_path.display());
+        let mut writer = File::create(&tmp).with_ctx(|_| (ErrorKind::Filesystem, &tmp))?;
+        cookie_store::serde::json::save(&merged, &mut writer)
+            .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Filesystem))?;
         writer.sync_all().with_ctx(|_| (ErrorKind::Filesystem, &tmp))?;
         std::fs::rename(&tmp, &self.cookie_path)
             .with_ctx(|_| (ErrorKind::Filesystem, self.cookie_path.display()))?;
