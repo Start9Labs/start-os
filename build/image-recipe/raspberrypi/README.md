@@ -63,7 +63,14 @@ Pi for the same connect-policy reason — see `core/src/os_install/`.
 ## Sources
 
 The VPU blobs + DTBs + overlays come from the Debian `raspi-firmware`
-package on `archive.raspberrypi.com` (see `build/dpkg-deps/raspberrypi.depends`).
+package on `archive.raspberrypi.com` (see `build/dpkg-deps/raspberrypi.depends`)
+— **except `start4.elf` + `fixup4.dat`, which are taken from the pftf
+zip** and overwrite the package's. The EDK2 `RPI_EFI.fd` and the VPU
+`start4.elf` are a matched pair: pftf builds/tests its EDK2 against a
+specific `start4.elf`, and a newer one (from `raspi-firmware`) lays out
+memory such that GRUB can't allocate the initrd and hangs at "Loading
+initial ramdisk" (raspberrypi/firmware#1341, pftf/RPi3#8). Always ship
+pftf's `start4.elf`/`fixup4.dat` alongside its `.fd`.
 
 ### Kernels
 

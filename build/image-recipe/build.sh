@@ -370,6 +370,14 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
     PFTF_DIR=\$(mktemp -d)
     unzip -q /tmp/pftf-rpi4.zip -d \$PFTF_DIR
     cp \$PFTF_DIR/RPI_EFI.fd /boot/firmware/RPI_EFI_RPI4.fd
+    # CRITICAL: use pftf's start4.elf + fixup4.dat (the VPU firmware its
+    # EDK2 was built/tested against), overwriting the newer ones from the
+    # raspi-firmware Debian package. A mismatched (newer) start4.elf sets
+    # up a memory map EDK2/GRUB can't allocate the initrd into, so GRUB
+    # hangs at "Loading initial ramdisk" — see raspberrypi/firmware#1341
+    # and pftf/RPi3#8. The .fd and start4.elf must come as a matched pair.
+    cp \$PFTF_DIR/start4.elf /boot/firmware/start4.elf
+    cp \$PFTF_DIR/fixup4.dat /boot/firmware/fixup4.dat
     # pftf ships ACPI-patched DTBs; let them override raspi-firmware's
     cp \$PFTF_DIR/bcm2711-rpi-*.dtb /boot/firmware/
     mkdir -p /boot/firmware/overlays
