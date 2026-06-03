@@ -196,12 +196,13 @@ impl NetServiceData {
         let net_ifaces = ctrl.net_iface.watcher.ip_info();
         let host_addresses: Vec<_> = host.addresses().collect();
 
-        // Collect private DNS entries (domains without public config)
+        // Collect private DNS entries: any domain with a private gateway, even
+        // if the same domain is also served publicly (split DNS).
         for HostAddress {
-            address, public, ..
+            address, private, ..
         } in &host_addresses
         {
-            if public.is_none() {
+            if private.is_some() {
                 private_dns.insert(address.clone());
             }
         }
