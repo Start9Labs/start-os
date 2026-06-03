@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use clap::Parser;
@@ -277,12 +277,14 @@ async fn perform_backup(
     for id in package_ids {
         let mut phase = phase_handles.remove(id).expect("phase exists");
         phase.start();
+        let started = Instant::now();
         if let Some(service) = &*ctx.services.get(id).await {
             let backup_result = service
                 .backup(backup_guard.package_backup(id).await?, phase)
                 .await
                 .err()
                 .map(|e| e.to_string());
+            let duration_ms = started.elapsed().as_millis() as u64;
             if backup_result.is_none() {
                 let manifest = db
                     .as_public()
@@ -307,6 +309,7 @@ async fn perform_backup(
                 id.clone(),
                 PackageBackupReport {
                     error: backup_result,
+                    duration_ms,
                 },
             );
         } else {
@@ -315,6 +318,7 @@ async fn perform_backup(
                 id.clone(),
                 PackageBackupReport {
                     error: Some(t!("backup.bulk.service-not-ready").to_string()),
+                    duration_ms: started.elapsed().as_millis() as u64,
                 },
             );
         }

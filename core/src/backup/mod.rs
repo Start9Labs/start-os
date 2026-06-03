@@ -32,6 +32,8 @@ pub struct ServerBackupReport {
 #[ts(export)]
 pub struct PackageBackupReport {
     pub error: Option<String>,
+    #[ts(type = "number")]
+    pub duration_ms: u64,
 }
 
 // #[command(subcommands(backup_bulk::backup_all, target::target))]

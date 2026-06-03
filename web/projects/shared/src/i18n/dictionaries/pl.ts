@@ -759,4 +759,5 @@ export default {
   847: 'Ostatnio opublikowane',
   848: 'adresu tego serwera w tunelu',
   849: 'W StartTunnel ustaw DNS tej podsieci na ten serwer.',
+  850: 'Czas trwania',
 } satisfies i18n

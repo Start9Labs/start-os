@@ -759,4 +759,5 @@ export default {
   847: 'Última publicación',
   848: 'la dirección de este servidor en el túnel',
   849: 'En StartTunnel, configure el DNS de esta subred para que use este servidor.',
+  850: 'Duración',
 } satisfies i18n

@@ -234,7 +234,7 @@ pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<InternedString>>, Error
 pub async fn recovery_info(
     mountpoint: impl AsRef<Path>,
 ) -> Result<BTreeMap<String, StartOsRecoveryInfo>, Error> {
-    let backup_root = mountpoint.as_ref().join("StartOSBackups");
+    let backup_root = mountpoint.as_ref().join(super::BACKUP_DIR_NAME);
     let mut res = BTreeMap::new();
     if tokio::fs::metadata(&backup_root).await.is_ok() {
         let mut dir = tokio::fs::read_dir(&backup_root).await?;
