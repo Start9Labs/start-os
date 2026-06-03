@@ -19,7 +19,6 @@ use crate::net::forward::{
     ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, add_iptables_rule,
 };
 use crate::net::gateway::NetworkInterfaceController;
-use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions};
 use crate::net::host::{Host, Hosts, host_for};
 use crate::net::service_interface::HostnameMetadata;
@@ -196,17 +195,6 @@ impl NetServiceData {
         let net_ifaces = ctrl.net_iface.watcher.ip_info();
         let host_addresses: Vec<_> = host.addresses().collect();
 
-        // Collect private DNS entries: any domain with a private gateway, even
-        // if the same domain is also served publicly (split DNS).
-        for HostAddress {
-            address, private, ..
-        } in &host_addresses
-        {
-            if private.is_some() {
-                private_dns.insert(address.clone());
-            }
-        }
-
         // ── Build controller entries from enabled addresses ──
         for (port, bind) in host.bindings.iter() {
             if !bind.enabled {
@@ -218,6 +206,22 @@ impl NetServiceData {
 
             let enabled_addresses = bind.addresses.enabled();
             let addr: SocketAddr = (self.ip, *port).into();
+
+            // Serve private DNS for enabled private-domain addresses whose
+            // gateway is up — even when the same domain is also public (split
+            // DNS). The public-domain entry is a separate address, so a dual
+            // public+private domain still has a PrivateDomain entry here.
+            for addr_info in &enabled_addresses {
+                if let HostnameMetadata::PrivateDomain { gateways } = &addr_info.metadata {
+                    if gateways.iter().any(|gw| {
+                        net_ifaces
+                            .get(gw)
+                            .map_or(false, |info| info.ip_info.is_some())
+                    }) {
+                        private_dns.insert(addr_info.hostname.clone());
+                    }
+                }
+            }
 
             // SSL vhosts
             if let Some(ssl) = &bind.options.add_ssl {
