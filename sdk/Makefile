@@ -36,7 +36,7 @@ baseDist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) base/package.json base/node_modul
 	cp LICENSE baseDist/LICENSE
 	touch baseDist
 
-dist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) package/package.json package/.npmignore package/node_modules README.md LICENSE CHANGELOG.md
+dist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) package/package.json package/.npmignore package/node_modules README.md LICENSE CHANGELOG.md s9pk.mk tsconfig.base.json
 	(cd package && npm run tsc)
 	rsync -ac --include='*.js' --include='*.d.ts' --include='*/' --exclude='*' base/lib/ dist/base/lib/
 	rsync -ac package/node_modules dist/
@@ -45,6 +45,8 @@ dist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) package/package.json package/.npmigno
 	cp README.md dist/README.md
 	cp LICENSE dist/LICENSE
 	cp CHANGELOG.md dist/CHANGELOG.md
+	cp s9pk.mk dist/s9pk.mk
+	cp tsconfig.base.json dist/tsconfig.base.json
 	touch dist
 
 full-bundle: bundle
