@@ -8,10 +8,11 @@
     "noImplicitAny": true,
     "esModuleInterop": true,
     "types": ["node", "jest"],
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "module": "commonjs",
     "outDir": "../baseDist",
+    "rootDir": "lib",
     "target": "es2021"
   },
   "include": ["lib/**/*"],
