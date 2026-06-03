@@ -58,21 +58,13 @@ impl Drop for CliContextSeed {
                 rt.shutdown_background();
             }
         }
-        // Failing to persist the cookie cache must not crash an otherwise
-        // successful command (e.g. `s9pk publish`), so log instead of panicking.
+        // A cookie-cache write failure must not crash an otherwise-successful command.
         self.save_cookie_store().log_err();
     }
 }
 impl CliContextSeed {
-    /// Persist the cookie store to `cookie_path` atomically (merge-then-write-temp-
-    /// then-rename), serialized across processes by an exclusive lock on a *stable* lock
-    /// file. `cookie_path` is derived from `$HOME`, so concurrent `start-cli`
-    /// invocations (the release pipeline publishes one s9pk per arch in parallel)
-    /// share it. The lock must be held on a file that is never renamed away — the
-    /// previous code locked the temp file itself, which each writer recreates, so it
-    /// served no cross-process purpose and the writers raced on the rename: whoever
-    /// renamed first moved the temp out from under the other, which then panicked
-    /// with ENOENT.
+    /// Lock a stable sidecar file (not the temp, which each writer recreates) so
+    /// concurrent `start-cli` invocations sharing `$HOME` serialize their saves.
     fn save_cookie_store(&self) -> Result<(), Error> {
         let parent_dir = self.cookie_path.parent().unwrap_or(Path::new("/"));
         if !parent_dir.exists() {
@@ -87,9 +79,7 @@ impl CliContextSeed {
         )
         .with_ctx(|_| (ErrorKind::Filesystem, &lock_path))?;
 
-        // Merge onto whatever is on disk now — a concurrent writer may have saved
-        // cookies for other domains since we loaded — rather than clobbering it.
-        // Our in-memory copy wins per-cookie conflicts (last-writer-wins).
+        // Merge onto disk rather than clobber a concurrent writer's other-domain cookies; ours wins conflicts.
         let on_disk = if self.cookie_path.exists() {
             cookie_store::serde::json::load(BufReader::new(
                 File::open(&self.cookie_path)
