@@ -189,7 +189,7 @@ impl NetServiceData {
     async fn update(&mut self, ctrl: &NetController, id: HostId, host: Host) -> Result<(), Error> {
         let mut forwards: BTreeMap<u16, (SocketAddrV4, ForwardRequirements)> = BTreeMap::new();
         let mut vhosts: BTreeMap<(Option<InternedString>, u16), ProxyTarget> = BTreeMap::new();
-        let mut private_dns: BTreeSet<InternedString> = BTreeSet::new();
+        let mut private_dns: BTreeMap<InternedString, BTreeSet<GatewayId>> = BTreeMap::new();
         let binds = self.binds.entry(id.clone()).or_default();
 
         let net_ifaces = ctrl.net_iface.watcher.ip_info();
@@ -207,18 +207,24 @@ impl NetServiceData {
             let enabled_addresses = bind.addresses.enabled();
             let addr: SocketAddr = (self.ip, *port).into();
 
-            // Serve private DNS for enabled private-domain addresses whose
-            // gateway is up — even when the same domain is also public (split
-            // DNS). The public-domain entry is a separate address, so a dual
-            // public+private domain still has a PrivateDomain entry here.
+            // Key private DNS by its live gateways so the resolver only answers
+            // locally over those gateways — works even when also public (split DNS).
             for addr_info in &enabled_addresses {
                 if let HostnameMetadata::PrivateDomain { gateways } = &addr_info.metadata {
-                    if gateways.iter().any(|gw| {
-                        net_ifaces
-                            .get(gw)
-                            .map_or(false, |info| info.ip_info.is_some())
-                    }) {
-                        private_dns.insert(addr_info.hostname.clone());
+                    let live: BTreeSet<GatewayId> = gateways
+                        .iter()
+                        .filter(|gw| {
+                            net_ifaces
+                                .get(*gw)
+                                .map_or(false, |info| info.ip_info.is_some())
+                        })
+                        .cloned()
+                        .collect();
+                    if !live.is_empty() {
+                        private_dns
+                            .entry(addr_info.hostname.clone())
+                            .or_default()
+                            .extend(live);
                     }
                 }
             }
@@ -475,17 +481,17 @@ impl NetServiceData {
 
         let mut rm = BTreeSet::new();
         binds.private_dns.retain(|fqdn, _| {
-            if private_dns.remove(fqdn) {
+            if private_dns.contains_key(fqdn) {
                 true
             } else {
                 rm.insert(fqdn.clone());
                 false
             }
         });
-        for fqdn in private_dns {
+        for (fqdn, gateways) in private_dns {
             binds
                 .private_dns
-                .insert(fqdn.clone(), ctrl.dns.add_private_domain(fqdn)?);
+                .insert(fqdn.clone(), ctrl.dns.add_private_domain(fqdn, gateways)?);
         }
         ctrl.dns.gc_private_domains(&rm)?;
 

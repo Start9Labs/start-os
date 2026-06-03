@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
@@ -208,7 +208,7 @@ pub async fn dump_table(
 
 #[derive(Default)]
 struct ResolveMap {
-    private_domains: BTreeMap<InternedString, Weak<()>>,
+    private_domains: BTreeMap<InternedString, (BTreeSet<GatewayId>, Weak<()>)>,
     services: BTreeMap<Option<PackageId>, BTreeMap<Ipv4Addr, Weak<()>>>,
     challenges: BTreeMap<InternedString, (InternedString, Weak<()>)>,
 }
@@ -387,14 +387,19 @@ impl Resolver {
             a => a,
         };
         self.resolve.peek(|r| {
-            if !src.is_loopback()
-                && r.private_domains
-                    .get(&*name.to_lowercase().to_utf8().trim_end_matches('.'))
-                    .map_or(false, |d| d.strong_count() > 0)
-            {
+            let private_gateways = (!src.is_loopback())
+                .then(|| {
+                    r.private_domains
+                        .get(&*name.to_lowercase().to_utf8().trim_end_matches('.'))
+                        .filter(|(_, rc)| rc.strong_count() > 0)
+                        .map(|(gateways, _)| gateways)
+                })
+                .flatten();
+            if let Some(gateways) = private_gateways {
                 if let Some(res) = self.net_iface.peek(|i| {
-                    i.values()
-                        .filter_map(|i| i.ip_info.as_ref())
+                    i.iter()
+                        .filter(|(gid, _)| gateways.contains(*gid))
+                        .filter_map(|(_, i)| i.ip_info.as_ref())
                         .find(|i| i.subnets.iter().any(|s| s.contains(&src)))
                         .map(|ip_info| {
                             let mut res = ip_info.subnets.iter().collect::<Vec<_>>();
@@ -405,10 +410,11 @@ impl Resolver {
                     return Some(res);
                 } else if is_private_ip(src) {
                     // Source is a private IP not in any known subnet (e.g. VPN on a different VLAN).
-                    // Return all private IPs from all interfaces.
+                    // Return private IPs from the gateways this domain is served on.
                     let res: Vec<IpAddr> = self.net_iface.peek(|i| {
-                        i.values()
-                            .filter_map(|i| i.ip_info.as_ref())
+                        i.iter()
+                            .filter(|(gid, _)| gateways.contains(*gid))
+                            .filter_map(|(_, i)| i.ip_info.as_ref())
                             .flat_map(|ip_info| ip_info.subnets.iter().map(|s| s.addr()))
                             .collect()
                     });
@@ -694,15 +700,20 @@ impl DnsController {
         }
     }
 
-    pub fn add_private_domain(&self, fqdn: InternedString) -> Result<Arc<()>, Error> {
+    pub fn add_private_domain(
+        &self,
+        fqdn: InternedString,
+        gateways: BTreeSet<GatewayId>,
+    ) -> Result<Arc<()>, Error> {
         if let Some(resolve) = Weak::upgrade(&self.resolve) {
             resolve.mutate(|writable| {
-                let weak = writable.private_domains.entry(fqdn).or_default();
-                let rc = if let Some(rc) = Weak::upgrade(&*weak) {
+                let entry = writable.private_domains.entry(fqdn).or_default();
+                entry.0 = gateways;
+                let rc = if let Some(rc) = Weak::upgrade(&entry.1) {
                     rc
                 } else {
                     let new = Arc::new(());
-                    *weak = Arc::downgrade(&new);
+                    entry.1 = Arc::downgrade(&new);
                     new
                 };
                 Ok(rc)
@@ -754,7 +765,7 @@ impl DnsController {
             resolve.mutate(|writable| {
                 for domain in domains {
                     if let Some((k, v)) = writable.private_domains.remove_entry(domain) {
-                        if v.strong_count() > 0 {
+                        if v.1.strong_count() > 0 {
                             writable.private_domains.insert(k, v);
                         }
                     }
