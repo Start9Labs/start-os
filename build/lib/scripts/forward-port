@@ -1,75 +1,70 @@
 #!/bin/bash
 
+# Manage a single port-forward as native nftables rules in `table ip startos`.
+# Invoked once per (sip, sport -> dip:dport, src_subnet) tuple by
+# core/src/net/forward.rs. All rules for one forward share a comment tag so the
+# whole forward can be torn down by handle without disturbing other forwards or
+# the rules StartOS installs from Rust (base policy, marks, tunnel, lxc egress).
+
 if [ -z "$sip" ] || [ -z "$dip" ] || [ -z "$dprefix" ] || [ -z "$sport" ] || [ -z "$dport" ]; then
     >&2 echo 'missing required env var'
     exit 1
 fi
 
-NAME="F$(echo "$sip:$sport -> $dip/$dprefix:$dport ${src_subnet:-any}" | sha256sum | head -c 15)"
+TAG="F$(echo "$sip:$sport -> $dip/$dprefix:$dport ${src_subnet:-any}" | sha256sum | head -c 15)"
+PROTO='meta l4proto { tcp, udp }'
 
-for kind in INPUT FORWARD ACCEPT; do
-    if ! iptables -C $kind -j "${NAME}_${kind}" 2> /dev/null; then
-        iptables -N "${NAME}_${kind}" 2> /dev/null
-        iptables -A $kind -j "${NAME}_${kind}"
+# The base table/chains are owned by PortForwardController init; ensure them
+# defensively so a forward issued before init still lands somewhere valid.
+nft -f - <<'EOF'
+add table ip startos
+add chain ip startos prerouting { type nat hook prerouting priority dstnat; policy accept; }
+add chain ip startos output { type nat hook output priority -100; policy accept; }
+add chain ip startos postrouting { type nat hook postrouting priority srcnat; policy accept; }
+add chain ip startos forward { type filter hook forward priority filter; policy drop; }
+EOF
+
+# Emit `delete rule` statements for every rule tagged TAG in the script's chains.
+delete_tagged() {
+    local chain
+    for chain in prerouting output postrouting forward; do
+        nft -a list chain ip startos "$chain" 2>/dev/null | awk -v chain="$chain" -v tag="comment \"$TAG\"" '
+            index($0, tag) {
+                for (i = 1; i <= NF; i++) if ($i == "handle") print "delete rule ip startos " chain " handle " $(i+1)
+            }'
+    done
+}
+
+# Reconcile this forward's rules atomically: drop the old set, add the new set.
+{
+    delete_tagged
+    if [ "${UNDO:-0}" != 1 ]; then
+        # DNAT inbound. With src_subnet, restrict to that subnet (private
+        # forward) plus the container bridge; otherwise forward from anywhere.
+        if [ -n "${src_subnet:-}" ]; then
+            echo "add rule ip startos prerouting ip saddr $src_subnet ip daddr $sip $PROTO th dport $sport dnat to $dip:$dport comment \"$TAG\""
+            if [ -n "${bridge_subnet:-}" ]; then
+                echo "add rule ip startos prerouting ip saddr $bridge_subnet ip daddr $sip $PROTO th dport $sport dnat to $dip:$dport comment \"$TAG\""
+            fi
+        else
+            echo "add rule ip startos prerouting ip daddr $sip $PROTO th dport $sport dnat to $dip:$dport comment \"$TAG\""
+        fi
+        # DNAT for locally-originated (hairpin from the host itself).
+        echo "add rule ip startos output ip daddr $sip $PROTO th dport $sport dnat to $dip:$dport comment \"$TAG\""
+        # Allow new forwarded connections to the target.
+        echo "add rule ip startos forward ip daddr $dip $PROTO th dport $dport ct state new accept comment \"$TAG\""
+        # Masquerade hairpin replies so they reverse through this host.
+        # Host-originated: original dst was sip (ctorigdst ties to this sip so
+        # multiple WAN IPs forwarding the same port stay independent).
+        echo "add rule ip startos postrouting fib saddr type local ct original ip daddr $sip ip daddr $dip $PROTO th dport $dport masquerade comment \"$TAG\""
+        # Same-subnet hairpin (container->container, or a peer reaching itself
+        # via the tunnel's public IP).
+        echo "add rule ip startos postrouting ip saddr $dip/$dprefix ip daddr $dip $PROTO th dport $dport masquerade comment \"$TAG\""
     fi
-done
-for kind in PREROUTING OUTPUT POSTROUTING; do
-    if ! iptables -t nat -C $kind -j "${NAME}_${kind}" 2> /dev/null; then
-        iptables -t nat -N "${NAME}_${kind}" 2> /dev/null
-        iptables -t nat -A $kind -j "${NAME}_${kind}"
-    fi
-done
+} | nft -f -
 
-err=0
-trap 'err=1' ERR
-
-for kind in INPUT FORWARD ACCEPT; do
-    iptables -F "${NAME}_${kind}" 2> /dev/null
-done
-for kind in PREROUTING OUTPUT POSTROUTING; do
-    iptables -t nat -F "${NAME}_${kind}" 2> /dev/null
-done
-if [ "$UNDO" = 1 ]; then
-    conntrack -D -p tcp -d $sip --dport $sport || true # conntrack returns exit 1 if no connections are active
-    conntrack -D -p udp -d $sip --dport $sport || true # conntrack returns exit 1 if no connections are active
-    exit $err
+if [ "${UNDO:-0}" = 1 ]; then
+    # conntrack returns 1 when no flows match; ignore.
+    conntrack -D -p tcp -d "$sip" --dport "$sport" 2> /dev/null || true
+    conntrack -D -p udp -d "$sip" --dport "$sport" 2> /dev/null || true
 fi
-
-# DNAT: rewrite destination for incoming packets (external traffic)
-# When src_subnet is set, only forward traffic from that subnet (private forwards)
-if [ -n "$src_subnet" ]; then
-    iptables -t nat -A ${NAME}_PREROUTING -s "$src_subnet" -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
-    iptables -t nat -A ${NAME}_PREROUTING -s "$src_subnet" -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
-    # Also allow containers on the bridge subnet to reach this forward
-    if [ -n "$bridge_subnet" ]; then
-        iptables -t nat -A ${NAME}_PREROUTING -s "$bridge_subnet" -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
-        iptables -t nat -A ${NAME}_PREROUTING -s "$bridge_subnet" -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
-    fi
-else
-    iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
-    iptables -t nat -A ${NAME}_PREROUTING -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
-fi
-
-# DNAT: rewrite destination for locally-originated packets (hairpin from host itself)
-iptables -t nat -A ${NAME}_OUTPUT -d "$sip" -p tcp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
-iptables -t nat -A ${NAME}_OUTPUT -d "$sip" -p udp --dport "$sport" -j DNAT --to-destination "$dip:$dport"
-
-# Allow new connections to be forwarded to the destination
-iptables -A ${NAME}_FORWARD -d $dip -p tcp --dport $dport -m state --state NEW -j ACCEPT
-iptables -A ${NAME}_FORWARD -d $dip -p udp --dport $dport -m state --state NEW -j ACCEPT
-
-# NAT hairpin: masquerade so replies route back through this host for proper
-# NAT reversal instead of taking a direct path that bypasses conntrack.
-# Host-to-target hairpin: locally-originated packets whose original destination
-# was sip (before OUTPUT DNAT rewrote it to dip).  Using --ctorigdst ties the
-# rule to this specific sip, so multiple WAN IPs forwarding the same port to
-# different targets each get their own masquerade.
-iptables -t nat -A ${NAME}_POSTROUTING -m addrtype --src-type LOCAL -m conntrack --ctorigdst "$sip" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
-iptables -t nat -A ${NAME}_POSTROUTING -m addrtype --src-type LOCAL -m conntrack --ctorigdst "$sip" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
-# Same-subnet hairpin: when traffic originates from the same subnet as the DNAT
-# target (e.g. a container reaching another container, or a WireGuard peer
-# connecting to itself via the tunnel's public IP).
-iptables -t nat -A ${NAME}_POSTROUTING -s "$dip/$dprefix" -d "$dip" -p tcp --dport "$dport" -j MASQUERADE
-iptables -t nat -A ${NAME}_POSTROUTING -s "$dip/$dprefix" -d "$dip" -p udp --dport "$dport" -j MASQUERADE
-
-exit $err

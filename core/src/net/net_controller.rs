@@ -16,7 +16,7 @@ use crate::db::model::Database;
 use crate::hostname::ServerHostname;
 use crate::net::dns::DnsController;
 use crate::net::forward::{
-    ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, add_iptables_rule,
+    ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, nft_rule,
 };
 use crate::net::gateway::NetworkInterfaceController;
 use crate::net::host::address::HostAddress;
@@ -64,20 +64,12 @@ impl NetController {
                 .de()?
                 .0],
         )?);
-        add_iptables_rule(
-            None,
+        nft_rule(
+            "forward",
+            "lxcbr0-egress",
             false,
-            &[
-                "FORWARD",
-                "-i",
-                START9_BRIDGE_IFACE,
-                "-m",
-                "state",
-                "--state",
-                "NEW",
-                "-j",
-                "ACCEPT",
-            ],
+            false,
+            &format!("iifname \"{START9_BRIDGE_IFACE}\" ct state new accept"),
         )
         .await?;
         let peek = db.peek().await;

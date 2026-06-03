@@ -31,7 +31,7 @@ use zbus::{Connection, proxy};
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceType};
-use crate::net::forward::START9_BRIDGE_IFACE;
+use crate::net::forward::{START9_BRIDGE_IFACE, nft_rule};
 use crate::net::gateway::device::DeviceProxy;
 use crate::net::host::all_hosts;
 use crate::net::utils::{bind_mio_listener, find_wifi_iface};
@@ -898,42 +898,35 @@ async fn gc_policy_routing(active_ifaces: &BTreeSet<GatewayId>) {
         }
     }
 
-    // GC iptables CONNMARK set-mark rules for defunct interfaces.
-    if let Ok(rules) = Command::new("iptables")
-        .arg("-t")
-        .arg("mangle")
-        .arg("-S")
-        .arg("PREROUTING")
+    // GC per-interface set-mark rules (tagged `mark-<iface>` in the nft
+    // mangle_prerouting chain) for defunct interfaces.
+    if let Ok(out) = Command::new("nft")
+        .arg("-a")
+        .arg("list")
+        .arg("chain")
+        .arg("ip")
+        .arg("startos")
+        .arg("mangle_prerouting")
         .invoke(ErrorKind::Network)
         .await
-        .and_then(|b| String::from_utf8(b).with_kind(ErrorKind::Utf8))
     {
-        // Rules look like:
-        //   -A PREROUTING -i wg0 -m conntrack --ctstate NEW -j CONNMARK --set-mark 1005
-        for line in rules.lines() {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.first() != Some(&"-A") {
-                continue;
-            }
-            if !parts.contains(&"--set-mark") {
-                continue;
-            }
-            let Some(iface_idx) = parts.iter().position(|&p| p == "-i") else {
+        let text = String::from_utf8_lossy(&out);
+        for line in text.lines() {
+            let Some((_, rest)) = line.split_once("comment \"mark-") else {
                 continue;
             };
-            let Some(&iface) = parts.get(iface_idx + 1) else {
+            let Some(iface) = rest.split('"').next() else {
                 continue;
             };
-            if active_ifaces.contains(&GatewayId::from(InternedString::intern(iface))) {
+            if iface.is_empty()
+                || active_ifaces.contains(&GatewayId::from(InternedString::intern(iface)))
+            {
                 continue;
             }
-            tracing::debug!("gc_policy_routing: removing stale iptables rule for {iface}");
-            let mut cmd = Command::new("iptables");
-            cmd.arg("-t").arg("mangle").arg("-D");
-            for &arg in &parts[1..] {
-                cmd.arg(arg);
-            }
-            cmd.invoke(ErrorKind::Network).await.ok();
+            tracing::debug!("gc_policy_routing: removing stale nft mark rule for {iface}");
+            nft_rule("mangle_prerouting", &format!("mark-{iface}"), true, false, "")
+                .await
+                .log_err();
         }
     }
 }
@@ -1218,82 +1211,42 @@ async fn apply_policy_routing(
     // locally-bound listeners (e.g. vhost). The `-m mark --mark 0` condition
     // ensures we only restore when the packet has no existing fwmark,
     // preserving marks set by WireGuard on encapsulation packets.
-    for chain in ["PREROUTING", "OUTPUT"] {
-        if Command::new("iptables")
-            .arg("-t")
-            .arg("mangle")
-            .arg("-C")
-            .arg(chain)
-            .arg("-m")
-            .arg("mark")
-            .arg("--mark")
-            .arg("0")
-            .arg("-j")
-            .arg("CONNMARK")
-            .arg("--restore-mark")
-            .invoke(ErrorKind::Network)
-            .await
-            .is_err()
-        {
-            Command::new("iptables")
-                .arg("-t")
-                .arg("mangle")
-                .arg("-I")
-                .arg(chain)
-                .arg("1")
-                .arg("-m")
-                .arg("mark")
-                .arg("--mark")
-                .arg("0")
-                .arg("-j")
-                .arg("CONNMARK")
-                .arg("--restore-mark")
-                .invoke(ErrorKind::Network)
-                .await
-                .log_err();
-        }
-    }
+    // Prepend so restore-mark runs before the per-interface set-mark rules
+    // below: the first NEW packet then leaves with mark 0 (routed via main),
+    // matching the prior iptables `-I <chain> 1` insertion.
+    nft_rule(
+        "mangle_prerouting",
+        "restore-mark",
+        false,
+        true,
+        "meta mark 0x00000000 meta mark set ct mark",
+    )
+    .await
+    .log_err();
+    nft_rule(
+        "mangle_output",
+        "restore-mark",
+        false,
+        true,
+        "meta mark 0x00000000 meta mark set ct mark",
+    )
+    .await
+    .log_err();
 
     // Mark NEW connections arriving on this interface with its routing
     // table ID via conntrack mark
-    if Command::new("iptables")
-        .arg("-t")
-        .arg("mangle")
-        .arg("-C")
-        .arg("PREROUTING")
-        .arg("-i")
-        .arg(iface.as_str())
-        .arg("-m")
-        .arg("conntrack")
-        .arg("--ctstate")
-        .arg("NEW")
-        .arg("-j")
-        .arg("CONNMARK")
-        .arg("--set-mark")
-        .arg(&table_str)
-        .invoke(ErrorKind::Network)
-        .await
-        .is_err()
-    {
-        Command::new("iptables")
-            .arg("-t")
-            .arg("mangle")
-            .arg("-A")
-            .arg("PREROUTING")
-            .arg("-i")
-            .arg(iface.as_str())
-            .arg("-m")
-            .arg("conntrack")
-            .arg("--ctstate")
-            .arg("NEW")
-            .arg("-j")
-            .arg("CONNMARK")
-            .arg("--set-mark")
-            .arg(&table_str)
-            .invoke(ErrorKind::Network)
-            .await
-            .log_err();
-    }
+    nft_rule(
+        "mangle_prerouting",
+        &format!("mark-{}", iface.as_str()),
+        false,
+        false,
+        &format!(
+            "iifname \"{}\" ct state new ct mark set {table_str}",
+            iface.as_str()
+        ),
+    )
+    .await
+    .log_err();
 
     // Ensure fwmark-based ip rule for this interface's table
     let rules_output = String::from_utf8(

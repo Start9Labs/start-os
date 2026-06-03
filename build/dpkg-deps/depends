@@ -42,6 +42,7 @@ ncdu
 net-tools
 network-manager
 nfs-common
+nftables
 nvme-cli
 nyx
 openssh-server

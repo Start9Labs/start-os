@@ -9,7 +9,7 @@ use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::db::model::public::NetworkInterfaceType;
-use crate::net::forward::add_iptables_rule;
+use crate::net::forward::nft_rule;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::PortForwardEntry;
@@ -259,18 +259,13 @@ pub async fn add_subnet(
             .cloned()
             .collect::<Vec<_>>()
     }) {
-        add_iptables_rule(
-            Some("nat"),
+        let net = subnet.trunc();
+        nft_rule(
+            "postrouting",
+            &format!("tunnel-masq-{net}-{iface}"),
             false,
-            &[
-                "POSTROUTING",
-                "-s",
-                &subnet.trunc().to_string(),
-                "-o",
-                iface.as_str(),
-                "-j",
-                "MASQUERADE",
-            ],
+            false,
+            &format!("ip saddr {net} oifname \"{iface}\" masquerade"),
         )
         .await?;
     }
@@ -306,18 +301,13 @@ pub async fn remove_subnet(
             .cloned()
             .collect::<Vec<_>>()
     }) {
-        add_iptables_rule(
-            Some("nat"),
+        let net = subnet.trunc();
+        nft_rule(
+            "postrouting",
+            &format!("tunnel-masq-{net}-{iface}"),
             true,
-            &[
-                "POSTROUTING",
-                "-s",
-                &subnet.trunc().to_string(),
-                "-o",
-                iface.as_str(),
-                "-j",
-                "MASQUERADE",
-            ],
+            false,
+            &format!("ip saddr {net} oifname \"{iface}\" masquerade"),
         )
         .await?;
     }
