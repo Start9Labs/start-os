@@ -272,6 +272,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
 {
   private builtHealthDaemons: HealthDaemon<Manifest>[] | null = null
   private termPromise: Promise<void> | null = null
+  private detached = false
 
   private constructor(
     readonly effects: T.Effects,
@@ -527,6 +528,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     // over whatever made it into builtHealthDaemons.
     this.builtHealthDaemons = []
     this.effects.onLeaveContext(() => {
+      if (this.detached) return
       this.term().catch(e => logErrorOnce(asError(e)))
     })
     const byId = new Map<string, HealthDaemon<Manifest>>()
@@ -552,9 +554,11 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
         } else {
           readyArg = entry.ready
         }
-        // Suppress the Daemon's own onLeaveContext self-term — Daemons.term()
-        // handles dependency-ordered shutdown for the whole chain.
-        daemon?.markManaged()
+        // Detach the daemon so its own onLeaveContext doesn't self-term —
+        // Daemons.term() drives dependency-ordered shutdown for the whole
+        // chain. (Each daemon already detached its subcontainer at
+        // construction.)
+        daemon?.detach()
         const hd = new HealthDaemon<Manifest>(
           daemon,
           deps,
@@ -616,7 +620,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
         return null
       },
     })
-    sentinelDaemon.markManaged()
+    sentinelDaemon.detach()
     const sentinelHd = new HealthDaemon<Manifest>(
       sentinelDaemon,
       [...(this.builtHealthDaemons ?? [])],
@@ -634,6 +638,23 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       await this.term()
     }
     return null
+  }
+
+  /**
+   * Detach this `Daemons` from the effects context it was built under, so a
+   * context-leave (`onLeaveContext`) no longer terminates the chain. Each
+   * managed daemon already owns its subcontainer (detached from the context
+   * at construction) and has its self-term suppressed by {@link build}, so
+   * this only stops the chain's own `term()` from firing on context-leave —
+   * and the whole chain then outlives the context that created it.
+   *
+   * Use when a short-lived context — e.g. an action — needs to launch
+   * daemons that outlive it. After detaching, the caller owns the lifecycle:
+   * nothing is torn down until {@link term} is called explicitly. Idempotent,
+   * and safe to call before or after {@link build}.
+   */
+  detach(): void {
+    this.detached = true
   }
 
   /**
@@ -844,22 +865,36 @@ export class DaemonsReconciler<M extends T.SDKManifest>
   private pendingRerun = false
   private isTerminating = false
   private termPromise: Promise<void> | null = null
+  private detached = false
 
   constructor(
     private readonly rootEffects: T.Effects,
     private readonly fn: DaemonsBuilder<M>,
   ) {}
 
-  async build(): Promise<{ term(): Promise<void> }> {
+  async build(): Promise<{ term(): Promise<void>; detach(): void }> {
     // Arm cleanup BEFORE the first reconcile. The user's `fn` is awaited
     // inside runReconcile; if context leaves during that await (or during
     // any partial startEntry), term() walks whatever made it into the
     // `running` map and tears it down.
     this.rootEffects.onLeaveContext(() => {
+      if (this.detached) return
       this.term().catch(e => logErrorOnce(asError(e)))
     })
     await this.runReconcile()
-    return { term: () => this.term() }
+    return { term: () => this.term(), detach: () => this.detach() }
+  }
+
+  /**
+   * Detach the reconciler from `rootEffects`, so a context-leave no longer
+   * terminates the daemons or destroys their containers. Each daemon is
+   * already detached from the context as it starts (in `startEntry`), so this
+   * only stops the reconciler's own `term()` from firing on context-leave.
+   * After detaching, the caller owns the lifecycle and must call `term()`
+   * explicitly. Idempotent.
+   */
+  detach(): void {
+    this.detached = true
   }
 
   /** Trigger an out-of-band reconcile. Internal — exposed for testing. */
@@ -1029,9 +1064,11 @@ export class DaemonsReconciler<M extends T.SDKManifest>
     } else {
       readyArg = entry.ready
     }
-    // Suppress the Daemon's own onLeaveContext self-term — the reconciler
-    // handles dependency-ordered shutdown via stopEntries / term().
-    daemon?.markManaged()
+    // Detach the daemon so its own onLeaveContext doesn't self-term — the
+    // reconciler drives shutdown via stopEntries / term(). (Each daemon
+    // detached its subcontainer at construction, so a per-reconcile
+    // context-leave can't tear down a still-running "leave alone" daemon.)
+    daemon?.detach()
 
     const dependencies = entry.requires
       .map(reqId => this.running.get(reqId)?.healthDaemon)
