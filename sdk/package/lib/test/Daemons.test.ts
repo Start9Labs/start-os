@@ -1,4 +1,5 @@
 import { Daemons, configHash } from '../mainFn/Daemons'
+import { Daemon } from '../mainFn/Daemon'
 import { Mounts } from '../mainFn/Mounts'
 import { SubContainer } from '../util/SubContainer'
 import * as T from '../../../base/lib/types'
@@ -310,6 +311,74 @@ describe('configHash', () => {
       requires: [],
     }).entries[0]
     expect(configHash(a)).not.toEqual(configHash(b))
+  })
+})
+
+describe('Daemon subcontainer ownership', () => {
+  it('detaches its subcontainer at construction (the daemon owns teardown)', () => {
+    const e = fakeEffects()
+    const sub = lazy(e)
+    const detachSpy = jest.spyOn(sub, 'detach')
+    Daemon.of<Manifest>()(e, sub, { command: ['x'] })
+    expect(detachSpy).toHaveBeenCalled()
+  })
+})
+
+describe('Daemon.detach', () => {
+  // A fake effects whose onLeaveContext records the callbacks so a test can
+  // fire them (simulating the context leaving) without a real runtime.
+  const recordingEffects = (sink: Function[]): T.Effects => {
+    const e = fakeEffects()
+    e.onLeaveContext = (fn: any) => {
+      sink.push(fn)
+    }
+    return e
+  }
+
+  it('suppresses the self-term that would otherwise fire on context-leave', () => {
+    const leaveCbs: Function[] = []
+    const e = recordingEffects(leaveCbs)
+    const daemon = Daemon.of<Manifest>()(e, lazy(e), { command: ['x'] })
+    const termSpy = jest.spyOn(daemon, 'term').mockResolvedValue(undefined)
+    daemon.detach()
+    leaveCbs.forEach(fn => fn())
+    expect(termSpy).not.toHaveBeenCalled()
+  })
+
+  it('self-terms on context-leave when not detached', () => {
+    const leaveCbs: Function[] = []
+    const e = recordingEffects(leaveCbs)
+    const daemon = Daemon.of<Manifest>()(e, lazy(e), { command: ['x'] })
+    const termSpy = jest.spyOn(daemon, 'term').mockResolvedValue(undefined)
+    leaveCbs.forEach(fn => fn())
+    expect(termSpy).toHaveBeenCalled()
+  })
+})
+
+describe('Daemons.detach', () => {
+  it('is safe to call repeatedly', () => {
+    const e = fakeEffects()
+    const daemons = Daemons.of<Manifest>({ effects: e }).addDaemon('a', {
+      subcontainer: lazy(e),
+      exec: { command: ['a'] },
+      ready: baseReady,
+      requires: [],
+    })
+    expect(() => {
+      daemons.detach()
+      daemons.detach()
+    }).not.toThrow()
+  })
+})
+
+describe('SubContainerLazy.detach', () => {
+  it('is safe and idempotent before materialization', () => {
+    const e = fakeEffects()
+    const sub = SubContainer.of<Manifest>(e, { imageId: 'reg' }, null, 'name')
+    expect(() => {
+      sub.detach()
+      sub.detach()
+    }).not.toThrow()
   })
 })
 

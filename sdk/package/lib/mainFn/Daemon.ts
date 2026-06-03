@@ -31,13 +31,18 @@ export class Daemon<
   private onExitFns: ((success: boolean) => void)[] = []
   private loop: { abort: AbortController; done: Promise<void> } | null = null
   private releaseSubcontainerHold: (() => Promise<void>) | null = null
-  private _managed = false
+  private _detached = false
   protected constructor(
     readonly subcontainer: C,
     private startCommand: () => Promise<CommandController<Manifest, C>>,
     readonly oneshot: boolean = false,
   ) {
     super()
+    // The daemon owns its subcontainer's lifecycle from here on: it tears it
+    // down via term() (stop the process, release the hold, then destroy), so
+    // detach it from the generic per-context cleanup net — nothing else may
+    // destroy it out from under the running process.
+    this.subcontainer?.detach()
   }
   /** Returns true if this daemon is a one-shot process (exits after success) */
   isOneshot(): this is Oneshot<Manifest> {
@@ -48,9 +53,9 @@ export class Daemon<
    *
    * Returns a curried function: `(effects, subcontainer, exec) => Daemon`.
    * Registers an `effects.onLeaveContext` hook that terminates the daemon
-   * on parent-context teardown — suppressed when the daemon is adopted by
-   * a {@link Daemons} chain via {@link markManaged}, since `Daemons.term()`
-   * handles dependency-ordered shutdown for those.
+   * on parent-context teardown — suppressed once {@link detach} is called,
+   * which a {@link Daemons} chain does for every daemon it builds so
+   * `Daemons.term()` can drive dependency-ordered shutdown instead.
    */
   static of<Manifest extends T.SDKManifest>() {
     return <C extends SubContainer<Manifest> | null>(
@@ -62,7 +67,7 @@ export class Daemon<
         CommandController.of<Manifest, C>()(effects, subcontainer, exec)
       const res = new Daemon<Manifest, C>(subcontainer, startCommand)
       effects.onLeaveContext(() => {
-        if (res._managed) return
+        if (res._detached) return
         res.term().catch(e => logErrorOnce(asError(e)))
       })
       return res
@@ -70,12 +75,23 @@ export class Daemon<
   }
 
   /**
-   * Mark this daemon as managed by a {@link Daemons} instance, suppressing
-   * the per-daemon `onLeaveContext` termination. The owning `Daemons`
-   * handles ordered shutdown via its own `onLeaveContext` registration.
+   * Detach this daemon from the effects context it was created under, so a
+   * context-leave (`onLeaveContext`) no longer terminates it. (The
+   * subcontainer is already detached at construction — the daemon owns its
+   * teardown — so this only governs the daemon's own self-term.) The owner
+   * then controls teardown:
+   *
+   * - {@link Daemons} calls this on each daemon it builds, so the chain's
+   *   `term()` drives dependency-ordered shutdown rather than each daemon
+   *   self-terminating on context-leave.
+   * - Called directly, it lets a daemon launched from a short-lived context
+   *   (e.g. an action) outlive that context — the caller then owns the
+   *   lifecycle and must call {@link term} explicitly.
+   *
+   * Idempotent.
    */
-  markManaged(): void {
-    this._managed = true
+  detach(): void {
+    this._detached = true
   }
   /**
    * Start the daemon. If it is already running, this is a no-op.

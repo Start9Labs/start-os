@@ -160,6 +160,16 @@ export interface SubContainer<
   destroy(): Promise<void>
 
   /**
+   * Detach this subcontainer from the effects context that created it, so it
+   * is *not* destroyed when that context leaves (`onLeaveContext`). Use when a
+   * short-lived context — e.g. an action — launches work that must outlive it;
+   * after detaching, the caller owns the subcontainer's lifecycle and must
+   * call {@link destroy} explicitly. Idempotent; does not affect holds or a
+   * pending {@link destroy}.
+   */
+  detach(): void
+
+  /**
    * @description run a command inside this subcontainer
    * DOES NOT THROW ON NONZERO EXIT CODE (see execFail)
    * @param command an array representing the command and args to execute
@@ -351,6 +361,51 @@ export const SubContainer = {
 }
 
 /**
+ * Live eager subcontainers grouped by the effects context that created them.
+ * Any still alive when that context leaves (e.g. a subcontainer created in
+ * `main` but never explicitly destroyed) is torn down via the armed
+ * `onLeaveContext` hook instead of lingering until GC runs its `Drop`
+ * finalizer.
+ *
+ * One hook is armed per distinct effects object — on the first subcontainer
+ * created under it — and each subcontainer removes itself on destroy, so
+ * repeated short-lived containers (`withTemp`, per-poll health checks) don't
+ * accumulate registrations. Destroying via `destroy()` keeps the hold model
+ * intact: a container still held by a running daemon defers teardown until
+ * the daemon's own context-leave releases it.
+ */
+const contextLiveSubcontainers = new WeakMap<
+  T.Effects,
+  Set<SubContainerEager<any, any>>
+>()
+
+function registerForContextCleanup(
+  effects: T.Effects,
+  sub: SubContainerEager<any, any>,
+): void {
+  let live = contextLiveSubcontainers.get(effects)
+  if (!live) {
+    live = new Set()
+    contextLiveSubcontainers.set(effects, live)
+    effects.onLeaveContext(() => {
+      const remaining = contextLiveSubcontainers.get(effects)
+      if (!remaining) return
+      for (const c of [...remaining]) {
+        c.destroy().catch(e => console.error(e))
+      }
+    })
+  }
+  live.add(sub)
+}
+
+function unregisterFromContextCleanup(
+  effects: T.Effects,
+  sub: SubContainerEager<any, any>,
+): void {
+  contextLiveSubcontainers.get(effects)?.delete(sub)
+}
+
+/**
  * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
  *
  * Eager subcontainer: its filesystem and leader process exist from
@@ -446,6 +501,9 @@ export class SubContainerEager<
       guid,
       identity,
     )
+    // Arm context cleanup before mounting — if the try below throws,
+    // _destroyImmediate unregisters as it tears the partial container down.
+    registerForContextCleanup(effects, res)
 
     try {
       if (mounts) {
@@ -582,9 +640,20 @@ export class SubContainerEager<
     if (this.holdCount === 0) await this._destroyImmediate()
   }
 
+  /**
+   * Detach from the creating context's `onLeaveContext` cleanup — drops this
+   * subcontainer from its context's live set so a context-leave no longer
+   * destroys it. The caller becomes responsible for calling {@link destroy}.
+   * Idempotent.
+   */
+  detach(): void {
+    unregisterFromContextCleanup(this.effects, this)
+  }
+
   private async _destroyImmediate(): Promise<void> {
     if (this.destroyed) return
     this.destroyed = true
+    unregisterFromContextCleanup(this.effects, this)
     const guid = this.guid
     await this.killLeader()
     await this.effects.subcontainer.destroyFs({ guid })
@@ -918,6 +987,7 @@ export class SubContainerLazy<
   private materialized: Promise<SubContainerEager<Manifest, Effects>> | null =
     null
   private destroyPending = false
+  private detachPending = false
 
   constructor(
     readonly effects: Effects,
@@ -951,6 +1021,7 @@ export class SubContainerLazy<
       this.identity,
     ).then(async eager => {
       if (this.destroyPending) await eager.destroy()
+      else if (this.detachPending) eager.detach()
       return eager
     }))
   }
@@ -1036,6 +1107,18 @@ export class SubContainerLazy<
   async destroy(): Promise<void> {
     this.destroyPending = true
     if (this.materialized) await (await this.materialized).destroy()
+  }
+
+  /**
+   * Detach from the creating context's `onLeaveContext` cleanup. If already
+   * materialized, detaches the underlying eager; otherwise records the intent
+   * so materialization detaches immediately. Idempotent.
+   */
+  detach(): void {
+    this.detachPending = true
+    if (this.materialized) {
+      this.materialized.then(e => e.detach()).catch(e => console.error(e))
+    }
   }
 
   /**
