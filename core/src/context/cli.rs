@@ -58,23 +58,48 @@ impl Drop for CliContextSeed {
                 rt.shutdown_background();
             }
         }
-        let tmp = format!("{}.tmp", self.cookie_path.display());
+        // Failing to persist the cookie cache must not crash an otherwise
+        // successful command (e.g. `s9pk publish`), so log instead of panicking.
+        self.save_cookie_store().log_err();
+    }
+}
+impl CliContextSeed {
+    /// Persist the cookie store to `cookie_path` atomically (write-temp-then-rename),
+    /// serialized across processes by an exclusive lock on a *stable* sidecar lock
+    /// file. `cookie_path` is derived from `$HOME`, so concurrent `start-cli`
+    /// invocations (the release pipeline publishes one s9pk per arch in parallel)
+    /// share it. The lock must be held on a file that is never renamed away — the
+    /// previous code locked the temp file itself, which each writer recreates, so it
+    /// served no cross-process purpose and the writers raced on the rename: whoever
+    /// renamed first moved the temp out from under the other, which then panicked
+    /// with ENOENT.
+    fn save_cookie_store(&self) -> Result<(), Error> {
         let parent_dir = self.cookie_path.parent().unwrap_or(Path::new("/"));
         if !parent_dir.exists() {
-            std::fs::create_dir_all(&parent_dir).unwrap();
+            std::fs::create_dir_all(parent_dir)
+                .with_ctx(|_| (ErrorKind::Filesystem, parent_dir.display()))?;
         }
-        let mut writer = fd_lock_rs::FdLock::lock(
-            File::create(&tmp)
-                .with_ctx(|_| (ErrorKind::Filesystem, &tmp))
-                .unwrap(),
+        let lock_path = format!("{}.lock", self.cookie_path.display());
+        let _lock = fd_lock_rs::FdLock::lock(
+            File::create(&lock_path).with_ctx(|_| (ErrorKind::Filesystem, &lock_path))?,
             fd_lock_rs::LockType::Exclusive,
             true,
         )
-        .unwrap();
-        let store = self.cookie_store.lock().unwrap();
-        cookie_store::serde::json::save(&store, &mut *writer).unwrap();
-        writer.sync_all().unwrap();
-        std::fs::rename(tmp, &self.cookie_path).unwrap();
+        .with_ctx(|_| (ErrorKind::Filesystem, &lock_path))?;
+        let tmp = format!("{}.tmp", self.cookie_path.display());
+        let mut writer = File::create(&tmp).with_ctx(|_| (ErrorKind::Filesystem, &tmp))?;
+        {
+            let store = self
+                .cookie_store
+                .lock()
+                .map_err(|_| Error::new(eyre!("cookie store mutex poisoned"), ErrorKind::Unknown))?;
+            cookie_store::serde::json::save(&store, &mut writer)
+                .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Filesystem))?;
+        }
+        writer.sync_all().with_ctx(|_| (ErrorKind::Filesystem, &tmp))?;
+        std::fs::rename(&tmp, &self.cookie_path)
+            .with_ctx(|_| (ErrorKind::Filesystem, self.cookie_path.display()))?;
+        Ok(())
     }
 }
 
