@@ -114,7 +114,7 @@ lb config \
 	-a ${IB_TARGET_ARCH} \
 	${QEMU_ARGS[@]} \
 	--archive-areas "${ARCHIVE_AREAS}" \
-	${PLATFORM_CONFIG_EXTRAS[@]}
+	"${PLATFORM_CONFIG_EXTRAS[@]}"
 
 # Overlays
 
