@@ -26,7 +26,7 @@ fn build_gpt_layout(
     disk_path: &Path,
     protected_partition_info: Option<(u64, u64, PathBuf)>,
     use_efi: bool,
-) -> Result<(bool, bool, Option<PathBuf>), Error> {
+) -> Result<(bool, Option<PathBuf>), Error> {
     let mut device = device;
     let mbr = gpt::mbr::ProtectiveMBR::with_lb_size(
         u32::try_from((capacity / 512) - 1).unwrap_or(0xFF_FF_FF_FF),
@@ -38,23 +38,6 @@ fn build_gpt_layout(
         .create_from_device(device, None)?;
 
     gpt.update_partitions(Default::default())?;
-
-    // Raspberry Pi VPU loads bootcode.bin + EDK2 .fd from the first FAT
-    // partition on the boot media. Reserve 128 MiB up front so the
-    // installer can drop firmware blobs + EDK2 binaries there; on other
-    // platforms this partition isn't created and indices shift down.
-    // Type = Microsoft Basic Data — matches what `sfdisk` writes for
-    // the same partition on the install media (build.sh).
-    let has_firmware = &*crate::PLATFORM == "raspberrypi";
-    if has_firmware {
-        gpt.add_partition(
-            "firmware",
-            128 * 1024 * 1024,
-            gpt::partition_types::BASIC,
-            0,
-            Some(PARTITION_ALIGNMENT_LBA),
-        )?;
-    }
 
     let efi = if use_efi {
         gpt.add_partition(
@@ -190,7 +173,7 @@ fn build_gpt_layout(
 
     gpt.write()?;
 
-    Ok((efi, has_firmware, data_part))
+    Ok((efi, data_part))
 }
 
 pub async fn partition(
@@ -217,7 +200,7 @@ pub async fn partition(
     let disk_path = disk_path.to_owned();
     let disk_path_clone = disk_path.clone();
     let protect = protect.map(|p| p.to_owned());
-    let (efi, has_firmware, data_part) = tokio::task::spawn_blocking(move || {
+    let (efi, data_part) = tokio::task::spawn_blocking(move || {
         let disk_path = disk_path_clone;
 
         let protected_partition_info: Option<(u64, u64, PathBuf)> =
@@ -270,25 +253,16 @@ pub async fn partition(
 
     let mut extra_boot = std::collections::BTreeMap::new();
     let bios;
-    let mut idx: u32 = 1;
-    if has_firmware {
-        extra_boot.insert("firmware".to_string(), partition_for(&disk_path, idx));
-        idx += 1;
-    }
     if efi {
-        extra_boot.insert("efi".to_string(), partition_for(&disk_path, idx));
+        extra_boot.insert("efi".to_string(), partition_for(&disk_path, 1));
         bios = None;
     } else {
-        bios = Some(partition_for(&disk_path, idx));
+        bios = Some(partition_for(&disk_path, 1));
     }
-    idx += 1;
-    let boot = partition_for(&disk_path, idx);
-    idx += 1;
-    let root = partition_for(&disk_path, idx);
     Ok(OsPartitionInfo {
         bios,
-        boot,
-        root,
+        boot: partition_for(&disk_path, 2),
+        root: partition_for(&disk_path, 3),
         extra_boot,
         data: data_part,
     })

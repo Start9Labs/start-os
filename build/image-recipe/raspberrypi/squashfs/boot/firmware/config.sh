@@ -2,37 +2,43 @@
 
 cat << EOF
 
-# Minimal Pi VPU firmware config: hand off to EDK2 UEFI via armstub.
-# EDK2 owns the framebuffer, device tree, and kernel selection from
-# here on, so this file must NOT enable the KMS GPU driver, cap
-# gpu_mem, or load Linux-oriented overlays (audio/camera/display/vc4):
-# those starve or steal the GPU framebuffer EDK2 needs and leave HDMI
-# dark. Mirrors the pftf/RPi4 and NumberOneGit/rpi5-uefi reference
-# configs — the kernel gets its hardware config from the EDK2-provided
-# device tree + GRUB cmdline, not from this file.
+# Enable audio (loads snd_bcm2835)
+dtparam=audio=on
 
-[all]
+# Automatically load overlays for detected cameras
+camera_auto_detect=1
+
+# Automatically load overlays for detected DSI displays
+display_auto_detect=1
+
+# Enable DRM VC4 V3D driver
+dtoverlay=vc4-kms-v3d
+max_framebuffers=2
+
+# Run in 64-bit mode
 arm_64bit=1
-enable_uart=1
-uart_2ndstage=1
-disable_commandline_tags=1
+
+# Disable compensation for displays with overscan
 disable_overscan=1
 
-[pi4]
-arm_boost=1
-enable_gic=1
-armstub=RPI_EFI_RPI4.fd
-device_tree_address=0x3e0000
-device_tree_end=0x400000
-dtoverlay=miniuart-bt
-dtoverlay=upstream-pi4
+[cm4]
+# Enable host mode on the 2711 built-in XHCI USB controller.
+# This line should be removed if the legacy DWC2 controller is required
+# (e.g. for USB device mode) or if USB support is not required.
+otg_mode=1
 
-[pi5]
-armstub=RPI_EFI_RPI5.fd
-device_tree_address=0x1f0000
-device_tree_end=0x210000
-framebuffer_depth=32
-usb_max_current_enable=1
-force_turbo=1
+[pi4]
+# Run as fast as firmware / board allows
+arm_boost=1
+
+[all]
+gpu_mem=16
+dtoverlay=pwm-2chan,disable-bt
+
+# Enable UART for U-Boot and serial console
+enable_uart=1
+
+# Load U-Boot as the bootloader (GRUB is chainloaded from U-Boot)
+kernel=u-boot.bin
 
 EOF

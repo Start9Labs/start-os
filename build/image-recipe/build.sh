@@ -84,17 +84,9 @@ PLATFORM_CONFIG_EXTRAS=()
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-binary false )
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-chroot false )
-	# Use the GENERIC Debian arm64 kernel, not the Pi-vendor (RPT)
-	# rpi-v8/rpi-2712 kernels. Under pftf/EDK2 the RPT kernels are
-	# device-tree-only (no CONFIG_ACPI) and freeze immediately after GRUB:
-	# the firmware defaults to ACPI mode and hands them a null device
-	# tree, so they bring up no console and no storage. The generic arm64
-	# kernel has CONFIG_ACPI + the EFI stub and boots cleanly under EDK2's
-	# default ACPI handoff — the same path Ubuntu/Fedora/openSUSE use on
-	# pftf, and the kernel StartOS's own aarch64 target already ships. This
-	# sidesteps the device-tree-delivery problem (pftf can't auto-run a
-	# startup.nsh to flip to DT mode — see pftf/RPi4#156).
-	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours arm64 )
+	RPI_KERNEL_VERSION=6.12.47+rpt
+	PLATFORM_CONFIG_EXTRAS+=( --linux-packages linux-image-$RPI_KERNEL_VERSION )
+	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours "rpi-v8 rpi-2712" )
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours rockchip64 )
 elif [ "${IB_TARGET_ARCH}" = "riscv64" ]; then
@@ -120,9 +112,9 @@ lb config \
 	--mirror-chroot-security "https://security.debian.org/debian-security" \
 	-d ${IB_SUITE} \
 	-a ${IB_TARGET_ARCH} \
-	"${QEMU_ARGS[@]}" \
+	${QEMU_ARGS[@]} \
 	--archive-areas "${ARCHIVE_AREAS}" \
-	"${PLATFORM_CONFIG_EXTRAS[@]}"
+	${PLATFORM_CONFIG_EXTRAS[@]}
 
 # Overlays
 
@@ -149,14 +141,9 @@ mkdir -p config/includes.binary
 touch config/includes.binary/.startos-installer
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	# VPU blobs + DTBs + overlays come from the raspi-firmware Debian
-	# package via archive.raspberrypi.com (declared in
-	# build/dpkg-deps/raspberrypi.depends), not a sideband git clone.
-	# Our squashfs overlay carries the StartOS-specific config.txt + GRUB
-	# drop-in. EDK2 firmware images are downloaded and dropped into
-	# /boot/firmware/ by the chroot hook below, after raspi-firmware has
-	# laid down its files (so apt-postinst doesn't clobber ours).
 	mkdir -p config/includes.chroot
+	git clone --depth=1 --branch=stable https://github.com/raspberrypi/rpi-firmware.git config/includes.chroot/boot
+	rm -rf config/includes.chroot/boot/.git config/includes.chroot/boot/modules
 	rsync -rLp $SOURCE_DIR/raspberrypi/squashfs/ config/includes.chroot/
 fi
 
@@ -350,63 +337,9 @@ fi
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
     ln -sf /usr/bin/pi-beep /usr/local/bin/beep
     sh /boot/firmware/config.sh > /boot/firmware/config.txt
-
-    # EDK2 UEFI firmware. Pi VPU firmware loads RPI_EFI_*.fd via armstub=;
-    # EDK2 publishes UEFI; GRUB chainloads from there. config.txt picks
-    # the right .fd per Pi model via [pi4]/[pi5] sections.
-    #
-    # Pi 4: pftf/RPi4 (Pi Firmware Task Force, actively maintained,
-    # builds tianocore/edk2-platforms upstream).
-    # Pi 5: NumberOneGit/rpi5-uefi (individual-maintainer fork of the
-    # archived worproject/rpi5-uefi; supports D0 silicon stepping). See
-    # build/image-recipe/raspberrypi/README.md for supply-chain caveats.
-
-    PFTF_RPI4_VERSION=v1.51
-    PFTF_RPI4_SHA256=000b6c518e83bb93262ed6b264a0e9498509c46513dabf58c0dbb73d4c2e7c18
-    NOG_RPI5_VERSION=v0.1
-    NOG_RPI5_SHA256=c4fbbec9cd0d1115c9adab884923061b960de42b4ca6d65ba5f08cb6b46c6fad
-
-    # unzip is build-time only — install ephemerally, purge after.
-    apt-get install -y --no-install-recommends unzip
-
-    curl -fsSL --retry 5 --retry-delay 5 -o /tmp/pftf-rpi4.zip \\
-        https://github.com/pftf/RPi4/releases/download/\${PFTF_RPI4_VERSION}/RPi4_UEFI_Firmware_\${PFTF_RPI4_VERSION}.zip
-    echo "\${PFTF_RPI4_SHA256}  /tmp/pftf-rpi4.zip" | sha256sum -c -
-    PFTF_DIR=\$(mktemp -d)
-    unzip -q /tmp/pftf-rpi4.zip -d \$PFTF_DIR
-    cp \$PFTF_DIR/RPI_EFI.fd /boot/firmware/RPI_EFI_RPI4.fd
-    # CRITICAL: use pftf's start4.elf + fixup4.dat (the VPU firmware its
-    # EDK2 was built/tested against), overwriting the newer ones from the
-    # raspi-firmware Debian package. A mismatched (newer) start4.elf sets
-    # up a memory map EDK2/GRUB can't allocate the initrd into, so GRUB
-    # hangs at "Loading initial ramdisk" — see raspberrypi/firmware#1341
-    # and pftf/RPi3#8. The .fd and start4.elf must come as a matched pair.
-    cp \$PFTF_DIR/start4.elf /boot/firmware/start4.elf
-    cp \$PFTF_DIR/fixup4.dat /boot/firmware/fixup4.dat
-    # pftf ships ACPI-patched DTBs; let them override raspi-firmware's
-    cp \$PFTF_DIR/bcm2711-rpi-*.dtb /boot/firmware/
-    mkdir -p /boot/firmware/overlays
-    cp \$PFTF_DIR/overlays/*.dtbo /boot/firmware/overlays/
-    rm -rf /tmp/pftf-rpi4.zip \$PFTF_DIR
-
-    curl -fsSL --retry 5 --retry-delay 5 -o /tmp/nog-rpi5.zip \\
-        https://github.com/NumberOneGit/rpi5-uefi/releases/download/\${NOG_RPI5_VERSION}/RPI5_D0.zip
-    echo "\${NOG_RPI5_SHA256}  /tmp/nog-rpi5.zip" | sha256sum -c -
-    NOG_DIR=\$(mktemp -d)
-    unzip -q /tmp/nog-rpi5.zip -d \$NOG_DIR
-    cp \$NOG_DIR/RPI_EFI.fd /boot/firmware/RPI_EFI_RPI5.fd
-    cp \$NOG_DIR/bcm2712*.dtb /boot/firmware/
-    cp \$NOG_DIR/overlays/*.dtbo /boot/firmware/overlays/
-    rm -rf /tmp/nog-rpi5.zip \$NOG_DIR
-
-    # Drop the direct-boot kernel raspi-firmware drops in /boot/firmware.
-    # With armstub=RPI_EFI_*.fd the VPU hands off to EDK2 and the real
-    # kernel is loaded by GRUB from the boot partition; a stray
-    # kernel*.img here just confuses the firmware's auto-kernel logic.
-    # pftf/NumberOneGit boot partitions contain no kernel image.
-    rm -f /boot/firmware/kernel*.img /boot/firmware/initramfs*
-
-    apt-get -y --purge remove unzip
+    mkinitramfs -c gzip -o /boot/initrd.img-${RPI_KERNEL_VERSION}-rpi-v8 ${RPI_KERNEL_VERSION}-rpi-v8
+    mkinitramfs -c gzip -o /boot/initrd.img-${RPI_KERNEL_VERSION}-rpi-2712 ${RPI_KERNEL_VERSION}-rpi-2712
+    cp /usr/lib/u-boot/rpi_arm64/u-boot.bin /boot/firmware/u-boot.bin
 fi
 
 useradd --shell /bin/bash -G startos -m start9
@@ -477,159 +410,137 @@ if [ "${IMAGE_TYPE}" = iso ]; then
 
 elif [ "${IMAGE_TYPE}" = img ]; then
 
-	# Pi live INSTALLER image. Same UX as the x86 .iso: flash to USB/SD,
-	# boot, the live system runs setup mode on port 80, the user picks a
-	# target disk, core/src/os_install/ writes the installed StartOS. No
-	# btrfs root — pure live media.
-	#
-	# TWO partitions, MBR table:
-	#   p1 "firmware" (FAT32, type ef, bootable): the VPU loads config.txt
-	#     + RPI_EFI_*.fd from here, AND it holds EFI/BOOT/BOOTAA64.EFI.
-	#     These MUST be co-located. RPi EDK2 ships
-	#     PcdBootDiscoveryPolicy = minimal, so on a normal boot it only
-	#     *connects* the volume it loaded the firmware from; the UEFI
-	#     removable-media fallback (\EFI\BOOT\BOOTAA64.EFI) only scans
-	#     already-connected volumes (EfiBootManagerConnectAll runs only on
-	#     the unable-to-boot recovery path). A loader on a *separate* ESP
-	#     is therefore never connected → no boot option → EDK2 falls
-	#     through to PXE IPv4/IPv6 → setup. That was the observed failure;
-	#     GPT-vs-MBR was a red herring. This is pftf's proven
-	#     single-firmware-partition layout (type ef, VPU reads it fine).
-	#   p2 "boot" (FAT32, type c): GRUB modules + grub.cfg, kernels +
-	#     initrds, and the live squashfs at /live/filesystem.squashfs.
-	#     The GRUB stub on p1 finds it by FAT serial (search.fs_uuid).
-
 	SECTOR_LEN=512
-	FW_START=$((1024 * 1024)) # 1MiB (sector 2048)
-	FW_LEN=$((128 * 1024 * 1024)) # 128MiB: VPU blobs + EDK2 .fd + DTBs + grub EFI
+	FW_START=$((1024 * 1024)) # 1MiB (sector 2048) — Pi-specific
+	FW_LEN=$((128 * 1024 * 1024)) # 128MiB (Pi firmware + U-Boot + DTBs)
 	FW_END=$((FW_START + FW_LEN - 1))
-	BOOT_START=$((FW_END + 1))
-
-	# Boot partition: squashfs + 128 MiB for kernels, initrds, grub modules.
-	SQUASHFS_SIZE=$(stat -c %s $prep_results_dir/binary/live/filesystem.squashfs)
-	BOOT_LEN=$(( SQUASHFS_SIZE + 128 * 1024 * 1024 ))
-	BOOT_LEN=$(( (BOOT_LEN + SECTOR_LEN - 1) / SECTOR_LEN * SECTOR_LEN ))
+	ESP_START=$((FW_END + 1)) # 100MB EFI System Partition (matches os_install)
+	ESP_LEN=$((100 * 1024 * 1024))
+	ESP_END=$((ESP_START + ESP_LEN - 1))
+	BOOT_START=$((ESP_END + 1)) # 2GB /boot (matches os_install)
+	BOOT_LEN=$((2 * 1024 * 1024 * 1024))
 	BOOT_END=$((BOOT_START + BOOT_LEN - 1))
+	ROOT_START=$((BOOT_END + 1))
 
-	# Total image: just the partitions (MBR table, no GPT backup header).
-	IMG_LEN=$((BOOT_END + 1))
+	# Size root partition to fit the squashfs + 256MB overhead for btrfs
+	# metadata and config overlay, avoiding the need for btrfs resize
+	SQUASHFS_SIZE=$(stat -c %s $prep_results_dir/binary/live/filesystem.squashfs)
+	ROOT_LEN=$(( SQUASHFS_SIZE + 256 * 1024 * 1024 ))
+	# Align to sector boundary
+	ROOT_LEN=$(( (ROOT_LEN + SECTOR_LEN - 1) / SECTOR_LEN * SECTOR_LEN ))
 
-	# Fail the build loudly if the generic arm64 kernel didn't land (the
-	# live build pulls linux-image-arm64 via --linux-flavours arm64).
-	if ! unsquashfs -l $prep_results_dir/binary/live/filesystem.squashfs 2>/dev/null \
-		| grep -q "/boot/vmlinuz-.*-arm64\$"; then
-		echo "FATAL: generic arm64 kernel (vmlinuz-*-arm64) missing from squashfs — check --linux-flavours" >&2
-		exit 1
-	fi
+	# Total image: partitions + GPT backup header (34 sectors)
+	IMG_LEN=$((ROOT_START + ROOT_LEN + 34 * SECTOR_LEN))
+
+	# Fixed GPT partition UUIDs (deterministic, based on old MBR disk ID cb15ae4d)
+	FW_UUID=cb15ae4d-0001-4000-8000-000000000001
+	ESP_UUID=cb15ae4d-0002-4000-8000-000000000002
+	BOOT_UUID=cb15ae4d-0003-4000-8000-000000000003
+	ROOT_UUID=cb15ae4d-0004-4000-8000-000000000004
 
 	TARGET_NAME=$prep_results_dir/${IMAGE_BASENAME}.img
 	truncate -s $IMG_LEN $TARGET_NAME
 
-	# MBR table. p1 type ef (EFI System) holds the VPU firmware + EDK2 .fd
-	# + EFI/BOOT, mirroring pftf's reference single FAT partition; p2 type
-	# c (W95 FAT32 LBA) holds grub + kernels + the live squashfs.
 	sfdisk $TARGET_NAME <<-EOF
-		label: dos
+		label: gpt
 
-		${TARGET_NAME}1 : start=$((FW_START / SECTOR_LEN)), size=$((FW_LEN / SECTOR_LEN)), type=ef, bootable
-		${TARGET_NAME}2 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=c
+		${TARGET_NAME}1 : start=$((FW_START / SECTOR_LEN)), size=$((FW_LEN / SECTOR_LEN)), type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7, uuid=${FW_UUID}, name="firmware"
+		${TARGET_NAME}2 : start=$((ESP_START / SECTOR_LEN)), size=$((ESP_LEN / SECTOR_LEN)), type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=${ESP_UUID}, name="efi"
+		${TARGET_NAME}3 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=${BOOT_UUID}, name="boot"
+		${TARGET_NAME}4 : start=$((ROOT_START / SECTOR_LEN)), size=$((ROOT_LEN / SECTOR_LEN)), type=B921B045-1DF0-41C3-AF44-4C6F280D3FAE, uuid=${ROOT_UUID}, name="root"
 	EOF
 
-	# Named loop device nodes (high minor numbers to avoid conflicts)
-	# with cleanup of stale devices from previous failed builds.
+	# Create named loop device nodes (high minor numbers to avoid conflicts)
+	# and detach any stale ones from previous failed builds
 	FW_DEV=/dev/startos-loop-fw
+	ESP_DEV=/dev/startos-loop-esp
 	BOOT_DEV=/dev/startos-loop-boot
-	for dev in $FW_DEV:200 $BOOT_DEV:202; do
+	ROOT_DEV=/dev/startos-loop-root
+	for dev in $FW_DEV:200 $ESP_DEV:201 $BOOT_DEV:202 $ROOT_DEV:203; do
 		name=${dev%:*}
 		minor=${dev#*:}
 		[ -e $name ] || mknod $name b 7 $minor
 		losetup -d $name 2>/dev/null || true
 	done
 
-	losetup $FW_DEV   --offset $FW_START   --sizelimit $FW_LEN   $TARGET_NAME
+	losetup $FW_DEV --offset $FW_START --sizelimit $FW_LEN $TARGET_NAME
+	losetup $ESP_DEV --offset $ESP_START --sizelimit $ESP_LEN $TARGET_NAME
 	losetup $BOOT_DEV --offset $BOOT_START --sizelimit $BOOT_LEN $TARGET_NAME
+	losetup $ROOT_DEV --offset $ROOT_START --sizelimit $ROOT_LEN $TARGET_NAME
 
 	mkfs.vfat -F32 -n firmware $FW_DEV
+	mkfs.vfat -F32 -n efi $ESP_DEV
 	mkfs.vfat -F32 -n boot $BOOT_DEV
+	mkfs.btrfs -f -L rootfs $ROOT_DEV
 
 	TMPDIR=$(mktemp -d)
 
-	# Mount the boot partition, nest the firmware partition at
-	# /boot/firmware — the squashfs keeps the VPU+EDK2 files under
-	# /boot/firmware/, so the cp below routes them onto p1 automatically,
-	# and grub-install --efi-directory=/boot/firmware lands BOOTAA64.EFI
-	# on p1 right next to RPI_EFI_*.fd.
-	mkdir -p $TMPDIR/boot
-	mount $BOOT_DEV $TMPDIR/boot
-	mkdir -p $TMPDIR/boot/firmware $TMPDIR/boot/live
-	mount $FW_DEV $TMPDIR/boot/firmware
-
-	# Extract /boot from the squashfs — this gives us the kernels +
-	# initrds + the firmware-partition contents (nested mount routes
-	# /boot/firmware/* to the firmware partition automatically).
+	# Extract boot files from squashfs to staging area
 	BOOT_STAGING=$(mktemp -d)
 	unsquashfs -n -f -d $BOOT_STAGING $prep_results_dir/binary/live/filesystem.squashfs boot
+
+	# Mount partitions (nested: firmware and efi inside boot)
+	mkdir -p $TMPDIR/boot $TMPDIR/root
+	mount $BOOT_DEV $TMPDIR/boot
+	mkdir -p $TMPDIR/boot/firmware $TMPDIR/boot/efi
+	mount $FW_DEV $TMPDIR/boot/firmware
+	mount $ESP_DEV $TMPDIR/boot/efi
+	mount $ROOT_DEV $TMPDIR/root
+
+	# Copy boot files — nested mounts route firmware/* to the firmware partition
 	cp -a $BOOT_STAGING/boot/. $TMPDIR/boot/
 	rm -rf $BOOT_STAGING
 
-	# Drop the squashfs onto the boot partition for live-init to find.
-	cp $prep_results_dir/binary/live/filesystem.squashfs $TMPDIR/boot/live/filesystem.squashfs
+	mkdir $TMPDIR/root/images $TMPDIR/root/config
+	B3SUM=$(b3sum $prep_results_dir/binary/live/filesystem.squashfs | head -c 16)
+	cp $prep_results_dir/binary/live/filesystem.squashfs $TMPDIR/root/images/$B3SUM.rootfs
+	ln -rsf $TMPDIR/root/images/$B3SUM.rootfs $TMPDIR/root/config/current.rootfs
 
-	# Install GRUB-EFI + generate grub.cfg by chrooting into an
-	# unsquashed copy of the rootfs on a loop-backed ext4 file.
-	# lb's binary_rootfs rm -rf's chroot/chroot/ after squashing,
-	# and an overlay-mounted chroot makes grub-mkconfig's
-	# `grub-probe --target=device /` fail with "failed to get
-	# canonical path of `overlay'" (the source string in /proc/mounts
-	# isn't a canonicalizable path). Loop-backed ext4 shows up as
-	# /dev/loopN in /proc/mounts, which grub-probe handles fine.
-	NEXT_LEN=$(( (SQUASHFS_SIZE * 4) + 256 * 1024 * 1024 ))
-	truncate -s $NEXT_LEN $TMPDIR/next.ext4
-	mkfs.ext4 -F -q $TMPDIR/next.ext4
-	NEXT_DEV=/dev/startos-loop-next
-	[ -e $NEXT_DEV ] || mknod $NEXT_DEV b 7 204
-	losetup -d $NEXT_DEV 2>/dev/null || true
-	losetup $NEXT_DEV $TMPDIR/next.ext4
-	mkdir -p $TMPDIR/next
-	mount $NEXT_DEV $TMPDIR/next
-	unsquashfs -n -f -d $TMPDIR/next $prep_results_dir/binary/live/filesystem.squashfs >/dev/null
+	mkdir -p $TMPDIR/next $TMPDIR/lower $TMPDIR/root/config/work $TMPDIR/root/config/overlay
+	mount $TMPDIR/root/config/current.rootfs $TMPDIR/lower
 
-	mkdir -p $TMPDIR/next/boot $TMPDIR/next/dev $TMPDIR/next/proc $TMPDIR/next/sys
-	mount --bind /dev $TMPDIR/next/dev
-	mount -t proc proc $TMPDIR/next/proc
-	mount -t sysfs sysfs $TMPDIR/next/sys
-	mount --rbind $TMPDIR/boot $TMPDIR/next/boot
+	mount -t overlay -o lowerdir=$TMPDIR/lower,workdir=$TMPDIR/root/config/work,upperdir=$TMPDIR/root/config/overlay overlay $TMPDIR/next
 
-	# --efi-directory=/boot/firmware co-locates BOOTAA64.EFI with
-	# RPI_EFI_*.fd on p1 (the volume EDK2 connects on a normal boot);
-	# --boot-directory=/boot puts the modules + real grub.cfg on p2, which
-	# the EFI stub finds by FAT serial. --removable installs to the
-	# \EFI\BOOT\BOOTAA64.EFI fallback path EDK2 auto-launches; --no-nvram
-	# because EDK2's varstore is volatile here.
-	chroot $TMPDIR/next grub-install --target=arm64-efi --removable \
-		--efi-directory=/boot/firmware --boot-directory=/boot --no-nvram
-	chroot $TMPDIR/next update-grub
+	if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+		rsync -a $SOURCE_DIR/raspberrypi/img/ $TMPDIR/next/
 
-	umount -l $TMPDIR/next/boot
-	umount $TMPDIR/next/sys
-	umount $TMPDIR/next/proc
-	umount $TMPDIR/next/dev
+		# Install GRUB: ESP at /boot/efi (Part 2), /boot (Part 3)
+		mkdir -p $TMPDIR/next/boot \
+			$TMPDIR/next/dev $TMPDIR/next/proc $TMPDIR/next/sys $TMPDIR/next/media/startos/root
+		mount --rbind $TMPDIR/boot $TMPDIR/next/boot
+		mount --bind /dev $TMPDIR/next/dev
+		mount -t proc proc $TMPDIR/next/proc
+		mount -t sysfs sysfs $TMPDIR/next/sys
+		mount --bind $TMPDIR/root $TMPDIR/next/media/startos/root
+
+		chroot $TMPDIR/next grub-install --target=arm64-efi --removable --efi-directory=/boot/efi --boot-directory=/boot --no-nvram
+		chroot $TMPDIR/next update-grub
+
+		umount $TMPDIR/next/media/startos/root
+		umount $TMPDIR/next/sys
+		umount $TMPDIR/next/proc
+		umount $TMPDIR/next/dev
+		umount -l $TMPDIR/next/boot
+
+		# Fix root= in grub.cfg: update-grub sees loop devices, but the
+		# real device uses a fixed GPT PARTUUID for root (Part 4).
+		sed -i "s|root=[^ ]*|root=PARTUUID=${ROOT_UUID}|g" $TMPDIR/boot/grub/grub.cfg
+
+		# Inject first-boot resize script into GRUB config
+		sed -i 's| boot=startos| boot=startos init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/grub/grub.cfg
+	fi
+
 	umount $TMPDIR/next
-	losetup -d $NEXT_DEV
-	rm -f $TMPDIR/next.ext4
-
-	# Rewrite grub.cfg for live boot. update-grub used /etc/default/grub
-	# (boot=startos for the installed-disk path); we drop the installed-
-	# disk root= and replace boot=startos with live-init's invocation.
-	sed -i \
-		-e 's| root=[^ ]*||g' \
-		-e 's|boot=startos|boot=live components live-media-path=/live|g' \
-		$TMPDIR/boot/grub/grub.cfg
+	umount $TMPDIR/lower
 
 	umount $TMPDIR/boot/firmware
+	umount $TMPDIR/boot/efi
 	umount $TMPDIR/boot
+	umount $TMPDIR/root
 
+	losetup -d $ROOT_DEV
 	losetup -d $BOOT_DEV
+	losetup -d $ESP_DEV
 	losetup -d $FW_DEV
 
 	mv $TARGET_NAME $RESULTS_DIR/$IMAGE_BASENAME.img
