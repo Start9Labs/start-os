@@ -202,6 +202,25 @@ if [ "$NVIDIA" = 1 ]; then
 		> config/archives/nvidia-container-toolkit.list
 fi
 
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+# Pi kernels come only from the Raspberry Pi archive (the vendor +rpt kernels).
+# Debian's generic/RT kernel is a higher version than the +rpt kernel, so it
+# would win GRUB's version-sorted default and boot instead — forbid Debian-origin
+# kernel images/headers here so /boot stays vendor-only.
+cat > config/archives/backports.pref <<-EOF
+Package: *nvidia*
+Pin: release n=${IB_SUITE}-backports
+Pin-Priority: 500
+
+Package: linux-image-* linux-headers-*
+Pin: origin "deb.debian.org"
+Pin-Priority: -1
+
+Package: linux-image-* linux-headers-*
+Pin: origin "security.debian.org"
+Pin-Priority: -1
+EOF
+else
 cat > config/archives/backports.pref <<-EOF
 Package: linux-image-*
 Pin: release n=${IB_SUITE}-backports
@@ -215,6 +234,7 @@ Package: *nvidia*
 Pin: release n=${IB_SUITE}-backports
 Pin-Priority: 500
 EOF
+fi
 
 # Hooks
 
