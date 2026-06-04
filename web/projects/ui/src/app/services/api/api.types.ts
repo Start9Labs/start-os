@@ -45,7 +45,7 @@ export type PkgBindingSetRangeAccessReq = {
   // package.host.binding.set-range-gateway-access
   internalStartPort: number
   gateway: T.GatewayId // string
-  access: T.RangeGatewayAccess // 'disabled' | 'private' | 'public'
+  access: T.RangeGatewayAccess // 'disabled' | 'lan' | 'lan-wan'
   package: T.PackageId // string
   host: T.HostId // string
 }

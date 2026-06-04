@@ -671,11 +671,11 @@ export const mockPatchData: DataModel = {
               enabled: true,
               externalStartPort: 49152,
               numberOfPorts: 100,
-              // Absent gateways default to 'private' (LAN only). Seed eth0 as
-              // 'public' and wlan0 as 'disabled' so all three states are
-              // visible on load (wireguard1 stays at the 'private' default;
+              // Absent gateways default to 'lan' (LAN only). Seed eth0 as
+              // 'lan-wan' and wlan0 as 'disabled' so all three states are
+              // visible on load (wireguard1 stays at the 'lan' default;
               // wireguard2/Mullvad is outbound-only and excluded from the UI).
-              gatewayAccess: { eth0: 'public', wlan0: 'disabled' },
+              gatewayAccess: { eth0: 'lan-wan', wlan0: 'disabled' },
             },
           },
           publicDomains: {

@@ -2034,8 +2034,8 @@ export class MockApiService extends ApiService {
     const gatewayAccess: { [id: string]: T.RangeGatewayAccess } = {
       ...range.gatewayAccess,
     }
-    // 'private' is the default, so clear the entry; otherwise record the choice.
-    if (access === 'private') {
+    // 'lan' is the default, so clear the entry; otherwise record the choice.
+    if (access === 'lan') {
       delete gatewayAccess[gateway]
     } else {
       gatewayAccess[gateway] = access
@@ -2058,10 +2058,10 @@ export class MockApiService extends ApiService {
     const next = portForwards.filter(
       pf => portOf(pf.src) !== range.externalStartPort,
     )
-    // ...then re-add for each Public inbound gateway that has a WAN IP.
+    // ...then re-add for each LAN+WAN inbound gateway that has a WAN IP.
     for (const [gwId, gw] of Object.entries(gateways)) {
       if (gw.type === 'outbound-only') continue
-      if ((gatewayAccess[gwId] ?? 'private') !== 'public') continue
+      if ((gatewayAccess[gwId] ?? 'lan') !== 'lan-wan') continue
       const wanIp = gw.ipInfo?.wanIp
       if (!wanIp) continue
       for (const subnet of gw.ipInfo!.subnets) {

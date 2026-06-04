@@ -57,10 +57,10 @@ type AccessOption = {
               type="button"
               [attr.data-access]="opt.access"
               [disabled]="
-                !!busy()[gw.id] || (opt.access === 'public' && !gw.wanIp)
+                !!busy()[gw.id] || (opt.access === 'lan-wan' && !gw.wanIp)
               "
               [title]="
-                opt.access === 'public' && !gw.wanIp
+                opt.access === 'lan-wan' && !gw.wanIp
                   ? ('No WAN IP' | i18n)
                   : opt.label
               "
@@ -87,11 +87,11 @@ type AccessOption = {
       color: var(--tui-status-negative);
     }
 
-    [data-access='private'] tui-icon {
+    [data-access='lan'] tui-icon {
       color: var(--tui-status-warning);
     }
 
-    [data-access='public'] tui-icon {
+    [data-access='lan-wan'] tui-icon {
       color: var(--tui-status-positive);
     }
 
@@ -116,7 +116,7 @@ export class PortRangeComponent {
 
   readonly busy = signal<Record<string, boolean>>({})
 
-  // Disabled → off (red), Private → LAN-only (amber), Public → LAN+WAN (green).
+  // Disabled → off (red), LAN → LAN-only (amber), LAN+WAN → public (green).
   protected readonly options: readonly AccessOption[] = [
     {
       access: 'disabled',
@@ -124,14 +124,14 @@ export class PortRangeComponent {
       label: this.i18n.transform('Disabled'),
     },
     {
-      access: 'private',
+      access: 'lan',
       icon: '@tui.house',
-      label: `${this.i18n.transform('Private')} (${this.i18n.transform('LAN')})`,
+      label: this.i18n.transform('LAN'),
     },
     {
-      access: 'public',
+      access: 'lan-wan',
       icon: '@tui.globe',
-      label: `${this.i18n.transform('Public')} (${this.i18n.transform('LAN+WAN')})`,
+      label: this.i18n.transform('LAN+WAN'),
     },
   ]
 
@@ -153,7 +153,7 @@ export class PortRangeComponent {
     switch (this.accessFor(gatewayId)) {
       case 'disabled':
         return 0
-      case 'private':
+      case 'lan':
         return 1
       default:
         return 2
@@ -175,11 +175,11 @@ export class PortRangeComponent {
         access,
       })
 
-      // Public exposes the range to the WAN, which requires a router
+      // LAN+WAN exposes the range to the WAN, which requires a router
       // port-forward. A contiguous UDP range can't be reliably reachability-
       // tested, so instead of probing we always show the operator exactly what
       // to forward on this gateway (TCP + UDP) for them to confirm.
-      if (access === 'public') {
+      if (access === 'lan-wan') {
         this.dialog
           .openComponent(PORT_RANGE_FORWARD, {
             label: 'Port Forwarding',
@@ -202,6 +202,6 @@ export class PortRangeComponent {
   }
 
   private accessFor(gatewayId: string): T.RangeGatewayAccess {
-    return this.value().gatewayAccess[gatewayId] ?? 'private'
+    return this.value().gatewayAccess[gatewayId] ?? 'lan'
   }
 }

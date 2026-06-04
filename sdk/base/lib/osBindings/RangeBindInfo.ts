@@ -16,9 +16,10 @@ export type RangeBindInfo = {
   numberOfPorts: number
   /**
    * Per-gateway exposure chosen by the operator. Absent gateways default to
-   * [`RangeGatewayAccess::Public`], so a freshly-bound range is exposed on
-   * every inbound gateway. Persisted independently of `enabled` (the
-   * service-lifecycle flag) so operator choices survive restarts / rebinds.
+   * [`RangeGatewayAccess::Lan`] (LAN-only), so a freshly-bound range is
+   * not exposed to the WAN until the operator opts in. Persisted
+   * independently of `enabled` (the service-lifecycle flag) so operator
+   * choices survive restarts / rebinds.
    */
   gatewayAccess: { [key: GatewayId]: RangeGatewayAccess }
 }

@@ -395,7 +395,7 @@ impl Model<Host> {
                 if matches!(gw_info.gateway_type, Some(GatewayType::OutboundOnly)) {
                     continue;
                 }
-                if range.access_for(gw_id) != RangeGatewayAccess::Public {
+                if range.access_for(gw_id) != RangeGatewayAccess::LanWan {
                     continue;
                 }
                 let Some(ip_info) = &gw_info.ip_info else {

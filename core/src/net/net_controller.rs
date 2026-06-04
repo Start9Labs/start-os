@@ -427,10 +427,10 @@ impl NetServiceData {
                     }
                     match range.access_for(gw_id) {
                         RangeGatewayAccess::Disabled => {}
-                        RangeGatewayAccess::Public => {
+                        RangeGatewayAccess::LanWan => {
                             public_gateways.insert(gw_id.clone());
                         }
-                        RangeGatewayAccess::Private => {
+                        RangeGatewayAccess::Lan => {
                             if let Some(ip_info) = &info.ip_info {
                                 private_ips.extend(ip_info.subnets.iter().map(|s| s.addr()));
                             }

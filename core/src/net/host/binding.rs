@@ -115,12 +115,11 @@ impl std::ops::DerefMut for Bindings {
 
 /// Per-gateway exposure of a port range, chosen by the operator.
 ///
-/// `Public` and `Private` mirror how single-port bindings treat WAN vs LAN
-/// addresses in [`crate::net::forward::ForwardRequirements`]: `Public` puts
-/// the gateway in `public_gateways` (no source filter → reachable from LAN and
-/// WAN), `Private` puts the gateway's subnet(s) in `private_ips` (source
-/// filtered to the LAN → reachable from LAN only), and `Disabled` forwards on
-/// neither.
+/// Mirrors how single-port bindings treat WAN vs LAN addresses in
+/// [`crate::net::forward::ForwardRequirements`]: `LanWan` puts the gateway in
+/// `public_gateways` (no source filter → reachable from LAN and WAN), `Lan`
+/// puts the gateway's subnet(s) in `private_ips` (source filtered to the LAN →
+/// reachable from LAN only), and `Disabled` forwards on neither.
 #[derive(
     Clone,
     Copy,
@@ -140,10 +139,10 @@ impl std::ops::DerefMut for Bindings {
 pub enum RangeGatewayAccess {
     Disabled,
     /// Default: a freshly-bound range is reachable on the LAN only. Exposing it
-    /// to the WAN is an explicit, per-gateway operator opt-in (`Public`).
+    /// to the WAN is an explicit, per-gateway operator opt-in (`LanWan`).
     #[default]
-    Private,
-    Public,
+    Lan,
+    LanWan,
 }
 
 /// Contiguous port-range binding (e.g. WebRTC/STUN/TURN RTP ranges).
@@ -161,7 +160,7 @@ pub struct RangeBindInfo {
     pub external_start_port: u16,
     pub number_of_ports: u16,
     /// Per-gateway exposure chosen by the operator. Absent gateways default to
-    /// [`RangeGatewayAccess::Private`] (LAN-only), so a freshly-bound range is
+    /// [`RangeGatewayAccess::Lan`] (LAN-only), so a freshly-bound range is
     /// not exposed to the WAN until the operator opts in. Persisted
     /// independently of `enabled` (the service-lifecycle flag) so operator
     /// choices survive restarts / rebinds.
@@ -204,7 +203,7 @@ impl RangeBindInfo {
     }
 
     /// Effective exposure for `gateway` — gateways the operator hasn't touched
-    /// default to [`RangeGatewayAccess::Public`].
+    /// default to [`RangeGatewayAccess::Lan`] (LAN-only).
     pub fn access_for(&self, gateway: &GatewayId) -> RangeGatewayAccess {
         self.gateway_access
             .get(gateway)
@@ -597,9 +596,9 @@ pub struct BindingSetRangeGatewayAccessParams {
 }
 
 /// Set how a port-range binding is exposed on a single gateway
-/// (disabled / private / public). The range's `enabled` flag is
+/// (disabled / lan / lan-wan). The range's `enabled` flag is
 /// service-controlled; this only records the operator's per-gateway choice.
-/// `Public` is the default, so setting a gateway to `Public` clears its entry.
+/// `Lan` is the default, so setting a gateway to `Lan` clears its entry.
 pub async fn set_range_gateway_access<Kind: HostApiKind>(
     ctx: RpcContext,
     BindingSetRangeGatewayAccessParams {

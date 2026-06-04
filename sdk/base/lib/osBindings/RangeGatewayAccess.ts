@@ -3,11 +3,10 @@
 /**
  * Per-gateway exposure of a port range, chosen by the operator.
  *
- * `Public` and `Private` mirror how single-port bindings treat WAN vs LAN
- * addresses in [`crate::net::forward::ForwardRequirements`]: `Public` puts
- * the gateway in `public_gateways` (no source filter → reachable from LAN and
- * WAN), `Private` puts the gateway's subnet(s) in `private_ips` (source
- * filtered to the LAN → reachable from LAN only), and `Disabled` forwards on
- * neither.
+ * Mirrors how single-port bindings treat WAN vs LAN addresses in
+ * [`crate::net::forward::ForwardRequirements`]: `LanWan` puts the gateway in
+ * `public_gateways` (no source filter → reachable from LAN and WAN), `Lan`
+ * puts the gateway's subnet(s) in `private_ips` (source filtered to the LAN →
+ * reachable from LAN only), and `Disabled` forwards on neither.
  */
-export type RangeGatewayAccess = 'disabled' | 'private' | 'public'
+export type RangeGatewayAccess = 'disabled' | 'lan' | 'lan-wan'
