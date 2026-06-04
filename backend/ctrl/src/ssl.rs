@@ -96,20 +96,51 @@ fn ensure_dirs() -> Result<(), Error> {
 }
 
 /// Branding baked into the Subject (CN/O/OU) of StartWRT-issued certs.
-fn startwrt_branding() -> CertBranding {
+///
+/// `root_ca_suffix` is appended to the Root CA CN so each freshly-minted Root CA
+/// gets a unique Subject DN (see [`random_ca_suffix`] and [`generate_root_ca`]).
+/// Baking it in here — rather than mutating the returned branding — mirrors
+/// start-os's `CertBranding::start_os(hostname)`, which embeds its per-device
+/// hostname in the CN at construction time. Pass `""` for the intermediate/leaf
+/// generators; they never read `root_ca_cn`.
+fn startwrt_branding(root_ca_suffix: &str) -> CertBranding {
     CertBranding {
         organization: InternedString::intern("Start9"),
         organizational_unit: InternedString::intern("StartWRT"),
-        root_ca_cn: InternedString::intern("StartWRT Local Root CA"),
+        root_ca_cn: InternedString::intern(&format!(
+            "StartWRT Local Root CA {root_ca_suffix}"
+        )),
         intermediate_ca_cn: InternedString::intern("StartWRT Local Intermediate CA"),
     }
+}
+
+/// A short random hex token appended to each freshly-minted Root CA's CN.
+///
+/// Browsers key trusted CAs by Subject DN. Without a per-CA suffix every
+/// fresh-flashed build mints a Root CA with an *identical* DN but a *different*
+/// key; Firefox/NSS then tries to verify the new chain against the
+/// previously-trusted CA's key and rejects it as SEC_ERROR_BAD_SIGNATURE
+/// ("Bad Signature"). A unique suffix makes each CA a distinct trust anchor, so
+/// an old trusted CA coexists harmlessly with a new one. Mirrors start-os, which
+/// embeds its per-device random hostname in the Root CA CN.
+fn random_ca_suffix() -> Result<String, Error> {
+    let mut bytes = [0u8; 4];
+    openssl::rand::rand_bytes(&mut bytes)?;
+    Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
 }
 
 /// Generate a new Root CA key pair and self-signed certificate.
 /// Returns (cert_pem, key_pem).
 fn generate_root_ca() -> Result<(String, String), Error> {
     let key = gen_nistp256()?;
-    let cert = make_root_cert(&key, &startwrt_branding(), SystemTime::now())?;
+
+    // Suffix the CN with a per-CA random token so a reflashed device's new Root
+    // CA does not collide (same DN, different key) with one already trusted in a
+    // browser — that collision surfaces as "Bad Signature". See random_ca_suffix.
+    let suffix = random_ca_suffix()?;
+    let branding = startwrt_branding(&suffix);
+
+    let cert = make_root_cert(&key, &branding, SystemTime::now())?;
 
     let cert_pem = String::from_utf8(cert.to_pem()?)
         .map_err(|e| Error::new(eyre!("CA cert PEM is not UTF-8: {e}"), ErrorKind::OpenSsl))?;
@@ -128,7 +159,7 @@ fn generate_intermediate_ca(
     let ca_key = PKey::private_key_from_pem(ca_key_pem.as_bytes())?;
 
     let key = gen_nistp256()?;
-    let cert = make_int_cert((&ca_key, &ca_cert), &key, &startwrt_branding())?;
+    let cert = make_int_cert((&ca_key, &ca_cert), &key, &startwrt_branding(""))?;
 
     let cert_pem = String::from_utf8(cert.to_pem()?).map_err(|e| {
         Error::new(eyre!("intermediate cert PEM is not UTF-8: {e}"), ErrorKind::OpenSsl)
@@ -166,7 +197,7 @@ fn generate_leaf_cert(
     let leaf_cert = make_leaf_cert(
         (&int_key, &int_cert),
         (&leaf_key, &san_info),
-        &startwrt_branding(),
+        &startwrt_branding(""),
     )?;
 
     let leaf_pem = String::from_utf8(leaf_cert.to_pem()?)
@@ -530,9 +561,35 @@ mod tests {
         assert!(cert_pem.contains("BEGIN CERTIFICATE"));
         assert!(key_pem.contains("BEGIN PRIVATE KEY"));
 
-        // Verify it parses back and has expected extensions
+        // Verify it parses back and the CN carries the base label.
         let cert = X509::from_pem(cert_pem.as_bytes()).unwrap();
-        assert!(cert.subject_name().entries_by_nid(Nid::COMMONNAME).next().is_some());
+        let cn = cert.subject_name().entries_by_nid(Nid::COMMONNAME).next().unwrap();
+        assert!(
+            cn.data().as_utf8().unwrap().to_string().starts_with("StartWRT Local Root CA "),
+            "Root CA CN missing base label"
+        );
+    }
+
+    #[test]
+    fn test_generate_root_ca_unique_subject_dn() {
+        // Each freshly-minted Root CA must get a distinct Subject DN (random suffix)
+        // so a reflashed device's new CA does not collide with one already trusted in
+        // a browser. See random_ca_suffix / startwrt_branding.
+        let cn = |pem: &str| {
+            X509::from_pem(pem.as_bytes())
+                .unwrap()
+                .subject_name()
+                .entries_by_nid(Nid::COMMONNAME)
+                .next()
+                .unwrap()
+                .data()
+                .as_utf8()
+                .unwrap()
+                .to_string()
+        };
+        let (a, _) = generate_root_ca().unwrap();
+        let (b, _) = generate_root_ca().unwrap();
+        assert_ne!(cn(&a), cn(&b), "two Root CAs must have distinct CNs");
     }
 
     #[test]

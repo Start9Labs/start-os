@@ -90,11 +90,11 @@ pub fn generate_password(charset: &[u8], len: usize) -> String {
 }
 use imbl_value::imbl::OrdMap;
 use imbl_value::Value;
-use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::yajrc::{GenericRpcMethod, Id, RpcError, RpcRequest};
 use rpc_toolkit::{
-    call_remote_http, from_fn_async,
+    from_fn_async,
     reqwest::{self, Client, Url},
-    CallRemote, Context, Empty, HandlerExt, ParentHandler,
+    CallRemote, Context, Empty, HandlerExt, ParentHandler, RpcResponse,
 };
 
 pub trait CtrlContext: Context + Clone {
@@ -312,7 +312,61 @@ impl CallRemote<ServerContext> for CliContext {
         params: Value,
         _extra: Empty,
     ) -> Result<Value, RpcError> {
-        call_remote_http(self.client(), self.host.clone(), method, params).await
+        // Mirror start-os's `signature::call_remote`: always speak JSON.
+        // rpc-toolkit's own `call_remote_http` sends CBOR when the `cbor`
+        // feature is on — and it is, because the start-os submodule pulls
+        // rpc-toolkit with default features (`default = ["cbor"]`), which
+        // feature-unification forces on for the whole build. The rpc-toolkit
+        // HTTP server only ever parses JSON request bodies, so a CBOR body
+        // fails to parse before any handler runs. Auth is carried by the
+        // cookie store on `self.client` (local auth cookie / loopback), so we
+        // don't need start-os's signature header.
+        let rpc_req = RpcRequest {
+            id: Some(Id::Number(0.into())),
+            method: GenericRpcMethod::<_, _, Value>::new(method),
+            params,
+        };
+        let body = serde_json::to_vec(&rpc_req)?;
+        let res = self
+            .client()
+            .request(reqwest::Method::POST, self.host.clone())
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .header(reqwest::header::ACCEPT, "application/json")
+            .header(reqwest::header::CONTENT_LENGTH, body.len())
+            .body(body)
+            .send()
+            .await?;
+
+        // The rpc-toolkit server answers RPC-level errors with a 200 + a
+        // JSON-RPC error body, so a non-2xx here is an HTTP/infrastructure
+        // failure (proxy, auth rejection, body limit, …). Surface it clearly
+        // rather than feeding the (likely non-JSON) body to the parser below.
+        if !res.status().is_success() {
+            let status = res.status();
+            let txt = res.text().await.unwrap_or_default();
+            let reason = status.canonical_reason().unwrap_or_else(|| status.as_str());
+            let detail = if txt.is_empty() {
+                reason.to_string()
+            } else {
+                format!("{reason}: {txt}")
+            };
+            return Err(Error::new(eyre!("{detail}"), ErrorKind::Network).into());
+        }
+
+        match res
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+        {
+            Some("application/json") => serde_json::from_slice::<RpcResponse>(&*res.bytes().await?)
+                .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Deserialization))?
+                .result,
+            _ => Err(Error::new(
+                eyre!("unexpected content type from daemon"),
+                ErrorKind::Network,
+            )
+            .into()),
+        }
     }
 }
 
