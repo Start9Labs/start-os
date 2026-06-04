@@ -262,11 +262,11 @@ pub struct NetworkInterfaceInfo {
 }
 impl NetworkInterfaceInfo {
     pub fn secure(&self) -> bool {
-        self.secure.unwrap_or(false) || self.is_intrinsically_secure()
+        self.secure.unwrap_or_else(|| self.is_intrinsically_secure())
     }
 
     // lo and lxcbr0 (the only Loopback/Bridge interfaces on StartOS) never leave the
-    // host, so insecure traffic such as plain HTTP is always permitted over them.
+    // host, so insecure traffic such as plain HTTP defaults to permitted over them.
     fn is_intrinsically_secure(&self) -> bool {
         matches!(
             self.ip_info.as_ref().and_then(|i| i.device_type),
