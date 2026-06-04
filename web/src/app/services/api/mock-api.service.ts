@@ -533,14 +533,15 @@ export class MockApiService extends ApiService {
 
   private mockBlackoutWindows: ScheduleWindow[] = [
     {
-      startTime: '20:00',
-      endTime: '23:00',
-      days: [false, true, true, true, true, true, false],
-    },
-    {
       startTime: '6:00',
       endTime: '10:00',
       days: [true, false, false, false, false, true, true],
+    },
+    {
+      // Crosses midnight (end < start): renders as a head + tail per night.
+      startTime: '22:00',
+      endTime: '06:00',
+      days: [false, true, true, true, true, true, false],
     },
   ]
 

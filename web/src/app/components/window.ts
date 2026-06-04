@@ -5,7 +5,6 @@ import {
   ReactiveFormsModule,
   ValidationErrors,
 } from '@angular/forms'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTime } from '@taiga-ui/cdk'
 import {
   TuiButton,
@@ -15,17 +14,12 @@ import {
   TuiLabel,
   tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
-import {
-  TUI_CONFIRM,
-  TuiBlock,
-  TuiDataListWrapper,
-  TuiInputTime,
-} from '@taiga-ui/kit'
+import { TuiBlock, TuiDataListWrapper, TuiInputTime } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { filter } from 'rxjs'
 import { ModalHelp } from 'src/app/help/modal-help'
 import { ScheduleWindow } from 'src/app/services/api/api.service'
+import { coversFullWeek, windowsOverlap } from 'src/app/utils/schedule'
 
 @Component({
   template: `
@@ -39,14 +33,25 @@ import { ScheduleWindow } from 'src/app/services/api/api.service'
         <legend>Time Window</legend>
         <tui-textfield>
           <label tuiLabel>Start Time</label>
-          <input tuiInputTime formControlName="startTime" />
-          <tui-data-list-wrapper *tuiDropdown [items]="quarterHours" />
+          <input tuiInputTime mode="HH:MM AA" formControlName="startTime" />
+          <tui-data-list-wrapper
+            *tuiDropdown
+            [items]="quarterHours"
+            [itemContent]="timeItem"
+          />
         </tui-textfield>
         <tui-textfield>
           <label tuiLabel>End Time</label>
-          <input tuiInputTime formControlName="endTime" />
-          <tui-data-list-wrapper *tuiDropdown [items]="quarterHours" />
+          <input tuiInputTime mode="HH:MM AA" formControlName="endTime" />
+          <tui-data-list-wrapper
+            *tuiDropdown
+            [items]="endQuarterHours"
+            [itemContent]="timeItem"
+          />
         </tui-textfield>
+        <ng-template #timeItem let-time>
+          {{ time.toString('HH:MM AA') }}
+        </ng-template>
       </fieldset>
       <tui-error [formGroup]="form" />
       <fieldset formGroupName="days" [style.display]="'flex'">
@@ -93,7 +98,9 @@ import { ScheduleWindow } from 'src/app/services/api/api.service'
   hostDirectives: [ModalHelp],
   providers: [
     tuiValidationErrorsProvider({
-      endBeforeStart: 'End time must be later than start time',
+      overlap: 'This window overlaps another schedule',
+      fullWeek:
+        'Schedule covers the whole week — disable WiFi/WAN directly instead',
     }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -110,16 +117,29 @@ import { ScheduleWindow } from 'src/app/services/api/api.service'
   ],
 })
 export class AddWindow {
-  protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly builder = inject(NonNullableFormBuilder)
   protected readonly context =
-    injectContext<TuiDialogContext<ScheduleWindow | null, ScheduleWindow>>()
+    injectContext<
+      TuiDialogContext<
+        ScheduleWindow | null,
+        ScheduleWindow & { others?: ScheduleWindow[] }
+      >
+    >()
 
-  // 15-minute increments across the day for the time picker dropdown.
+  // 15-minute increments across the day for the start-time picker dropdown.
   protected readonly quarterHours: readonly TuiTime[] = Array.from(
     { length: 96 },
     (_, i) => new TuiTime(Math.floor(i / 4), (i % 4) * 15),
   )
+
+  // End-time dropdown additionally offers a trailing 12:00 AM (reusing the
+  // 00:00 entry) so a window can close at end-of-day midnight. Stored as
+  // "00:00"; the wrap-aware logic treats end <= start as crossing into the
+  // next day, so picking it with a 12:00 AM start yields a full 24h blackout.
+  protected readonly endQuarterHours: readonly TuiTime[] = [
+    ...this.quarterHours,
+    this.quarterHours[0],
+  ]
 
   // Display Mon–Sun; data keys map to Sun(0)–Sat(6)
   protected readonly displayDays = [
@@ -148,10 +168,33 @@ export class AddWindow {
     },
     {
       validators: (control: AbstractControl): ValidationErrors | null => {
-        const start = control.get('startTime')?.value
-        const end = control.get('endTime')?.value
+        const start = control.get('startTime')?.value as TuiTime | null
+        const end = control.get('endTime')?.value as TuiTime | null
+        if (!start || !end) return null
 
-        return start && end && end <= start ? { endBeforeStart: true } : null
+        // end < start wraps past midnight (e.g. 22:00-06:00); end == start is a
+        // full 24-hour window (e.g. 09:00-09:00 next day). Both are valid.
+        // Block submission if this window would overlap any other (wrap-aware).
+        const daysVal = control.get('days')?.value as Record<number, boolean>
+        const days = Array.from({ length: 7 }, (_, i) => !!daysVal?.[i]) as [
+          boolean,
+          boolean,
+          boolean,
+          boolean,
+          boolean,
+          boolean,
+          boolean,
+        ]
+        const candidate: ScheduleWindow = {
+          startTime: start.toString('HH:MM'),
+          endTime: end.toString('HH:MM'),
+          days,
+        }
+        const all = [candidate, ...(this.context.data.others ?? [])]
+        if (windowsOverlap(all)) return { overlap: true }
+        // A schedule with no gaps produces no cron edges; the backend rejects it.
+        if (coversFullWeek(all)) return { fullWeek: true }
+        return null
       },
     },
   )
@@ -178,11 +221,6 @@ export class AddWindow {
   }
 
   protected remove(): void {
-    this.dialogs
-      .open(TUI_CONFIRM, { label: 'Are you sure?' })
-      .pipe(filter(Boolean))
-      .subscribe(() => {
-        this.context.completeWith(null)
-      })
+    this.context.completeWith(null)
   }
 }

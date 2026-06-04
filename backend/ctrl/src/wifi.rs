@@ -10,7 +10,7 @@ use uciedit::openwrt::{
     NetworkBridgeVlan, WifiChannel, WifiDevice, WifiDynamicVlan, WifiInterface, WifiMode,
     WifiStation, WifiVlan,
 };
-use uciedit::{dump_all, parse_all, Arena, Configs};
+use uciedit::{dump_all, parse_all, Arena, Configs, TypedSection};
 
 pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
 
@@ -77,6 +77,18 @@ pub struct BlackoutWindow {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BlackoutWindows {
     pub windows: Vec<BlackoutWindow>,
+}
+
+/// Canonical UCI store for WiFi blackout windows (singleton section
+/// `config wifi_blackout 'blackout'` in the `startwrt` config). The crontab is a
+/// disposable projection regenerated from this on every write, so deconfliction
+/// can drop/merge cron edges without losing the windows. Each entry is the
+/// "start|end|days" list form shared with profile WAN schedules.
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "wifi_blackout")]
+pub(crate) struct UciWifiBlackout {
+    #[uci(default)]
+    pub windows: Vec<String>,
 }
 
 pub fn wifi<C: CtrlContext + Clone>() -> ParentHandler<C> {
@@ -612,118 +624,319 @@ fn parse_hhmm(s: &str) -> Result<(u32, u32), Error> {
     Ok((h, m))
 }
 
-#[instrument(skip_all)]
-pub async fn blackout_get<C: CtrlContext>(ctx: C) -> Result<Vec<BlackoutWindow>, Error> {
-    let path = crontab_path(&ctx);
-    let content = tokio::fs::read_to_string(&path).await.unwrap_or_default();
+/// Render a weekday mask as a cron day-of-week field (e.g. "1,2,3"). 0 = Sunday.
+/// Shared by WiFi blackout and profile WAN schedules.
+pub(crate) fn days_to_cron(days: &[bool; 7]) -> String {
+    days.iter()
+        .enumerate()
+        .filter(|(_, &on)| on)
+        .map(|(i, _)| i.to_string())
+        .collect::<Vec<_>>()
+        .join(",")
+}
 
-    let tagged: Vec<&str> = content
-        .lines()
-        .filter(|l| l.contains(BLACKOUT_TAG))
-        .collect();
+/// Shift each set weekday forward by one. Saturday (6) wraps to Sunday (0) via
+/// mod 7. Used for the closing edge of a window that crosses midnight: the
+/// unblock event belongs to the day *after* the block event. Shared by WiFi
+/// blackout and profile WAN schedules.
+pub(crate) fn shift_days_forward(days: &[bool; 7]) -> [bool; 7] {
+    let mut out = [false; 7];
+    for (i, &on) in days.iter().enumerate() {
+        if on {
+            out[(i + 1) % 7] = true;
+        }
+    }
+    out
+}
 
-    // Collect down/up line pairs
-    let down_lines: Vec<&str> = tagged.iter().filter(|l| l.contains("wifi down")).copied().collect();
-    let up_lines: Vec<&str> = tagged.iter().filter(|l| l.contains("wifi up")).copied().collect();
+/// True if any two scheduled windows occupy overlapping time on the weekly
+/// timeline. Each tuple is (start_min, end_min, days[Sun..Sat]); end < start
+/// denotes a window crossing midnight into the following day, and end == start
+/// denotes a full 24-hour window (start..start+24h). Shared by WiFi blackout and
+/// profile WAN schedules.
+pub(crate) fn windows_overlap(windows: &[(u32, u32, [bool; 7])]) -> bool {
+    const WEEK: i64 = 7 * 24 * 60;
+    // Expand every (window, day) into half-open minute segments, splitting any
+    // that cross the week boundary so all live in [0, WEEK).
+    let mut segs: Vec<(i64, i64)> = Vec::new();
+    for &(start, end, days) in windows {
+        for (d, &on) in days.iter().enumerate() {
+            if !on {
+                continue;
+            }
+            let base = d as i64 * 24 * 60;
+            let s = base + start as i64;
+            let e = base + if end <= start { end as i64 + 24 * 60 } else { end as i64 };
+            if e <= WEEK {
+                segs.push((s, e));
+            } else {
+                segs.push((s, WEEK));
+                segs.push((0, e - WEEK));
+            }
+        }
+    }
+    for i in 0..segs.len() {
+        for j in (i + 1)..segs.len() {
+            let (a1, b1) = segs[i];
+            let (a2, b2) = segs[j];
+            if a1 < b2 && a2 < b1 {
+                return true;
+            }
+        }
+    }
+    false
+}
 
-    let mut windows = Vec::new();
-    for (down, up) in down_lines.iter().zip(up_lines.iter()) {
-        let down_parts: Vec<&str> = down.split_whitespace().collect();
-        let up_parts: Vec<&str> = up.split_whitespace().collect();
+/// Project windows into deconflicted "down"/"up" cron edges keyed by minute of
+/// day. The down edge fires at `start_min` on the window's weekday mask; the up
+/// edge fires at `end_min` on the mask shifted forward one day when
+/// `start_min >= end_min` (the window wraps past midnight, or is a full-24h
+/// window where start == end). Where a down and an up edge coincide at the SAME
+/// minute-of-day AND weekday, both bits are dropped (annihilated) so the
+/// resource stays continuously blocked across adjacent/consecutive windows with
+/// no same-tick cron race. Callers must reject overlapping windows first
+/// (`windows_overlap`), which guarantees at most one down and one up bit per
+/// (minute, weekday). All-false masks are omitted from the returned maps.
+/// Shared by WiFi blackout and profile WAN schedules.
+pub(crate) fn deconflict_edges(
+    windows: &[(u32, u32, [bool; 7])],
+) -> (BTreeMap<u32, [bool; 7]>, BTreeMap<u32, [bool; 7]>) {
+    let mut downs: BTreeMap<u32, [bool; 7]> = BTreeMap::new();
+    let mut ups: BTreeMap<u32, [bool; 7]> = BTreeMap::new();
 
-        let start_time = if down_parts.len() >= 2 {
-            format!(
-                "{:02}:{:02}",
-                down_parts[1].parse::<u32>().unwrap_or(0),
-                down_parts[0].parse::<u32>().unwrap_or(0)
-            )
+    // Accumulate raw edges, OR-ing weekday bits per minute. (Overlap rejection
+    // upstream means two windows can't actually share a weekday bit at the same
+    // minute, but OR-ing is the correct merge regardless.)
+    for &(start, end, days) in windows {
+        if days.iter().any(|&b| b) {
+            let e = downs.entry(start).or_insert([false; 7]);
+            for d in 0..7 {
+                e[d] |= days[d];
+            }
+        }
+        let up_days = if start >= end {
+            shift_days_forward(&days)
         } else {
-            continue;
+            days
         };
+        if up_days.iter().any(|&b| b) {
+            let e = ups.entry(end).or_insert([false; 7]);
+            for d in 0..7 {
+                e[d] |= up_days[d];
+            }
+        }
+    }
 
-        let end_time = if up_parts.len() >= 2 {
-            format!(
-                "{:02}:{:02}",
-                up_parts[1].parse::<u32>().unwrap_or(0),
-                up_parts[0].parse::<u32>().unwrap_or(0)
-            )
-        } else {
-            continue;
-        };
+    // Annihilate coincident down+up weekday bits per minute-of-day.
+    let minutes: Vec<u32> = downs.keys().chain(ups.keys()).copied().collect();
+    for m in minutes {
+        let dmask = downs.get(&m).copied().unwrap_or([false; 7]);
+        let umask = ups.get(&m).copied().unwrap_or([false; 7]);
+        let conflict: [bool; 7] = std::array::from_fn(|d| dmask[d] && umask[d]);
+        if conflict.iter().any(|&b| b) {
+            set_or_remove(&mut downs, m, std::array::from_fn(|d| dmask[d] && !conflict[d]));
+            set_or_remove(&mut ups, m, std::array::from_fn(|d| umask[d] && !conflict[d]));
+        }
+    }
+    (downs, ups)
+}
 
-        let mut days = [false; 7];
-        if down_parts.len() >= 5 {
-            for d in down_parts[4].split(',') {
-                if let Ok(n) = d.parse::<usize>() {
-                    if n < 7 {
-                        days[n] = true;
+fn set_or_remove(map: &mut BTreeMap<u32, [bool; 7]>, m: u32, mask: [bool; 7]) {
+    if mask.iter().any(|&b| b) {
+        map.insert(m, mask);
+    } else {
+        map.remove(&m);
+    }
+}
+
+/// True if the windows tile the entire week with no gap, leaving no cron edges to
+/// drive the schedule. Zero surviving edges (after deconfliction) plus at least
+/// one active day means full coverage: any genuine gap leaves a covered→uncovered
+/// transition, i.e. a surviving edge. Shared by WiFi blackout and profile WAN
+/// schedules — rejected up front since an edgeless schedule can't be executed by
+/// cron alone. Callers must reject overlaps first.
+pub(crate) fn covers_full_week(windows: &[(u32, u32, [bool; 7])]) -> bool {
+    let (downs, ups) = deconflict_edges(windows);
+    downs.is_empty() && ups.is_empty() && windows.iter().any(|(_, _, d)| d.iter().any(|&b| b))
+}
+
+/// Serialize schedule windows to the UCI "start|end|days" list form (days encoded
+/// as comma-joined indices 0=Sun..6=Sat). Shared by WiFi blackout and profile WAN
+/// schedules.
+pub(crate) fn serialize_windows<'a>(
+    windows: impl IntoIterator<Item = (&'a str, &'a str, &'a [bool; 7])>,
+) -> Vec<String> {
+    windows
+        .into_iter()
+        .map(|(start, end, days)| format!("{}|{}|{}", start, end, days_to_cron(days)))
+        .collect()
+}
+
+/// Parse the UCI "start|end|days" list form into (start_time, end_time, days)
+/// tuples; malformed entries are skipped. Shared by WiFi blackout and profile WAN
+/// schedules.
+pub(crate) fn parse_windows(raw: &[String]) -> Vec<(String, String, [bool; 7])> {
+    raw.iter()
+        .filter_map(|s| {
+            let parts: Vec<&str> = s.splitn(3, '|').collect();
+            if parts.len() != 3 {
+                tracing::warn!("schedule: dropping malformed window entry {s:?}");
+                return None;
+            }
+            let mut days = [false; 7];
+            if !parts[2].is_empty() {
+                for d in parts[2].split(',') {
+                    if let Ok(n) = d.parse::<usize>() {
+                        if n < 7 {
+                            days[n] = true;
+                        }
                     }
                 }
             }
-        }
+            Some((parts[0].to_string(), parts[1].to_string(), days))
+        })
+        .collect()
+}
 
-        windows.push(BlackoutWindow {
+/// Convert parsed ("HH:MM", "HH:MM", days) windows to (start_min, end_min, days)
+/// minute tuples for the cron projection, dropping (with a warning) any whose
+/// times don't parse. Shared by the WiFi blackout and profile WAN-schedule cron
+/// regenerators.
+pub(crate) fn windows_to_minutes(
+    windows: &[(String, String, [bool; 7])],
+) -> Vec<(u32, u32, [bool; 7])> {
+    windows
+        .iter()
+        .filter_map(|(start, end, days)| match (parse_hhmm(start), parse_hhmm(end)) {
+            (Ok((sh, sm)), Ok((eh, em))) => Some((sh * 60 + sm, eh * 60 + em, *days)),
+            _ => {
+                tracing::warn!(
+                    "schedule: dropping window with unparseable time(s) {start:?}..{end:?}"
+                );
+                None
+            }
+        })
+        .collect()
+}
+
+/// Read the raw "start|end|days" entries from the singleton `wifi_blackout`
+/// section in the `startwrt` UCI config (the canonical store).
+async fn read_blackout_windows<C: CtrlContext>(ctx: &C) -> Result<Vec<String>, Error> {
+    let arena = Arena::new();
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"]).await?;
+    let mut raw = Vec::new();
+    cfgs["startwrt"].try_each(|name, b: UciWifiBlackout| {
+        if name == Some("blackout") {
+            raw = b.windows;
+        }
+        Ok::<_, Error>(())
+    })?;
+    Ok(raw)
+}
+
+#[instrument(skip_all)]
+pub async fn blackout_get<C: CtrlContext>(ctx: C) -> Result<Vec<BlackoutWindow>, Error> {
+    let raw = read_blackout_windows(&ctx).await?;
+    Ok(parse_windows(&raw)
+        .into_iter()
+        .map(|(start_time, end_time, days)| BlackoutWindow {
             start_time,
             end_time,
             days,
-        });
-    }
-
-    Ok(windows)
+        })
+        .collect())
 }
 
+// NOTE: WiFi blackout windows are now stored in UCI (`config wifi_blackout
+// 'blackout'`); the crontab is a disposable projection regenerated from UCI by
+// `regenerate_blackout_crontab`. The deconflicted projection means a schedule
+// that tiles the whole week has zero cron edges, which is why `blackout_set`
+// rejects full-week coverage (cron alone can't execute an edgeless schedule).
+// `reconcile_blackout_at_boot` (below) reasserts the in-window state on boot so a
+// reboot mid-blackout doesn't leave the radio up until the next cron edge, and the
+// daemon rebuilds the crontab projection from UCI at boot (see `daemon.rs`), so the
+// schedule survives a sysupgrade that wipes `/etc/crontabs/root`. The remaining gap
+// is the boot-window one (netifd raises radios before the daemon runs), documented
+// at `reconcile_blackout_at_boot`.
 #[instrument(skip_all)]
 pub async fn blackout_set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(input): DeserializeStdin<BlackoutWindows>,
 ) -> Result<(), Error> {
-    let path = crontab_path(&ctx);
-    let content = tokio::fs::read_to_string(&path).await.unwrap_or_default();
-
-    let filtered: Vec<&str> = content
-        .lines()
-        .filter(|l| !l.contains(BLACKOUT_TAG))
-        .collect();
-
-    let mut new_content = filtered.join("\n");
-    if !new_content.is_empty() && !new_content.ends_with('\n') {
-        new_content.push('\n');
+    // Validate before persisting. Equal start/end denotes a full 24-hour window
+    // (not an error); overlapping windows and full-week-no-gap coverage are
+    // rejected.
+    let parsed: Vec<(u32, u32, [bool; 7])> = input
+        .windows
+        .iter()
+        .map(|w| {
+            let (sh, sm) = parse_hhmm(&w.start_time)?;
+            let (eh, em) = parse_hhmm(&w.end_time)?;
+            Ok::<_, Error>((sh * 60 + sm, eh * 60 + em, w.days))
+        })
+        .collect::<Result<_, _>>()?;
+    if windows_overlap(&parsed) {
+        return Err(Error::new(
+            eyre!("blackout windows overlap"),
+            ErrorKind::InvalidValue,
+        ));
+    }
+    if covers_full_week(&parsed) {
+        return Err(Error::new(
+            eyre!("blackout schedule covers the entire week with no gap; disable WiFi directly instead"),
+            ErrorKind::InvalidValue,
+        ));
     }
 
-    for window in &input.windows {
-        let days_str: String = window
-            .days
+    // Persist windows to UCI (the source of truth); the crontab is regenerated
+    // from it below.
+    let serialized = serialize_windows(
+        input
+            .windows
             .iter()
-            .enumerate()
-            .filter(|(_, &on)| on)
-            .map(|(i, _)| i.to_string())
-            .collect::<Vec<_>>()
-            .join(",");
+            .map(|w| (w.start_time.as_str(), w.end_time.as_str(), &w.days)),
+    );
 
-        if days_str.is_empty() {
-            continue;
+    let mut retries = 4;
+    loop {
+        let arena = Arena::new();
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"]).await?;
+
+        let mut found = false;
+        for section in &mut cfgs["startwrt"].sections {
+            if section.name().as_deref() == Some("blackout") {
+                if section.get_typed::<UciWifiBlackout>()?.is_some() {
+                    section.set(&UciWifiBlackout {
+                        windows: serialized.clone(),
+                    })?;
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if !found {
+            cfgs["startwrt"].append(
+                &UciWifiBlackout {
+                    windows: serialized.clone(),
+                },
+                Some("blackout"),
+            )?;
         }
 
-        let (start_h, start_m) = parse_hhmm(&window.start_time)?;
-        let (end_h, end_m) = parse_hhmm(&window.end_time)?;
-
-        new_content.push_str(&format!(
-            "{} {} * * {} wifi down {}\n",
-            start_m, start_h, days_str, BLACKOUT_TAG
-        ));
-        new_content.push_str(&format!(
-            "{} {} * * {} wifi up {}\n",
-            end_m, end_h, days_str, BLACKOUT_TAG
-        ));
+        match dump_all(ctx.uci_root(), cfgs).await {
+            Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
+                retries -= 1;
+                continue;
+            }
+            Err(err) => {
+                crate::activity::log("wifi", "blackout-updated", false, "Failed to write blackout schedule", Some(&err.to_string()));
+                return Err(err.into());
+            }
+            Ok(()) => break,
+        }
     }
 
-    if let Some(parent) = path.parent() {
-        tokio::fs::create_dir_all(parent).await?;
-    }
-    if let Err(err) = tokio::fs::write(&path, &new_content).await {
-        crate::activity::log("wifi", "blackout-updated", false, "Failed to write blackout schedule", Some(&err.to_string()));
-        return Err(err.into());
-    }
+    regenerate_blackout_crontab(&ctx).await?;
 
     if ctx.effectful() {
         crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/cron").arg("restart"))
@@ -735,12 +948,172 @@ pub async fn blackout_set<C: CtrlContext>(
     Ok(())
 }
 
+/// Regenerate the WiFi-blackout crontab lines from the UCI store. Pure projection
+/// (UCI → cron): strips old `BLACKOUT_TAG` lines, then emits deconflicted
+/// `wifi down`/`wifi up` edges so adjacent/consecutive windows never race at a
+/// shared cron tick.
+pub(crate) async fn regenerate_blackout_crontab(ctx: &impl CtrlContext) -> Result<(), Error> {
+    let path = crontab_path(ctx);
+    let content = tokio::fs::read_to_string(&path).await.unwrap_or_default();
+
+    let filtered: Vec<&str> = content
+        .lines()
+        .filter(|l| !l.contains(BLACKOUT_TAG))
+        .collect();
+    let mut new_content = filtered.join("\n");
+    if !new_content.is_empty() && !new_content.ends_with('\n') {
+        new_content.push('\n');
+    }
+
+    let raw = read_blackout_windows(ctx).await?;
+    let windows = windows_to_minutes(&parse_windows(&raw));
+
+    let (downs, ups) = deconflict_edges(&windows);
+    for (&min, mask) in &downs {
+        new_content.push_str(&format!(
+            "{} {} * * {} wifi down {}\n",
+            min % 60,
+            min / 60,
+            days_to_cron(mask),
+            BLACKOUT_TAG
+        ));
+    }
+    for (&min, mask) in &ups {
+        new_content.push_str(&format!(
+            "{} {} * * {} wifi up {}\n",
+            min % 60,
+            min / 60,
+            days_to_cron(mask),
+            BLACKOUT_TAG
+        ));
+    }
+
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    tokio::fs::write(&path, &new_content).await?;
+    Ok(())
+}
+
+/// Boot/reload reconciler for WiFi blackout. Blackout is edge-triggered by cron
+/// (`wifi down`/`wifi up`); a reboot mid-window loses the edge — netifd raises the
+/// radios early in boot per the on-disk `disabled` flag (runtime `wifi down` does
+/// not persist to config), so WiFi comes back up even though we are inside a
+/// blackout. Recompute the current in/out-of-window state (wrap-aware, mirroring
+/// `profiles::evaluate_and_apply_schedules`) and reassert `wifi down` when inside
+/// a window.
+///
+/// The out-of-window case is deliberately a no-op: boot already brings radios up
+/// per their UCI `disabled` flag, and `wifi up` honors that flag, so we never
+/// re-enable a radio the user disabled. Asserting only the "down" side keeps this
+/// idempotent and avoids that footgun. Call this *after* `restore_wifi_if_needed`
+/// (and after any other boot step that touches the radios) so this `wifi down` is
+/// the final word — `restore_wifi_if_needed` restores missing AP config and
+/// applies it with `wifi reload`, which would otherwise re-raise the radio.
+///
+/// TODO: This closes the *steady-state* gap (radio staying up for the rest of the
+/// window after a reboot) but NOT the *boot-window* gap. netifd brings the radios
+/// up at init `START=20`, long before this daemon runs (`START=99`), so there is a
+/// bounded interval early in boot where the radio broadcasts inside a blackout.
+/// Eliminating it entirely would require persisting blackout state into the
+/// wireless config (`option disabled '1'`) behind a dedicated marker distinct from
+/// the user's own per-radio `disabled`, plus a restore step on the window's
+/// closing edge — a larger change deferred for now.
+pub(crate) async fn reconcile_blackout_at_boot(ctx: &impl CtrlContext) -> Result<(), Error> {
+    let raw = read_blackout_windows(ctx).await?;
+    let windows = parse_windows(&raw);
+    let (day, minute) = crate::profiles::chrono_now().await;
+    if !windows_contain_now(&windows, day, minute) {
+        return Ok(());
+    }
+    if ctx.effectful() {
+        crate::run_quiet_async(tokio::process::Command::new("wifi").arg("down"))
+            .await
+            .map_err(|e| Error::new(eyre!("wifi down: {e}"), ErrorKind::Network))?;
+        crate::activity::log(
+            "wifi",
+            "blackout-reasserted",
+            true,
+            "Reasserted WiFi blackout after reboot (inside active window)",
+            None,
+        );
+    }
+    Ok(())
+}
+
+/// Pure decision: true if `(day, minute)` falls inside any blackout window
+/// (wrap-aware via `profiles::window_contains`). Malformed time fields are
+/// skipped. Split out from `reconcile_blackout_at_boot` so it is unit-testable
+/// without reading the system clock or spawning `wifi`.
+fn windows_contain_now(
+    windows: &[(String, String, [bool; 7])],
+    day: usize,
+    minute: u32,
+) -> bool {
+    windows.iter().any(|(start, end, days)| {
+        match (parse_hhmm(start), parse_hhmm(end)) {
+            (Ok((sh, sm)), Ok((eh, em))) => {
+                crate::profiles::window_contains(sh * 60 + sm, eh * 60 + em, days, day, minute)
+            }
+            _ => false,
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use rpc_toolkit::Context;
     use std::sync::Arc;
     use tokio::runtime::Runtime;
+
+    /// Build a `[bool; 7]` weekday mask from day indices (0=Sun..6=Sat).
+    fn mask(days: &[usize]) -> [bool; 7] {
+        let mut m = [false; 7];
+        for &d in days {
+            m[d] = true;
+        }
+        m
+    }
+
+    #[test]
+    fn test_windows_contain_now_non_wrap() {
+        // 09:00-17:00 on Monday (day 1) only.
+        let windows = vec![("09:00".to_string(), "17:00".to_string(), mask(&[1]))];
+        assert!(windows_contain_now(&windows, 1, 12 * 60)); // Mon noon: inside
+        assert!(!windows_contain_now(&windows, 1, 8 * 60)); // Mon 08:00: before
+        assert!(!windows_contain_now(&windows, 1, 17 * 60)); // Mon 17:00: half-open end
+        assert!(!windows_contain_now(&windows, 2, 12 * 60)); // Tue: wrong day
+    }
+
+    #[test]
+    fn test_windows_contain_now_overnight_wrap() {
+        // 22:00-06:00 on Saturday (day 6); tail spills into Sunday (day 0).
+        let windows = vec![("22:00".to_string(), "06:00".to_string(), mask(&[6]))];
+        assert!(windows_contain_now(&windows, 6, 23 * 60)); // Sat 23:00: head, inside
+        assert!(!windows_contain_now(&windows, 6, 21 * 60)); // Sat 21:00: before start
+        assert!(windows_contain_now(&windows, 0, 2 * 60)); // Sun 02:00: tail, inside
+        assert!(!windows_contain_now(&windows, 0, 6 * 60)); // Sun 06:00: half-open end
+        assert!(!windows_contain_now(&windows, 0, 23 * 60)); // Sun night: not blocked
+    }
+
+    #[test]
+    fn test_windows_contain_now_multiple_and_malformed() {
+        let windows = vec![
+            ("09:00".to_string(), "12:00".to_string(), mask(&[1])),
+            ("14:00".to_string(), "18:00".to_string(), mask(&[3])),
+            ("bad".to_string(), "18:00".to_string(), mask(&[5])), // skipped
+        ];
+        assert!(windows_contain_now(&windows, 1, 10 * 60)); // first window
+        assert!(windows_contain_now(&windows, 3, 15 * 60)); // second window
+        assert!(!windows_contain_now(&windows, 1, 13 * 60)); // gap between windows
+        assert!(!windows_contain_now(&windows, 5, 16 * 60)); // malformed entry never matches
+    }
+
+    #[test]
+    fn test_windows_contain_now_empty() {
+        assert!(!windows_contain_now(&[], 3, 12 * 60));
+    }
 
     #[derive(Clone)]
     struct TestContext(PathBuf);
@@ -1692,5 +2065,267 @@ config wifi-iface 'default_radio1'
 
         let err = set(ctx, DeserializeStdin(wifi)).await.unwrap_err();
         assert_eq!(err.kind, ErrorKind::InvalidValue);
+    }
+
+    #[test]
+    fn test_days_to_cron() {
+        // [Sun..Sat]; 0 = Sunday.
+        assert_eq!(days_to_cron(&[false, true, false, false, false, false, false]), "1");
+        assert_eq!(days_to_cron(&[true, false, false, false, false, false, true]), "0,6");
+        assert_eq!(days_to_cron(&[false; 7]), "");
+    }
+
+    #[test]
+    fn test_shift_days_forward() {
+        let mut mon = [false; 7];
+        mon[1] = true;
+        let mut tue = [false; 7];
+        tue[2] = true;
+        assert_eq!(shift_days_forward(&mon), tue);
+
+        // Saturday (6) wraps to Sunday (0) via mod 7 — the "end of week" case.
+        let mut sat = [false; 7];
+        sat[6] = true;
+        let mut sun = [false; 7];
+        sun[0] = true;
+        assert_eq!(shift_days_forward(&sat), sun);
+
+        // All-7 is the identity.
+        assert_eq!(shift_days_forward(&[true; 7]), [true; 7]);
+    }
+
+    #[test]
+    fn test_windows_overlap() {
+        let all = [true; 7];
+        let mut mon = [false; 7];
+        mon[1] = true;
+        let mut tue = [false; 7];
+        tue[2] = true;
+
+        // Disjoint times, same day.
+        assert!(!windows_overlap(&[(9 * 60, 17 * 60, mon), (18 * 60, 20 * 60, mon)]));
+        // Overlapping times, same day.
+        assert!(windows_overlap(&[(9 * 60, 17 * 60, mon), (16 * 60, 18 * 60, mon)]));
+        // Same times, different days: no overlap.
+        assert!(!windows_overlap(&[(9 * 60, 17 * 60, mon), (9 * 60, 17 * 60, tue)]));
+        // Daily 22:00-06:00 does not self-overlap (8h nightly gap).
+        assert!(!windows_overlap(&[(22 * 60, 6 * 60, all)]));
+        // Mon-night wrap (->Tue 06:00) overlaps a Tue 04:00-05:00 window.
+        assert!(windows_overlap(&[(22 * 60, 6 * 60, mon), (4 * 60, 5 * 60, tue)]));
+
+        // The two surviving mock windows must not overlap.
+        let mut sun_fri_sat = [false; 7];
+        sun_fri_sat[0] = true;
+        sun_fri_sat[5] = true;
+        sun_fri_sat[6] = true;
+        let mut mon_fri = [false; 7];
+        for d in 1..=5 {
+            mon_fri[d] = true;
+        }
+        assert!(!windows_overlap(&[
+            (6 * 60, 10 * 60, sun_fri_sat),
+            (22 * 60, 6 * 60, mon_fri),
+        ]));
+    }
+
+    #[tokio::test]
+    async fn test_blackout_wrap_shifts_up_day() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        // Saturday-night-only blackout that crosses into Sunday morning.
+        let mut days = [false; 7];
+        days[6] = true; // Saturday
+        blackout_set(
+            ctx.clone(),
+            DeserializeStdin(BlackoutWindows {
+                windows: vec![BlackoutWindow {
+                    start_time: "22:00".to_string(),
+                    end_time: "06:00".to_string(),
+                    days,
+                }],
+            }),
+        )
+        .await
+        .unwrap();
+
+        let content = tokio::fs::read_to_string(dir.path().join("crontab_root"))
+            .await
+            .unwrap();
+        // down fires Saturday (6); up fires the next day, Sunday (0).
+        assert!(content.contains("0 22 * * 6 wifi down"), "got: {content}");
+        assert!(content.contains("0 6 * * 0 wifi up"), "got: {content}");
+    }
+
+    #[tokio::test]
+    async fn test_blackout_rejects_overlap() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let result = blackout_set(
+            ctx.clone(),
+            DeserializeStdin(BlackoutWindows {
+                windows: vec![
+                    BlackoutWindow {
+                        start_time: "09:00".to_string(),
+                        end_time: "17:00".to_string(),
+                        days: [true; 7],
+                    },
+                    BlackoutWindow {
+                        start_time: "16:00".to_string(),
+                        end_time: "18:00".to_string(),
+                        days: [true; 7],
+                    },
+                ],
+            }),
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_blackout_rejects_full_week() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        // 24h on every day == the whole week with no gap: every cron edge
+        // annihilates, leaving nothing to execute, so it's rejected.
+        let result = blackout_set(
+            ctx.clone(),
+            DeserializeStdin(BlackoutWindows {
+                windows: vec![BlackoutWindow {
+                    start_time: "08:00".to_string(),
+                    end_time: "08:00".to_string(),
+                    days: [true; 7],
+                }],
+            }),
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_blackout_allows_24h_single_day() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        // A full-24h window on Monday only: down Monday, up the next day (Tuesday).
+        let result = blackout_set(
+            ctx.clone(),
+            DeserializeStdin(BlackoutWindows {
+                windows: vec![BlackoutWindow {
+                    start_time: "09:00".to_string(),
+                    end_time: "09:00".to_string(),
+                    days: mask(&[1]),
+                }],
+            }),
+        )
+        .await;
+        assert!(result.is_ok(), "{result:?}");
+
+        // Round-trips through UCI.
+        let windows = blackout_get(ctx.clone()).await.unwrap();
+        assert_eq!(windows.len(), 1);
+        assert_eq!(windows[0].start_time, "09:00");
+        assert_eq!(windows[0].end_time, "09:00");
+        assert_eq!(windows[0].days, mask(&[1]));
+
+        let content = tokio::fs::read_to_string(dir.path().join("crontab_root"))
+            .await
+            .unwrap();
+        assert!(content.contains("0 9 * * 1 wifi down"), "got: {content}");
+        assert!(content.contains("0 9 * * 2 wifi up"), "got: {content}");
+    }
+
+    #[tokio::test]
+    async fn test_blackout_deconflicts_consecutive_24h() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        // 24h on Monday AND Tuesday: the Tue 09:00 edge (Mon's "up" meeting Tue's
+        // "down") must annihilate, leaving down Mon / up Wed and continuous block.
+        blackout_set(
+            ctx.clone(),
+            DeserializeStdin(BlackoutWindows {
+                windows: vec![BlackoutWindow {
+                    start_time: "09:00".to_string(),
+                    end_time: "09:00".to_string(),
+                    days: mask(&[1, 2]),
+                }],
+            }),
+        )
+        .await
+        .unwrap();
+
+        let content = tokio::fs::read_to_string(dir.path().join("crontab_root"))
+            .await
+            .unwrap();
+        assert!(content.contains("0 9 * * 1 wifi down"), "got: {content}");
+        assert!(content.contains("0 9 * * 3 wifi up"), "got: {content}");
+        // Nothing fires at Tue 09:00 — no edge mentions day 2.
+        assert!(!content.contains("* * 2 wifi"), "got: {content}");
+    }
+
+    #[test]
+    fn test_deconflict_non_conflicting() {
+        // 09:00-17:00 Monday: a plain window keeps both its edges unchanged.
+        let (downs, ups) = deconflict_edges(&[(9 * 60, 17 * 60, mask(&[1]))]);
+        assert_eq!(downs.get(&(9 * 60)), Some(&mask(&[1])));
+        assert_eq!(ups.get(&(17 * 60)), Some(&mask(&[1])));
+    }
+
+    #[test]
+    fn test_deconflict_consecutive_24h() {
+        // Mon+Tue 09:00==09:00 → down {Mon}@540, up {Wed}@540, Tue annihilated.
+        let (downs, ups) = deconflict_edges(&[(9 * 60, 9 * 60, mask(&[1, 2]))]);
+        assert_eq!(downs.get(&(9 * 60)), Some(&mask(&[1])));
+        assert_eq!(ups.get(&(9 * 60)), Some(&mask(&[3])));
+        // Tuesday (day 2) survives in neither edge.
+        assert!(!downs[&(9 * 60)][2] && !ups[&(9 * 60)][2]);
+    }
+
+    #[test]
+    fn test_deconflict_adjacent_windows() {
+        // 06:00-22:00 Mon + 22:00-06:00 Mon (wraps to Tue) = continuous Mon 06:00
+        // → Tue 06:00. The shared 22:00 Monday edge annihilates entirely.
+        let (downs, ups) =
+            deconflict_edges(&[(6 * 60, 22 * 60, mask(&[1])), (22 * 60, 6 * 60, mask(&[1]))]);
+        assert_eq!(downs.get(&(6 * 60)), Some(&mask(&[1]))); // down Mon 06:00
+        assert_eq!(ups.get(&(6 * 60)), Some(&mask(&[2]))); // up Tue 06:00
+        assert!(!downs.contains_key(&(22 * 60)));
+        assert!(!ups.contains_key(&(22 * 60)));
+    }
+
+    #[test]
+    fn test_deconflict_and_covers_full_week() {
+        // 24h every day: all edges annihilate; covers_full_week flags it.
+        let (downs, ups) = deconflict_edges(&[(0, 0, [true; 7])]);
+        assert!(downs.is_empty() && ups.is_empty());
+        assert!(covers_full_week(&[(0, 0, [true; 7])]));
+        // Seven adjacent windows tiling the week also count as full coverage.
+        let tiling: Vec<(u32, u32, [bool; 7])> =
+            (0..7).map(|d| (0, 0, mask(&[d]))).collect();
+        assert!(covers_full_week(&tiling));
+        // A single day's gap is not full coverage.
+        assert!(!covers_full_week(&[(9 * 60, 17 * 60, [true; 7])]));
+        assert!(!covers_full_week(&[]));
+    }
+
+    #[test]
+    fn test_parse_windows_drops_malformed() {
+        // Two parts (missing the days field) is malformed and dropped; the valid
+        // entry is kept.
+        let out = parse_windows(&["09:00|17:00".to_string(), "09:00|17:00|1".to_string()]);
+        assert_eq!(out, vec![("09:00".to_string(), "17:00".to_string(), mask(&[1]))]);
+    }
+
+    #[test]
+    fn test_windows_to_minutes_drops_unparseable_times() {
+        let good = ("09:00".to_string(), "17:00".to_string(), mask(&[1]));
+        let bad = ("9".to_string(), "17:00".to_string(), mask(&[2]));
+        assert_eq!(
+            windows_to_minutes(&[good, bad]),
+            vec![(9 * 60, 17 * 60, mask(&[1]))]
+        );
     }
 }

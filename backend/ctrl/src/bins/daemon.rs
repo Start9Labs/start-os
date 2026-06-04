@@ -247,6 +247,20 @@ async fn inner_main() -> Result<(), Error> {
         if let Err(e) = crate::init::restore_wifi_if_needed().await {
             tracing::error!("WiFi auto-restore failed: {e}");
         }
+
+        // Reassert WiFi blackout if we rebooted inside an active window. Runs
+        // *after* restore_wifi_if_needed (whose job is to restore missing AP
+        // config, applying it via `wifi reload`) so our `wifi down` is the final
+        // word and the radio ends down. Nothing after this point brings the radio
+        // back up — bootstrap_admin_profile, apply_remote_access, the WAN-schedule
+        // and captive-portal steps touch firewall/dnsmasq, not the wifi radios —
+        // so the radio stays down until cron's window-end `wifi up`, by which time
+        // restore has ensured the AP config is valid. (Note: netifd already
+        // brought radios up earlier in boot — this closes the steady-state gap,
+        // not the boot-window one; see reconcile_blackout_at_boot.)
+        if let Err(e) = crate::wifi::reconcile_blackout_at_boot(&ServerContext::default()).await {
+            tracing::error!("Failed to reconcile WiFi blackout at boot: {e}");
+        }
         if let Err(e) = crate::profiles::bootstrap_admin_profile("/etc/config").await {
             tracing::error!("Admin profile bootstrap failed: {e}");
         }
@@ -256,6 +270,29 @@ async fn inner_main() -> Result<(), Error> {
         // Apply WAN schedule enforcement (UCI firewall rules)
         if let Err(e) = crate::profiles::evaluate_and_apply_schedules(&ServerContext::default()).await {
             tracing::error!("Failed to evaluate WAN schedules at boot: {e}");
+        }
+
+        // The reconcilers above fix the *current* state ("we booted mid-window");
+        // these rebuild *future* cron edges. /etc/crontabs/root is a disposable
+        // projection of the UCI schedule stores and is wiped by sysupgrade (the
+        // stores themselves persist), so regenerate both projections — WAN schedule
+        // + WiFi blackout — from UCI and reload cron once, or schedule edges would
+        // stop firing after an upgrade. No-op when there are no windows; also
+        // self-heals crontab drift on any boot. Both regenerators strip only their
+        // own tagged lines, so running them in sequence over the shared file is safe.
+        let schedule_ctx = ServerContext::default();
+        if let Err(e) = crate::profiles::regenerate_schedule_crontab(&schedule_ctx).await {
+            tracing::error!("Failed to regenerate WAN schedule crontab at boot: {e}");
+        }
+        if let Err(e) = crate::wifi::regenerate_blackout_crontab(&schedule_ctx).await {
+            tracing::error!("Failed to regenerate WiFi blackout crontab at boot: {e}");
+        }
+        if let Err(e) = crate::run_quiet_async(
+            tokio::process::Command::new("/etc/init.d/cron").arg("restart"),
+        )
+        .await
+        {
+            tracing::error!("Failed to restart cron at boot: {e}");
         }
 
         if let Err(e) = crate::captive::ensure_captive_portal_state().await {

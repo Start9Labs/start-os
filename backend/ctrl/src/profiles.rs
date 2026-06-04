@@ -2779,45 +2779,37 @@ fn parse_hhmm(s: &str) -> Result<(u32, u32), Error> {
     Ok((h, m))
 }
 
+/// Is `(day, minute)` inside the window described by `start_min`/`end_min` and
+/// the weekday `mask`? Wrap-aware: a window with `end < start` crosses midnight,
+/// and `end == start` is a full 24h window — both block from `start` on their own
+/// day through `end` the *following* day, so the after-midnight tail is gated on
+/// the previous day's mask bit. This mirrors the edge logic in
+/// `regenerate_schedule_crontab` (which shifts the unblock edge forward a day) so
+/// the boot/reload reconciler agrees with the cron edges.
+pub(crate) fn window_contains(start_min: u32, end_min: u32, mask: &[bool; 7], day: usize, minute: u32) -> bool {
+    let prev_day = (day + 6) % 7;
+    if start_min < end_min {
+        mask[day] && minute >= start_min && minute < end_min
+    } else {
+        (mask[day] && minute >= start_min) || (mask[prev_day] && minute < end_min)
+    }
+}
+
 fn serialize_schedule_windows(windows: &[ScheduleWindow]) -> Vec<String> {
-    windows
-        .iter()
-        .map(|w| {
-            let days: String = w
-                .days
-                .iter()
-                .enumerate()
-                .filter(|(_, &on)| on)
-                .map(|(i, _)| i.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
-            format!("{}|{}|{}", w.start_time, w.end_time, days)
-        })
-        .collect()
+    crate::wifi::serialize_windows(
+        windows
+            .iter()
+            .map(|w| (w.start_time.as_str(), w.end_time.as_str(), &w.days)),
+    )
 }
 
 fn parse_schedule_windows(raw: &[String]) -> Vec<ScheduleWindow> {
-    raw.iter()
-        .filter_map(|s| {
-            let parts: Vec<&str> = s.splitn(3, '|').collect();
-            if parts.len() != 3 {
-                return None;
-            }
-            let mut days = [false; 7];
-            if !parts[2].is_empty() {
-                for d in parts[2].split(',') {
-                    if let Ok(n) = d.parse::<usize>() {
-                        if n < 7 {
-                            days[n] = true;
-                        }
-                    }
-                }
-            }
-            Some(ScheduleWindow {
-                start_time: parts[0].to_string(),
-                end_time: parts[1].to_string(),
-                days,
-            })
+    crate::wifi::parse_windows(raw)
+        .into_iter()
+        .map(|(start_time, end_time, days)| ScheduleWindow {
+            start_time,
+            end_time,
+            days,
         })
         .collect()
 }
@@ -2852,10 +2844,28 @@ pub async fn schedule_set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(params): DeserializeStdin<ScheduleWindows>,
 ) -> Result<(), Error> {
-    // Validate all times before writing to UCI
+    // Validate all times before writing to UCI. end < start denotes a window
+    // that crosses midnight; end == start denotes a full 24-hour window. Both
+    // are allowed.
+    let mut parsed: Vec<(u32, u32, [bool; 7])> = Vec::with_capacity(params.windows.len());
     for window in &params.windows {
-        parse_hhmm(&window.start_time)?;
-        parse_hhmm(&window.end_time)?;
+        let (start_h, start_m) = parse_hhmm(&window.start_time)?;
+        let (end_h, end_m) = parse_hhmm(&window.end_time)?;
+        let start_min = start_h * 60 + start_m;
+        let end_min = end_h * 60 + end_m;
+        parsed.push((start_min, end_min, window.days));
+    }
+    if crate::wifi::windows_overlap(&parsed) {
+        return Err(Error::new(
+            eyre!("schedule windows overlap"),
+            ErrorKind::InvalidValue,
+        ));
+    }
+    if crate::wifi::covers_full_week(&parsed) {
+        return Err(Error::new(
+            eyre!("schedule covers the entire week with no gap; disable WAN for this profile directly instead"),
+            ErrorKind::InvalidValue,
+        ));
     }
 
     let serialized = serialize_schedule_windows(&params.windows);
@@ -2954,7 +2964,7 @@ pub(crate) async fn regenerate_schedule_crontab(ctx: &impl CtrlContext) -> Resul
 
     for section in &cfgs["startwrt"].sections {
         if let Some(profile) = section.get_typed::<UciProfile>()? {
-            let windows = parse_schedule_windows(&profile.wan_schedule);
+            let windows = crate::wifi::parse_windows(&profile.wan_schedule);
             if windows.is_empty() {
                 continue;
             }
@@ -2966,23 +2976,18 @@ pub(crate) async fn regenerate_schedule_crontab(ctx: &impl CtrlContext) -> Resul
             let egress = resolve_outbound_zone(profile.outbound.as_deref().unwrap_or("wan"));
             let sec = format!("{SCHEDULE_RULE_PREFIX}{iface}");
 
-            for window in &windows {
-                let days_str: String = window
-                    .days
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, &on)| on)
-                    .map(|(i, _)| i.to_string())
-                    .collect::<Vec<_>>()
-                    .join(",");
+            // Project this profile's windows into deconflicted block/unblock cron
+            // edges so adjacent/consecutive windows never race at a shared tick.
+            // (Overlap and full-week-no-gap coverage are rejected in schedule_set;
+            // the unblock day-shift for wrap/24h windows happens inside
+            // deconflict_edges. Windows with unparseable times are dropped + logged
+            // by windows_to_minutes.)
+            let minute_windows = crate::wifi::windows_to_minutes(&windows);
+            let (downs, ups) = crate::wifi::deconflict_edges(&minute_windows);
 
-                if days_str.is_empty() {
-                    continue;
-                }
-
-                let (start_h, start_m) = parse_hhmm(&window.start_time)?;
-                let (end_h, end_m) = parse_hhmm(&window.end_time)?;
-
+            for (&min, mask) in &downs {
+                let (start_m, start_h) = (min % 60, min / 60);
+                let days_str = crate::wifi::days_to_cron(mask);
                 // Block at start_time: add UCI firewall rule + reload
                 new_content.push_str(&format!(
                     "{start_m} {start_h} * * {days_str} \
@@ -2995,6 +3000,10 @@ pub(crate) async fn regenerate_schedule_crontab(ctx: &impl CtrlContext) -> Resul
                      /etc/init.d/firewall reload \
                      {SCHEDULE_TAG}\n"
                 ));
+            }
+            for (&min, mask) in &ups {
+                let (end_m, end_h) = (min % 60, min / 60);
+                let days_str = crate::wifi::days_to_cron(mask);
                 // Unblock at end_time: remove UCI section + reload
                 new_content.push_str(&format!(
                     "{end_m} {end_h} * * {days_str} \
@@ -3055,20 +3064,21 @@ pub(crate) async fn evaluate_and_apply_schedules(ctx: &impl CtrlContext) -> Resu
             let windows = parse_schedule_windows(&profile.wan_schedule);
 
             for window in &windows {
-                if !window.days[current_day] {
-                    continue;
-                }
                 if let (Ok((sh, sm)), Ok((eh, em))) =
                     (parse_hhmm(&window.start_time), parse_hhmm(&window.end_time))
                 {
                     let start_min = sh * 60 + sm;
                     let end_min = eh * 60 + em;
-                    let is_blocked = if start_min <= end_min {
-                        current_minutes >= start_min && current_minutes < end_min
-                    } else {
-                        current_minutes >= start_min || current_minutes < end_min
-                    };
-                    if is_blocked {
+                    // Wrap-aware: a window crossing midnight blocks on its own day
+                    // (>= start) and the following day (< end), so the after-midnight
+                    // tail must be gated on the previous day's mask — not today's.
+                    if window_contains(
+                        start_min,
+                        end_min,
+                        &window.days,
+                        current_day,
+                        current_minutes,
+                    ) {
                         should_block.insert(profile.interface.clone());
                         break;
                     }
@@ -3138,7 +3148,7 @@ pub(crate) async fn evaluate_and_apply_schedules(ctx: &impl CtrlContext) -> Resu
 }
 
 /// Returns (day_of_week 0=Sun..6=Sat, minutes_since_midnight).
-async fn chrono_now() -> (usize, u32) {
+pub(crate) async fn chrono_now() -> (usize, u32) {
     // Use the `date` command for portability on OpenWrt (no chrono crate).
     let output = tokio::process::Command::new("date")
         .args(["+%w %H %M"])
@@ -3164,6 +3174,54 @@ mod tests {
     use super::*;
     use rpc_toolkit::Context;
     use std::path::PathBuf;
+
+    #[test]
+    fn test_window_contains_non_wrap() {
+        // 09:00-17:00 on Monday (day 1) only.
+        let mut mon = [false; 7];
+        mon[1] = true;
+        let (s, e) = (9 * 60, 17 * 60);
+        assert!(window_contains(s, e, &mon, 1, 12 * 60)); // Mon noon: blocked
+        assert!(!window_contains(s, e, &mon, 1, 8 * 60)); // Mon 08:00: before
+        assert!(!window_contains(s, e, &mon, 1, 17 * 60)); // Mon 17:00: half-open end
+        assert!(!window_contains(s, e, &mon, 2, 12 * 60)); // Tue: wrong day
+    }
+
+    #[test]
+    fn test_window_contains_wrap() {
+        // 22:00-06:00 on Saturday (day 6) only; tail spills into Sunday (day 0).
+        let mut sat = [false; 7];
+        sat[6] = true;
+        let (s, e) = (22 * 60, 6 * 60);
+        // Head: Saturday night, gated on Saturday's mask bit.
+        assert!(window_contains(s, e, &sat, 6, 23 * 60)); // Sat 23:00: blocked
+        assert!(!window_contains(s, e, &sat, 6, 21 * 60)); // Sat 21:00: before start
+        // Tail: Sunday morning, gated on the *previous* day (Saturday) — this is
+        // the case the old reconciler missed (it checked days[Sunday]).
+        assert!(window_contains(s, e, &sat, 0, 2 * 60)); // Sun 02:00: blocked
+        assert!(!window_contains(s, e, &sat, 0, 6 * 60)); // Sun 06:00: half-open end
+        assert!(!window_contains(s, e, &sat, 0, 8 * 60)); // Sun 08:00: after end
+        // Sunday-night must NOT be blocked: neither Sun nor Mon mask is set.
+        assert!(!window_contains(s, e, &sat, 0, 23 * 60));
+    }
+
+    #[test]
+    fn test_window_contains_full_day() {
+        // 09:00-09:00 on Monday (day 1): a full 24h window blocking Mon 09:00
+        // through Tue 09:00. Equal start/end routes through the wrap branch.
+        let mut mon = [false; 7];
+        mon[1] = true;
+        let (s, e) = (9 * 60, 9 * 60);
+        // Head: from 09:00 to midnight on Monday itself.
+        assert!(window_contains(s, e, &mon, 1, 12 * 60)); // Mon noon: blocked
+        assert!(window_contains(s, e, &mon, 1, 9 * 60)); // Mon 09:00: start, blocked
+        assert!(!window_contains(s, e, &mon, 1, 8 * 60)); // Mon 08:00: before start
+        // Tail: from midnight to 09:00 on Tuesday, gated on Monday's mask bit.
+        assert!(window_contains(s, e, &mon, 2, 2 * 60)); // Tue 02:00: blocked
+        assert!(window_contains(s, e, &mon, 2, 8 * 60)); // Tue 08:00: blocked
+        assert!(!window_contains(s, e, &mon, 2, 9 * 60)); // Tue 09:00: half-open end
+        assert!(!window_contains(s, e, &mon, 2, 10 * 60)); // Tue 10:00: after end
+    }
     use std::sync::Arc;
     use tokio::runtime::Runtime;
 

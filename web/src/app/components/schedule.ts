@@ -9,7 +9,7 @@ import {
   WritableSignal,
 } from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiButton, TuiIcon } from '@taiga-ui/core'
+import { TuiButton } from '@taiga-ui/core'
 import { TuiAutoColorPipe, TuiTimeline } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { AddWindow } from 'src/app/components/window'
@@ -23,27 +23,32 @@ import {
 @Component({
   selector: 'app-schedule',
   template: `
-    @for (day of order; track $index) {
+    @for (col of columns(); track col.day) {
       <tui-timeline
         #timeline
         orientation="vertical"
         [max]="96"
         [template]="gap"
       >
-        <span class="day">{{ labels[day] }}</span>
-        @for (window of view(); track $index) {
-          @if (window.days[day]) {
-            <label
-              tuiTimelineItem
-              [style.--color]="(($index + 1) * 123).toString() | tuiAutoColor"
-              [(value)]="window.range"
-              (dblclick)="edit($index)"
-            >
-              <tui-icon icon="@tui.ellipsis" />
-              <span class="time" [innerHTML]="getTime(window.range)"></span>
-              <tui-icon icon="@tui.ellipsis" />
-            </label>
-          }
+        <span class="day">{{ labels[col.day] }}</span>
+        @for (block of col.blocks; track block.windowIndex + '-' + block.kind) {
+          <label
+            tuiTimelineItem
+            [draggable]="false"
+            [resizable]="false"
+            [style.--color]="
+              ((block.windowIndex + 1) * 123).toString() | tuiAutoColor
+            "
+            [value]="block.range"
+            (click)="edit(block.windowIndex)"
+          >
+            @if (block.kind !== 'tail') {
+              <span class="time start">{{ block.start }}</span>
+            }
+            @if (block.kind !== 'head') {
+              <span class="time end">{{ block.end }}</span>
+            }
+          </label>
         }
         <ng-template #gap let-index>
           <div [style.width.%]="100" [style.overflow]="'hidden'">
@@ -53,7 +58,7 @@ import {
               size="s"
               type="button"
               appearance="secondary-grayscale"
-              (click)="add(day, index, timeline.value())"
+              (click)="add(col.day, index, timeline.value())"
             >
               Add
             </button>
@@ -83,8 +88,12 @@ import {
 
     [tuiTimelineItem] {
       background: var(--tui-background-neutral-1);
-      box-shadow: inset 0 0 0 0.875rem var(--tui-background-neutral-1-hover);
-      clip-path: inset(1px 2px round 0.125rem);
+      clip-path: inset(1px 0 round 0.125rem);
+      /* Blocks are not draggable/resizable; re-enable pointer events (the
+         timeline item host sets pointer-events: none) so click to edit
+         works. */
+      pointer-events: auto;
+      cursor: pointer;
 
       &::before {
         content: '';
@@ -108,29 +117,25 @@ import {
       background: var(--tui-border-normal);
     }
 
-    tui-icon {
-      position: absolute;
-      width: 100%;
-
-      &:first-of-type {
-        top: -0.25rem;
-      }
-
-      &:last-of-type {
-        bottom: -0.25rem;
-      }
-    }
-
     .time {
       position: absolute;
       writing-mode: horizontal-tb;
-      display: flex;
-      align-items: center;
-      inset: 0;
-      justify-content: center;
+      width: 100%;
       text-align: center;
-      line-height: 1;
-      clip-path: inset(1rem);
+      line-height: 1.5em;
+      backdrop-filter: brightness(1);
+
+      :host-context([tuiTheme='dark']) & {
+        backdrop-filter: brightness(0.3);
+      }
+
+      &.start {
+        top: 0;
+      }
+
+      &.end {
+        bottom: 0;
+      }
     }
 
     button {
@@ -175,7 +180,7 @@ import {
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(change)': 'save()' },
-  imports: [TuiTimeline, TuiIcon, TuiAutoColorPipe, TuiButton],
+  imports: [TuiTimeline, TuiAutoColorPipe, TuiButton],
 })
 export class ScheduleComponent {
   public readonly windows = model<ScheduleWindow[]>([])
@@ -199,8 +204,74 @@ export class ScheduleComponent {
         current?.value.length ? current.value : source,
     })
 
-  protected getTime(range: readonly [number, number]): string {
-    return `${format(to(range[0]))}<br />-<br />${format(to(range[1]))}`
+  // Per day-column render blocks. A window that genuinely spills past midnight
+  // (range start >= end with end > 0 — start > end crosses midnight, start ==
+  // end is a 24h window like 09:00-09:00) renders as two blocks for one logical
+  // window: a "head" at the end of its own day(s) and a "tail" at the start of
+  // the next day(s). Non-wrapping windows — and windows ending exactly at
+  // midnight (end == 0), which close on their own day with no tail — stay a
+  // single "whole" block. A "whole" block labels both its start (top) and end
+  // (bottom). To read as one continuous overnight window rather than two, the
+  // head omits its midnight end label and the tail omits its midnight start
+  // label (see template) — leaving only the real start on the head and the real
+  // end on the tail. All blocks are edited via the dialog (single click); none
+  // are draggable or resizable.
+  protected readonly columns = computed(() =>
+    this.order.map(day => {
+      const blocks: {
+        windowIndex: number
+        kind: 'whole' | 'head' | 'tail'
+        range: readonly [number, number]
+        start: string
+        end: string
+      }[] = []
+      const block = (
+        windowIndex: number,
+        kind: 'whole' | 'head' | 'tail',
+        range: readonly [number, number],
+      ) => ({
+        windowIndex,
+        kind,
+        range,
+        start: format(to(range[0])),
+        end: format(to(range[1])),
+      })
+      this.view().forEach((win, windowIndex) => {
+        const [start, end] = win.range
+        // start >= end spans past midnight, but a window ending *exactly* at
+        // midnight (end == 0) closes on its own day — no tail spills into the
+        // next column — so it stays a single 'whole' block keeping both its
+        // start and end (12:00am) labels. Only a window whose end lands after
+        // midnight (end > 0) splits into a head here + a next-day tail.
+        const wrap = start >= end
+        const wrapsNextDay = wrap && end > 0
+        if (win.days[day]) {
+          blocks.push(
+            block(
+              windowIndex,
+              wrapsNextDay ? 'head' : 'whole',
+              wrap ? ([start, 96] as const) : win.range,
+            ),
+          )
+        }
+        // The previous day's wrapping window spills its tail into this column.
+        if (wrapsNextDay && win.days[(day + 6) % 7]) {
+          blocks.push(block(windowIndex, 'tail', [0, end] as const))
+        }
+      })
+      return { day, blocks }
+    }),
+  )
+
+  // All other windows as ScheduleWindows, for the dialog's overlap check.
+  private others(exclude?: number): ScheduleWindow[] {
+    return this.view()
+      .filter((_, i) => i !== exclude)
+      .map(({ range, days }) => ({
+        startTime: to(range[0]),
+        endTime: to(range[1]),
+        days,
+      }))
   }
 
   protected edit(index: number) {
@@ -213,6 +284,7 @@ export class ScheduleComponent {
             startTime: to(this.view()[index].range[0]),
             endTime: to(this.view()[index].range[1]),
             days: this.view()[index].days,
+            others: this.others(index),
           },
         },
       )
@@ -239,7 +311,8 @@ export class ScheduleComponent {
     ranges: (readonly [number, number])[],
   ) {
     const days = this.order.map(() => false)
-    const start = ranges.map(([_, end]) => end).sort()[index - 1] || 0
+    const start =
+      ranges.map(([_, end]) => end).sort((a, b) => a - b)[index - 1] || 0
 
     days[day] = true
     this.dialogs
@@ -251,6 +324,7 @@ export class ScheduleComponent {
             startTime: to(start),
             endTime: to(start + 4),
             days,
+            others: this.others(),
           },
         },
       )

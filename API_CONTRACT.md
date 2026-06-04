@@ -990,6 +990,13 @@ struct BlackoutWindow {
 // Response: Vec<BlackoutWindow>
 ```
 
+A window may cross midnight: when `end_time < start_time` (e.g. `22:00`–`06:00`) it runs
+from `start_time` on each selected day until `end_time` the *following* day, and the
+backend shifts the closing cron edge forward one day. Equal `start_time`/`end_time` is
+rejected (ambiguous 0h/24h). On `*-set`, windows that overlap on the weekly timeline
+(wrap-aware) are also rejected with `InvalidValue`. The same wrap and overlap semantics
+apply to the profile `profiles.schedule-get` / `profiles.schedule-set` windows.
+
 ### `wifi.blackout-set`
 
 ```rust

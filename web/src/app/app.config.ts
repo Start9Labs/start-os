@@ -15,11 +15,9 @@ import { provideRouter, withRouterConfig } from '@angular/router'
 import { tuiSheetDialogOptionsProvider } from '@taiga-ui/addon-mobile'
 import {
   provideTaiga,
-  TUI_APPEARANCE_OPTIONS,
   tuiButtonOptionsProvider,
   tuiCheckboxOptionsProvider,
   tuiDialogOptionsProvider,
-  tuiDropdownOptionsProvider,
   tuiIconsProvider,
   tuiRadioOptionsProvider,
   tuiTextfieldOptionsProvider,
@@ -56,13 +54,9 @@ export const appConfig: ApplicationConfig = {
     tuiCheckboxOptionsProvider({ size: 's' }),
     tuiTextfieldOptionsProvider({ size: signal('m'), cleaner: signal(false) }),
     tuiFormOptionsProvider({ size: 'm' }),
-    tuiCardOptionsProvider({ space: 'compact' }),
+    tuiCardOptionsProvider({ space: 'compact', appearance: 'floating' }),
     tuiDialogOptionsProvider({ size: 's' }),
     tuiSheetDialogOptionsProvider({ bar: false, offset: 72 }),
-    {
-      provide: TUI_APPEARANCE_OPTIONS,
-      useValue: { appearance: 'floating' },
-    },
     {
       provide: ApiService,
       useClass: useMocks ? MockApiService : LiveApiService,
