@@ -2,7 +2,7 @@ import { GetSystemSmtp, Patterns } from '../../util'
 import { InputSpec } from './builder/inputSpec'
 import { Value } from './builder/value'
 import { Variants } from './builder/variants'
-import { z } from 'zod'
+import { z } from '../../zExport'
 
 const securityVariants = Variants.of({
   tls: {
