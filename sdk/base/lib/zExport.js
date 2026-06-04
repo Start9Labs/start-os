@@ -58,26 +58,6 @@ zod_1.z.deepLoose = deepLoose;
 const _origObject = zod_1.z.object;
 const _patchedObject = (...args) => _origObject(...args).loose();
 
-// In CJS (Node.js), patch the source module in require.cache where 'object' is a writable property;
-// the CJS getter chain (index → external → schemas) then relays the patched version.
-// We walk only the zod entry module's dependency tree and match by identity (=== origObject).
-try {
-  const _zodModule = require.cache[require.resolve("zod")];
-  for (const child of _zodModule?.children ?? []) {
-    for (const grandchild of child.children ?? []) {
-      const desc = Object.getOwnPropertyDescriptor(
-        grandchild.exports,
-        "object",
-      );
-      if (desc?.value === _origObject && desc.writable) {
-        grandchild.exports.object = _patchedObject;
-      }
-    }
-  }
-} catch (_) {
-  // Not in CJS/Node environment (e.g. browser) — require.cache unavailable
-}
-
 // z.object is a non-configurable getter on the zod namespace, so we can't override it directly.
 // Shadow it by exporting a new object with _z as prototype and our patched object on the instance.
 const z = Object.create(zod_1.z, {

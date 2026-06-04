@@ -7,7 +7,7 @@ import {
   ValueSpecList,
   ValueSpecListOf,
 } from '../inputSpecTypes'
-import { z } from 'zod'
+import { z } from '../../../zExport'
 
 /**
  * Builder class for defining list-type form fields.

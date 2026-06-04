@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from '../zExport'
 import { Effects } from '../Effects'
 import { Origin } from './Origin'
 import { AddSslOptions } from '../osBindings'

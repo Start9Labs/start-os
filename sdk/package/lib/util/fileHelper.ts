@@ -8,7 +8,7 @@ import {
 import * as INI from 'ini'
 import * as fs from 'node:fs/promises'
 import * as YAML from 'yaml'
-import { z } from 'zod'
+import { z } from '../../../base/lib/zExport'
 import * as T from '../../../base/lib/types'
 import { asError, deepEqual } from '../../../base/lib/util'
 import { Watchable } from '../../../base/lib/util/Watchable'
@@ -463,6 +463,14 @@ function rawTransformed<A extends Transformed, Raw, Transformed>(
   )
 }
 
+// Deep-loosen a file-model shape so unknown keys present in the on-disk file
+// survive validation (and the merge round-trip) instead of being stripped.
+// Computed once per FileHelper construction.
+function deepLooseParse<A>(shape: z.ZodType<A>): (data: unknown) => A {
+  const loose = z.deepLoose(shape)
+  return data => loose.parse(data)
+}
+
 interface FileHelperStatic {
   /** Create a File Helper for an arbitrary file type. */
   raw<A>(
@@ -600,7 +608,7 @@ export const FileHelper: FileHelperStatic = {
       path,
       inData => JSON.stringify(inData, null, 2),
       inString => JSON.parse(inString),
-      data => shape.parse(data),
+      deepLooseParse(shape),
       transformers,
     )
   },
@@ -620,7 +628,7 @@ export const FileHelper: FileHelperStatic = {
       path,
       inData => YAML.stringify(inData, null, { indent: 2, ...options }),
       inString => YAML.parse(inString, options),
-      data => shape.parse(data),
+      deepLooseParse(shape),
       transformers,
     )
   },
@@ -634,7 +642,7 @@ export const FileHelper: FileHelperStatic = {
       path,
       inData => TOML.stringify(inData as TOML.JsonMap),
       inString => TOML.parse(inString),
-      data => shape.parse(data),
+      deepLooseParse(shape),
       transformers,
     )
   },
@@ -649,7 +657,7 @@ export const FileHelper: FileHelperStatic = {
       path,
       inData => INI.stringify(filterUndefined(inData), options),
       inString => INI.parse(inString, options),
-      data => shape.parse(data),
+      deepLooseParse(shape),
       transformers,
     )
   },
@@ -676,7 +684,7 @@ export const FileHelper: FileHelperStatic = {
               return [line.slice(0, pos), line.slice(pos + 1)]
             }),
         ),
-      data => shape.parse(data),
+      deepLooseParse(shape),
       transformers,
     )
   },
@@ -693,7 +701,7 @@ export const FileHelper: FileHelperStatic = {
       path,
       inData => builder.build(inData),
       inString => parser.parse(inString),
-      data => shape.parse(data),
+      deepLooseParse(shape),
       transformers,
     )
   },

@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from '../zExport'
 import { InitScript } from '../inits'
 import * as T from '../types'
 import { once } from '../util'
