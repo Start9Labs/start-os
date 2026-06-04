@@ -7,6 +7,11 @@ get_variables () {
   ROOT_DEV="/dev/${ROOT_DEV_NAME}"
   ROOT_PART_NUM=$(cat "/sys/block/${ROOT_DEV_NAME}/${ROOT_PART_NAME}/partition")
 
+  # Relocate the GPT backup header to the disk end before any parted call; on a
+  # freshly-flashed (larger) card it sits mid-disk and parted otherwise blocks
+  # on an interactive Fix/Ignore prompt, freezing the headless boot.
+  sgdisk -e "$ROOT_DEV" 2>/dev/null || true
+
   BOOT_PART_DEV=$(findmnt /boot -o source -n)
   BOOT_PART_NAME=$(echo "$BOOT_PART_DEV" | cut -d "/" -f 3)
   BOOT_DEV_NAME=$(echo /sys/block/*/"${BOOT_PART_NAME}" | cut -d "/" -f 4)
@@ -24,7 +29,7 @@ get_variables () {
       DATA_PART_END=$USABLE_END
   fi
 
-  PARTITION_TABLE=$(parted -m "$ROOT_DEV" unit s print | tr -d 's')
+  PARTITION_TABLE=$(parted -ms "$ROOT_DEV" unit s print | tr -d 's')
 
   LAST_PART_NUM=$(echo "$PARTITION_TABLE" | tail -n 1 | cut -d ":" -f 1)
 
@@ -58,16 +63,11 @@ check_variables () {
 main () {
   get_variables
 
-  # Fix GPT backup header first — the image was built with a tight root
-  # partition, so the backup GPT is not at the end of the SD card. parted
-  # will prompt interactively if this isn't fixed before we use it.
-  sgdisk -e "$ROOT_DEV" 2>/dev/null || true
-
   if ! check_variables; then
     return 1
   fi
 
-  if ! echo Yes | parted -m --align=optimal "$ROOT_DEV" ---pretend-input-tty u s resizepart "$ROOT_PART_NUM" "$TARGET_END" ; then
+  if ! parted -ms --align=optimal "$ROOT_DEV" u s resizepart "$ROOT_PART_NUM" "$TARGET_END" ; then
     FAIL_REASON="Root partition resize failed"
     return 1
   fi
