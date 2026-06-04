@@ -84,12 +84,17 @@ PLATFORM_CONFIG_EXTRAS=()
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-binary false )
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-chroot false )
-	# Ship both Pi-vendor kernels — rpi-v8 (Cortex-A72, Pi 4 family) and
-	# rpi-2712 (Cortex-A76, Pi 5 family). A custom /etc/grub.d/ snippet
-	# (see squashfs/etc/grub.d/05_pi_kernel_select) picks the right one
-	# at boot time via EDK2 SMBIOS. A76-tuned rpi-2712 would crash a Pi
-	# 4, so we can't just default-boot the newer kernel everywhere.
-	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours "rpi-v8 rpi-2712" )
+	# Use the GENERIC Debian arm64 kernel, not the Pi-vendor (RPT)
+	# rpi-v8/rpi-2712 kernels. Under pftf/EDK2 the RPT kernels are
+	# device-tree-only (no CONFIG_ACPI) and freeze immediately after GRUB:
+	# the firmware defaults to ACPI mode and hands them a null device
+	# tree, so they bring up no console and no storage. The generic arm64
+	# kernel has CONFIG_ACPI + the EFI stub and boots cleanly under EDK2's
+	# default ACPI handoff — the same path Ubuntu/Fedora/openSUSE use on
+	# pftf, and the kernel StartOS's own aarch64 target already ships. This
+	# sidesteps the device-tree-delivery problem (pftf can't auto-run a
+	# startup.nsh to flip to DT mode — see pftf/RPi4#156).
+	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours arm64 )
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours rockchip64 )
 elif [ "${IB_TARGET_ARCH}" = "riscv64" ]; then
@@ -509,19 +514,13 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	# Total image: just the partitions (MBR table, no GPT backup header).
 	IMG_LEN=$((BOOT_END + 1))
 
-	# Fail the build loudly if a kernel flavour silently dropped. Both
-	# rpi-v8 (Pi 4 family) and rpi-2712 (Pi 5 family) must be present, or
-	# /etc/grub.d/05_pi_kernel_select is a dead no-op and Pi 5 silently
-	# runs the unoptimized rpi-v8 kernel. (A prior unquoted
-	# --linux-flavours expansion word-split the value and dropped
-	# rpi-2712 — guard so any future regression fails here, not on a Pi.)
-	for fl in rpi-v8 rpi-2712; do
-		if ! unsquashfs -l $prep_results_dir/binary/live/filesystem.squashfs 2>/dev/null \
-			| grep -q "/boot/vmlinuz-.*-$fl\$"; then
-			echo "FATAL: kernel flavour '$fl' missing from squashfs — check the quoted --linux-flavours in lb config" >&2
-			exit 1
-		fi
-	done
+	# Fail the build loudly if the generic arm64 kernel didn't land (the
+	# live build pulls linux-image-arm64 via --linux-flavours arm64).
+	if ! unsquashfs -l $prep_results_dir/binary/live/filesystem.squashfs 2>/dev/null \
+		| grep -q "/boot/vmlinuz-.*-arm64\$"; then
+		echo "FATAL: generic arm64 kernel (vmlinuz-*-arm64) missing from squashfs — check --linux-flavours" >&2
+		exit 1
+	fi
 
 	TARGET_NAME=$prep_results_dir/${IMAGE_BASENAME}.img
 	truncate -s $IMG_LEN $TARGET_NAME
