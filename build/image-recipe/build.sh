@@ -203,10 +203,11 @@ if [ "$NVIDIA" = 1 ]; then
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-# Pi kernels come only from the Raspberry Pi archive (the vendor +rpt kernels).
-# Debian's generic/RT kernel is a higher version than the +rpt kernel, so it
-# would win GRUB's version-sorted default and boot instead — forbid Debian-origin
-# kernel images/headers here so /boot stays vendor-only.
+# Pin the Pi to exactly the versioned +rpt kernels live-build installs. Two
+# things would otherwise outrank them in GRUB's version-sorted default and boot
+# instead: Debian's generic/RT kernel (a newer version), and the unversioned RPT
+# kernel metas (linux-image-rpi-*) which track the latest +rpt release and get
+# pulled transitively. Forbid both so /boot holds only the pinned vendor kernels.
 cat > config/archives/backports.pref <<-EOF
 Package: *nvidia*
 Pin: release n=${IB_SUITE}-backports
@@ -218,6 +219,10 @@ Pin-Priority: -1
 
 Package: linux-image-* linux-headers-*
 Pin: origin "security.debian.org"
+Pin-Priority: -1
+
+Package: linux-image-rpi-* linux-headers-rpi-*
+Pin: version *
 Pin-Priority: -1
 EOF
 else
